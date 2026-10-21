@@ -175,7 +175,7 @@ it is the only split (Home when there is none). Leave settings by picking any
 other rail item; there is no separate back or fullscreen control.
 
 Settings pages use the email composer’s raised surfaces on the page background.
-Section headings and controls share the composer surface, a faint button-style
+Section headings and controls share the composer surface, a fine beveled
 edge, a small ambient shadow, and subtle row separators on desktop. The compact
 sidebar uses the shared workspace width.
 

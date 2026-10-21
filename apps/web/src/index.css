@@ -96,6 +96,9 @@
   --glass-rim-soft-base: 9%;
   --glass-rim-shade-base: 0%;
   --glass-rim-gap-ratio: 0;
+  --glass-desktop-outline: rgb(0 0 0 / 0.4);
+  --glass-desktop-inner-edge: rgb(255 255 255 / 0.06);
+  --glass-desktop-top-edge: rgb(255 255 255 / 0.1);
   /* Mobile chrome has two diagonal reflections with quiet opposing corners. */
   --island-rim-strong: 28%;
   --island-rim-soft: 12%;
@@ -128,6 +131,9 @@ html[data-theme-light='true'] {
   --glass-rim-shade-base: 7%;
   /* Keep quiet corners close to the highlight instead of exposing a dark rim. */
   --glass-rim-gap-ratio: 0.85;
+  --glass-desktop-outline: var(--color-edge-frame);
+  --glass-desktop-inner-edge: rgb(255 255 255 / 0.6);
+  --glass-desktop-top-edge: rgb(255 255 255 / 0.9);
   --island-rim-strong: 75%;
   --island-rim-soft: 40%;
 }
@@ -780,9 +786,9 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
    length). Shape and background come from the consumer, so this composes with
    any radius — the rim inherits it — and with variants (`mobile:glass`).
 
-   Desktop surfaces use the button border and a small ambient shadow. Touch
-   keeps the specular rim and highlights. Consumers can override the rim
-   without owning its pseudo-element. */
+   Desktop surfaces use a fine dark outline, a faint inner edge, and a brighter
+   top edge with the small ambient shadow. Touch keeps its specular treatment.
+   Consumers can override the rim without owning its pseudo-element. */
 @utility glass {
   --glass-rim-background: linear-gradient(
     to bottom right,
@@ -845,13 +851,13 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
 
   &:where(html:not([data-touch-device="true"]) *) {
     --glass-backdrop: none;
-    --glass-rim-background: linear-gradient(var(--color-edge-button), var(--color-edge-button));
+    --glass-rim-background: none;
     --glass-rim-shade-base: 0%;
-    --glass-shadow: var(--shadow-menu);
-  }
-
-  &:where(html[data-theme-light="true"]:not([data-touch-device="true"]) *) {
-    --glass-rim-background: linear-gradient(var(--color-edge-frame), var(--color-edge-frame));
+    --glass-shadow:
+      0 0 0 1px var(--glass-desktop-outline),
+      inset 0 1px 0 var(--glass-desktop-top-edge),
+      inset 0 0 0 1px var(--glass-desktop-inner-edge),
+      var(--shadow-menu);
   }
 }
 
@@ -928,7 +934,7 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
   --glass-shadow-scale: 0.5;
 }
 
-/* Shared menu appearance: a button-colored edge and soft shadow on desktop,
+/* Shared menu appearance: a fine beveled edge and compact shadow on desktop,
    with the existing glass treatment on touch. */
 @utility menu-surface {
   @apply glass relative min-h-0 rounded-xl bg-menu text-ink;

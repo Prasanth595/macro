@@ -30,8 +30,9 @@ actions remove the transparent border to keep their text alignment.
 
 Use the shared button-aligned treatment for desktop controls and floating
 surfaces. Controls use `bg-control` and `border-edge-button`; composers, menus,
-and dialogs use their semantic fill with the same uniform edge and the compact
-`shadow-menu` shadow. Keep buttons flat and add elevation only where needed.
+and dialogs use their semantic fill with a fine outer outline, a faint inner
+edge, a brighter top edge, and the compact `shadow-menu` shadow. Keep
+buttons flat and add elevation only where needed.
 In light mode, floating surfaces use the frame edge and a tighter, low-opacity
 contact shadow so white composers and menus separate cleanly from near-white
 content. Dark and touch surfaces keep their existing shadows.
@@ -41,8 +42,9 @@ inside a transparent outlined track, without a separate active tint or shadow.
 
 Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`, and
 `elevated-surface` instead of introducing one-off surface styling. Settings
-cards inherit `ComposerSurface`. Do not add specular rims, inset shading,
-broad halos, or custom shadows. Touch retains its existing glass treatment.
+cards inherit `ComposerSurface`. Use the shared restrained bevel; do not
+add diagonal reflections, dark inset shading, broad halos, or custom shadows.
+Touch retains its existing glass treatment.
 Desktop Chat/Code footer controls sit below that surface without a second
 background or rim. Keeping the footer visible does not expand an empty Chat input.
 
