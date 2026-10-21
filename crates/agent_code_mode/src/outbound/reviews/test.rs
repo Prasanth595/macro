@@ -43,6 +43,7 @@ async fn review_revision_claim_is_atomic_and_session_deletion_removes_reviews(po
         notification_id: None,
         notification_attempt_at: None,
         settled_at: None,
+        approved_by_agent: None,
         items: vec![ReviewItem {
             id: macro_uuid::generate_uuid_v7(),
             draft: json!({"subject":"Which?"}),

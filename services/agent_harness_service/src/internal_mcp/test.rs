@@ -197,6 +197,8 @@ async fn each_harness_gets_only_internal_tools_and_writes_only_its_session() {
         assert!(instructions.contains("macro_internal.set_pull_request"));
         assert!(instructions.contains("register its URL"));
         assert!(instructions.contains(prompt::pull_requests::READY_PULL_REQUEST));
+        assert!(instructions.contains("macro_internal.ApproveReview"));
+        assert!(instructions.contains("Should I kick it off?"));
         let (status, listed) = rpc(
             app.clone(),
             Some("secret"),
@@ -215,12 +217,26 @@ async fn each_harness_gets_only_internal_tools_and_writes_only_its_session() {
         assert_eq!(
             names,
             [
+                "ApproveReview",
                 "PresentReview",
                 "link_task",
                 "set_pull_request",
                 "task_pull_requests"
             ]
         );
+        let description = |name: &str| {
+            listed["result"]["tools"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|tool| tool["name"] == name)
+                .and_then(|tool| tool["description"].as_str())
+                .unwrap()
+                .to_owned()
+        };
+        assert!(description("PresentReview").contains("Should I kick it off?"));
+        assert!(description("ApproveReview").contains("Should I kick it off?"));
+        assert!(description("ApproveReview").contains("somebody other than the owner prompted"));
         // The presentation tool is advertised without code mode, but startup
         // wiring must be complete before a call can create a saved review.
         let (_, unavailable) = rpc(

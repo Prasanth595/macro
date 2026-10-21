@@ -60,6 +60,7 @@ const PART_BUFFER: usize = 256;
 
 const EAGER_INTERNAL_MCP_TOOLS: &[&str] = &[
     "mcp__macro_internal__PresentReview",
+    "mcp__macro_internal__ApproveReview",
     "mcp__macro_internal__ExecuteCode",
     "mcp__macro_internal__DescribeCodeTools",
 ];

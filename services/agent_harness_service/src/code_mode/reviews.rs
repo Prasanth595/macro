@@ -58,10 +58,27 @@ impl<S: AgentSessionRepo, H: AgentSessionNotificationRecipient> ReviewActions fo
                 .cloned()
                 .map_err(|_| CodeModeError::Forbidden)?,
             archived: row.is_archived,
+            turn_prompter: self
+                .sessions
+                .turn_prompter(session)
+                .await
+                .map_err(|error| CodeModeError::Storage(rootcause::report!(error).into()))?
+                .and_then(|prompter| prompter.user),
         })
     }
     fn validate(&self, kind: ReviewKind, draft: &Value) -> Result<(), CodeModeError> {
         validate_draft(&self.tools, kind, draft)
+    }
+    async fn approvable(
+        &self,
+        owner: &MacroUserIdStr<'static>,
+        record: &ReviewRecord,
+    ) -> Result<bool, CodeModeError> {
+        if record.kind != ReviewKind::Import {
+            return Ok(true);
+        }
+        let report = self.import_report(owner).await?;
+        Ok(report.review_id == Some(record.id.0) && report.status == Some(RunStatus::Ready))
     }
     async fn execute(
         &self,

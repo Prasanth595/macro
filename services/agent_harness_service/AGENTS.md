@@ -43,6 +43,7 @@ sessions: agent-session trigger events in, sandboxed coding agent sessions
 - Internal session tools require a verified acting user plus owner/edit authorization. Keep their restricted prompt/stop route separate from human approval controls.
 - An import review's draft is `{source, excluded, shared, personal}`: the rows the owner left out and the rows whose sharing they flipped, passed to `start_notion_write` as `NotionWriteChoices`.
 - The harness hands running Notion imports over on shutdown (`ai_tools::ImportJobs::hand_over`), as every host that builds the import service does.
+- `ApproveReview` lets the agent approve a presented review after the owner says yes in chat: `Actions::session` reports the turn's prompter from `agent_session.turn_prompter`, and `approvable` refuses an import whose plan is not `ready` for that review.
 - An approved import review settles when its Notion write ends: the import service calls `POST /internal/agent-reviews/{id}/settled` (internal key, acting as the owner), and `code_mode/reviews.rs` continues the session on the final report as private context, once per review.
 
 The composition root wires `PgExternalReplyStore` into the harness and recovers

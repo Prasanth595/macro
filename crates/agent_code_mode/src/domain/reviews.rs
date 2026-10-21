@@ -25,9 +25,11 @@ const ACTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 const MAX_RESULT_BYTES: usize = 8192;
 
 /// Persisted review identity.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema, schemars::JsonSchema,
+)]
 #[serde(transparent)]
-pub struct ReviewId(pub Uuid);
+pub struct ReviewId(#[schemars(with = "String")] pub Uuid);
 
 /// The component and action used to finish a review.
 #[derive(
@@ -142,6 +144,20 @@ pub struct ReviewRecord {
     /// session hears the final outcome once.
     #[serde(default)]
     pub settled_at: Option<i64>,
+    /// Set when the session's agent approved the review because its owner
+    /// said so in chat, instead of the owner approving it on the card.
+    #[serde(default)]
+    pub approved_by_agent: Option<AgentApproval>,
+}
+
+/// The agent approved a review on its owner's word in chat.
+#[derive(Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentApproval {
+    /// The owner who prompted the turn the agent approved it in.
+    pub requested_by: MacroUserIdStr<'static>,
+    /// Milliseconds since epoch.
+    pub at: i64,
 }
 
 /// One atomic user decision against the displayed revision.
@@ -206,6 +222,9 @@ pub struct ReviewSession {
     pub owner: MacroUserIdStr<'static>,
     /// Archived sessions cannot start actions or new notification turns.
     pub archived: bool,
+    /// Who prompted the turn the session is running or last ran; `None`
+    /// before its first turn or when a bot prompted it on nobody's behalf.
+    pub turn_prompter: Option<MacroUserIdStr<'static>>,
 }
 
 /// Existing domain actions and session control composed by the harness.
@@ -215,6 +234,13 @@ pub trait ReviewActions: Send + Sync + 'static {
     async fn session(&self, session: AgentSessionId) -> Result<ReviewSession, CodeModeError>;
     /// Validate draft structure without performing the action.
     fn validate(&self, kind: ReviewKind, draft: &Value) -> Result<(), CodeModeError>;
+    /// Whether `record`'s action can start now; an import whose plan is
+    /// still being made cannot.
+    async fn approvable(
+        &self,
+        owner: &MacroUserIdStr<'static>,
+        record: &ReviewRecord,
+    ) -> Result<bool, CodeModeError>;
     /// Execute the reviewed draft of `review` as its authenticated owner.
     async fn execute(
         &self,
@@ -342,6 +368,7 @@ impl ReviewService {
             notification_id: None,
             notification_attempt_at: None,
             settled_at: None,
+            approved_by_agent: None,
             items: input
                 .drafts
                 .into_iter()
@@ -579,6 +606,67 @@ impl ReviewService {
             ReviewDecision::Dismiss { items, .. } => (items, false),
             ReviewDecision::Edit { .. } => unreachable!(),
         };
+        self.claim(record, actor, ids, submit).await
+    }
+    /// Approve every pending item of an open review in `session`, because
+    /// its owner told the agent to in chat. It runs the card's Submit with
+    /// the draft the card saved, so the owner's changes there stand, and
+    /// only in a turn the owner prompted: anyone else's message, or a bot's,
+    /// never approves. Racing the card, or repeating, claims once; the loser
+    /// gets [`CodeModeError::Conflict`].
+    #[tracing::instrument(skip(self, session), fields(session = %session.id, review = %id.0), err(Debug))]
+    pub async fn approve_for_session(
+        &self,
+        session: &agent_session::domain::model::AgentSession,
+        actor: &MacroUserIdStr<'static>,
+        id: ReviewId,
+    ) -> Result<ReviewRecord, CodeModeError> {
+        let state = self.actions.session(session.id).await?;
+        if session.owner_user().map_err(|_| CodeModeError::Forbidden)? != actor
+            || state.archived
+            || state.owner != *actor
+        {
+            return Err(CodeModeError::Forbidden);
+        }
+        if state.turn_prompter.as_ref() != Some(actor) {
+            return Err(CodeModeError::Invalid(
+                "Only the session's owner can have you approve a review, and someone else prompted this turn. Ask the owner to approve it on the card.".into(),
+            ));
+        }
+        let mut record = self.store.get(session.id, id).await?;
+        if record.presented_at.is_none()
+            || record.notification_id.is_some()
+            || !record
+                .items
+                .iter()
+                .any(|item| item.status == ReviewItemStatus::Pending)
+            || record
+                .items
+                .iter()
+                .any(|item| item.status == ReviewItemStatus::Submitting)
+        {
+            return Err(CodeModeError::Conflict);
+        }
+        if !self.actions.approvable(actor, &record).await? {
+            return Err(CodeModeError::Invalid(
+                "This review is not ready to approve yet; its plan is still being prepared. Check again before approving.".into(),
+            ));
+        }
+        record.approved_by_agent = Some(AgentApproval {
+            requested_by: actor.clone(),
+            at: chrono::Utc::now().timestamp_millis(),
+        });
+        self.claim(record, actor, Vec::new(), true).await
+    }
+    /// Claim the selected pending items at the record's revision, then run or
+    /// dismiss them independently of the request.
+    async fn claim(
+        &self,
+        mut record: ReviewRecord,
+        actor: &MacroUserIdStr<'static>,
+        ids: Vec<Uuid>,
+        submit: bool,
+    ) -> Result<ReviewRecord, CodeModeError> {
         if ids.iter().any(|id| {
             !record
                 .items

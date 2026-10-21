@@ -18,6 +18,10 @@ execution records, and durable review stacks. Process isolation belongs to
   action started has ended; other services reach it through the internal
   `POST /internal/agent-reviews/{id}/settled` route
   (`outbound::review_settlements_client`).
+  `approve_for_session` (the `ApproveReview` tool, `inbound/reviews.rs`) is the
+  agent approving on its owner's word in chat: it runs the card's Submit on the
+  saved draft, only in a turn the owner prompted (`ReviewSession::turn_prompter`),
+  only once the action is `approvable`, and records `approved_by_agent`.
 - `src/domain/documentation.rs`: bounded selection of generated SDK docs.
 
 ## Boundaries

@@ -44,6 +44,7 @@ fn notification_fixture(kind: ReviewKind, draft: Value) -> ReviewRecord {
         notification_id: Some(macro_uuid::generate_uuid_v7()),
         notification_attempt_at: None,
         settled_at: None,
+        approved_by_agent: None,
     }
 }
 

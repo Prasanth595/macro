@@ -97,7 +97,7 @@ impl ServerHandler for InternalTools {
         .with_title("Macro Internal MCP");
         info.instructions = Some(prompt::pull_requests::internal_mcp_instructions());
         info.instructions.as_mut().expect("instructions are set").push_str(
-            " macro_internal.PresentReview presents editable email/calendar draft stacks or questions through the shared session stream. It completes immediately as Presented to the user and never waits for approval. Later user decisions append recorded outcomes to the session. It is available even when code mode is disabled.",
+            " macro_internal.PresentReview presents editable email/calendar draft stacks or questions through the shared session stream. It completes immediately as Presented to the user and never waits for approval. Later user decisions append recorded outcomes to the session. It is available even when code mode is disabled. macro_internal.ApproveReview approves a presented review as its card would, only when the session owner has just told you to in chat (after presenting an import plan, ask \"Should I kick it off?\").",
         );
         if self.code_mode.is_some() {
             info.instructions.as_mut().expect("instructions are set").push_str(
