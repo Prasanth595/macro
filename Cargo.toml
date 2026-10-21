@@ -299,6 +299,7 @@ lru = "0.16"
 miniz_oxide = { version = "0.8", features = ["with-alloc"] }
 mockall = "0.13"
 nom = "8"
+openssl-sys = "0.9"
 opus-pure = "0.2.1"
 opentelemetry = { version = "0.31.0", default-features = false }
 opentelemetry-appender-tracing = { version = "0.31.1", default-features = false }
