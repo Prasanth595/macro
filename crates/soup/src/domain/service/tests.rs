@@ -250,7 +250,7 @@ fn call_record(
     call::domain::models::CallRecord {
         call_id,
         channel_id: Some(channel_id),
-        room_name: String::new(),
+        room_name: None,
         created_by: created_by.to_string(),
         started_at,
         ended_at: None,
@@ -273,6 +273,7 @@ fn call_record(
         participants: Vec::new(),
         guests: Vec::new(),
         transcript: Vec::new(),
+        source: None,
     }
 }
 

@@ -177,7 +177,7 @@ export function resolveGroupMetaForKey(
         displayOrder: order.indexOf(key),
       };
     })
-    .exhaustive();
+    .exhaustive(() => undefined);
 }
 
 function getGroupedPropertyValueType(
@@ -316,5 +316,5 @@ export function computeGroupKeysForItem(
     })
     .with({ type: 'date' }, () => undefined)
     .with({ type: 'deadline' }, () => undefined)
-    .exhaustive();
+    .exhaustive(() => undefined);
 }

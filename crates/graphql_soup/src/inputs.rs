@@ -4,7 +4,9 @@ use graphql_soup_filter_input::GraphqlEntityFilterAst;
 use item_filters::ast::{EntityFilterAst, properties::PropertyEntityType};
 use macro_user_id::user_id::MacroUserIdStr;
 use models_grouping::{DeadlineBoundaries, GroupByField, GroupingConfig};
-use models_pagination::{Base64Str, CursorWithValAndFilter, DueDateSort, SimpleSortMethod};
+use models_pagination::{
+    Base64Str, CursorWithValAndFilter, DueDateSort, NotifiedAt, SimpleSortMethod,
+};
 use soup::domain::models::{
     GroupedSortMethod, GroupedSortQuery, SoupQuery, SoupRequest, SoupSortDirection, SoupType,
 };
@@ -132,7 +134,7 @@ impl GroupedSoupInitialInput {
         let sort_method = self
             .sort_method
             .unwrap_or(GraphqlSimpleSortMethod::ViewedUpdated)
-            .into_model();
+            .into_model()?;
         let limit = self.limit.unwrap_or(20).clamp(1, 500);
         Ok(GroupedSortQuery::initial(
             macro_user_id,
@@ -324,13 +326,13 @@ impl SoupInitialInput {
         let cursor = self
             .sort_method
             .unwrap_or(GraphqlSimpleSortMethod::ViewedAt)
-            .into_query(filter);
+            .into_query(filter)?;
 
         Ok(SoupRequest {
             soup_type: soup_type(self.expand),
             limit: self.limit.unwrap_or(20).min(500),
+            sort_direction: sort_direction(&cursor, self.sort_direction)?,
             cursor,
-            sort_direction: sort_direction(self.sort_direction),
             user: macro_user_id,
             email_preview_view: email_preview_view(self.email_view)?,
             link_ids,
@@ -355,14 +357,17 @@ impl SoupContinuationInput {
             SoupContinuationCursor::DueDate(cursor) => {
                 (cursor.limit, SoupQuery::new_cursor_due_date(cursor))
             }
+            SoupContinuationCursor::Notified(cursor) => {
+                (cursor.limit, SoupQuery::new_cursor_notified(cursor))
+            }
         };
         let limit = u16::try_from(limit).unwrap_or(500).min(500);
 
         Ok(SoupRequest {
             soup_type: soup_type(self.expand),
             limit,
+            sort_direction: sort_direction(&cursor, self.sort_direction)?,
             cursor,
-            sort_direction: sort_direction(self.sort_direction),
             user: macro_user_id,
             email_preview_view: email_preview_view(self.email_view)?,
             link_ids,
@@ -378,13 +383,26 @@ enum SoupContinuationCursor {
     Simple(CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>),
     /// A task due-date continuation, including an undated last item.
     DueDate(CursorWithValAndFilter<Uuid, DueDateSort, EntityFilterAst>),
+    /// A notification continuation, including channel-thread string identifiers.
+    Notified(CursorWithValAndFilter<String, NotifiedAt, EntityFilterAst>),
 }
 
 /// Convert the optional GraphQL sort direction into the domain representation.
-fn sort_direction(direction: Option<GraphqlSortDirection>) -> SoupSortDirection {
-    direction
+/// Notified pages are keyset-ordered newest first, so ascending is rejected
+/// rather than silently ignored.
+fn sort_direction(
+    cursor: &SoupQuery<EntityFilterAst>,
+    direction: Option<GraphqlSortDirection>,
+) -> async_graphql::Result<SoupSortDirection> {
+    let direction = direction
         .map(GraphqlSortDirection::into_model)
-        .unwrap_or_default()
+        .unwrap_or_default();
+    if direction == SoupSortDirection::Asc && matches!(cursor, SoupQuery::Notified(_)) {
+        return Err(async_graphql::Error::new(
+            "sortDirection ASC is not supported with NOTIFIED_AT",
+        ));
+    }
+    Ok(direction)
 }
 
 /// Convert the optional GraphQL expansion flag into the domain representation.
@@ -443,7 +461,7 @@ impl GraphqlEmailView {
 // Filter input types and their authoritative materialization live in
 // `graphql_soup_filter_input`, shared with the browser cache composition root.
 
-/// GraphQL representation of supported timestamp and task due-date Soup sorts.
+/// GraphQL representation of supported Soup timestamp, notification, and task due-date sorts.
 #[derive(Enum, Copy, Clone, Eq, PartialEq)]
 pub enum GraphqlSimpleSortMethod {
     /// Sort by most recently viewed.
@@ -454,6 +472,9 @@ pub enum GraphqlSimpleSortMethod {
     UpdatedAt,
     /// Sort by viewed timestamp, falling back to updated timestamp.
     ViewedUpdated,
+    /// Only entities the caller holds a live notification for, most recently
+    /// notified first. Descending `soup` only; not supported by `groupSoup`.
+    NotifiedAt,
     /// Earliest task due date first, with undated tasks last.
     DueDateEarliest,
     /// Latest task due date first, with undated tasks last.
@@ -461,24 +482,32 @@ pub enum GraphqlSimpleSortMethod {
 }
 
 impl GraphqlSimpleSortMethod {
-    /// Convert this GraphQL sort method into the Soup-domain model.
-    pub fn into_model(self) -> GroupedSortMethod {
-        match self {
+    /// Convert into a grouped sort, rejecting the flat-only notification mode.
+    pub fn into_model(self) -> async_graphql::Result<GroupedSortMethod> {
+        Ok(match self {
             Self::ViewedAt => GroupedSortMethod::Timestamp(SimpleSortMethod::ViewedAt),
             Self::CreatedAt => GroupedSortMethod::Timestamp(SimpleSortMethod::CreatedAt),
             Self::UpdatedAt => GroupedSortMethod::Timestamp(SimpleSortMethod::UpdatedAt),
             Self::ViewedUpdated => GroupedSortMethod::Timestamp(SimpleSortMethod::ViewedUpdated),
             Self::DueDateEarliest => GroupedSortMethod::DueDate(DueDateSort::Earliest),
             Self::DueDateLatest => GroupedSortMethod::DueDate(DueDateSort::Latest),
-        }
+            Self::NotifiedAt => {
+                return Err(async_graphql::Error::new(
+                    "NOTIFIED_AT is only supported by soup",
+                ));
+            }
+        })
     }
 
-    /// Build the appropriate timestamp or nullable due-date initial query.
-    fn into_query<T>(self, filters: T) -> SoupQuery<T> {
-        match self.into_model() {
+    /// Build a timestamp, notification, or nullable due-date initial query.
+    fn into_query<T>(self, filters: T) -> async_graphql::Result<SoupQuery<T>> {
+        if matches!(self, Self::NotifiedAt) {
+            return Ok(SoupQuery::new_sort_notified(filters));
+        }
+        Ok(match self.into_model()? {
             GroupedSortMethod::Timestamp(sort) => SoupQuery::new_sort_simple(sort, filters),
             GroupedSortMethod::DueDate(sort) => SoupQuery::new_sort_due_date(sort, filters),
-        }
+        })
     }
 }
 

@@ -181,7 +181,7 @@ function setup(options: { groupByField?: Accessor<GroupByField> } = {}) {
       () => ({
         params: { limit: 2, sort_method: 'updated_at' },
         body: {},
-        groupBy: {
+        groupBy: options.groupByField?.() ?? {
           type: 'property',
           propertyDefinitionId: 'status-definition',
         },
@@ -195,15 +195,8 @@ function setup(options: { groupByField?: Accessor<GroupByField> } = {}) {
     });
 
     grouped = createGraphqlGroupedSoupQueries({
+      groupedPaging: () => parent.groupedPaging,
       initialPage,
-      groupByField:
-        options.groupByField ??
-        (() => ({
-          type: 'property',
-          propertyDefinitionId: 'status-definition',
-        })),
-      soupParams: () => ({ limit: 2, sort_method: 'updated_at' }),
-      soupBody: () => ({}),
       enabled: () => true,
       itemFilter: () => undefined,
     });
@@ -496,5 +489,29 @@ it('discards a loaded cursor when frozen deadline boundaries change with the sam
     },
   });
   expect(fake.executions[1].unsubscribed).toBe(true);
-  expect(entityIds(a)).toEqual(['a-1']);
+  expect(fake.executions[2].variables.input).toMatchObject({
+    initial: {
+      groupBy: {
+        field: 'DEADLINE',
+        deadlineBoundaries: {
+          today: '2026-10-22T00:00:00Z',
+          tomorrow: '2026-10-23T00:00:00Z',
+          dayTwo: '2026-10-24T00:00:00Z',
+          dayEight: '2026-10-30T00:00:00Z',
+        },
+      },
+    },
+  });
+  fake.executions[2].next(
+    page([group('a', ['a-3'], 'new-cursor')], [item('a-3')])
+  );
+  const refreshed = grouped.map().get('a')!;
+  expect(entityIds(refreshed)).toEqual(['a-3']);
+  const next = refreshed.fetchNextPage();
+  expect(fake.executions[3].variables.input).toMatchObject({
+    continuation: { cursor: 'new-cursor' },
+  });
+  fake.executions[3].next(page([group('a', ['a-4'], null)], [item('a-4')]));
+  await next;
+  expect(entityIds(refreshed)).toEqual(['a-3', 'a-4']);
 });

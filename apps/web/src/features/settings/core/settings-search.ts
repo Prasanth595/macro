@@ -22,15 +22,15 @@ export type SettingsSearchResult = Setting & {
 const SETTINGS: Setting[] = [
   {
     tab: 'CRM',
-    title: 'Deal stages',
-    target: 'Deal stages',
-    keywords: 'pipeline reorder status closed stages sales',
+    title: 'Stages',
+    target: 'Stages',
+    keywords: 'company deal pipeline reorder rename status sales',
   },
   {
     tab: 'CRM',
-    title: 'Enable CRM',
-    target: 'General',
-    keywords: 'disable customers contacts companies team',
+    title: 'Team CRM',
+    target: 'Team CRM',
+    keywords: 'enable disable customers contacts companies team',
   },
   {
     tab: 'Shortcuts',
@@ -94,6 +94,12 @@ const SETTINGS: Setting[] = [
     tab: 'Harness',
     title: 'Agent runtimes and credentials',
     keywords: 'cursor harness runtime api key provider pairing daemon',
+  },
+  {
+    tab: 'Harness',
+    title: 'Run agents on this computer',
+    keywords:
+      'local runtime macrod this computer machine claude code codex desktop daemon',
   },
   {
     tab: 'Account',

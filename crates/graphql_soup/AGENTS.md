@@ -21,3 +21,6 @@ viewer pattern), which apply to every type defined here.
   retain those exact boundaries when continuing a bin instead of recomputing them.
 - Keep nullable task due-date cursors distinct from legacy timestamp cursors;
   `GraphqlSimpleSortMethod` retains its deployed name and includes due-date sorts.
+- `NOTIFIED_AT` maps to Soup's notified request, not a simple sort: `soup`
+  accepts it descending only and `groupSoup` rejects it. Its continuation
+  cursors carry their own sort tag and string identifiers, separate from timestamp and due-date cursors.

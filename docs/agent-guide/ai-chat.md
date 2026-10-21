@@ -353,8 +353,37 @@ the shimmer.
   Right-click (or long-press on mobile) opens the same entity menu as Home:
   Rename, Favorite, Copy link, Share, Archive, Delete, and the other session
   actions. Archived sessions are grouped at the bottom under **Archived**.
+- The agent composer's **+ (Add)** menu offers **Add photos & files**,
+  **Add from library** (`@` references), and **Use a skill** (`/`; sessions show
+  **Skills & commands**). Desktop uses a scrollable menu; phones use a bottom
+  sheet with the same actions. Selecting a reference or skill restores editor
+  focus before opening its picker and preserves the existing draft.
+  Connected apps open their own connection settings, without inserting a prompt.
+  **Add connections** opens Discover; **Manage connections** opens Connected.
+  Disabled connections remain available to manage. A partial loading failure
+  offers Retry without hiding uploads, references, or skills.
+- Empty conversation greetings use Roboto Slab with the Macro mark to the left,
+  at weight 390 with softened ink in light mode and 315 in dark mode, including the Chat and Code
+  starting headings, legacy Home, and the conversation preview empty state.
+  Code uses the wireframe blocks from the loading mark; Chat uses the filled mark.
+  The marks crossfade and scale over 300ms on mode changes while the incoming
+  mark's three blocks lift and settle in a staggered wave.
+- The desktop input uses 28px corners with an 18px horizontal text inset and
+  16px top padding when expanded. Light mode uses a faint shadow outline and
+  layered outer shadow; dark mode retains the production glass rim and shadow.
+  Both modes retain the production composer background.
+- In dark mode, the footer is darker than the input, with successively lighter
+  toggle track and selected segment.
 - The starting page has **Chat / Code** in the composer’s inset bar, below the input on
-  desktop and above it on phones. The choice limits the offered agents and is
+  desktop and above it on phones. On desktop, the borderless footer is inset 12px
+  from the 28px-radius input; Chat / Code share one track with equal 8px insets
+  in the 52px footer. The dark track is lighter than the footer lip and the selected segment lighter again;
+  a faint gradient gives the dark toggle depth without borders or shadows.
+  Light mode uses an off-white selected segment with a subtle border and shadow.
+  The selected segment glides for 250ms with
+  an ease-out curve. The greeting text flips vertically into place on each mode change
+  with the same duration; both animations respect reduced motion.
+  Its bottom corners follow the toggle's curve. The choice limits the offered agents and is
   remembered per user. Switching modes preserves the draft and attachments and
   clears model and effort overrides from the previous mode. It does not filter
   the conversation sidebar. Session composers start at one line and grow with
@@ -370,21 +399,24 @@ the shimmer.
   keeps the saved model name visible in its picker, including unavailable models.
 - The agent dropdown includes saved agents of the selected mode regardless of
   runtime, plus Cursor in Code mode.
-  Macro's models use the same searchable catalog as running sessions:
-  **Suggested** lists **Opus 5.5**, **Sonnet 5.5**, **GPT-5.6** (Sol in
-  runtime catalogs), **GPT-6 Astra**, and **Gemini**, when available, in that order. The
-  **More models** submenu contains the complete catalog grouped by provider,
-  including the Suggested choices and effort/speed variants. Your agents
-  follow Suggested and More models in the root menu. Choosing a model
-  does not reorder the sections. Search matches names, IDs, and provider names. The compact borderless search
-  field receives focus when the selector opens or reopens. Its opaque header
+  In Chat mode, the desktop picker uses a wide, height-limited layout with
+  agents on the left without a redundant Your agents subheading. The models
+  column starts with unlabeled suggested choices, followed by the complete
+  catalog grouped by provider. There is no search box or More step; each column scrolls independently.
+  It shares the Plus menu's width and below-composer anchor. Code mode keeps its
+  compact agent dropdown above the selector. Phones retain their single-column
+  searchable sheet, Suggested choices, and More models action. Model-specific
+  submenus also retain search. Choosing a model does not reorder the sections.
+  The separate speedometer controls effort. The catalog's opaque header
   meets the top of the scroll area so rows cannot show through above it.
   **Built-in**, **Your agents**, and **Needs connection** groups follow when
   they have entries. Each agent row shows its runtime and model, or its setup
   action/availability reason. **Create agent** uses the shared rounded pill
   button at the bottom right with a subtle background. Models have readable
   names (for example, **Sonnet 5.5**) and provider or model icons aligned with the
-  agent icons. The in-memory catalog offers the closed Anthropic and OpenAI chat
+  agent icons. The in-memory catalog leads with **Auto**, where Jev sorts each
+  turn's prompt: hard prompts run on **Opus 5.5**, simple ones on **Gemini 3.8
+  Flash**, and the rest on **GPT-6.1 Sol**. It then offers the closed Anthropic and OpenAI chat
   models; Kimi, DeepSeek, Muse, GLM, Qwen, MiniMax, GPT OSS, and Nemotron
   open-weight models; and Google's **Gemini 3.8 Flash**. The Anthropic models
   are **Sonnet 5.5**, **Opus 5.5**, and **Haiku 4.5**; older Claude versions
@@ -395,7 +427,7 @@ the shimmer.
   default for Macro's in-memory agent until another model entry is picked.
   The built-in Macro agent is the only agent excluded from these sections; its models remain available.
   Unavailable paired agents stay visible with a reason.
-  If Macro is unavailable, its catalog stays searchable but
+  If Macro is unavailable, its catalog stays visible but
   model choices are disabled in every list. Model discovery uses the
   selected runtime, including Claude Cloud. Every coding agent shows repository
   controls; chat agents hide those controls but keep the mode bar. Repository/branch overrides are currently applied
@@ -431,11 +463,11 @@ the shimmer.
   with the repository bar below the input on desktop and above it on mobile.
   The plus attachment button stays at the far left: before the
   text in the compact row, and on the bottom control row when expanded. The editor sits above the controls, with attachments
-  on the left and the agent/model and Send on the right. On mobile, Chat/Code sits at the top left and repository controls at the top right; repository and branch selection open in standard bottom drawers. These controls sit inside the same continuous surface as the input with no inset or dividing border. On desktop, an inset bar aligned to the full input width holds Chat/Code with rounded outer corners and a subtle border, with a darker surface in dark mode. The settings row keeps a stable height when changing modes: 44 px on desktop, with 2 px more top and side padding on mobile.
+  on the left and the agent/model and Send on the right. On mobile, Chat/Code sits at the top left and repository controls at the top right; repository and branch selection open in standard bottom drawers. These controls sit inside the same continuous surface as the input with no inset or dividing border. On desktop, the borderless bar sits 12px inside each input edge and gives the 36px Chat/Code toggle equal 8px insets, with concentric bottom corners and a darker fill. The settings row keeps a stable height when changing modes: 52px on desktop and a 46px minimum on mobile.
   Selecting Chat hides the repository controls and keeps the mode switch in
   the settings row, without remounting the editor or losing the draft. Reduced-motion
   preferences disable the animation. The hidden drawer is inert. **Repository**
-  (**Choose repository** until one is picked) opens a searchable list:
+  (**Choose automatically** with a GitHub icon until one is picked) opens a searchable list:
   **Choose automatically**, then the repositories the signed-in user reaches
   through Macro's GitHub App (`GET /agent-repositories` on the agent harness),
   recently used ones first. A new conversation always starts on **Choose
@@ -478,15 +510,19 @@ the shimmer.
   provider icons, search, **Suggested** first, and **More models** for the
   complete provider catalog. Desktop opens a submenu; phone widths show
   the catalog in place with a Back action. Search includes every model.
-- A compact **speedometer-style effort** button with a simple arc and needle beside the model selector opens a simple list of effort levels with a check beside the current choice: a popover centered below the button on desktop, or its own bottom sheet on mobile. Choosing a level applies it and closes the menu. Mobile shows it alongside the model control after the input expands. It is hidden when the model has fewer than two effort choices.
+- Desktop keeps the model selector and speedometer as separate controls. The
+  speedometer opens a slider with a stop for each advertised effort level. Arrow keys
+  adjust the level; pointer drags commit on release. The popover stays open, and
+  the model selector opens the full catalog independently. On mobile, the **speedometer-style
+  effort** button opens its own sheet after the input expands. Choosing a level
+  applies it and closes the sheet. Models with fewer than two effort choices
+  omit the effort button.
   Model-specific effort choices remain available in desktop model submenus.
   Free and Pro users start new conversations at the lowest advertised level,
   unless they explicitly choose another. Existing sessions keep their current setting.
-- On desktop, chat agents' empty input types tips about connectors, skills,
-  mentions, and agents one character at a time, pauses to read each hint, then
-  quickly erases it before typing the next. Entering a draft pauses the animation;
-  clearing it resumes. The text-only typewriter also runs when reduced motion
-  is enabled.
+- On desktop, chat agents' empty input shows the static hint **Type @ to mention
+  docs, people, or channels, / for skills** immediately, without typing or cycling
+  through other hints. Clearing a draft restores the same hint.
   Coding agents show **Describe what you want to build**; phones keep the short
   **Message Macro AI** placeholder. Type `@` for
   mentions and `/` for skills.
@@ -522,8 +558,13 @@ the shimmer.
   **Done**. **Manage** on a paired machine opens **Runtimes** (Back returns to
   Agents): built-in providers, **New runtime**, and the **Paired runtimes** list,
   which appears once you have a paired runtime.
-  **New runtime** shows three steps: install macrod from the linked release,
-  run `./macrod` and configure your agent in Quickstart, then enter your pairing
+  On the desktop app, **Runtimes** opens with a **This computer** card that sets
+  up the bundled macrod daemon in one click: **Set up** detects installed agents,
+  then **Start running agents here** configures, pairs (auto-approved, no code),
+  and starts it. The manual flow below remains for pairing other machines.
+  **New runtime** shows three steps: install macrod with the shown `curl … |
+  sh` (macOS, Linux) or `irm … | iex` (Windows) command, run `macrod` and
+  configure your agent in Quickstart, then enter your pairing
   code and click **Look up**. Review the request and click **Approve** to connect.
   The setup guide contains configuration and pairing screenshots in that order.
   Enter the code from your own terminal, not the example screenshot.
@@ -553,6 +594,14 @@ the shimmer.
   session starts on the first prompt, before its first reply; a startup screen
   that temporarily hides the footer is retried during the turn. The menu does not list
   installed native skills or session-switching commands such as `/resume`.
+  For a paired runtime configured as a **Chat agent**, mentioning it posts a
+  pending reply in the channel thread. Once the turn completes, that same reply
+  shows the answer (or a stopped/failed result), even if the session view was
+  never opened. Follow-up messages get their own replies. This requires a macrod
+  build that sends source message IDs as control action IDs, together with the
+  backend external-reply journal; older daemons do not supply that correlation.
+  Replies older than 24 hours whose completion callback was lost are recovered
+  hourly, plus any recovery backlog. Normal completion handling remains immediate.
   The agent form retains sharing, name, `@tag`, runtime, default model, connections,
   channels, instructions, and permission policy.
   Runtime and short model lists use styled dropdown buttons: open the field and
@@ -615,7 +664,8 @@ draft or widening the pane restores the compact layout when the text fits
 beside its controls. Leaving the AI composer collapses a long draft to
 a single-line preview in the accessory row; tapping it expands the same editor
 with the full draft intact. Screens with an available composer or reply controls show those
-instead; opening mobile search shows category pills in their place. On Agents,
+instead; opening mobile search hides those controls, puts category pills above
+the results, and keeps the query input in the dock. On Agents,
 the AI composer returns with its draft intact when higher-priority controls close.
 Other views have no floating AI fallback. Type a
 prompt, optionally choose a model or
@@ -888,13 +938,18 @@ per harness process. Network hosts, process lifetime, output and memory are
 bounded; filesystem writes, arbitrary imports and subprocesses are denied.
 The token expires after issuance; process exit does not revoke it early.
 
-The transcript shows **Run code** while execution is in flight. Expand it to
-inspect the submitted source and final returned JSON or error. Code that creates
-a saved review immediately emits a separate completed **PresentReview** ACP call.
+Inline channel and discussion steps show the observed SDK operation names while
+code runs, using the same execution journal as the full session view. The final
+tool receipt carries those operations into the shared fold, so posted step
+snapshots retain the names and outcomes without exposing source or returned JSON.
+A code run without observed SDK requests keeps its generic execution step.
+Unfinished requests are shown as interrupted, never as confirmed successes. Code
+that creates a saved review immediately emits a separate completed **PresentReview**
+ACP call.
 Its card can appear before the program finishes and stays editable afterwards.
-Presentation means “Presented to the user,” not approved or sent. There is no
-individual live progress stream or saved response journal for arbitrary SDK HTTP
-calls. The execution journal retains source, status and final JSON/error;
+Presentation means “Presented to the user,” not approved or sent. SDK operation
+activity reports request outcomes, without storing request arguments or response
+bodies. The execution journal retains source, status and final JSON/error;
 completed API writes are not rolled back after failure or cancellation.
 If a reused execution ID refers to different source, the card reports that tool
 results are unavailable and does not display the other program's saved results.
@@ -1653,8 +1708,9 @@ must stay hidden; subsequent live messages must still appear.
   permission policy selector. The backend enforces these policies.
 
 Locally sent user messages in both AI implementations enter with a short upward
-slide and fade. History and remounted messages stay
-still; reduced-motion preferences disable the transition.
+slide and fade. On touch devices, messages lift into place with a gentle settle;
+the text reaches full opacity early and keeps its final size. History and
+remounted messages stay still; reduced-motion preferences disable the transition.
 
 On phones, the chat model control appears as a provider icon while the software
 keyboard is open. Its accessible name is `Choose model, <model name>`. It opens
@@ -1702,12 +1758,15 @@ There is no periodic PR lookup polling.
 
 ### Agent reasoning effort
 
-Open the model selector and hover a model to choose its reasoning effort in the
-submenu on desktop, opened with Right Arrow. On mobile, tap a model to select it,
-then use the adjacent effort button to adjust effort.
+On desktop, open the speedometer beside the model selector to adjust the
+current model with the **Reasoning effort** slider. The header and accessible value announce the
+selected level. Arrow keys move between supported levels; the menu stays open
+until dismissed. The model selector opens the full catalog independently; other
+models still offer their own effort submenu with Right Arrow. On mobile, tap a model
+to select it, then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
-choices. The selected label includes the effort, such as `Sonnet 5.5 · High`;
-the composer also offers a separate effort button for the selected model. Models without effort
+choices. The model trigger shows the model name; the speedometer announces the effort.
+Models without effort
 support remain selectable through `Use <model>` (or a desktop click/Enter).
 Default keeps the model's existing behavior.
 
@@ -1945,12 +2004,15 @@ that chat remains usable, and that a non-owner cannot submit. Sending an email o
 creating an event is a real action, including from a local app connected to dev.
 ## Agent reasoning effort
 
-Open the model selector and hover a model to choose its reasoning effort in the
-submenu on desktop, opened with Right Arrow. On mobile, tap a model to select it,
-then use the adjacent effort button to adjust effort.
+On desktop, open the speedometer beside the model selector to adjust the
+current model with the **Reasoning effort** slider. The header and accessible value announce the
+selected level. Arrow keys move between supported levels; the menu stays open
+until dismissed. The model selector opens the full catalog independently; other
+models still offer their own effort submenu with Right Arrow. On mobile, tap a model
+to select it, then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
-choices. The selected label includes the effort, such as `Sonnet 5 · High`;
-the composer also offers a separate effort button for the selected model. Models without effort
+choices. The model trigger shows the model name; the speedometer announces the effort.
+Models without effort
 support remain selectable through `Use <model>` (or a desktop click/Enter).
 Default keeps the model's existing behavior.
 

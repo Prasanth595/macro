@@ -41,6 +41,10 @@ editor initializes; the project title, properties, and discussion stay visible.
 Project task lists automatically fetch all matching pages in every group, without
 per-group `Load More` rows. A failed continuation stops automatic requests and shows
 `Try again` above the list; already fetched group rows remain available.
+With GraphQL Soup enabled, verify a group with more than one page in both the
+regular Tasks list (`Load More`) and a project task list (automatic pagination).
+Both must use the parent Soup query's continuation owner; reaching the last page
+removes the group's paging control without hiding already loaded tasks.
 The sidebar has no Tags section: filter by tag from the `Tags` group of the `Filter` menu,
 and switching tabs clears it like any other filter. On mobile, the tabs
 are pills and the leading sliders button opens one drawer containing Sort, Group, and
@@ -372,7 +376,7 @@ those older results must not hide a failure for the new, uncached query.
 
 With `enable-tasks-reviews` enabled (on by default in development),
 `Reviews` is available in desktop navigation and the mobile bottom dock's
-`More views` drawer, not the mobile Tasks tabs.
+`More views` drawer (or directly in the dock after Customize dock), not the mobile Tasks tabs.
 It opens a separate `/app/reviews` shell whose sidebar lists `Pull requests`,
 `Authored by me`, `Assigned to me`, `Involves me`, and `Review requests`;
 `Involves me` is selected by default. The selected tab is stored in the URL and
@@ -790,6 +794,11 @@ mentions and document references also show the same three pills in their hover-c
 including properties that do not have a value yet. Click a preview pill to edit it without
 opening the task; the property picker keeps the preview open while you make a selection.
 Users with view or comment access see the same pills read-only.
+
+Each GitHub pull request linked to an open task shows a pill beside its property pills
+with the PR's status, title, `owner/repo#N`, and line changes. Clicking it opens the PR in
+Macro in a new split (in place on touch devices); a PR Macro has not synced yet opens on
+GitHub instead.
 
 The Assignees picker offers people and available agents together. Agent rows show
 their name and an `Agent` label; saved agents also show their `@handle`. Search by
