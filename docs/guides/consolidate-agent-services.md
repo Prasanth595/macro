@@ -51,6 +51,25 @@ contains the renamed client setting.
 remain available for existing feature flags and future analytics. No MCP
 analytics events or tracking client are added by this consolidation.
 
+## Prepare preview stack outputs
+
+Harness previews require the preview network IDs to be published first. Prepare
+an update from the existing preview deployment that adds only these exports,
+retaining its current compute and networking:
+
+```ts
+export const previewTaskSecurityGroupId = taskSg.id;
+export const previewControlTargetGroupArn = control.target_group.arn;
+export const previewHttpTargetGroupArn = httpTarget.arn;
+export const previewSshTargetGroupArn = sshTarget.arn;
+```
+
+Preview an update targeting only the preview stack's root Stack resource and
+save its plan. Verify that every resource operation is unchanged before applying
+that exact plan with the same target. This publishes stack metadata and still
+requires explicit deployment approval. Apply the network-only program during
+the coordinated cutover below.
+
 ## Deployment cutover
 
 This code does not stop or remove currently deployed resources by itself.
