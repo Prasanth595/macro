@@ -42,6 +42,14 @@ describe('meeting URL telemetry', () => {
       '/app/team-invite?utm_source=slack&link=:inviteToken#top',
     ],
     ['/app/team-invite?id=invite-id', '/app/team-invite?id=invite-id'],
+    [
+      'https://macro.com/app/login?redirect=%2Fteam-invite%3Flink%3Dsecret',
+      'https://macro.com/app/login?redirect=%2Fteam-invite%3Flink%3D:inviteToken',
+    ],
+    [
+      '/app/login?redirect=%2Fteam-invite%3Fsource%3Dslack%26link%3Dsecret&next=1',
+      '/app/login?redirect=%2Fteam-invite%3Fsource%3Dslack%26link%3D:inviteToken&next=1',
+    ],
   ])('redacts a team invite link token in %s', (input, expected) => {
     expect(redactLinkTokens(input)).toBe(expected);
   });

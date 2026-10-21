@@ -1,6 +1,7 @@
 /**
  * Meeting URLs and team invite links contain bearer capabilities; retain the
- * route, never the token.
+ * route, never the token. Invite links are also matched percent-encoded, as in
+ * a login `redirect` parameter.
  */
 export function redactLinkTokens(value: string): string {
   return value
@@ -17,7 +18,7 @@ export function redactLinkTokens(value: string): string {
       }
     )
     .replace(
-      /(\/team-invite\?(?:[^#\s"']*&)?link=)[^&#\s"']+/g,
+      /((?:\/|%2F)team-invite(?:\?|%3F)(?:[^#\s"']*?(?:&|%26))?link(?:=|%3D))[^&%#\s"']+/gi,
       '$1:inviteToken'
     );
 }
