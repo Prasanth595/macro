@@ -442,7 +442,11 @@ describe('agent-led new conversation', () => {
       expect(
         screen.queryByRole('menuitem', { name: 'More models' })
       ).toBeNull();
-      expect(screen.getByTitle('Sonnet 5.5')).toBeTruthy();
+      expect(
+        within(screen.getByRole('group', { name: 'Suggested' })).getByTitle(
+          'Sonnet 5.5'
+        )
+      ).toBeTruthy();
       expect(screen.getByTitle('GLM 5.3 Flash')).toBeTruthy();
       fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
       await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
@@ -453,6 +457,15 @@ describe('agent-led new conversation', () => {
     openAgents();
     const agents = screen.getByRole('group', { name: 'Agents' });
     const models = screen.getByRole('group', { name: 'Models' });
+    expect(screen.queryByText('Your agents')).toBeNull();
+    expect(screen.queryByText('Suggested')).toBeNull();
+    const suggested = within(models).getByRole('group', { name: 'Suggested' });
+    const anthropic = within(models).getByRole('group', { name: 'Anthropic' });
+    expect(
+      suggested.compareDocumentPosition(anthropic) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
     expect(
       within(agents).getByRole('menuitem', { name: 'Create agent' })
     ).toBeTruthy();
@@ -460,7 +473,9 @@ describe('agent-led new conversation', () => {
       within(models).queryByRole('textbox', { name: 'Search models' })
     ).toBeNull();
     expect(
-      within(models).getByRole('menuitem', { name: 'Opus 5.5' })
+      within(
+        within(models).getByRole('group', { name: 'Suggested' })
+      ).getByRole('menuitem', { name: 'Opus 5.5' })
     ).toBeTruthy();
   });
   it('starts in Chat and switches to Code from the composer', async () => {
@@ -916,7 +931,9 @@ describe('agent-led new conversation', () => {
   it('clears a temporary model choice when switching to Code', async () => {
     page();
     openAgents();
-    const model = screen.getByTitle('Sonnet 5.5');
+    const model = within(
+      screen.getByRole('group', { name: 'Suggested' })
+    ).getByTitle('Sonnet 5.5');
     model.focus();
     fireEvent.keyDown(model, { key: 'Enter' });
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
@@ -947,7 +964,9 @@ describe('agent-led new conversation', () => {
     expect(models.getByTitle('GLM 5.3 Flash')).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: /Cursor/ })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /^Macro/ })).toBeNull();
-    const sonnet = models.getByTitle('Sonnet 5.5');
+    const sonnet = within(
+      models.getByRole('group', { name: 'Suggested' })
+    ).getByTitle('Sonnet 5.5');
     expect(
       sonnet.querySelector('[data-ai-provider="anthropic"] svg')
     ).toBeTruthy();
@@ -1008,7 +1027,9 @@ describe('agent-led new conversation', () => {
       />
     ));
     openAgents();
-    const sonnet = screen.getByTitle('Sonnet 5.5');
+    const sonnet = within(
+      screen.getByRole('group', { name: 'Suggested' })
+    ).getByTitle('Sonnet 5.5');
     expect(sonnet.getAttribute('aria-disabled')).toBe('true');
     fireEvent.click(sonnet);
     fireEvent.keyDown(sonnet, { key: 'Enter' });
@@ -1037,7 +1058,9 @@ describe('agent-led new conversation', () => {
     await waitFor(() => expect(screen.getByRole('menu')).toBeTruthy());
     expect(screen.queryByTitle('Sonnet 5.5')).toBeNull();
     expect(
-      within(screen.getByRole('menu')).getByTitle('Gemini 3.8 Flash')
+      within(screen.getByRole('group', { name: 'Suggested' })).getByTitle(
+        'Gemini 3.8 Flash'
+      )
     ).toBeTruthy();
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));

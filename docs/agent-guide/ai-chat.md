@@ -400,8 +400,9 @@ the shimmer.
 - The agent dropdown includes saved agents of the selected mode regardless of
   runtime, plus Cursor in Code mode.
   In Chat mode, the desktop picker uses a wide, height-limited layout with
-  agents on the left and the complete model catalog grouped by provider on the
-  right. There is no search box or More step; each column scrolls independently.
+  agents on the left without a redundant Your agents subheading. The models
+  column starts with unlabeled suggested choices, followed by the complete
+  catalog grouped by provider. There is no search box or More step; each column scrolls independently.
   It shares the Plus menu's width and below-composer anchor. Code mode keeps its
   compact agent dropdown above the selector. Phones retain their single-column
   searchable sheet, Suggested choices, and More models action. Model-specific

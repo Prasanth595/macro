@@ -80,6 +80,7 @@ export function ModelRow(props: ModelRowProps) {
 /** One model section, shared by the frontier shortlist and provider groups. */
 function ModelList(props: {
   label: string;
+  hideLabel?: boolean;
   options: CatalogModelOption[];
   value: string | null;
   disabled?: boolean;
@@ -89,10 +90,15 @@ function ModelList(props: {
 }) {
   const Row = props.row;
   return (
-    <Dropdown.Group class="bg-transparent py-0">
-      <Dropdown.GroupLabel class="h-6 font-medium text-ink-muted">
-        {props.label}
-      </Dropdown.GroupLabel>
+    <Dropdown.Group
+      class="bg-transparent py-0"
+      aria-label={props.hideLabel ? props.label : undefined}
+    >
+      <Show when={!props.hideLabel}>
+        <Dropdown.GroupLabel class="h-6 font-medium text-ink-muted">
+          {props.label}
+        </Dropdown.GroupLabel>
+      </Show>
       <For each={props.options}>
         {(option) => (
           <Row
@@ -274,6 +280,7 @@ export function ModelCatalogMenu(
      */
     autoFocusSearch?: boolean;
     fullCatalog?: boolean;
+    suggestedFirst?: boolean;
     searchable?: boolean;
     onClose?: () => void;
   }
@@ -340,13 +347,14 @@ export function ModelCatalogMenu(
           <div class="space-y-1">
             <Show
               when={
-                !props.fullCatalog &&
+                (!props.fullCatalog || props.suggestedFirst) &&
                 !showAll() &&
                 catalog().frontier.length > 0
               }
             >
               <ModelList
                 label="Suggested"
+                hideLabel={props.suggestedFirst}
                 options={catalog().frontier}
                 value={props.value}
                 disabled={props.disabled}

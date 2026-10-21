@@ -155,6 +155,7 @@ function DesktopAgentPicker(props: AgentPickerProps) {
                 {(agent) => (
                   <ModelCatalogMenu
                     fullCatalog
+                    suggestedFirst
                     searchable={false}
                     value={
                       props.selected?.id === agent().id
@@ -206,10 +207,19 @@ function DesktopAgentPicker(props: AgentPickerProps) {
             </Show>
             <For each={groups()}>
               {(group) => (
-                <Dropdown.Group class="bg-transparent py-0">
-                  <Dropdown.GroupLabel class="h-6 font-medium text-ink-muted">
-                    {group.label}
-                  </Dropdown.GroupLabel>
+                <Dropdown.Group
+                  class="bg-transparent py-0"
+                  aria-label={
+                    macro() && group.label === 'Your agents'
+                      ? group.label
+                      : undefined
+                  }
+                >
+                  <Show when={!macro() || group.label !== 'Your agents'}>
+                    <Dropdown.GroupLabel class="h-6 font-medium text-ink-muted">
+                      {group.label}
+                    </Dropdown.GroupLabel>
+                  </Show>
                   <For each={group.agents}>
                     {(agent) => (
                       <AgentPickerRow
