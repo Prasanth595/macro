@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { FoldStream, initSync } from '@core/agent-fold/wasm/agent_fold';
+import { pathToFileURL } from 'node:url';
+import type { FoldStream } from '@core/agent-fold/wasm-module';
 import type {
   FoldedMessage,
   SessionMetadata,
@@ -7,8 +8,18 @@ import type {
 import { beforeAll, expect, it } from 'vitest';
 import { timelineNotifications } from './session-notifications';
 
-beforeAll(() => {
-  initSync({
+let wasm: {
+  FoldStream: new (sessionId: string) => FoldStream;
+  initSync: (input: { module: Uint8Array }) => unknown;
+};
+
+beforeAll(async () => {
+  // Type checking also runs in jobs that do not build the ignored WASM package.
+  const url = pathToFileURL(
+    `${process.cwd()}/src/lib/core/agent-fold/wasm/agent_fold.js`
+  ).href;
+  wasm = await import(/* @vite-ignore */ url);
+  wasm.initSync({
     module: readFileSync(
       `${process.cwd()}/src/lib/core/agent-fold/wasm/agent_fold_bg.wasm`
     ),
@@ -16,7 +27,7 @@ beforeAll(() => {
 });
 
 it('folds notification frames into timeline metadata without manufacturing user messages', () => {
-  const stream = new FoldStream('019a0000-0000-7000-8000-000000000001');
+  const stream = new wasm.FoldStream('019a0000-0000-7000-8000-000000000001');
   try {
     stream.push([
       {

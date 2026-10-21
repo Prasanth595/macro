@@ -1,4 +1,5 @@
 use super::*;
+use crate::domain::model::ReplyOutcome;
 use agent_fold::domain::ports::FoldedMessageRepo as _;
 use agent_runtime_protocol::domain::notification::{NotificationEvent, input_from_runtime};
 use agent_session::domain::notifications::*;
