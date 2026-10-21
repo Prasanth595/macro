@@ -33,15 +33,14 @@ export const agentHarnessExcluded = [
   'loadAgentModelsHandler',
   'discoverAgentCapabilitiesHandler',
   'previewAgentSessions',
+  // Batch form of agentSessionsForPullRequest that feeds the web Reviews list.
+  'agentSessionsForPullRequests',
   // Speculative page warm-up requires a signed-in user and is app-internal.
   'warmAgentSessionHandler',
 ] as const satisfies readonly (keyof AgentHarnessSdk)[];
 
-export const agentHarnessBacklog = [
-  'answerAgentSessionToolApproval',
-  'getAgentSessionPermissions',
-  'updateAgentSessionPermissions',
-] as const satisfies readonly (keyof AgentHarnessSdk)[];
+export const agentHarnessBacklog =
+  [] as const satisfies readonly (keyof AgentHarnessSdk)[];
 
 export const authExcluded = [
   'appleLogin',
@@ -57,7 +56,6 @@ export const authExcluded = [
   'createMergeRequest',
   'createPortalSession',
   'createTeam',
-  'createUser',
   'deleteCursorApiKey',
   'deleteGithubLink',
   'deleteTeam',
@@ -70,11 +68,16 @@ export const authExcluded = [
   'getAiBillingSummary',
   'getCodexConnection',
   'getCursorApiKey',
+  'getGithubPullRequestMergeability',
   'getGtmInviteOffer',
   'getLegacyUserPermissions',
   'getPermissions',
   'getReferralCode',
+  // Renewal and scheduled-plan details are part of the app's billing settings.
+  'getSubscriptionStatus',
   'getTeamInvites',
+  // Introductory offers belong to the app's subscription checkout flow.
+  'getTrialEligibility',
   'getUserInvites',
   'getUserLinkExists',
   'getUserName',
@@ -121,6 +124,7 @@ export const authExcluded = [
   'sendReferralCode',
   'sessionCreation',
   'sessionLogin',
+  'setGithubPullRequestDraft',
   'ssoLogin',
   'startCodexLogin',
   'toggleTeamAutoJoinDomain',
@@ -132,9 +136,7 @@ export const authExcluded = [
   'verifyMergeRequest',
 ];
 
-export const authBacklog = [
-  'macroApiToken',
-] as const satisfies readonly (keyof AuthSdk)[];
+export const authBacklog = [] as const satisfies readonly (keyof AuthSdk)[];
 
 export const calendarExcluded = [
   // Health probe is infra, not SDK surface.
@@ -181,12 +183,8 @@ export const cognitionExcluded = [
   'upsertAiProjection',
 ] as const satisfies readonly (keyof CognitionSdk)[];
 
-export const cognitionBacklog = [
-  'getUsageHandler',
-  'sendChatMessage',
-  'stopChatStream',
-  'structuredCompletion',
-] as const satisfies readonly (keyof CognitionSdk)[];
+export const cognitionBacklog =
+  [] as const satisfies readonly (keyof CognitionSdk)[];
 
 export const connectionExcluded = [
   'batchSendMessageHandler',
@@ -221,22 +219,7 @@ export const emailExcluded = [
   'resyncLink',
 ] as const satisfies readonly (keyof EmailSdk)[];
 
-export const emailBacklog = [
-  'addDraftAttachment',
-  'addForwardedAttachment',
-  'createDraft',
-  'deleteDraft',
-  'deleteEmailFilter',
-  'deleteScheduledDraft',
-  'getScheduledMessages',
-  'getThreadCalendarInvitations',
-  'listContacts',
-  'listEmailFilters',
-  'removeDraftAttachment',
-  'removeForwardedAttachment',
-  'upsertEmailFilter',
-  'upsertScheduledMessage',
-] as const satisfies readonly (keyof EmailSdk)[];
+export const emailBacklog = [] as const satisfies readonly (keyof EmailSdk)[];
 
 export const notificationExcluded = [
   'bulkGetTypedNotificationsByEventItemIds',
@@ -266,16 +249,8 @@ export const scheduledActionExcluded = [
   'scheduledActionHealth',
 ] as const satisfies readonly (keyof ScheduledActionSdk)[];
 
-export const scheduledActionBacklog = [
-  'createScheduledAction',
-  'deleteScheduledAction',
-  'executeScheduledActionNow',
-  'getScheduledAction',
-  'listScheduledActionHistory',
-  'listScheduledActions',
-  'setScheduledActionEnabled',
-  'updateScheduledAction',
-] as const satisfies readonly (keyof ScheduledActionSdk)[];
+export const scheduledActionBacklog =
+  [] as const satisfies readonly (keyof ScheduledActionSdk)[];
 
 export const searchExcluded = [
   'simpleUnifiedSearch',
@@ -312,6 +287,9 @@ export const storageExcluded = [
   'createCollabSurfaceToken',
   'createInstructionsHandler',
   'createViewHandler',
+  // Declining a ringing call is a live-device session flow, like leaving.
+  'declineCall',
+  'declineRing',
   'deleteCollabSurface',
   'ensureCollabSurface',
   // First-run sample content is provisioned by the app's feature-gated onboarding.
@@ -319,6 +297,9 @@ export const storageExcluded = [
   'deleteHistoryHandler',
   'deleteUserDocumentViewLocation',
   'deleteViewHandler',
+  // Called by third parties holding a webhook's URL; its token, not the
+  // SDK's credentials, authenticates it.
+  'deliverDatabaseWebhook',
   // Old numeric comment links resolve inside the web app only.
   'entityMessageLegacy',
   'excludeDefaultViewHandler',
@@ -348,6 +329,9 @@ export const storageExcluded = [
   'getRingStatus',
   'getUserDocumentViewLocation',
   'getViewsHandler',
+  // Guest chat uses a live RTC session token, not SDK account credentials.
+  'guestCallChatPost',
+  'guestCallChatRead',
   'handler',
   'healthHandler',
   'ingestTranscript',
@@ -368,7 +352,6 @@ export const storageExcluded = [
   'mentionPreviews',
   'patchViewHandler',
   'postItemsSoup',
-  'postItemsSoupAst',
   'postItemsSoupAstGrouped',
   'removeBotFromChannelByBot',
   // Storage for the web app's saved questions, not a user-facing surface.
@@ -386,92 +369,11 @@ export const storageExcluded = [
   'upsertUserDocumentViewLocation',
 ] as const satisfies readonly (keyof StorageSdk)[];
 
-export const storageBacklog = [
-  // Email follow-ups are available through the generated client.
-  'getEmailFollowup',
-  'setEmailFollowup',
-  'listEmailReminders',
-  // CRM pipelines fit the crm namespace but are not wrapped yet.
-  'createCrmPipeline',
-  'applyCrmPipelineOps',
-  'getCrmPipeline',
-  'getCrmPipelineRows',
-  'queryCrmPipelineRows',
-  'getCrmPipelineTable',
-  'listCrmPipelines',
-  'renameCrmPipeline',
-  'shareCrmPipeline',
-  'trashCrmPipeline',
-  'approveHarnessPairing',
-  'claimHarnessPairing',
-  'createAgent',
-  'createAnchor',
-  'createDocument',
-  'createEntityMention',
-  'createHarnessPairing',
-  'createInitiative',
-  'createUserApiKey',
-  'deleteAnchor',
-  'deleteEntityMention',
-  'deleteHarness',
-  'deleteInitiative',
-  'deleteSelfHarness',
-  'deleteUserApiKey',
-  'editAnchor',
-  'editCallTranscript',
-  'editThreadV2',
-  'entityMessageDeleteThread',
-  'entityMessagePatchThread',
-  'getActivity',
-  'getDocumentAnchors',
-  'getDocumentByTeamSlug',
-  'getDocumentPermissionsToken',
-  'getDocumentPermissionsV2',
-  'getDocumentVersion',
-  'getEntityPermission',
-  'getGithubPullRequest',
-  'getGithubPullRequestChanges',
-  'getGithubPullRequestChangesPatch',
-  'getProjectPermissionsV2',
-  'getProjectUserAccessLevel',
-  'getHarnessPairing',
-  'getInitiative',
-  'getSelfHarness',
-  'listAgents',
-  'listHarnessAgents',
-  'listHarnessSessions',
-  'listHarnesses',
-  'listInitiatives',
-  'listOccurrences',
-  'listTeamOutOfOffice',
-  'listUserApiKeys',
-  // Meeting management uses the generated client.
-  'meetingCancel',
-  'meetingCreate',
-  'meetingInvite',
-  'meetingInvitePermissions',
-  'meetingInviteUsers',
-  'meetingList',
-  'meetingListActive',
-  'meetingLookup',
-  'meetingShare',
-  'meetingUpdate',
-  'postActivity',
-  'presaveDocumentHandler',
-  'saveDocumentHandler',
-  'setChannelPicture',
-  'simpleSave',
-  'toggleShareWithTeam',
-  'updateAgent',
-  'updateInitiative',
-  'validateDocumentPermissionsToken',
-] as const satisfies readonly (keyof StorageSdk)[];
+export const storageBacklog =
+  [] as const satisfies readonly (keyof StorageSdk)[];
 
 export const unfurlExcluded = [
   'proxyRequestHandler',
 ] as const satisfies readonly (keyof UnfurlSdk)[];
 
-export const unfurlBacklog = [
-  'getUnfurl',
-  'getUnfurlBulk',
-] as const satisfies readonly (keyof UnfurlSdk)[];
+export const unfurlBacklog = [] as const satisfies readonly (keyof UnfurlSdk)[];

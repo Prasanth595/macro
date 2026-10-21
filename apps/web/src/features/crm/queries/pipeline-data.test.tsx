@@ -160,6 +160,16 @@ it('reads all pages through pipeline identity and supplies primary references to
   expect(host.data().rows.snapshot()?.rows[1].cells.company).toBe('company2');
 });
 
+it('keeps column identity when a background refresh returns the same schema', async () => {
+  const host = setup();
+  await waitFor(() =>
+    expect(host.data().rows.snapshot()?.rows).toHaveLength(2)
+  );
+  const columns = host.data().rows.columns();
+  expect((await host.data().rows.refresh('refresh')).isOk()).toBe(true);
+  expect(host.data().rows.columns()).toBe(columns);
+});
+
 it('writes references through the pipeline operation endpoint and returns the inserted row identity', async () => {
   const host = setup();
   await waitFor(() => expect(host.data().rows.snapshot()).toBeDefined());
@@ -232,6 +242,11 @@ it('maps single and multiple entity values without leaking transport objects int
     })
   ).toBe('["one"]');
   expect(pipelineCell(undefined, column)).toBeNull();
+});
+
+it('shows a value type from a newer server as an empty cell', () => {
+  const fromNewerServer = JSON.parse('{"type":"Rating","value":4}');
+  expect(pipelineCell(fromNewerServer, table.columns[0])).toBeNull();
 });
 
 it('forwards the complete query and retained row request to the pipeline endpoint', async () => {

@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import { Popover } from '@kobalte/core/popover';
 import ArrowDownIcon from '@phosphor/arrow-down.svg';
@@ -7,6 +8,7 @@ import ArrowUpIcon from '@phosphor/arrow-up.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import ColumnsPlusLeftIcon from '@phosphor/columns-plus-left.svg';
 import ColumnsPlusRightIcon from '@phosphor/columns-plus-right.svg';
+import FunctionIcon from '@phosphor/function.svg';
 import ListBulletsIcon from '@phosphor/list-bullets.svg';
 import PencilIcon from '@phosphor/pencil-simple.svg';
 import TrashIcon from '@phosphor/trash.svg';
@@ -24,6 +26,7 @@ import {
   MenuSeparator,
 } from '../../../lib/core/component/ContextMenu';
 import { useColumnUsage } from '../context/column-usage';
+import { useFormulaEditing } from '../context/formula-editing';
 import { useOptionEditing } from '../context/option-editing';
 import {
   columnSchemaMessage,
@@ -34,10 +37,12 @@ import {
 } from '../core/column-schema';
 import { type DatabaseViewColumn, isOptionColumn } from '../core/database-view';
 import { columnDeleteNote } from '../core/forms-usage';
+import { defaultFormulaColumnName } from '../core/property-creation';
 import {
   ColumnTypeMenu,
   type DatabaseColumnConversionChoice,
 } from './column-type-menu';
+import { FormulaEditor } from './formula-editor';
 import { createInlineRename } from './inline-rename';
 import { OptionEditor } from './option-editor';
 import { PropertyIcon } from './property-icon';
@@ -46,6 +51,8 @@ import { OptionPill } from './select-pill';
 export type DatabaseColumnHeaderProps = {
   column: DatabaseViewColumn;
   registerRename?: (rename: (() => void) | undefined) => void;
+  /** Enter accepts the name and starts editing this column's first cell. */
+  onEnter?: () => void;
   onChangeType?: (
     columnId: string,
     change: DatabaseColumnTypeChange
@@ -88,14 +95,24 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
   const [converting, setConverting] =
     createSignal<DatabaseColumnConversionChoice>();
   const [optionsOpen, setOptionsOpen] = createSignal(false);
-  /** The options open once the menu has closed, instead of the menu giving focus back. */
-  let optionsRequested = false;
+  /** A new formula column takes this one's place, or goes beside it; an existing one is edited. */
+  const [formulaEditing, setFormulaEditing] = createSignal<
+    { kind: 'edit' } | { kind: 'create'; replace: boolean }
+  >();
+  const formulas = useFormulaEditing();
+  /** What opens once the menu has closed, instead of the menu giving focus back. */
+  let requested: 'options' | (() => void) | undefined;
   const openRequestedOptions = (event: Event) => {
-    if (!optionsRequested) return;
-    optionsRequested = false;
+    const open = requested;
+    if (!open) return;
+    requested = undefined;
     event.preventDefault();
-    setOptionsOpen(true);
+    if (open === 'options') setOptionsOpen(true);
+    else open();
   };
+  /** A formula may take the place of a column that never held a value, unless it is the table's only one. */
+  const formulaReplaces = () =>
+    !!props.column.inferType && (formulas?.columns().length ?? 0) > 1;
   const editing = useOptionEditing();
   const errorId = createUniqueId();
   let header!: HTMLDivElement;
@@ -122,13 +139,24 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
   const error = columnRename.error;
   const setError = columnRename.setError;
   const pending = () => operating() || columnRename.pending();
+  const columnName = () =>
+    columnRename.pending() && !columnRename.target()
+      ? columnRename.draft().trim()
+      : props.column.name;
   const rename = () => {
     if (!canRename() || pending()) return;
     setMenuOpen(false);
     columnRename.begin({ id: props.column.id, name: props.column.name });
   };
   const save = (restoreFocus: boolean) => {
-    if (canRename()) void columnRename.save(restoreFocus);
+    if (canRename())
+      fireAndForget(
+        columnRename.save(
+          restoreFocus,
+          restoreFocus ? props.onEnter : undefined
+        ),
+        'database'
+      );
   };
   props.registerRename?.(rename);
   async function changeType(change: DatabaseColumnTypeChange) {
@@ -206,6 +234,18 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
           },
         ]
       : []),
+    ...(canRename() && formulas && props.column.formula
+      ? [
+          {
+            label: 'Edit formula',
+            icon: FunctionIcon,
+            group: 'edit',
+            run: () => {
+              requested = () => setFormulaEditing({ kind: 'edit' });
+            },
+          },
+        ]
+      : []),
     ...(canRename() && editing && isOptionColumn(props.column)
       ? [
           {
@@ -213,7 +253,7 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
             icon: ListBulletsIcon,
             group: 'edit',
             run: () => {
-              optionsRequested = true;
+              requested = 'options';
             },
           },
         ]
@@ -288,7 +328,7 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
             'opacity-40': props.dragging,
           }}
           role="columnheader"
-          aria-label={props.column.name}
+          aria-label={columnName()}
           aria-sort={match(props.sortDirection)
             .with('asc', () => 'ascending' as const)
             .with('desc', () => 'descending' as const)
@@ -348,10 +388,11 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
               >
                 <PropertyIcon
                   relation={!!props.column.relation}
+                  formula={!!props.column.formula}
                   type={props.column.dataType}
                   entityType={props.column.specificEntityType}
                 />
-                <span class="min-w-0 flex-1 truncate">{props.column.name}</span>
+                <span class="min-w-0 flex-1 truncate">{columnName()}</span>
                 <Show when={props.sortDirection}>
                   <Show
                     when={props.sortDirection === 'asc'}
@@ -366,7 +407,7 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
                   <Dropdown.Trigger
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`${props.column.name} column menu`}
+                    aria-label={`${columnName()} column menu`}
                   >
                     <CaretDownIcon class="size-3" />
                   </Dropdown.Trigger>
@@ -427,7 +468,8 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
                               when={
                                 group === 'edit' &&
                                 props.onChangeType &&
-                                canRename()
+                                canRename() &&
+                                !props.column.formula
                               }
                             >
                               <ColumnTypeMenu
@@ -436,7 +478,21 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
                                 loadCasts={(open) =>
                                   props.columnCasts?.(props.column.id, open)
                                 }
-                                onChange={(change) => void changeType(change)}
+                                onChange={(change) =>
+                                  fireAndForget(changeType(change), 'database')
+                                }
+                                onFormula={
+                                  formulas &&
+                                  (() => {
+                                    const replace = formulaReplaces();
+                                    requested = () =>
+                                      setFormulaEditing({
+                                        kind: 'create',
+                                        replace,
+                                      });
+                                    setMenuOpen(false);
+                                  })
+                                }
                                 onConvertToNewColumn={
                                   props.onConvert &&
                                   ((choice) => {
@@ -462,6 +518,7 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
             >
               <PropertyIcon
                 relation={!!props.column.relation}
+                formula={!!props.column.formula}
                 type={props.column.dataType}
                 entityType={props.column.specificEntityType}
               />
@@ -553,7 +610,7 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
                   event.preventDefault();
                   restoreFocus();
                 }}
-                class="z-action-menu flex w-60 flex-col gap-1 rounded-lg border border-edge bg-menu p-2 text-xs text-ink shadow-menu outline-none"
+                class="menu-surface z-action-menu flex w-60 flex-col gap-1 p-2 text-xs outline-none"
               >
                 <Popover.Title class="px-1 pb-1 font-medium">
                   Options
@@ -589,6 +646,80 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
           </Popover>
         )}
       </Show>
+      <Show when={formulas}>
+        {(editing) => (
+          <Popover
+            open={!!formulaEditing()}
+            onOpenChange={(open) => {
+              if (!open) setFormulaEditing(undefined);
+            }}
+            anchorRef={() => header}
+            placement="bottom-start"
+            gutter={4}
+          >
+            <Popover.Portal>
+              <Popover.Content
+                aria-label={
+                  props.column.formula
+                    ? `${props.column.name} formula`
+                    : 'New formula column'
+                }
+                onFocusOutside={(event) => event.preventDefault()}
+                onCloseAutoFocus={(event) => {
+                  event.preventDefault();
+                  restoreFocus();
+                }}
+                class="menu-surface z-action-menu outline-none"
+              >
+                <Show when={formulaEditing()}>
+                  {(mode) => (
+                    <FormulaEditor
+                      tableId={editing().tableId}
+                      columns={editing().columns()}
+                      {...match(mode())
+                        .with({ kind: 'edit' }, () => ({
+                          own: props.column.id,
+                          formula: props.column.formula,
+                        }))
+                        .with({ kind: 'create' }, ({ replace }) => ({
+                          name: replace
+                            ? props.column.name
+                            : defaultFormulaColumnName(
+                                editing()
+                                  .columns()
+                                  .map((column) => column.name)
+                              ),
+                        }))
+                        .exhaustive()}
+                      onCancel={() => setFormulaEditing(undefined)}
+                      onSave={({ name, formula }) => {
+                        const saved = match(mode())
+                          .with({ kind: 'edit' }, () =>
+                            editing().setFormula(props.column.id, formula)
+                          )
+                          .with({ kind: 'create' }, ({ replace }) =>
+                            editing()
+                              .createFormulaColumn({
+                                name,
+                                formula,
+                                beside: props.column.id,
+                                replace,
+                              })
+                              .map(() => undefined)
+                          )
+                          .exhaustive();
+                        return saved.map(() => {
+                          setFormulaEditing(undefined);
+                        });
+                      }}
+                    />
+                  )}
+                </Show>
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover>
+        )}
+      </Show>
       <ConfirmDialog
         open={!!converting()}
         onOpenChange={(open) => {
@@ -599,7 +730,7 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
         confirmLabel="Convert into a new column"
         onConfirm={() => {
           const choice = converting();
-          if (choice) void convert(choice);
+          if (choice) fireAndForget(convert(choice), 'database');
         }}
         body={
           <>
@@ -623,7 +754,7 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
         title="Delete column?"
         deleteLabel="Delete column"
         pending={pending()}
-        onDelete={() => void remove()}
+        onDelete={() => fireAndForget(remove(), 'database')}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           restoreFocus();

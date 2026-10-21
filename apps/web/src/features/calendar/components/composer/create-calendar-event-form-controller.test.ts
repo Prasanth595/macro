@@ -67,6 +67,23 @@ function controllerFor(
   });
 }
 
+it('never uses an imported point baseline to create a new zero-duration event', () => {
+  const controller = controllerFor({
+    title: 'New point',
+    allDay: false,
+    start: '2026-10-10T12:00',
+    end: '2026-10-10T12:00',
+    importedPointTime: {
+      kind: 'timed',
+      startsAt: '2026-10-10T12:00:00Z',
+      endsAt: '2026-10-10T12:00:00Z',
+      timeZone: 'UTC',
+    },
+  });
+  expect(controller.canSave()).toBe(false);
+  expect(controller.submitValues()).toBeUndefined();
+});
+
 describe('calendar account selection', () => {
   it('waits for the primary account instead of silently using another inbox', () => {
     const [primary, setPrimary] = createSignal<string>();
@@ -449,4 +466,70 @@ describe('out of office', () => {
       autoDeclineMode: 'decline_only_new_conflicting_invitations',
     });
   });
+});
+
+it('preserves a requested conference on an unsupported calendar until the user resolves it', () => {
+  const controller = controllerFor(
+    { ...timedRange(3), title: 'Meeting', conference: 'google_meet' },
+    {
+      calendarOptions: () => [
+        {
+          id: 'personal',
+          label: 'Personal Outlook',
+          color: '#0078d4',
+          provider: 'outlook',
+          isPrimary: true,
+          capabilities: {
+            autoDecline: true,
+            emailReminders: true,
+            customRecurrence: false,
+            removeConference: false,
+            resetRsvp: false,
+          },
+        },
+      ],
+    }
+  );
+  controller.setField('calendarId', 'personal');
+  expect(controller.state().conference).toBe('google_meet');
+  expect(controller.conferenceError()).toContain('cannot create');
+  expect(controller.canSave()).toBe(false);
+  expect(controller.submitValues()).toBeUndefined();
+  controller.setField('conference', 'none');
+  expect(controller.canSave()).toBe(true);
+  expect(controller.submitValues()).toBeDefined();
+});
+
+it('allows unrelated edits to an existing Teams meeting on a calendar without conference creation', () => {
+  const controller = controllerFor(
+    {
+      ...timedRange(3),
+      title: 'Received meeting',
+      calendarId: 'personal',
+      conference: 'microsoft_teams',
+    },
+    {
+      isEdit: true,
+      calendarOptions: () => [
+        {
+          id: 'personal',
+          label: 'Personal Outlook',
+          color: '#0078d4',
+          provider: 'outlook',
+          isPrimary: true,
+          capabilities: {
+            autoDecline: true,
+            emailReminders: true,
+            customRecurrence: false,
+            removeConference: false,
+            resetRsvp: false,
+          },
+        },
+      ],
+    }
+  );
+  controller.setField('title', 'Updated notes');
+  expect(controller.conferenceError()).toBeUndefined();
+  expect(controller.canSave()).toBe(true);
+  expect(controller.submitValues()?.conference).toBeUndefined();
 });

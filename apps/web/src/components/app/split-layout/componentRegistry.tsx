@@ -45,6 +45,10 @@ const CalendarRouteView = lazyNamed(
   () => import('@app/features/calendar-view/route-views'),
   'CalendarRouteView'
 );
+const BookingLinksRouteView = lazyNamed(
+  () => import('@app/features/scheduling/route-views'),
+  'BookingLinksRouteView'
+);
 const ChannelsRouteView = lazyNamed(
   () => import('@app/features/channels-view/route-views'),
   'ChannelsRouteView'
@@ -80,6 +84,10 @@ const RecentRouteView = lazyNamed(
 const SearchRouteView = lazyNamed(
   () => import('@app/features/next-soup/route-views'),
   'SearchRouteView'
+);
+const FolderComposeView = lazyNamed(
+  () => import('@app/features/drive-view/folder-compose-view'),
+  'FolderComposeView'
 );
 const CreateProjectView = lazyNamed(
   () => import('@app/features/projects/project-view'),
@@ -264,6 +272,9 @@ const GatedCreateProjectView = (
 registerComponent('new-project', withAuth(GatedCreateProjectView), {
   splitPanelLayout: 'composable',
 });
+registerComponent('folder-compose', withAuth(FolderComposeView), {
+  splitPanelLayout: 'composable',
+});
 registerComponent('project-compose', withAuth(GatedCreateProjectView), {
   splitPanelLayout: 'composable',
 });
@@ -345,15 +356,15 @@ registerComponent(
   () => <ChannelsRouteView />,
   () => composableLayout()
 );
-registerComponent('calls', () => <CallsRouteView />);
 registerComponent(
-  'companies',
-  () => <CompaniesRouteView />,
-  () => ({
-    ownsCollectionState: true,
-    ...(isTouchDevice() ? {} : { splitPanelLayout: 'composable' as const }),
-  })
+  'calls',
+  () => <CallsRouteView />,
+  () => composableLayout()
 );
+registerComponent('companies', () => <CompaniesRouteView />, {
+  ownsCollectionState: true,
+  splitPanelLayout: 'composable',
+});
 registerComponent('folders', () => <FoldersRouteView />);
 registerComponent('search', () => <SearchRouteView />);
 registerComponent('firehose', () => (
@@ -451,6 +462,11 @@ registerComponent(
 registerComponent(
   'settings',
   () => <SettingsRouteView />,
+  () => composableLayout()
+);
+registerComponent(
+  'booking-links',
+  () => <BookingLinksRouteView />,
   () => composableLayout()
 );
 
@@ -638,4 +654,9 @@ registerComponent(
 registerComponent(
   'ui',
   lazy(() => import('@app/features/ui-gallery/UiGallery'))
+);
+
+registerComponent(
+  'create-menu-demo',
+  lazy(() => import('@app/features/command/debug/CreateMenuDemo'))
 );

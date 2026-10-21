@@ -5,12 +5,16 @@ import { toast } from '@core/component/Toast/Toast';
 import { enableAiUsageBilling, LOCAL_ONLY } from '@core/constant/featureFlags';
 import { PERMISSION_IDS } from '@core/constant/permissions';
 import { usePermissions, useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { lazyNamed } from '@core/util/lazyNamed';
 import {
   useAiBillingSummaryQuery,
   useChangePlanMutation,
   useCreateCheckoutSessionMutation,
+  useSubscriptionStatusQuery,
+  useTrialEligibilityQuery,
 } from '@queries/auth';
+import { queryReadyGate } from '@queries/gate';
 import { useCurrentTeamQuery } from '@queries/team/teams';
 import type { PaidPlan } from '@service-auth/ai-billing-types';
 import { stripeServiceClient } from '@service-stripe/client';
@@ -21,12 +25,13 @@ import {
   getFreePlanCheckoutRequest,
 } from './core/billing-state';
 
+const BillingPreview =
+  import.meta.env.DEV && LOCAL_ONLY
+    ? lazyNamed(() => import('./views/billing-preview'), 'BillingPreview')
+    : undefined;
+
 export function Billing() {
-  if (import.meta.env.DEV && LOCAL_ONLY) {
-    const BillingPreview = lazyNamed(
-      () => import('./views/billing-preview'),
-      'BillingPreview'
-    );
+  if (BillingPreview) {
     return (
       <Suspense fallback={<p role="status">Loading billing…</p>}>
         <BillingPreview
@@ -48,13 +53,22 @@ function LiveBilling(props: { controls?: JSX.Element }) {
   const aiUsageBilling = useFeatureFlag(enableAiUsageBilling);
   const changePlan = useChangePlanMutation();
   const checkout = useCreateCheckoutSessionMutation();
+  const effectiveHasPaid = () =>
+    hasPaid() || (summary.isSuccess && summary.data.tier !== 'free');
+  const trialEligibility = useTrialEligibilityQuery({
+    enabled: () => !effectiveHasPaid(),
+  });
+
+  const subscriptionStatus = useSubscriptionStatusQuery({
+    enabled: effectiveHasPaid,
+  });
 
   const canManageSubscription = createMemo(() => {
     return permissions()?.includes(PERMISSION_IDS.WRITE_STRIPE_SUBSCRIPTION);
   });
 
   const userTeam = createMemo(() => {
-    const currentTeam = team.isSuccess ? team.data : undefined;
+    const currentTeam = queryReadyGate(team) ? team.data : undefined;
     const uid = userId();
     if (!currentTeam || !uid) return;
 
@@ -72,8 +86,9 @@ function LiveBilling(props: { controls?: JSX.Element }) {
 
   const state = () =>
     getBillingState({
-      hasPaid: hasPaid(),
-      canManageSubscription: team.isSuccess && canManageSubscription() === true,
+      hasPaid: effectiveHasPaid(),
+      canManageSubscription: canManageSubscription() === true,
+      teamReady: team.isSuccess,
       teamRole: teamRole(),
       teamPlans: team.isSuccess
         ? team.data?.members.map((member) =>
@@ -90,11 +105,23 @@ function LiveBilling(props: { controls?: JSX.Element }) {
         : undefined,
       aiUsageEnabled: aiUsageBilling().enabled,
       pending: checkout.isPending || changePlan.isPending,
+      existingSubscription: queryReadyGate(trialEligibility)
+        ? trialEligibility.data.existingSubscription
+        : false,
+      trialEligible:
+        trialEligibility.isSuccess && queryReadyGate(trialEligibility)
+          ? trialEligibility.data.eligible
+          : undefined,
     });
 
   const handleCheckout = async (plan: PaidPlan) => {
+    if (state().existingSubscription) return;
+    const eligible = state().trialEligible;
+    if (plan === 'premium' && eligible === undefined) return;
     try {
-      const url = await checkout.mutateAsync(getFreePlanCheckoutRequest(plan));
+      const url = await checkout.mutateAsync(
+        getFreePlanCheckoutRequest(plan, eligible === true)
+      );
       analytics.track('subscription_start', { type: plan });
       window.location.href = url;
     } catch (error) {
@@ -109,14 +136,17 @@ function LiveBilling(props: { controls?: JSX.Element }) {
 
   const handleChangePlan = async (plan: PaidPlan) => {
     try {
+      const previousTier = state().tier;
       await changePlan.mutateAsync({ plan });
       analytics.track('plan_changed', { plan });
       toast.success(
-        plan === 'max'
-          ? aiUsageBilling().enabled
-            ? 'Upgraded to Max. Your larger AI allowance applies right away.'
-            : 'Upgraded to Max.'
-          : 'Switched to Pro.'
+        plan === previousTier
+          ? `Keeping your ${plan === 'max' ? 'Max' : 'Pro'} plan. Your scheduled downgrade is canceled.`
+          : plan === 'max'
+            ? aiUsageBilling().enabled
+              ? 'Upgraded to Max. Your larger AI allowance applies right away.'
+              : 'Upgraded to Max.'
+            : 'Pro will start at your next renewal. You keep Max until then.'
       );
     } catch (error) {
       console.error(error);
@@ -130,6 +160,7 @@ function LiveBilling(props: { controls?: JSX.Element }) {
       window.location.href = url;
     } catch (error) {
       console.error(error);
+      toast.failure("Couldn't open billing management. Please try again.");
     }
   };
 
@@ -137,9 +168,33 @@ function LiveBilling(props: { controls?: JSX.Element }) {
     <BillingSettingsView
       state={state()}
       controls={props.controls}
-      onManage={() => void handleManage()}
+      renewalDate={
+        queryReadyGate(subscriptionStatus)
+          ? (subscriptionStatus.data.renewalDate ?? undefined)
+          : undefined
+      }
+      scheduledChange={
+        queryReadyGate(subscriptionStatus)
+          ? (subscriptionStatus.data.scheduledChange ?? undefined)
+          : undefined
+      }
+      subscriptionStatusFailed={subscriptionStatus.isError}
+      onRefreshStatus={() =>
+        fireAndForget(subscriptionStatus.refetch(), 'billing-settings')
+      }
+      trialEligibilityFailed={!effectiveHasPaid() && trialEligibility.isError}
+      onRefreshTrialEligibility={() =>
+        fireAndForget(trialEligibility.refetch(), 'billing-settings')
+      }
+      onKeepPlan={(plan) =>
+        fireAndForget(handleChangePlan(plan), 'billing-settings')
+      }
+      onManage={() => fireAndForget(handleManage(), 'billing-settings')}
       onSelectPlan={(plan) =>
-        void (hasPaid() ? handleChangePlan(plan) : handleCheckout(plan))
+        fireAndForget(
+          effectiveHasPaid() ? handleChangePlan(plan) : handleCheckout(plan),
+          'billing-settings'
+        )
       }
     />
   );

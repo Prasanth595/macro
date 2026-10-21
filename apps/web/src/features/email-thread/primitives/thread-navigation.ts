@@ -469,7 +469,7 @@ export function createThreadNavigation(
 
     return openEmailReplyComposerForMessage({
       ctx: context,
-      isMobile: threadContext.isMobile(),
+      isTouch: threadContext.isTouch(),
       message: target.message,
       replyType,
       isLastMessage: target.isLastMessage,
@@ -533,7 +533,7 @@ export function createThreadNavigation(
 
       return openEmailReplyComposerForMessage({
         ctx: context,
-        isMobile: threadContext.isMobile(),
+        isTouch: threadContext.isTouch(),
         message: target.message,
         replyType: 'reply-all',
         isLastMessage: target.isLastMessage,
@@ -594,11 +594,7 @@ export function createThreadNavigation(
     }
     return true;
   };
-  const markDone = () => {
-    if (!host.listNavigation) return context.archiveThread();
-    host.listNavigation.markDone(context.archiveThread);
-    return true;
-  };
+  const markDone = () => context.archiveThreadAndAdvance();
   onMount(() =>
     host.registerKeyboard?.({
       replyToFocusedMessage: () => openHotkeyTarget('reply-all'),

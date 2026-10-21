@@ -6,8 +6,7 @@ import {
   DEFAULT_CONTINUE_BEFORE_STEADY_STATE,
   EcsDeploymentFailureAlarm,
   DatadogServiceEntity,
-  datadogAgentContainer,
-  fargateLogRouterSidecarContainer,
+  withTelemetry,
   serviceLoadBalancer,
   ServiceTargetGroup,
 } from '../../packages/resources';
@@ -294,16 +293,14 @@ export class DocumentCognitionService extends pulumi.ComponentResource {
           executionRole: {
             roleArn: dopplerEcsEnvironment.executionRole.arn,
           },
-          containers: {
-            log_router: fargateLogRouterSidecarContainer,
-            datadog_agent: datadogAgentContainer,
+          containers: withTelemetry(BASE_NAME, {
             service: {
               name: BASE_NAME,
               image: image.image.imageUri,
               stopTimeout: 10, // 10 seconds to force kill the task
-              cpu: 4096,
-              memory: 8192,
-              environment: containerEnvVars,
+              cpu: stack === 'prod' ? 2048 : 512,
+              memory: stack === 'prod' ? 3584 : 1024,
+              environment: [...(containerEnvVars ?? [])],
               secrets: [...dopplerEcsEnvironment.containerSecrets],
               logConfiguration: {
                 logDriver: 'awsfirelens',
@@ -327,7 +324,7 @@ export class DocumentCognitionService extends pulumi.ComponentResource {
                 },
               ],
             },
-          },
+          }),
           runtimePlatform: {
             operatingSystemFamily: `${platform.family.toUpperCase()}`,
             cpuArchitecture: `${
@@ -337,7 +334,7 @@ export class DocumentCognitionService extends pulumi.ComponentResource {
             }`,
           },
         },
-        desiredCount: stack === 'prod' ? 4 : 1,
+        desiredCount: stack === 'prod' ? 2 : 1,
       },
       {
         parent: this,
@@ -501,7 +498,7 @@ export class DocumentCognitionService extends pulumi.ComponentResource {
       `${BASE_NAME}-service-scalable-target-${stack}`,
       {
         maxCapacity: stack === 'prod' ? 10 : 3,
-        minCapacity: stack === 'prod' ? 4 : 1,
+        minCapacity: stack === 'prod' ? 2 : 1,
         resourceId: pulumi.interpolate`service/${this.cloudStorageClusterName}/${this.service.service.name}`,
         scalableDimension: 'ecs:service:DesiredCount',
         serviceNamespace: 'ecs',

@@ -10,8 +10,8 @@ import {
   useParams,
 } from '@app/lib/split-router';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
-import { LoadingBlock } from '@core/component/LoadingBlock';
 import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useCalendarOccurrencesQuery } from '@queries/calendar/occurrences';
 import deepEqual from 'fast-deep-equal';
 import {
@@ -27,6 +27,7 @@ import { CalendarFocusContextProvider } from './calendar-focus-target';
 import { resolveCalendarTarget } from './calendar-target';
 import { createCalendarTargetAim } from './calendar-target-request';
 import { calendarSearch, calendarSearchTarget } from './calendar-url';
+import { CalendarViewSkeleton } from './calendar-view-skeleton';
 import { Workspace } from './components/Workspace';
 import { CALENDAR_VIEW_ID, type CalendarViewTarget } from './types';
 
@@ -176,11 +177,7 @@ export function CalendarView(props: CalendarViewProps) {
   );
   const focusTarget = createMemo(() => {
     const request = targetRequest();
-    if (
-      !request ||
-      !occurrencesQuery.isSuccess ||
-      occurrencesQuery.isPlaceholderData
-    ) {
+    if (!request || !occurrencesQuery.isSuccess) {
       return undefined;
     }
     return resolveCalendarTarget(occurrencesQuery.data?.items ?? [], request);
@@ -205,7 +202,10 @@ export function CalendarView(props: CalendarViewProps) {
   };
   const setPeriodView = (period: CalendarPeriodView) => {
     if (routeParams.period === period) return;
-    navigate({ route: props.route, params: { period } });
+    fireAndForget(
+      navigate({ route: props.route, params: { period } }),
+      'calendar-view'
+    );
   };
 
   onMount(() => {
@@ -217,7 +217,7 @@ export function CalendarView(props: CalendarViewProps) {
     <Show
       when={calendarUiEnabled()}
       fallback={
-        <Show when={posthog.flagsLoaded()} fallback={<LoadingBlock />}>
+        <Show when={posthog.flagsLoaded()} fallback={<CalendarViewSkeleton />}>
           <CalendarDisabledRedirect />
         </Show>
       }

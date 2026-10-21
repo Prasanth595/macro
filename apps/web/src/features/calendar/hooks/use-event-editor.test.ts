@@ -99,7 +99,10 @@ beforeEach(() => {
 });
 
 describe('editing event times', () => {
-  function editorFor(overrides: Partial<CalendarEvent> = {}) {
+  function editorFor(
+    overrides: Partial<CalendarEvent> = {},
+    macroCallsEnabled = false
+  ) {
     return createRoot((dispose) => {
       const event: CalendarEvent = {
         ...savedEvent,
@@ -115,7 +118,7 @@ describe('editing event times', () => {
       const editor = useEventEditor({
         event: () => event,
         onSaved,
-        macroCallsEnabled: () => false,
+        macroCallsEnabled: () => macroCallsEnabled,
       });
       const form = createCalendarEventFormController({
         initialValue: calendarEventToEditorInitialValues(event),
@@ -127,7 +130,127 @@ describe('editing event times', () => {
     });
   }
 
+  it('syncs an existing point call title without writing a zero-duration schedule', async () => {
+    const { editor, form, dispose } = editorFor(
+      {
+        start: savedEvent.start,
+        end: savedEvent.start,
+        location: savedEvent.location,
+      },
+      true
+    );
+    try {
+      form.setField('title', 'Updated point call');
+      await editor.save(form.submitValues()!);
+      expect(mocks.updateEvent.mock.lastCall?.[0].patch).toEqual({
+        title: 'Updated point call',
+      });
+      expect(mocks.updateMeeting).toHaveBeenCalledWith({
+        meetingId: 'meeting-1',
+        title: 'Updated point call',
+      });
+      expect(editor.saveError()).toBeUndefined();
+      expect(mocks.alert).not.toHaveBeenCalled();
+    } finally {
+      dispose();
+    }
+  });
+
+  it('syncs a positive schedule when an imported point gains duration', async () => {
+    const { editor, form, dispose } = editorFor(
+      {
+        start: savedEvent.start,
+        end: savedEvent.start,
+        location: savedEvent.location,
+      },
+      true
+    );
+    try {
+      form.setField('end', form.state().end.replace('14:00', '15:00'));
+      const submitted = form.submitValues()!;
+      expect(submitted.time.kind).toBe('timed');
+      await editor.save(submitted);
+      expect(mocks.updateMeeting).toHaveBeenCalledWith({
+        meetingId: 'meeting-1',
+        title: 'Planning',
+        scheduledStart: '2026-09-22T14:00:00.000Z',
+        scheduledEnd: '2026-09-22T15:00:00.000Z',
+      });
+    } finally {
+      dispose();
+    }
+  });
+
+  it('rejects adding a point call before any calendar or meeting mutation', async () => {
+    const { editor, form, onSaved, dispose } = editorFor(
+      {
+        start: savedEvent.start,
+        end: savedEvent.start,
+      },
+      true
+    );
+    try {
+      form.setField('conference', 'macro');
+      form.setField('title', 'A new point call');
+      await editor.save(form.submitValues()!);
+      expect(editor.saveError()).toBe(
+        'Give this event a duration before adding a Macro call.'
+      );
+      expect(editor.pending()).toBe(false);
+      expect(mocks.updateEvent).not.toHaveBeenCalled();
+      expect(mocks.createMeeting).not.toHaveBeenCalled();
+      expect(mocks.updateMeeting).not.toHaveBeenCalled();
+      expect(onSaved).not.toHaveBeenCalled();
+    } finally {
+      dispose();
+    }
+  });
+
   describe.each(['all', 'this_event'] as const)('%s scope', (scope) => {
+    it('edits imported point metadata without sending a time patch', async () => {
+      const { editor, form, dispose } = editorFor({
+        start: '2026-09-22T10:00:37-04:00',
+        end: '2026-09-22T10:00:37-04:00',
+      });
+      try {
+        form.setField('title', 'Updated point title');
+        expect(form.canSave()).toBe(true);
+        expect(form.dateRangeError()).toBeUndefined();
+        const submitted = form.submitValues();
+        expect(submitted?.time).toMatchObject({
+          startsAt: '2026-09-22T10:00:37-04:00',
+          endsAt: '2026-09-22T10:00:37-04:00',
+        });
+        await editor.save(submitted!, scope);
+        expect(mocks.updateEvent).toHaveBeenCalledOnce();
+        expect(mocks.updateEvent.mock.lastCall?.[0].patch).toEqual({
+          title: 'Updated point title',
+        });
+      } finally {
+        dispose();
+      }
+    });
+
+    it('requires positive duration when changing an imported point time', () => {
+      const { form, dispose } = editorFor({
+        start: '2026-09-22T14:00:00Z',
+        end: '2026-09-22T14:00:00Z',
+      });
+      try {
+        form.setField('start', '2026-09-23T14:00');
+        form.setField('end', '2026-09-23T14:00');
+        expect(form.canSave()).toBe(false);
+        expect(form.submitValues()).toBeUndefined();
+        expect(form.dateRangeError()).toBe(
+          'End time must be after the start time.'
+        );
+        form.setField('end', '2026-09-23T14:30');
+        expect(form.canSave()).toBe(true);
+      } finally {
+        dispose();
+      }
+    });
+
     it.each([
       'RRULE:FREQ=WEEKLY;WKST=SU;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR',
       'RRULE:BYDAY=FR,TH,WE,TU,MO;FREQ=WEEKLY',
@@ -317,6 +440,9 @@ describe('scheduling a Macro call', () => {
       try {
         await editor.save(values);
         expect(mocks.createEvent).toHaveBeenCalledOnce();
+        expect(mocks.createEvent.mock.calls[0]?.[0]).not.toHaveProperty(
+          'macroCall'
+        );
         expect(mocks.createMeeting).not.toHaveBeenCalled();
         expect(mocks.updateMeeting).not.toHaveBeenCalled();
         expect(saved).toHaveBeenCalledOnce();
@@ -326,11 +452,8 @@ describe('scheduling a Macro call', () => {
     }
   );
 
-  it('rechecks the flag after the calendar save before attaching a call', async () => {
-    mocks.createEvent.mockImplementation(async () => {
-      mocks.quickCalls = false;
-      return { id: 'event-1' };
-    });
+  it('creates the event with its Macro call in a single write', async () => {
+    const saved = vi.fn();
     const [editor, dispose] = createRoot(
       (dispose) =>
         [
@@ -338,41 +461,26 @@ describe('scheduling a Macro call', () => {
             macroCallsEnabled: () =>
               mocks.quickCalls && !mocks.quickCallsLoading,
             event: () => undefined,
-            onSaved: vi.fn(),
+            onSaved: saved,
           }),
           dispose,
         ] as const
     );
     try {
       await editor.save(values);
+      expect(mocks.createEvent).toHaveBeenCalledOnce();
+      expect(mocks.createEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Planning',
+          location: 'Meeting room',
+          description: '<p>Roadmap discussion</p>',
+          macroCall: true,
+        })
+      );
       expect(mocks.createMeeting).not.toHaveBeenCalled();
       expect(mocks.updateEvent).not.toHaveBeenCalled();
-    } finally {
-      dispose();
-    }
-  });
-
-  it('does not attach an in-flight created call after the flag is disabled', async () => {
-    mocks.createMeeting.mockImplementation(async () => {
-      mocks.quickCalls = false;
-      return { shareToken: '8m8mGwzHqxzYjeIN5-nJRquRbzyTEhGF' };
-    });
-    const [editor, dispose] = createRoot(
-      (dispose) =>
-        [
-          useEventEditor({
-            event: () => undefined,
-            onSaved: vi.fn(),
-            macroCallsEnabled: () =>
-              mocks.quickCalls && !mocks.quickCallsLoading,
-          }),
-          dispose,
-        ] as const
-    );
-    try {
-      await editor.save(values);
-      expect(mocks.createMeeting).toHaveBeenCalledOnce();
-      expect(mocks.updateEvent).not.toHaveBeenCalled();
+      expect(editor.saveError()).toBeUndefined();
+      expect(saved).toHaveBeenCalledOnce();
     } finally {
       dispose();
     }
@@ -616,50 +724,7 @@ describe('scheduling a Macro call', () => {
     }
   });
 
-  it.each(['none', 'disabled'] as const)(
-    'saves edited event details after failed attachment when switching to %s',
-    async (choice) => {
-      mocks.updateEvent.mockRejectedValueOnce(new Error('Update unavailable'));
-      const saved = vi.fn();
-      const [editor, dispose] = createRoot(
-        (dispose) =>
-          [
-            useEventEditor({
-              macroCallsEnabled: () =>
-                mocks.quickCalls && !mocks.quickCallsLoading,
-              event: () => undefined,
-              onSaved: saved,
-            }),
-            dispose,
-          ] as const
-      );
-      try {
-        await editor.save(values);
-        expect(editor.saveError()).toBeDefined();
-        if (choice === 'disabled') mocks.quickCalls = false;
-        await editor.save({
-          ...values,
-          title: 'Updated planning',
-          conferenceChoice: choice === 'none' ? 'none' : 'macro',
-        });
-        expect(mocks.createEvent).toHaveBeenCalledOnce();
-        expect(mocks.createMeeting).toHaveBeenCalledOnce();
-        expect(mocks.updateMeeting).not.toHaveBeenCalled();
-        expect(mocks.updateEvent.mock.lastCall?.[0].patch.title).toBe(
-          'Updated planning'
-        );
-        expect(mocks.updateEvent.mock.lastCall?.[0].patch.description).toBe(
-          values.description
-        );
-        expect(editor.saveError()).toBeUndefined();
-        expect(saved).toHaveBeenCalledOnce();
-      } finally {
-        dispose();
-      }
-    }
-  );
-
-  it('keeps an all-day call untimed instead of inventing local-midnight times', async () => {
+  it('asks the server for an untimed call on an all-day event', async () => {
     const [editor, dispose] = createRoot(
       (dispose) =>
         [
@@ -681,11 +746,17 @@ describe('scheduling a Macro call', () => {
           endDate: '2026-09-24',
         },
       });
-      expect(mocks.createMeeting).toHaveBeenCalledWith({
-        title: 'Planning',
-        scheduledStart: null,
-        scheduledEnd: null,
-      });
+      expect(mocks.createEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          macroCall: true,
+          time: {
+            kind: 'allDay',
+            startDate: '2026-09-22',
+            endDate: '2026-09-24',
+          },
+        })
+      );
+      expect(mocks.createMeeting).not.toHaveBeenCalled();
     } finally {
       dispose();
     }
@@ -755,48 +826,6 @@ describe('scheduling a Macro call', () => {
     }
   });
 
-  it('creates the calendar event before creating and attaching its call', async () => {
-    const saved = vi.fn();
-    const [editor, dispose] = createRoot(
-      (dispose) =>
-        [
-          useEventEditor({
-            macroCallsEnabled: () =>
-              mocks.quickCalls && !mocks.quickCallsLoading,
-            event: () => undefined,
-            onSaved: saved,
-          }),
-          dispose,
-        ] as const
-    );
-    try {
-      await editor.save(values);
-
-      expect(mocks.createEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: 'Planning',
-          location: 'Meeting room',
-          description: '<p>Roadmap discussion</p>',
-        })
-      );
-      expect(mocks.createEvent.mock.invocationCallOrder[0]).toBeLessThan(
-        mocks.createMeeting.mock.invocationCallOrder[0]
-      );
-      expect(mocks.updateEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          eventId: 'event-1',
-          patch: expect.objectContaining({
-            location: 'Meeting room',
-            description: expect.stringContaining('Join Macro call'),
-          }),
-        })
-      );
-      expect(saved).toHaveBeenCalledOnce();
-    } finally {
-      dispose();
-    }
-  });
-
   it('does not create a call when event creation fails', async () => {
     mocks.createEvent.mockRejectedValueOnce(new Error('Calendar unavailable'));
     const [editor, dispose] = createRoot(
@@ -822,8 +851,10 @@ describe('scheduling a Macro call', () => {
     }
   });
 
-  it('retries call creation on the saved event without duplicating the event', async () => {
-    mocks.createMeeting.mockRejectedValueOnce(new Error('Call unavailable'));
+  it('retries a failed create from scratch instead of patching a saved event', async () => {
+    mocks.createEvent.mockRejectedValueOnce(
+      new Error('the Macro call for the event could not be created')
+    );
     const saved = vi.fn();
     const [editor, dispose] = createRoot(
       (dispose) =>
@@ -839,50 +870,17 @@ describe('scheduling a Macro call', () => {
     );
     try {
       await editor.save(values);
-      expect(mocks.createEvent).toHaveBeenCalledOnce();
-      expect(editor.saveError()).toContain('Your event is saved');
-      expect(saved).not.toHaveBeenCalled();
-      await editor.save(values);
-      expect(mocks.createEvent).toHaveBeenCalledOnce();
-      expect(mocks.createMeeting).toHaveBeenCalledTimes(2);
+      expect(mocks.failure).toHaveBeenCalledWith('Failed to create event', {
+        subtext: 'the Macro call for the event could not be created',
+      });
       expect(editor.saveError()).toBeUndefined();
-      expect(saved).toHaveBeenCalledOnce();
-    } finally {
-      dispose();
-    }
-  });
-
-  it('retains the same call link when attaching it fails and the title changes before retry', async () => {
-    mocks.updateEvent.mockRejectedValueOnce(new Error('Update unavailable'));
-    const saved = vi.fn();
-    const [editor, dispose] = createRoot(
-      (dispose) =>
-        [
-          useEventEditor({
-            macroCallsEnabled: () =>
-              mocks.quickCalls && !mocks.quickCallsLoading,
-            event: () => undefined,
-            onSaved: saved,
-          }),
-          dispose,
-        ] as const
-    );
-    try {
-      await editor.save(values);
-      const linkedDescription =
-        mocks.updateEvent.mock.lastCall?.[0].patch.description;
-      expect(linkedDescription).toContain('/meet/');
-      expect(editor.saveError()).toContain('Save again to retry');
       expect(saved).not.toHaveBeenCalled();
-      await editor.save({ ...values, title: 'Updated planning' });
-      expect(mocks.createEvent).toHaveBeenCalledOnce();
-      expect(mocks.createMeeting).toHaveBeenCalledOnce();
-      expect(mocks.updateMeeting).toHaveBeenCalledWith(
-        expect.objectContaining({ title: 'Updated planning' })
-      );
-      expect(mocks.updateEvent.mock.lastCall?.[0].patch.description).toBe(
-        linkedDescription
-      );
+      await editor.save(values);
+      expect(mocks.createEvent).toHaveBeenCalledTimes(2);
+      expect(mocks.createEvent.mock.lastCall?.[0]).toMatchObject({
+        macroCall: true,
+      });
+      expect(mocks.updateEvent).not.toHaveBeenCalled();
       expect(saved).toHaveBeenCalledOnce();
     } finally {
       dispose();
@@ -913,11 +911,11 @@ describe('scheduling a Macro call', () => {
       expect(editor.pending()).toBe(true);
       await editor.save(values);
       expect(mocks.createEvent).toHaveBeenCalledOnce();
-      expect(mocks.createMeeting).not.toHaveBeenCalled();
       finish({ id: 'event-1' });
       await saving;
       expect(editor.pending()).toBe(false);
-      expect(mocks.createMeeting).toHaveBeenCalledOnce();
+      expect(mocks.createEvent).toHaveBeenCalledOnce();
+      expect(mocks.createMeeting).not.toHaveBeenCalled();
     } finally {
       dispose();
     }

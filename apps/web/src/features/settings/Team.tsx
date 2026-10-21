@@ -1,4 +1,3 @@
-import { PLANS } from '@app/features/paywall/plans';
 import { SlackImport } from '@app/features/slack-import/slack-import';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { toast } from '@core/component/Toast/Toast';
@@ -87,6 +86,7 @@ import {
   Switch,
 } from 'solid-js';
 import { z } from 'zod';
+import { TeamSeatPlanSelect } from './components/team-seat-plan-select';
 import { ConnectAction } from './integration-ui';
 import {
   IntegrationRow,
@@ -96,6 +96,7 @@ import {
   SettingsSection,
 } from './primitives';
 import {
+  canInviteToTeam,
   canRemoveTeamMember,
   isTeamAdminOrOwner,
 } from './teamMemberPermissions';
@@ -159,28 +160,11 @@ function RoleSelect(props: {
         <CaretDownIcon class="size-3 text-ink-muted shrink-0" />
       </Select.Trigger>
       <Select.Portal>
-        <Select.Content class="z-action-menu border border-edge bg-surface rounded shadow-lg min-w-25 p-1">
+        <Select.Content class="menu-surface z-action-menu min-w-25 p-1">
           <Select.Listbox />
         </Select.Content>
       </Select.Portal>
     </Select>
-  );
-}
-
-type PlanOption = { value: PaidPlan; label: string; description: string };
-
-/** Every paid plan a seat can be moved to, cheapest first. */
-function planOptionsFor(aiUsageBilling: boolean): PlanOption[] {
-  return PLANS.flatMap((plan) =>
-    plan.tier === 'free'
-      ? []
-      : [
-          {
-            value: plan.tier,
-            label: plan.name,
-            description: `$${plan.price}${aiUsageBilling && plan.tier === 'max' ? ' · 10× usage' : ''}`,
-          },
-        ]
   );
 }
 
@@ -191,63 +175,6 @@ function planOptionsFor(aiUsageBilling: boolean): PlanOption[] {
 function memberPlan(member: TeamMember): PaidPlan {
   const plan = (member as TeamMember & { plan?: PaidPlan }).plan;
   return plan === 'max' ? 'max' : 'premium';
-}
-
-function PlanSelect(props: {
-  value: PaidPlan;
-  onChange: (plan: PaidPlan) => void;
-  disabled?: boolean;
-}) {
-  const aiUsageBilling = useFeatureFlag(enableAiUsageBilling);
-  const options = () => planOptionsFor(aiUsageBilling().enabled);
-  const selectedOption = () =>
-    options().find((option) => option.value === props.value) ?? options()[0];
-
-  return (
-    <Select<PlanOption>
-      options={options()}
-      value={selectedOption()}
-      onChange={(opt) => opt && props.onChange(opt.value)}
-      optionValue="value"
-      optionTextValue="label"
-      gutter={4}
-      placement="bottom-end"
-      disabled={props.disabled}
-      itemComponent={(itemProps: { item: CollectionNode<PlanOption> }) => (
-        <Select.Item
-          item={itemProps.item}
-          class="flex items-center justify-between gap-3 px-2 py-1.5 text-sm rounded-xs hover:bg-hover outline-none data-highlighted:bg-hover"
-        >
-          <Select.ItemLabel class="flex flex-col">
-            <span>{itemProps.item.rawValue.label}</span>
-            <span class="text-xs text-ink-muted">
-              {itemProps.item.rawValue.description}
-            </span>
-          </Select.ItemLabel>
-          <Select.ItemIndicator>
-            <CheckIcon class="size-3" />
-          </Select.ItemIndicator>
-        </Select.Item>
-      )}
-    >
-      <Select.Trigger
-        as={Button}
-        class="rounded-xs px-1 py-0.5 text-xs -ml-1 data-expanded:bg-ink/10"
-        disabled={props.disabled}
-        aria-label="Seat plan"
-      >
-        <Select.Value<PlanOption>>
-          {(state) => state.selectedOption().label}
-        </Select.Value>
-        <CaretDownIcon class="size-3 text-ink-muted shrink-0" />
-      </Select.Trigger>
-      <Select.Portal>
-        <Select.Content class="z-action-menu border border-edge bg-surface rounded shadow-lg min-w-40 p-1">
-          <Select.Listbox />
-        </Select.Content>
-      </Select.Portal>
-    </Select>
-  );
 }
 
 const emailSchema = z.string().email();
@@ -420,10 +347,12 @@ function MemberRow(props: {
   showPlan: boolean;
   canEditPlan: boolean;
   planPending: boolean;
+  pendingDowngrade: boolean;
   onRemove: () => void;
   onRoleChange: (role: TeamRole) => void;
   onPlanChange: (plan: PaidPlan) => void;
 }) {
+  const aiUsageBilling = useFeatureFlag(enableAiUsageBilling);
   const displayName = () => getDisplayName(tryMacroId(props.member.user_id));
   const isMemberOwner = () => props.member.role === TeamRole.owner;
   const email = () => {
@@ -463,10 +392,12 @@ function MemberRow(props: {
               </span>
             }
           >
-            <PlanSelect
+            <TeamSeatPlanSelect
               value={memberPlan(props.member)}
               onChange={props.onPlanChange}
               disabled={props.planPending}
+              aiUsageBilling={aiUsageBilling().enabled}
+              pendingDowngrade={props.pendingDowngrade}
             />
           </Show>
         </Show>
@@ -693,7 +624,10 @@ const teamNameSchema = z
       .max(TEAM_NAME_MAX_LENGTH, 'Team name is too long')
   );
 
-function CreateTeamDialog(props: { open: boolean; onClose: () => void }) {
+export function CreateTeamDialog(props: {
+  open: boolean;
+  onClose: () => void;
+}) {
   let teamNameInputRef: HTMLInputElement | undefined;
   const [teamName, setTeamName] = createSignal('');
   const [teamNameError, setTeamNameError] = createSignal<string | undefined>(
@@ -836,6 +770,101 @@ function CreateTeamDialog(props: { open: boolean; onClose: () => void }) {
   );
 }
 
+/** Invite people to an existing team by email. */
+export function InviteToTeamDialog(props: {
+  teamId: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const inviteToTeamMutation = useInviteToTeamMutation();
+  const [invites, setInvites] = createSignal<InviteEntry[]>([EMPTY_INVITE]);
+  const [inviteErrors, setInviteErrors] = createSignal<(string | undefined)[]>(
+    []
+  );
+
+  const hasValidInvites = () => {
+    const inv = invites();
+    const hasNonEmptyEmail = inv.some((i) => i.email.trim() !== '');
+    const hasNoErrors = !inviteErrors().some((e) => e !== undefined);
+    return hasNonEmptyEmail && hasNoErrors;
+  };
+
+  const validateInvites = () => {
+    const { errors, hasError } = validateInviteEmails(invites());
+    setInviteErrors(errors);
+    return !hasError;
+  };
+
+  const close = () => {
+    setInvites([EMPTY_INVITE]);
+    setInviteErrors([]);
+    props.onClose();
+  };
+
+  const handleInvite = () => {
+    if (!validateInvites()) return;
+
+    const inviteEntries = invites()
+      .filter((i) => i.email.trim() !== '')
+      .map((i) => ({ email: i.email.trim() }));
+    if (inviteEntries.length === 0) return;
+
+    inviteToTeamMutation.mutate(
+      { teamId: props.teamId, request: { invites: inviteEntries } },
+      { onSuccess: close }
+    );
+  };
+
+  return (
+    <Dialog open={props.open} onOpenChange={(open) => !open && close()}>
+      <Panel depth={2} class="max-h-[75vh] text-ink rounded-xl">
+        <Panel.Header class="px-2 gap-1">
+          <Dialog.CloseButton as={Button} variant="ghost" size="icon-sm">
+            <XIcon />
+          </Dialog.CloseButton>
+          <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
+            Invite to Team
+          </Dialog.Title>
+        </Panel.Header>
+
+        <Panel.Body class="p-3 flex flex-col gap-3">
+          <InviteEmailsInput
+            invites={invites()}
+            onChange={setInvites}
+            errors={inviteErrors()}
+            onErrorsChange={setInviteErrors}
+          />
+          <div class="flex justify-end gap-1 pt-2">
+            <Button
+              variant="ghost"
+              disabled={inviteToTeamMutation.isPending}
+              onClick={close}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="strong"
+              disabled={!hasValidInvites() || inviteToTeamMutation.isPending}
+              onClick={handleInvite}
+            >
+              <Show
+                when={inviteToTeamMutation.isPending}
+                fallback={
+                  invites().length > 1
+                    ? `Send ${invites().length} Invites`
+                    : 'Send Invite'
+                }
+              >
+                <SpinnerIcon class="size-4 animate-spin" />
+              </Show>
+            </Button>
+          </div>
+        </Panel.Body>
+      </Panel>
+    </Dialog>
+  );
+}
+
 function EmptyTeamState() {
   const [showCreateModal, setShowCreateModal] = createSignal(false);
 
@@ -942,7 +971,6 @@ function TeamManagement(props: {
   const deleteInviteMutation = useDeleteTeamInviteMutation();
   const removeUserMutation = useRemoveUserFromTeamMutation();
   const patchTeamMutation = usePatchTeamMutation();
-  const inviteToTeamMutation = useInviteToTeamMutation();
   const deleteTeamMutation = useDeleteTeamMutation();
   const toggleAutoJoinMutation = useToggleAutoJoinDomainMutation();
   const toggleNonAdminInvitesMutation = useToggleNonAdminInvitesMutation();
@@ -955,10 +983,6 @@ function TeamManagement(props: {
   const [showCancelInviteModal, setShowCancelInviteModal] =
     createSignal<TeamInviteDetails | null>(null);
   const [showInviteModal, setShowInviteModal] = createSignal(false);
-  const [invites, setInvites] = createSignal<InviteEntry[]>([EMPTY_INVITE]);
-  const [inviteErrors, setInviteErrors] = createSignal<(string | undefined)[]>(
-    []
-  );
   const [editingTeamName, setEditingTeamName] = createSignal<
     string | undefined
   >(undefined);
@@ -968,19 +992,6 @@ function TeamManagement(props: {
   const [teamSlugError, setTeamSlugError] = createSignal<string | undefined>(
     undefined
   );
-
-  const hasValidInvites = () => {
-    const inv = invites();
-    const hasNonEmptyEmail = inv.some((i) => i.email.trim() !== '');
-    const hasNoErrors = !inviteErrors().some((e) => e !== undefined);
-    return hasNonEmptyEmail && hasNoErrors;
-  };
-
-  const validateInvites = () => {
-    const { errors, hasError } = validateInviteEmails(invites());
-    setInviteErrors(errors);
-    return !hasError;
-  };
 
   const deleteConfirmationPhrase = () => `Delete ${props.teamName}`;
   const canDeleteTeam = () =>
@@ -1253,38 +1264,6 @@ function TeamManagement(props: {
     );
   };
 
-  const handleInvite = () => {
-    const currentInvites = invites();
-    if (currentInvites.length === 0 || !props.teamId) return;
-
-    if (!validateInvites()) {
-      return;
-    }
-
-    const inviteEntries = currentInvites
-      .filter((i) => i.email.trim() !== '')
-      .map((i) => ({ email: i.email.trim() }));
-
-    inviteToTeamMutation.mutate(
-      { teamId: props.teamId, request: { invites: inviteEntries } },
-      {
-        onSuccess: () => {
-          setInvites([]);
-          setInviteErrors([]);
-          setShowInviteModal(false);
-        },
-      }
-    );
-  };
-
-  const handleInviteModalClose = (open: boolean) => {
-    if (!open) {
-      setInvites([EMPTY_INVITE]);
-      setInviteErrors([]);
-      setShowInviteModal(false);
-    }
-  };
-
   return (
     <>
       <SettingsPage
@@ -1527,7 +1506,9 @@ function TeamManagement(props: {
           actions={
             // Members can invite unless the team has restricted inviting
             // to admins; removals stay admin-only.
-            <Show when={isAdminOrOwner() || allowNonAdminInvites()}>
+            <Show
+              when={canInviteToTeam(currentUserRole(), allowNonAdminInvites())}
+            >
               <Button
                 variant="outline"
                 size="sm"
@@ -1560,6 +1541,31 @@ function TeamManagement(props: {
                 </button>
               </Show>
             </label>
+          </Show>
+
+          <Show
+            when={
+              teamQuery.isSuccess &&
+              showSeatPlans() &&
+              isAdminOrOwner() &&
+              !teamQuery.data?.team.enterprise &&
+              // A successful team response omits this field only on lookup failure.
+              teamQuery.data?.scheduled_seat_plans == null
+            }
+          >
+            <div
+              class="flex items-center gap-2 text-xs text-ink-muted"
+              role="status"
+            >
+              <span>Couldn't load scheduled plan changes.</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => teamQuery.refetch()}
+              >
+                Try again
+              </Button>
+            </div>
           </Show>
 
           <Show
@@ -1596,9 +1602,12 @@ function TeamManagement(props: {
                       showPlan={showSeatPlans()}
                       canEditPlan={isAdminOrOwner()}
                       planPending={planMovePending()}
+                      pendingDowngrade={
+                        teamQuery.data?.scheduled_seat_plans?.[member.user_id]
+                          ?.plan === 'premium'
+                      }
                       onPlanChange={(plan) => {
-                        if (!props.teamId || plan === memberPlan(member))
-                          return;
+                        if (!props.teamId) return;
                         setMemberPlanMutation.mutate({
                           teamId: props.teamId,
                           userId: member.user_id,
@@ -1743,52 +1752,11 @@ function TeamManagement(props: {
         }
       />
 
-      <Dialog open={showInviteModal()} onOpenChange={handleInviteModalClose}>
-        <Panel depth={2} class="max-h-[75vh] text-ink rounded-xl">
-          <Panel.Header class="px-2 gap-1">
-            <Dialog.CloseButton as={Button} variant="ghost" size="icon-sm">
-              <XIcon />
-            </Dialog.CloseButton>
-            <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
-              Invite to Team
-            </Dialog.Title>
-          </Panel.Header>
-
-          <Panel.Body class="p-3 flex flex-col gap-3">
-            <InviteEmailsInput
-              invites={invites()}
-              onChange={setInvites}
-              errors={inviteErrors()}
-              onErrorsChange={setInviteErrors}
-            />
-            <div class="flex justify-end gap-1 pt-2">
-              <Button
-                variant="ghost"
-                disabled={inviteToTeamMutation.isPending}
-                onClick={() => handleInviteModalClose(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="strong"
-                disabled={!hasValidInvites() || inviteToTeamMutation.isPending}
-                onClick={handleInvite}
-              >
-                <Show
-                  when={inviteToTeamMutation.isPending}
-                  fallback={
-                    invites().length > 1
-                      ? `Send ${invites().length} Invites`
-                      : 'Send Invite'
-                  }
-                >
-                  <SpinnerIcon class="size-4 animate-spin" />
-                </Show>
-              </Button>
-            </div>
-          </Panel.Body>
-        </Panel>
-      </Dialog>
+      <InviteToTeamDialog
+        teamId={props.teamId}
+        open={showInviteModal()}
+        onClose={() => setShowInviteModal(false)}
+      />
     </>
   );
 }
