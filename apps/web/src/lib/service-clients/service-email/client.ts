@@ -47,6 +47,7 @@ import type {
   SendMessageRequest,
   SendMessageResponse,
   SharedInboxConflictResponse,
+  ThreadReadReceipts,
   TransferDraftRequest,
   TransferDraftResponse,
   TransferRecoveryResponse,
@@ -173,6 +174,11 @@ export const emailClient = {
   async getCalendarInvitations(threadId: string) {
     return emailFetch<Record<string, InvitationResolution>>(
       `/email/threads/${threadId}/calendar-invitations`
+    );
+  },
+  async getThreadReadReceipts(threadId: string) {
+    return emailFetch<ThreadReadReceipts>(
+      `/email/threads/${threadId}/read-receipts`
     );
   },
   async init(args?: { linkId?: string; forceShare?: boolean }) {

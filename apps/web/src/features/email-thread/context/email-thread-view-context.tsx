@@ -8,6 +8,7 @@ import type {
   EmailAttachment,
   EmailMessage,
 } from '../../email-message/core/email-message';
+import type { ReadReceipt } from '../../email-message/core/read-receipt';
 import type { EmailThreadContext } from './email-thread-context';
 
 export interface EmailThreadOrganizationStatus {
@@ -31,6 +32,7 @@ export interface EmailThreadViewContext {
     ) => JSX.Element;
     renderOperation?: (message: EmailMessage) => JSX.Element;
     renderAvatar?: (message: EmailMessage) => JSX.Element;
+    readReceipt?: (message: EmailMessage) => ReadReceipt | undefined;
     openAttachment?: (attachment: EmailAttachment) => void;
   };
 }

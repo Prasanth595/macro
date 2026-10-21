@@ -76,6 +76,13 @@ With a composer open, save a changed signature or reply-signature preference and
 verify its preview updates. Once the account refresh completes, reopen a composer
 offline and confirm it uses the saved settings.
 
+### Email read receipts
+
+Behind `enable-email-read-receipts` (on in dev), **Settings → Email → Read
+receipts** lists each owned inbox with a switch that saves immediately. It is
+off by default. Messages sent from an inbox with it on carry an invisible
+pixel; see [read receipts in a thread](email.md#read-receipts) for the status.
+
 ### Notification permission prompt
 
 After onboarding, an eligible desktop app user sees **Enable Desktop
