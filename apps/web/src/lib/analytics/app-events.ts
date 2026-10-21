@@ -374,6 +374,7 @@ export type AppEvents = {
   // scheduled and event-triggered runs are not counted yet.
   routine_created: {
     routineId?: string;
+    source: 'new' | 'duplicate';
     triggerType: string;
     targetKind?: 'agent' | 'model';
   };

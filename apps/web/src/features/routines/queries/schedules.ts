@@ -130,7 +130,9 @@ function _invalidateScheduleHistory(scheduleId: string) {
 }
 
 export function useCreateScheduleMutation(
-  callbacks?: MutationCallbacks<ScheduledAction, Error, CreateScheduledAction>
+  callbacks?: MutationCallbacks<ScheduledAction, Error, CreateScheduledAction>,
+  /** Whether the user created the routine or duplicated one, for analytics. */
+  source: 'new' | 'duplicate' = 'new'
 ) {
   return useMutation(() => ({
     mutationFn: async (request: CreateScheduledAction) =>
@@ -143,6 +145,7 @@ export function useCreateScheduleMutation(
           // Client-side until scheduled_action reports to PostHog itself.
           analytics.track('routine_created', {
             routineId: schedule.id ?? undefined,
+            source,
             triggerType: schedule.trigger.type,
             targetKind: routineTargetKind(schedule),
           });
@@ -290,9 +293,15 @@ export function useRunScheduleNowMutation(
         // A run the server accepted, not its outcome; scheduled and event
         // runs never pass through the client.
         onSuccess: (_execution, { scheduleId }) => {
-          const schedule = queryClient.getQueryData<ScheduledAction>(
-            scheduledActionKeys.detail({ scheduleId }).queryKey
-          );
+          const schedule =
+            queryClient.getQueryData<ScheduledAction>(
+              scheduledActionKeys.detail({ scheduleId }).queryKey
+            ) ??
+            queryClient
+              .getQueryData<ScheduledAction[]>(
+                scheduledActionKeys.list.queryKey
+              )
+              ?.find((item) => item.id === scheduleId);
           analytics.track('routine_run', {
             routineId: scheduleId,
             trigger: 'manual',
