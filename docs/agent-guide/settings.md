@@ -135,8 +135,20 @@ enterprise teams retain their billing bypass.
 On a local stack started with `--no-doppler`, verify free-team creation from a
 fresh passwordless signup. It must work without Stripe credentials.
 
-Under **Team**, owners/admins can turn **Auto-join on domain** off and can restrict
-invitations to admins with **Members can invite**. These controls still apply.
+The invite dialog (**Invite** on **Team → Members**, or **Invite your team**)
+starts with the team's **Invite link**: **Create link** makes one and copies it,
+**Copy link** copies it after that. Anyone signed in who opens
+`/app/team-invite?link=<token>` sees **Join <team>** and joins as a member with
+the same billing and channel effects as an emailed invite; users already on
+another team are told to leave it first. Team admins and owners also see
+**Reset link** (the old link stops working and a new one is copied) and
+**Turn off**, each behind a confirmation. Anyone who may invite can copy the
+link or create the first one. Below it, **Invite by email** sends invitations
+as before.
+
+Under **Team → Members** (**Invite settings**), owners/admins can turn
+**Auto-join on domain** off and can restrict invitations to admins with
+**Members can invite**. These controls still apply.
 To verify the membership flow, use a local free team with five members: invite
 and accept a sixth member, then sign up another user on its enabled auto-join
 domain. Both should appear in the team's member list and configured auto-join
@@ -146,7 +158,7 @@ same-domain signup is not added automatically.
 ### Navigation
 
 On phones, **More views → Settings** opens an inset glass sheet over the current
-page. The main page has a profile shortcut and the same grouped Blocks, Personal, Workspace,
+page. The main page has a profile shortcut and the same grouped Team, Blocks, Personal, Workspace,
 and Developer sections as desktop, plus enabled admin settings. Search finds
 individual settings; selecting a result opens its page and reveals the section. Tap a row to open that settings
 page inside the sheet; **Back to settings** returns to the grouped list at its
@@ -213,9 +225,16 @@ seconds (pointer, or Space/Enter); releasing early cancels.
 
 Left nav (feature and platform gates still apply):
 
+- **Team · <team name>** (just **Team** without a team): General (name, slug,
+  GitHub autolink, default link sharing, Delete Team), Members (member list,
+  roles and seat plans, **Invite**, pending invites, auto-join and
+  members-can-invite), Connections (Slack import, GitHub App). Without a team
+  only General shows, with pending invitations or **Create Team**. Search
+  finds these by `invite`, `members`, `teammates`, `slack`, and similar terms;
+  results name their group, e.g. **Team · Members**.
 - **Blocks**: Email, Calendar, Agents, CRM.
 - **Personal**: Account, Appearance, Notifications, Keyboard shortcuts, Usage, Billing, Desktop App, Mobile App.
-- **Workspace**: Team, Tags, Integrations (personal Gmail/GitHub accounts).
+- **Workspace**: Tags, Integrations (personal Gmail/GitHub accounts).
 - **Developer**: Agent connections, Runtimes, MCP server, API Keys, Bots.
 
 **Desktop App** (`/app/settings/desktop-app`) is titled
@@ -426,15 +445,16 @@ Max stays active until renewal; **Keep Max plan** cancels a pending downgrade
 without resetting usage. Failed renewal-detail reads offer **Try again**.
 Team members who cannot manage billing see the notice without its action.
 
-`Team` (members list; on a paid team each row shows the seat's plan,
+`Team → Members` (`/app/settings/team-members`; on a paid team each row shows the seat's plan,
 and admins/owners can move a seat between Pro and Max with the `Seat plan`
 menu; Max upgrades are immediate and prorated, Pro downgrades start at renewal.
 **Keep Max** appears only for a confirmed pending downgrade and cancels it;
 failed scheduled-plan reads offer **Try again**, while teams without applicable
-scheduled plans show no retry notice). CRM (enable/disable; once enabled, a `Deal stages` section
-with `Customize stages`, inline rename, reorder by drag handle or arrow keys (up/down
-buttons on touch), delete, `Add stage`, `Reset to defaults`, and `Closed stages`
-checkboxes, editable by the role set as `edit_stages_role`)
+scheduled plans show no retry notice). CRM (a `Team CRM` switch that admins use to enable or disable it;
+once enabled, a `Stages` section for the company Stage options that new pipelines
+also start with, with `Customize`, inline rename, reorder by drag handle or arrow
+keys (up/down buttons on touch), delete, `Add stage`, and `Reset to defaults`,
+editable by the role set as `edit_stages_role`)
 
 `Agents` unifies agent definitions and runtime configuration in one page, also used by the Agents workspace. Its `Agents` section lists team and private agents. `New agent` / `Edit <name>` open full-page forms grouped
 Profile, Behavior, Runtime, Connections, Channels, Share. Connections is a radio pair:

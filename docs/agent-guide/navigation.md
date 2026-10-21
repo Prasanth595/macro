@@ -48,6 +48,15 @@ queued mutations should resume promptly, without waiting for the old poll or
 local retry timer; durable leases and server-retry deadlines still apply.
 Switching tabs or navigating an in-app route is not a back/forward-cache restore.
 
+Safari can also restart the SharedWorker when its creating tab closes, leaving
+another tab's port alive but its coordinator registrations gone. The surviving
+page must re-register without a reload or cache wipe. Open two tabs, close the
+first, and verify that cached reads and live updates continue in the second.
+Repeat through another handoff and while requests are pending. Interrupted
+optimistic enqueues must not be sent twice. A `graphql_cache.owner` event with
+`ownerEvent: coordinator-restarted` distinguishes this from engine replacement
+or a BFCache restore.
+
 ## Android system navigation and sharing
 
 In the Android app, Back first hides the keyboard, then dismisses the active
@@ -360,6 +369,9 @@ Scheduling appears in Customize sidebar only when the calendar-scheduling flag i
 on. It starts hidden in More, including for existing sidebar preferences. Enable
 its checkbox to place it on the rail, then reorder or hide it like other apps.
 Showing Scheduling removes its duplicate from More; the choice survives reload.
+Activity appears in Customize sidebar only when the `enable-activity-feed` flag
+is on and, like Scheduling, starts hidden in More (also for existing preferences)
+until enabled on the rail.
 
 - Top: buttons `Create` and `Search`. Clicking `Search` opens a menu
   with `Command Menu` (⌘K on Mac / Ctrl+K elsewhere) and `Search everything`
