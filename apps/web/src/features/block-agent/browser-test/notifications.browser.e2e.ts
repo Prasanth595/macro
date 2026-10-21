@@ -6,6 +6,9 @@ test('response timing follows the decision turn across busy output and the first
   await page.goto('/');
   await page.getByRole('button', { name: 'Decide', exact: true }).click();
   await expect(page.locator('.agent-working-wave')).toBeVisible();
+  await page
+    .locator('main')
+    .screenshot({ path: test.info().outputPath('responding.png') });
   await page.getByRole('button', { name: 'Busy output' }).click();
   await expect(page.locator('.agent-working-wave')).toBeVisible();
   await page.getByRole('button', { name: 'Receive decision' }).click();
