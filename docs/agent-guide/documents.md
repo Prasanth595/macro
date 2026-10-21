@@ -2661,7 +2661,7 @@ message controls as channels. In every floating comment card (the Markdown,
 PDF, and Word margins and expanded minimized threads), a long comment folds to
 a faded preview with **Show more**; **Show less** folds it again. Short
 comments, the phone drawer, the bottom Discussion, and channels always show the
-full text. Margin cards stack without overlapping: a tall or expanded card
+full text. Markdown and Word margin cards stack without overlapping: a tall or expanded card
 pushes the cards below it down (past the end of a short document if needed),
 and no card starts above the top of the document. Check this with a long
 thread active near the bottom of a short document that has another thread
