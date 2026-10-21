@@ -116,10 +116,17 @@ it('returns focus to the composer when the mobile chooser closes', async () => {
   await waitFor(() => expect(document.activeElement).toBe(input));
 });
 
-it('adjusts desktop effort with the speedometer slider and retains the popup', async () => {
+it('stages desktop slider effort and commits it when the popup closes', async () => {
   vi.mocked(isTouchDevice).mockReturnValue(false);
   const change = vi.fn();
-  render(() => <EffortSelector config={config} onChange={change} />);
+  const openChange = vi.fn();
+  render(() => (
+    <EffortSelector
+      config={config}
+      onChange={change}
+      onOpenChange={openChange}
+    />
+  ));
   fireEvent.keyDown(screen.getByRole('button', { name: 'Effort: Low' }), {
     key: 'Enter',
   });
@@ -129,10 +136,41 @@ it('adjusts desktop effort with the speedometer slider and retains the popup', a
   await waitFor(() => expect(document.activeElement).toBe(slider));
   expect(screen.queryByRole('menuitem', { name: 'Choose model' })).toBeNull();
   fireEvent.keyDown(slider, { key: 'ArrowRight' });
+  expect(change).not.toHaveBeenCalled();
+  expect(screen.getByRole('menu')).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: 'Effort: High', hidden: true })
+  ).toBeTruthy();
+  fireEvent.keyDown(slider, { key: 'Escape' });
+  await waitFor(() => expect(openChange).toHaveBeenLastCalledWith(false));
   expect(change).toHaveBeenCalledExactlyOnceWith({
     configId: 'effort',
     value: 'high',
     name: 'High',
   });
-  expect(screen.getByRole('menu')).toBeTruthy();
+});
+
+it('does not commit when the desktop slider returns to the current effort', async () => {
+  vi.mocked(isTouchDevice).mockReturnValue(false);
+  const change = vi.fn();
+  const openChange = vi.fn();
+  render(() => (
+    <EffortSelector
+      config={config}
+      onChange={change}
+      onOpenChange={openChange}
+    />
+  ));
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Effort: Low' }), {
+    key: 'Enter',
+  });
+  const slider = await screen.findByRole('slider', {
+    name: 'Reasoning effort',
+  });
+  await waitFor(() => expect(document.activeElement).toBe(slider));
+  fireEvent.keyDown(slider, { key: 'ArrowRight' });
+  fireEvent.keyDown(slider, { key: 'ArrowLeft' });
+  fireEvent.keyDown(slider, { key: 'Escape' });
+  await waitFor(() => expect(openChange).toHaveBeenLastCalledWith(false));
+  expect(change).not.toHaveBeenCalled();
 });

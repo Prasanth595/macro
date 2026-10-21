@@ -19,13 +19,22 @@ export function EffortSelector(props: {
   onCloseAutoFocus?: (event: Event) => void;
 }) {
   const [open, setOpen] = createSignal(false);
+  // The desktop slider stages its choice here and commits it when the menu closes.
+  const [pending, setPending] = createSignal<EffortChoice>();
   let content: HTMLElement | undefined;
   const changeOpen = (value: boolean) => {
     setOpen(value);
+    if (!value) {
+      const choice = pending();
+      setPending(undefined);
+      if (choice && choice.value !== committed() && !props.disabled)
+        props.onChange(choice);
+    }
     props.onOpenChange?.(value);
   };
   const choices = () => props.config?.options ?? [];
-  const value = () => props.value ?? props.config?.currentValue;
+  const committed = () => props.value ?? props.config?.currentValue;
+  const value = () => pending()?.value ?? committed();
   const index = () =>
     Math.max(
       0,
@@ -113,7 +122,7 @@ export function EffortSelector(props: {
                     (choice) => choice.value === next
                   );
                   if (props.config && choice)
-                    props.onChange({
+                    setPending({
                       configId: props.config.id,
                       value: choice.value,
                       name: choice.name,
