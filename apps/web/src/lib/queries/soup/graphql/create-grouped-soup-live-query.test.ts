@@ -143,7 +143,10 @@ function setup() {
     );
     return { query, setInput, dispose };
   });
-  return { ...state, executions, requests, listeners, generations };
+  // First-use selection starts before any GroupSoup response. Keep that
+  // request separate from requests which reconcile known server membership.
+  const firstUse = requests.shift()!;
+  return { ...state, firstUse, executions, requests, listeners, generations };
 }
 
 function page(
@@ -190,6 +193,66 @@ const ids = (data: GroupSoupQuery | undefined) =>
   }));
 
 describe('grouped Soup live ownership', () => {
+  it('groups backfilled tasks while the first network request is still pending', async () => {
+    const state = setup();
+    expect(state.query.query.isLoading).toBe(true);
+    expect(state.firstUse.args.baseline).toEqual([]);
+    state.firstUse.resolve(
+      update([groupedDocument('a', ['todo', 'done']), groupedDocument('b', [])])
+    );
+    await state.firstUse.promise;
+    expect(
+      state.query.cachedBins()?.map((bin) => ({
+        key: bin.key,
+        ids: bin.items.map((item) => item.id),
+        count: bin.totalCount,
+        cursor: bin.nextCursor,
+      }))
+    ).toEqual([
+      { key: 'todo', ids: ['a'], count: 1, cursor: null },
+      { key: 'done', ids: ['a'], count: 1, cursor: null },
+      { key: '', ids: ['b'], count: 1, cursor: null },
+    ]);
+    expect(state.executions).toHaveLength(1);
+    expect(state.query.paging.hasNextPage('todo')).toBe(false);
+    state.executions[0].publish(page([groupedDocument('a')]));
+    expect(state.query.cachedBins()).toBeUndefined();
+    expect(ids(state.query.data())?.[0].count).toBe(20);
+    expect(state.query.paging.hasNextPage('todo')).toBe(true);
+  });
+
+  it('updates first-use membership and discards it across filters and cache resets', async () => {
+    const state = setup();
+    state.firstUse.resolve(update([groupedDocument('a')]));
+    await state.firstUse.promise;
+    state.listeners.forEach((listener) => listener(parseCacheRevision('2')));
+    const changed = state.requests.at(-1)!;
+    changed.resolve(update([groupedDocument('a', ['done'])], '2'));
+    await changed.promise;
+    expect(state.query.cachedBins()?.map((bin) => bin.key)).toEqual(['done']);
+    state.generations.forEach((listener) => listener({ storage: 'reset' }));
+    expect(state.query.cachedBins()).toBeUndefined();
+    const old = state.requests.at(-1)!;
+    state.setInput({
+      initial: {
+        sortMethod: 'UPDATED_AT',
+        groupBy: { field: 'PROJECT' },
+        filters: {},
+      },
+    });
+    old.resolve(update([groupedDocument('old')], '3'));
+    await old.promise;
+    expect(state.query.cachedBins()).toBeUndefined();
+    const current = state.requests.at(-1)!;
+    current.resolve(
+      update([{ ...groupedDocument('new'), projectId: 'project' }], '4')
+    );
+    await current.promise;
+    expect(state.query.cachedBins()?.map((bin) => bin.key)).toEqual([
+      'project',
+    ]);
+  });
+
   it('clears grouping before an initial result without reading missing data', () => {
     const state = setup();
     state.setInput(undefined);

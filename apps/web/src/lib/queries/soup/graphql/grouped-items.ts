@@ -123,6 +123,7 @@ export function createGraphqlGroupedSoupAstItemsQuery(
       const queryInput = input();
       return {
         ...options(),
+        cachedGroups: args().body.emailView === undefined,
         onInitialResult: (result) => {
           const metadata = normalizedCacheResultMetadata(result);
           if (metadata?.source !== 'live-network') return;
@@ -150,7 +151,8 @@ export function createGraphqlGroupedSoupAstItemsQuery(
     () => ({
       instructionsIdQuery,
       showSupportedForeignEntities: options().showSupportedForeignEntities,
-    })
+    }),
+    grouped.cachedBins
   );
 
   // Missing data during a refetch does not itself switch identities. A new
@@ -199,6 +201,7 @@ export function createGraphqlGroupedSoupAstItemsQuery(
       options().enabled &&
       isSupported() &&
       (cachedMail() !== undefined ||
+        grouped.cachedBins() !== undefined ||
         (query.data?.inputKey === inputKey() && query.data?.data !== undefined))
     ) {
       return undefined;
@@ -227,7 +230,8 @@ export function createGraphqlGroupedSoupAstItemsQuery(
     error,
     isSupported,
     isEnabled: () => query.isEnabled,
-    isLoading: () => !cachedMail() && query.isLoading,
+    isLoading: () =>
+      !cachedMail() && grouped.cachedBins() === undefined && query.isLoading,
     isFetching: () => query.isFetching,
     isFetchingNextPage: () => !!cachedMail() && local.isFetchingNextPage(),
     isFetchNextPageError: () => !!cachedMail() && local.isFetchNextPageError(),

@@ -11,6 +11,34 @@ import { soupItemKey } from './reconciliation';
 export type GroupedSoupBin =
   GroupSoupQuery['user']['groupSoup']['bins'][number];
 
+/** First-use groups describe selected cached rows, never server totals/cursors. */
+export function groupCachedSoup(
+  snapshot: LiveQuerySnapshot<SoupItemFieldsFragment>,
+  input: GroupedSoupInitialInput,
+  now: Date
+): GroupedSoupBin[] {
+  const selected = new Map(
+    snapshot.records.map(({ recordKey, record }) => [recordKey, record])
+  );
+  const bins = new Map<string, GroupedSoupBin>();
+  for (const identity of new Set(snapshot.keys)) {
+    const item = selected.get(identity);
+    if (!item) continue;
+    for (const key of localSoupGroupKeys(item, input, now) ?? []) {
+      const bin = bins.get(key) ?? {
+        key,
+        totalCount: 0,
+        nextCursor: null,
+        items: [],
+      };
+      bin.items.push(item);
+      bin.totalCount += 1;
+      bins.set(key, bin);
+    }
+  }
+  return [...bins.values()];
+}
+
 /** Only complete selected grouping evidence can replace server membership. */
 export function localSoupGroupKeys(
   item: SoupItemFieldsFragment,

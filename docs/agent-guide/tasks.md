@@ -45,6 +45,14 @@ With GraphQL Soup enabled, verify a group with more than one page in both the
 regular Tasks list (`Load More`) and a project task list (automatic pagination).
 Both must use the parent Soup query's continuation owner; reaching the last page
 removes the group's paging control without hiding already loaded tasks.
+With GraphQL backfill completed, open Tasks offline and select a never-used
+Priority, Status, Assignee, Project or date grouping. Matching backfilled tasks
+should render while the first grouped request is pending. Edit a grouping
+property and verify the cached row moves groups. First-use groups show bounded
+cached candidates and loaded-row counts; they do not imply complete account
+coverage or offer server pagination. Reconnect to obtain server totals and
+continuations, then switch filters to confirm old groups do not leak into the
+new view.
 The sidebar has no Tags section: filter by tag from the `Tags` group of the `Filter` menu,
 and switching tabs clears it like any other filter. On mobile, the tabs
 are pills and the leading sliders button opens one drawer containing Sort, Group, and

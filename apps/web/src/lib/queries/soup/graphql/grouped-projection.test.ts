@@ -94,6 +94,45 @@ function page(count: number): GroupSoupQuery {
 }
 
 describe('grouped Soup projections', () => {
+  it('renders cached groups before a user query exists, then takes server totals', () => {
+    createRoot((dispose) => {
+      try {
+        const cached = page(2).user.groupSoup.bins;
+        const [local, setLocal] = createSignal<typeof cached | undefined>(
+          cached
+        );
+        const [server, setServer] = createSignal<GroupSoupQuery>();
+        const projected = createGraphqlGroupedSoupProjection(
+          server,
+          () => ({ type: 'property', propertyDefinitionId: 'status' }),
+          () => ({
+            instructionsIdQuery: { isSuccess: false, data: undefined },
+          }),
+          local
+        );
+        expect(projected()?.entities.map((item) => item.id)).toEqual([
+          '0',
+          '1',
+        ]);
+        expect(projected()?.groups?.[0].totalCount).toBe(2);
+        const confirmed = page(2);
+        confirmed.user.groupSoup.bins[0].totalCount = 30;
+        confirmed.user.groupSoup.bins[0].nextCursor = 'server-next';
+        setServer(confirmed);
+        setLocal(undefined);
+        expect(projected()?.groups?.[0]).toMatchObject({
+          totalCount: 30,
+          nextCursor: 'server-next',
+          itemIds: ['0', '1'],
+        });
+        setServer(undefined);
+        expect(projected()).toBeUndefined();
+      } finally {
+        dispose();
+      }
+    });
+  });
+
   it('maps only the edited property owner among 1,000 rows and preserves unrelated subscribers', () => {
     createRoot((dispose) => {
       try {

@@ -10,15 +10,19 @@ import { makeGroupComparator, resolveGroupMetaForKey } from '../grouped/api';
 import type { GroupByField, GroupMeta } from '../grouped/types';
 import type { SoupAstItemsData } from '../items';
 import { mapSoupPageToEntityList } from '../transform-utils';
+import type { GroupedSoupBin } from './grouped-local-projection';
 import { soupItemKey } from './reconciliation';
 
 /** Project each loaded row once; nested edits retain the other rows and bins. */
 export function createGraphqlGroupedSoupProjection(
   source: Accessor<GroupSoupQuery | undefined>,
   groupBy: Accessor<GroupByField | undefined>,
-  options: Accessor<Parameters<typeof mapSoupPageToEntityList>[1]>
+  options: Accessor<Parameters<typeof mapSoupPageToEntityList>[1]>,
+  cachedBins: Accessor<GroupedSoupBin[] | undefined> = () => undefined
 ): Accessor<SoupAstItemsData | undefined> {
-  const bins = createMemo(() => source()?.user.groupSoup.bins ?? []);
+  const bins = createMemo(
+    () => cachedBins() ?? source()?.user.groupSoup.bins ?? []
+  );
   const records = createMemo(
     () => {
       const unique = new Map<string, GraphqlSoupItem>();
@@ -89,7 +93,7 @@ export function createGraphqlGroupedSoupProjection(
     { equals: arrayEquals }
   );
   return createMemo(() =>
-    source()
+    cachedBins() !== undefined || source()
       ? { entities: entities(), groups: groups(), itemsById: itemsById() }
       : undefined
   );

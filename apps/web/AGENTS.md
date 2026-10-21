@@ -166,7 +166,10 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   membership snapshots separate from normalized field/link updates; restored
   properties do not prove prior membership. Supply complete prior multi-value
   memberships when adjusting counts: a row loaded in one bin may already be an
-  unloaded member of another.
+  unloaded member of another. Before the first group response, use the same
+  maintained predicate source over backfilled rows for property, project and
+  date groups; those bounded local counts and cursor-free bins are not server
+  membership evidence.
 - Reactive GraphQL reads use `createLiveQuery` for a document and
   `useSoupAstItemsQuery` (backed by `createSoupLiveQuery`) for Soup lists; see
   [choosing a reactive read](docs/graphql-normalized-cache-plan.md#choosing-a-reactive-read).

@@ -753,8 +753,18 @@ count evidence. Unsupported
 filters/sorts or hosts retain the merged live server pages. Cached Mail keeps its
 separate date-grouping policy.
 
+Before a grouped response exists, supported property, project and date groups
+can use the same bounded predicate candidates as flat Soup, starting with an
+empty server baseline. This permits first-use offline Tasks grouping after
+backfill without fabricating a user query result. These bins count only selected
+cached rows (up to the request limit across groups), carry no server cursor, and
+are never reused as server membership evidence. A current-query server response
+replaces them with authoritative totals and continuation ownership. Filters,
+cache generations and account changes retire the candidate view; live property
+updates regroup its rows. Mail retains its separate cached view and paging policy.
+
 Server membership evidence is captured separately from normalized field/link
-updates, and local evaluation waits for network persistence. Filter/account/cache
+updates, and reconciliation against that evidence waits for network persistence. Filter/account/cache
 generation changes discard old local evidence and continuation owners. Initial
 network refreshes restart continuation coverage. Group readers delegate paging
 to this owner, so moving a continuation row cannot leave a second copy behind.

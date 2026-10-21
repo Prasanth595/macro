@@ -29,6 +29,7 @@ import { registerGroupedSoupContinuation } from '../grouped/graphql-operation-re
 import { registerGraphqlSoupRevalidations } from './active-queries';
 import { createPredicateQuery } from './create-predicate-query';
 import {
+  groupCachedSoup,
   mergeGroupedSoupBins,
   projectLocalGroupedSoup,
 } from './grouped-local-projection';
@@ -48,6 +49,8 @@ type Options = {
   enabled: boolean;
   networkPaused?: boolean;
   keepPreviousData?: boolean;
+  /** Mail owns its separate cached view/pagination policy. */
+  cachedGroups?: boolean;
   onInitialResult(
     result: OperationResult<GroupSoupQuery, GroupSoupQueryVariables>
   ): void;
@@ -275,13 +278,16 @@ export function createGroupedSoupLiveQuery(
         !options().enabled ||
         !getGraphqlSoupCacheHost()?.liveQueries ||
         !initial ||
-        !bins ||
+        (!bins && currentInitial() !== undefined) ||
+        (!bins &&
+          (options().cachedGroups === false ||
+            initial.groupBy.field === 'ENTITY_TYPE')) ||
         (initial.sortMethod !== 'CREATED_AT' &&
           initial.sortMethod !== 'UPDATED_AT')
       )
         return undefined;
       const membership = soupReconciliationBaseline(
-        bins.bins.flatMap((bin) => bin.items),
+        bins?.bins.flatMap((bin) => bin.items) ?? [],
         initial.sortMethod
       );
       if (!membership) return undefined;
@@ -296,6 +302,29 @@ export function createGroupedSoupLiveQuery(
         select: selection,
       };
     },
+  });
+  const cachedBins = createMemo(() => {
+    const initial = input()?.initial;
+    const snapshot = live.data();
+    if (
+      !options().enabled ||
+      currentInitial() ||
+      !initial ||
+      !snapshot ||
+      live.status() !== 'ready'
+    )
+      return undefined;
+    const span = Telemetry.span('graphql_cache.soup_grouped_local_evaluation');
+    try {
+      const result = groupCachedSoup(snapshot, initial, now());
+      span.setAttr('grouping.field', initial.groupBy.field);
+      span.setAttr('grouping.source', 'cached-candidates');
+      span.setAttr('grouping.bin_count', result.length);
+      span.setAttr('grouping.candidate_count', snapshot.keys.length);
+      return result;
+    } finally {
+      span.end();
+    }
   });
   const bins = createMemo(() => {
     const initial = input()?.initial;
@@ -360,6 +389,7 @@ export function createGroupedSoupLiveQuery(
   return {
     query,
     paging,
+    cachedBins,
     data: createMemo((): GroupSoupQuery | undefined => {
       const initial = currentInitial();
       if (!initial) return query.data?.data;
