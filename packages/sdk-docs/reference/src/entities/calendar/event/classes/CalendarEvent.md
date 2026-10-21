@@ -52,6 +52,27 @@ Delete the event (or a scoped part of a recurring series) at its provider.
 
 ***
 
+### inviteGuests()
+
+> **inviteGuests**(`options`): `Promise`\<`CalendarEvent`\>
+
+Add guests without touching anyone already invited, and return a handle
+to the synced record. The organizer may, and so may a guest the organizer
+lets invite others (see [CalendarEvent.viewerCan](#property-viewercan)); Google emails
+the new guests.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options` | [`InviteGuestsOptions`](../interfaces/InviteGuestsOptions.md) |
+
+#### Returns
+
+`Promise`\<`CalendarEvent`\>
+
+***
+
 ### prepareReplacement()
 
 > **prepareReplacement**(`options`): `Promise`\<[`CalendarReplacement`](../../replacement/classes/CalendarReplacement.md)\>
