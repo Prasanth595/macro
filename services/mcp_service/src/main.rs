@@ -91,11 +91,10 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // Add OpenAI domain verification endpoint to the router
-    let app = mcp_router(context.auth_proxy, context.jwt_args, mcp_service)
-        .route(
-            "/.well-known/openai-apps-challenge",
-            axum::routing::get(openai_domain_verification),
-        );
+    let app = mcp_router(context.auth_proxy, context.jwt_args, mcp_service).route(
+        "/.well-known/openai-apps-challenge",
+        axum::routing::get(openai_domain_verification),
+    );
 
     let port = config.port;
     let addr = format!("0.0.0.0:{port}");
