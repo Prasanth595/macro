@@ -358,7 +358,7 @@ it('drops a revoked open document, cleans its source, and loads fresh credential
   expect(blockLoadRetrySignal.get()).toBe(1);
 });
 
-it('reports an open for a block that opts out of open history', async () => {
+it('reports an open for a block without open history that asks for it', async () => {
   nested = false;
   render(() => (
     <BlockLoader
@@ -370,6 +370,7 @@ it('reports an open for a block that opts out of open history', async () => {
         accepted: {},
         component: () => null,
         openTrackingEnabled: false,
+        openAnalyticsEnabled: true,
         load: async () => ok({ id: 'database' }),
       }}
     />
@@ -382,4 +383,30 @@ it('reports an open for a block that opts out of open history', async () => {
   );
   expect(analytics.pageView).not.toHaveBeenCalled();
   expect(trackBlockOpened).not.toHaveBeenCalled();
+});
+
+it('reports no open for a block without open history by default', async () => {
+  nested = false;
+  render(() => (
+    <BlockLoader
+      id="calendar"
+      source={{ type: 'dss', id: 'calendar' }}
+      definition={{
+        name: 'calendar',
+        description: 'Calendar',
+        accepted: {},
+        component: () => null,
+        openTrackingEnabled: false,
+        load: async () => ok({ id: 'calendar' }),
+      }}
+    />
+  ));
+  await vi.waitFor(() =>
+    expect(blockDataSignal.get()).toMatchObject({ id: 'calendar' })
+  );
+  expect(analytics.track).not.toHaveBeenCalledWith(
+    'open_entity',
+    expect.anything()
+  );
+  expect(analytics.pageView).not.toHaveBeenCalled();
 });
