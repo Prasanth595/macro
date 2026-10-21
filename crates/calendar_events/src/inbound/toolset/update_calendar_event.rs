@@ -98,8 +98,13 @@ update: end the series with DeleteCalendarEvent's \"this_and_following\" and cre
 event instead.\n\
 \n\
 Passing `attendees` replaces the full attendee list — include everyone who should remain, \
-not just additions. An empty string for `description` or `location` clears it. Fails on \
-events from calendars the user cannot edit.\n\
+not just additions. That holds when the user organizes the event (or may modify it, per \
+`viewerCan.removeGuests` from ListCalendarEvents). When the user is only a guest, the list \
+may only grow: pass the current attendees plus the additions; the additions are invited \
+without touching anyone else, and dropping any guest fails. A guest can add guests only \
+when `viewerCan.inviteGuests` is true; otherwise the organizer doesn't let guests invite \
+others. An empty string for `description` or `location` clears it. Fails on events from \
+calendars the user cannot edit.\n\
 \n\
 `rsvp` sets the user's own response to an invitation and is independent of the field \
 edits — it can be the only thing this call changes. It applies at the same `scope` as \
@@ -169,7 +174,8 @@ pub struct UpdateCalendarEvent {
     /// Replacement attendee list.
     #[schemars(
         description = "Replacement attendee list — replaces all current attendees, so include \
-                       everyone who should remain. Omit to leave attendees unchanged."
+                       everyone who should remain. A guest who does not organize the event \
+                       may only add to the current list. Omit to leave attendees unchanged."
     )]
     #[serde(default)]
     pub attendees: Option<Vec<AttendeeInput>>,
