@@ -113,6 +113,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Keep early DOCX opens loading while exports return processing (409); retry only
   that response, with a bounded wait. See the Word editor walkthrough in
   `docs/agent-guide/documents.md` at the repository root.
+- Add Google Meet account hints only to join actions using the displayed calendar's
+  connected email; keep stored and copied conference links unchanged. See the
+  [calendar walkthrough](../../docs/agent-guide/calendar.md).
 - Route explicit call exits using the server's `callEnded` result: ended calls
   open their record; ongoing channel and scheduled calls return to the channel
   and Calendar. Preserve the session ID before disconnecting.
