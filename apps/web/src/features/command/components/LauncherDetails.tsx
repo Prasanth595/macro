@@ -70,69 +70,64 @@ export function LauncherDetails(props: {
         >
           <For each={props.sections}>
             {(section, sectionIndex) => (
-              <div role="group" aria-label={section.group.label} class="mb-1.5">
-                <div class="px-2.5 pt-2.5 pb-1 text-[10px] font-medium tracking-[0.08em] text-ink-extra-muted/80 uppercase">
-                  {section.group.label}
-                </div>
-                <For each={section.items}>
-                  {(item, itemIndex) => {
-                    const index = () =>
-                      props.sections
-                        .slice(0, sectionIndex())
-                        .reduce(
-                          (offset, entry) => offset + entry.items.length,
-                          0
-                        ) + itemIndex();
-                    return (
-                      <button
-                        type="button"
-                        role="option"
-                        id={`${props.itemId(item)}-${section.group.id}`}
-                        data-create-option
-                        aria-selected={props.selectedIndex === index()}
-                        tabindex={-1}
+              <For each={section.items}>
+                {(item, itemIndex) => {
+                  const index = () =>
+                    props.sections
+                      .slice(0, sectionIndex())
+                      .reduce(
+                        (offset, entry) => offset + entry.items.length,
+                        0
+                      ) + itemIndex();
+                  return (
+                    <button
+                      type="button"
+                      role="option"
+                      id={`${props.itemId(item)}-${section.group.id}`}
+                      data-create-option
+                      aria-selected={props.selectedIndex === index()}
+                      tabindex={-1}
+                      class={cn(
+                        'flex h-8 w-full scroll-m-2 items-center gap-2.5 rounded-lg px-2.5 text-left outline-none transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none',
+                        props.selectedIndex === index()
+                          ? 'bg-ink/[0.07] text-ink'
+                          : 'text-ink-muted'
+                      )}
+                      onPointerMove={(event) => {
+                        if (event.movementX || event.movementY)
+                          props.onSelect(index());
+                      }}
+                      onFocus={() => props.onSelect(index())}
+                      onClick={() => props.onChoose(item)}
+                    >
+                      <span
                         class={cn(
-                          'flex h-8 w-full scroll-m-2 items-center gap-2.5 rounded-lg px-2.5 text-left outline-none transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none',
+                          'size-4 shrink-0 transition-colors duration-100 motion-reduce:transition-none [&_svg]:size-4',
                           props.selectedIndex === index()
-                            ? 'bg-ink/[0.07] text-ink'
-                            : 'text-ink-muted'
+                            ? 'text-ink'
+                            : 'text-ink-extra-muted'
                         )}
-                        onPointerMove={(event) => {
-                          if (event.movementX || event.movementY)
-                            props.onSelect(index());
-                        }}
-                        onFocus={() => props.onSelect(index())}
-                        onClick={() => props.onChoose(item)}
                       >
-                        <span
-                          class={cn(
-                            'size-4 shrink-0 transition-colors duration-100 motion-reduce:transition-none [&_svg]:size-4',
-                            props.selectedIndex === index()
-                              ? 'text-ink'
-                              : 'text-ink-extra-muted'
-                          )}
-                        >
-                          <Dynamic component={item.icon} />
+                        <Dynamic component={item.icon} />
+                      </span>
+                      <span
+                        class="min-w-0 flex-1 truncate text-[13px] font-medium"
+                        title={item.label}
+                      >
+                        {item.label}
+                      </span>
+                      <Show when={props.showHotkeys}>
+                        <span class="rounded-md border border-ink/12 px-1.5 py-px text-xxs font-normal text-ink-muted">
+                          <Hotkey
+                            token={item.hotkeyToken}
+                            shortcut={shortcut(item)}
+                          />
                         </span>
-                        <span
-                          class="min-w-0 flex-1 truncate text-[13px] font-medium"
-                          title={item.label}
-                        >
-                          {item.label}
-                        </span>
-                        <Show when={props.showHotkeys}>
-                          <span class="rounded-md border border-ink/12 px-1.5 py-px text-xxs font-normal text-ink-muted">
-                            <Hotkey
-                              token={item.hotkeyToken}
-                              shortcut={shortcut(item)}
-                            />
-                          </span>
-                        </Show>
-                      </button>
-                    );
-                  }}
-                </For>
-              </div>
+                      </Show>
+                    </button>
+                  );
+                }}
+              </For>
             )}
           </For>
         </div>

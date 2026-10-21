@@ -527,15 +527,15 @@ changes roll back rather than becoming committed local favorites.
 On desktop, the rail **Create** button, **C**, and the command menu’s **Create**
 entry open the detailed launcher at standard dialog width. Selecting **Create**
 closes the command menu and hands focus to the launcher; individual creation
-commands remain searchable in the command menu. The left list starts with up to three **Recents** from
-actual launcher usage, followed by all choices grouped by category.
-Categories appear in this order: **Docs** (Document, Snippet), **Organization**
+commands remain searchable in the command menu. The left side is one continuous
+list without section labels or gaps. Up to three recently used choices appear
+first, followed by all choices in this order: **Docs** (Document, Snippet), **Organization**
 (Folder), **Design** (Canvas, Design, Photoshop file, Illustrator file), **Data**
 (Database, Spreadsheet, Form), **Comms** (Email, Message, Channel, Call), **Tasks**
 (Task, Project, Reminder), **AI** (Agent, Routine, Skill), and **Other** (Code and
-any uncategorized entries). Only available entries and nonempty categories appear.
-Recent items also remain in their categories. With no history, the list starts
-with categories. Hover or keyboard navigation updates the right detail panel;
+any uncategorized entries). Only available entries appear.
+Recent items also remain in their normal positions. With no history, the list
+starts with Document. Hover or keyboard navigation updates the right detail panel;
 click a row or press Enter to start that creation flow. List icons are monochrome:
 muted normally and full ink on the selected row. The detail panel centers
 its accent-colored icon tile, description, and **Good for** examples over
