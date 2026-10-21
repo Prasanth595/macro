@@ -467,7 +467,9 @@ impl<Access: EntityAccessService> SessionAnnouncer for MessageAnnouncer<Access> 
             // The message service refuses an edit whose mentions the person
             // who asked could not open. Left there, the reply would spin
             // forever; the answer is kept in the session instead.
-            Err(MessageError::Forbidden) if carries_answer => {
+            Err(MessageError::InaccessibleReference { .. }) | Err(MessageError::Forbidden)
+                if carries_answer =>
+            {
                 tracing::warn!(%message_id, "the thread may not carry this answer; pointing at the session");
                 let content = self
                     .compose_reply(

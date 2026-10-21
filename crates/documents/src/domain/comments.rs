@@ -414,7 +414,9 @@ fn comment(message: Message) -> DocumentComment {
 
 fn message_error(error: MessageError) -> DocumentError {
     match error {
-        MessageError::Forbidden => DocumentError::Unauthorized,
+        MessageError::InaccessibleReference { .. } | MessageError::Forbidden => {
+            DocumentError::Unauthorized
+        }
         error => DocumentError::Internal(anyhow::anyhow!(error.to_string())),
     }
 }

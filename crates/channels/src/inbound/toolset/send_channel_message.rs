@@ -101,6 +101,9 @@ where
 fn send_error(err: MessageError) -> ToolCallError {
     let description = match &err {
         MessageError::Invalid(message) => (*message).to_string(),
+        MessageError::InaccessibleReference { entity_type, entity_id } => {
+            format!("cannot mention {entity_type}: you don't have access to it (id: {entity_id})")
+        }
         MessageError::Forbidden => {
             "not allowed to send this message: it attaches or mentions an item the user cannot view"
                 .to_string()

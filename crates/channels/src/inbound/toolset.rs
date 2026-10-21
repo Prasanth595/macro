@@ -315,6 +315,9 @@ fn message_mutation_error(action: &'static str) -> impl FnOnce(MessageError) -> 
     move |err| {
         let description = match &err {
             MessageError::NotFound => "message not found in this channel".to_string(),
+            MessageError::InaccessibleReference { entity_type, entity_id } => {
+                format!("cannot mention {entity_type}: you don't have access to it (id: {entity_id})")
+            }
             MessageError::Forbidden => format!(
                 "not allowed to {action}: only the message's author or a channel admin or owner can change it"
             ),

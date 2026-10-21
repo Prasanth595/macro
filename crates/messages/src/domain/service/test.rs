@@ -816,7 +816,7 @@ async fn editor_reference_tags_are_authorized_for_posts_and_edits() {
                     assert_eq!(message.mentions[0].entity_type, tag);
                 } else {
                     assert!(
-                        matches!(result, Err(MessageError::Forbidden)),
+                        matches!(result, Err(MessageError::InaccessibleReference { .. })),
                         "{tag}: {result:?}"
                     );
                 }

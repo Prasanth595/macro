@@ -453,6 +453,9 @@ fn comment_error(description: &'static str) -> impl FnOnce(MessageError) -> Tool
     move |err| {
         let description = match &err {
             MessageError::NotFound => "comment thread not found on this document".to_string(),
+            MessageError::InaccessibleReference { entity_type, entity_id } => {
+                format!("cannot mention {entity_type}: you don't have access to it (id: {entity_id})")
+            }
             MessageError::Forbidden => {
                 "you need comment access to the document to comment on it".to_string()
             }

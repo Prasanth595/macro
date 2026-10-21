@@ -86,10 +86,12 @@ where
             )
             .await
             .map_err(|error| match error {
-                MessageError::Forbidden => ToolCallError {
-                    description: "only the comment's author can edit it".to_string(),
-                    internal_error: anyhow::Error::new(error),
-                },
+                MessageError::InaccessibleReference { .. } | MessageError::Forbidden => {
+                    ToolCallError {
+                        description: "only the comment's author can edit it".to_string(),
+                        internal_error: anyhow::Error::new(error),
+                    }
+                }
                 error => comment_error("unable to edit the comment")(error),
             })?;
 

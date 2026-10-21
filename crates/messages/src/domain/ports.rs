@@ -17,6 +17,12 @@ pub enum MessageError {
     /// Caller lacks the required capability or ownership.
     #[error("not authorized for this message operation")]
     Forbidden,
+    /// Message references an entity the author cannot access.
+    #[error("cannot mention {entity_type} {entity_id}: you don't have access to it")]
+    InaccessibleReference {
+        entity_type: &'static str,
+        entity_id: String,
+    },
     /// Invalid thread relation or anchor.
     #[error("{0}")]
     Invalid(&'static str),

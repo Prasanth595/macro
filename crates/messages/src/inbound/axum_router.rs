@@ -160,15 +160,19 @@ impl From<MessageError> for MessageHttpError {
 impl IntoResponse for MessageHttpError {
     fn into_response(self) -> Response {
         let (status, message) = match self.0 {
-            MessageError::NotFound => (StatusCode::NOT_FOUND, "message or parent not found"),
-            MessageError::Forbidden => (StatusCode::FORBIDDEN, "forbidden"),
-            MessageError::Invalid(message) => (StatusCode::BAD_REQUEST, message),
-            MessageError::Conflict => (StatusCode::CONFLICT, "message id already exists"),
+            MessageError::NotFound => (StatusCode::NOT_FOUND, "message or parent not found".to_string()),
+            MessageError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".to_string()),
+            MessageError::InaccessibleReference { entity_type, entity_id } => (
+                StatusCode::FORBIDDEN,
+                format!("cannot mention {entity_type}: you don't have access to it (id: {entity_id})"),
+            ),
+            MessageError::Invalid(msg) => (StatusCode::BAD_REQUEST, msg.to_string()),
+            MessageError::Conflict => (StatusCode::CONFLICT, "message id already exists".to_string()),
             MessageError::Repository(error) => {
                 tracing::error!(error=?error, "message request failed");
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "message operation failed",
+                    "message operation failed".to_string(),
                 )
             }
         };

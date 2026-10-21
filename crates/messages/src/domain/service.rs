@@ -826,7 +826,24 @@ impl<R: MessageRepository, E: MessageEventPublisher> MessageService<R, E> {
                 .can_view(access.auth(), entity_type, id)
                 .await?
             {
-                return Err(MessageError::Forbidden);
+                let entity_type_str = match entity_type {
+                    EntityType::Document => "document",
+                    EntityType::Form => "form",
+                    EntityType::Channel => "channel",
+                    EntityType::EmailThread => "email thread",
+                    EntityType::Call => "call",
+                    EntityType::CalendarEvent => "calendar event",
+                    EntityType::Chat => "chat",
+                    EntityType::AgentSession => "agent session",
+                    EntityType::Project => "project",
+                    EntityType::CrmCompany => "company",
+                    EntityType::CrmContact => "contact",
+                    _ => "item",
+                };
+                return Err(MessageError::InaccessibleReference {
+                    entity_type: entity_type_str,
+                    entity_id: id.to_owned(),
+                });
             }
         }
         Ok(())

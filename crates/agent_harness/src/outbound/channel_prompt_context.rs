@@ -71,9 +71,10 @@ fn access_refused(error: AccessError) -> HarnessError {
 /// origin; a read that failed may succeed later.
 fn read_refused(error: MessageError) -> HarnessError {
     match error {
-        MessageError::NotFound | MessageError::Forbidden | MessageError::Invalid(_) => {
-            HarnessError::InvalidOrigin(rootcause::report!(error).into())
-        }
+        MessageError::NotFound
+        | MessageError::InaccessibleReference { .. }
+        | MessageError::Forbidden
+        | MessageError::Invalid(_) => HarnessError::InvalidOrigin(rootcause::report!(error).into()),
         MessageError::Conflict | MessageError::Repository(_) => {
             HarnessError::PromptContext(rootcause::report!(error).into())
         }

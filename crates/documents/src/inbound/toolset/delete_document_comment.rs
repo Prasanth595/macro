@@ -70,11 +70,13 @@ where
             .delete(access, self.comment_id, None)
             .await
             .map_err(|error| match error {
-                MessageError::Forbidden => ToolCallError {
-                    description: "only the comment's author or the document owner can delete it"
-                        .to_string(),
-                    internal_error: anyhow::Error::new(error),
-                },
+                MessageError::InaccessibleReference { .. } | MessageError::Forbidden => {
+                    ToolCallError {
+                        description: "only the comment's author or the document owner can delete it"
+                            .to_string(),
+                        internal_error: anyhow::Error::new(error),
+                    }
+                }
                 error => comment_error("unable to delete the comment")(error),
             })?;
 
