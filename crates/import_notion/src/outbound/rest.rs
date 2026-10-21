@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use chrono::{DateTime, SecondsFormat, Utc};
+use http::{Method, StatusCode};
 use rand::Rng;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -49,20 +50,108 @@ const MAX_JITTER_MILLIS: u64 = 250;
 /// How much of an error body is kept.
 const ERROR_BODY_CHARS: usize = 500;
 
-/// An HTTP method the REST client uses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NotionMethod {
-    /// `GET`.
-    Get,
-    /// `POST`.
-    Post,
+/// A request the importer makes to Notion. The client can send nothing
+/// else: every variant is a read (a `GET`, or one of the two `POST`s Notion
+/// uses for reads, search and data source queries), so an import can never
+/// modify or delete anything in the user's Notion.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NotionRead {
+    /// `POST /v1/search` with a search body.
+    Search(serde_json::Value),
+    /// `GET /v1/pages/{id}`.
+    Page(NotionId),
+    /// `GET /v1/pages/{id}/markdown`.
+    PageMarkdown(NotionId),
+    /// `GET /v1/pages/{page}/properties/{property}`, one page of references.
+    PageProperty {
+        /// The page.
+        page: NotionId,
+        /// The property's id, as Notion encodes it in paths.
+        property: String,
+        /// Where the previous page of references ended.
+        cursor: Option<String>,
+    },
+    /// `GET /v1/data_sources/{id}`.
+    DataSource(NotionId),
+    /// `POST /v1/data_sources/{id}/query` with a query body.
+    QueryDataSource {
+        /// The data source.
+        id: NotionId,
+        /// The filter, sorts and cursor.
+        body: serde_json::Value,
+    },
+    /// `GET /v1/databases/{id}`.
+    Database(NotionId),
+    /// `GET /v1/users`, one page of members.
+    Users {
+        /// Where the previous page of members ended.
+        cursor: Option<String>,
+    },
+}
+
+impl NotionRead {
+    /// The HTTP method Notion's API takes this read with.
+    pub fn method(&self) -> Method {
+        match self {
+            Self::Search(_) | Self::QueryDataSource { .. } => Method::POST,
+            Self::Page(_)
+            | Self::PageMarkdown(_)
+            | Self::PageProperty { .. }
+            | Self::DataSource(_)
+            | Self::Database(_)
+            | Self::Users { .. } => Method::GET,
+        }
+    }
+
+    /// The path and query, such as `/v1/search`.
+    pub fn path_and_query(&self) -> String {
+        match self {
+            Self::Search(_) => "/v1/search".to_owned(),
+            Self::Page(id) => format!("/v1/pages/{id}"),
+            Self::PageMarkdown(id) => format!("/v1/pages/{id}/markdown"),
+            Self::PageProperty {
+                page,
+                property,
+                cursor,
+            } => with_cursor(
+                format!("/v1/pages/{page}/properties/{property}?page_size={PAGE_SIZE}"),
+                cursor,
+            ),
+            Self::DataSource(id) => format!("/v1/data_sources/{id}"),
+            Self::QueryDataSource { id, .. } => format!("/v1/data_sources/{id}/query"),
+            Self::Database(id) => format!("/v1/databases/{id}"),
+            Self::Users { cursor } => {
+                with_cursor(format!("/v1/users?page_size={PAGE_SIZE}"), cursor)
+            }
+        }
+    }
+
+    /// The JSON body, for the reads that take one.
+    pub fn body(&self) -> Option<&serde_json::Value> {
+        match self {
+            Self::Search(body) | Self::QueryDataSource { body, .. } => Some(body),
+            Self::Page(_)
+            | Self::PageMarkdown(_)
+            | Self::PageProperty { .. }
+            | Self::DataSource(_)
+            | Self::Database(_)
+            | Self::Users { .. } => None,
+        }
+    }
+}
+
+fn with_cursor(mut path: String, cursor: &Option<String>) -> String {
+    if let Some(cursor) = cursor {
+        path.push_str(&format!("&start_cursor={cursor}"));
+    }
+    path
 }
 
 /// Notion's answer to one request, whatever its status.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransportResponse {
     /// The HTTP status.
-    pub status: u16,
+    pub status: StatusCode,
     /// How long Notion asked callers to wait, from `Retry-After`.
     pub retry_after: Option<Duration>,
     /// The response body.
@@ -72,14 +161,12 @@ pub struct TransportResponse {
 /// Carries one request to Notion's REST API with the connection's
 /// credentials.
 pub trait NotionTransport: Send + Sync + 'static {
-    /// Send `method` to `path_and_query` (such as `/v1/search`). A non-2xx
-    /// answer is a response; only a request that did not complete is an
-    /// error, and it should be [`NotionError::Transport`] to be retried.
+    /// Send `read`. A non-2xx answer is a response; only a request that did
+    /// not complete is an error, and it should be [`NotionError::Transport`]
+    /// to be retried.
     fn send(
         &self,
-        method: NotionMethod,
-        path_and_query: &str,
-        body: Option<&serde_json::Value>,
+        read: &NotionRead,
     ) -> impl Future<Output = Result<TransportResponse, NotionError>> + Send;
 }
 
@@ -135,38 +222,29 @@ impl<Transport: NotionTransport> NotionRestClient<Transport> {
         Self { transport, pacer }
     }
 
-    async fn request<Body: DeserializeOwned>(
-        &self,
-        method: NotionMethod,
-        path: &str,
-        body: Option<&serde_json::Value>,
-    ) -> Result<Body, NotionError> {
-        let text = self.send(method, path, body).await?;
-        serde_json::from_str(&text).map_err(|error| NotionError::Decode(format!("{path}: {error}")))
+    async fn request<Body: DeserializeOwned>(&self, read: NotionRead) -> Result<Body, NotionError> {
+        let text = self.send(&read).await?;
+        serde_json::from_str(&text)
+            .map_err(|error| NotionError::Decode(format!("{}: {error}", read.path_and_query())))
     }
 
     #[tracing::instrument(
         name = "notion.request",
-        skip(self, body),
+        skip_all,
         err,
-        fields(attempts, status)
+        fields(method = %read.method(), path = %read.path_and_query(), attempts, status)
     )]
-    async fn send(
-        &self,
-        method: NotionMethod,
-        path: &str,
-        body: Option<&serde_json::Value>,
-    ) -> Result<String, NotionError> {
+    async fn send(&self, read: &NotionRead) -> Result<String, NotionError> {
         let span = tracing::Span::current();
         let mut attempt: u8 = 0;
         loop {
             attempt += 1;
             span.record("attempts", attempt);
             self.pacer.wait().await;
-            let (error, retry_after) = match self.transport.send(method, path, body).await {
+            let (error, retry_after) = match self.transport.send(read).await {
                 Ok(response) => {
-                    span.record("status", response.status);
-                    if (200..300).contains(&response.status) {
+                    span.record("status", response.status.as_u16());
+                    if response.status.is_success() {
                         return Ok(response.body);
                     }
                     match failure(response) {
@@ -219,14 +297,16 @@ impl<Transport: NotionTransport> NotionRestClient<Transport> {
         let mut references = Vec::new();
         let mut cursor: Option<String> = None;
         loop {
-            let mut path = format!("/v1/pages/{page}/properties/{property}?page_size={PAGE_SIZE}");
-            if let Some(cursor) = &cursor {
-                path.push_str(&format!("&start_cursor={cursor}"));
-            }
-            let list: WireList = self.request(NotionMethod::Get, &path, None).await?;
+            let read = NotionRead::PageProperty {
+                page: page.clone(),
+                property: property.to_owned(),
+                cursor: cursor.take(),
+            };
+            let list: WireList = self.request(read.clone()).await?;
             for item in &list.results {
-                let item = WirePropertyItem::deserialize(item)
-                    .map_err(|error| NotionError::Decode(format!("{path}: {error}")))?;
+                let item = WirePropertyItem::deserialize(item).map_err(|error| {
+                    NotionError::Decode(format!("{}: {error}", read.path_and_query()))
+                })?;
                 references.extend(item.reference().map(|id| wire::WireReference { id }));
             }
             match list.next() {
@@ -267,9 +347,7 @@ impl<Transport: NotionTransport> NotionApi for NotionRestClient<Transport> {
         if let Some(cursor) = cursor {
             body["start_cursor"] = serde_json::Value::String(cursor);
         }
-        let list: WireList = self
-            .request(NotionMethod::Post, "/v1/search", Some(&body))
-            .await?;
+        let list: WireList = self.request(NotionRead::Search(body)).await?;
         let mut results = Vec::with_capacity(list.results.len());
         for item in &list.results {
             match WireObject::deserialize(item) {
@@ -289,16 +367,12 @@ impl<Transport: NotionTransport> NotionApi for NotionRestClient<Transport> {
     }
 
     async fn page(&self, id: &NotionId) -> Result<NotionPage, NotionError> {
-        let page: WirePage = self
-            .request(NotionMethod::Get, &format!("/v1/pages/{id}"), None)
-            .await?;
+        let page: WirePage = self.request(NotionRead::Page(id.clone())).await?;
         self.complete(page).await
     }
 
     async fn page_markdown(&self, id: &NotionId) -> Result<PageMarkdown, NotionError> {
-        let markdown: WireMarkdown = self
-            .request(NotionMethod::Get, &format!("/v1/pages/{id}/markdown"), None)
-            .await?;
+        let markdown: WireMarkdown = self.request(NotionRead::PageMarkdown(id.clone())).await?;
         Ok(PageMarkdown {
             markdown: markdown.markdown,
             unknown_block_ids: markdown.unknown_block_ids,
@@ -306,21 +380,15 @@ impl<Transport: NotionTransport> NotionApi for NotionRestClient<Transport> {
     }
 
     async fn data_source(&self, id: &NotionId) -> Result<NotionDataSource, NotionError> {
-        let path = format!("/v1/data_sources/{id}");
-        let source: WireDataSource = self.request(NotionMethod::Get, &path, None).await?;
+        let read = NotionRead::DataSource(id.clone());
+        let source: WireDataSource = self.request(read.clone()).await?;
         source
             .into_data_source()
-            .map_err(|error| NotionError::Decode(format!("{path}: {error}")))
+            .map_err(|error| NotionError::Decode(format!("{}: {error}", read.path_and_query())))
     }
 
     async fn database_sources(&self, database: &NotionId) -> Result<Vec<NotionId>, NotionError> {
-        let database: WireDatabase = self
-            .request(
-                NotionMethod::Get,
-                &format!("/v1/databases/{database}"),
-                None,
-            )
-            .await?;
+        let database: WireDatabase = self.request(NotionRead::Database(database.clone())).await?;
         Ok(database
             .data_sources
             .into_iter()
@@ -355,8 +423,12 @@ impl<Transport: NotionTransport> NotionApi for NotionRestClient<Transport> {
         if let Some(start) = &cursor.start_cursor {
             body["start_cursor"] = serde_json::Value::String(start.clone());
         }
-        let path = format!("/v1/data_sources/{id}/query");
-        let list: WireList = self.request(NotionMethod::Post, &path, Some(&body)).await?;
+        let list: WireList = self
+            .request(NotionRead::QueryDataSource {
+                id: id.clone(),
+                body,
+            })
+            .await?;
         let rows = self.pages(&list).await?;
 
         let next = match list.next() {
@@ -389,11 +461,7 @@ impl<Transport: NotionTransport> NotionApi for NotionRestClient<Transport> {
     }
 
     async fn users(&self, cursor: Option<String>) -> Result<Paged<NotionUser>, NotionError> {
-        let mut path = format!("/v1/users?page_size={PAGE_SIZE}");
-        if let Some(cursor) = &cursor {
-            path.push_str(&format!("&start_cursor={cursor}"));
-        }
-        let list: WireList = match self.request(NotionMethod::Get, &path, None).await {
+        let list: WireList = match self.request(NotionRead::Users { cursor }).await {
             Ok(list) => list,
             // Listing members needs a capability the connection may lack.
             Err(NotionError::Forbidden) => {
@@ -441,18 +509,33 @@ fn failure(response: TransportResponse) -> Failure {
         .ok()
         .and_then(|error| error.code);
     match (response.status, code.as_deref()) {
-        (429, _) | (_, Some("rate_limited")) => Failure::Transient {
+        (StatusCode::TOO_MANY_REQUESTS, _) | (_, Some("rate_limited")) => Failure::Transient {
             error: NotionError::RateLimited {
                 retry_after: response.retry_after,
             },
             retry_after: response.retry_after,
         },
-        (500 | 502 | 503 | 504 | 529, _) => Failure::Transient {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR
+            | StatusCode::BAD_GATEWAY
+            | StatusCode::SERVICE_UNAVAILABLE
+            | StatusCode::GATEWAY_TIMEOUT,
+            _,
+        ) => Failure::Transient {
             retry_after: response.retry_after,
             error: upstream(response),
         },
-        (404, _) | (_, Some("object_not_found")) => Failure::Final(NotionError::NotFound),
-        (403, _) | (_, Some("restricted_resource")) => Failure::Final(NotionError::Forbidden),
+        // Notion's overloaded status, outside the standard set.
+        (status, _) if status.as_u16() == 529 => Failure::Transient {
+            retry_after: response.retry_after,
+            error: upstream(response),
+        },
+        (StatusCode::NOT_FOUND, _) | (_, Some("object_not_found")) => {
+            Failure::Final(NotionError::NotFound)
+        }
+        (StatusCode::FORBIDDEN, _) | (_, Some("restricted_resource")) => {
+            Failure::Final(NotionError::Forbidden)
+        }
         _ => Failure::Final(upstream(response)),
     }
 }
@@ -466,7 +549,7 @@ fn upstream(response: TransportResponse) -> NotionError {
         .filter(|message| !message.trim().is_empty());
     let body = explained.unwrap_or(response.body);
     NotionError::Upstream {
-        status: response.status,
+        status: response.status.as_u16(),
         body: body.chars().take(ERROR_BODY_CHARS).collect(),
     }
 }

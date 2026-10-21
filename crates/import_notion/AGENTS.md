@@ -35,6 +35,9 @@ model for the `import` crate to turn into Macro documents and databases.
 
 ## Gotchas
 
+- Read-only by construction: the REST client can only send a `NotionRead`
+  (GETs, plus the read POSTs `/v1/search` and `/v1/data_sources/{id}/query`);
+  never add a variant that writes to the user's Notion.
 - One `RequestPacer` per Pipedream account (~3 requests/second), shared by
   every client of it; a `Retry-After` holds every request on the account.
 - `query_data_source` cursors are this crate's own JSON, not Notion's: past

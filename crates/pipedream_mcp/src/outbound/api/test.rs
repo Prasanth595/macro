@@ -1,6 +1,7 @@
 use super::{AppResponse, PipedreamClient, PipedreamConfig, connectable_catalog_entry};
 use crate::domain::models::{MacroUserIdStr, PipedreamConnection};
-use crate::domain::ports::{ConnectedAppProxy, ProxyMethod, ProxyResponse};
+use crate::domain::ports::ConnectedAppProxy;
+use http::{HeaderMap, HeaderValue, Method, StatusCode};
 use std::time::Duration;
 use wiremock::matchers::{body_json, header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -85,20 +86,18 @@ async fn the_proxy_addresses_the_upstream_url_for_the_connected_account() {
     let response = client
         .proxy(
             &connection,
-            ProxyMethod::Post,
+            Method::POST,
             "https://api.notion.com/v1/search",
-            &[("notion-version", "2026-03-11")],
+            &HeaderMap::from_iter([(
+                http::HeaderName::from_static("notion-version"),
+                HeaderValue::from_static("2026-03-11"),
+            )]),
             Some(&serde_json::json!({"page_size": 100})),
         )
         .await
         .unwrap();
 
-    assert_eq!(
-        response,
-        ProxyResponse {
-            status: 429,
-            retry_after: Some(Duration::from_secs(3)),
-            body: r#"{"object":"error","code":"rate_limited"}"#.into(),
-        }
-    );
+    assert_eq!(response.status, StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(response.retry_after(), Some(Duration::from_secs(3)));
+    assert_eq!(response.body, r#"{"object":"error","code":"rate_limited"}"#);
 }

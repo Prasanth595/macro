@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use chrono::{DateTime, Utc};
+use lazy_regex::regex;
 use serde::{Deserialize, Serialize};
 
 /// A Notion object id: 32 lowercase hex digits, without dashes.
@@ -20,20 +21,17 @@ impl NotionId {
     /// whose last path segment ends in one, such as
     /// `https://www.notion.so/Q3-plan-3fb607323e2e80629886fc0c028d50a7`.
     pub fn parse(input: &str) -> Option<Self> {
-        let trimmed = input.trim();
-        let candidate = trimmed
-            .split(['?', '#'])
-            .next()
-            .unwrap_or(trimmed)
-            .trim_end_matches('/')
-            .rsplit('/')
-            .next()
-            .unwrap_or(trimmed);
-        let hex: String = candidate.chars().filter(|c| *c != '-').collect();
-        let tail = hex.get(hex.len().checked_sub(32)?..)?;
-        tail.chars()
-            .all(|c| c.is_ascii_hexdigit())
-            .then(|| Self(tail.to_ascii_lowercase()))
+        // The id ends the path, with or without its dashes; a query or
+        // fragment after it (`?v=…` on a database view) is never the id.
+        let captures = regex!(
+            r"(?i)^[^?#]*?([0-9a-f]{8})-?([0-9a-f]{4})-?([0-9a-f]{4})-?([0-9a-f]{4})-?([0-9a-f]{12})/?(?:[?#].*)?$"
+        )
+        .captures(input.trim())?;
+        let hex: String = (1..=5)
+            .filter_map(|group| captures.get(group))
+            .map(|part| part.as_str().to_ascii_lowercase())
+            .collect();
+        Some(Self(hex))
     }
 
     /// The dashless form.

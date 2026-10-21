@@ -1,11 +1,10 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use http::{HeaderMap, Method, StatusCode};
 use macro_user_id::user_id::MacroUserIdStr;
 use pipedream_mcp::domain::models::PipedreamConnection;
-use pipedream_mcp::domain::ports::{
-    ConnectedAppProxy, ConnectionStore, ProxyMethod, ProxyResponse,
-};
+use pipedream_mcp::domain::ports::{ConnectedAppProxy, ConnectionStore, ProxyResponse};
 use tokio::time::Instant;
 
 use super::PipedreamNotionConnections;
@@ -52,9 +51,9 @@ impl ConnectionStore for OneConnection {
 #[derive(Debug, Clone, PartialEq)]
 struct ProxiedRequest {
     account_id: String,
-    method: ProxyMethod,
+    method: Method,
     url: String,
-    headers: Vec<(String, String)>,
+    headers: HeaderMap,
     at: Instant,
 }
 
@@ -67,24 +66,21 @@ impl ConnectedAppProxy for RecordingProxy {
     async fn proxy(
         &self,
         connection: &PipedreamConnection,
-        method: ProxyMethod,
+        method: Method,
         url: &str,
-        headers: &[(&str, &str)],
+        headers: &HeaderMap,
         _body: Option<&serde_json::Value>,
     ) -> anyhow::Result<ProxyResponse> {
         self.requests.lock().unwrap().push(ProxiedRequest {
             account_id: connection.account_id.clone(),
             method,
             url: url.to_owned(),
-            headers: headers
-                .iter()
-                .map(|(name, value)| ((*name).to_owned(), (*value).to_owned()))
-                .collect(),
+            headers: headers.clone(),
             at: Instant::now(),
         });
         Ok(ProxyResponse {
-            status: 200,
-            retry_after: None,
+            status: StatusCode::OK,
+            headers: HeaderMap::new(),
             body: r#"{"object":"database","data_sources":[]}"#.into(),
         })
     }
@@ -119,12 +115,18 @@ async fn a_connected_user_reaches_notion_through_the_proxy_with_one_pacer_per_ac
         requests[0],
         ProxiedRequest {
             account_id: "apn_notion".into(),
-            method: ProxyMethod::Get,
+            method: Method::GET,
             url: "https://api.notion.com/v1/databases/d9824bdc84454327be8b5b47500af6ce".into(),
-            headers: vec![
-                ("Notion-Version".into(), "2026-03-11".into()),
-                ("Content-Type".into(), "application/json".into()),
-            ],
+            headers: HeaderMap::from_iter([
+                (
+                    http::HeaderName::from_static("notion-version"),
+                    http::HeaderValue::from_static("2026-03-11"),
+                ),
+                (
+                    http::header::CONTENT_TYPE,
+                    http::HeaderValue::from_static("application/json"),
+                ),
+            ]),
             at: started,
         }
     );

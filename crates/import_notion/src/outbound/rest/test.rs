@@ -6,8 +6,10 @@ use chrono::{TimeZone, Utc};
 use serde_json::json;
 use tokio::time::Instant;
 
+use http::{Method, StatusCode};
+
 use super::{
-    NOTION_REQUEST_INTERVAL, NotionMethod, NotionRestClient, NotionTransport, RequestPacer,
+    NOTION_REQUEST_INTERVAL, NotionRead, NotionRestClient, NotionTransport, RequestPacer,
     TransportResponse,
 };
 use crate::domain::model::{
@@ -25,7 +27,7 @@ struct ScriptedTransport {
 
 #[derive(Debug, Clone, PartialEq)]
 struct SentRequest {
-    method: NotionMethod,
+    method: Method,
     path: String,
     body: Option<serde_json::Value>,
     after: Duration,
@@ -46,16 +48,11 @@ impl ScriptedTransport {
 }
 
 impl NotionTransport for Arc<ScriptedTransport> {
-    async fn send(
-        &self,
-        method: NotionMethod,
-        path_and_query: &str,
-        body: Option<&serde_json::Value>,
-    ) -> Result<TransportResponse, NotionError> {
+    async fn send(&self, read: &NotionRead) -> Result<TransportResponse, NotionError> {
         self.requests.lock().unwrap().push(SentRequest {
-            method,
-            path: path_and_query.to_owned(),
-            body: body.cloned(),
+            method: read.method(),
+            path: read.path_and_query(),
+            body: read.body().cloned(),
             after: self.started.elapsed(),
         });
         let response = self.responses.lock().unwrap().pop_front();
@@ -65,7 +62,7 @@ impl NotionTransport for Arc<ScriptedTransport> {
 
 fn ok(body: serde_json::Value) -> TransportResponse {
     TransportResponse {
-        status: 200,
+        status: StatusCode::OK,
         retry_after: None,
         body: body.to_string(),
     }
@@ -150,7 +147,7 @@ async fn search_decodes_pages_and_data_sources_and_skips_what_it_cannot_read() {
     assert_eq!(
         transport.requests(),
         vec![SentRequest {
-            method: NotionMethod::Post,
+            method: Method::POST,
             path: "/v1/search".into(),
             body: Some(json!({
                 "filter": {"property": "object", "value": "page"},
@@ -231,7 +228,7 @@ async fn page_markdown_decodes_the_body_and_its_unknown_blocks() {
 async fn a_rate_limit_is_retried_after_the_delay_notion_asked_for() {
     let transport = ScriptedTransport::new(vec![
         TransportResponse {
-            status: 429,
+            status: StatusCode::TOO_MANY_REQUESTS,
             retry_after: Some(Duration::from_secs(7)),
             body: r#"{"object":"error","status":429,"code":"rate_limited","message":"slow down"}"#
                 .into(),
@@ -267,7 +264,7 @@ async fn a_rate_limit_is_retried_after_the_delay_notion_asked_for() {
 #[tokio::test(start_paused = true)]
 async fn a_rate_limit_that_persists_fails_after_five_attempts() {
     let rate_limited = TransportResponse {
-        status: 429,
+        status: StatusCode::TOO_MANY_REQUESTS,
         retry_after: Some(Duration::from_secs(1)),
         body: r#"{"object":"error","code":"rate_limited"}"#.into(),
     };
@@ -293,7 +290,7 @@ async fn a_rate_limit_that_persists_fails_after_five_attempts() {
 async fn a_transient_server_error_is_retried_with_backoff() {
     let transport = ScriptedTransport::new(vec![
         TransportResponse {
-            status: 503,
+            status: StatusCode::SERVICE_UNAVAILABLE,
             retry_after: None,
             body: "upstream unavailable".into(),
         },
@@ -328,17 +325,17 @@ async fn a_transient_server_error_is_retried_with_backoff() {
 async fn not_found_and_forbidden_are_final() {
     let transport = ScriptedTransport::new(vec![
         TransportResponse {
-            status: 404,
+            status: StatusCode::NOT_FOUND,
             retry_after: None,
             body: r#"{"object":"error","status":404,"code":"object_not_found","message":"Could not find page"}"#.into(),
         },
         TransportResponse {
-            status: 403,
+            status: StatusCode::FORBIDDEN,
             retry_after: None,
             body: r#"{"object":"error","status":403,"code":"restricted_resource","message":"no access"}"#.into(),
         },
         TransportResponse {
-            status: 400,
+            status: StatusCode::BAD_REQUEST,
             retry_after: None,
             body: format!(r#"{{"object":"error","code":"validation_error","message":"{}"}}"#, "x".repeat(600)),
         },
@@ -413,7 +410,7 @@ async fn users_skip_bots_and_a_forbidden_listing_is_empty() {
             "has_more": true
         })),
         TransportResponse {
-            status: 403,
+            status: StatusCode::FORBIDDEN,
             retry_after: None,
             body: r#"{"object":"error","status":403,"code":"restricted_resource"}"#.into(),
         },
@@ -608,6 +605,83 @@ async fn a_truncated_relation_is_fetched_in_full() {
             "/v1/pages/598337872cf94fdf8782e53db20768a5".to_owned(),
             "/v1/pages/598337872cf94fdf8782e53db20768a5/properties/pJ%3B?page_size=100".to_owned(),
             "/v1/pages/598337872cf94fdf8782e53db20768a5/properties/pJ%3B?page_size=100&start_cursor=more".to_owned(),
+        ]
+    );
+}
+
+/// Every request the client can build, named once per variant so a new one
+/// fails to compile here until it is checked.
+fn every_read() -> Vec<NotionRead> {
+    let id = NotionId::parse("598337872cf94fdf8782e53db20768a5").unwrap();
+    let reads = vec![
+        NotionRead::Search(json!({})),
+        NotionRead::Page(id.clone()),
+        NotionRead::PageMarkdown(id.clone()),
+        NotionRead::PageProperty {
+            page: id.clone(),
+            property: "title".into(),
+            cursor: Some("next".into()),
+        },
+        NotionRead::DataSource(id.clone()),
+        NotionRead::QueryDataSource {
+            id: id.clone(),
+            body: json!({}),
+        },
+        NotionRead::Database(id.clone()),
+        NotionRead::Users { cursor: None },
+    ];
+    for read in &reads {
+        match read {
+            NotionRead::Search(_)
+            | NotionRead::Page(_)
+            | NotionRead::PageMarkdown(_)
+            | NotionRead::PageProperty { .. }
+            | NotionRead::DataSource(_)
+            | NotionRead::QueryDataSource { .. }
+            | NotionRead::Database(_)
+            | NotionRead::Users { .. } => {}
+        }
+    }
+    reads
+}
+
+#[test]
+fn every_request_the_client_can_send_only_reads_notion() {
+    let sent: Vec<(Method, String)> = every_read()
+        .iter()
+        .map(|read| (read.method(), read.path_and_query()))
+        .collect();
+
+    assert_eq!(
+        sent,
+        vec![
+            (Method::POST, "/v1/search".to_owned()),
+            (
+                Method::GET,
+                "/v1/pages/598337872cf94fdf8782e53db20768a5".to_owned()
+            ),
+            (
+                Method::GET,
+                "/v1/pages/598337872cf94fdf8782e53db20768a5/markdown".to_owned()
+            ),
+            (
+                Method::GET,
+                "/v1/pages/598337872cf94fdf8782e53db20768a5/properties/title?page_size=100&start_cursor=next"
+                    .to_owned()
+            ),
+            (
+                Method::GET,
+                "/v1/data_sources/598337872cf94fdf8782e53db20768a5".to_owned()
+            ),
+            (
+                Method::POST,
+                "/v1/data_sources/598337872cf94fdf8782e53db20768a5/query".to_owned()
+            ),
+            (
+                Method::GET,
+                "/v1/databases/598337872cf94fdf8782e53db20768a5".to_owned()
+            ),
+            (Method::GET, "/v1/users?page_size=100".to_owned()),
         ]
     );
 }

@@ -4,13 +4,14 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError, Weak};
 
+use http::header::{CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
 use macro_user_id::user_id::MacroUserIdStr;
 use pipedream_mcp::domain::models::PipedreamConnection;
-use pipedream_mcp::domain::ports::{ConnectedAppProxy, ConnectionStore, ProxyMethod};
+use pipedream_mcp::domain::ports::{ConnectedAppProxy, ConnectionStore};
 use rootcause::compat::IntoRootcause;
 
 use super::rest::{
-    NOTION_REQUEST_INTERVAL, NOTION_VERSION, NotionMethod, NotionRestClient, NotionTransport,
+    NOTION_REQUEST_INTERVAL, NOTION_VERSION, NotionRead, NotionRestClient, NotionTransport,
     RequestPacer, TransportResponse,
 };
 use crate::domain::ports::{NotionConnections, NotionError};
@@ -97,33 +98,28 @@ pub struct PipedreamTransport<Proxy> {
 }
 
 impl<Proxy: ConnectedAppProxy> NotionTransport for PipedreamTransport<Proxy> {
-    async fn send(
-        &self,
-        method: NotionMethod,
-        path_and_query: &str,
-        body: Option<&serde_json::Value>,
-    ) -> Result<TransportResponse, NotionError> {
-        let method = match method {
-            NotionMethod::Get => ProxyMethod::Get,
-            NotionMethod::Post => ProxyMethod::Post,
-        };
+    async fn send(&self, read: &NotionRead) -> Result<TransportResponse, NotionError> {
+        let headers = HeaderMap::from_iter([
+            (
+                HeaderName::from_static("notion-version"),
+                HeaderValue::from_static(NOTION_VERSION),
+            ),
+            (CONTENT_TYPE, HeaderValue::from_static("application/json")),
+        ]);
         let response = self
             .proxy
             .proxy(
                 &self.connection,
-                method,
-                &format!("{NOTION_API_URL}{path_and_query}"),
-                &[
-                    ("Notion-Version", NOTION_VERSION),
-                    ("Content-Type", "application/json"),
-                ],
-                body,
+                read.method(),
+                &format!("{NOTION_API_URL}{}", read.path_and_query()),
+                &headers,
+                read.body(),
             )
             .await
             .map_err(|error| NotionError::Transport(error.into_rootcause()))?;
         Ok(TransportResponse {
             status: response.status,
-            retry_after: response.retry_after,
+            retry_after: response.retry_after(),
             body: response.body,
         })
     }

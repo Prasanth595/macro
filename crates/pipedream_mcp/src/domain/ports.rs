@@ -130,27 +130,30 @@ pub trait ConnectorCapabilities: Send + Sync + 'static {
     ) -> impl Future<Output = anyhow::Result<Vec<super::service::discovery::ConnectorTool>>> + Send;
 }
 
-/// An HTTP method a connected app's API is called with through the proxy.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ProxyMethod {
-    /// `GET`.
-    Get,
-    /// `POST`.
-    Post,
-    /// `PATCH`.
-    Patch,
-}
-
 /// A connected app's answer, relayed through the proxy whatever its status.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProxyResponse {
     /// The HTTP status.
-    pub status: u16,
-    /// How long the app asked callers to wait, from a `Retry-After` header in
-    /// seconds.
-    pub retry_after: Option<std::time::Duration>,
+    pub status: http::StatusCode,
+    /// The app's response headers.
+    pub headers: http::HeaderMap,
     /// The response body.
     pub body: String,
+}
+
+impl ProxyResponse {
+    /// How long the app asked callers to wait, from a `Retry-After` header
+    /// in seconds.
+    pub fn retry_after(&self) -> Option<std::time::Duration> {
+        self.headers
+            .get(http::header::RETRY_AFTER)?
+            .to_str()
+            .ok()?
+            .trim()
+            .parse()
+            .ok()
+            .map(std::time::Duration::from_secs)
+    }
 }
 
 /// Port for calling a connected app's own API with the account's
@@ -166,9 +169,9 @@ pub trait ConnectedAppProxy: Send + Sync + 'static {
     fn proxy(
         &self,
         connection: &PipedreamConnection,
-        method: ProxyMethod,
+        method: http::Method,
         url: &str,
-        headers: &[(&str, &str)],
+        headers: &http::HeaderMap,
         body: Option<&serde_json::Value>,
     ) -> impl Future<Output = anyhow::Result<ProxyResponse>> + Send;
 }

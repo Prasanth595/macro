@@ -207,11 +207,13 @@ pub async fn full_markdown<Api: NotionApi>(
 /// `markdown` with the placeholder naming `id` replaced by `block`, or with
 /// `block` appended when no placeholder names it.
 fn splice(markdown: &str, id: &NotionId, block: &str) -> String {
-    let dashless = id.as_str();
-    let dashed = dashed(id);
-    let placeholder = regex!(r"<unknown\b[^>]*>")
-        .find_iter(markdown)
-        .find(|tag| tag.as_str().contains(dashless) || tag.as_str().contains(&dashed));
+    // The placeholder names its block somewhere in its attributes, with or
+    // without dashes.
+    let placeholder = regex!(r"<unknown\b[^>]*>").find_iter(markdown).find(|tag| {
+        regex!(r"(?i)[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}")
+            .find_iter(tag.as_str())
+            .any(|found| NotionId::parse(found.as_str()).as_ref() == Some(id))
+    });
     match placeholder {
         Some(tag) => format!(
             "{}{}{}",
@@ -222,19 +224,6 @@ fn splice(markdown: &str, id: &NotionId, block: &str) -> String {
         None if markdown.is_empty() => block.to_owned(),
         None => format!("{}\n\n{}", markdown.trim_end(), block),
     }
-}
-
-/// The 8-4-4-4-12 form of an id.
-fn dashed(id: &NotionId) -> String {
-    let hex = id.as_str();
-    format!(
-        "{}-{}-{}-{}-{}",
-        &hex[..8],
-        &hex[8..12],
-        &hex[12..16],
-        &hex[16..20],
-        &hex[20..]
-    )
 }
 
 fn is_row(page: &NotionPage) -> bool {

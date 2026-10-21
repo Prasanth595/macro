@@ -58,3 +58,15 @@ fn ids_deserialize_from_either_form() {
     assert_eq!(id.as_str(), "598337872cf94fdf8782e53db20768a5");
     assert!(serde_json::from_str::<NotionId>("\"not-an-id\"").is_err());
 }
+
+#[test]
+fn a_database_view_link_yields_the_database_not_the_view_in_its_query() {
+    assert_eq!(
+        NotionId::parse(
+            "https://www.notion.so/acme/1a44be1209534631a1d67d4c2b1b4a2f?v=d9824bdc84454327be8b5b47500af6ce&p=598337872cf94fdf8782e53db20768a5"
+        )
+        .unwrap()
+        .as_str(),
+        "1a44be1209534631a1d67d4c2b1b4a2f"
+    );
+}
