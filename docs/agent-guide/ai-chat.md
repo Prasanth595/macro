@@ -300,7 +300,7 @@ the shimmer.
   **Create agent** action. **Connections** manages MCP integrations (including
   app authentication and disconnection), also available under Settings → Integrations.
   Home’s **Connect your tools** and agent replies’ **Connect app** chips open this
-  Integrations page. It shows installed tools above Discover, with personal Gmail/GitHub account links in a separate section above.
+  Integrations page. It shows installed tools above the app catalog, with personal Gmail/GitHub account links in a separate section above.
 
   To recreate Slack channels, open **Settings → Integrations → Slack → Import
   channels** (or **Connections → Slack** from the Agents workspace). The card

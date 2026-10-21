@@ -246,7 +246,10 @@ describe('unified Integrations page', () => {
     ));
     expect(screen.getByRole('heading', { name: 'Integrations' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Installed' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Discover' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Discover' })).toBeNull();
+    expect(
+      screen.getByRole('region', { name: 'Available integrations' })
+    ).toBeTruthy();
     expect(screen.getByText('Integration catalog')).toBeTruthy();
     expect(screen.getByText('Personal accounts')).toBeTruthy();
     expect(screen.queryByRole('tab')).toBeNull();

@@ -20,7 +20,7 @@ export function ConnectedView(props: { model: ConnectionsModel }) {
       when={!forceEmpty() && !isConnectionsEmpty(props.model)}
       fallback={
         <p class="rounded-2xl border border-edge-muted bg-ink/4 px-4 py-5 text-sm text-ink-muted">
-          No tools connected yet. Choose an integration from Discover to get
+          No tools connected yet. Choose one of the available apps to get
           started.
         </p>
       }

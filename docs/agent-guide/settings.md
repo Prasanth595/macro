@@ -464,13 +464,14 @@ the agent's name in a channel to check its mention-menu picture. Team agents
 available in all channels should refresh there without reloading the channel.
 
 With `pipedream-mcp` enabled, Settings → Integrations labels the Email/GitHub
-section Core Integrations and the connector section Agent Integrations. It displays installed tools above
-Discover, without tabs or a separate installed sidebar. Installed tools use a two-column card grid (one column on narrow screens); Discover
-shows Featured first, then All apps with a gray Add Custom action beside its
+section Core Integrations and the connector section Agent Integrations, separated
+by spacing without a divider. Installed tools use a two-column card grid (one
+column on narrow screens), followed by Featured and All apps, without a Discover
+heading or a separate installed sidebar. All apps has a gray Add Custom action beside its
 heading. Search and the category picker share a row directly below that heading
 and stack on narrow screens. The category picker uses a borderless light-gray
 fill that matches the integration cards.
-Installed and Discover use headings above rounded cards. The overview uses
+Installed, Featured, and All apps use headings above rounded cards. The overview uses
 more space between major sections and consistent light gray card backgrounds.
 Two thin, stacked setup rows appear at the top. “Use Macro in your favorite AI
 harness with the official Macro MCP” opens connection setup; “Stream sessions
@@ -495,11 +496,11 @@ screens, with a plus action for available apps. Featured cards show app names
 without descriptions, and catalog descriptions
 and connection status use readable body-sized text. The Agents workspace opens this same Integrations
 page. Installed groups GitHub, Linear, Notion, and Slack tool grants by provider,
-lists other catalog connections alongside them, and lists custom servers in the same installed grid. Discover offers featured providers, a searchable catalog,
+lists other catalog connections alongside them, and lists custom servers in the same installed grid. The available integrations include featured providers, a searchable catalog,
 and `Add Custom`. Pipedream Slack OAuth is available in production and
 development from the featured Slack provider. Connecting Slack here grants tool
 access; channel import is a separate action where the user chooses channels.
-Provider Back returns to the combined installed-and-discover overview; navigation
+Provider Back returns to the combined integrations overview; navigation
 is local to each mounted Integrations page.
 
 Macro agents and external AI clients using Macro's MCP server can run
@@ -527,7 +528,7 @@ owner's custom servers.
 An agent reply's `Connect <app>` chip still starts that app's connection flow.
 Cursor stays in Agents → Runtimes with its API key and default model controls; it is not
 featured or offered in the Connections catalog. Personal Gmail and GitHub account
-links appear above Installed and Discover on Settings → Integrations. The native-only integrations section remains
+links appear above the installed tools and app catalog on Settings → Integrations. The native-only integrations section remains
 available when `pipedream-mcp` is disabled.
 Open Settings with the rail's gear button or `Ctrl+;`; leave it by picking any other rail item.
 

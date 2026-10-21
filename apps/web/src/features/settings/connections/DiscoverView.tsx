@@ -86,7 +86,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
   return (
     <div class="@container/catalog flex flex-col gap-7">
       <section aria-label="Featured integrations">
-        <h4 class="mb-2 text-sm font-medium text-ink-muted">Featured</h4>
+        <h3 class="mb-2 text-sm font-medium text-ink-muted">Featured</h3>
         <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
           <For each={EMPTY_STARTERS}>
             {(item) => (
@@ -117,7 +117,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
 
       <section aria-label="All integrations">
         <div class="mb-3 flex items-center justify-between gap-3">
-          <h4 class="text-base font-medium text-ink">All apps</h4>
+          <h3 class="text-base font-medium text-ink">All apps</h3>
           <Button
             variant="ghost"
             size="md"
@@ -188,9 +188,9 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
               {(category) => (
                 <section class="col-span-full" aria-label={category.name}>
                   <div class="mb-2 flex items-center justify-between border-b border-edge-muted pb-2">
-                    <h5 class="text-sm font-medium text-ink">
+                    <h4 class="text-sm font-medium text-ink">
                       {category.name}
-                    </h5>
+                    </h4>
                     <span
                       class="text-sm text-ink-muted"
                       aria-label={`${category.entries.length} apps`}

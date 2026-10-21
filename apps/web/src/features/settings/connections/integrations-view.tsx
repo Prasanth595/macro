@@ -186,12 +186,9 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                       <ConnectedView model={model()} />
                     </section>
                     <section
-                      aria-label="Discover integrations"
+                      aria-label="Available integrations"
                       class="min-w-0 w-full"
                     >
-                      <h3 class="mb-2 text-base font-medium text-ink">
-                        Discover
-                      </h3>
                       <DiscoverView model={model()} />
                     </section>
                   </section>
