@@ -710,6 +710,87 @@ fn presented_review_card(
     Some(ActivityCard::Review { review_id, drafts })
 }
 
+/// Whether a call is Macro's presentation of an item a code-mode program
+/// created or changed through the SDK. No agent can call it.
+fn is_present_item(name: &ToolName) -> bool {
+    matches!(name, ToolName::Mcp { server, tool } if server == MACRO_INTERNAL && tool == "PresentItem")
+}
+
+/// The card for an item a code-mode program changed: the presentation Macro
+/// writes into the session as each of the program's writes completes, whose
+/// id names the run and the write within it.
+fn presented_item_card(
+    id: &str,
+    name: &ToolName,
+    input: Option<&serde_json::Value>,
+) -> Option<ActivityCard> {
+    if !is_present_item(name) {
+        return None;
+    }
+    let execution = text(input, "executionId")?;
+    macro_uuid::Uuid::try_parse(&execution).ok()?;
+    id.strip_prefix("item_")?
+        .strip_prefix(execution.as_str())?
+        .strip_prefix('_')?
+        .parse::<u64>()
+        .ok()?;
+    Some(item_card(
+        named_field(input, "itemType")?,
+        text(input, "itemId")?,
+        named_field(input, "action")?,
+        ItemFacts {
+            title: text(input, "title"),
+            ..ItemFacts::default()
+        },
+    ))
+}
+
+/// A field of a presentation's input, read as one of the fold's own names.
+fn named_field<T: serde::de::DeserializeOwned>(
+    input: Option<&serde_json::Value>,
+    key: &str,
+) -> Option<T> {
+    serde_json::from_value(input?.get(key)?.clone()).ok()
+}
+
+/// A presented item's step, worded like the Macro tool that would have done
+/// the same: `Rename channel`, `Comment on document`.
+fn presented_item_label(input: Option<&serde_json::Value>) -> String {
+    let (Some(item_type), Some(action)) =
+        (named_field(input, "itemType"), named_field(input, "action"))
+    else {
+        return "Change an item".to_owned();
+    };
+    let noun = match item_type {
+        CardItemType::Document => "document",
+        CardItemType::EmailThread => "email",
+        CardItemType::CalendarEvent => "event",
+        CardItemType::Project => "project",
+        CardItemType::Channel => "channel",
+        CardItemType::Routine => "routine",
+        CardItemType::Form => "form",
+        CardItemType::Initiative => "initiative",
+    };
+    match (action, item_type) {
+        (CardAction::Sent, CardItemType::Channel) => "Send channel message".to_owned(),
+        (CardAction::Commented, _) => format!("Comment on {noun}"),
+        (action, _) => {
+            let verb = match action {
+                CardAction::Created => "Create",
+                CardAction::Edited => "Edit",
+                CardAction::Sent => "Send",
+                CardAction::Updated => "Update",
+                CardAction::Moved => "Move",
+                CardAction::Shared => "Share",
+                CardAction::Renamed => "Rename",
+                CardAction::Deleted => "Delete",
+                CardAction::Commented | CardAction::Failed => "Change",
+            };
+            format!("{verb} {noun}")
+        }
+    }
+}
+
 fn tool_row(
     id: String,
     name: &ToolName,
@@ -730,6 +811,7 @@ fn tool_row(
         ToolDetail::UserTool { input, outcome } => user_tool_card(tool_name(name), input, outcome),
         ToolDetail::Other { input, .. } if status == ActivityStatus::Completed => {
             presented_review_card(&id, name, input.as_ref())
+                .or_else(|| presented_item_card(&id, name, input.as_ref()))
         }
         _ => None,
     };
@@ -767,6 +849,10 @@ fn tool_row(
         ToolDetail::Other { input, .. } if is_present_review(name) => {
             verbed(&PRESENT_REVIEW, input.as_ref().and_then(input_detail))
         }
+        ToolDetail::Other { input, .. } if is_present_item(name) => (
+            presented_item_label(input.as_ref()),
+            text(input.as_ref(), "title"),
+        ),
         ToolDetail::Other { input, .. } => (
             named_label(&named, status),
             input.as_ref().and_then(input_detail),
