@@ -295,13 +295,17 @@ export type AppEvents = {
     deletedRows: number;
   };
   /**
-   * A database grid read its view: once when the view opens and once per
-   * filter or sort change that settles for a second. Refreshes, live updates
-   * and layout edits are not counted.
+   * A database grid read its view: once when a view opens (a view switch
+   * included) and once per filter or sort change that settles for a second.
+   * Refreshes, live updates and layout edits are not counted. `host` tells a
+   * database's own page from a grid embedded in a document or a form's
+   * responses; only `block` opens are database opens.
    */
   database_query_run: {
     databaseId: string;
     tableId: string;
+    viewId: string;
+    host: 'block' | 'document' | 'form';
     trigger: 'open' | 'query_change';
     /** Top-level filter conditions; 0 when unfiltered. */
     filterConditions: number;
