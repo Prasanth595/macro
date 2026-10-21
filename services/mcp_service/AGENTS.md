@@ -21,7 +21,9 @@ FusionAuth.
 - `src/tool_response.rs`: shapes tool results (incl. media) for MCP responses.
 - `src/analytics.rs`: PostHog `$mcp_initialize` / `$mcp_tool_call` events
   (PostHog MCP analytics schema), sent in the background with the user's
-  team as the `team` group. Disabled when `POSTHOG_API_KEY` is unset.
+  team as the `team` group. At most 64 sends run at once (more are dropped)
+  and each user's team is cached for 10 minutes, so tool calls don't load
+  the tools' database pool. Disabled when `POSTHOG_API_KEY` is unset.
 
 ## Scope
 
