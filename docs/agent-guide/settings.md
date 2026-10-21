@@ -2,6 +2,24 @@
 
 ## Settings — `/app/settings/<section>`
 
+### Profile picture
+
+Open **Account → Profile Picture** and click the picture (or upload icon).
+The shared image editor supports click-to-upload, single-image drag-and-drop,
+a circular crop preview, zoom/reset, and a floating lightbox preview. PNG, JPG,
+WebP, and GIF files up to 16 MB are supported. Newly selected GIFs keep their
+animation instead of being cropped.
+
+Changes stay local until **Save**. **Clear image** also requires Save;
+**Cancel**, Escape, and outside dismissal discard the draft. While saving,
+dismissal and editing are disabled. A failed save keeps the original image
+available for adjustment and retry. Saving without changing the image does
+not upload it again. Success updates the profile-picture cache used by avatars.
+
+The editor becomes a drawer on phones. Keyboard users can activate the upload
+area with Enter or Space, move the crop with arrow keys, and use the zoom controls.
+Dismissing the lightbox returns focus to Preview without closing the editor.
+
 ### Slack archive import
 
 Temporary message storage recovers closed IndexedDB connections without restarting

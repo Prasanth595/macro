@@ -4,40 +4,25 @@ import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useHasPaidAccess } from '@core/auth';
 import { useLogout } from '@core/auth/logout';
 import { toast } from '@core/component/Toast/Toast';
-import { UserIcon } from '@core/component/UserIcon';
-import {
-  blockNameToFileExtensions,
-  blockNameToMimeTypes,
-} from '@core/constant/allBlocks';
 import {
   disableAutoUpdateUi,
   ENABLE_PROFILE_PICTURES,
   enableAutoUpdateUiOverride,
 } from '@core/constant/featureFlags';
 import { useSettingsState } from '@core/constant/SettingsState';
-import { staticFileIdEndpoint } from '@core/constant/servers';
 import { useSettingsTabAvailable } from '@core/constant/settingsTabsConfig';
 import { useEmail, useUserId } from '@core/context/user';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
-import {
-  type ProfilePictureItem,
-  useProfilePictureUrl,
-} from '@core/signal/profilePicture';
-import { createStaticFile } from '@core/util/create';
-import { openFilePicker } from '@core/util/upload';
 import {
   type BundleUpdateStatus,
   nativeUpdateDescription,
   useTauri,
 } from '@macro/tauri';
 import CheckIcon from '@phosphor/check.svg';
-import PencilIcon from '@phosphor/pencil-simple.svg';
 import SpinnerIcon from '@phosphor/spinner-gap.svg';
-import TrashIcon from '@phosphor/trash.svg';
 import WarningIcon from '@phosphor/warning.svg';
 import WarningCircleIcon from '@phosphor/warning-circle.svg';
 import SignOutIcon from '@phosphor-icons/core/regular/sign-out.svg?component-solid';
-import IconUpload from '@phosphor-icons/core/regular/upload-simple.svg?component-solid';
 import { useAiBillingSummaryQuery } from '@queries/auth';
 import {
   invalidateOwnUserName,
@@ -45,7 +30,7 @@ import {
 } from '@queries/auth/user-name-self';
 import { authServiceClient } from '@service-auth/client';
 import { invoke } from '@tauri-apps/api/core';
-import { Button, Dialog, Dropdown, HoldButton, Panel, Tooltip } from '@ui';
+import { Button, Dialog, HoldButton, Panel, Tooltip } from '@ui';
 import {
   createEffect,
   createMemo,
@@ -66,6 +51,7 @@ import {
   performAccountDeletion,
 } from './account-deletion-feedback';
 import { CurrentPlanCard } from './components/current-plan-card';
+import { ProfilePictureRow } from './components/profile-picture-row';
 import { resolvePlanTier } from './core/billing-state';
 import {
   SettingsCard,
@@ -75,43 +61,6 @@ import {
 } from './primitives';
 
 const DELETE_HOLD_MS = 5000;
-
-// 16 megabytes
-const MAX_PROFILE_PICTURE_SIZE = 16 * 1000 * 1000;
-
-async function uploadProfilePicture(
-  file: File
-): Promise<{ id: string; url: string } | void> {
-  if (file.size > MAX_PROFILE_PICTURE_SIZE) {
-    return toast.failure('Image size too large');
-  }
-
-  try {
-    const id = await createStaticFile(file);
-    const url = staticFileIdEndpoint(id);
-    const response = await authServiceClient.putProfilePicture({ url });
-    if (response.isErr()) {
-      return toast.failure('Failed to upload profile picture');
-    }
-    return { id, url };
-  } catch (_error) {
-    return toast.failure('Failed to upload profile picture');
-  }
-}
-
-async function removeProfilePicture(): Promise<boolean> {
-  try {
-    const response = await authServiceClient.putProfilePicture({ url: '' });
-    if (response.isErr()) {
-      toast.failure('Failed to remove profile picture');
-      return false;
-    }
-    return true;
-  } catch (_error) {
-    toast.failure('Failed to remove profile picture');
-    return false;
-  }
-}
 
 function formatBundleUpdateStatus(status: BundleUpdateStatus): string {
   switch (status.status) {
@@ -167,153 +116,6 @@ async function saveUserName(
     setValue(prev); // rollback if the call throws before returning a Result
     return false;
   }
-}
-
-function ProfilePictureRow(props: { userId: string }) {
-  const [profilePictureUrl, profilePictureControls] = useProfilePictureUrl(
-    props.userId
-  );
-  const [isRemoving, setIsRemoving] = createSignal(false);
-  const [showRemoveConfirmModal, setShowRemoveConfirmModal] =
-    createSignal(false);
-
-  const mutateProfilePicture = (url?: string) => {
-    const pic: ProfilePictureItem = {
-      _createdAt: new Date(),
-      url,
-      id: props.userId,
-      loading: false,
-    };
-    profilePictureControls.mutate(pic);
-  };
-
-  const handleUpload = async (files: File[]) => {
-    const file = files[0];
-    if (!file) return;
-    const response = await uploadProfilePicture(file);
-    if (!response) return;
-    mutateProfilePicture(response.url);
-  };
-
-  const pickProfilePicture = () =>
-    openFilePicker(
-      {
-        acceptedMimeTypes: blockNameToMimeTypes.image,
-        acceptedFileExtensions: blockNameToFileExtensions.image,
-      },
-      handleUpload
-    );
-
-  const handleRemove = async () => {
-    setIsRemoving(true);
-    const removed = await removeProfilePicture();
-    setIsRemoving(false);
-    if (!removed) return;
-    setShowRemoveConfirmModal(false);
-    mutateProfilePicture();
-  };
-
-  return (
-    <>
-      <Row label="Profile Picture">
-        <div class="relative size-12 shrink-0">
-          <Show
-            when={profilePictureUrl()}
-            fallback={
-              // No picture: a filled circle that stands out from the surface,
-              // with the upload icon always visible. The whole circle uploads.
-              <span
-                tabindex="0"
-                role="button"
-                aria-label="Upload profile picture"
-                onClick={pickProfilePicture}
-                class="flex size-full items-center justify-center rounded-full bg-edge text-ink-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                <IconUpload class="size-5" />
-              </span>
-            }
-          >
-            {/* Has picture: hover reveals an edit affordance; clicking opens a
-                menu to replace or remove the picture. */}
-            <Dropdown>
-              <Dropdown.Trigger
-                as="div"
-                tabindex="0"
-                aria-label="Edit profile picture"
-                class="group block size-full outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                <div class="size-full overflow-hidden rounded-full">
-                  <UserIcon
-                    id={props.userId}
-                    isDeleted={false}
-                    size="fill"
-                    suppressClick
-                    showTooltip={false}
-                    class="bg-transparent"
-                  />
-                </div>
-                <div class="pointer-events-none absolute -inset-px z-10 flex items-center justify-center rounded-full bg-overlay text-ink opacity-0 transition-opacity group-hover:opacity-100">
-                  <PencilIcon class="size-5" />
-                </div>
-              </Dropdown.Trigger>
-              <Dropdown.Content class="w-48">
-                <Dropdown.Group>
-                  <Dropdown.Item onSelect={pickProfilePicture}>
-                    <IconUpload class="size-4" />
-                    Upload new picture
-                  </Dropdown.Item>
-                  <Dropdown.Item
-                    class="text-failure"
-                    onSelect={() => setShowRemoveConfirmModal(true)}
-                  >
-                    <TrashIcon class="size-4" />
-                    Remove picture
-                  </Dropdown.Item>
-                </Dropdown.Group>
-              </Dropdown.Content>
-            </Dropdown>
-          </Show>
-        </div>
-      </Row>
-      <Dialog
-        open={showRemoveConfirmModal()}
-        onOpenChange={setShowRemoveConfirmModal}
-        position="center"
-        class="w-120"
-      >
-        <Panel depth={2} class="rounded-xl">
-          <Panel.Header class="px-6">
-            <Dialog.Title class="text-ink text-sm font-semibold">
-              Remove profile picture
-            </Dialog.Title>
-          </Panel.Header>
-          <Panel.Body class="p-6 font-sans flex flex-col gap-3">
-            <Dialog.Description class="text-ink-muted text-sm/tight font-normal">
-              Remove your current profile picture?
-            </Dialog.Description>
-            <div class="pt-3 justify-end items-center gap-3 inline-flex">
-              <Button
-                variant="ghost"
-                depth={3}
-                disabled={isRemoving()}
-                onClick={() => setShowRemoveConfirmModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="strong"
-                depth={3}
-                disabled={isRemoving()}
-                onClick={handleRemove}
-              >
-                Remove
-              </Button>
-            </div>
-          </Panel.Body>
-        </Panel>
-      </Dialog>
-    </>
-  );
 }
 
 function AccountPlanCard() {
