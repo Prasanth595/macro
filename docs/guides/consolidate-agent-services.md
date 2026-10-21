@@ -56,9 +56,10 @@ analytics events or tracking client are added by this consolidation.
 
 ## Prepare preview stack outputs
 
-Harness previews require the preview network IDs to be published first. Prepare
-an update from the existing preview deployment that adds only these exports,
-retaining its current compute and networking:
+Harness previews require the preview network IDs to be published first. The
+replicated preview deployment publishes these outputs during its normal deploy.
+If the existing deployment does not have them yet, prepare an update that adds
+only these exports, retaining its current compute and networking:
 
 ```ts
 export const previewTaskSecurityGroupId = taskSg.id;
