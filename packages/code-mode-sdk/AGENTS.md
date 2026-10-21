@@ -12,6 +12,9 @@ HTML worker belong to `packages/sdk-docs`.
 - `scripts/typedoc.ts`: collect linked Markdown documentation by entity.
 - `scripts/catalog.ts`: compact entity descriptions.
 - `src/index.ts`: public SDK exports used by programs.
+- `src/receipts.ts`: which generated writes earn an item card, and where each
+  finds its item. Actions match the Macro tool that does the same, in
+  `crates/folds/agent_fold/src/domain/model/segment.rs` (`macro_card`).
 
 ## Checks
 
