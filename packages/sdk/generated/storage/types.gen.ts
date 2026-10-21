@@ -1946,6 +1946,11 @@ export type CallFilters = {
 };
 
 /**
+ * Supported call and transcript providers. Add variants as integrations grow.
+ */
+export type CallProvider = 'macro' | 'granola';
+
+/**
  * Full record of a call, unifying rows from `calls` (active) and
  * `call_records` (archived) into a single response shape.
  */
@@ -2012,15 +2017,16 @@ export type CallRecord = {
      */
     recordingUrl?: string | null;
     /**
-     * The RTC room name.
+     * The RTC room name. `None` for imported calls, which never had a room.
      */
-    roomName: string;
+    roomName?: string | null;
     /**
      * Whether the call is shared with the creator's team. While the call is
      * live this is the pending toggle applied at archive; afterwards it
      * mirrors `team_share_access_level`.
      */
     shareWithTeam: boolean;
+    source?: null | CallRecordSource;
     /**
      * When the call started (created_at for active, started_at for archived).
      */
@@ -2127,6 +2133,20 @@ export type CallRecordPreviewData = {
      * When the call started (created_at for active, started_at for archived).
      */
     startedAt: string;
+};
+
+/**
+ * Where an imported call came from.
+ */
+export type CallRecordSource = {
+    /**
+     * Link to the call in the provider's app, if it has one.
+     */
+    externalUrl?: string | null;
+    /**
+     * Provider that supplied the call.
+     */
+    provider: CallProvider;
 };
 
 /**
@@ -3283,6 +3303,11 @@ export type ColumnDetail = {
      */
     writable: boolean;
 };
+
+/**
+ * Identifier of a column placement within a table.
+ */
+export type ColumnId = string;
 
 /**
  * A type a column can have.
@@ -4860,6 +4885,12 @@ export type DatabaseDetail = {
 };
 
 /**
+ * Identifier of reusable database storage. Its optional Macro entity uses
+ * the same identity, so existing routes and grants keep their IDs.
+ */
+export type DatabaseId = string;
+
+/**
  * One write to a database: its tables, columns, options, rows or views,
  * grouped by the resource it changes. A request's ops apply in order and
  * together, or not at all, and every op names a table of the database the
@@ -4921,6 +4952,23 @@ export type DatabaseOp = {
      * Every table, in its new order.
      */
     order: Array<string>;
+};
+
+/**
+ * One SQL statement with an optional default database and optimistic write guards.
+ */
+export type DatabaseQueryRequest = {
+    /**
+     * Expected version for each table a subsequent statement writes.
+     */
+    baseVersions?: {
+        [key: string]: TableVersion;
+    };
+    databaseId?: null | DatabaseId;
+    /**
+     * One supported SQL statement. Writes execute once, without automatic retries.
+     */
+    sql: string;
 };
 
 /**
@@ -9924,6 +9972,11 @@ export type OpResult = {
 export type Operator = 'add' | 'subtract' | 'multiply' | 'divide';
 
 /**
+ * Identifier of an option of a select or tag column.
+ */
+export type OptionId = string;
+
+/**
  * A select option, by its id or by its label.
  */
 export type OptionRef = {
@@ -10934,6 +10987,46 @@ export type ResponseSummary = {
      * Responses saved.
      */
     submitted: number;
+};
+
+/**
+ * One result column, with what its cells mean.
+ */
+export type ResultColumn = {
+    /**
+     * What its cells hold.
+     */
+    kind: SqlOutcomeKind;
+    /**
+     * The name or alias the statement gave it.
+     */
+    name: string;
+    /**
+     * For a select column, its options: its cells hold their ids.
+     */
+    options?: Array<SqlSelectOption>;
+    relatedTable?: null | TableId;
+    target?: null | SqlEntityKind;
+};
+
+/**
+ * A `SELECT`'s rows, as the engine's typed cells.
+ */
+export type ResultSet = {
+    /**
+     * The columns, in select-list order.
+     */
+    columns: Array<ResultColumn>;
+    /**
+     * For a row-shaped result, the id of the row behind each result row;
+     * empty for an aggregate.
+     */
+    rowIds: Array<RowId>;
+    /**
+     * One cell per column per row; `null` is an empty cell.
+     */
+    rows: Array<Array<null | SqlCell>>;
+    sourceTable?: null | TableId;
 };
 
 /**
@@ -13067,6 +13160,196 @@ export type SourceIdentity = {
 };
 
 /**
+ * A cell as fetched. An absent cell is `NULL`; an absent multi-valued cell
+ * is the empty set.
+ */
+export type SqlCell = {
+    type: 'text';
+    /**
+     * Text or link.
+     */
+    value: string;
+} | {
+    type: 'number';
+    /**
+     * A number.
+     */
+    value: number;
+} | {
+    type: 'bool';
+    /**
+     * A checkbox.
+     */
+    value: boolean;
+} | {
+    type: 'date';
+    /**
+     * A date-time.
+     */
+    value: string;
+} | {
+    type: 'options';
+    /**
+     * The selected option ids; one for single-select columns.
+     */
+    value: Array<OptionId>;
+} | {
+    type: 'entities';
+    /**
+     * The referenced entity ids; one for single-valued columns.
+     */
+    value: Array<string>;
+} | {
+    type: 'row';
+    /**
+     * A table row's own id, the `row_id` column.
+     */
+    value: RowId;
+};
+
+/**
+ * What an entity column's references point at: a kind of Macro entity, or
+ * the rows of another table for a relation.
+ *
+ * Spelled as the properties system spells entity types (`USER`,
+ * `DATABASE_ROW`), on the wire and in SQL, where it parses
+ * case-insensitively.
+ */
+export type SqlEntityKind = 'USER' | 'DOCUMENT' | 'TASK' | 'COMPANY' | 'CONTACT' | 'CALL_RECORD' | 'CHANNEL' | 'CHAT' | 'PROJECT' | 'THREAD' | 'CALENDAR_EVENT' | 'INITIATIVE' | 'DATABASE_ROW';
+
+/**
+ * The answer to one statement.
+ */
+export type SqlOutcome = {
+    /**
+     * How many rows a write changed.
+     */
+    changesApplied: number;
+    /**
+     * The rows an `INSERT` created, in statement order.
+     */
+    insertedRowIds: Array<RowId>;
+    /**
+     * The new version of every table written.
+     */
+    newVersions: {
+        [key: string]: TableVersion;
+    };
+    /**
+     * The version of every table read, for a follow-up write to guard on.
+     */
+    readVersions: {
+        [key: string]: TableVersion;
+    };
+    result?: null | ResultSet;
+    /**
+     * What kind of statement ran, and what it wrote.
+     */
+    statement: SqlStatement;
+    /**
+     * Owning database of each visible table referenced by this outcome.
+     */
+    tableDatabases: {
+        [key: string]: DatabaseId;
+    };
+    /**
+     * Every table the statement read, when any read hit the engine's row
+     * cap: the engine reports the cap per statement, so aggregates over any
+     * of them may be partial.
+     */
+    truncatedTables: Array<string>;
+};
+
+/**
+ * The value kind of a result column.
+ */
+export type SqlOutcomeKind = 'text' | 'number' | 'boolean' | 'date' | 'select' | 'entity' | 'row';
+
+/**
+ * One option of a select column.
+ */
+export type SqlSelectOption = {
+    /**
+     * The option id.
+     */
+    id: OptionId;
+    /**
+     * The label users type in SQL.
+     */
+    label: string;
+};
+
+/**
+ * The statement that ran: a read, or the table (and for a type change, the
+ * column) it wrote.
+ */
+export type SqlStatement = {
+    /**
+     * Owning database.
+     */
+    databaseId: DatabaseId;
+    kind: 'schema';
+    /**
+     * What changed and how to read the resulting schema.
+     */
+    summary: string;
+} | {
+    kind: 'select';
+} | {
+    kind: 'insert';
+    /**
+     * The table written.
+     */
+    tableId: TableId;
+    /**
+     * Its name.
+     */
+    tableName: string;
+} | {
+    kind: 'update';
+    /**
+     * The table written.
+     */
+    tableId: TableId;
+    /**
+     * Its name.
+     */
+    tableName: string;
+} | {
+    kind: 'delete';
+    /**
+     * The table written.
+     */
+    tableId: TableId;
+    /**
+     * Its name.
+     */
+    tableName: string;
+} | {
+    /**
+     * The column placement; its id survives the change.
+     */
+    columnId: ColumnId;
+    /**
+     * The column's name.
+     */
+    columnName: string;
+    kind: 'alterColumnType';
+    /**
+     * The table.
+     */
+    tableId: TableId;
+    /**
+     * Its name.
+     */
+    tableName: string;
+    /**
+     * The type it became, as SQL spells it, e.g. `select[]`.
+     */
+    to: string;
+};
+
+/**
  * Starter result. A missing database means the user already started or removed it.
  */
 export type StarterDatabase = {
@@ -13457,6 +13740,11 @@ export type TableDetail = {
      */
     views: Array<DatabaseView>;
 };
+
+/**
+ * Identifier of one table (tab) within a database.
+ */
+export type TableId = string;
 
 /**
  * What happened to a table.
@@ -17914,6 +18202,30 @@ export type GetDatabaseQueryResponses = {
 
 export type GetDatabaseQueryResponse = GetDatabaseQueryResponses[keyof GetDatabaseQueryResponses];
 
+export type QueryDatabasesData = {
+    body: DatabaseQueryRequest;
+    path?: never;
+    query?: never;
+    url: '/databases/query';
+};
+
+export type QueryDatabasesErrors = {
+    400: ErrorResponse;
+    401: ErrorResponse;
+    403: ErrorResponse;
+    404: ErrorResponse;
+    409: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type QueryDatabasesError = QueryDatabasesErrors[keyof QueryDatabasesErrors];
+
+export type QueryDatabasesResponses = {
+    200: SqlOutcome;
+};
+
+export type QueryDatabasesResponse = QueryDatabasesResponses[keyof QueryDatabasesResponses];
+
 export type EnsureStarterHandlerData = {
     body?: never;
     path?: never;
@@ -19212,6 +19524,10 @@ export type ExportDocumentData = {
 export type ExportDocumentErrors = {
     401: GenericErrorResponse;
     404: GenericErrorResponse;
+    /**
+     * DOCX upload is still processing; retry the export.
+     */
+    409: ErrorResponse;
     500: GenericErrorResponse;
 };
 
