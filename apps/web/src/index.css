@@ -1523,8 +1523,8 @@ a {
 /* Shared text-field styling so inputs look the same across every settings tab.
    Apply to an <input>; pair with a width utility (e.g. `w-full`) as needed. */
 @utility settings-input {
-  /* Matches a md `Input`: same height, pill, frame, and desktop elevation. */
-  @apply h-8 px-3 rounded-full border border-edge-frame bg-control not-touch:elevated text-base text-ink outline-none transition-colors duration-120 motion-reduce:transition-none;
+  /* Matches a md `Input` on desktop; touch keeps its taller field. */
+  @apply h-9 not-touch:h-8 px-3 rounded-full border border-edge-frame bg-control not-touch:elevated text-base text-ink outline-none transition-colors duration-120 motion-reduce:transition-none;
   &:is(textarea) {
     @apply rounded-xl;
   }
