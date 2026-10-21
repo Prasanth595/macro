@@ -133,7 +133,7 @@ export function BookingStatusTabs(props: {
   onTab: (tab: BookingTab) => void;
 }) {
   return (
-    <div class="max-w-full overflow-x-auto [scrollbar-width:none]">
+    <div class="-m-1 max-w-full overflow-x-auto p-1 [scrollbar-width:none]">
       <Tabs
         aria-label="Booking status"
         options={props.tabs.map((tab) => ({

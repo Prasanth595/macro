@@ -107,7 +107,8 @@ function List(props: ComponentProps<typeof Tabs.List>) {
           if (typeof local.ref === 'function') local.ref(element);
         }}
         class={cn(
-          'relative flex min-w-0 items-center gap-0.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none] not-touch:gap-1.5 [&::-webkit-scrollbar]:hidden',
+          // Desktop padding keeps the pills' outline rings inside the scroll clip.
+          'relative flex min-w-0 items-center gap-0.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none] not-touch:-m-1 not-touch:gap-1.5 not-touch:p-1 [&::-webkit-scrollbar]:hidden',
           local.class
         )}
         onScroll={measure}
