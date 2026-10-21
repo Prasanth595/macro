@@ -112,7 +112,7 @@ impl GithubIdp {
 pub fn build(
     frontend_port: u16,
     auth_port: u16,
-    proxy_port: u16,
+    proxy_origins: &[String],
     lambda_body: &str,
     reconcile_lambda_body: &str,
     google: Option<&GoogleIdp>,
@@ -124,14 +124,24 @@ pub fn build(
     let lambda_id = identity::POPULATE_JWT_LAMBDA_ID;
     let template_id = identity::PASSWORDLESS_EMAIL_TEMPLATE_ID;
 
-    let redirect_urls = json!([
+    let mut redirect_urls = vec![
         format!("http://localhost:{frontend_port}/app"),
         identity::oauth_redirect_uri(auth_port),
-        "http://authentication-service:8080/oauth/redirect",
-        // Both OAuth surfaces live on the harness behind the instance proxy.
-        format!("https://localhost:{proxy_port}/cognition/mcp/servers/auth/callback"),
-        format!("https://localhost:{proxy_port}/mcp/oauth/callback"),
-    ]);
+        "http://authentication-service:8080/oauth/redirect".to_string(),
+    ];
+    // The browser may use localhost or the machine hostname for this proxy.
+    // Authorize the exact origins used by either local frontend mode.
+    for origin in proxy_origins {
+        for path in [
+            "/cognition/mcp/servers/auth/callback",
+            "/mcp/oauth/callback",
+        ] {
+            let callback = format!("{origin}{path}");
+            if !redirect_urls.contains(&callback) {
+                redirect_urls.push(callback);
+            }
+        }
+    }
 
     // Kickstart executes these in order, so each request must come after the
     // entities it references. Dependency chain:

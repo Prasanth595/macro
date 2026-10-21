@@ -28,7 +28,7 @@ def main():
     for project in ["document-cognition", "mcp-server", "agent-schedule-service", "preview-gateway"]:
         for key, value in download(project, args.config).items():
             if not key.startswith("DOPPLER_") and key not in ["PORT", "ENVIRONMENT"]:
-                if not merged.get(key):
+                if key not in merged:
                     merged[key] = value
     gateway = "https://gateway.macro.com" if args.config == "prd" else "https://dev-gateway.macro.com"
     merged["MCP_PUBLIC_URL"] = gateway + "/mcp"

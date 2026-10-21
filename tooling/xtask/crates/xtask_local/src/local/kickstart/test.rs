@@ -42,7 +42,7 @@ fn kickstart_without_google_has_no_idp_requests() {
     let doc = build(
         3000,
         8080,
-        8085,
+        &["https://localhost:8085".to_string()],
         "function populate() {}",
         "function reconcile() {}",
         None,
@@ -69,7 +69,7 @@ fn kickstart_with_google_adds_lambda_and_both_idps_after_the_application() {
     let doc = build(
         3000,
         8080,
-        8085,
+        &["https://localhost:8085".to_string()],
         "function populate() {}",
         "function reconcile() {}",
         Some(&google),
@@ -121,7 +121,7 @@ fn kickstart_adopts_the_default_tenant() {
     let doc = build(
         3000,
         8080,
-        8085,
+        &["https://localhost:8085".to_string()],
         "function populate() {}",
         "function reconcile() {}",
         None,
@@ -201,7 +201,7 @@ fn the_github_idp_id_follows_the_env_the_service_reads() {
     let doc = build(
         3000,
         8080,
-        8085,
+        &["https://localhost:8085".to_string()],
         "function populate() {}",
         "function reconcile() {}",
         None,
@@ -230,7 +230,7 @@ fn the_github_idp_is_created_under_both_the_name_and_the_id_the_service_uses() {
     let doc = build(
         3000,
         8080,
-        8085,
+        &["https://localhost:8085".to_string()],
         "function populate() {}",
         "function reconcile() {}",
         None,
@@ -268,7 +268,7 @@ fn kickstart_without_github_creates_no_github_idp() {
     let doc = build(
         3000,
         8080,
-        8085,
+        &["https://localhost:8085".to_string()],
         "function populate() {}",
         "function reconcile() {}",
         None,
@@ -290,7 +290,7 @@ fn authorized_redirects(frontend_port: u16, auth_port: u16, proxy_port: u16) -> 
     let doc = build(
         frontend_port,
         auth_port,
-        proxy_port,
+        &[format!("https://localhost:{proxy_port}")],
         "function populate() {}",
         "function reconcile() {}",
         None,
@@ -332,4 +332,37 @@ fn agent_oauth_redirects_follow_the_instance_proxy_port() {
         !named.iter().any(|url| url.contains("localhost:8085")),
         "named instance must not keep the retired DCS callback: {named:?}"
     );
+}
+
+#[test]
+fn agent_oauth_redirects_authorize_the_machine_hostname_and_loopback() {
+    let doc = build(
+        3000,
+        8080,
+        &[
+            "https://localhost:8090".to_string(),
+            "https://devbox.example:8090".to_string(),
+        ],
+        "function populate() {}",
+        "function reconcile() {}",
+        None,
+        None,
+    );
+    let application = doc["requests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|request| request["url"] == format!("/api/application/{}", identity::APPLICATION_ID))
+        .unwrap();
+    let redirects =
+        application["body"]["application"]["oauthConfiguration"]["authorizedRedirectURLs"]
+            .as_array()
+            .unwrap();
+    assert!(redirects.contains(&json!(
+        "https://localhost:8090/cognition/mcp/servers/auth/callback"
+    )));
+    assert!(redirects.contains(&json!(
+        "https://devbox.example:8090/cognition/mcp/servers/auth/callback"
+    )));
+    assert!(redirects.contains(&json!("https://devbox.example:8090/mcp/oauth/callback")));
 }

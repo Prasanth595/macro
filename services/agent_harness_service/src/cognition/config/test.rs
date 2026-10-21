@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn default_mcp_client_public_url_is_a_slack_registered_redirect_host() {
+fn gateway_mcp_client_callback_is_in_the_slack_manifest() {
     let manifest: serde_json::Value = serde_json::from_str(include_str!(
         "../../../../../crates/mcp_client/src/domain/provider_registry/slack/manifest.json"
     ))
@@ -16,7 +16,7 @@ fn default_mcp_client_public_url_is_a_slack_registered_redirect_host() {
     for environment in [Environment::Production, Environment::Develop] {
         let callback = format!(
             "{}/mcp/servers/auth/callback",
-            default_mcp_client_public_url(environment)
+            macro_service_urls::DocumentCognitionServiceUrl::default_for_environment(environment)
         );
         assert!(
             registered.contains(&callback.as_str()),

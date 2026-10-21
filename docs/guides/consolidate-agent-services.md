@@ -36,7 +36,7 @@ python tooling/scripts/consolidate-agent-config.py --config dev --apply
 ```
 
 The same script accepts `--config prd` for an explicitly authorized production
-cutover. It keeps existing harness values, fills missing integration values,
+cutover. It keeps existing harness keys, including explicit empty values, fills missing integration values,
 and sets the public MCP and connection-callback bases to the gateway URLs.
 It also moves the Pipedream webhook URL to the gateway while retaining its
 existing secret query parameter.
@@ -47,7 +47,9 @@ them breaks pinned clients and stored credentials.
 `MCP_CLIENT_PUBLIC_URL` is the outbound integration callback base ending in
 `/cognition`. The former services used `MCP_PUBLIC_URL` for both meanings.
 Local instance generation sets both values separately and sets `APP_BASE_URL`
-to the instance's frontend origin. The `local/lcl_personal` Doppler config also
+to the instance's frontend origin. Its FusionAuth configuration permits callbacks
+through both loopback and the machine hostname; the default harness API is
+published on port 8101, matching the SDK port map. The `local/lcl_personal` Doppler config also
 contains the renamed client setting.
 
 `POSTHOG_API_KEY` and `POSTHOG_HOST` are already typed harness fields. They
@@ -144,7 +146,11 @@ recreating durable queues or preview DNS/certificates in another stack.
 
 This sequence protects gateway URLs. Old direct cognition/MCP hostnames need a
 separate DNS/client cutover or explicitly prepared compatibility routing; their
-traffic does not pass through the gateway rules above.
+traffic does not pass through the gateway rules above. Before production
+retirement, migrate pinned clients and the production MCP links in `.mcp.json`,
+web setup cards, marketing, and public docs. Publish those links only when the
+production gateway endpoint is serving, or retain compatibility routing for the
+old hostname.
 
 Automatic deployment of the consolidated service requires this one-time
 cutover first. Do not merge and rely on an unordered parallel deployment to
