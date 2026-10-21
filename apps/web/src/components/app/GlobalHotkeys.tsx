@@ -574,7 +574,8 @@ export default function GlobalShortcuts() {
 
   registerHotkey({
     hotkeyToken: TOKENS.global.undo,
-    hotkey: 'cmd+z',
+    // Plain 'z' is the mail-client undo (Superhuman), e.g. after Mark done.
+    hotkey: ['cmd+z', 'z'],
     scopeId: 'global',
     description: 'Undo',
     keyDownHandler: (e) => {

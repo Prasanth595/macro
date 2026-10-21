@@ -59,6 +59,9 @@ type UseEntityActionHotkeysOptions = {
   enableDeleteHotkey?: boolean;
   /** A list that completes its own rows, such as Home's work feed. */
   markDoneDelegate?: () => MarkDoneDelegate | undefined;
+  /** Mail lists also answer to the mail-client keys: `s` stars (favorites)
+   *  the rows and `shift+m` mutes them, as in Superhuman and Gmail. */
+  mailClientHotkeys?: boolean;
 };
 
 export const useEntityActionHotkeys = (
@@ -383,7 +386,7 @@ export const useEntityActionHotkeys = (
 
   // Favorite - 'opt+f' (macOS emits 'ƒ'; normalizeEventKeyPress maps it back to 'f')
   registerHotkey({
-    hotkey: ['opt+f'],
+    hotkey: options.mailClientHotkeys ? ['opt+f', 's'] : ['opt+f'],
     hotkeyToken: TOKENS.entity.action.favorite,
     scopeId,
     description: () => {
@@ -435,6 +438,7 @@ export const useEntityActionHotkeys = (
   }).withGroup(group);
 
   registerHotkey({
+    hotkey: options.mailClientHotkeys ? ['shift+m'] : undefined,
     hotkeyToken: TOKENS.entity.action.mute,
     scopeId,
     description: () => {

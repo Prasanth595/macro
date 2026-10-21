@@ -330,6 +330,7 @@ export function EmailList(props: EmailListProps) {
     viewContext: entityActionViewContext,
     splitHandle: panel.handle,
     condition: listHasKeyboard,
+    mailClientHotkeys: true,
   });
 
   useEmailListHotkeys({

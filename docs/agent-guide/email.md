@@ -407,6 +407,17 @@ src/features/email-compose/browser-test/playwright.app.config.ts` (from
 `apps/web`) checks both shortcuts in all four composers.
 While an editable field is focused, Escape is handled by that field before the
 close-reply shortcut.
+Mail-client keys (Superhuman and Gmail): in a thread, `O` opens or closes the
+selected message (the latest when none is selected), `Shift+O` opens every
+message including the collapsed middle run, `N`/`P` step messages like the
+arrows, `S` favorites (stars) the thread and `Shift+M` mutes it. The Email list
+answers to `S` and `Shift+M` for its rows too, and `Cmd+Up`/`Cmd+Down` jump to
+either end of a list. Outside text fields `Z` undoes like `Cmd+Z`, e.g. after
+Mark done. In every composer `Cmd+Shift+.`, `Cmd+Shift+,` and `Cmd+Shift+D`
+discard the draft exactly like its trash button, `Cmd+Shift+U` opens the attach
+picker, and `Cmd+Shift+X`, `7`, `8` and `9` apply strikethrough, numbered list,
+bulleted list and quote. Check discard from both a reply (the reply closes) and
+standalone compose (the view goes back), with focus in the body.
 An edited reply remains a draft when navigating away and returning. Standalone
 compose also flushes pending edits when leaving through app navigation. Switch
 views immediately after typing, before the 500 ms autosave debounce: the old

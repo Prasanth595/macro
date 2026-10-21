@@ -180,6 +180,7 @@ export function EmailDetailView(props: {
     onEmailReminderSaved: async () => {
       await listNavigation.afterReminderSaved?.();
     },
+    mailClientHotkeys: true,
   });
 
   let container: HTMLDivElement | undefined;

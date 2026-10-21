@@ -596,32 +596,16 @@ export function createThreadNavigation(
   };
   const markDone = () => context.archiveThreadAndAdvance();
 
-  /** Expand the focused message if collapsed, or collapse if expanded. */
+  /** 'o' toggles the focused (or last) message open or closed. */
   const expandFocusedMessage = () => {
-    const focusedId = context.messages.focusedId();
-    if (!focusedId) return false;
-
-    const messages = context.messages.list();
-    const chronologicalIndex = messages.findIndex(
-      (message) => message.db_id === focusedId
-    );
-    if (chronologicalIndex < 0) return false;
-
-    const message = messages[chronologicalIndex];
-    const currentExpansion = context.messages.expandedBodyIds[focusedId];
-    const isExpanded = threadMessageIsExpanded({
-      chronologicalIndex,
-      listLength: messages.length,
-      expansionOverride: currentExpansion,
-      isUnread: isUnreadMessage(message),
-      hasDraft:
-        !isTouchDevice() && !!context.drafts.getDraftForMessage(focusedId),
-    });
-
-    context.messages.setExpandedBodyId(focusedId, !isExpanded);
-    if (!isExpanded) {
+    const target = getHotkeyTarget();
+    const messageId = target?.message.db_id;
+    if (!target || !messageId) return false;
+    const expand = !isMessageRenderedExpanded(target);
+    context.messages.setExpandedBodyId(messageId, expand);
+    if (expand) {
       revealMessageAfterLayout(
-        focusedId,
+        messageId,
         untrack(context.messages.list),
         untrack(context.messagesListRef)
       );
@@ -629,15 +613,15 @@ export function createThreadNavigation(
     return true;
   };
 
-  /** Expand all messages in the thread. */
+  /** 'shift+o' opens every message, including the collapsed middle run. */
   const expandAllMessages = () => {
     const messages = context.messages.list();
     if (messages.length === 0) return false;
-
+    setUserOpenedMiddle(true);
+    if (context.messages.hiddenChipFocused()) leaveHiddenChip();
     for (const message of messages) {
-      if (message.db_id) {
+      if (message.db_id)
         context.messages.setExpandedBodyId(message.db_id, true);
-      }
     }
     return true;
   };
@@ -661,15 +645,8 @@ export function createThreadNavigation(
       navigateToNextMessage,
       activate,
       cancel,
-      // Superhuman-style expand/collapse
       expandFocusedMessage,
       expandAllMessages,
-      // Entity actions passed from host
-      toggleStar: host.entityActions?.toggleStar,
-      isThreadStarred: host.entityActions?.isStarred,
-      trashThread: host.entityActions?.trash,
-      muteThread: host.entityActions?.toggleMute,
-      isThreadMuted: host.entityActions?.isMuted,
     })
   );
 

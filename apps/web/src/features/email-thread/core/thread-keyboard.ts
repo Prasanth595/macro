@@ -21,19 +21,7 @@ export interface EmailThreadKeyboardHandlers {
   markSenderNoise: () => boolean;
   navigateToPreviousMessage: () => boolean;
   navigateToNextMessage: () => boolean;
-  /** Expand/collapse the focused message. Returns true if the focused message
-   *  state was changed, false if no message is focused or the operation failed. */
-  expandFocusedMessage?: () => boolean;
-  /** Expand all messages in the thread. */
-  expandAllMessages?: () => boolean;
-  /** Toggle star/favorite on the thread. */
-  toggleStar?: () => boolean;
-  /** Check if the thread is starred/favorited. */
-  isThreadStarred?: () => boolean;
-  /** Trash the thread. */
-  trashThread?: () => boolean;
-  /** Mute the thread. */
-  muteThread?: () => boolean;
-  /** Check if the thread is muted. */
-  isThreadMuted?: () => boolean;
+  /** Expands the focused message, or collapses it if already expanded. */
+  expandFocusedMessage: () => boolean;
+  expandAllMessages: () => boolean;
 }

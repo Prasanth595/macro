@@ -94,80 +94,34 @@ export function registerEmailHotkeys(
     displayPriority: 5,
   });
   registerHotkey({
-    hotkey: 'arrowup',
+    hotkey: ['arrowup', 'p'],
     scopeId,
     description: 'Previous message',
     keyDownHandler: handlers.navigateToPreviousMessage,
     hotkeyToken: TOKENS.email.previousMessage,
   });
   registerHotkey({
-    hotkey: 'arrowdown',
+    hotkey: ['arrowdown', 'n'],
     scopeId,
     description: 'Next message',
     keyDownHandler: handlers.navigateToNextMessage,
     hotkeyToken: TOKENS.email.nextMessage,
   });
 
-  // Additional Superhuman-style shortcuts
-
-  // Expand focused message (o) - Superhuman style
-  if (handlers.expandFocusedMessage) {
-    registerHotkey({
-      hotkey: 'o',
-      scopeId,
-      description: 'Expand message',
-      keyDownHandler: handlers.expandFocusedMessage,
-      hotkeyToken: TOKENS.email.expandMessage,
-      displayPriority: 6,
-    });
-  }
-
-  // Expand all messages (shift+o) - Superhuman style
-  if (handlers.expandAllMessages) {
-    registerHotkey({
-      hotkey: 'shift+o',
-      scopeId,
-      description: 'Expand all messages',
-      keyDownHandler: handlers.expandAllMessages,
-      hotkeyToken: TOKENS.email.expandAllMessages,
-      displayPriority: 6,
-    });
-  }
-
-  // Star/favorite (s) - Superhuman style
-  if (handlers.toggleStar) {
-    registerHotkey({
-      hotkey: 's',
-      scopeId,
-      description: () =>
-        handlers.isThreadStarred?.() ? 'Remove star' : 'Star',
-      keyDownHandler: handlers.toggleStar,
-      hotkeyToken: TOKENS.email.star,
-      displayPriority: 8,
-    });
-  }
-
-  // Trash (#) - Superhuman style, adds to existing delete/backspace
-  if (handlers.trashThread) {
-    registerHotkey({
-      hotkey: 'shift+3',
-      scopeId,
-      description: 'Trash',
-      keyDownHandler: handlers.trashThread,
-      hotkeyToken: TOKENS.email.trash,
-      displayPriority: 5,
-    });
-  }
-
-  // Mute (shift+m) - Superhuman style
-  if (handlers.muteThread) {
-    registerHotkey({
-      hotkey: 'shift+m',
-      scopeId,
-      description: () => (handlers.isThreadMuted?.() ? 'Unmute' : 'Mute'),
-      keyDownHandler: handlers.muteThread,
-      hotkeyToken: TOKENS.email.mute,
-      displayPriority: 5,
-    });
-  }
+  registerHotkey({
+    hotkey: 'o',
+    scopeId,
+    description: 'Expand or collapse message',
+    keyDownHandler: handlers.expandFocusedMessage,
+    hotkeyToken: TOKENS.email.expandMessage,
+    displayPriority: 6,
+  });
+  registerHotkey({
+    hotkey: 'shift+o',
+    scopeId,
+    description: 'Expand all messages',
+    keyDownHandler: handlers.expandAllMessages,
+    hotkeyToken: TOKENS.email.expandAllMessages,
+    displayPriority: 6,
+  });
 }

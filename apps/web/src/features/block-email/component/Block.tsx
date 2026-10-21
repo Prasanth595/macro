@@ -44,7 +44,10 @@ export default function BlockEmail() {
     });
   });
 
-  useBlockEntityCommands({ resolveEntity: commandEntity });
+  useBlockEntityCommands({
+    resolveEntity: commandEntity,
+    mailClientHotkeys: true,
+  });
 
   // The gate owns the load policy: structural errors are authoritative even
   // over cached data, a transport failure over cached data still renders the

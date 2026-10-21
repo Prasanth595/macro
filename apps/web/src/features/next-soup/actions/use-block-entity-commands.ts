@@ -59,6 +59,9 @@ export type UseBlockEntityCommandsOptions = {
   resolveEntity?: () => EntityData | undefined;
   onDeleted?: () => void;
   onEmailReminderSaved?: () => void | Promise<void>;
+  /** An open email thread also answers to the mail-client keys: `s` stars
+   *  (favorites) it and `shift+m` mutes it, as in Superhuman and Gmail. */
+  mailClientHotkeys?: boolean;
 };
 
 export const useBlockEntityCommands = (
@@ -326,7 +329,7 @@ export const useBlockEntityCommands = (
 
     // Favorite - 'opt+f' (macOS emits 'ƒ'; normalizeEventKeyPress maps it back to 'f')
     registerHotkey({
-      hotkey: ['opt+f'],
+      hotkey: options.mailClientHotkeys ? ['opt+f', 's'] : ['opt+f'],
       hotkeyToken: TOKENS.entity.action.favorite,
       scopeId,
       description: () => {
@@ -370,6 +373,7 @@ export const useBlockEntityCommands = (
     }).withGroup(group);
 
     registerHotkey({
+      hotkey: options.mailClientHotkeys ? ['shift+m'] : undefined,
       hotkeyToken: TOKENS.entity.action.mute,
       scopeId,
       description: () => {
