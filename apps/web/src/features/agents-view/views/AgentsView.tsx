@@ -38,12 +38,13 @@ import {
 import { routineContent } from '../../routines/routine-navigation';
 import { RoutinesPage } from '../../routines/routines-page';
 import '../agents-view.css';
+import { ComposerGreeting } from '@core/component/ComposerGreeting';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { AgentSessionPane } from '../components/AgentSessionPane';
 import { AgentsSidebar } from '../components/AgentsSidebar';
 import { Topbar } from '../components/Topbar';
 import { DataModeProvider, dataModeFor } from '../context/data-mode';
-import { type AgentKind, kindForMode, modeForKind } from '../core/agent-kind';
+import { type AgentKind, modeForKind } from '../core/agent-kind';
 import type { AgentsMode } from '../core/mode';
 import { type AgentsPage, parseAgentsPage } from '../core/pages';
 import {
@@ -55,6 +56,7 @@ import {
 } from '../core/recent-conversations';
 import { kindForBot } from '../core/roster';
 import { type AgentsRoute, agentsRouteId } from '../core/route';
+import { createConversationListView } from '../primitives/conversation-list-view';
 import { createWorkspaceMode } from '../primitives/workspace-mode';
 import { createAgentRosterSource } from '../queries/agent-roster-source';
 import { agentsTour } from '../tour';
@@ -84,11 +86,9 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
   useWarmAgentSessionQuery(userId);
   const notifications = useGlobalNotificationSource();
   const mode = (): AgentsMode => props.initialRoute?.mode ?? 'chat';
+  // The composer's Chat/Code choice; an open conversation keeps its own mode.
   const workspace = createWorkspaceMode(userId());
-  // A session opened from elsewhere brings its own mode, so it is never
-  // hidden from the sidebar it lands in.
-  if (props.initialRoute) workspace.setMode(props.initialRoute.mode);
-  const dataMode = () => dataModeFor(workspace.mode());
+  const listView = createConversationListView(userId());
   const [localPage, setPage] = createSignal<AgentsPage>('new');
   const isRoutinesPage = () => {
     const content = panel.handle.content();
@@ -105,6 +105,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
         }
       : undefined
   );
+  const dataMode = () => dataModeFor(selected() ? mode() : workspace.mode());
   const [mobileList, setMobileList] = createSignal(!isRoutinesPage());
   const [draft, setDraft] = createSignal('');
   const [search, setSearch] = createSignal('');
@@ -224,12 +225,6 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
   const openRoster = (_kind: AgentKind) => {
     openPage('agents');
   };
-  const changeMode = (next: AgentsMode) => {
-    if (next === workspace.mode()) return;
-    workspace.setMode(next);
-    // The open conversation belongs to the other mode now.
-    if (selected()) showComposer();
-  };
   const openConversation = (
     conversation: AgentConversationTarget,
     event?: MouseEvent,
@@ -301,13 +296,16 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
     if (page() === 'routines') return 'Routines';
     if (page() === 'agents') return 'Agents';
     if (page() === 'connections') return 'Connections';
-    return 'New conversation';
+    return undefined;
   };
 
   const sidebar = () => (
     <AgentsSidebar
-      mode={workspace.mode()}
-      onModeChange={changeMode}
+      filters={listView.filters()}
+      grouping={listView.grouping()}
+      onFilterChange={listView.setSelected}
+      onClearFilters={listView.clear}
+      onGroupingChange={listView.setGrouping}
       activePage={selected() ? undefined : page()}
       onOpenPage={(next) =>
         next === 'agents' ? openRoster('agent') : openPage(next)
@@ -321,7 +319,6 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
       error={query.isLoadingError}
       hasNextPage={Boolean(query.hasNextPage)}
       loadingNextPage={query.isFetchingNextPage}
-      onNewConversation={showComposer}
       onSearchChange={setSearch}
       onOpenConversation={(conversation, event) =>
         openConversation(conversation, event, modeForConversation(conversation))
@@ -394,28 +391,25 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                               class="contents"
                               classList={{ hidden: page() !== 'new' }}
                             >
-                              <Show when={workspace.mode()} keyed>
-                                {(kind) => (
-                                  <NewChatPage
-                                    kind={kindForMode(kind)}
-                                    active={
-                                      !isTouchDevice() ||
-                                      (!mobileList() && page() === 'new')
-                                    }
-                                    registerFocus={(focus) => {
-                                      composerFocus = focus;
-                                    }}
-                                    workspaceId={panel.handle.id}
-                                    draft={draft()}
-                                    onDraftChange={setDraft}
-                                    roster={rosterSource.roster()}
-                                    rosterLoading={rosterSource.loading()}
-                                    availabilityLoading={rosterSource.availabilityLoading()}
-                                    onStart={startConversation}
-                                    onOpenRoster={openRoster}
-                                  />
-                                )}
-                              </Show>
+                              <NewChatPage
+                                mode={workspace.mode()}
+                                onModeChange={workspace.setMode}
+                                active={
+                                  !isTouchDevice() ||
+                                  (!mobileList() && page() === 'new')
+                                }
+                                registerFocus={(focus) => {
+                                  composerFocus = focus;
+                                }}
+                                workspaceId={panel.handle.id}
+                                draft={draft()}
+                                onDraftChange={setDraft}
+                                roster={rosterSource.roster()}
+                                rosterLoading={rosterSource.loading()}
+                                availabilityLoading={rosterSource.availabilityLoading()}
+                                onStart={startConversation}
+                                onOpenRoster={openRoster}
+                              />
                             </div>
                           </Suspense>
                         </div>
@@ -442,9 +436,9 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                               <ChatEmptyStateContext.Provider
                                 value={() => (
                                   <div class="px-4 py-16 text-center">
-                                    <h2 class="text-[28px] font-medium tracking-[-0.03em] text-ink">
+                                    <ComposerGreeting>
                                       What should we work on?
-                                    </h2>
+                                    </ComposerGreeting>
                                   </div>
                                 )}
                               >

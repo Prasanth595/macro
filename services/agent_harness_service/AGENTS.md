@@ -38,12 +38,24 @@ sessions: agent-session trigger events in, sandboxed coding agent sessions
   `src/model_providers/mod.rs` → wire into `src/main.rs`.
 - Inspect a session's protocol log: `just session-log <channel_id>`.
 
+## Tool contracts
+
+- Internal session tools require a verified acting user plus owner/edit authorization. Keep their restricted prompt/stop route separate from human approval controls.
+
+The composition root wires `PgExternalReplyStore` into the harness and recovers
+unfinished external chat replies alongside conversation recovery every ten seconds.
+Both the backend and macrod's source-message action IDs are required for replies
+from newly triggered external chat turns to finish in their channel threads.
+
 ## Checks
 
 - `cargo test -p agent_harness_service` (`SQLX_OFFLINE` unset).
 - `just check` (`SQLX_OFFLINE=true cargo check`).
 - `just run-local` — needs `DAYTONA_API_KEY`, `DAYTONA_SNAPSHOT`,
   `GITHUB_TOKEN` in the environment or a local `.env`.
+
+Code-mode credentials sign the authenticated session bot identity for SDK
+message attribution after owner approval, while retaining user authentication.
 
 ## Gotchas
 

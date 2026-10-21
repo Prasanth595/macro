@@ -41,6 +41,7 @@ mod linux_notification;
 mod logging;
 #[cfg(target_os = "macos")]
 mod macos_notification_permission;
+mod macrod;
 mod share_target;
 mod staged_upload;
 #[cfg(desktop)]
@@ -183,6 +184,23 @@ pub fn run() {
         .expect("Embedded documents must be valid urls");
     let mut builder = tauri::Builder::default();
 
+    #[cfg(any(target_os = "ios", target_os = "macos"))]
+    {
+        builder = builder.on_web_content_process_terminate(|webview| {
+            tracing::warn!(webview = %webview.label(), "WebContent process terminated; reloading");
+            if let Some(state) = webview.try_state::<diagnostics::Diagnostics>() {
+                let _ = state.record_web_content_termination().inspect_err(|error| {
+                    tracing::warn!(%error, "Failed to record WebContent termination");
+                });
+            }
+            // Preserve Tauri's default recovery, but retain the cause in the
+            // native process so the replacement document can report it.
+            let _ = webview.reload().inspect_err(|error| {
+                tracing::error!(%error, "Failed to reload terminated WebContent process");
+            });
+        });
+    }
+
     #[cfg(desktop)]
     {
         // single instance plugin should always be the first registered
@@ -296,7 +314,7 @@ pub fn run() {
         "tauri://localhost"
     };
 
-    builder
+    let app = builder
         .register_asynchronous_uri_scheme_protocol("tauri", {
             // Build this outside the closure so we only create it once.
             // We need the AppHandle which isn't available until setup, but
@@ -318,6 +336,7 @@ pub fn run() {
         .manage(DeepLinkDelivery::default())
         .manage(graphql_cache_plugin::CacheState::default())
         .manage(IsIpad(is_ipad_device))
+        .manage(macrod::MacrodState::default())
         .invoke_handler(tauri::generate_handler![
             desktop_update::get_native_update_status,
             desktop_update::restart_native_update,
@@ -371,6 +390,12 @@ pub fn run() {
             read_shared_file_text,
             flush_launch_deep_link,
             staged_upload::upload_staged_file_to_presigned_url,
+            macrod::macrod_support,
+            macrod::macrod_detect_agents,
+            macrod::macrod_inspect,
+            macrod::macrod_start,
+            macrod::macrod_stop,
+            macrod::macrod_status,
         ])
         .setup(move |app| {
             #[cfg(desktop)]
@@ -395,83 +420,91 @@ pub fn run() {
 
             app.chain(attach_deep_link_handler);
             cleanup_stale_staged_files(&app.handle());
+            macrod::autostart(&app.handle());
 
             Ok(())
         })
         .build(context)
-        .expect("error while building tauri application")
-        .run(move |app_handle, event| match &event {
-            RunEvent::Ready if !recording => {
-                #[cfg(feature = "auto_apply_update")]
-                {
-                    let app = app_handle.clone();
-                    tauri::async_runtime::spawn(async move {
-                        match apply_completed_update_from(&app, "run_event_ready").await {
-                            Ok(_) => {}
-                            Err(e) => {
-                                tracing::error!("Failed to auto-apply bundle update on ready: {e}");
-                            }
-                        }
-                    });
-                }
-            }
-            // Tao 0.37 delivers mobile foreground transitions per window, not
-            // through the top-level event-loop Resumed event or focus changes.
-            #[cfg(mobile)]
-            RunEvent::WindowEvent {
-                label,
-                event: tauri::WindowEvent::Resumed,
-                ..
-            } => {
-                tracing::debug!(window_label = %label, "mobile window resumed");
+        .expect("error while building tauri application");
+    // Install before the event loop finishes launching the app: macOS can
+    // deliver the notification response that launched it before setup runs.
+    #[cfg(target_os = "macos")]
+    macos_notification_permission::install_delegate(app.handle());
+    app.run(move |app_handle, event| match &event {
+        RunEvent::Ready if !recording => {
+            #[cfg(feature = "auto_apply_update")]
+            {
                 let app = app_handle.clone();
                 tauri::async_runtime::spawn(async move {
-                    if let Err(e) = retry_waiting_for_wifi(&app).await {
-                        tracing::warn!("Failed to retry bundle update Wi-Fi wait on resume: {e}");
+                    match apply_completed_update_from(&app, "run_event_ready").await {
+                        Ok(_) => {}
+                        Err(e) => {
+                            tracing::error!("Failed to auto-apply bundle update on ready: {e}");
+                        }
                     }
                 });
-                #[cfg(feature = "auto_apply_update")]
-                {
-                    let app = app_handle.clone();
-                    tauri::async_runtime::spawn(async move {
-                        if let Err(e) = allow_update_reload_retry(&app).await {
-                            tracing::warn!(
-                                "Failed to allow bundle update reload retry on resume: {e}"
-                            );
-                        }
-                        match apply_completed_update_from(&app, "run_event_resumed").await {
-                            Ok(true) => {}
-                            Ok(false) => {
-                                if let Err(e) = start_update_check(&app).await {
-                                    tracing::error!(
-                                        "Failed to start bundle update check on resume: {e}"
-                                    );
-                                }
-                            }
-                            Err(e) => {
-                                tracing::error!("Failed to auto-apply bundle update: {e}");
-                            }
-                        }
-                    });
+            }
+        }
+        // Tao 0.37 delivers mobile foreground transitions per window, not
+        // through the top-level event-loop Resumed event or focus changes.
+        #[cfg(mobile)]
+        RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::Resumed,
+            ..
+        } => {
+            tracing::debug!(window_label = %label, "mobile window resumed");
+            let app = app_handle.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = retry_waiting_for_wifi(&app).await {
+                    tracing::warn!("Failed to retry bundle update Wi-Fi wait on resume: {e}");
                 }
+            });
+            #[cfg(feature = "auto_apply_update")]
+            {
+                let app = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = allow_update_reload_retry(&app).await {
+                        tracing::warn!("Failed to allow bundle update reload retry on resume: {e}");
+                    }
+                    match apply_completed_update_from(&app, "run_event_resumed").await {
+                        Ok(true) => {}
+                        Ok(false) => {
+                            if let Err(e) = start_update_check(&app).await {
+                                tracing::error!(
+                                    "Failed to start bundle update check on resume: {e}"
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to auto-apply bundle update: {e}");
+                        }
+                    }
+                });
             }
-            #[cfg(desktop)]
-            RunEvent::ExitRequested { api, .. } => {
-                window_state::save(app_handle);
-                desktop_update::on_exit_requested(app_handle, api)
+        }
+        #[cfg(desktop)]
+        RunEvent::ExitRequested { api, .. } => {
+            window_state::save(app_handle);
+            desktop_update::on_exit_requested(app_handle, api)
+        }
+        RunEvent::Exit => {
+            if let Some(state) = app_handle.try_state::<macrod::MacrodState>() {
+                // The daemon also exits on its own when its stdin pipe
+                // closes with this process; the kill is the fast path.
+                macrod::kill_now(&state);
             }
-            RunEvent::Exit => {
-                if let Some(state) = app_handle.try_state::<graphql_cache_plugin::CacheState>() {
-                    state
-                        .shutdown()
-                        .inspect_err(
-                            |error| tracing::error!(error=?error, "failed to close graphql cache"),
-                        )
-                        .ok();
-                }
+            if let Some(state) = app_handle.try_state::<graphql_cache_plugin::CacheState>() {
+                state
+                    .shutdown()
+                    .inspect_err(
+                        |error| tracing::error!(error=?error, "failed to close graphql cache"),
+                    )
+                    .ok();
             }
-            _ => {}
-        });
+        }
+        _ => {}
+    });
 }
 
 /// fn to merge the headers from the http cookie store into the initial
@@ -577,6 +610,28 @@ fn emit_navigate_for_deep_link(url: Url, handle: &AppHandle) -> Result<(), Repor
     Ok(handle.emit("navigate", payload)?)
 }
 
+fn deliver_deep_link(url: Url, handle: &AppHandle) {
+    let delivery = handle.state::<DeepLinkDelivery>();
+    let to_emit = {
+        let Ok(mut state) = delivery.launch.lock() else {
+            tracing::error!("deep link state mutex poisoned; dropping deep link");
+            return;
+        };
+        match &*state {
+            // Emitting now would be lost — hold the link for the flush.
+            LaunchState::NotReady | LaunchState::PendingNavigation(_) => {
+                tracing::trace!("frontend not ready; buffering deep link");
+                *state = LaunchState::PendingNavigation(url);
+                None
+            }
+            LaunchState::Ready => Some(url),
+        }
+    };
+    if let Some(url) = to_emit {
+        emit_navigate_for_deep_link(url, handle).log_and_consume();
+    }
+}
+
 fn attach_deep_link_handler(app: &mut tauri::App) {
     app.deep_link().on_open_url({
         let handle = app.handle().clone();
@@ -590,25 +645,7 @@ fn attach_deep_link_handler(app: &mut tauri::App) {
                 return;
             }
 
-            let delivery = handle.state::<DeepLinkDelivery>();
-            let to_emit = {
-                let Ok(mut state) = delivery.launch.lock() else {
-                    tracing::error!("deep link state mutex poisoned; dropping deep link");
-                    return;
-                };
-                match &*state {
-                    // Emitting now would be lost — hold the link for the flush.
-                    LaunchState::NotReady | LaunchState::PendingNavigation(_) => {
-                        tracing::trace!("frontend not ready; buffering deep link");
-                        *state = LaunchState::PendingNavigation(url);
-                        None
-                    }
-                    LaunchState::Ready => Some(url),
-                }
-            };
-            if let Some(url) = to_emit {
-                emit_navigate_for_deep_link(url, &handle).log_and_consume();
-            }
+            deliver_deep_link(url, &handle);
         }
     });
 }

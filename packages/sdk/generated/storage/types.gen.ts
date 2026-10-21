@@ -2012,15 +2012,16 @@ export type CallRecord = {
      */
     recordingUrl?: string | null;
     /**
-     * The RTC room name.
+     * The RTC room name. `None` for imported calls, which never had a room.
      */
-    roomName: string;
+    roomName?: string | null;
     /**
      * Whether the call is shared with the creator's team. While the call is
      * live this is the pending toggle applied at archive; afterwards it
      * mirrors `team_share_access_level`.
      */
     shareWithTeam: boolean;
+    source?: null | CallRecordSource;
     /**
      * When the call started (created_at for active, started_at for archived).
      */
@@ -2127,6 +2128,20 @@ export type CallRecordPreviewData = {
      * When the call started (created_at for active, started_at for archived).
      */
     startedAt: string;
+};
+
+/**
+ * Where an imported call came from.
+ */
+export type CallRecordSource = {
+    /**
+     * Link to the call in the provider's app, if it has one.
+     */
+    externalUrl?: string | null;
+    /**
+     * Provider slug, e.g. `granola`.
+     */
+    provider: string;
 };
 
 /**
@@ -3283,6 +3298,11 @@ export type ColumnDetail = {
      */
     writable: boolean;
 };
+
+/**
+ * Identifier of a column placement within a table.
+ */
+export type ColumnId = string;
 
 /**
  * A type a column can have.
@@ -4860,6 +4880,12 @@ export type DatabaseDetail = {
 };
 
 /**
+ * Identifier of reusable database storage. Its optional Macro entity uses
+ * the same identity, so existing routes and grants keep their IDs.
+ */
+export type DatabaseId = string;
+
+/**
  * One write to a database: its tables, columns, options, rows or views,
  * grouped by the resource it changes. A request's ops apply in order and
  * together, or not at all, and every op names a table of the database the
@@ -4921,6 +4947,23 @@ export type DatabaseOp = {
      * Every table, in its new order.
      */
     order: Array<string>;
+};
+
+/**
+ * One SQL statement with an optional default database and optimistic write guards.
+ */
+export type DatabaseQueryRequest = {
+    /**
+     * Expected version for each table a subsequent statement writes.
+     */
+    baseVersions?: {
+        [key: string]: TableVersion;
+    };
+    databaseId?: null | DatabaseId;
+    /**
+     * One supported SQL statement. Writes execute once, without automatic retries.
+     */
+    sql: string;
 };
 
 /**
@@ -6687,6 +6730,11 @@ export type Form = {
      */
     id: string;
     /**
+     * Whether Drive leaves it, and the database behind it, out of its
+     * listings, as for a channel poll.
+     */
+    isHiddenInDrive: boolean;
+    /**
      * Its display name. A standalone form follows the database it created;
      * a form attached to an existing table has its own name.
      */
@@ -7025,6 +7073,11 @@ export type FormSectionDetail = {
  * Where a new form's responses go.
  */
 export type FormSource = {
+    /**
+     * Keep the form, and the database made for it, out of Drive, as
+     * for a channel poll.
+     */
+    isHiddenInDrive?: boolean;
     kind: 'new';
 } | {
     /**
@@ -7909,6 +7962,60 @@ export type GroupedSoupPage = (GroupedSoupInitialPage & {
  * Sort method for grouped queries (frecency not supported).
  */
 export type GroupedSoupSort = 'viewed_at' | 'created_at' | 'updated_at' | 'viewed_updated';
+
+/**
+ * Guest-safe message projection: no account identities, attachments, or entity grants.
+ */
+export type GuestChatMessage = {
+    /**
+     * Message body.
+     */
+    content: string;
+    /**
+     * Creation time.
+     */
+    created_at: string;
+    /**
+     * Whether the author is a guest.
+     */
+    guest: boolean;
+    /**
+     * Persisted message identity.
+     */
+    id: string;
+    /**
+     * Whether this session authored the message.
+     */
+    is_you: boolean;
+    /**
+     * Display-only author name.
+     */
+    name: string;
+};
+
+/**
+ * Messages in the call's one discussion, oldest first.
+ */
+export type GuestChatPage = {
+    /**
+     * Visible, nondeleted messages.
+     */
+    messages: Array<GuestChatMessage>;
+};
+
+/**
+ * Guests may send text only; attribution and parent are server-owned.
+ */
+export type GuestChatPost = {
+    /**
+     * Text to append to the call discussion.
+     */
+    content: string;
+    /**
+     * UUIDv7 used to deduplicate retries, including the first message.
+     */
+    id: string;
+};
 
 /**
  * A non-account guest of a single call session.
@@ -8815,7 +8922,8 @@ export type MeetingPreparation = {
 };
 
 /**
- * A bearer capability that grants access only to a meeting's RTC room.
+ * An invitation capability for joining a meeting's RTC room. Chat additionally
+ * requires the resulting participant credential and current guest membership.
  */
 export type MeetingToken = string;
 
@@ -8854,6 +8962,10 @@ export type Message = {
      * Last content edit, if any.
      */
     edited_at?: string | null;
+    /**
+     * Display name of a verified call guest, retained after the call ends.
+     */
+    guest_name?: string | null;
     /**
      * Message UUID.
      */
@@ -9853,6 +9965,11 @@ export type OpResult = {
  * An arithmetic operator.
  */
 export type Operator = 'add' | 'subtract' | 'multiply' | 'divide';
+
+/**
+ * Identifier of an option of a select or tag column.
+ */
+export type OptionId = string;
 
 /**
  * A select option, by its id or by its label.
@@ -10865,6 +10982,46 @@ export type ResponseSummary = {
      * Responses saved.
      */
     submitted: number;
+};
+
+/**
+ * One result column, with what its cells mean.
+ */
+export type ResultColumn = {
+    /**
+     * What its cells hold.
+     */
+    kind: SqlOutcomeKind;
+    /**
+     * The name or alias the statement gave it.
+     */
+    name: string;
+    /**
+     * For a select column, its options: its cells hold their ids.
+     */
+    options?: Array<SqlSelectOption>;
+    relatedTable?: null | TableId;
+    target?: null | SqlEntityKind;
+};
+
+/**
+ * A `SELECT`'s rows, as the engine's typed cells.
+ */
+export type ResultSet = {
+    /**
+     * The columns, in select-list order.
+     */
+    columns: Array<ResultColumn>;
+    /**
+     * For a row-shaped result, the id of the row behind each result row;
+     * empty for an aggregate.
+     */
+    rowIds: Array<RowId>;
+    /**
+     * One cell per column per row; `null` is an empty cell.
+     */
+    rows: Array<Array<null | SqlCell>>;
+    sourceTable?: null | TableId;
 };
 
 /**
@@ -12998,6 +13155,196 @@ export type SourceIdentity = {
 };
 
 /**
+ * A cell as fetched. An absent cell is `NULL`; an absent multi-valued cell
+ * is the empty set.
+ */
+export type SqlCell = {
+    type: 'text';
+    /**
+     * Text or link.
+     */
+    value: string;
+} | {
+    type: 'number';
+    /**
+     * A number.
+     */
+    value: number;
+} | {
+    type: 'bool';
+    /**
+     * A checkbox.
+     */
+    value: boolean;
+} | {
+    type: 'date';
+    /**
+     * A date-time.
+     */
+    value: string;
+} | {
+    type: 'options';
+    /**
+     * The selected option ids; one for single-select columns.
+     */
+    value: Array<OptionId>;
+} | {
+    type: 'entities';
+    /**
+     * The referenced entity ids; one for single-valued columns.
+     */
+    value: Array<string>;
+} | {
+    type: 'row';
+    /**
+     * A table row's own id, the `row_id` column.
+     */
+    value: RowId;
+};
+
+/**
+ * What an entity column's references point at: a kind of Macro entity, or
+ * the rows of another table for a relation.
+ *
+ * Spelled as the properties system spells entity types (`USER`,
+ * `DATABASE_ROW`), on the wire and in SQL, where it parses
+ * case-insensitively.
+ */
+export type SqlEntityKind = 'USER' | 'DOCUMENT' | 'TASK' | 'COMPANY' | 'CONTACT' | 'CALL_RECORD' | 'CHANNEL' | 'CHAT' | 'PROJECT' | 'THREAD' | 'CALENDAR_EVENT' | 'INITIATIVE' | 'DATABASE_ROW';
+
+/**
+ * The answer to one statement.
+ */
+export type SqlOutcome = {
+    /**
+     * How many rows a write changed.
+     */
+    changesApplied: number;
+    /**
+     * The rows an `INSERT` created, in statement order.
+     */
+    insertedRowIds: Array<RowId>;
+    /**
+     * The new version of every table written.
+     */
+    newVersions: {
+        [key: string]: TableVersion;
+    };
+    /**
+     * The version of every table read, for a follow-up write to guard on.
+     */
+    readVersions: {
+        [key: string]: TableVersion;
+    };
+    result?: null | ResultSet;
+    /**
+     * What kind of statement ran, and what it wrote.
+     */
+    statement: SqlStatement;
+    /**
+     * Owning database of each visible table referenced by this outcome.
+     */
+    tableDatabases: {
+        [key: string]: DatabaseId;
+    };
+    /**
+     * Every table the statement read, when any read hit the engine's row
+     * cap: the engine reports the cap per statement, so aggregates over any
+     * of them may be partial.
+     */
+    truncatedTables: Array<string>;
+};
+
+/**
+ * The value kind of a result column.
+ */
+export type SqlOutcomeKind = 'text' | 'number' | 'boolean' | 'date' | 'select' | 'entity' | 'row';
+
+/**
+ * One option of a select column.
+ */
+export type SqlSelectOption = {
+    /**
+     * The option id.
+     */
+    id: OptionId;
+    /**
+     * The label users type in SQL.
+     */
+    label: string;
+};
+
+/**
+ * The statement that ran: a read, or the table (and for a type change, the
+ * column) it wrote.
+ */
+export type SqlStatement = {
+    /**
+     * Owning database.
+     */
+    databaseId: DatabaseId;
+    kind: 'schema';
+    /**
+     * What changed and how to read the resulting schema.
+     */
+    summary: string;
+} | {
+    kind: 'select';
+} | {
+    kind: 'insert';
+    /**
+     * The table written.
+     */
+    tableId: TableId;
+    /**
+     * Its name.
+     */
+    tableName: string;
+} | {
+    kind: 'update';
+    /**
+     * The table written.
+     */
+    tableId: TableId;
+    /**
+     * Its name.
+     */
+    tableName: string;
+} | {
+    kind: 'delete';
+    /**
+     * The table written.
+     */
+    tableId: TableId;
+    /**
+     * Its name.
+     */
+    tableName: string;
+} | {
+    /**
+     * The column placement; its id survives the change.
+     */
+    columnId: ColumnId;
+    /**
+     * The column's name.
+     */
+    columnName: string;
+    kind: 'alterColumnType';
+    /**
+     * The table.
+     */
+    tableId: TableId;
+    /**
+     * Its name.
+     */
+    tableName: string;
+    /**
+     * The type it became, as SQL spells it, e.g. `select[]`.
+     */
+    to: string;
+};
+
+/**
  * Starter result. A missing database means the user already started or removed it.
  */
 export type StarterDatabase = {
@@ -13388,6 +13735,11 @@ export type TableDetail = {
      */
     views: Array<DatabaseView>;
 };
+
+/**
+ * Identifier of one table (tab) within a database.
+ */
+export type TableId = string;
 
 /**
  * What happened to a table.
@@ -15371,6 +15723,44 @@ export type GetActiveCallsResponses = {
 };
 
 export type GetActiveCallsResponse = GetActiveCallsResponses[keyof GetActiveCallsResponses];
+
+export type GuestCallChatReadData = {
+    body?: never;
+    path: {
+        call_id: string;
+    };
+    query?: never;
+    url: '/call/guest-chat/{call_id}';
+};
+
+export type GuestCallChatReadErrors = {
+    403: unknown;
+};
+
+export type GuestCallChatReadResponses = {
+    200: GuestChatPage;
+};
+
+export type GuestCallChatReadResponse = GuestCallChatReadResponses[keyof GuestCallChatReadResponses];
+
+export type GuestCallChatPostData = {
+    body: GuestChatPost;
+    path: {
+        call_id: string;
+    };
+    query?: never;
+    url: '/call/guest-chat/{call_id}';
+};
+
+export type GuestCallChatPostErrors = {
+    403: unknown;
+};
+
+export type GuestCallChatPostResponses = {
+    200: GuestChatMessage;
+};
+
+export type GuestCallChatPostResponse = GuestCallChatPostResponses[keyof GuestCallChatPostResponses];
 
 export type MeetingLookupData = {
     body?: never;
@@ -17807,6 +18197,30 @@ export type GetDatabaseQueryResponses = {
 
 export type GetDatabaseQueryResponse = GetDatabaseQueryResponses[keyof GetDatabaseQueryResponses];
 
+export type QueryDatabasesData = {
+    body: DatabaseQueryRequest;
+    path?: never;
+    query?: never;
+    url: '/databases/query';
+};
+
+export type QueryDatabasesErrors = {
+    400: ErrorResponse;
+    401: ErrorResponse;
+    403: ErrorResponse;
+    404: ErrorResponse;
+    409: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type QueryDatabasesError = QueryDatabasesErrors[keyof QueryDatabasesErrors];
+
+export type QueryDatabasesResponses = {
+    200: SqlOutcome;
+};
+
+export type QueryDatabasesResponse = QueryDatabasesResponses[keyof QueryDatabasesResponses];
+
 export type EnsureStarterHandlerData = {
     body?: never;
     path?: never;
@@ -19105,6 +19519,10 @@ export type ExportDocumentData = {
 export type ExportDocumentErrors = {
     401: GenericErrorResponse;
     404: GenericErrorResponse;
+    /**
+     * DOCX upload is still processing; retry the export.
+     */
+    409: ErrorResponse;
     500: GenericErrorResponse;
 };
 

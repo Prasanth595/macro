@@ -37,7 +37,7 @@ use pipedream_mcp::inbound::axum_router::{
 
 use crate::api::preview::get_batch_preview::{GetBatchPreviewRequest, GetBatchPreviewResponse};
 
-use chat::domain::models::{ChatResponse, GetChatResponse, WebCitation};
+use chat::domain::models::{ChatResponse, FreeTierModel, GetChatResponse, WebCitation};
 use chat::inbound::http::router::{
     self as chat_router, CallToolRequest, CallToolResponse, CreateChatRequest,
     GetChatPermissionsResponse, PatchChatRequest, RejectToolCallRequest, UpdateToolCallRequest,
@@ -188,6 +188,7 @@ use utoipa::OpenApi;
                 StopChatStreamError,
                 StreamError,
                 ToolSet,
+                FreeTierModel,
                 StructuredCompletionRequest,
                 StructuredCompletionResponse,
                 StructuredCompletionError,
@@ -264,3 +265,6 @@ use utoipa::OpenApi;
         )
     )]
 pub struct ApiDoc;
+
+#[cfg(test)]
+mod test;
