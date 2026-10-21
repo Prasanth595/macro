@@ -398,3 +398,18 @@ describe('grouped Soup live ownership', () => {
     expect(state.query.paging.hasNextPage('todo')).toBe(true);
   });
 });
+
+describe('grouped Soup live query before its input resolves', () => {
+  it('yields no data instead of throwing', () => {
+    setup();
+    createRoot((dispose) => {
+      cleanups.push(dispose);
+      const query = createGroupedSoupLiveQuery(
+        () => undefined,
+        () => ({ enabled: true, onInitialResult: () => {} }),
+        () => new Date('2026-10-10T12:00:00Z')
+      );
+      expect(query.data()).toBeUndefined();
+    });
+  });
+});

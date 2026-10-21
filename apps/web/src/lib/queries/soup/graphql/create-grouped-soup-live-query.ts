@@ -114,10 +114,14 @@ export function createGroupedSoupLiveQuery(
       ? { ...common, variables: { input: queryInput }, enabled: true }
       : { ...common, enabled: false as const };
   });
-  const currentInitial = () =>
-    query.data?.inputKey === JSON.stringify(input())
-      ? query.data.data
+  // `JSON.stringify(undefined)` is `undefined`, so an absent input must not
+  // match an absent result.
+  const currentInitial = () => {
+    const current = query.data;
+    return current && current.inputKey === JSON.stringify(input())
+      ? current.data
       : undefined;
+  };
   const continuationScope = () =>
     JSON.stringify([scope(), currentInitial()?.user.id]);
 
