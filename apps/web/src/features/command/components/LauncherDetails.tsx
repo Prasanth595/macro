@@ -143,13 +143,13 @@ export function LauncherDetails(props: {
         >
           <div
             aria-hidden="true"
-            class="pointer-events-none absolute inset-0 -z-10 opacity-65"
+            class="pointer-events-none absolute inset-0 -z-10 opacity-65 light-mode:opacity-35"
             style={{
               background:
                 'radial-gradient(ellipse at center, color-mix(in srgb, currentColor 14%, transparent), transparent 72%)',
             }}
           />
-          <div class="pointer-events-none absolute inset-0 opacity-65">
+          <div class="pointer-events-none absolute inset-0 opacity-65 light-mode:opacity-20">
             <WorkspaceTexture accent="currentColor" filterId={textureId} />
           </div>
           <div class="relative h-full overflow-y-auto">
@@ -159,7 +159,7 @@ export function LauncherDetails(props: {
                   aria-label={`${item().label} details`}
                   class="flex min-h-full flex-col items-center justify-center px-5 py-6 text-center sm:px-7"
                 >
-                  <div class="mb-6 flex size-18 shrink-0 items-center justify-center rounded-[22px] glass bg-dialog bg-linear-145 from-ink/[0.06] to-transparent">
+                  <div class="mb-6 flex size-18 shrink-0 items-center justify-center rounded-[22px] glass bg-dialog bg-linear-145 from-ink/[0.06] to-transparent light-mode:from-transparent light-mode:to-ink/[0.04] light-mode:[--glass-rim-shade-base:14%] light-mode:[--glass-shadow-y:4px] light-mode:[--glass-shadow-blur:12px] light-mode:[--glass-shadow-spread:-3px] light-mode:[--glass-shadow-scale:0.35]">
                     <div class="size-8 [&_svg]:size-full">
                       <Dynamic component={item().icon} />
                     </div>

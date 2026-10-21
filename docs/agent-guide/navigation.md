@@ -540,7 +540,8 @@ click a row or press Enter to start that creation flow. List icons are monochrom
 muted normally and full ink on the selected row. The detail panel centers
 its block-colored icon tile with a solid theme-aware fill and shared glass rim,
 and description over
-the shared onboarding grain. The dots and glow use the same shared block-icon
+the shared onboarding grain. Light mode uses quieter grain and glow, with a
+soft cast shadow and stronger tile edge. The dots and glow use the same shared block-icon
 color as the tile, rather than the workspace accent. Descriptions use two authored
 lines at desktop width, with a slightly shorter second line; narrow panels
 allow the text to wrap further. The **Create [type]** button
