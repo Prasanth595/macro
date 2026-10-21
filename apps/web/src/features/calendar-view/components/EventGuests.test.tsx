@@ -14,13 +14,18 @@ const mocks = vi.hoisted(() => ({
   invite: vi.fn(),
   success: vi.fn(),
   failure: vi.fn(),
+  alert: vi.fn(),
 }));
 
 vi.mock('@core/component/UserIcon', () => ({
   UserIcon: () => document.createElement('span'),
 }));
 vi.mock('@core/component/Toast/Toast', () => ({
-  toast: { success: mocks.success, failure: mocks.failure },
+  toast: {
+    success: mocks.success,
+    failure: mocks.failure,
+    alert: mocks.alert,
+  },
 }));
 vi.mock('@core/mobile/isMobile', () => ({ isMobile: () => false }));
 vi.mock('./use-open-event-email', () => ({ useOpenEventEmail: () => vi.fn() }));
@@ -161,7 +166,7 @@ function renderGuests(current: CalendarEvent, invitesEnabled = true) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.invite.mockResolvedValue({ id: 'event-1' });
+  mocks.invite.mockResolvedValue('sent');
   Element.prototype.scrollIntoView = vi.fn();
   vi.stubGlobal('ResizeObserver', ResizeObserverStub);
 });
@@ -271,6 +276,25 @@ describe('adding guests from event details', () => {
         .getAttribute('aria-expanded')
     ).toBe('false');
     expect(mocks.invite).not.toHaveBeenCalled();
+  });
+
+  it('does not call a queued invitation sent', async () => {
+    mocks.invite.mockResolvedValue('queued');
+    const user = userEvent.setup();
+    renderGuests(event());
+
+    await user.click(screen.getByRole('button', { name: 'Add guests' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Suggest Ada Lovelace' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Send invitations' }));
+
+    await waitFor(() =>
+      expect(mocks.alert).toHaveBeenCalledWith(
+        'Invitations will be sent when you are back online'
+      )
+    );
+    expect(mocks.success).not.toHaveBeenCalled();
   });
 
   it('explains instead of offering the action when the organizer does not let guests invite', () => {

@@ -50,6 +50,10 @@ export function createGuestInviteController(
       (error) => error
     );
     if (result.isOk()) {
+      if (result.value === 'queued') {
+        toast.alert('Invitations will be sent when you are back online');
+        return;
+      }
       toast.success(sentMessage);
       return;
     }

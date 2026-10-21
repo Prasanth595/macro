@@ -762,7 +762,7 @@ describe('useInviteCalendarEventGuestsMutation', () => {
       recurrenceId: undefined,
     });
     pending.resolve(ok({ id: 'event-1' }));
-    await sent;
+    expect(await sent).toBe('sent');
   });
 
   it('adds guests to the targeted occurrence alone', async () => {

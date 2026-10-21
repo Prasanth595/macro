@@ -1,5 +1,6 @@
 import { fireAndForget } from '@core/util/fireAndForget';
 import { thrownResultErrorHasCode, throwOnErr } from '@core/util/result';
+import { Telemetry } from '@macro-inc/observability';
 import { queryClient } from '@queries/client';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
 import type { CalendarEvent as CalendarEventEntity } from '@service-calendar/generated/schemas/calendarEvent';
@@ -399,12 +400,60 @@ export function isGuestInviteRefused(error: unknown): boolean {
   );
 }
 
+/**
+ * Whether an invitation reached the provider, or waits in the durable queue
+ * until the cache reconnects.
+ */
+export type InviteCalendarEventGuestsOutcome = 'sent' | 'queued';
+
 type InviteCallbacks = MutationCallbacks<
-  CalendarEventEntity | undefined,
+  InviteCalendarEventGuestsOutcome,
   Error,
   InviteCalendarEventGuestsArgs,
   CalendarMutationContext
 >;
+
+async function inviteCalendarEventGuests(
+  args: InviteCalendarEventGuestsArgs
+): Promise<InviteCalendarEventGuestsOutcome> {
+  return Telemetry.span('calendar.invite_guests', async (span) => {
+    const host = answeringGraphqlCalendarHost();
+    span.setAttr('calendar.event_id', args.eventId);
+    span.setAttr('calendar.invite.guest_count', args.guests.length);
+    span.setAttr('calendar.invite.scope', args.scope ?? 'all');
+    span.setAttr(
+      'calendar.invite.one_occurrence',
+      args.recurrenceId !== undefined
+    );
+    span.setAttr('calendar.transport', host ? 'graphql' : 'rest');
+    try {
+      if (host) {
+        const outcome = await executeGraphqlInviteGuests(host, args);
+        const result = outcome.kind === 'queued' ? 'queued' : 'sent';
+        span.setAttr('calendar.invite.outcome', result);
+        return result;
+      }
+      await throwOnErr(() =>
+        emailClient.inviteCalendarEventGuests(args.eventId, {
+          calendarId: args.calendarId,
+          guests: args.guests,
+          scope: args.scope,
+          recurrenceId: args.recurrenceId,
+        })
+      );
+      span.setAttr('calendar.invite.outcome', 'sent');
+      return 'sent';
+    } catch (error) {
+      const refused = isGuestInviteRefused(error);
+      span.setAttr('calendar.invite.outcome', refused ? 'refused' : 'failed');
+      // Provider messages can quote addresses; record only the category.
+      span.error(
+        refused ? 'Guest invitation refused' : 'Guest invitation failed'
+      );
+      throw error;
+    }
+  });
+}
 
 /**
  * Adds guests without replacing the guest list, so a guest the organizer
@@ -415,22 +464,9 @@ export function useInviteCalendarEventGuestsMutation(
   callbacks?: InviteCallbacks
 ) {
   return useMutation(() => ({
-    mutationFn: async (args: InviteCalendarEventGuestsArgs) => {
-      const host = answeringGraphqlCalendarHost();
-      if (host) {
-        return committedEvent(await executeGraphqlInviteGuests(host, args));
-      }
-      return await throwOnErr(() =>
-        emailClient.inviteCalendarEventGuests(args.eventId, {
-          calendarId: args.calendarId,
-          guests: args.guests,
-          scope: args.scope,
-          recurrenceId: args.recurrenceId,
-        })
-      );
-    },
+    mutationFn: inviteCalendarEventGuests,
     ...withCallbacks<
-      CalendarEventEntity | undefined,
+      InviteCalendarEventGuestsOutcome,
       Error,
       InviteCalendarEventGuestsArgs,
       CalendarMutationContext
