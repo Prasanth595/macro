@@ -29,6 +29,7 @@ use tokio::net::TcpListener;
 
 pub async fn build(
     config: Config,
+    database_url: &str,
     pool: sqlx::PgPool,
     shutdown: tokio_util::sync::CancellationToken,
     tasks: tokio_util::task::TaskTracker,
@@ -58,11 +59,8 @@ pub async fn build(
     );
     let key = ssh::host_key(&config.preview_ssh_host_key)?;
     let public_key = ssh::public_key(&key)?;
-    let peer_address = agent_preview::outbound::peer::address(
-        config.database_url.as_ref(),
-        config.preview_http_port,
-    )
-    .await?;
+    let peer_address =
+        agent_preview::outbound::peer::address(database_url, config.preview_http_port).await?;
     let repository = Arc::new(agent_preview::outbound::postgres::PgPreviewRepository::new(
         pool.clone(),
     ));

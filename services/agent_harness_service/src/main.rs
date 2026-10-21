@@ -573,6 +573,7 @@ async fn run() -> anyhow::Result<()> {
     let scheduling_router = scheduling_runtime.router.clone();
     let preview_router = preview::build(
         macro_config::ConfigLoader::load::<preview::config::Config>()?,
+        config.database_url.as_ref(),
         pool.clone(),
         service_shutdown.clone(),
         event_broker_tracker.clone(),

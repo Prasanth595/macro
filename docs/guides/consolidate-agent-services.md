@@ -12,9 +12,11 @@ listener and `/agent-harness-egress` prefix. Preview public HTTP (8111) and SSH
 browser domain. The main API port is 8101 in ECS and 8080 inside local Compose.
 
 Deploy two tasks in both environments, with overlapping rolling replacements.
-Preview ownership and forwarding must support multiple replicas before this
-consolidation is deployed. Live SSH tunnels remain local to their owner;
-replacing that owner can close its active previews.
+Preview ownership, replica heartbeats, and credential hashes are stored in
+Postgres. The task accepting SSH owns that tunnel; browser HTTP/WebSocket
+requests arriving on another task stream directly to the owner's private HTTP
+endpoint. Keep security-group self-ingress on TCP 8111. Live SSH tunnels remain
+local to their owner; replacing that owner can close its active previews.
 
 ## Configuration
 
@@ -83,8 +85,8 @@ maintenance window:
    completed. Verify public OAuth clients accept the gateway callback URLs.
    In particular, apply the updated Slack manifest and ensure FusionAuth
    permits the public MCP gateway callback already listed in its stack.
-   Apply the additive preview ownership migration before starting the combined
-   process.
+   Apply additive migration `20261021205701_agent_preview_replication.sql`
+   before starting the combined process.
 2. Pause deployments for the chosen environment, cancel queued deployments,
    and wait for running deployments to finish. Disabling future triggers does
    not clear queued runs. In dev, every main push deploys all enabled services;
@@ -127,6 +129,8 @@ maintenance window:
    dispatch, and a complete preview SSH/browser handoff. Verify tracing across
    the shared HTTP boundaries and confirm no retired agent ECS service or
    refresh Lambda remains. Merge the final source and resume deployments.
+   For dev, re-enable `Deploy on Push` and dispatch `Deploy All Services` on
+   merged `main` with `environment=dev`; pushes made while paused are not replayed.
 
 Retain the final logical rule names throughout staging so temporary priorities
 update in place. ALB priorities are unique: do not apply the final priorities

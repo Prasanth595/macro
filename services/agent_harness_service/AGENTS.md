@@ -32,7 +32,9 @@ Pulumi stacks; they do not host extra agent processes.
 - `src/scheduling.rs`: routine HTTP routes and background scheduling;
   domain/adapters live in `crates/scheduled_action`.
 - `src/preview.rs` + `src/preview/`: preview control routes, public HTTP and SSH listeners;
-  lease/ticket and authorization logic lives in `crates/agent_preview`.
+  lease/ticket and authorization logic lives in `crates/agent_preview`. The shared
+  pool stores replica ownership and credential hashes; startup and ten-second
+  heartbeats register this process's private HTTP address for direct forwarding.
 - [Consolidation guide](../../docs/guides/consolidate-agent-services.md):
   Doppler migration, retirement order, OAuth provider cutover.
 
@@ -89,10 +91,9 @@ listener failure shuts down the process so ECS can replace the task.
 ## Gotchas
 
 - Keep two tasks and rolling replacements in both environments. Preview
-  control, SSH, and browser requests must reach the replica holding the live
-  tunnel; never reduce harness replication to work around local preview state.
-
-
+  control uses shared Postgres state. SSH claims a tunnel owner; browser HTTP/WS
+  forwards directly to that owner. Keep preview security-group self-ingress on
+  TCP 8111 so peers can connect; live SSH handles remain local to each process.
 - Two managed bots run on different runtimes: `@coder` (`HARNESS_BOT_ID`) in a
   Daytona sandbox, `@macro-new`/`@macro` (`INMEM_BOT_ID`) on the in-process ACP
   runtime — check which one a bug report is about before debugging containers.
