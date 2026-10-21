@@ -10,6 +10,9 @@
 - The app does not register a service worker. Keep `public/sw.js` as a retirement
   endpoint for existing installations; see the [startup bundle rule](../../.agents/rules/web/startup-bundle.md).
   Loro uses async WASM loading and HTML preloads independently of service workers.
+- Web asset publication and cache headers are covered by
+  [web-app delivery](../../infra/stacks/web-app/README.md); its publisher tests
+  are backend-free, and its Pulumi tests must not run real staging/cloud commands.
 
 ## Verifying a change in a real browser
 
