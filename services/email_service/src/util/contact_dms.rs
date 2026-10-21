@@ -6,7 +6,9 @@
 //! is idempotent and best-effort: a failure never fails the sync that triggered it.
 
 use channels::{
-    domain::{dm::ensure_dms_for_joining_member, ports::ChannelService, service::ChannelServiceImpl},
+    domain::{
+        dm::ensure_dms_for_joining_member, ports::ChannelService, service::ChannelServiceImpl,
+    },
     outbound::pg_channels_repo::PgChannelsRepo,
 };
 use generic_email_domains::is_generic_email_domain;

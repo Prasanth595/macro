@@ -303,9 +303,7 @@ async fn fetch_address_book_emails_returns_every_non_automated_contact(
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("address_book_and_top_contacts"))
 )]
-async fn fetch_top_sent_contact_emails_ranks_by_messages_sent(
-    pool: Pool<Postgres>,
-) -> Result<()> {
+async fn fetch_top_sent_contact_emails_ranks_by_messages_sent(pool: Pool<Postgres>) -> Result<()> {
     let link_id = Uuid::parse_str("ab000000-0000-0000-0000-000000000001")?;
 
     let top = fetch_top_sent_contact_emails_by_link_id(&pool, link_id, 10).await?;
