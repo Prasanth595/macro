@@ -66,13 +66,13 @@ function AccountConnections() {
         <Show when={ENABLE_EMAIL}>
           <Suspense>
             <EmailCard
-              class="h-full bg-ink/4 shadow-none light-mode:shadow-none touch:bg-ink/4"
+              class="h-full"
               onOpenSettings={() => openSettings('Email')}
             />
           </Suspense>
         </Show>
         <Suspense>
-          <GitHubCard class="h-full bg-ink/4 shadow-none light-mode:shadow-none touch:bg-ink/4" />
+          <GitHubCard class="h-full" />
         </Suspense>
         <Suspense>
           <GranolaCard />

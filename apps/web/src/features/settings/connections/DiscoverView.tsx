@@ -1,3 +1,4 @@
+import { SearchBar } from '@app/components/view-shell/SearchBar';
 import { useInfiniteScrollSentinel } from '@app/lib/primitives/infinite-scroll-sentinel';
 import { toast } from '@core/component/Toast/Toast';
 import { PipedreamConnectorIcon } from '@core/pipedream/ConnectorIcon';
@@ -7,15 +8,13 @@ import {
 } from '@core/pipedream/catalog';
 import { fireAndForget } from '@core/util/fireAndForget';
 import CheckIcon from '@phosphor/check.svg';
-import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import SpinnerIcon from '@phosphor/spinner-gap.svg';
-import XIcon from '@phosphor/x.svg';
 import type { PipedreamCatalogEntryResponse } from '@service-cognition/client';
 import { Button, Tooltip } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { SettingsSelect } from '../components/settings-select';
-import { IntegrationRow } from '../primitives';
+import { IntegrationRow, SettingsSurface } from '../primitives';
 import { AddCustomMcpDialog } from './add-custom-mcp-dialog';
 import { groupCatalogByCategory } from './catalog-categories';
 import type { ConnectionsModel } from './model';
@@ -90,10 +89,10 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
         <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
           <For each={EMPTY_STARTERS}>
             {(item) => (
-              <div class="@container overflow-hidden rounded-2xl border border-edge-muted bg-ink/4">
+              <SettingsSurface class="@container overflow-hidden">
                 <button
                   type="button"
-                  class="flex h-full w-full flex-col items-stretch text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
+                  class="flex h-full w-full flex-col items-stretch text-left outline-none not-touch:hover:overlay-hover focus-visible:overlay-hover"
                   onClick={() => view.openProvider(item.id)}
                 >
                   <IntegrationRow
@@ -109,7 +108,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                     </Show>
                   </IntegrationRow>
                 </button>
-              </div>
+              </SettingsSurface>
             )}
           </For>
         </div>
@@ -119,53 +118,30 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
         <div class="mb-3 flex items-center justify-between gap-3">
           <h3 class="text-base font-medium text-ink">All apps</h3>
           <Button
-            variant="ghost"
+            variant="outline"
             size="md"
-            class="h-10 bg-ink/4 px-4"
             onClick={() => setAddingCustom(true)}
           >
             <PlusIcon class="size-4" /> Add Custom
           </Button>
         </div>
         <div class="mb-5 grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-[minmax(0,1fr)_auto]">
-          <label class="relative block min-w-0">
-            <span class="sr-only">Search apps</span>
-            <MagnifyingGlassIcon
-              class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              value={catalog.searchInput()}
-              onInput={(event) => {
-                setSelectedCategory('all');
-                catalog.onSearchInput(event.currentTarget.value);
-              }}
-              placeholder="Search apps"
-              class="h-10 w-full rounded-full border border-edge-muted bg-ink/4 pr-10 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus-visible:border-edge-focus focus-visible:ring-1 focus-visible:ring-edge-focus [&::-webkit-search-cancel-button]:hidden"
-            />
-            <Show when={catalog.searchInput()}>
-              <button
-                type="button"
-                aria-label="Clear search"
-                class="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-ink/4 hover:text-ink focus-visible:bg-ink/6"
-                onPointerDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  setSelectedCategory('all');
-                  catalog.onSearchInput('');
-                }}
-              >
-                <XIcon class="size-4" />
-              </button>
-            </Show>
-          </label>
+          <SearchBar
+            size="sm"
+            label="Search apps"
+            placeholder="Search apps"
+            value={catalog.searchInput()}
+            onValueChange={(value) => {
+              setSelectedCategory('all');
+              catalog.onSearchInput(value);
+            }}
+          />
           <SettingsSelect
             label="Filter apps by category"
             options={categoryOptions()}
             value={activeCategory()}
             onChange={setSelectedCategory}
             class="w-full @[440px]/catalog:w-52"
-            triggerClass="h-10 w-full border-0 bg-ink/4 px-3 text-sm text-ink hover:bg-ink/6"
           />
         </div>
         <div class="grid grid-cols-1 gap-6">
@@ -331,11 +307,11 @@ function CatalogRow(props: {
   );
 
   return (
-    <div class="@container overflow-hidden rounded-2xl border border-edge-muted bg-ink/4">
+    <SettingsSurface class="@container overflow-hidden">
       <Show when={!props.added} fallback={row()}>
         <button
           type="button"
-          class="h-full w-full text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
+          class="h-full w-full text-left outline-none not-touch:hover:overlay-hover focus-visible:overlay-hover"
           aria-label={busy() ? `Connecting ${name()}` : `Connect ${name()}`}
           aria-describedby={descriptionId}
           aria-busy={busy()}
@@ -345,6 +321,6 @@ function CatalogRow(props: {
           {row()}
         </button>
       </Show>
-    </div>
+    </SettingsSurface>
   );
 }

@@ -186,9 +186,12 @@ settings split that shares the layout, or steps back to the previous view when
 it is the only split (Home when there is none). Leave settings by picking any
 other rail item; there is no separate back or fullscreen control.
 
-Settings pages use flat, light-gray cards with subtle row separators. Section
-headings sit above the cards, with more space between major sections and compact
-spacing within each group. Controls share rounded shapes. Nested rows share one surface instead of adding another box or shadow.
+Settings cards use the email composer's raised surface (`SettingsSurface`) with
+subtle row separators: a fine beveled edge and small ambient shadow on desktop,
+the composer card on touch. Section headings sit above the cards, with more
+space between major sections and compact spacing within each group. Controls
+share rounded shapes. Nested rows share one surface instead of adding another
+box or shadow; never hand-build a flat card.
 The compact sidebar uses the shared workspace width.
 
 When a newer version is ready, an **Update available** button (a download icon

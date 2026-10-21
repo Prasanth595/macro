@@ -37,8 +37,7 @@ export function ComposerSurface(
       {...rest}
       class={cn(
         !isTouchDevice() &&
-          // Desktop shares the elevated glass; touch keeps its own composer shadow.
-          'rounded-[28px] border-0 bg-composer text-composer-ink not-touch:glass-input touch:dark-mode:glass-input touch:backdrop-filter-none touch:light-mode:after:hidden touch:light-mode:composer-shadow',
+          'rounded-[28px] border-0 bg-composer text-composer-ink glass-input',
         local.class
       )}
     />
