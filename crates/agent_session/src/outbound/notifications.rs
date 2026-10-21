@@ -92,7 +92,7 @@ impl NotificationStore for PgNotificationStore {
                     action_id = COALESCE(n.action_id, $4)
                 FROM candidates c WHERE n.id = c.id
                 RETURNING n.id, n.kind, n.subject_id, n.payload, n.created_at,
-                    n.action_id AS "action_id!", n.wake, n.producer_context
+                    n.action_id AS "action_id!", n.wake, n.producer_context, n.dedupe_key
             "#,
                 session.as_uuid(),
                 real_prompt,
@@ -109,6 +109,17 @@ impl NotificationStore for PgNotificationStore {
             let mut rows = rows;
             rows.sort_by_key(|row| (row.created_at, row.id));
             let action_id = AgentActionId::from_uuid(rows[0].action_id);
+            // Only the migration bridge uses the event ID as its original
+            // action and exact legacy dedupe key. A recovered old hidden
+            // prompt must lose owner authority without touching a newer turn.
+            if rows.iter().any(|row| {
+                row.action_id == row.id && row.dedupe_key == format!("review.legacy:{}", row.id)
+            }) {
+                sqlx::query!(
+                    "UPDATE agent_session SET turn_prompter_kind = 'system', turn_prompter = NULL WHERE id = $1 AND turn_action_id = $2",
+                    session.as_uuid(), action_id.as_uuid(),
+                ).execute(&mut *transaction).await.map_err(storage)?;
+            }
             let wake = rows.iter().any(|row| row.wake);
             let mut notifications = Vec::new();
             let mut producer_contexts = Vec::new();

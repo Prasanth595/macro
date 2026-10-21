@@ -118,7 +118,8 @@ pub trait NotificationStore: Send + Sync + 'static {
     fn pending_sessions(&self) -> NotificationFuture<'_, Vec<AgentSessionId>>;
     /// Claim up to 100 events, reconciling prior attempts before fresh inputs.
     /// Unclaimed quiet events wait for a real prompt; an active lease blocks
-    /// later batches for the session.
+    /// later batches for the session. Claims strip matching legacy background
+    /// actions of their former user authority before returning.
     fn claim(
         &self,
         session: AgentSessionId,

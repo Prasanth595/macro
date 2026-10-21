@@ -182,6 +182,7 @@ async fn legacy_review_writes_during_rollout_enter_the_typed_outbox_once(pool: P
         .await
         .unwrap();
     }
+    set_owner_prompt(&pool, session, action).await;
     let batch = store.claim(session, false).await.unwrap().unwrap();
     assert_eq!(batch.action_id.as_uuid(), action);
     assert_eq!(batch.notifications.len(), 1);
@@ -190,6 +191,57 @@ async fn legacy_review_writes_during_rollout_enter_the_typed_outbox_once(pool: P
         batch.notifications[0].event,
         NotificationEvent::ReviewSettled(_)
     ));
+    assert_eq!(
+        read_prompter(&pool, session).await,
+        (Some(action), "system".into(), None)
+    );
+    store
+        .complete(batch.lease_id, NotificationOutcome::Delivered)
+        .await
+        .unwrap();
+
+    let newer = macro_uuid::generate_uuid_v7();
+    set_owner_prompt(&pool, session, newer).await;
+    record["notificationId"] = serde_json::json!(macro_uuid::generate_uuid_v7());
+    sqlx::query!(
+        "UPDATE agent_session_review SET record = $2 WHERE id = $1",
+        review,
+        record
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    store.claim(session, false).await.unwrap().unwrap();
+    assert_eq!(
+        read_prompter(&pool, session).await,
+        (
+            Some(newer),
+            "user".into(),
+            Some("macro|owner@example.com".into())
+        )
+    );
+}
+
+async fn set_owner_prompt(pool: &PgPool, session: AgentSessionId, action: Uuid) {
+    sqlx::query!("UPDATE agent_session SET turn_action_id = $2, turn_prompter = 'macro|owner@example.com', turn_prompter_kind = 'user' WHERE id = $1", session.as_uuid(), action)
+        .execute(pool).await.unwrap();
+}
+async fn read_prompter(
+    pool: &PgPool,
+    session: AgentSessionId,
+) -> (Option<Uuid>, String, Option<String>) {
+    let row = sqlx::query!(
+        "SELECT turn_action_id, turn_prompter_kind, turn_prompter FROM agent_session WHERE id = $1",
+        session.as_uuid()
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap();
+    (
+        row.turn_action_id,
+        row.turn_prompter_kind,
+        row.turn_prompter,
+    )
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]

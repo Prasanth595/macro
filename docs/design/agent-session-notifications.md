@@ -50,6 +50,9 @@ bounded to 512 bytes, keys to 1024 bytes, and typed payloads to 64 KiB.
 ## Identity and transcript
 
 Notification turns record System as their prompter and have no acting user.
+A reclaimed legacy hidden prompt loses its former owner authority atomically
+with its claim, only while its original action still matches the session's
+prompter. Recovery reads that stored identity; quiet real prompts keep theirs.
 Owner-only actions remain denied until a subsequent owner prompt. External ACP
 runtimes receive an XML block via session/prompt; notification metadata is
 server-authored and cannot be accepted through public control. The durable log

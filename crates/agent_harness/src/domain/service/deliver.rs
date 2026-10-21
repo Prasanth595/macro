@@ -143,8 +143,16 @@ where
                     .await?;
                 Ok(NotificationRecovery::Completed)
             }
-            Some(RecordedAction::Running { turn, actor }) => {
+            Some(RecordedAction::Running { turn, .. }) => {
                 let session = self.sessions.get_session(session_id).await?;
+                // Claims demote matching legacy background actions. Neither
+                // their old wire actor nor a newer turn can supply authority.
+                let actor = self
+                    .sessions
+                    .turn_prompter(session_id)
+                    .await?
+                    .filter(|prompter| prompter.action_id == batch.action_id)
+                    .and_then(|prompter| prompter.acting_user().cloned());
                 // Do not rewrite turn_prompter: a batch attached to a real
                 // prompt retains that user's authority across recovery.
                 self.notification_batches.insert(session_id, batch.clone());

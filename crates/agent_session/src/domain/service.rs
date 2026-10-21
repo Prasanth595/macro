@@ -216,6 +216,12 @@ pub trait AgentSessionService: Send + Sync + 'static {
         prompter: &TurnPrompter,
     ) -> impl Future<Output = Result<()>> + Send;
 
+    /// Read the persisted identity of the current turn during recovery.
+    fn turn_prompter(
+        &self,
+        id: AgentSessionId,
+    ) -> impl Future<Output = Result<Option<TurnPrompter>>> + Send;
+
     /// What `viewer` may see of each of `ids`, for rendering chips.
     ///
     /// Duplicate ids are collapsed, so the answer has one entry per distinct
@@ -886,6 +892,10 @@ where
 
     async fn set_turn_prompter(&self, id: AgentSessionId, prompter: &TurnPrompter) -> Result<()> {
         self.repo.set_turn_prompter(id, prompter).await
+    }
+
+    async fn turn_prompter(&self, id: AgentSessionId) -> Result<Option<TurnPrompter>> {
+        self.repo.turn_prompter(id).await
     }
 
     async fn preview_sessions(

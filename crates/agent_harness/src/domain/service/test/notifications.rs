@@ -306,6 +306,44 @@ async fn recovery_waits_for_running_delivery_without_reprompting() {
 }
 
 #[tokio::test]
+async fn recovered_system_identity_overrides_a_legacy_wire_owner() {
+    let outbox = Arc::new(Outbox::default());
+    let ((service, repo, containers, _, _), mut turns) = harness_with_outbox(outbox.clone());
+    let id = AgentSessionId::new();
+    let container = live_session(&service, &containers, id).await;
+    turns.settled(id).await;
+    let command = forward_message("legacy review outcome");
+    let action = command.id;
+    assert!(command.actor.is_some());
+    service
+        .execute(id, HarnessCommand::Deliver(command))
+        .await
+        .unwrap();
+    container.agent().wait_for_requests(4).await;
+    event(&outbox, id, "legacy review", true).await;
+    let batch = outbox.claim(id, false).await.unwrap().unwrap();
+    outbox.bind_action(batch.lease_id, action).await.unwrap();
+    // PostgreSQL's legacy claim already conditionally demoted this action.
+    repo.set_turn_prompter(
+        id,
+        &agent_session::domain::model::TurnPrompter {
+            kind: agent_session::domain::model::PrompterKind::System,
+            action_id: action,
+            user: None,
+        },
+    )
+    .await
+    .unwrap();
+    service.inner.busy.clear(id);
+    outbox.expired.store(true, Ordering::SeqCst);
+    service.recover_notifications().await.unwrap();
+    let recovered = service.inner.busy.turn(id).unwrap();
+    assert_eq!(recovered.action_id, action);
+    assert!(recovered.actor.is_none());
+    assert_eq!(prompts(&container.agent()).len(), 2);
+}
+
+#[tokio::test]
 async fn quiet_batch_recovery_keeps_its_real_prompt_identity() {
     let outbox = Arc::new(Outbox::default());
     let ((service, repo, containers, _, _), mut turns) = harness_with_outbox(outbox.clone());
@@ -336,6 +374,7 @@ async fn quiet_batch_recovery_keeps_its_real_prompt_identity() {
     let prompter = repo.turn_prompter(id).await.unwrap().unwrap();
     assert_eq!(prompter.action_id, original_id);
     assert_eq!(prompter.user, original_actor);
+    assert_eq!(service.inner.busy.turn(id).unwrap().actor, original_actor);
     assert_eq!(
         prompter.kind,
         agent_session::domain::model::PrompterKind::User

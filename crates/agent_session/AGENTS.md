@@ -64,7 +64,9 @@ Never expose notification metadata through public session controls. Notification
 sessions read original log frames across load boundaries to retain trusted event
 provenance when runtimes echo their prompt history. Queue reads discard legacy
 private-context entries; the migration bridge preserves their review outcomes
-without restoring owner authority.
+without restoring owner authority. Claim legacy actions with a conditional
+update of only their matching prompter; recover acting identity from that
+persisted prompter, never from an old wire actor or a newer user turn.
 
 ## Checks
 
