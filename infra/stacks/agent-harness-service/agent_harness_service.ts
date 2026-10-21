@@ -354,11 +354,7 @@ export class AgentHarnessService extends pulumi.ComponentResource {
         { parent: this }
       ),
     ];
-    const sharedApiRoutes: [GatewayService, string][] = [
-      [GatewayService.MCP_SERVER, '/mcp'],
-      [GatewayService.DOCUMENT_COGNITION_SERVICE, '/cognition'],
-      [GatewayService.AGENT_SCHEDULE_SERVICE, '/scheduled-action'],
-    ];
+    const sharedApiRoutes: [GatewayService, string][] = [];
     const sharedApiRules = sharedApiRoutes.map(
       ([service, prefix]) =>
         new aws.lb.ListenerRule(
@@ -441,21 +437,6 @@ export class AgentHarnessService extends pulumi.ComponentResource {
         // Both listeners use the shared gateway, with separate target groups
         // for the control API and sandbox egress proxy.
         loadBalancers: [
-          {
-            targetGroupArn: args.previewControlTargetGroupArn,
-            containerName: 'service',
-            containerPort: serviceContainerPort,
-          },
-          {
-            targetGroupArn: args.previewHttpTargetGroupArn,
-            containerName: 'service',
-            containerPort: 8111,
-          },
-          {
-            targetGroupArn: args.previewSshTargetGroupArn,
-            containerName: 'service',
-            containerPort: 2222,
-          },
           {
             targetGroupArn: gatewayTargetGroup.target_group.arn,
             containerName: 'service',
