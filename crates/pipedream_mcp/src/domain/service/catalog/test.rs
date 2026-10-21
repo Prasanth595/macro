@@ -47,6 +47,7 @@ impl ConnectorDirectory for FakeDirectory {
 
 fn directory_entry(app_slug: &str) -> CatalogEntry {
     CatalogEntry {
+        categories: vec![],
         app_slug: app_slug.to_owned(),
         display_name: app_slug.to_owned(),
         description: Some("from the directory".to_owned()),
