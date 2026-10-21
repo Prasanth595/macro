@@ -57,6 +57,12 @@ to the browser via `inbound/wasm`.
 signals and harness recovery from a persisted log. Keep these interpretations
 aligned; recovery must never guess the answer from another turn.
 
+Notification log frames open system turns without user messages. Their events
+project into `SessionMetadata.notifications`, separate from message search and
+exports. Exact `<noop/>` is buffered and suppressed only for notification-only
+turns without tool activity; lifecycle still reports the turn ending. User turns
+and tool-bearing turns preserve the literal text.
+
 ## Checks
 
 - `cargo test -p agent_fold`.

@@ -95,7 +95,7 @@ impl JsonlRecording {
         self.entries
             .iter()
             .filter(|entry| match &entry.content {
-                Message::ToRuntime(_) => true,
+                Message::Notification(_) | Message::ToRuntime(_) => true,
                 Message::ToServer(message) => matches!(message, ToServerMessage::Acp(_)),
             })
             .count()

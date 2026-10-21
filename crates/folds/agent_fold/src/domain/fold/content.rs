@@ -28,7 +28,17 @@ impl FoldState {
     }
 
     /// Append agent prose, extending the trailing text part when there is one.
-    pub(super) fn append_text(&mut self, text: String) -> Option<Changed> {
+    pub(super) fn append_text(&mut self, mut text: String) -> Option<Changed> {
+        if let Some(turn) = self.turn.as_mut()
+            && turn.can_noop
+        {
+            turn.noop_buffer.push_str(&text);
+            if "<noop/>".starts_with(&turn.noop_buffer) {
+                return None;
+            }
+            text = std::mem::take(&mut turn.noop_buffer);
+            turn.can_noop = false;
+        }
         if text.is_empty() {
             return None;
         }
@@ -62,6 +72,21 @@ impl FoldState {
     /// Every way the agent contributes content comes through here, which is
     /// why opening the turn belongs here rather than in each caller.
     pub(super) fn push_agent_part(&mut self, part: MessagePart) -> Option<(Changed, usize)> {
+        if !matches!(part, MessagePart::Text { .. }) {
+            // Conservatively treat every tool as potentially side effecting.
+            // Reasoning is retained too rather than leaking a half-hidden turn.
+            let buffered = self
+                .turn
+                .as_mut()
+                .map(|turn| {
+                    turn.can_noop = false;
+                    std::mem::take(&mut turn.noop_buffer)
+                })
+                .unwrap_or_default();
+            if !buffered.is_empty() {
+                self.append_text(buffered);
+            }
+        }
         if self.turn.is_none() {
             self.begin_turn_without_prompt();
         }

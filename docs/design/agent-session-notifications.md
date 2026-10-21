@@ -16,8 +16,9 @@ review and item ids; final drafts remain available through GetReview.
 The harness serializes delivery with all other session commands. It claims a
 bounded batch under a lease using SKIP LOCKED. Waking events start an idle turn;
 events arriving during a turn wait until its end and coalesce. Quiet events
-join the next real prompt. A successful wire delivery acknowledges the batch;
-failed delivery retains it for retry after the lease expires. The stable action
+join the next real prompt. Email/calendar decisions wake at claim, and their
+confirmed results arrive as settled events; adjacent events coalesce. A terminal turn acknowledges the batch; running turns renew its lease.
+Failed delivery retains it for retry after the lease expires. The stable action
 id prevents a retry from repeating an accepted action. Every worker is tracked
 and cancellable. Producer trace context travels with the row and links delivery.
 
