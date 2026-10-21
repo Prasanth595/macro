@@ -15,6 +15,10 @@
 
 Any user-visible change should be exercised in a browser before you call it fixed — type-check, biome, and vitest all pass on code that still has the interaction bug.
 
+Split dragging and composer reflow have a backend-free browser regression:
+`bunx playwright test --config src/lib/core/component/Resize/browser-test/playwright.config.ts`.
+It exercises the real resize solver, scroll container, and Lexical layout primitive.
+
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 
 ```sh
@@ -95,6 +99,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Mobile dock customization shares the navigation island’s measured capacity; persist ordering per user with `mobile-dock-order.ts`, preserve gated destinations, and keep Search and More fixed. Reorder handles drag without a hold delay; the rest of each row scrolls.
 - Share sidebar and mobile dock unread presence through `components/app/use-navigation-unread.ts`; keep badges reactive to read/done changes and avoid fetching extra pages for counts.
 - Mobile dock search owns transient category/mode state in `features/command/mobile`; reuse the shared entity source and explicit full-text adapter rather than overlaying the dock query on view tabs or saved facets. See `docs/agent-guide/search.md` at the repository root.
+- Include known Macro users in typed All/People name searches without requiring a DM or CRM contact; resolve a matching person to their existing one-to-one DM while preserving name/email matching.
 - Keep mobile search sessions, result order, loaded rows, and scroll state with their Search history entry; preserve order before opening a result so viewedAt updates cannot move it on Back. Refresh row data in place and append later pages. Scope saved rows and scroll measurements to their account and reset result adapters/scrollers on account changes. Query/category changes rerank; a fresh dock search supplies a new session ID in Search's route state, including when reusing a native pane.
 - Keep Quick Access cache availability reactive to the GraphQL rollout flag; it can arrive after the provider mounts, and email has no legacy source fallback.
 - Virtualize mobile name results like desktop Command Menu; local Quick Access sources are unbounded, and mounting them all stalls iOS keyboard focus during layout. Load additional search pages near the scroll end instead of reserving a paging bar.
@@ -106,10 +111,17 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Preserve focused chrome editors during deferred split insertion/removal autofocus; explicit return-focus commands may still focus the pane.
 - Reconcile global focus when focused DOM subtrees are removed; iOS can omit blur events, otherwise floating creation actions stay hidden after search or editor teardown.
 - Mount the floating mobile AI composer only on the Agents view; other views keep their New action or their own reply/comment composer.
+- Keep desktop model and effort controls separate: the model selector opens the catalog and the speedometer opens the runtime's advertised slider stops; retain the mobile effort sheet.
 - Passive PR mentions must not retry initial GitHub status failures on remount; preserve confirmed status through refetch errors and keep pending data reads out of their parent Suspense boundary.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
 - Diagnose native full reloads with `native_webview_started` and native launch/termination/update counters; termination coverage is iOS/macOS only, and a pageview alone also includes SPA navigation. See `tauri/src-tauri/README.md`.
 - All API/network calls live in service-clients.
+- Keep early DOCX opens loading while exports return processing (409); retry only
+  that response, with a bounded wait. See the Word editor walkthrough in
+  `docs/agent-guide/documents.md` at the repository root.
+- Add Google Meet account hints only to join actions using the displayed calendar's
+  connected email; keep stored and copied conference links unchanged. See the
+  [calendar walkthrough](../../docs/agent-guide/calendar.md).
 - Route explicit call exits using the server's `callEnded` result: ended calls
   open their record; ongoing channel and scheduled calls return to the channel
   and Calendar. Preserve the session ID before disconnecting.

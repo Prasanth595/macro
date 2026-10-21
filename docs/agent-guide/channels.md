@@ -299,6 +299,12 @@ only the send control, with no format or discard button; Escape cancels the edit
 The iOS share sheet keeps its editor above the attachment and formatting controls.
 Check this arrangement at both phone and tablet widths.
 
+With a wrapping draft present, repeatedly narrow and widen the desktop split
+and window, then scroll the message history. The composer should settle into
+the matching layout without `ResizeObserver loop completed with undelivered
+notifications` errors. Resize-triggered wrapping measurements run in the next
+animation frame; draft edits still measure before their first paint.
+
 On Android, tap `@` on the software keyboard in an empty channel composer or
 after a space: the mentions menu should open above the keyboard. Type a name to
 filter, then tap a result to insert one mention without sending the draft.
@@ -1203,6 +1209,14 @@ Shorter queries: `Keep typing to search`.
 Leaving from the channel's call controls switches to `Messages` immediately.
 Disconnect and server cleanup continue after that switch; slow or failed RTC
 teardown must not leave the channel showing the join screen.
+
+In a live call, controls stay centered beneath the participant area when chat
+opens beside it. Microphone, camera, and background controls each have an icon
+button on the left and a settings caret on the right, separated by a divider.
+The icon toggles the feature; hover previews settings and the caret pins them.
+Check both chat states and narrow layouts, including Escape and keyboard focus
+in settings. Camera-off tiles use a subtle gradient from the profile picture's
+average color; missing or unreadable pictures keep the neutral panel background.
 
 `Participants` tab keeps people and bots within the available page height, with
 separate scrolling lists and fixed search/invite controls. Team access appears

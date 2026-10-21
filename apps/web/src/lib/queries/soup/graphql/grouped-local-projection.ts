@@ -105,6 +105,7 @@ export function localSoupGroupKeys(
                       : 'older',
         ];
       })
+      // An unknown grouping field (a newer server) keeps the server key.
       .exhaustive(() => undefined)
   );
 }
