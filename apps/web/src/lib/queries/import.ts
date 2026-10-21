@@ -26,7 +26,7 @@ import {
   useMutation,
   useQuery,
 } from '@tanstack/solid-query';
-import { importKeys } from './keys';
+import { importKeys } from './import/keys';
 
 export type {
   ImportEntity,
