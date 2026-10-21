@@ -27,10 +27,11 @@ Secure HttpOnly cookie, and redirects to `/`. App paths and query strings stay
 unchanged. Stop requires Edit access; the UI currently exposes it to the owner.
 
 Entity access is checked again when the ticket is redeemed, on every request,
-and every 30 seconds during open HTTP streams and WebSockets. Stop and SSH
-disconnection cancel open traffic immediately. Session deletion is checked by
-the sweeper every 10 seconds. An idle ACP transport disconnect does not terminate
-an otherwise live preview. MCP calls use the existing session credential and its normal lifecycle; external
+and every 30 seconds during open HTTP streams and WebSockets. SSH disconnection
+and an owner-local stop cancel open traffic immediately. A stop or re-share on
+another replica closes the old transport on its next 10-second sweep. Session
+deletion is checked by the sweeper every 10 seconds. An idle ACP transport
+disconnect does not terminate an otherwise live preview. MCP calls use the existing session credential and its normal lifecycle; external
 runtime attachment rotates it. It is never replaced with an owner API token.
 
 New Cursor agents receive this MCP server at creation. Existing Cursor agents
