@@ -2,8 +2,12 @@ package com.macro.call
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
+import android.app.NotificationManager
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import android.webkit.WebView
 import androidx.appcompat.app.AppCompatActivity
 import app.tauri.annotation.*
@@ -151,6 +155,19 @@ class CallPlugin(private val activity: Activity) : Plugin(activity) {
         invoke.resolve()
     }
     @Command fun getVoipToken(invoke: Invoke) { invoke.resolve(JSObject().apply { put("token", org.json.JSONObject.NULL) }) }
+    // Android 14+ revokes full-screen intents unless the user (or a Play declaration) allows them,
+    // so incoming calls can't take over the lock screen.
+    @Command fun canUseFullScreenIntent(invoke: Invoke) {
+        val allowed = Build.VERSION.SDK_INT < 34 || activity.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
+        invoke.resolve(JSObject().apply { put("allowed", allowed) })
+    }
+    @Command fun openFullScreenIntentSettings(invoke: Invoke) {
+        if (Build.VERSION.SDK_INT >= 34) {
+            runCatching { activity.startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:${activity.packageName}"))) }
+                .onFailure { invoke.reject("Unable to open full-screen notification settings"); return }
+        }
+        invoke.resolve()
+    }
     override fun onDestroy(activity: AppCompatActivity) {
         finishPreparePermission(); Calls.abortPendingJoin(activity); Calls.unwatch()
         miniWindow?.release(); miniWindow = null
