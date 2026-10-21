@@ -283,6 +283,8 @@ export function createCrmWorkspace(
     [
       route.tab(),
       ...route.records().map((record) => `${record.type}:${record.id}`),
+      route.section() ?? '',
+      route.commentTarget()?.seek ?? '',
     ].join(' ')
   );
   const context: CrmWorkspace = {
