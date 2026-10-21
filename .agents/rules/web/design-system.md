@@ -31,8 +31,10 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
   documented exceptions.
 - **FE-59** Tabs are navigation and islands are actions: never put `Tabs` or
   `TabSelector` inside a `HeaderActionGroup` or `ButtonGroup`, and never render
-  a tab as a `Button`. Enforced by ast-grep `tsx-tabs-not-in-action-group` and
-  `tsx-no-button-as-tab`, CI error.
+  a tab as a `Button`. A split button (`ButtonGroup` with a menu trigger) is
+  its own island; never nest it inside another, including through
+  `SidePanel.HeaderActions`. Enforced by ast-grep `tsx-tabs-not-in-action-group`
+  and `tsx-no-button-as-tab`, CI error.
 - **FE-60** Lay out a desktop header as one row: title or breadcrumbs, then
   view tabs on the left; islands on the right in the order filters, view
   options, New, Search (detail views: entity actions, sharing, navigation,

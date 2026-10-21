@@ -449,7 +449,10 @@ function Toggle() {
   );
 }
 
-/** Keeps action state in the owning block while rendering it before Share. */
+/**
+ * Keeps action state in the owning block while rendering it before Share.
+ * Wrap the actions in `HeaderActionGroup` islands; a split button keeps its own frame.
+ */
 function HeaderActions(props: ParentProps) {
   const ctx = useContext(SidePanelContext);
   return (
@@ -464,16 +467,11 @@ function HeaderActionsOutlet() {
   onCleanup(() => ctx?.setHeaderActionsMount(undefined));
   return (
     <Show when={ctx}>
-      <HeaderActionGroup
-        label="Actions"
-        class="has-[[data-side-panel-header-actions]:empty]:hidden"
-      >
-        <div
-          ref={ctx?.setHeaderActionsMount}
-          data-side-panel-header-actions
-          class="flex shrink-0 items-center touch:gap-1 empty:hidden [&>div]:contents"
-        />
-      </HeaderActionGroup>
+      <div
+        ref={ctx?.setHeaderActionsMount}
+        data-side-panel-header-actions
+        class="flex shrink-0 items-center gap-2 touch:gap-1 empty:hidden [&>div]:contents"
+      />
     </Show>
   );
 }
