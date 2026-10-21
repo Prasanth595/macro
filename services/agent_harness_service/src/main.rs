@@ -585,8 +585,6 @@ async fn run() -> anyhow::Result<()> {
         .as_ref()
         .map(|runner| Arc::new(runner.clone()) as Arc<dyn code_execution::domain::ProgramExecutor>);
     let code_mode_enabled = code_executor.is_some();
-    // Code mode presents what its runs change through the harness built below.
-    let items_cell = Arc::new(std::sync::OnceLock::new());
     let code_mode: Arc<dyn agent_code_mode::domain::SessionCodeMode> =
         Arc::new(agent_code_mode::domain::CodeModeService::new(
             code_executor,
@@ -605,7 +603,6 @@ async fn run() -> anyhow::Result<()> {
             Arc::new(agent_code_mode::outbound::turns::SessionTurns(
                 session_repo.clone(),
             )),
-            Arc::new(code_mode::items::Late(items_cell.clone())),
         ));
     let session_metadata_realtime = ConnectionGatewayAgentSessionRealtime::new(
         connection_gateway.clone(),
@@ -1188,12 +1185,6 @@ async fn run() -> anyhow::Result<()> {
     reviews_cell
         .set(reviews.clone())
         .map_err(|_| anyhow::anyhow!("Review service was initialized twice"))?;
-    items_cell
-        .set(Arc::new(code_mode::items::Items {
-            harness: harness.clone(),
-        })
-            as Arc<dyn agent_code_mode::domain::ExecutionPresenter>)
-        .map_err(|_| anyhow::anyhow!("Code-mode item presenter was initialized twice"))?;
     let warm_cleanup = Arc::clone(&harness);
     let session_visibility_repo = session_repo.clone();
     tokio::spawn(async move {

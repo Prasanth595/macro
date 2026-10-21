@@ -1,5 +1,5 @@
 //! Bounded, advisory activity derived from the generated SDK operation catalog.
-use super::{ActivityItem, ExecutionActivity, ExecutionRecord, PresentedItem, RecordedCallStatus};
+use super::{ActivityItem, ExecutionActivity, ExecutionRecord, RecordedCallStatus};
 use serde::Deserialize;
 use std::{collections::BTreeMap, sync::LazyLock};
 
@@ -10,8 +10,9 @@ static OPERATIONS: LazyLock<BTreeMap<String, String>> = LazyLock::new(|| {
 /// The longest item id and title a card keeps; the SDK sends titles no longer.
 const MAX_ITEM_ID: usize = 128;
 const MAX_ITEM_TITLE: usize = 100;
-/// The most items one run presents, as the SDK reports no more.
-pub(super) const MAX_PRESENTED_ITEMS: usize = 32;
+/// The most items one run keeps, as the SDK reports no more: the receipt
+/// carrying them goes to the model too.
+const MAX_ITEMS: usize = 32;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -26,32 +27,33 @@ struct Activity {
     item: Option<serde_json::Value>,
 }
 
-/// Record one SDK event. Returns the item a running operation reports on
-/// completing, for the session to show.
-pub(super) fn observe(
-    record: &mut ExecutionRecord,
-    value: serde_json::Value,
-) -> Option<PresentedItem> {
+pub(super) fn observe(record: &mut ExecutionRecord, value: serde_json::Value) {
     if value == serde_json::json!({"truncated": true}) {
         record.activity_truncated = true;
-        return None;
+        return;
     }
-    let event = serde_json::from_value::<Activity>(value).ok()?;
-    let label = OPERATIONS.get(&format!("{}.{}", event.service, event.operation))?;
+    let Ok(event) = serde_json::from_value::<Activity>(value) else {
+        return;
+    };
+    let Some(label) = OPERATIONS.get(&format!("{}.{}", event.service, event.operation)) else {
+        return;
+    };
     let status = match event.status.as_str() {
         "started" => RecordedCallStatus::Running,
         "completed" => RecordedCallStatus::Completed,
         "failed" => RecordedCallStatus::Failed,
-        _ => return None,
+        _ => return,
     };
+    let items = record
+        .activity
+        .iter()
+        .filter(|activity| activity.item.is_some())
+        .count();
     if let Some(existing) = record.activity.iter_mut().find(|item| item.id == event.id) {
         if existing.label == *label && existing.status == RecordedCallStatus::Running {
             existing.status = status;
-            if status == RecordedCallStatus::Completed {
-                return event.item.and_then(item).map(|item| PresentedItem {
-                    activity: event.id,
-                    item,
-                });
+            if status == RecordedCallStatus::Completed && items < MAX_ITEMS {
+                existing.item = event.item.and_then(item);
             }
         }
     } else if status == RecordedCallStatus::Running {
@@ -60,12 +62,12 @@ pub(super) fn observe(
                 id: event.id,
                 label: label.clone(),
                 status,
+                item: None,
             });
         } else {
             record.activity_truncated = true;
         }
     }
-    None
 }
 
 /// An item as a card can carry it: an id of plain characters, and a title

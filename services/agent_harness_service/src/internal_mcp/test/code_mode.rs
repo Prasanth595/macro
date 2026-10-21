@@ -78,7 +78,6 @@ async fn authenticated_mcp_runs_javascript_and_persists_source_and_result(pool: 
                 ),
             ),
         )),
-        Arc::new(crate::code_mode::items::Late(Arc::default())),
     ));
     let repo = InMemoryAgentSessionRepo::new();
     let session = test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::Uuid::from_u128(

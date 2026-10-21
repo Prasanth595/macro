@@ -14,8 +14,8 @@ execution records, and durable review stacks. Process isolation belongs to
 - `SKILL.md`: the agent-facing JavaScript contract and examples.
 - `src/domain/service.rs`: execution admission, identity and persistence; tool
   receipts include observed SDK activity for inline conversation snapshots.
-  Each changed item is presented through `ExecutionPresenter` as its write completes.
-- `src/domain/activity.rs`: SDK activity and the items completed writes report.
+- `src/domain/activity.rs`: SDK activity, and the item each completed write
+  reports, which the conversation shows as that operation's card.
   The SDK side of that mapping is `packages/code-mode-sdk/src/receipts.ts`.
 - `src/domain/reviews.rs`: review validation, revisions, claims and outcomes.
 - `src/domain/documentation.rs`: bounded selection of generated SDK docs.

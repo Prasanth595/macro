@@ -6,9 +6,7 @@
  * Subagents and user tools stay outside groups so delegated work and user
  * interactions remain visible regardless of the surrounding tool traffic.
  * Tools with their own answer or session view always break the run, including
- * while their arguments are still arriving. The items a code-mode run changed
- * are presented as calls of their own; consecutive ones are shown together,
- * as nothing but their cards.
+ * while their arguments are still arriving.
  *
  * A thought at the tail of a run stays out of the group only when the run
  * closes the message: that row is the current (or last) reasoning, and
@@ -23,8 +21,7 @@
 import type { MessagePart } from '@service-agent-fold/generated/types';
 
 export type PartSegment = {
-  /** `cards`: items a code-mode run changed, shown as their cards alone. */
-  kind: 'part' | 'tools' | 'cards';
+  kind: 'part' | 'tools';
   start: number;
   /** Exclusive. A `part` segment spans exactly one index. */
   end: number;
@@ -53,8 +50,7 @@ const SELF_RENDERING_TOOLS: ReadonlySet<string> = new Set([
  */
 export function rendersOwnView(part: MessagePart | undefined): boolean {
   if (part?.kind !== 'tool_use') return false;
-  if (isCodeExecution(part) || presentedReviewId(part) || isPresentedItem(part))
-    return true;
+  if (isCodeExecution(part) || presentedReviewId(part)) return true;
   const macroTool =
     part.detail.kind === 'macro' ||
     (part.detail.kind === 'other' &&
@@ -82,15 +78,6 @@ export function segmentParts(parts: readonly MessagePart[]): PartSegment[] {
   const segments: PartSegment[] = [];
   let start = 0;
   while (start < parts.length) {
-    // The items a code run changed arrive right after it, one call each;
-    // together they are that run's cards.
-    if (isPresentedItem(parts[start])) {
-      let end = start + 1;
-      while (end < parts.length && isPresentedItem(parts[end])) end += 1;
-      segments.push({ kind: 'cards', start, end });
-      start = end;
-      continue;
-    }
     if (!isGroupable(parts[start])) {
       segments.push({ kind: 'part', start, end: start + 1 });
       start += 1;
@@ -125,21 +112,6 @@ export function isCodeExecution(part: MessagePart): boolean {
     part.name.kind === 'mcp' &&
     part.name.server === 'macro_internal' &&
     part.name.tool === 'ExecuteCode'
-  );
-}
-
-/**
- * A presentation Macro writes as each write of a code-mode run completes.
- * The fold makes it the item's card; no agent can call it. Its id names
- * the run and the write, so an agent's own call by that name never matches.
- */
-export function isPresentedItem(part: MessagePart | undefined): boolean {
-  return (
-    part?.kind === 'tool_use' &&
-    part.name.kind === 'mcp' &&
-    part.name.server === 'macro_internal' &&
-    part.name.tool === 'PresentItem' &&
-    part.id.startsWith('item_')
   );
 }
 

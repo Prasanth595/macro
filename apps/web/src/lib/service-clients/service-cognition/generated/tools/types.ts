@@ -4795,6 +4795,29 @@ export type ExecutionStatus =
  * A dispatch result; unfinished work is never reported as success.
  */
 export type RecordedCallStatus = 'running' | 'completed' | 'failed' | 'unknown';
+/**
+ * The kinds of item the SDK reports; named as the agent fold reads them.
+ */
+export type ActivityItemType =
+  | 'document'
+  | 'email_thread'
+  | 'calendar_event'
+  | 'project'
+  | 'channel'
+  | 'form'
+  | 'initiative';
+/**
+ * What an operation did to its item; named as the agent fold reads them.
+ */
+export type ActivityItemAction =
+  | 'created'
+  | 'edited'
+  | 'sent'
+  | 'updated'
+  | 'moved'
+  | 'renamed'
+  | 'commented'
+  | 'deleted';
 export type ContentType =
   | 'channel'
   | 'channel-message'
@@ -15390,6 +15413,29 @@ export interface ExecutionActivity {
    */
   label: string;
   status: RecordedCallStatus;
+  /**
+   * The item the operation created or changed, once it completed: what
+   * its card in the conversation opens.
+   */
+  item?: ActivityItem | null;
+}
+/**
+ * A workspace item a completed SDK operation created or changed, as the
+ * program's SDK reported it. Advisory like the activity it came with: the
+ * conversation shows it as a card, and readers open the item with their own
+ * access.
+ */
+export interface ActivityItem {
+  type: ActivityItemType;
+  /**
+   * The item's id.
+   */
+  id: string;
+  action: ActivityItemAction;
+  /**
+   * The item's name, when the operation carried one.
+   */
+  title?: string | null;
 }
 /**
  * Retrieve a chat thread's message history by its ID. Returns the conversation title and messages with their roles, content, and attachment references.

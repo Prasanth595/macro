@@ -34,13 +34,8 @@ struct Inner {
     credentials: Arc<dyn ExecutionCredentials>,
     store: Arc<dyn ExecutionStore>,
     turns: Arc<dyn ExecutionTurns>,
-    presenter: Arc<dyn ExecutionPresenter>,
     admission: Arc<Semaphore>,
 }
-
-/// How long a finished run waits for the cards of what it changed before
-/// answering, so the agent's reply follows them. Slower ones still land.
-const PRESENTATION_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// Code-mode policy over interchangeable execution, credential, and storage capabilities.
 #[derive(Clone)]
@@ -53,7 +48,6 @@ impl CodeModeService {
         credentials: Arc<dyn ExecutionCredentials>,
         store: Arc<dyn ExecutionStore>,
         turns: Arc<dyn ExecutionTurns>,
-        presenter: Arc<dyn ExecutionPresenter>,
     ) -> Self {
         let limits = Limits::default();
         Self(Arc::new(Inner {
@@ -61,7 +55,6 @@ impl CodeModeService {
             credentials,
             store,
             turns,
-            presenter,
             admission: Arc::new(Semaphore::new(limits.max_running + limits.max_queued)),
         }))
     }
@@ -125,7 +118,6 @@ impl CodeModeService {
             return Ok(receipt(&record));
         }
         let (progress, mut updates) = tokio::sync::mpsc::channel(512);
-        let (changed, presenting) = self.presenting(&identity);
         let execution = self
             .0
             .executor
@@ -154,9 +146,7 @@ impl CodeModeService {
                 () = &mut watch_turn => break execution.await,
                 update = updates.recv(), if progress_open => {
                     if let Some(value) = update {
-                        if let Some(item) = super::activity::observe(&mut record, value) {
-                            let _ = changed.send(item);
-                        }
+                        super::activity::observe(&mut record, value);
                         dirty = true;
                     } else {
                         progress_open = false;
@@ -180,11 +170,8 @@ impl CodeModeService {
             }
         };
         while let Ok(value) = updates.try_recv() {
-            if let Some(item) = super::activity::observe(&mut record, value) {
-                let _ = changed.send(item);
-            }
+            super::activity::observe(&mut record, value);
         }
-        drop(changed);
         super::activity::finish(&mut record);
         let (status, result, error) = match outcome {
             Outcome::Succeeded { mut value } => {
@@ -226,54 +213,7 @@ impl CodeModeService {
         record.result = result;
         record.error = error;
         self.0.store.save(identity.session, &record).await?;
-        if tokio::time::timeout(PRESENTATION_WAIT, presenting)
-            .await
-            .is_err()
-        {
-            tracing::warn!("code-mode items still presenting after the run finished");
-        }
         Ok(receipt(&record))
-    }
-
-    /// Present each item the run changes as its operation completes, in
-    /// order, without holding up the run. The task ends once the sender drops.
-    fn presenting(
-        &self,
-        identity: &ExecutionIdentity,
-    ) -> (
-        tokio::sync::mpsc::UnboundedSender<PresentedItem>,
-        tokio::task::JoinHandle<()>,
-    ) {
-        let (sender, mut items) = tokio::sync::mpsc::unbounded_channel::<PresentedItem>();
-        let presenter = Arc::clone(&self.0.presenter);
-        let identity = identity.clone();
-        let task = tokio::spawn(
-            async move {
-                let mut remaining = super::activity::MAX_PRESENTED_ITEMS;
-                while let Some(item) = items.recv().await {
-                    if remaining == 0 {
-                        continue;
-                    }
-                    remaining -= 1;
-                    let span = tracing::info_span!(
-                        "code_mode.present_item",
-                        execution_id = %identity.execution,
-                        activity = item.activity,
-                        item_type = ?item.item.item_type,
-                        action = ?item.item.action,
-                    );
-                    if let Err(error) = presenter.present(&identity, &item).instrument(span).await {
-                        tracing::warn!(
-                            ?error,
-                            activity = item.activity,
-                            "could not present a changed item"
-                        );
-                    }
-                }
-            }
-            .in_current_span(),
-        );
-        (sender, task)
     }
 }
 

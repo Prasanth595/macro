@@ -1,4 +1,4 @@
-use super::{CodeModeError, ExecutionId, ExecutionIdentity, ExecutionRecord, PresentedItem};
+use super::{CodeModeError, ExecutionId, ExecutionIdentity, ExecutionRecord};
 use agent_session::domain::model::AgentSessionId;
 use async_trait::async_trait;
 use code_execution::domain::RunEnvironment;
@@ -25,18 +25,6 @@ pub trait ExecutionCredentials: Send + Sync + 'static {
         source: &str,
         cancel: CancellationToken,
     ) -> Result<RunEnvironment, CodeModeError>;
-}
-
-/// Shows the session's reader what a run changed, as the run changes it.
-#[async_trait]
-pub trait ExecutionPresenter: Send + Sync + 'static {
-    /// Persist and stream a completed presentation of one changed item.
-    /// Presenting the same activity again must not duplicate it.
-    async fn present(
-        &self,
-        identity: &ExecutionIdentity,
-        item: &PresentedItem,
-    ) -> Result<(), CodeModeError>;
 }
 
 /// Durable code execution records, always scoped by the owning session.
