@@ -18,7 +18,7 @@ export function CreateMenuAction(props: {
       {props.shiftHeld ? 'Create in new split' : `Create ${props.item.label}`}
       <Hotkey
         shortcut={props.shiftHeld ? 'shift+enter' : 'enter'}
-        class="text-base"
+        class="text-xs opacity-55"
         aria-hidden="true"
       />
     </Button>
