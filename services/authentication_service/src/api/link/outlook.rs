@@ -197,16 +197,19 @@ pub async fn email_connection_providers(
     {
         return Err(InitOutlookLinkError::InvalidReturnUrl);
     }
+    // The consent URL is an optional extra; a failure to sign it must not hide
+    // which providers are available.
     let outlook_admin_consent_url = match (&ctx.microsoft_auth, original_url) {
-        (Some(service), Some(original_url)) => Some(
-            service
-                .admin_consent_url(
-                    &format_redirect_uri("microsoft"),
-                    original_url.as_str(),
-                    ctx.calendar_scope_enabled,
-                )
-                .map_err(map_domain_error)?,
-        ),
+        (Some(service), Some(original_url)) => service
+            .admin_consent_url(
+                &format_redirect_uri("microsoft"),
+                original_url.as_str(),
+                ctx.calendar_scope_enabled,
+            )
+            .inspect_err(|error| {
+                tracing::warn!(error=?error, "unable to build Outlook admin-consent URL");
+            })
+            .ok(),
         _ => None,
     };
     Ok(Json(EmailConnectionProviders {

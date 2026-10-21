@@ -313,10 +313,7 @@ async fn verify_pending_link_owner(
 /// Sends the administrator's browser back to the app with the result of a
 /// tenant-wide consent request. Microsoft reports success with
 /// `admin_consent=True` and a refusal with `error`; neither carries a code.
-fn admin_consent_outcome(
-    params: &Params,
-    consent: &AdminConsentState,
-) -> Result<Response, Response> {
+fn admin_consent_outcome(params: &Params, consent: &AdminConsentState) -> Response {
     let provider = provider_query_value(consent.provider);
     let granted = params
         .admin_consent
@@ -338,7 +335,7 @@ fn admin_consent_outcome(
         ("email_link_error", failure.as_str())
     };
     account_link::build_return_redirect(&consent.original_url, &[outcome, ("provider", provider)])
-        .map_err(IntoResponse::into_response)
+        .unwrap_or_else(IntoResponse::into_response)
 }
 
 /// Answers a consent screen that came back without an authorization code.
@@ -346,10 +343,7 @@ fn admin_consent_outcome(
 /// A link flow started from a page in the app, which explains the outcome in
 /// place, so it is sent back there with an `email_link_error`. Sign-in has no
 /// such page and keeps the error body.
-fn consent_failure_response(
-    link_state: Option<&AccountLinkState>,
-    params: &Params,
-) -> Result<Response, Response> {
+fn consent_failure_response(link_state: Option<&AccountLinkState>, params: &Params) -> Response {
     let failure =
         ConsentFailure::classify(params.error.as_deref(), params.error_description.as_deref());
     tracing::info!(
@@ -371,13 +365,13 @@ fn consent_failure_response(
                 ("provider", provider_query_value(link_state.provider)),
             ],
         )
-        .map_err(IntoResponse::into_response);
+        .unwrap_or_else(IntoResponse::into_response);
     }
 
-    Err(error_response(
+    error_response(
         StatusCode::BAD_REQUEST,
         "Sign-in failed. Please try again or contact support.",
-    ))
+    )
 }
 
 /// Custom OAuth2 callback
@@ -468,7 +462,9 @@ pub(in crate::api) async fn handler(
     })?;
 
     let (link_state, state) = match state {
-        CallbackState::AdminConsent(consent) => return admin_consent_outcome(&params, &consent),
+        CallbackState::AdminConsent(consent) => {
+            return Ok(admin_consent_outcome(&params, &consent));
+        }
         CallbackState::Login(state) => (None, state),
         CallbackState::AccountLink(link_state) => {
             let state = OAuthState::from(&link_state);
@@ -477,7 +473,7 @@ pub(in crate::api) async fn handler(
     };
 
     let Some(code) = params.code.as_deref() else {
-        return consent_failure_response(link_state.as_ref(), &params);
+        return Ok(consent_failure_response(link_state.as_ref(), &params));
     };
 
     if let Some(link_state) = &link_state {
@@ -485,12 +481,12 @@ pub(in crate::api) async fn handler(
     }
 
     match provider.as_str() {
-        "google" => google::handler(&ctx, cookies, &code, &state).await,
-        "github" => github::handler(&ctx, cookies, &code, &state)
+        "google" => google::handler(&ctx, cookies, code, &state).await,
+        "github" => github::handler(&ctx, cookies, code, &state)
             .await
             .map(|r| r.into_response())
             .map_err(|e| e.into_response()),
-        "microsoft" => microsoft::handler(&ctx, &code, &state).await,
+        "microsoft" => microsoft::handler(&ctx, code, &state).await,
         _ => Err(error_response(
             StatusCode::NOT_IMPLEMENTED,
             "oauth2 callback not implemented for this provider",

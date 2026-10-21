@@ -362,8 +362,7 @@ fn admin_consent_return_redirects_to_the_app_with_the_outcome() {
     let granted = admin_consent_outcome(
         &params("state=s&admin_consent=True&tenant=cfc674f9-d10b-4b48-a2be-d018a76a6c27"),
         &consent,
-    )
-    .unwrap();
+    );
     assert_eq!(
         redirect_query(granted),
         vec![
@@ -378,8 +377,7 @@ fn admin_consent_return_redirects_to_the_app_with_the_outcome() {
             "state=s&error=access_denied&error_description=AADSTS65004%3A+User+declined+to+consent",
         ),
         &consent,
-    )
-    .unwrap();
+    );
     assert_eq!(
         redirect_query(declined),
         vec![
@@ -399,8 +397,7 @@ fn consent_failure_sends_a_link_flow_back_to_the_app() {
         &params(
             "state=s&error=access_denied&error_description=AADSTS65001%3A+The+user+or+administrator+has+not+consented",
         ),
-    )
-    .unwrap();
+    );
 
     assert_eq!(
         redirect_query(response),
@@ -414,8 +411,7 @@ fn consent_failure_sends_a_link_flow_back_to_the_app() {
 
 #[test]
 fn consent_failure_during_sign_in_keeps_the_error_body() {
-    let response =
-        consent_failure_response(None, &params("state=s&error=access_denied")).unwrap_err();
+    let response = consent_failure_response(None, &params("state=s&error=access_denied"));
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
