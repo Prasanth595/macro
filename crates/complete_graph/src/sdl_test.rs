@@ -190,6 +190,7 @@ fn soup_response_schema_exposes_frontend_fields() {
         "GraphqlChannelMentionMetadata",
         "GraphqlEntityAccessRequestedMetadata",
         "GraphqlEntityAccessGrantedMetadata",
+        "GraphqlChannelAccessRequestedMetadata",
     ] {
         assert!(
             metadata

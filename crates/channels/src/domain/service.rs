@@ -25,6 +25,7 @@ use models_pagination::{CreatedAt, PaginateOn, Query};
 use std::sync::Arc;
 use uuid::Uuid;
 
+mod access_requests;
 mod import;
 
 #[cfg(test)]
