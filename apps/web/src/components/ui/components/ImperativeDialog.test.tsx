@@ -1,11 +1,29 @@
 import { cleanup, render, screen } from '@solidjs/testing-library';
 import { createRoot, getOwner } from 'solid-js';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ImperativeDialogHost, openDialog } from './ImperativeDialog';
 
 afterEach(cleanup);
 
 describe('keyed imperative dialogs', () => {
+  it('closes safely after an unidentifiable trigger is removed', async () => {
+    vi.useFakeTimers();
+    try {
+      const trigger = document.createElement('button');
+      document.body.append(trigger);
+      trigger.focus();
+      render(() => <ImperativeDialogHost />);
+      const handle = openDialog(() => <div role="dialog">Edit</div>, {});
+      trigger.remove();
+      handle.close();
+      await handle.closed;
+      await vi.runAllTimersAsync();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('reuses simultaneous openers and permits reopening after dismissal', async () => {
     render(() => <ImperativeDialogHost />);
     const Dialog = () => <div role="dialog">Share</div>;

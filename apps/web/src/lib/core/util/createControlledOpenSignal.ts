@@ -82,6 +82,7 @@ function focusLast(element: Element) {
         // attributeToSelector still doesn't guarentee node is unique for all cases
         // new rendered node might have different arribute value
         const selector = attributesToSelector(element);
+        if (!selector) return;
         const fallbackElement = document.querySelector(selector) as HTMLElement;
 
         if (fallbackElement instanceof HTMLElement) {
