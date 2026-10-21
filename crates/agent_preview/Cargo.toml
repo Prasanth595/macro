@@ -40,6 +40,7 @@ chrono = { workspace = true }
 macro_tower_layers = { path = "../macro_tower_layers" }
 
 [dev-dependencies]
+macro_db_migrator = { path = "../macro_db_migrator" }
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = "3"
 tower = { workspace = true }

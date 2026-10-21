@@ -188,10 +188,20 @@ impl PreviewRepository for PgPreviewRepository {
             credential.hash.as_slice(), kind.as_str(), credential.preview.to_string(), user, expires,
             limit
         ).execute(&mut *tx).await.map_err(unavailable)?;
-        tx.commit().await.map_err(unavailable)?;
         if inserted.rows_affected() == 0 {
-            return Err(PreviewError::Limited);
+            let live = sqlx::query_scalar!(
+                r#"SELECT EXISTS (SELECT 1 FROM agent_preview_lease l
+                   WHERE id = $1 AND status = 'ready' AND expires_at > now()
+                   AND EXISTS (SELECT 1 FROM agent_preview_replica r WHERE r.id = l.replica_id AND r.expires_at > now())) AS "live!""#,
+                credential.preview.to_string()
+            ).fetch_one(&mut *tx).await.map_err(unavailable)?;
+            return Err(if live {
+                PreviewError::Limited
+            } else {
+                PreviewError::Offline
+            });
         }
+        tx.commit().await.map_err(unavailable)?;
         Ok(())
     }
     #[tracing::instrument(skip_all, fields(preview_id = %id), err)]

@@ -45,8 +45,9 @@ on stock OpenSSH reverse forwarding.
   owners are offline after 45 seconds. Preview IDs fence replacement/cleanup.
 - Public peers must be mutually reachable; destinations come only from the
   shared replica registry. A hop marker only prevents loops and never grants auth.
-- Vite's module fan-out must be queued, not refused as `text/plain`, or HMR
-  breaks silently (see git history on `src/inbound/http.rs`).
+- Queue owner-side per-preview HTTP streams for Vite module fan-out (see
+  `src/inbound/http.rs`); replica-wide unauthenticated forwarding admission
+  rejects overload before dialing to bound waiting requests and sockets.
 
 ## Related
 

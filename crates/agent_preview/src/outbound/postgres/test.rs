@@ -14,6 +14,7 @@ use axum::{
 use entity_access::domain::models::AccessLevel;
 use futures_util::{SinkExt, StreamExt};
 use http_body_util::BodyExt;
+use macro_db_migrator::MACRO_DB_MIGRATIONS;
 use std::sync::{Arc, Mutex};
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -40,14 +41,7 @@ impl Events for RecordedEvents {
         Ok(())
     }
 }
-async fn repository(pool: PgPool) -> Arc<PgPreviewRepository> {
-    // This database is private to sqlx::test, never a shared local stack.
-    sqlx::raw_sql(include_str!(
-        "../../../../macro_db_client/migrations/20261021205701_agent_preview_replication.sql"
-    ))
-    .execute(&pool)
-    .await
-    .unwrap();
+fn repository(pool: PgPool) -> Arc<PgPreviewRepository> {
     Arc::new(PgPreviewRepository::new(pool))
 }
 fn replica(
@@ -101,9 +95,9 @@ async fn http(
     result.map(axum::body::Body::new)
 }
 
-#[sqlx::test(migrations = false)]
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn two_replicas_route_stock_ssh_browser_http_and_websocket(pool: PgPool) {
-    let repo = repository(pool.clone()).await;
+    let repo = repository(pool.clone());
     let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let app_port = upstream.local_addr().unwrap().port();
     let upstream_task = tokio::spawn(
@@ -344,9 +338,9 @@ async fn two_replicas_route_stock_ssh_browser_http_and_websocket(pool: PgPool) {
     upstream_task.abort();
 }
 
-#[sqlx::test(migrations = false)]
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn replacement_stop_stale_owner_and_late_cleanup_are_fenced(pool: PgPool) {
-    let repo = repository(pool.clone()).await;
+    let repo = repository(pool.clone());
     let (base, authority, _) = fixture(2222);
     let events = Arc::new(RecordedEvents::default());
     let a_id = Uuid::now_v7();
@@ -475,9 +469,9 @@ async fn replacement_stop_stale_owner_and_late_cleanup_are_fenced(pool: PgPool) 
     );
 }
 
-#[sqlx::test(migrations = false)]
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn concurrent_credentials_are_single_use_host_bound_and_bounded(pool: PgPool) {
-    let repo = repository(pool.clone()).await;
+    let repo = repository(pool.clone());
     let (base, authority, _) = fixture(2222);
     let events = Arc::new(RecordedEvents::default());
     let a_id = Uuid::now_v7();
@@ -538,11 +532,29 @@ async fn concurrent_credentials_are_single_use_host_bound_and_bounded(pool: PgPo
             .await
             .unwrap();
     assert_eq!(count, Some(1));
+    sqlx::query!("UPDATE agent_preview_replica SET expires_at = now() - interval '1 second'")
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(matches!(
+        repo.credential(
+            CredentialKind::Ticket,
+            StoredCredential {
+                hash: [3; 32],
+                preview: share.preview.id,
+                user: Some(user()),
+                expires: Utc::now().timestamp_millis() + 30000,
+            },
+            1,
+        )
+        .await,
+        Err(PreviewError::Offline)
+    ));
 }
 
-#[sqlx::test(migrations = false)]
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn expired_watchers_cannot_renew_past_active_limits(pool: PgPool) {
-    let repo = repository(pool.clone()).await;
+    let repo = repository(pool.clone());
     let other = MacroUserIdStr::try_from("macro|second@example.com".to_owned()).unwrap();
     let limits = WatchLimits {
         sessions: 1,

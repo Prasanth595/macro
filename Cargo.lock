@@ -654,6 +654,7 @@ dependencies = [
  "hyper 1.9.0",
  "hyper-util",
  "macro_authorization",
+ "macro_db_migrator",
  "macro_tower_layers",
  "macro_user_id",
  "rand 0.9.4",

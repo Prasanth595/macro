@@ -99,6 +99,8 @@ still applies the full origin, one-use ticket, cookie and entity-access checks.
 A client-supplied hop marker can only prevent forwarding, never authenticate it.
 Peer sockets and upgraded streams have separate bounded admission; body limits
 apply before peer dial and admission stays held through the streamed response.
+Forwarding overload returns HTTP 429 before opening a socket; owner-side
+per-preview HTTP streams retain their existing queueing behavior.
 
 Each process mints a replica ID and registers the private interface selected by
 the existing database route (UDP connect selects the interface without sending
