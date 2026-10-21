@@ -187,7 +187,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
             <Popover.Content
               class={cn(
                 'portal-scope z-action-menu flex max-h-[var(--kb-popper-content-available-height)] max-w-[var(--kb-popper-content-available-width,calc(100vw-1rem))] min-w-0 flex-col overflow-hidden rounded-2xl border border-edge bg-menu-glass glass menu-open-animation',
-                isMobile() ? 'w-80' : singleMonth() ? 'w-[34rem]' : 'w-[52rem]'
+                isMobile() ? 'w-80' : singleMonth() ? 'w-[29rem]' : 'w-[46rem]'
               )}
               onKeyDown={(event) => {
                 if (event.key !== 'Escape') return;
@@ -198,11 +198,11 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
               onCloseAutoFocus={(event) => event.preventDefault()}
             >
               <div class="@container min-h-0 overflow-y-auto overscroll-contain">
-                <Popover.Title class="px-4 pt-4 text-xs font-medium text-ink">
+                <Popover.Title class="px-3 pt-3 text-xs font-medium text-ink">
                   Event date and time
                 </Popover.Title>
-                <div class="grid @lg:grid-cols-[minmax(0,1fr)_11rem]">
-                  <div class="px-4 pb-4 pt-3">
+                <div class="grid @md:grid-cols-[minmax(0,1fr)_10rem]">
+                  <div class="px-3 pb-3 pt-2">
                     <RangeCalendar
                       required
                       fixedWeeks
@@ -230,8 +230,8 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
                       </p>
                     </div>
                   </div>
-                  <div class="border-t border-edge p-3 @lg:border-l @lg:border-t-0">
-                    <div class="grid grid-cols-2 gap-3 @lg:grid-cols-1">
+                  <div class="border-t border-edge p-3 @md:border-l @md:border-t-0">
+                    <div class="grid grid-cols-2 gap-3 @md:grid-cols-1">
                       <Show
                         when={!props.startReadOnly}
                         fallback={

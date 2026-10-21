@@ -35,7 +35,7 @@ export default defineDoc({
   category: 'Inputs',
   status: 'stable',
   description:
-    'Connected month grids with adjacent-month dates, month/year drill-down, shared range selection, and keyboard navigation.',
+    'Compact connected month grids with larger touch dates, adjacent-month dates, month/year drill-down, shared range selection, and keyboard navigation.',
   exports: ['RangeCalendar'],
   import: "import { RangeCalendar } from '@ui';",
   demos: [

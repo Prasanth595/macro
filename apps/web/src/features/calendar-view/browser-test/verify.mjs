@@ -156,6 +156,16 @@ async function verifyDateRange(page, monthCount) {
     assert.equal(await outsideDay.isVisible(), true);
     assert.notEqual(await outsideDay.evaluate((element) => getComputedStyle(element).visibility), 'hidden');
   }
+  const compactGrid = await picker.locator('table').first().evaluate((table) => {
+    const day = table.querySelector('tbody button');
+    return {
+      height: table.getBoundingClientRect().height,
+      dayHeight: day.getBoundingClientRect().height,
+      touch: document.documentElement.dataset.touchDevice === 'true',
+    };
+  });
+  assert.ok(Math.abs(compactGrid.dayHeight - (compactGrid.touch ? 36 : 28)) < 0.1, 'Compact dates must retain their touch target size');
+  assert.ok(compactGrid.height <= (compactGrid.touch ? 264 : 208), 'Month grids must stay compact');
   const summaryGap = await picker.getByRole('status').evaluate((element) => {
     const table = Array.from(element.previousElementSibling.querySelectorAll('table')).at(-1);
     return element.getBoundingClientRect().top - table.getBoundingClientRect().bottom;
@@ -218,7 +228,7 @@ async function verifyDateRange(page, monthCount) {
       end: element.querySelector('input[id^="composer-end-time-"]').getBoundingClientRect().toJSON(),
     };
   });
-  if (geometry.width >= 514) {
+  if (geometry.width >= 450) {
     assert.ok(geometry.start.x >= geometry.calendarRight && geometry.end.x >= geometry.calendarRight, 'Time controls must sit to the right of the calendars');
     assert.ok(Math.abs(geometry.start.x - geometry.end.x) < 1, 'Time controls must share a right-side column');
   } else {

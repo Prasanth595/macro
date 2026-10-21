@@ -141,8 +141,10 @@ the locked endpoint unchanged while allowing the other endpoint to be edited.
 All-day dates include the selected last day; saving still uses an exclusive end.
 The date picker portals globally outside the editor/sidebar at depth 4. Same-day
 ranges show one month and the start/end times; multi-day ranges show two connected
-months on desktop/tablet. Phones always show one navigable month. Month panels
-remain side by side when there is room in the window, regardless of sidebar width.
+months on desktop/tablet. Phones always show one navigable month.
+Desktop month grids use compact 28px dates and tighter padding; touch dates keep
+36px targets. Month panels remain side by side when there is room in the window,
+regardless of sidebar width.
 On wide screens, start/end times and All day sit in a column to the right of the
 calendars. Phones and narrow windows keep both time inputs side by side below.
 Adjacent-month dates remain visible and muted. Each month heading opens a month/year

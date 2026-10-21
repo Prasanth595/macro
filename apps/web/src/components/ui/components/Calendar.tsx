@@ -179,7 +179,7 @@ export function RangeCalendar(props: RangeCalendarProps) {
                   class={cn(
                     'min-w-0',
                     calendar.numberOfMonths > 1 &&
-                      'first:pb-4 last:pt-4 @lg:first:pb-0 @lg:first:pr-4 @lg:last:pt-0 @lg:last:pl-4'
+                      'first:pb-3 last:pt-3 @lg:first:pb-0 @lg:first:pr-3 @lg:last:pt-0 @lg:last:pl-3'
                   )}
                 >
                   <div class="flex min-h-7 items-center gap-1">
@@ -267,7 +267,7 @@ function CalendarMonthGrid(props: {
       index={props.index}
       class={cn(
         'mt-2 w-full table-fixed border-collapse',
-        props.range && 'border-separate border-spacing-y-1'
+        props.range && 'mt-1.5 border-separate border-spacing-y-0.5'
       )}
     >
       <thead>
@@ -278,7 +278,7 @@ function CalendarMonthGrid(props: {
                 abbr={formatWeekdayLong(weekday())}
                 class={cn(
                   'h-7 text-center text-[10px] font-medium text-ink-extra-muted',
-                  props.range && 'h-9 text-xs'
+                  props.range && 'h-6 text-xxs touch:h-8 touch:text-xs'
                 )}
               >
                 {formatWeekdayNarrow(weekday())}
@@ -329,7 +329,7 @@ function CalendarMonthGrid(props: {
                       class={cn(
                         'mx-auto flex size-7 items-center justify-center rounded-md text-xs text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:ring focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-30 data-today:border data-today:border-accent data-today:font-semibold data-highlighted-range:text-ink',
                         props.range
-                          ? 'size-9 rounded-xl text-sm data-outside-month:text-ink-extra-muted data-range-start:bg-accent! data-range-start:text-surface! data-range-end:bg-accent! data-range-end:text-surface!'
+                          ? 'size-7 rounded-lg text-xs touch:size-9 touch:text-sm data-outside-month:text-ink-extra-muted data-range-start:bg-accent! data-range-start:text-surface! data-range-end:bg-accent! data-range-end:text-surface!'
                           : 'data-selected:bg-accent! data-selected:text-surface!'
                       )}
                     >
