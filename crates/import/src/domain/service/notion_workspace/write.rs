@@ -1,30 +1,34 @@
 //! Writing an approved plan: folders mirroring the page tree, documents,
 //! databases with their rows and relations, and task lists.
+//!
+//! A write can stop part way (a crash, a deploy) and resume in another
+//! process, so it never creates the same thing twice: documents and tasks
+//! get ids derived from their ledger row and Notion object, which Macro
+//! refuses to create twice, and everything else is recorded as it is made
+//! ([`Progress`]) and reused when the write resumes.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
 use futures::{FutureExt, StreamExt, stream};
 use import_notion::domain::inventory::{all_rows, full_markdown};
-use import_notion::domain::model::{NotionId, NotionPage, NotionPropertyKind};
+use import_notion::domain::model::NotionId;
 use import_notion::domain::ports::NotionApi;
 use macro_user_id::user_id::MacroUserIdStr;
-use models_databases::{
-    CellValue, CellWrite, ColumnChange, ColumnId, ColumnKind, DatabaseId, DatabaseOp, EntityKind,
-    EntityRef, NewColumn, NewOption, OpResult, RowChange, RowChanges, RowId, RowsChange,
-    RowsResult, TableChange, TableId,
-};
 use uuid::Uuid;
 
 use crate::domain::models::{
-    ImportEntity, ImportKind, NotionDecision, NotionDocMeta, NotionTaskFields,
+    ImportEntity, ImportKind, NotionDecision, NotionDocMeta, NotionTaskFields, WrittenKind,
+    WrittenObject,
 };
-use crate::domain::ports::{ImportedDocumentProperties, WorkspaceWriter};
+use crate::domain::ports::{
+    NotionLinks, NotionPageLink, NotionUserLink, SharedEntity, WorkspaceWriter, WrittenObjects,
+};
 
-use super::super::{normalize_notion_markdown, remove_notion_databases};
-use super::values::{
-    PeopleMap, PlannedColumn, capped_name, cell, planned_column, task_body, task_properties,
-};
+use super::values::{PeopleMap, capped_name, derived_id, task_body, task_properties};
+
+mod database;
+pub(super) use database::{WrittenDatabase, link_relations, recorded_database, write_database};
 
 #[cfg(test)]
 mod test;
@@ -33,20 +37,17 @@ mod test;
 pub(super) const WRITE_CONCURRENCY: usize = 4;
 /// Row bodies fetched at once within one database.
 const BODY_CONCURRENCY: usize = 3;
-/// Rows per insert batch, well under the 10,000-row batch limit.
-const ROWS_PER_BATCH: usize = 500;
 /// Name of the folder every workspace import writes into.
 pub(super) const ROOT_FOLDER: &str = "Notion";
-/// Name of the column linking a database row to its page body.
-const PAGE_COLUMN: &str = "Page";
 
 /// Ledger entity types for what an import creates.
 pub(super) const DOCUMENT_ENTITY: &str = "md";
 pub(super) const DATABASE_ENTITY: &str = "database";
 pub(super) const FOLDER_ENTITY: &str = "project";
 
-/// Set once the user cancels; long writes check it between batches, rows
-/// and tasks so a stop takes effect within seconds.
+/// Set once the write must stop (the user cancelled, the process is shutting
+/// down, or another process took the run over); long writes check it between
+/// batches, rows and tasks so a stop takes effect within seconds.
 #[derive(Debug, Default)]
 pub(super) struct Cancel(std::sync::atomic::AtomicBool);
 
@@ -85,9 +86,22 @@ pub(super) struct WriteItem {
     pub decision: NotionDecision,
     /// For a task list: which columns hold the task fields.
     pub task_fields: NotionTaskFields,
+    /// Shared with the user's team once written.
+    pub shared: bool,
+    /// Whether the owner may change `shared`.
+    pub shareable: bool,
+    /// A teammate's copy shared with the team stands in for it.
+    pub already_imported: bool,
 }
 
 impl WriteItem {
+    /// Whether writing the plan creates something for this object, rather
+    /// than linking a teammate's copy.
+    pub fn writes(&self) -> bool {
+        matches!(self.decision, NotionDecision::Copy | NotionDecision::Tasks)
+            && !self.already_imported
+    }
+
     /// Read a staged ledger row; `None` for rows that are not plan items.
     pub fn from_entity(entity: &ImportEntity) -> Option<Self> {
         let meta: NotionDocMeta = serde_json::from_value(entity.metadata.clone()).ok()?;
@@ -100,6 +114,9 @@ impl WriteItem {
             title: meta.title,
             decision: plan.decision,
             task_fields: plan.task_fields.unwrap_or_default(),
+            shared: plan.shared,
+            shareable: plan.shareable,
+            already_imported: plan.already_imported.is_some(),
         })
     }
 }
@@ -176,540 +193,210 @@ pub(super) fn folder_for(
     root
 }
 
-/// A page body in Macro's markdown. Child databases are dropped: they are
-/// imported as databases of their own.
-pub(super) fn page_markdown(notion_markdown: &str) -> String {
-    normalize_notion_markdown(&remove_notion_databases(notion_markdown))
-        .trim()
-        .to_string()
-}
-
-/// One row of a written database, for linking relations afterwards.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct WrittenRow {
-    /// The database.
-    pub database: DatabaseId,
-    /// Its table.
-    pub table: TableId,
-    /// The row.
-    pub row: RowId,
-}
-
-/// A relation column waiting until every table exists.
-#[derive(Debug, Clone, PartialEq)]
-pub(super) struct PendingRelation {
-    /// The database holding the column.
-    pub database: Uuid,
-    /// Its table.
-    pub table: TableId,
-    /// The column name.
-    pub name: String,
-    /// The data source the relation points at.
-    pub target: Option<NotionId>,
-    /// Each written row's related Notion pages.
-    pub links: Vec<(RowId, Vec<NotionId>)>,
-}
-
-/// What writing one data source produced.
-#[derive(Debug, Clone, PartialEq, Default)]
-pub(super) struct WrittenDatabase {
-    /// The Macro database.
-    pub database_id: Uuid,
-    /// The data source's table in it.
-    pub table: Option<TableId>,
-    /// Notion row id → written row.
-    pub rows: HashMap<NotionId, WrittenRow>,
-    /// Relations to link once every table exists.
-    pub relations: Vec<PendingRelation>,
-}
-
-/// Write one data source as a database: columns from its schema, every row,
-/// each row's body as a linked document, and relations left pending.
-pub(super) async fn write_database<Api: NotionApi, Writer: WorkspaceWriter>(
-    api: &Api,
-    writer: &Writer,
-    user: &MacroUserIdStr<'static>,
-    item: &WriteItem,
-    folder: Uuid,
+/// Where the plan's pages and people resolve in Macro: every page gets the
+/// id of the document it becomes (`imported` when it already exists,
+/// otherwise [`document_id`], known before anything is written), and every
+/// person matched to a teammate their account.
+pub(super) fn notion_links(
+    items: &[WriteItem],
+    imported: &HashMap<NotionId, Uuid>,
     people: &PeopleMap,
-    cancel: &Cancel,
-) -> anyhow::Result<WrittenDatabase> {
-    let source = api.data_source(&item.notion_id).await?;
-    let created = writer
-        .create_database(user, &capped_name(&item.title))
-        .await?;
-    let table = created.table;
-    let title_property = source
-        .properties
+) -> NotionLinks {
+    let pages = items
         .iter()
-        .find(|property| property.kind == NotionPropertyKind::Title)
-        .map(|property| property.name.clone());
-    let columns: Vec<PlannedColumn> = source
-        .properties
-        .iter()
-        .filter_map(planned_column)
+        .filter(|item| item.kind != ImportKind::DataSource)
+        .map(|item| {
+            let link = NotionPageLink {
+                document_id: imported
+                    .get(&item.notion_id)
+                    .copied()
+                    .unwrap_or_else(|| document_id(item.import_id)),
+                name: item.title.clone(),
+            };
+            (item.notion_id.clone(), link)
+        })
         .collect();
-    let page_column = PageColumn {
-        id: ColumnId::new(),
-        name: page_column_name(&source.properties),
-        // First, then the title and the data source's own columns.
-        order: std::iter::once(created.title_column)
-            .chain(columns.iter().map(|column| column.id))
-            .collect(),
-    };
+    let users = people
+        .iter()
+        .filter_map(|(id, person)| {
+            let link = NotionUserLink {
+                user_id: person.macro_user.clone()?,
+                email: person.email.clone()?,
+            };
+            Some((id.clone(), link))
+        })
+        .collect();
+    NotionLinks { pages, users }
+}
 
-    let mut ops = vec![DatabaseOp::Table {
-        table,
-        change: TableChange::Rename {
-            name: capped_name(&item.title),
-            previous_name: None,
-        },
-    }];
-    if let Some(title) = &title_property {
-        ops.push(DatabaseOp::Column {
-            table,
-            column: created.title_column,
-            change: ColumnChange::Rename {
-                name: capped_name(title),
-                previous_name: None,
-            },
-        });
-    }
-    let mut after = created.title_column;
-    for column in &columns {
-        ops.push(DatabaseOp::Column {
-            table,
-            column: column.id,
-            change: ColumnChange::Create {
-                definition: NewColumn::New {
-                    name: column.name.clone(),
-                    kind: column.shape.kind(),
-                    options: match &column.shape {
-                        super::values::ColumnShape::Select { options, .. } => options
-                            .iter()
-                            .map(|(id, label)| NewOption {
-                                id: *id,
-                                label: label.clone(),
-                            })
-                            .collect(),
-                        _ => Vec::new(),
-                    },
-                    infer_type: false,
-                },
-                after: Some(after),
-            },
-        });
-        after = column.id;
-    }
-    writer
-        .apply_database_ops(user, created.database_id, ops)
-        .await?;
+/// The document plan row `import_id` becomes, the same on every attempt.
+pub(super) fn document_id(import_id: Uuid) -> Uuid {
+    derived_id(import_id, "document")
+}
 
-    let rows = all_rows(api, &item.notion_id).await?;
-    let database = DatabaseId::from_uuid(created.database_id);
-    let mut written = WrittenDatabase {
-        database_id: created.database_id,
-        table: Some(table),
-        ..WrittenDatabase::default()
-    };
-    for (index, batch) in owned_batches(&rows).into_iter().enumerate() {
-        cancel.ensure_running()?;
-        let start = index * ROWS_PER_BATCH;
-        let cells: Vec<Vec<CellWrite>> = batch
+/// What earlier attempts created for one ledger row, and the record of what
+/// this one creates.
+pub(super) struct Progress<'a, Store> {
+    store: &'a Store,
+    user: &'a MacroUserIdStr<'static>,
+    import_id: Uuid,
+    known: Mutex<HashMap<(WrittenKind, String), Uuid>>,
+}
+
+impl<'a, Store: WrittenObjects> Progress<'a, Store> {
+    /// Progress for ledger row `import_id`, from everything recorded so far.
+    pub fn new(
+        store: &'a Store,
+        user: &'a MacroUserIdStr<'static>,
+        import_id: Uuid,
+        written: &[WrittenObject],
+    ) -> Self {
+        let known = written
             .iter()
-            .map(|row| row_cells(row, created.title_column, &columns, people))
+            .filter(|object| object.import_id == import_id)
+            .map(|object| ((object.kind, object.object.clone()), object.macro_id))
             .collect();
-        let results = writer
-            .apply_database_ops(
-                user,
-                created.database_id,
-                vec![DatabaseOp::Rows {
-                    table,
-                    change: RowsChange::Insert { rows: cells },
-                }],
-            )
-            .await?;
-        let ids = inserted_rows(&results);
-        anyhow::ensure!(
-            ids.len() == batch.len(),
-            "database insert returned {} rows for {} written",
-            ids.len(),
-            batch.len()
-        );
-        for (row, id) in rows[start..].iter().zip(ids) {
-            written.rows.insert(
-                row.id.clone(),
-                WrittenRow {
-                    database,
-                    table,
-                    row: id,
-                },
+        Self {
+            store,
+            user,
+            import_id,
+            known: Mutex::new(known),
+        }
+    }
+
+    /// The row's own object of `kind`, when an earlier attempt made it.
+    pub fn get(&self, kind: WrittenKind) -> Option<Uuid> {
+        self.get_for(kind, "")
+    }
+
+    /// The object of `kind` for Notion `object`, when an earlier attempt
+    /// made it.
+    pub fn get_for(&self, kind: WrittenKind, object: &str) -> Option<Uuid> {
+        self.known
+            .lock()
+            .ok()?
+            .get(&(kind, object.to_string()))
+            .copied()
+    }
+
+    /// Every object of `kind` made so far, by Notion object.
+    pub fn all(&self, kind: WrittenKind) -> HashMap<String, Uuid> {
+        self.known
+            .lock()
+            .map(|known| {
+                known
+                    .iter()
+                    .filter(|((known_kind, _), _)| *known_kind == kind)
+                    .map(|((_, object), id)| (object.clone(), *id))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Record the row's own object of `kind`.
+    pub async fn record(&self, kind: WrittenKind, macro_id: Uuid) -> anyhow::Result<()> {
+        self.record_all(vec![WrittenObject::own(self.import_id, kind, macro_id)])
+            .await
+    }
+
+    /// Record the object of `kind` for Notion row `row`.
+    pub async fn record_for(
+        &self,
+        kind: WrittenKind,
+        row: &NotionId,
+        macro_id: Uuid,
+    ) -> anyhow::Result<()> {
+        self.record_all(vec![WrittenObject::for_row(
+            self.import_id,
+            kind,
+            row,
+            macro_id,
+        )])
+        .await
+    }
+
+    /// Record `objects`, which must belong to this row.
+    pub async fn record_all(&self, objects: Vec<WrittenObject>) -> anyhow::Result<()> {
+        let recorded = self.store.record_written(self.user, &objects).await?;
+        if let Ok(mut known) = self.known.lock() {
+            known.extend(
+                recorded
+                    .into_iter()
+                    .map(|object| ((object.kind, object.object), object.macro_id)),
             );
         }
+        Ok(())
     }
-
-    for property in &source.properties {
-        let NotionPropertyKind::Relation { data_source_id } = &property.kind else {
-            continue;
-        };
-        let links = rows
-            .iter()
-            .filter_map(|row| {
-                let related = match row.properties.get(&property.name)? {
-                    import_notion::domain::model::NotionValue::Relation(ids) => ids.clone(),
-                    _ => return None,
-                };
-                let written_row = written.rows.get(&row.id)?;
-                (!related.is_empty()).then_some((written_row.row, related))
-            })
-            .collect();
-        written.relations.push(PendingRelation {
-            database: created.database_id,
-            table,
-            name: capped_name(&property.name),
-            target: data_source_id.clone(),
-            links,
-        });
-    }
-
-    write_row_bodies(
-        api,
-        writer,
-        user,
-        item,
-        folder,
-        &rows,
-        &written,
-        page_column,
-        cancel,
-    )
-    .await?;
-    Ok(written)
 }
 
-fn row_cells(
-    row: &NotionPage,
-    title_column: ColumnId,
-    columns: &[PlannedColumn],
-    people: &PeopleMap,
-) -> Vec<CellWrite> {
-    let mut cells = Vec::with_capacity(columns.len() + 1);
-    if !row.title.trim().is_empty() {
-        cells.push(CellWrite {
-            column: title_column,
-            value: CellValue::Text(row.title.trim().to_string()),
-        });
+/// A folder made once for the row: reused when an earlier attempt made it,
+/// otherwise created and recorded.
+pub(super) async fn folder_once<Writer: WorkspaceWriter, Store: WrittenObjects>(
+    writer: &Writer,
+    user: &MacroUserIdStr<'static>,
+    progress: &Progress<'_, Store>,
+    kind: WrittenKind,
+    name: &str,
+    parent: Uuid,
+) -> anyhow::Result<Uuid> {
+    if let Some(folder) = progress.get(kind) {
+        return Ok(folder);
     }
-    for column in columns {
-        if let Some(value) = row
-            .properties
-            .get(&column.property)
-            .and_then(|value| cell(value, column, people))
-        {
-            cells.push(CellWrite {
-                column: column.id,
-                value,
-            });
-        }
-    }
-    cells
+    let folder = writer.create_folder(user, name, Some(parent)).await?;
+    progress.record(kind, folder).await?;
+    Ok(folder)
 }
 
-fn inserted_rows(results: &[OpResult]) -> Vec<RowId> {
-    results
-        .iter()
-        .filter_map(|result| match result {
-            OpResult::Rows {
-                change: RowsResult::Inserted { rows },
-                ..
-            } => Some(rows.clone()),
-            _ => None,
-        })
-        .flatten()
-        .collect()
-}
-
-/// Rows with page content get a document in a folder beside the database,
-/// linked from the row's Page column.
-#[allow(clippy::too_many_arguments)]
-async fn write_row_bodies<Api: NotionApi, Writer: WorkspaceWriter>(
+/// Write a task list: a folder of Macro tasks, one per row, shared with the
+/// team with `share`. Returns the folder id. Rows an earlier attempt already
+/// wrote are skipped.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "a task list needs its source, destination, people, links and progress"
+)]
+pub(super) async fn write_tasks<Api: NotionApi, Writer: WorkspaceWriter, Store: WrittenObjects>(
     api: &Api,
     writer: &Writer,
     user: &MacroUserIdStr<'static>,
     item: &WriteItem,
     folder: Uuid,
-    rows: &[NotionPage],
-    written: &WrittenDatabase,
-    page_column: PageColumn,
-    cancel: &Cancel,
-) -> anyhow::Result<()> {
-    let bodies_folder: tokio::sync::OnceCell<Uuid> = tokio::sync::OnceCell::new();
-    let bodies_name = capped_name(&format!("{} pages", item.title));
-    let linked: Vec<anyhow::Result<Option<RowChange>>> = stream::iter(rows.iter().cloned())
-        .map(|row| {
-            let bodies_folder = &bodies_folder;
-            let bodies_name = &bodies_name;
-            async move {
-                cancel.ensure_running()?;
-                let markdown = page_markdown(&full_markdown(api, &row.id).await?);
-                if markdown.is_empty() {
-                    return Ok(None);
-                }
-                let Some(written_row) = written.rows.get(&row.id) else {
-                    return Ok(None);
-                };
-                let folder = *bodies_folder
-                    .get_or_try_init(|| writer.create_folder(user, bodies_name, Some(folder)))
-                    .await?;
-                let title = if row.title.trim().is_empty() {
-                    super::plan::UNTITLED_PAGE.to_string()
-                } else {
-                    row.title.trim().to_string()
-                };
-                let document = writer
-                    .create_document(
-                        user,
-                        &title,
-                        &markdown,
-                        &ImportedDocumentProperties::default(),
-                        Some(folder),
-                    )
-                    .await?;
-                Ok(Some(RowChange {
-                    row: written_row.row,
-                    cells: vec![CellWrite {
-                        column: page_column.id,
-                        value: CellValue::Entities(vec![EntityRef {
-                            entity_type: EntityKind::Document,
-                            entity_id: document,
-                        }]),
-                    }],
-                }))
-            }
-            .boxed()
-        })
-        .buffer_unordered(BODY_CONCURRENCY)
-        .collect()
-        .await;
-    let mut changes = Vec::new();
-    for outcome in linked {
-        match outcome {
-            Ok(Some(change)) => changes.push(change),
-            Ok(None) => {}
-            // One unreadable row body never loses the row itself.
-            Err(error) => tracing::warn!(error = ?error, "notion row body was not imported"),
-        }
-    }
-    let Some(table) = written.table else {
-        return Ok(());
-    };
-    if changes.is_empty() {
-        return Ok(());
-    }
-    // Only a database whose rows have content gets the column, and it goes
-    // first so the row's page is one click away.
-    writer
-        .apply_database_ops(
-            user,
-            written.database_id,
-            vec![
-                DatabaseOp::Column {
-                    table,
-                    column: page_column.id,
-                    change: ColumnChange::Create {
-                        definition: NewColumn::New {
-                            name: page_column.name.clone(),
-                            kind: ColumnKind::Entity {
-                                target: EntityKind::Document,
-                                multi: false,
-                            },
-                            options: Vec::new(),
-                            infer_type: false,
-                        },
-                        after: None,
-                    },
-                },
-                DatabaseOp::Table {
-                    table,
-                    change: TableChange::ReorderColumns {
-                        order: std::iter::once(page_column.id)
-                            .chain(page_column.order.iter().copied())
-                            .collect(),
-                    },
-                },
-            ],
-        )
-        .await?;
-    for batch in owned_batches(&changes) {
-        cancel.ensure_running()?;
-        writer
-            .apply_database_ops(
-                user,
-                written.database_id,
-                vec![DatabaseOp::Rows {
-                    table,
-                    change: RowsChange::Update {
-                        changes: RowChanges::PerRow { rows: batch },
-                    },
-                }],
-            )
-            .await?;
-    }
-    Ok(())
-}
-
-/// The column linking each row to its page document.
-#[derive(Debug, Clone)]
-pub(super) struct PageColumn {
-    /// The column id, minted before the column exists.
-    id: ColumnId,
-    /// Its name, distinct from the data source's own columns.
-    name: String,
-    /// The table's other columns, in order; the page column goes before them.
-    order: Vec<ColumnId>,
-}
-
-/// "Page", or the first variant no Notion column of the same data source is
-/// already called (case-insensitively).
-pub(super) fn page_column_name(
-    properties: &[import_notion::domain::model::NotionPropertySchema],
-) -> String {
-    let taken = |name: &str| {
-        properties
-            .iter()
-            .any(|property| property.name.trim().eq_ignore_ascii_case(name))
-    };
-    std::iter::once(PAGE_COLUMN.to_string())
-        .chain(std::iter::once(format!("{PAGE_COLUMN} (Notion)")))
-        .chain((2..).map(|index| format!("{PAGE_COLUMN} {index}")))
-        .find(|name| !taken(name))
-        .unwrap_or_else(|| PAGE_COLUMN.to_string())
-}
-
-/// `items` in insert-sized batches, owned so no borrow is held across the
-/// writes.
-fn owned_batches<Item: Clone>(items: &[Item]) -> Vec<Vec<Item>> {
-    items.chunks(ROWS_PER_BATCH).map(<[Item]>::to_vec).collect()
-}
-
-/// Link relations once every database exists: each relation whose target
-/// data source was written becomes a relation column filled with the written
-/// rows. A relation to something left in Notion is dropped.
-pub(super) async fn link_relations<Writer: WorkspaceWriter>(
-    writer: &Writer,
-    user: &MacroUserIdStr<'static>,
-    databases: &HashMap<NotionId, WrittenDatabase>,
-    cancel: &Cancel,
-) -> anyhow::Result<()> {
-    let rows: HashMap<&NotionId, WrittenRow> = databases
-        .values()
-        .flat_map(|database| database.rows.iter().map(|(id, row)| (id, *row)))
-        .collect();
-    for database in databases.values() {
-        for relation in &database.relations {
-            cancel.ensure_running()?;
-            let Some(target) = relation
-                .target
-                .as_ref()
-                .and_then(|target| databases.get(target))
-            else {
-                continue;
-            };
-            let Some(target_table) = target.table else {
-                continue;
-            };
-            let column = ColumnId::new();
-            let mut ops = vec![DatabaseOp::Column {
-                table: relation.table,
-                column,
-                change: ColumnChange::Create {
-                    definition: NewColumn::New {
-                        name: relation.name.clone(),
-                        kind: ColumnKind::Relation {
-                            database: DatabaseId::from_uuid(target.database_id),
-                            table: target_table,
-                        },
-                        options: Vec::new(),
-                        infer_type: false,
-                    },
-                    after: None,
-                },
-            }];
-            let changes: Vec<RowChange> = relation
-                .links
-                .iter()
-                .filter_map(|(row, related)| {
-                    let linked: Vec<RowId> = related
-                        .iter()
-                        .filter_map(|id| rows.get(id))
-                        .filter(|written| written.table == target_table)
-                        .map(|written| written.row)
-                        .collect();
-                    (!linked.is_empty()).then(|| RowChange {
-                        row: *row,
-                        cells: vec![CellWrite {
-                            column,
-                            value: CellValue::Rows(linked),
-                        }],
-                    })
-                })
-                .collect();
-            let mut batches = owned_batches(&changes).into_iter();
-            if let Some(first) = batches.next() {
-                ops.push(DatabaseOp::Rows {
-                    table: relation.table,
-                    change: RowsChange::Update {
-                        changes: RowChanges::PerRow { rows: first },
-                    },
-                });
-            }
-            writer
-                .apply_database_ops(user, relation.database, ops)
-                .await?;
-            for batch in batches {
-                writer
-                    .apply_database_ops(
-                        user,
-                        relation.database,
-                        vec![DatabaseOp::Rows {
-                            table: relation.table,
-                            change: RowsChange::Update {
-                                changes: RowChanges::PerRow { rows: batch },
-                            },
-                        }],
-                    )
-                    .await?;
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Write a task list: a folder of Macro tasks, one per row. Returns the
-/// folder id.
-pub(super) async fn write_tasks<Api: NotionApi, Writer: WorkspaceWriter>(
-    api: &Api,
-    writer: &Writer,
-    user: &MacroUserIdStr<'static>,
-    item: &WriteItem,
-    folder: Uuid,
+    share: bool,
     people: &PeopleMap,
+    links: &NotionLinks,
+    progress: &Progress<'_, Store>,
     cancel: &Cancel,
 ) -> anyhow::Result<Uuid> {
     let rows = all_rows(api, &item.notion_id).await?;
-    let tasks_folder = writer
-        .create_folder(user, &capped_name(&item.title), Some(folder))
-        .await?;
+    let tasks_folder = folder_once(
+        writer,
+        user,
+        progress,
+        WrittenKind::TasksFolder,
+        &capped_name(&item.title),
+        folder,
+    )
+    .await?;
+    // Shared before the tasks are made, so each is shared as it lands in
+    // the folder; shared again on resume, which is harmless.
+    if share {
+        writer
+            .share_with_team(user, SharedEntity::Folder(tasks_folder))
+            .await?;
+    }
     let failures = Mutex::new(0usize);
     stream::iter(rows.iter().cloned())
         .map(|row| {
             let failures = &failures;
             async move {
-                if cancel.stopped() {
+                if cancel.stopped()
+                    || progress
+                        .get_for(WrittenKind::Task, row.id.as_str())
+                        .is_some()
+                {
                     return;
                 }
                 let outcome: anyhow::Result<()> = async {
-                    let content = page_markdown(&full_markdown(api, &row.id).await?);
+                    let content = full_markdown(api, &row.id).await?;
                     let body = task_body(&row, &content, &item.task_fields, people);
                     let properties = task_properties(&row, &item.task_fields, people);
                     let title = if row.title.trim().is_empty() {
@@ -717,9 +404,19 @@ pub(super) async fn write_tasks<Api: NotionApi, Writer: WorkspaceWriter>(
                     } else {
                         row.title.trim()
                     };
+                    let id = derived_id(item.import_id, &format!("task/{}", row.id.as_str()));
                     writer
-                        .create_task(user, title, &body, &properties, Some(tasks_folder))
+                        .create_task(
+                            user,
+                            id,
+                            title,
+                            &body,
+                            links,
+                            &properties,
+                            Some(tasks_folder),
+                        )
                         .await?;
+                    progress.record_for(WrittenKind::Task, &row.id, id).await?;
                     Ok(())
                 }
                 .await;

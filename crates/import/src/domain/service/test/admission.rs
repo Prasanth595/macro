@@ -80,6 +80,7 @@ impl Repo {
             entity_id: None,
             entity_type: None,
             last_error: None,
+            waiting_on: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
@@ -167,6 +168,7 @@ impl ImportRepo for Repo {
                 status: RunStatus::Running,
                 error: None,
                 updated_at: chrono::Utc::now(),
+                scanned: None,
             });
         }
         Ok(true)
@@ -391,11 +393,12 @@ impl EntityCreator for Creator {
         self.0.fetch_add(1, Ordering::SeqCst);
         Ok(Uuid::now_v7().to_string())
     }
-    async fn create_markdown_doc(
+    async fn create_notion_document(
         &self,
         _: &MacroUserIdStr<'static>,
         _: &str,
         _: &str,
+        _: &NotionLinks,
         _: &ImportedDocumentProperties,
     ) -> anyhow::Result<String> {
         self.0.fetch_add(1, Ordering::SeqCst);

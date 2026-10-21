@@ -37,6 +37,8 @@ fn verdicts_keep_the_models_answers_and_fill_in_what_it_left_out() {
             decision: NotionDecision::Skip,
             reason: Some("Empty page".to_string()),
             task_fields: None,
+            shared: None,
+            shared_reason: None,
         },
         Verdict {
             key: "c".to_string(),
@@ -46,6 +48,8 @@ fn verdicts_keep_the_models_answers_and_fill_in_what_it_left_out() {
                 status: Some("Status".to_string()),
                 ..NotionTaskFields::default()
             }),
+            shared: None,
+            shared_reason: None,
         },
         // Only a data source can become tasks.
         Verdict {
@@ -53,6 +57,8 @@ fn verdicts_keep_the_models_answers_and_fill_in_what_it_left_out() {
             decision: NotionDecision::Tasks,
             reason: None,
             task_fields: Some(NotionTaskFields::default()),
+            shared: None,
+            shared_reason: None,
         },
         // A key the batch never had is dropped.
         Verdict {
@@ -60,6 +66,8 @@ fn verdicts_keep_the_models_answers_and_fill_in_what_it_left_out() {
             decision: NotionDecision::Skip,
             reason: None,
             task_fields: None,
+            shared: None,
+            shared_reason: None,
         },
     ];
 
@@ -86,7 +94,8 @@ fn verdicts_keep_the_models_answers_and_fill_in_what_it_left_out() {
 
 #[test]
 fn the_verdict_schema_is_one_the_structured_output_validator_accepts() {
-    let validator = agent::structured_output::validate_schema(&triage_schema()).unwrap();
+    let validator =
+        agent::structured_output::validate_schema(&triage_schema(NotionSharing::Personal)).unwrap();
     let answer = serde_json::json!({
         "verdicts": [
             { "key": "c", "decision": "tasks", "reason": "A bug tracker", "taskFields": { "status": "Status" } },
@@ -99,4 +108,37 @@ fn the_verdict_schema_is_one_the_structured_output_validator_accepts() {
     assert!(!validator.is_valid(&serde_json::json!({
         "verdicts": [{ "key": "a", "decision": "delete" }]
     })));
+}
+
+#[test]
+fn sharing_is_asked_of_the_model_only_when_the_user_left_it_to_the_model() {
+    let verdict = serde_json::json!({
+        "verdicts": [{ "key": "a", "decision": "copy" }]
+    });
+    let with_sharing = serde_json::json!({
+        "verdicts": [{ "key": "a", "decision": "copy", "shared": true, "sharedReason": "The team wiki" }]
+    });
+    let personal =
+        agent::structured_output::validate_schema(&triage_schema(NotionSharing::Team)).unwrap();
+    let ai = agent::structured_output::validate_schema(&triage_schema(NotionSharing::Ai)).unwrap();
+
+    assert!(personal.is_valid(&verdict));
+    assert!(
+        !personal.is_valid(&with_sharing),
+        "sharing is the user's when they chose it"
+    );
+    assert!(
+        !ai.is_valid(&verdict),
+        "every verdict says whether to share"
+    );
+    assert!(ai.is_valid(&with_sharing));
+    assert!(triage_system(NotionSharing::Ai).contains(TRIAGE_SHARING));
+    assert!(!triage_system(NotionSharing::Personal).contains(TRIAGE_SHARING));
+
+    let parsed: TriageOutput = serde_json::from_value(with_sharing).unwrap();
+    assert_eq!(parsed.verdicts[0].shared, Some(true));
+    assert_eq!(
+        parsed.verdicts[0].shared_reason.as_deref(),
+        Some("The team wiki")
+    );
 }

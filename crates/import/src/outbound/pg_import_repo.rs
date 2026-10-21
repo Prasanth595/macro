@@ -6,17 +6,19 @@
 
 use crate::domain::models::{
     ImportEntity, ImportKind, ImportRun, ImportSource, ImportStatus, Initiator, RunStatus,
+    ScanCounts, TEAMMATE_STOPPED,
 };
-use crate::domain::ports::{ImportError, ImportRepo, NotionPlanRepo, PlanRow, Result};
+use crate::domain::ports::{ImportError, ImportRepo, Result};
 use chrono::{DateTime, Utc};
 use macro_user_id::cowlike::CowLike;
 use macro_user_id::user_id::MacroUserIdStr;
 use sqlx::PgPool;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
 use uuid::Uuid;
 
+mod notion_run;
+mod plan;
 /// Canonical target transaction helpers for composition roots.
 pub mod targets;
 
@@ -51,6 +53,7 @@ struct ImportEntityDbRow {
     entity_id: Option<String>,
     entity_type: Option<String>,
     last_error: Option<String>,
+    waiting_on: Option<Uuid>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -88,6 +91,7 @@ impl TryFrom<ImportEntityDbRow> for ImportEntity {
             entity_id: row.entity_id,
             entity_type: row.entity_type,
             last_error: row.last_error,
+            waiting_on: row.waiting_on,
             created_at: row.created_at,
             updated_at: row.updated_at,
         })
@@ -99,6 +103,8 @@ struct ImportRunDbRow {
     status: String,
     error: Option<String>,
     updated_at: DateTime<Utc>,
+    scanned_pages: Option<i32>,
+    scanned_data_sources: Option<i32>,
 }
 
 impl TryFrom<ImportRunDbRow> for ImportRun {
@@ -109,17 +115,46 @@ impl TryFrom<ImportRunDbRow> for ImportRun {
             .map_err(|_| anyhow::anyhow!("unknown import source: {}", row.source))?;
         let status = RunStatus::from_str(&row.status)
             .map_err(|_| anyhow::anyhow!("unknown run status: {}", row.status))?;
+        let scanned = match (row.scanned_pages, row.scanned_data_sources) {
+            (Some(pages), Some(data_sources)) => Some(ScanCounts {
+                pages: u32::try_from(pages).map_err(anyhow::Error::from)?,
+                data_sources: u32::try_from(data_sources).map_err(anyhow::Error::from)?,
+            }),
+            _ => None,
+        };
         Ok(ImportRun {
             source,
             status,
             error: row.error,
             updated_at: row.updated_at,
+            scanned,
         })
     }
 }
 
 fn run_status_strings(statuses: &[RunStatus]) -> Vec<String> {
     statuses.iter().map(|s| s.as_ref().to_string()).collect()
+}
+
+/// Send the rows waiting on `holders`, which stopped being written, back to
+/// staged. Run after the update that moved the holders, as its own
+/// statement, so it sees waiters that committed meanwhile.
+async fn release_waiters(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    holders: &[Uuid],
+) -> Result<u64> {
+    let result = sqlx::query!(
+        r#"
+        UPDATE import_entity
+        SET status = 'staged', waiting_on = NULL, last_error = $2, updated_at = NOW()
+        WHERE waiting_on = ANY($1::uuid[]) AND status = 'importing'
+        "#,
+        holders,
+        TEAMMATE_STOPPED,
+    )
+    .execute(&mut **transaction)
+    .await?;
+    Ok(result.rows_affected())
 }
 
 impl ImportRepo for PgImportRepo {
@@ -134,7 +169,7 @@ impl ImportRepo for PgImportRepo {
             ImportEntityDbRow,
             r#"
             SELECT id, user_id, team_id, source, kind, foreign_id, parent_id, review_id, status,
-                   initiator, metadata, entity_id, entity_type, last_error, created_at, updated_at
+                   initiator, metadata, entity_id, entity_type, last_error, waiting_on, created_at, updated_at
             FROM import_entity
             WHERE user_id = $1 AND source = $2 AND foreign_id = $3
             "#,
@@ -158,7 +193,7 @@ impl ImportRepo for PgImportRepo {
             ImportEntityDbRow,
             r#"
             SELECT id, user_id, team_id, source, kind, foreign_id, parent_id, review_id, status,
-                   initiator, metadata, entity_id, entity_type, last_error, created_at, updated_at
+                   initiator, metadata, entity_id, entity_type, last_error, waiting_on, created_at, updated_at
             FROM import_entity
             WHERE source = $2 AND foreign_id = $3
               AND status = 'imported'
@@ -195,7 +230,7 @@ impl ImportRepo for PgImportRepo {
             SET metadata = EXCLUDED.metadata, updated_at = NOW()
             WHERE import_entity.status = 'staged'
             RETURNING id, user_id, team_id, source, kind, foreign_id, parent_id, review_id, status,
-                      initiator, metadata, entity_id, entity_type, last_error, created_at,
+                      initiator, metadata, entity_id, entity_type, last_error, waiting_on, created_at,
                       updated_at
             "#,
             user.as_ref(),
@@ -235,7 +270,7 @@ impl ImportRepo for PgImportRepo {
                 team_id = EXCLUDED.team_id, last_error = NULL, updated_at = NOW()
             WHERE import_entity.status <> 'imported'
             RETURNING id, user_id, team_id, source, kind, foreign_id, parent_id, review_id, status,
-                      initiator, metadata, entity_id, entity_type, last_error, created_at,
+                      initiator, metadata, entity_id, entity_type, last_error, waiting_on, created_at,
                       updated_at
             "#,
             user.as_ref(),
@@ -266,7 +301,7 @@ impl ImportRepo for PgImportRepo {
             ImportEntityDbRow,
             r#"
             SELECT id, user_id, team_id, source, kind, foreign_id, parent_id, review_id, status,
-                   initiator, metadata, entity_id, entity_type, last_error, created_at, updated_at
+                   initiator, metadata, entity_id, entity_type, last_error, waiting_on, created_at, updated_at
             FROM import_entity
             WHERE user_id = $1 AND id = $2
             "#,
@@ -289,7 +324,7 @@ impl ImportRepo for PgImportRepo {
             ImportEntityDbRow,
             r#"
             SELECT id, user_id, team_id, source, kind, foreign_id, parent_id, review_id, status,
-                   initiator, metadata, entity_id, entity_type, last_error, created_at, updated_at
+                   initiator, metadata, entity_id, entity_type, last_error, waiting_on, created_at, updated_at
             FROM import_entity
             WHERE (
                 user_id = $1
@@ -353,7 +388,7 @@ impl ImportRepo for PgImportRepo {
             SET status = 'importing', last_error = NULL, updated_at = NOW()
             WHERE user_id = $1 AND id = ANY($2::uuid[]) AND status = 'staged'
             RETURNING id, user_id, team_id, source, kind, foreign_id, parent_id, review_id, status,
-                      initiator, metadata, entity_id, entity_type, last_error, created_at,
+                      initiator, metadata, entity_id, entity_type, last_error, waiting_on, created_at,
                       updated_at
             "#,
             user.as_ref(),
@@ -373,15 +408,17 @@ impl ImportRepo for PgImportRepo {
         entity_type: &str,
         team_id: Option<Uuid>,
     ) -> Result<Option<ImportEntity>> {
+        let mut transaction = self.pool.begin().await?;
         let row = sqlx::query_as!(
             ImportEntityDbRow,
             r#"
             UPDATE import_entity
-            SET status = 'imported', entity_id = $3, entity_type = $4, team_id = $5,
+            SET status = 'imported', entity_id = $3, entity_type = $4,
+                team_id = COALESCE($5, team_id), waiting_on = NULL,
                 last_error = NULL, updated_at = NOW()
             WHERE user_id = $1 AND id = $2 AND status = 'importing'
             RETURNING id, user_id, team_id, source, kind, foreign_id, parent_id, review_id, status,
-                      initiator, metadata, entity_id, entity_type, last_error, created_at,
+                      initiator, metadata, entity_id, entity_type, last_error, waiting_on, created_at,
                       updated_at
             "#,
             user.as_ref(),
@@ -390,8 +427,26 @@ impl ImportRepo for PgImportRepo {
             entity_type,
             team_id,
         )
-        .fetch_optional(&self.pool)
+        .fetch_optional(&mut *transaction)
         .await?;
+        if row.is_some() {
+            // Its own statement, so it sees waiters that committed while the
+            // update above waited for their lock on this row.
+            sqlx::query!(
+                r#"
+                UPDATE import_entity
+                SET status = 'imported', entity_id = $2, entity_type = $3, waiting_on = NULL,
+                    last_error = NULL, updated_at = NOW()
+                WHERE waiting_on = $1 AND status = 'importing'
+                "#,
+                id,
+                entity_id,
+                entity_type,
+            )
+            .execute(&mut *transaction)
+            .await?;
+        }
+        transaction.commit().await?;
         row.map(ImportEntity::try_from).transpose()
     }
 
@@ -402,19 +457,26 @@ impl ImportRepo for PgImportRepo {
         id: Uuid,
         error: &str,
     ) -> Result<bool> {
+        let mut transaction = self.pool.begin().await?;
         let result = sqlx::query!(
             r#"
             UPDATE import_entity
-            SET status = 'staged', last_error = $3, updated_at = NOW()
+            SET status = 'staged', last_error = $3, team_id = NULL, waiting_on = NULL,
+                updated_at = NOW()
             WHERE user_id = $1 AND id = $2 AND status = 'importing'
             "#,
             user.as_ref(),
             id,
             error,
         )
-        .execute(&self.pool)
+        .execute(&mut *transaction)
         .await?;
-        Ok(result.rows_affected() > 0)
+        let moved = result.rows_affected() > 0;
+        if moved {
+            release_waiters(&mut transaction, &[id]).await?;
+        }
+        transaction.commit().await?;
+        Ok(moved)
     }
 
     #[tracing::instrument(skip(self), err)]
@@ -430,6 +492,7 @@ impl ImportRepo for PgImportRepo {
                 last_error = 'the import was interrupted — select it again to retry',
                 updated_at = NOW()
             WHERE user_id = $1 AND status = 'importing'
+              AND NOT (source = 'notion' AND metadata->'plan' IS NOT NULL)
               AND updated_at < NOW() - ($2::double precision * interval '1 second')
             "#,
             user.as_ref(),
@@ -505,7 +568,10 @@ impl ImportRepo for PgImportRepo {
         let rows = sqlx::query_as!(
             ImportRunDbRow,
             r#"
-            SELECT source, status::text AS "status!", error, updated_at
+            SELECT source, status::text AS "status!", error, updated_at,
+                   CASE WHEN status = 'running' THEN scanned_pages END AS scanned_pages,
+                   CASE WHEN status = 'running' THEN scanned_data_sources END
+                       AS scanned_data_sources
             FROM import_run WHERE user_id = $1
             ORDER BY source
             "#,
@@ -529,7 +595,9 @@ impl ImportRepo for PgImportRepo {
             INSERT INTO import_run (user_id, source, status)
             VALUES ($1, $2, 'running')
             ON CONFLICT (user_id, source) DO UPDATE
-            SET status = 'running', error = NULL, updated_at = NOW()
+            SET status = 'running', error = NULL, updated_at = NOW(),
+                scanned_pages = NULL, scanned_data_sources = NULL,
+                lease_owner = NULL, lease_expires_at = NULL, adoptions = 0
             WHERE import_run.status::text = ANY($3::text[])
             "#,
             user.as_ref(),
@@ -553,7 +621,7 @@ impl ImportRepo for PgImportRepo {
             SET status = 'failed',
                 error = 'discovery was interrupted — try again',
                 updated_at = NOW()
-            WHERE user_id = $1 AND status IN ('running', 'importing')
+            WHERE user_id = $1 AND status IN ('running', 'importing') AND source <> 'notion'
               AND updated_at < NOW() - ($2::double precision * interval '1 second')
             "#,
             user.as_ref(),
@@ -594,137 +662,6 @@ impl ImportRepo for PgImportRepo {
 // The domain error stays sqlx-free; this adapter owns the mapping so `?`
 // works on sqlx results throughout the crate's outbound code. The raw sqlx
 // error travels inside the report.
-impl NotionPlanRepo for PgImportRepo {
-    #[tracing::instrument(skip(self, rows), fields(rows = rows.len()), err)]
-    async fn replace_plan(
-        &self,
-        user: &MacroUserIdStr<'static>,
-        source: ImportSource,
-        rows: &[PlanRow],
-    ) -> Result<Vec<ImportEntity>> {
-        let mut transaction = self.pool.begin().await?;
-        sqlx::query!(
-            r#"
-            DELETE FROM import_entity
-            WHERE user_id = $1 AND source = $2 AND status = 'staged'
-              AND metadata->'plan' IS NOT NULL
-            "#,
-            user.as_ref(),
-            source.as_ref(),
-        )
-        .execute(&mut *transaction)
-        .await?;
-
-        let mut ids: HashMap<&str, Uuid> = HashMap::with_capacity(rows.len());
-        let mut staged = Vec::with_capacity(rows.len());
-        for row in rows {
-            let parent_id = row
-                .parent_foreign_id
-                .as_deref()
-                .and_then(|parent| ids.get(parent).copied());
-            let inserted = sqlx::query_as!(
-                ImportEntityDbRow,
-                r#"
-                INSERT INTO import_entity
-                    (user_id, source, kind, foreign_id, status, initiator, metadata, parent_id)
-                VALUES ($1, $2, $3, $4, 'staged', 'chat', $5, $6)
-                ON CONFLICT (user_id, source, foreign_id) DO UPDATE
-                SET kind = EXCLUDED.kind, metadata = EXCLUDED.metadata,
-                    parent_id = EXCLUDED.parent_id, status = 'staged', review_id = NULL,
-                    last_error = NULL, updated_at = NOW()
-                WHERE import_entity.status IN ('staged', 'discarded')
-                RETURNING id, user_id, team_id, source, kind, foreign_id, parent_id, review_id,
-                          status, initiator, metadata, entity_id, entity_type, last_error,
-                          created_at, updated_at
-                "#,
-                user.as_ref(),
-                source.as_ref(),
-                row.kind.as_ref(),
-                row.foreign_id,
-                row.metadata,
-                parent_id,
-            )
-            .fetch_optional(&mut *transaction)
-            .await?;
-            let id = match inserted {
-                Some(inserted) => {
-                    let entity = ImportEntity::try_from(inserted)?;
-                    let id = entity.id;
-                    staged.push(entity);
-                    id
-                }
-                // Already importing or imported: children still hang under it.
-                None => {
-                    sqlx::query_scalar!(
-                        r#"
-                        SELECT id FROM import_entity
-                        WHERE user_id = $1 AND source = $2 AND foreign_id = $3
-                        "#,
-                        user.as_ref(),
-                        source.as_ref(),
-                        row.foreign_id,
-                    )
-                    .fetch_one(&mut *transaction)
-                    .await?
-                }
-            };
-            ids.insert(row.foreign_id.as_str(), id);
-        }
-        transaction.commit().await?;
-        Ok(staged)
-    }
-
-    #[tracing::instrument(skip(self), err)]
-    async fn attach_review(
-        &self,
-        user: &MacroUserIdStr<'static>,
-        source: ImportSource,
-        review_id: Uuid,
-    ) -> Result<u64> {
-        let result = sqlx::query!(
-            r#"
-            UPDATE import_entity
-            SET review_id = $3, updated_at = NOW()
-            WHERE user_id = $1 AND source = $2 AND status = 'staged'
-              AND metadata->'plan' IS NOT NULL AND review_id IS NULL
-            "#,
-            user.as_ref(),
-            source.as_ref(),
-            review_id,
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(result.rows_affected())
-    }
-
-    #[tracing::instrument(skip(self), err)]
-    async fn transition_run(
-        &self,
-        user: &MacroUserIdStr<'static>,
-        source: ImportSource,
-        from: &[RunStatus],
-        to: RunStatus,
-        error: Option<&str>,
-    ) -> Result<bool> {
-        let from = run_status_strings(from);
-        let result = sqlx::query!(
-            r#"
-            UPDATE import_run
-            SET status = $3::text::import_run_status, error = $4, updated_at = NOW()
-            WHERE user_id = $1 AND source = $2 AND status::text = ANY($5::text[])
-            "#,
-            user.as_ref(),
-            source.as_ref(),
-            to.as_ref(),
-            error,
-            &from,
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(result.rows_affected() > 0)
-    }
-}
-
 impl From<sqlx::Error> for ImportError {
     fn from(e: sqlx::Error) -> Self {
         Self::Db(rootcause::report!(e).into_dynamic())

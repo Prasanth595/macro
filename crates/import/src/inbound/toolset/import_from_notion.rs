@@ -11,7 +11,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::{ImportToolContext, import_error, tool_error};
-use crate::domain::models::{NotionImportReport, RunStatus};
+use crate::domain::models::{NotionImportReport, NotionSharing, RunStatus};
 use crate::domain::ports::ImportError;
 use crate::domain::service::NotionWorkspaceImporter;
 
@@ -39,7 +39,7 @@ pub enum NotionImportAction {
 #[serde(rename_all = "camelCase")]
 #[schemars(
     title = "ImportFromNotion",
-    description = "Import the user's Notion workspace (or part of it) into Macro: pages become documents in folders mirroring Notion's page tree, databases become Macro databases with their rows and relations, and task-tracker databases become Macro tasks. `plan` reads the workspace through the user's Notion connection, decides per page and database what to do, and stages a plan without writing anything; then present the plan to the user with PresentReview (kind \"import\", drafts [{\"source\":\"notion\"}]). Approving that review writes the plan; never import plan items with other tools. `status` reports progress; `cancel` stops planning or importing. Use this for anything bigger than a single page instead of ImportNotionPage."
+    description = "Import the user's Notion workspace (or part of it) into Macro: pages become documents in folders mirroring Notion's page tree, databases become Macro databases with their rows and relations, and task-tracker databases become Macro tasks. Before `plan`, ask the user who should see what is imported, in one short question with three options: shared with their team, only them (personal), or let AI decide per page; do not guess, and pass their answer as `sharing`. `plan` reads the workspace through the user's Notion connection, decides per page and database what to do (and, with `sharing` \"ai\", who sees it), links anything a teammate already imported and shared, and stages a plan without writing anything; then present the plan to the user with PresentReview (kind \"import\", drafts [{\"source\":\"notion\"}]). Approving that review writes the plan; never import plan items with other tools. `status` reports progress; `cancel` stops planning or importing. Use this for anything bigger than a single page instead of ImportNotionPage."
 )]
 pub struct ImportFromNotion {
     /// What to do.
@@ -49,6 +49,12 @@ pub struct ImportFromNotion {
     /// connection can see.
     #[serde(default)]
     pub roots: Vec<String>,
+    /// For `plan`, required: who sees what the import writes, as the user
+    /// answered when asked: `team` shares everything with their team,
+    /// `personal` keeps everything visible only to them, `ai` lets the
+    /// decision model choose per page. Databases always stay with the user.
+    #[serde(default)]
+    pub sharing: Option<NotionSharing>,
 }
 
 /// The tool's answer.
@@ -70,7 +76,7 @@ impl ToolAnnotated for ImportFromNotion {
 impl<T: NotionWorkspaceImporter> AsyncTool<ImportToolContext<T>> for ImportFromNotion {
     type Output = ImportFromNotionResponse;
 
-    #[tracing::instrument(skip_all, fields(user_id = %request_context.user_id, action = ?self.action, roots = self.roots.len()), err)]
+    #[tracing::instrument(skip_all, fields(user_id = %request_context.user_id, action = ?self.action, roots = self.roots.len(), sharing = ?self.sharing), err)]
     async fn call(
         &self,
         service_context: ServiceContext<ImportToolContext<T>>,
@@ -80,8 +86,14 @@ impl<T: NotionWorkspaceImporter> AsyncTool<ImportToolContext<T>> for ImportFromN
         let user = request_context.user_id.clone();
         let report = match self.action {
             NotionImportAction::Plan => {
+                let sharing = self.sharing.ok_or_else(|| {
+                    tool_error(
+                        "`sharing` is required for `plan`. Ask the user whether the import should be shared with their team, kept personal, or left to AI to decide per page, then plan again with their answer.".to_string(),
+                        anyhow::anyhow!("notion import planned without sharing"),
+                    )
+                })?;
                 let scope = scope(&self.roots)?;
-                let planned = service.prepare_notion_import(&user, scope, PLAN_WAIT);
+                let planned = service.prepare_notion_import(&user, scope, sharing, PLAN_WAIT);
                 tokio::select! {
                     report = planned => report,
                     // Planning carries on in the background; report where it is.
@@ -129,6 +141,7 @@ fn scope(roots: &[String]) -> ToolResult<ImportScope> {
 /// What the model should know and do next.
 pub(super) fn message(action: NotionImportAction, report: &NotionImportReport) -> String {
     let planned = planned_summary(report);
+    let already = already_in_macro(report);
     let hand = if report.hand_items.is_empty() {
         String::new()
     } else {
@@ -150,34 +163,51 @@ pub(super) fn message(action: NotionImportAction, report: &NotionImportReport) -
             "The Notion import is stopped. {} objects were already imported and stay in Macro.",
             report.imported
         ),
-        (_, Some(RunStatus::Running)) => "Still reading the Notion workspace and planning; this continues in the background. Check again with action `status` in a minute.".to_string(),
+        (_, Some(RunStatus::Running)) => {
+            let found = report
+                .scanned
+                .map(|scanned| {
+                    format!(
+                        " {} pages and {} databases found so far.",
+                        scanned.pages, scanned.data_sources
+                    )
+                })
+                .unwrap_or_default();
+            format!(
+                "Still reading Notion and planning; this continues in the background.{found} Check again with action `status` in a minute."
+            )
+        }
         (_, Some(RunStatus::Ready)) if report.review_id.is_none() => format!(
-            "The plan is ready: {planned}. Tell the user these numbers as they are, then present the plan now with PresentReview (kind \"import\", a short title such as \"Import from Notion\", drafts [{{\"source\":\"notion\"}}]). Nothing is written until they approve it.{hand}"
+            "The plan is ready: {planned}.{already} Tell the user these numbers as they are, then present the plan now with PresentReview (kind \"import\", a short title such as \"Import from Notion\", drafts [{{\"source\":\"notion\"}}]). Nothing is written until they approve it; they can change who sees each object on the card.{hand}"
         ),
-        (_, Some(RunStatus::Ready)) => format!(
-            "The plan ({planned}) is presented and waiting for the user's approval.{hand}"
-        ),
+        (_, Some(RunStatus::Ready)) => {
+            format!(
+                "The plan ({planned}) is presented and waiting for the user's approval.{already}{hand}"
+            )
+        }
         (_, Some(RunStatus::Importing)) => format!(
-            "Importing: {} done, {} being written, {} waiting.",
-            report.imported, report.writing, report.waiting
+            "Importing: {} done, {} being written, {} waiting.{}",
+            report.imported,
+            report.writing,
+            report.waiting,
+            waiting_on_teammates(report)
         ),
         (_, Some(RunStatus::Completed)) => format!(
-            "The import finished: {} objects imported{}.{hand}",
+            "The import finished: {} objects imported{}.{}{hand}",
             report.imported,
             report
                 .error
                 .as_deref()
                 .map(|error| format!(" ({error})"))
-                .unwrap_or_default()
+                .unwrap_or_default(),
+            waiting_on_teammates(report)
         ),
         (_, Some(RunStatus::Failed)) => format!(
             "The Notion import failed: {}. Fix the cause and plan again.",
             report.error.as_deref().unwrap_or("unknown error")
         ),
         (_, Some(RunStatus::Dismissed)) => "The last Notion import was cancelled.".to_string(),
-        (_, None) => {
-            "No Notion import has been planned yet. Use action `plan`.".to_string()
-        }
+        (_, None) => "No Notion import has been planned yet. Use action `plan`.".to_string(),
     }
 }
 
@@ -205,8 +235,45 @@ pub(super) fn planned_summary(report: &NotionImportReport) -> String {
     } else {
         parts.join(", ")
     };
+    let shared = if report.copy + report.tasks > 0 {
+        let personal = (report.copy + report.tasks).saturating_sub(report.shared_with_team);
+        format!(
+            "; {} of them shared with the user's team, {personal} visible only to the user",
+            report.shared_with_team
+        )
+    } else {
+        String::new()
+    };
     format!(
-        "of the {} pages and {} databases Notion shared, it imports {writes}; {} skipped, {} to handle by hand",
+        "of the {} pages and {} databases Notion shared, it imports {writes}{shared}; {} skipped, {} to handle by hand",
         report.pages, report.data_sources, report.skip, report.hand
+    )
+}
+
+/// What teammates already imported, by whom: these link to the teammates'
+/// copies and are not imported again.
+pub(super) fn already_in_macro(report: &NotionImportReport) -> String {
+    if report.already_in_macro == 0 {
+        return String::new();
+    }
+    let by = report
+        .already_imported_by
+        .iter()
+        .map(|importer| format!("{} ({})", importer.by, importer.count))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        " {} more are already in Macro, imported and shared with the team by {by}; they link to those copies and are not imported again.",
+        report.already_in_macro
+    )
+}
+
+fn waiting_on_teammates(report: &NotionImportReport) -> String {
+    if report.waiting_on_teammates == 0 {
+        return String::new();
+    }
+    format!(
+        " {} are being imported by a teammate at the same time and link to their copies once those are written.",
+        report.waiting_on_teammates
     )
 }

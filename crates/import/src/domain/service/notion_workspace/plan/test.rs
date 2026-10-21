@@ -65,7 +65,7 @@ fn the_tree_puts_parents_first_and_plans_every_object_under_its_page() {
         ["Engineering", "Orphan", "Q3 plan", "Bugs", UNTITLED_PAGE]
     );
 
-    let items = tree.triage_items();
+    let items = tree.triage_items(&HashMap::new());
     let engineering = items
         .iter()
         .find(|item| item.title == "Engineering")
@@ -95,11 +95,13 @@ fn the_tree_puts_parents_first_and_plans_every_object_under_its_page() {
                 status: Some("Status".to_string()),
                 ..Default::default()
             }),
+            shared: None,
+            shared_reason: None,
         },
     )]
     .into_iter()
     .collect();
-    let rows = tree.plan_rows(&verdicts);
+    let rows = tree.plan_rows(&verdicts, NotionSharing::Personal, true, &HashMap::new());
 
     assert_eq!(rows.len(), 5);
     let bugs_row = rows
@@ -139,4 +141,64 @@ fn a_parent_cycle_cannot_hide_its_members() {
     assert_eq!(tree.nodes.len(), 2);
     assert_eq!(tree.nodes[0].parent, None);
     assert_eq!(tree.nodes[1].parent, Some(tree.nodes[0].id.clone()));
+}
+
+#[test]
+fn objects_a_teammate_already_imported_skip_the_model_and_link_to_their_copy() {
+    let inventory = Inventory {
+        pages: vec![
+            page('a', "Engineering", NotionParent::Workspace),
+            page('b', "Handbook", NotionParent::Page { id: id('a') }),
+        ],
+        data_sources: Vec::new(),
+    };
+    let tree = PlanTree::new(&inventory);
+    let copy = NotionAlreadyImported {
+        by: "ana@acme.test".to_string(),
+        entity_id: "doc-handbook".to_string(),
+        entity_type: "md".to_string(),
+    };
+    let already: HashMap<String, NotionAlreadyImported> =
+        [(id('b').to_string(), copy.clone())].into_iter().collect();
+
+    let items = tree.triage_items(&already);
+    assert_eq!(
+        items
+            .iter()
+            .map(|item| item.title.as_str())
+            .collect::<Vec<_>>(),
+        ["Engineering"],
+        "the decision model never sees the Handbook"
+    );
+    let engineering = Verdict {
+        key: id('a').to_string(),
+        decision: NotionDecision::Copy,
+        reason: None,
+        task_fields: None,
+        shared: Some(true),
+        shared_reason: Some("The team's space".to_string()),
+    };
+    let verdicts: HashMap<String, Verdict> =
+        [(id('a').to_string(), engineering)].into_iter().collect();
+
+    let rows = tree.plan_rows(&verdicts, NotionSharing::Ai, true, &already);
+
+    let plans: Vec<NotionPlanItem> = rows
+        .iter()
+        .map(|row| {
+            serde_json::from_value::<NotionDocMeta>(row.metadata.clone())
+                .unwrap()
+                .plan
+                .unwrap()
+        })
+        .collect();
+    assert!(plans[0].shared);
+    assert_eq!(plans[0].shared_reason.as_deref(), Some("The team's space"));
+    assert_eq!(plans[0].already_imported, None);
+    assert_eq!(plans[1].already_imported, Some(copy));
+    assert!(
+        !plans[1].shareable,
+        "a teammate's copy is not the user's to share"
+    );
+    assert_eq!(plans[1].reason.as_deref(), Some(ALREADY_IN_MACRO));
 }

@@ -40,7 +40,16 @@ fn a_status_column_becomes_a_select_and_its_cells_point_at_the_planned_options()
         },
     };
 
-    let column = planned_column(&property).unwrap();
+    let column = planned_column(&property, Uuid::from_u128(500)).unwrap();
+    assert_eq!(
+        planned_column(&property, Uuid::from_u128(500)).unwrap(),
+        column,
+        "writing the same database again names the same column and options"
+    );
+    assert_ne!(
+        planned_column(&property, Uuid::from_u128(501)).unwrap().id,
+        column.id
+    );
 
     let ColumnShape::Select { multi, options } = &column.shape else {
         panic!("expected a select, got {:?}", column.shape);
@@ -124,7 +133,7 @@ fn columns_take_the_closest_macro_type_and_titles_and_relations_wait() {
             kind: kind.clone(),
         };
         assert_eq!(
-            planned_column(&property).map(|column| column.shape.kind()),
+            planned_column(&property, Uuid::from_u128(500)).map(|column| column.shape.kind()),
             expected,
             "{kind:?}"
         );
@@ -156,11 +165,14 @@ fn people_cells_hold_only_notion_users_matched_to_team_members() {
     ]
     .into_iter()
     .collect();
-    let column = planned_column(&NotionPropertySchema {
-        id: "own".to_string(),
-        name: "Owner".to_string(),
-        kind: NotionPropertyKind::People,
-    })
+    let column = planned_column(
+        &NotionPropertySchema {
+            id: "own".to_string(),
+            name: "Owner".to_string(),
+            kind: NotionPropertyKind::People,
+        },
+        Uuid::from_u128(500),
+    )
     .unwrap();
 
     assert_eq!(

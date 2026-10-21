@@ -15,7 +15,8 @@ use entity_access::{
     inbound::axum_extractors::AgentSessionAccessLevelExtractor,
 };
 use macro_authorization::{
-    ActingUser, MacroAuthorizationExtractor, MacroAuthorizationService, MacroAuthorizationState,
+    ActingUser, InternalOnly, MacroAuthorizationExtractor, MacroAuthorizationService,
+    MacroAuthorizationState,
 };
 use macro_uuid::Uuid;
 use std::sync::Arc;
@@ -89,6 +90,23 @@ where
         .route(
             "/{session_id}/code-executions/{execution_id}/reviews",
             get(list_reviews::<Access, Auth>),
+        )
+        .with_state(state)
+}
+
+/// Internal routes services call when work a review started ends elsewhere.
+/// Mount at the root, not under `/agent-sessions`.
+pub fn review_settlement_router<Access, Auth>(
+    state: CodeExecutionRouterState<Access, Auth>,
+) -> Router
+where
+    Access: EntityAccessService,
+    Auth: MacroAuthorizationService,
+{
+    Router::new()
+        .route(
+            "/internal/agent-reviews/{review_id}/settled",
+            post(settle_review::<Access, Auth>),
         )
         .with_state(state)
 }
@@ -206,4 +224,26 @@ pub async fn decide_review<Access: EntityAccessService, Auth: MacroAuthorization
         .await
         .map(Json)
         .map_err(CodeExecutionApiError)
+}
+
+/// Tell the review's session, once, that the background work its approved
+/// action started has ended. The caller acts for the session's owner; a
+/// repeated call does not prompt again. 400 while the work is still running,
+/// 409 when the review changed underneath (retry).
+pub async fn settle_review<Access: EntityAccessService, Auth: MacroAuthorizationService>(
+    caller: MacroAuthorizationExtractor<Auth, InternalOnly>,
+    State(state): State<CodeExecutionRouterState<Access, Auth>>,
+    Path(id): Path<Uuid>,
+) -> Result<StatusCode, CodeExecutionApiError> {
+    let actor = caller
+        .authorization
+        .acting_user
+        .as_ref()
+        .ok_or(CodeExecutionApiError(CodeModeError::Forbidden))?;
+    state
+        .reviews
+        .settle(&actor.macro_user_id, ReviewId(id))
+        .await
+        .map_err(CodeExecutionApiError)?;
+    Ok(StatusCode::NO_CONTENT)
 }

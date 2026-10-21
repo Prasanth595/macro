@@ -2,15 +2,23 @@
 //! the same services the AI tools run on, as Macro AI for the user.
 
 use crate::ToolEntityCreator;
+use crate::tool_context::ImportedContent;
 use databases::domain::models::{CreateDatabase, DatabaseDetail, DatabaseId, OpBatch, Viewer};
 use databases::domain::ports::DatabasesService as _;
 use databases::domain::receipt::database_receipt;
+use documents::domain::models::DocumentError;
+use documents::domain::notion_markdown::{NotionMarkdown, NotionPageLink, NotionUserLink};
+use documents::domain::ports::DocumentService as _;
 use entity_access::domain::models::{EditAccessLevel, ViewAccessLevel};
+use entity_access::domain::ports::EntityAccessService as _;
 use import::domain::ports::{
-    ImportedDocumentProperties, ImportedTaskProperties, NewDatabase, TeamMember,
+    ImportedDocumentProperties, ImportedTaskProperties, NewDatabase, NotionLinks, SharedEntity,
+    TeamMember,
 };
 use macro_user_id::user_id::MacroUserIdStr;
-use model::project::request::CreateProjectRequest;
+use model::project::request::{CreateProjectRequest, PatchProjectRequestV2};
+use models_permissions::share_permission::UpdateSharePermissionRequestV2;
+use models_permissions::share_permission::access_level::AccessLevel;
 use projects::domain::ports::ProjectService as _;
 use uuid::Uuid;
 
@@ -22,6 +30,63 @@ fn viewer(user: &MacroUserIdStr<'static>) -> Viewer {
     Viewer {
         user_id: user.clone(),
         acting_bot: Some(bot_id::MACRO_AI_BOT_ID),
+    }
+}
+
+/// Edit access for the owner's team, and nothing else changed.
+fn team_share() -> UpdateSharePermissionRequestV2 {
+    UpdateSharePermissionRequestV2 {
+        link_share: None,
+        link_share_access_level: None,
+        team_share_access_level: Some(Some(AccessLevel::Edit)),
+        channel_share_permissions: None,
+    }
+}
+
+/// A Notion page body with the import's links, in the documents vocabulary.
+pub(crate) fn notion_markdown(markdown: &str, links: &NotionLinks) -> NotionMarkdown {
+    NotionMarkdown {
+        markdown: markdown.to_string(),
+        pages: links
+            .pages
+            .iter()
+            .map(|(id, page)| {
+                let page = NotionPageLink {
+                    document_id: page.document_id,
+                    name: page.name.clone(),
+                };
+                (id.as_str().to_string(), page)
+            })
+            .collect(),
+        users: links
+            .users
+            .iter()
+            .map(|(id, user)| {
+                let user = NotionUserLink {
+                    user_id: user.user_id.as_ref().to_string(),
+                    email: user.email.clone(),
+                };
+                (id.as_str().to_string(), user)
+            })
+            .collect(),
+    }
+}
+
+/// A document or task the import names by id that exists already was made
+/// by an interrupted earlier attempt: it stands, as the starter documents'
+/// retries treat it.
+fn already_created(created: anyhow::Result<String>, id: Uuid) -> anyhow::Result<String> {
+    match created {
+        Err(error)
+            if matches!(
+                error.downcast_ref::<DocumentError>(),
+                Some(DocumentError::Conflict(_))
+            ) =>
+        {
+            tracing::info!(document_id = %id, "imported document already exists");
+            Ok(id.to_string())
+        }
+        other => other,
     }
 }
 
@@ -69,30 +134,81 @@ impl import::domain::ports::WorkspaceWriter for ToolEntityCreator {
         Ok(project.id.parse()?)
     }
 
-    #[tracing::instrument(skip(self, user, name, markdown, properties), err)]
+    #[tracing::instrument(skip(self, user, name, notion_markdown, links, properties), err)]
     async fn create_document(
         &self,
         user: &MacroUserIdStr<'static>,
+        id: Uuid,
         name: &str,
-        markdown: &str,
+        notion_markdown: &str,
+        links: &NotionLinks,
         properties: &ImportedDocumentProperties,
         folder: Option<Uuid>,
     ) -> anyhow::Result<String> {
-        self.create_imported_document(user, name, markdown, properties, folder)
-            .await
+        let created = self
+            .create_imported_document(
+                user,
+                Some(id),
+                name,
+                self::notion_markdown(notion_markdown, links),
+                properties,
+                folder,
+            )
+            .await;
+        already_created(created, id)
     }
 
-    #[tracing::instrument(skip(self, user, name, markdown, properties), err)]
+    #[tracing::instrument(skip(self, user, name, notion_markdown, links, properties), err)]
     async fn create_task(
         &self,
         user: &MacroUserIdStr<'static>,
+        id: Uuid,
         name: &str,
-        markdown: &str,
+        notion_markdown: &str,
+        links: &NotionLinks,
         properties: &ImportedTaskProperties,
         folder: Option<Uuid>,
     ) -> anyhow::Result<String> {
-        self.create_imported_task(user, name, markdown, properties, folder)
+        let created = self
+            .create_imported_task(
+                user,
+                Some(id),
+                name,
+                ImportedContent::Notion(self::notion_markdown(notion_markdown, links)),
+                properties,
+                folder,
+                // A shared task list shares its folder, which reaches its tasks.
+                false,
+            )
+            .await;
+        already_created(created, id)
+    }
+
+    #[tracing::instrument(skip(self, user), err)]
+    async fn folder_exists(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        folder: Uuid,
+    ) -> anyhow::Result<bool> {
+        let Ok(receipt) = self
+            .entity_access_service
+            .generate_entity_access_receipt::<ViewAccessLevel>(
+                user,
+                None,
+                &folder.to_string(),
+                model_entity::EntityType::Project,
+            )
             .await
+        else {
+            return Ok(false);
+        };
+        match self.project_service.get_project(receipt).await {
+            Ok(project) => Ok(project.project_metadata.deleted_at.is_none()),
+            Err(error) => {
+                tracing::warn!(error = ?error, %folder, "imported root folder was not read");
+                Ok(false)
+            }
+        }
     }
 
     #[tracing::instrument(skip(self, user, name), err)]
@@ -142,6 +258,72 @@ impl import::domain::ports::WorkspaceWriter for ToolEntityCreator {
             .databases_service
             .apply_ops(receipt, viewer, OpBatch::from(ops))
             .await?)
+    }
+
+    #[tracing::instrument(skip(self, user), err)]
+    async fn share_with_team(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        entity: SharedEntity,
+    ) -> anyhow::Result<()> {
+        match entity {
+            SharedEntity::Folder(folder) => {
+                let receipt = self
+                    .entity_access_service
+                    .generate_entity_access_receipt::<EditAccessLevel>(
+                        user,
+                        None,
+                        &folder.to_string(),
+                        model_entity::EntityType::Project,
+                    )
+                    .await
+                    .map_err(|error| {
+                        anyhow::anyhow!("no edit access to folder {folder}: {error:?}")
+                    })?;
+                let project = self
+                    .project_service
+                    .internal_get_basic_project(&folder.to_string())
+                    .await
+                    .map_err(|error| {
+                        anyhow::anyhow!("imported folder {folder} was not read: {error:?}")
+                    })?;
+                self.project_service
+                    .edit_project(
+                        receipt,
+                        project,
+                        PatchProjectRequestV2 {
+                            name: None,
+                            project_parent_id: None,
+                            share_permission: Some(team_share()),
+                        },
+                    )
+                    .await
+                    .map_err(|error| {
+                        anyhow::anyhow!("imported folder {folder} was not shared: {error:?}")
+                    })
+            }
+            SharedEntity::Document(document) => {
+                let receipt = self
+                    .entity_access_service
+                    .generate_entity_access_receipt::<EditAccessLevel>(
+                        user,
+                        None,
+                        &document.to_string(),
+                        model_entity::EntityType::Document,
+                    )
+                    .await
+                    .map_err(|error| {
+                        anyhow::anyhow!("no edit access to document {document}: {error:?}")
+                    })?;
+                self.document_service
+                    .set_team_share(receipt, true)
+                    .await
+                    .map_err(|error| {
+                        anyhow::anyhow!("imported document {document} was not shared: {error:?}")
+                    })?;
+                Ok(())
+            }
+        }
     }
 
     #[tracing::instrument(skip(self, user), err)]

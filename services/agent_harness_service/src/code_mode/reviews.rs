@@ -6,6 +6,7 @@ use agent_session::domain::{
 };
 use ai_toolset::RequestContext;
 use async_trait::async_trait;
+use import::domain::models::{NotionImportReport, NotionWriteChoices, RunStatus};
 use import::domain::service::NotionWorkspaceImporter;
 use macro_user_id::user_id::MacroUserIdStr;
 use serde::Deserialize;
@@ -16,13 +17,19 @@ use std::sync::Arc;
 mod test;
 
 /// The one draft an import review carries: which source's staged plan it
-/// presents, and the plan rows the user took out of it.
+/// presents, the plan rows the user took out of it, and the rows whose
+/// sharing they changed: `shared` to share with their team, `personal` to
+/// keep to themselves.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ImportDraft {
     source: ImportReviewSource,
     #[serde(default)]
     excluded: Vec<macro_uuid::Uuid>,
+    #[serde(default)]
+    shared: Vec<macro_uuid::Uuid>,
+    #[serde(default)]
+    personal: Vec<macro_uuid::Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -118,13 +125,32 @@ impl<S: AgentSessionRepo, H: AgentSessionNotificationRecipient> ReviewActions fo
             },
         ).await.map_err(|_| CodeModeError::Invalid(format!("Review {} was saved, but presentation is pending. Read this review to retry presentation without creating another draft.", record.id.0)))
     }
+    async fn settled(
+        &self,
+        owner: &MacroUserIdStr<'static>,
+        record: &ReviewRecord,
+    ) -> Result<bool, CodeModeError> {
+        if record.kind != ReviewKind::Import {
+            return Ok(false);
+        }
+        let report = self.import_report(owner).await?;
+        Ok(report.review_id == Some(record.id.0)
+            && matches!(
+                report.status,
+                Some(RunStatus::Completed | RunStatus::Failed | RunStatus::Dismissed)
+            ))
+    }
     async fn notify(
         &self,
         owner: &MacroUserIdStr<'static>,
         record: &ReviewRecord,
     ) -> Result<(), CodeModeError> {
         use agent_runtime_protocol::domain::action::AgentAction;
-        let summary = notification_summary(record);
+        let summary = if record.kind == ReviewKind::Import && record.settled_at.is_some() {
+            settled_import_summary(record, &self.import_report(owner).await?)
+        } else {
+            notification_summary(record)
+        };
         self.harness
             .control_event(
                 record.session_id,
@@ -156,6 +182,19 @@ impl<S, H> Actions<S, H> {
             .ok_or_else(|| CodeModeError::Invalid("Imports are not available here.".into()))
     }
 
+    async fn import_report(
+        &self,
+        owner: &MacroUserIdStr<'static>,
+    ) -> Result<NotionImportReport, CodeModeError> {
+        self.import_service()?
+            .notion_import_report(owner)
+            .await
+            .map_err(|error| {
+                tracing::warn!(error = ?error, "could not read the notion import report");
+                CodeModeError::Invalid("The import's report could not be read.".into())
+            })
+    }
+
     /// Start writing the approved plan; the write runs in the background and
     /// reports progress through the import state.
     async fn start_import(
@@ -169,7 +208,15 @@ impl<S, H> Actions<S, H> {
         let ImportReviewSource::Notion = draft.source;
         let report = self
             .import_service()?
-            .start_notion_write(owner, review.0, draft.excluded)
+            .start_notion_write(
+                owner,
+                review.0,
+                NotionWriteChoices {
+                    excluded: draft.excluded,
+                    shared: draft.shared,
+                    personal: draft.personal,
+                },
+            )
             .await
             .map_err(|error| CodeModeError::Invalid(error.to_string()))?;
         serde_json::to_value(report).map_err(|_| {
@@ -234,6 +281,19 @@ fn notification_summary(record: &ReviewRecord) -> String {
         summary.push_str(&format!("\nSaved review: {}. Completed actions are already recorded; no further sending or scheduling is requested.", record.id.0));
     }
     summary
+}
+
+/// The follow-up once an approved import's write has ended. A report that has
+/// moved on to a newer plan no longer describes this review's import.
+fn settled_import_summary(record: &ReviewRecord, report: &NotionImportReport) -> String {
+    let body = if report.review_id == Some(record.id.0) {
+        import::domain::service::import_finished_context(report)
+    } else {
+        "The Notion import the user approved has ended, and a newer import plan has replaced its report. \
+         Check with ImportFromNotion (action `status`) before telling the user how it went."
+            .to_owned()
+    };
+    format!("{body}\nSaved review: {}.", record.id.0)
 }
 
 fn summary_text(text: &str, max_chars: usize) -> String {

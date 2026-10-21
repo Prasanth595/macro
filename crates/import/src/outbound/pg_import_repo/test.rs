@@ -2,7 +2,7 @@ use super::*;
 use crate::domain::models::{
     ImportTargetKey, ImportTargetKind, SlackConversationId, SlackWorkspaceId,
 };
-use crate::domain::ports::CanonicalImportRepo;
+use crate::domain::ports::{CanonicalImportRepo, NotionPlanRepo, PlanRow};
 use macro_db_migrator::MACRO_DB_MIGRATIONS;
 use macro_user_id::cowlike::CowLike;
 
@@ -1062,4 +1062,76 @@ async fn a_review_ties_only_the_staged_plan_and_runs_move_only_from_the_given_st
     let runs = repo.list_runs(&actor).await.unwrap();
     assert_eq!(runs[0].status, RunStatus::Dismissed);
     assert_eq!(runs[0].error.as_deref(), Some("Cancelled"));
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn scan_counts_show_only_while_the_run_is_running_and_reset_on_restart(pool: PgPool) {
+    let actor = ledger_actor(&pool, "run-scan").await;
+    let repo = PgImportRepo::new(pool);
+    assert!(
+        !repo
+            .record_scan(
+                &actor,
+                ImportSource::Notion,
+                ScanCounts {
+                    pages: 1,
+                    data_sources: 1
+                }
+            )
+            .await
+            .unwrap()
+    );
+
+    repo.start_run(&actor, ImportSource::Notion, &[])
+        .await
+        .unwrap();
+    assert_eq!(repo.list_runs(&actor).await.unwrap()[0].scanned, None);
+    assert!(
+        repo.record_scan(
+            &actor,
+            ImportSource::Notion,
+            ScanCounts {
+                pages: 40,
+                data_sources: 12
+            }
+        )
+        .await
+        .unwrap()
+    );
+    assert_eq!(
+        repo.list_runs(&actor).await.unwrap()[0].scanned,
+        Some(ScanCounts {
+            pages: 40,
+            data_sources: 12
+        })
+    );
+
+    repo.transition_run(
+        &actor,
+        ImportSource::Notion,
+        &[RunStatus::Running],
+        RunStatus::Ready,
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(repo.list_runs(&actor).await.unwrap()[0].scanned, None);
+    assert!(
+        !repo
+            .record_scan(
+                &actor,
+                ImportSource::Notion,
+                ScanCounts {
+                    pages: 41,
+                    data_sources: 12
+                }
+            )
+            .await
+            .unwrap()
+    );
+
+    repo.start_run(&actor, ImportSource::Notion, &[RunStatus::Ready])
+        .await
+        .unwrap();
+    assert_eq!(repo.list_runs(&actor).await.unwrap()[0].scanned, None);
 }

@@ -17,7 +17,7 @@ use import::{
         },
         ports::{
             CanonicalImportRepo, EntityCreator, ImportRepo, ImportedDocumentProperties,
-            ImportedTaskProperties,
+            ImportedTaskProperties, NotionLinks,
         },
         service::{ImportService, ImportServiceImpl},
     },
@@ -73,11 +73,12 @@ impl EntityCreator for ReservedCreator {
     ) -> anyhow::Result<String> {
         unreachable!()
     }
-    async fn create_markdown_doc(
+    async fn create_notion_document(
         &self,
         _: &MacroUserIdStr<'static>,
         _: &str,
         _: &str,
+        _: &NotionLinks,
         _: &ImportedDocumentProperties,
     ) -> anyhow::Result<String> {
         unreachable!()

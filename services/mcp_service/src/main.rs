@@ -40,7 +40,8 @@ async fn main() -> anyhow::Result<()> {
         url::Url::parse(macro_service_urls::StaticFileServiceUrl::new()?.as_ref())?;
 
     let event_broker_tracker = TaskTracker::new();
-    let context = build_context(&config, event_broker_tracker.clone()).await?;
+    let import_jobs = ai_tools::ImportJobs::new();
+    let context = build_context(&config, event_broker_tracker.clone(), import_jobs.clone()).await?;
 
     // Create the MCP service with authenticated tool handler
     let mcp_service = StreamableHttpService::new(
@@ -94,6 +95,9 @@ async fn main() -> anyhow::Result<()> {
         .with_graceful_shutdown(macro_entrypoint::shutdown_signal())
         .await
         .context("MCP server error");
+
+    // Running imports stop at their next checkpoint and hand their runs over.
+    import_jobs.hand_over().await;
 
     tracing::info!("waiting for event broker publishes to drain");
     event_broker_tracker.close();

@@ -8,6 +8,16 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+mod notion_run;
+mod notion_sharing;
+pub use notion_run::{
+    AdoptedRun, NotionJob, TEAMMATE_STOPPED, TeamClaim, WrittenKind, WrittenObject,
+};
+
+pub use notion_sharing::{
+    NotionAlreadyImported, NotionImporter, NotionSharing, NotionWriteChoices,
+};
+
 #[cfg(test)]
 mod test;
 
@@ -625,12 +635,32 @@ pub struct NotionPlanItem {
     /// For a task list: which columns hold the task fields.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub task_fields: Option<NotionTaskFields>,
+    /// Whether what it becomes is shared with the user's team.
+    #[serde(default)]
+    pub shared: bool,
+    /// Why it is (or is not) shared, when the decision model chose or the
+    /// import could not share it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_reason: Option<String>,
+    /// Whether the user may change `shared`: false for databases, which
+    /// cannot be shared with a team, and for users without a team.
+    #[serde(default)]
+    pub shareable: bool,
+    /// A teammate's copy shared with the team, which this object links to
+    /// instead of being imported again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub already_imported: Option<NotionAlreadyImported>,
 }
 
 impl NotionPlanItem {
     fn capped(self) -> Self {
         Self {
             reason: truncate_opt(self.reason, MAX_SUMMARY),
+            shared_reason: truncate_opt(self.shared_reason, MAX_SUMMARY),
+            already_imported: self.already_imported.map(|copy| NotionAlreadyImported {
+                by: truncated(copy.by, MAX_TEXT),
+                ..copy
+            }),
             path: self
                 .path
                 .into_iter()
@@ -798,6 +828,11 @@ pub struct ImportEntity {
     pub entity_type: Option<String>,
     /// Failure detail from the last import attempt, when one failed.
     pub last_error: Option<String>,
+    /// The teammate's row this one waits on: that teammate is writing the
+    /// same object for the team, and this row links to their copy once it
+    /// is imported.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub waiting_on: Option<Uuid>,
     /// When the row was first staged.
     pub created_at: DateTime<Utc>,
     /// When the row last changed.
@@ -815,6 +850,21 @@ pub struct ImportRun {
     pub error: Option<String>,
     /// When the run state last changed.
     pub updated_at: DateTime<Utc>,
+    /// What the run has found in the source so far, while it is `running`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scanned: Option<ScanCounts>,
+}
+
+/// What a planning run has found in the source so far.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct ScanCounts {
+    /// Pages found.
+    pub pages: u32,
+    /// Data sources (database tables) found.
+    pub data_sources: u32,
 }
 
 /// The full import aggregate for a user: discovery runs plus visible ledger
@@ -857,6 +907,9 @@ pub struct NotionImportReport {
     /// Why the run failed, when it did.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// What planning has found in Notion so far, while it is `running`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scanned: Option<ScanCounts>,
     /// Pages in the plan.
     pub pages: u32,
     /// Data sources (database tables) in the plan.
@@ -883,6 +936,20 @@ pub struct NotionImportReport {
     pub waiting: u32,
     /// Plan objects being written now.
     pub writing: u32,
+    /// Plan objects waiting for a teammate who is writing the same object
+    /// for the team; they link to the teammate's copy once it is written.
+    #[serde(default)]
+    pub waiting_on_teammates: u32,
+    /// Written plan objects shared with the user's team.
+    #[serde(default)]
+    pub shared_with_team: u32,
+    /// Plan objects a teammate already imported and shared with the team;
+    /// they link to that copy and are not counted as copies.
+    #[serde(default)]
+    pub already_in_macro: u32,
+    /// Who imported the objects already in Macro, most first.
+    #[serde(default)]
+    pub already_imported_by: Vec<NotionImporter>,
     /// The review the plan is tied to, once presented.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub review_id: Option<Uuid>,

@@ -9,7 +9,7 @@ use futures::{FutureExt, StreamExt, stream};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::domain::models::{ImportKind, NotionDecision, NotionTaskFields};
+use crate::domain::models::{ImportKind, NotionDecision, NotionSharing, NotionTaskFields};
 
 #[cfg(test)]
 mod test;
@@ -64,6 +64,13 @@ pub(super) struct Verdict {
     /// For a task list: which columns hold the task fields.
     #[serde(default)]
     pub task_fields: Option<NotionTaskFields>,
+    /// Whether to share it with the user's team; asked only when the user
+    /// left sharing to the model.
+    #[serde(default)]
+    pub shared: Option<bool>,
+    /// Why, in a short sentence.
+    #[serde(default)]
+    pub shared_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -72,43 +79,66 @@ struct TriageOutput {
 }
 
 pub(super) const TRIAGE_SYSTEM: &str = include_str!("triage_system.md");
+/// Added to [`TRIAGE_SYSTEM`] when the model also decides sharing.
+pub(super) const TRIAGE_SHARING: &str = include_str!("triage_sharing.md");
 
-/// The schema every decision-model answer is validated against.
-pub(super) fn triage_schema() -> DynamicSchema {
+/// The system prompt: sharing is the model's to decide only when the user
+/// left it to the model.
+pub(super) fn triage_system(sharing: NotionSharing) -> String {
+    match sharing {
+        NotionSharing::Ai => format!("{TRIAGE_SYSTEM}\n{TRIAGE_SHARING}"),
+        NotionSharing::Team | NotionSharing::Personal => TRIAGE_SYSTEM.to_string(),
+    }
+}
+
+/// The schema every decision-model answer is validated against; with
+/// sharing left to the model, every verdict also says whether to share.
+pub(super) fn triage_schema(sharing: NotionSharing) -> DynamicSchema {
+    let mut schema = verdicts_schema();
+    if sharing == NotionSharing::Ai {
+        let verdict = &mut schema["properties"]["verdicts"]["items"];
+        verdict["required"] = json!(["key", "decision", "shared", "sharedReason"]);
+        verdict["properties"]["shared"] = json!({ "type": "boolean" });
+        verdict["properties"]["sharedReason"] = json!({ "type": "string", "maxLength": 200 });
+    }
     DynamicSchema {
         name: "NotionImportVerdicts".to_string(),
         description: Some("What to do with each Notion object in an import.".to_string()),
-        schema: json!({
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["verdicts"],
-            "properties": {
-                "verdicts": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": ["key", "decision"],
-                        "properties": {
-                            "key": { "type": "string" },
-                            "decision": { "type": "string", "enum": ["copy", "tasks", "skip", "hand"] },
-                            "reason": { "type": "string", "maxLength": 200 },
-                            "taskFields": {
-                                "type": "object",
-                                "additionalProperties": false,
-                                "properties": {
-                                    "status": { "type": "string" },
-                                    "priority": { "type": "string" },
-                                    "due": { "type": "string" },
-                                    "assignee": { "type": "string" }
-                                }
+        schema,
+    }
+}
+
+fn verdicts_schema() -> serde_json::Value {
+    json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["verdicts"],
+        "properties": {
+            "verdicts": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["key", "decision"],
+                    "properties": {
+                        "key": { "type": "string" },
+                        "decision": { "type": "string", "enum": ["copy", "tasks", "skip", "hand"] },
+                        "reason": { "type": "string", "maxLength": 200 },
+                        "taskFields": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "status": { "type": "string" },
+                                "priority": { "type": "string" },
+                                "due": { "type": "string" },
+                                "assignee": { "type": "string" }
                             }
                         }
                     }
                 }
             }
-        }),
-    }
+        }
+    })
 }
 
 /// The verdict an object gets when the decision model gave none: bring it
@@ -119,6 +149,8 @@ pub(super) fn default_verdict(item: &TriageItem, reason: &str) -> Verdict {
         decision: NotionDecision::Copy,
         reason: Some(reason.to_string()),
         task_fields: None,
+        shared: None,
+        shared_reason: None,
     }
 }
 
@@ -127,6 +159,7 @@ pub(super) fn default_verdict(item: &TriageItem, reason: &str) -> Verdict {
 /// planning never fails because the model did.
 pub(super) async fn decide<Admit, AdmitFuture>(
     items: &[TriageItem],
+    sharing: NotionSharing,
     admit: Admit,
     recorder: &dyn ai_usage::UsageRecorder,
     usage: ai_usage::UsageContext,
@@ -146,7 +179,7 @@ where
             let usage = usage.clone();
             async move {
                 let outcome = match admitted.await {
-                    Ok(()) => decide_batch(&batch, recorder, usage, model).await,
+                    Ok(()) => decide_batch(&batch, sharing, recorder, usage, model).await,
                     Err(error) => Err(error),
                 };
                 match outcome {
@@ -172,6 +205,7 @@ where
 
 async fn decide_batch(
     batch: &[TriageItem],
+    sharing: NotionSharing,
     recorder: &dyn ai_usage::UsageRecorder,
     usage: ai_usage::UsageContext,
     model: agent::PredefinedModel,
@@ -183,9 +217,9 @@ async fn decide_batch(
     );
     let value = dynamic_structured_completion(
         model,
-        TRIAGE_SYSTEM,
+        &triage_system(sharing),
         vec![Message::user(prompt)],
-        triage_schema(),
+        triage_schema(sharing),
         recorder,
         usage,
     )

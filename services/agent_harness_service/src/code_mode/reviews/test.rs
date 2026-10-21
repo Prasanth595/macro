@@ -43,6 +43,7 @@ fn notification_fixture(kind: ReviewKind, draft: Value) -> ReviewRecord {
         }],
         notification_id: Some(macro_uuid::generate_uuid_v7()),
         notification_attempt_at: None,
+        settled_at: None,
     }
 }
 
@@ -111,7 +112,7 @@ fn hundred_uncertain_actions_produce_one_bounded_context_summary() {
 }
 
 #[test]
-fn an_import_review_carries_one_notion_draft_and_its_left_out_rows() {
+fn an_import_review_carries_one_notion_draft_with_its_left_out_and_reshared_rows() {
     let tools = ai_tools::code_mode_tools();
     assert!(validate_draft(&tools, ReviewKind::Import, &json!({"source": "notion"})).is_ok());
     assert!(
@@ -122,9 +123,24 @@ fn an_import_review_carries_one_notion_draft_and_its_left_out_rows() {
         )
         .is_ok()
     );
+    assert!(
+        validate_draft(
+            &tools,
+            ReviewKind::Import,
+            &json!({
+                "source": "notion",
+                "excluded": [],
+                "shared": ["01a15623-f76d-7ea0-955d-a9ecb91a520e"],
+                "personal": ["01a15623-f76d-7ea0-955d-a9ecb91a520f"]
+            })
+        )
+        .is_ok(),
+        "the owner's sharing changes travel with the draft"
+    );
     for draft in [
         json!({"source": "linear"}),
         json!({"source": "notion", "excluded": ["not a uuid"]}),
+        json!({"source": "notion", "personal": ["not a uuid"]}),
         json!({"source": "notion", "write": "everything"}),
         json!({}),
     ] {
@@ -148,4 +164,61 @@ fn an_approved_import_tells_the_agent_to_follow_progress_not_to_import_again() {
         !summary.contains("no further sending or scheduling"),
         "{summary}"
     );
+}
+
+#[test]
+fn a_settled_import_continues_the_session_on_its_final_report() {
+    let mut record = notification_fixture(ReviewKind::Import, json!({"source": "notion"}));
+    record.settled_at = Some(2);
+    let report = NotionImportReport {
+        status: Some(RunStatus::Completed),
+        copy: 2,
+        documents: 2,
+        imported: 2,
+        review_id: Some(record.id.0),
+        ..NotionImportReport::default()
+    };
+
+    let action = agent_runtime_protocol::domain::action::AgentAction::context_prompt(
+        settled_import_summary(&record, &report),
+    );
+
+    let agent_runtime_protocol::domain::action::AgentAction::Prompt(prompt) = action else {
+        panic!("the follow-up travels through the normal prompt queue");
+    };
+    assert!(prompt.prompt.is_empty(), "the transcript shows no prompt");
+    let context = prompt.private_context.unwrap();
+    assert!(
+        context.starts_with("The Notion import the user approved has ended."),
+        "{context}"
+    );
+    assert!(context.contains("Outcome: completed."), "{context}");
+    assert!(
+        context.contains("Imported 2 of the 2 objects planned for copying"),
+        "{context}"
+    );
+    assert!(
+        context.ends_with(&format!("Saved review: {}.", record.id.0)),
+        "{context}"
+    );
+}
+
+#[test]
+fn a_settled_import_whose_report_moved_on_reports_no_stale_counts() {
+    let mut record = notification_fixture(ReviewKind::Import, json!({"source": "notion"}));
+    record.settled_at = Some(2);
+    let report = NotionImportReport {
+        status: Some(RunStatus::Completed),
+        imported: 9,
+        review_id: Some(macro_uuid::generate_uuid_v7()),
+        ..NotionImportReport::default()
+    };
+
+    let summary = settled_import_summary(&record, &report);
+
+    assert!(
+        summary.contains("a newer import plan has replaced its report"),
+        "{summary}"
+    );
+    assert!(!summary.contains("Imported 9"), "{summary}");
 }

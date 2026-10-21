@@ -541,9 +541,12 @@ async fn run() -> anyhow::Result<()> {
     // against it, so the two must be the same string.
     let egress_base_url = AgentHarnessEgressUrl::new()?.to_string();
 
+    // Notion imports started from sessions hand their runs over on shutdown.
+    let import_jobs = ai_tools::ImportJobs::new();
     let tool_context = ai_tools::build_tool_service_context_from_env(
         pool.clone(),
         event_broker_tracker.clone(),
+        import_jobs.clone(),
         config.enable_ai_usage_enforcement,
         config.ai_pricing(),
         recorder.clone(),
@@ -1441,14 +1444,17 @@ async fn run() -> anyhow::Result<()> {
                 MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
             ),
         );
-    let code_executions = agent_code_mode::inbound::axum_router::code_execution_router(
-        agent_code_mode::inbound::axum_router::CodeExecutionRouterState::new(
-            code_mode,
-            reviews,
-            entity_access.clone(),
-            MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
-        ),
+    let code_execution_state = agent_code_mode::inbound::axum_router::CodeExecutionRouterState::new(
+        code_mode,
+        reviews,
+        entity_access.clone(),
+        MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
     );
+    let review_settlements = agent_code_mode::inbound::axum_router::review_settlement_router(
+        code_execution_state.clone(),
+    );
+    let code_executions =
+        agent_code_mode::inbound::axum_router::code_execution_router(code_execution_state);
     let sharing = agent_session::inbound::axum_router::sharing::agent_session_sharing_router(
         AgentSessionRouterState::new(
             agent_session::domain::sharing::SessionSharingService::new(session_repo.clone()),
@@ -1504,7 +1510,8 @@ async fn run() -> anyhow::Result<()> {
             .with_pull_requests(pull_requests)
             .with_tool_approvals(tool_approval_answers)
             .with_app_connections(app_connections)
-            .with_code_executions(code_executions),
+            .with_code_executions(code_executions)
+            .with_review_settlements(review_settlements),
             http_runtime_commands_readiness,
             http_port,
             shutdown_signal(),
@@ -1860,6 +1867,9 @@ async fn run() -> anyhow::Result<()> {
             tracing::error!(error = ?error, "agent harness task failed during shutdown");
         }
     }
+
+    // Running imports stop at their next checkpoint and hand their runs over.
+    import_jobs.hand_over().await;
 
     event_broker_tracker.close();
     if tokio::time::timeout(

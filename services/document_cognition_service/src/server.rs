@@ -698,7 +698,9 @@ pub async fn run() -> anyhow::Result<()> {
         team_repository: ai_tools::build_team_repository(db.clone()),
         project_service: project_tool_context.service.clone(),
         databases_service: databases_tool_context.service.clone(),
+        document_service: document_tool_context.service.clone(),
     };
+    let import_jobs = ai_tools::ImportJobs::new();
     let import_service = Arc::new(
         import::domain::service::ImportServiceImpl::new(
             import::outbound::pg_import_repo::PgImportRepo::new(db.clone()),
@@ -716,12 +718,32 @@ pub async fn run() -> anyhow::Result<()> {
             ),
         ))
         .with_admission(admission.clone())
-        .with_notifier(import_notify),
+        .with_notifier(import_notify)
+        .with_review_follow_up(ai_tools::build_review_follow_up(
+            macro_service_urls::AgentHarnessServiceUrl::new()?,
+            &internal_api_key,
+        )?)
+        .with_job_shutdown(import_jobs.shutdown.clone(), import_jobs.tracker.clone()),
     );
 
-    // No boot-time recovery: running batches heartbeat their rows, and the
-    // read path reaps rows whose heartbeat stopped — safe with multiple
-    // replicas, where a boot-time sweep would clobber other instances' jobs.
+    // Notion workspace imports outlive the process running them: on shutdown
+    // a running job hands its run over, and the sweeper adopts runs whose
+    // process stopped holding them (other replicas' live runs are leased, so
+    // it leaves them alone). Slack and single-page jobs heal on read.
+    import_jobs.tracker.spawn({
+        let import_service = import_service.clone();
+        let shutdown = import_jobs.shutdown.clone();
+        async move { import_service.sweep_stalled_notion_imports(shutdown).await }
+    });
+    import_jobs.tracker.spawn({
+        let shutdown = import_jobs.shutdown.clone();
+        async move {
+            tokio::select! {
+                () = macro_entrypoint::shutdown_signal() => shutdown.cancel(),
+                () = shutdown.cancelled() => {}
+            }
+        }
+    });
     tracing::info!("initialized import service");
 
     let databases_sql_tool_context = ai_tools::build_databases_sql_tool_context(
@@ -1013,6 +1035,9 @@ pub async fn run() -> anyhow::Result<()> {
             );
         }
     }
+
+    // Running imports stop at their next checkpoint and hand their runs over.
+    import_jobs.hand_over().await;
 
     tracing::info!("waiting for event broker publishes to drain");
     event_broker_tracker.close();

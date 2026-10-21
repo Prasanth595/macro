@@ -26,6 +26,7 @@ fn row(source: ImportSource, status: ImportStatus) -> ImportEntity {
         entity_type: matches!(status, ImportStatus::Imported)
             .then(|| source.entity_type().to_string()),
         last_error: None,
+        waiting_on: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
     }

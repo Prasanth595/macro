@@ -14,6 +14,10 @@ execution records, and durable review stacks. Process isolation belongs to
 - `SKILL.md`: the agent-facing JavaScript contract and examples.
 - `src/domain/service.rs`: execution admission, identity and persistence.
 - `src/domain/reviews.rs`: review validation, revisions, claims and outcomes.
+  `settle` reports, once (`settled_at`), that background work an approved
+  action started has ended; other services reach it through the internal
+  `POST /internal/agent-reviews/{id}/settled` route
+  (`outbound::review_settlements_client`).
 - `src/domain/documentation.rs`: bounded selection of generated SDK docs.
 
 ## Boundaries

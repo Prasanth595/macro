@@ -11,6 +11,7 @@ use macro_user_id::user_id::MacroUserIdStr;
 use models_databases::{
     CellValue, ColumnId, ColumnKind, EntityKind, EntityRef, OptionId, OptionRef,
 };
+use uuid::Uuid;
 
 use crate::domain::models::NotionTaskFields;
 use crate::domain::ports::{
@@ -99,7 +100,12 @@ impl ColumnShape {
 /// The column a Notion property becomes, or `None` for the title (which
 /// fills the table's title column), relations (added once every table
 /// exists), and types with nothing to keep.
-pub(super) fn planned_column(property: &NotionPropertySchema) -> Option<PlannedColumn> {
+/// The column `property` becomes in `database`. Its ids derive from the
+/// database and the property, so a resumed write names the same columns.
+pub(super) fn planned_column(
+    property: &NotionPropertySchema,
+    database: Uuid,
+) -> Option<PlannedColumn> {
     let shape = match &property.kind {
         NotionPropertyKind::Title
         | NotionPropertyKind::Relation { .. }
@@ -120,12 +126,20 @@ pub(super) fn planned_column(property: &NotionPropertySchema) -> Option<PlannedC
         NotionPropertyKind::Select { options } | NotionPropertyKind::Status { options } => {
             ColumnShape::Select {
                 multi: false,
-                options: planned_options(options.iter().map(|option| option.name.as_str())),
+                options: planned_options(
+                    database,
+                    &property.id,
+                    options.iter().map(|option| option.name.as_str()),
+                ),
             }
         }
         NotionPropertyKind::MultiSelect { options } => ColumnShape::Select {
             multi: true,
-            options: planned_options(options.iter().map(|option| option.name.as_str())),
+            options: planned_options(
+                database,
+                &property.id,
+                options.iter().map(|option| option.name.as_str()),
+            ),
         },
         NotionPropertyKind::People => ColumnShape::People { multi: true },
         NotionPropertyKind::CreatedBy | NotionPropertyKind::LastEditedBy => {
@@ -133,7 +147,7 @@ pub(super) fn planned_column(property: &NotionPropertySchema) -> Option<PlannedC
         }
     };
     Some(PlannedColumn {
-        id: ColumnId::new(),
+        id: ColumnId::from_uuid(derived_id(database, &format!("column/{}", property.id))),
         property: property.name.clone(),
         name: capped_name(&property.name),
         shape,
@@ -141,13 +155,27 @@ pub(super) fn planned_column(property: &NotionPropertySchema) -> Option<PlannedC
 }
 
 /// Options with usable, distinct labels, ids minted.
-fn planned_options<'a>(labels: impl Iterator<Item = &'a str>) -> Vec<(OptionId, String)> {
+fn planned_options<'a>(
+    database: Uuid,
+    property: &str,
+    labels: impl Iterator<Item = &'a str>,
+) -> Vec<(OptionId, String)> {
     let mut seen = std::collections::HashSet::new();
     labels
         .map(capped_name)
         .filter(|label| !label.is_empty() && seen.insert(label.to_lowercase()))
-        .map(|label| (OptionId::new(), label))
+        .map(|label| {
+            let id = derived_id(database, &format!("option/{property}/{label}"));
+            (OptionId::from_uuid(id), label)
+        })
         .collect()
+}
+
+/// A stable id for `name` within `namespace` (UUIDv5), so writing the same
+/// object again names the same thing: Macro refuses an id already in use
+/// instead of creating a duplicate.
+pub(super) fn derived_id(namespace: Uuid, name: &str) -> Uuid {
+    Uuid::new_v5(&namespace, name.as_bytes())
 }
 
 /// A name trimmed to what Macro accepts.

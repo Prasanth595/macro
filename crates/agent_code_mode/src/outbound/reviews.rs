@@ -68,4 +68,15 @@ impl ReviewStore for PgReviewStore {
         }
         Ok(())
     }
+    async fn find(&self, id: ReviewId) -> Result<ReviewRecord, CodeModeError> {
+        sqlx::query_scalar!(
+            r#"SELECT record AS "record: Json<ReviewRecord>" FROM agent_session_review WHERE id = $1"#,
+            id.0
+        )
+        .fetch_optional(&self.0)
+        .await
+        .map_err(storage)?
+        .map(|record| record.0)
+        .ok_or(CodeModeError::NotFound)
+    }
 }

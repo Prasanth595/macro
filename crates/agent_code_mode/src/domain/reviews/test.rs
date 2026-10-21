@@ -68,6 +68,15 @@ impl ReviewStore for Store {
         *current = record.clone();
         Ok(())
     }
+    async fn find(&self, id: ReviewId) -> Result<ReviewRecord, CodeModeError> {
+        self.0
+            .lock()
+            .unwrap()
+            .values()
+            .find(|row| row.id == id)
+            .cloned()
+            .ok_or(CodeModeError::NotFound)
+    }
 }
 struct Executions {
     session: AgentSessionId,
@@ -111,6 +120,7 @@ struct Actions {
     fail_notification: AtomicBool,
     block_actions: AtomicBool,
     action_gate: tokio::sync::Notify,
+    background_done: AtomicBool,
 }
 #[async_trait]
 impl ReviewActions for Actions {
@@ -155,6 +165,14 @@ impl ReviewActions for Actions {
         }
         Ok(())
     }
+    async fn settled(
+        &self,
+        owner: &MacroUserIdStr<'static>,
+        _: &ReviewRecord,
+    ) -> Result<bool, CodeModeError> {
+        assert_eq!(owner, &self.owner);
+        Ok(self.background_done.load(Ordering::SeqCst))
+    }
     async fn notify(
         &self,
         _: &MacroUserIdStr<'static>,
@@ -195,6 +213,7 @@ impl Fixture {
             fail_notification: AtomicBool::new(false),
             block_actions: AtomicBool::new(false),
             action_gate: tokio::sync::Notify::new(),
+            background_done: AtomicBool::new(false),
         });
         let service = ReviewService::new(
             store.clone(),
@@ -624,5 +643,64 @@ fn questions_use_acp_instead_of_the_saved_review_contract() {
             "kind":"question", "title":"Choose", "drafts":[{"question":"Which?"}]
         }))
         .is_err()
+    );
+}
+
+#[tokio::test]
+async fn settling_tells_the_session_the_final_outcome_once() {
+    let f = Fixture::new();
+    let row = f.create(vec![json!({"subject":"x"})]).await;
+    let stranger = MacroUserIdStr::parse_from_str("macro|other@macro.local")
+        .unwrap()
+        .into_owned();
+
+    assert!(matches!(
+        f.service.settle(&f.actions.owner, row.id).await,
+        Err(CodeModeError::Invalid(_))
+    ));
+    f.actions.background_done.store(true, Ordering::SeqCst);
+    assert!(matches!(
+        f.service.settle(&stranger, row.id).await,
+        Err(CodeModeError::Forbidden)
+    ));
+    assert!(f.actions.notifications.lock().unwrap().is_empty());
+
+    let (first, second) = tokio::join!(
+        f.service.settle(&f.actions.owner, row.id),
+        f.service.settle(&f.actions.owner, row.id)
+    );
+    assert!(first.is_ok() || second.is_ok());
+    assert!(
+        [first, second]
+            .into_iter()
+            .all(|outcome| matches!(outcome, Ok(_) | Err(CodeModeError::Conflict)))
+    );
+    let repeated = f.service.settle(&f.actions.owner, row.id).await.unwrap();
+
+    assert!(repeated.settled_at.is_some());
+    assert!(repeated.notification_id.is_none());
+    assert_eq!(f.actions.notifications.lock().unwrap().len(), 1);
+    assert!(f.actions.calls.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn settling_an_archived_session_tells_no_one() {
+    let f = Fixture::new();
+    let row = f.create(vec![json!({"subject":"x"})]).await;
+    f.actions.background_done.store(true, Ordering::SeqCst);
+    f.actions.archived.store(true, Ordering::SeqCst);
+
+    assert!(matches!(
+        f.service.settle(&f.actions.owner, row.id).await,
+        Err(CodeModeError::Forbidden)
+    ));
+    assert!(f.actions.notifications.lock().unwrap().is_empty());
+    assert!(
+        f.store
+            .get(f.session, row.id)
+            .await
+            .unwrap()
+            .settled_at
+            .is_none()
     );
 }

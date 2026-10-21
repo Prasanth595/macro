@@ -7,9 +7,12 @@ use import_notion::domain::model::{
     DataSourceSummary, Inventory, NotionId, NotionParent, NotionPropertyKind,
 };
 
-use crate::domain::models::{ImportKind, NotionDecision, NotionDocMeta, NotionPlanItem};
+use crate::domain::models::{
+    ImportKind, NotionAlreadyImported, NotionDecision, NotionDocMeta, NotionPlanItem, NotionSharing,
+};
 use crate::domain::ports::PlanRow;
 
+use super::sharing::plan_sharing;
 use super::triage::{TriageItem, TriageTable, Verdict, default_verdict};
 
 #[cfg(test)]
@@ -94,12 +97,17 @@ impl PlanTree {
         path
     }
 
-    /// What the decision model sees of each node.
-    pub fn triage_items(&self) -> Vec<TriageItem> {
+    /// What the decision model sees of each node, leaving out those already
+    /// in Macro (keyed by Notion id), which need no decision.
+    pub fn triage_items(
+        &self,
+        already_imported: &HashMap<String, NotionAlreadyImported>,
+    ) -> Vec<TriageItem> {
         let index = self.index();
         let children = self.child_counts();
         self.nodes
             .iter()
+            .filter(|node| !already_imported.contains_key(node.id.as_str()))
             .map(|node| TriageItem {
                 key: node.id.to_string(),
                 kind: node.kind,
@@ -111,26 +119,31 @@ impl PlanTree {
             .collect()
     }
 
-    /// The ledger rows for the plan, parents first.
-    pub fn plan_rows(&self, verdicts: &HashMap<String, Verdict>) -> Vec<PlanRow> {
+    /// The ledger rows for the plan, parents first: each node's verdict, its
+    /// sharing under `sharing` (`team` says whether the user has a team),
+    /// and the teammate's copy standing in for it, if any.
+    pub fn plan_rows(
+        &self,
+        verdicts: &HashMap<String, Verdict>,
+        sharing: NotionSharing,
+        team: bool,
+        already_imported: &HashMap<String, NotionAlreadyImported>,
+    ) -> Vec<PlanRow> {
         let index = self.index();
         self.nodes
             .iter()
             .map(|node| {
                 let key = node.id.to_string();
-                let verdict = verdicts.get(&key).cloned().unwrap_or_else(|| {
-                    default_verdict(
-                        &TriageItem {
-                            key: key.clone(),
-                            kind: node.kind,
-                            title: node.title.clone(),
-                            path: Vec::new(),
-                            children: 0,
-                            table: node.table.clone(),
-                        },
+                let copy = already_imported.get(&key).cloned();
+                let verdict = match (verdicts.get(&key), &copy) {
+                    (Some(verdict), _) => verdict.clone(),
+                    (None, Some(_)) => default_verdict(&triage_item(node, &key), ALREADY_IN_MACRO),
+                    (None, None) => default_verdict(
+                        &triage_item(node, &key),
                         "The decision model gave no answer",
-                    )
-                });
+                    ),
+                };
+                let placed = plan_sharing(sharing, node.kind, &verdict, team);
                 let plan = NotionPlanItem {
                     decision: verdict.decision,
                     reason: verdict.reason,
@@ -142,6 +155,10 @@ impl PlanTree {
                     task_fields: (verdict.decision == NotionDecision::Tasks)
                         .then_some(verdict.task_fields)
                         .flatten(),
+                    shared: placed.shared,
+                    shared_reason: placed.reason,
+                    shareable: placed.shareable && copy.is_none(),
+                    already_imported: copy,
                 };
                 let metadata = NotionDocMeta::for_plan(node.title.clone(), node.url.clone(), plan);
                 PlanRow {
@@ -164,6 +181,21 @@ impl PlanTree {
             *counts.entry(parent).or_insert(0) += 1;
         }
         counts
+    }
+}
+
+/// Why an object a teammate already imported is not copied.
+const ALREADY_IN_MACRO: &str =
+    "Already in Macro: a teammate imported it and shared it with the team.";
+
+fn triage_item(node: &Node, key: &str) -> TriageItem {
+    TriageItem {
+        key: key.to_string(),
+        kind: node.kind,
+        title: node.title.clone(),
+        path: Vec::new(),
+        children: 0,
+        table: node.table.clone(),
     }
 }
 

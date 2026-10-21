@@ -138,6 +138,10 @@ pub struct ReviewRecord {
     /// Most recent delivery claim, allowing retry after a replica stops.
     #[serde(default)]
     pub notification_attempt_at: Option<i64>,
+    /// When the approved action's background work ended. Set once, so the
+    /// session hears the final outcome once.
+    #[serde(default)]
+    pub settled_at: Option<i64>,
 }
 
 /// One atomic user decision against the displayed revision.
@@ -192,6 +196,8 @@ pub trait ReviewStore: Send + Sync + 'static {
     ) -> Result<Vec<ReviewRecord>, CodeModeError>;
     /// Save iff the persisted revision equals `expected`.
     async fn save(&self, expected: i64, record: &ReviewRecord) -> Result<(), CodeModeError>;
+    /// Look up by identity alone, for internal callers that know only the review.
+    async fn find(&self, id: ReviewId) -> Result<ReviewRecord, CodeModeError>;
 }
 
 /// Authoritative session facts used by review authorization and dispatch.
@@ -224,6 +230,13 @@ pub trait ReviewActions: Send + Sync + 'static {
         owner: &MacroUserIdStr<'static>,
         record: &ReviewRecord,
     ) -> Result<(), CodeModeError>;
+    /// Whether the background work an approved action started has ended, so
+    /// its final outcome can be reported.
+    async fn settled(
+        &self,
+        owner: &MacroUserIdStr<'static>,
+        record: &ReviewRecord,
+    ) -> Result<bool, CodeModeError>;
     /// Deliver one batch outcome through the existing ordered session control queue.
     async fn notify(
         &self,
@@ -328,6 +341,7 @@ impl ReviewService {
             updated_at: chrono::Utc::now().timestamp_millis(),
             notification_id: None,
             notification_attempt_at: None,
+            settled_at: None,
             items: input
                 .drafts
                 .into_iter()
@@ -468,6 +482,37 @@ impl ReviewService {
             }
             _ => tracing::warn!("review notification pending retry"),
         }
+    }
+    /// Tell the session, once, that the background work its approved action
+    /// started has ended. `actor` must own the session. Repeating the call is
+    /// harmless: a settled review only retries a notification still pending.
+    #[tracing::instrument(skip(self), fields(review = %id.0, session = tracing::field::Empty), err(Debug))]
+    pub async fn settle(
+        &self,
+        actor: &MacroUserIdStr<'static>,
+        id: ReviewId,
+    ) -> Result<ReviewRecord, CodeModeError> {
+        let mut record = self.store.find(id).await?;
+        tracing::Span::current().record("session", tracing::field::display(record.session_id));
+        let owner = self.owner(record.session_id).await?;
+        if owner != *actor {
+            return Err(CodeModeError::Forbidden);
+        }
+        if record.settled_at.is_none() {
+            if !self.actions.settled(&owner, &record).await? {
+                return Err(CodeModeError::Invalid(
+                    "The review's background work has not finished.".into(),
+                ));
+            }
+            record.settled_at = Some(chrono::Utc::now().timestamp_millis());
+            record.notification_id = Some(macro_uuid::generate_uuid_v7());
+            record.notification_attempt_at = None;
+            self.save(&mut record).await?;
+        }
+        if record.notification_id.is_some() {
+            self.deliver_notification(record.clone()).await;
+        }
+        Ok(record)
     }
     async fn save(&self, record: &mut ReviewRecord) -> Result<(), CodeModeError> {
         if serde_json::to_vec(record).map_err(|_| invalid())?.len() > MAX_RECORD_BYTES {

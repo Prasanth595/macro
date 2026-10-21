@@ -166,10 +166,15 @@ pub fn build_cognition_tool_context() -> anyhow::Result<crate::ToolCognitionTool
 /// `event_task_tracker` tracks event publishes started by the context. Callers
 /// must retain the original tracker, pass a clone here, and close and drain the
 /// original after the host stops broker-backed work.
-#[tracing::instrument(skip(pool, event_task_tracker, recorder), err)]
+///
+/// `import_jobs` runs the context's Notion workspace imports; the host calls
+/// [`crate::ImportJobs::hand_over`] on shutdown so they move to another
+/// process instead of waiting for their leases to lapse.
+#[tracing::instrument(skip(pool, event_task_tracker, import_jobs, recorder), err)]
 pub async fn build_tool_service_context_from_env(
     pool: sqlx::PgPool,
     event_task_tracker: TaskTracker,
+    import_jobs: crate::ImportJobs,
     enforcement: ai_usage::AiUsageEnforcement,
     pricing: ai_billing::AiPricing,
     recorder: Arc<dyn ai_usage::UsageRecorder>,
@@ -594,6 +599,7 @@ pub async fn build_tool_service_context_from_env(
                     team_repository: crate::tool_context::build_team_repository(pool.clone()),
                     project_service: project_tool_context.service.clone(),
                     databases_service: databases_tool_context.service.clone(),
+                    document_service: document_tool_context.service.clone(),
                 }),
                 recorder.clone(),
             )
@@ -609,7 +615,12 @@ pub async fn build_tool_service_context_from_env(
             .with_admission(admission.clone())
             .with_notifier(import::outbound::gateway_notifier::gateway_import_notify(
                 side_effect_clients.connection_gateway.clone(),
-            )),
+            ))
+            .with_review_follow_up(crate::build_review_follow_up(
+                macro_service_urls::AgentHarnessServiceUrl::new()?,
+                &env.internal_api_key.to_string(),
+            )?)
+            .with_job_shutdown(import_jobs.shutdown, import_jobs.tracker),
         );
         ToolImportToolContext::wired(import_service)
     } else {

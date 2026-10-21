@@ -1,11 +1,14 @@
 //! Ports (traits) the import domain depends on.
 
 use super::models::{
-    ImportEntity, ImportKind, ImportRun, ImportSource, ImportSourceBinding, ImportStatus,
-    ImportTargetKey, ImportTargetKind, ImportTargetReservation, Initiator, RunStatus,
-    SlackConversationId, SlackConversationPage, SlackMemberPage, SlackUserPage, SlackWorkspaceId,
+    AdoptedRun, ImportEntity, ImportKind, ImportRun, ImportSource, ImportSourceBinding,
+    ImportStatus, ImportTargetKey, ImportTargetKind, ImportTargetReservation, Initiator, NotionJob,
+    RunStatus, ScanCounts, SlackConversationId, SlackConversationPage, SlackMemberPage,
+    SlackUserPage, SlackWorkspaceId, TeamClaim, WrittenObject,
 };
+use import_notion::domain::model::NotionId;
 use macro_user_id::user_id::MacroUserIdStr;
+use std::collections::HashMap;
 use std::time::Duration;
 use thiserror::Error;
 use uuid::Uuid;
@@ -195,7 +198,10 @@ pub trait ImportRepo: Send + Sync + 'static {
         ids: &[Uuid],
     ) -> impl Future<Output = Result<Vec<ImportEntity>>> + Send;
 
-    /// CAS one `importing` row to `imported` with the entity it became.
+    /// CAS one `importing` row to `imported` with the entity it became,
+    /// recording `team_id` when given (a row's team claim is kept
+    /// otherwise). Rows waiting on it ([`NotionPlanRepo::wait_on`]) link to
+    /// the same entity.
     fn mark_imported(
         &self,
         user: &MacroUserIdStr<'static>,
@@ -205,7 +211,8 @@ pub trait ImportRepo: Send + Sync + 'static {
         team_id: Option<Uuid>,
     ) -> impl Future<Output = Result<Option<ImportEntity>>> + Send;
 
-    /// CAS one `importing` row back to `staged`, recording the failure.
+    /// CAS one `importing` row back to `staged`, recording the failure and
+    /// dropping its team claim. Rows waiting on it go back to `staged` too.
     fn mark_import_failed(
         &self,
         user: &MacroUserIdStr<'static>,
@@ -224,7 +231,8 @@ pub trait ImportRepo: Send + Sync + 'static {
     /// CAS the user's `importing` rows whose heartbeat stopped more than
     /// `older_than_secs` ago back to `staged`. Import jobs are in-process
     /// tasks: a crash or restart mid-job orphans its rows, and nothing else
-    /// can move them again. Returns how many were reaped.
+    /// can move them again. Notion workspace plan rows are left to the
+    /// adopting process ([`NotionRunRepo`]). Returns how many were reaped.
     fn fail_stale_importing(
         &self,
         user: &MacroUserIdStr<'static>,
@@ -270,8 +278,8 @@ pub trait ImportRepo: Send + Sync + 'static {
     /// CAS the user's runs stuck in `running` (or the legacy `importing`) for
     /// more than `older_than_secs` to `failed`. Discovery is an in-process
     /// task: a crash or deploy mid-run leaves the row behind, and the UI
-    /// cannot start a new run while one looks active. Returns how many were
-    /// reaped.
+    /// cannot start a new run while one looks active. Notion runs are adopted
+    /// instead ([`NotionRunRepo`]). Returns how many were reaped.
     fn fail_stale_runs(
         &self,
         user: &MacroUserIdStr<'static>,
@@ -435,6 +443,34 @@ pub enum ImportedDocumentPropertyValue {
     },
 }
 
+/// What a Notion page's references point to in Macro, so the page converts
+/// with live mentions instead of links back to Notion.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct NotionLinks {
+    /// Notion page → the Macro document it becomes.
+    pub pages: HashMap<NotionId, NotionPageLink>,
+    /// Notion person → the Macro user they are.
+    pub users: HashMap<NotionId, NotionUserLink>,
+}
+
+/// The Macro document a Notion page becomes.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NotionPageLink {
+    /// The document id, minted before the document exists.
+    pub document_id: Uuid,
+    /// Its name.
+    pub name: String,
+}
+
+/// The Macro user a Notion person is.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NotionUserLink {
+    /// The Macro user id.
+    pub user_id: MacroUserIdStr<'static>,
+    /// Their email, lowercase.
+    pub email: String,
+}
+
 /// Creates the Macro entities imports become. Implemented by the host
 /// service against its real document/channel services; the fixed
 /// source → entity-type mapping is enforced by the import service, which
@@ -450,12 +486,14 @@ pub trait EntityCreator: Send + Sync + 'static {
         properties: &ImportedTaskProperties,
     ) -> impl Future<Output = anyhow::Result<String>> + Send;
 
-    /// Create a markdown document. Returns the new entity id.
-    fn create_markdown_doc(
+    /// Create a document from a Notion page in Notion's enhanced markdown,
+    /// its references resolved through `links`. Returns the new entity id.
+    fn create_notion_document(
         &self,
         user: &MacroUserIdStr<'static>,
         name: &str,
-        markdown: &str,
+        notion_markdown: &str,
+        links: &NotionLinks,
         properties: &ImportedDocumentProperties,
     ) -> impl Future<Output = anyhow::Result<String>> + Send;
 
@@ -485,6 +523,16 @@ pub struct NewDatabase {
     pub title_column: models_databases::ColumnId,
 }
 
+/// Something a workspace import shares with the user's team. Databases
+/// cannot be shared with a team, so they are not here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SharedEntity {
+    /// A folder, and everything in it.
+    Folder(Uuid),
+    /// A document.
+    Document(Uuid),
+}
+
 /// A team member a Notion person can be matched to, by email.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TeamMember {
@@ -509,24 +557,44 @@ pub trait WorkspaceWriter: Send + Sync + 'static {
         parent: Option<Uuid>,
     ) -> impl Future<Output = anyhow::Result<Uuid>> + Send;
 
-    /// Create a markdown document inside `folder` when given, applying
-    /// `properties` best-effort. Returns the document id.
+    /// Whether `folder` still exists and `user` can create inside it.
+    fn folder_exists(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        folder: Uuid,
+    ) -> impl Future<Output = anyhow::Result<bool>> + Send;
+
+    /// Create document `id` from a Notion page (Notion's enhanced markdown,
+    /// references resolved through `links`) inside `folder` when given,
+    /// applying `properties` best-effort. Returns the document id. Safe to
+    /// repeat: when document `id` exists already (an interrupted earlier
+    /// attempt), it is left as it is and its id returned.
+    #[allow(clippy::too_many_arguments)]
     fn create_document(
         &self,
         user: &MacroUserIdStr<'static>,
+        id: Uuid,
         name: &str,
-        markdown: &str,
+        notion_markdown: &str,
+        links: &NotionLinks,
         properties: &ImportedDocumentProperties,
         folder: Option<Uuid>,
     ) -> impl Future<Output = anyhow::Result<String>> + Send;
 
-    /// Create a task inside `folder` when given, applying `properties`
-    /// best-effort. Returns the task id.
+    /// Create task `id` from a Notion page (as for [`Self::create_document`],
+    /// and as safe to repeat) inside `folder` when given, applying
+    /// `properties` best-effort. Returns the task id.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "a task carries its id, content, links, properties and folder"
+    )]
     fn create_task(
         &self,
         user: &MacroUserIdStr<'static>,
+        id: Uuid,
         name: &str,
-        markdown: &str,
+        notion_markdown: &str,
+        links: &NotionLinks,
         properties: &ImportedTaskProperties,
         folder: Option<Uuid>,
     ) -> impl Future<Output = anyhow::Result<String>> + Send;
@@ -546,6 +614,15 @@ pub trait WorkspaceWriter: Send + Sync + 'static {
         database_id: Uuid,
         ops: Vec<models_databases::DatabaseOp>,
     ) -> impl Future<Output = anyhow::Result<Vec<models_databases::OpResult>>> + Send;
+
+    /// Share `entity`, which `user` owns, with `user`'s team at edit level.
+    /// Sharing a folder reaches everything inside it, folders included.
+    /// Safe to repeat.
+    fn share_with_team(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        entity: SharedEntity,
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
 
     /// The members of `user`'s team (including `user`), for matching Notion
     /// people by email. Empty when the user has no team.
@@ -581,6 +658,59 @@ pub trait NotionPlanRepo: Send + Sync + 'static {
         rows: &[PlanRow],
     ) -> impl Future<Output = Result<Vec<ImportEntity>>> + Send;
 
+    /// Teammates' rows for the Notion objects `foreign_ids` that hold the
+    /// user's team's claim (`importing` or `imported`, shared with the team).
+    fn team_copies(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        foreign_ids: &[String],
+    ) -> impl Future<Output = Result<Vec<ImportEntity>>> + Send;
+
+    /// Record the sharing the user chose on their staged plan rows: `shared`
+    /// become shared with the team, `personal` not. Returns how many changed.
+    fn set_plan_sharing(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        shared: &[Uuid],
+        personal: &[Uuid],
+    ) -> impl Future<Output = Result<u64>> + Send;
+
+    /// CAS the user's own `staged` rows in `ids` to `importing`, claiming
+    /// each of `shared` for `team_id` unless a teammate holds the team's
+    /// claim on the same object. The team's partial unique index makes the
+    /// claim exclusive, so two teammates writing the same object at once
+    /// cannot both hold it. Returns the rows that moved, with the claims
+    /// taken.
+    fn claim_importing(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        ids: &[Uuid],
+        shared: &[Uuid],
+        team_id: Option<Uuid>,
+    ) -> impl Future<Output = Result<Vec<ImportEntity>>> + Send;
+
+    /// Who writes the object of the user's `importing` row `import_id` for
+    /// `team_id`. With `claim` set the row takes the claim when nobody holds
+    /// it, or when its holder's import stopped (no live lease on a writing
+    /// run); otherwise it writes a copy of its own.
+    fn claim_team_object(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        import_id: Uuid,
+        team_id: Uuid,
+        claim: bool,
+    ) -> impl Future<Output = Result<TeamClaim>> + Send;
+
+    /// Make the user's `importing` row `import_id` wait on the teammate's row
+    /// `holder`, which links it once `holder` is imported. Returns `false`
+    /// (and changes nothing) when `holder` is no longer being written.
+    fn wait_on(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        import_id: Uuid,
+        holder: Uuid,
+    ) -> impl Future<Output = Result<bool>> + Send;
+
     /// Tie the current plan's staged rows to `review_id`. Returns how many
     /// rows it tied.
     fn attach_review(
@@ -590,10 +720,8 @@ pub trait NotionPlanRepo: Send + Sync + 'static {
         review_id: Uuid,
     ) -> impl Future<Output = Result<u64>> + Send;
 
-    /// Move `user`'s run for `source` to `to` when it is in one of `from`.
-    /// Moving a run to the state it is in only refreshes it, which is how a
-    /// long job keeps its run from looking abandoned. Returns whether the run
-    /// moved.
+    /// Move `user`'s run for `source` to `to` when it is in one of `from`,
+    /// dropping any lease on it. Returns whether the run moved.
     fn transition_run(
         &self,
         user: &MacroUserIdStr<'static>,
@@ -602,4 +730,106 @@ pub trait NotionPlanRepo: Send + Sync + 'static {
         to: RunStatus,
         error: Option<&str>,
     ) -> impl Future<Output = Result<bool>> + Send;
+
+    /// Record what `user`'s `running` run for `source` has found so far.
+    /// Returns whether the run was still running.
+    fn record_scan(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        source: ImportSource,
+        scanned: ScanCounts,
+    ) -> impl Future<Output = Result<bool>> + Send;
+}
+
+/// Who holds the user's Notion run, so an import outlives the process running
+/// it.
+///
+/// The process planning or writing holds a lease on the run and renews it
+/// while it works. Once a lease lapses (a crash or a deploy) any process may
+/// adopt the run and resume the job recorded on it.
+pub trait NotionRunRepo: Send + Sync + 'static {
+    /// Take the user's Notion run for `owner` until `lease` from now and
+    /// record `job` on it. Only a run that just started (`running` or
+    /// `importing`, held by nobody) can be taken. Returns whether it was.
+    fn take_run(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        owner: Uuid,
+        lease: Duration,
+        job: &NotionJob,
+    ) -> impl Future<Output = Result<bool>> + Send;
+
+    /// Extend `owner`'s lease on the user's Notion run to `lease` from now.
+    /// Returns `false` once the run stopped or another process holds it.
+    fn renew_lease(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        owner: Uuid,
+        lease: Duration,
+    ) -> impl Future<Output = Result<bool>> + Send;
+
+    /// Give up `owner`'s lease, so another process adopts the run at once.
+    /// Returns whether `owner` held it.
+    fn release_lease(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        owner: Uuid,
+    ) -> impl Future<Output = Result<bool>> + Send;
+
+    /// Adopt up to `limit` Notion runs (only `user`'s, when given) still
+    /// planning or writing whose lease lapsed, or which nobody leased and
+    /// nobody touched for `stale_after` (runs started by code that predates
+    /// leases). Each is held for `owner` until `lease` from now. Runs another
+    /// process is adopting at the same moment are skipped.
+    fn adopt_stalled_runs(
+        &self,
+        user: Option<&MacroUserIdStr<'static>>,
+        owner: Uuid,
+        lease: Duration,
+        stale_after: Duration,
+        limit: u16,
+    ) -> impl Future<Output = Result<Vec<AdoptedRun>>> + Send;
+
+    /// The user's "Notion" folder, once an import has made one.
+    fn root_folder(
+        &self,
+        user: &MacroUserIdStr<'static>,
+    ) -> impl Future<Output = Result<Option<Uuid>>> + Send;
+
+    /// Record `folder` as the user's "Notion" folder.
+    fn set_root_folder(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        folder: Uuid,
+    ) -> impl Future<Output = Result<()>> + Send;
+
+    /// Send the user's workspace plan rows still `importing` back to staged
+    /// with `reason`, unless a write is running for them or they wait on a
+    /// teammate's row still being written. Rows waiting on a teammate's row
+    /// that stopped go back too. Returns how many moved.
+    fn settle_importing(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        reason: &str,
+    ) -> impl Future<Output = Result<u64>> + Send;
+}
+
+/// What workspace writes created for each ledger row, recorded as they go so
+/// a resumed write reuses it instead of creating it again.
+pub trait WrittenObjects: Send + Sync + 'static {
+    /// Everything recorded for the user's ledger rows `import_ids`.
+    fn written(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        import_ids: &[Uuid],
+    ) -> impl Future<Output = Result<Vec<WrittenObject>>> + Send;
+
+    /// Record `objects` for the user's ledger rows. An object already
+    /// recorded under the same row, kind and Notion object keeps its earlier
+    /// id. Returns what is recorded for each of `objects` afterwards.
+    fn record_written(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        objects: &[WrittenObject],
+    ) -> impl Future<Output = Result<Vec<WrittenObject>>> + Send;
 }

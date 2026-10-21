@@ -78,11 +78,15 @@ struct ToolContextBuildArgs<'a> {
     document_storage_service_auth_key: String,
     sync_service_auth_key: String,
     event_task_tracker: TaskTracker,
+    import_jobs: ai_tools::ImportJobs,
 }
 
+/// `import_jobs` runs Notion workspace imports started over MCP; the caller
+/// hands them over on shutdown.
 pub async fn build_context(
     config: &Config,
     event_task_tracker: TaskTracker,
+    import_jobs: ai_tools::ImportJobs,
 ) -> anyhow::Result<McpContext> {
     let db = PgPoolOptions::new()
         .min_connections(3)
@@ -129,6 +133,7 @@ pub async fn build_context(
             .to_owned(),
         sync_service_auth_key: sync_service_auth_key.as_ref().to_owned(),
         event_task_tracker,
+        import_jobs,
     })
     .await?;
 
@@ -158,6 +163,7 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         document_storage_service_auth_key,
         sync_service_auth_key,
         event_task_tracker,
+        import_jobs,
     } = args;
 
     let dss_url = DocumentStorageServiceUrl::new()?.to_string();
@@ -526,6 +532,7 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
                 team_repository: ai_tools::build_team_repository(db.clone()),
                 project_service: project_tool_context.service.clone(),
                 databases_service: databases_tool_context.service.clone(),
+                document_service: document_tool_context.service.clone(),
             }),
             recorder.clone(),
         )
@@ -541,7 +548,12 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         .with_admission(admission.clone())
         .with_notifier(import::outbound::gateway_notifier::gateway_import_notify(
             side_effect_clients.connection_gateway.clone(),
-        )),
+        ))
+        .with_review_follow_up(ai_tools::build_review_follow_up(
+            macro_service_urls::AgentHarnessServiceUrl::new()?,
+            &config.internal_api_key.to_string(),
+        )?)
+        .with_job_shutdown(import_jobs.shutdown, import_jobs.tracker),
     );
 
     let tool_context = ToolServiceContext {

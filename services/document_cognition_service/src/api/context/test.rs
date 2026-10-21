@@ -609,6 +609,7 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
             team_repository: ai_tools::build_team_repository(pool.clone()),
             project_service: tool_service_context.project_tool_context.service.clone(),
             databases_service: tool_service_context.databases_tool_context.service.clone(),
+            document_service: document_tool_context.service.clone(),
         };
         let pipedream_connections = Arc::new(
             pipedream_mcp::outbound::pg_connection_repo::PgConnectionRepo::new(pool.clone()),

@@ -42,6 +42,7 @@ async fn review_revision_claim_is_atomic_and_session_deletion_removes_reviews(po
         updated_at: 0,
         notification_id: None,
         notification_attempt_at: None,
+        settled_at: None,
         items: vec![ReviewItem {
             id: macro_uuid::generate_uuid_v7(),
             draft: json!({"subject":"Which?"}),
@@ -71,6 +72,11 @@ async fn review_revision_claim_is_atomic_and_session_deletion_removes_reviews(po
         Err(CodeModeError::NotFound)
     ));
     assert!(store.list(other, execution).await.unwrap().is_empty());
+    assert_eq!(store.find(record.id).await.unwrap().title, "Pick one");
+    assert!(matches!(
+        store.find(ReviewId(macro_uuid::generate_uuid_v7())).await,
+        Err(CodeModeError::NotFound)
+    ));
     let mut standalone = record.clone();
     standalone.id = ReviewId(macro_uuid::generate_uuid_v7());
     standalone.execution_id = None;

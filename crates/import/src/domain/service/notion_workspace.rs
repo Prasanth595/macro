@@ -4,15 +4,16 @@
 //! Planning and writing both run detached from the request that started
 //! them, recorded on the user's Notion run row: `running` while planning,
 //! `ready` once a plan is staged, `importing` while writing, then
-//! `completed`, `failed` or `dismissed` (cancelled). A heartbeat keeps the
-//! run fresh so the stale-run reaper leaves a long job alone, and every step
-//! checks the row so a cancel from any process stops the job.
+//! `completed`, `failed` or `dismissed` (cancelled). The process running a
+//! job holds a lease on the run; when it dies or shuts down, another process
+//! adopts the run and resumes the job (`run`), and every step checks the row
+//! so a cancel from any process stops the job.
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use futures::{FutureExt, StreamExt, stream};
-use import_notion::domain::inventory::{all_users, full_markdown, inventory};
+use import_notion::domain::inventory::{all_users, inventory};
 use import_notion::domain::model::{
     ImportScope, NotionDataSource, NotionId, NotionPage, NotionUser, PageMarkdown, Paged,
     SearchHit, SearchObject,
@@ -22,29 +23,31 @@ use macro_user_id::user_id::MacroUserIdStr;
 use tracing::Instrument;
 use uuid::Uuid;
 
-use super::{
-    AbortOnDrop, IMPORT_HEARTBEAT, ImportServiceImpl, NOTION_IMPORT_MODEL, NotionWorkspaceImporter,
-};
+use super::{ImportServiceImpl, NOTION_IMPORT_MODEL, NotionWorkspaceImporter};
 use crate::domain::models::{
-    ImportEntity, ImportKind, ImportSource, ImportStatus, NotionDecision, NotionDocMeta,
-    NotionImportReport, NotionReportItem, RunStatus,
+    ImportEntity, ImportKind, ImportSource, ImportStatus, NotionDecision, NotionImportReport,
+    NotionJob, NotionSharing, NotionWriteChoices, RunStatus, ScanCounts, WrittenKind,
 };
 use crate::domain::ports::{
-    CanonicalImportRepo, EntityCreator, ImportError, ImportRepo, NotionPlanRepo, Result,
-    SlackWorkspaceSource, WorkspaceWriter,
+    CanonicalImportRepo, EntityCreator, ImportError, ImportRepo, NotionPlanRepo, NotionRunRepo,
+    Result, SharedEntity, SlackWorkspaceSource, WorkspaceWriter, WrittenObjects,
 };
 use mcp_select::ConnectorSelect;
+use object::{Outcome, Target};
+use run::{IMPORT_STOPPED, JobControl, Stop, WriteSet};
 
+pub(super) mod follow_up;
+mod object;
 mod plan;
+mod report;
+mod run;
+mod scan;
+mod sharing;
 mod triage;
 mod values;
 mod write;
 
-#[cfg(test)]
-mod test;
-
-/// Failures and by-hand items a report lists, at most.
-const REPORT_LIST_LIMIT: usize = 50;
+pub(super) use report::report;
 /// How often a running write checks whether the user cancelled it.
 const CANCEL_CHECK_EVERY: Duration = Duration::from_secs(3);
 /// How often progress is pushed to the client while a job runs.
@@ -152,7 +155,7 @@ impl Throttle {
 
 impl<R, S, C, W, N> NotionWorkspaceImporter for ImportServiceImpl<R, S, C, W, N>
 where
-    R: ImportRepo + CanonicalImportRepo + NotionPlanRepo + Clone,
+    R: ImportRepo + CanonicalImportRepo + NotionPlanRepo + NotionRunRepo + WrittenObjects + Clone,
     S: ConnectorSelect,
     C: EntityCreator + WorkspaceWriter,
     W: SlackWorkspaceSource,
@@ -162,9 +165,11 @@ where
         &self,
         user: &MacroUserIdStr<'static>,
         scope: ImportScope,
+        sharing: NotionSharing,
         wait: Duration,
     ) -> Result<NotionImportReport> {
         self.reap_stale_runs(user).await;
+        self.adopt_stalled(Some(user)).await;
         if !self
             .repo
             .start_run(user, ImportSource::Notion, &SETTLED)
@@ -174,10 +179,22 @@ where
                 "A Notion import is already being planned or written. Check its status, or cancel it first.",
             ));
         }
+        self.hold_new_run(
+            user,
+            RunStatus::Running,
+            &NotionJob::Plan {
+                scope: scope.clone(),
+                sharing,
+            },
+        )
+        .await?;
         self.notify(user).await;
         let service = self.clone();
         let owner = user.clone();
-        let job = tokio::spawn(async move { service.plan_workspace(&owner, scope).await });
+        let job = self
+            .jobs
+            .tracker
+            .spawn(async move { service.plan_workspace(&owner, scope, sharing).await });
         // The job keeps going if the wait runs out or the caller goes away.
         let _ = tokio::time::timeout(wait, job).await;
         self.notion_import_report(user).await
@@ -188,6 +205,12 @@ where
         user: &MacroUserIdStr<'static>,
     ) -> Result<NotionImportReport> {
         self.reap_stale_runs(user).await;
+        // A run whose process stopped is picked up here, and rows a stopped
+        // write left claimed go back to staged.
+        self.adopt_stalled(Some(user)).await;
+        if let Err(error) = self.repo.settle_importing(user, IMPORT_STOPPED).await {
+            tracing::warn!(error = ?error, "could not settle stopped notion rows");
+        }
         let run = self
             .repo
             .list_runs(user)
@@ -218,13 +241,13 @@ where
         &self,
         user: &MacroUserIdStr<'static>,
         review_id: Uuid,
-        excluded: Vec<Uuid>,
+        choices: NotionWriteChoices,
     ) -> Result<NotionImportReport> {
         let staged = self
             .repo
             .list(user, Some(ImportSource::Notion), Some(ImportStatus::Staged))
             .await?;
-        let planned: Vec<(ImportEntity, write::WriteItem)> = staged
+        let mut planned: Vec<(ImportEntity, write::WriteItem)> = staged
             .into_iter()
             .filter(|row| row.review_id == Some(review_id))
             .filter_map(|row| write::WriteItem::from_entity(&row).map(|item| (row, item)))
@@ -234,6 +257,22 @@ where
                 "This plan has nothing left to import.",
             ));
         }
+        // The owner's sharing changes are recorded on the rows first, so a
+        // resumed write shares exactly what they approved.
+        let items: Vec<write::WriteItem> = planned.iter().map(|(_, item)| item.clone()).collect();
+        let (to_share, to_keep) =
+            sharing::sharing_changes(&items, &choices.shared, &choices.personal);
+        self.repo
+            .set_plan_sharing(user, &to_share, &to_keep)
+            .await?;
+        for (_, item) in &mut planned {
+            if to_share.contains(&item.import_id) {
+                item.shared = true;
+            } else if to_keep.contains(&item.import_id) {
+                item.shared = false;
+            }
+        }
+        let team_id = self.repo.user_team_id(user).await?;
         if !self
             .repo
             .transition_run(
@@ -249,10 +288,12 @@ where
                 "A Notion import is already being planned or written.",
             ));
         }
+        self.hold_new_run(user, RunStatus::Importing, &NotionJob::Write { review_id })
+            .await?;
 
         let mut to_write = Vec::new();
         for (row, item) in planned {
-            let left_out = excluded.contains(&row.id);
+            let left_out = choices.excluded.contains(&row.id);
             match (left_out, item.decision) {
                 (true, _) | (false, NotionDecision::Skip) => {
                     self.repo.discard(user, row.id).await?;
@@ -263,9 +304,16 @@ where
             }
         }
         let ids: Vec<Uuid> = to_write.iter().map(|item| item.import_id).collect();
+        // Shared objects are claimed for the team now, before anything is
+        // written, so a teammate writing the same object links to this copy.
+        let shared: Vec<Uuid> = to_write
+            .iter()
+            .filter(|item| item.shared && item.writes())
+            .map(|item| item.import_id)
+            .collect();
         let claimed: std::collections::HashSet<Uuid> = self
             .repo
-            .mark_importing(user, &ids)
+            .claim_importing(user, &ids, &shared, team_id)
             .await?
             .into_iter()
             .map(|row| row.id)
@@ -275,7 +323,14 @@ where
 
         let service = self.clone();
         let owner = user.clone();
-        tokio::spawn(async move { service.write_plan(&owner, to_write).await });
+        let set = WriteSet {
+            review_id,
+            all: to_write.clone(),
+            pending: to_write,
+        };
+        self.jobs
+            .tracker
+            .spawn(async move { service.write_plan(&owner, set).await });
         self.notion_import_report(user).await
     }
 
@@ -297,22 +352,72 @@ where
 
 impl<R, S, C, W, N> ImportServiceImpl<R, S, C, W, N>
 where
-    R: ImportRepo + CanonicalImportRepo + NotionPlanRepo + Clone,
+    R: ImportRepo + CanonicalImportRepo + NotionPlanRepo + NotionRunRepo + WrittenObjects + Clone,
     S: ConnectorSelect,
     C: EntityCreator + WorkspaceWriter,
     W: SlackWorkspaceSource,
     N: NotionConnections,
 {
+    /// Hold the run that just moved to `status` and record its job, so it
+    /// survives this process; fails the run when that is not possible.
+    async fn hold_new_run(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        status: RunStatus,
+        job: &NotionJob,
+    ) -> Result<()> {
+        if self.take_run(user, job).await? {
+            return Ok(());
+        }
+        self.repo
+            .transition_run(
+                user,
+                ImportSource::Notion,
+                &[status],
+                RunStatus::Failed,
+                Some(IMPORT_STOPPED),
+            )
+            .await?;
+        Err(ImportError::NotReady(
+            "The Notion import could not start. Try it again.",
+        ))
+    }
+
     /// Plan and record the outcome on the run.
     fn plan_workspace<'a>(
         &'a self,
         user: &'a MacroUserIdStr<'static>,
         scope: ImportScope,
+        sharing: NotionSharing,
     ) -> futures::future::BoxFuture<'a, ()> {
-        let span = tracing::info_span!("notion_import.plan", %user);
+        let span = tracing::info_span!(
+            "notion_import.plan",
+            %user,
+            sharing = sharing.as_ref(),
+            already_in_macro = tracing::field::Empty,
+            stopped = tracing::field::Empty,
+        );
         async move {
-            let _heartbeat = self.run_heartbeat(user, RunStatus::Running, Vec::new());
-            let outcome = self.try_plan_workspace(user, scope).await;
+            let (control, _held) = self.hold_run(user);
+            let outcome = tokio::select! {
+                outcome = self.try_plan_workspace(user, scope, sharing, &control) => Some(outcome),
+                () = control.stopped() => None,
+            };
+            if let Some(reason) = control.reason() {
+                tracing::Span::current().record("stopped", reason.as_ref());
+            }
+            let outcome = match outcome {
+                Some(outcome) => outcome,
+                // Planning only reads, so the next process plans again.
+                None if control.handed_over() => {
+                    if control.reason() == Some(Stop::Shutdown) {
+                        self.release_run(user).await;
+                    }
+                    return;
+                }
+                // Cancelled: the run is `dismissed` already.
+                None => Ok(()),
+            };
             let (to, error) = match &outcome {
                 Ok(()) => (RunStatus::Ready, None),
                 Err(error) => {
@@ -344,28 +449,42 @@ where
         &self,
         user: &MacroUserIdStr<'static>,
         scope: ImportScope,
+        sharing: NotionSharing,
+        control: &JobControl,
     ) -> Result<()> {
         let api = self
             .notion
             .for_user(user)
             .await?
             .ok_or(ImportError::NotionNotConnected)?;
-        let found = inventory(&api, &scope, &|progress| {
-            tracing::debug!(
-                pages = progress.pages,
-                data_sources = progress.data_sources,
-                "notion inventory progress"
-            );
-        })
-        .await?;
-        if self.cancelled(user).await {
+        let (counts, scanned) = tokio::sync::watch::channel(ScanCounts::default());
+        let walk = async move {
+            let found = inventory(&api, &scope, &|progress| {
+                counts.send_replace(ScanCounts {
+                    pages: u32::try_from(progress.pages).unwrap_or(u32::MAX),
+                    data_sources: u32::try_from(progress.data_sources).unwrap_or(u32::MAX),
+                });
+            })
+            .await;
+            // Dropping `counts` here lets the recorder write the final counts.
+            drop(counts);
+            found
+        };
+        let (found, ()) = tokio::join!(walk, scan::record_scan(&self.repo, user, scanned));
+        let found = found?;
+        if control.reason().is_some() {
             return Ok(());
         }
         let tree = plan::PlanTree::new(&found);
-        let items = tree.triage_items();
+        let team = self.repo.user_team_id(user).await?.is_some();
+        let already_imported = self.already_in_macro(user, &tree).await?;
+        tracing::Span::current().record("already_in_macro", already_imported.len());
+        // Objects already in Macro need no decision, so they cost no model call.
+        let items = tree.triage_items(&already_imported);
         let usage = ai_usage::UsageContext::new(ai_usage::AiFeature::Import, user.clone());
         let verdicts = triage::decide(
             &items,
+            sharing,
             || {
                 let service = self.clone();
                 let user = user.clone();
@@ -376,29 +495,49 @@ where
             NOTION_IMPORT_MODEL,
         )
         .await;
-        if self.cancelled(user).await {
+        if control.reason().is_some() {
             return Ok(());
         }
-        let rows = tree.plan_rows(&verdicts);
+        let rows = tree.plan_rows(&verdicts, sharing, team, &already_imported);
         self.repo
             .replace_plan(user, ImportSource::Notion, &rows)
             .await?;
         Ok(())
     }
 
-    /// Write the claimed plan items and record the outcome on the run.
-    #[tracing::instrument(skip(self, items), fields(%user, items = items.len()), name = "notion_import.write")]
-    async fn write_plan(&self, user: &MacroUserIdStr<'static>, items: Vec<write::WriteItem>) {
-        let ids = items.iter().map(|item| item.import_id).collect();
-        let _heartbeat = self.run_heartbeat(user, RunStatus::Importing, ids);
-        let outcome = self.try_write_plan(user, &items).await;
+    /// Write the plan's pending objects and record the outcome on the run.
+    #[tracing::instrument(
+        skip(self, set),
+        fields(
+            %user,
+            review_id = %set.review_id,
+            items = set.all.len(),
+            pending = set.pending.len(),
+            stopped = tracing::field::Empty,
+            waiting_on_teammates = tracing::field::Empty,
+        ),
+        name = "notion_import.write"
+    )]
+    async fn write_plan(&self, user: &MacroUserIdStr<'static>, set: WriteSet) {
+        let (control, _held) = self.hold_run(user);
+        let outcome = self.try_write_plan(user, &set, &control).await;
+        if let Some(reason) = control.reason() {
+            tracing::Span::current().record("stopped", reason.as_ref());
+        }
+        // The rows still `importing` belong to whoever resumes the write.
+        if control.handed_over() {
+            if control.reason() == Some(Stop::Shutdown) {
+                self.release_run(user).await;
+            }
+            return;
+        }
         let (to, error) = match &outcome {
             Ok(0) => (RunStatus::Completed, None),
             Ok(failed) => (
                 RunStatus::Completed,
                 Some(format!(
                     "{failed} of {} objects could not be imported",
-                    items.len()
+                    set.pending.len()
                 )),
             ),
             Err(error) => {
@@ -408,9 +547,11 @@ where
         };
         // Anything still claimed (a cancel, or a failure part way) goes back
         // to staged so it can be imported later.
-        for item in &items {
+        // Rows waiting on a teammate's copy stay, and link once it is written.
+        for item in &set.pending {
             if let Ok(Some(row)) = self.repo.get(user, item.import_id).await
                 && row.status == ImportStatus::Importing
+                && row.waiting_on.is_none()
             {
                 let reason = if outcome.is_ok() {
                     "Cancelled"
@@ -437,13 +578,16 @@ where
             tracing::warn!(error = ?error, "could not record the notion write outcome");
         }
         self.notify(user).await;
+        self.follow_up_review(user).await;
     }
 
-    /// Write every item; returns how many failed.
+    /// Write every pending object, reusing what earlier attempts wrote;
+    /// returns how many failed.
     async fn try_write_plan(
         &self,
         user: &MacroUserIdStr<'static>,
-        items: &[write::WriteItem],
+        set: &WriteSet,
+        control: &JobControl,
     ) -> Result<usize> {
         let api = self
             .notion
@@ -452,16 +596,24 @@ where
             .ok_or(ImportError::NotionNotConnected)?;
         let team_id = self.repo.user_team_id(user).await?;
         let people = self.people(&api, user).await;
-        let root = self
-            .creator
-            .create_folder(user, write::ROOT_FOLDER, None)
-            .await?;
+        let ids: Vec<Uuid> = set.all.iter().map(|item| item.import_id).collect();
+        let written = self.repo.written(user, &ids).await?;
+        let links = self.links(user, &set.all, &people).await?;
+        let root = self.root_folder(user).await?;
 
-        // Folders first, parents before children.
-        let layout = write::folder_layout(items);
+        // Folders first, parents before children. A folder is shared only
+        // when everything written inside it is; it is shared again on every
+        // attempt, which is harmless, so a stop between creating and sharing
+        // it heals on resume.
+        let layout = write::folder_layout(&set.all);
+        let shared_folders = match team_id {
+            Some(_) => sharing::shared_folders(&set.all, &layout),
+            None => std::collections::HashSet::new(),
+        };
         let by_id: HashMap<Uuid, &write::WriteItem> =
-            items.iter().map(|item| (item.import_id, item)).collect();
-        let parents: HashMap<Uuid, Option<Uuid>> = items
+            set.all.iter().map(|item| (item.import_id, item)).collect();
+        let parents: HashMap<Uuid, Option<Uuid>> = set
+            .all
             .iter()
             .map(|item| (item.import_id, item.parent))
             .collect();
@@ -470,53 +622,58 @@ where
             let Some(item) = by_id.get(folder_row) else {
                 continue;
             };
-            let parent = write::folder_for(item, false, &folders, &parents, root);
-            let folder = self
-                .creator
-                .create_folder(user, &item.title, Some(parent))
-                .await?;
+            let progress = write::Progress::new(&self.repo, user, item.import_id, &written);
+            let folder = match progress.get(WrittenKind::Folder) {
+                Some(folder) => folder,
+                None => {
+                    let parent = write::folder_for(item, false, &folders, &parents, root);
+                    let folder = self
+                        .creator
+                        .create_folder(user, &item.title, Some(parent))
+                        .await?;
+                    progress.record(WrittenKind::Folder, folder).await?;
+                    folder
+                }
+            };
+            if shared_folders.contains(folder_row) {
+                self.creator
+                    .share_with_team(user, SharedEntity::Folder(folder))
+                    .await?;
+            }
             folders.insert(*folder_row, folder);
         }
 
-        let cancel = std::sync::Arc::new(write::Cancel::default());
-        let _watch = self.watch_cancel(user, std::sync::Arc::clone(&cancel));
-        let cancel = cancel.as_ref();
+        let cancel = control.cancel.as_ref();
         let throttle = Throttle::new();
         let databases: tokio::sync::Mutex<HashMap<NotionId, write::WrittenDatabase>> =
             tokio::sync::Mutex::new(HashMap::new());
-        let outcomes: Vec<bool> = stream::iter(items.iter().cloned())
+        let target = Target {
+            api: &api,
+            team_id,
+            place: Place {
+                folders: &folders,
+                parents: &parents,
+                root,
+            },
+            people: &people,
+            links: &links,
+            databases: &databases,
+            written: &written,
+            cancel,
+        };
+        let outcomes: Vec<Outcome> = stream::iter(set.pending.iter().cloned())
             .map(|item| {
-                let folders = &folders;
-                let parents = &parents;
-                let people = &people;
-                let api = &api;
-                let databases = &databases;
+                let target = &target;
                 let throttle = &throttle;
                 async move {
                     if cancel.stopped() {
-                        return true;
+                        return Outcome::Done;
                     }
-                    let outcome = self
-                        .write_item(
-                            api, user, &item, team_id, folders, parents, root, people, databases,
-                            cancel,
-                        )
-                        .await;
-                    let succeeded = match outcome {
-                        Ok(()) => true,
-                        Err(error) => {
-                            tracing::warn!(error = ?error, kind = item.kind.as_ref(), "notion object was not imported");
-                            let _ = self
-                                .repo
-                                .mark_import_failed(user, item.import_id, &failure_text(&error))
-                                .await;
-                            false
-                        }
-                    };
+                    let outcome = self.write_or_fail(user, &item, target, control).await;
                     if throttle.due() {
                         self.notify(user).await;
                     }
-                    succeeded
+                    outcome
                 }
                 .boxed()
             })
@@ -524,100 +681,75 @@ where
             .collect()
             .await;
 
-        let databases = databases.into_inner();
+        // Objects a teammate was writing: link to what they finished, take
+        // over what they gave up, and wait on the rest.
+        let mut failed = 0;
+        let mut waiting = Vec::new();
+        for (item, outcome) in set.pending.iter().zip(outcomes) {
+            match outcome {
+                Outcome::Done => {}
+                Outcome::Failed => failed += 1,
+                Outcome::Waiting(_) => waiting.push(item),
+            }
+        }
+        tracing::Span::current().record("waiting_on_teammates", waiting.len());
+        for item in waiting {
+            if cancel.stopped() {
+                break;
+            }
+            if self.settle_waiting(user, item, &target, control).await == Outcome::Failed {
+                failed += 1;
+            }
+        }
+
+        // Databases earlier attempts finished still take part in relations.
+        let mut databases = databases.into_inner();
+        let finished: Vec<&write::WriteItem> = set
+            .all
+            .iter()
+            .filter(|item| {
+                item.kind == ImportKind::DataSource
+                    && item.decision == NotionDecision::Copy
+                    && !databases.contains_key(&item.notion_id)
+            })
+            .collect();
+        for item in finished {
+            let progress = write::Progress::new(&self.repo, user, item.import_id, &written);
+            match write::recorded_database(&api, item, &progress).await {
+                Ok(Some(database)) => {
+                    databases.insert(item.notion_id.clone(), database);
+                }
+                Ok(None) => {}
+                Err(error) => {
+                    tracing::warn!(error = ?error, "a written notion database was not reread");
+                }
+            }
+        }
         if !databases.is_empty()
             && !cancel.stopped()
             && let Err(error) =
-                write::link_relations(self.creator.as_ref(), user, &databases, cancel).await
+                write::link_relations(self.creator.as_ref(), &self.repo, user, &databases, cancel)
+                    .await
         {
             tracing::warn!(error = ?error, "notion relations were not linked");
         }
-        Ok(outcomes.into_iter().filter(|succeeded| !succeeded).count())
+        Ok(failed)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    async fn write_item(
-        &self,
-        api: &N::Api,
-        user: &MacroUserIdStr<'static>,
-        item: &write::WriteItem,
-        team_id: Option<Uuid>,
-        folders: &HashMap<Uuid, Uuid>,
-        parents: &HashMap<Uuid, Option<Uuid>>,
-        root: Uuid,
-        people: &values::PeopleMap,
-        databases: &tokio::sync::Mutex<HashMap<NotionId, write::WrittenDatabase>>,
-        cancel: &write::Cancel,
-    ) -> Result<()> {
-        // One copy per team: a teammate's import stands in for this one.
-        if let Some(existing) = self
-            .repo
-            .find_team_imported(user, ImportSource::Notion, item.notion_id.as_str())
-            .await?
-            && let (Some(entity_id), Some(entity_type)) =
-                (&existing.entity_id, &existing.entity_type)
+    /// The user's "Notion" folder: the one earlier imports made while it
+    /// still exists, otherwise a new one.
+    async fn root_folder(&self, user: &MacroUserIdStr<'static>) -> Result<Uuid> {
+        if let Some(folder) = self.repo.root_folder(user).await?
+            && self.creator.folder_exists(user, folder).await?
         {
-            self.repo
-                .mark_imported(user, item.import_id, entity_id, entity_type, None)
-                .await?;
-            return Ok(());
+            return Ok(folder);
         }
-
-        let (entity_id, entity_type) = match (item.kind, item.decision) {
-            (ImportKind::DataSource, NotionDecision::Tasks) => {
-                let folder = write::folder_for(item, false, folders, parents, root);
-                let tasks = write::write_tasks(
-                    api,
-                    self.creator.as_ref(),
-                    user,
-                    item,
-                    folder,
-                    people,
-                    cancel,
-                )
-                .await?;
-                (tasks.to_string(), write::FOLDER_ENTITY)
-            }
-            (ImportKind::DataSource, _) => {
-                let folder = write::folder_for(item, false, folders, parents, root);
-                let written = write::write_database(
-                    api,
-                    self.creator.as_ref(),
-                    user,
-                    item,
-                    folder,
-                    people,
-                    cancel,
-                )
-                .await?;
-                let id = written.database_id.to_string();
-                databases
-                    .lock()
-                    .await
-                    .insert(item.notion_id.clone(), written);
-                (id, write::DATABASE_ENTITY)
-            }
-            _ => {
-                let folder = write::folder_for(item, true, folders, parents, root);
-                let markdown = write::page_markdown(&full_markdown(api, &item.notion_id).await?);
-                let properties = match api.page(&item.notion_id).await {
-                    Ok(page) => values::document_properties(&page),
-                    Err(error) => {
-                        tracing::warn!(error = ?error, "notion page properties were not read");
-                        Default::default()
-                    }
-                };
-                let document = self
-                    .creator
-                    .create_document(user, &item.title, &markdown, &properties, Some(folder))
-                    .await?;
-                (document, write::DOCUMENT_ENTITY)
-            }
-        };
-        self.repo
-            .mark_imported(user, item.import_id, &entity_id, entity_type, team_id)
+        let folder = self
+            .creator
+            .create_folder(user, write::ROOT_FOLDER, None)
             .await?;
-        Ok(())
+        self.repo.set_root_folder(user, folder).await?;
+        Ok(folder)
     }
 
     /// Notion users matched to the user's team by email. Empty when Notion
@@ -653,26 +785,6 @@ where
             .collect()
     }
 
-    /// Set `cancel` within a few seconds of the user cancelling; stops when
-    /// dropped.
-    fn watch_cancel(
-        &self,
-        user: &MacroUserIdStr<'static>,
-        cancel: std::sync::Arc<write::Cancel>,
-    ) -> AbortOnDrop {
-        let service = self.clone();
-        let user = user.clone();
-        AbortOnDrop(tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(CANCEL_CHECK_EVERY).await;
-                if service.cancelled(&user).await {
-                    cancel.stop();
-                    return;
-                }
-            }
-        }))
-    }
-
     /// Whether the user cancelled the import.
     async fn cancelled(&self, user: &MacroUserIdStr<'static>) -> bool {
         match self.repo.list_runs(user).await {
@@ -685,28 +797,18 @@ where
             }
         }
     }
+}
 
-    /// Keep the run (and any claimed rows) fresh while a job runs; stops
-    /// when dropped.
-    fn run_heartbeat(
-        &self,
-        user: &MacroUserIdStr<'static>,
-        status: RunStatus,
-        claimed: Vec<Uuid>,
-    ) -> AbortOnDrop {
-        let repo = self.repo.clone();
-        let user = user.clone();
-        AbortOnDrop(tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(IMPORT_HEARTBEAT).await;
-                let _ = repo
-                    .transition_run(&user, ImportSource::Notion, &[status], status, None)
-                    .await;
-                if !claimed.is_empty() {
-                    let _ = repo.touch_importing(&user, &claimed).await;
-                }
-            }
-        }))
+/// Where written objects go: the folders made so far and the import's root.
+struct Place<'a> {
+    folders: &'a HashMap<Uuid, Uuid>,
+    parents: &'a HashMap<Uuid, Option<Uuid>>,
+    root: Uuid,
+}
+
+impl Place<'_> {
+    fn folder_for(&self, item: &write::WriteItem, own: bool) -> Uuid {
+        write::folder_for(item, own, self.folders, self.parents, self.root)
     }
 }
 
@@ -716,97 +818,4 @@ fn failure_text(error: &ImportError) -> String {
         ImportError::Other(error) => super::admission::failure_reason(error),
         other => other.to_string(),
     }
-}
-
-/// Summarize the ledger for the current plan: the rows tied to the newest
-/// review, plus staged rows not yet tied to one.
-pub(super) fn report(
-    run: Option<&crate::domain::models::ImportRun>,
-    rows: &[ImportEntity],
-) -> NotionImportReport {
-    let planned: Vec<(&ImportEntity, NotionDocMeta)> = rows
-        .iter()
-        .filter_map(|row| {
-            let meta: NotionDocMeta = serde_json::from_value(row.metadata.clone()).ok()?;
-            meta.plan.as_ref()?;
-            Some((row, meta))
-        })
-        .collect();
-    let review_id = planned
-        .iter()
-        .filter(|(row, _)| row.review_id.is_some())
-        .max_by_key(|(row, _)| row.updated_at)
-        .and_then(|(row, _)| row.review_id);
-    let current: Vec<&(&ImportEntity, NotionDocMeta)> = planned
-        .iter()
-        .filter(|(row, _)| match review_id {
-            Some(review) => {
-                row.review_id == Some(review)
-                    || (row.review_id.is_none() && row.status == ImportStatus::Staged)
-            }
-            None => true,
-        })
-        .collect();
-
-    let mut report = NotionImportReport {
-        status: run.map(|run| run.status),
-        error: run.and_then(|run| run.error.clone()),
-        review_id,
-        ..NotionImportReport::default()
-    };
-    for (row, meta) in &current {
-        let Some(plan) = &meta.plan else { continue };
-        match row.kind {
-            ImportKind::DataSource => report.data_sources += 1,
-            _ => report.pages += 1,
-        }
-        let rows = plan.rows.unwrap_or(0);
-        match (plan.decision, row.kind) {
-            (NotionDecision::Copy, ImportKind::DataSource) => {
-                report.copy += 1;
-                report.databases += 1;
-                report.database_rows += rows;
-            }
-            (NotionDecision::Copy, _) => {
-                report.copy += 1;
-                report.documents += 1;
-            }
-            (NotionDecision::Tasks, _) => {
-                report.tasks += 1;
-                report.task_rows += rows;
-            }
-            (NotionDecision::Skip, _) => report.skip += 1,
-            (NotionDecision::Hand, _) => report.hand += 1,
-        }
-        let reported = || NotionReportItem {
-            import_id: row.id,
-            title: meta.title.clone(),
-            kind: row.kind,
-            url: meta.url.clone(),
-            reason: plan.reason.clone(),
-        };
-        match row.status {
-            ImportStatus::Imported => report.imported += 1,
-            ImportStatus::Importing => report.writing += 1,
-            ImportStatus::Staged => {
-                if plan.decision == NotionDecision::Hand {
-                    if report.hand_items.len() < REPORT_LIST_LIMIT {
-                        report.hand_items.push(reported());
-                    }
-                } else if plan.decision != NotionDecision::Skip {
-                    report.waiting += 1;
-                }
-                if let Some(error) = &row.last_error
-                    && report.failures.len() < REPORT_LIST_LIMIT
-                {
-                    report.failures.push(NotionReportItem {
-                        reason: Some(error.clone()),
-                        ..reported()
-                    });
-                }
-            }
-            ImportStatus::Discarded => {}
-        }
-    }
-    report
 }
