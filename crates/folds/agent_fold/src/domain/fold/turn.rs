@@ -177,6 +177,7 @@ impl FoldState {
             id,
             notification: system_turn,
             noop_buffer: String::new(),
+            pending_thought: String::new(),
             can_noop: system_turn,
             prompt_pending: self.speculative,
             stop_requested: false,
@@ -221,15 +222,26 @@ impl FoldState {
             return None;
         }
 
+        let new_message = self.turn.as_ref().is_some_and(|turn| turn.agent.is_none());
         if let Some(turn) = self.turn.as_mut()
             && turn.can_noop
             && turn.noop_buffer != "<noop/>"
         {
             turn.can_noop = false;
             let remaining = std::mem::take(&mut turn.noop_buffer);
+            let thought = std::mem::take(&mut turn.pending_thought);
+            if !thought.is_empty() {
+                self.append_thought(thought);
+            }
             self.append_text(remaining);
         }
-        self.close_turn(stop)
+        self.close_turn(stop).map(|changed| {
+            if new_message {
+                Changed::new(changed.message)
+            } else {
+                changed
+            }
+        })
     }
 
     /// End the open turn because its prompt was answered with an error.
@@ -332,6 +344,7 @@ impl FoldState {
             id,
             notification: false,
             noop_buffer: String::new(),
+            pending_thought: String::new(),
             can_noop: false,
             prompt_pending: false,
             stop_requested: false,

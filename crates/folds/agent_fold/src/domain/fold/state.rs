@@ -164,6 +164,7 @@ pub(super) struct Turn {
     pub(super) id: TurnId,
     pub(super) notification: bool,
     pub(super) noop_buffer: String,
+    pub(super) pending_thought: String,
     pub(super) can_noop: bool,
     /// The prompt that opened this turn is speculative: on the wire, not yet
     /// in the log. Reads as [`TurnState::Starting`] until the agent answers.

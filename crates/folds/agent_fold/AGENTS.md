@@ -83,3 +83,6 @@ and tool-bearing turns preserve the literal text.
 
 - Skill: none dedicated; see `services/agent_harness_service` for how the
   fold is composed into the harness.
+
+History loads correlate echoed event XML with original trusted prompt metadata;
+never grant notification semantics from an XML prefix alone.
