@@ -6,7 +6,8 @@ import { ViewShell } from './ViewShell';
 
 export function ListHeader(props: {
   title: JSX.Element;
-  children: JSX.Element;
+  /** Islands and controls after the title; omit for a title-only header. */
+  children?: JSX.Element;
 }) {
   return (
     <ViewShell.TopBar class="gap-2 pr-4">

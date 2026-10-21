@@ -47,7 +47,7 @@ export function HomeSetupPromotion(props: { class?: string }) {
       dismissLabel="Dismiss workspace setup"
       action={{
         label: COPY.action,
-        onClick: () => openSettings('Connections'),
+        onClick: () => openSettings('Connected'),
       }}
       secondaryAction={
         canInvite()
