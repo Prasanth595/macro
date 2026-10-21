@@ -1045,6 +1045,7 @@ type LauncherBodyState = {
 export const LauncherShell = (
   props: LauncherInnerProps & {
     children: (state: LauncherBodyState) => JSX.Element;
+    footerAction?: (state: LauncherBodyState) => JSX.Element;
     class?: string;
     horizontalNavigation?: boolean;
     groupItems?: (
@@ -1281,6 +1282,25 @@ export const LauncherShell = (
 
   onCleanup(hkGroup.dispose);
 
+  const bodyState: LauncherBodyState = {
+    sections,
+    blocks,
+    selectedIndex: focusedIndex,
+    searchMode,
+    shiftHeld,
+    itemId: (item) => `create-menu-${launcherItemKey(item)}`,
+    select: listController.setSelectedIndexFromPointer,
+    step: (direction) => {
+      const count = blocks().length;
+      if (count)
+        listController.setSelectedIndex(
+          (((focusedIndex() + direction) % count) + count) % count
+        );
+    },
+    choose: runLauncherItem,
+    scrollSelectedIntoView: listController.shouldScrollSelectedIntoView,
+  };
+
   return (
     // The shared shell stopped painting its own pane (cmd+k gets one from the
     // app Dialog wrapper); this raw-Kobalte dialog carries it here.
@@ -1347,26 +1367,14 @@ export const LauncherShell = (
           />
         </CommandMenuShell.Header>
         <CommandMenuShell.Body class="touch:flex touch:flex-col">
-          {props.children({
-            sections,
-            blocks,
-            selectedIndex: focusedIndex,
-            searchMode,
-            shiftHeld,
-            itemId: (item) => `create-menu-${launcherItemKey(item)}`,
-            select: listController.setSelectedIndexFromPointer,
-            step: (direction) => {
-              const count = blocks().length;
-              if (count)
-                listController.setSelectedIndex(
-                  (((focusedIndex() + direction) % count) + count) % count
-                );
-            },
-            choose: runLauncherItem,
-            scrollSelectedIntoView: listController.shouldScrollSelectedIntoView,
-          })}
+          {props.children(bodyState)}
         </CommandMenuShell.Body>
-        <CommandMenuShell.Footer class="touch:px-6 touch:py-4">
+        <CommandMenuShell.Footer
+          class={cn(
+            'relative touch:px-6 touch:py-4',
+            props.footerAction && 'min-h-14 gap-3 border-t border-edge-divider'
+          )}
+        >
           <style>{`
               @keyframes shift-ripple {
                 0%   { transform: scale(1); opacity: 0.6; }
@@ -1376,7 +1384,12 @@ export const LauncherShell = (
                 animation: shift-ripple 0.35s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
               }
             `}</style>
-          <span class="flex items-center gap-1.5">
+          <span
+            class={cn(
+              'flex items-center gap-1.5',
+              props.footerAction && 'hidden sm:flex'
+            )}
+          >
             <span class="flex gap-0.5">
               <Hotkey
                 shortcut={searchMode() ? 'arrowup' : navUpHotkey.hotkey()}
@@ -1391,14 +1404,16 @@ export const LauncherShell = (
             </span>
             Navigate
           </span>
-          <span class="flex items-center gap-1.5">
-            <Hotkey
-              shortcut={confirmHotkey.hotkey()}
-              theme="subtle"
-              class="min-w-5 justify-center border-ink/12"
-            />
-            Create
-          </span>
+          <Show when={!props.footerAction}>
+            <span class="flex items-center gap-1.5">
+              <Hotkey
+                shortcut={confirmHotkey.hotkey()}
+                theme="subtle"
+                class="min-w-5 justify-center border-ink/12"
+              />
+              Create
+            </span>
+          </Show>
           <span class="hidden touch:hidden md:flex items-center gap-1.5">
             Hold
             <span class="relative inline-flex place-items-center">
@@ -1419,6 +1434,13 @@ export const LauncherShell = (
             </span>
             New split
           </span>
+          <Show when={props.footerAction}>
+            {(action) => (
+              <div class="pointer-events-none absolute inset-y-0 right-0 left-[38%] flex items-center justify-center sm:left-64 [&>*]:pointer-events-auto">
+                {action()(bodyState)}
+              </div>
+            )}
+          </Show>
         </CommandMenuShell.Footer>
       </CommandMenuShell>
     </div>

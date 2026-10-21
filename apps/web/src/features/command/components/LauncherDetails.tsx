@@ -1,5 +1,6 @@
-import { Button, cn, Hotkey } from '@ui';
-import { createEffect, For, on, Show } from 'solid-js';
+import { WorkspaceTexture } from '@app/components/WorkspaceTexture';
+import { cn, Hotkey } from '@ui';
+import { createEffect, createUniqueId, For, on, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import {
   type CreateMenuSection,
@@ -20,6 +21,7 @@ export function LauncherDetails(props: {
   scrollSelectedIntoView?: boolean;
   detailsLeft?: boolean;
 }) {
+  const textureId = createUniqueId();
   let list: HTMLDivElement | undefined;
   const selected = () => props.items[props.selectedIndex];
   const shortcut = (item: CreatableBlock) =>
@@ -136,51 +138,60 @@ export function LauncherDetails(props: {
         </div>
         <div
           class={cn(
-            'min-w-0 flex-1 overflow-y-auto',
+            'relative isolate min-w-0 flex-1 overflow-hidden',
             props.detailsLeft
               ? 'border-r border-edge-divider'
               : 'border-l border-edge-divider'
           )}
         >
-          <Show when={selected()}>
-            {(item) => (
-              <section
-                aria-label={`${item().label} details`}
-                class="flex min-h-full flex-col px-7 pt-7 pb-5"
-              >
-                <div class="mb-5 flex size-14 shrink-0 items-center justify-center rounded-2xl border border-ink/8 bg-linear-145 from-ink/[0.09] to-ink/[0.02] text-ink shadow-[inset_0_1px_0_0_rgb(255_255_255/0.06),0_2px_8px_-2px_rgb(0_0_0/0.25)]">
-                  <div class="size-7 [&_svg]:size-full">
-                    <Dynamic component={item().icon} />
-                  </div>
-                </div>
-                <h2 class="text-lg font-semibold tracking-[-0.01em] text-ink">
-                  {item().label}
-                </h2>
-                <p class="mt-1.5 max-w-[28rem] text-left text-[13px] leading-relaxed text-ink-muted">
-                  {createMenuDetails(item())?.details ??
-                    createMenuTagline(item())}
-                </p>
-                <Show when={createMenuDetails(item())?.examples}>
-                  {(examples) => (
-                    <div class="mt-5">
-                      <div class="text-[10px] font-medium tracking-[0.08em] text-ink-extra-muted/80 uppercase">
-                        Good for
-                      </div>
-                      <ul class="mt-2 flex flex-wrap gap-1.5">
-                        <For each={examples()}>
-                          {(example) => (
-                            <li class="rounded-full border border-ink/10 px-2.5 py-0.5 text-xs text-ink-muted">
-                              {example}
-                            </li>
-                          )}
-                        </For>
-                      </ul>
+          <div
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 -z-10"
+            style={{
+              background:
+                'radial-gradient(ellipse at center, color-mix(in srgb, var(--color-accent) 14%, transparent), transparent 72%)',
+            }}
+          />
+          <WorkspaceTexture accent="var(--color-accent)" filterId={textureId} />
+          <div class="relative h-full overflow-y-auto">
+            <Show when={selected()}>
+              {(item) => (
+                <section
+                  aria-label={`${item().label} details`}
+                  class="flex min-h-full flex-col items-center justify-center px-5 py-6 text-center sm:px-7"
+                >
+                  <div class="mb-6 flex size-18 shrink-0 items-center justify-center rounded-[22px] border border-ink/10 bg-linear-145 from-ink/[0.09] to-ink/[0.02] text-accent shadow-[inset_0_1px_0_0_rgb(255_255_255/0.06),0_2px_8px_-2px_rgb(0_0_0/0.25)]">
+                    <div class="size-8 [&_svg]:size-full">
+                      <Dynamic component={item().icon} />
                     </div>
-                  )}
-                </Show>
-                <div class="mt-auto flex shrink-0 items-center gap-3 pt-6">
+                  </div>
+                  <h2 class="text-xl font-semibold tracking-[-0.025em] text-ink">
+                    {item().label}
+                  </h2>
+                  <p class="mt-2 max-w-[23rem] text-center text-[13px] leading-relaxed text-ink-muted">
+                    {createMenuDetails(item())?.details ??
+                      createMenuTagline(item())}
+                  </p>
+                  <Show when={createMenuDetails(item())?.examples}>
+                    {(examples) => (
+                      <div class="mt-6">
+                        <div class="text-[10px] font-medium tracking-[0.08em] text-ink-extra-muted/80 uppercase">
+                          Good for
+                        </div>
+                        <ul class="mt-2 flex flex-wrap justify-center gap-1.5">
+                          <For each={examples()}>
+                            {(example) => (
+                              <li class="rounded-full border border-ink/10 px-2.5 py-0.5 text-xs text-ink-muted">
+                                {example}
+                              </li>
+                            )}
+                          </For>
+                        </ul>
+                      </div>
+                    )}
+                  </Show>
                   <Show when={props.showHotkeys}>
-                    <div class="flex items-center gap-1.5 text-xs text-ink-extra-muted">
+                    <div class="mt-4 flex shrink-0 items-center gap-1.5 text-xs text-ink-extra-muted">
                       Shortcut
                       <Hotkey
                         shortcut="c"
@@ -196,26 +207,10 @@ export function LauncherDetails(props: {
                       />
                     </div>
                   </Show>
-                  <Button
-                    size="md"
-                    variant="strong"
-                    class="ml-auto"
-                    aria-label={`Create ${item().label}${props.shiftHeld ? ' in new split' : ''}`}
-                    onClick={() => props.onChoose(item())}
-                  >
-                    {props.shiftHeld
-                      ? 'Create in new split'
-                      : `Create ${item().label}`}
-                    <Hotkey
-                      shortcut={props.shiftHeld ? 'shift+enter' : 'enter'}
-                      theme="current"
-                      aria-hidden="true"
-                    />
-                  </Button>
-                </div>
-              </section>
-            )}
-          </Show>
+                </section>
+              )}
+            </Show>
+          </div>
         </div>
       </Show>
     </div>

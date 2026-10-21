@@ -536,13 +536,14 @@ Categories appear in this order: **Docs** (Document, Snippet), **Organization**
 any uncategorized entries). Only available entries and nonempty categories appear.
 Recent items also remain in their categories. With no history, the list starts
 with categories. Hover or keyboard navigation updates the right detail panel;
-click a row or press Enter to start that creation flow. Icons are monochrome:
-muted in the list, full ink on the selected row and in the detail panel's
-neutral tile. The detail panel is top-aligned, shares the list background, and
-is separated by a vertical divider. It shows the description and a **Good for**
-row of example uses. Its bottom row shows the shortcut sequence on the left,
-such as **C then T** for Task, while direct shortcut mode is active, and the
-**Create [type]** button with the Enter shortcut on the right. Holding Shift
+click a row or press Enter to start that creation flow. List icons are monochrome:
+muted normally and full ink on the selected row. The detail panel centers
+its accent-colored icon tile, description, and **Good for** examples over
+the shared onboarding grain and accent glow. The **Create [type]** button
+sits in the bottom lip, centered beneath the detail panel.
+A vertical divider separates it from the list. In direct shortcut mode, the
+shortcut sequence (such as **C then T** for Task) appears below the centered
+detail content. The Create button includes the Enter shortcut. Holding Shift
 relabels the button **Create in new split** with Shift+Enter; clicking while
 holding Shift uses the same new-split behavior where supported.
 
