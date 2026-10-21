@@ -11,7 +11,9 @@ import { createMemo, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { z } from 'zod';
 import { isNativeCallEnabled } from './native-call-platform';
 
+// Device-wide: the setting belongs to the device, not the signed-in account.
 const DISMISSED_KEY = 'full-screen-call-prompt-dismissed';
+const dismissedValue = z.literal('true');
 const fullScreenIntentState = z.object({ allowed: z.boolean() });
 
 async function canUseFullScreenIntent(): Promise<boolean> {
@@ -46,19 +48,18 @@ export function FullScreenCallPrompt() {
   const [dismissed, setDismissed] = makePersistedState(createSignal(false), {
     storages: {
       restore: () =>
-        localStorage.getItem(DISMISSED_KEY) === 'true' ? true : undefined,
+        dismissedValue.safeParse(localStorage.getItem(DISMISSED_KEY)).success
+          ? true
+          : undefined,
       write: (value) => {
         if (value) localStorage.setItem(DISMISSED_KEY, 'true');
       },
     },
   });
 
-  onMount(() =>
-    fireAndForget(
-      (async () => setBlocked(!(await canUseFullScreenIntent())))(),
-      'channel-call'
-    )
-  );
+  const checkBlocked = async () =>
+    setBlocked(!(await canUseFullScreenIntent()));
+  onMount(() => fireAndForget(checkBlocked(), 'channel-call'));
 
   // Calls only ring once notifications are on; that prompt comes first.
   const shouldShow = createMemo(
