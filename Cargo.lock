@@ -5256,6 +5256,7 @@ dependencies = [
  "unfurl",
  "utoipa",
  "uuid",
+ "wiremock",
  "workspace-hack",
 ]
 
@@ -12688,6 +12689,7 @@ name = "messages"
 version = "0.1.0"
 dependencies = [
  "activity",
+ "ai_toolset",
  "async-trait",
  "axum",
  "bot_id",
@@ -12710,6 +12712,7 @@ dependencies = [
  "model_notifications",
  "model_owner",
  "models_pagination",
+ "models_permissions",
  "models_properties",
  "notification",
  "properties",
