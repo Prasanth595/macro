@@ -49,8 +49,8 @@ Closing the detail returns global Create to the unassociated CRM preset.
 Verify activity loading with a CRM containing thousands of companies and
 contacts, not only an empty fixture. Opening a tab must settle without repeated
 requests; switching tabs must preserve filtering and scrolling must load older
-matching items. A frontend preview still needs the Soup/email SQL optimizations
-deployed on its backend to verify large-scope request performance.
+matching items. Verify against the deployed backend; a frontend fixture alone
+does not establish large-scope query performance.
 
 Record-level **New task** also prefills the current record.
 **Add property** can reveal Status or another supported property.

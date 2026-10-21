@@ -27,7 +27,6 @@ enum SqlSegment {
     Raw(String),
     BindViewer,
     BindString(String),
-    BindStringArray(Vec<String>),
     BindUuid(Uuid),
     BindUuidArray(Vec<Uuid>),
 }
@@ -56,12 +55,6 @@ impl SqlFragment {
     fn bind_string(s: impl Into<String>) -> Self {
         Self {
             segments: vec![SqlSegment::BindString(s.into())],
-        }
-    }
-
-    fn bind_string_array(values: Vec<String>) -> Self {
-        Self {
-            segments: vec![SqlSegment::BindStringArray(values)],
         }
     }
 
@@ -135,9 +128,6 @@ impl SqlFragment {
                 SqlSegment::BindString(s) => {
                     builder.push_bind(s);
                 }
-                SqlSegment::BindStringArray(values) => {
-                    builder.push_bind(values);
-                }
                 SqlSegment::BindUuid(u) => {
                     builder.push_bind(u);
                 }
@@ -165,10 +155,6 @@ impl SqlFragment {
                     bind_idx += 1;
                     result.push_str(&format!("${bind_idx}[str={s}]"));
                 }
-                SqlSegment::BindStringArray(values) => {
-                    bind_idx += 1;
-                    result.push_str(&format!("${bind_idx}[str_array={values:?}]"));
-                }
                 SqlSegment::BindUuid(u) => {
                     bind_idx += 1;
                     result.push_str(&format!("${bind_idx}[uuid={u}]"));
@@ -188,11 +174,9 @@ impl SqlFragment {
     }
 
     fn has_bind_string(&self, expected: &str) -> bool {
-        self.segments.iter().any(|segment| match segment {
-            SqlSegment::BindString(value) => value == expected,
-            SqlSegment::BindStringArray(values) => values.iter().any(|value| value == expected),
-            _ => false,
-        })
+        self.segments
+            .iter()
+            .any(|s| matches!(s, SqlSegment::BindString(v) if v == expected))
     }
 
     /// True if `expected` is bound somewhere in this fragment — either as a
