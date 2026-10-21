@@ -45,11 +45,12 @@ export class BulkUploadBucket extends pulumi.ComponentResource {
             filter: { prefix: 'slack-import/' },
             expiration: { days: 14 },
           },
+          // Outlives the 14-day DLQ, so a redriven extraction still finds its zip
           {
             id: 'extract-cleanup',
             status: 'Enabled',
             filter: { prefix: 'extract/' },
-            expiration: { days: 7 },
+            expiration: { days: 21 },
             abortIncompleteMultipartUpload: { daysAfterInitiation: 1 },
           },
         ],

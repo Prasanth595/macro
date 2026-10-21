@@ -209,7 +209,7 @@ export class ConnectionGateway extends pulumi.ComponentResource {
               image: image.image.imageUri,
               stopTimeout: 10, // 10 seconds to force kill the task
               cpu: stack === 'prod' ? 1024 : 512,
-              memory: stack === 'prod' ? 1536 : 2560,
+              memory: stack === 'prod' ? 3584 : 2560,
               environment: [...(containerEnvVars ?? [])],
               secrets: [...dopplerEcsEnvironment.containerSecrets],
               logConfiguration: {
