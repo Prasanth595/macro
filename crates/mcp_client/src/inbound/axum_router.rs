@@ -1,5 +1,5 @@
 use crate::domain::{
-    models::{McpServerRecord, OAuthClientMetadata},
+    models::{MacroUserIdStr, McpServerRecord, OAuthClientMetadata},
     ports::{McpServerStore, OAuthClient},
 };
 use axum::{
@@ -433,24 +433,49 @@ where
     anyhow::Error: From<S::Err>,
 {
     let user = &authorization.authorization.user;
-    // Read first so the removal hook only fires for a server that existed;
-    // deleting an unknown URL stays a quiet no-op.
-    let removed = state
-        .store
-        .load(&user.macro_user_id, &params.url)
-        .await
-        .map_err(anyhow::Error::from)?;
-    state
-        .store
-        .delete(&user.macro_user_id, &params.url)
-        .await
-        .map_err(anyhow::Error::from)?;
-
-    if let (Some(record), Some(hook)) = (removed, &state.on_server_removed) {
-        hook(record).await;
-    }
+    remove_server(
+        state.store.as_ref(),
+        state.on_server_removed.as_ref(),
+        &user.macro_user_id,
+        &params.url,
+    )
+    .await?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Deletes a user's server, then passes the removed record to `on_removed`.
+///
+/// The record is read only when there is a hook, so a plain delete does no
+/// extra read or decryption. A record that can't be read (e.g. credentials
+/// that no longer decrypt) never blocks the delete: the hook is skipped
+/// instead. Deleting an unknown URL stays a quiet no-op.
+async fn remove_server<S>(
+    store: &S,
+    on_removed: Option<&McpServerRemovedHook>,
+    user_id: &MacroUserIdStr<'static>,
+    server_url: &str,
+) -> anyhow::Result<()>
+where
+    S: McpServerStore,
+    anyhow::Error: From<S::Err>,
+{
+    let removed = match on_removed {
+        Some(_) => store.load(user_id, server_url).await.unwrap_or_else(|error| {
+            tracing::warn!(error = ?error, "could not read MCP server before removal; skipping the removal hook");
+            None
+        }),
+        None => None,
+    };
+    store
+        .delete(user_id, server_url)
+        .await
+        .map_err(anyhow::Error::from)?;
+
+    if let (Some(record), Some(hook)) = (removed, on_removed) {
+        hook(record).await;
+    }
+    Ok(())
 }
 
 #[utoipa::path(
