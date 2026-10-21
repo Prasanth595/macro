@@ -75,13 +75,13 @@ test('three rendered peers share drag edits, cursor/selection awareness, undo an
     .toBe('red');
   await page.mouse.move(bounds.x + 140, bounds.y + 200);
   await expect(bob.locator('[data-presence-cursor]')).toHaveCount(1);
-  expect(errors).toEqual([]);
   await page.screenshot({
     path: '/tmp/canvas-multiplayer.png',
     fullPage: true,
   });
   await page.mouse.move(0, 0);
   await expect(bob.locator('[data-presence-cursor]')).toHaveCount(0);
+  expect(errors).toEqual([]);
 });
 
 test('touch selection is visible to other editors and viewers', async ({
