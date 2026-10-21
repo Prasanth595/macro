@@ -1146,6 +1146,7 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
   };
 
   const groupQueries = createGroupedSoupQueries({
+    groupedPaging: () => itemsQuery.groupedPaging,
     initialPage: createMemo(() => {
       if (itemsSource().isPlaceholderData()) return;
 

@@ -33,6 +33,7 @@ import { createDroppable, useDragDropContext } from '@thisbeyond/solid-dnd';
 import { Button, cn } from '@ui';
 import {
   createMemo,
+  onCleanup,
   type ParentProps,
   type Setter,
   Show,
@@ -529,6 +530,11 @@ export function SplitHeader(props: {
             contentClass="h-full flex items-center gap-0.5 pl-2 touch:pl-0 touch:gap-2 touch:max-w-full"
             contentRef={(element) => {
               panel.layoutRefs.headerLeft = element;
+              onCleanup(() => {
+                if (panel.layoutRefs.headerLeft === element) {
+                  panel.layoutRefs.headerLeft = undefined;
+                }
+              });
             }}
           />
 
@@ -537,6 +543,11 @@ export function SplitHeader(props: {
               class="contents"
               ref={(ref) => {
                 panel.layoutRefs.headerRight = ref;
+                onCleanup(() => {
+                  if (panel.layoutRefs.headerRight === ref) {
+                    panel.layoutRefs.headerRight = undefined;
+                  }
+                });
               }}
             />
             <SoupNavigationButtons />

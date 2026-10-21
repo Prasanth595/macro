@@ -370,6 +370,7 @@ export type SoupAstItemsQueryTransport = 'rest' | 'graphql';
 
 /** Stable query surface shared by the REST and urql-solid implementations. */
 export type SoupAstItemsQuery = {
+  readonly groupedPaging?: import('./graphql/create-grouped-soup-live-query').GroupedSoupPaging;
   readonly data: SoupAstItemsData | undefined;
   readonly error: Error | null;
   /** Includes paused initial requests, whose data resource is not readable yet. */
@@ -514,6 +515,9 @@ export function useSoupAstItemsQuery(
   };
 
   return {
+    get groupedPaging() {
+      return usesGraphql() ? activeGraphqlQuery().groupedPaging : undefined;
+    },
     get data() {
       return usesGraphql() ? activeGraphqlQuery().data() : restQuery.data;
     },

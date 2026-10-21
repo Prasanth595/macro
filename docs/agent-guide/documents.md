@@ -9,7 +9,9 @@ Verify **Public → View** links in a fresh signed-out browser context. The
 `/app/md/<id>` redirects) must show the document without private Drive lists or
 folder navigation, on desktop and touch devices. The login banner may remain;
 it must not replace the public document. Signed-out readers see **Sign in to view
-comments**, not a comment-fetch error or composer. Account-only lists, contacts,
+comments**, not a comment-fetch error or composer. While identity is unresolved,
+the discussion shows neither comments nor a sign-in prompt; throttle the preview
+auth response to check this on desktop and touch devices. Account-only lists, contacts,
 notifications, activity, and gateway/storage WebSockets must stay idle until
 sign-in; public document metadata, properties, and sync still load normally.
 Check that signing in restores account services and signing out stops them.
@@ -2387,17 +2389,16 @@ them.
 Pipelines are not in the `@` menu or the command menu. Pasting a pipeline link
 into an editor or composer inserts a document mention with a table icon and the
 pipeline's current name: the pipeline's copy-link action
+(`/app/companies/pipeline/<id>`), an older shared view link
 (`/app/companies?crmView=…` whose view is that pipeline) and
-`/app/pipeline/<id>` both work. Copied Customers links for other views
+`/app/pipeline/<id>` all work. Copied Customers links for other views
 (Companies, People, lists) stay plain links. A pipeline you cannot read shows
 **No Access**; a trashed one shows **Deleted**.
 
 Clicking the mention, or pressing Enter on it, opens Customers on the pipeline
-(on touch devices too). If Customers is already open in a split, that split
-switches to the pipeline instead of a second one opening. The request travels
-as the Customers pane search `crm.pipeline` (with a `crm.seek` that makes a
-repeat click a new request), which Customers drops once you leave the
-pipeline.
+at `/app/companies/pipeline/<id>` (on touch devices too), in the mention's split
+like other entity mentions. A split already showing that pipeline is brought
+forward instead.
 
 The mention is stored as
 `<m-document-mention>{"documentId":"<pipeline id>","blockName":"pipeline",…}</m-document-mention>`.
@@ -2596,6 +2597,15 @@ editor and comments arriving after it. Once loaded, click elsewhere in the
 document, then click the same notification again: it should revisit the comment,
 while background comment refreshes should leave the user's position alone.
 
+A document row keeps pointing at its newest comment notification until that
+notification is done, so on desktop the row opens the document at that comment.
+On touch the thread is a drawer over the whole page rather than a margin card,
+so a row tap opens the document itself: no drawer, with the comment's highlight
+still in the text. Verify this from Home, Inbox, and Files with a comment
+notification that has already been read — the drawer must not reappear on every
+open. Tapping the highlighted text still offers `Show comment`, and opening the
+notification itself still opens the thread.
+
 When checking desktop margin placement, scroll a long document while an embed
 or image above the highlighted text changes height. Scroll anchoring may keep
 the text at the same screen position; its comment card should stay aligned
@@ -2647,7 +2657,15 @@ on phones) and never in the bottom Discussion, including after live updates or
 reloads. Links to these threads open the margin without changing the bottom
 Discussion's timeline or expanding it. Existing highlights locate threads by
 their stable mark IDs. Replies, attachments, reactions, and editing use the same
-message controls as channels.
+message controls as channels. In every floating comment card (the Markdown,
+PDF, and Word margins and expanded minimized threads), a long comment folds to
+a faded preview with **Show more**; **Show less** folds it again. Short
+comments, the phone drawer, the bottom Discussion, and channels always show the
+full text. Markdown and Word margin cards stack without overlapping: a tall or expanded card
+pushes the cards below it down (past the end of a short document if needed),
+and no card starts above the top of the document. Check this with a long
+thread active near the bottom of a short document that has another thread
+above and below it.
 Removing the last marked text moves its retained conversation to Discussion,
 where it remains after reload. Removing only part of a marked range keeps the
 conversation anchored to the remaining text. On phones, the active Markdown
@@ -2703,6 +2721,13 @@ in the DOM. Edits sync through the sync service as you type: every open copy
 updates live and shows each collaborator's caret with their name
 (`[data-docx-peer]`).
 
+- Open a newly uploaded DOCX while it is still processing. The view stays
+  loading and retries the original export once per second for up to 30 seconds,
+  then renders as soon as extraction finishes without needing a reopen. If
+  processing takes longer, it asks you to try opening it again shortly.
+  A first-open sync `/exists` 404 is expected: the editor seeds collaboration
+  from the stored upload. The export endpoint returns 409 while parts are
+  missing and never publishes an empty archive.
 - Pages are `[data-docx-page="<index>"]` elements. Click a page to place the
   caret, drag to select, double-click for a word and triple-click for a
   paragraph. On a touch screen a swipe scrolls, a tap places the caret, and

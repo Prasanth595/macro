@@ -321,6 +321,73 @@ describe('useSoupNavigationHotkeys', () => {
     }
   });
 
+  it('retains an ordered detail position after removal and refuses unknown current items', async () => {
+    const { soup, dispose } = setupHotkeys(true);
+    try {
+      soup.focus.set('a2');
+      const source = getListNavigationSource('split-test')!;
+      const position = source.capturePosition!('a2');
+      expect(position).toBeDefined();
+      soup.setRows(soup.rows().filter((row) => row.id !== 'a2'));
+      expect(
+        (await source.resolveAdjacent!('a2', 1, undefined, position))?.id
+      ).toBe('b1');
+      expect(await source.resolveAdjacent!('unknown', 1)).toBeUndefined();
+    } finally {
+      dispose();
+    }
+  });
+
+  it('opens a final group page after its only loaded occurrence disappears', async () => {
+    const { soup, dispose, load } = createRoot((dispose) => {
+      const soup = createSoupState();
+      const group = createTestGroup('a', 2);
+      const first = soup.buildRow({
+        id: 'a',
+        index: 0,
+        original: createTestEntity('a'),
+        group,
+      });
+      const boundary = soup.buildRow({
+        id: 'status:a',
+        index: 1,
+        kind: 'group-status',
+        group,
+      });
+      soup.setRows([first, boundary]);
+      const load = vi.fn(async () => {
+        soup.setRows([
+          soup.buildRow({
+            id: 'b',
+            index: 0,
+            original: createTestEntity('b'),
+            group,
+          }),
+        ]);
+      });
+      useSoupNavigationHotkeys({
+        scopeId: 'test-scope',
+        soup,
+        splitHandle: createSplitHandleStub(),
+        virtualizerHandle: () => undefined,
+        orderedGroups: () => true,
+        loadOrderedGroup: load,
+      });
+      return { soup, dispose, load };
+    });
+    try {
+      const source = getListNavigationSource('split-test')!;
+      const position = source.capturePosition!('a');
+      soup.setRows(soup.rows().filter((row) => row.kind === 'group-status'));
+      expect(
+        (await source.resolveAdjacent!('a', 1, undefined, position))?.id
+      ).toBe('b');
+      expect(load).toHaveBeenCalledOnce();
+    } finally {
+      dispose();
+    }
+  });
+
   it('distinguishes an obsolete pending move from group exhaustion', async () => {
     let finish!: () => void;
     const load = vi.fn(

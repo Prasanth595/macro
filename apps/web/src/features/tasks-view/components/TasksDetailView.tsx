@@ -51,6 +51,7 @@ export function TasksDetailView(props: {
   const panel = useSplitPanelOrThrow();
   const listNavigation = useListDetailNavigation({
     currentId: () => props.task.id,
+    ready: source.paginationReady,
     source,
     currentKey: () => list.focus.key(),
     getKey: (row) => row.id,

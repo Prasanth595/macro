@@ -1,8 +1,13 @@
+import type { ListNavigationPosition } from '@app/components/list/list-navigation-position';
 import type {
   EmailThreadCommands,
   EmailThreadListNavigation,
 } from '@app/features/email-thread/context/email-thread-context';
-import { adjacentEmail } from '@app/features/email-thread/core/adjacent-email';
+import {
+  adjacentEmail,
+  type EmailPosition,
+  emailPosition,
+} from '@app/features/email-thread/core/adjacent-email';
 import { useMaybeSoup } from '@app/features/next-soup/soup-context';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import {
@@ -15,7 +20,7 @@ import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
 import { toast } from '@core/component/Toast/Toast';
 import { fireAndForget } from '@core/util/fireAndForget';
 import type { EntityData } from '@entity';
-import { type Accessor, createSignal, onCleanup } from 'solid-js';
+import { type Accessor, createMemo, createSignal, onCleanup } from 'solid-js';
 
 /** Keep thread controls tied to the list and filters the user opened it from. */
 export function useEmailListNavigation(
@@ -50,13 +55,47 @@ export function useEmailListNavigation(
         ) ?? []
     );
   };
+  // Where the open thread sat when it was opened: next and previous keep
+  // stepping from there after it moves or leaves the list.
+  const position = createMemo<EmailPosition | undefined>((previous) =>
+    previous?.id === threadId()
+      ? previous
+      : emailPosition(entities(), threadId())
+  );
+  const orderedPosition = createMemo<{
+    id: string;
+    source: ReturnType<typeof source>;
+    identity: string | undefined;
+    position: ListNavigationPosition | undefined;
+  }>((previous) => {
+    const id = threadId();
+    const list = source();
+    const identity = list?.navigationIdentity?.();
+    if (
+      previous?.id === id &&
+      previous.source === list &&
+      previous.identity === identity &&
+      previous.position
+    )
+      return previous;
+    return {
+      id,
+      source: list,
+      identity,
+      position: list?.capturePosition?.(id),
+    };
+  });
   const target = (direction: -1 | 1) =>
-    adjacentEmail(entities(), threadId(), direction);
-  const canLoadNext = () =>
-    !!source()?.hasMore() &&
-    entities().some(
-      (entity) => entity.type === 'email' && entity.id === threadId()
-    );
+    adjacentEmail(entities(), threadId(), direction, position());
+  // More pages place a thread that left the list only after a surviving
+  // earlier neighbour (their first row follows it). With none, paging could
+  // never find a next email, so it would load the whole mailbox.
+  const canLoadNext = () => {
+    const at = position();
+    if (!source()?.hasMore() || at?.id !== threadId()) return false;
+    const listed = new Set(entities().map((entity) => entity.id));
+    return listed.has(at.id) || at.previous.some((id) => listed.has(id));
+  };
   const open = async (
     entity: EntityData,
     referredFrom = panel?.handle.referredFrom()
@@ -83,11 +122,12 @@ export function useEmailListNavigation(
       toast.failure('Unable to open the next or previous email');
     }
   };
+  /** Resolves whether it archived the thread through `archiveThread`. */
   const navigate = async (
     direction: -1 | 1,
     archiveThread?: EmailThreadCommands['archiveThread']
-  ) => {
-    if (!panel || disposed || navigating()) return;
+  ): Promise<boolean> => {
+    if (!panel || disposed || navigating()) return false;
     setNavigating(true);
     const currentId = threadId();
     const current = entities().find(
@@ -110,38 +150,48 @@ export function useEmailListNavigation(
         canLoadNext()
       ) {
         await list?.loadMore();
-        if (!isCurrent()) return;
+        if (!isCurrent()) return false;
       }
-      if (!isCurrent()) return;
+      if (!isCurrent()) return false;
       // Capture the destination before archiving removes the current list row.
       // At the end of the list, triage falls back to the previous email.
       const ordered = list?.hasOrderedGroups?.();
       const acceptsEmail = (entity: EntityData) => entity.type === 'email';
       let next = ordered
-        ? await list?.resolveAdjacent?.(currentId, direction, acceptsEmail)
+        ? await list?.resolveAdjacent?.(
+            currentId,
+            direction,
+            acceptsEmail,
+            orderedPosition()?.position
+          )
         : (target(direction) ?? (archiveThread ? target(-1) : undefined));
       if (ordered && !next && archiveThread && isCurrent()) {
-        next = await list?.resolveAdjacent?.(currentId, -1, acceptsEmail);
+        next = await list?.resolveAdjacent?.(
+          currentId,
+          -1,
+          acceptsEmail,
+          orderedPosition()?.position
+        );
       }
-      if (!isCurrent()) return;
-      if (
-        archiveThread &&
-        !archiveThread({
+      if (!isCurrent()) return false;
+      const archived =
+        !!archiveThread &&
+        archiveThread({
           navigate: false,
           navigateBack:
             current && next
               ? () =>
                   fireAndForget(open(current, referredFrom), 'email-navigation')
               : undefined,
-        })
-      )
-        return;
-      if (!next) return;
-      await open(next, referredFrom);
+        });
+      if (archiveThread && !archived) return false;
+      if (next) await open(next, referredFrom);
+      return archived;
     } catch (error) {
-      if (error instanceof ListNavigationCancelled) return;
+      if (error instanceof ListNavigationCancelled) return false;
       if (isCurrent())
         toast.failure('Unable to open the next or previous email');
+      return false;
     } finally {
       setNavigating(false);
     }
@@ -155,8 +205,9 @@ export function useEmailListNavigation(
     next: () => {
       fireAndForget(navigate(1), 'email-navigation');
     },
-    markDone: (archiveThread) => {
-      fireAndForget(navigate(1, archiveThread), 'email-navigation');
+    markDone: async (archiveThread, requested) => {
+      if (requested !== undefined && requested !== threadId()) return false;
+      return navigate(1, archiveThread);
     },
   };
 }

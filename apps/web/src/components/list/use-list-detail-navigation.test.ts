@@ -4,6 +4,209 @@ import { useListDetailNavigation } from './use-list-detail-navigation';
 
 type Row = { key: string; entity?: { id: string }; load?: () => Promise<void> };
 describe('detail navigation through grouped page boundaries', () => {
+  it.each([undefined, 'b:1'])(
+    'anchors details to the open entity when focus is %s',
+    async (focus) => {
+      await createRoot(async (dispose) => {
+        const rows: Row[] = ['a', 'b', 'c'].map((id) => ({
+          key: `${id}:1`,
+          entity: { id },
+        }));
+        const open = vi.fn();
+        const navigation = useListDetailNavigation({
+          currentId: () => 'a',
+          currentKey: () => focus,
+          getKey: (row) => row.key,
+          source: {
+            items: () => rows,
+            hasMore: () => false,
+            loadMore: async () => {},
+            error: () => undefined,
+          },
+          getEntity: (row) => row.entity,
+          open,
+        });
+        await navigation.navigate(1);
+        expect(open).toHaveBeenCalledWith(rows[1].entity);
+        dispose();
+      });
+    }
+  );
+
+  it.each(['moved', 'removed'])(
+    'retains the open position through a boundary after its row is %s',
+    async (change) => {
+      await createRoot(async (dispose) => {
+        const [a, b, c, later] = ['a', 'b', 'c', 'later'].map((id) => ({
+          key: id,
+          entity: { id },
+        }));
+        const load = vi.fn(async () => {
+          setRows(change === 'moved' ? [b, a, c, later] : [a, c, later]);
+        });
+        const [rows, setRows] = createSignal<Row[]>([
+          a,
+          b,
+          { key: 'boundary', load },
+          later,
+        ]);
+        const open = vi.fn();
+        const navigation = useListDetailNavigation({
+          currentId: () => 'b',
+          getKey: (row) => row.key,
+          source: {
+            items: rows,
+            hasMore: () => false,
+            loadMore: async () => {},
+            error: () => undefined,
+          },
+          getEntity: (row) => row.entity,
+          getContinuation: (row) => row.load,
+          open,
+        });
+        setRows(
+          change === 'moved'
+            ? [b, a, { key: 'boundary', load }, later]
+            : [a, { key: 'boundary', load }, later]
+        );
+        await navigation.navigate(1);
+        expect(load).toHaveBeenCalledOnce();
+        expect(open).toHaveBeenCalledWith(c.entity);
+        dispose();
+      });
+    }
+  );
+
+  it('keeps a removed occurrence anchored instead of jumping to a duplicate in another group', async () => {
+    await createRoot(async (dispose) => {
+      const [rows, setRows] = createSignal<Row[]>([
+        { key: 'a:same', entity: { id: 'same' } },
+        { key: 'a:next', entity: { id: 'wrong' } },
+        { key: 'b:same', entity: { id: 'same' } },
+        { key: 'b:next', entity: { id: 'right' } },
+      ]);
+      const open = vi.fn();
+      const navigation = useListDetailNavigation({
+        currentId: () => 'same',
+        currentKey: () => 'b:same',
+        getKey: (row) => row.key,
+        source: {
+          items: rows,
+          hasMore: () => false,
+          loadMore: async () => {},
+          error: () => undefined,
+        },
+        getEntity: (row) => row.entity,
+        open,
+      });
+      setRows((rows) => rows.filter((row) => row.key !== 'b:same'));
+      await navigation.navigate(1);
+      expect(open).toHaveBeenCalledWith({ id: 'right' });
+      dispose();
+    });
+  });
+
+  it('opens the final continuation after the first and only loaded row disappears', async () => {
+    await createRoot(async (dispose) => {
+      const next = { key: 'b', entity: { id: 'b' } };
+      const load = vi.fn(async () => {
+        setRows([next]);
+      });
+      const boundary = { key: 'boundary', load };
+      const [rows, setRows] = createSignal<Row[]>([
+        { key: 'a', entity: { id: 'a' } },
+        boundary,
+      ]);
+      const open = vi.fn();
+      const navigation = useListDetailNavigation({
+        currentId: () => 'a',
+        getKey: (row) => row.key,
+        source: {
+          items: rows,
+          hasMore: () => false,
+          loadMore: async () => {},
+          error: () => undefined,
+        },
+        getEntity: (row) => row.entity,
+        getContinuation: (row) => row.load,
+        open,
+      });
+      setRows([boundary]);
+      await navigation.navigate(1);
+      expect(load).toHaveBeenCalledOnce();
+      expect(open).toHaveBeenCalledWith(next.entity);
+      dispose();
+    });
+  });
+
+  it('pauses detail navigation while retained rows belong to a loading query', async () => {
+    await createRoot(async (dispose) => {
+      const [ready, setReady] = createSignal(false);
+      const load = vi.fn(async () => {
+        setReady(false);
+      });
+      const navigation = useListDetailNavigation({
+        currentId: () => 'a',
+        ready,
+        source: {
+          items: () => [
+            { key: 'a', entity: { id: 'a' } },
+            { key: 'boundary', load },
+          ],
+          hasMore: () => false,
+          loadMore: async () => {},
+          error: () => undefined,
+        },
+        getEntity: (row) => row.entity,
+        getContinuation: (row) => row.load,
+        open: vi.fn(),
+      });
+      expect(navigation.canNext()).toBe(false);
+      await navigation.navigate(1);
+      expect(load).not.toHaveBeenCalled();
+      setReady(true);
+      expect(navigation.canNext()).toBe(true);
+      await navigation.navigate(1);
+      expect(load).toHaveBeenCalledOnce();
+      expect(navigation.canNext()).toBe(false);
+      dispose();
+    });
+  });
+
+  it('captures replacement query positions only after its rows are ready', async () => {
+    await createRoot(async (dispose) => {
+      const [a, b, c] = ['a', 'b', 'c'].map((id) => ({
+        key: id,
+        entity: { id },
+      }));
+      const [rows, setRows] = createSignal<Row[]>([a, b, c]);
+      const [ready, setReady] = createSignal(true);
+      const [identity, setIdentity] = createSignal('old');
+      const open = vi.fn();
+      const navigation = useListDetailNavigation({
+        currentId: () => 'b',
+        ready,
+        identity,
+        getKey: (row) => row.key,
+        source: {
+          items: rows,
+          hasMore: () => false,
+          loadMore: async () => {},
+          error: () => undefined,
+        },
+        getEntity: (row) => row.entity,
+        open,
+      });
+      setReady(false);
+      setIdentity('new');
+      setRows([b, a, c]);
+      setReady(true);
+      await navigation.navigate(1);
+      expect(open).toHaveBeenCalledWith(a.entity);
+      dispose();
+    });
+  });
+
   it('loads an internal boundary before a retained later group and coalesces repeated next', async () => {
     await createRoot(async (dispose) => {
       let finish!: () => void;

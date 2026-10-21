@@ -1,4 +1,8 @@
 import { listOwnedSlotName } from '@app/components/list';
+import {
+  type ListNavigationPosition,
+  listNavigationPosition,
+} from '@app/components/list/list-navigation-position';
 import { isListViewID } from '@app/constants/list-views';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import {
@@ -70,13 +74,15 @@ export const useSoupNavigationHotkeys = (
     currentId: string,
     direction: -1 | 1,
     moveFocus = true,
-    accept?: (entity: EntityData) => boolean
+    accept?: (entity: EntityData) => boolean,
+    position?: ListNavigationPosition
   ) => {
     const focused = soup.focus.row();
     const anchor =
       (!currentId && focused) || focused?.original?.id === currentId
         ? focused
         : soup.rows().find((row) => row.original?.id === currentId);
+    if (currentId && !anchor && !position) return undefined;
     const focusedKey = soup.focus.row()?.identityKey;
     const identity = options.groupNavigationIdentity?.();
     const isCurrent = () =>
@@ -87,7 +93,8 @@ export const useSoupNavigationHotkeys = (
     const row = await resolveGroupedNeighbor({
       rows: soup.rows,
       accept: (row) => accept?.(row.original) ?? true,
-      currentKey: anchor?.identityKey,
+      currentKey: position?.key ?? anchor?.identityKey,
+      position,
       direction,
       isCurrent,
       load: async (key) => {
@@ -117,9 +124,35 @@ export const useSoupNavigationHotkeys = (
                 ? [row.original]
                 : []
             ),
-        resolveAdjacent: async (currentId, direction, accept) => {
+        navigationIdentity: options.groupNavigationIdentity,
+        capturePosition: (currentId) => {
+          const focused = soup.focus.row();
+          const row =
+            focused?.original?.id === currentId
+              ? focused
+              : soup.rows().find((row) => row.original?.id === currentId);
+          if (!row) return undefined;
+          return listNavigationPosition(
+            soup
+              .rows()
+              .filter(
+                (row) =>
+                  row.kind !== 'group-header' &&
+                  (!row.group || row.group.isExpanded())
+              )
+              .map((row) => row.identityKey),
+            row.identityKey
+          );
+        },
+        resolveAdjacent: async (currentId, direction, accept, position) => {
           if (options.orderedGroups?.())
-            return resolveAdjacent(currentId, direction, true, accept);
+            return resolveAdjacent(
+              currentId,
+              direction,
+              true,
+              accept,
+              position
+            );
           return undefined;
         },
         hasOrderedGroups: options.orderedGroups,
