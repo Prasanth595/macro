@@ -1579,55 +1579,45 @@ fn a_presentation_is_worded_as_preparing_the_drafts() {
     assert_eq!(row(ToolStatus::Failed), "Couldn't prepare drafts to review");
 }
 
-const EXECUTION: &str = "0199f3a2-1b2c-7d4e-8f90-00000000e7ec";
 const CHANNEL: &str = "0199f3a2-1b2c-7d4e-8f90-0000000c4a77";
 
-fn item_presentation(
-    id: &str,
-    server: &str,
-    input: serde_json::Value,
-    status: ToolStatus,
-) -> MessagePart {
+fn code_run(activity: serde_json::Value) -> MessagePart {
     MessagePart::ToolUse {
-        id: ToolUseId(id.to_owned()),
+        id: ToolUseId("code-1".into()),
         name: ToolName::Mcp {
-            server: server.to_owned(),
-            tool: "PresentItem".to_owned(),
+            server: "macro_internal".into(),
+            tool: "ExecuteCode".into(),
         },
-        status,
+        status: ToolStatus::Completed,
         detail: ToolDetail::Other {
-            kind: "other".to_owned(),
+            kind: "other".into(),
+            input: Some(serde_json::json!({"source": "program"})),
+            result: Some(serde_json::json!({"result": {"data": null}, "activity": activity})),
             output: None,
-            input: Some(input),
-            result: None,
             error: None,
         },
     }
 }
 
-fn item_input(execution: &str, item_type: &str, action: &str) -> serde_json::Value {
-    serde_json::json!({
-        "executionId": execution,
-        "itemType": item_type,
-        "itemId": CHANNEL,
-        "action": action,
-        "title": "launch",
-    })
-}
-
 #[test]
-fn an_item_a_program_changed_is_its_card_under_a_step_worded_for_it() {
-    let parts = [item_presentation(
-        &format!("item_{EXECUTION}_3"),
-        "macro_internal",
-        item_input(EXECUTION, "channel", "renamed"),
-        ToolStatus::Completed,
-    )];
-    let row = &segments(&parts, true)[0].rows[0];
-    assert_eq!(row.label, "Rename channel");
-    assert_eq!(row.detail.as_deref(), Some("launch"));
+fn a_code_run_cards_the_item_each_of_its_writes_changed() {
+    let renamed = serde_json::json!({"type": "channel", "id": CHANNEL, "action": "renamed", "title": "launch"});
+    let part = code_run(serde_json::json!([
+        {"id": 1, "label": "Get Channels", "status": "completed"},
+        {"id": 2, "label": "Patch Channel", "status": "completed", "item": renamed},
+        {"id": 3, "label": "Patch Channel", "status": "failed", "item": renamed},
+        {"id": 4, "label": "Create Task", "status": "completed",
+         "item": {"type": "task", "id": CHANNEL, "action": "created"}},
+    ]));
+    let rows = &segments(std::slice::from_ref(&part), true)[0].rows;
     assert_eq!(
-        row.card,
+        rows.iter()
+            .map(|row| row.card.is_some())
+            .collect::<Vec<_>>(),
+        [false, true, false, false]
+    );
+    assert_eq!(
+        rows[1].card,
         Some(ActivityCard::Item {
             item_type: CardItemType::Channel,
             item_id: CHANNEL.to_owned(),
@@ -1637,78 +1627,7 @@ fn an_item_a_program_changed_is_its_card_under_a_step_worded_for_it() {
             summary: None,
         })
     );
-}
-
-#[test]
-fn a_presented_step_reads_like_the_tool_that_would_have_done_it() {
-    for (item_type, action, label) in [
-        ("document", "created", "Create document"),
-        ("document", "commented", "Comment on document"),
-        ("channel", "sent", "Send channel message"),
-        ("email_thread", "sent", "Send email"),
-        ("calendar_event", "edited", "Edit event"),
-        ("project", "moved", "Move project"),
-    ] {
-        let parts = [item_presentation(
-            &format!("item_{EXECUTION}_1"),
-            "macro_internal",
-            item_input(EXECUTION, item_type, action),
-            ToolStatus::Completed,
-        )];
-        assert_eq!(segments(&parts, true)[0].rows[0].label, label);
-    }
-}
-
-#[test]
-fn only_a_finished_presentation_macro_wrote_for_an_item_is_a_card() {
-    let presented = format!("item_{EXECUTION}_3");
-    let other = "0199f3a2-1b2c-7d4e-8f90-000000000000";
-    let cases = [
-        // Still being presented.
-        item_presentation(
-            &presented,
-            "macro_internal",
-            item_input(EXECUTION, "channel", "renamed"),
-            ToolStatus::Running,
-        ),
-        // A connected server that happens to have a tool by that name.
-        item_presentation(
-            &presented,
-            "acme",
-            item_input(EXECUTION, "channel", "renamed"),
-            ToolStatus::Completed,
-        ),
-        // An item this version cannot open.
-        item_presentation(
-            &presented,
-            "macro_internal",
-            item_input(EXECUTION, "task", "renamed"),
-            ToolStatus::Completed,
-        ),
-        // Named for another run than the one it carries.
-        item_presentation(
-            &presented,
-            "macro_internal",
-            item_input(other, "channel", "renamed"),
-            ToolStatus::Completed,
-        ),
-        // An agent's own call, under its own id.
-        item_presentation(
-            "call_1",
-            "macro_internal",
-            item_input(EXECUTION, "channel", "renamed"),
-            ToolStatus::Completed,
-        ),
-        // No write within the run.
-        item_presentation(
-            &format!("item_{EXECUTION}_"),
-            "macro_internal",
-            item_input(EXECUTION, "channel", "renamed"),
-            ToolStatus::Completed,
-        ),
-    ];
-    for part in cases {
-        let rows = &segments(std::slice::from_ref(&part), true)[0].rows;
-        assert_eq!(rows[0].card, None, "{part:?}");
-    }
+    // An item this version cannot open still leaves its step.
+    assert_eq!(rows[3].label, "Create Task");
+    assert_eq!(rows[3].status, ActivityStatus::Completed);
 }
