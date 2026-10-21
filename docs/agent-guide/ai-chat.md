@@ -292,7 +292,7 @@ the shimmer.
   Macro that covers that repository; connecting only Cursor does not grant Macro
   GitHub access. Cloud agents also need a public agent gateway: Docker-only hostnames
   cannot receive their MCP callbacks. Check the runtime error before retrying, and
-  start a new Claude session after correcting its gateway network configuration.
+  start a new session after correcting its gateway network configuration.
 
 - Open **Go to Agents** → `/app/component/agents`. With AI agents enabled
   (`enable-chat-v3-agents`), the workspace uses one sidebar for Chat and Code.
@@ -1703,7 +1703,7 @@ must stay hidden; subsequent live messages must still appear.
 - **Agent permission policy.** Settings → Agents → Runtime shows `Always prompt`
   and `Always bypass` only for local macrod harnesses. Macrod defaults to prompts;
   bypass requires both harness consent and the agent's explicit choice. Built-in
-  Macro, in-memory, Cursor, Codex, and Claude runtimes always bypass and have no
+  Macro, in-memory, Cursor, and Codex runtimes always bypass and have no
   permission policy selector. The backend enforces these policies.
 
 Locally sent user messages in both AI implementations enter with a short upward
