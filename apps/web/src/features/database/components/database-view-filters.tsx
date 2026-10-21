@@ -278,7 +278,7 @@ function ConditionEditor(props: {
         label="Remove filter"
         onClick={props.onRemove}
       >
-        <XIcon />
+        <XIcon class="size-4 touch:size-3.5" />
       </Button>
     </div>
   );

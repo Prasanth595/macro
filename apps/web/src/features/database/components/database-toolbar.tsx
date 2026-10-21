@@ -230,7 +230,7 @@ export function DatabaseToolbar(props: DatabaseToolbarProps) {
                   class="ml-1.5 shrink-0"
                   disabled={creating()}
                 >
-                  <PlusIcon />
+                  <PlusIcon class="size-4 touch:size-3.5" />
                 </Dropdown.Trigger>
                 <Dropdown.Content class="min-w-40">
                   <Dropdown.Item

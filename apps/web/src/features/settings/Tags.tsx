@@ -142,7 +142,7 @@ function TagListSection(props: {
                           disabled={props.deleting}
                           onClick={() => props.onEdit(tag())}
                         >
-                          <PencilIcon />
+                          <PencilIcon class="size-3.5 touch:size-4" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -152,7 +152,7 @@ function TagListSection(props: {
                           disabled={props.deleting}
                           onClick={() => props.onDelete(tag())}
                         >
-                          <TrashIcon />
+                          <TrashIcon class="size-3.5 touch:size-4" />
                         </Button>
                       </div>
                     );

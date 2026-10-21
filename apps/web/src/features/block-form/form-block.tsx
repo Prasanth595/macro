@@ -143,7 +143,7 @@ function FormBlockContent(props: {
     >
       <HeaderActionButton
         label="Open form"
-        icon={<ArrowSquareOut />}
+        icon={<ArrowSquareOut class="size-3.5" />}
         onClick={openRespond}
       />
     </Show>
@@ -176,7 +176,7 @@ function FormBlockContent(props: {
               <HeaderActionGroup label="Form actions">
                 <HeaderActionButton
                   label="Preview"
-                  icon={<Eye />}
+                  icon={<Eye class="size-3.5" />}
                   disabled={preview.opening()}
                   onClick={() => fireAndForget(preview.open(), 'form-preview')}
                 />

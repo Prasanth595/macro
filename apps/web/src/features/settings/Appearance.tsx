@@ -35,7 +35,7 @@ import {
   saveTheme,
   updateTheme,
 } from '@theme/utils/themeUtils';
-import { Button, Dropdown, Layer, ToggleSwitch } from '@ui';
+import { Button, cn, Dropdown, Layer, ToggleSwitch } from '@ui';
 import {
   monochromeIcons,
   setMonochromeIcons,
@@ -71,7 +71,12 @@ function CopyThemeButton(props: {
         fireAndForget(exportTheme(props.themeId), 'theme-export');
       }}
     >
-      <ClipboardIcon />
+      <ClipboardIcon
+        class={cn(
+          props.size === 'icon-xs' ? 'size-3' : 'size-4',
+          'touch:size-3.5 mobile:size-5'
+        )}
+      />
     </Button>
   );
 }
@@ -90,7 +95,7 @@ function EditThemeButton(props: { name: string; onEdit: () => void }) {
         props.onEdit();
       }}
     >
-      <PencilIcon />
+      <PencilIcon class="size-4 touch:size-3.5 mobile:size-5" />
     </Button>
   );
 }
@@ -330,7 +335,7 @@ function InterfaceThemeSelect(props: {
               props.onEdit(theme.id);
             }}
           >
-            <PencilIcon />
+            <PencilIcon class="size-3 touch:size-3.5" />
           </Button>
           <Button
             variant="ghost"
@@ -345,7 +350,7 @@ function InterfaceThemeSelect(props: {
               props.onDelete(theme);
             }}
           >
-            <TrashIcon />
+            <TrashIcon class="size-3 touch:size-3.5" />
           </Button>
         </Show>
       </span>

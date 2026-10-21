@@ -91,7 +91,7 @@ export function Calendar(props: CalendarProps) {
                 action="prev-month"
                 aria-label="Go to previous month"
               >
-                <CaretLeftIcon />
+                <CaretLeftIcon class="size-3" />
               </CorvuCalendar.Nav>
               <CorvuCalendar.Nav
                 as={Button}
@@ -100,7 +100,7 @@ export function Calendar(props: CalendarProps) {
                 action="next-month"
                 aria-label="Go to next month"
               >
-                <CaretRightIcon />
+                <CaretRightIcon class="size-3" />
               </CorvuCalendar.Nav>
             </div>
           </div>

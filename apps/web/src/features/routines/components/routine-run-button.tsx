@@ -23,7 +23,7 @@ export function RoutineRunButton(props: {
           disabled={props.runDisabled}
           onClick={props.onRun}
         >
-          <PlayIcon />
+          <PlayIcon class="size-3" />
           Run now
         </Button>
         <ButtonGroup.Divider />
@@ -32,7 +32,7 @@ export function RoutineRunButton(props: {
           size="icon-sm"
           aria-label="Run options"
         >
-          <CaretDownIcon />
+          <CaretDownIcon class="size-3.5" />
         </Dropdown.Trigger>
       </ButtonGroup>
       <Dropdown.Content portalScope="local">

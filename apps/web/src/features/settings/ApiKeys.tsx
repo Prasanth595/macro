@@ -210,7 +210,10 @@ function ApiKeyRow(props: {
         disabled={props.deleting}
         onClick={props.onDelete}
       >
-        <Show when={props.deleting} fallback={<TrashIcon />}>
+        <Show
+          when={props.deleting}
+          fallback={<TrashIcon class="size-3.5 touch:size-4" />}
+        >
           <SpinnerIcon class="animate-spin" />
         </Show>
       </Button>

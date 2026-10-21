@@ -82,7 +82,7 @@ export function CallDetailActions(props: {
         <HeaderActionGroup label="Call actions">
           <HeaderActionButton
             label="Call Again"
-            icon={<PhoneCallIcon />}
+            icon={<PhoneCallIcon class="size-3.5 touch:size-4" />}
             onClick={callAgain}
           />
         </HeaderActionGroup>

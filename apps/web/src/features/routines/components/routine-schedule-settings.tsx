@@ -108,7 +108,7 @@ function RunOnceSettings(props: {
           class="justify-self-start"
           onClick={() => setCalendar(true)}
         >
-          <CalendarIcon />
+          <CalendarIcon class="size-3.5 touch:size-4" />
           Custom date and time…
         </Button>
       </Show>

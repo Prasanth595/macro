@@ -55,7 +55,7 @@ export function DatabaseEditorToolbar(props: {
                       size="icon-md"
                       variant="ghost"
                     >
-                      <StackIcon />
+                      <StackIcon class="size-4 touch:size-3.5" />
                     </Dropdown.Trigger>
                     <Dropdown.Content class="min-w-48">
                       <Dropdown.Group>
@@ -96,7 +96,7 @@ export function DatabaseEditorToolbar(props: {
                 label="Filter"
                 compact
                 count={filterConditionCount(props.view.query.filter)}
-                icon={<FunnelIcon />}
+                icon={<FunnelIcon class="size-4 touch:size-3.5" />}
               >
                 <FilterPanel
                   columns={props.columns}
@@ -112,7 +112,7 @@ export function DatabaseEditorToolbar(props: {
                 label="Sort"
                 compact
                 count={sort().length}
-                icon={<SortAscendingIcon />}
+                icon={<SortAscendingIcon class="size-4 touch:size-3.5" />}
               >
                 <SortPanel
                   columns={props.columns}
