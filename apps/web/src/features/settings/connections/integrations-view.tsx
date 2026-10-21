@@ -31,7 +31,7 @@ function IntegrationSetupCallouts(props: {
     <div class="flex flex-col gap-2">
       <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 px-4 py-2">
         <p class="text-base font-medium text-ink">
-          Use Macro in Claude Code or other AI apps
+          Use Macro in Claude Code or AI apps
         </p>
         <Button
           variant="ghost"

@@ -467,16 +467,19 @@ With `pipedream-mcp` enabled, Settings → Integrations labels the Email/GitHub
 section Core Integrations and the connector section Agent Integrations. It displays installed tools above
 Discover, without tabs or a separate installed sidebar. Installed tools use a two-column card grid (one column on narrow screens); Discover
 has a search field and Add Custom action above featured cards and the app
-list. Search and the quiet Add Custom action share a height and stack on narrow screens.
+list. Search and the gray Add Custom action share a height and stack on narrow screens.
 Installed and Discover use headings above rounded cards. The overview uses
 compact section spacing and consistent light gray card backgrounds.
 Two thin, stacked setup rows appear at the top. “Use Macro in Claude Code or
-other AI apps” opens connection setup; “Connect your local agents to Macro”
+AI apps” opens connection setup; “Connect your local agents to Macro”
 opens Runtimes to connect a local machine. Email and GitHub cards appear next under Core Integrations;
 the two cards share a height. A small gear on the Email card opens Email settings;
 Calendar settings remain available from the settings sidebar.
 All apps groups each app under its first nonempty Pipedream category; apps without
-category metadata appear under Other. Search and pagination preserve those groups.
+category metadata appear under More apps. Categories lead with Productivity,
+Communication, Developer Tools, AI, File Storage, and CRM; remaining categories
+follow the configured work-app order, then alphabetically, with More apps last.
+Search and pagination preserve those groups.
 Featured and catalog cards use two columns on wide screens and one on narrow
 screens, with a plus action for available apps. Featured cards show app names
 without descriptions, and catalog descriptions

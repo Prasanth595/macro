@@ -94,7 +94,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
         <Button
           variant="ghost"
           size="md"
-          class="h-10 px-3"
+          class="h-10 bg-ink/4 px-4"
           onClick={() => setAddingCustom(true)}
         >
           <PlusIcon class="size-4" /> Add Custom

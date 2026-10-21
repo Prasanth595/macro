@@ -22,15 +22,48 @@ describe('groupCatalogByCategory', () => {
       { app_slug: 'unknown', display_name: 'Unknown' },
     ]);
     expect(groups.map((group) => group.name)).toEqual([
-      'Communication',
       'Productivity',
-      'Other',
+      'Communication',
+      'More apps',
     ]);
-    expect(groups[1].entries.map((entry) => entry.app_slug)).toEqual([
+    expect(groups[0].entries.map((entry) => entry.app_slug)).toEqual([
       'sheets',
       'notion',
     ]);
     expect(groups.flatMap((group) => group.entries)).toHaveLength(4);
+  });
+
+  it('puts work categories first, remaining categories alphabetically, and uncategorized apps last', () => {
+    const groups = groupCatalogByCategory([
+      { app_slug: 'unknown', display_name: 'Unknown' },
+      ...[
+        'Travel',
+        'Databases',
+        'Developer Tools',
+        'Security',
+        'Productivity',
+        'Communication',
+        'Artificial Intelligence (AI)',
+        'File Storage',
+        'CRM',
+      ].map((category) => ({
+        app_slug: category,
+        display_name: category,
+        categories: [category],
+      })),
+    ]);
+    expect(groups.map((group) => group.name)).toEqual([
+      'Productivity',
+      'Communication',
+      'Developer Tools',
+      'Artificial Intelligence (AI)',
+      'File Storage',
+      'CRM',
+      'Databases',
+      'Security',
+      'Travel',
+      'More apps',
+    ]);
   });
 
   it('returns no sections for an empty result', () => {
