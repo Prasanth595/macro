@@ -29,7 +29,7 @@
     "status": "TODO: Export and upload assets"
   },
   "mcp_server": {
-    "url": "https://mcp-server.macro.com/mcp",
+    "url": "https://gateway.macro.com/mcp/mcp",
     "transport": "Streamable HTTP (SSE)",
     "authentication": {
       "type": "OAuth 2.1",
@@ -52,7 +52,7 @@
       ]
     },
     "domain_verification": {
-      "endpoint": "https://mcp-server.macro.com/.well-known/openai-apps-challenge",
+      "endpoint": "https://gateway.macro.com/.well-known/openai-apps-challenge",
       "implementation": "Axum route handler",
       "env_var": "OPENAI_DOMAIN_VERIFICATION_TOKEN",
       "status": "IMPLEMENTED - Needs token from OpenAI portal"

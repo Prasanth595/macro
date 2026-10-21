@@ -54,11 +54,11 @@ Upload `services/agent_harness_service/macro-plugin-v1.0.0.zip` to the [OpenAI P
 
 ### Production MCP Server
 
-- **MCP Server URL**: `https://mcp-server.macro.com/mcp`
+- **MCP Server URL**: `https://gateway.macro.com/mcp/mcp`
 - **Transport**: Streamable HTTP (SSE)
 - **Authentication**: OAuth 2.1 backed by FusionAuth
 - **Public Accessibility**: ✅ Yes (deployed to AWS ECS, publicly routable)
-- **Domain Verification**: **TODO** - Host token at `https://mcp-server.macro.com/.well-known/openai-apps-challenge`
+- **Domain Verification**: **TODO** - Host token at `https://gateway.macro.com/.well-known/openai-apps-challenge`
 
 ### Authentication Details
 
@@ -303,7 +303,7 @@ All tools in the Macro MCP server implement the required `ToolAnnotated` trait w
 
 **TODO - Required Action**: Host the domain verification token at:
 ```
-https://mcp-server.macro.com/.well-known/openai-apps-challenge
+https://gateway.macro.com/.well-known/openai-apps-challenge
 ```
 
 **Implementation**: Add an endpoint in `services/agent_harness_service/src/public_mcp.rs` or via nginx/CDN that serves the OpenAI-provided challenge token as plain text at the well-known path.
@@ -394,7 +394,7 @@ All tools return structured JSON responses that include:
 
 1. Navigate to [Plugin Submission Portal](https://developers.openai.com/plugins)
 2. Click "Create Plugin" or "Submit Plugin"
-3. Enter MCP Server URL: `https://mcp-server.macro.com/mcp`
+3. Enter MCP Server URL: `https://gateway.macro.com/mcp/mcp`
 4. Configure OAuth 2.1 authentication settings
 5. Click "Scan Tools" to import tool metadata
 6. Review discovered tools and annotations
@@ -472,7 +472,7 @@ For changes handled via continuous review:
 
 **Engineering**:
 - MCP Service Source: `/workspace/services/agent_harness_service/`
-- Infrastructure: `/workspace/infra/stacks/mcp-server/`
+- Infrastructure: `/workspace/infra/stacks/agent-harness-service/`
 - Tool Implementations: `/workspace/crates/ai_tools/`
 
 ---

@@ -44,7 +44,7 @@ This creates `macro-plugin-v1.0.0.zip` in the parent directory, ready for upload
 - **Terms of Service**: https://macro.com/terms
 
 ### MCP Server
-- **URL**: https://mcp-server.macro.com/mcp
+- **URL**: https://gateway.macro.com/mcp/mcp
 - **Transport**: Streamable HTTP (SSE)
 - **Authentication**: OAuth 2.1 (configured in portal, not in package)
 
@@ -52,22 +52,22 @@ This creates `macro-plugin-v1.0.0.zip` in the parent directory, ready for upload
 
 The MCP server must serve the OpenAI domain verification token at:
 ```
-https://mcp-server.macro.com/.well-known/openai-apps-challenge
+https://gateway.macro.com/.well-known/openai-apps-challenge
 ```
 
 **Setting the token:**
 1. Obtain the challenge token from the OpenAI submission portal
 2. Set it in the appropriate environment configuration:
-   - **Development**: Set `OPENAI_DOMAIN_VERIFICATION_TOKEN` in Doppler for the `mcp-server` project, `dev` config
-   - **Production**: Set `OPENAI_DOMAIN_VERIFICATION_TOKEN` in Doppler for the `mcp-server` project, `prod` config
+   - **Development**: Set `OPENAI_DOMAIN_VERIFICATION_TOKEN` in Doppler for the `agent-harness-service` project, `dev` config
+   - **Production**: Set `OPENAI_DOMAIN_VERIFICATION_TOKEN` in Doppler for the `agent-harness-service` project, `prd` config
 3. Redeploy the service (ECS service will pick up the new env var automatically)
-4. Verify the token is accessible: `curl https://mcp-server.macro.com/.well-known/openai-apps-challenge`
+4. Verify the token is accessible: `curl https://gateway.macro.com/.well-known/openai-apps-challenge`
 
 **Deployment Flow:**
-1. Token obtained from OpenAI portal → 
-2. Set in Doppler for mcp-server service → 
-3. Doppler injects env var into ECS task → 
-4. `src/public_mcp.rs` `openai_domain_verification()` handler returns the token → 
+1. Token obtained from OpenAI portal →
+2. Set in Doppler for agent-harness-service →
+3. Doppler injects env var into ECS task →
+4. `src/public_mcp.rs` `openai_domain_verification()` handler returns the token →
 5. OpenAI portal verifies domain ownership
 
 ## OAuth Configuration
@@ -88,7 +88,7 @@ Icon assets are required in multiple sizes:
 - **256x256px**: Medium-resolution PNG
 - **128x128px**: Low-resolution PNG
 
-Source assets are in `/workspace/apps/web/public/macro-favicon.svg`. 
+Source assets are in `/workspace/apps/web/public/macro-favicon.svg`.
 
 **TODO**: Export the favicon to PNG in required sizes and place in `assets/` directory.
 
@@ -101,7 +101,7 @@ Before submitting the plugin ZIP to OpenAI:
 - [ ] **Organization Verification**: Complete business verification in OpenAI Platform Dashboard
 - [ ] **Developer Name**: Set "Macro" as the developer name in the portal
 - [ ] **Domain Verification Token**: Obtain token from portal and set in Doppler
-- [ ] **Deploy with Token**: Redeploy mcp_service to prod with the verification token
+- [ ] **Deploy with Token**: Redeploy agent_harness_service to prod with the verification token
 - [ ] **Verify Domain**: Confirm token is accessible at /.well-known/openai-apps-challenge
 - [ ] **OAuth Secret**: Enter FusionAuth client secret in the portal
 - [ ] **Test Credentials**: Create demo account with sample data (no MFA)

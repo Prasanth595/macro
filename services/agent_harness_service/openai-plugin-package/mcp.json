@@ -3,7 +3,7 @@
   "mcpServers": {
     "macro": {
       "type": "streamable-http",
-      "url": "https://mcp-server.macro.com/mcp"
+      "url": "https://gateway.macro.com/mcp/mcp"
     }
   }
 }
