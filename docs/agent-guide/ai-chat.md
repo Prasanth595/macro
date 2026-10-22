@@ -2075,4 +2075,8 @@ Agent-session system events appear as a single quiet row with a kind-specific
 icon, an outcome summary, and relative time (hover for the exact timestamp).
 Failures and unconfirmed outcomes use the error tone. Review events refresh
 the existing card without adding a second timeline row when that card is
-already in the thread. The row stays on one line and truncates on phones.
+already in the thread. Import reviews add "Import plan ready" with the plan's
+counts once planning finishes, and settle as "Import finished", "Import
+failed" or "Import cancelled" with imported, failed and by-hand counts; the
+row never shows the report's error text. The row stays on one line and
+truncates on phones.
