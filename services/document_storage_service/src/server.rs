@@ -281,13 +281,14 @@ pub async fn run() -> anyhow::Result<()> {
     let contacts_queue = macro_queues::ContactsQueue::new();
     let notification_queue = macro_queues::NotificationIngressQueue::new();
     let gmail_ops_queue = macro_queues::GmailOpsQueue::new();
+    let email_scheduled_queue = macro_queues::EmailScheduledQueue::new();
     let reminder_dispatch_queue = macro_queues::ReminderDispatchQueue::new();
     let calendar_reminder_dispatch_queue = macro_queues::CalendarReminderDispatchQueue::new();
     let sqs_client = sqs_client::SQS::new(aws_sdk_sqs::Client::new(&aws_config))
         .search_event_queue(&search_event_queue)
         .document_delete_queue(&document_delete_queue)
         .gmail_ops_queue(&gmail_ops_queue)
-        .email_scheduled_queue(&macro_queues::EmailScheduledQueue::new());
+        .email_scheduled_queue(&email_scheduled_queue);
     let webhook_event_queue = webhook::outbound::SqsWebhookQueue::new(
         Arc::new(sqs_client.clone()),
         macro_queues::WebhookEventQueue::new().to_string(),
@@ -1223,6 +1224,11 @@ pub async fn run() -> anyhow::Result<()> {
             outbound::agent_dm_authorizer::BotServiceDmAuthorizer(bots_service.clone()),
             SpawnedChannelEventDispatcher::new(channel_side_effects.clone()),
         )))
+        .with_comment_parent_access(Arc::new(
+            channels::outbound::entity_access_comment_parents::EntityAccessCommentParents::new(
+                entity_access_service.clone(),
+            ),
+        ))
         .with_picture_files(
             channels::outbound::static_file_pictures::StaticFileChannelPictures::new(
                 static_file_service_client::StaticFileServiceClient::new(

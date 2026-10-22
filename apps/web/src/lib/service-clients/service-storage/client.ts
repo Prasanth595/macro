@@ -597,6 +597,13 @@ export const storageServiceClient = {
     ).map((result) => result);
   },
 
+  async getCalendarEventIcs(eventId: string) {
+    return await dssFetch<Uint8Array<ArrayBuffer>>(
+      `/calendar-events/${eventId}/ics`,
+      { method: 'GET' }
+    );
+  },
+
   async getBatchCalendarEventPreviews(args: CalendarMentionPreviewRequest) {
     return (
       await dssFetch<CalendarMentionPreviewResponse>(

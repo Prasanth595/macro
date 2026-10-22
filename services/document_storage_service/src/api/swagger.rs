@@ -64,11 +64,11 @@ use channel_labels::inbound::axum_router::{
     CreateChannelLabelRequest, RenameChannelLabelRequest, SetChannelLabelRequest,
 };
 use channels::inbound::axum_router::{
-    ApiActivity, ApiAttachmentChannelReference, ApiAttachmentEntityReference,
-    ApiAttachmentGenericReference, ApiChannelAttachment, ApiChannelAttachmentsPage,
-    ApiChannelDetail, ApiChannelParticipant, ApiParticipantRole, CreateEntityMentionRequest,
-    CreateEntityMentionResponse, DeleteEntityMentionResponse, GetAttachmentReferencesResponse,
-    PostActivityRequest,
+    ApiActivity, ApiAttachmentChannelReference, ApiAttachmentCommentReference,
+    ApiAttachmentEntityReference, ApiAttachmentGenericReference, ApiChannelAttachment,
+    ApiChannelAttachmentsPage, ApiChannelDetail, ApiChannelParticipant, ApiParticipantRole,
+    CreateEntityMentionRequest, CreateEntityMentionResponse, DeleteEntityMentionResponse,
+    GetAttachmentReferencesResponse, PostActivityRequest,
 };
 use collab_surface::domain::models::SurfaceState;
 use collab_surface::inbound::axum_router::{
@@ -217,6 +217,7 @@ use utoipa::OpenApi;
         health::health_handler,
         calendar_events::inbound::axum_router::list_occurrences,
         calendar_events::inbound::axum_router::mention_previews,
+        calendar_events::inbound::axum_router::event_ics,
         calendar_events::inbound::axum_router::list_team_out_of_office,
         calendar_events::inbound::team_router::list_team_calendar,
 
@@ -838,6 +839,7 @@ use utoipa::OpenApi;
             GetAttachmentReferencesResponse,
             ApiAttachmentEntityReference,
             ApiAttachmentChannelReference,
+            ApiAttachmentCommentReference,
             ApiAttachmentGenericReference,
             channels::domain::models::ChannelType,
             channels::domain::models::GetOrCreateAction,
