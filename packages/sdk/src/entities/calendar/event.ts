@@ -3,6 +3,7 @@ import type {
   CalendarAttendeeInputBody,
   CalendarDeletionScopeParam,
   CalendarEvent as CalendarEventRecord,
+  CalendarGuestInputBody,
   CalendarRsvpScopeParam,
   CalendarUpdateScopeParam,
   ConferenceChange,
@@ -10,8 +11,10 @@ import type {
   EventTime,
   EventTransparency,
   EventVisibility,
+  GuestPolicy,
   OutOfOfficeProperties,
   UpdateCalendarEventRequest,
+  ViewerCapabilities,
 } from '../../../generated/calendar/types.gen';
 import { MacroError, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
@@ -66,6 +69,20 @@ export interface DeleteEventOptions {
   calendar?: Calendar;
 }
 
+/** Guests to add and how much of a recurring series gains them. */
+export interface InviteGuestsOptions {
+  /** Guests to add; anyone already on the event is skipped. */
+  guests: CalendarGuestInputBody[];
+  /** How much of a recurring series gains the guests. Omit to let
+   * `recurrenceId` decide. */
+  scope?: CalendarUpdateScopeParam;
+  /** Original-start key of the occurrence the guests are added to. */
+  recurrenceId?: string;
+  /** Calendar whose copy of the event is written, for a multi-calendar event.
+   * Omit to write the canonical copy. */
+  calendar?: Calendar;
+}
+
 /** The RSVP to record and how it is scoped across a recurring series. */
 export interface RsvpEventOptions {
   /** The response to record for the connected account. */
@@ -79,6 +96,22 @@ export interface RsvpEventOptions {
    * Omit to answer on the canonical copy. */
   calendar?: Calendar;
 }
+
+/** Google's guest policy, which the calendar service omits while it holds. */
+const DEFAULT_GUEST_POLICY: GuestPolicy = {
+  canModify: false,
+  canInviteOthers: true,
+  canSeeOtherGuests: true,
+};
+
+/** No capability at all, which the calendar service omits. */
+const NO_VIEWER_CAPABILITIES: ViewerCapabilities = {
+  editDetails: false,
+  inviteGuests: false,
+  removeGuests: false,
+  setGuestPolicy: false,
+  rsvp: false,
+};
 
 /**
  * A Macro calendar event: a handle exposing the event's synced fields and the
@@ -139,6 +172,18 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
 
   /** Raw RFC 5545 recurrence properties (`RRULE`, `RDATE`, `EXDATE`). */
   readonly recurrenceLines = this.field('recurrenceLines');
+
+  /** What the organizer lets guests do: modify, invite others, see the guest list. */
+  readonly guestPolicy = this.mappedField(
+    'guestPolicy',
+    (policy) => policy ?? DEFAULT_GUEST_POLICY,
+  );
+
+  /** What the connected account may do with this event under its guest policy. */
+  readonly viewerCan = this.mappedField(
+    'viewerCan',
+    (capabilities) => capabilities ?? NO_VIEWER_CAPABILITIES,
+  );
 
   /** The calendar the canonical source belongs to, when known. */
   readonly calendar = this.mappedField('calendarId', (id) =>
@@ -210,6 +255,35 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
       }),
     );
     return result.url ?? undefined;
+  }
+
+  /** Add guests without touching anyone already invited, and return a handle
+   * to the synced record. The organizer may, and so may a guest the organizer
+   * lets invite others (see {@link CalendarEvent.viewerCan}); Google emails
+   * the new guests. */
+  async inviteGuests(options: InviteGuestsOptions): Promise<CalendarEvent> {
+    const record = await this.mutate((client) =>
+      client.calendar.inviteCalendarEventGuests({
+        path: { event_id: this.id },
+        body: {
+          guests: options.guests,
+          scope: options.scope,
+          recurrenceId: options.recurrenceId,
+          calendarId: options.calendar?.id,
+        },
+      }),
+    );
+    return CalendarEvent.fromRecord(this.client, record);
+  }
+
+  /** The event as an iCalendar (`.ics`) document: its series, title,
+   * description, location and organizer, never its guests or join link.
+   * Available for the requester's own events and ones shared with a channel
+   * they belong to. */
+  async ics(): Promise<string> {
+    return unwrap(
+      await this.client.storage.eventIcs({ path: { event_id: this.id } }),
+    );
   }
 
   /** Record the requester's RSVP and return a handle to the synced record. */

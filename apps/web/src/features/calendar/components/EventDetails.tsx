@@ -51,7 +51,7 @@ import {
   parseMacroAppLink,
   sanitizeCalendarDescription,
 } from '../utils/calendar-description';
-import { safeConferenceUrl } from '../utils/conference-link';
+import { conferenceJoinUrl, safeConferenceUrl } from '../utils/conference-link';
 import {
   type CalendarPerson,
   eventAttribution,
@@ -601,7 +601,11 @@ export function EventDetails(props: {
                 variant="ghost"
                 size="sm"
                 class="h-8 min-w-0 bg-hover text-ink not-touch:not-disabled:hover:bg-active [&_svg]:size-3.5!"
-                onClick={() => openExternalUrl(url())}
+                onClick={() =>
+                  openExternalUrl(
+                    conferenceJoinUrl(url(), props.event.calendar.emailAddress)
+                  )
+                }
               >
                 {conferenceLabel()}
                 <ArrowSquareOutIcon />
@@ -674,10 +678,12 @@ export function EventDetails(props: {
  * are icon buttons for the header row's trailing edge — the copy-emails and
  * email-guests pair Google Calendar puts there — rendered beside the
  * disclosure trigger rather than inside it, since a button cannot nest one.
+ * `notice` is a muted line above the list, such as why it cannot grow.
  */
 export function EventAttendeesSection(props: {
   attendees: CalendarAttendee[];
   actions?: JSX.Element;
+  notice?: string;
 }) {
   return (
     <Show when={props.attendees.length > 0}>
@@ -700,6 +706,14 @@ export function EventAttendeesSection(props: {
           <div class="flex shrink-0 items-center gap-1">{props.actions}</div>
         </div>
         <Collapsible.Content class="data-closed:hidden">
+          <Show when={props.notice}>
+            {(notice) => (
+              <div class="flex gap-4 pl-4 pr-4 pt-1.5 sm:gap-3">
+                <span aria-hidden="true" class="size-5 shrink-0 sm:size-4" />
+                <p class="text-ink-extra-muted">{notice()}</p>
+              </div>
+            )}
+          </Show>
           <div class="flex gap-4 pb-3 pl-4 pt-1.5 sm:gap-3">
             <span aria-hidden="true" class="size-5 shrink-0 sm:size-4" />
             <ScrollableAttendeeList attendees={props.attendees} />
