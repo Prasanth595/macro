@@ -23,7 +23,7 @@ query EmailThreadPage($threadId: ID!) {
         __typename
         id
         subject
-        preparedBody(version: 1) @fromCache { version html }
+        deviceValue(version: 1) @fromCache { version html }
       }
     }
   }
@@ -31,7 +31,7 @@ query EmailThreadPage($threadId: ID!) {
 "#;
 
 const BODIES: &str = r#"
-query EmailThreadPreparedBodies($threadId: ID!, $version: Int!) {
+query EmailThreadDeviceValues($threadId: ID!, $version: Int!) {
   user {
     id
     emailThread(input: { threadId: $threadId }) {
@@ -40,7 +40,7 @@ query EmailThreadPreparedBodies($threadId: ID!, $version: Int!) {
       messages(offset: 0, limit: 2) {
         __typename
         id
-        preparedBody(version: $version) { version html }
+        deviceValue(version: $version) { version html }
       }
     }
   }
@@ -50,9 +50,9 @@ query EmailThreadPreparedBodies($threadId: ID!, $version: Int!) {
 fn engine() -> Engine<InMemoryStorage> {
     let schema = Schema::from_sdl(&format!(
         "{BUNDLED_SCHEMA_SDL}
-        type GraphqlPreparedEmailBody {{ version: Int! html: String! }}
+        type FromCacheTestValue {{ version: Int! html: String! }}
         extend type GraphqlSoupEmailMessage {{
-          preparedBody(version: Int!): GraphqlPreparedEmailBody
+          deviceValue(version: Int!): FromCacheTestValue
         }}"
     ))
     .unwrap();
@@ -70,7 +70,7 @@ fn bodies_variables() -> serde_json::Map<String, Json> {
         .clone()
 }
 
-/// The page response: the server never returns `preparedBody`.
+/// The page response: the server never returns `deviceValue`.
 fn page_response() -> Json {
     json!({"user": {"id": "viewer", "emailThread": {
         "__typename": "GraphqlSoupEmailThread",
@@ -88,8 +88,8 @@ fn bodies_response(html: &str) -> Json {
         "id": "thread",
         "messages": [
             {"__typename": "GraphqlSoupEmailMessage", "id": "m1",
-             "preparedBody": {"version": 1, "html": html}},
-            {"__typename": "GraphqlSoupEmailMessage", "id": "m2", "preparedBody": null}
+             "deviceValue": {"version": 1, "html": html}},
+            {"__typename": "GraphqlSoupEmailMessage", "id": "m2", "deviceValue": null}
         ]
     }}})
 }
@@ -100,9 +100,9 @@ fn page_result(first_body: Json) -> Json {
         "id": "thread",
         "messages": [
             {"__typename": "GraphqlSoupEmailMessage", "id": "m1", "subject": "Hello",
-             "preparedBody": first_body},
+             "deviceValue": first_body},
             {"__typename": "GraphqlSoupEmailMessage", "id": "m2", "subject": "Re: Hello",
-             "preparedBody": null}
+             "deviceValue": null}
         ]
     }}})
 }
@@ -187,8 +187,8 @@ fn a_stored_value_missing_selected_fields_reads_as_null() {
                     "id": "thread",
                     "messages": [
                         {"__typename": "GraphqlSoupEmailMessage", "id": "m1",
-                         "preparedBody": {"version": 1}},
-                        {"__typename": "GraphqlSoupEmailMessage", "id": "m2", "preparedBody": null}
+                         "deviceValue": {"version": 1}},
+                        {"__typename": "GraphqlSoupEmailMessage", "id": "m2", "deviceValue": null}
                     ]
                 }}}),
                 None,
@@ -288,7 +288,7 @@ fn network_writes_keep_stored_values_and_exact_dependencies() {
             .unwrap();
         // Even a value a server returned must not replace the stored one.
         let mut response = page_response();
-        response["user"]["emailThread"]["messages"][0]["preparedBody"] = Json::Null;
+        response["user"]["emailThread"]["messages"][0]["deviceValue"] = Json::Null;
         register_page(&mut engine, 7, &response).await;
         assert_eq!(
             read_page(&mut engine).await,
