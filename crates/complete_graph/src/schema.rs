@@ -57,9 +57,8 @@ use graphql_soup::{
     GraphqlSoupAgentSession, GraphqlSoupEmailThread, GraphqlSoupEntity, GraphqlSoupInitiative,
     GraphqlSoupProject, GroupedSoup, GroupedSoupInput, SoupEmailThreadMutationOutput,
     SoupEntityEdges, SoupInput, SoupPage, SoupPatch, resolve_folders, resolve_grouped_soup,
-    resolve_soup, resolve_soup_agent_session, resolve_soup_email_thread, resolve_soup_email_threads,
-    resolve_soup_entity,
-    resolve_soup_updates,
+    resolve_soup, resolve_soup_agent_session, resolve_soup_email_thread,
+    resolve_soup_email_threads, resolve_soup_entity, resolve_soup_updates,
 };
 use graphql_work_feed::{
     GraphqlWorkFeedPage, WorkFeedInput, WorkFeedMutationRoot, WorkFeedSubscriptionRoot,
