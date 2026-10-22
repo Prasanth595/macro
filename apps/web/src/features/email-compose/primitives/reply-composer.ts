@@ -1130,12 +1130,8 @@ export function createReplyComposer(
       if (result === 'scheduled') {
         const scheduledDraftId = savedDraftId();
         rememberCurrentReply();
-        try {
-          resetState();
-          clearDraftState();
-        } catch (error) {
-          props.notices.reportError(error);
-        }
+        // The scheduled draft stays in the thread with its "Scheduled for"
+        // bar, as a reload shows it; clearing it hid it until a refresh.
         void Promise.resolve(
           props.sideEffectOnSend?.(scheduledDraftId ?? null)
         ).catch(props.notices.reportError);
