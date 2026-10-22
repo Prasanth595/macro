@@ -514,7 +514,7 @@ async fn owner_can_read_cron_and_event_routines_but_missing_ids_return_not_found
 }
 
 #[tokio::test]
-async fn foreign_owner_operations_return_not_found_and_list_is_empty() {
+async fn foreign_owner_can_read_but_not_manage_and_list_is_empty() {
     let app = router(true);
     let (_, action) = request(
         &app,
@@ -525,8 +525,11 @@ async fn foreign_owner_operations_return_not_found_and_list_is_empty() {
     )
     .await;
     let url = format!("/scheduled-actions/{}", action["id"].as_str().unwrap());
+    assert_eq!(
+        request(&app, "GET", &url, "other", Value::Null).await.0,
+        StatusCode::OK
+    );
     for (method, path, body) in [
-        ("GET", url.clone(), Value::Null),
         ("PUT", url.clone(), legacy()),
         ("PUT", format!("{url}/enabled"), json!({"enabled": false})),
         ("DELETE", url.clone(), Value::Null),
