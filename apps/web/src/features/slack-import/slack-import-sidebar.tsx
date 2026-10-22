@@ -66,7 +66,7 @@ export function SlackImportSidebar() {
         ]}
         actionLabel="Import Slack"
         secondaryAction={{
-          label: 'Create channel',
+          label: 'New channel',
           onClick: () => openNewChannelModal(),
         }}
       />

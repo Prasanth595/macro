@@ -71,7 +71,7 @@ describe('Slack import sidebar', () => {
   it('offers creating a channel beside the import', () => {
     render(() => <SlackImportSidebar />);
     expect(host.promotion?.actionLabel).toBe('Import Slack');
-    expect(host.promotion?.secondaryAction?.label).toBe('Create channel');
+    expect(host.promotion?.secondaryAction?.label).toBe('New channel');
     host.promotion?.secondaryAction?.onClick(document.createElement('button'));
     expect(host.openNewChannel).toHaveBeenCalledOnce();
   });

@@ -122,9 +122,9 @@ internal rollout. Model usage continues through the existing session metering.
 
 ## Imported Slack history
 
-Import starts from the **Bring Slack to Macro** card's **Import Slack** button
-at the bottom of the Chat sidebar, or **Settings → Team → Connections → Import
-from Slack**. The card's **Create channel** button beside it opens the new
+Import starts from the **Create or import channels** card's **Import Slack**
+button at the bottom of the Chat sidebar, or **Settings → Team → Connections →
+Import from Slack**. The card's **New channel** button beside it opens the new
 channel dialog instead. The card is
 the shared connector-import card (see
 [Import from connected apps](setup-cards.md#import-from-connected-apps)) and is

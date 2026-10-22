@@ -34,7 +34,7 @@ const CARDS: {
       logos: [...IMPORT_CATEGORIES.channels.providers],
       action: 'Import Slack',
     },
-    secondary: 'Create channel',
+    secondary: 'New channel',
   },
   { sidebar: 'Calendar', copy: CALENDAR_ACCOUNTS_PROMOTION },
   { sidebar: 'Pull requests', copy: PULL_REQUEST_REPOSITORIES_PROMOTION },
