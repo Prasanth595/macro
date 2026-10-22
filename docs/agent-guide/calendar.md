@@ -164,9 +164,9 @@ sticky **Back to Macro** button below the device's top safe-area inset. It retur
 the app through the router without reloading, including while the page is loading
 or unavailable. Browser pages and embedded booking dialogs omit this button.
 
-Public URLs and booking behavior remain unchanged. The website can frame the
-booking page and receipt without duplicate Macro branding. A completed booking
-notifies the same-origin parent page; other sites cannot frame these routes.
+The website can frame the booking page and receipt without duplicate Macro
+branding. A completed booking notifies the same-origin parent page; other sites
+cannot frame these routes.
 Uncertain calendar writes retain the booking and show its private receipt while automatic recovery runs.
 After a network response cannot be verified, `Check booking status` retries the original request;
 do not create a replacement booking. Receipt pages poll while the calendar update is pending. The private
