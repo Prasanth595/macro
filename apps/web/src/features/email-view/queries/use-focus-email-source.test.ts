@@ -53,7 +53,6 @@ function email(
     isImportant: false,
     done: false,
     focus: {
-      category: 'OTHER',
       importance: 50,
       needsReply: false,
       needsFollowUp: false,
@@ -67,7 +66,7 @@ function email(
 const EMAILS = [
   email(
     'invoice',
-    { importance: 70, needsReply: true, category: 'CUSTOMER' },
+    { importance: 70, needsReply: true },
     {
       sortTs: '2026-10-08T10:00:00Z',
       senderName: 'Casey',
@@ -75,7 +74,7 @@ const EMAILS = [
   ),
   email(
     'report',
-    { importance: 93, category: 'OTHER' },
+    { importance: 93 },
     {
       sortTs: '2026-10-05T10:00:00Z',
       linkId: 'inbox-b',
@@ -83,7 +82,7 @@ const EMAILS = [
   ),
   email(
     'plan',
-    { importance: 61, needsFollowUp: true, category: 'TEAM' },
+    { importance: 61, needsFollowUp: true },
     {
       sortTs: '2026-10-06T10:00:00Z',
       snippet: 'CRM rollout plan',
@@ -146,17 +145,13 @@ describe('selectFocusEmails', () => {
     ]);
   });
 
-  it('filters by Focus category and flags', () => {
+  it('filters by Focus flags', () => {
     expect(select({ facets: { focus: ['focus-reply-needed'] } })).toEqual([
       'invoice',
     ]);
     expect(select({ facets: { focus: ['focus-follow-up'] } })).toEqual([
       'plan',
     ]);
-    expect(select({ facets: { focus: ['focus-customer'] } })).toEqual([
-      'invoice',
-    ]);
-    expect(select({ facets: { focus: ['focus-known'] } })).toEqual([]);
   });
 
   it('scopes to the selected inboxes', () => {

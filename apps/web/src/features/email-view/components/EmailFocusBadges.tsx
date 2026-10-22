@@ -1,8 +1,7 @@
-import type { EmailFocus, EmailFocusCategory, EntityData } from '@entity';
+import type { EmailFocus, EntityData } from '@entity';
 import { useListLayout } from '@entity/composed/list-entity/shared';
 import { Badge, cn, TagDot, Tooltip } from '@ui';
 import { For, type ParentProps, Show } from 'solid-js';
-import { match } from 'ts-pattern';
 
 /** A Focus row's classification; other rows have none. */
 export const emailFocusOf = (entity: EntityData): EmailFocus | undefined =>
@@ -71,20 +70,9 @@ export function EmailFocusNarrowScore(props: { focus: EmailFocus }) {
 const LABEL_TONES = {
   warning: 'var(--color-warning)',
   blue: 'var(--color-blue)',
-  green: 'var(--color-green)',
-  violet: 'var(--color-violet)',
 } as const;
 
 type LabelTone = keyof typeof LABEL_TONES;
-
-/** Categories worth naming on a row; the rest add nothing to a Focus row. */
-const categoryLabel = (
-  category: EmailFocusCategory
-): { label: string; tone: LabelTone } | undefined =>
-  match(category)
-    .with('CUSTOMER', () => ({ label: 'Customer', tone: 'green' as const }))
-    .with('TEAM', () => ({ label: 'Team', tone: 'violet' as const }))
-    .otherwise(() => undefined);
 
 /**
  * A read-only label drawn like a row's tag pills (`tagPillClasses`). Rows
@@ -103,7 +91,7 @@ function FocusLabel(props: ParentProps<{ tone: LabelTone }>) {
   );
 }
 
-/** Reply-needed, follow-up and category labels in a Focus row's metadata. */
+/** Reply-needed and follow-up labels in a Focus row's metadata. */
 export function EmailFocusFlags(props: { focus: EmailFocus }) {
   return (
     <>
@@ -112,11 +100,6 @@ export function EmailFocusFlags(props: { focus: EmailFocus }) {
       </Show>
       <Show when={props.focus.needsFollowUp}>
         <FocusLabel tone="blue">Follow up</FocusLabel>
-      </Show>
-      <Show when={categoryLabel(props.focus.category)}>
-        {(category) => (
-          <FocusLabel tone={category().tone}>{category().label}</FocusLabel>
-        )}
       </Show>
     </>
   );

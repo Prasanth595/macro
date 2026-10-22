@@ -121,17 +121,6 @@ const EMAIL_FOCUS_OPTIONS: EmailFacetOption[] = [
     (focus) => focus.needsReply
   ),
   focusOption('focus-follow-up', 'Follow up', (focus) => focus.needsFollowUp),
-  focusOption(
-    'focus-customer',
-    'Customers',
-    (focus) => focus.category === 'CUSTOMER'
-  ),
-  focusOption('focus-team', 'Team', (focus) => focus.category === 'TEAM'),
-  focusOption(
-    'focus-known',
-    'People you know',
-    (focus) => focus.category === 'KNOWN'
-  ),
 ];
 
 export const EMAIL_FACETS: Facet<EmailEntity, EmailFacetContext>[] = [
@@ -160,7 +149,7 @@ type EmailFilterGroup = {
 const toGroupOptions = (options: EmailFacetOption[]) =>
   options.map(({ id, label, iconType }) => ({ id, label, iconType }));
 
-/** The Focus tab's category menu; shown only there, first. */
+/** The Focus tab's flag menu; shown only there, first. */
 export const EMAIL_FOCUS_FILTER_GROUP: EmailFilterGroup = {
   id: 'focus',
   label: 'Focus',

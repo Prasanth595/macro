@@ -12,7 +12,6 @@ import type {
   CallStatus as StorageCallStatus,
 } from '@service-storage/generated/schemas';
 import type { AccessLevel } from '@service-storage/generated/schemas/accessLevel';
-import type { GraphqlEmailFocusCategory } from '@service-storage/graphql/generated/graphql';
 
 export type EntityBase = {
   id: string;
@@ -285,12 +284,8 @@ export type EmailAttachment = {
   sizeBytes?: number | null;
 };
 
-/** Why a thread is in Focus, as the email focus worker classified it. */
-export type EmailFocusCategory = GraphqlEmailFocusCategory;
-
 /** A thread's Focus classification; present only on Focus list rows. */
 export type EmailFocus = {
-  category: EmailFocusCategory;
   /** 0 to 100. */
   importance: number;
   needsReply: boolean;

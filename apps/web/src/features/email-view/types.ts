@@ -22,10 +22,7 @@ export type EmailFilterOptionId =
   | 'attachment-document'
   | 'has-calendar-invite'
   | 'focus-reply-needed'
-  | 'focus-follow-up'
-  | 'focus-customer'
-  | 'focus-team'
-  | 'focus-known';
+  | 'focus-follow-up';
 
 export type EmailViewState = {
   tab: EmailTab;

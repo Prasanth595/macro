@@ -450,13 +450,12 @@ days that the email focus worker (`services/email_focus_worker`) classified as
 worth attention, including inboxes linked to the account, by priority: the
 importance score halved for every 2 days since the thread's latest inbound mail.
 Rows at least 32rem wide show the 0-100 importance score with a five-bar meter
-just before the date, and from 56rem also `Reply needed`, `Follow up`, or
-category tag pills ahead of it. Narrower rows drop both; without a touch screen
+just before the date, and from 56rem also `Reply needed` and `Follow up` tag
+pills ahead of it. Narrower rows drop both; without a touch screen
 the score moves before the subject, and touch screens show neither. The desktop header's sort dropdown
 switches between **Priority**, **Importance** and **Most recent**; touch layouts
 have no dropdown and keep the saved order (Priority by default). The filter menu adds
-a Focus group (Reply needed, Follow up, Customers, Team, People you know) on
-this tab only and has no Status or Done group there. The list is one
+a Focus group (Reply needed, Follow up) on this tab only and has no Status or Done group there. The list is one
 `user.emailFocus` GraphQL read filtered on the client; it refreshes on open, not
 live. Mark Done hides the row at once and archives the thread; Undo brings it
 back. The worker classifies only inboxes on its `FOCUS_ENABLED_EMAIL_DOMAINS`
