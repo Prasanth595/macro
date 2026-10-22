@@ -61,14 +61,14 @@ import {
   resolveReminderOverrides,
 } from '../utils/event-reminders';
 import {
+  formatEventSchedule,
+  parseCalendarDate,
+} from '../utils/event-schedule';
+import {
   calendarMacroCallUrl,
   removeCalendarMacroCall,
 } from '../utils/macro-call-link';
 import { eventRecurrenceDescription } from '../utils/recurrence';
-import {
-  formatEventSchedule,
-  parseCalendarDate,
-} from '../utils/event-schedule';
 import { CALENDAR_TIME_FORMAT_OPTIONS } from '../utils/time-format';
 
 const ATTENDEE_RESPONSE = {
