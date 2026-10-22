@@ -19,6 +19,7 @@ import type { PortalScope } from '@core/component/ScopedPortal';
 import { toast } from '@core/component/Toast/Toast';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { createSkill } from '@core/util/create';
+import { onElementConnect } from '@core/util/onElementConnect';
 import { buildSimpleEntityUrl } from '@core/util/url';
 import { mergeRegister } from '@lexical/utils';
 import { Telemetry } from '@macro-inc/observability';
@@ -26,7 +27,6 @@ import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
 import ArrowsOutIcon from '@phosphor/arrows-out.svg';
 import SplitIcon from '@phosphor/square-half.svg';
 import XIcon from '@phosphor/x.svg';
-import { onElementConnect } from '@solid-primitives/lifecycle';
 import { Button, Hotkey, Scroll } from '@ui';
 import {
   $getRoot,
