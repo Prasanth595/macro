@@ -367,6 +367,7 @@ export type SoupAstItemsQueryTransport = 'rest' | 'graphql';
 
 /** Stable query surface shared by the REST and urql-solid implementations. */
 export type SoupAstItemsQuery = {
+  readonly groupedPaging?: import('./graphql/create-grouped-soup-live-query').GroupedSoupPaging;
   readonly data: SoupAstItemsData | undefined;
   readonly error: Error | null;
   /** Includes paused initial requests, whose data resource is not readable yet. */
@@ -375,6 +376,11 @@ export type SoupAstItemsQuery = {
   readonly isFetching: boolean;
   readonly isPlaceholderData: boolean;
   readonly isFetchingNextPage: boolean;
+  /**
+   * The current error came from loading a continuation page; the loaded pages
+   * are still current. Any other error means the query itself failed.
+   */
+  readonly isFetchNextPageError: boolean;
   readonly isEnabled: boolean;
   readonly hasNextPage: boolean;
   readonly transport: SoupAstItemsQueryTransport;
@@ -457,6 +463,7 @@ export function useSoupAstItemsQuery(
         options?.().onBeforeGraphqlRefresh?.();
         await activeGraphqlQuery().refresh();
       },
+      body: () => args().body,
     })
   );
 
@@ -476,6 +483,9 @@ export function useSoupAstItemsQuery(
   };
 
   return {
+    get groupedPaging() {
+      return usesGraphql() ? activeGraphqlQuery().groupedPaging : undefined;
+    },
     get data() {
       return usesGraphql() ? activeGraphqlQuery().data() : restQuery.data;
     },
@@ -511,6 +521,11 @@ export function useSoupAstItemsQuery(
       return usesGraphql()
         ? activeGraphqlQuery().isFetchingNextPage()
         : restQuery.isFetchingNextPage;
+    },
+    get isFetchNextPageError() {
+      return usesGraphql()
+        ? activeGraphqlQuery().isFetchNextPageError()
+        : restQuery.isFetchNextPageError;
     },
     get isEnabled() {
       return usesGraphql()

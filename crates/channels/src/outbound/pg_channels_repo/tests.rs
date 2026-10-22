@@ -39,6 +39,9 @@ const REPLY1: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_00000000b001);
 const REPLY2: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_00000000b002);
 const REPLY3: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_00000000b003);
 const DELETED_MSG_ATTACHMENT: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_00000000a004);
+const INITIATIVE_A: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_0000000000a1);
+const COMMENT_ON_INITIATIVE: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_00000000c0a1);
+const COMMENT_ON_DOCUMENT: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_00000000c0a2);
 const USER_A: &str = "macro|user-a@test.com";
 const USER_B: &str = "macro|user-b@test.com";
 const USER_C: &str = "macro|user-c@test.com";
@@ -1545,6 +1548,128 @@ async fn channel_thread_rows_filter_by_notification_seen_secondary_entity(
     Ok(())
 }
 
+#[test]
+fn channel_thread_rows_notification_plan_splits_and_keeps_or_on_the_scan() {
+    let state = |state| Expr::val(ChannelThreadLiteral::NotificationState(state));
+    let participant = Expr::val(ChannelThreadLiteral::Participant(macro_user_id(USER_A)));
+    let and_filter = Expr::and(
+        Expr::or(
+            state(item_filters::NotificationState::Unseen),
+            state(item_filters::NotificationState::Seen),
+        ),
+        participant.clone(),
+    );
+    let plan = super::classify_channel_thread_notification(&and_filter);
+    match plan {
+        super::ThreadNotifPlan::Ready {
+            residuals, ids_sql, ..
+        } => {
+            assert_eq!(residuals.len(), 1);
+            assert!(ids_sql.contains("UNION"));
+            assert!(!ids_sql.contains("INTERSECT"));
+        }
+        other => panic!("expected a notification-first plan, got {other:?}"),
+    }
+
+    let mixed_filter = Expr::or(state(item_filters::NotificationState::Unseen), participant);
+    let mixed = super::classify_channel_thread_notification(&mixed_filter);
+    assert!(matches!(mixed, super::ThreadNotifPlan::Unsafe));
+
+    let negated_filter = Expr::is_not(state(item_filters::NotificationState::Done));
+    let negated = super::classify_channel_thread_notification(&negated_filter);
+    assert!(matches!(negated, super::ThreadNotifPlan::Unsafe));
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("channels_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn channel_thread_rows_notification_and_participant(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    insert_channel_thread_notification(&pool, USER_A, CH1, MSG3, false, true).await?;
+    insert_channel_thread_notification(&pool, USER_A, CH1, MSG1, true, false).await?;
+    insert_channel_thread_notification(&pool, USER_B, CH1, MSG31, false, true).await?;
+    let bad_notification_id = Uuid::new_v4();
+    sqlx::query(
+        r#"
+        INSERT INTO notification (
+            id, notification_event_type, event_item_id, event_item_type,
+            service_sender, metadata, secondary_event_item_id, secondary_event_item_type
+        )
+        VALUES ($1, 'channel_reply', $2, 'channel', 'channels-test', '{}'::jsonb, 'not-a-uuid', 'channel_message')
+        "#,
+    )
+    .bind(bad_notification_id)
+    .bind(CH1.to_string())
+    .execute(&pool)
+    .await?;
+    insert_user_notification(&pool, USER_A, bad_notification_id, true, false).await?;
+
+    let participant = Expr::val(ChannelThreadLiteral::Participant(macro_user_id(USER_A)));
+    let parent_ids = thread_ids_matching(
+        pool.clone(),
+        USER_A,
+        Expr::and(
+            Expr::or(
+                Expr::val(ChannelThreadLiteral::NotificationState(
+                    item_filters::NotificationState::Seen,
+                )),
+                Expr::val(ChannelThreadLiteral::NotificationState(
+                    item_filters::NotificationState::Done,
+                )),
+            ),
+            participant.clone(),
+        ),
+    )
+    .await?;
+    assert_eq!(parent_ids, vec![MSG3, MSG1]);
+
+    // A notification on the wrong channel does not surface the thread.
+    insert_channel_thread_notification(&pool, USER_A, CH2, MSG1, false, false).await?;
+    let unseen = thread_ids_matching(
+        pool.clone(),
+        USER_A,
+        Expr::val(ChannelThreadLiteral::NotificationState(
+            item_filters::NotificationState::Unseen,
+        )),
+    )
+    .await?;
+    assert!(unseen.is_empty());
+
+    let not_done = thread_ids_matching(
+        pool.clone(),
+        USER_A,
+        Expr::is_not(Expr::val(ChannelThreadLiteral::NotificationState(
+            item_filters::NotificationState::Done,
+        ))),
+    )
+    .await?;
+    assert!(not_done.contains(&MSG3));
+    assert!(!not_done.contains(&MSG1));
+
+    let widened = thread_ids_matching(
+        pool.clone(),
+        USER_A,
+        Expr::or(
+            Expr::val(ChannelThreadLiteral::NotificationState(
+                item_filters::NotificationState::Done,
+            )),
+            participant,
+        ),
+    )
+    .await?;
+    let participating = thread_ids_matching(
+        pool,
+        USER_A,
+        Expr::val(ChannelThreadLiteral::Participant(macro_user_id(USER_A))),
+    )
+    .await?;
+    assert_eq!(widened, participating);
+    assert!(widened.contains(&MSG31));
+    Ok(())
+}
+
 #[sqlx::test(
     fixtures(path = "../../../fixtures", scripts("channels_repo")),
     migrator = "MACRO_DB_MIGRATIONS"
@@ -2070,10 +2195,9 @@ async fn delete_entity_mention_by_id_returns_none_when_missing(
 
 // --- get_attachment_references ---
 //
-// The query is a byte-identical port of comms_db_client::get_attachment_references;
-// these cover the three source paths (direct attachment, message mention, generic
-// mention), participation gating, deleted-message exclusion, and the merged sort —
-// rather than re-porting the full original suite.
+// These cover the four source paths (direct attachment, message mention, comment
+// on a non-channel parent, generic mention), participation gating,
+// deleted-message exclusion, and the merged sort.
 
 fn channel_refs(
     refs: &[AttachmentEntityReference],
@@ -2081,7 +2205,7 @@ fn channel_refs(
     refs.iter()
         .filter_map(|r| match r {
             AttachmentEntityReference::Channel(c) => Some(c),
-            AttachmentEntityReference::Generic(_) => None,
+            AttachmentEntityReference::Comment(_) | AttachmentEntityReference::Generic(_) => None,
         })
         .collect()
 }
@@ -2332,6 +2456,46 @@ async fn attachment_references_treats_email_alias_as_thread(
     assert_eq!(channel_refs(&by_thread).len(), 1);
     assert_eq!(channel_refs(&by_email).len(), 1);
     assert_eq!(channel_refs(&by_thread)[0].message_id, MSG1);
+    Ok(())
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("channels_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn attachment_references_returns_comments_on_every_parent(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    // doc-comment is mentioned in an initiative comment (10:00), attached in a
+    // document comment (11:00), and mentioned in a deleted initiative reply.
+    // Comment rows are not gated by channel participation: the service
+    // authorizes them by parent, so the repo returns them to any viewer.
+    let refs = repo(pool)
+        .get_attachment_references("document", "doc-comment", NON_MEMBER)
+        .await?;
+
+    assert_eq!(refs.len(), 2);
+    let AttachmentEntityReference::Comment(document_comment) = &refs[0] else {
+        anyhow::bail!("expected the newer document comment first");
+    };
+    assert_eq!(document_comment.parent_entity_type, "document");
+    assert_eq!(document_comment.parent_entity_id, "doc-parent");
+    assert_eq!(document_comment.message_id, COMMENT_ON_DOCUMENT);
+    assert_eq!(document_comment.sender_id, USER_B);
+    let AttachmentEntityReference::Comment(initiative_comment) = &refs[1] else {
+        anyhow::bail!("expected the initiative comment second");
+    };
+    assert_eq!(initiative_comment.parent_entity_type, "initiative");
+    assert_eq!(
+        initiative_comment.parent_entity_id,
+        INITIATIVE_A.to_string()
+    );
+    assert_eq!(initiative_comment.message_id, COMMENT_ON_INITIATIVE);
+    assert_eq!(initiative_comment.thread_id, None);
+    assert_eq!(
+        initiative_comment.message_content,
+        "see <m-document-mention>doc-comment</m-document-mention>"
+    );
     Ok(())
 }
 

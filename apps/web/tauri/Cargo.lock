@@ -3,6 +3,12 @@
 version = 4
 
 [[package]]
+name = "Inflector"
+version = "0.11.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -247,7 +253,9 @@ version = "0.1.0"
 dependencies = [
  "block2",
  "clap",
+ "futures-util",
  "graphql_cache_plugin",
+ "gtk",
  "http",
  "jni",
  "libc",
@@ -260,6 +268,7 @@ dependencies = [
  "objc2 0.5.2",
  "objc2 0.6.4",
  "objc2-foundation",
+ "objc2-ui-kit",
  "objc2-user-notifications",
  "reqwest",
  "rootcause",
@@ -267,6 +276,9 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_qs",
+ "specta",
+ "specta-serde",
+ "specta-typescript",
  "staged_upload_constants",
  "tauri",
  "tauri-build",
@@ -293,6 +305,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tauri-plugin-virtual-keyboard",
  "tauri-plugin-websocket",
+ "tauri-plugin-window-state",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
@@ -302,6 +315,7 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
+ "zbus",
 ]
 
 [[package]]
@@ -3672,6 +3686,9 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "specta",
+ "specta-serde",
+ "specta-typescript",
  "strum 0.27.2",
  "tauri",
  "tauri-plugin-device-info",
@@ -3679,6 +3696,7 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+ "uuid",
  "zip 6.0.0",
 ]
 
@@ -6282,6 +6300,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "specta"
+version = "2.0.0-rc.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38f9a30cbcbb7011f1da7d73483983bf838af123883e45f2b36ed76328df9c50"
+dependencies = [
+ "rustc_version",
+ "specta-macros",
+ "uuid",
+]
+
+[[package]]
+name = "specta-macros"
+version = "2.0.0-rc.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ce14957ecc2897f1f848b8255b6531d13ddf49cbcf506b7c2c9fb1d005593bb"
+dependencies = [
+ "Inflector",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "specta-serde"
+version = "0.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee8a72b755ddb8949fd8f17c5db43f0e8a806ea587d9bc602ee3f73240c00029"
+dependencies = [
+ "specta",
+ "specta-macros",
+]
+
+[[package]]
+name = "specta-typescript"
+version = "0.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "639404ee95557f2f8b7e4cb773ffefd45304c7ab8ba21ac83b69051595e083c0"
+dependencies = [
+ "specta",
+]
+
+[[package]]
 name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6798,6 +6858,8 @@ dependencies = [
 name = "tauri-plugin-call-kit"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "serde_json",
  "tauri",
  "tauri-plugin",
 ]
@@ -7120,6 +7182,21 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-tungstenite",
+]
+
+[[package]]
+name = "tauri-plugin-window-state"
+version = "2.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73736611e14142408d15353e21e3cca2f12a3cfb523ad0ce85999b6d2ef1a704"
+dependencies = [
+ "bitflags 2.11.1",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

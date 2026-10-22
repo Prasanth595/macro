@@ -5,7 +5,8 @@ use crate::domain::models::{
     RemoveParticipantsRequest, Sender,
 };
 use crate::domain::ports::{
-    ChannelAttachmentsPage, ChannelMessagesErr, ChannelMutationErr, ChannelService,
+    ChannelAttachmentsPage, ChannelMessagesErr, ChannelMutationErr, ChannelPictureAccess,
+    ChannelService,
 };
 use axum::{
     Router,
@@ -15,8 +16,8 @@ use axum::{
 use entity_access::domain::models::TeamRole;
 use entity_access::domain::{
     models::{
-        AccessError, AccessLevel, AdminParticipantRole, BotAccessScope, BotId, Entity,
-        EntityAccessReceipt, EntityPermission, EntityType, MemberParticipantRole,
+        AccessError, AccessLevel, BotAccessScope, BotId, Entity, EntityAccessReceipt,
+        EntityPermission, EntityType, MemberParticipantRole,
         ParticipantRole as EntityParticipantRole, RequiredPermission, UserTeamInfo,
     },
     ports::EntityAccessService,
@@ -266,9 +267,7 @@ struct MockService;
 impl ChannelService for MockService {
     async fn set_channel_picture(
         &self,
-        _access: entity_access::domain::models::EntityAccessReceipt<
-            entity_access::domain::models::AdminParticipantRole,
-        >,
+        _access: crate::domain::ports::ChannelPictureAccess,
         _picture_id: Option<uuid::Uuid>,
     ) -> Result<(), crate::domain::ports::ChannelMutationErr> {
         unimplemented!("picture mutation is not used by this fixture")
@@ -315,6 +314,18 @@ impl ChannelService for MockService {
                     attachment_created_at: now,
                 },
             ),
+            crate::domain::models::AttachmentEntityReference::Comment(
+                crate::domain::models::AttachmentCommentReference {
+                    parent_entity_type: "initiative".to_string(),
+                    parent_entity_id: "00000000-0000-0000-0000-0000000000a1".to_string(),
+                    message_id: Uuid::new_v4(),
+                    thread_id: None,
+                    sender_id: "macro|user@example.com".to_string(),
+                    message_content: "discussed here".to_string(),
+                    message_created_at: now,
+                    attachment_created_at: now,
+                },
+            ),
             crate::domain::models::AttachmentEntityReference::Generic(
                 crate::domain::models::AttachmentGenericReference {
                     source_entity_type: "doc".to_string(),
@@ -334,9 +345,7 @@ struct ErrorService;
 impl ChannelService for ErrorService {
     async fn set_channel_picture(
         &self,
-        _access: entity_access::domain::models::EntityAccessReceipt<
-            entity_access::domain::models::AdminParticipantRole,
-        >,
+        _access: crate::domain::ports::ChannelPictureAccess,
         _picture_id: Option<uuid::Uuid>,
     ) -> Result<(), crate::domain::ports::ChannelMutationErr> {
         unimplemented!("picture mutation is not used by this fixture")
@@ -374,9 +383,7 @@ struct ParticipantsService;
 impl ChannelService for ParticipantsService {
     async fn set_channel_picture(
         &self,
-        _access: entity_access::domain::models::EntityAccessReceipt<
-            entity_access::domain::models::AdminParticipantRole,
-        >,
+        _access: crate::domain::ports::ChannelPictureAccess,
         _picture_id: Option<uuid::Uuid>,
     ) -> Result<(), crate::domain::ports::ChannelMutationErr> {
         unimplemented!("picture mutation is not used by this fixture")
@@ -452,9 +459,7 @@ impl JoinLinkService {
 impl ChannelService for JoinLinkService {
     async fn set_channel_picture(
         &self,
-        _access: entity_access::domain::models::EntityAccessReceipt<
-            entity_access::domain::models::AdminParticipantRole,
-        >,
+        _access: crate::domain::ports::ChannelPictureAccess,
         _picture_id: Option<uuid::Uuid>,
     ) -> Result<(), crate::domain::ports::ChannelMutationErr> {
         unimplemented!("picture mutation is not used by this fixture")
@@ -530,7 +535,7 @@ struct RecordingMutationService {
 impl ChannelService for RecordingMutationService {
     async fn set_channel_picture(
         &self,
-        access: EntityAccessReceipt<AdminParticipantRole>,
+        access: ChannelPictureAccess,
         picture_id: Option<Uuid>,
     ) -> Result<(), ChannelMutationErr> {
         self.pictures
@@ -672,6 +677,7 @@ impl JwtValidator for FakeJwtValidator {
         };
 
         Ok(ValidatedIdentity {
+            agent_id: None,
             user_id: TEST_USER_ID.to_string(),
             fusion_user_id: "test-fusion-user".to_string(),
             organization_id,
@@ -1304,12 +1310,19 @@ async fn attachment_references_returns_tagged_references() {
     let bytes = res.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let references = json["references"].as_array().unwrap();
-    assert_eq!(references.len(), 2);
+    assert_eq!(references.len(), 3);
     assert_eq!(references[0]["reference_type"], "channel");
     assert_eq!(references[0]["message_content"], "look at this");
-    assert_eq!(references[1]["reference_type"], "generic");
-    assert_eq!(references[1]["entity_id"], "doc1");
-    assert_eq!(references[1]["source_entity_type"], "doc");
+    assert_eq!(references[1]["reference_type"], "comment");
+    assert_eq!(references[1]["parent_entity_type"], "initiative");
+    assert_eq!(
+        references[1]["parent_entity_id"],
+        "00000000-0000-0000-0000-0000000000a1"
+    );
+    assert_eq!(references[1]["message_content"], "discussed here");
+    assert_eq!(references[2]["reference_type"], "generic");
+    assert_eq!(references[2]["entity_id"], "doc1");
+    assert_eq!(references[2]["source_entity_type"], "doc");
 }
 
 // --- Access control tests ---
@@ -1363,9 +1376,7 @@ struct ActivityService {
 impl ChannelService for ActivityService {
     async fn set_channel_picture(
         &self,
-        _access: entity_access::domain::models::EntityAccessReceipt<
-            entity_access::domain::models::AdminParticipantRole,
-        >,
+        _access: crate::domain::ports::ChannelPictureAccess,
         _picture_id: Option<uuid::Uuid>,
     ) -> Result<(), crate::domain::ports::ChannelMutationErr> {
         unimplemented!("picture mutation is not used by this fixture")
@@ -1545,7 +1556,7 @@ async fn post_activity_rejects_invalid_channel_id() {
 }
 
 #[tokio::test]
-async fn picture_endpoint_requires_channel_admin_and_passes_the_verified_channel() {
+async fn picture_endpoint_accepts_any_participant_and_passes_the_verified_channel() {
     for role in [
         EntityParticipantRole::Member,
         EntityParticipantRole::Admin,
@@ -1577,15 +1588,39 @@ async fn picture_endpoint_requires_channel_admin_and_passes_the_verified_channel
             )
             .await
             .unwrap();
-        if role == EntityParticipantRole::Member {
-            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-            assert!(pictures.lock().unwrap().is_empty());
-        } else {
-            assert_eq!(response.status(), StatusCode::NO_CONTENT);
-            assert_eq!(
-                *pictures.lock().unwrap(),
-                vec![(channel_id.to_string(), Some(picture_id))]
-            );
-        }
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(
+            *pictures.lock().unwrap(),
+            vec![(channel_id.to_string(), Some(picture_id))]
+        );
     }
+}
+
+#[tokio::test]
+async fn picture_endpoint_rejects_a_viewer_who_is_not_a_participant() {
+    let service = RecordingMutationService::default();
+    let pictures = service.pictures.clone();
+    let app = channels_router(ChannelsRouterState::new(
+        service,
+        TestAccessService::channel_view_only(),
+        authorization_state(),
+    ));
+    let response = app
+        .oneshot(
+            Request::put(format!("/{}/profile_picture", Uuid::new_v4()))
+                .header(
+                    header::AUTHORIZATION,
+                    format!("Bearer {VALID_BEARER_TOKEN}"),
+                )
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({"profile_picture_id": Uuid::new_v4()}).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert!(pictures.lock().unwrap().is_empty());
 }

@@ -1046,6 +1046,100 @@
         }
       }
     },
+    "/decisions": {
+      "post": {
+        "tags": ["decisions"],
+        "operationId": "decisions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Probability of yes for each named question",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or oversized compact request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "402": {
+            "description": "AI allowance exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionErrorBody"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "HTTP body exceeds 128 KiB"
+          },
+          "500": {
+            "description": "Decision task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Classifier could not produce a valid result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Decision capacity, provider, or usage validation unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionErrorBody"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Decision deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["health"],
@@ -1118,7 +1212,7 @@
             "description": "Discovery accepted (idempotent)"
           },
           "400": {
-            "description": "Unknown import source or discovery not supported"
+            "description": "Unknown import source"
           },
           "500": {
             "description": "Internal server error"
@@ -1624,6 +1718,57 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/onboarding/prompts": {
+      "get": {
+        "tags": ["onboarding"],
+        "summary": "List the sidebar prompts the authenticated user dismissed on any device.",
+        "operationId": "dismissed_prompts_handler",
+        "responses": {
+          "200": {
+            "description": "Dismissed prompt ids",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DismissedPrompts"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/onboarding/prompts/{prompt_id}/dismiss": {
+      "post": {
+        "tags": ["onboarding"],
+        "summary": "Dismiss one sidebar prompt for the authenticated user, on every device.\nIdempotent.",
+        "operationId": "dismiss_prompt_handler",
+        "parameters": [
+          {
+            "name": "prompt_id",
+            "in": "path",
+            "description": "Prompt id, e.g. `import:files`",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Dismissed"
+          },
+          "400": {
+            "description": "Malformed prompt id"
           },
           "500": {
             "description": "Internal server error"
@@ -2203,6 +2348,16 @@
           },
           "503": {
             "description": "AI usage validation unavailable — retry later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StructuredCompletionError"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Tool-free completion deadline exceeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3062,6 +3217,74 @@
         ],
         "description": "What a successful tool call committed to the user's databases."
       },
+      "DecisionErrorBody": {
+        "type": "object",
+        "description": "Sanitized, machine-readable failure of a decision request.",
+        "required": ["error", "code"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Stable failure code."
+          },
+          "error": {
+            "type": "string",
+            "description": "Human-readable explanation without provider credentials or diagnostics."
+          }
+        }
+      },
+      "DecisionRequest": {
+        "type": "object",
+        "description": "Named yes/no questions to evaluate against one arbitrary JSON input.",
+        "required": ["input", "questions"],
+        "properties": {
+          "input": {
+            "description": "Data to classify. The entire compact request must fit in 64 KiB."
+          },
+          "questions": {
+            "type": "object",
+            "description": "One to 32 questions, each at most 500 characters. Keys must be nonblank\nand at most 80 UTF-8 bytes; they are preserved in the response.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "DecisionResponse": {
+        "type": "object",
+        "description": "The probability of yes for every requested question, under its original key.",
+        "required": ["probabilities"],
+        "properties": {
+          "probabilities": {
+            "type": "object",
+            "description": "Probabilities between zero and one, inclusive; not boolean decisions.",
+            "additionalProperties": {
+              "type": "number",
+              "format": "float"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DismissedPrompts": {
+        "type": "object",
+        "description": "The prompts the user dismissed, on any device.",
+        "required": ["dismissed"],
+        "properties": {
+          "dismissed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Dismissed prompt ids, oldest dismissal first."
+          }
+        }
+      },
       "DocumentCognitionServiceApiVersion": {
         "type": "string",
         "enum": ["v1", "v2"]
@@ -3648,6 +3871,11 @@
           "swf"
         ]
       },
+      "FreeTierModel": {
+        "type": "string",
+        "description": "A `provider/model` id every user may request without professional features.",
+        "enum": ["google/gemini-3.8-flash"]
+      },
       "GenericErrorResponse": {
         "type": "object",
         "required": ["error", "message"],
@@ -4181,6 +4409,13 @@
           "app_slug": {
             "type": "string",
             "description": "Pipedream app name slug — pass this to the connect flow."
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Categories assigned by Pipedream."
           },
           "description": {
             "type": ["string", "null"],

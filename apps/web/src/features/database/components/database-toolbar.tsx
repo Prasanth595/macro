@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import KanbanIcon from '@phosphor/kanban.svg';
 import PlusIcon from '@phosphor/plus.svg';
@@ -11,6 +12,7 @@ import {
   DragDropSensors,
   SortableProvider,
 } from '@thisbeyond/solid-dnd';
+import { Button } from '@ui/components/Button';
 import { DeleteDialog } from '@ui/components/DeleteDialog';
 import { Dropdown } from '@ui/components/Dropdown';
 import { Tooltip } from '@ui/components/Tooltip';
@@ -152,15 +154,17 @@ export function DatabaseToolbar(props: DatabaseToolbarProps) {
               class="flex min-w-0 items-center gap-0.5 overflow-x-auto"
               aria-label="Views"
             >
-              <button
+              <Button
                 ref={allRecordsButton}
                 type="button"
+                variant="ghost"
+                size="md"
                 aria-pressed={!props.selectedViewId}
                 onClick={() => props.onSelectView()}
-                class="flex h-8 max-w-40 shrink-0 items-center gap-1.5 rounded-full border border-transparent aria-pressed:border-edge-frame aria-pressed:bg-active aria-pressed:text-ink px-4 text-xs font-medium text-ink-extra-muted outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-edge-focus transition-colors duration-120 motion-reduce:transition-none"
+                class="max-w-40 px-4 aria-pressed:border-edge-frame aria-pressed:bg-active aria-pressed:text-ink"
               >
                 <span class="truncate">All records</span>
-              </button>
+              </Button>
               <DragDropProvider
                 collisionDetector={closestCenter}
                 onDragEnd={({ draggable, droppable }) => {
@@ -185,7 +189,10 @@ export function DatabaseToolbar(props: DatabaseToolbarProps) {
                         }}
                         onRenameInput={viewRename.setDraft}
                         onRenameSave={(restoreFocus) =>
-                          void viewRename.save(restoreFocus)
+                          fireAndForget(
+                            viewRename.save(restoreFocus),
+                            'database'
+                          )
                         }
                         onRenameCancel={() => viewRename.cancel(true)}
                         onSelect={() => props.onSelectView(view().id)}
@@ -216,9 +223,10 @@ export function DatabaseToolbar(props: DatabaseToolbarProps) {
             <Show when={props.canEdit}>
               <Dropdown placement="bottom-start">
                 <Dropdown.Trigger
-                  size="icon-sm"
+                  size="md"
+                  square
                   variant="ghost"
-                  aria-label="New view"
+                  label="New view"
                   class="ml-2 shrink-0"
                   disabled={creating()}
                 >
@@ -226,14 +234,18 @@ export function DatabaseToolbar(props: DatabaseToolbarProps) {
                 </Dropdown.Trigger>
                 <Dropdown.Content class="min-w-40">
                   <Dropdown.Item
-                    onSelect={() => void createView('table')}
+                    onSelect={() =>
+                      fireAndForget(createView('table'), 'database')
+                    }
                     disabled={creating()}
                   >
                     <TableIcon class="size-4" />
                     Table
                   </Dropdown.Item>
                   <Dropdown.Item
-                    onSelect={() => void createView('board')}
+                    onSelect={() =>
+                      fireAndForget(createView('board'), 'database')
+                    }
                     disabled={creating()}
                   >
                     <KanbanIcon class="size-4" />
@@ -327,7 +339,7 @@ function ViewTab(props: {
               maxlength={100}
               value={props.renameDraft}
               readOnly={props.renamePending}
-              class="h-8 w-36 rounded-md border border-ink/40 bg-input px-2 text-xs text-ink outline-none focus:ring-2 focus:ring-ink/10"
+              class="h-8 w-36 rounded-md border border-ink/40 bg-input px-2 text-sm text-ink outline-none focus:ring-2 focus:ring-ink/10"
               onInput={(event) =>
                 props.onRenameInput(event.currentTarget.value)
               }
@@ -345,7 +357,10 @@ function ViewTab(props: {
         <ContextMenu>
           <Tooltip label={props.view.name}>
             <ContextMenu.Trigger
-              as="button"
+              as={Button}
+              variant="ghost"
+              size="md"
+              tooltipDisabled
               type="button"
               {...(props.canReorder ? sortable.dragActivators : {})}
               data-view-id={props.view.id}
@@ -362,7 +377,7 @@ function ViewTab(props: {
                   props.onRename();
                 }
               }}
-              class="flex h-8 max-w-40 items-center gap-1.5 rounded-full border border-transparent aria-pressed:border-edge-frame aria-pressed:bg-active aria-pressed:text-ink px-4 text-xs font-medium text-ink-extra-muted outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-edge-focus transition-colors duration-120 motion-reduce:transition-none"
+              class="max-w-40 px-4 aria-pressed:border-edge-frame aria-pressed:bg-active aria-pressed:text-ink"
             >
               <span class="truncate">{props.view.name}</span>
             </ContextMenu.Trigger>

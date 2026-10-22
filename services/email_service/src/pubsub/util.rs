@@ -1,6 +1,7 @@
 use crate::pubsub::context::PubSubContext;
 use chrono::{DateTime, Utc};
 use connection_gateway_client::client::ConnectionGatewayClient;
+use contacts::domain::models::messages::ContactConnection;
 use email::domain::events::EmailMacroEvent;
 use macro_event_broker::MacroEventBroker;
 use macro_user_id::user_id::MacroUserIdStr;
@@ -42,6 +43,30 @@ pub fn build_notification_recipients(
     }
 
     recipient_ids
+}
+
+/// Contact connections from a link's owner to each address. Addresses that fail
+/// to parse as a macro user id are skipped, so one malformed header address
+/// doesn't drop the connections to the others.
+pub fn build_contact_connections<'a>(
+    owner: &MacroUserIdStr<'static>,
+    link_id: Uuid,
+    emails: impl IntoIterator<Item = &'a str>,
+) -> Vec<ContactConnection> {
+    emails
+        .into_iter()
+        .filter_map(|email| match MacroUserIdStr::try_from_email(email) {
+            Ok(contact) => Some(ContactConnection::new(owner.clone(), contact)),
+            // The parse error echoes the address, so it stays out of the log.
+            Err(_) => {
+                tracing::warn!(
+                    %link_id,
+                    "skipping contact address that failed to parse as a macro user id"
+                );
+                None
+            }
+        })
+        .collect()
 }
 
 /// One recipient tuple `(email, name, first_at, last_at)` fed into
@@ -117,12 +142,16 @@ pub async fn cg_refresh_calendar(
     db: &sqlx::PgPool,
     owner_macro_id: &str,
     link_id: uuid::Uuid,
+    team_ooo_changed: bool,
 ) {
     if !cfg!(feature = "connection_gateway") {
         return;
     }
     let payload = serde_json::to_value(
-        calendar_events::domain::models::RefreshCalendarEvent::Synced { link_id },
+        calendar_events::domain::models::RefreshCalendarEvent::Synced {
+            link_id,
+            team_ooo_changed,
+        },
     )
     .unwrap_or_default();
     let mut recipients = vec![owner_macro_id.to_string()];

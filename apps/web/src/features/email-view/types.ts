@@ -33,6 +33,8 @@ export type EmailViewState = {
    * explicitly none, otherwise the selected email link ids.
    */
   inboxIds: string[] | undefined;
+  /** An alias is always scoped to the inbox that owns its provider grant. */
+  aliasFilter?: { inboxId: string; emailAddress: string };
   facets: FacetSelection;
   /** The Focus tab's order; kept per user. */
   focusSort: EmailFocusSort;

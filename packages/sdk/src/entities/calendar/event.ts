@@ -3,6 +3,7 @@ import type {
   CalendarAttendeeInputBody,
   CalendarDeletionScopeParam,
   CalendarEvent as CalendarEventRecord,
+  CalendarGuestInputBody,
   CalendarRsvpScopeParam,
   CalendarUpdateScopeParam,
   ConferenceChange,
@@ -13,10 +14,11 @@ import type {
   OutOfOfficeProperties,
   UpdateCalendarEventRequest,
 } from '../../../generated/calendar/types.gen';
-import { MacroError } from '../../utils';
+import { MacroError, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
 import { Calendar } from './calendar';
+import { CalendarReplacement } from './replacement';
 
 /** Fields to change on an event; omitted fields are left untouched. */
 export interface UpdateEventOptions {
@@ -38,8 +40,8 @@ export interface UpdateEventOptions {
   transparency?: EventTransparency;
   /** Replacement reminder configuration. */
   reminders?: EventReminders;
-  /** `google_meet` attaches a fresh Meet, `none` detaches; omit to leave the
-   * conference untouched. */
+  /** Provider conference change; omit to retain it. Outlook removal requires a
+   * separately confirmed replacement via prepareReplacement(). */
   conference?: ConferenceChange;
   /** Replacement out-of-office properties, applied only to an event that is
    * already out-of-office. */
@@ -62,6 +64,20 @@ export interface DeleteEventOptions {
   recurrenceId?: string;
   /** Calendar whose copy of the event is deleted, for a multi-calendar event.
    * Omit to delete the canonical copy. */
+  calendar?: Calendar;
+}
+
+/** Guests to add and how much of a recurring series gains them. */
+export interface InviteGuestsOptions {
+  /** Guests to add; anyone already on the event is skipped. */
+  guests: CalendarGuestInputBody[];
+  /** How much of a recurring series gains the guests. Omit to let
+   * `recurrenceId` decide. */
+  scope?: CalendarUpdateScopeParam;
+  /** Original-start key of the occurrence the guests are added to. */
+  recurrenceId?: string;
+  /** Calendar whose copy of the event is written, for a multi-calendar event.
+   * Omit to write the canonical copy. */
   calendar?: Calendar;
 }
 
@@ -139,6 +155,12 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
   /** Raw RFC 5545 recurrence properties (`RRULE`, `RDATE`, `EXDATE`). */
   readonly recurrenceLines = this.field('recurrenceLines');
 
+  /** What the organizer lets guests do: modify, invite others, see the guest list. */
+  readonly guestPolicy = this.field('guestPolicy');
+
+  /** What the connected account may do with this event under its guest policy. */
+  readonly viewerCan = this.field('viewerCan');
+
   /** The calendar the canonical source belongs to, when known. */
   readonly calendar = this.mappedField('calendarId', (id) =>
     id ? Calendar.byId(this.client, id) : undefined,
@@ -172,6 +194,71 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
           recurrenceId: options.recurrenceId,
         },
       }),
+    );
+  }
+
+  /** Preview an organizer replacement without cancelling or sending invitations.
+   * Review replacement.status() before explicitly calling replacement.confirm(). */
+  async prepareReplacement(options: {
+    removeConference: boolean;
+    recurrenceId?: string;
+    calendar?: Calendar;
+  }): Promise<CalendarReplacement> {
+    const preview = unwrap(
+      await this.client.calendar.prepareCalendarReplacement({
+        path: { event_id: this.id },
+        body: {
+          removeConference: options.removeConference,
+          recurrenceId: options.recurrenceId,
+          calendarId: options.calendar?.id,
+        },
+      }),
+    );
+    return new CalendarReplacement(this.client, preview.operationId);
+  }
+
+  /** Open this calendar copy in its provider for actions unavailable through its API. */
+  async providerUrl(
+    options: { recurrenceId?: string; calendar?: Calendar } = {},
+  ): Promise<string | undefined> {
+    const result = unwrap(
+      await this.client.calendar.calendarEventProviderUrl({
+        path: { event_id: this.id },
+        query: {
+          recurrenceId: options.recurrenceId,
+          calendarId: options.calendar?.id,
+        },
+      }),
+    );
+    return result.url ?? undefined;
+  }
+
+  /** Add guests without touching anyone already invited, and return a handle
+   * to the synced record. The organizer may, and so may a guest the organizer
+   * lets invite others (see {@link CalendarEvent.viewerCan}); Google emails
+   * the new guests. */
+  async inviteGuests(options: InviteGuestsOptions): Promise<CalendarEvent> {
+    const record = await this.mutate((client) =>
+      client.calendar.inviteCalendarEventGuests({
+        path: { event_id: this.id },
+        body: {
+          guests: options.guests,
+          scope: options.scope,
+          recurrenceId: options.recurrenceId,
+          calendarId: options.calendar?.id,
+        },
+      }),
+    );
+    return CalendarEvent.fromRecord(this.client, record);
+  }
+
+  /** The event as an iCalendar (`.ics`) document: its series, title,
+   * description, location and organizer, never its guests or join link.
+   * Available for the requester's own events and ones shared with a channel
+   * they belong to. */
+  async ics(): Promise<string> {
+    return unwrap(
+      await this.client.storage.eventIcs({ path: { event_id: this.id } }),
     );
   }
 

@@ -11,6 +11,15 @@ pub enum EmailErr {
     /// An external provider API error (e.g. Gmail API).
     #[error("Provider error: {0}")]
     ProviderErr(anyhow::Error),
+    /// Sender lookup is unavailable on this host or at the provider.
+    #[error("Email sender addresses are unavailable")]
+    SendAsUnavailable,
+    /// The provider grant cannot read sender settings.
+    #[error("Reconnect this inbox to access its sender addresses")]
+    SendAsPermissionRequired,
+    /// The requested address is not an approved sender for this inbox.
+    #[error("This address is not a verified sender for the selected inbox")]
+    InvalidSender,
     /// A frecency query error.
     #[error(transparent)]
     Frecency(#[from] FrecencyQueryErr),
@@ -21,12 +30,28 @@ pub enum EmailErr {
     /// accessible to the caller, or the caller has no primary inbox.
     #[error("Email inbox not found")]
     InboxNotFound,
+    /// The caller asked to send from an address that is none of the inboxes
+    /// they have connected or been delegated. The accessible addresses are
+    /// carried along so the caller can be told what it could have been.
+    #[error(
+        "No connected inbox matches \"{requested}\". Connected inboxes: {}.",
+        available.join(", ")
+    )]
+    UnknownSendingInbox {
+        /// The address the caller asked to send from.
+        requested: String,
+        /// The addresses of every inbox the caller can send from.
+        available: Vec<String>,
+    },
     /// The referenced message has already been sent and cannot be modified.
     #[error("Message with id {0} has already been sent")]
     MessageAlreadySent(Uuid),
     /// Delivery has been committed, claimed, or completed and cannot be edited.
     #[error("Message with id {0} is scheduled, processing, or already sent")]
     MessageDeliveryConflict(Uuid),
+    /// The requested draft mutation cannot preserve its content.
+    #[error("{0}")]
+    InvalidDraft(String),
     /// Explicit scheduled delivery requires a time in the future.
     #[error("Scheduled send time must be in the future")]
     InvalidScheduleTime,

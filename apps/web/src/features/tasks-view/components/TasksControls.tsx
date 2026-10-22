@@ -1,4 +1,5 @@
 import {
+  ListFilterCountBadge,
   ListFilterDropdown,
   ListGroupDropdown,
   ListSortDropdown,
@@ -26,7 +27,8 @@ export function TasksControls() {
 
 function DesktopTasksControls() {
   const panel = useSplitPanelOrThrow();
-  const { state, setPrimarySort, setState, projectsEnabled } = useTasksView();
+  const { state, setPrimarySort, setState, projectsEnabled, ganttEnabled } =
+    useTasksView();
   const filters = useTaskFilters();
   const [openMenu, setOpenMenu] = createSignal<'filters' | 'sort'>();
   let filterTrigger: HTMLButtonElement | undefined;
@@ -81,6 +83,9 @@ function DesktopTasksControls() {
       <ViewLayoutDropdown
         label="Task layout"
         value={state.layout}
+        layouts={
+          ganttEnabled() ? ['list', 'board', 'gantt'] : ['list', 'board']
+        }
         onChange={(layout) => setState('layout', layout)}
       />
       <Show
@@ -125,11 +130,7 @@ function DesktopTasksControls() {
             onSubmit: filters.applyDescription,
           }}
         />
-        <Show when={filters.activeCount() > 0}>
-          <span class="pointer-events-none absolute -top-0.5 right-0 z-10 flex size-4 translate-x-1/2 items-center justify-center rounded-full bg-accent text-xxs font-medium leading-none text-surface">
-            {filters.activeCount()}
-          </span>
-        </Show>
+        <ListFilterCountBadge count={filters.activeCount()} />
       </div>
     </div>
   );

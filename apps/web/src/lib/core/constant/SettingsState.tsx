@@ -13,7 +13,6 @@ import { settingsTabToSlug } from './settingsTabsConfig';
 
 export type SettingsTab =
   | 'Calendar'
-  | 'Booking links'
   | 'Account'
   | 'API Keys'
   | 'Notifications'
@@ -33,10 +32,11 @@ export type SettingsTab =
   | 'Harness'
   | 'Bots'
   | 'Team'
+  | 'Team Members'
+  | 'Team Connections'
   | 'Tags'
   | 'CRM'
   | 'Connected'
-  | 'Connections'
   | 'Email'
   | 'GitHub'
   | 'Admin';

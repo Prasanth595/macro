@@ -2,6 +2,7 @@ import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
 import { UserIcon } from '@core/component/UserIcon';
 import { useAuthor, useUserId } from '@core/context/user';
 import { getDisplayName, tryMacroId } from '@core/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import ChatIcon from '@phosphor/chat-circle.svg';
 import { cn, InlineCheckbox, Tooltip } from '@ui';
 import type { RemoteParticipant, Track } from 'livekit-client';
@@ -14,7 +15,6 @@ import {
   Show,
   Suspense,
 } from 'solid-js';
-
 import { useCallContext } from './CallContext';
 import { CallControls } from './CallControls/CallControls';
 import {
@@ -23,10 +23,12 @@ import {
 } from './call-panel-breakpoints';
 import { LK_TRACK_SOURCE } from './livekit-loader';
 import { MutedMicrophoneBadge } from './MutedMicrophoneBadge';
+import { ParticipantAvatarBackground } from './ParticipantAvatarBackground';
 import { TrackView } from './TrackView';
 import { useActiveCallTeamShare } from './use-toggle-share-with-team';
 
 const CallChat = lazy(() => import('./chat/CallChat'));
+const GuestCallChat = lazy(() => import('./chat/GuestCallChat'));
 
 function VideoTag(props: {
   children: JSXElement;
@@ -83,8 +85,11 @@ function ParticipantAvatar(props: {
   };
 
   return (
-    <div class="flex items-center justify-center size-full p-4">
-      <div class={avatarClass()}>
+    <div class="relative flex items-center justify-center size-full p-4">
+      <Show when={props.userId?.trim()} keyed>
+        {(userId) => <ParticipantAvatarBackground userId={userId} />}
+      </Show>
+      <div class={cn('relative', avatarClass())}>
         <Show
           when={props.userId?.trim()}
           keyed
@@ -224,8 +229,10 @@ export function CallOverlay(props: {
   showTeamSharing?: boolean;
   sharedWithTeam?: boolean;
   localName?: string;
-  /** Shared messages require an authenticated Macro participant. */
+  /** The host may hide chat until account or guest session credentials are ready. */
   showChat?: boolean;
+  /** Narrow RTC credential for a guest; never an account bearer. */
+  guestChatSession?: { token: string; participantId: string };
 }) {
   const callCtx = useCallContext();
   const currentUserId = useUserId();
@@ -388,19 +395,40 @@ export function CallOverlay(props: {
           <Show when={callCtx.activeCallId()} keyed>
             {(callId) => (
               <Suspense>
-                <CallChat
-                  callId={callId}
-                  id={chatId}
-                  open={chatOpen()}
-                  onClose={closeChat}
-                />
+                <Show
+                  when={props.guestChatSession}
+                  keyed
+                  fallback={
+                    <CallChat
+                      callId={callId}
+                      id={chatId}
+                      open={chatOpen()}
+                      onClose={closeChat}
+                    />
+                  }
+                >
+                  {(session) => (
+                    <GuestCallChat
+                      callId={callId}
+                      session={session}
+                      id={chatId}
+                      open={chatOpen()}
+                      onClose={closeChat}
+                    />
+                  )}
+                </Show>
               </Suspense>
             )}
           </Show>
         </Show>
       </div>
       {/* Settings expand over the tiles; sharing stays clear of the controls. */}
-      <div class="relative flex shrink-0 flex-col items-center gap-2 py-3">
+      <div
+        class="relative flex shrink-0 flex-col items-center gap-2 py-3"
+        classList={{
+          '@min-[800px]/call:mr-90': canChat() && chatOpen(),
+        }}
+      >
         <Show
           when={
             callCtx.activeChannelId() !== null &&
@@ -418,7 +446,7 @@ export function CallOverlay(props: {
           >
             <button
               type="button"
-              onClick={() => void teamShare.toggle()}
+              onClick={() => fireAndForget(teamShare.toggle(), 'channel-call')}
               disabled={teamShareLocked()}
               role="checkbox"
               aria-checked={sharedWithTeam()}
@@ -437,13 +465,16 @@ export function CallOverlay(props: {
             </button>
           </Tooltip>
         </Show>
-        <div class="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-2 @min-[500px]/call:gap-3 @min-[500px]/call:px-3 @min-[800px]/call:grid-cols-[minmax(0,1fr)_minmax(0,36rem)_minmax(0,1fr)]">
-          <div
-            class="flex min-w-0 justify-center @min-[800px]/call:col-start-2"
-            classList={{
-              'col-span-2 @min-[800px]/call:col-span-1': !canChat(),
-            }}
-          >
+        <div
+          class="grid w-full items-center gap-2 px-2"
+          classList={{
+            'grid-cols-[minmax(3.5rem,1fr)_minmax(0,36rem)_minmax(3.5rem,1fr)]':
+              canChat(),
+            'grid-cols-[minmax(0,1fr)_minmax(0,36rem)_minmax(0,1fr)]':
+              !canChat(),
+          }}
+        >
+          <div class="col-start-2 flex min-w-0 justify-center">
             <CallControls onLeave={props.onLeave} />
           </div>
           <Show when={canChat()}>

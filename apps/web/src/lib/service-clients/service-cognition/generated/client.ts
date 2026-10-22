@@ -15,8 +15,12 @@ import type {
   ChatMessageError,
   CompleteOnboardingRequest,
   CreateChatRequest,
+  DecisionErrorBody,
+  DecisionRequest,
+  DecisionResponse,
   DeleteMcpServerParams,
   DeletePipedreamMcpConnectionParams,
+  DismissedPrompts,
   DocumentTextPart,
   ErrorBody,
   ErrorResponse,
@@ -1184,6 +1188,96 @@ export const getCitationHandler = async (
   } as getCitationHandlerResponse;
 };
 
+export type decisionsResponse200 = {
+  data: DecisionResponse;
+  status: 200;
+};
+
+export type decisionsResponse400 = {
+  data: DecisionErrorBody;
+  status: 400;
+};
+
+export type decisionsResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type decisionsResponse402 = {
+  data: DecisionErrorBody;
+  status: 402;
+};
+
+export type decisionsResponse413 = {
+  data: void;
+  status: 413;
+};
+
+export type decisionsResponse500 = {
+  data: DecisionErrorBody;
+  status: 500;
+};
+
+export type decisionsResponse502 = {
+  data: DecisionErrorBody;
+  status: 502;
+};
+
+export type decisionsResponse503 = {
+  data: DecisionErrorBody;
+  status: 503;
+};
+
+export type decisionsResponse504 = {
+  data: DecisionErrorBody;
+  status: 504;
+};
+
+export type decisionsResponseSuccess = decisionsResponse200 & {
+  headers: Headers;
+};
+export type decisionsResponseError = (
+  | decisionsResponse400
+  | decisionsResponse401
+  | decisionsResponse402
+  | decisionsResponse413
+  | decisionsResponse500
+  | decisionsResponse502
+  | decisionsResponse503
+  | decisionsResponse504
+) & {
+  headers: Headers;
+};
+
+export type decisionsResponse =
+  | decisionsResponseSuccess
+  | decisionsResponseError;
+
+export const getDecisionsUrl = () => {
+  return `/decisions`;
+};
+
+export const decisions = async (
+  decisionRequest: DecisionRequest,
+  options?: RequestInit
+): Promise<decisionsResponse> => {
+  const res = await fetch(getDecisionsUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(decisionRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: decisionsResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as decisionsResponse;
+};
+
 /**
  * @summary Health check
  */
@@ -2009,6 +2103,115 @@ export const completeHandler = async (
 };
 
 /**
+ * @summary List the sidebar prompts the authenticated user dismissed on any device.
+ */
+export type dismissedPromptsHandlerResponse200 = {
+  data: DismissedPrompts;
+  status: 200;
+};
+
+export type dismissedPromptsHandlerResponse500 = {
+  data: void;
+  status: 500;
+};
+
+export type dismissedPromptsHandlerResponseSuccess =
+  dismissedPromptsHandlerResponse200 & {
+    headers: Headers;
+  };
+export type dismissedPromptsHandlerResponseError =
+  dismissedPromptsHandlerResponse500 & {
+    headers: Headers;
+  };
+
+export type dismissedPromptsHandlerResponse =
+  | dismissedPromptsHandlerResponseSuccess
+  | dismissedPromptsHandlerResponseError;
+
+export const getDismissedPromptsHandlerUrl = () => {
+  return `/onboarding/prompts`;
+};
+
+export const dismissedPromptsHandler = async (
+  options?: RequestInit
+): Promise<dismissedPromptsHandlerResponse> => {
+  const res = await fetch(getDismissedPromptsHandlerUrl(), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: dismissedPromptsHandlerResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as dismissedPromptsHandlerResponse;
+};
+
+/**
+ * @summary Dismiss one sidebar prompt for the authenticated user, on every device.
+Idempotent.
+ */
+export type dismissPromptHandlerResponse204 = {
+  data: void;
+  status: 204;
+};
+
+export type dismissPromptHandlerResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type dismissPromptHandlerResponse500 = {
+  data: void;
+  status: 500;
+};
+
+export type dismissPromptHandlerResponseSuccess =
+  dismissPromptHandlerResponse204 & {
+    headers: Headers;
+  };
+export type dismissPromptHandlerResponseError = (
+  | dismissPromptHandlerResponse400
+  | dismissPromptHandlerResponse500
+) & {
+  headers: Headers;
+};
+
+export type dismissPromptHandlerResponse =
+  | dismissPromptHandlerResponseSuccess
+  | dismissPromptHandlerResponseError;
+
+export const getDismissPromptHandlerUrl = (promptId: string) => {
+  return `/onboarding/prompts/${promptId}/dismiss`;
+};
+
+export const dismissPromptHandler = async (
+  promptId: string,
+  options?: RequestInit
+): Promise<dismissPromptHandlerResponse> => {
+  const res = await fetch(getDismissPromptHandlerUrl(promptId), {
+    ...options,
+    method: 'POST',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: dismissPromptHandlerResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as dismissPromptHandlerResponse;
+};
+
+/**
  * Results come from Pipedream's app directory, most popular first.
  * @summary Browse or search the catalog of connectable apps.
  */
@@ -2639,6 +2842,11 @@ export type structuredCompletionResponse503 = {
   status: 503;
 };
 
+export type structuredCompletionResponse504 = {
+  data: StructuredCompletionError;
+  status: 504;
+};
+
 export type structuredCompletionResponseSuccess =
   structuredCompletionResponse200 & {
     headers: Headers;
@@ -2650,6 +2858,7 @@ export type structuredCompletionResponseError = (
   | structuredCompletionResponse403
   | structuredCompletionResponse500
   | structuredCompletionResponse503
+  | structuredCompletionResponse504
 ) & {
   headers: Headers;
 };

@@ -4,9 +4,11 @@ import { describe, expect, it } from 'vitest';
 import {
   type CalendarEvent,
   type CalendarSource,
+  DEFAULT_GUEST_POLICY,
   isCalendarEventVisible,
   mapCalendarEventToFullCalendar,
   mapCalendarOccurrence,
+  NO_VIEWER_CAPABILITIES,
 } from './types';
 import { canEditCalendarEventTime } from './utils/event-interaction';
 
@@ -76,6 +78,8 @@ function item(sources: CalendarEventSourceContent[]): CalendarOccurrenceItem {
       recurrenceLines: [],
       sequence: 0,
       isReadOnly: false,
+      guestPolicy: DEFAULT_GUEST_POLICY,
+      viewerCan: NO_VIEWER_CAPABILITIES,
       attendees: [],
       createdAt: '2026-09-01T00:00:00Z',
       updatedAt: '2026-09-01T00:00:00Z',
@@ -150,6 +154,31 @@ describe('mapCalendarOccurrence', () => {
     expect(event.isReadOnly).toBe(true);
     expect(event.creatorEmail).toBe('script@example.com');
     expect(event.visibleCalendars).toEqual([SHARED]);
+  });
+
+  it('withholds the viewer capabilities while a read-only copy shows', () => {
+    const occurrence = twoCopies();
+    occurrence.event.viewerCan = {
+      editDetails: false,
+      inviteGuests: true,
+      removeGuests: false,
+      setGuestPolicy: false,
+      rsvp: true,
+    };
+
+    const primary = mapCalendarOccurrence(occurrence, {
+      sourceById,
+      isSourceVisible: hidden(),
+    });
+    const shared = mapCalendarOccurrence(occurrence, {
+      sourceById,
+      isSourceVisible: hidden('primary'),
+    });
+
+    expect(primary.viewerCan.inviteGuests).toBe(true);
+    expect(primary.viewerCan.rsvp).toBe(true);
+    expect(shared.viewerCan.inviteGuests).toBe(false);
+    expect(shared.viewerCan.rsvp).toBe(false);
   });
 
   it('keeps the reminders that fire on the primary copy whichever copy shows', () => {

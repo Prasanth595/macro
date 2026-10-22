@@ -52,6 +52,7 @@ import PhoneCall from '@phosphor/phone-call.svg';
 import Shapes from '@phosphor/shapes.svg';
 import Sparkle from '@phosphor/sparkle.svg';
 import Stack from '@phosphor/stack.svg';
+import Table from '@phosphor/table.svg';
 import Users from '@phosphor/users.svg';
 import UsersThree from '@phosphor/users-three.svg';
 import AddressBookBold from '@phosphor-icons/core/bold/address-book-bold.svg';
@@ -92,6 +93,7 @@ import PhoneCallBold from '@phosphor-icons/core/bold/phone-call-bold.svg';
 import ShapesBold from '@phosphor-icons/core/bold/shapes-bold.svg';
 import SparkleBold from '@phosphor-icons/core/bold/sparkle-bold.svg';
 import StackBold from '@phosphor-icons/core/bold/stack-bold.svg';
+import TableBold from '@phosphor-icons/core/bold/table-bold.svg';
 import UsersBold from '@phosphor-icons/core/bold/users-bold.svg';
 import UsersThreeBold from '@phosphor-icons/core/bold/users-three-bold.svg';
 import type { PreviewItem } from '@queries/preview';
@@ -125,6 +127,7 @@ export type EntityWithValidIcon =
   | 'githubPullRequestOpen'
   | 'githubPullRequestMerged'
   | 'githubPullRequestClosed'
+  | 'githubPullRequestDraft'
   | 'archive'
   | 'files'
   | 'crm_company'
@@ -419,6 +422,13 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     background: 'bg-failure/20',
     prettyName: 'Closed Pull Request',
   },
+  githubPullRequestDraft: {
+    icon: GitPullRequest,
+    boldIcon: GitPullRequestBold,
+    foreground: 'text-ink-muted',
+    background: 'bg-ink-muted/20',
+    prettyName: 'Draft Pull Request',
+  },
   pr: {
     icon: GitPullRequest,
     boldIcon: GitPullRequestBold,
@@ -482,6 +492,13 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     background: 'bg-default/20',
     prettyName: 'Company',
   },
+  pipeline: {
+    icon: Table,
+    boldIcon: TableBold,
+    foreground: 'text-default',
+    background: 'bg-default/20',
+    prettyName: 'Pipeline',
+  },
   reminder: {
     icon: BellSimple,
     boldIcon: BellSimpleBold,
@@ -543,7 +560,7 @@ export type EntityIconProps = {
    * like 'directMessage; If an unrecognized type or no type at all is passed,
    * a default gray file icon will be used.
    */
-  targetType?: FileType | EntityWithValidIcon;
+  targetType?: FileType | EntityWithValidIcon | (string & {});
   /**
    * The size of the Icon.
    * sm = "w-4 h-4"
@@ -684,7 +701,10 @@ export function getEntityIconType(entity: EntityIconData): EntityWithValidIcon {
     .with({ type: 'routine' }, () => 'routine')
     .with({ type: 'foreign' }, (e) => {
       if (e.foreignSource !== 'github_pull_request') return 'default';
-      return match<unknown, EntityWithValidIcon>(e.metadata?.status)
+      const status = e.metadata?.status;
+      const isDraft = e.metadata?.draft === true;
+      if (isDraft && status === 'open') return 'githubPullRequestDraft';
+      return match<unknown, EntityWithValidIcon>(status)
         .with('open', () => 'githubPullRequestOpen')
         .with('merged', () => 'githubPullRequestMerged')
         .with('closed', () => 'githubPullRequestClosed')
@@ -694,7 +714,7 @@ export function getEntityIconType(entity: EntityIconData): EntityWithValidIcon {
     .with({ type: 'crm_contact' }, () => 'contact')
     .with({ type: 'database' }, () => 'database')
     .with({ type: 'form' }, () => 'form')
-    .exhaustive();
+    .exhaustive(() => 'default');
 }
 
 export function getEntityIconConfig(
@@ -708,6 +728,9 @@ export function getPreviewItemIconType(item: PreviewItem): EntityWithValidIcon {
   if (item.loading || item.access !== 'access') {
     return 'default';
   }
+  // A pipeline previews like an entity but is not one.
+  const { type } = item;
+  if (type === 'crm_pipeline') return 'pipeline';
 
-  return getEntityIconType(item);
+  return getEntityIconType({ ...item, type });
 }

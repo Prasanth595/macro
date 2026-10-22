@@ -51,7 +51,7 @@ function tabFilters(tab: EmailTab): EmailFilters {
       'all',
       () => ({})
     )
-    .exhaustive();
+    .exhaustive(() => ({}));
 }
 
 const soleSelection = (selection: string[] | undefined) =>

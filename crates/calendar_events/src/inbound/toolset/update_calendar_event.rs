@@ -25,6 +25,10 @@ use crate::domain::{
 #[derive(Debug, Deserialize, JsonSchema, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ConferenceChangeInput {
+    /// Attach the selected calendar's default conferencing provider.
+    ProviderDefault,
+    /// Attach Microsoft Teams on an eligible Outlook calendar.
+    MicrosoftTeams,
     /// Generate a new Google Meet conference and attach it.
     GoogleMeet,
     /// Detach whatever conference is currently attached.
@@ -34,6 +38,8 @@ pub enum ConferenceChangeInput {
 impl From<ConferenceChangeInput> for ConferenceChange {
     fn from(input: ConferenceChangeInput) -> Self {
         match input {
+            ConferenceChangeInput::ProviderDefault => Self::ProviderDefault,
+            ConferenceChangeInput::MicrosoftTeams => Self::MicrosoftTeams,
             ConferenceChangeInput::GoogleMeet => Self::GoogleMeet,
             ConferenceChangeInput::Remove => Self::Removed,
         }
@@ -79,7 +85,7 @@ pub enum UpdateScopeInput {
     title = "UpdateCalendarEvent",
     description = "\
 Update an existing calendar event. Only the supplied fields change; omitted fields keep \
-their current values. The change is written to Google immediately and attendees are \
+their current values. The change is written to the calendar provider immediately and attendees are \
 notified of it, so confirm details with the user first. Get the `eventId` from \
 ListCalendarEvents.\n\
 \n\
@@ -92,8 +98,14 @@ update: end the series with DeleteCalendarEvent's \"this_and_following\" and cre
 event instead.\n\
 \n\
 Passing `attendees` replaces the full attendee list — include everyone who should remain, \
-not just additions. An empty string for `description` or `location` clears it. Fails on \
-events from calendars the user cannot edit.\n\
+not just additions. That holds when `viewerCan.removeGuests` from ListCalendarEvents is \
+true (the user organizes the event, or the organizer lets guests modify it). When it is \
+false, the list may only grow: pass the current attendees plus the additions; the additions \
+are invited without touching anyone else, and dropping any guest fails. Adding guests then \
+needs `viewerCan.inviteGuests`; otherwise the organizer doesn't let guests invite others \
+or hides the guest list. \
+An empty string for `description` or `location` clears it. Fails on events from calendars \
+the user cannot edit.\n\
 \n\
 `rsvp` sets the user's own response to an invitation and is independent of the field \
 edits — it can be the only thing this call changes. It applies at the same `scope` as \
@@ -163,7 +175,8 @@ pub struct UpdateCalendarEvent {
     /// Replacement attendee list.
     #[schemars(
         description = "Replacement attendee list — replaces all current attendees, so include \
-                       everyone who should remain. Omit to leave attendees unchanged."
+                       everyone who should remain. When `viewerCan.removeGuests` is false, it \
+                       may only add to the current list. Omit to leave attendees unchanged."
     )]
     #[serde(default)]
     pub attendees: Option<Vec<AttendeeInput>>,
@@ -179,9 +192,10 @@ pub struct UpdateCalendarEvent {
 
     /// Conference change.
     #[schemars(
-        description = "Change the event's video conference: \"google_meet\" attaches a fresh \
-                       Google Meet, \"remove\" detaches the current conference. Omit to leave \
-                       it untouched."
+        description = "Change the event's video conference: \"provider_default\" uses the calendar's \
+                       supported provider; \"google_meet\" or \"microsoft_teams\" selects one explicitly. \
+                       \"remove\" detaches the conference only where supported. Check ListCalendars \
+                       capabilities first. Omit to preserve the current conference."
     )]
     #[serde(default)]
     pub conference: Option<ConferenceChangeInput>,

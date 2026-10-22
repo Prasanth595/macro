@@ -6,6 +6,7 @@ mod focus;
 mod loaders;
 mod mutation;
 mod objects;
+mod operation;
 mod user_objects;
 mod user_query;
 

@@ -26,9 +26,10 @@ type ToolParserMap = {
     response: types.SpreadsheetResponse;
   };
   ChangeBooking: { call: types.ChangeBooking; response: types.Booking };
-  CommentOnDocument: {
-    call: types.CommentOnDocument;
-    response: types.CommentOnDocumentResponse;
+  Comment: { call: types.Comment; response: types.CommentResponse };
+  CommentOnText: {
+    call: types.CommentOnText;
+    response: types.CommentOnTextResponse;
   };
   ConfigureAgent: {
     call: types.ConfigureAgent;
@@ -41,6 +42,10 @@ type ToolParserMap = {
   ContentSearch: {
     call: types.ContentSearch;
     response: types.SearchToolResponse;
+  };
+  CreateAgentSession: {
+    call: types.CreateAgentSession;
+    response: types.DispatchedCodingAgent;
   };
   CreateBookingLink: {
     call: types.CreateBookingLink;
@@ -91,6 +96,7 @@ type ToolParserMap = {
   CreateRoutine: { call: types.CreateRoutine; response: types.RoutineInfo };
   CreateSkill: { call: types.CreateSkill; response: types.CreateSkillResponse };
   CreateTag: { call: types.CreateTag; response: types.CreateTagResponse };
+  Decide: { call: types.Decide; response: types.DecisionResponse };
   DeleteBot: { call: types.DeleteBot; response: types.DeleteBotResponse };
   DeleteCalendarEvent: {
     call: types.DeleteCalendarEvent;
@@ -104,13 +110,13 @@ type ToolParserMap = {
     call: types.DeleteChannelMessage;
     response: types.DeleteChannelMessageResponse;
   };
+  DeleteComment: {
+    call: types.DeleteComment;
+    response: types.DeleteCommentResponse;
+  };
   DeleteDatabaseView: {
     call: types.DeleteDatabaseView;
     response: types.DeletedDatabaseView;
-  };
-  DeleteDocumentComment: {
-    call: types.DeleteDocumentComment;
-    response: types.DeleteDocumentCommentResponse;
   };
   DeleteImportEntity: {
     call: types.DeleteImportEntity;
@@ -122,6 +128,10 @@ type ToolParserMap = {
   };
   DeleteRoutine: { call: types.DeleteRoutine; response: types.DeletedRoutine };
   DeleteTag: { call: types.DeleteTag; response: types.DeleteTagResponse };
+  DescribeCodeTools: {
+    call: types.DescribeCodeTools;
+    response: types.CodeToolsDescription;
+  };
   DescribeDatabase: {
     call: types.DescribeDatabase;
     response: types.ToolDatabaseSchema;
@@ -150,13 +160,10 @@ type ToolParserMap = {
     call: types.EditChannelMessage;
     response: types.EditChannelMessageResponse;
   };
+  EditComment: { call: types.EditComment; response: types.EditCommentResponse };
   EditDocument: {
     call: types.EditDocument;
     response: types.EditDocumentResponse;
-  };
-  EditDocumentComment: {
-    call: types.EditDocumentComment;
-    response: types.EditDocumentCommentResponse;
   };
   EditForm: { call: types.EditForm; response: types.MutationResult };
   EditPipeline: {
@@ -176,6 +183,11 @@ type ToolParserMap = {
     call: types.EditWordDocument;
     response: types.WordDocumentResponse;
   };
+  ExecuteCode: { call: types.ExecuteCode; response: types.ExecutionReceipt };
+  ExportPipelineCsv: {
+    call: types.ExportPipelineCsv;
+    response: types.ExportPipelineCsvResponse;
+  };
   FindPipelineEntries: {
     call: types.FindPipelineEntries;
     response: types.FindPipelineEntriesResponse;
@@ -183,6 +195,10 @@ type ToolParserMap = {
   GenerateImage: {
     call: types.GenerateImage;
     response: types.GenerateImageResponse;
+  };
+  GenerateObject: {
+    call: types.GenerateObject;
+    response: types.GenerateObjectResponse;
   };
   GetBookingInsights: {
     call: types.GetBookingInsights;
@@ -206,9 +222,17 @@ type ToolParserMap = {
     response: types.TeamAvailability;
   };
   GetThread: { call: types.GetThread; response: types.GetThreadResponse };
+  ImportCompaniesCsv: {
+    call: types.ImportCompaniesCsv;
+    response: types.ImportCompaniesCsvResponse;
+  };
   ImportNotionPage: {
     call: types.ImportNotionPage;
     response: types.ImportNotionPageResponse;
+  };
+  ImportPipelineCsv: {
+    call: types.ImportPipelineCsv;
+    response: types.ImportPipelineCsvResponse;
   };
   IssueBotCredential: {
     call: types.IssueBotCredential;
@@ -272,6 +296,10 @@ type ToolParserMap = {
     response: types.ListTeamMembersResponse;
   };
   LoadTools: { call: types.LoadTools; response: types.LoadToolsResponse };
+  ManageAgentSession: {
+    call: types.ManageAgentSession;
+    response: types.SessionActionResult;
+  };
   ManageBotChannelAccess: {
     call: types.ManageBotChannelAccess;
     response: types.ManageBotChannelAccessResponse;
@@ -314,6 +342,14 @@ type ToolParserMap = {
     call: types.ReadActivity;
     response: types.ReadActivityResponse;
   };
+  ReadAgentSession: {
+    call: types.ReadAgentSession;
+    response: types.SessionConversation;
+  };
+  ReadAgentSessionSharing: {
+    call: types.ReadAgentSessionSharing;
+    response: types.SessionSharingResponse;
+  };
   ReadBookingSettings: {
     call: types.ReadBookingSettings;
     response: types.BookingSettingsResult;
@@ -337,6 +373,10 @@ type ToolParserMap = {
   ReadChat: { call: types.ReadChat; response: types.ReadChatResponse };
   ReadContent: { call: types.ReadContent; response: types.ReadContentResponse };
   ReadDesign: { call: types.ReadDesign; response: types.ReadDesignResponse };
+  ReadDiscussion: {
+    call: types.ReadDiscussion;
+    response: types.ReadDiscussionResponse;
+  };
   ReadForm: { call: types.ReadForm; response: types.ReadResult };
   ReadIllustratorDocument: {
     call: types.ReadIllustratorDocument;
@@ -387,9 +427,9 @@ type ToolParserMap = {
     response: types.RenameDocumentResponse;
   };
   RenameItem: { call: types.RenameItem; response: types.RenameItemResponse };
-  ResolveDocumentComment: {
-    call: types.ResolveDocumentComment;
-    response: types.ResolveDocumentCommentResponse;
+  ResolveComment: {
+    call: types.ResolveComment;
+    response: types.ResolveCommentResponse;
   };
   RunRoutine: { call: types.RunRoutine; response: types.RoutineRunStarted };
   SaveDatabaseQuery: {
@@ -439,6 +479,10 @@ type ToolParserMap = {
   TextEditorCodeExecution: {
     call: types.TextEditorCodeExecution;
     response: types.TextEditorCodeExecutionResponse;
+  };
+  UpdateAgentSessionSharing: {
+    call: types.UpdateAgentSessionSharing;
+    response: types.SessionSharingResponse;
   };
   UpdateBookingSettings: {
     call: types.UpdateBookingSettings;
@@ -496,9 +540,10 @@ const toolParserMap = {
     response: schemas.SpreadsheetResponse,
   },
   ChangeBooking: { call: schemas.ChangeBooking, response: schemas.Booking },
-  CommentOnDocument: {
-    call: schemas.CommentOnDocument,
-    response: schemas.CommentOnDocumentResponse,
+  Comment: { call: schemas.Comment, response: schemas.CommentResponse },
+  CommentOnText: {
+    call: schemas.CommentOnText,
+    response: schemas.CommentOnTextResponse,
   },
   ConfigureAgent: {
     call: schemas.ConfigureAgent,
@@ -511,6 +556,10 @@ const toolParserMap = {
   ContentSearch: {
     call: schemas.ContentSearch,
     response: schemas.SearchToolResponse,
+  },
+  CreateAgentSession: {
+    call: schemas.CreateAgentSession,
+    response: schemas.DispatchedCodingAgent,
   },
   CreateBookingLink: {
     call: schemas.CreateBookingLink,
@@ -564,6 +613,7 @@ const toolParserMap = {
     response: schemas.CreateSkillResponse,
   },
   CreateTag: { call: schemas.CreateTag, response: schemas.CreateTagResponse },
+  Decide: { call: schemas.Decide, response: schemas.DecisionResponse },
   DeleteBot: { call: schemas.DeleteBot, response: schemas.DeleteBotResponse },
   DeleteCalendarEvent: {
     call: schemas.DeleteCalendarEvent,
@@ -577,13 +627,13 @@ const toolParserMap = {
     call: schemas.DeleteChannelMessage,
     response: schemas.DeleteChannelMessageResponse,
   },
+  DeleteComment: {
+    call: schemas.DeleteComment,
+    response: schemas.DeleteCommentResponse,
+  },
   DeleteDatabaseView: {
     call: schemas.DeleteDatabaseView,
     response: schemas.DeletedDatabaseView,
-  },
-  DeleteDocumentComment: {
-    call: schemas.DeleteDocumentComment,
-    response: schemas.DeleteDocumentCommentResponse,
   },
   DeleteImportEntity: {
     call: schemas.DeleteImportEntity,
@@ -598,6 +648,10 @@ const toolParserMap = {
     response: schemas.DeletedRoutine,
   },
   DeleteTag: { call: schemas.DeleteTag, response: schemas.DeleteTagResponse },
+  DescribeCodeTools: {
+    call: schemas.DescribeCodeTools,
+    response: schemas.CodeToolsDescription,
+  },
   DescribeDatabase: {
     call: schemas.DescribeDatabase,
     response: schemas.ToolDatabaseSchema,
@@ -626,13 +680,13 @@ const toolParserMap = {
     call: schemas.EditChannelMessage,
     response: schemas.EditChannelMessageResponse,
   },
+  EditComment: {
+    call: schemas.EditComment,
+    response: schemas.EditCommentResponse,
+  },
   EditDocument: {
     call: schemas.EditDocument,
     response: schemas.EditDocumentResponse,
-  },
-  EditDocumentComment: {
-    call: schemas.EditDocumentComment,
-    response: schemas.EditDocumentCommentResponse,
   },
   EditForm: { call: schemas.EditForm, response: schemas.MutationResult },
   EditPipeline: {
@@ -652,6 +706,14 @@ const toolParserMap = {
     call: schemas.EditWordDocument,
     response: schemas.WordDocumentResponse,
   },
+  ExecuteCode: {
+    call: schemas.ExecuteCode,
+    response: schemas.ExecutionReceipt,
+  },
+  ExportPipelineCsv: {
+    call: schemas.ExportPipelineCsv,
+    response: schemas.ExportPipelineCsvResponse,
+  },
   FindPipelineEntries: {
     call: schemas.FindPipelineEntries,
     response: schemas.FindPipelineEntriesResponse,
@@ -659,6 +721,10 @@ const toolParserMap = {
   GenerateImage: {
     call: schemas.GenerateImage,
     response: schemas.GenerateImageResponse,
+  },
+  GenerateObject: {
+    call: schemas.GenerateObject,
+    response: schemas.GenerateObjectResponse,
   },
   GetBookingInsights: {
     call: schemas.GetBookingInsights,
@@ -685,9 +751,17 @@ const toolParserMap = {
     response: schemas.TeamAvailability,
   },
   GetThread: { call: schemas.GetThread, response: schemas.GetThreadResponse },
+  ImportCompaniesCsv: {
+    call: schemas.ImportCompaniesCsv,
+    response: schemas.ImportCompaniesCsvResponse,
+  },
   ImportNotionPage: {
     call: schemas.ImportNotionPage,
     response: schemas.ImportNotionPageResponse,
+  },
+  ImportPipelineCsv: {
+    call: schemas.ImportPipelineCsv,
+    response: schemas.ImportPipelineCsvResponse,
   },
   IssueBotCredential: {
     call: schemas.IssueBotCredential,
@@ -766,6 +840,10 @@ const toolParserMap = {
     response: schemas.ListTeamMembersResponse,
   },
   LoadTools: { call: schemas.LoadTools, response: schemas.LoadToolsResponse },
+  ManageAgentSession: {
+    call: schemas.ManageAgentSession,
+    response: schemas.SessionActionResult,
+  },
   ManageBotChannelAccess: {
     call: schemas.ManageBotChannelAccess,
     response: schemas.ManageBotChannelAccessResponse,
@@ -814,6 +892,14 @@ const toolParserMap = {
     call: schemas.ReadActivity,
     response: schemas.ReadActivityResponse,
   },
+  ReadAgentSession: {
+    call: schemas.ReadAgentSession,
+    response: schemas.SessionConversation,
+  },
+  ReadAgentSessionSharing: {
+    call: schemas.ReadAgentSessionSharing,
+    response: schemas.SessionSharingResponse,
+  },
   ReadBookingSettings: {
     call: schemas.ReadBookingSettings,
     response: schemas.BookingSettingsResult,
@@ -842,6 +928,10 @@ const toolParserMap = {
   ReadDesign: {
     call: schemas.ReadDesign,
     response: schemas.ReadDesignResponse,
+  },
+  ReadDiscussion: {
+    call: schemas.ReadDiscussion,
+    response: schemas.ReadDiscussionResponse,
   },
   ReadForm: { call: schemas.ReadForm, response: schemas.ReadResult },
   ReadIllustratorDocument: {
@@ -899,9 +989,9 @@ const toolParserMap = {
     call: schemas.RenameItem,
     response: schemas.RenameItemResponse,
   },
-  ResolveDocumentComment: {
-    call: schemas.ResolveDocumentComment,
-    response: schemas.ResolveDocumentCommentResponse,
+  ResolveComment: {
+    call: schemas.ResolveComment,
+    response: schemas.ResolveCommentResponse,
   },
   RunRoutine: { call: schemas.RunRoutine, response: schemas.RoutineRunStarted },
   SaveDatabaseQuery: {
@@ -960,6 +1050,10 @@ const toolParserMap = {
   TextEditorCodeExecution: {
     call: schemas.TextEditorCodeExecution,
     response: schemas.TextEditorCodeExecutionResponse,
+  },
+  UpdateAgentSessionSharing: {
+    call: schemas.UpdateAgentSessionSharing,
+    response: schemas.SessionSharingResponse,
   },
   UpdateBookingSettings: {
     call: schemas.UpdateBookingSettings,
@@ -1028,9 +1122,10 @@ type ToolDataMap = {
     response: types.SpreadsheetResponse;
   };
   ChangeBooking: { call: types.ChangeBooking; response: types.Booking };
-  CommentOnDocument: {
-    call: types.CommentOnDocument;
-    response: types.CommentOnDocumentResponse;
+  Comment: { call: types.Comment; response: types.CommentResponse };
+  CommentOnText: {
+    call: types.CommentOnText;
+    response: types.CommentOnTextResponse;
   };
   ConfigureAgent: {
     call: types.ConfigureAgent;
@@ -1043,6 +1138,10 @@ type ToolDataMap = {
   ContentSearch: {
     call: types.ContentSearch;
     response: types.SearchToolResponse;
+  };
+  CreateAgentSession: {
+    call: types.CreateAgentSession;
+    response: types.DispatchedCodingAgent;
   };
   CreateBookingLink: {
     call: types.CreateBookingLink;
@@ -1093,6 +1192,7 @@ type ToolDataMap = {
   CreateRoutine: { call: types.CreateRoutine; response: types.RoutineInfo };
   CreateSkill: { call: types.CreateSkill; response: types.CreateSkillResponse };
   CreateTag: { call: types.CreateTag; response: types.CreateTagResponse };
+  Decide: { call: types.Decide; response: types.DecisionResponse };
   DeleteBot: { call: types.DeleteBot; response: types.DeleteBotResponse };
   DeleteCalendarEvent: {
     call: types.DeleteCalendarEvent;
@@ -1106,13 +1206,13 @@ type ToolDataMap = {
     call: types.DeleteChannelMessage;
     response: types.DeleteChannelMessageResponse;
   };
+  DeleteComment: {
+    call: types.DeleteComment;
+    response: types.DeleteCommentResponse;
+  };
   DeleteDatabaseView: {
     call: types.DeleteDatabaseView;
     response: types.DeletedDatabaseView;
-  };
-  DeleteDocumentComment: {
-    call: types.DeleteDocumentComment;
-    response: types.DeleteDocumentCommentResponse;
   };
   DeleteImportEntity: {
     call: types.DeleteImportEntity;
@@ -1124,6 +1224,10 @@ type ToolDataMap = {
   };
   DeleteRoutine: { call: types.DeleteRoutine; response: types.DeletedRoutine };
   DeleteTag: { call: types.DeleteTag; response: types.DeleteTagResponse };
+  DescribeCodeTools: {
+    call: types.DescribeCodeTools;
+    response: types.CodeToolsDescription;
+  };
   DescribeDatabase: {
     call: types.DescribeDatabase;
     response: types.ToolDatabaseSchema;
@@ -1152,13 +1256,10 @@ type ToolDataMap = {
     call: types.EditChannelMessage;
     response: types.EditChannelMessageResponse;
   };
+  EditComment: { call: types.EditComment; response: types.EditCommentResponse };
   EditDocument: {
     call: types.EditDocument;
     response: types.EditDocumentResponse;
-  };
-  EditDocumentComment: {
-    call: types.EditDocumentComment;
-    response: types.EditDocumentCommentResponse;
   };
   EditForm: { call: types.EditForm; response: types.MutationResult };
   EditPipeline: {
@@ -1178,6 +1279,11 @@ type ToolDataMap = {
     call: types.EditWordDocument;
     response: types.WordDocumentResponse;
   };
+  ExecuteCode: { call: types.ExecuteCode; response: types.ExecutionReceipt };
+  ExportPipelineCsv: {
+    call: types.ExportPipelineCsv;
+    response: types.ExportPipelineCsvResponse;
+  };
   FindPipelineEntries: {
     call: types.FindPipelineEntries;
     response: types.FindPipelineEntriesResponse;
@@ -1185,6 +1291,10 @@ type ToolDataMap = {
   GenerateImage: {
     call: types.GenerateImage;
     response: types.GenerateImageResponse;
+  };
+  GenerateObject: {
+    call: types.GenerateObject;
+    response: types.GenerateObjectResponse;
   };
   GetBookingInsights: {
     call: types.GetBookingInsights;
@@ -1208,9 +1318,17 @@ type ToolDataMap = {
     response: types.TeamAvailability;
   };
   GetThread: { call: types.GetThread; response: types.GetThreadResponse };
+  ImportCompaniesCsv: {
+    call: types.ImportCompaniesCsv;
+    response: types.ImportCompaniesCsvResponse;
+  };
   ImportNotionPage: {
     call: types.ImportNotionPage;
     response: types.ImportNotionPageResponse;
+  };
+  ImportPipelineCsv: {
+    call: types.ImportPipelineCsv;
+    response: types.ImportPipelineCsvResponse;
   };
   IssueBotCredential: {
     call: types.IssueBotCredential;
@@ -1274,6 +1392,10 @@ type ToolDataMap = {
     response: types.ListTeamMembersResponse;
   };
   LoadTools: { call: types.LoadTools; response: types.LoadToolsResponse };
+  ManageAgentSession: {
+    call: types.ManageAgentSession;
+    response: types.SessionActionResult;
+  };
   ManageBotChannelAccess: {
     call: types.ManageBotChannelAccess;
     response: types.ManageBotChannelAccessResponse;
@@ -1316,6 +1438,14 @@ type ToolDataMap = {
     call: types.ReadActivity;
     response: types.ReadActivityResponse;
   };
+  ReadAgentSession: {
+    call: types.ReadAgentSession;
+    response: types.SessionConversation;
+  };
+  ReadAgentSessionSharing: {
+    call: types.ReadAgentSessionSharing;
+    response: types.SessionSharingResponse;
+  };
   ReadBookingSettings: {
     call: types.ReadBookingSettings;
     response: types.BookingSettingsResult;
@@ -1339,6 +1469,10 @@ type ToolDataMap = {
   ReadChat: { call: types.ReadChat; response: types.ReadChatResponse };
   ReadContent: { call: types.ReadContent; response: types.ReadContentResponse };
   ReadDesign: { call: types.ReadDesign; response: types.ReadDesignResponse };
+  ReadDiscussion: {
+    call: types.ReadDiscussion;
+    response: types.ReadDiscussionResponse;
+  };
   ReadForm: { call: types.ReadForm; response: types.ReadResult };
   ReadIllustratorDocument: {
     call: types.ReadIllustratorDocument;
@@ -1389,9 +1523,9 @@ type ToolDataMap = {
     response: types.RenameDocumentResponse;
   };
   RenameItem: { call: types.RenameItem; response: types.RenameItemResponse };
-  ResolveDocumentComment: {
-    call: types.ResolveDocumentComment;
-    response: types.ResolveDocumentCommentResponse;
+  ResolveComment: {
+    call: types.ResolveComment;
+    response: types.ResolveCommentResponse;
   };
   RunRoutine: { call: types.RunRoutine; response: types.RoutineRunStarted };
   SaveDatabaseQuery: {
@@ -1441,6 +1575,10 @@ type ToolDataMap = {
   TextEditorCodeExecution: {
     call: types.TextEditorCodeExecution;
     response: types.TextEditorCodeExecutionResponse;
+  };
+  UpdateAgentSessionSharing: {
+    call: types.UpdateAgentSessionSharing;
+    response: types.SessionSharingResponse;
   };
   UpdateBookingSettings: {
     call: types.UpdateBookingSettings;

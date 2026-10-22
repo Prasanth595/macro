@@ -17,6 +17,7 @@ export type EmailQueryContext = {
   tab: EmailTab;
   /** `undefined` = every linked inbox; `[]` = none; otherwise email link ids. */
   inboxIds: string[] | undefined;
+  aliasFilter?: { inboxId: string; emailAddress: string };
   facets: FacetSelection;
   facetContext: EmailFacetContext;
   /** Macro favorite IDs used only by the separate text-search service. */
@@ -46,7 +47,7 @@ export const emailViewForTab = (tab: EmailTab): string =>
       'focus',
       () => 'all'
     )
-    .exhaustive();
+    .exhaustive(() => 'all');
 
 const anyThread = (): TargetExpr => clause.not(clause.eq('threadId', NIL_UUID));
 
@@ -103,7 +104,7 @@ function tabClause(context: EmailQueryContext): TargetExpr {
         'focus',
         anyThread
       )
-      .exhaustive()
+      .exhaustive(anyThread)
   );
 }
 
@@ -131,6 +132,19 @@ export function buildEmailQuery(
   }
   const inbox = inboxClause(context.inboxIds);
   if (inbox) expressions.push(inbox);
+  if (context.aliasFilter) {
+    const { inboxId, emailAddress } = context.aliasFilter;
+    const address = emailAddress.toLowerCase();
+    expressions.push(
+      clause.eq('emailLinkId', inboxId),
+      clause.or(
+        clause.eq('emailSenderAddress', address),
+        clause.eq('emailRecipientAddress', address),
+        clause.eq('emailCcAddress', address),
+        clause.eq('emailBccAddress', address)
+      )
+    );
+  }
 
   const base = compileClause(confine({ ef: clause.and(...expressions) }));
   const refinements = compileFacets(
@@ -146,6 +160,7 @@ export function buildEmailQuery(
 
   // Newest activity first: `updated_at` is the thread's latest message time.
   return {
+    ...(context.aliasFilter ? { transport: 'graphql' as const } : {}),
     params: {
       expand: true,
       limit: 100,

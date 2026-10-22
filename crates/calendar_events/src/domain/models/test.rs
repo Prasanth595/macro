@@ -75,6 +75,7 @@ fn sync_plan_extends_only_the_uncovered_tail() {
     let materialized = OccurrenceRange::historical_sync(now);
     let stored = StoredGoogleCalendar {
         id: Uuid::now_v7(),
+        team_ooo_changed: false,
         sync_token: Some("token".to_string()),
         materialized_range: Some(materialized.clone()),
         synced_at: None,
@@ -107,6 +108,7 @@ fn sync_plan_extends_only_the_uncovered_tail() {
 
     let uninitialized = StoredGoogleCalendar {
         id: Uuid::now_v7(),
+        team_ooo_changed: false,
         sync_token: None,
         materialized_range: Some(materialized.clone()),
         synced_at: None,
@@ -120,6 +122,7 @@ fn sync_plan_extends_only_the_uncovered_tail() {
 
     let unmaterialized = StoredGoogleCalendar {
         id: Uuid::now_v7(),
+        team_ooo_changed: false,
         sync_token: Some("token".to_string()),
         materialized_range: None,
         synced_at: None,
@@ -137,6 +140,7 @@ fn watch_renewal_skips_calendars_that_recently_refused_push() {
     let now = Utc.with_ymd_and_hms(2026, 9, 23, 12, 0, 0).unwrap();
     let calendar = StoredGoogleCalendar {
         id: Uuid::now_v7(),
+        team_ooo_changed: false,
         sync_token: None,
         materialized_range: None,
         synced_at: None,
@@ -245,6 +249,8 @@ fn default_reminders_stay_out_of_serialized_projections() {
         is_read_only: false,
         attendees: Vec::new(),
         reminders: EventReminders::default(),
+        guest_policy: GuestPolicy::default(),
+        viewer_can: ViewerCapabilities::NONE,
         created_at: starts_at,
         updated_at: starts_at,
     };
@@ -259,9 +265,26 @@ fn default_reminders_stay_out_of_serialized_projections() {
     assert!(serialized.get("creatorName").is_none());
     assert!(serialized.get("eventType").is_none());
     assert!(serialized.get("sources").is_none());
-    let legacy: CalendarEvent = serde_json::from_value(serialized).unwrap();
+    // Every event response carries the guest policy and the viewer's
+    // capabilities, defaults included; source projections strip both.
+    assert_eq!(
+        serialized["guestPolicy"],
+        serde_json::json!({
+            "canModify": false,
+            "canInviteOthers": true,
+            "canSeeOtherGuests": true
+        })
+    );
+    assert_eq!(serialized["viewerCan"]["inviteGuests"], false);
+    let mut legacy = serialized;
+    let fields = legacy.as_object_mut().unwrap();
+    fields.remove("guestPolicy");
+    fields.remove("viewerCan");
+    let legacy: CalendarEvent = serde_json::from_value(legacy).unwrap();
     assert_eq!(legacy.reminders, EventReminders::default());
     assert_eq!(legacy.event_type, EventType::Default);
+    assert_eq!(legacy.guest_policy, GuestPolicy::default());
+    assert_eq!(legacy.viewer_can, ViewerCapabilities::NONE);
 
     event.event_type = EventType::WorkingLocation;
     let serialized = serde_json::to_value(&event).unwrap();

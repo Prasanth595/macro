@@ -1,19 +1,27 @@
+import { useCreateContext } from '@app/features/command/context/create-context';
 import { useQuickAccessCrmCompaniesQuery } from '@app/features/crm/crm-search';
 import { withEntityNotifications } from '@app/features/soup/entity-notifications';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
+import { useSplitLayout } from '@components/app/split-layout/layout';
+import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
 import { toast } from '@core/component/Toast/Toast';
 import {
+  enableCrmActivity,
   enableCrmLists,
   enableCrmPipelines,
 } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
-import { getInitialsFromName } from '@core/user';
+import { useProfilePictureUrl } from '@core/signal/profilePicture';
+import { emailToMacroId, getInitialsFromName } from '@core/user';
 import { idToEmail } from '@core/user/util';
 import { queryReadyGate } from '@queries/gate';
 import { useListPropertiesQuery } from '@queries/properties/definitions';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';
-import { useSoupAstItemsQuery } from '@queries/soup/items';
+import {
+  type SoupAstItemsQuery,
+  useSoupAstItemsQuery,
+} from '@queries/soup/items';
 import { getSoupEntityById } from '@queries/soup/normalized-cache';
 import {
   invalidateUserTeams,
@@ -34,17 +42,17 @@ import {
 import { createAppCrmDisplayOptions } from './display-adapter';
 import { downloadCrmCsv } from './download-adapter';
 import {
+  copyCrmPipelineLink,
   copyCrmRecordLink,
   copyCrmViewLink,
   createAppCrmNavigation,
 } from './navigation-adapter';
 import { PipelineDatabaseEditor, PipelineShare } from './pipeline-adapter';
 import { createCrmPipelineEntries } from './pipeline-entries-adapter';
+import { createCrmPermissions } from './primitives/team-config';
+import { useCrmActivityQuery } from './queries/activity';
 import {
-  createClosedStageIds,
-  createCrmPermissions,
-} from './primitives/team-config';
-import {
+  createCompanyImporter,
   useCompanyQuery,
   useCreateCompanyMutation,
   useCreateContactMutation,
@@ -61,10 +69,13 @@ import {
 } from './queries/contacts';
 import { fetchCrmExportCompanies } from './queries/export';
 import { useCrmLists } from './queries/lists';
+import { createPipelineTransfer } from './queries/pipeline-transfer';
 import { createPipelinesSource } from './queries/pipelines';
 import {
+  recordListFailure,
   useRecordCallsQuery,
   useRecordFilesQuery,
+  useRecordReferencesQuery,
 } from './queries/record-items';
 import { usePersonalCrmViews, useTeamCrmViews } from './queries/saved-views';
 import { usePatchTeamCrmSettingsMutation } from './queries/settings-commands';
@@ -73,7 +84,9 @@ import {
   useResetCrmStagesMutation,
 } from './queries/stages';
 import { useTeamCrmConfig } from './queries/team-config';
+import { useQuickAccessCrmContactsQuery } from './record-adapter';
 import { createAppDealStages } from './stage-adapter';
+import { crmTaskComposerContext } from './task-composer';
 
 // Loaded on demand: the Tasks list imports soup, which imports CRM entry points.
 const CrmRecordTasks = lazy(async () => ({
@@ -84,7 +97,7 @@ const CrmRecordTasks = lazy(async () => ({
  * Soup rows carry raw notification arrays; `ListEntity` reads them through
  * an accessor bound to the app's notification source, as other lists do.
  */
-function withRowNotifications(source: ItemListSource): ItemListSource {
+function withRowNotifications(source: SoupAstItemsQuery): ItemListSource {
   const notificationSource = useGlobalNotificationSource();
   // Reading `data` before the first page resolves would suspend the tab.
   const data = createMemo(() =>
@@ -115,7 +128,14 @@ function withRowNotifications(source: ItemListSource): ItemListSource {
     get isFetchingNextPage() {
       return source.isFetchingNextPage;
     },
+    get isError() {
+      return recordListFailure(source).isError;
+    },
+    get isFetchNextPageError() {
+      return recordListFailure(source).isFetchNextPageError;
+    },
     fetchNextPage: () => source.fetchNextPage(),
+    refetch: () => source.refetch(),
   };
 }
 
@@ -152,8 +172,18 @@ export function createAppCrmContext(): CrmContext {
     feedback: toast,
   };
   const userId = useUserId();
+  const layout = useSplitLayout();
+  const panel = useSplitPanel();
+  const createContext = useCreateContext();
+  const activityFlag = useFeatureFlag(enableCrmActivity);
   const createSettings = () => useTeamCrmConfig(deps);
   return {
+    registerTaskComposerRecord(source) {
+      if (!panel) return () => {};
+      return createContext.register(panel.handle.id, () => ({
+        task: activityFlag().enabled ? crmTaskComposerContext(source()) : null,
+      }));
+    },
     createPipelines: (teamId) => createPipelinesSource(deps, teamId),
     PipelineEditor: PipelineDatabaseEditor,
     PipelineEntries: createCrmPipelineEntries({
@@ -161,13 +191,18 @@ export function createAppCrmContext(): CrmContext {
       storage: deps.storage,
     }),
     PipelineSharing: PipelineShare,
+    createPipelineTransfer: (pipeline) =>
+      createPipelineTransfer(deps, pipeline),
     feedback: toast,
     downloadCsv: downloadCrmCsv,
+    createContactPhoto: (email) =>
+      useProfilePictureUrl(emailToMacroId(email))[0],
     contactInitials: getInitialsFromName,
     userEmail: idToEmail,
     createNavigation: createAppCrmNavigation,
     copyRecordLink: copyCrmRecordLink,
     copyViewLink: copyCrmViewLink,
+    copyPipelineLink: copyCrmPipelineLink,
     listsEnabled() {
       const flag = useFeatureFlag(enableCrmLists);
       return () => flag().enabled;
@@ -184,10 +219,28 @@ export function createAppCrmContext(): CrmContext {
       withRowNotifications(
         useContactEmailsQuery(useSoupAstItemsQuery, ...args)
       ),
+    createActivity: (tab) =>
+      withRowNotifications(
+        useCrmActivityQuery(deps, useSoupAstItemsQuery, tab, userId)
+      ),
+    openTaskComposer: () =>
+      layout.popoverSplit({
+        type: 'component',
+        id: 'task-compose',
+        params: {
+          composerContext: panel
+            ? createContext.snapshot('task', panel.handle.id)
+            : undefined,
+        },
+      }),
     createRecordFiles: (scope) =>
       withRowNotifications(useRecordFilesQuery(useSoupAstItemsQuery, scope)),
     createRecordCalls: (scope) =>
       withRowNotifications(useRecordCallsQuery(useSoupAstItemsQuery, scope)),
+    createRecordReferences: (scope) =>
+      withRowNotifications(
+        useRecordReferencesQuery(useSoupAstItemsQuery, scope)
+      ),
     RecordTasks: CrmRecordTasks,
     createPropertyCommands: useBulkSaveEntityPropertiesMutation,
     createSettingsCommands: () =>
@@ -201,6 +254,7 @@ export function createAppCrmContext(): CrmContext {
     exportCompanies: (...args) =>
       fetchCrmExportCompanies(deps.storage, ...args),
     createCompanySuggestions: useQuickAccessCrmCompaniesQuery,
+    createContactSuggestions: useQuickAccessCrmContactsQuery,
     hydrateCompany(company) {
       if (company.properties) return company;
       const cached = getSoupEntityById(company.id);
@@ -249,12 +303,11 @@ export function createAppCrmContext(): CrmContext {
     createCapabilities: () =>
       createCrmPermissions(userId, useCurrentTeamQuery(), createSettings()),
     createDealStages: createAppDealStages,
-    createClosedStageIds: (stages) =>
-      createClosedStageIds(createSettings(), stages),
     createPersonalViews: () => usePersonalCrmViews(deps),
     createTeamViews: () => useTeamCrmViews(deps, userId, createSettings()),
     createLists: (teamId) => useCrmLists(deps, teamId),
     createCompany: (...args) => useCreateCompanyMutation(deps, ...args),
+    createCompanyImporter: () => createCompanyImporter(deps),
     createContact: (...args) => useCreateContactMutation(deps, ...args),
     renameCompany: (...args) => useSetCompanyNameMutation(deps, ...args),
     renameContact: (...args) => useSetContactNameMutation(deps, ...args),

@@ -51,9 +51,10 @@ import {
   createSnippet,
 } from '@core/util/create';
 import { createControlledOpenSignal } from '@core/util/createControlledOpenSignal';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Dialog } from '@kobalte/core/dialog';
 import { getMarkdownGoldenBytes } from '@macro-inc/lexical-core/markdown-golden';
-import type { Span } from '@macro-inc/observability';
+import { type Span, Telemetry } from '@macro-inc/observability';
 import ChatIcon from '@phosphor/chat.svg';
 import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import PlusIcon from '@phosphor/plus.svg';
@@ -83,6 +84,10 @@ import {
 } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { Dynamic } from 'solid-js/web';
+import {
+  type PaneCreateContext,
+  useCreateContext,
+} from './context/create-context';
 import type { CreateMenuSection } from './core/create-menu-details';
 import {
   launcherItemKey,
@@ -91,7 +96,7 @@ import {
 } from './core/launcher-history';
 import { createCallCommand } from './create-call-command';
 import { MobileCreateSheet } from './mobile/MobileCreateSheet';
-import type { CreatableBlock, CreatableName } from './types';
+import type { CreatableBlock, CreatableName, OpenCreatedItem } from './types';
 
 const LAUNCHER_FRECENCY_STORE = 'launcher-frecency-v1';
 const LAUNCHER_SEARCH_MODE_STORE = 'launcher-search-mode-v1';
@@ -108,7 +113,7 @@ const [launcherFrecencyStore, setLauncherFrecencyStore] = makePersisted(
   { name: LAUNCHER_FRECENCY_STORE }
 );
 const [launcherSearchMode, setLauncherSearchModePreference] = makePersisted(
-  createSignal(false),
+  createSignal(true),
   { name: LAUNCHER_SEARCH_MODE_STORE }
 );
 
@@ -150,17 +155,19 @@ const createBlock = async (spec: {
   createFn: () => Promise<string | undefined>;
   loading?: boolean;
   shouldInsert?: boolean;
+  openCreated?: OpenCreatedItem;
   /** Active creation span; registered by document id after creation. */
   span?: Span;
 }) => {
   const { openWithSplit } = useSplitLayout();
-  const { blockName, createFn, loading, span } = spec;
+  const { blockName, createFn, loading, openCreated, span } = spec;
 
   setCreateMenuOpen(false, false);
 
   // On mobile, navigate directly after creation instead of showing an
-  // intermediate loading pane during the swipe transition.
-  const showLoadingFirst = loading && !isMobile();
+  // intermediate loading pane during the swipe transition. The loading pane
+  // would also unmount a surface that opens the document itself.
+  const showLoadingFirst = loading && !isMobile() && !openCreated;
 
   const split = showLoadingFirst
     ? openWithSplit(
@@ -179,6 +186,11 @@ const createBlock = async (spec: {
 
   span?.setAttr('document.id', id);
   if (span) registerDocumentSpan(id, span);
+
+  if (openCreated?.({ blockName, id })) {
+    span?.event('doc.navigated');
+    return;
+  }
 
   // If we are creating a new markdown document "from scratch" then we can let
   // them instantly start editing
@@ -214,7 +226,9 @@ const createBlock = async (spec: {
   span?.event('doc.navigated');
 };
 
-const createComponent = async (spec: {
+const reportCreateBlockError = (error: unknown) =>
+  Telemetry.error(error, { surface: 'launcher' });
+const createComponent = (spec: {
   componentId: string;
   shouldInsert?: boolean;
   asPopover?: boolean;
@@ -252,9 +266,14 @@ export function runCreateAction(
     source?: string;
     projectId?: string;
     destination?: string;
+    /** Creatables that open a composer instead ignore it. */
+    openCreated?: OpenCreatedItem;
+    /** Plain defaults supplied by the caller, never resolved from global state. */
+    context?: PaneCreateContext;
   } = {}
 ) {
   const shouldInsert = options.shouldInsert ?? false;
+  const openCreated = options.openCreated;
   // Creation analytics fire at the data-layer chokepoints (create.ts /
   // projects.ts); `source` just attributes which surface initiated it.
   const source = options.source ?? 'create_menu';
@@ -264,7 +283,7 @@ export function runCreateAction(
       const span = startDocumentSpan('doc.create');
       span.setAttr('doc.type', 'md');
       span.setAttr('doc.source', source);
-      void span
+      span
         .run(() =>
           createBlock({
             blockName: 'md',
@@ -278,27 +297,32 @@ export function runCreateAction(
                 source,
               }),
             shouldInsert,
+            openCreated,
           })
         )
         .catch((error) => {
           span.error(error);
           endTrackedDocumentSpan(span);
-          throw error;
+          reportCreateBlockError(error);
         });
       return;
     }
     case 'spreadsheet':
       if (!isSpreadsheetEnabledForCurrentUser()) return;
-      void createBlock({
-        blockName: 'spreadsheet',
-        loading: true,
-        createFn: () =>
-          createSpreadsheetDocument({
-            projectId: options.projectId,
-            source,
-          }),
-        shouldInsert,
-      });
+      fireAndForget(
+        createBlock({
+          blockName: 'spreadsheet',
+          loading: true,
+          createFn: () =>
+            createSpreadsheetDocument({
+              projectId: options.projectId,
+              source,
+            }),
+          shouldInsert,
+          openCreated,
+        }),
+        'launcher'
+      );
       return;
     case 'psd':
       if (!isFeatureEnabled(enablePsdEditor)) return;
@@ -308,7 +332,8 @@ export function runCreateAction(
         createFn: () =>
           createPsdDocument({ projectId: options.projectId, source }),
         shouldInsert,
-      });
+        openCreated,
+      }).catch(reportCreateBlockError);
       return;
     case 'fig':
       if (!isFeatureEnabled(enableFigViewer)) return;
@@ -318,7 +343,8 @@ export function runCreateAction(
         createFn: () =>
           createFigDocument({ projectId: options.projectId, source }),
         shouldInsert,
-      });
+        openCreated,
+      }).catch(reportCreateBlockError);
       return;
     case 'ai':
       if (!isFeatureEnabled(enableAiEditor)) return;
@@ -328,7 +354,8 @@ export function runCreateAction(
         createFn: () =>
           createAiDocument({ projectId: options.projectId, source }),
         shouldInsert,
-      });
+        openCreated,
+      }).catch(reportCreateBlockError);
       return;
     case 'canvas':
       createBlock({
@@ -345,12 +372,14 @@ export function runCreateAction(
           return result.documentId ?? undefined;
         },
         shouldInsert,
-      });
+        openCreated,
+      }).catch(reportCreateBlockError);
       return;
     case 'task':
       createComponent({
         componentId: 'task-compose',
         asPopover: true,
+        params: { composerContext: options.context?.task ?? undefined },
       });
       return;
     case 'initiative':
@@ -372,7 +401,8 @@ export function runCreateAction(
             source,
           }),
         shouldInsert,
-      });
+        openCreated,
+      }).catch(reportCreateBlockError);
       return;
     case 'email':
       // Focus the "To" field within this gesture so the iOS keyboard opens;
@@ -417,7 +447,8 @@ export function runCreateAction(
           return result.chatId;
         },
         shouldInsert,
-      });
+        openCreated,
+      }).catch(reportCreateBlockError);
       return;
     case 'project':
       createComponent({
@@ -447,7 +478,8 @@ export function runCreateAction(
           return created.value;
         },
         shouldInsert,
-      });
+        openCreated,
+      }).catch(reportCreateBlockError);
       return;
     case 'form':
       if (!isFeatureEnabled(enableForms)) return;
@@ -466,7 +498,8 @@ export function runCreateAction(
           return created.value.form.id;
         },
         shouldInsert,
-      });
+        openCreated,
+      }).catch(reportCreateBlockError);
       return;
     case 'code':
       createBlock({
@@ -484,7 +517,8 @@ export function runCreateAction(
           return result.value.documentId ?? undefined;
         },
         shouldInsert,
-      });
+        openCreated,
+      }).catch(reportCreateBlockError);
       return;
     case 'routine':
       createComponent({ componentId: 'routine-compose', asPopover: true });
@@ -531,9 +565,22 @@ export function runCreateAction(
   }
 }
 
+/** Capture the provider during setup; snapshot only when the action runs. */
+export function useCreateAction(): typeof runCreateAction {
+  const context = useCreateContext();
+  return (name, options = {}) =>
+    runCreateAction(name, {
+      ...options,
+      context:
+        options.context ??
+        (name === 'task' ? { task: context.snapshot('task') } : undefined),
+    });
+}
 export type { CreatableBlock, CreatableName } from './types';
 
-export const CREATABLE_BLOCKS: CreatableBlock[] = [
+const createBlocks = (
+  createAction: typeof runCreateAction
+): CreatableBlock[] => [
   {
     label: 'Email',
     icon: getIconConfig('email').icon,
@@ -544,7 +591,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.emailNewSplit,
     hotkey: 'e',
     keyDownHandler: () => {
-      runCreateAction('email', { shouldInsert: pressedKeys().has('shift') });
+      createAction('email', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -567,7 +614,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     registrationType: 'add',
     enabled: () => !isFeatureEnabled(enableChatV3Agents),
     keyDownHandler: () => {
-      runCreateAction('chat', { shouldInsert: pressedKeys().has('shift') });
+      createAction('chat', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -581,7 +628,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     hotkeyToken: TOKENS.create.routine,
     hotkey: 'u',
     keyDownHandler: () => {
-      runCreateAction('routine');
+      createAction('routine');
       return true;
     },
   },
@@ -598,7 +645,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     registrationType: 'add',
     enabled: () => isFeatureEnabled(enableChatV3Agents),
     keyDownHandler: () => {
-      runCreateAction('agent', { shouldInsert: pressedKeys().has('shift') });
+      createAction('agent', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -614,7 +661,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.databaseNewSplit,
     hotkey: 'l',
     keyDownHandler: () => {
-      runCreateAction('database', { shouldInsert: pressedKeys().has('shift') });
+      createAction('database', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -630,7 +677,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.formNewSplit,
     hotkey: 'q',
     keyDownHandler: () => {
-      runCreateAction('form', { shouldInsert: pressedKeys().has('shift') });
+      createAction('form', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -644,7 +691,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     hotkeyToken: TOKENS.create.skill,
     hotkey: 'k',
     keyDownHandler: () => {
-      runCreateAction('skill');
+      createAction('skill');
       return true;
     },
   },
@@ -658,7 +705,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.noteNewSplit,
     hotkey: 'd',
     keyDownHandler: () => {
-      runCreateAction('md', { shouldInsert: pressedKeys().has('shift') });
+      createAction('md', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -672,7 +719,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.taskNewSplit,
     hotkey: 't' as const,
     keyDownHandler: () => {
-      runCreateAction('task');
+      createAction('task');
       return true;
     },
   },
@@ -686,7 +733,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     hotkeyToken: TOKENS.create.initiative,
     hotkey: 'p',
     keyDownHandler: () => {
-      runCreateAction('initiative');
+      createAction('initiative');
       return true;
     },
   },
@@ -701,7 +748,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.snippetNewSplit,
     hotkey: 's' as const,
     keyDownHandler: () => {
-      runCreateAction('snippet', { shouldInsert: pressedKeys().has('shift') });
+      createAction('snippet', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -716,7 +763,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.messageNewSplit,
     hotkey: 'm',
     keyDownHandler: () => {
-      runCreateAction('channel', { shouldInsert: pressedKeys().has('shift') });
+      createAction('channel', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -745,7 +792,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.canvasNewSplit,
     hotkey: 'n',
     keyDownHandler: () => {
-      runCreateAction('canvas', {
+      createAction('canvas', {
         shouldInsert: pressedKeys().has('shift'),
       });
       return true;
@@ -763,7 +810,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.photoshopNewSplit,
     hotkey: 'h',
     keyDownHandler: () => {
-      runCreateAction('psd', { shouldInsert: pressedKeys().has('shift') });
+      createAction('psd', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -779,7 +826,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.designNewSplit,
     hotkey: 'i',
     keyDownHandler: () => {
-      runCreateAction('fig', { shouldInsert: pressedKeys().has('shift') });
+      createAction('fig', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -803,7 +850,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.illustrationNewSplit,
     hotkey: 'v',
     keyDownHandler: () => {
-      runCreateAction('ai', { shouldInsert: pressedKeys().has('shift') });
+      createAction('ai', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -819,7 +866,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.spreadsheetNewSplit,
     hotkey: 'b',
     keyDownHandler: () => {
-      runCreateAction('spreadsheet', {
+      createAction('spreadsheet', {
         shouldInsert: pressedKeys().has('shift'),
       });
       return true;
@@ -835,7 +882,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.projectNewSplit,
     hotkey: 'f',
     keyDownHandler: () => {
-      runCreateAction('project', { shouldInsert: pressedKeys().has('shift') });
+      createAction('project', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -849,18 +896,20 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.codeNewSplit,
     hotkey: 'o',
     keyDownHandler: () => {
-      runCreateAction('code', { shouldInsert: pressedKeys().has('shift') });
+      createAction('code', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
 ];
+
+export const CREATABLE_BLOCKS = createBlocks(runCreateAction);
 
 /** Router-backed commands are bound once in each host's component owner. */
 export function useCreateCommands(): CreatableBlock[] {
   const navigate = useNavigate();
   const quickCalls = useQuickCallsFlag();
   return [
-    ...CREATABLE_BLOCKS,
+    ...createBlocks(useCreateAction()),
     createCallCommand({
       navigate,
       close: () => setCreateMenuOpen(false, false),
@@ -939,8 +988,6 @@ type LauncherMenuItemProps = {
 };
 
 export const LauncherMenuItem = (props: LauncherMenuItemProps) => {
-  const selectedIconColor = () =>
-    getIconConfig(props.creatableBlock.blockName).foreground;
   const launcherHint = () => props.creatableBlock.launcherHint;
 
   return (
@@ -948,7 +995,7 @@ export const LauncherMenuItem = (props: LauncherMenuItemProps) => {
       <div
         class={cn(
           'size-4 shrink-0 text-ink-extra-muted transition-colors',
-          props.selected && selectedIconColor()
+          props.selected && 'text-ink'
         )}
       >
         <Dynamic component={props.creatableBlock.icon} />
@@ -998,6 +1045,7 @@ type LauncherBodyState = {
 export const LauncherShell = (
   props: LauncherInnerProps & {
     children: (state: LauncherBodyState) => JSX.Element;
+    footerAction?: (state: LauncherBodyState) => JSX.Element;
     class?: string;
     horizontalNavigation?: boolean;
     groupItems?: (
@@ -1234,6 +1282,25 @@ export const LauncherShell = (
 
   onCleanup(hkGroup.dispose);
 
+  const bodyState: LauncherBodyState = {
+    sections,
+    blocks,
+    selectedIndex: focusedIndex,
+    searchMode,
+    shiftHeld,
+    itemId: (item) => `create-menu-${launcherItemKey(item)}`,
+    select: listController.setSelectedIndexFromPointer,
+    step: (direction) => {
+      const count = blocks().length;
+      if (count)
+        listController.setSelectedIndex(
+          (((focusedIndex() + direction) % count) + count) % count
+        );
+    },
+    choose: runLauncherItem,
+    scrollSelectedIntoView: listController.shouldScrollSelectedIntoView,
+  };
+
   return (
     // The shared shell stopped painting its own pane (cmd+k gets one from the
     // app Dialog wrapper); this raw-Kobalte dialog carries it here.
@@ -1300,26 +1367,14 @@ export const LauncherShell = (
           />
         </CommandMenuShell.Header>
         <CommandMenuShell.Body class="touch:flex touch:flex-col">
-          {props.children({
-            sections,
-            blocks,
-            selectedIndex: focusedIndex,
-            searchMode,
-            shiftHeld,
-            itemId: (item) => `create-menu-${launcherItemKey(item)}`,
-            select: listController.setSelectedIndexFromPointer,
-            step: (direction) => {
-              const count = blocks().length;
-              if (count)
-                listController.setSelectedIndex(
-                  (((focusedIndex() + direction) % count) + count) % count
-                );
-            },
-            choose: runLauncherItem,
-            scrollSelectedIntoView: listController.shouldScrollSelectedIntoView,
-          })}
+          {props.children(bodyState)}
         </CommandMenuShell.Body>
-        <CommandMenuShell.Footer class="touch:px-6 touch:py-4">
+        <CommandMenuShell.Footer
+          class={cn(
+            'relative touch:px-6 touch:py-4',
+            props.footerAction && 'min-h-12 gap-3 border-t border-edge-divider'
+          )}
+        >
           <style>{`
               @keyframes shift-ripple {
                 0%   { transform: scale(1); opacity: 0.6; }
@@ -1329,42 +1384,44 @@ export const LauncherShell = (
                 animation: shift-ripple 0.35s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
               }
             `}</style>
-          <span class="flex items-center gap-1">
-            <div class="flex gap-1">
-              <div class="flex w-7 justify-center border border-ink/12 text-xxs rounded-md items-center px-1.5 py-px font-normal">
-                <Hotkey
-                  shortcut={searchMode() ? 'arrowup' : navUpHotkey.hotkey()}
-                  class="space-x-1"
-                />
-              </div>
-              <div class="flex w-7 justify-center border border-ink/12 text-xxs rounded-md items-center px-1.5 py-px font-normal">
-                <Hotkey
-                  shortcut={searchMode() ? 'arrowdown' : navDownHotkey.hotkey()}
-                  class="space-x-1"
-                />
-              </div>
-            </div>
+          <span
+            class={cn(
+              'flex items-center gap-1.5',
+              props.footerAction && 'hidden sm:flex'
+            )}
+          >
+            <span class="flex gap-0.5">
+              <Hotkey
+                shortcut={searchMode() ? 'arrowup' : navUpHotkey.hotkey()}
+                class="min-w-3 justify-center"
+              />
+              <Hotkey
+                shortcut={searchMode() ? 'arrowdown' : navDownHotkey.hotkey()}
+                class="min-w-3 justify-center"
+              />
+            </span>
             Navigate
           </span>
-          <span class="flex items-center gap-1">
-            <div class="flex w-7 justify-center border border-ink/12 text-xxs rounded-md items-center px-1.5 py-px font-normal">
-              <Hotkey shortcut={confirmHotkey.hotkey()} />
-            </div>
-            Create
-          </span>
-          <span class="hidden touch:hidden md:flex items-center gap-1">
+          <Show when={!props.footerAction}>
+            <span class="flex items-center gap-1.5">
+              <Hotkey
+                shortcut={confirmHotkey.hotkey()}
+                class="min-w-3 justify-center"
+              />
+              Create
+            </span>
+          </Show>
+          <span class="hidden touch:hidden md:flex items-center gap-1.5">
             Hold
             <span class="relative inline-flex place-items-center">
               <span
                 ref={shiftRippleRef}
-                class="shift-ripple absolute inset-0 rounded-sm border border-accent pointer-events-none opacity-0"
+                class="shift-ripple absolute inset-0 rounded-sm bg-ink/10 pointer-events-none opacity-0"
               />
               <span
                 class={cn(
-                  'border text-xxs px-1.5 py-px rounded-md transition-colors duration-150',
-                  shiftHeld()
-                    ? 'border-accent text-accent bg-accent/10'
-                    : 'border-ink/12'
+                  'min-w-3 text-xxs px-0.5 py-px rounded-sm text-center transition-colors duration-150',
+                  shiftHeld() ? 'bg-ink/10 text-ink' : 'text-ink-extra-muted'
                 )}
               >
                 {getNormalizedKeyString({ shortcut: 'shift' })}
@@ -1372,6 +1429,11 @@ export const LauncherShell = (
             </span>
             New split
           </span>
+          <Show when={props.footerAction}>
+            {(action) => (
+              <div class="absolute right-2 bottom-2">{action()(bodyState)}</div>
+            )}
+          </Show>
         </CommandMenuShell.Footer>
       </CommandMenuShell>
     </div>

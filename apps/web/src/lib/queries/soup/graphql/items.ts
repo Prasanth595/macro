@@ -16,6 +16,7 @@ import {
   mapSoupPageToEntityList,
 } from '../transform-utils';
 import { makeGraphqlSoupInput } from './ast';
+import type { GroupedSoupPaging } from './create-grouped-soup-live-query';
 import {
   createSoupLiveQuery,
   type SoupLiveQueryOptions,
@@ -36,6 +37,7 @@ export type GraphqlSoupAstItemsQueryOptions = SoupLiveQueryOptions & {
 };
 
 export type GraphqlSoupAstItemsQuery = {
+  groupedPaging?: GroupedSoupPaging;
   localRevision?: Accessor<CacheRevision | undefined>;
   localOptimistic?: Accessor<boolean>;
   data: Accessor<SoupAstItemsData | undefined>;
@@ -47,6 +49,8 @@ export type GraphqlSoupAstItemsQuery = {
   isLoading: Accessor<boolean>;
   isFetching: Accessor<boolean>;
   isFetchingNextPage: Accessor<boolean>;
+  /** The current error came from loading a continuation page. */
+  isFetchNextPageError: Accessor<boolean>;
   isPlaceholderData: Accessor<boolean>;
   hasNextPage: Accessor<boolean>;
   fetchNextPage: () => Promise<void>;
@@ -111,12 +115,13 @@ export function createGraphqlSoupAstItemsQuery(
       const id = instructionsId();
       const sort = sortMethod();
       const showSupportedForeignEntities = showForeign();
-      const item = mapGraphqlSoupItem(record);
+      const view = { emailView: input()?.emailView };
+      const item = mapGraphqlSoupItem(record, view);
       const fetchedItem =
         fetched === record
           ? item
           : fetched
-            ? mapGraphqlSoupItem(fetched)
+            ? mapGraphqlSoupItem(fetched, view)
             : undefined;
       return {
         key: soupItemKey(record),

@@ -20,7 +20,6 @@ import { tourTarget } from '@ui/components/Tour';
 import {
   type Accessor,
   batch,
-  type ComponentProps,
   createComputed,
   createContext,
   createSignal,
@@ -34,9 +33,7 @@ import {
   untrack,
   useContext,
 } from 'solid-js';
-import { Portal } from 'solid-js/web';
 import { createSidebarMotion } from './create-sidebar-motion';
-import { ViewNavigationSlotContext } from './navigation-slot';
 import { VIEW_SHELL_TOUR } from './tour';
 import {
   type AsideLayout,
@@ -347,7 +344,6 @@ function Root(props: ViewShellRootProps) {
     },
   };
 
-  const navigationSlot = useContext(ViewNavigationSlotContext);
   if (panel) {
     registerHotkey({
       hotkey: 'cmd+.',
@@ -365,29 +361,6 @@ function Root(props: ViewShellRootProps) {
 
   return (
     <ViewShellContext.Provider value={value}>
-      <Show
-        when={
-          navigationSlot?.() &&
-          panel?.isPanelActive() &&
-          value.aside.canCollapse()
-        }
-      >
-        <Portal mount={navigationSlot?.()}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            label={
-              value.aside.isCollapsed() ? 'Show navigation' : 'Hide navigation'
-            }
-            hotkey={TOKENS.workspace.toggleNavigation}
-            aria-expanded={!value.aside.isCollapsed()}
-            ref={tourTarget(VIEW_SHELL_TOUR.sidebarToggle)}
-            onClick={value.aside.toggle}
-          >
-            <SidebarIcon class="size-4" />
-          </Button>
-        </Portal>
-      </Show>
       <div
         {...rest}
         ref={setRoot}
@@ -529,7 +502,15 @@ function Aside(props: ViewShellAsideProps) {
         <div
           class="absolute inset-0 z-20"
           onKeyDown={(event) => {
-            if (event.key === 'Escape') {
+            // Portaled menus own Escape even though Solid bubbles through here.
+            if (
+              event.key === 'Escape' &&
+              !event.defaultPrevented &&
+              event.currentTarget.contains(event.target as Node) &&
+              !(event.target as Element).closest(
+                '[aria-haspopup][aria-expanded="true"]'
+              )
+            ) {
               event.stopPropagation();
               ws.aside.collapse();
             }
@@ -565,28 +546,16 @@ function Aside(props: ViewShellAsideProps) {
   );
 }
 
-/** A navigation overlay must not offer an action that closes its owning split. */
-export function ViewSidebarCloseButton(
-  props: ComponentProps<typeof SplitPanel.CloseButton>
-) {
-  const ws = useContext(ViewShellContext);
-  return (
-    <Show when={!ws?.atLayoutBreakpoint()}>
-      <SplitPanel.CloseButton {...props} />
-    </Show>
-  );
-}
+/** Keep split close available in both docked and overlay navigation. */
+export const ViewSidebarCloseButton = SplitPanel.CloseButton;
 
 /** Safe outside a shell so block preview headers can share this control. */
 export function ViewSidebarToggle(props: { action: 'collapse' | 'expand' }) {
   const ws = useContext(ViewShellContext);
-  const navigationSlot = useContext(ViewNavigationSlotContext);
-  const panel = useContext(SplitPanelContext);
   // A conditional expression as `ref` is dropped by the Solid compiler, so
   // only the expand toggle registers, from inside the callback.
   const toggleTarget = tourTarget(VIEW_SHELL_TOUR.sidebarToggle);
   const visible = () =>
-    !(navigationSlot?.() && panel) &&
     ws?.aside.canCollapse() &&
     (props.action === 'expand'
       ? ws.aside.isCollapsed() || ws.aside.isOverlay()
@@ -648,8 +617,18 @@ export function ViewNavigationControls() {
   );
 }
 
-function Main(props: JSX.HTMLAttributes<HTMLElement>) {
-  const [local, rest] = splitProps(props, ['children', 'class', 'ref']);
+type ViewShellMainProps = JSX.HTMLAttributes<HTMLElement> & {
+  /** Called with the solved width after a drag beside an inline detail. */
+  onWidthChangeEnd?: (width: number) => void;
+};
+
+function Main(props: ViewShellMainProps) {
+  const [local, rest] = splitProps(props, [
+    'children',
+    'class',
+    'ref',
+    'onWidthChangeEnd',
+  ]);
   const ws = useViewShellInternal();
   const layout = ws.main.layout;
   const target = () => {
@@ -667,6 +646,7 @@ function Main(props: JSX.HTMLAttributes<HTMLElement>) {
       minSize={layout().min}
       maxSize={ws.detail.placement() === 'inline' ? layout().max : undefined}
       target={target()}
+      onSizeChangeEnd={local.onWidthChangeEnd}
     >
       <main
         {...rest}
@@ -706,7 +686,7 @@ function Header(props: JSX.HTMLAttributes<HTMLElement>) {
     <header
       {...rest}
       class={cn(
-        'shrink-0 px-4 py-4 touch:px-(--mobile-chrome-gutter) touch:pt-[calc(var(--safe-top,0px)+0.5rem)]',
+        'shrink-0 px-4 py-4 touch:px-(--mobile-chrome-gutter) touch:pt-[calc(var(--mobile-content-inset-top,var(--safe-top,0px))+0.5rem)]',
         local.class
       )}
       data-view-shell-header=""

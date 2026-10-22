@@ -42,6 +42,17 @@
       # bundle already — so embedding it in the derivation is not a new exposure.
       posthogApiKey = builtins.getEnv "VITE_POSTHOG_API_KEY";
 
+      # Without an exporter URL the bundle records spans and logs but never
+      # sends them. Default to the production OTLP proxy like the iOS build
+      # (`ios_production_telemetry` in `apps/web/scripts/ios-native-env.sh`);
+      # export either variable and build with `--impure` to send elsewhere.
+      # Export stays behind the `enable-browser-otel` PostHog flag.
+      envOr = name: fallback:
+        let value = builtins.getEnv name; in if value == "" then fallback else value;
+      otelExporterUrl =
+        envOr "VITE_OTEL_EXPORTER_URL" "https://macro-prox-prod.macroverse.workers.dev/i/otlp/v1/traces";
+      otelEnv = envOr "VITE_OTEL_ENV" "prod";
+
       rustToolchain = fenix.packages.${system}.fromToolchainFile {
         file = ../rust-toolchain.toml;
         sha256 = "sha256-qqF33vNuAdU5vua96VKVIwuc43j4EFeEXbjQ6+l4mO4=";
@@ -60,11 +71,13 @@
           # WASM sources. Avoid recompiling both for AppImage-only changes.
           rel != "nix"
           && !(lib.hasPrefix "nix/" rel)
+          && !(lib.hasPrefix "nix-support/appimage-" rel)
           && !(lib.hasPrefix "node_modules/" rel)
           && !(lib.hasPrefix "apps/web/node_modules/" rel)
           && !(lib.hasPrefix "apps/web/dist/" rel)
           && !(lib.hasPrefix "apps/web/tauri/target/" rel)
           && !(lib.hasPrefix "apps/web/src/lib/graphql-cache/wasm/" rel)
+          && !(lib.hasPrefix "apps/web/src/lib/core/agent-fold/wasm/" rel)
           && !(lib.hasPrefix "packages/lexical-core/node_modules/" rel)
           && !(lib.hasPrefix "services/lexical-service/node_modules/" rel)
           && !(lib.hasPrefix "packages/loro-mirror/node_modules/" rel)
@@ -75,7 +88,8 @@
           && rel != "apps/web/node_modules"
           && rel != "apps/web/dist"
           && rel != "apps/web/tauri/target"
-          && rel != "apps/web/src/lib/graphql-cache/wasm";
+          && rel != "apps/web/src/lib/graphql-cache/wasm"
+          && rel != "apps/web/src/lib/core/agent-fold/wasm";
       };
 
       rootCargoVendorDir = craneLib.vendorCargoDeps {
@@ -119,6 +133,85 @@
         src = jsRoot;
       };
 
+      agentFoldWasmPackage = craneLib.mkCargoDerivation {
+        pname = "macro-agent-fold-wasm";
+        version = appVersion;
+        src = jsSrc;
+        cargoArtifacts = null;
+        cargoVendorDir = rootCargoVendorDir;
+        nativeBuildInputs = [
+          pkgs.binaryen
+          pkgs.wasm-bindgen-cli_0_2_126
+          pkgs.wasm-pack
+        ];
+        doCheck = false;
+        preBuild = cacheWasmPackage.preBuild;
+        buildPhaseCargoCommand = ''
+          wasm-pack build crates/folds/agent_fold \
+            --target web \
+            --release \
+            --mode no-install \
+            --out-dir "$PWD/apps/web/src/lib/core/agent-fold/wasm" \
+            -- --no-default-features
+        '';
+        installPhaseCommand = ''
+          mkdir -p $out
+          cp -a apps/web/src/lib/core/agent-fold/wasm/. $out/
+        '';
+        doInstallCargoArtifacts = false;
+      };
+
+      # The macrod agent daemon, bundled with the desktop app as a Tauri
+      # sidecar so "run agents on this computer" needs no separate download.
+      # Built from the root workspace (not the nested Tauri one), natively for
+      # the bundle's platform; the standalone release tarballs keep their own
+      # musl/darwin pipeline in build_agent_daemon_on_tag.yml.
+      macrodBinary = craneLib.mkCargoDerivation {
+        pname = "macrod";
+        version = appVersion;
+        src = jsSrc;
+        cargoArtifacts = null;
+        cargoVendorDir = rootCargoVendorDir;
+        nativeBuildInputs = [
+          # aws-lc-sys (rustls' crypto provider) and bundled librdkafka build
+          # their C sources with cmake; see the matching notes on `libraries`
+          # in cloud-storage.nix.
+          pkgs.cmake
+          pkgs.git
+          pkgs.perl
+          pkgs.pkg-config
+        ];
+        buildInputs = [
+          pkgs.openssl
+          pkgs.openssl.dev
+          # librdkafka 2.12's bundled cmake-build needs curl headers even with
+          # WITH_CURL=0 (headers only; nothing links against libcurl).
+          pkgs.curl.dev
+          pkgs.libclang
+          pkgs.xz.out
+        ]
+        ++ lib.optionals pkgs.stdenv.isDarwin [ pkgs.libiconv ];
+        LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
+        OPENSSL_NO_VENDOR = "1";
+        doCheck = false;
+        SQLX_OFFLINE = "true";
+        buildPhaseCargoCommand = ''
+          cargo build --release --package coding_agent_worker --bin macrod
+        '';
+        installPhaseCommand = ''
+          install -Dm0755 target/release/macrod "$out/bin/macrod"
+        '';
+        doInstallCargoArtifacts = false;
+      };
+
+      # Tauri sidecar sources carry the target triple in the file name; the
+      # bundler strips it when placing the binary next to the app executable.
+      rustHostTriple = pkgs.stdenv.hostPlatform.rust.rustcTarget;
+      installMacrodSidecar = ''
+        install -Dm0755 ${macrodBinary}/bin/macrod \
+          "src-tauri/binaries/macrod-${rustHostTriple}"
+      '';
+
       frontend = pkgs.stdenvNoCC.mkDerivation {
         pname = "macro-tauri-frontend";
         version = appVersion;
@@ -134,43 +227,58 @@
         # Vite reads prefixed variables straight off the build environment, the
         # same way `just build-prod` picks them up in the web and Android jobs.
         VITE_POSTHOG_API_KEY = posthogApiKey;
+        VITE_OTEL_EXPORTER_URL = otelExporterUrl;
+        VITE_OTEL_ENV = otelEnv;
 
         buildPhase = ''
-            runHook preBuild
+          runHook preBuild
 
-            cp -a ${nodeModules}/. .
+          cp -a ${nodeModules}/. .
 
-            # Vite bundles TypeScript config files to a temporary sibling before
-            # loading them. The application config now lives at the app root,
-            # so make that directory writable inside the Nix build sandbox.
-            chmod u+w apps/web
+          # Vite bundles TypeScript config files to a temporary sibling before
+          # loading them. The application config now lives at the app root,
+          # so make that directory writable inside the Nix build sandbox.
+          chmod u+w apps/web
 
-            substituteInPlace apps/web/vite.base.ts \
-              --replace-fail \
-                "          // NIX_TAURI_ALIAS" \
-                '          { find: /^@tauri-apps\/api/, replacement: resolve(__dirname, "../../node_modules/@tauri-apps/api") },'
+          substituteInPlace apps/web/vite.base.ts \
+            --replace-fail \
+              "          // NIX_TAURI_ALIAS" \
+              '          { find: /^@tauri-apps\/api/, replacement: resolve(__dirname, "../../node_modules/@tauri-apps/api") },'
 
-            printf production > apps/web/tauri/src-tauri/.macro-tauri-env
-            mkdir -p apps/web/src/lib/graphql-cache/wasm
-            cp -a ${cacheWasmPackage}/. apps/web/src/lib/graphql-cache/wasm/
-            (
-              cd apps/web
-              MODE=production NODE_ENV=production bun ../../node_modules/vite/bin/vite.js build -c vite.config.ts
-              printf '${appVersion}+${gitRev}\n' > dist/semver.txt
-              BUNDLE_BUILD_NUMBER=${toString desktopRelease.bundleBuild} MIN_NATIVE_BUILD=0 bun scripts/write-bundle-manifest.mjs
-            )
+          printf production > apps/web/tauri/src-tauri/.macro-tauri-env
+          mkdir -p apps/web/src/lib/graphql-cache/wasm
+          cp -a ${cacheWasmPackage}/. apps/web/src/lib/graphql-cache/wasm/
+          mkdir -p apps/web/src/lib/core/agent-fold/wasm
+          cp -a ${agentFoldWasmPackage}/. apps/web/src/lib/core/agent-fold/wasm/
+          (
+            cd apps/web
+            MODE=production NODE_ENV=production bun ../../node_modules/vite/bin/vite.js build -c vite.config.ts
+            printf '${appVersion}+${gitRev}\n' > dist/semver.txt
+            BUNDLE_BUILD_NUMBER=${toString desktopRelease.bundleBuild} MIN_NATIVE_BUILD=0 bun scripts/write-bundle-manifest.mjs
+          )
 
-            # A supplied key that never reaches the bundle means PostHog — and
-            # every feature flag behind it — is silently off in the shipped app.
-            # Fail the build instead, the way the signed DMG fails on a missing
-            # signing identity.
-            if [ -n "''${VITE_POSTHOG_API_KEY:-}" ] \
-              && ! grep -rqF -- "$VITE_POSTHOG_API_KEY" apps/web/dist; then
-              echo "VITE_POSTHOG_API_KEY was set but Vite did not inline it into apps/web/dist" >&2
-              exit 1
-            fi
+          # A supplied key that never reaches the bundle means PostHog — and
+          # every feature flag behind it — is silently off in the shipped app.
+          # Fail the build instead, the way the signed DMG fails on a missing
+          # signing identity.
+          if [ -n "''${VITE_POSTHOG_API_KEY:-}" ] \
+            && ! grep -rqF -- "$VITE_POSTHOG_API_KEY" apps/web/dist; then
+            echo "VITE_POSTHOG_API_KEY was set but Vite did not inline it into apps/web/dist" >&2
+            exit 1
+          fi
 
-            runHook postBuild
+          runHook postBuild
+        '';
+
+        # Vite leaves new URL() imports unchanged when their generated source
+        # files are absent. Reject that otherwise-successful but broken bundle.
+        doCheck = true;
+        checkPhase = ''
+          runHook preCheck
+          for asset in apps/web/dist/assets/agent_fold-*.js apps/web/dist/assets/agent_fold_bg-*.wasm; do
+            test -s "$asset" || { echo "Missing agent fold bundle asset: $asset" >&2; exit 1; }
+          done
+          runHook postCheck
         '';
 
         installPhase = ''
@@ -209,7 +317,10 @@
         cargoLock = ../apps/web/tauri/Cargo.lock;
         # cache-core's build script generates metadata from the GraphQL schema.
         # Non-Cargo inputs must be added explicitly to crane's app fileset.
-        extraFileset = ../static_assets/schema.graphql;
+        extraFileset = lib.fileset.unions [
+          ../static_assets/schema.graphql
+          ../apps/web/tauri/src-tauri/tauri.macos.conf.json
+        ];
         inherit frontend;
 
         craneArgs = {
@@ -311,10 +422,13 @@
       };
 
       tauriBundlerSource = pkgs.cargo-tauri.src;
-      tauriAppRun = pkgs.fetchurl {
+      tauriAppRunSource = pkgs.fetchurl {
         url = "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-x86_64";
         hash = "sha256-8wFApDoKWeRtshve/fdJuenyxpRukq+rus+YuK5z+08=";
       };
+      tauriAppRun = pkgs.runCommand "tauri-apprun" { } ''
+        ${pkgs.python3}/bin/python3 ${./appimage/patch_apprun.py} ${tauriAppRunSource} "$out"
+      '';
       tauriLinuxdeployWrapper = pkgs.stdenv.mkDerivation {
         pname = "tauri-linuxdeploy-wrapper";
         version = "1";
@@ -383,13 +497,13 @@
               return 1;
             }
 
-            char *hook_path = malloc(strlen(hooks_dir) + strlen("/macro-gio-tls.sh") + 2);
+            char *hook_path = malloc(strlen(hooks_dir) + strlen("/00-macro-runtime.sh") + 2);
             if (hook_path == NULL) {
               perror("malloc TLS hook path");
               free(hooks_dir);
               return 1;
             }
-            sprintf(hook_path, "%s/macro-gio-tls.sh", hooks_dir);
+            sprintf(hook_path, "%s/00-macro-runtime.sh", hooks_dir);
 
             FILE *hook = fopen(hook_path, "w");
             if (hook == NULL) {
@@ -400,17 +514,7 @@
             }
 
             int failed = 0;
-            if (fputs("#! /usr/bin/env bash\n"
-                      "export APPDIR=\"''${APPDIR:-\"$(dirname \"$(realpath \"$0\")\")\"}\"\n"
-                      "export WEBKIT_INJECTED_BUNDLE_PATH=\"$APPDIR/usr/lib\"\n"
-                      "gio_modules=\"$APPDIR/usr/lib/gio/modules\"\n"
-                      "if [ -d \"$gio_modules\" ]; then\n"
-                      "  case \":''${GIO_EXTRA_MODULES:-}:\" in\n"
-                      "    *:\"$gio_modules\":*) ;;\n"
-                      "    *) export GIO_EXTRA_MODULES=\"$gio_modules''${GIO_EXTRA_MODULES:+:$GIO_EXTRA_MODULES}\" ;;\n"
-                      "  esac\n"
-                      "fi\n",
-                      hook) == EOF) {
+            if (fputs(${builtins.toJSON (builtins.readFile ./appimage/runtime-hook.sh)}, hook) == EOF) {
               perror("write TLS hook");
               failed = 1;
             }
@@ -461,9 +565,9 @@
               "--executable", "${pkgs.webkitgtk_4_1}/libexec/webkit2gtk-4.1/WebKitNetworkProcess",
               "--executable", "${pkgs.webkitgtk_4_1}/libexec/webkit2gtk-4.1/WebKitGPUProcess",
               "--library", "${pkgs.webkitgtk_4_1}/lib/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so",
-              "--library", "${gioTlsModulePath}/libgiognutls.so",
-              "--library", "${gioTlsModulePath}/libgiognomeproxy.so",
-              "--library", "${gioTlsModulePath}/libgiolibproxy.so",
+              "--library", "${appimageGioModulePath}/libgiognutls.so",
+              "--library", "${appimageGioModulePath}/libgiognomeproxy.so",
+              "--library", "${appimageGioModulePath}/libgiolibproxy.so",
             };
             size_t runtime_argc = sizeof(runtime_args) / sizeof(runtime_args[0]);
             char **args = calloc((size_t)argc + runtime_argc + 1, sizeof(char *));
@@ -512,6 +616,11 @@
         version = "1-alpha-20250213-1";
         src = tauriLinuxdeployAppimagePluginSource;
       };
+      tauriPortableLibproxy = pkgs.callPackage ../nix-support/appimage-libproxy.nix { };
+      tauriPortableGlibNetworking = pkgs.callPackage ../nix-support/appimage-glib-networking.nix {
+        libproxy = tauriPortableLibproxy;
+      };
+      appimageGioModulePath = "${tauriPortableGlibNetworking}/lib/gio/modules";
       tauriLinuxdeployAppimagePlugin = pkgs.stdenvNoCC.mkDerivation {
         pname = "linuxdeploy-plugin-appimage-patched";
         version = "1-alpha-20250213-1";
@@ -534,6 +643,9 @@
             shift
           done
           if [ -n "$appdir" ]; then
+            # Same libproxy version/ABI and dependencies, but without nixpkgs'
+            # hardcoded schema lookup. Replace the backend before ELF relocation.
+            install -m0755 ${tauriPortableLibproxy}/lib/libproxy/libpxbackend-1.0.so "$appdir/usr/lib/libpxbackend-1.0.so"
             export PATH="${lib.makeBinPath [ pkgs.patchelf ]}:$PATH"
             ${pkgs.python3}/bin/python3 ${./appimage/relocate.py} "$appdir"
           fi
@@ -562,7 +674,7 @@
         pkgs.gst_all_1.gst-plugins-bad
         pkgs.gst_all_1.gst-libav
         pkgs.openssl
-        pkgs.glib-networking
+        tauriPortableGlibNetworking
       ];
       tauriRuntimeLibraryPath = lib.makeLibraryPath tauriRuntimeLibraries;
       tauriRuntimeClosure = pkgs.closureInfo {
@@ -581,6 +693,34 @@
           ]
         );
       };
+      # xkeyboard-config's compatibility path is a symlink. Tauri preserves
+      # symlinks when copying directories, so stage a self-contained data tree.
+      tauriXkbData = pkgs.runCommand "tauri-appimage-xkb-data" { } ''
+        cp -rL ${pkgs.xkeyboard-config}/share/X11/xkb "$out"
+      '';
+      tauriXdgUtils = pkgs.callPackage ../nix-support/appimage-xdg-utils.nix { };
+      tauriGsettingsSchemas =
+        pkgs.runCommand "tauri-appimage-gsettings-schemas"
+          {
+            nativeBuildInputs = [ pkgs.glib.dev ];
+            schemaDirs =
+              lib.concatMapStringsSep " " (p: "${p}/share/gsettings-schemas/${p.name}/glib-2.0/schemas")
+                [
+                  pkgs.gsettings-desktop-schemas
+                  pkgs.gtk3
+                ];
+          }
+          ''
+            mkdir -p "$out"
+            shopt -s nullglob
+            for schema_dir in $schemaDirs; do
+              cp "$schema_dir/"*.xml "$out/"
+              for override in "$schema_dir/"*.gschema.override; do
+                cp "$override" "$out/"
+              done
+            done
+            glib-compile-schemas --strict "$out"
+          '';
       tauriAppImageConfig = builtins.toJSON {
         version = appVersion;
         plugins = desktopPlugins;
@@ -592,14 +732,18 @@
           active = true;
           targets = [ "appimage" ];
           useLocalToolsDir = true;
+          externalBin = [ "binaries/macrod" ];
           linux.appimage.bundleMediaFramework = true;
           linux.appimage.files = {
-            "/usr/bin/xdg-mime" = "${pkgs.xdg-utils}/bin/xdg-mime";
-            "/usr/bin/xdg-open" = "${pkgs.xdg-utils}/bin/xdg-open";
-            "/usr/lib/gio/modules/giomodule.cache" = "${pkgs.glib-networking}/lib/gio/modules/giomodule.cache";
-            "/usr/lib/gio/modules/libgiognomeproxy.so" = "${pkgs.glib-networking}/lib/gio/modules/libgiognomeproxy.so";
-            "/usr/lib/gio/modules/libgiognutls.so" = "${pkgs.glib-networking}/lib/gio/modules/libgiognutls.so";
-            "/usr/lib/gio/modules/libgiolibproxy.so" = "${pkgs.glib-networking}/lib/gio/modules/libgiolibproxy.so";
+            "/usr/bin/xdg-mime" = "${tauriXdgUtils}/bin/xdg-mime";
+            "/usr/bin/xdg-open" = "${tauriXdgUtils}/bin/xdg-open";
+            "/usr/libexec/macro" = "${tauriXdgUtils}/libexec/macro";
+            "/usr/share/X11/xkb" = "${tauriXkbData}";
+            "/usr/share/glib-2.0/schemas" = "${tauriGsettingsSchemas}";
+            "/usr/lib/gio/modules/giomodule.cache" = "${appimageGioModulePath}/giomodule.cache";
+            "/usr/lib/gio/modules/libgiognomeproxy.so" = "${appimageGioModulePath}/libgiognomeproxy.so";
+            "/usr/lib/gio/modules/libgiognutls.so" = "${appimageGioModulePath}/libgiognutls.so";
+            "/usr/lib/gio/modules/libgiolibproxy.so" = "${appimageGioModulePath}/libgiolibproxy.so";
           };
         };
       };
@@ -677,6 +821,7 @@
             bundle = {
               active = true;
               targets = [ "app" ];
+              externalBin = [ "binaries/macrod" ];
             };
           }
           (
@@ -700,6 +845,7 @@
             fi
             export PATH="$PATH:/usr/bin:/bin:/usr/sbin:/sbin"
             ${tauriDesktopPreBuild}
+            ${installMacrodSidecar}
           '';
           buildPhaseCargoCommand = ''
             cargo tauri build --bundles app \
@@ -804,6 +950,15 @@
                 done < <(find "$app/Contents/Frameworks" -type f -print0)
               fi
 
+              # Helper executables (the macrod sidecar) must be signed
+              # individually for notarization; the --deep pass below re-seals
+              # the bundle on top of them.
+              while IFS= read -r -d "" file; do
+                if otool -hv "$file" >/dev/null 2>&1; then
+                  codesign "''${sign_args[@]}" "$file"
+                fi
+              done < <(find "$app/Contents/MacOS" -type f -print0)
+
               codesign "''${sign_args[@]}" --deep "$app"
               codesign --verify --deep --strict --verbose=2 "$app"
             }
@@ -858,11 +1013,20 @@
               pkgs.python3
               pkgs.patchelf
               pkgs.stdenv.cc
+              pkgs.pkg-config
+            ];
+            buildInputs = [
+              pkgs.libxkbcommon
+              pkgs.glib
             ];
           }
           ''
             export PYTHONDONTWRITEBYTECODE=1
             python3 -m unittest discover -s ${./appimage} -v
+            bash ${./appimage}/test_runtime.sh \
+              ${tauriXkbData} ${tauriGsettingsSchemas} ${appimageGioModulePath} ${tauriAppRun} \
+              ${tauriPortableLibproxy} ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+            bash ${./appimage}/test_xdg.sh ${tauriXdgUtils}
             # GStreamer's default Nix output is bin; its scanner and core plugins
             # live in the library output. Do not silently ship an empty helper dir.
             test -x ${lib.getLib pkgs.gst_all_1.gstreamer}/libexec/gstreamer-1.0/gst-plugin-scanner
@@ -898,6 +1062,7 @@
           preBuild = ''
             test -e ${tauriAppImagePackagingTests}
             ${tauriDesktopPreBuild}
+            ${installMacrodSidecar}
 
             runtime_library_path="$(while IFS= read -r store_path; do
               if [ -d "$store_path/lib" ]; then
@@ -956,6 +1121,7 @@
 
       packages = {
         js-node-modules = nodeModules;
+        macrod = macrodBinary;
       }
       // lib.optionalAttrs isLinux {
         tauri-frontend = frontend;

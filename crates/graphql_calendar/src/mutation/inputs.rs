@@ -126,6 +126,8 @@ impl CalendarRemindersInput {
 /// A change to an event's conference.
 #[derive(Enum, Copy, Clone, Debug, Eq, PartialEq)]
 pub enum GraphqlCalendarConferenceChange {
+    /// Generate a new Microsoft Teams conference and attach it.
+    MicrosoftTeams,
     /// Generate a new Google Meet conference and attach it.
     GoogleMeet,
     /// Detach whatever conference is currently attached.
@@ -136,6 +138,7 @@ pub enum GraphqlCalendarConferenceChange {
 impl From<GraphqlCalendarConferenceChange> for ConferenceChange {
     fn from(change: GraphqlCalendarConferenceChange) -> Self {
         match change {
+            GraphqlCalendarConferenceChange::MicrosoftTeams => Self::MicrosoftTeams,
             GraphqlCalendarConferenceChange::GoogleMeet => Self::GoogleMeet,
             GraphqlCalendarConferenceChange::Detach => Self::Removed,
         }
@@ -251,6 +254,11 @@ pub struct CreateCalendarEventInput {
     pub reminders: Option<CalendarRemindersInput>,
     /// Conference to attach; omit to create the event without one.
     pub conference: Option<GraphqlCalendarConferenceChange>,
+    /// Mint a Macro call and write its join link into the description and
+    /// location before creating the event, so the invitation carries it.
+    /// Cannot be combined with `conference`.
+    #[graphql(default)]
+    pub macro_call: bool,
     /// Present to create an out-of-office status event (primary calendar
     /// only, timed, no attendees).
     pub out_of_office: Option<CalendarOutOfOfficeInput>,
@@ -259,6 +267,7 @@ pub struct CreateCalendarEventInput {
 pub(crate) struct CreateRequest {
     pub(crate) email_link_id: Option<Uuid>,
     pub(crate) calendar_id: Option<Uuid>,
+    pub(crate) macro_call: bool,
     pub(crate) draft: CalendarEventDraft,
 }
 
@@ -267,6 +276,7 @@ impl CreateCalendarEventInput {
         Ok(CreateRequest {
             email_link_id: optional_id(self.email_link_id, "emailLinkId")?,
             calendar_id: optional_id(self.calendar_id, "calendarId")?,
+            macro_call: self.macro_call,
             draft: CalendarEventDraft {
                 idempotency_key: optional_id(self.idempotency_key, "idempotencyKey")?,
                 title: self.title,
@@ -500,6 +510,69 @@ impl RespondToCalendarEventInput {
             response: self.response.into(),
             scope,
             responding_email: self.responding_email,
+        })
+    }
+}
+
+/// A guest to add to an event.
+#[derive(InputObject, Clone, Debug)]
+pub struct CalendarGuestInput {
+    /// Guest email address.
+    pub email: String,
+    /// Whether attendance is optional.
+    #[graphql(default)]
+    pub optional: bool,
+}
+
+impl From<CalendarGuestInput> for CalendarAttendeeInput {
+    fn from(input: CalendarGuestInput) -> Self {
+        Self {
+            email: input.email,
+            is_optional: input.optional,
+            response_status: None,
+        }
+    }
+}
+
+/// Add guests to an event without touching anyone already invited.
+#[derive(InputObject, Clone, Debug)]
+pub struct InviteCalendarEventGuestsInput {
+    /// Event to add guests to.
+    pub event_id: ID,
+    /// Calendar whose copy of the event is written, for an event synced from
+    /// more than one calendar. Omit to write the canonical copy.
+    pub calendar_id: Option<ID>,
+    /// Guests to add; anyone already on the event is skipped.
+    pub guests: Vec<CalendarGuestInput>,
+    /// How much of a recurring series gains the guests.
+    pub scope: GraphqlCalendarUpdateScope,
+    /// Original-start key of the occurrence; required with `THIS_EVENT`.
+    pub recurrence_id: Option<String>,
+}
+
+pub(crate) struct InviteRequest {
+    pub(crate) event_id: Uuid,
+    pub(crate) calendar_id: Option<Uuid>,
+    pub(crate) guests: Vec<CalendarAttendeeInput>,
+    pub(crate) scope: CalendarUpdateScope,
+}
+
+impl InviteCalendarEventGuestsInput {
+    pub(crate) fn into_request(self) -> async_graphql::Result<InviteRequest> {
+        let scope = match (self.scope, self.recurrence_id) {
+            (GraphqlCalendarUpdateScope::All, _) => CalendarUpdateScope::All,
+            (GraphqlCalendarUpdateScope::ThisEvent, Some(recurrence_id)) => {
+                CalendarUpdateScope::ThisEvent { recurrence_id }
+            }
+            (GraphqlCalendarUpdateScope::ThisEvent, None) => {
+                return Err(bad_input("a this-event invite requires recurrenceId"));
+            }
+        };
+        Ok(InviteRequest {
+            event_id: parse_id(self.event_id, "eventId")?,
+            calendar_id: optional_id(self.calendar_id, "calendarId")?,
+            guests: self.guests.into_iter().map(Into::into).collect(),
+            scope,
         })
     }
 }

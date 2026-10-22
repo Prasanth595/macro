@@ -64,11 +64,11 @@ use channel_labels::inbound::axum_router::{
     CreateChannelLabelRequest, RenameChannelLabelRequest, SetChannelLabelRequest,
 };
 use channels::inbound::axum_router::{
-    ApiActivity, ApiAttachmentChannelReference, ApiAttachmentEntityReference,
-    ApiAttachmentGenericReference, ApiChannelAttachment, ApiChannelAttachmentsPage,
-    ApiChannelDetail, ApiChannelParticipant, ApiParticipantRole, CreateEntityMentionRequest,
-    CreateEntityMentionResponse, DeleteEntityMentionResponse, GetAttachmentReferencesResponse,
-    PostActivityRequest,
+    ApiActivity, ApiAttachmentChannelReference, ApiAttachmentCommentReference,
+    ApiAttachmentEntityReference, ApiAttachmentGenericReference, ApiChannelAttachment,
+    ApiChannelAttachmentsPage, ApiChannelDetail, ApiChannelParticipant, ApiParticipantRole,
+    CreateEntityMentionRequest, CreateEntityMentionResponse, DeleteEntityMentionResponse,
+    GetAttachmentReferencesResponse, PostActivityRequest,
 };
 use collab_surface::domain::models::SurfaceState;
 use collab_surface::inbound::axum_router::{
@@ -217,6 +217,7 @@ use utoipa::OpenApi;
         health::health_handler,
         calendar_events::inbound::axum_router::list_occurrences,
         calendar_events::inbound::axum_router::mention_previews,
+        calendar_events::inbound::axum_router::event_ics,
         calendar_events::inbound::axum_router::list_team_out_of_office,
         calendar_events::inbound::team_router::list_team_calendar,
 
@@ -245,6 +246,7 @@ use utoipa::OpenApi;
         documents::get_document_views::get_document_views_handler,
         documents::location::get_location_handler,
         documents_hex::inbound::axum_router::get_location::get_location_v3_handler,
+        documents_hex::inbound::axum_router::get_text::get_text_handler,
         documents_hex::inbound::axum_router::get_branch_name::get_branch_name_handler,
         documents_hex::inbound::axum_router::get_github_pull_requests::get_github_pull_requests_handler,
         documents_hex::inbound::axum_router::get_github_pull_request_tasks::get_github_pull_request_tasks_handler,
@@ -292,6 +294,8 @@ use utoipa::OpenApi;
 
         // messages (channels and documents)
         messages::inbound::axum_router::timeline,
+        messages::inbound::guest_chat::read,
+        messages::inbound::guest_chat::post,
         messages::inbound::axum_router::timeline_entries,
         messages::inbound::axum_router::create,
         messages::inbound::axum_router::get_message,
@@ -442,6 +446,13 @@ use utoipa::OpenApi;
         slack_integration::inbound::axum_router::jobs::finalize,
         slack_integration::inbound::axum_router::jobs::cancel,
 
+        access_requests::inbound::axum_router::state_handler,
+        access_requests::inbound::axum_router::submit_handler,
+        access_requests::inbound::axum_router::cancel_handler,
+        access_requests::inbound::axum_router::resolve_handler,
+        access_requests::inbound::axum_router::direct_handler,
+        access_requests::inbound::axum_router::set_direct_handler,
+        access_requests::inbound::axum_router::remove_direct_handler,
         // reminders
         reminders::inbound::axum_router::get_email_followup_handler,
         reminders::inbound::axum_router::set_email_followup_handler,
@@ -453,6 +464,7 @@ use utoipa::OpenApi;
         initiative::inbound::axum_router::update::update_initiative_handler,
         initiative::inbound::axum_router::delete::delete_initiative_handler,
         // databases
+        databases_sql::inbound::axum_router::query_databases_handler,
         databases::inbound::axum_router::list_databases_handler,
         databases::inbound::starter_router::ensure_starter_handler,
         databases::inbound::axum_router::create_database_handler,
@@ -514,6 +526,8 @@ use utoipa::OpenApi;
         crm::inbound::pipelines::apply_ops,
         crm::inbound::pipelines::rename,
         crm::inbound::pipelines::share,
+        crm::inbound::pipelines::permissions,
+        crm::inbound::pipelines::update_permissions,
         crm::inbound::pipelines::trash,
         crm::inbound::axum_router::set_email_sync::handler,
         crm::inbound::axum_router::set_company_hidden::handler,
@@ -534,6 +548,7 @@ use utoipa::OpenApi;
     ),
     components(
         schemas(
+            access_requests::domain::models::ShareEntity,
             DocumentStorageServiceApiVersion,
             GenericResponse,
             GenericErrorResponse,
@@ -819,6 +834,7 @@ use utoipa::OpenApi;
             GetAttachmentReferencesResponse,
             ApiAttachmentEntityReference,
             ApiAttachmentChannelReference,
+            ApiAttachmentCommentReference,
             ApiAttachmentGenericReference,
             channels::domain::models::ChannelType,
             channels::domain::models::GetOrCreateAction,
@@ -1011,6 +1027,7 @@ struct FormsApiAddon;
 impl utoipa::Modify for FormsApiAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         openapi.merge(forms::inbound::axum_router::FormsApi::openapi());
+        openapi.merge(database_webhooks::inbound::axum_router::DatabaseWebhooksApi::openapi());
     }
 }
 
