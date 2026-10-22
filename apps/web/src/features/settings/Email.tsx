@@ -440,7 +440,7 @@ function Chip(props: { label: string }) {
 // flow, which re-links and backfills.
 function DisabledPrimaryRow(props: { email: string; onEnable: () => void }) {
   return (
-    <div class="flex items-center justify-between gap-3 min-h-14 px-4 py-3">
+    <div class="flex flex-wrap items-center justify-between gap-3 min-h-14 px-4 py-3">
       <div class="min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1">
         <div class="flex items-center gap-2 min-w-0">
           <span class="ph-no-capture text-sm truncate text-ink-muted">
@@ -533,7 +533,7 @@ function InboxRow(props: {
             </Switch>
           </Show>
         </div>
-        <div class="flex flex-wrap items-center gap-2 shrink-0">
+        <div class="flex max-w-full flex-wrap items-center gap-2 shrink-0">
           <Show when={props.link.needs_reauth}>
             <Button
               variant="accent"
