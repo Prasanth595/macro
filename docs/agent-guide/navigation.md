@@ -13,6 +13,23 @@ workspace. The top-right split icon opens another Home split, even
 when Home is already open, and is disabled when there is no room for a new split.
 Its tooltip is “New Split” and displays the registered new-split shortcut (`\`).
 
+## Desktop tabs (macOS, `enable-desktop-tabs` flag)
+
+The title bar's center holds browser-style tabs; each tab is a whole split
+layout. Only the active tab's layout is mounted — switching tabs swaps every
+split through the router, preserving each split's back/forward history and
+running unsaved-changes guards. A tab holding more than one split shows a
+split icon with the count. The strip's `+` button (and `Cmd+T`) opens a tab on
+Home; the `X` or a middle click closes one (the last tab cannot close;
+`Shift+Cmd+W` closes the active tab); `Ctrl+Tab` / `Ctrl+Shift+Tab` cycle.
+Cmd+click (Ctrl elsewhere) on anything that navigates opens the destination in
+a background tab; adding Shift also switches to it. Dragging a tab reorders it
+within the strip; dragging it over the workspace shows drop zones on each
+split — the edges insert the tab's splits beside it, the middle replaces the
+split — and the dropped tab leaves the strip. Tabs persist per user and
+restore on launch. In the browser and on other platforms the strip does not
+render.
+
 After native bundle updates, verify that Home and channel details load without
 an update toast on every launch. Relative bundled assets such as Loro's WASM
 must load through the webview, not native HTTP. A `vite:preloadError` with
