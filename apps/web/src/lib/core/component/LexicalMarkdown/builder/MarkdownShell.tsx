@@ -3,6 +3,7 @@ import { isMobile } from '@core/mobile/isMobile';
 import { handleFileFolderDrop } from '@core/util/upload';
 import { Telemetry } from '@macro-inc/observability';
 import { onElementConnect } from '@solid-primitives/lifecycle';
+import { createCallback } from '@solid-primitives/rootless';
 import { cn } from '@ui';
 import {
   COMMAND_PRIORITY_CRITICAL,
@@ -70,7 +71,9 @@ export const MarkdownShell: Component<MarkdownShellProps> = (props) => {
   // Track initialization so onChange is not fired during setup
   let didInitializeContent = false;
 
-  const onConnect = () => {
+  // ResizeObserver connects the editor outside Solid's owner. Prop getters can
+  // create computations, so keep them under the editor's cleanup lifetime.
+  const onConnect = createCallback(() => {
     if (props.autofocus) {
       setTimeout(() => {
         focusEditorWithoutScroll(editor);
@@ -97,7 +100,7 @@ export const MarkdownShell: Component<MarkdownShellProps> = (props) => {
     }
 
     props.onConnect?.();
-  };
+  });
 
   // Track editable state
   createEffect(() => {

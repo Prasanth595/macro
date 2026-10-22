@@ -20,3 +20,9 @@ not authenticated app navigation or a VoiceOver session.
 
 Screenshots from the verified fixture: [desktop](proof/desktop.png) and
 [phone](proof/mobile.png).
+
+`memory.browser.e2e.ts` mounts the real MarkdownShell twenty times, types into
+each editor, and changes input modality after unmount. Retired editors must stop
+reading the modality signal. This covers deferred connection through the real
+ResizeObserver and runs on the same desktop, tablet, and phone projects. Videos
+are saved with the Playwright results; it does not simulate an iOS memory limit.
