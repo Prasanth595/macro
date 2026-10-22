@@ -1,15 +1,17 @@
 import { LIST_VIEW_ID } from '@app/constants/list-views';
 import { globalSplitManager } from '@app/signal/splitLayout';
+import { setTabStripMount } from '@app/signal/tabLayout';
 import { splitBackInterceptor } from '@components/app/split-layout/back-interceptor';
 import { TOKENS } from '@core/hotkey/tokens';
 import CaretLeftIcon from '@phosphor/caret-left.svg';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import ColumnsPlusIcon from '@phosphor/columns-plus-right.svg';
 import { Button } from '@ui';
-import { Show } from 'solid-js';
+import { onCleanup, Show } from 'solid-js';
 
 export function DesktopTitleBar() {
   const activeSplit = () => globalSplitManager()?.activeSplit();
+  onCleanup(() => setTabStripMount(undefined));
 
   return (
     <div
@@ -41,6 +43,12 @@ export function DesktopTitleBar() {
           <CaretRightIcon class="size-4" />
         </Button>
       </div>
+      {/* The tab strip renders inside the app chrome and portals in here. */}
+      <div
+        ref={setTabStripMount}
+        data-tauri-drag-region
+        class="flex h-full min-w-0 flex-1 items-center"
+      />
       <Show when={globalSplitManager()}>
         {(manager) => (
           <Button

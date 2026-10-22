@@ -76,6 +76,7 @@ import { installGlassPress } from './mobile/glassPress';
 import { MobileDockRow } from './mobile/MobileDockRow';
 import { SwipeDownDismissKeyboard } from './mobile/SwipeDownDismissKeyboard';
 import { SessionExpiredRedirect } from './SessionExpiredRedirect';
+import { DesktopTabStrip } from './tab-layout/DesktopTabStrip';
 import { useAppSquishHandlers } from './useAppSquishHandlers';
 
 const StarterDatabase = lazy(async () => {
@@ -304,6 +305,8 @@ export function AppChrome(props: ParentProps) {
       </Suspense>
       <div class="min-h-0 flex-1 flex">
         <ItemDndProvider>
+          {/* Portals into the title bar; lives here for drag-and-drop. */}
+          <DesktopTabStrip />
           <Show when={isSidebarVisible()}>
             <SidebarRail />
           </Show>
