@@ -259,7 +259,8 @@ code files, images, canvases, spreadsheets, email, channels, calls, and projects
 also open agent sessions. Like command-menu Ask AI, they open the bare session in
 a new split, without the Agents workspace's conversation sidebar. Their entity mention stays
 in the composer as an unsent draft. Spreadsheet mentions retain the current sheet
-and selected range; channel-message actions retain the referenced message.
+and selected range; channel-message actions retain the referenced message. On
+phones, the channel message long-press drawer offers the same action as **Ask Macro**.
 Add a question and press Send to submit that context. These actions do not create
 legacy cognition chats, regardless of the Agents workspace feature flag.
 
@@ -301,6 +302,12 @@ the shimmer.
   app authentication and disconnection), also available under Settings → Integrations.
   Home’s **Connect your tools** and agent replies’ **Connect app** chips open this
   Integrations page. It shows installed tools above the app catalog, with personal Gmail/GitHub account links in a separate section above.
+
+  In a secondary desktop split, the new-conversation page and existing chats show
+  one close button beside **Show navigation** while the sidebar is collapsed.
+  Verify this below 720px pane width, then expand and collapse navigation and
+  check that closing the split works. Mobile **Back to conversations** still
+  returns to the conversation list.
 
   To recreate Slack channels, open **Settings → Integrations → Slack → Import
   channels** (or **Connections → Slack** from the Agents workspace). The card
@@ -1998,11 +2005,14 @@ Invalid drafts remain editable; navigation opens the first draft needing attenti
 A revision conflict or uncertain request shows **Reload saved review**. Reload
 reads the saved version and discards the local edit; it never retries an external
 send automatically. If the outcome is unknown, check the inbox/calendar before
-attempting another send elsewhere. A completed review queues bounded outcome
-context for the agent through the normal session queue, without interrupting its
-current turn. The existing context
-control exposes this metadata on demand; individual outcomes remain on the review
-card instead of appearing as a long user message. Questions and their answers use
+attempting another send elsewhere. Owner decisions produce durable system events
+for the same review ID. The card refreshes in place, with **Responding** below it
+until the agent starts its reply. This behaves the same on mobile. These events
+create no user bubble; events without an existing card use a quiet timeline row.
+The agent can read final drafts and confirmed outcomes through **GetReview**.
+An exact silent response produces no assistant message or unread notification.
+An owner decision in chat uses the same saved-revision claim as the card;
+a system event cannot approve a review. Ordinary questions still use
 the existing ACP question tool; they are not saved reviews.
 
 For browser verification, inspect email stacks without clicking Send, or dismiss
@@ -2063,3 +2073,9 @@ can share a session into a channel. These tools cannot approve permission
 requests on a user's behalf.
 
 ![Expanded session read with a terminal failure visible after truncated text](media/ai-chat/read-agent-session.png)
+
+Agent-session system events appear as a single quiet row with a kind-specific
+icon, an outcome summary, and relative time (hover for the exact timestamp).
+Failures and unconfirmed outcomes use the error tone. Review events refresh
+the existing card without adding a second timeline row when that card is
+already in the thread. The row stays on one line and truncates on phones.
