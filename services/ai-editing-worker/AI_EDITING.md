@@ -147,9 +147,9 @@ block id to the `LoroText` that actually owns the characters for this :/
 
 **The peer id** Human peers get random ids from the whole 64b range, and we have
 it so that AI commits use a small reserved range in
-(`999999999999999000`–`999999999999999999`). This makes AI authorship easy to
-detect (`isAiPeer`) which history will be able to use to group together all AI
-edits.
+(`999999999999999000`–`999999999999999999`). This makes Markdown AI authorship easy to
+detect (`isAiPeer`) which history can use for grouping. Canvas instead uses
+full-width random session IDs and signed actor attribution, as described below.
 
 ## Comment marks
 
@@ -162,6 +162,49 @@ more than once with no occurrence chosen is refused with a 422 and the
 document is left untouched, so a mark is never guessed into place. The
 backend `CommentOnText` tool places the mark first and then posts the
 thread anchored to it, removing the mark again if the post fails.
+
+## Canvas
+
+`POST /canvas` reads an initialized Canvas room or performs a natural-language
+edit. Documents' `ReadCanvas` and `EditCanvas` tools authorize native canvas
+documents, mint view/edit tokens naming the actor, and apply existing AI
+admission and usage metering. The app's **Ask Macro** action in the standalone toolbar and Drive detail header attaches
+the canvas to that tool-enabled conversation on desktop and mobile.
+
+The model calls the ergonomic `CanvasEditor` SDK through `runCode`. QuickJS has
+no host I/O, a 16 MiB heap, a 512 KiB stack and a one-second execution deadline.
+The host mints up to 100 new stable IDs and validates at most 100 operations per
+snippet. `scripts/generate-sandbox.ts` generates the sandbox script from
+`src/canvas/editor.ts`; wire-operation validation lives in `schema.ts`. Completed model-step usage is
+retained on normal failure/timeout responses and recorded before a tool error is
+surfaced. As with document AI editing, a hard caller disconnect can prevent the
+worker response from reaching the recorder; provider usage for that interrupted
+request may be unreported.
+
+The worker uses the shared collaboration manager/engine/WAL and binds the
+existing graphics backend to that live Loro document. Before each snippet it
+reads the latest merged scene, validates the entire snippet on a disposable
+graphics editor, then makes one live backend commit. It never replaces the
+shared scene or saves the legacy JSON. Canvas uses full-width random peer IDs to avoid cross-isolate collisions; signed
+actor claims provide durable attribution. Ephemeral cursor/selection names carry
+the requesting editor’s AI label and are cleared on teardown. Successful calls
+require an acknowledged WAL flush. A missing acknowledgement is an uncertain
+write: abort model execution and reread before retrying intent. Cancellation
+can leave earlier acknowledged snippets applied.
+
+Supported commands create rectangles, ellipses, text and bound connectors;
+move, resize boxes, style, relabel, group/ungroup, reparent and reorder siblings.
+Moves are world-space deltas and reparenting preserves world pose. Text and
+labels use the same plain-text-to-Lexical codec as the app. Same-label changes
+remain whole-string LWW; independent pose and appearance edits merge. Headless
+label heights are estimates, and text layout dimensions are explicit. New
+media/document references and deletion of embedded items remain in the host's
+authorized asset/reference flow. Existing references can move/resize/style.
+
+`ReadCanvas` returns a bounded live overview with stable IDs, geometry,
+containment/order, world bounds and plain text. It reports truncation and
+supports stable-ID filtering. Unsupported/uninitialized room formats are
+refused; opening the canvas in Macro establishes its single winning seed.
 
 ## Forms
 

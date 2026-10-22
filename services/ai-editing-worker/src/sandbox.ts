@@ -7,6 +7,7 @@ import {
 } from 'quickjs-emscripten-core';
 import type { DocumentOp } from './ai-editing/editor';
 import { sandboxInit } from './ai-editing/editor/sandbox-init';
+import { runCanvasCode } from './canvas/sandbox';
 import { SANDBOX_CODE } from './editor-sandbox-code';
 
 /** Upper bound on inserts per snippet. The host mints the ids (QuickJS has no
@@ -28,6 +29,10 @@ async function qjs() {
   return _qjs;
 }
 
+export async function runCanvasInSandbox(code: string) {
+  return runCanvasCode(await qjs(), code);
+}
+
 export async function runInSandbox(
   validIds: Set<string>,
   code: string,
@@ -38,9 +43,7 @@ export async function runInSandbox(
   try {
     const refs = Array.from({ length: REF_POOL_SIZE }, () => nanoid());
     const init = ctx.unwrapResult(
-      ctx.evalCode(
-        `${SANDBOX_CODE}\n${sandboxInit(validIds, refs, snippets)}`
-      )
+      ctx.evalCode(`${SANDBOX_CODE}\n${sandboxInit(validIds, refs, snippets)}`)
     );
     init.dispose();
 

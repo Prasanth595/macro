@@ -14,6 +14,9 @@ before touching the edit flow.
   (`POST /edit` and friends).
 - `src/run-edit.ts`: `runEditSession` — joins the sync-service WebSocket,
   drives the agents, flushes commits back.
+- `src/canvas/`: bounded CanvasEditor SDK, real QuickJS runner, live graphics/Loro
+  session, model loop and concurrency/acknowledgement tests. `POST /canvas`
+  joins an already initialized scene; it never creates a competing seed.
 - `src/ai-editing/`: the agent loop, prompts, tools, and op queue.
 - `src/endpoints/`: one file per surface — `edit.ts`, `docx.ts`, `forms.ts`,
   `spreadsheet.ts`, `comment-mark.ts`.
@@ -23,7 +26,7 @@ before touching the edit flow.
 ## Scope
 
 - Owns: the AI document-editing session (joining the doc, agent orchestration,
-  applying edits), DOCX/forms/spreadsheet AI endpoints, and comment-mark anchoring.
+  applying edits), Canvas/DOCX/forms/spreadsheet AI endpoints, and comment-mark anchoring.
 - Not here: the Loro/sync-service wire protocol itself, shared with the web
   app via `@macro-inc/collaboration`; browser auth and sync HTTP policy stay
   in `apps/web`.
@@ -38,6 +41,11 @@ before touching the edit flow.
   `src/endpoints/index.ts`.
 - Change the sandboxed edit API: `src/ai-editing/doc/` or `src/ai-editing/editor/`
   → `scripts/generate-sandbox.ts` (regenerates `src/editor-sandbox-code.ts`).
+
+- Change the Canvas SDK: `src/canvas/editor.ts` and `schema.ts` →
+  `scripts/generate-sandbox.ts` (regenerates `src/canvas/sandbox-code.ts`).
+  Commands validate on a disposable editor and commit once through the live
+  backend. Keep asset-reference bookkeeping in its authorized host flow.
 
 ## Checks
 
