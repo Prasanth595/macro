@@ -3,6 +3,7 @@ import { globalSplitManager } from '@app/signal/splitLayout';
 import type { useSplitLayout } from '@components/app/split-layout/layout';
 import type { SplitContent } from '@components/app/split-layout/layoutManager';
 import { enableProjects, isFeatureEnabled } from '@core/constant/featureFlags';
+import { Telemetry } from '@macro-inc/observability';
 import type { ProjectSection } from './core/project';
 
 /**
@@ -46,13 +47,29 @@ export function openProject(
     ? 'overview'
     : (options.section ?? 'overview');
   const content = projectHostedContent(id, section, options.discussionId);
-  // A project already on screen moves to the requested section or comment
-  // in place; opening it again would only add an empty pane.
-  const existing = globalSplitManager()?.getSplitByContent('initiative', id);
-  if (existing) {
-    existing.replace({ next: content, mergeHistory: true, referredFrom: null });
-    existing.activate();
-    return;
+  const span = Telemetry.span('project.open');
+  try {
+    span.setAttr('project.id', id);
+    span.setAttr('project.section', section);
+    span.setAttr('project.has_discussion', options.discussionId !== undefined);
+    // A project already on screen moves to the requested section or comment
+    // in place; opening it again would only add an empty pane.
+    const existing = globalSplitManager()?.getSplitByContent('initiative', id);
+    if (existing) {
+      existing.replace({
+        next: content,
+        mergeHistory: true,
+        referredFrom: null,
+      });
+      existing.activate();
+      span.setAttr('project.outcome', 'retargeted');
+      return;
+    }
+    const result = layout.openWithSplit(content, {
+      preferNewSplit: options.newSplit,
+    });
+    span.setAttr('project.outcome', result?.status ?? 'unavailable');
+  } finally {
+    span.end();
   }
-  layout.openWithSplit(content, { preferNewSplit: options.newSplit });
 }
