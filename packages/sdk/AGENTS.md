@@ -46,6 +46,10 @@ the existing gateway prefixes.
   run that package's checks because web CI verifies the reference is current.
 - `generated/agent-fold/` is not from OpenAPI: `cargo run -p agent_fold --bin
   export_types` writes it, and `foldedLog()` casts the opaque wire schema to it.
+- System events project separately in fold metadata and never appear as user
+  messages in `foldedLog()`; silent notification turns have no assistant message.
+- Fold metadata notifications use a generated `kind`-discriminated payload union;
+  keep its phased serialization types and stored JSON shape aligned.
 - Workspace advanced filters use the server's serialized AST names, not Rust
   enum variant names. Validate new filter examples against the real local API.
 - Async iterators are lazy; `limit` is page size. Preserve filters on every page
@@ -60,4 +64,9 @@ the existing gateway prefixes.
 - Email sends and other writes against hosted data are real actions; use mocks
   for automated SDK mutation tests.
 
+- Carry the generation read with the draft through each mutation, including
+  transfer and save. Attachment handles retain their reservation generation
+  through completion and removal. A stale-generation rejection requires a fresh
+  draft read and explicit reapproval; never refresh the generation to replay an
+  old edit.
 - SQL result schemas are dynamic typed-cell unions; inspect `truncatedTables` before interpreting aggregates. Queries can write and are never retried automatically.

@@ -1,5 +1,5 @@
 import { analytics } from '@app/lib/analytics';
-import { Telemetry } from '@macro-inc/observability';
+import { type Attributes, Telemetry } from '@macro-inc/observability';
 import type { DesktopSnapshot } from './desktop';
 import { frontendInstanceId } from './frontend-instance';
 import {
@@ -10,14 +10,15 @@ import { consumeReloadIntent } from './reload';
 
 /** Called once per document, including recovery after a WebContent termination. */
 export function recordNativeWebviewStart(
-  snapshot: DesktopSnapshot | undefined
+  snapshot: DesktopSnapshot | undefined,
+  documentLifecycle?: Attributes
 ) {
   const bundleBuild = document
     .querySelector('meta[name="macro-bundle-build"]')
     ?.getAttribute('content');
   const navigation = performance.getEntriesByType('navigation')[0];
-  // Native snapshots include this field on every platform, but only Apple's
-  // WebKit termination callback records it. Other platforms remain unknown.
+  // Native snapshots include this field on every platform, but only the iOS
+  // and macOS termination callbacks record it. Other platforms remain unknown.
   const webContent =
     snapshot?.identity.os === 'ios' || snapshot?.identity.os === 'macos'
       ? snapshot.webContent
@@ -51,7 +52,11 @@ export function recordNativeWebviewStart(
   // Include the native launch and termination count on subsequent exceptions.
   // These are runtime identifiers, not account data.
   analytics.posthog.register(attributes);
-  const startupAttributes = { ...attributes, ...consumeReloadIntent() };
+  const startupAttributes = {
+    ...attributes,
+    ...documentLifecycle,
+    ...consumeReloadIntent(),
+  };
   analytics.track('native_webview_started', startupAttributes);
   const span = Telemetry.span('native.webview.start');
   for (const [key, value] of Object.entries(startupAttributes)) {

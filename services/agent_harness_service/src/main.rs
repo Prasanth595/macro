@@ -264,22 +264,6 @@ async fn run() -> anyhow::Result<()> {
         .await
         .context("failed to connect to macrodb")?;
 
-    // The same encrypted connection store serves browser consent and runtime
-    // credentials in every deployment. Only the KMS key configuration varies.
-    let claude_refresh =
-        Arc::new(claude_cloud_agents::outbound::credentials::ClaudeRefresh::new()?);
-    let claude_credentials = config.claude_oauth_kms_key_id().map(|key| {
-        claude_cloud_agents::domain::credentials::AccountCredentials::new(
-            Arc::new(
-                claude_cloud_agents::outbound::postgres::PgClaudeGrants::new(
-                    pool.clone(),
-                    AwsKmsCiphertexts::new(aws_sdk_kms::Client::new(&aws_config), key),
-                ),
-            ),
-            claude_refresh.clone(),
-        )
-    });
-
     // Built before the sessions rather than beside the other channel plumbing
     // below: this service owns the live actors, so it is where a session's
     // frames are streamed from.
@@ -940,18 +924,6 @@ async fn run() -> anyhow::Result<()> {
             },
         },
     ));
-    fixed_runtimes.push((
-        bot_id::CLAUDE_BOT_ID,
-        AgentRuntimeConfig {
-            kind: AgentKind::ClaudeCloud,
-            model: claude_cloud_agents::domain::models::Model::default()
-                .id()
-                .to_owned(),
-            harness: "claude-cloud".into(),
-            instructions: String::new(),
-            mcp_servers: AgentMcpServers::OwnerConnections,
-        },
-    ));
     let runtime_directory =
         PgAgentRuntimeDirectory::new(PgBotsRepo::new(pool.clone()), fixed_runtimes.clone());
     // Logged because the failure mode this replaced was silent: a harness that
@@ -964,31 +936,10 @@ async fn run() -> anyhow::Result<()> {
         environment = %config.environment,
         "agent harness serving bots"
     );
-    let claude_provider = Arc::new(claude_cloud_agents::outbound::http::Provider(
-        claude_credentials.clone(),
-    ));
-    let claude_manager = agent_harness::outbound::claude::ClaudeContainerManager::new(
-        agent_harness::domain::claude::ClaudeSessions::new(
-            claude_provider.clone(),
-            session_repo.clone(),
-            session_repo.clone(),
-            url::Url::parse(&egress_base_url)?
-                .host_str()
-                .context("egress URL needs a host")?
-                .to_owned(),
-        ),
-        EgressProvisioner::new(
-            Arc::clone(&mcp_connections),
-            Arc::clone(&mcp_servers),
-            egress_base_url.clone(),
-        ),
-        claude_cloud_agents::inbound::acp::attach,
-    );
     let containers = RoutedContainerManager::new(
         sandbox_and_inmem,
         cursor_manager,
         codex_manager,
-        claude_manager,
         session_repo.clone(),
     );
 
@@ -1132,17 +1083,6 @@ async fn run() -> anyhow::Result<()> {
             repo_url: None,
         },
     )
-    .with_bot(
-        bot_id::CLAUDE_BOT_ID,
-        SessionDefaults {
-            bot_id: bot_id::CLAUDE_BOT_ID,
-            model: claude_cloud_agents::domain::models::Model::default()
-                .id()
-                .to_owned(),
-            harness: "claude-cloud".into(),
-            repo_url: None,
-        },
-    )
     // Sessions nothing names a bot for (the create menu's) run in-process;
     // explicitly selected coding agents keep their configured runtimes.
     .with_managed_bot(inmem_bot);
@@ -1207,6 +1147,9 @@ async fn run() -> anyhow::Result<()> {
         .with_external_replies(Arc::new(
             agent_harness::outbound::external_replies::PgExternalReplyStore::new(pool.clone()),
         ))
+        .with_notifications(Arc::new(
+            agent_session::outbound::notifications::PgNotificationStore(pool.clone()),
+        ))
         .with_conversation_turns(conversation_turns)
         .with_admission(admission.clone())
         .with_repositories(open_repositories)
@@ -1215,6 +1158,9 @@ async fn run() -> anyhow::Result<()> {
     let reviews = agent_code_mode::domain::reviews::ReviewService::new(
         Arc::new(agent_code_mode::outbound::reviews::PgReviewStore(
             pool.clone(),
+            Arc::new(agent_session::outbound::notifications::PgNotificationStore(
+                pool.clone(),
+            )),
         )),
         Arc::new(agent_code_mode::outbound::postgres::PgExecutionStore::new(
             pool.clone(),
@@ -1358,22 +1304,17 @@ async fn run() -> anyhow::Result<()> {
             MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
         ),
     );
-    let model_service = Arc::new(
-        AgentModelsServiceImpl::new(
-            VisibleHarnessAccess::new(PgHarnessRepo::new(pool.clone())),
-            InMemoryModels::new(
-                Some(inmem_model_engine),
-                config.inmem_model.clone(),
-                inmem_model_access,
-            ),
-            CursorModels::new(cursor_keys, cursor_api_base_url()),
-            macrod_models,
-            model_probe_timeout,
-        )
-        .with_claude(Arc::new(agent_harness::outbound::claude::ClaudeModels(
-            claude_provider,
-        ))),
-    );
+    let model_service = Arc::new(AgentModelsServiceImpl::new(
+        VisibleHarnessAccess::new(PgHarnessRepo::new(pool.clone())),
+        InMemoryModels::new(
+            Some(inmem_model_engine),
+            config.inmem_model.clone(),
+            inmem_model_access,
+        ),
+        CursorModels::new(cursor_keys, cursor_api_base_url()),
+        macrod_models,
+        model_probe_timeout,
+    ));
     let model_state = AgentModelsRouterState::new(
         model_service,
         MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
@@ -1437,7 +1378,6 @@ async fn run() -> anyhow::Result<()> {
             PgHarnessRepo::new(pool.clone()),
             pool.clone(),
             codex_connections,
-            claude_credentials.clone(),
         ),
         agent_session::domain::routines::RoutineSessionsService::new(
             (*bots_directory).clone(),
@@ -1462,16 +1402,6 @@ async fn run() -> anyhow::Result<()> {
         MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
     );
     let http_runtime_commands_readiness = runtime_commands_readiness.clone();
-    let claude_auth = claude_cloud_agents::inbound::auth::router(
-        claude_cloud_agents::inbound::auth::ClaudeAuthState::new(
-            Arc::new(claude_cloud_agents::domain::auth::AuthService::new(
-                claude_cloud_agents::outbound::oauth::ClaudeOAuth::new()?,
-                claude_credentials,
-                false,
-            )),
-            MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
-        ),
-    );
     let http_port = config.port;
     let pull_requests =
         agent_session::inbound::axum_router::pull_requests::agent_session_pull_request_router(
@@ -1514,6 +1444,16 @@ async fn run() -> anyhow::Result<()> {
         entity_access.clone(),
         MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
     ));
+    let notification_ingress = agent_session::inbound::notifications::notification_router(
+        agent_session::inbound::notifications::NotificationRouterState {
+            authorization: MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
+            service: Arc::new(agent_session::domain::notifications::NotificationService(
+                Arc::new(agent_session::outbound::notifications::PgNotificationStore(
+                    pool.clone(),
+                )),
+            )),
+        },
+    );
     let http_shutdown = service_shutdown.clone();
     let http = tokio::spawn(async move {
         if let Err(error) = api::setup_and_serve(
@@ -1526,7 +1466,6 @@ async fn run() -> anyhow::Result<()> {
                 repositories_state,
                 changes_state,
             )
-            .with_claude_auth(claude_auth)
             .with_sharing(sharing)
             .with_routine_sessions(routine_sessions)
             .with_conversations(conversations)
@@ -1535,6 +1474,7 @@ async fn run() -> anyhow::Result<()> {
             .with_pull_requests(pull_requests)
             .with_tool_approvals(tool_approval_answers)
             .with_code_executions(code_executions)
+            .with_notifications(notification_ingress)
             .with_cognition(cognition_router)
             .with_scheduling(scheduling_router)
             .with_preview(preview_router)
@@ -1581,6 +1521,30 @@ async fn run() -> anyhow::Result<()> {
         loop {
             ticker.tick().await;
             typing_harness.refresh_typing().await;
+        }
+    });
+
+    let notification_cancel = tokio_util::sync::CancellationToken::new();
+    let notification_tasks = tokio_util::task::TaskTracker::new();
+    let notification_harness = harness.clone();
+    let notification_stop = notification_cancel.clone();
+    notification_tasks.spawn(async move {
+        let mut ticker = tokio::time::interval(std::time::Duration::from_secs(2));
+        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            tokio::select! {
+                () = notification_stop.cancelled() => break,
+                _ = ticker.tick() => {
+                    tokio::select! {
+                        () = notification_stop.cancelled() => break,
+                        result = notification_harness.recover_notifications() => {
+                            if let Err(error) = result {
+                                tracing::warn!(?error, "durable session event recovery failed");
+                            }
+                        }
+                    }
+                }
+            }
         }
     });
 
@@ -1808,7 +1772,8 @@ async fn run() -> anyhow::Result<()> {
                                 | HarnessCommand::Turn(_)
                                 | HarnessCommand::ToolApproval(_)
                                 | HarnessCommand::PresentTool { .. }
-                                | HarnessCommand::SessionStopped { .. } => "agent_trigger.unexpected",
+                                | HarnessCommand::SessionStopped { .. }
+                                | HarnessCommand::DrainNotifications => "agent_trigger.unexpected",
                             };
                             tracing::Span::current().record("macro.event.type", event_type);
                             let execution_span = tracing::info_span!(
@@ -1892,6 +1857,9 @@ async fn run() -> anyhow::Result<()> {
     service_shutdown.cancel();
     scheduling_runtime.stop();
     cognition_runtime.stop();
+    notification_cancel.cancel();
+    notification_tasks.close();
+    notification_tasks.wait().await;
     http.abort();
     trigger.abort();
     egress_http.abort();
