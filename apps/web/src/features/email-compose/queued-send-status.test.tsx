@@ -42,7 +42,7 @@ beforeEach(() => {
 
 function showStatus(
   status: 'ACCEPTED' | 'FAILED' | 'DELIVERY_UNCONFIRMED',
-  cancellationPending = false
+  { cancellationPending = false, sendTime = null as string | null } = {}
 ) {
   mocks.intents = [
     {
@@ -67,6 +67,7 @@ function showStatus(
             message: {
               draftId: 'draft',
               subject: 'Saved message',
+              sendTime,
             },
             attachmentIds: [],
             forwardedAttachmentIds: [],
@@ -89,16 +90,21 @@ function showStatus(
   return render(() => <QueuedSendStatus />);
 }
 
-it('keeps an accepted preparation cancellable while waiting to submit', async () => {
+it('stays silent while an immediate send is accepted and delivering', () => {
   showStatus('ACCEPTED');
-  expect(screen.getByRole('status').textContent).toBe('Accepted by server');
+  expect(screen.queryByLabelText('Queued email sends')).toBeNull();
+});
+
+it('keeps an accepted scheduled send cancellable until its send time', async () => {
+  showStatus('ACCEPTED', { sendTime: '2026-10-23T09:00:00.000Z' });
+  expect(screen.getByRole('status').textContent).toContain('Scheduled');
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   await waitFor(() => expect(mocks.cancel).toHaveBeenCalledOnce());
   expect(mocks.restore).not.toHaveBeenCalled();
 });
 
 it('keeps a pending cancellation visible after an accepted preparation', () => {
-  showStatus('ACCEPTED', true);
+  showStatus('ACCEPTED', { cancellationPending: true });
   expect(screen.getByRole('status').textContent).toBe('Cancellation pending');
   expect(
     screen.getByRole('button', { name: 'Cancel' }).hasAttribute('disabled')

@@ -792,14 +792,12 @@ export function createEmailComposer(props: EmailComposerOptions) {
   ) => {
     const draftId = identity.draftId;
     const threadId = identity.threadId;
+    // The outbox delivers an online send right away; offline it waits on this device.
+    const offline = props.connectivity.looksOffline();
     if (draftId) endUndoSend(draftId);
     try {
       const toastId = props.notices.feedback.success(
-        identity.sendAttemptId
-          ? identity.persistence === 'queued'
-            ? 'Email queued to send'
-            : 'Email sending'
-          : 'Email sent',
+        offline ? 'Email queued to send' : 'Email sent',
         {
           actions: draftId
             ? [
@@ -825,7 +823,9 @@ export function createEmailComposer(props: EmailComposerOptions) {
       props.notices.reportError(error);
     }
     try {
-      if (threadId) props.host?.showThread?.(threadId);
+      // The server has no thread to show until an offline send goes out.
+      if (offline) props.host?.goBack?.();
+      else if (threadId) props.host?.showThread?.(threadId);
     } catch (error) {
       props.notices.reportError(error);
     }

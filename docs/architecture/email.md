@@ -563,7 +563,12 @@ attachment handles retain the generation captured at reservation.
 The status panel combines device intents with actor/inbox-authorized, cursor-paged
 `pendingEmailSends`, with batched message hydration. Server listing grants observation and cancellation authority,
 never automatic resubmission. Delivery state distinguishes local queueing,
-server acceptance, provider processing, sent, failed, and unconfirmed outcomes.
+server acceptance, provider processing, sent, failed, and unconfirmed outcomes,
+but the panel stays silent for routine delivery: it lists a send only while it
+waits on this device, needs attention, or is scheduled. Thread surfaces project
+approved immediate sends from the journal as sent messages
+(`email-thread/primitives/optimistic-send.ts`) until the thread read shows them,
+and read the thread once when delivery is confirmed.
 
 Deploy schema/migrations and all generation-aware backend writers before
 releasing this frontend, including before applying `ios-update`: that workflow

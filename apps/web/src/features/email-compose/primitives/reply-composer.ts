@@ -141,7 +141,11 @@ export type ReplyComposerOptions = {
    * undo-send restore. The parent latches the seed key on it so the input
    * stops remounting on later draft versions. */
   onEngaged?: () => void;
-  sideEffectOnSend?: (newMessageId: string | null) => void | Promise<void>;
+  sideEffectOnSend?: (
+    newMessageId: string | null,
+    /** Offline sends wait on this device, so the thread cannot show them yet. */
+    sent?: { queuedOffline: boolean }
+  ) => void | Promise<void>;
   onMarkDone?: (opts?: {
     silent?: boolean;
     onUndoHandle?: (handle: EmailUndoHandle) => void;
@@ -1362,13 +1366,11 @@ export function createReplyComposer(
             });
           },
         });
+      // The outbox delivers an online send right away; offline it waits on this device.
+      const offline = props.connectivity.looksOffline();
       try {
         const toastId = props.notices.feedback.success(
-          result.sendAttemptId
-            ? result.persistence === 'queued'
-              ? 'Email queued to send'
-              : 'Email sending'
-            : 'Email sent',
+          offline ? 'Email queued to send' : 'Email sent',
           {
             actions: draftId
               ? [
@@ -1417,9 +1419,12 @@ export function createReplyComposer(
       }
       try {
         // Presentation refresh must not keep a successfully sent or undone reply disabled.
-        void Promise.resolve(props.sideEffectOnSend?.(draftId ?? null)).catch(
-          props.notices.reportError
-        );
+        void Promise.resolve(
+          props.sideEffectOnSend?.(draftId ?? null, {
+            // Send and mark done already leaves the thread.
+            queuedOffline: offline && !willMarkDone,
+          })
+        ).catch(props.notices.reportError);
       } catch (error) {
         props.notices.reportError(error);
       }

@@ -603,10 +603,15 @@ attempt ID. Completed uploads are required; adding files offline is unavailable.
 
 An authenticated app-level dispatcher submits online immediately and retries the
 same attempt independently of unrelated draft, archive, and property mutations.
-**Queued on this device** means the app must run again to submit. **Accepted by
-server** means delivery continues after the browser closes. Never equate local
-queueing or server acceptance with provider delivery. Only one active send can
-own a draft across tabs; queued composers remain read-only.
+An online send shows **Email sent** with **Undo**: a new message opens its
+conversation and a reply closes its composer, and the message appears as sent
+there immediately, before the server or provider confirms it. An offline send
+shows **Email queued to send** and returns to the email list. Routine delivery
+is otherwise silent: the status panel shows a send only while it waits on this
+device (**Queued on this device**), needs attention, or is scheduled
+(**Scheduled**). On phones the panel sits below the safe area and the floating
+header. Only one active send can own a draft across tabs; queued composers
+remain read-only.
 
 Queued sends remain visible in **Drafts** and their conversation with a persistent
 status and **Cancel** action. A never-attempted send can be cancelled offline.
@@ -659,8 +664,7 @@ Verify: queue a new message and a reply offline, close and reopen the app, and
 check their persistent status and read-only content. Cancel one before reconnect
 and confirm its send mutation is never issued. Reconnect the other and check
 that one stable attempt is replayed even after a lost response. Also test a
-cancel racing admission, unavailable local storage, and a pending upload. Queue
-admission means **Email queued to send** or **Email sending**, not provider delivery.
+cancel racing admission, unavailable local storage, and a pending upload.
 Send a standalone message, let it open its thread, then use the toast's Undo and
 confirm the original draft reopens. Repeat after delivery starts and check the
 visible failure notice. Cancel a draft-only thread and check it returns to Drafts
@@ -689,8 +693,8 @@ the stale submission, and old send cleanup must preserve a restored draft and
 its attachments. Logout should warn about queued sends even after their original
 local working copies have been retired; it must not claim to cancel server sends.
 Approved local sends survive sign-out, are hidden from other accounts, and resume
-only when the same account signs back in. The status panel also lists pending and
-failed server attempts from other devices, with pagination. Cancelling one must
+only when the same account signs back in. The status panel also lists failed,
+unconfirmed, and scheduled server attempts from other devices, with pagination. Cancelling one must
 preserve this device's unsynced edits. A malformed or newer-version journal record
 shows a recovery warning, retains its recognizable draft locks, and does not stop
 unrelated valid sends. Reconnecting an expired email account requires **Check
