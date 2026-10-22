@@ -1,4 +1,5 @@
 import type { EntryState } from '@components/app/split-layout/layoutManager';
+import type { EntityItem, UserItem } from '@core/context/quickAccess';
 import type { EntityData, SearchLocation } from '@entity';
 import {
   cleanup,
@@ -11,6 +12,7 @@ import {
 import { CombinedError } from '@urql/core';
 import { type Accessor, createSignal, onMount, Show } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { mergeCommandPeople } from '../contact-items';
 import type { EntitySearchItem } from '../queries/entity-search';
 import { MobileSearchInput } from './MobileSearchInput';
 import { MobileSearchResults } from './MobileSearchResults';
@@ -579,6 +581,95 @@ it('restores the name list order and scroll after opening promotes a result by r
     'cache'
   );
 });
+
+it.each(['before navigation', 'while away'])(
+  'keeps a person in place when their DM arrives %s',
+  async (arrival) => {
+    mocks.hasMore = false;
+    const people: UserItem[] = Array.from({ length: 100 }, (_, index) => ({
+      id: `macro|person-${index}@example.com`,
+      kind: 'user',
+      bucket: 'person',
+      searchText: `Person ${index}`,
+      sortTimestamp: 0,
+      timestamps: {},
+      data: {
+        id: `macro|person-${index}@example.com`,
+        email: `person-${index}@example.com`,
+        name: `Person ${index}`,
+      },
+    }));
+    const [conversations, setConversations] = createSignal<EntityItem[]>([]);
+    // Exercise the real person-to-conversation composition. A new DM is also
+    // promoted by recency, so its raw channel ID no longer occupies the old slot.
+    mocks.items = () =>
+      mergeCommandPeople(
+        [...conversations(), ...people],
+        conversations(),
+        'owner'
+      );
+    const publishConversation = () => {
+      setConversations([
+        {
+          id: 'new-dm',
+          kind: 'entity',
+          bucket: 'dm',
+          searchText: 'Person 2',
+          sortTimestamp: Date.now(),
+          timestamps: {},
+          data: {
+            id: 'new-dm',
+            type: 'channel',
+            name: 'Person 2',
+            ownerId: 'owner',
+            channelType: 'direct_message',
+            participantIds: ['owner', people[2].id],
+          },
+        },
+      ]);
+    };
+    mocks.directMessage.mockImplementation(async () => {
+      if (arrival === 'before navigation') publishConversation();
+      return { channel_id: 'new-dm' };
+    });
+    SearchState.setQuery('Person');
+    const view = render(() => <MobileSearchResults />);
+    const list = screen.getByRole('region', { name: 'Search results' });
+    fireEvent.scroll(list, { target: { scrollTop: 800 } });
+    const visiblePeople = () =>
+      within(screen.getByRole('region', { name: 'Search results' }))
+        .getAllByRole('button')
+        .map((row) => row.textContent?.match(/Person \d+/)?.[0]);
+    const before = visiblePeople();
+    fireEvent.click(screen.getByRole('button', { name: 'Person 2' }));
+    await waitFor(() => expect(mocks.open).toHaveBeenCalled());
+    mocks.setActive(true);
+    expect(visiblePeople()).toEqual(before);
+    expect(list.scrollTop).toBe(800);
+
+    view.unmount();
+    if (arrival === 'while away') publishConversation();
+    mocks.setActive(true);
+    render(() => <MobileSearchResults />);
+    const restored = screen.getByRole('region', { name: 'Search results' });
+    await waitFor(() => expect(restored.scrollTop).toBe(800));
+    fireEvent.scroll(restored);
+    // Remounting can add an overscan row above the viewport.
+    expect(visiblePeople()).toEqual(expect.arrayContaining(before));
+    expect(visiblePeople().indexOf('Person 3')).toBe(
+      visiblePeople().indexOf('Person 2') + 1
+    );
+    const person = within(restored).getByRole('button', { name: /Person 2$/ });
+    fireEvent.click(person);
+    await waitFor(() =>
+      expect(mocks.open).toHaveBeenLastCalledWith(
+        expect.objectContaining({ id: 'new-dm', type: 'channel' }),
+        expect.anything()
+      )
+    );
+    expect(mocks.directMessage).toHaveBeenCalledOnce();
+  }
+);
 
 it('reloads name rows on remount instead of storing them in history', async () => {
   const savedItems: EntitySearchItem[] = Array.from(

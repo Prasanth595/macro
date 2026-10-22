@@ -25,6 +25,7 @@ import { Button, CommandMenuListItem } from '@ui';
 import { createMemo, createSignal, For, Show, Suspense } from 'solid-js';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 import { ItemDisplay } from '../CommandItem';
+import { commandSearchResultKey } from '../contact-items';
 import {
   type EntitySearchItem,
   useEntitySearch,
@@ -53,12 +54,15 @@ function MobileNameResults(props: {
   const incoming = createMemo(() =>
     source.rankItems(source.items(), state.query())
   );
+  const itemKey = (item: EntitySearchItem) =>
+    commandSearchResultKey(item, props.accountId);
   const results = createSearchResultWindow({
     key: 'mobileSearch.nameOrder',
     accountId: () => props.accountId,
     query: state.query,
     category,
     items: incoming,
+    itemKey,
     discard: source.hasAuthoritativeError,
   });
   const items = results.items;
@@ -77,8 +81,9 @@ function MobileNameResults(props: {
       const handle = virtualizer();
       const offset = handle?.scrollOffset ?? 0;
       const index = handle?.findItemIndex(offset) ?? 0;
+      const item = items()[index];
       return {
-        id: items()[index]?.id,
+        id: item ? itemKey(item) : undefined,
         offset,
         within: offset - (handle?.getItemOffset(index) ?? 0),
       };
@@ -90,7 +95,7 @@ function MobileNameResults(props: {
         handle.scrollTo(anchor.offset);
         return true;
       }
-      const index = items().findIndex((item) => item.id === anchor.id);
+      const index = items().findIndex((item) => itemKey(item) === anchor.id);
       if (index < 0) return false;
       handle.scrollToIndex(index, { align: 'start', offset: anchor.within });
       return true;

@@ -48,6 +48,9 @@ preserving that Search history entry's query, category, mode, result order, and
 scroll position. Opening a result does not promote it within that saved list,
 even when its last-viewed time changes. Swiping back, pressing the native Back control, or using browser Back
 returns to those results without focusing the input or reopening the keyboard.
+Name-result ordering and scroll anchors identify a one-to-one DM by its other
+participant, so a person keeps their place when opening them creates a conversation
+with a new channel ID. Group conversations keep their own channel identity.
 Native Search captures lightweight state when covered so deeper navigation can
 unmount it. History saves the query/category/mode, an account-scoped item ID and
 offset within that row, a fallback pixel offset, and at most 200 ordering IDs per
@@ -83,6 +86,10 @@ then revisit the earlier history entry and confirm its query is intact.
 Open a result from midway through the list and confirm it keeps its original
 position after Back, both when Search stays mounted and after deeper navigation
 evicts it. Refresh row metadata and append pages; existing rows must keep their order.
+Include a person without a DM: open them from midway through All/People results,
+then go Back and confirm that person's new DM is still in the same place and opens
+the existing conversation on a second selection. Repeat with the DM arriving after
+Search unmounts, and verify group DMs stay separate.
 Switch accounts with a scrolled Search entry still mounted, then remount that
 entry: neither path should retain the previous account's rows or scroll offset.
 Repeat with a slow refresh: a remount waits for current rows rather than showing

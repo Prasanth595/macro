@@ -23,9 +23,11 @@ export function createSearchResultWindow<T extends { id: string }>(options: {
   query: Accessor<string>;
   category: Accessor<EntitySearchCategory>;
   items: Accessor<T[]>;
+  itemKey?: (item: T) => string;
   discard: Accessor<boolean>;
 }) {
   const { handle } = useSplitPanelOrThrow();
+  const itemKey = options.itemKey ?? ((item: T) => item.id);
   const stored = untrack(() => handle.currentEntryState()?.[options.key]) as
     | SearchResultOrder
     | undefined;
@@ -49,7 +51,7 @@ export function createSearchResultWindow<T extends { id: string }>(options: {
     const saved = order();
     const incoming = options.items();
     if (options.discard() || !saved || saved.scope !== current) return incoming;
-    const remaining = new Map(incoming.map((item) => [item.id, item]));
+    const remaining = new Map(incoming.map((item) => [itemKey(item), item]));
     const ordered: T[] = [];
     for (const id of saved.ids) {
       const item = remaining.get(id);
@@ -62,9 +64,7 @@ export function createSearchResultWindow<T extends { id: string }>(options: {
   const preserveOrder = () =>
     setOrder({
       scope: scope(),
-      ids: items()
-        .slice(0, MAX_SAVED_RESULT_IDS)
-        .map((item) => item.id),
+      ids: items().slice(0, MAX_SAVED_RESULT_IDS).map(itemKey),
     });
   onCleanup(
     handle.registerEntryStateCaptor(options.key, () => {

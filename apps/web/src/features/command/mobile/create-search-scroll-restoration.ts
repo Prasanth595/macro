@@ -49,8 +49,8 @@ export function createSearchScrollRestoration<T>(options: {
   const [revision, setRevision] = createSignal(0);
   const span = pending() ? Telemetry.span('mobile.search.restore') : undefined;
   span?.setAttr('restore.kind', options.key);
-  span?.setAttr('account.id', options.accountId());
-  if (saved?.id) span?.setAttr('entity.id', saved.id);
+  // Person keys and account IDs can contain an email address.
+  span?.setAttr('restore.has_anchor', !!saved?.id);
   let pages = 0;
   let disposed = false;
   let loading = false;
