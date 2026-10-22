@@ -11,6 +11,7 @@ persona/model to run later.
 - `src/domain.rs`: `RoutineTarget` (model vs. agent persona) and
   `RoutineSchedule` (`Once` / `Cron`) — the validated command shapes.
 - `src/inbound.rs`: the AI toolset exposed to MCP and embedded agents.
+- `CreateRoutine` tells agents to include a `routine:<id>` mention in replies.
 - `src/outbound.rs`: the HTTP client to the owning scheduled-action service.
 
 ## Scope

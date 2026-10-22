@@ -367,5 +367,7 @@ Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
 ### Agent backend hosting
 
 Cognition, routines, preview control, and MCP share `agent_harness_service`.
+Agent replies can link a routine as `[name](routine:<uuid>)`; Lexical stores it
+as a routine document mention without adding routines to the mention menu.
 Direct local hosts use port 8101 with the existing feature prefixes; the
 instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.

@@ -386,6 +386,9 @@ function InlinePreview(props: {
 }
 
 export function DocumentMention(props: DocumentMentionDecoratorProps) {
+  if (props.blockName === 'routine' || props.blockName === 'automation') {
+    return <RoutineMention {...props} />;
+  }
   const lexicalWrapper = useContext(LexicalWrapperContext);
   if (lexicalWrapper?.skipPreviewFetch) {
     return <DocumentMentionStatic {...props} />;
@@ -410,6 +413,34 @@ export function DocumentMention(props: DocumentMentionDecoratorProps) {
         <SkillDocumentMention {...props} />
       </Match>
     </Switch>
+  );
+}
+
+/** Routine references use their saved label; routines have no shared item preview. */
+function RoutineMention(props: DocumentMentionDecoratorProps) {
+  const open = (event: MouseEvent | KeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openDocument(
+      'routine',
+      props.documentId,
+      undefined,
+      openInNewSplitForMention(event.shiftKey, true)
+    );
+  };
+  return (
+    <span
+      class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
+      role="link"
+      tabIndex={0}
+      on:mousedown={(event) => event.preventDefault()}
+      on:click={open}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') open(event);
+      }}
+    >
+      <DocumentMentionStatic {...props} />
+    </span>
   );
 }
 

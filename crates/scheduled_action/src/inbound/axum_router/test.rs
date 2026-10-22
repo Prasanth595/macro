@@ -895,7 +895,11 @@ async fn grants_do_not_allow_nonowners_to_manage_routines() {
     );
     assert_eq!(
         request(&app, "GET", &url, "viewer", Value::Null).await.0,
-        StatusCode::NOT_FOUND
+        StatusCode::OK
+    );
+    assert_eq!(
+        request(&app, "GET", &url, "stranger", Value::Null).await.0,
+        StatusCode::OK
     );
     assert_eq!(
         request(

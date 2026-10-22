@@ -21,6 +21,7 @@ export function RoutineEditor(props: {
   triggerContent?: JSX.Element;
   nextRun: string;
   history: JSX.Element;
+  showHistory?: boolean;
   actions?: JSX.Element;
   feedback?: JSX.Element;
 }) {
@@ -81,10 +82,14 @@ export function RoutineEditor(props: {
                 class="inline-flex shrink-0 items-center rounded-full border border-edge-muted bg-surface p-0.5"
               >
                 <For
-                  each={[
-                    { value: 'settings', label: 'Overview' },
-                    { value: 'history', label: 'Run History' },
-                  ]}
+                  each={
+                    props.showHistory === false
+                      ? [{ value: 'settings', label: 'Overview' }]
+                      : [
+                          { value: 'settings', label: 'Overview' },
+                          { value: 'history', label: 'Run History' },
+                        ]
+                  }
                 >
                   {(tab) => (
                     <Layer depth={2}>
