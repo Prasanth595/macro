@@ -80,6 +80,7 @@ const EVERYTHING: ViewerCapabilities = ViewerCapabilities {
     remove_guests: true,
     set_guest_policy: true,
     rsvp: true,
+    organize: true,
 };
 
 const LOCKED_DOWN: GuestPolicy = GuestPolicy {
@@ -150,6 +151,7 @@ fn a_guest_who_may_modify_may_do_everything_but_set_the_policy() {
         capabilities,
         ViewerCapabilities {
             set_guest_policy: false,
+            organize: false,
             ..EVERYTHING
         }
     );
@@ -189,6 +191,7 @@ fn a_guest_cannot_change_a_hidden_guest_list_even_with_permission() {
             remove_guests: false,
             set_guest_policy: false,
             rsvp: true,
+            organize: false,
         }
     );
 }
@@ -246,15 +249,17 @@ fn a_delegate_may_do_nothing_with_a_meeting_on_the_inbox_they_were_granted() {
 }
 
 #[test]
-fn a_delegate_may_change_a_writable_event_without_attendees() {
+fn a_delegate_may_change_a_writable_event_without_attendees_but_not_its_guest_policy() {
     let capabilities = ViewerCapabilities::for_event(&event(Vec::new(), LOCKED_DOWN), None);
 
     assert_eq!(
         capabilities,
         ViewerCapabilities {
             rsvp: false,
+            set_guest_policy: false,
             ..EVERYTHING
-        }
+        },
+        "without the copy's inbox its provider, and so its guest policy, is unknown"
     );
 }
 
@@ -357,7 +362,7 @@ fn an_outlook_guest_copy_of_a_google_meeting_may_only_answer() {
 }
 
 #[test]
-fn an_outlook_organizer_copy_may_do_everything() {
+fn an_outlook_organizer_copy_may_do_everything_but_set_a_guest_policy() {
     let mut copy = event(
         vec![attendee(OUTLOOK, true), attendee(GUEST, false)],
         GuestPolicy::default(),
@@ -366,7 +371,14 @@ fn an_outlook_organizer_copy_may_do_everything() {
 
     three_inboxes().mark_event(&mut copy, OUTLOOK_LINK);
 
-    assert_eq!(copy.viewer_can, EVERYTHING);
+    assert_eq!(
+        copy.viewer_can,
+        ViewerCapabilities {
+            set_guest_policy: false,
+            ..EVERYTHING
+        },
+        "Outlook has no guest policy, but its organizer still organizes"
+    );
 }
 
 const NO_INVITES: GuestPolicy = GuestPolicy {

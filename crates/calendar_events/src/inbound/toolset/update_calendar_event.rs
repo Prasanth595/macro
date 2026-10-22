@@ -14,7 +14,7 @@ use super::{
     ToolCalendarEvent, mutation_tool_error,
 };
 use crate::domain::{
-    models::{AttendeeResponseStatus, CalendarEventPatch, ConferenceChange},
+    models::{AttendeeResponseStatus, CalendarEventPatch, ConferenceChange, GuestPolicy},
     ports::{
         CalendarMutationService, CalendarOccurrenceService, CalendarRsvpScope, CalendarUpdateScope,
         MeetingLinkProvider,
@@ -235,6 +235,17 @@ pub struct UpdateCalendarEvent {
     )]
     #[serde(default)]
     pub out_of_office: Option<OutOfOfficeInput>,
+
+    /// Replacement guest policy.
+    #[schemars(
+        description = "Replace what guests may do: `canModify` (change the event; implies \
+                       `canInviteOthers`), `canInviteOthers` and `canSeeOtherGuests`, all three \
+                       required. Only the organizer of a Google event may set it \
+                       (`viewerCan.setGuestPolicy`); Outlook events have none. Omit to leave it \
+                       untouched."
+    )]
+    #[serde(default)]
+    pub guest_policy: Option<GuestPolicy>,
 }
 
 impl ToolAnnotated for UpdateCalendarEvent {
@@ -310,6 +321,7 @@ where
             reminders: self.reminders.clone().map(Into::into),
             conference: self.conference.map(Into::into),
             out_of_office: self.out_of_office.clone().map(Into::into),
+            guest_policy: self.guest_policy,
         };
 
         // An RSVP is its own provider call, so a call carrying only one runs

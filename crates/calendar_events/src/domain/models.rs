@@ -1289,6 +1289,8 @@ pub struct CalendarEventDraft {
     /// out-of-office status event (primary calendar only, timed, no
     /// attendees); `None` creates a regular event.
     pub out_of_office: Option<OutOfOfficeProperties>,
+    /// What guests may do. `None` keeps Google's defaults.
+    pub guest_policy: Option<GuestPolicy>,
 }
 
 /// User-supplied changes to an existing provider event. `None` fields are
@@ -1319,6 +1321,9 @@ pub struct CalendarEventPatch {
     /// already out-of-office — the provider event type is immutable. `None`
     /// leaves them untouched.
     pub out_of_office: Option<OutOfOfficeProperties>,
+    /// Replacement guest policy; only the organizer of a Google event may
+    /// change it.
+    pub guest_policy: Option<GuestPolicy>,
 }
 
 impl CalendarEventPatch {
@@ -1508,6 +1513,8 @@ pub struct CalendarCapabilities {
     pub custom_recurrence: bool,
     /// Whether an attendee can reset their RSVP to unanswered.
     pub reset_rsvp: bool,
+    /// Whether the organizer can set what guests may do.
+    pub guest_policy: bool,
 }
 impl CalendarCapabilities {
     /// Google Calendar's established editor capabilities.
@@ -1519,6 +1526,7 @@ impl CalendarCapabilities {
             email_reminders: true,
             custom_recurrence: true,
             reset_rsvp: true,
+            guest_policy: true,
         }
     }
     /// Outlook capabilities depend on the calendar's conferencing entitlement.
@@ -1530,6 +1538,7 @@ impl CalendarCapabilities {
             email_reminders: true,
             custom_recurrence: false,
             reset_rsvp: false,
+            guest_policy: false,
         }
     }
 }

@@ -69,6 +69,7 @@ fn draft() -> CalendarEventDraft {
         reminders: None,
         conference: None,
         out_of_office: None,
+        guest_policy: None,
     }
 }
 

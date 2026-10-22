@@ -8,6 +8,7 @@
 
 use std::collections::HashMap;
 mod details;
+mod guest_policy;
 mod invite;
 mod replacement;
 
@@ -271,6 +272,7 @@ where
         }
         self.require_provider_writes(target.token_identity.provider)?;
         validate_conference(target.token_identity.provider, draft.conference)?;
+        guest_policy::validate_draft_guest_policy(target.token_identity.provider, &mut draft)?;
         // An out-of-office event carries no attendees and Google auto-declines
         // on the owner's behalf, so it must not gain an organizer guest.
         if draft.out_of_office.is_some() {
@@ -338,6 +340,7 @@ where
         // the event untouched.
         self.require_detail_rights(event_id, &scope, capabilities, &mut patch)
             .await?;
+        guest_policy::require_guest_policy_rights(&target, capabilities, &mut patch)?;
         if patch.is_empty() {
             return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
         }
