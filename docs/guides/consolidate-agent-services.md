@@ -201,7 +201,8 @@ Do not retire old compute until the routed checks pass.
 After retiring a service, move the harness rules back to verified unused
 temporary priorities if their final priorities have already been applied. Restore
 the pre-cutover stack revision, copying preserved images back into recreated
-repositories first. Recreate task definition revisions from the saved definitions
+repositories first. Import retained CloudWatch log groups into the restored stack
+instead of attempting to create them again. Recreate task definition revisions from the saved definitions
 rather than assuming deregistered revisions remain usable. Wait for healthy targets before removing the
 temporary harness rules to return traffic.
 
