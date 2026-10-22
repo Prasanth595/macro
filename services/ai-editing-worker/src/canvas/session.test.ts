@@ -1,11 +1,34 @@
+import { createScene } from '@macro-inc/graphics';
 import { createLoroGraphicsBackendFromDoc } from '@macro-inc/graphics/loro';
 import { okAsync } from 'neverthrow';
 import { describe, expect, it } from 'vitest';
 import { prepareCanvasEdit } from './operations';
-import { withCanvasSession } from './session';
+import { describeCanvas, withCanvasSession } from './session';
 import { liveScene } from './test-fixtures';
 
 describe('live Canvas editing sessions', () => {
+  it('marks shortened labels explicitly even when the item count fits', () => {
+    const scene = prepareCanvasEdit(createScene(), [
+      {
+        kind: 'create',
+        id: 'long-label',
+        type: 'rectangle',
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+        text: 'a'.repeat(2001),
+      },
+    ]);
+    const result = JSON.parse(describeCanvas(scene));
+    expect(result).toMatchObject({ totalItems: 1, truncated: true });
+    expect(result.items[0]).toMatchObject({
+      text: 'a'.repeat(2000),
+      textTruncated: true,
+      pointsTruncated: false,
+    });
+  });
+
   it('reads without writes and always closes the source', async () => {
     const scene = liveScene();
     try {

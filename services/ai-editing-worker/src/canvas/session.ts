@@ -215,12 +215,16 @@ export function describeCanvas(
         : 'geometry' in item && 'label' in item.geometry
           ? item.geometry.label?.content
           : undefined;
+    const plainText =
+      content && validCanvasText(content)
+        ? richTextPlainText(content)
+        : undefined;
     return {
       ...item,
-      text:
-        content && validCanvasText(content)
-          ? richTextPlainText(content).slice(0, 2000)
-          : undefined,
+      text: plainText?.slice(0, 2000),
+      textTruncated: (plainText?.length ?? 0) > 2000,
+      pointsTruncated:
+        item.type === 'pencil' && item.geometry.points.length > 64,
       world: worldMatrix(document, item.id),
       bounds: worldBounds(document, item.id),
     };
@@ -230,7 +234,9 @@ export function describeCanvas(
       rootId: document.rootId,
       totalItems: all.length,
       matchedItems: selected.length,
-      truncated: selected.length > 300,
+      truncated:
+        selected.length > 300 ||
+        items.some((item) => item.textTruncated || item.pointsTruncated),
       items,
     },
     (key, value: unknown) =>
