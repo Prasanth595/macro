@@ -6,7 +6,7 @@ use crate::domain::join_requests::{
     annotate_join_state,
 };
 use crate::domain::models::{
-    CalendarMentionEvent, CalendarMentionPreview, CalendarMentionRequestItem,
+    CalendarMentionEvent, CalendarMentionPreview, CalendarMentionRequestItem, CalendarProvider,
 };
 use crate::domain::ports::{
     CalendarJoinRequestError, CalendarJoinRequestNotifier, CalendarJoinRequestService,
@@ -192,6 +192,51 @@ async fn asking_is_refused_when_the_sharer_could_not_accept() {
 
     // A guest the organizer lets invite, with the list visible, may accept.
     let (service, _) = asking(sharer_as_guest(GuestPolicy::default()));
+    assert!(
+        service
+            .request_to_join(MEMBER, Uuid::now_v7())
+            .await
+            .is_ok()
+    );
+}
+
+/// `repo` with the sharer's copy synced through an Outlook inbox.
+fn on_outlook(mut repo: FakeRepo) -> FakeRepo {
+    let target = repo.mutation_target.as_mut().unwrap();
+    target.token_identity.provider = CalendarProvider::Outlook;
+    target.actor = ActorInboxes::from_owned(vec![OwnedInbox {
+        link_id: SELF_LINK,
+        email: "self@example.com".to_string(),
+        provider: CalendarProvider::Outlook,
+    }]);
+    repo
+}
+
+#[tokio::test]
+async fn an_outlook_sharer_can_be_asked_only_as_the_organizer() {
+    // Outlook guests may only answer, whatever the organizer's policy says.
+    let repo = on_outlook(sharer_as_guest(GuestPolicy::default()));
+    let requests = repo.join_requests.clone();
+    let (service, notifier) = asking(repo);
+
+    let error = service
+        .request_to_join(MEMBER, Uuid::now_v7())
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(error, CalendarJoinRequestError::SharerCannotInvite),
+        "{error:?}"
+    );
+    assert!(requests.lock().unwrap().is_empty());
+    assert!(notifier.notified.lock().unwrap().is_empty());
+
+    let mut organizer = echo_attendee("self@example.com", true);
+    organizer.is_organizer = true;
+    let (service, _) = asking(on_outlook(FakeRepo {
+        stored_attendees: vec![organizer, echo_attendee("ada@example.com", false)],
+        ..sharer_organizes()
+    }));
     assert!(
         service
             .request_to_join(MEMBER, Uuid::now_v7())
