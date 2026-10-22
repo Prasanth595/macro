@@ -637,35 +637,81 @@ impl TursoFileDatabase {
     /// Copy the migrated database's small live set into a fresh file and swap it
     /// in. Freed pages are reused but never returned, so without this an upgrade
     /// would keep the previous file size indefinitely.
+    ///
+    /// Compaction is an optimization on top of an already-committed migration:
+    /// every failure falls back to the migrated database, because reporting a
+    /// reset-required error here would make `open_or_reset` delete the queued
+    /// mutations the migration just preserved.
     fn compact_after_migration(
         &self,
         storage: TursoStorage,
         scope: &str,
     ) -> Result<TursoStorage, TursoStorageError> {
         let compact_path = self.path.with_extension("migrated");
-        remove_native_file(&compact_path)?;
-        let compact_path_text = compact_path
+        let _ = remove_native_file(&compact_path);
+        let vacuumed = compact_path
             .to_str()
-            .ok_or(TursoStorageError::InvalidInput)?;
-        driver::execute(
-            &storage.connection(),
-            &format!("VACUUM INTO {}", sql_literal(compact_path_text)),
-            Vec::new(),
-        )?;
-        storage.try_close()?;
-        self.physical_reset()?;
-        // Move the compacted main file and any companion it left behind, so a
-        // WAL that was not truncated by the close still reaches the new path.
-        for extension in ["", "-wal", "-shm"] {
-            let source = companion_path(&compact_path, extension);
+            .ok_or(TursoStorageError::InvalidInput)
+            .and_then(|compact_path| {
+                driver::execute(
+                    &storage.connection(),
+                    &format!("VACUUM INTO {}", sql_literal(compact_path)),
+                    Vec::new(),
+                )
+            })
+            .is_ok();
+        if !vacuumed {
+            let _ = remove_native_file(&compact_path);
+            return Ok(storage);
+        }
+        // The compacted file is complete; a close failure cannot invalidate it.
+        let _ = storage.try_close();
+        if self.install_compacted(&compact_path).is_err() {
+            let _ = remove_native_file(&compact_path);
+            return Ok(self.open_with_outcome(scope, false)?.0);
+        }
+        Ok(self.open_with_outcome(scope, false)?.0)
+    }
+
+    /// Move the compacted database into place while keeping the original
+    /// recoverable, so an interrupted swap never leaves no database behind.
+    fn install_compacted(&self, compact_path: &Path) -> std::io::Result<()> {
+        let backup_path = self.path.with_extension("backup");
+        for suffix in COMPANION_SUFFIXES {
+            let _ = std::fs::remove_file(companion_path(&backup_path, suffix));
+        }
+        std::fs::rename(&self.path, &backup_path)?;
+        let mut installed = Ok(());
+        for suffix in COMPANION_SUFFIXES {
+            let source = companion_path(compact_path, suffix);
             if !source.exists() {
                 continue;
             }
-            let destination = companion_path(&self.path, extension);
-            std::fs::rename(&source, &destination)
-                .map_err(|_| TursoStorageError::reset(PhysicalResetReason::Io))?;
+            if let Err(error) = std::fs::rename(source, companion_path(&self.path, suffix)) {
+                installed = Err(error);
+                break;
+            }
         }
-        Ok(self.open_with_outcome(scope, false)?.0)
+        match installed {
+            Ok(()) => {
+                // The compacted file is installed; the original is disposable now.
+                for suffix in COMPANION_SUFFIXES {
+                    let _ = std::fs::remove_file(companion_path(&backup_path, suffix));
+                }
+                Ok(())
+            }
+            Err(error) => {
+                // Restore the migrated original so the next open still sees it.
+                for suffix in COMPANION_SUFFIXES {
+                    let _ = std::fs::remove_file(companion_path(&self.path, suffix));
+                    let backup = companion_path(&backup_path, suffix);
+                    if backup.exists() {
+                        let _ = std::fs::rename(backup, companion_path(&self.path, suffix));
+                    }
+                }
+                Err(error)
+            }
+        }
     }
 
     /// Opens this database, physically replacing incompatible or uncertain
@@ -688,6 +734,10 @@ impl TursoFileDatabase {
         remove_native_file(&wal_path)
     }
 }
+
+/// Main, WAL, and shared-memory files that belong to one native database path.
+#[cfg(not(target_arch = "wasm32"))]
+const COMPANION_SUFFIXES: [&str; 3] = ["", "-wal", "-shm"];
 
 /// `path`, `path-wal`, or `path-shm` for a native database path.
 #[cfg(not(target_arch = "wasm32"))]

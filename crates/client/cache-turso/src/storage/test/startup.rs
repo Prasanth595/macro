@@ -81,7 +81,7 @@ fn previous_format_drops_records_and_keeps_pending_writes() {
 
         let storage = database.open("scope").unwrap();
         assert_eq!(
-            storage.get_batch(&[key("Thing:0")]).await.unwrap(),
+            storage.get_batch(&[key("Thing:1")]).await.unwrap(),
             vec![None],
             "records from the previous format are dropped"
         );
@@ -101,7 +101,7 @@ fn previous_format_drops_records_and_keeps_pending_writes() {
         );
 
         // The migrated database reopens without another migration or reset.
-        let mut storage = database.open("scope").unwrap();
+        let storage = database.open("scope").unwrap();
         assert_eq!(
             storage.load_mutation_queue().await.unwrap(),
             pending,
@@ -197,6 +197,76 @@ fn migrating_a_file_reclaims_space_and_keeps_pending_writes() {
         );
         let storage = database.open("scope").unwrap();
         assert_eq!(storage.load_mutation_queue().await.unwrap(), pending);
+        storage.try_close().unwrap();
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn failed_compaction_keeps_the_migrated_database() {
+    block_on(async {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("cache.turso");
+        let database = TursoFileDatabase::new(&path).unwrap();
+        let mut storage = database.open("scope").unwrap();
+        storage
+            .put_batch(vec![(key("Thing:1"), record("persisted"))])
+            .await
+            .unwrap();
+        storage.enqueue_mutation(queued("Pending")).await.unwrap();
+        let pending = storage.load_mutation_queue().await.unwrap();
+        mark_previous_format(&storage, "scope");
+        storage.try_close().unwrap();
+
+        // A directory at the compaction target makes VACUUM INTO fail. The
+        // migration is already committed, so its retained queue must survive.
+        let compact_path = path.with_extension("migrated");
+        std::fs::create_dir(&compact_path).unwrap();
+        let storage = database.open("scope").unwrap();
+        assert_eq!(
+            storage.get_batch(&[key("Thing:1")]).await.unwrap(),
+            vec![None]
+        );
+        assert_eq!(storage.load_mutation_queue().await.unwrap(), pending);
+        storage.try_close().unwrap();
+        std::fs::remove_dir(&compact_path).unwrap();
+
+        let storage = database.open("scope").unwrap();
+        assert_eq!(storage.load_mutation_queue().await.unwrap(), pending);
+        assert_eq!(namespace(&storage), cache_namespace("scope"));
+        storage.try_close().unwrap();
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn failed_swap_keeps_the_migrated_database() {
+    block_on(async {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("cache.turso");
+        let database = TursoFileDatabase::new(&path).unwrap();
+        let mut storage = database.open("scope").unwrap();
+        storage
+            .put_batch(vec![(key("Thing:1"), record("persisted"))])
+            .await
+            .unwrap();
+        storage.enqueue_mutation(queued("Pending")).await.unwrap();
+        let pending = storage.load_mutation_queue().await.unwrap();
+        mark_previous_format(&storage, "scope");
+        storage.try_close().unwrap();
+
+        // A directory at the backup path fails the move of the original, which
+        // must leave the migrated database openable.
+        let backup_path = path.with_extension("backup");
+        std::fs::create_dir(&backup_path).unwrap();
+        let storage = database.open("scope").unwrap();
+        assert_eq!(storage.load_mutation_queue().await.unwrap(), pending);
+        storage.try_close().unwrap();
+        std::fs::remove_dir(&backup_path).unwrap();
+
+        let storage = database.open("scope").unwrap();
+        assert_eq!(storage.load_mutation_queue().await.unwrap(), pending);
+        assert_eq!(namespace(&storage), cache_namespace("scope"));
         storage.try_close().unwrap();
     });
 }
