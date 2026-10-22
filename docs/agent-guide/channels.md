@@ -1304,9 +1304,7 @@ message or acknowledgement and verify that it does not pull you to latest.
 
 For composer cleanup, repeatedly open and leave channels and threads, then
 switch between touch and keyboard/mouse input. Retired composers must not keep
-reacting to input-modality changes. The backend-free MarkdownShell regression
-in `apps/web/src/lib/core/component/LexicalMarkdown/component/core/browser-test`
-checks twenty mount/unmount cycles; memory-pressure crashes still require an
+reacting to input-modality changes. Memory-pressure crashes still require an
 iPhone run with the app's native memory diagnostics.
 
 
