@@ -2000,8 +2000,12 @@ reads the saved version and discards the local edit; it never retries an externa
 send automatically. If the outcome is unknown, check the inbox/calendar before
 attempting another send elsewhere. Owner decisions produce durable system events
 for the same review ID. The card refreshes in place, with **Responding** below it
-until the agent starts its reply. This behaves the same on mobile. These events
-create no user bubble; events without an existing card use a quiet timeline row.
+until the agent starts its reply. This behaves the same on mobile. Approving an
+import plan only starts its write, so no **Responding** shows until the write
+ends; the card shows its final state and the agent's reply follows. A plan
+still being made when it was presented also wakes the agent once it is ready.
+These events create no user bubble; events without an existing card use a
+quiet timeline row.
 The agent can read final drafts and confirmed outcomes through **GetReview**.
 An exact silent response produces no assistant message or unread notification.
 An owner decision in chat uses the same saved-revision claim as the card;

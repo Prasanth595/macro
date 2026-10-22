@@ -15,14 +15,14 @@ execution records, and durable review stacks. Process isolation belongs to
 - `src/domain/service.rs`: execution admission, identity and persistence; tool
   receipts include observed SDK activity for inline conversation snapshots.
 - `src/domain/reviews.rs`: review validation, revisions, claims and outcomes.
-  `settle` reports, once (`settled_at`), that background work an approved
-  action started has ended; other services reach it through the internal
-  `POST /internal/agent-reviews/{id}/settled` route
-  (`outbound::review_settlements_client`).
   `approve_for_session` (the `ApproveReview` tool, `inbound/reviews.rs`) is the
   agent approving on its owner's word in chat: it runs the card's Submit on the
-  saved draft, only in a turn the owner prompted (`ReviewSession::turn_prompter`),
-  only once the action is `approvable`, and records `approved_by_agent`.
+  saved draft, recorded as a `chat` decision, under the same guard as
+  `DecideReview` (a turn the owner prompted, never a System turn, per
+  `ReviewSession::prompter`), and only once the action is `approvable`.
+  An import review only starts its write: its `review.decided` is quiet, and
+  its `review.settled` comes from the import when the write ends; only an
+  import that could not start settles here.
 - `src/domain/documentation.rs`: bounded selection of generated SDK docs.
 
 ## Boundaries
