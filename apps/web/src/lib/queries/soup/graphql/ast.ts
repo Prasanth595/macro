@@ -759,6 +759,7 @@ function makeGraphqlFilters(body: AstBody): GraphqlEntityFilterAstInput {
         if (field === 'id' && typeof value === 'string') return { id: value };
         if (field === 'o' && typeof value === 'string') return { owner: value };
         if (field === 'src' && value === 'user') return { source: 'USER' };
+        if (field === 'src' && value === 'agent') return { source: 'AGENT' };
         if (field === 'src' && value === 'routine')
           return { source: 'ROUTINE' };
         if (field === 'vis' && value === 'listed')

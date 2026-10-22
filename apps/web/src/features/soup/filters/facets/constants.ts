@@ -391,7 +391,7 @@ type FilterTargetsMeta = {
   asf: {
     agentSessionId: string[];
     agentSessionOwnerId: string[];
-    agentSessionSource: ('user' | 'routine')[];
+    agentSessionSource: ('user' | 'agent' | 'routine')[];
     agentSessionVisibility: ('listed' | 'unlisted' | 'hidden')[];
     includeAgentSessions: boolean;
   };

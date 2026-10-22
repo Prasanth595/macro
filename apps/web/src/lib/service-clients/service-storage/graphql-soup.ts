@@ -1734,7 +1734,11 @@ export function mapGraphqlSoupItem(
             turnState: entity.turnState,
             bot: entity.bot,
             threadId: entity.threadId,
-            source: entity.source === 'ROUTINE' ? 'routine' : 'user',
+            source: match(entity.source)
+              .with('USER', () => 'user' as const)
+              .with('AGENT', () => 'agent' as const)
+              .with('ROUTINE', () => 'routine' as const)
+              .exhaustive(() => 'user' as const),
             visibility: match(entity.visibility)
               .with('LISTED', () => 'listed' as const)
               .with('UNLISTED', () => 'unlisted' as const)
