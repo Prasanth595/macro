@@ -1,4 +1,4 @@
-import type { CanvasOp } from './schema';
+import type { CanvasOp, TextFitMode } from './schema';
 
 /** Sandboxed command builder. Only the host can validate and commit commands. */
 export class CanvasEditor {
@@ -39,14 +39,24 @@ export class CanvasEditor {
   move(ids: string[], dx: number, dy: number) {
     this.add({ kind: 'move', ids, dx, dy });
   }
-  resize(id: string, width: number, height: number) {
-    this.add({ kind: 'resize', id, width, height });
+  resize(id: string, width: number, height: number, fitText?: TextFitMode) {
+    this.add({ kind: 'resize', id, width, height, fitText });
   }
   style(ids: string[], style: Extract<CanvasOp, { kind: 'style' }>['style']) {
     this.add({ kind: 'style', ids, style });
   }
-  text(id: string, text: string) {
-    this.add({ kind: 'text', id, text });
+  text(id: string, text: string, fitText?: TextFitMode) {
+    this.add({ kind: 'text', id, text, fitText });
+  }
+  /** Grow measured text at a sensible width unless an explicit fixed policy is requested. */
+  fitText(id: string, mode: TextFitMode = 'grow', width?: number) {
+    this.add({ kind: 'fitText', id, mode, width });
+  }
+  textStyle(
+    id: string,
+    style: Omit<Extract<CanvasOp, { kind: 'textStyle' }>, 'kind' | 'id'>
+  ) {
+    this.add({ ...style, kind: 'textStyle', id });
   }
   delete(ids: string[]) {
     this.add({ kind: 'delete', ids });

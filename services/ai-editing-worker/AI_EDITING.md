@@ -166,7 +166,7 @@ thread anchored to it, removing the mark again if the post fails.
 ## Canvas
 
 `POST /canvas` reads an initialized Canvas room or performs a natural-language
-edit. Documents' `ReadCanvas` and `EditCanvas` tools authorize native canvas
+edit. Documents' `ReadCanvas`, `RenderCanvas` and `EditCanvas` tools authorize native canvas
 documents, mint view/edit tokens naming the actor, and apply existing AI
 admission and usage metering. The app's **Ask Macro** action in the standalone toolbar and Drive detail header attaches
 the canvas to that tool-enabled conversation on desktop and mobile.
@@ -184,7 +184,13 @@ request may be unreported.
 The worker uses the shared collaboration manager/engine/WAL and binds the
 existing graphics backend to that live Loro document. Before each snippet it
 reads the latest merged scene, validates the entire snippet on a disposable
-graphics editor, then makes one live backend commit. It never replaces the
+graphics editor, measures changed text in an isolated browser, presents transient awareness
+steps, revalidates current target/ancestor/connector/order/region dependencies,
+pulls a server update barrier (an ACK can precede live delivery), then makes
+one live backend commit. Up to two named writers plan and animate
+independent batches concurrently; conflicts wait and stale batches must reread.
+Their canonical session serializes final commit/ACK work. New items also reserve
+space, so distinct IDs alone do not establish independence. It never replaces the
 shared scene or saves the legacy JSON. Canvas uses full-width random peer IDs to avoid cross-isolate collisions; signed
 actor claims provide durable attribution. Ephemeral cursor/selection names carry
 the requesting editor’s AI label and are cleared on teardown. Successful calls
@@ -197,7 +203,17 @@ move, resize boxes, style, relabel, group/ungroup, reparent and reorder siblings
 Moves are world-space deltas and reparenting preserves world pose. Text and
 labels use the same plain-text-to-Lexical codec as the app. Same-label changes
 remain whole-string LWW; independent pose and appearance edits merge. Headless
-label heights are estimates, and text layout dimensions are explicit. New
+labels and standalone text are measured by the actual Canvas StaticLexical
+renderer, bundled fonts and CSS before committing. `create` defaults to a
+320-unit wrapping width. `editor.fitText(id, 'grow', width?)` and
+`editor.textStyle(id, {fontSize, fontFamily, fitText})` expose fitting explicitly.
+The persistent default `grow` keeps readable requested fonts and increases box
+height (and tiny label interiors' width). `contain` explicitly preserves geometry
+and permits scaling; `error` rejects overflow. Relabeling, font changes and width
+changes remeasure. Ellipses use the core safe interior. Effects return actual
+measured dimensions, requested/rendered font sizes, world bounds and overflow.
+Measurement is asynchronous: target and region preconditions are revalidated
+before any durable write. New
 media/document references and deletion of embedded items remain in the host's
 authorized asset/reference flow. Existing references can move/resize/style.
 
@@ -205,6 +221,32 @@ authorized asset/reference flow. Existing references can move/resize/style.
 containment/order, world bounds and plain text. It reports truncation and
 supports stable-ID filtering. Unsupported/uninitialized room formats are
 refused; opening the canvas in Macro establishes its single winning seed.
+
+
+`RenderCanvas` returns native PNG image content to both the chat agent and the
+editing model, with a SHA-256 frozen scene revision, clock, crop and stable-ID
+world bounds. `ReadCanvas(format: "overview")` offers a deterministic approximate
+semantic graph with an ID legend; precise scene geometry and images remain the
+primary representation. Visual requests start with an image and receive a bounded
+final image review/correction pass. Simple changes can use the cheaper scene path.
+The request allows at most four delegated writers, 200 operations and six images.
+Canvas uses a native Anthropic vision-capable chain. The shared document OpenAI
+Chat Completions chain is deliberately not reused: that adapter serializes tool
+image output to text. Outer native Responses/Anthropic/Gemini adapters retain
+image parts; compatible Chat Completions outer models receive an explicit
+unsupported-image explanation rather than encoded pixels or a failed next turn.
+
+The read-only `canvas-render.html` bundle uses the real GraphicsSurface,
+CanvasTextContent/StaticLexical and fonts, with no collaboration or editing host.
+Rendering returns DOM-measured text bounds/overflow and excludes cursors/ghosts.
+Only the configured application's static bundle/fonts load; referenced images,
+videos and documents are explicit unavailable placeholders rather than fetching
+resources with wider credentials. Snapshots are bounded to 2 MB, images to 3 MB,
+and output to 1600×1200; crops below the supported camera zoom are rejected.
+Production uses the configured Cloudflare BROWSER binding and CANVAS_RENDER_URL;
+local CANVAS_BROWSER_URL connects a trusted CDP browser to the same bundle.
+These URLs are deployment configuration, never model input. No deployment is
+required for local testing. Model image telemetry records only counts and hashes.
 
 ## Forms
 

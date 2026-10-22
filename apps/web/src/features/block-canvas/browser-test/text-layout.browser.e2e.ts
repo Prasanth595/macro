@@ -1,0 +1,282 @@
+import {
+  createScene,
+  type GraphicsDocument,
+  type TextFitRequest,
+  translation,
+} from '@macro-inc/graphics';
+import { expect, type Page, test } from '@playwright/test';
+import { prepareCanvasEdit } from '../../../../../../services/ai-editing-worker/src/canvas/operations';
+
+async function fit(
+  page: Page,
+  document: GraphicsDocument,
+  requests: TextFitRequest[]
+) {
+  return page.evaluate(
+    async (payload) => window.measureCanvasSnapshot(payload),
+    { document, requests }
+  );
+}
+async function draw(page: Page, document: GraphicsDocument) {
+  await page.evaluate(
+    async (document) =>
+      window.renderCanvasSnapshot({
+        document,
+        crop: { x: 0, y: 0, width: 1400, height: 1800 },
+        scale: 1,
+        revision: 'browser-layout-regression',
+      }),
+    document
+  );
+}
+async function expectInside(
+  page: Page,
+  id: string,
+  ratio = 1,
+  standalone = false
+) {
+  const boxes = await page.locator(`[data-graphics-item="${id}"]`).evaluate(
+    (element, options) => {
+      const box = element.getBoundingClientRect();
+      const content = element.querySelector('.canvas-lexical-text');
+      if (!content) throw new Error('No rendered Canvas text');
+      const ink = content.getBoundingClientRect();
+      const padding = options.standalone ? 0 : 12;
+      return {
+        left:
+          ink.left -
+          (box.left + (box.width * (1 - options.ratio)) / 2 + padding),
+        right:
+          box.right -
+          (box.width * (1 - options.ratio)) / 2 -
+          padding -
+          ink.right,
+        top:
+          ink.top -
+          (box.top + (box.height * (1 - options.ratio)) / 2 + padding),
+        bottom:
+          box.bottom -
+          (box.height * (1 - options.ratio)) / 2 -
+          padding -
+          ink.bottom,
+        height: ink.height,
+      };
+    },
+    { ratio, standalone }
+  );
+  expect(boxes.height).toBeGreaterThan(0);
+  for (const margin of [boxes.left, boxes.right, boxes.top, boxes.bottom])
+    expect(margin).toBeGreaterThanOrEqual(-1);
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.goto('/canvas-render.html');
+  await page.waitForFunction(
+    () => typeof window.measureCanvasSnapshot === 'function'
+  );
+});
+
+test('actual wrapped labels, unbroken strings, ellipses and standalone text fit at readable fonts', async ({
+  page,
+}) => {
+  const text =
+    'Read the full explanation before choosing the next action. '.repeat(5);
+  const initial = prepareCanvasEdit(createScene(), [
+    {
+      kind: 'create',
+      id: 'rectangle',
+      type: 'rectangle',
+      x: 20,
+      y: 20,
+      width: 160,
+      height: 40,
+      text,
+      fontSize: 22,
+    },
+    {
+      kind: 'create',
+      id: 'ellipse',
+      type: 'ellipse',
+      x: 240,
+      y: 20,
+      width: 200,
+      height: 60,
+      text,
+      fontSize: 24,
+    },
+    {
+      kind: 'create',
+      id: 'standalone',
+      type: 'text',
+      x: 500,
+      y: 20,
+      width: 150,
+      height: 20,
+      text: 'unbroken'.repeat(40),
+      fontSize: 26,
+    },
+    {
+      kind: 'create',
+      id: 'multiline',
+      type: 'rectangle',
+      x: 720,
+      y: 20,
+      width: 220,
+      height: 40,
+      text: 'First line\nSecond line\nThird line',
+      fontSize: 32,
+      fontFamily: 'serif',
+    },
+  ]);
+  const measured = await fit(
+    page,
+    initial,
+    ['rectangle', 'ellipse', 'standalone', 'multiline'].map((id) => ({ id }))
+  );
+  expect(
+    measured.effects.every(
+      (effect) =>
+        !effect.overflow && effect.fontSize === effect.renderedFontSize
+    )
+  ).toBe(true);
+  await draw(page, measured.document);
+  await expectInside(page, 'rectangle');
+  await expectInside(page, 'ellipse', Math.SQRT1_2);
+  await expectInside(page, 'standalone', 1, true);
+  await expectInside(page, 'multiline');
+});
+
+test('relabeling, a font change and a narrower width remeasure real DOM text', async ({
+  page,
+}) => {
+  const original = prepareCanvasEdit(createScene(), [
+    {
+      kind: 'create',
+      id: 'box',
+      type: 'ellipse',
+      x: 30,
+      y: 30,
+      width: 240,
+      height: 80,
+      text: 'Short',
+      fontSize: 20,
+    },
+  ]);
+  const first = await fit(page, original, [{ id: 'box' }]);
+  const changed = prepareCanvasEdit(first.document, [
+    {
+      kind: 'text',
+      id: 'box',
+      text: 'A much longer explanation with wrapping at the new interior width. '.repeat(
+        3
+      ),
+    },
+    { kind: 'textStyle', id: 'box', fontSize: 30, fontFamily: 'mono' },
+    { kind: 'resize', id: 'box', width: 180, height: 60 },
+  ]);
+  const result = await fit(page, changed, [{ id: 'box' }]);
+  expect(result.effects[0].renderedFontSize).toBe(30);
+  expect(result.effects[0].bounds.height).toBeGreaterThan(60);
+  await draw(page, result.document);
+  await expectInside(page, 'box', Math.SQRT1_2);
+});
+
+test('fixed error preserves the candidate and explicit contain fits without growing geometry', async ({
+  page,
+}) => {
+  const original = prepareCanvasEdit(createScene(), [
+    {
+      kind: 'create',
+      id: 'fixed',
+      type: 'rectangle',
+      x: 20,
+      y: 20,
+      width: 160,
+      height: 80,
+      text: 'Long text wrapping into many lines. '.repeat(3),
+      fontSize: 24,
+    },
+  ]);
+  const before = JSON.stringify(original);
+  await expect(
+    fit(page, original, [{ id: 'fixed', mode: 'error' }])
+  ).rejects.toThrow('fixed interior');
+  expect(JSON.stringify(original)).toBe(before);
+  const contained = await fit(page, original, [
+    { id: 'fixed', mode: 'contain' },
+  ]);
+  expect(contained.effects[0].bounds.width).toBe(160);
+  expect(contained.effects[0].bounds.height).toBe(80);
+  expect(contained.effects[0].renderedFontSize).toBeLessThan(24);
+  await draw(page, contained.document);
+  await expectInside(page, 'fixed');
+});
+
+test('tiny standalone widths grow for real glyph ink and fixed errors remain atomic', async ({
+  page,
+}) => {
+  const initial = prepareCanvasEdit(createScene(), [
+    {
+      kind: 'create',
+      id: 'glyph',
+      type: 'text',
+      x: 20,
+      y: 20,
+      width: 1,
+      height: 1000,
+      text: 'W',
+      fontSize: 100,
+    },
+  ]);
+  await expect(
+    fit(page, initial, [{ id: 'glyph', mode: 'error' }])
+  ).rejects.toThrow('Fixed geometry');
+  const grown = await fit(page, initial, [{ id: 'glyph' }]);
+  expect(grown.effects[0].fontSize).toBe(100);
+  expect(grown.effects[0].bounds.width).toBeGreaterThan(1);
+  await draw(page, grown.document);
+  await expectInside(page, 'glyph', 1, true);
+  const overflow = await page
+    .locator('[data-graphics-item="glyph"] .graphics-rich-text')
+    .evaluate(
+      (element) =>
+        element.scrollWidth > element.getBoundingClientRect().width + 1
+    );
+  expect(overflow).toBe(false);
+});
+
+test('snapshot rendering stays read-only and never fetches referenced images', async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  page.on('request', (request) => requests.push(request.url()));
+  const scene = createScene([
+    {
+      id: 'private-image',
+      type: 'image',
+      placement: { parentId: 'scene-root', sortKey: 'a0' },
+      transform: translation(20, 20),
+      appearance: { fill: 'transparent', stroke: '#000000' },
+      geometry: {
+        width: 240,
+        height: 160,
+        name: 'Permission-scoped reference',
+        source: { type: 'url', url: 'https://private.example.com/secret.png' },
+      },
+    },
+  ]);
+  const frozen = JSON.stringify(scene);
+  await draw(page, scene);
+  await expect(
+    page.getByText('Image unavailable: Permission-scoped reference')
+  ).toBeVisible();
+  expect(requests.some((url) => url.includes('private.example.com'))).toBe(
+    false
+  );
+  expect(JSON.stringify(scene)).toBe(frozen);
+  await expect(
+    page.locator(
+      '[data-presence-cursor], [data-presence-preview], [contenteditable=true]'
+    )
+  ).toHaveCount(0);
+});

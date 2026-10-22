@@ -83,3 +83,26 @@ See the [graphics package README](../../packages/graphics/README.md),
 [scene foundation](graphics-scene-foundation.md),
 [Canvas Next README](../../apps/web/src/features/block-canvas/README.md),
 and [collaboration notes](../../packages/graphics/src/loro/README.md).
+
+
+### AI vision, fitting and parallel presentation
+
+The Documents domain authorizes ReadCanvas/RenderCanvas/EditCanvas; the editing
+worker joins the winning room seed. RenderCanvas freezes the canonical scene and
+clock, sends it to an isolated real Canvas/StaticLexical render surface, and returns
+native PNG content with revision/crop/object mapping. The browser loads only the
+configured app bundle and fonts; embedded references are explicitly unavailable.
+No render connects to sync or edits the scene. The agent adapter promotes only an
+explicit bounded modelMedia envelope into native image content and rehydrates it
+on history replay. Telemetry redacts image pixels.
+
+An editing supervisor can delegate to two concurrent named writers. Actual command
+reads/writes, hierarchy, connector dependencies, order and occupied regions govern
+scheduling. Each batch validates, asynchronously measures text with the browser's
+real TextMeasurer, presents transient awareness frames, pulls a server update barrier, then revalidates and commits
+once through the canonical session's ACK queue. Human interference rejects stale
+work. This coordination is session-local, not a distributed lock across independent
+AI requests. Native CRDT merging and fresh dependency validation still apply there.
+Requested fonts remain readable by default: persistent grow fitting increases box
+height at the wrapping width; deliberate fixed sizes opt into contain or error.
+Visual work receives an image before planning and a bounded final visual review.

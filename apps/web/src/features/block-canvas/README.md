@@ -451,3 +451,16 @@ Selection outlines share a camera transform so panning does not rewrite every
 outline. Mutable scene builders continue to bypass caches.
 
 On touch layouts, keep the floating zoom/inspector below the split header so the details button and document-title file menu remain reachable.
+
+
+## AI snapshot rendering and measured fitting
+
+`canvas-render.html` mounts a read-only GraphicsSurface with the same
+CanvasTextContent/StaticLexical, CSS and text measurer as the live app. It has no
+session or persistence host and returns measured DOM text bounds. The worker uses
+it for immutable vision reads and asynchronous fitText measurements, then
+revalidates targets before its atomic write. Embedded references are explicit
+unavailable placeholders. `browser-test/render.playwright.config.ts` runs actual
+DOM fitting regressions on desktop and phone viewports.
+AI presence renders bounded validated geometry/text with per-target guards;
+reduced-motion receivers suppress AI action previews even with other observers.

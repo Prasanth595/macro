@@ -11,6 +11,7 @@ import {
   InMemoryWALStore,
   WALSyncer,
 } from '@macro-inc/collaboration/collab/wal';
+import type { TextFitEffect, TextFitResult } from '@macro-inc/graphics';
 import {
   type GraphicsDocument,
   worldBounds,
@@ -27,8 +28,17 @@ import {
 import { Telemetry } from '@macro-inc/observability';
 import type { ResultAsync } from 'neverthrow';
 import { createRoot } from 'solid-js';
+import {
+  type CanvasPresentation,
+  canvasAnimation,
+  runCanvasAnimation,
+} from './animation';
+import { CanvasScheduler, dependencies, dependencyState } from './dependencies';
 import { prepareCanvasEdit } from './operations';
+import { canvasOverview } from './overview';
+import type { CanvasMeasurer, CanvasSnapshot } from './render';
 import type { CanvasOp } from './schema';
+import { applyTextMeasurements, textFitRequests } from './text-layout';
 
 export type CanvasSource = LiveSyncSource & {
   doInitialSync(): ResultAsync<InitialSync, SyncError>;
@@ -36,17 +46,34 @@ export type CanvasSource = LiveSyncSource & {
 
 /** A committed update may already have reached peers; never replay its intent. */
 export class CanvasWriteError extends Error {}
+export class CanvasConflictError extends Error {}
+export type CanvasApplyOptions = {
+  baseline?: GraphicsDocument;
+  present?: (value: CanvasPresentation | undefined) => void;
+  animate?: boolean;
+  sleep?: (ms: number) => Promise<void>;
+  measure?: CanvasMeasurer;
+};
+export type CanvasSession = {
+  read: (itemIds?: string[], format?: 'scene' | 'overview') => string;
+  snapshot: () => CanvasSnapshot;
+  present: (value: CanvasPresentation | undefined) => void;
+  watching: () => boolean;
+  apply: (
+    ops: CanvasOp[],
+    options?: CanvasApplyOptions
+  ) => Promise<{
+    operationsApplied: number;
+    canvas: string;
+    textLayout: TextFitEffect[];
+  }>;
+};
 
 /** Open only the server's winning seed, never independently seed a live room. */
 export async function withCanvasSession<T>(
   source: CanvasSource,
   signal: AbortSignal,
-  run: (session: {
-    read: (itemIds?: string[]) => string;
-    apply: (
-      ops: CanvasOp[]
-    ) => Promise<{ operationsApplied: number; canvas: string }>;
-  }) => Promise<T>,
+  run: (session: CanvasSession) => Promise<T>,
   editorName = 'Macro'
 ): Promise<T> {
   const manager = new LoroManager(schema({}), {
@@ -104,7 +131,34 @@ export async function withCanvasSession<T>(
       return createAwareness<string, PeerPresence | null>(
         doc.peerIdStr,
         undefined,
-        { encode: JSON.stringify, decode: () => null }
+        {
+          encode: JSON.stringify,
+          decode: (value) => {
+            try {
+              const parsed: unknown = JSON.parse(value);
+              if (
+                !parsed ||
+                typeof parsed !== 'object' ||
+                !('name' in parsed) ||
+                typeof parsed.name !== 'string'
+              )
+                return null;
+              return {
+                id: '',
+                name: parsed.name,
+                color: '',
+                cursor: null,
+                selectedIds: [],
+                clock: {},
+                preview: null,
+                reducedMotion:
+                  'reducedMotion' in parsed && parsed.reducedMotion === true,
+              };
+            } catch {
+              return null;
+            }
+          },
+        }
       );
     });
     const activeEngine = new SyncEngine({
@@ -114,6 +168,8 @@ export async function withCanvasSession<T>(
       bindings: { onRemoteState: () => {} },
     });
     engine = activeEngine;
+    if (initial.value.awareness.length)
+      awareness.importRemoteAwareness(initial.value.awareness);
     stopManager = manager.onStateChange((state) =>
       queueMicrotask(() => activeEngine.onStateUpdate(state))
     );
@@ -129,51 +185,157 @@ export async function withCanvasSession<T>(
           'Canvas reconnected with a replacement snapshot. Read the canvas before retrying; earlier edits may have applied.'
         );
     };
-    const read = (itemIds?: string[]) => {
+    const read = (
+      itemIds?: string[],
+      format: 'scene' | 'overview' = 'scene'
+    ) => {
       check();
-      return describeCanvas(backend.getDocument(), itemIds);
+      return format === 'overview'
+        ? JSON.stringify(canvasOverview(backend.getDocument(), itemIds))
+        : describeCanvas(backend.getDocument(), itemIds);
     };
+    const present = (value: CanvasPresentation | undefined) => {
+      if (!value) {
+        clearPresence();
+        return;
+      }
+      awareness.updateLocalAwareness({
+        ...value,
+        id: doc.peerIdStr,
+        name: `${editorName.replace(/\s*\(AI\)$/, '').slice(0, 180)} (AI)`,
+        color: 'cyan',
+        clock: backend.getClock(),
+      });
+      activeEngine.onLocalAwarenessChange();
+    };
+    const scheduler = new CanvasScheduler();
+    let pendingCommit = Promise.resolve();
+    const watching = () =>
+      awareness
+        .remote()
+        .some(
+          (peer) =>
+            peer.selection &&
+            !peer.selection.name.endsWith('(AI)') &&
+            !peer.selection.reducedMotion
+        );
     const result = await run({
       read,
-      async apply(ops) {
+      present,
+      watching,
+      snapshot: () => {
         check();
-        // No await between reading the merged scene, validation and its one local commit.
-        const next = prepareCanvasEdit(backend.getDocument(), ops);
+        return {
+          document: structuredClone(backend.getDocument()),
+          clock: { ...backend.getClock() },
+        };
+      },
+      async apply(ops, options = {}) {
         check();
-        const selectedIds = [
-          ...new Set(ops.flatMap((op) => ('ids' in op ? op.ids : [op.id]))),
-        ]
-          .filter((id) => next.items[id])
-          .slice(0, 100);
-        const first = selectedIds[0];
-        const bounds = first ? worldBounds(next, first) : undefined;
-        awareness.updateLocalAwareness({
-          id: doc.peerIdStr,
-          name: editorName.endsWith('(AI)')
-            ? editorName.slice(0, 200)
-            : `${editorName.slice(0, 190)} (AI)`,
-          color: 'cyan',
-          cursor: bounds ? { x: bounds.x, y: bounds.y } : null,
-          selectedIds,
-          clock: backend.getClock(),
-          preview: null,
-        });
-        activeEngine.onLocalAwarenessChange();
-        await Telemetry.span('canvas.ai.apply', async (span) => {
-          span.setAttr('edit.ops_total', ops.length);
-          backend.commit(next);
-          try {
-            await lastAppend;
-            await wal.flush();
-            if ((await wal.summary()).dirty)
-              throw new Error('Canvas write acknowledgement was lost.');
-          } catch {
-            throw new CanvasWriteError(
-              'Canvas write acknowledgement was lost. Read the canvas before retrying; the edit may have applied.'
+        const baseline = options.baseline ?? backend.getDocument();
+        let planned = prepareCanvasEdit(baseline, ops);
+        const requests = textFitRequests(baseline, planned, ops);
+        let measured: TextFitResult | undefined;
+        if (options.measure && requests.length) {
+          measured = await options.measure(
+            { document: planned, clock: { ...backend.getClock() } },
+            requests,
+            signal
+          );
+          planned = measured.document;
+        }
+        const deps = dependencies(baseline, planned, ops);
+        const expected = dependencyState(baseline, deps);
+        const validate = () => {
+          check();
+          if (dependencyState(backend.getDocument(), deps) !== expected)
+            throw new CanvasConflictError(
+              'Canvas targets or reserved space changed. ReadCanvas and replan this batch; nothing from this batch was committed.'
             );
+        };
+        return scheduler.run(deps, async () => {
+          validate();
+          const show = options.present ?? present;
+          try {
+            if (options.animate ?? watching())
+              await Telemetry.span('canvas.ai.animate', async () =>
+                runCanvasAnimation(
+                  canvasAnimation(baseline, planned, deps),
+                  show,
+                  signal,
+                  validate,
+                  options.sleep
+                )
+              );
+            const commit = async () => {
+              check();
+              // A peer's ACK can precede delivery on this socket. Pull a server
+              // barrier after presentation so already-accepted human changes are
+              // included in final dependency validation, even if live delivery lags.
+              await Telemetry.span('canvas.ai.revalidate', async () => {
+                const updates = await source.requestUpdatesSince(
+                  manager.version
+                );
+                check();
+                if (
+                  updates.isErr() ||
+                  manager.importUpdate(updates.value).isErr()
+                )
+                  throw new CanvasConflictError(
+                    'Canvas could not refresh current targets. ReadCanvas and replan; nothing from this batch was committed.'
+                  );
+              });
+              validate();
+              // Rebuild against fresh canonical state; unrelated human/AI changes survive.
+              const fresh = prepareCanvasEdit(backend.getDocument(), ops);
+              const next = measured
+                ? applyTextMeasurements(fresh, measured)
+                : fresh;
+              check();
+              const selectedIds = [
+                ...new Set(
+                  ops.flatMap((op) => ('ids' in op ? op.ids : [op.id]))
+                ),
+              ]
+                .filter((id) => next.items[id])
+                .slice(0, 100);
+              const first = selectedIds[0];
+              const bounds = first ? worldBounds(next, first) : undefined;
+              show({
+                cursor: bounds ? { x: bounds.x, y: bounds.y } : null,
+                selectedIds,
+                preview: null,
+              });
+              await Telemetry.span('canvas.ai.apply', async (span) => {
+                span.setAttr('edit.ops_total', ops.length);
+                backend.commit(next);
+                try {
+                  await lastAppend;
+                  await wal.flush();
+                  if ((await wal.summary()).dirty)
+                    throw new Error('Canvas write acknowledgement was lost.');
+                } catch {
+                  throw new CanvasWriteError(
+                    'Canvas write acknowledgement was lost. Read the canvas before retrying; the edit may have applied.'
+                  );
+                }
+              });
+              return {
+                operationsApplied: ops.length,
+                canvas: read(),
+                textLayout: measured?.effects ?? [],
+              };
+            };
+            const result = pendingCommit.then(commit);
+            pendingCommit = result.then(
+              () => {},
+              () => {}
+            );
+            return await result;
+          } finally {
+            show(undefined);
           }
         });
-        return { operationsApplied: ops.length, canvas: read() };
       },
     });
     await Telemetry.span('canvas.ai.flush', async () => {

@@ -15,7 +15,10 @@ before touching the edit flow.
 - `src/run-edit.ts`: `runEditSession` — joins the sync-service WebSocket,
   drives the agents, flushes commits back.
 - `src/canvas/`: bounded CanvasEditor SDK, real QuickJS runner, live graphics/Loro
-  session, model loop and concurrency/acknowledgement tests. `POST /canvas`
+  session, supervised writers, renderer-based text fitting, vision reads and
+  concurrency/acknowledgement tests. `render.ts` uses the configured browser and
+  the read-only web `canvas-render.html` bundle; `text-layout.ts` revalidates
+  asynchronous measurements before the atomic commit. `POST /canvas`
   joins an already initialized scene; it never creates a competing seed.
 - `src/ai-editing/`: the agent loop, prompts, tools, and op queue.
 - `src/endpoints/`: one file per surface — `edit.ts`, `docx.ts`, `forms.ts`,
@@ -65,3 +68,18 @@ before touching the edit flow.
 
 - Docs: `services/ai-editing-worker/AI_EDITING.md`,
   `services/ai-editing-worker/src/spreadsheet/README.md`
+
+
+## Canvas browser configuration
+
+Use the existing worker's BROWSER binding in deployed environments, with
+CANVAS_RENDER_URL pointing to the web app's `app/canvas-render.html` bundle.
+Locally run an isolated Chromium CDP browser reachable from the worker and set
+CANVAS_BROWSER_URL to its HTTP discovery origin plus CANVAS_RENDER_URL to the
+preview's HTTPS `canvas-render.html`. For example pass both through `wrangler dev
+--env local --var CANVAS_BROWSER_URL:<trusted-CDP-origin> --var
+CANVAS_RENDER_URL:<preview-render-URL>`. Keep authentication out of those URLs.
+The isolated render context loads no user cookies and never joins live sync.
+Without browser configuration, Canvas rendering and measured edits fail clearly;
+other document editing endpoints do not require this browser. Do not deploy the
+worker or reset an existing preview to configure it.

@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
 import { editCanvas } from '../canvas/agent';
+import { canvasRenderOptions, createCanvasRenderer } from '../canvas/render';
 import { withCanvasSession } from '../canvas/session';
 import { tokenAccessLevel } from '../document-token';
 import { type Bindings, getEnv } from '../env';
@@ -19,8 +20,10 @@ const body = z
         .object({
           action: z.literal('read'),
           itemIds: z.array(z.string().max(200)).max(100).optional(),
+          format: z.enum(['scene', 'overview']).optional(),
         })
         .strict(),
+      canvasRenderOptions.extend({ action: z.literal('render') }).strict(),
       z
         .object({
           action: z.literal('edit'),
@@ -63,9 +66,25 @@ app.post('/', zValidator('json', body), async (c) => {
             createWorkerSyncSource(url.toString(), documentId, signal),
             signal,
             async (session) => ({
-              canvas: session.read(request.itemIds),
+              canvas: session.read(request.itemIds, request.format),
               operationsApplied: 0,
               summary: 'Read the current canvas.',
+              usage: [],
+            })
+          );
+        const renderer = createCanvasRenderer(c.env);
+        if (request.action === 'render')
+          return withCanvasSession(
+            createWorkerSyncSource(url.toString(), documentId, signal),
+            signal,
+            async (session) => ({
+              render: await renderer(
+                session.snapshot(),
+                { itemIds: request.itemIds, crop: request.crop },
+                signal
+              ),
+              operationsApplied: 0,
+              summary: 'Rendered an immutable Canvas snapshot.',
               usage: [],
             })
           );
@@ -73,7 +92,7 @@ app.post('/', zValidator('json', body), async (c) => {
           getEnv(c.env),
           {
             fast: [
-              { provider: 'openai', model: 'gpt-5.5' },
+              { provider: 'anthropic', model: 'claude-sonnet-5-5' },
               { provider: 'anthropic', model: 'claude-haiku-4-5' },
             ],
           },
@@ -84,7 +103,13 @@ app.post('/', zValidator('json', body), async (c) => {
           request.instructions,
           model,
           signal,
-          request.editorName
+          request.editorName,
+          {
+            render: renderer,
+            measure: renderer.measure,
+            createSource: () =>
+              createWorkerSyncSource(url.toString(), documentId, signal),
+          }
         );
         span.setAttr('edit.ops_total', result.operationsApplied);
         span.setAttr(

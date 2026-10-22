@@ -12,6 +12,8 @@ const ids = z
     'Item IDs must be unique.'
   );
 const text = z.string().max(10_000);
+export const textFitMode = z.enum(['grow', 'contain', 'error']);
+export type TextFitMode = z.infer<typeof textFitMode>;
 const color = z
   .string()
   .regex(
@@ -48,10 +50,12 @@ export const canvasOpSchema = z.discriminatedUnion('kind', [
       type: z.enum(['rectangle', 'ellipse', 'text']),
       x: coordinate,
       y: coordinate,
-      width: size,
-      height: size,
+      width: size.optional(),
+      height: size.optional(),
       text: text.optional(),
       fontSize: z.number().min(1).max(1000).optional(),
+      fontFamily: z.enum(['sans', 'serif', 'mono']).optional(),
+      fitText: textFitMode.optional(),
       style: style.optional(),
     })
     .strict(),
@@ -69,10 +73,40 @@ export const canvasOpSchema = z.discriminatedUnion('kind', [
     .object({ kind: z.literal('move'), ids, dx: coordinate, dy: coordinate })
     .strict(),
   z
-    .object({ kind: z.literal('resize'), id, width: size, height: size })
+    .object({
+      kind: z.literal('resize'),
+      id,
+      width: size,
+      height: size,
+      fitText: textFitMode.optional(),
+    })
     .strict(),
   z.object({ kind: z.literal('style'), ids, style }).strict(),
-  z.object({ kind: z.literal('text'), id, text }).strict(),
+  z
+    .object({
+      kind: z.literal('text'),
+      id,
+      text,
+      fitText: textFitMode.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('fitText'),
+      id,
+      mode: textFitMode,
+      width: size.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('textStyle'),
+      id,
+      fontSize: z.number().min(1).max(1000).optional(),
+      fontFamily: z.enum(['sans', 'serif', 'mono']).optional(),
+      fitText: textFitMode.optional(),
+    })
+    .strict(),
   z.object({ kind: z.literal('delete'), ids }).strict(),
   z.object({ kind: z.literal('group'), ids, id }).strict(),
   z.object({ kind: z.literal('ungroup'), id }).strict(),

@@ -12,12 +12,18 @@ import { plainRichText } from '@macro-inc/lexical-core/canvas-text';
 import { match } from 'ts-pattern';
 import type { CanvasOp } from './schema';
 
-function label(text: string, fontSize = 20): ShapeLabel {
+function label(
+  text: string,
+  fontSize = 20,
+  fontFamily: ShapeLabel['fontFamily'] = 'sans'
+): ShapeLabel {
   return {
     content: plainRichText(text, 'center'),
     fontSize,
-    fontFamily: 'sans',
-    height: text.split('\n').length * fontSize * 1.4,
+    fontFamily,
+    // Placeholder for pure command validation. The host measures wrapped text
+    // with the real browser renderer before this candidate can be committed.
+    height: fontSize * 1.35,
     width: 240,
   };
 }
@@ -51,7 +57,7 @@ export function prepareCanvasEdit(
             stroke: '#171717',
             ...op.style,
           };
-          const geometry = { width: op.width, height: op.height };
+          const geometry = { width: op.width ?? 320, height: op.height ?? 80 };
           editor.execute(insertShapesCommand, [
             {
               point: { x: op.x, y: op.y },
@@ -65,7 +71,7 @@ export function prepareCanvasEdit(
                         ...geometry,
                         content: plainRichText(op.text ?? ''),
                         fontSize: op.fontSize ?? 20,
-                        fontFamily: 'sans',
+                        fontFamily: op.fontFamily ?? 'sans',
                         autoWidth: false,
                       },
                     }
@@ -77,7 +83,9 @@ export function prepareCanvasEdit(
                         ...geometry,
                         ...(op.text === undefined
                           ? {}
-                          : { label: label(op.text, op.fontSize) }),
+                          : {
+                              label: label(op.text, op.fontSize, op.fontFamily),
+                            }),
                       },
                     },
             },
@@ -148,6 +156,57 @@ export function prepareCanvasEdit(
             throw new Error(
               'Only text items, rectangles, ellipses and connectors accept text.'
             );
+        })
+        .with({ kind: 'textStyle' }, (op) => {
+          const item = current.items[op.id];
+          if (item.type === 'text')
+            editor.execute(setTextCommand, {
+              ...item,
+              geometry: {
+                ...item.geometry,
+                fontSize: op.fontSize ?? item.geometry.fontSize,
+                fontFamily: op.fontFamily ?? item.geometry.fontFamily,
+              },
+            });
+          else if (canLabel(item) && item.geometry.label)
+            editor.execute(setShapeLabelCommand, {
+              id: op.id,
+              label: {
+                ...item.geometry.label,
+                fontSize: op.fontSize ?? item.geometry.label.fontSize,
+                fontFamily: op.fontFamily ?? item.geometry.label.fontFamily,
+              },
+            });
+          else
+            throw new Error(
+              'Text styling requires an existing label or text item.'
+            );
+        })
+        .with({ kind: 'fitText' }, (op) => {
+          const item = current.items[op.id];
+          if (item.type !== 'text' && !canLabel(item))
+            throw new Error(
+              'Text fitting requires a labeled shape or text item.'
+            );
+          if (op.width === undefined) return;
+          if (item.type === 'connector') {
+            throw new Error(
+              'Connector labels use natural width. Set wrapping width on a text item or box instead.'
+            );
+          } else {
+            const next = prepareCanvasEdit(current, [
+              {
+                kind: 'resize',
+                id: op.id,
+                width: op.width,
+                height: item.geometry.height,
+              },
+            ]);
+            editor.execute(
+              { id: 'fit-text-width', apply: () => ({ document: next }) },
+              undefined
+            );
+          }
         })
         .with({ kind: 'resize' }, (op) => {
           const item = current.items[op.id];

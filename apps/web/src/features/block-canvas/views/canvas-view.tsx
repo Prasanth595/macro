@@ -718,6 +718,29 @@ export function CanvasView(props: {
                   <GraphicsPresenceOverlay
                     editor={editor}
                     presence={presence()}
+                    renderers={{
+                      rectangle: (props) => (
+                        <RectangleView
+                          {...props}
+                          contentView={CanvasTextContent}
+                        />
+                      ),
+                      ellipse: (props) => (
+                        <EllipseView
+                          {...props}
+                          contentView={CanvasTextContent}
+                        />
+                      ),
+                      connector: (props) => (
+                        <ConnectorView
+                          {...props}
+                          contentView={CanvasTextContent}
+                        />
+                      ),
+                      text: (props) => (
+                        <TextView {...props} contentView={CanvasTextContent} />
+                      ),
+                    }}
                   />
                 )}
               </Show>

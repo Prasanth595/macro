@@ -49,3 +49,24 @@ Downloads export the live scene, and Copy duplicates the shared room plus its
 original JSON. Reload older open canvas tabs before collaborating: the previous
 whole-file editor does not participate in shared state. Editing the same text
 item concurrently chooses one completed content string; characters do not merge.
+
+
+## AI editing and visual reads
+
+Use **Ask Macro** to attach the live Canvas. Ask for a visual layout or diagram:
+Macro can call **RenderCanvas** for an immutable PNG with crop/revision/object
+mapping, then edit and visually review the result. Embedded content is explicitly
+unavailable in scoped renders. A viewer can read/render but cannot edit.
+**ReadCanvas** also offers a compact approximate semantic overview with stable IDs.
+
+Watch from a second editor: named AI writers show transient create/move/resize,
+connector and label previews, and independent tasks can progress together. These
+previews never save partial text. Unrelated edits retain valid previews; changing
+a target invalidates its pending batch. Cancel removes uncommitted overlays while
+keeping acknowledged prior batches. Reduced motion skips presentation delays.
+
+AI labels keep the requested font and grow boxes at their wrapping width by
+default. Check wrapped paragraphs, long unbroken strings, standalone text and
+ellipses after relabeling, font changes and narrowing width. Explicit fixed-size
+containment may scale text; an explicit overflow error commits no partial batch.
+The renderer regressions inspect actual text DOM bounds, including phone viewports.

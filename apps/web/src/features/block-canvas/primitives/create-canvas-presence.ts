@@ -37,6 +37,9 @@ export function createCanvasPresence(
     // Large selections/strokes retain cursors and selection awareness without
     // turning transient gestures into unbounded network payloads.
     presence.selectedIds = presence.selectedIds.slice(0, 1000);
+    presence.reducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
     if (
       JSON.stringify(presence).length > 128_000 ||
       (presence.preview?.shapes.length ?? 0) > 256 ||

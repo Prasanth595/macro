@@ -1,4 +1,4 @@
-import { createScene } from '@macro-inc/graphics';
+import { createScene, fitTextLayout } from '@macro-inc/graphics';
 import { createLoroGraphicsBackendFromDoc } from '@macro-inc/graphics/loro';
 import { okAsync } from 'neverthrow';
 import { describe, expect, it } from 'vitest';
@@ -7,6 +7,310 @@ import { describeCanvas, withCanvasSession } from './session';
 import { liveScene } from './test-fixtures';
 
 describe('live Canvas editing sessions', () => {
+  it('animates independent batches concurrently without invalidating either commit', async () => {
+    const scene = liveScene();
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    let waiting = 0;
+    const active = new Set<string>();
+    try {
+      await withCanvasSession(
+        scene.source,
+        new AbortController().signal,
+        async (session) => {
+          const apply = (id: string, x: number) =>
+            session.apply(
+              [
+                {
+                  kind: 'create',
+                  id,
+                  type: 'rectangle',
+                  x,
+                  y: 0,
+                  width: 100,
+                  height: 80,
+                },
+              ],
+              {
+                animate: true,
+                present: (value) => {
+                  if (value?.preview) active.add(id);
+                  else active.delete(id);
+                },
+                sleep: async () => {
+                  if (waiting < 2) {
+                    waiting++;
+                    if (waiting === 2) entered.resolve();
+                    await release.promise;
+                  }
+                },
+              }
+            );
+          const edits = Promise.all([apply('left', 0), apply('right', 400)]);
+          await entered.promise;
+          expect([...active].sort()).toEqual(['left', 'right']);
+          expect(scene.writes()).toBe(0);
+          release.resolve();
+          expect(
+            (await edits).map((result) => result.operationsApplied)
+          ).toEqual([1, 1]);
+          expect(active.size).toBe(0);
+        }
+      );
+      expect(scene.writes()).toBe(2);
+    } finally {
+      scene.server.free();
+    }
+  });
+
+  it('cancels an uncommitted animation and clears its transient presence', async () => {
+    const scene = liveScene();
+    const controller = new AbortController();
+    const presentations: unknown[] = [];
+    try {
+      await expect(
+        withCanvasSession(scene.source, controller.signal, async (session) =>
+          session.apply(
+            [
+              {
+                kind: 'create',
+                id: 'cancelled',
+                type: 'rectangle',
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 80,
+              },
+            ],
+            {
+              animate: true,
+              present: (value) => {
+                presentations.push(value);
+              },
+              sleep: async () => {
+                controller.abort();
+              },
+            }
+          )
+        )
+      ).rejects.toThrow();
+      expect(scene.writes()).toBe(0);
+      expect(presentations.at(-1)).toBeUndefined();
+      expect(scene.closed()).toBe(true);
+    } finally {
+      scene.server.free();
+    }
+  });
+
+  it('rejects a batch if a human changes its target during animation', async () => {
+    const scene = liveScene();
+    const human = createLoroGraphicsBackendFromDoc(scene.server, 'scene-root');
+    human.commit(
+      prepareCanvasEdit(human.getDocument(), [
+        {
+          kind: 'create',
+          id: 'box',
+          type: 'rectangle',
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 80,
+        },
+      ])
+    );
+    let interfered = false;
+    try {
+      await expect(
+        withCanvasSession(
+          scene.source,
+          new AbortController().signal,
+          async (session) =>
+            session.apply([{ kind: 'text', id: 'box', text: 'AI' }], {
+              animate: true,
+              sleep: async () => {
+                if (interfered) return;
+                interfered = true;
+                const update = Promise.withResolvers<Uint8Array>();
+                const unsubscribe = human.subscribeUpdates(update.resolve);
+                human.commit(
+                  prepareCanvasEdit(human.getDocument(), [
+                    { kind: 'text', id: 'box', text: 'Human wins' },
+                  ])
+                );
+                scene.send({ type: 'update', update: await update.promise });
+                unsubscribe();
+              },
+            })
+        )
+      ).rejects.toThrow('nothing from this batch was committed');
+      expect(scene.writes()).toBe(0);
+      expect(describeCanvas(human.getDocument())).toContain('Human wins');
+    } finally {
+      human.dispose();
+      scene.server.free();
+    }
+  });
+
+  it('refreshes accepted server changes before commit when live delivery is delayed', async () => {
+    const scene = liveScene();
+    const human = createLoroGraphicsBackendFromDoc(scene.server, 'scene-root');
+    human.commit(
+      prepareCanvasEdit(human.getDocument(), [
+        {
+          kind: 'create',
+          id: 'box',
+          type: 'rectangle',
+          x: 0,
+          y: 0,
+          width: 120,
+          height: 80,
+        },
+      ])
+    );
+    let changed = false;
+    try {
+      await expect(
+        withCanvasSession(
+          scene.source,
+          new AbortController().signal,
+          async (session) =>
+            session.apply([{ kind: 'move', ids: ['box'], dx: 400, dy: 0 }], {
+              animate: true,
+              sleep: async () => {
+                if (changed) return;
+                changed = true;
+                // Server has accepted this change, but the AI socket has not received it.
+                human.commit(
+                  prepareCanvasEdit(human.getDocument(), [
+                    { kind: 'text', id: 'box', text: 'Human wins' },
+                  ])
+                );
+              },
+            })
+        )
+      ).rejects.toThrow('nothing from this batch was committed');
+      expect(scene.writes()).toBe(0);
+      expect(describeCanvas(human.getDocument())).toContain('Human wins');
+    } finally {
+      human.dispose();
+      scene.server.free();
+    }
+  });
+
+  it('rejects stale text measurements after a concurrent human relabel', async () => {
+    const scene = liveScene();
+    const human = createLoroGraphicsBackendFromDoc(scene.server, 'scene-root');
+    human.commit(
+      prepareCanvasEdit(human.getDocument(), [
+        {
+          kind: 'create',
+          id: 'box',
+          type: 'rectangle',
+          x: 0,
+          y: 0,
+          width: 120,
+          height: 80,
+          text: 'Before',
+        },
+      ])
+    );
+    try {
+      await expect(
+        withCanvasSession(
+          scene.source,
+          new AbortController().signal,
+          async (session) =>
+            session.apply(
+              [
+                {
+                  kind: 'text',
+                  id: 'box',
+                  text: 'AI replacement that needs measurement',
+                },
+              ],
+              {
+                measure: async (snapshot) => {
+                  const update = Promise.withResolvers<Uint8Array>();
+                  const unsubscribe = human.subscribeUpdates(update.resolve);
+                  human.commit(
+                    prepareCanvasEdit(human.getDocument(), [
+                      {
+                        kind: 'text',
+                        id: 'box',
+                        text: 'Human wins during measurement',
+                      },
+                    ])
+                  );
+                  scene.send({ type: 'update', update: await update.promise });
+                  unsubscribe();
+                  return { document: snapshot.document, effects: [] };
+                },
+              }
+            )
+        )
+      ).rejects.toThrow('nothing from this batch was committed');
+      expect(scene.writes()).toBe(0);
+      expect(describeCanvas(human.getDocument())).toContain(
+        'Human wins during measurement'
+      );
+    } finally {
+      human.dispose();
+      scene.server.free();
+    }
+  });
+
+  it('retains an explicit fixed-text policy through CRDT reload and a later relabel', async () => {
+    const scene = liveScene();
+    const owner = createLoroGraphicsBackendFromDoc(scene.server, 'scene-root');
+    const initial = prepareCanvasEdit(owner.getDocument(), [
+      {
+        kind: 'create',
+        id: 'fixed',
+        type: 'rectangle',
+        x: 0,
+        y: 0,
+        width: 120,
+        height: 80,
+        text: 'Fits',
+      },
+    ]);
+    owner.commit(
+      fitTextLayout(initial, [{ id: 'fixed', mode: 'error' }], () => ({
+        width: 80,
+        height: 24,
+      })).document
+    );
+    try {
+      await expect(
+        withCanvasSession(
+          scene.source,
+          new AbortController().signal,
+          async (session) =>
+            session.apply(
+              [{ kind: 'text', id: 'fixed', text: 'Longer replacement' }],
+              {
+                measure: async (snapshot, requests) =>
+                  fitTextLayout(snapshot.document, requests, () => ({
+                    width: 96,
+                    height: 400,
+                  })),
+              }
+            )
+        )
+      ).rejects.toThrow('fixed interior');
+      expect(scene.writes()).toBe(0);
+      const restored = JSON.parse(
+        describeCanvas(owner.getDocument(), ['fixed'])
+      ).items[0];
+      expect(restored.text).toBe('Fits');
+      expect(restored.geometry.label.fitText).toBe('error');
+      expect(restored.bounds).toMatchObject({ width: 120, height: 80 });
+    } finally {
+      owner.dispose();
+      scene.server.free();
+    }
+  });
+
   it('marks shortened labels explicitly even when the item count fits', () => {
     const scene = prepareCanvasEdit(createScene(), [
       {
