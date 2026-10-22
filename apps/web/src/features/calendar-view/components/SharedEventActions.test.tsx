@@ -56,6 +56,7 @@ function calendar(overrides: Partial<VisibleCalendar>): VisibleCalendar {
       autoDecline: true,
       customRecurrence: true,
       emailReminders: true,
+      guestPolicy: true,
       removeConference: true,
       resetRsvp: true,
     },
