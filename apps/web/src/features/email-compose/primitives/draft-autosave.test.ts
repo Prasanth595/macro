@@ -180,7 +180,7 @@ it('coalesces local snapshots behind a slow write and reports durability only af
   autosave.cancel();
 });
 
-it('persists a debounced edit as soon as the app is hidden', async () => {
+it('persists a debounced edit as soon as visibility changes', async () => {
   vi.useFakeTimers();
   const persist = vi.fn(async (_snapshot: string) => {});
   const autosave = createRoot((dispose) => {

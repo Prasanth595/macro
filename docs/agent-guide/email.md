@@ -500,11 +500,11 @@ a transaction fails because the connection is closing, it retries once before
 running any writes. When WebKit aborts a started transaction (typically while the
 iOS app is backgrounded), the whole transaction, draft or outbox, replays on a new
 connection, at most three attempts; a save recognizes its own commit, so a replay
-never duplicates a revision. Each edit is written locally at once; hiding the app
-also sends the debounced server save immediately, and any visibility change
-retries a failed local write with the live editor content. Verify by closing the
-draft database connection, then editing: the latest content must persist locally
-and server autosave must continue without reloading. Repeat across
+never duplicates a revision. Each edit is written locally at once; any visibility
+change, such as hiding the app, also sends the debounced server save immediately
+and retries a failed local write with the live editor content. Verify by closing
+the draft database connection, then editing: the latest content must persist
+locally and server autosave must continue without reloading. Repeat across
 background/resume on an iPhone. Persistent failures still block server autosave;
 copy unsaved content before restarting. Storage failures and recovery report
 current page visibility and network state without draft content.
@@ -517,8 +517,8 @@ save must succeed.
 Repeated local-save failures show one persistent warning per composer; a later
 successful write or closing the composer dismisses it. Closing writes the failed
 edit once more, unless send, discard, or a reset already cancelled it; if that
-write also fails, a new warning stays after the composer closes. A later failure
-shows a new warning.
+write also fails, a brief warning shows after the composer closes. A later
+failure shows a new warning.
 Retry preserves the original draft handle. An already-sent rejection drops the
 local copy rather than recreating the sent message. The REST compose path keeps
 its existing behavior.

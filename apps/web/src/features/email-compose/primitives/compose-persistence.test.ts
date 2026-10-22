@@ -1178,7 +1178,7 @@ function localSnapshot(
 }
 
 it.each(['standalone', 'reply'] as const)(
-  'keeps one %s local-save warning until recovery and warns again when the write on close fails',
+  'keeps one %s local-save warning until recovery and briefly warns when the write on close fails',
   async (surface) => {
     const context = createComposeContext();
     let diskFailed = true;
@@ -1227,6 +1227,10 @@ it.each(['standalone', 'reply'] as const)(
     );
     expect(context.notices.feedback.dismiss).toHaveBeenLastCalledWith(8);
     expect(context.notices.feedback.failure).toHaveBeenCalledTimes(3);
+    expect(context.notices.feedback.failure).toHaveBeenLastCalledWith(
+      'Draft could not be saved on this device',
+      { subtext: 'Error: Disk full', persistent: false }
+    );
   }
 );
 
