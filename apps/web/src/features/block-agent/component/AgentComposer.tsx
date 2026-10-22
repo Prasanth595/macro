@@ -474,7 +474,9 @@ export function AgentComposer(props: {
               <TeamUsageToggle
                 on={onTeamKey()}
                 disabled={readOnly() || pending() || configuring()}
-                onToggle={(on) => void chooseFunding(on)}
+                onToggle={(on) =>
+                  fireAndForget(chooseFunding(on), 'agent-composer')
+                }
               />
             </Show>
           </div>

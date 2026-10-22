@@ -5,6 +5,7 @@
  */
 
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ThrownResultError } from '@core/util/result';
 import { formatRelativeTimestamp } from '@entity';
 import {
@@ -118,7 +119,10 @@ export function TeamAiApiKeys(props: { canManage: boolean }) {
                     }
                     onKeyDown={(event) => {
                       if (event.key === 'Enter')
-                        void handleSave(provider.id, provider.name);
+                        fireAndForget(
+                          handleSave(provider.id, provider.name),
+                          'team-ai-api-keys'
+                        );
                     }}
                   />
                   <Button
@@ -128,7 +132,12 @@ export function TeamAiApiKeys(props: { canManage: boolean }) {
                     disabled={
                       draft(provider.id).trim().length === 0 || save.isPending
                     }
-                    onClick={() => void handleSave(provider.id, provider.name)}
+                    onClick={() =>
+                      fireAndForget(
+                        handleSave(provider.id, provider.name),
+                        'team-ai-api-keys'
+                      )
+                    }
                   >
                     Save
                   </Button>
@@ -139,7 +148,10 @@ export function TeamAiApiKeys(props: { canManage: boolean }) {
                       size="sm"
                       disabled={remove.isPending}
                       onClick={() =>
-                        void handleRemove(provider.id, provider.name)
+                        fireAndForget(
+                          handleRemove(provider.id, provider.name),
+                          'team-ai-api-keys'
+                        )
                       }
                     >
                       Remove

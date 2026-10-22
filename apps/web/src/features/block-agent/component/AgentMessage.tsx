@@ -12,6 +12,7 @@
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import { idToDisplayName } from '@core/user/util';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { messageSendMotion } from '@core/util/message-send-motion';
 import { openExternalUrl } from '@core/util/url';
 import type {
@@ -370,7 +371,7 @@ export function Message(props: {
     agentSession.session()?.canEdit !== false
       ? {
           label: 'Continue with team API key',
-          onClick: () => void continueOnTeamKey(),
+          onClick: () => fireAndForget(continueOnTeamKey(), 'agent-message'),
           disabled: continuing(),
         }
       : undefined;
