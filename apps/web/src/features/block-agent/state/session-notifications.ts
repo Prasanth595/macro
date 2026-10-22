@@ -33,5 +33,6 @@ export function notificationLabel(event: SessionNotification): string {
     )
     .with('review.decided', () => 'Review decided')
     .with('review.settled', () => 'Review finished')
+    .with('import.planned', () => 'Import plan ready')
     .otherwise(() => 'System event');
 }
