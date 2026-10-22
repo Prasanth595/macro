@@ -51,8 +51,8 @@ execution, display) that don't belong to a single domain.
   `agent_session`, `anthropic`, `initiative`, `collab_surface`, `favorites`,
   `messages`, `routines`, `ai_billing`, `ai_usage`, `ai_toolset`, `agent`),
   plus `bot_id`, `attachment`, `static_file`.
-- Used by: `document_storage_service`, `document_cognition_service`,
-  `agent_harness_service`, `mcp_service`.
+- Used by: `document_storage_service`, `agent_harness_service` (session
+  tools, cognition, and public MCP).
 
 ## Recipes
 
