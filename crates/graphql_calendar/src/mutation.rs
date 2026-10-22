@@ -239,6 +239,10 @@ pub(crate) fn mutation_error(error: CalendarMutationError) -> async_graphql::Err
             "guests_cannot_modify",
             "The organizer doesn't let guests change this event.".into(),
         ),
+        CalendarMutationError::AlreadyOnCalendar => (
+            "already_on_calendar",
+            "this event is already on one of your calendars".into(),
+        ),
         CalendarMutationError::InvalidInput(message) => ("invalid_input", message.clone()),
         CalendarMutationError::ReauthRequired(_) => (
             "reauth_required",

@@ -245,6 +245,7 @@ fn router_error_bodies_round_trip_to_their_domain_failures() {
         CalendarMutationError::GuestsCannotInvite,
         CalendarMutationError::GuestListHidden,
         CalendarMutationError::GuestsCannotModify,
+        CalendarMutationError::AlreadyOnCalendar,
         CalendarMutationError::InvalidInput("bad".to_string()),
         CalendarMutationError::ReauthRequired("expired".to_string()),
         CalendarMutationError::ProviderRejected("no".to_string()),

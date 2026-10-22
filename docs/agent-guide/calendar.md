@@ -436,7 +436,8 @@ As in Google Calendar, the guests row of the details popover (a bottom sheet on 
 carries `Copy guest emails` and `Email guests` icon buttons. Copying puts every guest's
 address on the clipboard, comma-separated. Emailing opens a new email addressed to every
 guest but you — in a split beside the calendar on desktop, as the full-screen composer on
-touch devices — and is hidden when you are the only guest.
+touch devices, in its own composer even when another one is open — and is hidden when you
+are the only guest.
 With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
 whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
 organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
@@ -469,39 +470,48 @@ neither organizing nor invited, such as a delegate on a shared calendar, keeps w
 calendar access allows. The update refuses a detail change from such a guest with 403
 `guests_cannot_modify` (fields resent at their stored value are ignored, so the agent can
 pass them); the editor then shows the line in a toast and locks its details, and a refused
-drag snaps back with the same toast. To check the refusal without a Google account, answer
-`PATCH /events/{id}` (or the GraphQL `updateCalendarEvent` mutation) with HTTP 403 and code
-`guests_cannot_modify` on an event whose `viewerCan.editDetails` is still true.
+drag snaps back with the same toast. The refusal covers a stale `viewerCan`, an event the
+viewer still sees as editable after the organizer turned modifying off, so check it without a
+Google account by answering `PATCH /events/{id}` (or the GraphQL `updateCalendarEvent`
+mutation) with HTTP 403 and code `guests_cannot_modify` on an event whose
+`viewerCan.editDetails` is still true: only there does the editor send a detail change at all.
 With the `enable-calendar-guest-invites` flag on, the organizer sets what guests may do in the
-composer's `Guest permissions` row, under the pills on desktop and phones alike: `Modify event`, `Invite others` and `See guest list`, in
-Google Calendar's order, with Google's defaults (invite others and see the guest list)
-preselected on a new event and the stored `guestPolicy` on an edit. As in Google, checking
-`Modify event` also checks `Invite others` and locks it. The row shows on a new event and on
-an edit whose `viewerCan.setGuestPolicy` is true, on Google calendars only (the calendar's
-`capabilities.guestPolicy`); Outlook calendars and out-of-office events have none. Like the
-repeat rule, it is disabled while a recurring edit targets `This event`, since the policy
-belongs to the whole series, and choosing `This event` returns it to the stored values. Save sends `guestPolicy` only when it changed, and the guests'
-`viewerCan` follows once their copies sync:
-turning `Invite others` off replaces a guest's `Add guests` with `Only the organizer can
-invite guests.` The update refuses a policy change from anyone but the organizer with 403
-`not_organizer`, and on an Outlook event with `provider_rejected`. `viewerCan.organize` marks
-the organizer of the displayed copy, including on Outlook, where `setGuestPolicy` is false.
+composer's `Guest permissions` row, under the pills on desktop and phones alike:
+`Modify event`, `Invite others` and `See guest list`, in Google Calendar's order, with Google's
+defaults (invite others and see the guest list) preselected on a new event and the stored
+`guestPolicy` on an edit. As in Google, checking `Modify event` also checks `Invite others` and
+locks it. The row shows on a new event and on an edit whose `viewerCan.setGuestPolicy` is true,
+on Google calendars only (the calendar's `capabilities.guestPolicy`); Outlook calendars and
+out-of-office events have none. Like the repeat rule, it is disabled while a recurring edit
+targets `This event`, since the policy belongs to the whole series, and choosing `This event`
+returns it to the stored values. Save sends `guestPolicy` only when it changed, and the guests'
+`viewerCan` follows once their copies sync: turning `Invite others` off replaces a guest's
+`Add guests` with `Only the organizer can invite guests.` The update refuses a policy change
+from anyone but the organizer with 403 `not_organizer`, and on an Outlook event with
+`provider_rejected`. `viewerCan.organize` marks the organizer of the displayed copy, including
+on Outlook, where `setGuestPolicy` is false.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description
-as plain text, location and organizer, never the guest list or join link. Like `Copy event`, it
+as plain text, location and organizer, never the guest list or join link. A Macro call's
+`Join Macro call` line and a location that is only its link are left out too, as event details
+leave them out. Like `Copy event`, it
 is absent from teammates' out-of-office chips. Its endpoint, document storage's
 `GET /calendar-events/{event_id}/ics`, also exports an event shared with a channel the viewer
 belongs to.
 Beside it, `Forward by email` (shown under the same rule) passes the event on the way Gmail
 forwards an invitation: it closes the details, fetches the same file, and opens a new email
-where `Email guests` does (its own composer, even when another one is open), with no recipients, the title as subject, a plain-text summary in
+where `Email guests` does, with no recipients, the title as subject, a plain-text summary in
 the body (title, when in the viewer's zone, the repeat rule in words, location, organizer and
 description, never guests or a join link) and the `.ics` attached as a picked file would be.
 Nothing is saved as a draft until you edit something. The file is `METHOD:PUBLISH`, so
 recipients get a copy to add to their calendar, not an invitation they can answer. If the file
 cannot be fetched, no composer opens and a `Failed to forward event` toast shows; to check it,
 answer the `.ics` route with an error.
+On desktop, every icon button in the details header (`Copy event`, `Download .ics`, `Forward
+by email`, `Edit event`, `Delete event`, `Close event details`) and in the guests row shows its
+name as a tooltip on hover, as does the close button of the recurring RSVP dialog. Touch
+devices show no tooltips; the phone drawer's buttons keep the same accessible names.
 
 With the `enable-calendar-team-ooo` flag on, teammates' Google Calendar out-of-office events
 overlay the grid as read-only chips titled `<name>: <event title>`. The sidebar's
@@ -521,7 +531,15 @@ own copy of the meeting. When a person holds the event on their own calendar and
 mention, it is shared read-only with the channel's current members: a member without a copy of
 their own sees the mention's title and time, and its hover card adds a `Shared with you · not on
 your calendar` line with no open action. Clicking such a mention shows that hover card
-instead of opening the calendar. A classic `@Macro` reply that mentions an event does not share
+instead of opening the calendar; on a touch device, tapping it opens the same card as a bottom
+sheet. That card also offers `Add to calendar`, which imports a private copy (no guests, no join
+link, nobody is notified) onto the viewer's only writable Google calendar, or onto one they pick
+from a menu when they have several; Outlook calendars are not offered, since Microsoft cannot
+keep the meeting's iCalendar UID. The mention then opens that copy. If Google already holds the
+meeting on that calendar (an invitation Macro has not synced yet), nothing is imported, a sync
+is scheduled and the card reports that it is already on their calendar. `Download .ics` saves
+the event as an iCalendar file. The copy is a snapshot: later changes by the organizer do not
+reach it. A classic `@Macro` reply that mentions an event does not share
 it by posting the chip. It asks whether to share with the channel, and a yes in that thread
 writes the same channel grant. Private and confidential events are never shared this way.
 Every calendar mention's hover card shows the schedule, location, organizer and attendee
