@@ -511,7 +511,8 @@ the shimmer.
   the catalog in place with a Back action. Search includes every model.
 - Desktop keeps the model selector and speedometer as separate controls. The
   speedometer opens a slider with a stop for each advertised effort level. Arrow keys
-  adjust the level; pointer drags commit on release. The popover stays open, and
+  and drags preview the level; it is applied once, when the popover closes, and
+  only if it differs from the current level. The popover stays open, and
   the model selector opens the full catalog independently. On mobile, the **speedometer-style
   effort** button opens its own sheet after the input expands. Choosing a level
   applies it and closes the sheet. Models with fewer than two effort choices
@@ -1170,7 +1171,7 @@ reads `Waiting for approval`. The agent's hidden context names the owner and the
 ## Forms authoring and sharing
 
 With Forms enabled, ask the agent to create a complete form, including ordered
-sections and qualification screeners. Creation starts closed and members-only.
+sections and qualification gates. Creation starts closed and members-only.
 The expandable tool result shows the saved questions, builder link, respondent
 link, and actual response availability. Edits use granular CRDT updates
 to preserve unrelated human changes. Partial outcomes have recovery guidance;
@@ -1180,7 +1181,7 @@ a link by itself is not a completed or open form.
 and channel-sharing services as the browser. There is no custom review card.
 Channel Edit also grants access to the entire response database. Settings and
 channel grants are separate writes; inspect any partial outcome before retrying.
-See [Forms](forms.md#forms-through-the-ai-tools) for screeners, booking link reveal,
+See [Forms](forms.md#forms-through-the-ai-tools) for gates, booking link reveal,
 supported edits and retry behavior.
 
 ## In channels
@@ -1382,9 +1383,12 @@ Details lists Status, Agent, Model, and dates for every session; the Runtime
 row appears only for coding runtimes, never for in-memory chat agents.
 `References` is the same section documents show: one row per channel message that
 `@`-mentioned or shared the session (sender, channel chip, time, and a two-line
-message excerpt) and per document that mentions it (author and document chip).
-Click a row to open that message or document in a split. The section is hidden
-until at least one reference exists, and only lists channels you belong to.
+message excerpt), per comment on a document, project, CRM record, or call that
+mentions it (sender, parent chip, time, excerpt), and per document that mentions
+it (author and document chip). Click a row to open that message, comment, or
+document in a split; a comment row opens its parent at the comment. The section
+is hidden until at least one reference exists, lists channels you belong to, and
+lists comments only on parents you can view.
 New conversation pages have no disabled session action buttons. Older chats
 also have one header row, and empty chats show a simple conversation prompt
 instead of the standalone recent-sessions and tips surface.
@@ -1578,7 +1582,10 @@ The owner can click **Stop sharing** in the banner; open preview connections
 close. Disconnection and expiry leave a banner asking the agent to share again.
 Leases last up to one hour and expire after 15 minutes without browser requests.
 Continue prompting in the agent session while the preview tab stays open; page
-edits should arrive through the app's own HMR connection.
+edits should arrive through the app's own HMR connection. Control requests, SSH,
+and preview navigation can reach different replicas without requiring sticky
+sessions. A rolling restart of the tunnel owner may disconnect its previews;
+the banner becomes offline within 45 seconds. Ask the agent to share again.
 
 ### Transcript navigation
 
@@ -1763,7 +1770,7 @@ There is no periodic PR lookup polling.
 On desktop, open the speedometer beside the model selector to adjust the
 current model with the **Reasoning effort** slider. The header and accessible value announce the
 selected level. Arrow keys move between supported levels; the menu stays open
-until dismissed. The model selector opens the full catalog independently; other
+until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
 models still offer their own effort submenu with Right Arrow. On mobile, tap a model
 to select it, then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
@@ -2009,7 +2016,7 @@ creating an event is a real action, including from a local app connected to dev.
 On desktop, open the speedometer beside the model selector to adjust the
 current model with the **Reasoning effort** slider. The header and accessible value announce the
 selected level. Arrow keys move between supported levels; the menu stays open
-until dismissed. The model selector opens the full catalog independently; other
+until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
 models still offer their own effort submenu with Right Arrow. On mobile, tap a model
 to select it, then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised

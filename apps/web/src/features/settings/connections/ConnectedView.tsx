@@ -31,7 +31,7 @@ export function ConnectedView(props: { model: ConnectionsModel }) {
             <SettingsSurface class="overflow-hidden">
               <button
                 type="button"
-                class="w-full text-left outline-none not-touch:hover:overlay-hover focus-visible:overlay-hover"
+                class="h-full w-full text-left outline-none not-touch:hover:overlay-hover focus-visible:overlay-hover"
                 onClick={() => view.openProvider(provider.id)}
               >
                 <IntegrationRow

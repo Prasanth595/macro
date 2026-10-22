@@ -145,11 +145,7 @@ function ConnectionsContent(props: IntegrationsViewProps) {
             when={ready() && view.provider()}
             keyed
             fallback={
-              <SettingsPage
-                title="Integrations"
-                contentClass="max-w-[1200px]"
-                bodyClass="mt-6 gap-6"
-              >
+              <SettingsPage title="Integrations" bodyClass="mt-6 gap-6">
                 <IntegrationSetupCallouts
                   onOpenMacroMcp={props.onOpenMacroMcp}
                   onOpenLocalAgents={props.onOpenLocalAgents}

@@ -132,6 +132,14 @@ impl CalendarOccurrenceService for RecordingCalendarReads {
     async fn primary_time_zone(&self, _requester_id: &str) -> Result<Option<String>, Report> {
         unreachable!("not part of the calendar user fields")
     }
+
+    async fn event_ics(
+        &self,
+        _requester_id: &str,
+        _event_id: uuid::Uuid,
+    ) -> Result<Option<calendar_events::domain::ics::CalendarEventIcs>, Report> {
+        unreachable!("not part of the calendar user fields")
+    }
 }
 
 impl CalendarChangeQueryService for RecordingCalendarReads {
@@ -281,6 +289,17 @@ impl calendar_events::domain::ports::CalendarMutationService for RecordingCalend
         _response: calendar_events::domain::models::AttendeeResponseStatus,
         _scope: calendar_events::domain::ports::CalendarRsvpScope,
         _responding_email: Option<String>,
+    ) -> Result<CalendarEvent, calendar_events::domain::ports::CalendarMutationError> {
+        unreachable!("only deletion is exercised")
+    }
+
+    async fn invite_guests(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+        _calendar_id: Option<Uuid>,
+        _guests: Vec<calendar_events::domain::models::CalendarAttendeeInput>,
+        _scope: calendar_events::domain::ports::CalendarUpdateScope,
     ) -> Result<CalendarEvent, calendar_events::domain::ports::CalendarMutationError> {
         unreachable!("only deletion is exercised")
     }

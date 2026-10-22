@@ -9,8 +9,7 @@ export const SettingsSheetContext = createContext(false);
 /*
  * Shared building blocks for the settings panels. Every settings tab composes
  * these so the whole menu shares one rhythm: a centered content column,
- * clear section headings, and raised composer surfaces with subtle row
- * dividers.
+ * clear section headings, and raised composer surfaces with subtle row dividers.
  *
  *   <SettingsPage title="Account" description="…">
  *     <SettingsSection title="Profile">
@@ -190,7 +189,7 @@ export function SettingsSurface(props: {
   );
 }
 
-/** Rows share a surface; standalone cards use the email composer's elevation. */
+/** Rows share a raised surface; nested cards do not add another box. */
 export function SettingsCard(props: { class?: string; children: JSX.Element }) {
   const nested = useContext(SettingsSurfaceContext);
   return (
@@ -384,7 +383,9 @@ export function IntegrationRow(props: {
         </Show>
       </div>
       <Show when={props.children}>
-        <div class="shrink-0 flex items-center gap-2">{props.children}</div>
+        <div class="shrink-0 max-w-full flex flex-wrap items-center gap-2">
+          {props.children}
+        </div>
       </Show>
     </div>
   );

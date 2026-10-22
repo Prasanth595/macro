@@ -93,6 +93,9 @@ vi.mock('@ui', async () => ({
   ),
 }));
 vi.mock('../primitives', () => ({
+  SettingsSurface: (props: { children: JSX.Element }) => (
+    <div>{props.children}</div>
+  ),
   SettingsPage: (props: {
     title: string;
     description: string;

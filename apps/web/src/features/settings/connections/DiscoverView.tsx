@@ -1,4 +1,3 @@
-import { SearchBar } from '@app/components/view-shell/SearchBar';
 import { useInfiniteScrollSentinel } from '@app/lib/primitives/infinite-scroll-sentinel';
 import { toast } from '@core/component/Toast/Toast';
 import { PipedreamConnectorIcon } from '@core/pipedream/ConnectorIcon';
@@ -8,10 +7,11 @@ import {
 } from '@core/pipedream/catalog';
 import { fireAndForget } from '@core/util/fireAndForget';
 import CheckIcon from '@phosphor/check.svg';
+import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import SpinnerIcon from '@phosphor/spinner-gap.svg';
 import type { PipedreamCatalogEntryResponse } from '@service-cognition/client';
-import { Button, Tooltip } from '@ui';
+import { Button, InputGroup, Tooltip } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { SettingsSelect } from '../components/settings-select';
 import { IntegrationRow, SettingsSurface } from '../primitives';
@@ -125,24 +125,38 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
             <PlusIcon class="size-4" /> Add Custom
           </Button>
         </div>
-        <div class="mb-5 grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-[minmax(0,1fr)_auto]">
-          <SearchBar
-            size="sm"
-            label="Search apps"
-            placeholder="Search apps"
-            value={catalog.searchInput()}
-            onValueChange={(value) => {
-              setSelectedCategory('all');
-              catalog.onSearchInput(value);
-            }}
-          />
-          <SettingsSelect
-            label="Filter apps by category"
-            options={categoryOptions()}
-            value={activeCategory()}
-            onChange={setSelectedCategory}
-            class="w-full @[440px]/catalog:w-52"
-          />
+        <div class="mb-5 grid grid-cols-1 items-end gap-3 @[560px]/catalog:grid-cols-[minmax(0,1fr)_14rem]">
+          <div class="flex min-w-0 flex-col gap-1.5">
+            <span class="text-xs font-medium text-ink-muted">Search apps</span>
+            <InputGroup size="md">
+              <InputGroup.Addon>
+                <MagnifyingGlassIcon class="size-4" aria-hidden="true" />
+              </InputGroup.Addon>
+              <InputGroup.Input
+                type="search"
+                aria-label="Search apps"
+                value={catalog.searchInput()}
+                onInput={(event) => {
+                  setSelectedCategory('all');
+                  catalog.onSearchInput(event.currentTarget.value);
+                }}
+                placeholder="Search by name or description"
+              />
+              <InputGroup.Addon align="inline-end">
+                <InputGroup.ClearButton />
+              </InputGroup.Addon>
+            </InputGroup>
+          </div>
+          <div class="flex min-w-0 flex-col gap-1.5">
+            <span class="text-xs font-medium text-ink-muted">Category</span>
+            <SettingsSelect
+              label="Filter apps by category"
+              options={categoryOptions()}
+              value={activeCategory()}
+              onChange={setSelectedCategory}
+              class="min-w-0 w-full"
+            />
+          </div>
         </div>
         <div class="grid grid-cols-1 gap-6">
           <Show when={catalog.query.isError && catalog.entries().length === 0}>

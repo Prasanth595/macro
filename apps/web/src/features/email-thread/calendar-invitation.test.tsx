@@ -1,3 +1,7 @@
+import {
+  DEFAULT_GUEST_POLICY,
+  NO_VIEWER_CAPABILITIES,
+} from '@app/features/calendar/types';
 import type { InvitationResolution } from '@service-email/generated/schemas/invitationResolution';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import { createSignal, type JSX } from 'solid-js';
@@ -95,6 +99,8 @@ const wire: InvitationResolution = {
     sequence: 1,
     status: 'confirmed',
     isReadOnly: false,
+    guestPolicy: DEFAULT_GUEST_POLICY,
+    viewerCan: NO_VIEWER_CAPABILITIES,
     time,
     transparency: 'opaque',
     visibility: 'default',
