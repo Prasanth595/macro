@@ -469,7 +469,9 @@ are saved on this device independently of the mutation queue. A failed server
 save must leave the draft discoverable in **Drafts** (including grouped views)
 and in its reply thread. Unqueued first-use drafts also appear in mobile name
 search and the current Mail view's Drafts search, without requiring a cached
-thread record. Inbox, alias, and facet selections still apply; a draft without
+thread record. A working copy preserves confirmed thread flags for facet filters,
+and a subject mismatch never hides a matching server body or cached sender hit.
+Inbox, alias, and facet selections still apply; a draft without
 an inbox is visible with All inboxes selected. Sender metadata warms alongside
 GraphQL backfill, before opening a composer. Test an empty sender catalog too:
 create a draft offline, restart, find it in Drafts/name search, and reopen its

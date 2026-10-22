@@ -914,3 +914,107 @@ it('recovers a first-use draft before remote discovery and preserves mailbox/sea
   setCopies([{ ...copies()[0], status: 'synced', acknowledgedRevision: 1 }]);
   expect(ids(state.source)).toEqual(['local-thread']);
 });
+
+it('keeps confirmed thread flags when a local reply supplies newer draft text', () => {
+  localDrafts.read = () => [
+    {
+      key: 'reply',
+      draftId: 'reply',
+      threadId: 'thread',
+      accountId: 'alice',
+      inboxId: 'inbox-a',
+      generation: 'generation',
+      revision: 1,
+      acknowledgedRevision: 0,
+      content: { subject: 'Local reply' },
+      attachments: [],
+      status: 'dirty',
+      updatedAt: 1,
+    },
+  ];
+  const state = mount();
+  state.setState('tab', 'drafts');
+  state.setEntities([
+    {
+      ...email('thread'),
+      isDraft: true,
+      isRead: false,
+      done: true,
+      isImportant: true,
+      isSignal: false,
+    },
+  ]);
+  state.setState('facets', { read: ['unread'], done: ['done'] });
+  expect(ids(state.source)).toEqual(['thread']);
+  expect(
+    state.source.items().find((row) => row.kind === 'entity')?.entity
+  ).toMatchObject({
+    name: 'Local reply',
+    isRead: false,
+    done: true,
+    isImportant: true,
+    isSignal: false,
+  });
+});
+
+it('does not resurrect a filtered thread with synthetic local draft flags', () => {
+  localDrafts.read = () => [
+    {
+      key: 'reply',
+      draftId: 'reply',
+      threadId: 'thread',
+      accountId: 'alice',
+      inboxId: 'inbox-a',
+      generation: 'generation',
+      revision: 1,
+      acknowledgedRevision: 0,
+      content: { subject: 'Local reply' },
+      attachments: [],
+      status: 'dirty',
+      updatedAt: 1,
+    },
+  ];
+  const state = mount();
+  state.setState({ tab: 'drafts', facets: { done: ['not-done'] } });
+  state.setDiscoveryEntities([]);
+  state.setRetainedEntities([
+    { ...email('thread'), isDraft: true, done: true },
+  ]);
+  expect(ids(state.source)).toEqual([]);
+  state.setState('facets', { done: ['done'] });
+  expect(ids(state.source)).toEqual(['thread']);
+});
+
+it('retains a remote body-search match when its local draft subject does not match', () => {
+  localDrafts.read = () => [
+    {
+      key: 'reply',
+      draftId: 'reply',
+      threadId: 'thread',
+      accountId: 'alice',
+      inboxId: 'inbox-a',
+      generation: 'generation',
+      revision: 1,
+      acknowledgedRevision: 0,
+      content: { subject: 'Weekly update' },
+      attachments: [],
+      status: 'dirty',
+      updatedAt: 1,
+    },
+  ];
+  const state = mount('invoice');
+  state.setState('tab', 'all');
+  state.setSearchEntities([
+    {
+      ...email('thread'),
+      name: 'Weekly update',
+      snippet: 'Your invoice is attached',
+    },
+  ]);
+  expect(ids(state.source)).toEqual(['thread']);
+  expect(
+    state.source.items().find((row) => row.kind === 'entity')?.entity
+  ).toMatchObject({
+    snippet: 'Your invoice is attached',
+  });
+});

@@ -1470,3 +1470,72 @@ it('finds an unqueued first-use draft by title without a cached thread and retir
   expect(list.items()).toEqual([]);
   expect(source.getById('local-thread')).toBeUndefined();
 });
+
+it('keeps a cached sender hit when the same thread has an unmatched local draft', async () => {
+  localDrafts.read = () => [
+    {
+      key: 'reply',
+      draftId: 'reply',
+      threadId: 'thread-1',
+      accountId: 'viewer',
+      generation: 'generation',
+      revision: 1,
+      acknowledgedRevision: 0,
+      content: { subject: 'Weekly update' },
+      attachments: [],
+      status: 'dirty',
+      updatedAt: 1,
+    },
+  ];
+  mocks.search.mockResolvedValue({
+    documents: [
+      {
+        profile: 'quick-access-v1',
+        recordKey: 'GraphqlSoupEmailThread:thread-1',
+        bucket: 'email',
+        searchText: 'weekly update | teo | teo@example.com',
+        timestampMs: 1,
+        sourceHash: 'hash',
+      },
+    ],
+    nextCursor: null,
+  });
+  mocks.readRecordsByKeys.mockResolvedValue({
+    revision: INITIAL_CACHE_REVISION,
+    records: [
+      {
+        recordKey: 'GraphqlSoupEmailThread:thread-1',
+        record: {
+          __typename: 'GraphqlSoupEmailThread',
+          id: 'thread-1',
+          name: 'Weekly update',
+          ownerId: 'viewer',
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+          viewedAt: null,
+          senderName: 'Teo',
+          senderEmail: 'teo@example.com',
+          linkId: 'inbox',
+          isRead: true,
+          isDraft: false,
+          isImportant: false,
+          inboxVisible: true,
+        },
+      },
+    ],
+  });
+  const loaded = Promise.withResolvers<void>();
+  const list = setup((source) => {
+    const list = source.useList({
+      buckets: ['email'],
+      searchTerm: () => 'teo',
+    });
+    createRenderEffect(() => {
+      if (!list.isLoading()) loaded.resolve();
+    });
+    return list;
+  });
+  await loaded.promise;
+  expect(list.items().map((item) => item.id)).toEqual(['thread-1']);
+  expect(list.items()[0].searchText).toContain('teo@example.com');
+});

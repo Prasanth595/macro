@@ -1289,7 +1289,12 @@ export function createQuickAccessValue(): QuickAccessContextValue {
 
       // Search describes cached contents, not corpus completeness. Merge known
       // rows before sorting recency so hydration cannot promote older items.
-      const localDraftIds = new Set(draftItems().map((item) => item.id));
+      const matched = new Set(local);
+      const localDraftIds = new Set(
+        draftItems()
+          .filter((item) => matched.has(item))
+          .map((item) => item.id)
+      );
       const ranked = projected
         .items()
         .filter((item) => !localDraftIds.has(item.id))

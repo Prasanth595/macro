@@ -413,13 +413,53 @@ export function useEmailDataSource(
           (email) => email.ownerId === userId()
         )
       : [];
+  // Resolve recovery threads independently of the active filters. Otherwise an
+  // excluded thread could reappear with the synthetic first-use draft flags.
+  const recoveryBatches = createMemo(() =>
+    emailAdmissionBatches(recoverable())
+  );
+  const recoveryQueries = indexArray(recoveryBatches, (ids) =>
+    useSoupAstItemsQuery(
+      () => ({
+        ...buildEmailQuery(
+          {
+            tab: 'all',
+            inboxIds: undefined,
+            facets: {},
+            facetContext: facetContext(),
+          },
+          ids()
+        ),
+        transport: 'graphql',
+      }),
+      () => ({ enabled: sourceEnabled(), keepPreviousData: false })
+    )
+  );
   const localRows = () => {
     if (!filtersReady()) return [];
     const remote = new Map(
-      publication().items.map((email) => [email.id, email])
+      [
+        ...recoveryQueries().flatMap((query) =>
+          !query.isPending && !query.isPlaceholderData
+            ? (query.data?.entities.filter(isEmailEntity) ?? [])
+            : []
+        ),
+        ...rawEntities().filter(isEmailEntity),
+        ...publication().items,
+      ].map((email) => [email.id, email])
     );
     return recoverable()
-      .map((email) => ({ ...remote.get(email.id), ...email }))
+      .map((email) => {
+        const confirmed = remote.get(email.id);
+        return confirmed
+          ? {
+              ...confirmed,
+              name: email.name,
+              snippet: email.snippet,
+              updatedAt: email.updatedAt,
+            }
+          : email;
+      })
       .filter(
         (email) =>
           email.ownerId === userId() &&
@@ -435,7 +475,7 @@ export function useEmailDataSource(
   };
   const entities = () => {
     const recovered = localRows();
-    const ids = new Set(recoverable().map((email) => email.id));
+    const ids = new Set(recovered.map((email) => email.id));
     return [
       ...recovered,
       ...publication().items.filter((email) => !ids.has(email.id)),
