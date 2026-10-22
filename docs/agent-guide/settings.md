@@ -495,10 +495,11 @@ Installed tools use a two-column card grid (one
 column on narrow screens), followed by Featured and All apps, without a Discover
 heading or a separate installed sidebar. All apps has a gray Add Custom action beside its
 heading. Search and the category picker share a row directly below that heading
-and stack on narrow screens. The category picker uses a borderless light-gray
-fill that matches the integration cards.
-Installed, Featured, and All apps use headings above rounded cards. The overview uses
-more space between major sections and consistent light gray card backgrounds.
+and stack on narrow screens. The category picker and search field use a subtle
+neutral fill to distinguish the controls from the raised cards.
+Installed, Featured, and All apps use headings above rounded cards. Their cards,
+the empty state, and the setup rows use the same raised composer surface as core
+integrations, with glass in dark mode and soft shadows in light mode.
 Two thin, stacked setup rows appear at the top. “Use Macro in your favorite AI
 harness with the official Macro MCP” opens connection setup; “Stream sessions
 from your local AI harness to Macro” opens Runtimes within Integrations to connect

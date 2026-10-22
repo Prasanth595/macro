@@ -15,7 +15,7 @@ import type { PipedreamCatalogEntryResponse } from '@service-cognition/client';
 import { Button, Tooltip } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { SettingsSelect } from '../components/settings-select';
-import { IntegrationRow } from '../primitives';
+import { IntegrationRow, SettingsSurface } from '../primitives';
 import { AddCustomMcpDialog } from './add-custom-mcp-dialog';
 import { groupCatalogByCategory } from './catalog-categories';
 import type { ConnectionsModel } from './model';
@@ -90,7 +90,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
         <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
           <For each={EMPTY_STARTERS}>
             {(item) => (
-              <div class="@container overflow-hidden rounded-2xl border border-edge-muted bg-ink/4">
+              <SettingsSurface class="@container overflow-hidden">
                 <button
                   type="button"
                   class="flex h-full w-full flex-col items-stretch text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
@@ -109,7 +109,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                     </Show>
                   </IntegrationRow>
                 </button>
-              </div>
+              </SettingsSurface>
             )}
           </For>
         </div>
@@ -331,7 +331,7 @@ function CatalogRow(props: {
   );
 
   return (
-    <div class="@container overflow-hidden rounded-2xl border border-edge-muted bg-ink/4">
+    <SettingsSurface class="@container overflow-hidden">
       <Show when={!props.added} fallback={row()}>
         <button
           type="button"
@@ -345,6 +345,6 @@ function CatalogRow(props: {
           {row()}
         </button>
       </Show>
-    </div>
+    </SettingsSurface>
   );
 }
