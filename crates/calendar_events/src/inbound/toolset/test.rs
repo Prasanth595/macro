@@ -11,8 +11,8 @@ use crate::domain::meeting_links::{MeetingLink, MeetingLinkError, MeetingLinkReq
 use crate::domain::models::{
     AttendeeResponseStatus, CalendarAttendee, CalendarEventDraft, CalendarEventPatch,
     CalendarOccurrence, CalendarSyncStatus, ConferenceChange, EventReminderOverride,
-    EventReminders, EventStatus, EventTransparency, EventType, EventVisibility, OccurrenceRange,
-    VisibleCalendar,
+    EventReminders, EventStatus, EventTransparency, EventType, EventVisibility, GuestPolicy,
+    OccurrenceRange, ViewerCapabilities, VisibleCalendar,
 };
 use crate::domain::ports::{
     CalendarDeletionScope, CalendarMutationError, CalendarMutationService,
@@ -124,6 +124,8 @@ fn sample_event(recurrence_lines: Vec<String>) -> crate::domain::models::Calenda
             },
         ],
         reminders: EventReminders::default(),
+        guest_policy: GuestPolicy::default(),
+        viewer_can: ViewerCapabilities::NONE,
         created_at: Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap(),
         updated_at: Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap(),
     }
@@ -219,6 +221,17 @@ impl CalendarMutationService for MockMutations {
         Ok(sample_event(Vec::new()))
     }
 
+    async fn invite_guests(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+        _calendar_id: Option<Uuid>,
+        _guests: Vec<CalendarAttendeeInput>,
+        _scope: CalendarUpdateScope,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
+        unreachable!("the toolset adds guests through update_event")
+    }
+
     async fn disconnect_calendar(
         &self,
         _requester_id: &str,
@@ -301,6 +314,14 @@ impl CalendarOccurrenceService for MockOccurrences {
         _requester_id: &str,
     ) -> Result<Option<String>, rootcause::Report> {
         unreachable!("no calendar tool resolves the primary time zone")
+    }
+
+    async fn event_ics(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+    ) -> Result<Option<crate::domain::ics::CalendarEventIcs>, rootcause::Report> {
+        unreachable!("no calendar tool exports an event")
     }
 }
 

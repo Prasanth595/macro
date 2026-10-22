@@ -576,3 +576,15 @@ tabs, sign-out, Undo, stale writes, Send Later,
 completed attachments, both providers, and server sends from other devices before
 release. The separate cache-bootstrap recovery hotfix remains useful
 for draft synchronization and does not determine send availability.
+
+The approved iOS 2.0.11 build 190 is held for manual release with the production
+deployment. Its source is `04063d2bb35d7369eae93900c2692f3ecccf882b`.
+The subsequent main merge through `769e22d044` preserves its native cache and
+email interfaces (cache version 0.6.51); new native diagnostics are optional and
+the agent runtime/Chromium additions are desktop-only. The `skip-ios-update`
+exception records this compatibility review, not identical build provenance.
+Keep the iOS floor at 185. Deploy the migrations and generation-aware backend
+writers before the frontend, then release the approved App Store version as
+part of that production rollout. Do not release it early: its embedded frontend
+also requires those backend changes. Recheck compatibility if further native
+requirements are introduced before deployment.

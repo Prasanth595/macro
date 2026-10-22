@@ -39,6 +39,14 @@ same thread, search, Signal/Noise, draft, and schedule surfaces apply to both
 providers. Shared/delegated Microsoft mailboxes are outside this account scope;
 sharing an inbox or thread inside Macro remains available.
 
+A Microsoft 365 tenant that lets only administrators consent sends the user
+back to an `Admin approval required` dialog with `Copy admin approval link`
+(a tenant-wide approval link for IT) and `Connect a different account`.
+Cancelling on the provider's consent screen returns to the previous view
+silently. An administrator who opens the approval link returns to
+`Approved. Try connecting again.` with the connect dialog open. On native
+mobile the approval dialog is not shown; connect from the web app instead.
+
 For Outlook writes, distinguish acceptance from provider confirmation. Thread
 organization notices and inbox settings show pending or failed changes; the
 mark-as-read from opening a thread is announced only if it fails. Draft sync and
@@ -107,6 +115,15 @@ under the new heading. Active searches also hide retained results and show loadi
 while selected tag sets are pending. Background refreshes retain the current list. To check this,
 rapidly alternate Signal, Noise, and Sent, then change inboxes; a delayed cache or
 network read must not leave the old rows visible or expose their Load more action.
+
+For native offline reads, let the GraphQL email backfill finish, block dev-service
+traffic, terminate the app, and relaunch it. Open Mail and a backfilled thread:
+cached rows and message bodies must remain visible while REST inbox identity and
+mailbox-operation requests are pending or paused. Restore connectivity and check
+that supplemental metadata appears without replacing the rows or thread body.
+On the first mobile Mail visit, its filter button and Signal/Noise pills must
+also appear. Navigate Home → Mail → a thread → Mail and verify those controls
+survive header replacement, including with the network still blocked.
 
 Opening an email shows loading while its local draft identity and thread data
 resolve. Verify a cold open and switching directly between threads with delayed

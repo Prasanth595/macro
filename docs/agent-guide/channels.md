@@ -122,17 +122,23 @@ internal rollout. Model usage continues through the existing session metering.
 
 ## Imported Slack history
 
-Import starts from the **Import from Slack** chip below the Chat sidebar tabs,
-or **Settings → Team → Connections → Import from Slack**. The chip is visible
-to team admins and owners when Slack archive import is enabled, and opens the
-same dialog without leaving Chat. Its **Dismiss Slack import** button hides the
-card and remembers the choice in this browser for that user and Macro team.
-Successful archive imports (including partial imports with a completed channel)
-and server-confirmed channel-only imports also hide it. Failed or cancelled
-imports do not. Dismissing or completing an import keeps the Settings entry
-available; completion does not close an open progress dialog. Check persistence
-after reload and confirm dismissal does not affect another user or team.
-Closing the dialog returns focus to the chip when it is still visible.
+Import starts from the **Import from Slack** card at the bottom of the Chat
+sidebar, or **Settings → Team → Connections → Import from Slack**. The card is
+the shared connector-import card (see
+[Import from connected apps](setup-cards.md#import-from-connected-apps)) and is
+visible to team admins and owners when Slack archive import is enabled. It
+opens the shared import dialog: a **Slack** row connects through Pipedream,
+then **Import from Slack** hands channel picking to an agent chat in a split,
+and **Import with history** closes it and opens the archive upload below. Without
+an available Slack connector (Slack's Pipedream app is dev-only), the card opens
+the archive upload directly. **Dismiss import from slack** hides the card for
+that user on every device (see
+[Dismissing cards](setup-cards.md#dismissing-cards)); successful archive imports (including partial
+imports with a completed channel) and Settings channel imports also hide
+it. Failed or cancelled imports do not. Dismissing or completing an import
+keeps the Settings entry available; completion does not close an open progress
+dialog. Closing the archive dialog returns focus to the card's button when it
+is still visible.
 The dialog offers **Import with history** (recommended) and **Import channels
 without history**. The first needs a ZIP export provided by a Slack workspace
 owner or admin; its upload screen links to Slack's export instructions. Files
@@ -298,6 +304,12 @@ should remain usable in both layouts. Existing message and reply edit inputs sho
 only the send control, with no format or discard button; Escape cancels the edit.
 The iOS share sheet keeps its editor above the attachment and formatting controls.
 Check this arrangement at both phone and tablet widths.
+
+With a wrapping draft present, repeatedly narrow and widen the desktop split
+and window, then scroll the message history. The composer should settle into
+the matching layout without `ResizeObserver loop completed with undelivered
+notifications` errors. Resize-triggered wrapping measurements run in the next
+animation frame; draft edits still measure before their first paint.
 
 On Android, tap `@` on the software keyboard in an empty channel composer or
 after a space: the mentions menu should open above the keyboard. Type a name to
@@ -1203,6 +1215,14 @@ Shorter queries: `Keep typing to search`.
 Leaving from the channel's call controls switches to `Messages` immediately.
 Disconnect and server cleanup continue after that switch; slow or failed RTC
 teardown must not leave the channel showing the join screen.
+
+In a live call, controls stay centered beneath the participant area when chat
+opens beside it. Microphone, camera, and background controls each have an icon
+button on the left and a settings caret on the right, separated by a divider.
+The icon toggles the feature; hover previews settings and the caret pins them.
+Check both chat states and narrow layouts, including Escape and keyboard focus
+in settings. Camera-off tiles use a subtle gradient from the profile picture's
+average color; missing or unreadable pictures keep the neutral panel background.
 
 `Participants` tab keeps people and bots within the available page height, with
 separate scrolling lists and fixed search/invite controls. Team access appears

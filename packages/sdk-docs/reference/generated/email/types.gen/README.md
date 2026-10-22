@@ -205,6 +205,7 @@
 - [GetThreadResponse](type-aliases/GetThreadResponse.md)
 - [GetThreadResponse2](type-aliases/GetThreadResponse2.md)
 - [GetThreadResponses](type-aliases/GetThreadResponses.md)
+- [GuestPolicy](type-aliases/GuestPolicy.md)
 - [HealthCheckLinksData](type-aliases/HealthCheckLinksData.md)
 - [HealthCheckLinksError](type-aliases/HealthCheckLinksError.md)
 - [HealthCheckLinksErrors](type-aliases/HealthCheckLinksErrors.md)
@@ -396,3 +397,4 @@
 - [UpsertScheduledResponse](type-aliases/UpsertScheduledResponse.md)
 - [UserProvider](type-aliases/UserProvider.md)
 - [Value](type-aliases/Value.md)
+- [ViewerCapabilities](type-aliases/ViewerCapabilities.md)
