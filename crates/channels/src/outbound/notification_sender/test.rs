@@ -1,6 +1,9 @@
 use super::*;
 use notification_hex::domain::{
-    models::{Notification, SendNotificationRequest, request::NotificationResult},
+    models::{
+        Notification, SendNotificationRequest, queue_message::IngressQueueMessage,
+        request::NotificationResult,
+    },
     service::SendNotificationError,
 };
 use rootcause::Report;
@@ -22,10 +25,9 @@ impl NotificationIngress for CapturingIngress {
         &'a self,
         req: SendNotificationRequest<'a, T, U>,
     ) -> Result<Option<NotificationResult<'a>>, Report<SendNotificationError>> {
-        self.sent
-            .lock()
-            .unwrap()
-            .push(serde_json::to_value(req).unwrap());
+        self.sent.lock().unwrap().push(
+            serde_json::to_value(IngressQueueMessage::from_request(&req).unwrap().request).unwrap(),
+        );
         Ok(None)
     }
 }
@@ -89,9 +91,15 @@ async fn invite_delivery_preserves_dm_context_for_email_and_push() {
         assert_eq!(email["req"]["recipient_ids"], json!([unregistered]));
         assert!(email["build_apns"].is_null());
         assert_eq!(email["send_conn_gateway"], false);
-        assert_eq!(
-            email["req"]["notification"]["content"]["messageId"],
-            Uuid::from_u128(2).to_string()
+        assert!(
+            email["req"]["notification"]["content"]
+                .get("messageId")
+                .is_none()
+        );
+        assert!(
+            email["req"]["notification"]["content"]
+                .get("emailRecipient")
+                .is_none()
         );
         let email_content = &email["build_email"]["content"];
         assert_eq!(

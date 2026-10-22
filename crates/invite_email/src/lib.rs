@@ -145,13 +145,12 @@ pub struct ChannelInviteMetadata {
     /// Older notification payloads retain channel-invitation wording.
     #[serde(default)]
     pub is_direct_message: bool,
-    /// Stable DM message identity for per-message email deduplication.
-    /// Older invitations keep the sender/channel rate limit.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Stable DM message identity used while building the email delivery key.
+    /// The serialized email bundle carries the key; notification metadata does not.
+    #[serde(skip)]
     pub message_id: Option<Uuid>,
-    /// Destination for a message email, keeping each recipient's retry key separate.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schema(value_type = Option<String>)]
+    /// Destination used while building a separate email retry key per recipient.
+    #[serde(skip)]
     pub email_recipient: Option<MacroUserIdStr<'static>>,
     /// Message content to show in the invite email, when the invite was triggered by a message.
     #[serde(default)]

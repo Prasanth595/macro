@@ -123,6 +123,7 @@ async fn send_invite_notifications(
                     )
                     .await
                 {
+                    tracing::error!(error=?error, %channel_id, "unable to queue recipient invite email");
                     result = Err(error);
                 }
             }
