@@ -181,6 +181,7 @@ export function EmailDetailView(props: {
       await listNavigation.afterReminderSaved?.();
     },
     extraFavoriteHotkey: { hotkey: 's', hotkeyToken: TOKENS.email.star },
+    extraMuteHotkey: { hotkey: 'shift+m', hotkeyToken: TOKENS.email.mute },
   });
 
   let container: HTMLDivElement | undefined;

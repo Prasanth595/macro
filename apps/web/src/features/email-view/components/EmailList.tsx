@@ -332,6 +332,7 @@ export function EmailList(props: EmailListProps) {
     splitHandle: panel.handle,
     condition: listHasKeyboard,
     extraFavoriteHotkey: { hotkey: 's', hotkeyToken: TOKENS.email.star },
+    extraMuteHotkey: { hotkey: 'shift+m', hotkeyToken: TOKENS.email.mute },
   });
 
   useEmailListHotkeys({

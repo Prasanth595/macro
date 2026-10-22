@@ -62,6 +62,8 @@ type UseEntityActionHotkeysOptions = {
   markDoneDelegate?: () => MarkDoneDelegate | undefined;
   /** A second key for Favorite, such as Email's `s` star. */
   extraFavoriteHotkey?: { hotkey: ValidHotkey; hotkeyToken: HotkeyToken };
+  /** A key for Mute, such as Email's `shift+m`. */
+  extraMuteHotkey?: { hotkey: ValidHotkey; hotkeyToken: HotkeyToken };
 };
 
 export const useEntityActionHotkeys = (
@@ -448,8 +450,7 @@ export const useEntityActionHotkeys = (
     tags: [HotkeyTags.SelectionModification],
   }).withGroup(group);
 
-  registerHotkey({
-    hotkeyToken: TOKENS.entity.action.mute,
+  const muteCommand = {
     scopeId,
     description: () => {
       const entities = getEntitiesForAction();
@@ -474,9 +475,21 @@ export const useEntityActionHotkeys = (
       const entities = getEntitiesForAction();
       return entities.length > 0 && entities.every(muteAction.canExecute);
     },
-    displayPriority: 10,
+    displayPriority: 10 as const,
     tags: [HotkeyTags.SelectionModification],
+  };
+  registerHotkey({
+    hotkeyToken: TOKENS.entity.action.mute,
+    ...muteCommand,
   }).withGroup(group);
+  if (options.extraMuteHotkey) {
+    // Hidden so the command menu lists Mute once.
+    registerHotkey({
+      ...options.extraMuteHotkey,
+      ...muteCommand,
+      hide: true,
+    }).withGroup(group);
+  }
 
   // Copy - 'cmd+d'
   registerHotkey({
