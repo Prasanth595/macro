@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
 import type {
   SerializedEditorState,
   SerializedElementNode,
   SerializedLexicalNode,
 } from 'lexical';
+import { describe, expect, it } from 'vitest';
 import {
   notionMarkdownToLoroSnapshot,
   notionMarkdownToSerializedEditorState,
