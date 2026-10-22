@@ -31,7 +31,7 @@ const CARDS: {
     sidebar: 'Chat',
     copy: {
       ...IMPORT_CATEGORIES.channels,
-      logos: IMPORT_CATEGORIES.channels.providers,
+      logos: [...IMPORT_CATEGORIES.channels.providers],
       action: 'Import Slack',
     },
     secondary: 'Create channel',
