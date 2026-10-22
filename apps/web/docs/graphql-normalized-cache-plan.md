@@ -846,8 +846,9 @@ Deploy the additive migration and GraphQL backend before enabling this client
 path. Native clients need the cache engine shipped with `cache-wasm` 0.6.49 or
 later for embedded-ID and direct-root rebasing; this version bump requires the
 normal native release/floor workflow. Shipping only the web bundle cannot supply
-that engine change to installed iOS apps. Compatible persisted caches and queued
-mutations are retained; the cache schema epoch does not change.
+that engine change to installed iOS or Android apps; raise each platform's native
+build floor to its release containing the new engine. Compatible persisted caches
+and queued mutations are retained; the cache schema epoch does not change.
 
 ## Cached email Quick Access
 
