@@ -1598,6 +1598,45 @@ describe('code execution results', () => {
     );
   });
 
+  it('shows the view a run returned under its steps', () => {
+    const view = { title: 'Found', widgets: [] };
+    codeQuery.record = {
+      ...codeQuery.record!,
+      status: 'succeeded',
+      error: null,
+      calls: [],
+      activity: [{ id: 1, label: 'Search documents', status: 'completed' }],
+      result: { data: 1, reviews: [], view },
+    };
+    const rendered = render(() => (
+      <ToolCallPart
+        part={codePart('macro_internal')}
+        context={context(false)}
+      />
+    ));
+    expect(rendered.getByTestId('tool-card').textContent).toContain(
+      'Search documents'
+    );
+    expect(
+      JSON.parse(rendered.getByTestId('dashboard-view').textContent ?? '')
+    ).toEqual(view);
+  });
+
+  it('shows no view from a run code mode failed', () => {
+    codeQuery.record = {
+      ...codeQuery.record!,
+      calls: [],
+      result: { data: 1, reviews: [], view: { title: 'Found' } },
+    };
+    const rendered = render(() => (
+      <ToolCallPart
+        part={codePart('macro_internal')}
+        context={context(false)}
+      />
+    ));
+    expect(rendered.queryByTestId('dashboard-view')).toBeNull();
+  });
+
   it('does not let an external MCP server select the code-mode record view', () => {
     codeQuery.read.mockClear();
     const rendered = render(() => (

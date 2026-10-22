@@ -17,12 +17,14 @@ import type { ToolCallCommon, ToolCallContext } from './shared';
 /**
  * A code run's SDK operations, grouped by what they did, each group naming
  * the items its writes created or changed. Observed inner calls keep their
- * registered Macro result components.
+ * registered Macro result components. The view the run returned shows under
+ * its steps, the way the view of a `DisplayResults` call after the run would.
  */
 export function CodeExecutionToolCall(props: {
   common: ToolCallCommon;
   context: ToolCallContext;
   record?: ExecutionRecord;
+  view?: object;
   error?: string | null;
   loading: boolean;
   unavailable: boolean;
@@ -166,6 +168,14 @@ export function CodeExecutionToolCall(props: {
           />
         )}
       </For>
+      <Show when={props.view}>
+        {(view) => (
+          <DisplayResultsToolCall
+            input={{ view: view() }}
+            common={props.common}
+          />
+        )}
+      </Show>
     </div>
   );
 }
