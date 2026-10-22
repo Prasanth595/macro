@@ -10,6 +10,7 @@ import { SERVER_HOSTS } from '@core/constant/servers';
 import { useEmailLinks } from '@core/email-link';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import type { RedirectLocation } from '@core/util/authRedirect';
+import { syncLoginStorage } from '@core/util/cookies';
 import { unsetTokenPromise } from '@core/util/fetchWithToken';
 import { isPlatform } from '@core/util/platform';
 import { setPostLoginRedirect } from '@core/util/postLoginRedirect';
@@ -146,6 +147,9 @@ export function useSsoLogin(opts?: { signupMode?: boolean }) {
 
     analytics.track(analyticsEvent, { method: idp_name }, analyticsProviders);
 
+    // The hosted callback sets only HttpOnly cookies, and the returning load
+    // checks identity only behind this hint. An abandoned sign-in 401s and clears it.
+    syncLoginStorage(true);
     window.location.href = authUrl.toString();
   };
 }

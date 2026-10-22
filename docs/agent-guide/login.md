@@ -88,6 +88,16 @@ This browser flow must not open a native authentication session. Verify the
 redirect separately from provider completion; arbitrary development hostnames
 are not on the hosted OAuth redirect allowlist.
 
+## Hosted Google sign-in from a clean browser
+
+Hosted web SSO returns with only HttpOnly session cookies, so the app writes
+the `macro:login` localStorage hint just before leaving for `/login/sso`;
+without it the returning load never checks identity and bounces to
+`/welcome`. Verify Google sign-in in a fresh private window (Safari, Firefox,
+or Chrome Incognito) on `https://macro.com/app`: it should enter the app on
+the first attempt. Backing out of the provider leaves the hint behind; the
+next load's 401 clears it and lands on `/welcome`.
+
 ## Native iOS 27
 
 The native welcome screen offers `Create new account` and `Log into existing
