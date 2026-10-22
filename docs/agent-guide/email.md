@@ -381,8 +381,10 @@ Collapsed thread cards use a compact text snippet; expanding mounts the message
 body and its attachments. On phones, messages form flat rows with horizontal
 separators and 16px side gutters; collapsed previews show one line. Desktop
 keeps rounded cards matching the chat composer: soft shadows in light mode,
-the same subtle 3D rim in dark mode, and a faint hover tint. Desktop selection
-does not add an accent-colored ring; keyboard focus has a neutral outline.
+the same subtle 3D rim in dark mode, and a faint hover tint. The selected
+card uses the same 4% ink wash as a hovered settings row, such as the plan
+row in Account settings. Desktop selection does not add an accent-colored
+ring; keyboard focus has a neutral outline.
 On touch, the floating Reply, Forward, previous/next email, and done controls
 use the mobile dock's chrome fill and icon color in both themes.
 Replies appear inline on desktop and in a full-screen composer on touch devices,
