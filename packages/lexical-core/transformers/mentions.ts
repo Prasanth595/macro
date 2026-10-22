@@ -225,18 +225,6 @@ export const E_DATE_MENTION: ElementTransformer = {
 
 // Internal Document Mentions
 
-/** Agent replies can name a routine without exposing the document mention XML. */
-export const I_ROUTINE_MENTION: TextMatchTransformer = {
-  dependencies: [DocumentMentionNode],
-  type: 'text-match',
-  regExp: /\[([^\]\n]+)\]\(routine:([0-9a-fA-F-]{36})\)/,
-  importRegExp: /\[([^\]\n]+)\]\(routine:([0-9a-fA-F-]{36})\)/,
-  export: () => null,
-  replace: (node, match) => {
-    node.replace(new DocumentMentionNode(match[2], match[1], 'routine'));
-  },
-};
-
 export const I_DOCUMENT_MENTION: TextMatchTransformer = {
   dependencies: [DocumentMentionNode, UnknownMentionNode],
   type: 'text-match',

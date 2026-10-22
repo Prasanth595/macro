@@ -15,6 +15,11 @@ import {
 import { DocumentMention } from '../DocumentMention';
 
 const id = '0195ceb6-ec2e-7023-80e4-6e084fa6cccd';
+const mention = `<m-document-mention>${JSON.stringify({
+  documentId: id,
+  documentName: 'Daily review',
+  blockName: 'routine',
+})}</m-document-mention>`;
 
 // Only navigation is used by this isolated decorator fixture.
 setGlobalSplitManager({
@@ -31,7 +36,7 @@ render(
         <StaticMarkdownContext theme={channelTheme}>
           <main class="p-4 text-ink bg-page">
             <StaticMarkdown
-              markdown={`Created [Daily review](routine:${id}).`}
+              markdown={`Created ${mention}.`}
               target="internal"
             />
             <p>

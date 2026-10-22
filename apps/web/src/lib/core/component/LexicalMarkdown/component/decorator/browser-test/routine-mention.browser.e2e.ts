@@ -1,8 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('an agent routine link renders as a clickable mention', async ({
-  page,
-}) => {
+test('an agent m-document routine mention is clickable', async ({ page }) => {
   await page.goto(
     '/src/lib/core/component/LexicalMarkdown/component/decorator/browser-test/routine-mention.html'
   );
