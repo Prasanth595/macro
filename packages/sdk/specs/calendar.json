@@ -1251,6 +1251,7 @@
           "not_attendee",
           "guests_cannot_invite",
           "guest_list_hidden",
+          "guests_cannot_modify",
           "invalid_input",
           "reauth_required",
           "provider_rejected",
