@@ -505,6 +505,44 @@ it('submits guest permissions only when they change', () => {
   expect(controller.submitValues()?.guestPolicy).toBeUndefined();
 });
 
+it('drops guest permissions picked before switching to a calendar without them', () => {
+  const google = {
+    id: 'work',
+    label: 'Work',
+    color: '#123456',
+    provider: 'google' as const,
+    isPrimary: true,
+    capabilities: {
+      autoDecline: true,
+      emailReminders: true,
+      customRecurrence: true,
+      removeConference: true,
+      resetRsvp: true,
+      guestPolicy: true,
+    },
+  };
+  const outlook = {
+    ...google,
+    id: 'personal',
+    label: 'Personal Outlook',
+    provider: 'outlook' as const,
+    capabilities: { ...google.capabilities, guestPolicy: false },
+  };
+  const controller = controllerFor(
+    { ...timedRange(3), title: 'Planning', calendarId: 'work' },
+    { calendarOptions: () => [google, outlook] }
+  );
+  controller.setGuestPolicy({
+    canModify: true,
+    canInviteOthers: true,
+    canSeeOtherGuests: true,
+  });
+  expect(controller.submitValues()?.guestPolicy).toBeDefined();
+
+  controller.setField('calendarId', 'personal');
+  expect(controller.submitValues()?.guestPolicy).toBeUndefined();
+});
+
 it('preserves a requested conference on an unsupported calendar until the user resolves it', () => {
   const controller = controllerFor(
     { ...timedRange(3), title: 'Meeting', conference: 'google_meet' },

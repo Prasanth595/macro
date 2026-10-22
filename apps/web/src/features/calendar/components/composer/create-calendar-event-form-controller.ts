@@ -540,8 +540,11 @@ export function createCalendarEventFormController(
     const reminders = reminderUpdate();
     const outOfOffice = submittedOutOfOffice();
     const guestPolicy = guestPolicyOf(current);
+    // Outlook calendars have no guest permissions, so a policy picked before
+    // switching to one is not sent.
     const guestPolicyChanged =
       !isOutOfOffice() &&
+      selectedCalendarOption()?.capabilities?.guestPolicy !== false &&
       !guestPoliciesEqual(guestPolicy, guestPolicyOf(initialValue()));
     const providerConference =
       current.conference === 'macro' ? 'none' : current.conference;
