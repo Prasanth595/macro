@@ -1,8 +1,7 @@
 import type { CalendarEvent } from '@app/features/calendar/types';
 import { eventEmailRecipients } from '@app/features/calendar/utils/guest-emails';
-import { EMAIL_COMPOSE_TO_INPUT_ID } from '@app/features/email-compose/core/constants';
 import { useSplitLayout } from '@components/app/split-layout/layout';
-import { triggerFocusInput } from '@core/directive/focusInput';
+import { focusNewComposerTo } from './focus-new-composer';
 
 /**
  * Opens a new email addressed to the event's other guests. Desktop gets the
@@ -15,9 +14,7 @@ export function useOpenEventEmail() {
   const { openWithSplit } = useSplitLayout();
 
   return (event: CalendarEvent) => {
-    // Focus the To field within this gesture so the iOS keyboard opens; the
-    // composer mounts asynchronously, so this waits for the input.
-    triggerFocusInput(() => document.getElementById(EMAIL_COMPOSE_TO_INPUT_ID));
+    focusNewComposerTo();
     openWithSplit(
       {
         type: 'component',
