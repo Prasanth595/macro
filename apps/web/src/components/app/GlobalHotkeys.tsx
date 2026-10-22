@@ -131,15 +131,25 @@ function useHotkeyAnalytics(): void {
 
 /** The sheet loads on demand; it is not part of the startup bundle. */
 async function toggleKeyboardShortcuts(sheet: ShortcutSheet) {
-  const loaded = await ResultAsync.fromPromise(
-    import('./KeyboardShortcutsDialog'),
-    (error) => error
-  );
-  if (loaded.isErr()) {
-    toast.failure('Unable to show keyboard shortcuts');
-    return;
+  const span = Telemetry.span('hotkeys.shortcut_sheet.toggle');
+  try {
+    span.setAttr('shortcut_sheet.view_count', sheet.view.length);
+    span.setAttr('shortcut_sheet.app_count', sheet.app.length);
+    const loaded = await ResultAsync.fromPromise(
+      import('./KeyboardShortcutsDialog'),
+      (error) => error
+    );
+    if (loaded.isErr()) {
+      span.setAttr('shortcut_sheet.outcome', 'load_failed');
+      span.error(loaded.error);
+      toast.failure('Unable to show keyboard shortcuts');
+      return;
+    }
+    loaded.value.toggleKeyboardShortcuts(sheet);
+    span.setAttr('shortcut_sheet.outcome', 'toggled');
+  } finally {
+    span.end();
   }
-  loaded.value.toggleKeyboardShortcuts(sheet);
 }
 
 export default function GlobalShortcuts() {

@@ -151,19 +151,32 @@ export function getShortcutSheet(scopeId: string): ShortcutSheet {
 
   const commands = getActiveCommandsFromScope(scopeId, {
     sortByScopeLevel: true,
-    hideShadowedCommands: true,
     hideCommandsWithoutHotkeys: true,
     ignoreInputFocused: true,
     includeHidden: true,
   });
+  // Each key runs the nearest scope's command, and within a scope the one
+  // with the highest handler priority. Shadowing is per key, so a command
+  // keeps its other keys when only one of them is claimed nearer.
+  const keyOwners = new Map<ValidHotkey, HotkeyCommand>();
+  for (const command of [...commands].sort(
+    (a, b) =>
+      a.scopeLevel - b.scopeLevel ||
+      (b.handlerPriority ?? 0) - (a.handlerPriority ?? 0)
+  )) {
+    for (const hotkey of command.hotkeys ?? []) {
+      if (!keyOwners.has(hotkey)) keyOwners.set(hotkey, command);
+    }
+  }
   for (const command of commands) {
     const section = command.scopeId === 'global' ? 'app' : 'view';
     const leaderScope = command.activateCommandScopeId;
     const hidden =
       typeof command.hide === 'function' ? command.hide() : command.hide;
     if (!leaderScope || hidden !== true) {
-      for (const hotkey of command.hotkeys ?? [])
-        add(section, command, [hotkey]);
+      for (const hotkey of command.hotkeys ?? []) {
+        if (keyOwners.get(hotkey) === command) add(section, command, [hotkey]);
+      }
     }
     if (!leaderScope) continue;
     // In dispatch order, so a letter a view claims shadows the app's.
