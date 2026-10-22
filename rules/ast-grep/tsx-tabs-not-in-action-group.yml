@@ -3,7 +3,7 @@ language: tsx
 severity: error
 message: Tabs never sit inside a HeaderActionGroup or ButtonGroup; islands hold actions.
 note: |-
-  Rule FE-59 in .agents/rules/web/design-system.md. View tabs go left of the
+  Rule FE-61 in .agents/rules/web/design-system.md. View tabs go left of the
   header controls as their own pills. An island frames related actions only.
 files:
   - apps/web/src/**

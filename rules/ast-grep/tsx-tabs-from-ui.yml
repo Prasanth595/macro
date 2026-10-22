@@ -3,7 +3,7 @@ language: tsx
 severity: error
 message: Build tabs and segmented choices from @ui `Tabs` or `TabSelector`, not Kobalte directly.
 note: |-
-  Rule FE-58 in .agents/rules/web/design-system.md. `Tabs` is the one inline
+  Rule FE-60 in .agents/rules/web/design-system.md. `Tabs` is the one inline
   single choice and `TabSelector` owns tabs with panels or a dynamic
   collection; both carry the desktop pill treatment and the touch fallbacks.
   The Fig editor keeps its editor-native panel tabs, and the mobile share

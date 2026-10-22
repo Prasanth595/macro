@@ -3,7 +3,7 @@ language: tsx
 severity: warning
 message: Don't restyle buttons from a wrapper (`[&_button]:...`); give the Button the right size or variant.
 note: |-
-  Rule FE-61 in .agents/rules/web/design-system.md. Descendant overrides hide
+  Rule FE-63 in .agents/rules/web/design-system.md. Descendant overrides hide
   a control that ignores the size system and drift from every other bar.
 files:
   - apps/web/**

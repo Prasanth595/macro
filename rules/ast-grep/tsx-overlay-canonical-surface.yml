@@ -3,7 +3,7 @@ language: tsx
 severity: error
 message: Overlays use the canonical surface, `menu-surface` for menus and popovers or `@ui` Dialog (`elevated-surface`) for dialogs, never a hand-built fill or shadow.
 note: |-
-  Rule FE-65 in .agents/rules/web/design-system.md. Overlay content that
+  Rule FE-67 in .agents/rules/web/design-system.md. Overlay content that
   paints its own background or shadow drifts from every other menu. Drop the
   fill and shadow and add `menu-surface`, or render the dialog with `Dialog`.
   `bg-menu-glass` is the retired menu recipe; the reply composer, mobile
