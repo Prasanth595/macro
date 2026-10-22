@@ -135,6 +135,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Diagnose native full reloads with `native_webview_started`, `native_diagnostic_recovered`, and the shared `frontend_instance_id`; use `reloadApp(reason)` for frontend reloads and keep breadcrumbs content-free. See `tauri/src-tauri/README.md`.
 - Inline agent steps reuse the session code-execution query for live SDK operation
   names; completed step snapshots come from the shared fold of the tool receipt.
+  Session `ExecuteCode` activity uses the same Calling N tools peek window as
+  ordinary consecutive tool calls.
 - All API/network calls live in service-clients.
 - Bound Discussion comment readiness waits to ten seconds; recover from initial layout interruptions until the message is visible, and release the target on user input (including scrollbar pointer-down), timeout, or successful arrival.
 - Keep early DOCX opens loading while exports return processing (409); retry only
