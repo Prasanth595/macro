@@ -30,7 +30,11 @@ session presentation. Never replay an uncertain submitted action.
 Reviews write `review.decided` and `review.settled` through the injected
 transaction-aware notification writer in the same revision-checked transaction.
 Cards require direct user authentication; `DecideReview` uses the same claim and
-execute path but requires a real owner-prompted turn. `GetReview` reads final
+execute path but requires a real owner-prompted turn. `ApproveReview`
+(`ReviewService::approve_for_session`) is the agent approving on its owner's
+word in chat: it runs the card's Submit on the saved draft, recorded as a `chat`
+decision, under the same guard as `DecideReview`, and only once
+`ReviewActions::approvable` (default: always) allows it. `GetReview` reads final
 drafts and outcomes. Legacy notificationId/notificationAttemptAt fields are no
 longer delivery state.
 

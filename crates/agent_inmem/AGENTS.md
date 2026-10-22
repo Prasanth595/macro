@@ -43,8 +43,8 @@ milliseconds instead of waiting on container provisioning.
 Approval gating uses `TurnPrompter::acting_user()` so a System invocation
 cannot inherit owner authority from a retained user field. Model-context replay
 retains notification ACP inputs and their replies; the transcript fold separately
-omits system input from its message projection. PresentReview, GetReview and
-DecideReview are eager internal tools in both standard and code modes.
+omits system input from its message projection. PresentReview, GetReview,
+DecideReview and ApproveReview are eager internal tools in both standard and code modes.
 
 ## Checks
 
