@@ -193,6 +193,9 @@ pub enum SessionPurpose {
     Warm,
     /// Context backing an agent DM; accessed through its conversation.
     AgentDm,
+    /// A session another agent dispatched on its owner's behalf. Listed, and
+    /// it notifies like the owner's own sessions.
+    Dispatched,
     /// A routine's unattended run. Its successful turns notify nobody, and
     /// the routine's setting decides whether it is listed.
     Routine {
@@ -228,6 +231,7 @@ impl SessionPurpose {
             Self::Warm => true,
             Self::AgentDm => hide_agent_dms,
             Self::Standalone => bot_id == bot_id::MACRO_NEW_BOT_ID && thread_id.is_some(),
+            Self::Dispatched => false,
             Self::Routine { visibility } => return visibility,
         };
         if hidden {
@@ -240,6 +244,7 @@ impl SessionPurpose {
     /// Who starts a session created for this purpose.
     pub fn source(self) -> SessionSource {
         match self {
+            Self::Dispatched => SessionSource::Agent,
             Self::Routine { .. } => SessionSource::Routine,
             Self::Standalone | Self::Warm | Self::AgentDm => SessionSource::User,
         }
@@ -264,10 +269,12 @@ impl SessionPurpose {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum SessionSource {
-    /// A person, directly or through something they did: a prompt, a mention,
-    /// an assignment, or a coding agent an agent dispatched for them.
+    /// A person, directly or through something they did: a prompt, a
+    /// mention, or an assignment.
     #[default]
     User,
+    /// Another agent, which dispatched the session on its owner's behalf.
+    Agent,
     /// A routine's unattended run.
     Routine,
 }

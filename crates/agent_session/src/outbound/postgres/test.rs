@@ -1382,12 +1382,13 @@ async fn list_hidden_stays_in_step_with_visibility_for_older_replicas(pool: PgPo
     assert_eq!(columns(old).await, ("hidden".to_owned(), true));
 }
 
-/// A routine's run records its source and its routine's visibility, whether
-/// the harness created the row knowing them or an external runtime created it
-/// first. An unlisted run is not hidden: lists leave it out by asking to, so
-/// the Agents list can still show it on request.
+/// A routine's run records its source and its routine's visibility, and an
+/// agent's dispatch records that an agent started it, whether the harness
+/// created the row knowing them or an external runtime created it first. An
+/// unlisted run is not hidden: lists leave it out by asking to, so the Agents
+/// list can still show it on request.
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
-async fn routine_runs_record_their_source_and_visibility(pool: PgPool) {
+async fn sessions_record_who_started_them_and_where_they_show(pool: PgPool) {
     let repo = test_repo(&pool);
     let bot_id = create_test_bot(&pool).await;
 
@@ -1416,15 +1417,31 @@ async fn routine_runs_record_their_source_and_visibility(pool: PgPool) {
     .await;
     assert_eq!(shown.visibility, SessionVisibility::Listed);
 
+    let dispatched = create_session(
+        &repo,
+        CreateAgentSessionParams {
+            purpose: crate::domain::model::SessionPurpose::Dispatched,
+            ..new_session(bot_id, None, None)
+        },
+    )
+    .await;
+    assert_eq!(dispatched.source, SessionSource::Agent);
+    assert_eq!(dispatched.visibility, SessionVisibility::Listed);
+
     let external = create_session(&repo, new_session(bot_id, None, None)).await;
     assert_eq!(external.source, SessionSource::User);
     assert_eq!(external.visibility, SessionVisibility::Listed);
-    AgentSessionRepo::mark_routine_run(&repo, external.id, SessionVisibility::Unlisted)
+    for _ in 0..2 {
+        // Recording it again is a no-op.
+        AgentSessionRepo::set_origin(
+            &repo,
+            external.id,
+            SessionSource::Routine,
+            SessionVisibility::Unlisted,
+        )
         .await
-        .expect("mark the routine run");
-    AgentSessionRepo::mark_routine_run(&repo, external.id, SessionVisibility::Unlisted)
-        .await
-        .expect("marking it again is a no-op");
+        .expect("record the origin");
+    }
     let external = AgentSessionRepo::get(&repo, external.id)
         .await
         .expect("read the session");

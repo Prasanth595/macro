@@ -76,10 +76,10 @@ where
                     if let Some(model) = &request.model {
                         self.sessions.set_model(session_id, model).await?;
                     }
-                    // The runtime does not know a routine started it either.
-                    if request.source == SessionSource::Routine {
+                    // The runtime does not know who started it either.
+                    if request.source != SessionSource::User {
                         self.sessions
-                            .mark_routine_run(session_id, request.visibility)
+                            .set_origin(session_id, request.source, request.visibility)
                             .await?;
                     }
                     return self.sessions.get(session_id).await;

@@ -431,9 +431,10 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
         Ok(())
     }
 
-    async fn mark_routine_run(
+    async fn set_origin(
         &self,
         id: AgentSessionId,
+        source: SessionSource,
         visibility: SessionVisibility,
     ) -> Result<()> {
         let mut sessions = self
@@ -443,7 +444,7 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
         let session = sessions.get_mut(&id).ok_or_else(|| {
             AgentSessionError::Unknown(anyhow::anyhow!("no agent session {}", id.as_uuid()))
         })?;
-        session.source = SessionSource::Routine;
+        session.source = source;
         session.visibility = visibility;
         session.modified_at = chrono::Utc::now();
         Ok(())

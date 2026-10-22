@@ -225,7 +225,7 @@ impl<Directory: CodingAgentDirectory, Sessions: RoutineSessions>
                         model: None,
                     },
                     session_id,
-                    source: SessionSource::User,
+                    source: SessionSource::Agent,
                     visibility: SessionVisibility::Listed,
                 })
                 .await

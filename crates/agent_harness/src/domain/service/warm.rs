@@ -159,8 +159,8 @@ where
         let claim = if warm {
             None
         } else {
-            // A warm row was created for a person, so a routine run opens its
-            // own and stays recognizable as one.
+            // A warm row was created as the owner's own session, so a routine
+            // run or an agent's dispatch opens its own and stays recognizable.
             let eligible = kind == AgentKind::InMemory
                 && bot_id == bot_id::MACRO_NEW_BOT_ID
                 && matches!(mcp_servers, AgentMcpServers::OwnerConnections)
@@ -242,6 +242,9 @@ where
                         agent_session::domain::model::SessionPurpose::Routine {
                             visibility: request.visibility,
                         }
+                    }
+                    (false, SessionSource::Agent) => {
+                        agent_session::domain::model::SessionPurpose::Dispatched
                     }
                     (false, SessionSource::User) => {
                         agent_session::domain::model::SessionPurpose::Standalone

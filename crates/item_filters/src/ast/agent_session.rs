@@ -51,6 +51,8 @@ pub enum AgentSessionSource {
     /// A person, directly or through something they did.
     #[default]
     User,
+    /// Another agent, which dispatched the session on its owner's behalf.
+    Agent,
     /// A routine's unattended run.
     Routine,
 }

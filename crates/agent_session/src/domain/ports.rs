@@ -520,11 +520,12 @@ pub trait AgentSessionRepo: Send + Sync + 'static {
     fn set_model(&self, id: AgentSessionId, model: &str)
     -> impl Future<Output = Result<()>> + Send;
 
-    /// Mark a session as a routine's run, for a session whose runtime created
-    /// the row without knowing it. Idempotent.
-    fn mark_routine_run(
+    /// Record who started the session and where it is shown, for a session
+    /// whose runtime created the row without knowing either. Idempotent.
+    fn set_origin(
         &self,
         id: AgentSessionId,
+        source: SessionSource,
         visibility: SessionVisibility,
     ) -> impl Future<Output = Result<()>> + Send;
 

@@ -1221,6 +1221,8 @@ enum GraphqlAgentSessionLiteral {
 pub enum GraphqlAgentSessionSource {
     /// A person, directly or through something they did.
     User,
+    /// Another agent, which dispatched the session on its owner's behalf.
+    Agent,
     /// A routine's unattended run.
     Routine,
 }
@@ -1230,6 +1232,7 @@ impl GraphqlAgentSessionSource {
     fn into_model(self) -> AgentSessionSource {
         match self {
             Self::User => AgentSessionSource::User,
+            Self::Agent => AgentSessionSource::Agent,
             Self::Routine => AgentSessionSource::Routine,
         }
     }
@@ -1239,6 +1242,7 @@ impl From<AgentSessionSource> for GraphqlAgentSessionSource {
     fn from(source: AgentSessionSource) -> Self {
         match source {
             AgentSessionSource::User => Self::User,
+            AgentSessionSource::Agent => Self::Agent,
             AgentSessionSource::Routine => Self::Routine,
         }
     }

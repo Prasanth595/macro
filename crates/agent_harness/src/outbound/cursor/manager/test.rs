@@ -161,12 +161,13 @@ impl AgentSessionRepo for StubSessions {
         unimplemented!("the manager never sets models")
     }
 
-    async fn mark_routine_run(
+    async fn set_origin(
         &self,
         _id: AgentSessionId,
+        _source: agent_session::domain::model::SessionSource,
         _visibility: agent_session::domain::model::SessionVisibility,
     ) -> SessionResult<()> {
-        unimplemented!("the manager never marks routine runs")
+        unimplemented!("the manager never records origins")
     }
 
     async fn set_egress_token_hash(&self, _id: AgentSessionId, _hash: &str) -> SessionResult<()> {

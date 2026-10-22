@@ -930,16 +930,17 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
         Ok(())
     }
 
-    async fn mark_routine_run(
+    async fn set_origin(
         &self,
         id: AgentSessionId,
+        source: SessionSource,
         visibility: SessionVisibility,
     ) -> Result<()> {
         let mut transaction = self
             .pool
             .begin()
             .await
-            .context("begin agent session mark_routine_run")?;
+            .context("begin agent session set_origin")?;
         let modified_at = sqlx::query_scalar!(
             r#"
             UPDATE agent_session
@@ -951,19 +952,19 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
             RETURNING modified_at
             "#,
             id.as_uuid(),
-            <&str>::from(SessionSource::Routine),
+            <&str>::from(source),
             <&str>::from(visibility),
         )
         .fetch_optional(&mut *transaction)
         .await
-        .context("failed to mark agent session as a routine run")?;
+        .context("failed to persist agent session origin")?;
         // Lists re-read the session, so an unlisted run leaves the ones that
         // exclude unlisted sessions.
         touch_entity_updated(&mut transaction, id, modified_at).await?;
         transaction
             .commit()
             .await
-            .context("commit agent session mark_routine_run")?;
+            .context("commit agent session set_origin")?;
         Ok(())
     }
 
