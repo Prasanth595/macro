@@ -52,6 +52,42 @@ Delete the event (or a scoped part of a recurring series) at its provider.
 
 ***
 
+### ics()
+
+> **ics**(): `Promise`\<`string`\>
+
+The event as an iCalendar (`.ics`) document: its series, title,
+description, location and organizer, never its guests or join link.
+Available for the requester's own events and ones shared with a channel
+they belong to.
+
+#### Returns
+
+`Promise`\<`string`\>
+
+***
+
+### inviteGuests()
+
+> **inviteGuests**(`options`): `Promise`\<`CalendarEvent`\>
+
+Add guests without touching anyone already invited, and return a handle
+to the synced record. The organizer may, and so may a guest the organizer
+lets invite others (see [CalendarEvent.viewerCan](#property-viewercan)); Google emails
+the new guests.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options` | [`InviteGuestsOptions`](../interfaces/InviteGuestsOptions.md) |
+
+#### Returns
+
+`Promise`\<`CalendarEvent`\>
+
+***
+
 ### prepareReplacement()
 
 > **prepareReplacement**(`options`): `Promise`\<[`CalendarReplacement`](../../replacement/classes/CalendarReplacement.md)\>

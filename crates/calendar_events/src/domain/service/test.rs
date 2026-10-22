@@ -105,6 +105,14 @@ impl CalendarRepository for FakeRepo {
             .collect())
     }
 
+    async fn event_export(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+    ) -> Result<Option<crate::domain::ics::CalendarEventExport>, Report> {
+        unreachable!("event export is not exercised by sync tests")
+    }
+
     async fn list_team_out_of_office(
         &self,
         _requester_id: &str,
@@ -133,6 +141,14 @@ impl CalendarRepository for FakeRepo {
         _recurrence_id: &str,
     ) -> Result<Option<Vec<CalendarAttendee>>, Report> {
         unreachable!("mutation lookups are not exercised by sync tests")
+    }
+
+    async fn record_guest_policy(
+        &self,
+        _event_id: Uuid,
+        _policy: GuestPolicy,
+    ) -> Result<(), Report> {
+        unreachable!("mutation writes are not exercised by sync tests")
     }
 
     async fn get_creation_target(
