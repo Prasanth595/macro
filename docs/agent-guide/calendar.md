@@ -11,6 +11,14 @@ the connected calendar mailbox. Outlook out-of-office automatic replies show an
 uncertainty notice if a provider response cannot be confirmed; a reconnect must
 not resend an already attempted automatic reply.
 
+Google Meet joins from event details, the upcoming-events sidebar, and calendar
+search use the displayed occurrence's connected calendar email as `authuser` when
+that account is known. Existing parameters such as `hs` are preserved. Copied call
+links keep their original URL so they can be shared with other attendees. Verify
+desktop and mobile Join with work and personal Google accounts signed in; a work
+calendar should open Meet with the work account. Search results without loaded
+calendar account metadata and other conferencing providers keep their original URL.
+
 Event composer dropdown triggers and date/time inputs use the theme control
 surface, so they blend with the dialog instead of using the darker page fill.
 Their menus stay inside the composer's portal scope. Verify that calendar,
@@ -110,6 +118,10 @@ On phones, event details use inset round action buttons and a transparent RSVP
 footer. Answering a recurring invitation opens a rounded glass sheet: choose
 `This event` or `All events`, then `Save response`. Cancel or Close returns to
 the event details without sending a response.
+
+While an event response saves, a small spinner appears beside `Going?` within
+the RSVP footer on desktop and mobile; the row and buttons stay in place.
+Failures appear below the buttons inside the padded footer and allow retrying.
 
 Calendar scheduling is on by default in dev. Production uses the PostHog flag
 `enable-calendar-scheduling` and stays off unless enabled remotely. Set
@@ -419,6 +431,27 @@ carries `Copy guest emails` and `Email guests` icon buttons. Copying puts every 
 address on the clipboard, comma-separated. Emailing opens a new email addressed to every
 guest but you — in a split beside the calendar on desktop, as the full-screen composer on
 touch devices — and is hidden when you are the only guest.
+With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
+whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
+organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
+phones): the current guests are listed under `Invited` without a remove control, the picker
+adds people, each new guest has an `Optional` checkbox, a recurring event offers `This
+event` / `All events`, and `Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape
+closes. The new guests appear at once as unanswered and a toast confirms the invitation
+once the provider accepts it. A guest who may not invite gets no button; instead the guest
+list opens with `Only the organizer can invite guests.`, and the same happens after the
+provider refuses an invitation. In the event editor, the organizer edits guests as before,
+while a guest who may invite gets an add-only guests pill whose additions are sent as an
+invitation on save (other edits are saved first); a guest who may not invite keeps a
+read-only pill that explains why. To check the refusal state without a Google account,
+answer `POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
+The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
+iCalendar file named after its title, so it can be passed on or added to another calendar. The
+file holds the series (its repeat rule, in the event's original time zone), title, description
+as plain text, location and organizer, never the guest list or join link. Like `Copy event`, it
+is absent from teammates' out-of-office chips. Its endpoint, document storage's
+`GET /calendar-events/{event_id}/ics`, also exports an event shared with a channel the viewer
+belongs to.
 
 With the `enable-calendar-team-ooo` flag on, teammates' Google Calendar out-of-office events
 overlay the grid as read-only chips titled `<name>: <event title>`. The sidebar's

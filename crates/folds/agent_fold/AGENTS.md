@@ -18,6 +18,8 @@ to the browser via `inbound/wasm`.
 
 - `src/domain/fold.rs`: the fold itself — read its module doc first; it's
   total by design (see "Why this cannot fail") and never errors on read.
+- `src/domain/model/segment/code_execution.rs`: expands internal code receipts
+  into SDK activity rows for conversation snapshots, independent of harness.
 - `src/domain/model.rs`: the renderable vocabulary (`FoldedMessage`,
   `ToolStatus`, …) folds produce.
 - `src/domain/log.rs`: the raw log vocabulary folds consume.
@@ -50,6 +52,10 @@ to the browser via `inbound/wasm`.
   --bin export_types` to regenerate the TypeScript contract.
 - Debug a fold against a recorded session: `cargo run -p agent_fold --bin
   fold_jsonl -- <path>.jsonl`.
+
+`FoldedMessage::last_text` supplies the same terminal prose to live lifecycle
+signals and harness recovery from a persisted log. Keep these interpretations
+aligned; recovery must never guess the answer from another turn.
 
 ## Checks
 
