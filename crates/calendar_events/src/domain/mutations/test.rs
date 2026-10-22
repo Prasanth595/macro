@@ -189,6 +189,10 @@ struct FakeRepo {
     event_details: Option<EventDetails>,
     /// The occurrence key of every stored-details read.
     details_requests: Arc<Mutex<Vec<Option<String>>>>,
+    /// What `event_export` resolves for the requester.
+    export: Option<crate::domain::ics::CalendarEventExport>,
+    /// Inboxes a sync was scheduled for.
+    scheduled_syncs: Arc<Mutex<Vec<Uuid>>>,
 }
 
 impl Default for FakeRepo {
@@ -212,6 +216,8 @@ impl Default for FakeRepo {
             recorded_guest_policies: Default::default(),
             event_details: None,
             details_requests: Default::default(),
+            export: None,
+            scheduled_syncs: Default::default(),
         }
     }
 }
@@ -287,7 +293,7 @@ impl CalendarRepository for FakeRepo {
         _requester_id: &str,
         _event_id: Uuid,
     ) -> Result<Option<crate::domain::ics::CalendarEventExport>, rootcause::Report> {
-        unreachable!()
+        Ok(self.export.clone())
     }
 
     async fn list_team_out_of_office(
@@ -362,8 +368,9 @@ impl CalendarRepository for FakeRepo {
 
     async fn schedule_google_sync_for_link(
         &self,
-        _email_link_id: Uuid,
+        email_link_id: Uuid,
     ) -> Result<bool, rootcause::Report> {
+        self.scheduled_syncs.lock().unwrap().push(email_link_id);
         Ok(true)
     }
 
@@ -504,6 +511,7 @@ struct FakeProvider {
     created_drafts: Arc<Mutex<Vec<CalendarEventDraft>>>,
     updated_patches: Arc<Mutex<Vec<CalendarEventPatch>>>,
     invited_guests: Arc<Mutex<Vec<Vec<CalendarAttendeeInput>>>>,
+    imported: Arc<Mutex<Vec<(String, crate::domain::ics::CalendarEventExport)>>>,
     invited_as: Arc<Mutex<Vec<Vec<String>>>>,
 }
 
@@ -519,6 +527,7 @@ impl FakeProvider {
             created_drafts: Arc::new(Mutex::new(Vec::new())),
             updated_patches: Arc::new(Mutex::new(Vec::new())),
             invited_guests: Arc::new(Mutex::new(Vec::new())),
+            imported: Arc::new(Mutex::new(Vec::new())),
             invited_as: Arc::new(Mutex::new(Vec::new())),
         }
     }
@@ -660,6 +669,27 @@ impl CalendarMutationProvider for FakeProvider {
             }
             _ => ProviderInviteOutcome::Applied(Box::new(self.echo(target))),
         })
+    }
+
+    async fn import_event(
+        &self,
+        _access_token: &str,
+        target: &ProviderCalendarTarget,
+        source: &crate::domain::ics::CalendarEventExport,
+    ) -> Result<Option<CalendarEventUpsert>, CalendarProviderError> {
+        self.calls.lock().unwrap().push("import".to_string());
+        self.imported
+            .lock()
+            .unwrap()
+            .push((target.provider_calendar_id.clone(), source.clone()));
+        if let Some(error) = self.fail() {
+            return Err(error);
+        }
+        // `Gone` stands for Google already holding the meeting's UID.
+        if matches!(self.behavior, FakeProviderBehavior::Gone) {
+            return Ok(None);
+        }
+        Ok(Some(self.echo(target)))
     }
 
     async fn stop_watch_channel(
@@ -2891,6 +2921,7 @@ async fn outlook_write_pause_rejects_provider_operations_before_fetching_tokens(
         .unwrap();
 }
 
+mod copy;
 mod details;
 mod invite;
 mod replacement;
