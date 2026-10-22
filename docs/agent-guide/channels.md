@@ -97,12 +97,14 @@ database answer it asked to show sits under its step. In a view, a card for an
 item the reply created or changed carries what was done to it (`Created`,
 `Sent`). An agent working in code mode works the same way: each SDK operation
 its program ran is a step, and a write that created or changed an item names
-that item on its step. What the steps folded behind `N earlier steps` showed
-appears above that control, and a finished run that folds into `Worked for … ·
-N steps` keeps what the agent showed. A card's short summary (`3 changes`, `to
-Ana Ruiz`) shows only while its run is live, to a reader of the session who can
-open the item. Once the run is over, the card shows the item's kind and when it
-last changed instead; the session keeps the summary.
+that item on its step. A view its program returned shows as the run's last
+step once the run finishes, as a `DisplayResults` view would. What the steps
+folded behind `N earlier steps` showed appears above that control, and a
+finished run that folds into `Worked for … · N steps` keeps what the agent
+showed. A card's short summary (`3 changes`, `to Ana Ruiz`) shows only while
+its run is live, to a reader of the session who can open the item. Once the run
+is over, the card shows the item's kind and when it last changed instead; the
+session keeps the summary.
 A drafted email or event the agent waits on is its composer for the person
 the agent works for, as in the agent's session: the email composer's Send
 sends it and **Discard** under it declines; the calendar's composer creates

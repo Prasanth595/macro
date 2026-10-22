@@ -955,7 +955,13 @@ operation, at most 32 per run. The session names the item under its group of
 operations in **Run code**, and a channel reply names it on that operation's
 step as soon as the write completes; a card the agent shows for it says what
 was done to it. Document content edits and routines are not in the SDK, so code
-records no item for them. The execution journal retains source, status and final JSON/error;
+records no item for them. A program can return `view`, the object
+`DisplayResults` takes, built from what it found: once the run succeeds the
+session shows it under **Run code** and a channel reply shows it as the run's
+last step. Code mode checks it against the `DisplayResults` schema; a view the
+renderer would not draw fails the run with the problems, and the agent shows the
+corrected view through `DisplayResults` instead of running the program again.
+The execution journal retains source, status and final JSON/error;
 completed API writes are not rolled back after failure or cancellation.
 If a reused execution ID refers to different source, the card reports that tool
 results are unavailable and does not display the other program's saved results.
