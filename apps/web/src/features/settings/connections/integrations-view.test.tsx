@@ -118,9 +118,6 @@ vi.mock('../primitives', () => ({
   SettingsCard: (props: { children: JSX.Element }) => (
     <div>{props.children}</div>
   ),
-  SettingsSurface: (props: { children: JSX.Element }) => (
-    <div>{props.children}</div>
-  ),
 }));
 
 beforeEach(() => {
