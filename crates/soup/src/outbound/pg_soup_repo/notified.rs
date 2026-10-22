@@ -175,7 +175,7 @@ pub(super) fn agent_session_gate(filter: Option<&EntityFilterAst>) -> String {
             ) AND (
                 ({named}) OR NOT EXISTS (
                     SELECT 1 FROM agent_session s
-                    WHERE s.id = {ID_SQL}::uuid AND s.list_hidden
+                    WHERE s.id = {ID_SQL}::uuid AND s.visibility = 'hidden'
                 )
             ){matching}"#
         ),

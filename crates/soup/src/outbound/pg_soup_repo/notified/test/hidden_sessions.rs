@@ -48,7 +48,7 @@ async fn hidden_contexts_with_notifications_and_activity_stay_out_of_broad_feeds
     assert_eq!(before.len(), 1);
     assert!(before[0].attention_at.is_some() && before[0].touched_at.is_some());
     sqlx::query!(
-        "UPDATE agent_session SET list_hidden = TRUE, for_warming = FALSE WHERE id = $1",
+        "UPDATE agent_session SET visibility = 'hidden', for_warming = FALSE WHERE id = $1",
         mine
     )
     .execute(&pool)

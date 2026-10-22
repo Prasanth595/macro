@@ -213,7 +213,9 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
             created_at: now,
             modified_at: now,
             source: params.purpose.source(),
-            visibility: params.purpose.visibility(),
+            visibility: params
+                .purpose
+                .visibility(params.bot_id, params.thread_id, false),
         };
         if let Some(hash) = params.egress_token_hash {
             self.egress_token_hashes

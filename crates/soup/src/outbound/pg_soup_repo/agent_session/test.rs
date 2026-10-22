@@ -404,13 +404,13 @@ async fn by_ids_respects_access(pool: PgPool) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// An inline `@macro` session (`list_hidden`) is missing from broad lists for
+/// An inline `@macro` session (hidden) is missing from broad lists for
 /// everyone, but a named id still finds it and hydrating by id still works.
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn hidden_sessions_stay_out_of_broad_lists(pool: PgPool) -> anyhow::Result<()> {
     let fixture = seed(&pool).await?;
     sqlx::query!(
-        "UPDATE agent_session SET list_hidden = TRUE WHERE id = $1",
+        "UPDATE agent_session SET visibility = 'hidden' WHERE id = $1",
         fixture.shared,
     )
     .execute(&pool)
@@ -483,7 +483,7 @@ async fn hidden_dm_contexts_are_omitted_from_home_and_agents_but_open_by_id(
         .execute(&pool).await?;
     // The session domain's enabled policy persists these two flags.
     sqlx::query!(
-        "UPDATE agent_session SET list_hidden = TRUE, for_warming = FALSE WHERE id = $1",
+        "UPDATE agent_session SET visibility = 'hidden', for_warming = FALSE WHERE id = $1",
         fixture.shared
     )
     .execute(&pool)

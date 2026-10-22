@@ -126,7 +126,7 @@ pub(super) async fn cursor_soup(
     // Hidden inline mentions and DM contexts are absent from broad lists. A
     // query that names the session still returns it, so favorites and direct
     // id lookups keep working.
-    query.push(" AND (s.list_hidden = FALSE OR s.id = ANY(");
+    query.push(" AND (s.visibility <> 'hidden' OR s.id = ANY(");
     query.push_bind(explicitly_named_ids(filter));
     query.push("))");
     if let (Some(timestamp), Some(id)) = (parts.timestamp, parts.id) {

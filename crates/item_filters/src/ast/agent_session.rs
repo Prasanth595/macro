@@ -55,8 +55,7 @@ pub enum AgentSessionSource {
     Routine,
 }
 
-/// Whether Home and the default Agents list show an agent session; a
-/// routine's setting decides it for each of its runs. The string form is the
+/// Where an agent session is shown. The string form is the
 /// `agent_session.visibility` column's.
 #[derive(
     Debug,
@@ -77,8 +76,12 @@ pub enum AgentSessionVisibility {
     /// Shown wherever the owner's sessions are.
     #[default]
     Listed,
-    /// Left out of Home and the default Agents list.
+    /// Left out of Home and the default Agents list, but a filter can still
+    /// ask for it; a routine's setting decides it for each of its runs.
     Unlisted,
+    /// Out of every list and search; only a query naming the session's id
+    /// returns it.
+    Hidden,
 }
 
 impl ExpandFrame<AgentSessionLiteral> for AgentSessionFilters {

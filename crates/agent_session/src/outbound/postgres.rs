@@ -381,7 +381,7 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
             conversation,
             thread_id.is_some() || originating_message_id.is_some(),
         )?;
-        let list_hidden = purpose.list_hidden(bot_id, thread_id, self.list_policy.hide_agent_dms);
+        let visibility = purpose.visibility(bot_id, thread_id, self.list_policy.hide_agent_dms);
         let warm = purpose == crate::domain::model::SessionPurpose::Warm;
         let row = sqlx::query_as!(
             AgentSessionRow,
@@ -390,9 +390,9 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
                 id, owner_id, thread_id, originating_message_id, bot_id, model,
                 harness, repo_url, workspace, sandbox_size, instructions,
                 acp_session_id, status, status_event_name, egress_token_hash,
-                mcp_scope, mcp_servers, repo_branch, list_hidden, for_warming, source, visibility
+                mcp_scope, mcp_servers, repo_branch, for_warming, source, visibility
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
             RETURNING
                 id, name, is_archived, owner_id, thread_id, originating_message_id, bot_id,
                 model, harness, repo_url, repo_branch, pull_request_url, task_id, source, visibility, workspace, sandbox_size, instructions,
@@ -424,10 +424,9 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
             mcp_servers.scope_str(),
             mcp_servers_json,
             repo_branch.as_ref().map(|branch| branch.as_str()),
-            list_hidden,
             warm,
             <&str>::from(purpose.source()),
-            <&str>::from(purpose.visibility()),
+            <&str>::from(visibility),
         )
         .fetch_one(&mut *transaction)
         .await
@@ -757,7 +756,7 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
                 ext.last_run_id AS "external_last_run_id?"
             FROM agent_session
             LEFT JOIN external_agent_session AS ext ON ext.agent_session_id = agent_session.id
-            WHERE owner_id = $1 AND NOT list_hidden
+            WHERE owner_id = $1 AND visibility <> 'hidden'
             ORDER BY agent_session.created_at DESC, id DESC
             LIMIT $2
             "#,

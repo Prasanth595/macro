@@ -1299,7 +1299,7 @@ where
         self.0.source.into()
     }
 
-    /// Whether Home and the default Agents list show the session.
+    /// Where the session is shown.
     async fn visibility(&self) -> graphql_soup_filter_input::GraphqlAgentSessionVisibility {
         self.0.visibility.into()
     }

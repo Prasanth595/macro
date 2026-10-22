@@ -184,7 +184,7 @@ pub enum SessionStatus {
 /// editing the agent's selection applies to its next session.
 pub use bots::domain::models::{AgentMcpServer, AgentMcpServers};
 
-/// Why a session is created, independently of whether it appears in broad lists.
+/// Why a session is created, which decides where it is shown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SessionPurpose {
     /// A regular session opened directly or from a thread mention.
@@ -196,7 +196,7 @@ pub enum SessionPurpose {
     /// A routine's unattended run. Its successful turns notify nobody, and
     /// the routine's setting decides whether it is listed.
     Routine {
-        /// Whether Home and the default Agents list show the run.
+        /// Listed or unlisted, from the routine's setting.
         visibility: SessionVisibility,
     },
 }
@@ -215,13 +215,25 @@ impl SessionPurpose {
         Ok(if conversation { Self::AgentDm } else { self })
     }
 
-    /// Whether creation should omit the session from broad Agents/Home lists.
-    pub fn list_hidden(self, bot_id: BotId, thread_id: Option<Uuid>, hide_agent_dms: bool) -> bool {
-        match self {
+    /// Where a session created for this purpose is shown. Speculative,
+    /// DM-backing and inline @macro thread sessions are reached through what
+    /// they back, so they are hidden; a routine's run follows its routine.
+    pub fn visibility(
+        self,
+        bot_id: BotId,
+        thread_id: Option<Uuid>,
+        hide_agent_dms: bool,
+    ) -> SessionVisibility {
+        let hidden = match self {
             Self::Warm => true,
             Self::AgentDm => hide_agent_dms,
             Self::Standalone => bot_id == bot_id::MACRO_NEW_BOT_ID && thread_id.is_some(),
-            Self::Routine { .. } => false,
+            Self::Routine { visibility } => return visibility,
+        };
+        if hidden {
+            SessionVisibility::Hidden
+        } else {
+            SessionVisibility::Listed
         }
     }
 
@@ -233,14 +245,6 @@ impl SessionPurpose {
         }
     }
 
-    /// Whether Home and the default Agents list show a session created for
-    /// this purpose. Only a routine run can be unlisted.
-    pub fn visibility(self) -> SessionVisibility {
-        match self {
-            Self::Routine { visibility } => visibility,
-            Self::Standalone | Self::Warm | Self::AgentDm => SessionVisibility::Listed,
-        }
-    }
 }
 
 /// Who started a session. Stored on the session and carried by its lifecycle
@@ -269,10 +273,9 @@ pub enum SessionSource {
     Routine,
 }
 
-/// Whether Home and the default Agents list show a session. An unlisted
-/// session is still reachable directly and from its routine's history, and
-/// the Agents list shows it on request. Independent of `list_hidden`, which
-/// keeps warm and DM-backing sessions out of every list.
+/// Where a session is shown. Stored as `agent_session.visibility`, which
+/// replaces `list_hidden` (`Hidden`); a trigger keeps that column in step until
+/// it is dropped.
 #[derive(
     Debug,
     Clone,
@@ -292,8 +295,12 @@ pub enum SessionVisibility {
     /// Shown wherever the owner's sessions are.
     #[default]
     Listed,
-    /// Left out of Home and the default Agents list.
+    /// Left out of Home and the default Agents list, but a filter can still
+    /// ask for it: a routine's run, unless the routine lists its runs.
     Unlisted,
+    /// Out of every list and search; reachable only by id, through what it
+    /// backs (a thread, a DM) or once a warm claim lists it.
+    Hidden,
 }
 
 /// Caller-provided values required to create an agent session.
@@ -376,7 +383,7 @@ pub struct AgentSession {
     pub task_id: Option<String>,
     /// Who started the session.
     pub source: SessionSource,
-    /// Whether Home and the default Agents list show the session.
+    /// Where the session is shown.
     pub visibility: SessionVisibility,
     /// Directory the harness runs in, snapshotted at creation. The session
     /// actor sends it as the working directory of `session/new`, and resume

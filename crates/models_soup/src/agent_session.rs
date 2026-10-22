@@ -75,7 +75,7 @@ pub struct SoupAgentSession<T = ()> {
     #[serde(default)]
     pub source: AgentSessionSource,
 
-    /// Whether Home and the default Agents list show the session
+    /// Where the session is shown
     #[serde(default)]
     pub visibility: AgentSessionVisibility,
 

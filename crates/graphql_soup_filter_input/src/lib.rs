@@ -1244,17 +1244,19 @@ impl From<AgentSessionSource> for GraphqlAgentSessionSource {
     }
 }
 
-/// Whether Home and the default Agents list show an agent session: filter
-/// input, and the field Soup returns.
+/// Where an agent session is shown: filter input, and the field Soup returns.
 #[cfg_attr(feature = "server", derive(async_graphql::Enum))]
 #[derive(Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GraphqlAgentSessionVisibility {
     /// Shown wherever the owner's sessions are.
     Listed,
-    /// Left out of Home and the default Agents list; a routine's setting
-    /// decides it for each of its runs.
+    /// Left out of Home and the default Agents list, but a filter can still
+    /// ask for it; a routine's setting decides it for each of its runs.
     Unlisted,
+    /// Out of every list and search; only a query naming the session's id
+    /// returns it.
+    Hidden,
 }
 
 impl GraphqlAgentSessionVisibility {
@@ -1263,6 +1265,7 @@ impl GraphqlAgentSessionVisibility {
         match self {
             Self::Listed => AgentSessionVisibility::Listed,
             Self::Unlisted => AgentSessionVisibility::Unlisted,
+            Self::Hidden => AgentSessionVisibility::Hidden,
         }
     }
 }
@@ -1272,6 +1275,7 @@ impl From<AgentSessionVisibility> for GraphqlAgentSessionVisibility {
         match visibility {
             AgentSessionVisibility::Listed => Self::Listed,
             AgentSessionVisibility::Unlisted => Self::Unlisted,
+            AgentSessionVisibility::Hidden => Self::Hidden,
         }
     }
 }
