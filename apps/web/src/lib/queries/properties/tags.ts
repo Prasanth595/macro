@@ -1,6 +1,15 @@
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useIsAuthenticated } from '@core/auth';
 import { toast } from '@core/component/Toast/Toast';
+import {
+  enableGraphqlSoup,
+  isFeatureEnabled,
+} from '@core/constant/featureFlags';
+import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { thrownResultErrorHasCode, throwOnErr } from '@core/util/result';
+import { TagCatalogDocument } from '@service-storage/graphql/generated/graphql';
+import { getGraphqlSoupClient } from '@service-storage/graphql-soup';
 import { useMutation, useQuery } from '@tanstack/solid-query';
 import {
   parseTagNameConflict,
@@ -14,6 +23,13 @@ import type { TagSetResponse } from '../../service-clients/service-properties/ge
 import type { UpdatePropertyOptionRequest } from '../../service-clients/service-properties/generated/schemas/updatePropertyOptionRequest';
 import { queryClient } from '../client';
 import { type MutationCallbacks, withCallbacks } from '../utils';
+import { tagSets, useGraphqlTagCatalog } from './graphql/tag-catalog';
+import {
+  createGraphqlTag,
+  deleteGraphqlTag,
+  ensureGraphqlTagSet,
+  updateGraphqlTag,
+} from './graphql/tags';
 import { propertiesKeys } from './keys';
 
 const EMPTY_TAG_SETS: TagSetResponse[] = [];
@@ -25,16 +41,62 @@ function fetchTags() {
 /** The caller's tag sets: their personal set, plus their team's set when on a team. */
 export function useTagsQuery() {
   const isAuthenticated = useIsAuthenticated();
-  return useQuery(() => ({
+  const flag = useFeatureFlag(enableGraphqlSoup);
+  const graphql = useGraphqlTagCatalog(
+    () => flag().enabled && isAuthenticated() === true
+  );
+  const rest = useQuery(() => ({
     queryKey: propertiesKeys.tags.queryKey,
     queryFn: fetchTags,
     staleTime: 1000 * 60 * 5,
-    enabled: isAuthenticated() === true,
+    enabled: !flag().enabled && isAuthenticated() === true,
     placeholderData: EMPTY_TAG_SETS,
   }));
+  return {
+    get data() {
+      return flag().enabled
+        ? graphql.data
+          ? tagSets(graphql.data)
+          : EMPTY_TAG_SETS
+        : (rest.data ?? EMPTY_TAG_SETS);
+    },
+    get isPending() {
+      return flag().enabled
+        ? !graphql.data && graphql.isLoading
+        : rest.isPending;
+    },
+    get isLoading() {
+      return flag().enabled
+        ? !graphql.data && graphql.isLoading
+        : rest.isLoading;
+    },
+    get isFetched() {
+      return flag().enabled
+        ? !!graphql.data || !!graphql.error
+        : rest.isFetched;
+    },
+    get isError() {
+      return flag().enabled ? !graphql.data && !!graphql.error : rest.isError;
+    },
+    get isSuccess() {
+      return flag().enabled ? !!graphql.data : rest.isSuccess;
+    },
+  };
+}
+
+function refreshGraphqlTagCatalog() {
+  if (isFeatureEnabled(enableGraphqlSoup)) {
+    fireAndForget(
+      getGraphqlSoupClient()
+        .query(TagCatalogDocument, {}, { requestPolicy: 'network-only' })
+        .toPromise(),
+      'refresh-tag-catalog'
+    );
+  }
 }
 
 export function invalidateTags() {
+  refreshGraphqlTagCatalog();
   queryClient.invalidateQueries({
     queryKey: propertiesKeys.tags.queryKey,
   });
@@ -47,6 +109,7 @@ export function invalidateTags() {
  * would have to enumerate ids the client doesn't know.
  */
 export function invalidateAllProperties() {
+  refreshGraphqlTagCatalog();
   queryClient.invalidateQueries({ queryKey: propertiesKeys._def });
 }
 
@@ -79,16 +142,21 @@ type EnsureTagSetParams = { scope: EnsureTagSetRequest['scope'] };
 
 /** Provision (get-or-create) the caller's tag definition for a scope. */
 export function useEnsureTagSetMutation(
-  callbacks?: MutationCallbacks<TagSetResponse, Error, EnsureTagSetParams>
+  callbacks?: MutationCallbacks<TagSetResponse, Error, EnsureTagSetParams>,
+  options?: { requireCanonical: boolean }
 ) {
+  const flag = useFeatureFlag(enableGraphqlSoup);
+  const userId = useUserId();
   return useMutation(() => ({
     mutationFn: async (vars: EnsureTagSetParams) =>
-      await throwOnErr(
-        async () =>
-          await propertiesServiceClient.ensureTagSet({
-            body: { scope: vars.scope },
-          })
-      ),
+      !options?.requireCanonical && flag().enabled
+        ? ensureGraphqlTagSet(vars.scope, userId)
+        : await throwOnErr(
+            async () =>
+              await propertiesServiceClient.ensureTagSet({
+                body: { scope: vars.scope },
+              })
+          ),
     ...withCallbacks<TagSetResponse, Error, EnsureTagSetParams>(
       {
         onError(error) {
@@ -101,7 +169,9 @@ export function useEnsureTagSetMutation(
           console.error('Failed to provision tag set', error);
           toast.failure('Failed to set up tags');
         },
-        onSuccess: () => invalidateTags(),
+        onSuccess: () => {
+          if (options?.requireCanonical || !flag().enabled) invalidateTags();
+        },
       },
       callbacks
     ),
@@ -115,6 +185,7 @@ type UpdatePropertyOptionParams = {
 };
 
 type TagsMutationContext = {
+  graphql?: boolean;
   previousTags?: TagSetResponse[];
   optimisticOptionId?: string;
 };
@@ -128,8 +199,11 @@ export function useUpdatePropertyOptionMutation(
     TagsMutationContext
   >
 ) {
+  const flag = useFeatureFlag(enableGraphqlSoup);
+  const userId = useUserId();
   return useMutation(() => ({
     onMutate: async (vars): Promise<TagsMutationContext> => {
+      if (flag().enabled) return { graphql: true };
       await queryClient.cancelQueries({
         queryKey: propertiesKeys.tags.queryKey,
       });
@@ -165,14 +239,16 @@ export function useUpdatePropertyOptionMutation(
       return { previousTags };
     },
     mutationFn: async (vars: UpdatePropertyOptionParams) =>
-      await throwOnErr(
-        async () =>
-          await propertiesServiceClient.updatePropertyOption({
-            definition_id: vars.propertyDefinitionId,
-            option_id: vars.optionId,
-            body: vars.body,
-          })
-      ),
+      flag().enabled
+        ? updateGraphqlTag(vars, userId)
+        : await throwOnErr(
+            async () =>
+              await propertiesServiceClient.updatePropertyOption({
+                definition_id: vars.propertyDefinitionId,
+                option_id: vars.optionId,
+                body: vars.body,
+              })
+          ),
     ...withCallbacks<
       PropertyOption,
       Error,
@@ -190,7 +266,8 @@ export function useUpdatePropertyOptionMutation(
           console.error('Failed to update label', error);
           toast.failure('Failed to update label');
         },
-        onSuccess: (data, variables) => {
+        onSuccess: (data, variables, context) => {
+          if (context?.graphql) return;
           const updated = propertyOptionToResponse(data);
           updateTagsCache((sets) =>
             sets.map((set) =>
@@ -216,7 +293,7 @@ export function useUpdatePropertyOptionMutation(
 type CreateTagParams = {
   scope: EnsureTagSetRequest['scope'];
   value: string;
-  color?: string;
+  color: string;
 };
 
 export type CreateTagResult = {
@@ -234,8 +311,11 @@ export function useCreateTagMutation(
     TagsMutationContext
   >
 ) {
+  const flag = useFeatureFlag(enableGraphqlSoup);
+  const userId = useUserId();
   return useMutation(() => ({
     onMutate: async (vars): Promise<TagsMutationContext> => {
+      if (flag().enabled) return { graphql: true };
       await queryClient.cancelQueries({
         queryKey: propertiesKeys.tags.queryKey,
       });
@@ -271,6 +351,7 @@ export function useCreateTagMutation(
       return { previousTags, optimisticOptionId };
     },
     mutationFn: async (vars): Promise<CreateTagResult> => {
+      if (flag().enabled) return createGraphqlTag(vars, userId);
       const tagSet = await throwOnErr(
         async () =>
           await propertiesServiceClient.ensureTagSet({
@@ -323,6 +404,7 @@ export function useCreateTagMutation(
           toast.failure('Failed to create tag');
         },
         onSuccess(data, _variables, context) {
+          if (context?.graphql) return;
           const created = propertyOptionToResponse(data.option);
           updateTagsCache((sets) => {
             const hasScope = sets.some((set) => set.scope === data.scope);
@@ -379,8 +461,11 @@ export function useDeletePropertyOptionMutation(
     TagsMutationContext
   >
 ) {
+  const flag = useFeatureFlag(enableGraphqlSoup);
+  const userId = useUserId();
   return useMutation(() => ({
     onMutate: async (vars): Promise<TagsMutationContext> => {
+      if (flag().enabled) return { graphql: true };
       await queryClient.cancelQueries({
         queryKey: propertiesKeys.tags.queryKey,
       });
@@ -404,13 +489,15 @@ export function useDeletePropertyOptionMutation(
       return { previousTags };
     },
     mutationFn: async (vars: DeletePropertyOptionParams) =>
-      await throwOnErr(
-        async () =>
-          await propertiesServiceClient.deletePropertyOption({
-            definition_id: vars.propertyDefinitionId,
-            option_id: vars.optionId,
-          })
-      ),
+      flag().enabled
+        ? deleteGraphqlTag(vars, userId)
+        : await throwOnErr(
+            async () =>
+              await propertiesServiceClient.deletePropertyOption({
+                definition_id: vars.propertyDefinitionId,
+                option_id: vars.optionId,
+              })
+          ),
     ...withCallbacks<
       { success: boolean },
       Error,
@@ -428,7 +515,8 @@ export function useDeletePropertyOptionMutation(
           console.error('Failed to delete label', error);
           toast.failure('Failed to delete label');
         },
-        onSuccess: (_data, variables) => {
+        onSuccess: (_data, variables, context) => {
+          if (context?.graphql) return;
           invalidatePropertyOptions(variables.propertyDefinitionId);
           invalidateTags();
         },

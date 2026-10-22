@@ -19,6 +19,10 @@ import {
   setEntityPropertyHandler,
 } from './Properties';
 
+vi.mock('@app/lib/analytics/posthog', () => ({
+  useFeatureFlag: () => () => ({ enabled: false }),
+}));
+
 vi.mock('@core/auth', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@core/auth')>()),
   useIsAuthenticated: () => () => true,

@@ -12,11 +12,9 @@ import {
   DropdownSelectableRow,
   useDropdownSearch,
 } from '@property/editors/selectors/PropertyOptionSelector';
-import { useAddPropertyOptionMutation } from '@queries/properties/options';
 import {
   type CreateTagResult,
-  invalidateTags,
-  useEnsureTagSetMutation,
+  useCreateTagMutation,
 } from '@queries/properties/tags';
 import { useCurrentTeamQuery } from '@queries/team/teams';
 import type { PropertyOptionResponse } from '@service-properties/generated/schemas/propertyOptionResponse';
@@ -58,12 +56,6 @@ type CreateTagSuccessHandler = (
 
 function optionLabel(option: PropertyOptionResponse): string {
   return option.value.type === 'string' ? option.value.value : '';
-}
-
-function nextDisplayOrder(options: PropertyOptionResponse[]): number {
-  return (
-    options.reduce((max, option) => Math.max(max, option.displayOrder), -1) + 1
-  );
 }
 
 const MAX_LIST_HEIGHT = 192;
@@ -341,8 +333,7 @@ function TagPickerBody(props: {
   const [selectedColorIndex, setSelectedColorIndex] = createSignal(0);
   const [selectedScopeIndex, setSelectedScopeIndex] = createSignal(0);
   const currentTeamQuery = useCurrentTeamQuery();
-  const addOption = useAddPropertyOptionMutation();
-  const ensureTagSet = useEnsureTagSetMutation();
+  const createTagMutation = useCreateTagMutation();
   const split = useSplitLayout();
   const panel = useSplitPanel();
   let scrollContainerRef: HTMLDivElement | undefined;
@@ -566,22 +557,12 @@ function TagPickerBody(props: {
     try {
       if (!(await persistSelection())) return;
 
-      const provisioned = await ensureTagSet.mutateAsync({ scope });
-      if (!provisioned.definition) return;
-
-      const created = await addOption.mutateAsync({
-        propertyDefinitionId: provisioned.definition.id,
-        body: {
-          type: 'select_string',
-          option: {
-            value,
-            display_order: nextDisplayOrder(provisioned.options),
-            color: selectedColor(),
-          },
-        },
+      const created = await createTagMutation.mutateAsync({
+        scope,
+        value,
+        color: selectedColor(),
       });
-      invalidateTags();
-      await props.docTags.applyTag(scope, created.id);
+      await props.docTags.applyTag(scope, created.option.id);
       props.onClose();
     } catch (error) {
       console.error('Failed to create tag', error);
@@ -886,7 +867,7 @@ function TagPickerBody(props: {
                 selectedColorIndex={selectedColorIndex()}
                 scopeOptions={scopeOptions()}
                 selectedScopeIndex={selectedScopeIndex()}
-                pending={addOption.isPending || ensureTagSet.isPending}
+                pending={createTagMutation.isPending}
                 onColorMouseEnter={setSelectedColorIndex}
                 onColorSelect={(index) => {
                   setSelectedColorIndex(index);

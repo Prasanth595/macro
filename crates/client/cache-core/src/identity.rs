@@ -160,18 +160,10 @@ pub fn remap_updates(
         let typename = key.typename().unwrap_or("");
         for (field, value) in &mut record.fields {
             remap_links(value, identities);
+            remap_declared_value(value, typename, field, bindings, identities);
             for binding in bindings {
-                let own_id = field == "id" && key == binding.local_key;
-                let foreign_id = binding
-                    .reference_fields
-                    .iter()
-                    .any(|name| name == &format!("{typename}.{field}"));
-                if (own_id || foreign_id)
-                    && let Some(target) = identities.get(&binding.local_key)
-                    && let (Some(old_id), Some(new_id)) = (binding.local_key.id(), target.id())
-                    && *value == CacheValue::String(old_id.into())
-                {
-                    *value = CacheValue::String(new_id.into());
+                if field == "id" && key == binding.local_key {
+                    remap_id(value, binding, identities);
                 }
             }
         }
@@ -181,6 +173,63 @@ pub fn remap_updates(
             .merge(record);
     }
     result
+}
+
+/// Rebase only declared ID fields, including scalar lists in typed embedded objects.
+fn remap_declared_value(
+    value: &mut CacheValue,
+    typename: &str,
+    field: &str,
+    bindings: &[IdentityBinding],
+    identities: &IdentityMap,
+) {
+    for binding in bindings {
+        if binding
+            .reference_fields
+            .iter()
+            .any(|name| name == &format!("{typename}.{field}"))
+        {
+            remap_id(value, binding, identities);
+        }
+    }
+    match value {
+        CacheValue::Object(fields) => {
+            let nested_type = match fields.get("__typename") {
+                Some(CacheValue::String(name)) => name.clone(),
+                _ => String::new(),
+            };
+            for (field, value) in fields {
+                remap_declared_value(value, &nested_type, field, bindings, identities);
+            }
+        }
+        CacheValue::List(values) => {
+            for value in values {
+                remap_declared_value(value, typename, field, bindings, identities);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Scalar identity lists contain IDs only; other content is never traversed here.
+fn remap_id(value: &mut CacheValue, binding: &IdentityBinding, identities: &IdentityMap) {
+    let Some(target) = identities.get(&binding.local_key) else {
+        return;
+    };
+    let (Some(old), Some(new)) = (binding.local_key.id(), target.id()) else {
+        return;
+    };
+    match value {
+        CacheValue::String(id) if id == old => *id = new.to_owned(),
+        CacheValue::List(values) => {
+            for value in values {
+                if *value == CacheValue::String(old.into()) {
+                    *value = CacheValue::String(new.into());
+                }
+            }
+        }
+        _ => {}
+    }
 }
 
 fn remap_links(value: &mut CacheValue, identities: &IdentityMap) {
@@ -229,6 +278,31 @@ pub fn remap_patch(
 ) {
     use crate::link_patch::LinkOperation;
     remap_variables(&mut patch.variables_json, bindings, identities);
+    if let Some(root) = &mut patch.record_root
+        && let Some(target) = identities.get(&root.entity_key)
+    {
+        root.entity_key = target.clone();
+    }
+    if let LinkOperation::UpsertByField {
+        entity_key,
+        where_field,
+        equals,
+    } = &mut patch.operation
+    {
+        let typename = entity_key.typename().unwrap_or("");
+        for binding in bindings {
+            if binding
+                .reference_fields
+                .iter()
+                .any(|name| name == &format!("{typename}.{where_field}"))
+                && let Some(target) = identities.get(&binding.local_key)
+                && let (Some(old), Some(new)) = (binding.local_key.id(), target.id())
+                && equals.as_str() == Some(old)
+            {
+                *equals = Value::String(new.into());
+            }
+        }
+    }
     let key = match &mut patch.operation {
         LinkOperation::Remove { entity_key }
         | LinkOperation::PrependUnique { entity_key }

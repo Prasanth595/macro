@@ -68,6 +68,10 @@ vi.mock('@macro-inc/observability', () => ({
   Telemetry: { anonymousSpan: telemetryMocks.anonymousSpan },
 }));
 
+vi.mock('@queries/properties/graphql/tag-catalog', () => ({
+  useGraphqlTagCatalog: vi.fn(),
+}));
+
 vi.mock('@service-storage/graphql/generated/graphql', () => ({
   SoupBackfillDocument: {},
 }));

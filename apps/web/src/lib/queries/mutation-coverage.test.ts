@@ -14,6 +14,10 @@ import { soupOptimisticResolvers } from './optimistic-resolvers';
 // New documents must choose a strategy. Exceptions describe a real server-owned
 // outcome; adding an empty optimistic response does not satisfy this gate.
 const policies = {
+  EnsureTagSet: 'custom: durable definition identity and catalog link',
+  CreateTag: 'custom: durable tag identity and option link',
+  UpdateTag: 'custom: durable tag metadata update',
+  DeleteTag: 'custom: option tombstone and catalog removal',
   MarkEmailThreadSeen: 'resolver',
   MarkEmailThreadUnread: 'resolver',
   SetEmailThreadArchived: 'resolver',

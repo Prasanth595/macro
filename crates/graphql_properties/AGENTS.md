@@ -17,12 +17,14 @@ edge.
   entity).
 - `src/mutations.rs`: `PropertiesMutationRoot` — setting/clearing a property
   value on an entity.
+- `src/tags.rs`: viewer tag catalog and durable create/update/delete adapters;
+  `TagGraphqlContext` binds the primary properties service and current caller.
 - `src/loaders.rs`: `EntityPropertiesLoader` batching.
 
 ## Scope
 
 - Owns: GraphQL types/resolvers for property definitions and values.
-- Not here: property storage, selectable-option management, and filter
+- Not here: property storage, selectable-option policy, and filter
   evaluation → `crates/properties`, `crates/models_properties`.
 
 ## Boundaries

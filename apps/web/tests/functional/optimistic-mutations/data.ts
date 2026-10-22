@@ -1,5 +1,8 @@
 import type { TagSetResponse } from '../../../src/lib/service-clients/service-properties/generated/schemas/tagSetResponse';
-import type { SoupPropertyFieldsFragment } from '../../../src/lib/service-clients/service-storage/graphql/generated/graphql';
+import type {
+  SoupPropertyFieldsFragment,
+  TagCatalogQuery,
+} from '../../../src/lib/service-clients/service-storage/graphql/generated/graphql';
 
 export const DOCUMENT_ID = '00000000-0000-4000-8000-000000000001';
 export const OTHER_DOCUMENT_ID = '00000000-0000-4000-8000-000000000002';
@@ -37,6 +40,49 @@ export const tagSets: TagSetResponse[] = [
     ],
   },
 ];
+
+export const tagCatalog: TagCatalogQuery['user']['tagCatalog'] = {
+  __typename: 'GraphqlTagCatalog',
+  scopes: [
+    {
+      __typename: 'GraphqlTagOwner',
+      scope: 'USER',
+      principalId: 'functional-viewer',
+    },
+  ],
+  definitions: [
+    {
+      __typename: 'GraphqlPropertyDefinition',
+      id: TAG_DEFINITION_ID,
+      owner: {
+        __typename: 'GraphqlPropertyDefinitionOwner',
+        scope: 'USER',
+        principalId: 'functional-viewer',
+      },
+      displayName: 'Tags',
+      dataType: 'TAG',
+      isMultiSelect: true,
+      isSystem: false,
+      isMetadata: false,
+      specificEntityType: null,
+      createdAt: '2026-10-01T00:00:00Z',
+      updatedAt: '2026-10-01T00:00:00Z',
+      options: tagSets[0].options.map((option) => ({
+        __typename: 'GraphqlPropertyOption',
+        id: option.id,
+        propertyDefinitionId: TAG_DEFINITION_ID,
+        displayOrder: option.displayOrder,
+        color: option.color ?? null,
+        value: {
+          __typename: 'GraphqlStringPropertyOptionValue',
+          value: option.id === DOCS_TAG ? 'docs' : 'blue',
+        },
+        createdAt: '2026-10-01T00:00:00Z',
+        updatedAt: '2026-10-01T00:00:00Z',
+      })),
+    },
+  ],
+};
 
 export function tagAssignment(optionIds: string[]): SoupPropertyFieldsFragment {
   return {

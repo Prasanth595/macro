@@ -24,6 +24,7 @@ import * as Effect from 'effect/Effect';
 import * as Fiber from 'effect/Fiber';
 import * as Schedule from 'effect/Schedule';
 import { type Accessor, createEffect, createSignal, onCleanup } from 'solid-js';
+import { useGraphqlTagCatalog } from '../properties/graphql/tag-catalog';
 
 // Bump when a default backfill input or completion guarantee changes so
 // persisted cursors cannot retain an older hydration contract.
@@ -691,6 +692,13 @@ export function useSoupBackfills(userId: Accessor<string | undefined>): void {
   const graphqlSoupFlag = useFeatureFlag(enableGraphqlSoup);
   const isLeader = createTabLeaderSignal(
     `graphql-soup-backfill:v${BACKFILL_VERSION}:coordinator`
+  );
+  useGraphqlTagCatalog(
+    () =>
+      ENABLE_GRAPHQL_BACKFILL &&
+      graphqlSoupFlag().enabled &&
+      isLeader() &&
+      !!userId()
   );
   const [cacheHost, setCacheHost] = createSignal<CacheHost>();
   const [cacheGeneration, setCacheGeneration] = createSignal(0);

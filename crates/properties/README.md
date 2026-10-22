@@ -117,6 +117,24 @@ Consumers maintaining derived state must apply these implications. Definition
 and entity records use different keys, so the lack of cross-key ordering also
 applies while handling these cascades.
 
+### Offline tag replay
+
+The GraphQL tag lifecycle delegates to `TagReplayService`. A UUIDv4 client
+handle is bound to a server-generated definition/option ID under the
+authenticated caller. The binding tables retain deleted targets, so a repeated
+create after a lost response returns the existing option, preserves later
+renames/recolors, or fails if that option was deleted. A handle cannot be rebound
+to another definition. Creating an already named tag reuses its existing metadata.
+Team requests retain the selected team ID and revalidate current membership.
+
+Bindings are resolved before normal validation in `set_entity_property` (including
+REST task creation) and `bulk_update_entity_property_options` (the GraphQL picker).
+Other property assignment APIs continue to require canonical IDs. Tag ownership,
+option validation, and entity edit receipts remain enforced by the domain.
+Only a newly inserted option emits `property_option.created`; replay does not
+emit a second creation event. Definition and option binding queries are batched
+and scoped by the caller and requested handles.
+
 Sharing a personal label with a team (`POST /properties/tags/promote` and
 `POST /properties/tags/merge`) moves entity values between two TAG definitions
 in one transaction, and reports that as a label event plus one

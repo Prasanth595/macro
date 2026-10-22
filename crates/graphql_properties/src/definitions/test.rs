@@ -8,13 +8,13 @@ use std::{
     },
 };
 
-use async_graphql::{EmptyMutation, EmptySubscription, Schema};
+use async_graphql::{EmptySubscription, Schema};
 use macro_user_id::user_id::MacroUserIdStr;
 use models_properties::service::entity_property_with_definition::EntityPropertyWithDefinition;
 use uuid::Uuid;
 
 use super::*;
-use crate::{NoOpEntityPropertyReader, entity_properties_loader};
+use crate::{NoOpEntityPropertyReader, TagsMutationRoot, entity_properties_loader};
 
 /// Request reader recording option work for lazy-field assertions.
 struct TestReader(Arc<AtomicUsize>);
@@ -97,7 +97,7 @@ impl Query {
     async fn definitions(
         &self,
         ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<GraphqlPropertyDefinition<TestReader>>> {
+    ) -> async_graphql::Result<Vec<GraphqlPropertyDefinition>> {
         load_property_definitions::<TestReader>(
             ctx,
             GraphqlPropertyDefinitionScope::System,
@@ -117,8 +117,10 @@ impl Query {
 }
 
 /// Construct an isolated request-scoped schema.
-fn schema(calls: Arc<AtomicUsize>) -> Schema<Query, EmptyMutation, EmptySubscription> {
-    Schema::build(Query, EmptyMutation, EmptySubscription)
+fn schema(calls: Arc<AtomicUsize>) -> Schema<Query, TagsMutationRoot, EmptySubscription> {
+    // The deployed schema combines a concrete request reader with tag writes.
+    // Both must register the same definition type, including its options edge.
+    Schema::build(Query, TagsMutationRoot, EmptySubscription)
         .data(entity_properties_loader(
             MacroUserIdStr::parse_from_str("macro|viewer@macro.com").expect("valid user"),
             TestReader(calls),
@@ -213,4 +215,27 @@ async fn concurrent_option_edges_share_one_batch_and_keep_empty_lists() {
     assert_eq!(data["first"][0]["id"], Uuid::from_u128(2).to_string());
     assert!(data["empty"].as_array().unwrap().is_empty());
     assert_eq!(calls.load(Ordering::Relaxed), 1);
+}
+
+#[tokio::test]
+async fn tag_creation_rejects_missing_color_before_resolving() {
+    let schema = schema(Arc::new(AtomicUsize::new(0)));
+    let response = schema
+        .execute(
+            r#"mutation {
+        createTag(input: {
+            scope: USER,
+            clientDefinitionId: "d0626d76-ab07-4c61-8cd4-4c2517789c46",
+            clientOptionId: "c07796df-55f0-431e-a8be-2af05e358c07",
+            value: "Offline"
+        }) { option { id } }
+    }"#,
+        )
+        .await;
+    assert!(
+        response
+            .errors
+            .iter()
+            .any(|error| error.message.contains("color") && error.message.contains("required"))
+    );
 }

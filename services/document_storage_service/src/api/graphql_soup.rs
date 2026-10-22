@@ -226,6 +226,11 @@ fn insert_graphql_context_data(
         state.entity_access_service.clone(),
     ));
     data.insert(property_writer);
+    data.insert(complete_graph::TagGraphqlContext::new(
+        state.properties_service.clone(),
+        state.entity_access_service.clone(),
+        macro_user_id.clone(),
+    ));
     data.insert(complete_graph::entity_notifications_loader(
         macro_user_id,
         state.graphql_notification_reader.clone(),

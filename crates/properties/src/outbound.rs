@@ -20,6 +20,9 @@ pub mod query_error;
 pub mod tag_promotion_queries;
 #[cfg(test)]
 mod tag_promotion_test;
+mod tag_replay_queries;
+#[cfg(test)]
+mod tag_replay_test;
 pub mod task_property_queries;
 #[cfg(test)]
 pub mod test;

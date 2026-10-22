@@ -50,7 +50,7 @@ pub(super) async fn hold_selected_options(
 /// Gets a single property option by ID.
 #[tracing::instrument(skip(pool))]
 pub async fn get_property_option(
-    pool: &Pool<Postgres>,
+    pool: impl PgExecutor<'_>,
     option_id: Uuid,
 ) -> anyhow::Result<Option<PropertyOption>> {
     let row = sqlx::query_as!(

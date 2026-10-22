@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT client_id, property_definition_id FROM property_definition_client_ids WHERE user_id = $1 AND client_id = ANY($2)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "client_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "property_definition_id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "ffc34919b5896c4be140ed4f9deedded494c69faa5c70b647a5da411f7ad9bb9"
+}

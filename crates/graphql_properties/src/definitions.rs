@@ -1,6 +1,6 @@
 //! Typed property definition and option reads through the properties domain.
 
-use std::marker::PhantomData;
+use std::{future::Future, pin::Pin};
 
 use async_graphql::{Context, Enum, ID, Object, SimpleObject, Union, dataloader::DataLoader};
 use graphql_common::{GraphqlPropertyEntityType, parse_id};
@@ -72,16 +72,38 @@ impl From<&PropertyOwner> for GraphqlPropertyDefinitionOwner {
 }
 
 /// A globally identified property definition, independent of any assignment.
-pub struct GraphqlPropertyDefinition<R> {
+pub struct GraphqlPropertyDefinition {
     /// Definition returned by the owning domain service.
     definition: PropertyDefinition,
-    /// Reader used only if the options edge is selected.
-    reader: PhantomData<R>,
+    /// Committed options supplied by a primary-pool tag operation.
+    options: DefinitionOptions,
+}
+
+/// Defer the reader-specific operation without registering another output type.
+type OptionsFuture<'a> =
+    Pin<Box<dyn Future<Output = async_graphql::Result<Vec<GraphqlPropertyOption>>> + Send + 'a>>;
+/// Request-context resolver used only when the options edge is selected.
+type OptionsResolver = for<'a, 'b> fn(&'a Context<'b>, ID) -> OptionsFuture<'a>;
+
+/// Primary-pool snapshots bypass the replica-backed lazy reader after writes.
+enum DefinitionOptions {
+    /// Authorized committed options.
+    Snapshot(Vec<PropertyOption>),
+    /// Reader selected by the definition loader.
+    Lazy(OptionsResolver),
+}
+
+/// Preserve the reader's request-scoped authentication and batching.
+fn deferred_options<'a, R: EntityPropertyReader>(
+    ctx: &'a Context<'_>,
+    id: ID,
+) -> OptionsFuture<'a> {
+    Box::pin(load_property_options::<R>(ctx, id))
 }
 
 /// A globally identified property definition, independent of any assignment.
 #[Object(name = "GraphqlPropertyDefinition")]
-impl<R: EntityPropertyReader> GraphqlPropertyDefinition<R> {
+impl GraphqlPropertyDefinition {
     /// Global identity of the shared definition, not an entity assignment.
     async fn id(&self) -> ID {
         ID(self.definition.id.to_string())
@@ -139,7 +161,27 @@ impl<R: EntityPropertyReader> GraphqlPropertyDefinition<R> {
         &self,
         ctx: &Context<'_>,
     ) -> async_graphql::Result<Vec<GraphqlPropertyOption>> {
-        load_property_options::<R>(ctx, ID(self.definition.id.to_string())).await
+        match &self.options {
+            DefinitionOptions::Snapshot(options) => {
+                Ok(options.iter().cloned().map(Into::into).collect())
+            }
+            DefinitionOptions::Lazy(resolve) => {
+                resolve(ctx, ID(self.definition.id.to_string())).await
+            }
+        }
+    }
+}
+
+impl GraphqlPropertyDefinition {
+    /// Construct a primary-pool snapshot returned by an authorized tag operation.
+    pub(crate) fn with_options(
+        definition: PropertyDefinition,
+        options: Vec<PropertyOption>,
+    ) -> Self {
+        Self {
+            definition,
+            options: DefinitionOptions::Snapshot(options),
+        }
     }
 }
 
@@ -211,7 +253,7 @@ pub async fn load_property_definitions<R: EntityPropertyReader>(
     ctx: &Context<'_>,
     scope: GraphqlPropertyDefinitionScope,
     for_entity_type: Option<GraphqlPropertyEntityType>,
-) -> async_graphql::Result<Vec<GraphqlPropertyDefinition<R>>> {
+) -> async_graphql::Result<Vec<GraphqlPropertyDefinition>> {
     let loader = ctx.data::<DataLoader<EntityPropertiesLoader<R>>>()?;
     let definitions = loader
         .loader()
@@ -225,7 +267,7 @@ pub async fn load_property_definitions<R: EntityPropertyReader>(
         .into_iter()
         .map(|definition| GraphqlPropertyDefinition {
             definition,
-            reader: PhantomData,
+            options: DefinitionOptions::Lazy(deferred_options::<R>),
         })
         .collect())
 }

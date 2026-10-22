@@ -68,6 +68,8 @@ account switches).
   authenticated request context.
 - New user-scoped root data should be added under `GraphqlUser`, not as
   new root fields.
+- `user.tagCatalog` embeds available owner scopes and links globally identified
+  definitions/options; it also represents a scope with no provisioned definition.
 
 ## 3. `GraphqlSoupEntity` owns the shared entity contract
 

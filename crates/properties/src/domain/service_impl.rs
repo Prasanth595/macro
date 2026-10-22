@@ -2,6 +2,7 @@
 
 mod helpers;
 mod options;
+mod tag_replay;
 mod task_properties;
 
 use std::collections::{HashMap, HashSet};
@@ -623,6 +624,9 @@ where
         property_definition_id: Uuid,
         value: Option<SetPropertyValue>,
     ) -> Result<EntityPropertyWithDefinition, PropertiesErr> {
+        let (property_definition_id, value) = self
+            .resolve_property_value(access, property_definition_id, value)
+            .await?;
         let subject = self.resolve_subject(access).await?;
         let entity_id = access.entity_id();
         let entity_type = subject.storage_entity_type;
@@ -955,6 +959,7 @@ where
         access: &EditReceipt,
         updates: Vec<EntityPropertyOptionUpdate>,
     ) -> Result<Vec<EntityPropertyOptionSelection>, PropertiesErr> {
+        let updates = self.resolve_option_updates(access, updates).await?;
         let subject = self.resolve_subject(access).await?;
         let entity_type = subject.storage_entity_type;
 

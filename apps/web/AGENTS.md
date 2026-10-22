@@ -91,6 +91,9 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+- Keep tag catalog warming and lifecycle mutations on the normalized cache when
+  GraphQL Soup is enabled; see `docs/graphql-normalized-cache-plan.md` for replay
+  and native rollout requirements.
 - Compose settings pages with `features/settings/primitives.tsx` so section headings,
   raised composer cards, row spacing, and control shapes stay consistent; keep
   Integrations on the shared page width and side padding.

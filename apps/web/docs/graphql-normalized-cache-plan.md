@@ -820,6 +820,36 @@ Background hydration retains its existing opt-in notification contract. Soup's
 local collection source opts in; ordinary foreground queries refresh on their
 normal affected-operation notifications.
 
+## Offline tag catalog and lifecycle
+
+With GraphQL Soup enabled, `TagCatalog` warms alongside entity backfill and is
+persisted in the same identity-witnessed account cache. It includes the personal
+and current team scopes even before their TAG definitions exist. A never-downloaded
+catalog is unavailable, rather than an invented empty account. Labels, colors,
+and picker choices can be read after a cold offline restart once it has downloaded.
+
+Ensure/create/update/delete use the existing durable mutation queue. Definition
+and option creation use UUIDv4 local handles; server IDs remain UUIDv7. The
+properties service keeps caller-scoped bindings across deletion and lost replies.
+Creation acknowledgements rebase pending assignment IDs, embedded option-ID
+lists, direct record roots, and assignment-link selectors. Only declared ID fields
+are rewritten; matching user text stays unchanged. Canonical selections do not
+consume the queue's bounded identity-binding budget. Promotion and merging remain
+online operations and refresh the GraphQL catalog after success. The inline
+editor mention menu still creates tags online so persisted collaborative mentions
+contain canonical IDs; pending tags are excluded from mention insertion until
+their creation is acknowledged. Offline creation here covers the picker and tag
+editor. Tag action/provision/enqueue spans record opaque definition/option IDs and
+queued/committed outcomes without recording labels or colors.
+
+Deploy the additive migration and GraphQL backend before enabling this client
+path. Native clients need the cache engine shipped with `cache-wasm` 0.6.49 or
+later for embedded-ID and direct-root rebasing; this version bump requires the
+normal native release/floor workflow. Shipping only the web bundle cannot supply
+that engine change to installed iOS or Android apps; raise each platform's native
+build floor to its release containing the new engine. Compatible persisted caches
+and queued mutations are retained; the cache schema epoch does not change.
+
 ## Cached email Quick Access
 
 The disposable Quick Access projection is version 3. Email rows index the thread
