@@ -472,6 +472,18 @@ pass them); the editor then shows the line in a toast and locks its details, and
 drag snaps back with the same toast. To check the refusal without a Google account, answer
 `PATCH /events/{id}` (or the GraphQL `updateCalendarEvent` mutation) with HTTP 403 and code
 `guests_cannot_modify` on an event whose `viewerCan.editDetails` is still true.
+The organizer sets what guests may do in the composer's `Guest permissions` row, under the
+pills on desktop and phones alike: `Modify event`, `Invite others` and `See guest list`, in
+Google Calendar's order, with Google's defaults (invite others and see the guest list)
+preselected on a new event and the stored `guestPolicy` on an edit. As in Google, checking
+`Modify event` also checks `Invite others` and locks it. The row shows on a new event and on
+an edit whose `viewerCan.setGuestPolicy` is true, on Google calendars only (the calendar's
+`capabilities.guestPolicy`); Outlook calendars and out-of-office events have none. Save sends
+`guestPolicy` only when it changed, and the guests' `viewerCan` follows once their copies sync:
+turning `Invite others` off replaces a guest's `Add guests` with `Only the organizer can
+invite guests.` The update refuses a policy change from anyone but the organizer with 403
+`not_organizer`, and on an Outlook event with `provider_rejected`. `viewerCan.organize` marks
+the organizer of the displayed copy, including on Outlook, where `setGuestPolicy` is false.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description

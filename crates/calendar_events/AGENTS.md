@@ -75,6 +75,13 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   (`get_event_details`, the series or the addressed occurrence) and refuses
   any other detail change with `GuestsCannotModify` before inviting anyone.
   Someone neither organizing nor invited is left to their calendar access.
+- Only the organizer of a Google copy sets the guest policy
+  (`src/domain/mutations/guest_policy.rs`): drafts and patches carry it as
+  Google's three switches, a policy equal to the stored one (or Google's
+  defaults on create) is dropped, a change from anyone else is `NotOrganizer`,
+  and one on Outlook, which has no such switches, is `ProviderRejected`.
+  `ViewerCapabilities::set_guest_policy` is therefore Google-only, and
+  `organize` is the organizer signal clients read instead.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` and the copy's source link wherever a read path
   marks the viewer, and never store it. Each connected inbox gets its own copy
