@@ -18638,6 +18638,7 @@ export type UpdateDatabasePermissionsErrors = {
     401: ErrorResponse;
     403: ErrorResponse;
     404: ErrorResponse;
+    409: ErrorResponse;
     500: ErrorResponse;
 };
 
