@@ -567,8 +567,9 @@ holding Shift uses the same new-split behavior where supported.
 
 The **Search mode** toggle (or **/**) switches between direct entity shortcuts
 shown beside each choice and the standard create search input. Search mode is
-the default; the preference persists across opens. Search filters both Recents and categories; a recent choice appears only under Recents, not again in its category. Up/Down moves
-through the displayed order and scrolls the selected row into view; Left/Right
+the default; the preference persists across opens. Search filters both Recents
+and categories; a recent choice appears only under Recents, not again in its
+category. Up/Down moves through the displayed order and scrolls the selected row into view; Left/Right
 edits the search input. Enter creates the selected item, Shift+Enter opens it in a
 new split where supported, and Escape closes the launcher. Typing in search mode
 never runs an entity shortcut. Switching modes preserves selection and dimensions.
