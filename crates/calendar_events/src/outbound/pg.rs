@@ -1,6 +1,7 @@
 //! PostgreSQL implementation of the calendar repository port.
 mod change_log;
 mod changes;
+mod export;
 mod invitations;
 #[cfg(feature = "outlook")]
 mod outlook;
@@ -20,6 +21,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     changes::CalendarChangeOp,
+    ics::CalendarEventExport,
     models::{
         ActorInboxes, AppliedGoogleGrant, AttendeeResponseStatus,
         CALENDAR_SYNC_FAILURE_BADGE_THRESHOLD, CalendarAttendee, CalendarBackfillClaim,
@@ -33,8 +35,9 @@ use crate::domain::{
         DisconnectedCalendar, DueCalendarReminder, EventReminderOverride, EventReminders,
         EventStart, EventStatus, EventTime, EventTransparency, EventType, EventVisibility,
         GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel,
-        OccurrenceException, OccurrenceListing, OccurrenceRange, ProviderCalendar,
-        StoredGoogleCalendar, TeamOutOfOffice, VisibleCalendar, is_system_calendar,
+        GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange, ProviderCalendar,
+        StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities, VisibleCalendar,
+        is_system_calendar,
     },
     ports::{
         CalendarBackfillRepository, CalendarEventChange, CalendarEventWrite,
@@ -393,6 +396,9 @@ struct OccurrenceJoinRow {
     is_read_only: bool,
     reminders_use_default: bool,
     reminder_overrides: serde_json::Value,
+    guests_can_modify: bool,
+    guests_can_invite_others: bool,
+    guests_can_see_other_guests: bool,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -910,6 +916,7 @@ impl CalendarRepository for PgCalendarRepository {
                 conference_url, conference_provider, sequence, is_read_only,
                 canonical_source_kind,
                 reminders_use_default, reminder_overrides,
+                guests_can_modify, guests_can_invite_others, guests_can_see_other_guests,
                 created_at, updated_at, schedule_updated_at
             )
             VALUES (
@@ -920,6 +927,7 @@ impl CalendarRepository for PgCalendarRepository {
                 $28, $29,
                 $19, $27, $20, $21, $22,
                 $25, $26,
+                $31, $32, $33,
                 $23, $24, $24
             )
             ON CONFLICT (owner_id, source_link_id, ical_uid) DO NOTHING
@@ -958,6 +966,9 @@ impl CalendarRepository for PgCalendarRepository {
             upsert.event.creator_email.as_deref(),
             upsert.event.creator_name.as_deref(),
             upsert.event.event_type.as_str(),
+            upsert.event.guest_policy.can_modify,
+            upsert.event.guest_policy.can_invite_others,
+            upsert.event.guest_policy.can_see_other_guests,
         )
         .fetch_optional(&mut *tx)
         .await
@@ -1101,6 +1112,9 @@ impl CalendarRepository for PgCalendarRepository {
                 event.is_read_only,
                 event.reminders_use_default,
                 event.reminder_overrides,
+                event.guests_can_modify,
+                event.guests_can_invite_others,
+                event.guests_can_see_other_guests,
                 event.created_at,
                 event.updated_at
             FROM calendar_event_occurrences occurrence
@@ -1382,6 +1396,15 @@ impl CalendarRepository for PgCalendarRepository {
         .map_err(report)?;
 
         rows.into_iter().map(mention_preview_from_row).collect()
+    }
+
+    #[tracing::instrument(skip(self, requester_id), err)]
+    async fn event_export(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> Result<Option<CalendarEventExport>, Report> {
+        export::event_export(&self.pool, requester_id, event_id).await
     }
 
     #[tracing::instrument(skip(self, requester_id), err)]
@@ -2012,6 +2035,10 @@ impl CalendarRepository for PgCalendarRepository {
             SELECT
                 event.id AS event_id,
                 event.owner_id,
+                event.organizer_email,
+                event.guests_can_modify,
+                event.guests_can_invite_others,
+                event.guests_can_see_other_guests,
                 source.is_read_only,
                 source.provider_event_id AS "provider_event_id!",
                 source.provider_recurring_event_id,
@@ -2089,7 +2116,60 @@ impl CalendarRepository for PgCalendarRepository {
             observed_access_role: row.access_role,
             token_identity,
             actor,
+            organizer_email: row.organizer_email,
+            guest_policy: GuestPolicy {
+                can_modify: row.guests_can_modify,
+                can_invite_others: row.guests_can_invite_others,
+                can_see_other_guests: row.guests_can_see_other_guests,
+            },
         }))
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn disable_guest_invites(&self, event_id: Uuid) -> Result<(), Report> {
+        let mut tx = self.pool.begin().await.map_err(report)?;
+        let event = sqlx::query!(
+            r#"
+            UPDATE calendar_events
+            SET guests_can_invite_others = false
+            WHERE id = $1
+            RETURNING source_link_id, guests_can_modify, guests_can_see_other_guests
+            "#,
+            event_id,
+        )
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(report)?;
+        let Some(event) = event else {
+            return Ok(());
+        };
+        // Each copy's stored projection carries the policy too, so a restore
+        // from another copy cannot bring the stale switch back.
+        let policy = serde_json::to_value(GuestPolicy {
+            can_modify: event.guests_can_modify,
+            can_invite_others: false,
+            can_see_other_guests: event.guests_can_see_other_guests,
+        })
+        .map_err(report)?;
+        sqlx::query!(
+            r#"
+            UPDATE calendar_event_sources
+            SET normalized_payload = jsonb_set(normalized_payload, '{event,guestPolicy}', $2)
+            WHERE event_id = $1
+              AND normalized_payload ? 'event'
+            "#,
+            event_id,
+            policy,
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(report)?;
+        let mut log = ChangeLogBatch::default();
+        log.record(
+            event.source_link_id,
+            CalendarChangeOp::UpsertEvent(event_id),
+        );
+        log.commit(tx).await
     }
 
     #[tracing::instrument(skip(self), err)]
@@ -3380,6 +3460,9 @@ async fn apply_content_projection(
             canonical_source_kind = $12,
             reminders_use_default = $13,
             reminder_overrides = $14,
+            guests_can_modify = $18,
+            guests_can_invite_others = $19,
+            guests_can_see_other_guests = $20,
             created_at = $15,
             updated_at = GREATEST(calendar_events.updated_at, $16)
         WHERE id = $1
@@ -3401,6 +3484,9 @@ async fn apply_content_projection(
         projection.event.created_at,
         projection.event.updated_at,
         source_id,
+        projection.event.guest_policy.can_modify,
+        projection.event.guest_policy.can_invite_others,
+        projection.event.guest_policy.can_see_other_guests,
     )
     .execute(&mut **tx)
     .await
@@ -4434,6 +4520,12 @@ fn series_event_from_join(
                 .unwrap_or_default(),
         },
         attendees,
+        guest_policy: GuestPolicy {
+            can_modify: row.guests_can_modify,
+            can_invite_others: row.guests_can_invite_others,
+            can_see_other_guests: row.guests_can_see_other_guests,
+        },
+        viewer_can: ViewerCapabilities::NONE,
         created_at: row.created_at,
         updated_at: row.updated_at,
     };
