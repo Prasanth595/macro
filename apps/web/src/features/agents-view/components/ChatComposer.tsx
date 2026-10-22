@@ -104,6 +104,37 @@ export function ChatComposer(props: {
   let container: HTMLDivElement | undefined;
   const [focused, setFocused] = createSignal(false);
   const [hasFocused, setHasFocused] = createSignal(false);
+  let expandGeneration = 0;
+  let expandTimer: ReturnType<typeof setTimeout> | undefined;
+  const cancelPendingExpand = () => {
+    expandGeneration += 1;
+    if (expandTimer === undefined) return;
+    clearTimeout(expandTimer);
+    expandTimer = undefined;
+  };
+  const collapseComposer = () => {
+    cancelPendingExpand();
+    setFocused(false);
+  };
+  const requestExpand = () => {
+    expandGeneration += 1;
+    const generation = expandGeneration;
+    const expand = () => {
+      expandTimer = undefined;
+      if (generation !== expandGeneration) return;
+      setFocused(true);
+    };
+    // Expanding the live editor during the focusing tap lets iOS's
+    // synthesized mousedown hit a control that just appeared (or the
+    // New button's old slot), which blurs the editor and collapses
+    // again — tap, flash unselected, tap, flash.
+    if (isTouchDevice() && props.collapseOnBlur) {
+      if (expandTimer !== undefined) clearTimeout(expandTimer);
+      expandTimer = setTimeout(expand, 0);
+    } else {
+      expand();
+    }
+  };
   const collapsed = () =>
     isTouchDevice() &&
     props.collapseOnBlur &&
@@ -185,7 +216,7 @@ export function ChatComposer(props: {
     if (props.collapseOnBlur) {
       makeEventListener(document, 'pointerdown', (event) => {
         if (event.target instanceof Node && !container?.contains(event.target))
-          setFocused(false);
+          collapseComposer();
       });
     }
     props.registerFocus?.(() => editor.controls.focus());
@@ -197,6 +228,7 @@ export function ChatComposer(props: {
       editor.controls.focus();
     });
     onCleanup(() => {
+      cancelPendingExpand();
       props.session?.registerFocus?.(undefined);
       props.session?.registerQuoteInsert?.(undefined);
     });
@@ -346,7 +378,7 @@ export function ChatComposer(props: {
             )
           )
             return;
-          setFocused(true);
+          requestExpand();
           setHasFocused(true);
           fireAndForget(preloadAgentFold(), 'agents-view');
         }}
@@ -357,7 +389,7 @@ export function ChatComposer(props: {
             event.relatedTarget instanceof Node &&
             !event.currentTarget.contains(event.relatedTarget)
           )
-            setFocused(false);
+            collapseComposer();
         }}
       >
         <Show when={isTouchDevice()}>{repositoryDrawer()}</Show>
