@@ -568,16 +568,13 @@ export function createEmailComposer(props: EmailComposerOptions) {
     );
     try {
       return persistence.confirmed(
-        await autosave.save(
-          {
-            draft: collectDraft(true),
-            inboxId: activeInboxId(),
-            generation: identityVersion,
-            revision: editVersion,
-            attachments: [...form.attachments.list()],
-          },
-          { acknowledge: false }
-        )
+        await autosave.save({
+          draft: collectDraft(true),
+          inboxId: activeInboxId(),
+          generation: identityVersion,
+          revision: editVersion,
+          attachments: [...form.attachments.list()],
+        })
       );
     } finally {
       cleanupWatermark();
@@ -964,7 +961,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
         await autosave.saveLocal();
       } else {
         try {
-          await autosave.save(undefined, { acknowledge: false });
+          await autosave.save();
         } catch {
           // Legacy standalone sends can proceed without a saved draft.
         }
@@ -1562,7 +1559,6 @@ export function createEmailComposer(props: EmailComposerOptions) {
     retryDraft,
     flushLocal: autosave.flushLocal,
     localSaveState: autosave.localSaveState,
-    acknowledgeSaved: autosave.acknowledgeSaved,
     context: ctxValue,
     editor,
     form,

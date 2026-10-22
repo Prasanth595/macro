@@ -144,7 +144,6 @@ function LoadedEmailComposeView(
     drafts: composeContext.drafts,
     draftId: state.draftId,
     localSaveState: state.localSaveState,
-    acknowledgeSaved: state.acknowledgeSaved,
     retry: state.retryDraft,
     discard: state.deleteDraftAndReset,
   });
@@ -298,10 +297,14 @@ function LoadedEmailComposeView(
             )}
           >
             <ComposeLayout
-              toolbar={
-                <EmailComposeToolbar editor={editor} status={<SyncStatus />} />
+              toolbar={<EmailComposeToolbar editor={editor} />}
+              notice={
+                hasInboxError() ? (
+                  <EmailPermissionsBanner />
+                ) : sync.state() ? (
+                  <SyncStatus />
+                ) : undefined
               }
-              notice={hasInboxError() ? <EmailPermissionsBanner /> : undefined}
               // Full-frame mobile/tablet: the surface runs under the floating
               // chrome while the body, signature and attachment pills rest
               // above it (ComposeLayout owns the top inset).

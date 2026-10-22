@@ -485,16 +485,12 @@ inbox after inboxes load. Repeat on mobile using the expanded `Cc/Bcc, From:` ro
 With GraphQL draft queuing enabled, working copies and pending attachment bytes
 are saved on this device independently of the mutation queue. A failed server
 save must leave the draft discoverable in **Drafts** (including grouped views)
-and in its reply thread. **Draft saved** sits immediately left of the desktop
-delete button after editing pauses for 500 ms and the latest local save completes,
-then fades out after two seconds, including offline saves. Resuming typing hides
-it immediately; another pause and saved version restart the timer. Background
-sync updates do not. Failures replace it with persistent **Retry** in the same place; hover for details.
-Clicking Send must not show the badge for its preparatory draft save, including
-when delivery fails. Later edits can show it again after the usual pause.
-Verify the label does not cycle through saving/syncing text on each edit and
-that retry remains accessible beside the actions on mobile. Editing while failed
-continues saving locally without repeatedly submitting the rejected request.
+and in its reply thread. Saving is silent on desktop and mobile: no saved or
+syncing text appears, including offline. A failure shows a banner inside the
+composer, above the recipients, with **Retry** (or **Retry discard**); it never
+appears in the toolbar or the mobile header actions. Verify the banner on mobile
+sits below the header and that editing while failed continues saving locally
+without repeatedly submitting the rejected request.
 Local draft storage reopens unexpectedly closed IndexedDB connections. If creating
 a transaction fails because the connection is closing, it retries once before
 running any writes. Verify by closing the draft database connection, then editing:

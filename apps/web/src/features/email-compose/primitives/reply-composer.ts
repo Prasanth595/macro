@@ -912,7 +912,7 @@ export function createReplyComposer(
     );
     try {
       return persistence.confirmed(
-        await autosave.save(captureSave(false, true), { acknowledge: false })
+        await autosave.save(captureSave(false, true))
       );
     } finally {
       cleanupWatermark();
@@ -1183,10 +1183,7 @@ export function createReplyComposer(
           (form.attachments.list().length === 0 || session.serverConfirmed())
         )
           await autosave.saveLocal(captureSave(willMarkDone));
-        else
-          await autosave.save(captureSave(willMarkDone), {
-            acknowledge: false,
-          });
+        else await autosave.save(captureSave(willMarkDone));
       } catch (error) {
         props.notices.reportError(error);
         if (session.isStale(epochBeforeSave)) return;
@@ -1765,7 +1762,6 @@ export function createReplyComposer(
     retryDraft,
     flushLocal: autosave.flushLocal,
     localSaveState: autosave.localSaveState,
-    acknowledgeSaved: autosave.acknowledgeSaved,
     onContentChange: handleChange,
     handleUserMention,
     scrollContainer,
