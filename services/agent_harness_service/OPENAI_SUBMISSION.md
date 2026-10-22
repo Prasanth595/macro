@@ -350,7 +350,7 @@ All tools return structured JSON responses that include:
 - Optional `_meta` fields for UI rendering hints
 - Media attachments (images, videos) with inline data URIs or downloadable URLs
 - Markdown formatting for rich text content
-- Links to Macro web app items (documents, channels, contacts) using the `APP_BASE_URL` config
+- Links to Macro web app items (documents, channels, contacts) using the typed `AppServiceUrl`
 
 ### Known Limitations
 
