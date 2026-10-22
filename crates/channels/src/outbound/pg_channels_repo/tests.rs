@@ -438,6 +438,35 @@ async fn channel_list_notification_state_boolean_semantics(
     fixtures(path = "../../../fixtures", scripts("channels_repo")),
     migrator = "MACRO_DB_MIGRATIONS"
 )]
+async fn channel_list_unseen_or_seen_stays_on_joined_channels(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    use item_filters::NotificationState::{Seen, Unseen};
+
+    seed_channel_list_notifications(&pool).await?;
+    let repo = repo(pool);
+    let not_done = Expr::or(channel_state(Unseen), channel_state(Seen));
+
+    // The sidebar Inbox presets send `channelDone: false` without a
+    // participation literal, so the candidates are joined channels only.
+    let sql = super::build_channel_list_query(&Some(Arc::new(not_done.clone())))
+        .sql()
+        .to_owned();
+    assert!(!sql.contains("team_user"), "{sql}");
+
+    // c12 has an unseen notification but left-user left it; c21 has only a
+    // done and a soft-deleted unseen notification.
+    assert_eq!(
+        channel_ids_matching(&repo, LEFT_USER, not_done).await,
+        HashSet::from([TEAM_A_AUTO_ACTIVE, TEAM_A_MANUAL])
+    );
+    Ok(())
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("channels_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
 async fn channel_list_notification_state_with_participation(
     pool: Pool<Postgres>,
 ) -> anyhow::Result<()> {
