@@ -25,7 +25,9 @@ export function useOpenEventEmail() {
         params: { initialTo: eventEmailRecipients(event) },
         preserveParams: true,
       },
-      { preferNewSplit: true }
+      // A composer already open holds another message; reusing it would
+      // drop these recipients.
+      { preferNewSplit: true, allowDuplicate: true }
     );
   };
 }
