@@ -1,6 +1,6 @@
 //! Session-level state derived from the log.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use super::PendingInteraction;
@@ -155,20 +155,18 @@ pub struct ModelOption {
 }
 
 /// A timeline event or a card state change. Never a conversation message.
-#[derive(Debug, Clone, PartialEq, Serialize, Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionNotification {
     /// Outbox identity.
     pub id: String,
     /// Subject identity used to find an existing card.
     pub subject_id: String,
-    /// Stable event kind.
-    pub kind: String,
     /// Event creation time, RFC3339.
     pub created_at: String,
     /// Kind-specific facts, kept out of message search and export.
-    #[specta(type = specta_typescript::Unknown)]
-    pub payload: serde_json::Value,
+    #[serde(flatten)]
+    pub event: agent_runtime_protocol::domain::notification::NotificationEvent,
     /// Turn that received it.
     pub turn: u32,
     /// Stable delivery action identity.

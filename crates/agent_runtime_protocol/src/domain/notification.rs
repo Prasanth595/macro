@@ -21,7 +21,7 @@ pub struct Notification {
 }
 
 /// Supported event contracts. Add new kinds here rather than inventing prompts.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", content = "payload")]
 pub enum NotificationEvent {
     /// Owner decision and its confirmed results.
@@ -50,7 +50,7 @@ impl NotificationEvent {
 }
 
 /// The result of a review batch, with no draft content.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ReviewOutcome {
     /// Overall result.
@@ -64,7 +64,7 @@ pub struct ReviewOutcome {
 }
 
 /// Overall review decision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionOutcome {
@@ -77,7 +77,7 @@ pub enum DecisionOutcome {
 }
 
 /// Surface of a review decision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionVia {
@@ -90,9 +90,10 @@ pub enum DecisionVia {
 }
 
 /// One reviewed action's outcome.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct ReviewItemOutcome {
     /// Stable item identity.
+    #[specta(type = String)]
     pub id: Uuid,
     /// Confirmed state.
     pub status: ItemStatus,
@@ -104,7 +105,7 @@ pub struct ReviewItemOutcome {
 }
 
 /// Review item state, shared with notification consumers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "utoipa", schema(as = ReviewItemStatus))]
 #[serde(rename_all = "snake_case")]
