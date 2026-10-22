@@ -1792,6 +1792,7 @@ pub fn build_routine_tool_context() -> anyhow::Result<RoutineToolContext> {
             macro_service_urls::ScheduledActionServiceUrl::new()?.as_ref(),
             &macro_auth::InternalApiKey::new()?,
         )?),
+        prompter: None,
     })
 }
 

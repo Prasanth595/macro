@@ -28,7 +28,16 @@ persona/model to run later.
 ## Recipes
 
 - Add a routine tool: `src/domain.rs` (command/schema) → `src/outbound.rs`
-  (HTTP call) → `src/inbound.rs` (tool registration).
+  (HTTP call) → `src/inbound.rs` (tool registration). Read the user through
+  `RoutineToolContext::user`, and add the tool's name to
+  `PROMPTER_NATIVE_TOOLS` in `agent_inmem`'s `rig_engine.rs`.
+
+## Gotchas
+
+- The tools act as `RoutineToolContext::prompter` when the host sets one,
+  otherwise as the request's user. The in-process agent runtime sets it to
+  the turn's prompter, so a routine asked for in a session somebody else owns
+  belongs to the asker, who is also whom it runs as.
 
 ## Checks
 

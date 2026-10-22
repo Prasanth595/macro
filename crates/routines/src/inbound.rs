@@ -8,16 +8,25 @@ use ai_toolset::{
     ToolCallError, ToolResult,
 };
 use async_trait::async_trait;
+use macro_user_id::user_id::MacroUserIdStr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
+
+#[cfg(test)]
+mod test;
 
 /// Routine capability injected by each tool host; default is explicitly unavailable for test hosts.
 #[derive(Clone, Default)]
 pub struct RoutineToolContext {
     /// Owning-service client.
     pub service: Option<Arc<dyn RoutineService>>,
+    /// The user who prompted the turn, when the host tells them apart from
+    /// the request's user. An agent session's tools act as its owner, but a
+    /// routine runs as the person who asked for it after the session ends,
+    /// so it is theirs. `None` acts as the request's user.
+    pub prompter: Option<MacroUserIdStr<'static>>,
 }
 impl RoutineToolContext {
     fn service(&self) -> ToolResult<&dyn RoutineService> {
@@ -26,6 +35,9 @@ impl RoutineToolContext {
                 "Routine tools are unavailable in this host."
             ))
         })
+    }
+    fn user<'a>(&'a self, request: &'a RequestContext) -> &'a MacroUserIdStr<'static> {
+        self.prompter.as_ref().unwrap_or(&request.user_id)
     }
 }
 fn error(error: anyhow::Error) -> ToolCallError {
@@ -67,7 +79,7 @@ impl AsyncTool<RoutineToolContext> for CreateRoutine {
     ) -> ToolResult<Self::Output> {
         context
             .service()?
-            .create(&request.user_id, &self.configuration)
+            .create(context.user(&request), &self.configuration)
             .await
             .map_err(error)
     }
@@ -99,7 +111,7 @@ impl AsyncTool<RoutineToolContext> for ListRoutines {
         let query = self.query.as_deref().unwrap_or("").to_lowercase();
         let routines: Vec<_> = context
             .service()?
-            .list(&request.user_id)
+            .list(context.user(&request))
             .await
             .map_err(error)?
             .into_iter()
@@ -140,7 +152,7 @@ impl AsyncTool<RoutineToolContext> for ReadRoutine {
     ) -> ToolResult<Self::Output> {
         context
             .service()?
-            .read(&request.user_id, self.routine_id)
+            .read(context.user(&request), self.routine_id)
             .await
             .map_err(error)
     }
@@ -185,16 +197,13 @@ impl AsyncTool<RoutineToolContext> for UpdateRoutine {
         request: RequestContext,
     ) -> ToolResult<Self::Output> {
         let service = context.service()?;
+        let user = context.user(&request);
         match &self.change {
             RoutineChange::Enabled { enabled } => {
-                service
-                    .set_enabled(&request.user_id, self.routine_id, *enabled)
-                    .await
+                service.set_enabled(user, self.routine_id, *enabled).await
             }
             RoutineChange::Configuration { configuration } => {
-                service
-                    .update(&request.user_id, self.routine_id, configuration)
-                    .await
+                service.update(user, self.routine_id, configuration).await
             }
         }
         .map_err(error)
@@ -224,7 +233,7 @@ impl AsyncTool<RoutineToolContext> for RunRoutine {
     ) -> ToolResult<Self::Output> {
         context
             .service()?
-            .run_now(&request.user_id, self.routine_id)
+            .run_now(context.user(&request), self.routine_id)
             .await
             .map_err(error)
     }
@@ -261,7 +270,7 @@ impl AsyncTool<RoutineToolContext> for DeleteRoutine {
     ) -> ToolResult<Self::Output> {
         context
             .service()?
-            .delete(&request.user_id, self.routine_id)
+            .delete(context.user(&request), self.routine_id)
             .await
             .map_err(error)?;
         Ok(DeletedRoutine {
