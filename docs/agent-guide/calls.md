@@ -15,7 +15,10 @@ opens the recipient picker directly. `Start an instant call` opens `/app/meet/ne
 without creating a meeting, the same setup reached from `New Call` beside
 Calendar's `New event` or `Create` → `Call` (`C C`). Scheduled calls are created
 through Calendar and can be shared with people who do not have a Macro account.
-The channel/contact option opens the recipient picker.
+The channel/contact option opens the recipient picker. Starting a channel call
+connects the creator without waiting for recording, transcription, or recipient
+notification delivery. Verify that a second participant still receives the ring
+and can join, and that leaving immediately does not leave a recording running.
 Recordings, transcriptions
 and summaries appear here; empty state notes "Calls are available to agents."
 
@@ -48,7 +51,7 @@ Soup lists without a refresh; history is not backfilled. Imported calls appear
 in `All` and `Attended`, never in a channel's `Calls` tab, and open in the
 normal call detail with title, summary, attendees
 (shown as guests), and transcript but no recording. Rename and delete do not
-apply to imported calls yet. Webhooks require a public HTTPS `MCP_PUBLIC_URL`;
+apply to imported calls yet. Webhooks require a public HTTPS cognition callback origin (`CognitionPublicUrl`);
 on a laptop stack, expose the webhook path with a tunnel such as Tailscale Funnel.
 
 A channel's `Calls` tab lists that channel's recordings with the same rows, filtered

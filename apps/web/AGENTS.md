@@ -116,6 +116,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   uncertain enqueues. See `docs/graphql-normalized-cache-plan.md`.
 - Mobile dock customization shares the navigation island’s measured capacity; persist ordering per user with `mobile-dock-order.ts`, preserve gated destinations, and keep Search and More fixed. Reorder handles drag without a hold delay; the rest of each row scrolls.
 - Share sidebar and mobile dock unread presence through `components/app/use-navigation-unread.ts`; keep badges reactive to read/done changes, guard all query data with `queryReadyGate` so pending preferences or paused queries cannot suspend the shell, and avoid fetching extra pages for counts.
+- Name Home thread rows from their latest scoped notification, including document mentions and reactions; use the thread author only when no notification exists.
 - Mobile dock search owns transient category/mode state in `features/command/mobile`; reuse the shared entity source and explicit full-text adapter rather than overlaying the dock query on view tabs or saved facets. See `docs/agent-guide/search.md` at the repository root.
 - Include known Macro users in typed All/People name searches without requiring a DM or CRM contact; resolve a matching person to their existing one-to-one DM while preserving name/email matching.
 - Key mobile name-result history ordering and scroll anchors by the other participant for one-to-one DMs, preserving a person's position when their conversation is created; keep group DMs keyed by channel.
@@ -241,8 +242,27 @@ Install and retain the UserNotifications delegate before the native event loop
 starts. Clicking restores and focuses the main window; receipt and dismissal do
 not navigate. Preserve iOS and Android `createPushApi` tap navigation when changing
 desktop delivery, including buffered launch taps before device registration.
-This requires a native macOS release; see the
+Send the sender and conversation as their own fields so macOS can show a
+communication notification (avatar, sender, conversation); keep new native
+arguments optional for OTA compatibility. Releases need the Developer ID
+provisioning profile for the communication entitlement; see
+`tauri/src-tauri/README.md`. This requires a native macOS release; see the
 [notification walkthrough](../../docs/agent-guide/notifications.md).
+
+## Desktop page zoom
+
+The desktop app binds `Ctrl/Cmd` with `+`, `-`, and `0` itself in
+`src/lib/tauri/zoom.ts`; nothing underneath provides them. Wry's
+`zoomHotkeysEnabled` is Windows-only and Tauri's default menu has no zoom items.
+The hotkeys call the webview's `setZoom`, which needs
+`core:webview:allow-set-webview-zoom` in `tauri/src-tauri/capabilities/desktop.json`,
+so a build without that permission fails the call at runtime. That permission
+lives in a `desktop`-named capability rather than `default.json` because the iOS
+and Android native gates hash every file under `tauri/` whose path doesn't name a
+platform: editing `default.json` would demand a store release for a command that
+only exists on desktop. The saved factor is
+re-applied on launch because the webview always starts at 100%. `RootFrame`, not
+`GlobalHotkeys`, registers them, so zoom also works on pages without app chrome.
 
 ## Desktop file drops
 
