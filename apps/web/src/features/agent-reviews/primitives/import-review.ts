@@ -87,8 +87,7 @@ export function createImportReview(sources: ImportReviewSources) {
     controller.busy() ||
     Boolean(controller.error()) ||
     controller.stale() ||
-    record().presentedAt == null ||
-    Boolean(record().notificationId);
+    record().presentedAt == null;
   const editable = () => !locked() && phase().kind === 'plan';
   const count = () => importCount(sources.entries(), draft().excluded);
   const volume = () => importVolume(sources.entries(), draft().excluded);
