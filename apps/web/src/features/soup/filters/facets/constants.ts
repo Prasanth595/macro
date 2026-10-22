@@ -241,6 +241,7 @@ export const FILTER_TARGETS = {
   asf: {
     agentSessionId: { backend: 'id' },
     agentSessionOwnerId: { backend: 'o' },
+    agentSessionSource: { backend: 'src' },
     includeAgentSessions: { backend: 'inc', compile: 'unit' },
   },
 
@@ -389,6 +390,7 @@ type FilterTargetsMeta = {
   asf: {
     agentSessionId: string[];
     agentSessionOwnerId: string[];
+    agentSessionSource: ('user' | 'routine')[];
     includeAgentSessions: boolean;
   };
 

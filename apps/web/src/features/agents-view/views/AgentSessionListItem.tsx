@@ -99,7 +99,7 @@ export function AgentSessionListItem(props: Props) {
       }
       trailing={
         <>
-          <Show when={props.entity.routineId}>
+          <Show when={props.entity.source === 'routine'}>
             <RoutineIcon
               aria-label="Routine run"
               class="size-3.5 shrink-0 text-ink-extra-muted"

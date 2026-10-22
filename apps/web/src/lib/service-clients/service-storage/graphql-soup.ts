@@ -1684,6 +1684,7 @@ export function mapGraphqlSoupItem(
             turnState: entity.turnState,
             bot: entity.bot,
             threadId: entity.threadId,
+            source: entity.source === 'ROUTINE' ? 'routine' : 'user',
             status: entity.status,
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,

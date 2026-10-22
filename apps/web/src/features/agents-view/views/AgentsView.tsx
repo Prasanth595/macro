@@ -1,6 +1,5 @@
 import { ViewShell } from '@app/components/view-shell';
 import { startPendingSession } from '@app/features/block-agent/context/pending-session';
-import { QUERY_FILTERS_BASE } from '@app/features/next-soup/filters/query-filters';
 import { AgentSettings } from '@app/features/settings/AgentSettings';
 import { IntegrationsPage } from '@app/features/settings/IntegrationsPage';
 import { withEntityNotifications } from '@app/features/soup/entity-notifications';
@@ -23,7 +22,7 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { ListEntityMetadataQueryProvider } from '@entity';
 import SpinnerIcon from '@phosphor/spinner.svg';
 import { useWarmAgentSessionQuery } from '@queries/agent-session/warm';
-import { useSoupItemsQuery } from '@queries/soup/items';
+import { useSoupAstItemsQuery } from '@queries/soup/items';
 import {
   createEffect,
   createMemo,
@@ -58,6 +57,7 @@ import { kindForBot } from '../core/roster';
 import { type AgentsRoute, agentsRouteId } from '../core/route';
 import { createConversationListView } from '../primitives/conversation-list-view';
 import { createWorkspaceMode } from '../primitives/workspace-mode';
+import { agentConversationsQuery } from '../queries/agent-conversations-query';
 import { createAgentRosterSource } from '../queries/agent-roster-source';
 import { agentsTour } from '../tour';
 import { NewChatPage, type StartConversation } from './NewChatPage';
@@ -112,31 +112,19 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
   // Routine runs pile up fast; they stay a click away instead of in the list.
   const [showRoutineRuns, setShowRoutineRuns] = createSignal(false);
   const rosterSource = createAgentRosterSource();
-  const query = useSoupItemsQuery(
-    () => {
-      const ownerId = userId();
-      return {
-        params: { sort_method: 'updated_at', limit: 100 },
-        body: {
-          ...QUERY_FILTERS_BASE,
-          chat_filters: { owners: ownerId ? [ownerId] : [] },
-          agent_session_filters: {
-            include: true,
-            owners: ownerId ? [ownerId] : [],
-            exclude_routine_runs: !showRoutineRuns(),
-          },
-        },
-      };
-    },
-    () => ({ enabled: Boolean(userId()) })
+  const query = useSoupAstItemsQuery(
+    () =>
+      agentConversationsQuery(userId() ?? '', {
+        showRoutineRuns: showRoutineRuns(),
+      }),
+    () => ({ enabled: Boolean(userId()), keepPreviousData: true })
   );
   const conversations = createMemo(() =>
     selectRecentAgentConversations(
-      query.isSuccess
-        ? query.data.map((entity) =>
-            withEntityNotifications(entity, notifications)
-          )
-        : [],
+      // A pending REST fallback's data read would suspend the sidebar.
+      (query.isPending ? [] : (query.data?.entities ?? [])).map((entity) =>
+        withEntityNotifications(entity, notifications)
+      ),
       userId(),
       search()
     )
@@ -319,7 +307,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
       conversations={partitioned().conversations}
       archived={partitioned().archived}
       loading={query.isPending}
-      error={query.isLoadingError}
+      error={Boolean(query.error) && !query.isFetchNextPageError}
       hasNextPage={Boolean(query.hasNextPage)}
       loadingNextPage={query.isFetchingNextPage}
       onSearchChange={setSearch}

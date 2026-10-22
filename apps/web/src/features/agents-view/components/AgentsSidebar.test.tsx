@@ -248,8 +248,11 @@ describe('mixed Agents sidebar', () => {
     const change = vi.fn(setShow);
     render(() => (
       <AgentsSidebar
-        mode="chat"
-        onModeChange={vi.fn()}
+        filters={EMPTY_CONVERSATION_FILTERS}
+        grouping="none"
+        onFilterChange={vi.fn()}
+        onClearFilters={vi.fn()}
+        onGroupingChange={vi.fn()}
         activePage="new"
         onOpenPage={vi.fn()}
         conversations={[
@@ -261,7 +264,7 @@ describe('mixed Agents sidebar', () => {
             isArchived: false,
             botId: 'macro',
             status: 'acp_ready',
-            routineId: 'routine',
+            source: 'routine',
           },
           {
             type: 'agent_session',
@@ -281,7 +284,6 @@ describe('mixed Agents sidebar', () => {
         error={false}
         hasNextPage={false}
         loadingNextPage={false}
-        onNewConversation={vi.fn()}
         onSearchChange={vi.fn()}
         showRoutineRuns={show()}
         onShowRoutineRunsChange={change}
