@@ -86,7 +86,8 @@ export function createCalendarEditorDrag(options: {
   const place = (panel: HTMLElement, point: Point) => {
     panel.style.left = `${point.x}px`;
     panel.style.top = `${point.y}px`;
-    panel.style.visibility = 'visible';
+    panel.style.opacity = '1';
+    panel.style.pointerEvents = '';
   };
   const reference: VirtualElement = {
     contextElement: options.boundary,

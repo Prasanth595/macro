@@ -218,7 +218,9 @@ when changed. Keep editing retains the draft and current route; Discard permits
 navigation. Reloading also protects unsaved new events. Clean timeslot replacement
 remains immediate.
 
-Verify a click and a multi-slot drag in Week and Month. Enter a title, description,
+Verify a click and a multi-slot drag in Week and Month. Opening or reopening a new
+desktop event must focus Title before typing, even while its position is resolving.
+Enter a title, description,
 guest, location, and custom recurrence; confirm date and time controls remain
 visible in the popover. Change the selected calendar and
 confirm the menu, trigger, and title swatches match. Check title, description, and

@@ -100,13 +100,14 @@ function DesktopEditorSurface(props: CalendarEditorSurfaceProps) {
         {/* Local menus belong outside the clipped, scrollable editor. */}
         <div class="portal-scope contents">
           <Layer depth={3}>
+            {/* Keep the title focusable before asynchronous placement completes. */}
             <KobalteDialog.Content
               ref={setPanel}
               as="aside"
               aria-label={label()}
               data-dragging={drag.dragging() ? '' : undefined}
               class="fixed z-modal flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-edge-muted glass bg-menu-glass text-ink outline-none"
-              style={{ visibility: 'hidden' }}
+              style={{ opacity: 0, 'pointer-events': 'none' }}
               onOpenAutoFocus={focusEditorTitle}
               onInteractOutside={(event) => event.preventDefault()}
               onFocusOutside={(event) => event.preventDefault()}
