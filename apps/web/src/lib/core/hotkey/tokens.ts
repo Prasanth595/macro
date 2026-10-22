@@ -111,6 +111,10 @@ export const TOKENS = {
     inviteTeam: 'global.inviteTeam',
     undo: 'global.undo',
     redo: 'global.redo',
+    keyboardShortcuts: 'global.keyboardShortcuts',
+    zoomIn: 'global.zoomIn',
+    zoomOut: 'global.zoomOut',
+    zoomReset: 'global.zoomReset',
   },
 
   // sidebar navigation
@@ -149,11 +153,17 @@ export const TOKENS = {
     previousMessage: 'email.previousMessage',
     nextMessage: 'email.nextMessage',
     cancelReply: 'email.cancelReply',
+    discardDraft: 'email.discardDraft',
+    attach: 'email.attach',
+    expandMessage: 'email.expandMessage',
+    expandAllMessages: 'email.expandAllMessages',
     trash: 'email.trash',
     blockSender: 'email.blockSender',
     markSenderSignal: 'email.markSenderSignal',
     markSenderNoise: 'email.markSenderNoise',
     toggleReadingPane: 'email.toggleReadingPane',
+    star: 'email.star',
+    mute: 'email.mute',
     compose: {
       edit: {
         recipients: 'email.compose.edit.recipients',

@@ -26,9 +26,6 @@ Pulumi stacks; they do not host extra agent processes.
   reuses the harness tool context and retains bearer authentication. Users with
   `ai-code-mode` get `ExecuteCode`/`DescribeCodeTools` in place of SDK-covered
   tools (`tool_service.rs`); the flag is cached per user (`tool_mode_cache.rs`).
-- `OPENAI_SUBMISSION.md` + `openai-plugin-package/`: OpenAI submission assets;
-  `src/public_mcp.rs` preserves the domain verification endpoint configured by
-  `OPENAI_DOMAIN_VERIFICATION_TOKEN`.
 - `src/cognition/`: existing chat, completions, integrations, and projection
   workers; the library also exports their OpenAPI document.
 - `src/scheduling.rs`: routine HTTP routes and background scheduling;
@@ -85,10 +82,18 @@ message attribution after owner approval, while retaining user authentication.
 ## Configuration and lifecycle
 
 All feature configs read the same harness `APP_SECRETS_JSON`; the harness
-Doppler validation binary validates each config. `MCP_PUBLIC_URL` is the public
-server origin (`mcp-server[-dev].macro.com`); `MCP_CLIENT_PUBLIC_URL` is the
-integrations callback origin (`document-cognition[-dev].macro.com`). The shared
-gateway preserves these hostnames and internally rewrites cognition paths. Both settings are required; keep them separate. `POSTHOG_API_KEY` and `POSTHOG_HOST` remain
+Doppler validation binary validates each config. Stable public origins resolve
+once at startup through `macro_service_urls`: `McpPublicUrl` preserves the
+`mcp-server[-dev].macro.com` OAuth identity, `CognitionPublicUrl` preserves
+`document-cognition[-dev].macro.com` integration callbacks, and `AppServiceUrl`
+supplies browser links and preview form origin. Preview control accepts the
+`PreviewGatewayUrl` host (plus app/loopback hosts locally). Use process-level
+`OVERRIDE_*` values for local instances. The shared gateway preserves the public
+hostnames and internally rewrites cognition paths. `PREVIEW_DOMAIN` and
+`PREVIEW_SSH_HOST` remain infrastructure-generated Doppler settings. Legacy
+`MCP_PUBLIC_URL`, `MCP_CLIENT_PUBLIC_URL`, `PREVIEW_APP_ORIGIN`, and
+`PREVIEW_CONTROL_HOSTS` values are retained only for old-image rollback; new
+code does not read them. `POSTHOG_API_KEY` and `POSTHOG_HOST` remain
 available for feature flags and future analytics; MCP emits no analytics events.
 In deployed configs, `DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY`
 is cognition's Secrets Manager reference; AI tools resolve the separate

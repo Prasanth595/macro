@@ -41,13 +41,6 @@ const DEFAULT_MCP_ALLOWED_REDIRECT_HOSTS: [&str; 5] = [
     "www.cursor.com",
 ];
 
-/// Preserve the public MCP domain verification endpoint from the former host.
-async fn openai_domain_verification() -> String {
-    crate::config::OpenaiDomainVerificationToken::new()
-        .and_then(|token| token.value().map(str::to_string))
-        .unwrap_or_else(|| "PLACEHOLDER_TOKEN_REPLACE_WITH_ACTUAL_OPENAI_TOKEN".to_string())
-}
-
 /// Build public MCP routes using the harness's shared tools and identities.
 pub async fn router(
     config: &Config,
@@ -58,13 +51,15 @@ pub async fn router(
     cancellation: tokio_util::sync::CancellationToken,
     code_mode: Option<PublicCodeMode>,
 ) -> anyhow::Result<axum::Router> {
-    let auth_proxy = build_auth_proxy(config, secrets).await?;
-    let item_base_url = config.app_base_url.to_string();
+    let public_url = macro_service_urls::McpPublicUrl::new()?;
+    let auth_proxy = build_auth_proxy(config, secrets, &public_url).await?;
+    let item_base_url = macro_service_urls::AppServiceUrl::new()?.to_string();
     let static_file_base_url =
         url::Url::parse(macro_service_urls::StaticFileServiceUrl::new()?.as_ref())?;
-    let mcp_public_host = url::Url::parse(config.mcp_public_url.as_ref())?
+    let mcp_public_host = public_url
+        .parse_url()?
         .host_str()
-        .context("MCP_PUBLIC_URL has no host")?
+        .context("public MCP URL has no host")?
         .to_owned();
     // Built once: the factory runs per request in stateless mode.
     let tools = ai_tools::tools_for(ai_tools::AiHost::Mcp).toolset;
@@ -126,10 +121,6 @@ pub async fn router(
     // browser API layers, with the same tracing layer as the harness API.
     Ok(
         mcp_auth_proxy::inbound::axum_router::mounted_mcp_router(auth_proxy, jwt_args, mcp_service)
-            .route(
-                "/.well-known/openai-apps-challenge",
-                axum::routing::get(openai_domain_verification),
-            )
             .layer(
                 macro_tower_layers::MacroRequestIdAndTracingLayer::new(
                     std::time::Duration::from_millis(200),
@@ -142,8 +133,9 @@ pub async fn router(
 async fn build_auth_proxy(
     config: &Config,
     secretsmanager_client: &secretsmanager_client::SecretsManager,
+    public_url: &macro_service_urls::McpPublicUrl,
 ) -> anyhow::Result<McpAuthProxyServiceImpl<RedisInflightAuth>> {
-    let mcp_public_url: String = config.mcp_public_url.as_ref().to_owned();
+    let mcp_public_url = public_url.to_string();
     let mcp_oauth_redirect_uri = format!("{mcp_public_url}/oauth/callback");
 
     let fusionauth_api_key = LocalOrRemoteSecret::new_from_secret_manager(
