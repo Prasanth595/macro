@@ -727,6 +727,7 @@ export type RsvpCalendarEventRequest = {
     recurrenceId?: string | null;
     /**
      * The owned connected address whose attendance is changed. Validated by the domain.
+     * Omit to answer as the inbox the addressed copy syncs through.
      */
     respondingEmail?: string | null;
     /**
@@ -1106,7 +1107,7 @@ export type InviteCalendarEventGuestsErrors = {
      */
     401: unknown;
     /**
-     * Calendar is read-only, the organizer doesn't let guests invite others, or the calendar needs reauthorization
+     * Calendar is read-only, only the organizer can invite guests, or the calendar needs reauthorization
      */
     403: CalendarMutationApiError;
     /**

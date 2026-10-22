@@ -131,6 +131,8 @@ auto-join must keep working beyond five members and the former stage-plan limits
 Free-team joins do not create a paid subscription, bill a seat, or grant premium
 roles. Teams with an existing paid subscription retain their per-seat billing;
 enterprise teams retain their billing bypass.
+A team created or invited from while its owner is on a Pro trial bills through
+that trial, so members who join get Pro, like on an active subscription.
 
 On a local stack started with `--no-doppler`, verify free-team creation from a
 fresh passwordless signup. It must work without Stripe credentials.
@@ -186,7 +188,9 @@ settings split that shares the layout, or steps back to the previous view when
 it is the only split (Home when there is none). Leave settings by picking any
 other rail item; there is no separate back or fullscreen control.
 
-Settings pages use flat, light-gray cards with subtle row separators. Section
+Settings pages use raised composer cards with glass in dark mode, soft shadows
+in light mode, and subtle row separators. Integrations uses the same content
+width and side padding as the other settings pages. Section
 headings sit above the cards, with more space between major sections and compact
 spacing within each group. Controls share rounded shapes. Nested rows share one surface instead of adding another box or shadow.
 The compact sidebar uses the shared workspace width.
@@ -487,14 +491,17 @@ available in all channels should refresh there without reloading the channel.
 
 With `pipedream-mcp` enabled, Settings → Integrations labels the Email/GitHub
 section Core Integrations and the connector section Agent Integrations, separated
-by spacing without a divider. Installed tools use a two-column card grid (one
+by spacing without a divider. Core integrations stack in one column, with compact
+GitHub and Granola rows and inline email account details that wrap on narrow screens.
+Installed tools use a two-column card grid (one
 column on narrow screens), followed by Featured and All apps, without a Discover
 heading or a separate installed sidebar. All apps has a gray Add Custom action beside its
-heading. Search and the category picker share a row directly below that heading
-and stack on narrow screens. The category picker uses a borderless light-gray
-fill that matches the integration cards.
-Installed, Featured, and All apps use headings above rounded cards. The overview uses
-more space between major sections and consistent light gray card backgrounds.
+heading. Labelled Search apps and Category controls share a row directly below
+that heading and stack below a 560px catalog width. Both use matching 44px outlined
+frames with a subtle neutral fill; search includes an icon and a clear action.
+Installed, Featured, and All apps use headings above rounded cards. Their cards,
+the empty state, and the setup rows use the same raised composer surface as core
+integrations, with glass in dark mode and soft shadows in light mode.
 Two thin, stacked setup rows appear at the top. “Use Macro in your favorite AI
 harness with the official Macro MCP” opens connection setup; “Stream sessions
 from your local AI harness to Macro” opens Runtimes within Integrations to connect
@@ -540,6 +547,7 @@ Provider and custom-server More menus contain Disable, Reconnect, and Disconnect
 custom servers also offer Rename. Disabled grants show Enable. Unauthenticated
 custom servers show Connect and Remove. Disconnect/Remove require confirmation.
 Adding a custom MCP saves its name and URL; Connect on its row starts OAuth.
+The Add MCP Server dialog uses the same 24px padding above its title as on its sides.
 Enabled custom servers are offered to the owner's agent sessions (Cursor, Claude,
 Codex, macrod, in-memory) alongside connected apps, through the same session
 egress path: the sandbox sees the server under its name and a URL key, never the
@@ -579,7 +587,7 @@ New macrod sessions use the agent's saved model before sending the first prompt.
 Changing that default applies to new sessions; existing sessions keep their selected model.
 If the runtime rejects the saved model, the prompt fails instead of using a different model.
 
-The `Runtimes` section shows built-in Macro, Cursor, Claude, and Codex configuration, followed by paired macrod runtimes. Claude's card appears only with the `claude-cloud` flag, and Codex's only within the agents and Codex rollouts. On the desktop app only, a “This computer” card appears above the built-in runtimes: the bundled macrod daemon is set up from here with one click. `Set up` scans the machine for installed agents (Claude Code, Codex, OpenCode, OpenClaw), offers a workspace folder and a Full access checkbox, and `Start running agents here` configures, pairs, and starts the daemon — the pairing is approved automatically, no code is typed. While running the card shows the agent and workspace with a `Stop` action; a set-up-but-stopped runtime offers `Start`. The web app never shows this card. The “Bring your own agent” card sits above the Agents / Runtimes navigation and is visible on both sections. It rotates Claude Code, OpenCode, OpenClaw, and Hermes; reduced motion keeps a static name. Its `New runtime` action opens the full-page pairing flow from either section: enter the code, look up the request, review the machine, name, sharing and permission consent, then Approve and Done. Back/Cancel returns to the runtime list. Destructive removal still requires confirmation. `/settings/runtimes` opens this section; legacy `/settings/harness?pair=…` links remain supported.
+The `Runtimes` section shows built-in Macro, Cursor, and Codex configuration, followed by paired macrod runtimes. Codex's card appears only within the agents and Codex rollouts. On the desktop app only, a “This computer” card appears above the built-in runtimes: the bundled macrod daemon is set up from here with one click. `Set up` scans the machine for installed agents (Claude Code, Codex, OpenCode, OpenClaw), offers a workspace folder and a Full access checkbox, and `Start running agents here` configures, pairs, and starts the daemon — the pairing is approved automatically, no code is typed. While running the card shows the agent and workspace with a `Stop` action; a set-up-but-stopped runtime offers `Start`. The web app never shows this card. The “Bring your own agent” card sits above the Agents / Runtimes navigation and is visible on both sections. It rotates Claude Code, OpenCode, OpenClaw, and Hermes; reduced motion keeps a static name. Its `New runtime` action opens the full-page pairing flow from either section: enter the code, look up the request, review the machine, name, sharing and permission consent, then Approve and Done. Back/Cancel returns to the runtime list. Destructive removal still requires confirmation. `/settings/runtimes` opens this section; legacy `/settings/harness?pair=…` links remain supported.
 Connection chips in agent replies open this page, including before any account is connected. Cursor's default-model picker uses
 the same live model discovery and retains its existing save action.
 

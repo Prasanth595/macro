@@ -230,12 +230,12 @@ describe('native WebView startup diagnostics', () => {
       },
     };
     expect(previousDocumentAttributes(snapshot, 'previous')).toEqual({
-      previous_document_route: 'legacy-content',
-      previous_document_from_route: 'view-search',
-      previous_document_entity_type: 'channel',
-      previous_document_navigation_cause: 'navigate',
-      previous_document_navigation_ms: 200,
-      previous_document_memory_warning_ms: 250,
+      previous_document_last_route: 'legacy-content',
+      previous_document_last_from_route: 'view-search',
+      previous_document_last_entity_type: 'channel',
+      previous_document_last_navigation_cause: 'navigate',
+      previous_document_last_navigation_at_ms: 200,
+      previous_document_last_memory_warning_at_ms: 250,
     });
     expect(
       Object.values(previousDocumentAttributes(snapshot, undefined)).every(

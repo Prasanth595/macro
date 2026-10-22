@@ -1,5 +1,5 @@
 import { analytics } from '@app/lib/analytics';
-import { Telemetry } from '@macro-inc/observability';
+import { type Attributes, Telemetry } from '@macro-inc/observability';
 import type { DesktopSnapshot } from './desktop';
 import { frontendInstanceId } from './frontend-instance';
 import {
@@ -10,14 +10,15 @@ import { consumeReloadIntent } from './reload';
 
 /** Called once per document, including recovery after a WebContent termination. */
 export function recordNativeWebviewStart(
-  snapshot: DesktopSnapshot | undefined
+  snapshot: DesktopSnapshot | undefined,
+  documentLifecycle?: Attributes
 ) {
   const bundleBuild = document
     .querySelector('meta[name="macro-bundle-build"]')
     ?.getAttribute('content');
   const navigation = performance.getEntriesByType('navigation')[0];
-  // Native snapshots include this field on every platform, but only Apple's
-  // WebKit termination callback records it. Other platforms remain unknown.
+  // Native snapshots include this field on every platform, but only the iOS
+  // and macOS termination callbacks record it. Other platforms remain unknown.
   const webContent =
     snapshot?.identity.os === 'ios' || snapshot?.identity.os === 'macos'
       ? snapshot.webContent
@@ -53,6 +54,7 @@ export function recordNativeWebviewStart(
   analytics.posthog.register(attributes);
   const startupAttributes = {
     ...attributes,
+    ...documentLifecycle,
     ...consumeReloadIntent(),
     ...previousDocumentAttributes(snapshot, recoverableNativeFrontend()),
   };
@@ -84,12 +86,13 @@ export function previousDocumentAttributes(
   const breadcrumb =
     navigation?.event.kind === 'navigated' ? navigation.event : undefined;
   return {
-    previous_document_route: breadcrumb?.route,
-    previous_document_from_route: breadcrumb?.from_route ?? undefined,
-    previous_document_entity_type: breadcrumb?.entity_type ?? undefined,
-    previous_document_navigation_cause: breadcrumb?.cause,
-    previous_document_navigation_ms: navigation?.timestampMs,
-    previous_document_memory_warning_ms: latest('memory_warning')?.timestampMs,
+    previous_document_last_route: breadcrumb?.route,
+    previous_document_last_from_route: breadcrumb?.from_route ?? undefined,
+    previous_document_last_entity_type: breadcrumb?.entity_type ?? undefined,
+    previous_document_last_navigation_cause: breadcrumb?.cause,
+    previous_document_last_navigation_at_ms: navigation?.timestampMs,
+    previous_document_last_memory_warning_at_ms:
+      latest('memory_warning')?.timestampMs,
   };
 }
 
