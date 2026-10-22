@@ -276,6 +276,33 @@ it('writes a failed local snapshot again when the editor closes', async () => {
   expect(persist).toHaveBeenCalledExactlyOnceWith('unsaved edit');
 });
 
+it('drops a failed local snapshot when saving is cancelled', async () => {
+  const persist = vi.fn(async (_snapshot: string) => {});
+  const local = vi
+    .fn<(snapshot: string) => Promise<void>>()
+    .mockRejectedValueOnce(new Error('Draft storage transaction aborted'))
+    .mockResolvedValue(undefined);
+  let dispose = () => {};
+  const autosave = createRoot((cleanup) => {
+    dispose = cleanup;
+    return createDraftAutosave({
+      capture: () => 'discarded edit',
+      persist,
+      paused: () => false,
+      saveLocalSnapshot: local,
+    });
+  });
+  await expect(autosave.save()).rejects.toThrow('transaction aborted');
+  // Discard, send, and terminal resets cancel before the composer closes.
+  autosave.cancel();
+  document.dispatchEvent(new Event('visibilitychange'));
+  dispose();
+  // Nothing new was queued behind the failed save.
+  await expect(autosave.settled()).rejects.toThrow('transaction aborted');
+  expect(local).toHaveBeenCalledOnce();
+  expect(persist).not.toHaveBeenCalled();
+});
+
 it('does not enqueue a save after a disk failure and lets the next local save recover', async () => {
   const persist = vi.fn(async () => {});
   const local = vi

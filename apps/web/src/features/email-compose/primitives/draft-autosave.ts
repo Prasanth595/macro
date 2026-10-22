@@ -59,6 +59,7 @@ export function createDraftAutosave<Snapshot, Result>(options: {
   const cancel = () => {
     scheduled.clear();
     pending = undefined;
+    failed = undefined;
     setInputIdle(true);
   };
   const enqueue = (snapshot: Snapshot, local: Promise<void>) => {
@@ -92,7 +93,8 @@ export function createDraftAutosave<Snapshot, Result>(options: {
   document.addEventListener('visibilitychange', flushOnVisibilityChange);
   onCleanup(() => {
     document.removeEventListener('visibilitychange', flushOnVisibilityChange);
-    const flush = pending ?? failed;
+    const retry = failed;
+    const flush = pending ?? retry;
     cancel();
     // Reading the live thread/editor here can reenter Solid's disposal of
     // that same view. The last edit already captured its local copy; a copy
@@ -100,7 +102,7 @@ export function createDraftAutosave<Snapshot, Result>(options: {
     if (flush && !options.paused())
       void enqueue(
         flush.snapshot,
-        failed ? saveLocally(flush.snapshot) : flushLocal()
+        retry ? saveLocally(flush.snapshot) : flushLocal()
       ).catch((error) => options.onError?.(error));
   });
   return {

@@ -2,9 +2,9 @@ import { onCleanup } from 'solid-js';
 import type { EmailComposeFeedback } from '../context/compose-capabilities';
 
 /**
- * One warning per local-save failure episode, shared by both composers. The
- * warning outlives the composer: closing it flushes the unsaved edit once more,
- * and only a successful write may dismiss the warning.
+ * One warning per local-save failure episode, shared by both composers.
+ * Closing the composer dismisses it; if the edit it writes once more on close
+ * also fails, that failure shows a new warning after the composer is gone.
  */
 export function createDraftSaveNotice(
   feedback: EmailComposeFeedback['feedback']
@@ -16,9 +16,7 @@ export function createDraftSaveNotice(
     notice = undefined;
     failed = false;
   };
-  onCleanup(() => {
-    if (!failed) clear();
-  });
+  onCleanup(clear);
   return {
     onLocalError(error: unknown) {
       if (failed) return;

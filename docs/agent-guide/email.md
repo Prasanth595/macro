@@ -514,9 +514,10 @@ the error must be `ConstraintError` and is not replayed, and a subsequent valid
 save must succeed.
 
 Repeated local-save failures show one persistent warning per composer; a later
-successful write dismisses it. Closing the composer writes the unsaved edit once
-more and keeps the warning until that write lands. A later failure shows a new
-warning.
+successful write or closing the composer dismisses it. Closing writes the failed
+edit once more, unless send, discard, or a reset already cancelled it; if that
+write also fails, a new warning stays after the composer closes. A later failure
+shows a new warning.
 Retry preserves the original draft handle. An already-sent rejection drops the
 local copy rather than recreating the sent message. The REST compose path keeps
 its existing behavior.

@@ -1178,7 +1178,7 @@ function localSnapshot(
 }
 
 it.each(['standalone', 'reply'] as const)(
-  'keeps one %s local-save warning until a write recovers, even after closing',
+  'keeps one %s local-save warning until recovery and warns again when the write on close fails',
   async (surface) => {
     const context = createComposeContext();
     let diskFailed = true;
@@ -1225,12 +1225,13 @@ it.each(['standalone', 'reply'] as const)(
     expect(decodeBase64Utf8(closing?.[0].draft.body_html ?? '')).toContain(
       'Another failure'
     );
-    expect(context.notices.feedback.dismiss).not.toHaveBeenCalledWith(8);
+    expect(context.notices.feedback.dismiss).toHaveBeenLastCalledWith(8);
+    expect(context.notices.feedback.failure).toHaveBeenCalledTimes(3);
   }
 );
 
 it.each(['standalone', 'reply'] as const)(
-  'writes the unsaved %s edit once more on close and dismisses the warning when it lands',
+  'writes the unsaved %s edit once more on close',
   async (surface) => {
     const context = createComposeContext();
     let diskFailed = true;
@@ -1257,6 +1258,7 @@ it.each(['standalone', 'reply'] as const)(
       'Typed before backgrounding'
     );
     expect(context.notices.feedback.dismiss).toHaveBeenCalledExactlyOnceWith(7);
+    expect(context.notices.feedback.failure).toHaveBeenCalledOnce();
     expect(context.drafts.saveDraft).toHaveBeenCalledOnce();
   }
 );
