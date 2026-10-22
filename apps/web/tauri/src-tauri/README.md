@@ -52,8 +52,13 @@ when the native snapshot includes an unused zero-valued counter.
 The Apple termination callback preserves Tauri's default reload behavior and adds
 the native evidence before reloading. It does not establish why WebKit terminated
 (for example, memory pressure versus a crash); device crash/termination reports
-are needed for that distinction. Native counters require a full app release,
-while the frontend remains compatible with older binaries.
+are needed for that distinction. On the affected iPhone, open Settings → Privacy
+& Security → Analytics & Improvements → Analytics Data and look near the
+termination time: a `JetsamEvent-…` report lists processes killed for memory
+(WebContent appears as `com.apple.WebKit.WebContent`), while a
+`com.apple.WebKit.WebContent-…` report is a crash with a stack. On macOS, use
+Console → Crash Reports. Native counters require a full app release, while the
+frontend remains compatible with older binaries.
 
 `frontend_instance_id` is generated once per document and attached to every
 PostHog event (including automatic exceptions/pageviews) and OTel resource.
@@ -81,10 +86,28 @@ not proof of the cause of a termination.
 New binaries retain 128 diagnostic events and a separate latest frontend
 heartbeat in native memory. Events
 cover native foreground/background, WebContent termination, iOS memory warnings,
-frontend visibility/connectivity, and explicit reload requests. Keep reload
-diagnostics at document/native lifecycle boundaries; UI mount state and streamed
-text changes do not establish a reload cause and should not generate native IPC.
+frontend visibility/connectivity, explicit reload requests, and pane
+navigations. Keep reload diagnostics at document/native lifecycle boundaries and
+pane navigation; UI mount state and streamed text changes do not establish a
+reload cause and should not generate native IPC.
 The schema accepts no message text, URLs, or content identifiers.
+
+The last split-router middleware records `navigated` when a pane starts
+navigating, before its destination loads: the navigation cause, the destination
+and previous route ids, and the claimed entity type (`channel`, `md`, `agent`, …)
+when the route claims an entity by UUID. Native rejects anything but code-defined
+names, and the frontend drops a value it would reject, since a rejected command
+disables diagnostics for the document. The entity's id is deliberately absent;
+the restored URL on `native_webview_started` usually carries it. Each navigation
+in the native app also flushes queued OTel spans, so the work leading up to an
+open is exported before a termination while it loads.
+
+`native_webview_started` summarizes the document it replaced: the last
+`previous_document_route`, `previous_document_from_route`,
+`previous_document_entity_type`, `previous_document_navigation_cause`, and
+`previous_document_navigation_ms`, plus `previous_document_memory_warning_ms`
+for its last iOS memory warning. Compare those timestamps with
+`native_last_termination_ms`. They need the same recovery lease as replay below.
 Heartbeats record visibility and connectivity every five seconds while visible
 and at visibility transitions; background throttling is expected. They provide
 a last-known responsive timestamp, not proof of a hang or its cause.
