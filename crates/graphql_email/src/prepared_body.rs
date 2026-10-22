@@ -11,17 +11,17 @@ use macro_service_urls::ImageProxyServiceUrl;
 use tokio::sync::Semaphore;
 use tracing::Instrument;
 
-/// Longest a request waits on one body. Deeply nested markup parses in
-/// quadratic time; past this the client prepares the body itself.
+/// Longest a request waits on one body, queueing for a slot included. Deeply
+/// nested markup parses in quadratic time; past this the client prepares the
+/// body itself.
 const PREPARE_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// Preparations running at once, process-wide. A thread page prepares every
-/// message, so without a bound a burst of large or hostile bodies could occupy
-/// the whole blocking pool; when none is free the client prepares the body.
+/// Preparations running at once, process-wide: half the cores, so request
+/// handling keeps the rest. A thread page prepares every message, so without a
+/// bound a burst of large or hostile bodies could take every core.
 static PREPARATIONS: LazyLock<Arc<Semaphore>> = LazyLock::new(|| {
-    Arc::new(Semaphore::new(
-        std::thread::available_parallelism().map_or(2, |cores| cores.get()),
-    ))
+    let cores = std::thread::available_parallelism().map_or(2, |cores| cores.get());
+    Arc::new(Semaphore::new((cores / 2).max(1)))
 });
 
 /// This environment's `img[src]` proxy endpoint, matching the web app's.
@@ -87,7 +87,12 @@ async fn prepare_within(
         source_bytes = html.len() + replyless_html.map_or(0, str::len),
         outcome = tracing::field::Empty,
     );
-    let Ok(permit) = Arc::clone(preparations).try_acquire_owned() else {
+    // A page's messages resolve concurrently, so they queue for a slot instead
+    // of giving up at once. Waiting and work share one budget.
+    let deadline = tokio::time::Instant::now() + timeout;
+    let Ok(Ok(permit)) =
+        tokio::time::timeout_at(deadline, Arc::clone(preparations).acquire_owned()).await
+    else {
         span.record("outcome", "busy");
         return Ok(None);
     };
@@ -118,7 +123,7 @@ async fn prepare_within(
             },
         )
     });
-    let Ok(body) = tokio::time::timeout(timeout, work)
+    let Ok(body) = tokio::time::timeout_at(deadline, work)
         .instrument(span.clone())
         .await
     else {

@@ -57,11 +57,11 @@ async fn prepares_large_bodies() {
 }
 
 #[tokio::test]
-async fn leaves_the_body_to_the_client_while_every_preparation_slot_is_busy() {
+async fn leaves_the_body_to_the_client_when_no_slot_frees_within_the_budget() {
     let preparations = Arc::new(Semaphore::new(0));
     let body = prepare_within(
         &preparations,
-        PREPARE_TIMEOUT,
+        Duration::from_millis(20),
         PREPARE_VERSION,
         Some("<p>Hi</p>"),
         None,
@@ -69,6 +69,31 @@ async fn leaves_the_body_to_the_client_while_every_preparation_slot_is_busy() {
     .await
     .unwrap();
     assert!(body.is_none());
+}
+
+#[tokio::test]
+async fn queues_for_a_slot_instead_of_giving_up_at_once() {
+    // One slot for a whole page: the second message waits for the first.
+    let preparations = Arc::new(Semaphore::new(1));
+    let (first, second) = tokio::join!(
+        prepare_within(
+            &preparations,
+            PREPARE_TIMEOUT,
+            PREPARE_VERSION,
+            Some("<p>One</p>"),
+            None,
+        ),
+        prepare_within(
+            &preparations,
+            PREPARE_TIMEOUT,
+            PREPARE_VERSION,
+            Some("<p>Two</p>"),
+            None,
+        ),
+    );
+    assert!(first.unwrap().is_some());
+    assert!(second.unwrap().is_some());
+    assert_eq!(preparations.available_permits(), 1);
 }
 
 #[tokio::test]
