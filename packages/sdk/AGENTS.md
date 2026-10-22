@@ -57,3 +57,6 @@ excluded from source linting.
   for automated SDK mutation tests.
 
 - SQL result schemas are dynamic typed-cell unions; inspect `truncatedTables` before interpreting aggregates. Queries can write and are never retried automatically.
+
+- Workspace-import report/cancel endpoints remain app-only review plumbing,
+  explicitly classified alongside the existing Notion routes in coverage skips.

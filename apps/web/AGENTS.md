@@ -347,3 +347,7 @@ Keep Responding bound to the notification turn, including rejection and noop.
 The backend-free desktop/mobile check is
 `bunx playwright test --config src/features/block-agent/browser-test/playwright.config.ts`.
 Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
+
+- Reuse the responsive import review for Notion, Linear and Jira; scope report
+  queries and cancellation to the saved draft source. Issue tracker handoffs
+  call the reviewed workspace tools, and show separate task/project totals.

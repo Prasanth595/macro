@@ -9,10 +9,7 @@ export type AgentImportHandoff = {
   instructions: string;
 };
 
-function createWith(
-  config: ImportCategoryConfig,
-  provider: ImportProvider
-): string {
+function createWith(config: ImportCategoryConfig): string {
   return match(config.category)
     .with(
       'files',
@@ -64,6 +61,16 @@ export function agentImportHandoff(
   provider: ImportProvider
 ): AgentImportHandoff {
   if (provider.ledger === 'notion') return NOTION_WORKSPACE_HANDOFF;
+  if (provider.ledger === 'linear' || provider.ledger === 'jira') {
+    return {
+      input: `Import my ${provider.name} workspace into Macro.`,
+      instructions: [
+        `The user started this from Macro's import dialog and has just connected ${provider.name}.`,
+        `Use ImportFrom${provider.name} to plan their workspace, ask who should see it if required, and present the import review right away.`,
+        `Never recreate plan items with other tools, and never edit or delete anything in ${provider.name}.`,
+      ].join(' '),
+    };
+  }
   return {
     input: `Import my most recent ${config.items} from ${provider.name} into ${config.destination}.`,
     instructions: [
@@ -71,7 +78,7 @@ export function agentImportHandoff(
       `Use the ${provider.name} connector tools to find their most relevant recent ${config.items}.`,
       ...ledgerSteps(provider),
       `Before creating anything, show a short numbered list and ask which ones to bring over.`,
-      createWith(config, provider),
+      createWith(config),
       `Only read from ${provider.name}; never edit or delete anything there.`,
       'Finish with links to everything you created.',
     ].join(' '),
