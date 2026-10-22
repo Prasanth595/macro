@@ -8,8 +8,8 @@
 //! change exactly when it happens, from whichever process made it.
 
 use agent_runtime_protocol::domain::notification::{
-    ImportItem, ImportOutcome, ImportPlan, ImportSettlement, MAX_IMPORT_ITEMS, NotificationEvent,
-    ReviewSettlement,
+    ImportItem, ImportOutcome, ImportPlan, ImportSettlement, ImportWorkspace, MAX_IMPORT_ITEMS,
+    NotificationEvent, ReviewSettlement,
 };
 use agent_session::domain::notifications::{PendingNotification, ProduceNotification};
 use import_notion::domain::ports::NotionConnections;
@@ -19,7 +19,9 @@ use uuid::Uuid;
 
 use super::super::ImportServiceImpl;
 use super::super::notion_workspace::report;
-use crate::domain::models::{NotionImportReport, NotionReportItem, ReviewedRun, RunStatus};
+use crate::domain::models::{
+    ImportSource, NotionImportReport, NotionReportItem, ReviewedRun, RunStatus,
+};
 use crate::domain::ports::{
     CanonicalImportRepo, EntityCreator, ImportRepo, NotionPlanRepo, NotionRunRepo, Result,
     SlackWorkspaceSource, WorkspaceWriter, WrittenObjects,
@@ -49,6 +51,7 @@ where
         // back to staged and no longer say they were part of this write.
         let report = self.current_report(user).await?;
         let root_folder = self.repo.root_folder(user).await?;
+        let source = self.workspace_source;
         let moved = self
             .repo
             .transition_reviewed_run(
@@ -58,7 +61,7 @@ where
                 error,
                 |run| {
                     let review = run.review?;
-                    let settlement = settlement(&report, root_folder, run)?;
+                    let settlement = settlement(source, &report, root_folder, run)?;
                     produce(ProduceNotification {
                         session_id: review.session_id,
                         subject_id: review.review_id.to_string(),
@@ -84,6 +87,7 @@ where
         error: Option<&str>,
     ) -> Result<bool> {
         let report = self.current_report(user).await?;
+        let source = self.workspace_source;
         let moved = self
             .repo
             .transition_reviewed_run(user, &[RunStatus::Running], to, error, |run| {
@@ -94,7 +98,7 @@ where
                 produce(ProduceNotification {
                     session_id: review.session_id,
                     subject_id: review.review_id.to_string(),
-                    event: NotificationEvent::ImportPlanned(plan(&report)),
+                    event: NotificationEvent::ImportPlanned(plan(source, &report)?),
                     dedupe_key: None,
                     wake: true,
                 })
@@ -133,19 +137,32 @@ fn produce(input: ProduceNotification) -> Option<PendingNotification> {
         .ok()
 }
 
+/// The workspace a `source` import reads; `None` for Slack, which has no
+/// reviewed workspace run.
+fn workspace(source: ImportSource) -> Option<ImportWorkspace> {
+    match source {
+        ImportSource::Notion => Some(ImportWorkspace::Notion),
+        ImportSource::Linear => Some(ImportWorkspace::Linear),
+        ImportSource::Jira => Some(ImportWorkspace::Jira),
+        ImportSource::Slack => None,
+    }
+}
+
 /// What the plan in `report` proposes.
-fn plan(report: &NotionImportReport) -> ImportPlan {
-    ImportPlan {
+fn plan(source: ImportSource, report: &NotionImportReport) -> Option<ImportPlan> {
+    Some(ImportPlan {
+        source: workspace(source)?,
         copy: report.copy,
         task_lists: report.tasks,
         skipped: report.skip,
         by_hand: report.hand,
-    }
+    })
 }
 
 /// The final report of the write `report` describes, now that `run` ended
 /// it; `None` while the run has not ended.
 fn settlement(
+    source: ImportSource,
     report: &NotionImportReport,
     root_folder: Option<Uuid>,
     run: &ReviewedRun,
@@ -157,6 +174,7 @@ fn settlement(
         RunStatus::Running | RunStatus::Ready | RunStatus::Importing => return None,
     };
     Some(ImportSettlement {
+        source: workspace(source)?,
         outcome,
         error: run.error.as_deref().map(bounded),
         imported: report.imported,

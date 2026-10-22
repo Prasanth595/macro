@@ -88,7 +88,57 @@ async fn a_plan_presented_while_planning_tells_its_session_once_it_is_ready(pool
     let NotificationEvent::ImportPlanned(plan) = &produced[0].notification.event else {
         panic!("expected a ready plan");
     };
+    assert_eq!(plan.source, ImportWorkspace::Notion);
     assert_eq!(plan.copy, 2);
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_linear_plan_tells_its_session_it_came_from_linear(pool: PgPool) {
+    let owner = user("linear-planned");
+    let issue = PlanRow {
+        kind: ImportKind::Issue,
+        ..page('a', "Ship importers")
+    };
+    let (review, _) = approved_source(&pool, &owner, &[issue], ImportSource::Linear).await;
+    let session = sqlx::query_scalar!(
+        "SELECT agent_session_id FROM agent_session_review WHERE id = $1",
+        review
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let session = AgentSessionId::new_from_uuid(session);
+    let repo = PgImportRepo::new(pool.clone());
+    repo.start_run(&owner, ImportSource::Linear, &[])
+        .await
+        .unwrap();
+    repo.attach_review(&owner, ImportSource::Linear, review, session)
+        .await
+        .unwrap();
+    let sessions = Arc::new(Sessions::default());
+    let service = ImportServiceImpl::new(
+        notifying_repo(&pool, &sessions),
+        Arc::new(NoConnector),
+        Arc::new(Writer::default()),
+        Arc::new(ai_usage::NoOpUsageRecorder),
+    )
+    .scoped(ImportSource::Linear);
+
+    assert!(
+        service
+            .end_plan(&owner, RunStatus::Ready, None)
+            .await
+            .unwrap()
+    );
+
+    let produced = sessions.0.lock().unwrap();
+    assert_eq!(produced.len(), 1, "{produced:?}");
+    assert_eq!(produced[0].session_id, session);
+    let NotificationEvent::ImportPlanned(plan) = &produced[0].notification.event else {
+        panic!("expected a ready plan");
+    };
+    assert_eq!(plan.source, ImportWorkspace::Linear);
+    assert_eq!(plan.task_lists, 1, "the issue becomes a task");
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
@@ -152,6 +202,7 @@ async fn a_finished_write_tells_its_session_once_with_the_final_report(pool: PgP
     assert_eq!(produced[0].notification.subject_id, review.to_string());
     assert!(produced[0].wake);
     let settled = settled_import(&produced[0]);
+    assert_eq!(settled.source, ImportWorkspace::Notion);
     assert_eq!(settled.outcome, ImportOutcome::Completed);
     assert_eq!(settled.error, None);
     assert_eq!(settled.imported, 2);

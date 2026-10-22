@@ -4,7 +4,7 @@
 use std::sync::{Arc, Mutex};
 
 use agent_runtime_protocol::domain::notification::{
-    ImportOutcome, NotificationEvent, ReviewSettlement,
+    ImportOutcome, ImportWorkspace, NotificationEvent, ReviewSettlement,
 };
 use agent_session::domain::model::AgentSessionId;
 use agent_session::domain::notifications::{

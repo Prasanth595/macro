@@ -157,7 +157,9 @@ from this import's other databases into it are not linked.
   through `agent_session`'s `NotificationWriter`): `import.planned` once a
   plan presented while planning is `ready`, and `review.settled` with the
   final report (outcome, counts, failures, by-hand items, root folder) once
-  its write ends however it ended, including a resumed write and a stalled
+  its write ends however it ended; both carry the workspace (`source`:
+  Notion, Linear or Jira, Notion when absent) so tracker counts read as
+  projects and tasks, including a resumed write and a stalled
   one given up on. A cancel from another process keeps the run `dismissed`,
   so the write's end reports it cancelled. `attach_review` records the
   session (`import_run.review_session_id`); hosts that run Notion imports
