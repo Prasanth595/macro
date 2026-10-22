@@ -207,7 +207,8 @@ fn notification_request(
 #[tracing::instrument(
     name = "notification.desktop_deliver",
     skip_all,
-    fields(notification_id, has_sender = sender.is_some(), has_avatar)
+    fields(notification_id, has_sender = sender.is_some(), has_avatar),
+    err
 )]
 pub async fn send_macos_notification(
     title: String,
