@@ -228,3 +228,28 @@ async fn a_new_outlook_event_refuses_a_guest_policy() {
     );
     assert!(calls.lock().unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn a_guest_policy_change_to_one_occurrence_is_refused() {
+    let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+    let calls = provider.calls.clone();
+
+    let error = service(organizer_repo(), provider, FakeTokens::ok())
+        .update_event(
+            "macro|user",
+            Uuid::now_v7(),
+            None,
+            policy_patch(NO_INVITES),
+            CalendarUpdateScope::ThisEvent {
+                recurrence_id: "2026-08-06T14:00:00+00:00".to_string(),
+            },
+        )
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(error, CalendarMutationError::InvalidInput(_)),
+        "{error:?}"
+    );
+    assert!(calls.lock().unwrap().is_empty());
+}

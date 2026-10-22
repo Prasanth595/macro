@@ -148,10 +148,15 @@ function attendees(
   });
 }
 
-/** Merge editable EventForm values back into the deferred tool arguments. */
+/**
+ * Merge editable EventForm values back into the deferred tool arguments.
+ * `guestPolicySupported` is whether the chosen calendar has guest
+ * permissions; Outlook calendars do not.
+ */
 export function editorSubmitValuesToCreateCalendarEvent(
   values: EventEditorSubmitValues,
-  original: CompatibleCalendarEvent
+  original: CompatibleCalendarEvent,
+  guestPolicySupported: boolean
 ): CreateCalendarEvent {
   // A create's submit values carry `outOfOffice` exactly while the editor kind
   // is out of office, so its presence decides the tool's event type.
@@ -191,8 +196,9 @@ export function editorSubmitValuesToCreateCalendarEvent(
             : {}),
         }
       : undefined,
-    guestPolicy: outOfOffice
-      ? undefined
-      : (values.guestPolicy ?? original.guestPolicy),
+    guestPolicy:
+      outOfOffice || !guestPolicySupported
+        ? undefined
+        : (values.guestPolicy ?? original.guestPolicy),
   };
 }

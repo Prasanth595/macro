@@ -214,7 +214,7 @@ pub struct UpdateCalendarEventRequest {
     /// leave them untouched.
     pub out_of_office: Option<OutOfOfficeProperties>,
     /// Replacement guest policy; only the organizer of a Google event may
-    /// change it. Omit to leave it untouched.
+    /// change it, for the whole event or series. Omit to leave it untouched.
     pub guest_policy: Option<GuestPolicy>,
     /// How much of a recurring series the update covers. Omit to let
     /// `recurrenceId` decide: the identified occurrence alone when one is

@@ -396,10 +396,11 @@ export function EventForm(props: EventFormProps) {
               !isOutOfOffice()
             }
           >
+            {/* The policy belongs to the whole series, like its recurrence. */}
             <EventGuestPolicyRow
               value={controller.guestPolicy()}
               onChange={controller.setGuestPolicy}
-              disabled={formIsDisabled()}
+              disabled={formIsDisabled() || editScope() === 'this_event'}
             />
           </Show>
           <Show when={props.detailsReadOnlyReason}>

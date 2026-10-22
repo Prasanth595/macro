@@ -207,7 +207,12 @@ function CalendarDraftComposerContent(props: CalendarDraftComposerProps) {
 
   function currentArgs(values = controller.submitValues()) {
     return values
-      ? editorSubmitValuesToCreateCalendarEvent(values, props.initialData)
+      ? editorSubmitValuesToCreateCalendarEvent(
+          values,
+          props.initialData,
+          controller.selectedCalendarOption()?.capabilities?.guestPolicy !==
+            false
+        )
       : undefined;
   }
 

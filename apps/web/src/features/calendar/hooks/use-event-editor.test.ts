@@ -1330,6 +1330,32 @@ describe('guest permissions', () => {
     }
   });
 
+  it('keeps guest permissions out of a change to one occurrence', async () => {
+    const { editor, dispose } = editorFor({
+      ...savedEvent,
+      location: '',
+      recurrenceLines: ['RRULE:FREQ=WEEKLY'],
+      recurrenceId: '2026-09-22T14:00:00Z',
+    });
+    try {
+      await editor.save(
+        {
+          ...values,
+          location: '',
+          description: '',
+          conferenceChoice: 'none',
+          guestEmails: [],
+          recurrenceLines: ['RRULE:FREQ=WEEKLY'],
+          guestPolicy: noInvites,
+        },
+        'this_event'
+      );
+      expect(mocks.updateEvent).not.toHaveBeenCalled();
+    } finally {
+      dispose();
+    }
+  });
+
   it('leaves guest permissions to the organizer', () => {
     const { editor, dispose } = editorFor({
       ...savedEvent,

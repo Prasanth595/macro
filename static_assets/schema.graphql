@@ -10273,7 +10273,7 @@ input UpdateCalendarEventInput {
 	outOfOffice: CalendarOutOfOfficeInput
 	"""
 	Replacement guest policy; only the organizer of a Google event may
-	change it.
+	change it, for the whole event or series.
 	"""
 	guestPolicy: CalendarGuestPolicyInput
 	"""

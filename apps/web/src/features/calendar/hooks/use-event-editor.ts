@@ -389,7 +389,9 @@ export function useEventEditor(props: UseEventEditorProps) {
               }
             : {}),
           ...(values.reminders ? { reminders: values.reminders } : {}),
-          ...(values.guestPolicy && event.viewerCan.setGuestPolicy
+          ...(values.guestPolicy &&
+          event.viewerCan.setGuestPolicy &&
+          !targetsOneOccurrence
             ? { guestPolicy: values.guestPolicy }
             : {}),
         },

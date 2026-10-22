@@ -1846,7 +1846,7 @@
               },
               {
                 "$ref": "#/components/schemas/GuestPolicy",
-                "description": "Replacement guest policy; only the organizer of a Google event may\nchange it. Omit to leave it untouched."
+                "description": "Replacement guest policy; only the organizer of a Google event may\nchange it, for the whole event or series. Omit to leave it untouched."
               }
             ]
           },

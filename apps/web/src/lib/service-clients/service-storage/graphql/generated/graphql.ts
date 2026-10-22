@@ -2105,7 +2105,7 @@ export type UpdateCalendarEventInput = {
   eventId: string | number;
   /**
    * Replacement guest policy; only the organizer of a Google event may
-   * change it.
+   * change it, for the whole event or series.
    */
   guestPolicy?: CalendarGuestPolicyInput | null | undefined;
   /** Replacement location; an empty string clears it. */

@@ -340,7 +340,7 @@ where
         // the event untouched.
         self.require_detail_rights(event_id, &scope, capabilities, &mut patch)
             .await?;
-        guest_policy::require_guest_policy_rights(&target, capabilities, &mut patch)?;
+        guest_policy::require_guest_policy_rights(&target, &scope, capabilities, &mut patch)?;
         if patch.is_empty() {
             return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
         }

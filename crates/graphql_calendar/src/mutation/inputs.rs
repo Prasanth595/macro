@@ -363,7 +363,7 @@ pub struct UpdateCalendarEventInput {
     /// already out-of-office.
     pub out_of_office: Option<CalendarOutOfOfficeInput>,
     /// Replacement guest policy; only the organizer of a Google event may
-    /// change it.
+    /// change it, for the whole event or series.
     pub guest_policy: Option<CalendarGuestPolicyInput>,
     /// How much of a recurring series the update covers. Omit to let
     /// `recurrenceId` decide: the identified occurrence alone when one is

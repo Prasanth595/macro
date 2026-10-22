@@ -241,8 +241,8 @@ pub struct UpdateCalendarEvent {
         description = "Replace what guests may do: `canModify` (change the event; implies \
                        `canInviteOthers`), `canInviteOthers` and `canSeeOtherGuests`, all three \
                        required. Only the organizer of a Google event may set it \
-                       (`viewerCan.setGuestPolicy`); Outlook events have none. Omit to leave it \
-                       untouched."
+                       (`viewerCan.setGuestPolicy`), and only with scope \"all\": it belongs to \
+                       the whole series. Outlook events have none. Omit to leave it untouched."
     )]
     #[serde(default)]
     pub guest_policy: Option<GuestPolicy>,

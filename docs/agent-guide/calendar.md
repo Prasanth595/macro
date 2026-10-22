@@ -478,8 +478,10 @@ Google Calendar's order, with Google's defaults (invite others and see the guest
 preselected on a new event and the stored `guestPolicy` on an edit. As in Google, checking
 `Modify event` also checks `Invite others` and locks it. The row shows on a new event and on
 an edit whose `viewerCan.setGuestPolicy` is true, on Google calendars only (the calendar's
-`capabilities.guestPolicy`); Outlook calendars and out-of-office events have none. Save sends
-`guestPolicy` only when it changed, and the guests' `viewerCan` follows once their copies sync:
+`capabilities.guestPolicy`); Outlook calendars and out-of-office events have none. Like the
+repeat rule, it is disabled while a recurring edit targets `This event`, since the policy
+belongs to the whole series. Save sends `guestPolicy` only when it changed, and the guests'
+`viewerCan` follows once their copies sync:
 turning `Invite others` off replaces a guest's `Add guests` with `Only the organizer can
 invite guests.` The update refuses a policy change from anyone but the organizer with 403
 `not_organizer`, and on an Outlook event with `provider_rejected`. `viewerCan.organize` marks
