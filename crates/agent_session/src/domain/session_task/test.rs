@@ -5,6 +5,16 @@ use crate::domain::pull_request::{SessionPullRequestService, SessionPullRequests
 use crate::testing::{InMemoryAgentSessionRepo, RecordingRealtime, test_agent_session};
 
 const TASK: &str = "0199c0a8-7d3e-7c1a-9b5e-3f2a1c4d5e6f";
+
+#[test]
+fn task_mention_is_the_lexical_chip() {
+    assert_eq!(
+        TaskDocumentId::from_stored(TASK.to_owned()).mention(),
+        format!(
+            r#"<m-document-mention>{{"documentId":"{TASK}","documentName":"","blockName":"task","blockParams":{{}}}}</m-document-mention>"#
+        )
+    );
+}
 const OTHER_TASK: &str = "0199c0a8-7d3e-7c1a-9b5e-3f2a1c4d5e70";
 const NOTE: &str = "0199c0a8-7d3e-7c1a-9b5e-3f2a1c4d5e71";
 const HIDDEN: &str = "0199c0a8-7d3e-7c1a-9b5e-3f2a1c4d5e72";
@@ -218,6 +228,7 @@ async fn links_a_task_and_answers_its_link_and_reference() {
             title: "Task 6f".to_owned(),
             url: format!("https://macro.com/app/task/{TASK}"),
             reference: "ENG-6f".to_owned(),
+            mention: TaskDocumentId::from_stored(TASK.to_owned()).mention(),
             pull_request: None,
         }
     );
