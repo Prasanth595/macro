@@ -590,6 +590,7 @@ async fn complete(
         identity: None,
         instructions: Some(instructions.to_owned()),
         messages: vec![prompt.to_chat_message()],
+        replies_in_discussion: false,
         mcp_tools: None,
         cancel: call,
         user_input: None,

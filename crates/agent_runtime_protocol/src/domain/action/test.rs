@@ -32,6 +32,39 @@ fn a_prompt_becomes_a_session_prompt_request_for_the_acp_session() {
 }
 
 #[test]
+fn a_prompt_answered_in_a_discussion_says_so_in_its_meta() {
+    let session_id = SessionId::new("acp-abc");
+    let mut action = AgentAction::prompt("set up a meeting");
+    let AgentAction::Prompt(prompt) = &mut action else {
+        unreachable!("AgentAction::prompt builds a prompt");
+    };
+    prompt.set_replies_in_discussion(true);
+    let in_discussion = action
+        .to_runtime(&session_id, RequestId::Str("harness:prompt:0".to_owned()))
+        .unwrap();
+    let in_session = AgentAction::prompt("set up a meeting")
+        .to_runtime(&session_id, RequestId::Str("harness:prompt:1".to_owned()))
+        .unwrap();
+
+    let meta = |message: ToRuntimeMessage| {
+        let ToRuntimeMessage::Acp(AcpMessage(RawJsonRpcMessage::Request(request))) = message else {
+            panic!("a prompt translates to an ACP request");
+        };
+        let ClientRequest::PromptRequest(parsed) =
+            ClientRequest::parse_message(&request.method, &request.params).unwrap()
+        else {
+            panic!("a prompt translates to PromptRequest");
+        };
+        parsed.meta
+    };
+    assert_eq!(
+        meta(in_discussion).and_then(|meta| meta.get(REPLIES_IN_DISCUSSION_META_KEY).cloned()),
+        Some(serde_json::Value::Bool(true))
+    );
+    assert_eq!(meta(in_session), None);
+}
+
+#[test]
 fn set_model_becomes_a_model_config_option_request() {
     let session_id = SessionId::new("acp-abc");
     let translated = AgentAction::set_model("opus")

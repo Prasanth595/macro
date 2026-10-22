@@ -57,6 +57,7 @@ fn request(mcp_tools: Option<RemoteMcpToolSet>) -> TurnRequest {
         identity: None,
         instructions: None,
         messages: Vec::new(),
+        replies_in_discussion: false,
         mcp_tools,
         cancel: CancellationToken::new(),
         user_input: None,

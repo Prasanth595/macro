@@ -33,7 +33,7 @@ use agent_client_protocol::schema::v1::{
 use agent_client_protocol::{
     Agent, Channel as AcpChannel, Client, ConnectionTo, Error as AcpError,
 };
-use agent_runtime_protocol::domain::action::MODEL_CONFIG_ID;
+use agent_runtime_protocol::domain::action::{MODEL_CONFIG_ID, REPLIES_IN_DISCUSSION_META_KEY};
 use agent_runtime_protocol::domain::turn::{FailureNotice, FailureNoticeKind};
 use agent_session::domain::model::AgentSessionId;
 use ai_billing::domain::AiAdmissionService;
@@ -660,6 +660,12 @@ pub async fn serve(state: Arc<AgentState>, acp: AcpChannel) -> Result<(), AcpErr
                     );
                     genai_telemetry::propagation::set_parent(&span, request.meta.as_ref());
                     let prompt = UserPrompt::from_request(&request);
+                    let replies_in_discussion = request
+                        .meta
+                        .as_ref()
+                        .and_then(|meta| meta.get(REPLIES_IN_DISCUSSION_META_KEY))
+                        .and_then(serde_json::Value::as_bool)
+                        .unwrap_or(false);
                     // The id the log keeps the request under, which the turn
                     // is known by from here on.
                     let request_id = responder.id().clone();
@@ -699,6 +705,7 @@ pub async fn serve(state: Arc<AgentState>, acp: AcpChannel) -> Result<(), AcpErr
                                 request.session_id,
                                 request_id,
                                 prompt,
+                                replies_in_discussion,
                                 cancel,
                             )
                             .await;
@@ -839,6 +846,7 @@ async fn run_turn(
     acp_session_id: SessionId,
     request_id: RequestId,
     prompt: UserPrompt,
+    replies_in_discussion: bool,
     cancel: CancellationToken,
 ) -> Result<StopReason, AcpError> {
     // Include lock and admission waits in time to first output.
@@ -938,6 +946,7 @@ async fn run_turn(
         identity,
         instructions,
         messages,
+        replies_in_discussion,
         mcp_tools,
         cancel: cancel.clone(),
         user_input: requester

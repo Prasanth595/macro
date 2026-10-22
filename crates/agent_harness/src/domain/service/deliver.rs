@@ -168,6 +168,7 @@ where
     /// read by whatever triggered it; nothing here reads the conversation. The
     /// prompt that opens a session's first turn also carries the session's
     /// instructions, unless its runtime already reads them as a system prompt.
+    /// A prompt with an origin is marked as answered there, in the discussion.
     pub(super) async fn compose_action(
         &self,
         session_id: AgentSessionId,
@@ -214,6 +215,7 @@ where
             )
             .await?;
         prompt.set_name_source(raw_prompt);
+        prompt.set_replies_in_discussion(announce.is_some());
         Ok(())
     }
 
