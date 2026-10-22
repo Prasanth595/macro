@@ -3,18 +3,18 @@ import { focusPopoverInput } from '@components/app/split-layout/utils/focusPopov
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isMobile } from '@core/mobile/isMobile';
 import { Dialog as KobalteDialog } from '@kobalte/core/dialog';
-import { Popover } from '@kobalte/core/popover';
 import PopoverIcon from '@phosphor/browsers.svg';
 import SidebarIcon from '@phosphor/sidebar.svg';
 import CloseIcon from '@phosphor/x.svg';
 import { Button, Layer } from '@ui';
-import { type JSX, Show } from 'solid-js';
+import { createSignal, type JSX, Show } from 'solid-js';
 import type {
   CalendarEditorDraft,
   CalendarEditorPresentation,
 } from '../primitives/create-calendar-editor';
+import { createCalendarEditorDrag } from '../primitives/create-calendar-editor-drag';
 
-export function CalendarEditorSurface(props: {
+type CalendarEditorSurfaceProps = {
   boundary: HTMLElement;
   draft: CalendarEditorDraft;
   anchor?: HTMLElement;
@@ -24,100 +24,11 @@ export function CalendarEditorSurface(props: {
   onMoveToSidebar: () => void;
   onMoveToPopover: () => void;
   children: JSX.Element;
-}) {
-  const label = () => (props.draft.event ? 'Edit event' : 'New event');
-  const Header = () => {
-    const [attachHotkeys] = useHotkeyDOMScope('event-composer', true);
-    return (
-      <Show when={!isMobile()}>
-        <div
-          ref={attachHotkeys}
-          data-event-editor-header
-          class="flex shrink-0 items-center justify-between gap-1 px-3 pb-1 pt-2"
-        >
-          <Show when={props.surface === 'popover'}>
-            <Button
-              type="button"
-              label="Move to sidebar"
-              variant="ghost"
-              size="icon-sm"
-              disabled={props.pending}
-              onClick={props.onMoveToSidebar}
-            >
-              <SidebarIcon aria-hidden="true" class="size-4 rotate-180" />
-            </Button>
-          </Show>
-          <Show when={props.surface === 'sidebar'}>
-            <Button
-              type="button"
-              label="Move to popover"
-              variant="ghost"
-              size="icon-sm"
-              disabled={props.pending}
-              onClick={props.onMoveToPopover}
-            >
-              <PopoverIcon aria-hidden="true" class="size-4" />
-            </Button>
-          </Show>
-          <Button
-            type="button"
-            label="Close event editor"
-            variant="ghost"
-            size="icon-sm"
-            disabled={props.pending}
-            onClick={props.onClose}
-          >
-            <CloseIcon class="size-4" />
-          </Button>
-        </div>
-      </Show>
-    );
-  };
+};
 
+export function CalendarEditorSurface(props: CalendarEditorSurfaceProps) {
   return (
-    <Show
-      when={isMobile()}
-      fallback={
-        <Show
-          when={props.surface === 'popover'}
-          fallback={
-            // The editor sidebar must leave the calendar interactive.
-            <KobalteDialog
-              open
-              modal={false}
-              onOpenChange={(open) => !open && props.onClose()}
-            >
-              <Layer depth={3}>
-                <KobalteDialog.Content
-                  as="aside"
-                  aria-label={label()}
-                  class="portal-scope z-20 m-3 flex min-h-0 w-[min(25rem,calc(100%-1.5rem))] shrink-0 flex-col overflow-hidden rounded-xl border border-edge-muted glass bg-menu-glass text-ink outline-none"
-                  onOpenAutoFocus={focusEditorTitle}
-                  onInteractOutside={(event) => event.preventDefault()}
-                  onCloseAutoFocus={(event) => event.preventDefault()}
-                >
-                  <KobalteDialog.Title class="sr-only">
-                    {label()}
-                  </KobalteDialog.Title>
-                  <Header />
-                  <EditorFormBody>{props.children}</EditorFormBody>
-                </KobalteDialog.Content>
-              </Layer>
-            </KobalteDialog>
-          }
-        >
-          <EditorPopover
-            boundary={props.boundary}
-            draft={props.draft}
-            anchor={props.anchor}
-            onClose={props.onClose}
-          >
-            <Header />
-            <EditorFormBody>{props.children}</EditorFormBody>
-          </EditorPopover>
-        </Show>
-      }
-    >
+    <Show when={isMobile()} fallback={<DesktopEditorSurface {...props} />}>
       <MobileDrawer
         open
         side="bottom"
@@ -130,11 +41,12 @@ export function CalendarEditorSurface(props: {
           <MobileDrawer.Content
             targetHeight={100}
             maxHeight={100}
-            aria-label={label()}
+            aria-label={props.draft.event ? 'Edit event' : 'New event'}
           >
             <MobileDrawer.Handle />
-            <MobileDrawer.Title class="sr-only">{label()}</MobileDrawer.Title>
-            <Header />
+            <MobileDrawer.Title class="sr-only">
+              {props.draft.event ? 'Edit event' : 'New event'}
+            </MobileDrawer.Title>
             <MobileDrawer.ScrollBody>
               <EditorFormBody>{props.children}</EditorFormBody>
             </MobileDrawer.ScrollBody>
@@ -145,91 +57,137 @@ export function CalendarEditorSurface(props: {
   );
 }
 
-function EditorFormBody(props: { children: JSX.Element }) {
+function DesktopEditorSurface(props: CalendarEditorSurfaceProps) {
+  const label = () => (props.draft.event ? 'Edit event' : 'New event');
+  const [slot, setSlot] = createSignal<HTMLElement>();
+  const [panel, setPanel] = createSignal<HTMLElement>();
   const [attachHotkeys] = useHotkeyDOMScope('event-composer', true);
-  return (
-    <div ref={attachHotkeys} class="flex min-h-0 flex-1 flex-col px-4 pb-4">
-      {props.children}
-    </div>
-  );
-}
+  const drag = createCalendarEditorDrag({
+    boundary: props.boundary,
+    slot,
+    panel,
+    anchor: () => props.anchor ?? props.draft.anchor?.element,
+    anchorRect: props.draft.anchor?.rect,
+    surface: () => props.surface,
+    pending: () => props.pending,
+    onDropFromSidebar: props.onMoveToPopover,
+  });
+  const moveToSidebar = () => {
+    drag.clearDrop();
+    props.onMoveToSidebar();
+  };
+  const moveToPopover = () => {
+    drag.clearDrop();
+    props.onMoveToPopover();
+  };
 
-function EditorPopover(props: {
-  boundary: HTMLElement;
-  draft: CalendarEditorDraft;
-  anchor?: HTMLElement;
-  onClose: () => void;
-  children: JSX.Element;
-}) {
-  // Keep a calendar-owned fallback when a selected grid element is recycled.
-  const boundary = props.boundary.getBoundingClientRect();
-  const rect = props.draft.anchor?.rect;
-  const left = rect
-    ? rect.left - boundary.left - props.boundary.clientLeft
-    : props.boundary.clientWidth / 2;
-  const top = rect
-    ? rect.top - boundary.top - props.boundary.clientTop
-    : props.boundary.clientHeight / 2;
-  let anchor: HTMLSpanElement | undefined;
   return (
-    <>
-      <span
-        ref={anchor}
-        aria-hidden="true"
-        data-calendar-editor-anchor
-        class="pointer-events-none absolute"
-        style={{
-          left: `${left}px`,
-          top: `${top}px`,
-          width: `${rect?.width ?? 0}px`,
-          height: `${rect?.height ?? 0}px`,
-        }}
-      />
-      <Popover
-        getAnchorRect={() => {
-          const element = props.anchor ?? props.draft.anchor?.element;
-          if (!element?.isConnected) return anchor?.getBoundingClientRect();
-          const current = element.getBoundingClientRect();
-          if (anchor) {
-            const boundary = props.boundary.getBoundingClientRect();
-            anchor.style.left = `${current.left - boundary.left - props.boundary.clientLeft}px`;
-            anchor.style.top = `${current.top - boundary.top - props.boundary.clientTop}px`;
-            anchor.style.width = `${current.width}px`;
-            anchor.style.height = `${current.height}px`;
-          }
-          return current;
-        }}
-        open
-        modal={false}
-        anchorRef={() => props.anchor ?? props.draft.anchor?.element ?? anchor}
-        boundary={() => props.boundary}
-        placement="right-start"
-        gutter={8}
-        flip
-        slide
-        overlap
-        fitViewport
-        overflowPadding={12}
-        onOpenChange={(open) => !open && props.onClose()}
-      >
-        <Popover.Portal mount={props.boundary}>
+    <KobalteDialog
+      open
+      modal={false}
+      onOpenChange={(open) => !open && props.onClose()}
+    >
+      {/* Keep the sidebar's layout slot until the actual editor is dropped. */}
+      <Show when={drag.reserveSlot()}>
+        <div
+          ref={setSlot}
+          aria-hidden="true"
+          data-event-editor-sidebar-slot
+          class="m-3 w-[min(25rem,calc(100%-1.5rem))] shrink-0 self-stretch"
+        />
+      </Show>
+      <KobalteDialog.Portal mount={props.boundary}>
+        {/* Local menus belong outside the clipped, scrollable editor. */}
+        <div class="portal-scope contents">
           <Layer depth={3}>
-            <Popover.Content
-              class="portal-scope z-modal flex max-h-[var(--kb-popper-content-available-height)] w-[min(30rem,var(--kb-popper-content-available-width,30rem))] min-w-0 flex-col rounded-xl border border-edge-muted glass bg-menu-glass text-ink outline-none"
+            <KobalteDialog.Content
+              ref={setPanel}
+              as="aside"
+              aria-label={label()}
+              data-dragging={drag.dragging() ? '' : undefined}
+              class="fixed z-modal flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-edge-muted glass bg-menu-glass text-ink outline-none"
+              style={{ visibility: 'hidden' }}
               onOpenAutoFocus={focusEditorTitle}
               onInteractOutside={(event) => event.preventDefault()}
               onFocusOutside={(event) => event.preventDefault()}
               onCloseAutoFocus={(event) => event.preventDefault()}
             >
-              <Popover.Title class="sr-only">
-                {props.draft.event ? 'Edit event' : 'New event'}
-              </Popover.Title>
-              {props.children}
-            </Popover.Content>
+              <KobalteDialog.Title class="sr-only">
+                {label()}
+              </KobalteDialog.Title>
+              <div
+                ref={attachHotkeys}
+                data-event-editor-header
+                class="flex shrink-0 touch-none select-none items-center justify-between gap-1 px-3 pb-1 pt-2"
+                classList={{
+                  'cursor-grab': !props.pending && !drag.dragging(),
+                  'cursor-grabbing': drag.dragging(),
+                }}
+                onPointerDown={drag.onPointerDown}
+                onPointerMove={drag.onPointerMove}
+                onPointerUp={drag.onPointerUp}
+                onPointerCancel={drag.onPointerCancel}
+                onLostPointerCapture={drag.onLostPointerCapture}
+              >
+                <Show when={props.surface === 'popover'}>
+                  <Button
+                    type="button"
+                    label="Move to sidebar"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={props.pending}
+                    onClick={moveToSidebar}
+                  >
+                    <SidebarIcon aria-hidden="true" class="size-4 rotate-180" />
+                  </Button>
+                </Show>
+                <Show when={props.surface === 'sidebar'}>
+                  <Button
+                    type="button"
+                    label="Move to popover"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={props.pending}
+                    onClick={moveToPopover}
+                  >
+                    <PopoverIcon aria-hidden="true" class="size-4" />
+                  </Button>
+                </Show>
+                <span
+                  aria-hidden="true"
+                  title="Drag to move event editor"
+                  class="mx-auto h-1 w-7 rounded-full bg-ink/20"
+                />
+                <Button
+                  type="button"
+                  label="Close event editor"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={props.pending}
+                  onClick={props.onClose}
+                >
+                  <CloseIcon class="size-4" />
+                </Button>
+              </div>
+              <EditorFormBody scroll>{props.children}</EditorFormBody>
+            </KobalteDialog.Content>
           </Layer>
-        </Popover.Portal>
-      </Popover>
-    </>
+        </div>
+      </KobalteDialog.Portal>
+    </KobalteDialog>
+  );
+}
+
+function EditorFormBody(props: { children: JSX.Element; scroll?: boolean }) {
+  const [attachHotkeys] = useHotkeyDOMScope('event-composer', true);
+  return (
+    <div
+      ref={attachHotkeys}
+      class="flex min-h-0 flex-1 flex-col px-4 pb-4"
+      classList={{ 'overflow-y-auto': props.scroll }}
+    >
+      {props.children}
+    </div>
   );
 }
 

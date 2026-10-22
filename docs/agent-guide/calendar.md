@@ -122,6 +122,15 @@ controls. Multi-day events keep both dates and the range arrow.
 Both transfer actions retain the draft, selected range, guests, recurrence, and save
 scope; neither action dismisses or recreates the draft. Transfers are disabled
 while a save is pending.
+Drag the desktop editor by the grip or empty space in its header. The actual editor
+moves without remounting its form. While dragging from the sidebar, its layout slot
+stays reserved and the editor becomes shorter with a scrollable body. Releasing
+turns it into a popover at the drop position and releases the sidebar slot. Popovers
+can also be repositioned by dragging. Escape, pointer cancellation, or window blur
+restores the original presentation and position. Dragging is disabled during saves;
+header buttons and form controls do not start a drag. Dropped editors stay within
+the calendar and viewport, including after resizing. Mobile retains its full-screen
+sheet without a drag handle.
 Create and edit place the event type directly under the title. Creation uses
 selectable Event and Out of office pills with their corresponding icons. Existing events keep their provider type as plain
 read-only content.
@@ -234,6 +243,13 @@ picker and event editor open.
 Move from popover to sidebar and back with a dirty draft; check title, description,
 guests, dates, recurrence, and edit scope. Both directions must retain the draft
 without prompting for discard, and both transfer controls must disable during save.
+Drag from the sidebar header and verify its layout slot stays reserved until drop,
+only one editor exists, its height shrinks, and its form nodes and values survive.
+Drop, resize the window, and open the nested date picker. Confirm the popover stays
+inside the calendar and all controls remain reachable. Repeat with Escape, pointer
+cancellation, and window blur; each must restore the sidebar without a discard
+prompt. Reposition a floating editor and cancel another drag to restore its prior
+position. Check header buttons, pending saves, and phone sheets never start a drag.
 For a multi-day event, select a range across the month boundary and check that
 both months highlight the covered days. Confirm its first click leaves the prior
 range unchanged. On a phone, navigate between months to select the same range.
