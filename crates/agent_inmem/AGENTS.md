@@ -40,6 +40,9 @@ milliseconds instead of waiting on container provisioning.
 - Add a new tool gate or admission check: `src/domain/tool_gate.rs` /
   `src/domain/admission.rs` → `src/outbound/approval_gate.rs`.
 
+Native user tools bypass the ordinary gate only when the final-draft review
+finisher is installed; otherwise dispatch must resolve their actor normally.
+
 Session tool schemas require `acting_as: requester | owner` for tools using
 account access, including deferred tools. The gate resolves the selected account
 through `TurnPrompter::acting_user()` and requests owner approval only when that

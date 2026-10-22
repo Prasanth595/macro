@@ -585,7 +585,9 @@ async fn drive_turn(
         .with_reasoning_effort(reasoning_effort)
         .with_speed(speed)?
         .with_genai_telemetry(false);
+    let mut reviewed_tools = Vec::new();
     if let Some(reviewer) = reviewer.filter(|_| !summarizing) {
+        reviewed_tools = toolset.user_tools.keys().cloned().collect();
         let tools = Arc::clone(&toolset);
         let context = tool_context.clone();
         let gate = Arc::clone(&gate);
@@ -629,13 +631,10 @@ async fn drive_turn(
             })
         }));
     }
-    // Macro's own tools spend the owner's access in-process, so they ask the
-    // gate a turn somebody else prompted must pass - the one the egress
-    // proxy applies to every MCP server. Remote MCP tools already pass
-    // through that proxy and are not asked twice.
+    // Native tools use the actor gate unless the installed finisher authorizes
+    // their final reviewed arguments. Remote MCP tools use the egress gate.
     // Keep remote MCP tools alongside the native and AskUser tools. The
     // finisher above reviews only Macro's native user tools.
-    let reviewed_tools = toolset.user_tools.keys().cloned().collect();
     let toolset: Arc<dyn AiToolSet<_> + Send + Sync> = match mcp_tools.filter(|_| !summarizing) {
         Some(mcp) => Arc::new(
             mcp_select::CombinedToolSet::new(toolset, mcp)
