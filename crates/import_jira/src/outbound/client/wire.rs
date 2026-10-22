@@ -13,7 +13,7 @@ pub(super) struct Site {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Projects {
-    pub values: Vec<Project>,
+    pub values: Vec<Value>,
     pub is_last: bool,
 }
 #[derive(Deserialize)]
@@ -33,7 +33,7 @@ pub(super) struct WireUser {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct SearchPage {
-    pub issues: Vec<WireIssue>,
+    pub issues: Vec<Value>,
     pub next_page_token: Option<String>,
     pub is_last: bool,
 }
@@ -75,13 +75,13 @@ pub(super) struct Fields {
     pub parent: Option<Ref>,
     pub project: Ref,
     #[serde(rename = "issuetype")]
-    pub issue_type: Named,
+    pub issue_type: WireIssueType,
     #[serde(flatten)]
     pub custom: HashMap<String, Value>,
 }
 #[derive(Deserialize)]
 pub(super) struct Comments {
-    pub comments: Vec<WireComment>,
+    pub comments: Vec<Value>,
     pub total: usize,
 }
 #[derive(Deserialize)]
@@ -99,4 +99,17 @@ pub(super) struct WireField {
 #[derive(Deserialize)]
 pub(super) struct FieldSchema {
     pub custom: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct WireIssueType {
+    pub name: String,
+    pub hierarchy_level: Option<i8>,
+}
+impl WireIssueType {
+    pub fn is_epic(&self) -> bool {
+        self.hierarchy_level.is_some_and(|level| level >= 1)
+            || self.name.eq_ignore_ascii_case("epic")
+    }
 }

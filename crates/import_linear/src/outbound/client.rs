@@ -103,7 +103,7 @@ impl<Store: ConnectionStore, Proxy: ConnectedAppProxy> TrackerConnections
         user: &MacroUserIdStr<'static>,
         progress: &(dyn Fn(usize, usize) + Send + Sync),
     ) -> Result<Inventory, TrackerError> {
-        let client = Client(self.0.open(user).await?);
+        let client = Client::new(self.0.open(user).await?);
         let mut inventory = Inventory::default();
         for (read, kind) in [
             (LinearRead::Teams, GroupKind::Team),
@@ -166,9 +166,36 @@ impl<Store: ConnectionStore, Proxy: ConnectedAppProxy> TrackerConnections
             })
             .collect();
         for issue in client.all::<WireIssue>(LinearRead::Issues, None).await? {
-            let comments: Vec<WireComment> =
-                client.all(LinearRead::Comments, Some(&issue.id)).await?;
-            let labels: Vec<WireLabel> = client.all(LinearRead::Labels, Some(&issue.id)).await?;
+            let mut comments = issue.comments.nodes;
+            if issue.comments.page_info.has_next_page {
+                let cursor = issue
+                    .comments
+                    .page_info
+                    .end_cursor
+                    .ok_or_else(|| TrackerError::Decode("missing comment cursor".into()))?;
+                comments.extend(
+                    client
+                        .all_after::<WireComment>(
+                            LinearRead::Comments,
+                            Some(&issue.id),
+                            Some(cursor),
+                        )
+                        .await?,
+                );
+            }
+            let mut labels = issue.labels.nodes;
+            if issue.labels.page_info.has_next_page {
+                let cursor = issue
+                    .labels
+                    .page_info
+                    .end_cursor
+                    .ok_or_else(|| TrackerError::Decode("missing label cursor".into()))?;
+                labels.extend(
+                    client
+                        .all_after::<WireLabel>(LinearRead::Labels, Some(&issue.id), Some(cursor))
+                        .await?,
+                );
+            }
             inventory.issues.push(Issue {
                 id: issue.id,
                 identifier: issue.identifier,
@@ -209,6 +236,12 @@ impl<Store: ConnectionStore, Proxy: ConnectedAppProxy> TrackerConnections
             });
             progress(inventory.issues.len(), inventory.groups.len());
         }
+        inventory.warnings.extend(
+            client
+                .warnings
+                .into_inner()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
         Ok(inventory)
     }
 }
@@ -218,20 +251,38 @@ fn optional_unavailable(error: &TrackerError) -> bool {
         || matches!(error, TrackerError::Upstream { message, .. } if message.contains("Cannot query field") || message.contains("not enabled") || message.contains("permission"))
 }
 
-struct Client<Proxy>(Session<Proxy>);
+struct Client<Proxy> {
+    session: Session<Proxy>,
+    warnings: std::sync::Mutex<Vec<String>>,
+}
 
 impl<Proxy: ConnectedAppProxy> Client<Proxy> {
+    fn new(session: Session<Proxy>) -> Self {
+        Self {
+            session,
+            warnings: Default::default(),
+        }
+    }
+
     async fn all<T: DeserializeOwned>(
         &self,
         read: LinearRead,
         id: Option<&ObjectId>,
     ) -> Result<Vec<T>, TrackerError> {
+        self.all_after(read, id, None).await
+    }
+
+    async fn all_after<T: DeserializeOwned>(
+        &self,
+        read: LinearRead,
+        id: Option<&ObjectId>,
+        mut after: Option<String>,
+    ) -> Result<Vec<T>, TrackerError> {
         let mut result = Vec::new();
-        let mut after: Option<String> = None;
-        let mut seen = HashSet::new();
+        let mut seen: HashSet<String> = after.iter().cloned().collect();
         loop {
             let value = self
-                .0
+                .session
                 .read(
                     Method::POST,
                     "https://api.linear.app/graphql",
@@ -259,9 +310,26 @@ impl<Proxy: ConnectedAppProxy> Client<Proxy> {
             }
             let data = &value["data"];
             let data = if id.is_some() { &data["issue"] } else { data };
-            let page: Page<T> = serde_json::from_value(data[read.field()].clone())
+            let page: Page<Value> = serde_json::from_value(data[read.field()].clone())
                 .map_err(|error| TrackerError::Decode(error.to_string()))?;
-            result.extend(page.nodes);
+            for node in page.nodes {
+                match serde_json::from_value::<T>(node) {
+                    Ok(node) => result.push(node),
+                    Err(error) => self
+                        .warnings
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .push(
+                            format!(
+                                "Skipped an unreadable Linear {} object: {error}",
+                                read.field()
+                            )
+                            .chars()
+                            .take(500)
+                            .collect(),
+                        ),
+                }
+            }
             if !page.page_info.has_next_page {
                 return Ok(result);
             }

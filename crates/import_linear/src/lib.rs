@@ -2,6 +2,6 @@
 #![deny(missing_docs)]
 
 /// Source models and read ports.
-pub mod domain;
+pub use import_tracker::domain;
 /// Provider and Pipedream adapters.
 pub mod outbound;

@@ -10541,13 +10541,10 @@ dependencies = [
  "import_tracker",
  "macro_user_id",
  "pipedream_mcp",
- "rootcause",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
  "tokio",
  "tracing",
- "url",
  "workspace-hack",
 ]
 
@@ -10561,14 +10558,11 @@ dependencies = [
  "import_tracker",
  "macro_user_id",
  "pipedream_mcp",
- "rootcause",
  "serde",
  "serde_json",
  "strum 0.27.2",
- "thiserror 2.0.18",
  "tokio",
  "tracing",
- "url",
  "workspace-hack",
 ]
 
@@ -10609,7 +10603,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "url",
  "workspace-hack",
 ]
 

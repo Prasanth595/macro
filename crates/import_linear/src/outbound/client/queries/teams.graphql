@@ -1,5 +1,5 @@
 query ImportTeams($after: String) {
-  teams(first: 50, after: $after) {
+  teams(first: 50, after: $after, includeArchived: true) {
     nodes { id name }
     pageInfo { hasNextPage endCursor }
   }

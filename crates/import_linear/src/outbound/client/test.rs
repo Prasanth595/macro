@@ -29,7 +29,7 @@ async fn cursors_are_followed_and_repeated_cursors_fail() {
         "linear",
         Duration::ZERO,
     );
-    let client = Client(connections.open(&user).await.unwrap());
+    let client = Client::new(connections.open(&user).await.unwrap());
     let users = client
         .all::<import_tracker::domain::model::User>(LinearRead::Users, None)
         .await
@@ -57,9 +57,30 @@ async fn graphql_errors_never_return_partial_inventory() {
         "linear",
         Duration::ZERO,
     );
-    let client = Client(connections.open(&user).await.unwrap());
+    let client = Client::new(connections.open(&user).await.unwrap());
     assert!(matches!(
         client.all::<Value>(LinearRead::Users, None).await,
         Err(TrackerError::Upstream { status: 200, .. })
     ));
+}
+
+#[tokio::test(start_paused = true)]
+async fn an_unreadable_node_is_reported_without_losing_its_neighbors() {
+    let proxy = Arc::new(support::Proxy::new(vec![
+        json!({"data":{"users":{"nodes":[{"id":"u1","name":"A","email":null},{"id":"bad/id","name":"Broken"},{"id":"u2","name":"B","email":null}],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}),
+    ]));
+    let user = MacroUserIdStr::try_from_email("owner@example.com").unwrap();
+    let connections = Connections::new(
+        Arc::new(support::Store),
+        Some(proxy),
+        "linear",
+        Duration::ZERO,
+    );
+    let client = Client::new(connections.open(&user).await.unwrap());
+    let users = client
+        .all::<import_tracker::domain::model::User>(LinearRead::Users, None)
+        .await
+        .unwrap();
+    assert_eq!(users.len(), 2);
+    assert_eq!(client.warnings.lock().unwrap().len(), 1);
 }

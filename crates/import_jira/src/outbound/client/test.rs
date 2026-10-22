@@ -49,8 +49,8 @@ fn every_request_only_reads() {
 #[tokio::test(start_paused = true)]
 async fn enhanced_search_uses_next_page_token_and_site_namespace() {
     let proxy = Arc::new(support::Proxy::new(vec![
-        json!({"values":[],"isLast":true}),
-        json!([]),
+        json!({"values":[{"id":"100","key":"ENG","name":"Engineering"},{"id":"bad/id"}],"isLast":true}),
+        json!([{"accountId":"u1","displayName":"A"},{"displayName":"Broken"}]),
         json!([]),
         json!({"issues":[],"isLast":false,"nextPageToken":"second"}),
         json!({"issues":[],"isLast":true}),
@@ -69,10 +69,14 @@ async fn enhanced_search_uses_next_page_token_and_site_namespace() {
         url: "https://example.atlassian.net".into(),
         scopes: vec!["read:jira-work".into()],
     };
+    let mut inventory = Inventory::default();
     client
-        .site(&site, &mut Inventory::default(), &|_, _| {})
+        .site(&site, &mut inventory, &|_, _| {})
         .await
         .unwrap();
+    assert_eq!(inventory.groups.len(), 1);
+    assert_eq!(inventory.users.len(), 1);
+    assert_eq!(inventory.warnings.len(), 2);
     assert_eq!(
         proxy.requests.lock().unwrap()[4].2.as_ref().unwrap()["nextPageToken"],
         "second"

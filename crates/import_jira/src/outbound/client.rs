@@ -189,25 +189,32 @@ impl<Proxy: ConnectedAppProxy> Client<Proxy> {
                 })
                 .await?;
             let count = page.values.len();
-            inventory.groups.extend(
-                page.values
-                    .into_iter()
-                    .map(|p| {
-                        Ok(Group {
-                            id: scoped(&site.id, &p.id)?,
-                            title: p.name,
-                            kind: GroupKind::Project,
-                            parent: None,
-                            url: Some(format!(
-                                "{}/plugins/servlet/project-config/{}",
-                                site.url.trim_end_matches('/'),
-                                p.key
-                            )),
-                            description: p.description,
-                        })
-                    })
-                    .collect::<Result<Vec<_>, TrackerError>>()?,
-            );
+            for raw in page.values {
+                let project: Project = match serde_json::from_value(raw) {
+                    Ok(project) => project,
+                    Err(error) => {
+                        inventory.warnings.push(
+                            format!("Skipped an unreadable Jira project: {error}")
+                                .chars()
+                                .take(500)
+                                .collect(),
+                        );
+                        continue;
+                    }
+                };
+                inventory.groups.push(Group {
+                    id: scoped(&site.id, &project.id)?,
+                    title: project.name,
+                    kind: GroupKind::Project,
+                    parent: None,
+                    url: Some(format!(
+                        "{}/plugins/servlet/project-config/{}",
+                        site.url.trim_end_matches('/'),
+                        project.key
+                    )),
+                    description: project.description,
+                });
+            }
             progress(inventory.issues.len(), inventory.groups.len());
             if page.is_last {
                 break;
@@ -223,7 +230,7 @@ impl<Proxy: ConnectedAppProxy> Client<Proxy> {
         // still preserved when visible. Never fail a whole workspace for this.
         let mut start = 0;
         loop {
-            let users: Vec<WireUser> = match self
+            let users: Vec<Value> = match self
                 .request(JiraRead::Users {
                     cloud: site.id.clone(),
                     start,
@@ -241,18 +248,25 @@ impl<Proxy: ConnectedAppProxy> Client<Proxy> {
                 Err(error) => return Err(error),
             };
             let count = users.len();
-            inventory.users.extend(
-                users
-                    .into_iter()
-                    .map(|u| {
-                        Ok(User {
-                            id: scoped(&site.id, &u.account_id)?,
-                            name: u.display_name,
-                            email: u.email_address,
-                        })
-                    })
-                    .collect::<Result<Vec<_>, TrackerError>>()?,
-            );
+            for raw in users {
+                let user: WireUser = match serde_json::from_value(raw) {
+                    Ok(user) => user,
+                    Err(error) => {
+                        inventory.warnings.push(
+                            format!("Skipped an unreadable Jira user: {error}")
+                                .chars()
+                                .take(500)
+                                .collect(),
+                        );
+                        continue;
+                    }
+                };
+                inventory.users.push(User {
+                    id: scoped(&site.id, &user.account_id)?,
+                    name: user.display_name,
+                    email: user.email_address,
+                });
+            }
             if count < 100 {
                 break;
             }
@@ -281,7 +295,19 @@ impl<Proxy: ConnectedAppProxy> Client<Proxy> {
                     token,
                 })
                 .await?;
-            for issue in page.issues {
+            for raw in page.issues {
+                let issue: WireIssue = match serde_json::from_value(raw) {
+                    Ok(issue) => issue,
+                    Err(error) => {
+                        inventory.warnings.push(
+                            format!("Skipped an unreadable Jira issue: {error}")
+                                .chars()
+                                .take(500)
+                                .collect(),
+                        );
+                        continue;
+                    }
+                };
                 if seen_issues.insert(issue.id.clone()) {
                     issues.push(issue);
                 }
@@ -300,7 +326,7 @@ impl<Proxy: ConnectedAppProxy> Client<Proxy> {
         }
         let epic_keys: std::collections::HashMap<String, ObjectId> = issues
             .iter()
-            .filter(|issue| issue.fields.issue_type.name.eq_ignore_ascii_case("epic"))
+            .filter(|issue| issue.fields.issue_type.is_epic())
             .map(|issue| Ok((issue.key.clone(), scoped(&site.id, &issue.id)?)))
             .collect::<Result<_, TrackerError>>()?;
         for issue in issues {
@@ -328,22 +354,29 @@ impl<Proxy: ConnectedAppProxy> Client<Proxy> {
                     })
                     .await?;
                 let count = page.comments.len();
-                comments.extend(
-                    page.comments
-                        .into_iter()
-                        .map(|c| {
-                            Ok(Comment {
-                                id: scoped(&site.id, &c.id)?,
-                                author: c
-                                    .author
-                                    .map(|u| u.display_name)
-                                    .unwrap_or_else(|| "Unknown author".into()),
-                                body: adf::markdown(&c.body),
-                                created_at: Some(c.created),
-                            })
-                        })
-                        .collect::<Result<Vec<_>, TrackerError>>()?,
-                );
+                for raw in page.comments {
+                    let c: WireComment = match serde_json::from_value(raw) {
+                        Ok(comment) => comment,
+                        Err(error) => {
+                            inventory.warnings.push(
+                                format!("Skipped an unreadable Jira comment: {error}")
+                                    .chars()
+                                    .take(500)
+                                    .collect(),
+                            );
+                            continue;
+                        }
+                    };
+                    comments.push(Comment {
+                        id: scoped(&site.id, &c.id)?,
+                        author: c
+                            .author
+                            .map(|u| u.display_name)
+                            .unwrap_or_else(|| "Unknown author".into()),
+                        body: adf::markdown(&c.body),
+                        created_at: Some(c.created),
+                    });
+                }
                 start += count;
                 if start >= page.total {
                     break;
@@ -355,7 +388,7 @@ impl<Proxy: ConnectedAppProxy> Client<Proxy> {
                 }
             }
             let url = format!("{}/browse/{}", site.url.trim_end_matches('/'), issue.key);
-            if fields.issue_type.name.eq_ignore_ascii_case("epic") {
+            if fields.issue_type.is_epic() {
                 inventory.groups.push(Group {
                     id: ObjectId::parse(format!("epic:{}", id.as_str()))?,
                     title: fields.summary.clone(),

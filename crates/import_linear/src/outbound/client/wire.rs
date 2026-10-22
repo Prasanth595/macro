@@ -51,6 +51,8 @@ pub(super) struct WireAssignee {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct WireIssue {
+    pub comments: Page<WireComment>,
+    pub labels: Page<WireLabel>,
     pub id: ObjectId,
     pub identifier: String,
     pub title: String,

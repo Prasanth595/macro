@@ -6,7 +6,7 @@ Read-only Jira Cloud workspace inventory. Used by the reviewed workspace importe
 
 ## Start here
 
-- `src/domain/`: source-neutral typed inventory and ports.
+- `import_tracker::domain::model`: the re-exported typed inventory and read port.
 - `src/outbound/`: fixed reads, pagination and rate-limit handling.
 
 ## Boundaries
