@@ -11,6 +11,7 @@
 import { createCalendarEventFormController } from '@app/features/calendar/components/composer/create-calendar-event-form-controller';
 import { EventForm } from '@app/features/calendar/components/composer/EventForm';
 import type { EventEditorSubmitValues } from '@app/features/calendar/components/composer/event-form-model';
+import { useCalendarGuestInvitesFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import { DEFAULT_CALENDAR_SOURCE } from '@app/features/calendar/types';
 import {
   calendarDisplayLabel,
@@ -131,6 +132,8 @@ function CalendarDraftComposerContent(props: CalendarDraftComposerProps) {
   // choice under the same flag as the calendar's own event composer.
   const quickCalls = useQuickCallsFlag();
   const macroCallsEnabled = () => quickCalls().enabled && !quickCalls().loading;
+  // Guest permissions roll out with guest invites.
+  const guestInvitesEnabled = useCalendarGuestInvitesFlag();
   const [operation, setOperation] = createSignal<'create' | 'reject'>();
   let finalized = false;
 
@@ -321,7 +324,7 @@ function CalendarDraftComposerContent(props: CalendarDraftComposerProps) {
           <EventForm
             controller={controller}
             macroCallsEnabled={macroCallsEnabled()}
-            guestPolicyEditable
+            guestPolicyEditable={guestInvitesEnabled()}
             class="min-w-0"
             disabled={
               finalized || !props.sink.canAct() || operation() === 'reject'

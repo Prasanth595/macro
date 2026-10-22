@@ -1282,16 +1282,26 @@ describe('guest permissions', () => {
     canSeeOtherGuests: true,
   };
 
-  function editorFor(event: CalendarEvent | undefined) {
+  function editorFor(event: CalendarEvent | undefined, invitesEnabled = true) {
     return createRoot((dispose) => ({
       editor: useEventEditor({
         event: () => event,
         onSaved: vi.fn(),
         macroCallsEnabled: () => false,
+        guestInvitesEnabled: () => invitesEnabled,
       }),
       dispose,
     }));
   }
+
+  it('offers guest permissions only with the guest-invites rollout', () => {
+    const { editor, dispose } = editorFor(undefined, false);
+    try {
+      expect(editor.guestPolicyEditable()).toBe(false);
+    } finally {
+      dispose();
+    }
+  });
 
   it('creates an event with the guest permissions the organizer chose', async () => {
     const { editor, dispose } = editorFor(undefined);

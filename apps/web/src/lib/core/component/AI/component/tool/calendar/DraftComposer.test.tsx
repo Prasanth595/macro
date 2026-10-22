@@ -20,6 +20,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@app/features/meetings/use-quick-calls-flag', () => ({
   useQuickCallsFlag: () => () => mocks.quickCalls(),
 }));
+vi.mock('@app/features/calendar/hooks/use-calendar-ui-flag', () => ({
+  useCalendarGuestInvitesFlag: () => () => true,
+}));
 vi.mock('@queries/calendar/calendars', () => ({
   useVisibleCalendarsQuery: () => ({
     isSuccess: !mocks.calendarError,

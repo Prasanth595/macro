@@ -472,8 +472,8 @@ pass them); the editor then shows the line in a toast and locks its details, and
 drag snaps back with the same toast. To check the refusal without a Google account, answer
 `PATCH /events/{id}` (or the GraphQL `updateCalendarEvent` mutation) with HTTP 403 and code
 `guests_cannot_modify` on an event whose `viewerCan.editDetails` is still true.
-The organizer sets what guests may do in the composer's `Guest permissions` row, under the
-pills on desktop and phones alike: `Modify event`, `Invite others` and `See guest list`, in
+With the `enable-calendar-guest-invites` flag on, the organizer sets what guests may do in the
+composer's `Guest permissions` row, under the pills on desktop and phones alike: `Modify event`, `Invite others` and `See guest list`, in
 Google Calendar's order, with Google's defaults (invite others and see the guest list)
 preselected on a new event and the stored `guestPolicy` on an edit. As in Google, checking
 `Modify event` also checks `Invite others` and locks it. The row shows on a new event and on
