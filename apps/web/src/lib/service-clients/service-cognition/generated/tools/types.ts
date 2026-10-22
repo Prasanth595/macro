@@ -220,11 +220,7 @@ export type DiscussionParentType =
 /**
  * The runtimes an agent can be moved onto.
  */
-export type AgentHarnessOption =
-  | 'in-memory'
-  | 'cursor'
-  | 'claude-cloud'
-  | 'macrod';
+export type AgentHarnessOption = 'in-memory' | 'cursor' | 'macrod';
 /**
  * Where an agent can be mentioned.
  */
@@ -5725,7 +5721,7 @@ export interface AgentSummary {
    */
   instructions: string;
   /**
-   * Harness slug: `in-memory`, `cursor`, `claude-cloud`, or `macrod`.
+   * Harness slug: `in-memory`, `cursor`, or `macrod`.
    */
   harness: string;
   /**
@@ -14823,7 +14819,7 @@ export interface UpdateBookingSettings {
  *
  * Passing `attendees` replaces the full attendee list — include everyone who should remain, not just additions. That holds when `viewerCan.removeGuests` from ListCalendarEvents is true (the user organizes the event, or the organizer lets guests modify it). When it is false, the list may only grow: pass the current attendees plus the additions; the additions are invited without touching anyone else, and dropping any guest fails. Adding guests then needs `viewerCan.inviteGuests`; otherwise the organizer doesn't let guests invite others or hides the guest list, or the event is an Outlook meeting the user doesn't organize. An empty string for `description` or `location` clears it. Fails on events from calendars the user cannot edit.
  *
- * `rsvp` sets the user's own response to an invitation and is independent of the field edits — it can be the only thing this call changes. It applies at the same `scope` as the rest of the call, and only works on events the user is actually an attendee of.
+ * `rsvp` sets the user's own response to an invitation and is independent of the field edits — it can be the only thing this call changes. It applies at the same `scope` as the rest of the call and answers as the connected inbox the event's copy belongs to, so it only works when that inbox is an attendee.
  */
 export interface UpdateCalendarEvent {
   /**
