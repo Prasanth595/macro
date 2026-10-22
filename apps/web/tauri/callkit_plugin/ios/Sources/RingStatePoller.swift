@@ -140,7 +140,8 @@ final class RingStatePoller {
         case "ringing":
             scheduleTick()
         default:
-            callKitLog("Ring-status poll returned unknown status '\(decoded.status)' uuid=\(uuid.uuidString)")
+            // The status is unvalidated server text; never write it to the public log.
+            callKitLog("Ring-status poll returned an unknown status uuid=\(uuid.uuidString)")
             scheduleTick()
         }
     }

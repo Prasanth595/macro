@@ -219,6 +219,24 @@ describe('native snapshot events and call ownership', () => {
     }
   );
 
+  it('keeps a left call out after a join refused while the leave was in flight', async () => {
+    const { lifecycle, ports } = setup();
+    ports.disconnect.mockImplementation(async () => {});
+    const pending = deferred();
+    ports.leave.mockReturnValueOnce(pending.promise);
+    const leaving = lifecycle.leave(first.channelId);
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(lifecycle.join(first.channelId)).rejects.toThrow(
+      'still leaving'
+    );
+    pending.resolve();
+    await leaving;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(lifecycle.getState().t).toBe('idle');
+    expect(ports.disconnect).toHaveBeenLastCalledWith({ endNativeCall: true });
+    expect(ports.onJoined).not.toHaveBeenCalled();
+  });
+
   it('ends a leftover native call once when native confirms the end', async () => {
     const { native, lifecycle, ports } = setup();
     ports.disconnect.mockImplementationOnce(async () => {});

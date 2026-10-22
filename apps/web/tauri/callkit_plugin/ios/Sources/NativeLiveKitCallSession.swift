@@ -544,7 +544,7 @@ final class NativeLiveKitCallSession: NSObject, RoomDelegate, @unchecked Sendabl
 
     private func togglePinnedRemoteVideoParticipant(_ participantId: String) {
         pinnedRemoteVideoParticipantId = pinnedRemoteVideoParticipantId == participantId ? nil : participantId
-        callKitLog("Native video overlay pinned remote participant=\(pinnedRemoteVideoParticipantId ?? "nil")")
+        callKitLog("Native video overlay pinned remote participant=\(pinnedRemoteVideoParticipantId != nil)")
         if let room {
             rebuildRemoteVideoLayout(from: room)
         }
@@ -845,14 +845,14 @@ final class NativeLiveKitCallSession: NSObject, RoomDelegate, @unchecked Sendabl
             lastPublishedVideoParticipants = participants
             lastPublishedPrimaryParticipantId = primary?.id
             videoOverlay.setRemoteVideoParticipants(participants, primaryId: primary?.id)
-            callKitLog("Rebuilt remote video layout participants=\(participants.map { "\($0.id):video=\($0.track != nil)" }) primary=\(primary?.id ?? "nil") pinned=\(pinnedRemoteVideoParticipantId ?? "nil")")
+            callKitLog("Rebuilt remote video layout participants=\(participants.count) withVideo=\(participants.filter { $0.track != nil }.count) hasPrimary=\(primary != nil) pinned=\(pinnedRemoteVideoParticipantId != nil)")
         }
         updatePictureInPicture(from: room, primary: primary)
     }
 
     private func updatePictureInPicture(from room: Room, primary: NativeVideoParticipant?) {
         let localTrack = room.localParticipant.firstCameraVideoTrack
-        callKitLog("Picture in Picture selected localTrack=\(localTrack != nil) primaryParticipant=\(primary?.id ?? "nil") remoteTrack=\(primary?.track != nil)")
+        callKitLog("Picture in Picture selected localTrack=\(localTrack != nil) hasPrimary=\(primary != nil) remoteTrack=\(primary?.track != nil)")
         pictureInPicture.setParticipants(
             localTitle: displayTitle(room.localParticipant),
             localTrack: localTrack,

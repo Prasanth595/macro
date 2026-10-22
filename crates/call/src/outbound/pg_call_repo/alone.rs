@@ -60,8 +60,11 @@ impl PgCallRepo {
         .rows_affected()
             > 0;
         if !cleared_warning {
+            // A warning another instance records between the two statements
+            // must keep its alone period; the next accompanied sweep clears
+            // both and notifies.
             sqlx::query!(
-                "UPDATE calls SET alone_since = NULL WHERE id = $1 AND alone_since IS NOT NULL",
+                "UPDATE calls SET alone_since = NULL WHERE id = $1 AND alone_since IS NOT NULL AND alone_warned_at IS NULL",
                 call_id,
             )
             .execute(&self.pool)

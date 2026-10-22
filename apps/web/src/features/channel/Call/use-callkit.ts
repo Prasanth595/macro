@@ -122,6 +122,15 @@ type GetPendingAnsweredCallResponse = {
  */
 const ANSWERED_CALL_MAX_AGE_MS = 60_000;
 
+/** One CallKit answer: its call when native names it, else its channel. */
+function answeredCallIdentity(
+  answer: Pick<CallAnsweredPayload, 'channelId' | 'nativeMedia' | 'callId'>
+): string {
+  return answer.callId
+    ? `call:${answer.callId.toLowerCase()}`
+    : `${answer.channelId}:${answer.nativeMedia ?? false}`;
+}
+
 type NativeCallChannelMetadata = {
   channelId: string;
   name?: string | null;
@@ -411,7 +420,11 @@ export function useCallKitSetup() {
         });
         return;
       }
-      const answeredCallKey = `${channelId}:${nativeMedia ?? false}`;
+      const answeredCallKey = answeredCallIdentity({
+        channelId,
+        nativeMedia,
+        callId,
+      });
       const now = Date.now();
       if (
         lastHandledAnsweredCall?.key === answeredCallKey &&
@@ -457,8 +470,13 @@ export function useCallKitSetup() {
           });
           if (!channelId) return;
           if (
-            handled?.channelId === channelId &&
-            (handled.nativeMedia ?? false) === (nativeMedia ?? false)
+            handled &&
+            answeredCallIdentity(handled) ===
+              answeredCallIdentity({
+                channelId,
+                nativeMedia: nativeMedia ?? false,
+                callId: callId ?? undefined,
+              })
           ) {
             return;
           }

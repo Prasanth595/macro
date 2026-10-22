@@ -147,6 +147,25 @@ describe('native answered-call recovery', () => {
     expect(bridge.pending).toBeNull();
   });
 
+  it('handles two distinct answers in the same channel, but each only once', async () => {
+    useCallKitSetup();
+    await settle();
+    const answered = bridge.watchers.get(
+      'plugin:call-kit|watch_call_answered'
+    )!;
+    const first = {
+      channelId: 'channel-1',
+      nativeMedia: false,
+      callId: 'CALL-1',
+      answeredAtMs: Date.now(),
+    };
+    answered(first);
+    answered({ ...first });
+    answered({ ...first, callId: 'CALL-2' });
+    await settle();
+    expect(bridge.join).toHaveBeenCalledTimes(2);
+  });
+
   it('drops an answer replayed long after CallKit fulfilled it', async () => {
     useCallKitSetup();
     await settle();

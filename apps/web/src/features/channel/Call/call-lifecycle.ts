@@ -524,7 +524,7 @@ export function createCallLifecycle(options: {
           finish(new Error('Leaving call timed out'));
         }, LEAVE_TIMEOUT_MS);
         async function disconnect() {
-          let result: LeaveResult = undefined;
+          let result: LeaveResult;
           try {
             try {
               await options.disconnect(request.options);
@@ -560,14 +560,14 @@ export function createCallLifecycle(options: {
     onJoin?: () => void,
     source: JoinSource = 'user'
   ): Promise<void> {
-    forgetEndedCalls(channelId);
-    return startJoin(channelId, source, onJoin);
+    return startJoin(channelId, source, onJoin, true);
   }
 
   function startJoin(
     channelId: string,
     source: JoinSource,
-    onJoin?: () => void
+    onJoin?: () => void,
+    explicit = false
   ): Promise<void> {
     if (disposed) return Promise.reject(new Error('Call lifecycle disposed'));
     const state = machine.getState();
@@ -594,6 +594,9 @@ export function createCallLifecycle(options: {
         return Promise.reject(error);
       }
     }
+    // Only an accepted join lets a left call back in: a refused one (still
+    // leaving, joining elsewhere) must keep it out once the leave settles.
+    if (explicit) forgetEndedCalls(channelId);
     const request: Join = { ...deferred(), channelId, source, onJoin };
     machine.dispatch({ t: 'join', request });
     return request.promise;

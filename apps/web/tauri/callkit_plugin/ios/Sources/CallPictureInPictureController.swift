@@ -137,6 +137,12 @@ private final class AVKitCallPictureInPictureController: NSObject, AVPictureInPi
             // Stop even when not yet active: a PiP that is still starting would
             // otherwise finish starting after the call ended.
             self.retireController(stop: true)
+            // A controller replaced by a source-view change may still be on
+            // screen; it stays tracked until AVKit reports it stopped.
+            for controller in self.retiringControllers {
+                controller.canStartPictureInPictureAutomaticallyFromInline = false
+                controller.stopPictureInPicture()
+            }
             self.currentLocalTrack = nil
             self.currentRemoteTrack = nil
             self.currentSourceView = nil

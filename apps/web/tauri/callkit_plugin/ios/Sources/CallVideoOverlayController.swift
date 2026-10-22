@@ -428,7 +428,7 @@ final class CallVideoOverlayController: NSObject, UIGestureRecognizerDelegate, U
         layoutFrames()
         bringOverlayToFrontIfNeeded()
         if participantsChanged {
-            callKitLog("Native video overlay applied remoteParticipants=\(desired.participants.count) primary=\(primaryRemoteParticipant?.id ?? "nil")")
+            callKitLog("Native video overlay applied remoteParticipants=\(desired.participants.count) hasPrimary=\(primaryRemoteParticipant != nil)")
         }
     }
 
@@ -871,7 +871,7 @@ final class CallVideoOverlayController: NSObject, UIGestureRecognizerDelegate, U
     private func selectDisplayedParticipant(_ id: String) {
         // A departure may have arrived while the displayed row was frozen.
         guard desired.participants.contains(where: { $0.id == id }) else { return }
-        callKitLog("Native video overlay remote tile selected id=\(id)")
+        callKitLog("Native video overlay remote tile selected")
         onSelectRemoteParticipant?(id)
     }
 
@@ -1257,7 +1257,7 @@ final class CallVideoOverlayController: NSObject, UIGestureRecognizerDelegate, U
 
     @objc private func unpinRemoteParticipant() {
         guard let pinnedRemoteParticipantId else { return }
-        callKitLog("Native video overlay unpin tapped id=\(pinnedRemoteParticipantId)")
+        callKitLog("Native video overlay unpin tapped")
         onSelectRemoteParticipant?(pinnedRemoteParticipantId)
     }
 
