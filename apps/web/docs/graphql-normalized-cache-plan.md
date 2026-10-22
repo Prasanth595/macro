@@ -366,8 +366,11 @@ the engine directly from its multi-threaded runtime, and unbounded on wasm.
     refresh of the query that selects it with `@fromCache`.
   - A read returns the value another query stored under the same field key
     (canonical arguments: a literal and a variable with the same value match),
-    or null when it is absent or lacks a selected subfield. A linked record
-    that is missing from the cache still makes the read miss.
+    or null when it is absent. A value stored inside the record also reads as
+    null when it lacks a selected subfield. A value that can link to other
+    records reads like any other field once stored: a missing linked record or
+    subfield makes the read miss, because linked records may load from storage
+    after the read suspends.
   - Watched queries update when another query writes the field. Network
     results never contain it; the exchange's watched read after the write puts
     the cached value into the live view, so read an absent field as null.
