@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import * as Effect from 'effect/Effect';
 import { APP_BUILD_TIME } from '../app-build';
 import type { CacheRequest, WorkerMessage } from '../protocol';
@@ -23,6 +24,7 @@ import {
 import {
   createEffectWorkerTransport,
   type EffectWorkerTransport,
+  WorkerRestartedError,
 } from './effect-worker-transport';
 import {
   listOpfsRootNames,
@@ -470,7 +472,11 @@ export class CacheCoordinatorPageAdapter {
         },
         onError: (error) => {
           this.failTerminal(
-            new Error(`coordinator Effect transport failed: ${error.message}`)
+            error instanceof WorkerRestartedError
+              ? error
+              : new Error(
+                  `coordinator Effect transport failed: ${error.message}`
+                )
           );
         },
         closeEndpoint: () => this.closePort(worker.port),
@@ -645,7 +651,10 @@ export class CacheCoordinatorPageAdapter {
           message.tabId === this.tabId &&
           message.ownerEpoch === this.ownerEpoch
         ) {
-          void this.removeStaleDatabases();
+          fireAndForget(
+            this.removeStaleDatabases(),
+            'graphql-cache-coordinator'
+          );
         }
         break;
     }
@@ -919,7 +928,10 @@ export class CacheCoordinatorPageAdapter {
     addEventListener(
       'pagehide',
       () => {
-        void this.dispose({ graceful: false, preserveDatabase: true });
+        fireAndForget(
+          this.dispose({ graceful: false, preserveDatabase: true }),
+          'graphql-cache-coordinator'
+        );
       },
       { once: true }
     );

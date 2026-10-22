@@ -24,6 +24,7 @@ import {
   useProfilePictureUrl,
 } from '@core/signal/profilePicture';
 import { createStaticFile } from '@core/util/create';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { openFilePicker } from '@core/util/upload';
 import {
   type BundleUpdateStatus,
@@ -161,7 +162,7 @@ async function saveUserName(
       setValue(prev); // rollback on a returned error
       return false;
     }
-    void invalidateOwnUserName();
+    fireAndForget(invalidateOwnUserName(), 'account-settings');
     return true;
   } catch {
     setValue(prev); // rollback if the call throws before returning a Result
@@ -781,7 +782,7 @@ function NameInput(props: {
           setStatus('idle'); // clear prior status while editing
         }}
         onBlur={() => {
-          void commit();
+          fireAndForget(commit(), 'account-settings');
           setIsFocused(false);
         }}
         onKeyDown={handleKeyDown}
@@ -823,23 +824,22 @@ function bundleUpdateAction(
 ): { label: string; action: () => void } | null {
   const grantBundleUpdate = () =>
     invoke('grant_bundle_update', { approved: true }).catch(console.error);
+  const checkForUpdate = () => invoke('check_for_update').catch(console.error);
+  const performUpdate = () => invoke('perform_update').catch(console.error);
 
   switch (status.status) {
     case 'Idle':
-      return {
-        label: 'Check for Update',
-        action: () => invoke('check_for_update'),
-      };
+      return { label: 'Check for Update', action: checkForUpdate };
     case 'Error':
-      return { label: 'Retry', action: () => invoke('check_for_update') };
+      return { label: 'Retry', action: checkForUpdate };
     case 'UpdateFound':
       return { label: 'Download', action: grantBundleUpdate };
     case 'WaitingForWifi':
       return { label: 'Download anyway', action: grantBundleUpdate };
     case 'ClearRequired':
-      return { label: 'Reload', action: () => invoke('perform_update') };
+      return { label: 'Reload', action: performUpdate };
     case 'Completed':
-      return { label: 'Update', action: () => invoke('perform_update') };
+      return { label: 'Update', action: performUpdate };
     default:
       return null;
   }
@@ -912,7 +912,9 @@ function NativeUpdateRow() {
               variant="accent"
               size="sm"
               depth={3}
-              onClick={() => void tauri?.restartNativeUpdate()}
+              onClick={() =>
+                fireAndForget(tauri?.restartNativeUpdate(), 'native-updates')
+              }
             >
               Restart to update
             </Button>

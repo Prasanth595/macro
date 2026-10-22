@@ -4,6 +4,7 @@ import { recipientEntityMapper, useContacts } from '@core/user';
 import { useVisibleCalendarsQuery } from '@queries/calendar/calendars';
 import {
   useCreateCalendarEventMutation,
+  useInviteCalendarEventGuestsMutation,
   useUpdateCalendarEventMutation,
 } from '@queries/calendar/mutations';
 import {
@@ -31,8 +32,13 @@ import {
   spansMultipleInboxes,
 } from '../utils/calendar-label';
 import {
+  addedGuestEmails,
+  type EventGuestEditing,
+  eventGuestEditing,
+  GUEST_INVITES_RESTRICTED,
+  guestInvitesRestricted,
   guestListChanged,
-  viewerCanEditGuests,
+  viewerReplacesGuests,
 } from '../utils/event-guest-editing';
 import {
   attachCalendarMacroCall,
@@ -83,6 +89,8 @@ interface UseEventEditorProps {
   event: Accessor<CalendarEvent | undefined>;
   onSaved: () => void;
   macroCallsEnabled: Accessor<boolean>;
+  /** Whether a guest the organizer lets invite may add guests; off when omitted. */
+  guestInvitesEnabled?: Accessor<boolean>;
 }
 
 /** Shared create/edit query and mutation orchestration for any editor shell. */
@@ -112,7 +120,7 @@ export function useEventEditor(props: UseEventEditorProps) {
     const event = props.event();
     if (event) {
       const calendarId = event.calendarId ?? event.calendar.id;
-      const calendars = calendarsQuery.data ?? [];
+      const calendars = calendarsQuery.isSuccess ? calendarsQuery.data : [];
       const calendar = calendars.find(
         (candidate) => candidate.id === calendarId
       );
@@ -122,6 +130,8 @@ export function useEventEditor(props: UseEventEditorProps) {
       return [
         {
           id: calendarId,
+          provider: calendar?.provider ?? event.calendar.provider,
+          capabilities: calendar?.capabilities ?? event.calendar.capabilities,
           label: event.calendar.name || 'Calendar',
           color: event.calendar.color,
           defaultReminders: reminderCalendar?.defaultReminders,
@@ -132,6 +142,8 @@ export function useEventEditor(props: UseEventEditorProps) {
 
     return writableCalendars().map((calendar) => ({
       id: calendar.id,
+      provider: calendar.provider,
+      capabilities: calendar.capabilities,
       label: calendarDisplayLabel(calendar, spansInboxes()),
       color: calendar.color ?? DEFAULT_CALENDAR_SOURCE.color,
       defaultReminders: calendar.defaultReminders,
@@ -139,18 +151,32 @@ export function useEventEditor(props: UseEventEditorProps) {
     }));
   });
 
+  /**
+   * How an edit may change the guest list. Guests written onto a copy other
+   * than the primary one never reach the event Macro shows.
+   */
+  const guestEditing = createMemo<EventGuestEditing>(() => {
+    const event = props.event();
+    if (!event) return 'replace';
+    if (!editsPrimaryCopy(event)) return 'none';
+    return eventGuestEditing(event, props.guestInvitesEnabled?.() ?? false);
+  });
+  const guestsReadOnlyReason = () => {
+    const event = props.event();
+    return event && guestInvitesRestricted(event)
+      ? GUEST_INVITES_RESTRICTED
+      : undefined;
+  };
+
   const updateMeeting = useUpdateMeetingMutation();
   const create = useCreateCalendarEventMutation();
   const update = useUpdateCalendarEventMutation();
+  const invite = useInviteCalendarEventGuestsMutation();
 
   const createMeeting = useCreateMeetingMutation();
   const [pending, setPending] = createSignal(false);
   const [saveError, setSaveError] = createSignal<string>();
-  // If adding the link fails, retry the same saved event and meeting.
-  const [createdEvent, setCreatedEvent] = createSignal<{
-    id: string;
-    calendarId?: string;
-  }>();
+  // If attaching the link to an existing event fails, retry the same meeting.
   const [createdMeeting, setCreatedMeeting] = createSignal<{
     url: string;
     shareToken: string;
@@ -215,10 +241,7 @@ export function useEventEditor(props: UseEventEditorProps) {
       event?.eventType !== 'out_of_office';
     const needsCall = () => props.macroCallsEnabled() && wantsMacroCall;
     const canManageCall =
-      !event ||
-      (!event.isReadOnly &&
-        editsPrimaryCopy(event) &&
-        viewerCanEditGuests(event));
+      !event || (editsPrimaryCopy(event) && viewerReplacesGuests(event));
     if (
       needsCall() &&
       canManageCall &&
@@ -246,7 +269,9 @@ export function useEventEditor(props: UseEventEditorProps) {
 
     try {
       if (!event) {
-        const eventValues = {
+        // The server mints the call and writes its link into the event, so
+        // the one invitation attendees receive already carries it.
+        await create.mutateAsync({
           title: values.title,
           time: values.time,
           calendarId: values.calendarId,
@@ -259,46 +284,10 @@ export function useEventEditor(props: UseEventEditorProps) {
               : cleanContent.description,
           attendees: values.guestEmails.map((email) => ({ email })),
           ...(conference ? { conference } : {}),
+          ...(needsCall() ? { macroCall: true } : {}),
           ...(values.reminders ? { reminders: values.reminders } : {}),
           ...(values.outOfOffice ? { outOfOffice: values.outOfOffice } : {}),
-        };
-        let created = createdEvent();
-        if (created) {
-          await update.mutateAsync({
-            eventId: created.id,
-            calendarId: created.calendarId,
-            patch: {
-              ...eventValues,
-              location: cleanContent.location,
-              description: cleanContent.description,
-            },
-          });
-        } else {
-          const result = await create.mutateAsync(eventValues);
-          created = {
-            id: result.id,
-            calendarId: values.calendarId ?? result.calendarId ?? undefined,
-          };
-          setCreatedEvent(created);
-        }
-        calendarSaved = true;
-
-        if (needsCall()) {
-          const meetingUrl = await createScheduledMeeting(values);
-          const linkedContent = attachCalendarMacroCall(
-            cleanContent,
-            meetingUrl
-          );
-          if (needsCall())
-            await update.mutateAsync({
-              eventId: created.id,
-              calendarId: created.calendarId ?? values.calendarId,
-              patch: {
-                location: linkedContent.location,
-                description: linkedContent.description,
-              },
-            });
-        }
+        });
         props.onSaved();
         return;
       }
@@ -335,6 +324,12 @@ export function useEventEditor(props: UseEventEditorProps) {
         values.recurrenceLines !== undefined &&
         values.recurrenceLines.join('\n') !== initialLines().join('\n');
 
+      // A guest's additions go out as an invitation, which leaves the rest of
+      // the guest list alone; only the organizer's save replaces the list.
+      const invitedEmails =
+        guestEditing() === 'add'
+          ? addedGuestEmails(event, values.guestEmails)
+          : [];
       const updateArgs = {
         eventId: event.eventId,
         calendarId: event.calendarId,
@@ -355,7 +350,8 @@ export function useEventEditor(props: UseEventEditorProps) {
           ...(recurrenceChanged
             ? { recurrenceLines: values.recurrenceLines }
             : {}),
-          ...(guestListChanged(event, values.guestEmails)
+          ...(guestEditing() === 'replace' &&
+          guestListChanged(event, values.guestEmails)
             ? {
                 attendees: values.guestEmails.map((email) => ({ email })),
               }
@@ -367,6 +363,16 @@ export function useEventEditor(props: UseEventEditorProps) {
       };
       if (Object.keys(updateArgs.patch).length > 0) {
         await update.mutateAsync(updateArgs);
+      }
+      if (invitedEmails.length > 0) {
+        await invite.mutateAsync({
+          eventId: updateArgs.eventId,
+          calendarId: updateArgs.calendarId,
+          guests: invitedEmails.map((email) => ({ email })),
+          scope: updateArgs.scope,
+          recurrenceId: updateArgs.recurrenceId,
+          occurrenceKey: updateArgs.occurrenceKey,
+        });
       }
       calendarSaved = true;
 
@@ -415,12 +421,12 @@ export function useEventEditor(props: UseEventEditorProps) {
   const disabledFields = createMemo<EventEditorDisabledFields | undefined>(
     () => {
       const event = props.event();
-      if (!event) return createdEvent() ? EDIT_DISABLED_FIELDS : undefined;
+      if (!event) return undefined;
       const editsOtherCopy = !editsPrimaryCopy(event);
       return {
         ...EDIT_DISABLED_FIELDS,
-        guests: editsOtherCopy || !viewerCanEditGuests(event),
-        conference: editsOtherCopy || !viewerCanEditGuests(event),
+        guests: guestEditing() === 'none',
+        conference: editsOtherCopy || !viewerReplacesGuests(event),
         reminders: editsOtherCopy,
       };
     }
@@ -429,12 +435,13 @@ export function useEventEditor(props: UseEventEditorProps) {
   return {
     initialValues,
     disabledFields,
+    addOnlyGuests: () => guestEditing() === 'add',
+    guestsReadOnlyReason,
     calendarOptions,
     guestOptions,
     showRecurringEditNotice,
     pending,
     saveError,
-    eventCreated: () => createdEvent() !== undefined,
     save,
   };
 }

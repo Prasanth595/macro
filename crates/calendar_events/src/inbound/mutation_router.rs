@@ -23,6 +23,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::domain::{
+    meeting_links::{
+        CreateEventWithMacroCallError, MeetingLinkError, create_event_with_macro_call,
+    },
     models::{
         AttendeeResponseStatus, CalendarAttendeeInput, CalendarEvent, CalendarEventDraft,
         CalendarEventPatch, ConferenceChange, EventReminders, EventTime, EventTransparency,
@@ -30,61 +33,76 @@ use crate::domain::{
     },
     ports::{
         CalendarDeletionScope, CalendarMutationError, CalendarMutationService, CalendarRsvpScope,
-        CalendarUpdateScope,
+        CalendarUpdateScope, MeetingLinkProvider,
     },
 };
 
 /// Router state for authenticated calendar mutations.
-pub struct CalendarMutationRouterState<S, Auth> {
+pub struct CalendarMutationRouterState<S, L, Auth> {
     service: Arc<S>,
+    meeting_links: Arc<L>,
     authorization_state: MacroAuthorizationState<Auth>,
 }
 
-impl<S, Auth> Clone for CalendarMutationRouterState<S, Auth> {
+impl<S, L, Auth> Clone for CalendarMutationRouterState<S, L, Auth> {
     fn clone(&self) -> Self {
         Self {
             service: Arc::clone(&self.service),
+            meeting_links: Arc::clone(&self.meeting_links),
             authorization_state: self.authorization_state.clone(),
         }
     }
 }
 
-impl<S, Auth> CalendarMutationRouterState<S, Auth> {
-    /// Create router state from a shared mutation service and authorization state.
-    pub fn new(service: Arc<S>, authorization_state: MacroAuthorizationState<Auth>) -> Self {
+impl<S, L, Auth> CalendarMutationRouterState<S, L, Auth> {
+    /// Create router state from a shared mutation service, the meeting-link
+    /// provider minting Macro calls for new events, and authorization state.
+    pub fn new(
+        service: Arc<S>,
+        meeting_links: Arc<L>,
+        authorization_state: MacroAuthorizationState<Auth>,
+    ) -> Self {
         Self {
             service,
+            meeting_links,
             authorization_state,
         }
     }
 }
 
-impl<S, Auth> FromRef<CalendarMutationRouterState<S, Auth>> for MacroAuthorizationState<Auth> {
-    fn from_ref(state: &CalendarMutationRouterState<S, Auth>) -> Self {
+impl<S, L, Auth> FromRef<CalendarMutationRouterState<S, L, Auth>>
+    for MacroAuthorizationState<Auth>
+{
+    fn from_ref(state: &CalendarMutationRouterState<S, L, Auth>) -> Self {
         state.authorization_state.clone()
     }
 }
 
 /// Build the authenticated calendar mutation router, exposing `/calendars`
 /// and `/events` (mounted under `/calendar` by the service).
-pub fn calendar_mutation_router<S, Auth, T>(
-    state: CalendarMutationRouterState<S, Auth>,
+pub fn calendar_mutation_router<S, L, Auth, T>(
+    state: CalendarMutationRouterState<S, L, Auth>,
 ) -> Router<T>
 where
     S: CalendarMutationService,
+    L: MeetingLinkProvider,
     Auth: MacroAuthorizationService,
     T: Send + Sync + 'static,
 {
     Router::new()
-        .route("/calendars", get(list_calendars::<S, Auth>))
-        .route("/events", post(create_calendar_event::<S, Auth>))
+        .route("/calendars", get(list_calendars::<S, L, Auth>))
+        .route("/events", post(create_calendar_event::<S, L, Auth>))
         .route(
             "/events/{event_id}",
-            patch(update_calendar_event::<S, Auth>).delete(delete_calendar_event::<S, Auth>),
+            patch(update_calendar_event::<S, L, Auth>).delete(delete_calendar_event::<S, L, Auth>),
         )
         .route(
             "/events/{event_id}/rsvp",
-            put(rsvp_calendar_event::<S, Auth>),
+            put(rsvp_calendar_event::<S, L, Auth>),
+        )
+        .route(
+            "/events/{event_id}/guests",
+            post(invite_calendar_event_guests::<S, L, Auth>),
         )
         .with_state(state)
 }
@@ -144,6 +162,11 @@ pub struct CreateCalendarEventRequest {
     pub reminders: Option<EventReminders>,
     /// Conference to attach to the new event; omit to create it without one.
     pub conference: Option<ConferenceChange>,
+    /// Mint a Macro call and write its join link into the description and
+    /// location before creating the event, so the invitation carries it.
+    /// Cannot be combined with `conference`.
+    #[serde(default)]
+    pub macro_call: bool,
     /// Out-of-office properties; present to create the event as a Google
     /// out-of-office status event (primary calendar only, timed, no
     /// attendees), omitted for a regular event.
@@ -276,6 +299,46 @@ pub struct RsvpCalendarEventRequest {
     pub recurrence_id: Option<String>,
 }
 
+/// A guest added to an event.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CalendarGuestInputBody {
+    /// Guest email address.
+    pub email: String,
+    /// Whether attendance is optional.
+    #[serde(default)]
+    pub optional: bool,
+}
+
+impl From<CalendarGuestInputBody> for CalendarAttendeeInput {
+    fn from(body: CalendarGuestInputBody) -> Self {
+        Self {
+            email: body.email,
+            is_optional: body.optional,
+            response_status: None,
+        }
+    }
+}
+
+/// Request body adding guests to an event without touching anyone already
+/// invited.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct InviteCalendarEventGuestsRequest {
+    /// Calendar whose copy of the event is written, for an event synced from
+    /// more than one calendar. Omit to write the canonical copy.
+    pub calendar_id: Option<Uuid>,
+    /// Guests to add; anyone already on the event is skipped.
+    pub guests: Vec<CalendarGuestInputBody>,
+    /// How much of a recurring series gains the guests. Omit to let
+    /// `recurrenceId` decide: the identified occurrence alone when one is
+    /// supplied, otherwise the whole event or series. An explicit
+    /// `this_event` scope requires `recurrenceId`.
+    pub scope: Option<CalendarUpdateScopeParam>,
+    /// Original-start key of the occurrence the guests are added to.
+    pub recurrence_id: Option<String>,
+}
+
 /// Machine-readable failure category for calendar mutations.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -291,6 +354,10 @@ pub enum CalendarMutationErrorCode {
     NoWritableCalendar,
     /// The connected account is not an attendee of the event.
     NotAttendee,
+    /// The organizer does not let guests invite others.
+    GuestsCannotInvite,
+    /// The organizer hides the guest list, so a guest cannot add guests.
+    GuestListHidden,
     /// The request was invalid.
     InvalidInput,
     /// The calendar grant must be re-consented.
@@ -302,6 +369,9 @@ pub enum CalendarMutationErrorCode {
     /// The provider applied the mutation but local persistence lagged;
     /// refetching converges.
     PersistFailed,
+    /// The Macro call for a new event could not be created; nothing was
+    /// written to the calendar.
+    MacroCallFailed,
 }
 
 /// HTTP error body returned by calendar mutation endpoints.
@@ -357,6 +427,16 @@ impl From<CalendarMutationError> for CalendarMutationApiError {
                 CalendarMutationErrorCode::NotAttendee,
                 "the connected account is not an attendee of this event".to_string(),
             ),
+            CalendarMutationError::GuestsCannotInvite => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::GuestsCannotInvite,
+                "The organizer doesn't let guests invite others.".to_string(),
+            ),
+            CalendarMutationError::GuestListHidden => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::GuestListHidden,
+                "Guests cannot be added while the organizer hides the guest list.".to_string(),
+            ),
             CalendarMutationError::InvalidInput(message) => (
                 StatusCode::BAD_REQUEST,
                 CalendarMutationErrorCode::InvalidInput,
@@ -397,6 +477,31 @@ impl From<CalendarMutationError> for CalendarMutationApiError {
     }
 }
 
+impl From<CreateEventWithMacroCallError> for CalendarMutationApiError {
+    fn from(error: CreateEventWithMacroCallError) -> Self {
+        match error {
+            CreateEventWithMacroCallError::Calendar(error) => error.into(),
+            CreateEventWithMacroCallError::MeetingLink(MeetingLinkError::InvalidInput(message)) => {
+                Self {
+                    code: CalendarMutationErrorCode::InvalidInput,
+                    message,
+                    status: StatusCode::BAD_REQUEST,
+                }
+            }
+            CreateEventWithMacroCallError::MeetingLink(error) => {
+                tracing::error!(error = ?error, "calendar event macro call creation failed");
+                Self {
+                    code: CalendarMutationErrorCode::MacroCallFailed,
+                    message: "the Macro call for the event could not be created; the event was \
+                              not saved"
+                        .to_string(),
+                    status: StatusCode::SERVICE_UNAVAILABLE,
+                }
+            }
+        }
+    }
+}
+
 /// Create a calendar event and return its synced entity.
 #[tracing::instrument(skip_all, err)]
 #[utoipa::path(
@@ -410,16 +515,17 @@ impl From<CalendarMutationError> for CalendarMutationApiError {
         (status = 401, description = "Authentication required"),
         (status = 403, description = "Calendar is read-only or needs reauthorization", body = CalendarMutationApiError),
         (status = 409, description = "No writable calendar or the provider rejected the event", body = CalendarMutationApiError),
-        (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
+        (status = 503, description = "Transient provider failure, or the Macro call could not be created", body = CalendarMutationApiError),
     )
 )]
-pub async fn create_calendar_event<S, Auth>(
-    State(state): State<CalendarMutationRouterState<S, Auth>>,
+pub async fn create_calendar_event<S, L, Auth>(
+    State(state): State<CalendarMutationRouterState<S, L, Auth>>,
     user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
     Json(request): Json<CreateCalendarEventRequest>,
 ) -> Result<(StatusCode, Json<CalendarEvent>), CalendarMutationApiError>
 where
     S: CalendarMutationService,
+    L: MeetingLinkProvider,
     Auth: MacroAuthorizationService,
 {
     let draft = CalendarEventDraft {
@@ -436,15 +542,29 @@ where
         conference: request.conference,
         out_of_office: request.out_of_office,
     };
-    let event = state
-        .service
-        .create_event(
-            user.authorization.user.macro_user_id.as_ref(),
+    let requester_id: &str = user.authorization.user.macro_user_id.as_ref();
+    let event = if request.macro_call {
+        create_event_with_macro_call(
+            &*state.service,
+            &*state.meeting_links,
+            requester_id,
             request.email_link_id,
             request.calendar_id,
             draft,
         )
-        .await?;
+        .await?
+        .event
+    } else {
+        state
+            .service
+            .create_event(
+                requester_id,
+                request.email_link_id,
+                request.calendar_id,
+                draft,
+            )
+            .await?
+    };
     Ok((StatusCode::CREATED, Json(event)))
 }
 
@@ -468,12 +588,13 @@ pub struct ListCalendarsResponse {
         (status = 503, description = "Transient failure", body = CalendarMutationApiError),
     )
 )]
-pub async fn list_calendars<S, Auth>(
-    State(state): State<CalendarMutationRouterState<S, Auth>>,
+pub async fn list_calendars<S, L, Auth>(
+    State(state): State<CalendarMutationRouterState<S, L, Auth>>,
     user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
 ) -> Result<Json<ListCalendarsResponse>, CalendarMutationApiError>
 where
     S: CalendarMutationService,
+    L: MeetingLinkProvider,
     Auth: MacroAuthorizationService,
 {
     let calendars = state
@@ -526,14 +647,15 @@ fn update_scope(
         (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
     )
 )]
-pub async fn update_calendar_event<S, Auth>(
-    State(state): State<CalendarMutationRouterState<S, Auth>>,
+pub async fn update_calendar_event<S, L, Auth>(
+    State(state): State<CalendarMutationRouterState<S, L, Auth>>,
     user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
     Path(event_id): Path<Uuid>,
     Json(request): Json<UpdateCalendarEventRequest>,
 ) -> Result<Json<CalendarEvent>, CalendarMutationApiError>
 where
     S: CalendarMutationService,
+    L: MeetingLinkProvider,
     Auth: MacroAuthorizationService,
 {
     let scope = update_scope(request.scope, request.recurrence_id)?;
@@ -584,14 +706,15 @@ where
         (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
     )
 )]
-pub async fn delete_calendar_event<S, Auth>(
-    State(state): State<CalendarMutationRouterState<S, Auth>>,
+pub async fn delete_calendar_event<S, L, Auth>(
+    State(state): State<CalendarMutationRouterState<S, L, Auth>>,
     user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
     Path(event_id): Path<Uuid>,
     Query(query): Query<DeleteCalendarEventQuery>,
 ) -> Result<StatusCode, CalendarMutationApiError>
 where
     S: CalendarMutationService,
+    L: MeetingLinkProvider,
     Auth: MacroAuthorizationService,
 {
     let scoped_occurrence = |kind: &'static str| {
@@ -639,14 +762,15 @@ where
         (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
     )
 )]
-pub async fn rsvp_calendar_event<S, Auth>(
-    State(state): State<CalendarMutationRouterState<S, Auth>>,
+pub async fn rsvp_calendar_event<S, L, Auth>(
+    State(state): State<CalendarMutationRouterState<S, L, Auth>>,
     user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
     Path(event_id): Path<Uuid>,
     Json(request): Json<RsvpCalendarEventRequest>,
 ) -> Result<Json<CalendarEvent>, CalendarMutationApiError>
 where
     S: CalendarMutationService,
+    L: MeetingLinkProvider,
     Auth: MacroAuthorizationService,
 {
     let scope = match (request.scope, request.recurrence_id) {
@@ -670,6 +794,62 @@ where
             request.response,
             scope,
             request.responding_email,
+        )
+        .await?;
+    Ok(Json(event))
+}
+
+/// Add guests to a calendar event without touching anyone already invited,
+/// and return its synced entity. The organizer, and guests the organizer lets
+/// invite others, may call it; Google emails the new guests.
+#[tracing::instrument(skip_all, fields(event_id = %event_id), err)]
+#[utoipa::path(
+    post,
+    path = "/events/{event_id}/guests",
+    tag = "calendar_events",
+    params(("event_id" = Uuid, Path, description = "Calendar event entity id")),
+    request_body = InviteCalendarEventGuestsRequest,
+    responses(
+        (status = 200, description = "The updated calendar event", body = CalendarEvent),
+        (status = 400, description = "Invalid guests or scope", body = CalendarMutationApiError),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Calendar is read-only, the organizer doesn't let guests invite others, or the calendar needs reauthorization", body = CalendarMutationApiError),
+        (status = 404, description = "Event or occurrence not found", body = CalendarMutationApiError),
+        (status = 409, description = "The connected account neither organizes nor attends the event", body = CalendarMutationApiError),
+        (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
+    )
+)]
+pub async fn invite_calendar_event_guests<S, L, Auth>(
+    State(state): State<CalendarMutationRouterState<S, L, Auth>>,
+    user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    Path(event_id): Path<Uuid>,
+    Json(request): Json<InviteCalendarEventGuestsRequest>,
+) -> Result<Json<CalendarEvent>, CalendarMutationApiError>
+where
+    S: CalendarMutationService,
+    L: MeetingLinkProvider,
+    Auth: MacroAuthorizationService,
+{
+    let scope = match (request.scope, request.recurrence_id) {
+        (Some(CalendarUpdateScopeParam::All), _) | (None, None) => CalendarUpdateScope::All,
+        (Some(CalendarUpdateScopeParam::ThisEvent), Some(recurrence_id))
+        | (None, Some(recurrence_id)) => CalendarUpdateScope::ThisEvent { recurrence_id },
+        (Some(CalendarUpdateScopeParam::ThisEvent), None) => {
+            return Err(CalendarMutationApiError {
+                code: CalendarMutationErrorCode::InvalidInput,
+                message: "a this-event invite requires recurrenceId".to_string(),
+                status: StatusCode::BAD_REQUEST,
+            });
+        }
+    };
+    let event = state
+        .service
+        .invite_guests(
+            user.authorization.user.macro_user_id.as_ref(),
+            event_id,
+            request.calendar_id,
+            request.guests.into_iter().map(Into::into).collect(),
+            scope,
         )
         .await?;
     Ok(Json(event))

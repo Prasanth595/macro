@@ -8,7 +8,10 @@ import {
 } from '@app/features/calendar/types';
 import { parseLocalDate } from '@app/features/calendar/utils/calendar-date';
 import { isCalendarRangeSupported } from '@app/features/calendar/utils/calendar-supported-range';
-import { safeConferenceUrl } from '@app/features/calendar/utils/conference-link';
+import {
+  conferenceJoinUrl,
+  safeConferenceUrl,
+} from '@app/features/calendar/utils/conference-link';
 import {
   calendarMacroCallUrl,
   macroCallUrl,
@@ -19,6 +22,7 @@ import { IS_MAC } from '@core/constant/isMac';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { debouncedDependent } from '@core/util/debounce';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { openExternalUrl } from '@core/util/url';
 import EmptyStateCalendarSearchGraphic from '@design/empty-state-calendar-search.svg';
 import type { EntityData, WithSearch } from '@entity';
@@ -91,6 +95,7 @@ type CalendarMeetingLink = {
 
 type CalendarSearchEventDetails = {
   conferenceUrl?: string;
+  accountEmail?: string;
   description?: string;
   location?: string;
 };
@@ -477,6 +482,7 @@ function CalendarSearchControl(props: {
       });
       byOccurrence.set(searchEventKey(event.eventId, event.occurrenceKey), {
         conferenceUrl: event.conferenceUrl,
+        accountEmail: event.calendar.emailAddress,
         description: event.description,
         location: event.location,
       });
@@ -534,11 +540,14 @@ function CalendarSearchControl(props: {
 
     if (range && isCalendarRangeSupported(range)) {
       setOpen(false);
-      void openCalendarEventSplit({
-        eventId: event.id,
-        occurrenceKey: event.occurrenceKey,
-        time: event.occurrenceKey ? undefined : event.time,
-      });
+      fireAndForget(
+        openCalendarEventSplit({
+          eventId: event.id,
+          occurrenceKey: event.occurrenceKey,
+          time: event.occurrenceKey ? undefined : event.time,
+        }),
+        'calendar-view'
+      );
       return;
     }
 
@@ -918,7 +927,13 @@ function CalendarSearchControl(props: {
                                             : 'bg-hover text-ink not-touch:not-disabled:hover:bg-active not-touch:not-disabled:hover:text-ink'
                                         )}
                                         onClick={() =>
-                                          openExternalUrl(link().url)
+                                          openExternalUrl(
+                                            conferenceJoinUrl(
+                                              link().url,
+                                              detailsForEvent(event)
+                                                ?.accountEmail
+                                            )
+                                          )
                                         }
                                       >
                                         <VideoCameraIcon class="size-3.5" />

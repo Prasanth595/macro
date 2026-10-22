@@ -2,7 +2,13 @@ import { Telemetry } from '@macro-inc/observability';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { initializeBrowserObservability } from './browser';
 import { readDesktopDiagnostics } from './desktop';
+import { frontendInstanceId } from './frontend-instance';
 import { initializeUiOperationTelemetry } from './ui-operation';
+
+const startupSpan = vi.hoisted(() => ({
+  setAttr: vi.fn(),
+  end: vi.fn(),
+}));
 
 vi.mock('@core/util/platform', () => ({
   getPlatform: () => 'desktop',
@@ -12,7 +18,13 @@ vi.mock('@graphql-cache/rollout-observability', () => ({
   recordBrowserTursoCacheNavigation: vi.fn(),
 }));
 vi.mock('@macro-inc/observability', () => ({
-  Telemetry: { init: vi.fn(), info: vi.fn(), flush: vi.fn(), error: vi.fn() },
+  Telemetry: {
+    init: vi.fn(),
+    info: vi.fn(),
+    flush: vi.fn(),
+    error: vi.fn(),
+    span: vi.fn(() => startupSpan),
+  },
 }));
 vi.mock('@macro-inc/observability/web', () => ({
   createWebTracingProvider: vi.fn(),
@@ -67,9 +79,20 @@ it('explicit native recording overrides the normal enablement gate and exporter 
   expect(config.logsUrl).toBe('http://localhost:4318/v1/logs');
   expect(config.resourceAttributes).toMatchObject({
     'app.runtime': 'tauri',
+    frontend_instance_id: frontendInstanceId,
     'service.instance.id': 'launch-1',
     'macro.recording.id': 'recording-1',
   });
+  expect(config.spanAttributes?.()).toMatchObject({
+    frontend_instance_id: frontendInstanceId,
+    native_instance_id: 'launch-1',
+  });
+  expect(Telemetry.span).toHaveBeenCalledWith('native.webview.start');
+  expect(startupSpan.setAttr).toHaveBeenCalledWith(
+    'native_instance_id',
+    'launch-1'
+  );
+  expect(startupSpan.end).toHaveBeenCalledOnce();
 });
 
 it('drops browser and extension noise from window errors but reports app errors', async () => {

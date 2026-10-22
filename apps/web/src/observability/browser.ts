@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isIgnorableError } from '@core/util/ignorableErrors';
 import { getPlatform, isTauri } from '@core/util/platform';
 import { recordBrowserTursoCacheNavigation } from '@graphql-cache/rollout-observability';
@@ -10,6 +11,9 @@ import {
   desktopResourceAttributes,
   readDesktopDiagnostics,
 } from './desktop';
+import { frontendInstanceId } from './frontend-instance';
+import { startNativeDiagnostics } from './native-diagnostics';
+import { recordNativeWebviewStart } from './native-lifecycle';
 import { initializeUiOperationTelemetry } from './ui-operation';
 
 async function browserTelemetryEnabled(hasExporter: boolean): Promise<boolean> {
@@ -54,6 +58,8 @@ async function browserTelemetryEnabled(hasExporter: boolean): Promise<boolean> {
 export async function initializeBrowserObservability(): Promise<void> {
   let browserEnabled = false;
   const desktop = await readDesktopDiagnostics();
+  const disposeNativeDiagnostics = startNativeDiagnostics(desktop);
+  import.meta.hot?.dispose(disposeNativeDiagnostics);
   const recording = desktop?.identity.recordingId
     ? createDesktopMemoryRecording(desktop)
     : undefined;
@@ -75,12 +81,17 @@ export async function initializeBrowserObservability(): Promise<void> {
     contextManager: new ZoneContextManager(),
     resourceAttributes: {
       'service.version': import.meta.env.__APP_VERSION__,
+      frontend_instance_id: frontendInstanceId,
       'app.runtime': isTauri() ? 'tauri' : 'browser',
       'app.platform': getPlatform(),
       ...(desktop && desktopResourceAttributes(desktop)),
     },
     recording: Boolean(recording),
-    spanAttributes: recording?.attributes,
+    spanAttributes: () => ({
+      ...recording?.attributes(),
+      frontend_instance_id: frontendInstanceId,
+      native_instance_id: desktop?.identity.instanceId,
+    }),
     enabled: async () => {
       browserEnabled = recording
         ? true
@@ -94,13 +105,14 @@ export async function initializeBrowserObservability(): Promise<void> {
     tracingProvider: (resource, getUserId) =>
       createWebTracingProvider(telemetryConfig, resource, getUserId),
   });
+  if (isTauri()) recordNativeWebviewStart(desktop);
   if (recording && desktop) {
     recording.accept(desktop);
     Telemetry.info('Desktop memory recording enabled', {
       'macro.recording.id': desktop.identity.recordingId ?? undefined,
       'service.instance.id': desktop.identity.instanceId,
     });
-    void recording.start();
+    fireAndForget(recording.start(), 'desktop-memory-recording');
     import.meta.hot?.dispose(() => recording.dispose());
   }
   recordBrowserTursoCacheNavigation();
@@ -109,7 +121,9 @@ export async function initializeBrowserObservability(): Promise<void> {
     import.meta.hot?.dispose(disposeUiTelemetry);
   }
 
-  window.addEventListener('pagehide', () => void Telemetry.flush());
+  window.addEventListener('pagehide', () =>
+    fireAndForget(Telemetry.flush(), 'telemetry-flush')
+  );
   window.addEventListener('error', (event) => {
     if (isIgnorableError({ message: event.message, source: event.filename })) {
       return;

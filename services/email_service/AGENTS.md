@@ -16,6 +16,8 @@ the gateway `/email` prefix.
   `crm_cleanup`, `worker_lifecycle`.
 - `src/backfill_outbox.rs`, `src/backfill_init_service.rs`,
   `src/backfill_completion_service.rs`: Gmail history backfill orchestration.
+- `src/crm_enrichment_worker.rs`: periodic pass that resolves pending CRM
+  company directory entries (names/logos) left by binaries without a resolver.
 - `src/bin/`: standalone binaries — `pubsub_workers` (the queue consumer
   process), plus one-off backfill/cleanup scripts.
 
@@ -52,8 +54,15 @@ the gateway `/email` prefix.
   (#7039) — don't reintroduce a path that notifies on our own sends.
 - Long attachment names are truncated to the DSS limit before upload (#7893);
   don't remove that truncation when touching `util/upload_attachment.rs`.
+- Scheduled Gmail sends recheck forwarded source inbox access before resolving
+  attachment bytes through the provider-aware reader.
 - Preserve the calendar domain's `team_ooo_changed` hint when forwarding a
   calendar refresh so unrelated invitation updates retain teammates' OOO rows.
+- Spawn `run_transfers` regardless of the Outlook flags. Gmail inbox moves
+  finish there; with writes off it pauses only the Outlook retire step.
+- Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
+  Skip the bad address with a WARN that omits it (the parse error echoes it)
+  instead of failing the step; see `pubsub::util::build_contact_connections`.
 
 ## Related
 

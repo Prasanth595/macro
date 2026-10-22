@@ -296,10 +296,12 @@ function ActionBubble(props: { tag: NotificationTag }) {
   );
 }
 
-function GithubStatusIcon(props: { status?: string }) {
+function GithubStatusIcon(props: { status?: string; draft?: boolean }) {
+  const isDraft = () => props.draft === true && props.status === 'open';
   const statusClass = () => {
     if (props.status === 'merged') return 'text-note';
     if (props.status === 'closed') return 'text-failure';
+    if (isDraft()) return 'text-ink-muted';
     if (props.status === 'open') return 'text-success';
     return undefined;
   };
@@ -587,6 +589,7 @@ function CardMarkdownLine(props: { text?: string; class?: string }) {
  */
 function CardClampedMarkdown(props: {
   text?: string;
+  inert?: boolean;
   /** Inline run rendered ahead of the text (e.g. a sender label or
    * attachment paperclip); wraps and clamps as part of the same lines. */
   prefix?: JSX.Element;
@@ -600,6 +603,7 @@ function CardClampedMarkdown(props: {
             markdown={value()}
             singleLine
             theme={inlineWrappingMarkdownTheme}
+            inert={props.inert}
           />
         )}
       </Show>
@@ -706,6 +710,7 @@ export function ChannelCardLayout(props: InboxCardLayoutProps) {
       title={text().title}
     >
       <CardClampedMarkdown
+        inert
         text={text().content}
         prefix={
           <>
@@ -751,7 +756,7 @@ export function ChannelMessageCardLayout(props: InboxCardLayoutProps) {
       icon={<ActionBubble tag={getNotificationTag(props.item.notification)} />}
       title={text().title}
     >
-      <CardClampedMarkdown text={text().content} />
+      <CardClampedMarkdown inert text={text().content} />
     </BaseCard>
   );
 }
@@ -904,6 +909,7 @@ export function ChannelThreadCardLayout(props: InboxCardLayoutProps) {
                       <PaperclipIcon class="mr-0.5 inline size-3.5 align-[-0.125em]" />
                     </Show>
                     <StaticMarkdown
+                      inert
                       markdown={context()}
                       singleLine
                       theme={unifiedListMarkdownTheme}
@@ -929,6 +935,7 @@ export function ChannelThreadCardLayout(props: InboxCardLayoutProps) {
                       <PaperclipIcon class="mr-0.5 inline size-3.5 align-[-0.125em]" />
                     </Show>
                     <StaticMarkdown
+                      inert
                       markdown={value()}
                       singleLine
                       theme={
@@ -1299,6 +1306,11 @@ export function GithubCardLayout(props: InboxCardLayoutProps) {
     return props.item.entity.metadata.status;
   });
 
+  const isDraft = createMemo(() => {
+    if (!isGithubPrEntity(props.item.entity)) return false;
+    return props.item.entity.metadata.draft === true;
+  });
+
   const text = createMemo(() => {
     const entity = props.item.entity;
 
@@ -1355,7 +1367,7 @@ export function GithubCardLayout(props: InboxCardLayoutProps) {
             />
           }
         >
-          <GithubStatusIcon status={status()} />
+          <GithubStatusIcon status={status()} draft={isDraft()} />
         </Show>
       }
       title={text().title}

@@ -2,6 +2,23 @@
 
 ## Calendar — `/app/calendar/<month-or-week-or-day>`
 
+Microsoft calendars use the same editor and calendar views after calendar consent.
+Conference choices follow the selected calendar's capabilities: Microsoft Teams
+where supported and Google Meet for Google calendars. Selecting a calendar that
+cannot create a requested conference shows an error until the request is resolved;
+editing an existing meeting preserves its conference. Email reminders are sent to
+the connected calendar mailbox. Outlook out-of-office automatic replies show an
+uncertainty notice if a provider response cannot be confirmed; a reconnect must
+not resend an already attempted automatic reply.
+
+Google Meet joins from event details, the upcoming-events sidebar, and calendar
+search use the displayed occurrence's connected calendar email as `authuser` when
+that account is known. Existing parameters such as `hs` are preserved. Copied call
+links keep their original URL so they can be shared with other attendees. Verify
+desktop and mobile Join with work and personal Google accounts signed in; a work
+calendar should open Meet with the work account. Search results without loaded
+calendar account metadata and other conferencing providers keep their original URL.
+
 Event composer dropdown triggers and date/time inputs use the theme control
 surface, so they blend with the dialog instead of using the darker page fill.
 Their menus stay inside the composer's portal scope. Verify that calendar,
@@ -85,7 +102,8 @@ For local verification, set `VITE_ENABLE_QUICK_CALLS=true` or `false` explicitly
 During a quick or scheduled call, signed-in participants can open **Call chat**
 from its separate button at the far right of the bottom toolbar. Messages persist
 with that call session and are visible in its recording page after it ends.
-Guests do not see chat. The `@` menu includes Macro and available agents;
+Guests can open the same call discussion and read and send text while connected;
+their messages show their name with **(Guest)**. The signed-in composer’s `@` menu includes Macro and available agents;
 mentioning one invokes it in the call thread. Reply on any live message, including
 your own, quotes it in the bottom composer. Verify the reply preserves a draft,
 an agent reply appears, and messages remain in the saved history; starting a
@@ -100,6 +118,10 @@ On phones, event details use inset round action buttons and a transparent RSVP
 footer. Answering a recurring invitation opens a rounded glass sheet: choose
 `This event` or `All events`, then `Save response`. Cancel or Close returns to
 the event details without sending a response.
+
+While an event response saves, a small spinner appears beside `Going?` within
+the RSVP footer on desktop and mobile; the row and buttons stay in place.
+Failures appear below the buttons inside the padded footer and allow retrying.
 
 Calendar scheduling is on by default in dev. Production uses the PostHog flag
 `enable-calendar-scheduling` and stays off unless enabled remotely. Set
@@ -137,6 +159,11 @@ show progress; the event summary and selected time stay visible. Choose another
 time preserves attendee input. All meetings returns to the profile chooser when
 multiple events exist, but is disabled while a booking response is unresolved.
 The private confirmation shows the meeting, date, timezone, location, and guest.
+In the native iOS and Android apps, standalone booking and receipt pages keep a
+sticky **Back to Macro** button below the device's top safe-area inset. It returns to
+the app through the router without reloading, including while the page is loading
+or unavailable. Browser pages and embedded booking dialogs omit this button.
+
 Public URLs and booking behavior remain unchanged. The website can frame the
 booking page and receipt without duplicate Macro branding. A completed booking
 notifies the same-origin parent page; other sites cannot frame these routes.
@@ -144,8 +171,10 @@ Uncertain calendar writes retain the booking and show its private receipt while 
 After a network response cannot be verified, `Check booking status` retries the original request;
 do not create a replacement booking. Receipt pages poll while the calendar update is pending. The private
 `/app/booking/:id#token` receipt supports cancellation and rescheduling; preserve
-that private link. Rescheduling dates are labelled in the availability schedule's
-time zone. Calendar provider failures show an error; they never report a
+that private link. Rescheduling defaults to the browser's time zone; `Your time
+zone` controls both the selected calendar date and the displayed times. Changing
+the zone clears the date and times and discards outstanding availability results.
+Calendar provider failures show an error; they never report a
 confirmed booking. Current integrations check hosts' connected calendars and
 write invitations/Google Meet through the existing calendar service.
 
@@ -324,12 +353,15 @@ Failed calendar or account queries show `Could not load your calendars.` with
 `New event` opens the compact composer with All day in the date/time fields.
 The meeting-link selector lists `Macro call`, `Google Meet`, then `No meeting link`
 for new events, defaulting to `Macro call` when quick calls are enabled. Keeping
-that selection creates and attaches a Macro call after the event saves. Selecting
+that selection creates the Macro call together with the event in one save, so the
+invitation attendees receive already carries the link; if the call cannot be
+created, nothing is saved and Save retries the whole create. Selecting
 `Google Meet` or `No meeting link` skips the Macro call. Out-of-office entries do
 not create calls. There is no separate call toggle or Scheduled Call menu option.
 All-day events get an untimed call link, so setup does not display a misleading midnight time.
-A failed link attachment keeps the composer open with a retry message; Save reuses
-the saved event and call instead of creating duplicates. The invitation includes
+Adding a call to an existing event attaches it after the update; a failed
+attachment keeps the composer open with a retry message, and Save reuses the same
+call instead of creating duplicates. The invitation includes
 the call link in its description and, when no location was entered, its location.
 Event details show a plain icon row with a standard gray `Join Macro call` button
 and `Copy call link`, without an enclosing border or the full URL.
@@ -399,6 +431,29 @@ carries `Copy guest emails` and `Email guests` icon buttons. Copying puts every 
 address on the clipboard, comma-separated. Emailing opens a new email addressed to every
 guest but you — in a split beside the calendar on desktop, as the full-screen composer on
 touch devices — and is hidden when you are the only guest.
+With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
+whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
+organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
+phones): the current guests are listed under `Invited` without a remove control, the picker
+adds people, each new guest has an `Optional` checkbox, a recurring event offers `This
+event` / `All events`, and `Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape
+closes. The new guests appear at once as unanswered and a toast confirms the invitation
+once the provider accepts it. A guest who may not invite gets no button; instead the guest
+list opens with `Only the organizer can invite guests.`, and the same happens after the
+provider refuses an invitation. In the event editor, the organizer edits guests as before,
+while a guest who may invite gets an add-only guests pill whose additions are sent as an
+invitation on save (other edits are saved first); a guest who may not invite keeps a
+read-only pill that explains why. A guest on an event whose organizer hides the guest list
+may not invite either (`viewerCan.inviteGuests` is false; the route answers 403
+`guest_list_hidden`). To check the refusal state without a Google account, answer
+`POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
+The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
+iCalendar file named after its title, so it can be passed on or added to another calendar. The
+file holds the series (its repeat rule, in the event's original time zone), title, description
+as plain text, location and organizer, never the guest list or join link. Like `Copy event`, it
+is absent from teammates' out-of-office chips. Its endpoint, document storage's
+`GET /calendar-events/{event_id}/ics`, also exports an event shared with a channel the viewer
+belongs to.
 
 With the `enable-calendar-team-ooo` flag on, teammates' Google Calendar out-of-office events
 overlay the grid as read-only chips titled `<name>: <event title>`. The sidebar's
@@ -979,3 +1034,16 @@ action is unavailable.
 focus to its trigger. Busy overlapping events are labeled, while cancelled, declined,
 and free events do not count as conflicts. Calendar 12/24-hour preferences apply to
 already-open invitation cards as well as the calendar view.
+
+For a writable Outlook event you organize, the editor's `Replace event…` action
+can reset guest RSVPs or remove its online meeting. Save or discard ordinary edits
+first. Choose the entire series or only this occurrence, review the saved event,
+and check the cancellation/reinvitation acknowledgement before `Replace event`.
+The old invitation is cancelled after the replacement is prepared; guests receive
+a new invitation and must respond again. `Check progress` and `Continue replacement`
+resume that saved operation after an interrupted response. Recovery continues when
+the dialog closes. A conflict offers links to review both copies in Outlook; do
+not create another copy while the existing operation is unresolved. Events with
+native details that cannot be safely copied are rejected before any invitations.
+For an Outlook invitation you attend, `Open in Outlook` below the RSVP controls
+opens the actual occurrence so you can clear your own response there.

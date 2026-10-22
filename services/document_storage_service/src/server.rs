@@ -1217,6 +1217,11 @@ pub async fn run() -> anyhow::Result<()> {
             outbound::agent_dm_authorizer::BotServiceDmAuthorizer(bots_service.clone()),
             SpawnedChannelEventDispatcher::new(channel_side_effects.clone()),
         )))
+        .with_comment_parent_access(Arc::new(
+            channels::outbound::entity_access_comment_parents::EntityAccessCommentParents::new(
+                entity_access_service.clone(),
+            ),
+        ))
         .with_picture_files(
             channels::outbound::static_file_pictures::StaticFileChannelPictures::new(
                 static_file_service_client::StaticFileServiceClient::new(
@@ -1296,6 +1301,12 @@ pub async fn run() -> anyhow::Result<()> {
         ),
     );
     let message_commands: Arc<dyn messages::domain::api::MessageCommands> = message_service.clone();
+    let guest_chat_service = Arc::new(
+        messages::domain::service::guest_chat::GuestChatService::new(
+            message_service.clone(),
+            call_service.clone(),
+        ),
+    );
     let messages_state = messages::inbound::axum_router::MessagesRouterState {
         service: message_service.clone(),
         access: entity_access_service.clone(),
@@ -1582,6 +1593,18 @@ pub async fn run() -> anyhow::Result<()> {
         .with_agent_branches(agent_changes::outbound::postgres::PgChangesetRepo::new(
             db.clone(),
         )),
+    );
+
+    // SQL predicates and follow-up reads use the primary, matching the catalog
+    // versions and writes; replica lag must not select stale rows for an edit.
+    let sql_service = databases_sql::DatabasesSql::new(
+        databases_service.clone(),
+        entity_access_service.clone(),
+        primary_entity_soup.clone(),
+        Arc::new(contacts::domain::service::ContactsDomainService {
+            repository: contacts::outbound::repository::DbContactsRepository::new(db.clone()),
+            notifier: None::<contacts::outbound::gateway::ConnectionGatewayNotifier>,
+        }),
     );
 
     let favorites_service = Arc::new(FavoritesServiceImpl::new(PgFavoritesRepo::new(db.clone())));
@@ -2104,7 +2127,7 @@ pub async fn run() -> anyhow::Result<()> {
                 entity_access_service.as_ref().clone(),
             ),
         ),
-        graphql_soup_update_hydration_loader: graphql_soup::SoupUpdateHydrationLoader(
+        graphql_primary_soup_item_loader: graphql_soup::PrimarySoupItemLoader(
             graphql_soup::soup_item_loader_with_team_access(
                 primary_entity_soup,
                 Arc::new(email_service.clone()),
@@ -2112,8 +2135,8 @@ pub async fn run() -> anyhow::Result<()> {
             ),
         ),
         // Ordinary single-entity GraphQL reads use the replica-backed Soup
-        // and email readers. Subscription hydration and mutation replies
-        // above read the primary.
+        // and email readers. Subscription hydration, `soupEntity`, and
+        // mutation replies above read the primary.
         graphql_soup_item_loader: graphql_soup::soup_item_loader_with_team_access(
             soup_service.clone(),
             Arc::new(readonly_email_service),
@@ -2132,6 +2155,10 @@ pub async fn run() -> anyhow::Result<()> {
         initiative_state: InitiativeRouterState::new(
             initiative_service,
             entity_access_service.clone(),
+            authorization_state.clone(),
+        ),
+        sql_state: databases_sql::inbound::axum_router::SqlRouterState::new(
+            sql_service,
             authorization_state.clone(),
         ),
         databases_state: databases::inbound::axum_router::DatabasesRouterState::new(
@@ -2237,6 +2264,7 @@ pub async fn run() -> anyhow::Result<()> {
             authorization_state.clone(),
         ),
         messages_state,
+        guest_chat_service,
         annotation_service,
         bots_state: bots::inbound::axum_router::BotsRouterState::new(
             bots_service.clone(),

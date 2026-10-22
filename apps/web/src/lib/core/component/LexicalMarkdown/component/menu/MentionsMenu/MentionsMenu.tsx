@@ -16,8 +16,10 @@ import { isMobile } from '@core/mobile/isMobile';
 import type { ChannelWithParticipants, IUser } from '@core/user';
 import { useDateSearch } from '@core/util/dateSearch/useDateSearch';
 import { debouncedDependent } from '@core/util/debounce';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import type { EmailEntity } from '@entity';
+import { Telemetry } from '@macro-inc/observability';
 import type { HistoryItem as Item } from '@queries/history/history';
 import { Key } from '@solid-primitives/keyed';
 import { createLazyMemo } from '@solid-primitives/memo';
@@ -50,6 +52,7 @@ import { useMenuKeyboardNavigation } from '../useMenuKeyboardNavigation';
 import { ItemBin } from './components/ItemBin';
 import { MentionsMenuItem } from './components/MentionsMenuItem';
 import { createMentionPageLoader } from './hooks/createMentionPageLoader';
+import { useBookingLinkMention } from './hooks/useBookingLinkMention';
 import { useEmailSearchMention } from './hooks/useEmailSearchMention';
 import {
   useEntityMention,
@@ -261,6 +264,14 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     );
   });
 
+  const bookingLinksEnabled = () =>
+    !hasCustomEntities() &&
+    (!props.sources || props.sources.includes('bookingLinks'));
+  const { bookingLinks } = useBookingLinkMention({
+    enabled: bookingLinksEnabled,
+    searchTerm,
+  });
+
   const openTabs = createLazyMemo(() => {
     const splitManager = globalSplitManager();
     if (!splitManager) return [];
@@ -317,6 +328,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
   const mobileAllItems = createLazyMemo((): MentionItem[] => {
     const users = sourceEnabled('users') ? mentionUsers() : [];
     const combined: MentionItem[] = [
+      ...(sourceEnabled('bookingLinks') ? bookingLinks() : []),
       ...users,
       ...(sourceEnabled('documents') ? (docs() ?? []) : []),
       ...(sourceEnabled('channels') ? (channels() ?? []) : []),
@@ -340,6 +352,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
           label: 'All',
           getData: mobileAllItems,
           getFullCount: () =>
+            (sourceEnabled('bookingLinks') ? bookingLinks().length : 0) +
             (sourceEnabled('users') ? mentionUsers().length : 0) +
             (sourceEnabled('documents') ? docsMention.totalCount() : 0) +
             (sourceEnabled('agentSessions') ? agentSessions().length : 0) +
@@ -383,6 +396,12 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     }
 
     const buckets: BucketConfig[] = [
+      {
+        id: 'bookingLinks',
+        label: 'Booking Links',
+        getData: bookingLinks,
+        getFullCount: () => bookingLinks().length,
+      },
       {
         id: 'users',
         label:
@@ -548,7 +567,12 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     onSelect: () => {
       const selectedItem = controller.selectedItem();
       if (selectedItem) {
-        itemAction(selectedItem);
+        itemAction(selectedItem).catch((error) =>
+          Telemetry.error(error, {
+            surface: 'mentions-menu',
+            itemKind: selectedItem.kind,
+          })
+        );
       } else {
         closeMenu();
       }
@@ -806,7 +830,10 @@ function MentionsMenuInner(props: MentionsMenuProps) {
                   activeViewAllBucket()?.isLoadingMore?.() ?? false
                 }
                 onEndReached={() => {
-                  void activeViewAllBucket()?.loadMore?.();
+                  fireAndForget(
+                    activeViewAllBucket()?.loadMore?.(),
+                    'mentions-menu'
+                  );
                 }}
               />
             </Show>

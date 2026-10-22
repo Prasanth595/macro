@@ -490,7 +490,6 @@ pub async fn build_tool_service_context_from_env(
         macro_event_broker.clone(),
         entity_access_service.clone(),
         document_tool_context.service.clone(),
-        chat_tool_context.service.clone(),
         user_email_service.clone(),
     );
 
@@ -628,6 +627,9 @@ pub async fn build_tool_service_context_from_env(
             recorder.clone(),
         )?,
         cognition_tool_context: build_cognition_tool_context()?,
+        message_tool_context: crate::tool_context::build_message_tool_context(
+            &document_tool_context,
+        ),
         document_tool_context,
         properties_tool_context,
         email_tool_context,
@@ -664,6 +666,10 @@ pub async fn build_tool_service_context_from_env(
             entity_access_service.clone(),
             document_storage_service_url,
             pipedream_client,
+        ),
+        read_agent_session_context: crate::build_read_agent_session_context(
+            pool.clone(),
+            entity_access_service.clone(),
         ),
         coding_agent_tool_context: crate::build_coding_agent_tool_context(
             macro_service_urls::AgentHarnessServiceUrl::new()?,

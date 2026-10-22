@@ -30,6 +30,7 @@
  * queued and scheduling the pump are idempotent wakeups and are not fenced.
  */
 
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   type Client,
   CombinedError,
@@ -369,7 +370,7 @@ export function createMutationQueueRunner(
     drainTimer = setTimeout(
       () => {
         drainTimer = undefined;
-        void drainQueue();
+        fireAndForget(drainQueue(), 'graphql-cache-mutation-queue');
       },
       drainRequested ? 0 : delayMs
     );
@@ -522,9 +523,9 @@ export function createMutationQueueRunner(
           );
           if (!isCurrent(attempt)) return;
           if (rolledBack.kind === 'rolled-back') {
-            void deps.revalidate(
-              rolledBack.revalidations ?? [],
-              replayOperation
+            fireAndForget(
+              deps.revalidate(rolledBack.revalidations ?? [], replayOperation),
+              'graphql-cache-mutation-queue'
             );
           }
         } finally {
@@ -762,7 +763,10 @@ export function createMutationQueueRunner(
           resolveLiveOperationsAsQueued();
           scheduleDrain(EMPTY_QUEUE_POLL_MS);
         })
-        .exhaustive();
+        .exhaustive(() => {
+          resolveLiveOperationsAsQueued();
+          scheduleDrain();
+        });
     } catch (error) {
       // Enqueue already succeeded. Preserve durable-runner ownership even
       // if routing or claim rollback fails unexpectedly.
@@ -879,7 +883,10 @@ export function createMutationQueueRunner(
             disposition = 'superseded';
           } else {
             disposition = 'permanently-failed';
-            void deps.revalidate(rolledBack.revalidations ?? [], op);
+            fireAndForget(
+              deps.revalidate(rolledBack.revalidations ?? [], op),
+              'graphql-cache-mutation-queue'
+            );
           }
         }
       } else {
@@ -918,7 +925,10 @@ export function createMutationQueueRunner(
             ? 'superseded'
             : 'permanently-failed';
           if (!replacementTransactionId) {
-            void deps.revalidate(committed.revalidations ?? [], op);
+            fireAndForget(
+              deps.revalidate(committed.revalidations ?? [], op),
+              'graphql-cache-mutation-queue'
+            );
           }
         } else if (committed.kind === 'committed-superseded') {
           replacementTransactionId = committed.replacementTransactionId;

@@ -2,6 +2,7 @@ import { useClaudeAgentsAccess } from '@core/claude/flag';
 import { useCodexAgentsAccess } from '@core/codex/flag';
 import { toast } from '@core/component/Toast/Toast';
 import { MACRO_HARNESS_NAME } from '@core/constant/macroAgent';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ThrownResultError } from '@core/util/result';
 import CursorIcon from '@icon/wide-cursor-ide.svg';
 import HardDrivesIcon from '@phosphor/hard-drives.svg';
@@ -22,6 +23,7 @@ import { createSignal, For, onMount, Show } from 'solid-js';
 import { ClaudeConnection } from '../claude-connection/claude-connection';
 import { CodexHarness } from './codex/views/CodexHarness';
 import { CursorDefaultModel } from './components/cursor-default-model';
+import { LocalRuntimeCard } from './components/local-runtime-card';
 import {
   CURSOR_KEY_FORMAT_ERROR,
   CURSOR_KEY_PLACEHOLDER,
@@ -42,7 +44,9 @@ function lastConnectedText(harness: RegisteredHarness): string {
 }
 
 /** Settings UI for choosing and configuring the available agent harnesses. */
-export function Harness(props: { onBack?: () => void } = {}) {
+export function Harness(
+  props: { onBack?: () => void; backLabel?: string } = {}
+) {
   const canUseClaude = useClaudeAgentsAccess();
   const canUseCodex = useCodexAgentsAccess();
   const [cursorApiKey, setCursorApiKey] = createSignal('');
@@ -130,7 +134,7 @@ export function Harness(props: { onBack?: () => void } = {}) {
           title="Runtimes"
           description="Providers and machines your agents can run on."
           onBack={props.onBack}
-          backLabel="Agents"
+          backLabel={props.backLabel ?? 'Agents'}
           actions={
             <Button
               variant="cta"
@@ -142,6 +146,7 @@ export function Harness(props: { onBack?: () => void } = {}) {
             </Button>
           }
         >
+          <LocalRuntimeCard />
           <div>
             <h2 class="mb-3 px-6 text-sm font-semibold text-ink">
               Built-in runtimes
@@ -227,7 +232,10 @@ export function Harness(props: { onBack?: () => void } = {}) {
                               }
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter') {
-                                  void handleSaveCursorApiKey();
+                                  fireAndForget(
+                                    handleSaveCursorApiKey(),
+                                    'cursor-connect'
+                                  );
                                 }
                               }}
                             />
@@ -372,7 +380,7 @@ export function Harness(props: { onBack?: () => void } = {}) {
             harnessName={harness.name}
             pending={deleteHarnessMutation.isPending}
             onClose={() => setRemovingHarness(undefined)}
-            onConfirm={() => void removeHarness()}
+            onConfirm={() => fireAndForget(removeHarness(), 'harness-settings')}
           />
         )}
       </Show>

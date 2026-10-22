@@ -461,7 +461,7 @@ fn mutation_tool_error(action: &str, error: CalendarMutationError) -> ToolCallEr
                 .to_string()
         }
         CalendarMutationError::OccurrenceNotFound => {
-            "That occurrence does not exist on the recurring event at Google — the calendar \
+            "That occurrence does not exist on the recurring event at the provider — the calendar \
              copy was out of date and has now been refreshed. Nothing was changed. Run \
              ListCalendarEvents again and retry with a current occurrence."
                 .to_string()
@@ -470,12 +470,21 @@ fn mutation_tool_error(action: &str, error: CalendarMutationError) -> ToolCallEr
             "This event's calendar is read-only for the user, so it cannot be modified.".to_string()
         }
         CalendarMutationError::NoWritableCalendar => {
-            "No connected calendar can accept events. The user has not connected a Google \
-             Calendar with write access, or calendar sync is not enabled for their account."
+            "No connected calendar can accept events. The user has not connected a calendar with write access, or calendar sync is not enabled for their account."
                 .to_string()
         }
         CalendarMutationError::NotAttendee => {
             "The user's connected account is not an attendee of this event.".to_string()
+        }
+        CalendarMutationError::GuestsCannotInvite => {
+            "The organizer doesn't let guests invite others, so the user cannot add guests to \
+             this event. Suggest asking the organizer to add them."
+                .to_string()
+        }
+        CalendarMutationError::GuestListHidden => {
+            "The organizer hides this event's guest list, so the user cannot add guests to it. \
+             Suggest asking the organizer to add them."
+                .to_string()
         }
         CalendarMutationError::InvalidInput(message) => message.clone(),
         CalendarMutationError::ReauthRequired(_) => {
@@ -484,13 +493,13 @@ fn mutation_tool_error(action: &str, error: CalendarMutationError) -> ToolCallEr
                 .to_string()
         }
         CalendarMutationError::ProviderRejected(message) => {
-            format!("Google Calendar rejected the change: {message}")
+            format!("The calendar provider rejected the change: {message}")
         }
         CalendarMutationError::Retryable(_) => {
             "The calendar service is temporarily unavailable. Try again shortly.".to_string()
         }
         CalendarMutationError::PersistFailed(_) => {
-            "The change reached Google Calendar, but Macro's copy lagged behind. It will appear \
+            "The change reached the calendar provider, but Macro's copy lagged behind. It will appear \
              after the next sync."
                 .to_string()
         }
@@ -516,7 +525,7 @@ fn macro_call_create_tool_error(error: CreateEventWithMacroCallError) -> ToolCal
                 }
                 MeetingLinkError::Unavailable => {
                     "Macro calls cannot be created from here. Retry with `addMacroCall` false, \
-                     or use `addGoogleMeet` for video conferencing."
+                     or use `addConference` for video conferencing."
                         .to_string()
                 }
                 MeetingLinkError::Failed(_) => {
