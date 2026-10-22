@@ -1,6 +1,7 @@
 import { deepEqual } from '@core/util/compareUtils';
 import { prepareEmailBody } from '@macro-inc/email-renderer';
 import { mountEmailBody } from '@macro-inc/email-renderer/browser';
+import { Telemetry } from '@macro-inc/observability';
 import {
   type Accessor,
   createEffect,
@@ -20,6 +21,19 @@ export interface EmailMessageBodyProps {
   setFocusedMessageId: (messageId: string | undefined) => void;
   showFullContent?: boolean;
   isFocused: boolean;
+}
+
+const reportedMismatches = new Set<string>();
+
+/**
+ * A server body this client can't mount means the server and client disagree
+ * (proxy configuration, or a source the server didn't see), so every body of
+ * that kind prepares locally. Reported once per kind per session.
+ */
+function reportServerBodyMismatch(reason: 'image-proxy' | 'source-length') {
+  if (reportedMismatches.has(reason)) return;
+  reportedMismatches.add(reason);
+  Telemetry.warn('email.prepared_body.mismatch', { 'email.mismatch': reason });
 }
 
 /** Solid only translates reactive inputs and owns the renderer's lifetime. */
@@ -61,14 +75,17 @@ export function createEmailMessageBody(
       !options.showQuotedContent && !options.showFullContent && !input.isDraft
         ? untrack(() => renderingContext.preparedBody?.(input.id))
         : undefined;
-    if (
-      server &&
-      server.imageProxyUrl === (options.images?.proxyUrl ?? null) &&
-      (options.images?.remote ?? 'allow') === 'allow' &&
-      server.sourceLength ===
-        (input.html?.length ?? 0) + (input.replylessHtml?.length ?? 0)
-    )
-      return server.body;
+    if (server && (options.images?.remote ?? 'allow') === 'allow') {
+      const mismatch =
+        server.imageProxyUrl !== (options.images?.proxyUrl ?? null)
+          ? 'image-proxy'
+          : server.sourceLength !==
+              (input.html?.length ?? 0) + (input.replylessHtml?.length ?? 0)
+            ? 'source-length'
+            : undefined;
+      if (!mismatch) return server.body;
+      reportServerBodyMismatch(mismatch);
+    }
     return prepareEmailBody(input, options);
   });
   const rendered = createMemo(() => {

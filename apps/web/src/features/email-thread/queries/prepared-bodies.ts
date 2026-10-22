@@ -52,7 +52,9 @@ export function createPreparedBodiesQuery(
     () => ({
       client: client(),
       enabled: enabled(),
-      requestPolicy: 'cache-and-network' as const,
+      // A prepared body only changes with its source or version, and the
+      // client checks both, so a cached one is never re-prepared.
+      requestPolicy: 'cache-first' as const,
       select: preparedBodiesById,
     })
   );

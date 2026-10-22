@@ -1,4 +1,5 @@
 import type { ResourceLifetime } from '@macro-inc/email-renderer/browser';
+import { Telemetry } from '@macro-inc/observability';
 import { createRoot, createSignal } from 'solid-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ServerPreparedBody } from '../context/email-rendering-context';
@@ -249,6 +250,26 @@ describe('server-prepared bodies', () => {
     expect(text(root)).toContain('From the server');
     expect(root.body.hasHiddenReplyStructure()).toBe(true);
     root.dispose();
+  });
+
+  // Before the cases below: each kind is reported once per session.
+  it('reports each kind of mismatch once', () => {
+    const warn = vi.spyOn(Telemetry, 'warn').mockImplementation(() => {});
+    for (const server of [
+      serverBody({ imageProxyUrl: null }),
+      serverBody({ imageProxyUrl: null }),
+      serverBody({ sourceLength: html.length + 1 }),
+    ])
+      mount(server).dispose();
+    expect(
+      warn.mock.calls
+        .filter(([event]) => event === 'email.prepared_body.mismatch')
+        .map(([, attributes]) => attributes)
+    ).toEqual([
+      { 'email.mismatch': 'image-proxy' },
+      { 'email.mismatch': 'source-length' },
+    ]);
+    warn.mockRestore();
   });
 
   it.each([
