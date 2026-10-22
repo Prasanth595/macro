@@ -20,8 +20,8 @@ use super::models::{
     CalendarReminderDispatchMessage, CalendarReminderFiring, CalendarReminderSweepSummary,
     CalendarSyncStatus, DisconnectedCalendar, DueCalendarReminder, GoogleCalendarSyncSnapshot,
     GoogleEventSyncBatch, GoogleScopeSet, GoogleSyncPlan, GoogleWatchChannel, GoogleWatchConfig,
-    GuestPolicy, OccurrenceListing, OccurrenceRange, ProviderCalendar, ProviderCalendarTarget,
-    StoredGoogleCalendar, TeamOutOfOffice, VisibleCalendar,
+    GuestPolicy, OccurrenceListing, OccurrenceRange, OwnedInbox, ProviderCalendar,
+    ProviderCalendarTarget, StoredGoogleCalendar, TeamOutOfOffice, VisibleCalendar,
 };
 
 /// Classification supplied by provider adapters to backfill policy.
@@ -233,12 +233,15 @@ pub trait CalendarMutationProvider: Send + Sync + 'static {
     /// already invited with their answer, notify the new guests, and refresh
     /// the series.
     ///
-    /// The provider event is read first: a vanished event surfaces as
+    /// `actor` is the inbox the addressed copy syncs through. The provider
+    /// event is read first: a vanished event surfaces as
     /// [`ProviderInviteOutcome::Gone`], an actor who neither organizes nor
     /// attends it as [`ProviderInviteOutcome::NotAttendee`], and a guest the
     /// event's live policy refuses as [`ProviderInviteOutcome::Forbidden`] or
-    /// [`ProviderInviteOutcome::GuestListHidden`]. Guests already on the
-    /// event are dropped, and nothing is written when none remain.
+    /// [`ProviderInviteOutcome::GuestListHidden`]. Outlook takes guests only
+    /// from the organizer, so it refuses anyone else with a permanent
+    /// provider error. Guests already on the event are dropped, and nothing
+    /// is written when none remain.
     fn add_attendees(
         &self,
         access_token: &str,
@@ -248,6 +251,21 @@ pub trait CalendarMutationProvider: Send + Sync + 'static {
         guests: &[CalendarAttendeeInput],
         scope: &CalendarUpdateScope,
     ) -> impl Future<Output = Result<ProviderInviteOutcome, CalendarProviderError>> + Send;
+
+    /// Import a private copy of another calendar's event into the target
+    /// calendar under the source's iCalendar UID. Guests are not notified:
+    /// the copy carries no attendees and an import sends nothing.
+    ///
+    /// Returns `None`, importing nothing, when the calendar already holds a
+    /// live event with that UID. Google's import updates such an event in
+    /// place, which would strip the guests and join link of an invitation
+    /// Macro has not synced yet.
+    fn import_event(
+        &self,
+        access_token: &str,
+        target: &ProviderCalendarTarget,
+        source: &CalendarEventExport,
+    ) -> impl Future<Output = Result<Option<CalendarEventUpsert>, CalendarProviderError>> + Send;
 
     /// Close a push notification channel. A channel Google no longer knows
     /// about is success, since the goal is only that it stops delivering.
@@ -535,12 +553,12 @@ pub trait CalendarRepository: Send + Sync + 'static {
         now: DateTime<Utc>,
     ) -> impl Future<Output = Result<Vec<CalendarMentionPreview>, Report>> + Send;
 
-    /// Series content of an event the requester can see, for export: the
-    /// requester's own projection of the meeting (same iCalendar UID) on one
-    /// of their own or linked calendars, else the requested row itself when
-    /// it is neither private nor confidential and was shared with a channel
-    /// they currently belong to. `None` covers an unknown or cancelled event
-    /// and one they cannot see.
+    /// Series content of an event the requester can see, for export or
+    /// copying, with how they see it: the requester's own projection of the
+    /// meeting (same iCalendar UID) on one of their own or linked calendars,
+    /// else the requested row itself when it is neither private nor
+    /// confidential and was shared with a channel they currently belong to.
+    /// `None` covers an unknown or cancelled event and one they cannot see.
     fn event_export(
         &self,
         requester_id: &str,
@@ -713,13 +731,13 @@ pub trait CalendarRepository: Send + Sync + 'static {
         requester_id: &str,
     ) -> impl Future<Output = Result<Option<String>, Report>> + Send;
 
-    /// Addresses of every connected inbox the requester owns
+    /// Every connected inbox the requester owns
     /// (`email_links.macro_id = requester`). Raw and unnormalized;
     /// [`ActorInboxes::from_owned`] is the single normalization point.
-    fn owned_inbox_emails(
+    fn owned_inboxes(
         &self,
         requester_id: &str,
-    ) -> impl Future<Output = Result<Vec<String>, Report>> + Send;
+    ) -> impl Future<Output = Result<Vec<OwnedInbox>, Report>> + Send;
 
     /// Retire a Google source the provider confirmed deleted (a recurring
     /// master also retires its expanded instances), restoring the best
@@ -829,6 +847,18 @@ pub trait CalendarMutationService: Send + Sync + 'static {
         scope: CalendarUpdateScope,
     ) -> impl Future<Output = Result<CalendarEvent, CalendarMutationError>> + Send;
 
+    /// Add a private copy of an event shared with one of the requester's
+    /// channels to one of their Google calendars — the selected one, or
+    /// their primary inbox's primary calendar — and persist the provider
+    /// echo. The copy keeps the meeting's iCalendar UID, so it becomes the
+    /// requester's own projection of that meeting.
+    fn copy_shared_event(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+        calendar_id: Option<Uuid>,
+    ) -> impl Future<Output = Result<CalendarEvent, CalendarMutationError>> + Send;
+
     /// Turn calendar off for one of the requester's own connected inboxes:
     /// its calendar data is removed, the calendar scopes leave the recorded
     /// grant, and its push channels are closed at Google.
@@ -924,13 +954,18 @@ pub enum CalendarMutationError {
     /// The connected account is not an attendee of the event.
     #[error("the connected account is not an attendee of this event")]
     NotAttendee,
-    /// The organizer does not let guests invite others.
-    #[error("the organizer doesn't let guests invite others")]
+    /// Only the organizer may invite guests: the organizer does not let
+    /// guests invite others, or the event is an Outlook meeting, which
+    /// gives its attendees no way to change it.
+    #[error("only the organizer can invite guests to this event")]
     GuestsCannotInvite,
     /// The organizer hides the guest list, so a guest's copy cannot hold the
     /// whole list a guest addition must write.
     #[error("guests cannot be added while the organizer hides the guest list")]
     GuestListHidden,
+    /// The meeting is already on one of the requester's calendars.
+    #[error("the event is already on one of the requester's calendars")]
+    AlreadyOnCalendar,
     /// The supplied fields were invalid.
     #[error("invalid calendar mutation: {0}")]
     InvalidInput(String),

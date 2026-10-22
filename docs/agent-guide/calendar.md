@@ -161,17 +161,17 @@ default personal link for a new profile. Public
 choose an event on the profile landing page, then choose their timezone, date,
 and time before entering attendee details. Date & time and Your details steps
 show progress; the event summary and selected time stay visible. Choose another
-time preserves attendee input. All meetings returns to the profile chooser when
-multiple events exist, but is disabled while a booking response is unresolved.
+time preserves attendee input. Event booking pages do not show an All meetings
+link back to the profile chooser.
 The private confirmation shows the meeting, date, timezone, location, and guest.
 In the native iOS and Android apps, standalone booking and receipt pages keep a
 sticky **Back to Macro** button below the device's top safe-area inset. It returns to
 the app through the router without reloading, including while the page is loading
 or unavailable. Browser pages and embedded booking dialogs omit this button.
 
-Public URLs and booking behavior remain unchanged. The website can frame the
-booking page and receipt without duplicate Macro branding. A completed booking
-notifies the same-origin parent page; other sites cannot frame these routes.
+The website can frame the booking page and receipt without duplicate Macro
+branding. A completed booking notifies the same-origin parent page; other sites
+cannot frame these routes.
 Uncertain calendar writes retain the booking and show its private receipt while automatic recovery runs.
 After a network response cannot be verified, `Check booking status` retries the original request;
 do not create a replacement booking. Receipt pages poll while the calendar update is pending. The private
@@ -435,7 +435,8 @@ As in Google Calendar, the guests row of the details popover (a bottom sheet on 
 carries `Copy guest emails` and `Email guests` icon buttons. Copying puts every guest's
 address on the clipboard, comma-separated. Emailing opens a new email addressed to every
 guest but you — in a split beside the calendar on desktop, as the full-screen composer on
-touch devices — and is hidden when you are the only guest.
+touch devices, in its own composer even when another one is open — and is hidden when you
+are the only guest.
 With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
 whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
 organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
@@ -452,13 +453,34 @@ read-only pill that explains why. A guest on an event whose organizer hides the 
 may not invite either (`viewerCan.inviteGuests` is false; the route answers 403
 `guest_list_hidden`). To check the refusal state without a Google account, answer
 `POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
+An event that reached several connected inboxes shows one chip per inbox (overlapping;
+tell them apart by calendar color), and each copy answers only for its own inbox: a
+guest copy stays a guest copy, marked `(you)` on that inbox's row alone, even when
+another connected inbox organizes the event. An Outlook guest copy never offers `Add
+guests` (Outlook lets only the organizer change a meeting) and shows the same
+explanation; an Outlook organizer adds guests like a Google one.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description
-as plain text, location and organizer, never the guest list or join link. Like `Copy event`, it
+as plain text, location and organizer, never the guest list or join link. A Macro call's
+`Join Macro call` line and a location that is only its link are left out too, as event details
+leave them out. Like `Copy event`, it
 is absent from teammates' out-of-office chips. Its endpoint, document storage's
 `GET /calendar-events/{event_id}/ics`, also exports an event shared with a channel the viewer
 belongs to.
+Beside it, `Forward by email` (shown under the same rule) passes the event on the way Gmail
+forwards an invitation: it closes the details, fetches the same file, and opens a new email
+where `Email guests` does, with no recipients, the title as subject, a plain-text summary in
+the body (title, when in the viewer's zone, the repeat rule in words, location, organizer and
+description, never guests or a join link) and the `.ics` attached as a picked file would be.
+Nothing is saved as a draft until you edit something. The file is `METHOD:PUBLISH`, so
+recipients get a copy to add to their calendar, not an invitation they can answer. If the file
+cannot be fetched, no composer opens and a `Failed to forward event` toast shows; to check it,
+answer the `.ics` route with an error.
+On desktop, every icon button in the details header (`Copy event`, `Download .ics`, `Forward
+by email`, `Edit event`, `Delete event`, `Close event details`) and in the guests row shows its
+name as a tooltip on hover, as does the close button of the recurring RSVP dialog. Touch
+devices show no tooltips; the phone drawer's buttons keep the same accessible names.
 
 With the `enable-calendar-team-ooo` flag on, teammates' Google Calendar out-of-office events
 overlay the grid as read-only chips titled `<name>: <event title>`. The sidebar's
@@ -478,7 +500,15 @@ own copy of the meeting. When a person holds the event on their own calendar and
 mention, it is shared read-only with the channel's current members: a member without a copy of
 their own sees the mention's title and time, and its hover card adds a `Shared with you · not on
 your calendar` line with no open action. Clicking such a mention shows that hover card
-instead of opening the calendar. A classic `@Macro` reply that mentions an event does not share
+instead of opening the calendar; on a touch device, tapping it opens the same card as a bottom
+sheet. That card also offers `Add to calendar`, which imports a private copy (no guests, no join
+link, nobody is notified) onto the viewer's only writable Google calendar, or onto one they pick
+from a menu when they have several; Outlook calendars are not offered, since Microsoft cannot
+keep the meeting's iCalendar UID. The mention then opens that copy. If Google already holds the
+meeting on that calendar (an invitation Macro has not synced yet), nothing is imported, a sync
+is scheduled and the card reports that it is already on their calendar. `Download .ics` saves
+the event as an iCalendar file. The copy is a snapshot: later changes by the organizer do not
+reach it. A classic `@Macro` reply that mentions an event does not share
 it by posting the chip. It asks whether to share with the channel, and a yes in that thread
 writes the same channel grant. Private and confidential events are never shared this way.
 Every calendar mention's hover card shows the schedule, location, organizer and attendee

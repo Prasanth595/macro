@@ -7,6 +7,7 @@
 //! no-ops on the idempotency short-circuit.
 
 use std::collections::HashMap;
+mod copy;
 mod invite;
 mod replacement;
 
@@ -230,7 +231,7 @@ where
                 .await;
         }
         if let Some(viewer) = viewer {
-            viewer.mark_event(&mut event);
+            viewer.mark_event(&mut event, email_link_id);
         }
         Ok(event)
     }
@@ -338,9 +339,9 @@ where
                 patch.attendees = Some(attendees);
             } else {
                 // A guest who may not remove guests only adds, through the
-                // invite path, which keeps every guest Google already holds.
+                // invite path, which keeps every guest the provider holds.
                 let additions =
-                    invite::guest_list_additions(attendees, &stored, target.actor.as_ref())?;
+                    invite::guest_list_additions(attendees, &stored, target.copy_inbox())?;
                 if !additions.is_empty() {
                     let invited = self
                         .invite_guests(
@@ -524,14 +525,17 @@ where
         let Some(actor) = target.actor.as_ref() else {
             return Err(CalendarMutationError::NotAttendee);
         };
-        let selected_actor = responding_email
-            .as_deref()
-            .map(|email| {
+        // Without an address, answer as the copy's own inbox, as the web does by
+        // sending the copy's `is_self` row. A delegate owns no copy inbox and
+        // keeps answering as their own inboxes.
+        let selected_actor = match responding_email.as_deref() {
+            Some(email) => Some(
                 actor
                     .select(email)
-                    .ok_or(CalendarMutationError::NotAttendee)
-            })
-            .transpose()?;
+                    .ok_or(CalendarMutationError::NotAttendee)?,
+            ),
+            None => actor.through(target.email_link_id),
+        };
         let access_token = self.fetch_token(&target.token_identity).await?;
         let outcome = self
             .provider
@@ -557,7 +561,7 @@ where
                 self.retire_gone_source(&target).await;
                 event.id = target.event_id;
                 if let Some(actor) = &target.actor {
-                    actor.mark_event(&mut event);
+                    actor.mark_event(&mut event, target.email_link_id);
                 }
                 Ok(*event)
             }
@@ -579,6 +583,7 @@ where
                 CalendarUpdateScope::All => "all",
                 CalendarUpdateScope::ThisEvent { .. } => "this_event",
             },
+            provider = tracing::field::Empty,
             outcome = tracing::field::Empty,
         ),
         err
@@ -595,6 +600,33 @@ where
             .add_guests(requester_id, event_id, calendar_id, guests, scope)
             .await;
         tracing::Span::current().record("outcome", invite::invite_outcome(&result));
+        result
+    }
+
+    #[tracing::instrument(
+        name = "calendar.copy_shared_event",
+        skip(self, requester_id),
+        fields(
+            event_id = %event_id,
+            copied_event_id = tracing::field::Empty,
+            outcome = tracing::field::Empty,
+        ),
+        err
+    )]
+    async fn copy_shared_event(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+        calendar_id: Option<Uuid>,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
+        let result = self
+            .copy_into_calendar(requester_id, event_id, calendar_id)
+            .await;
+        let span = tracing::Span::current();
+        if let Ok(copied) = &result {
+            span.record("copied_event_id", tracing::field::display(copied.id));
+        }
+        span.record("outcome", copy::copy_outcome(&result));
         result
     }
 

@@ -944,16 +944,27 @@ restart rules still apply.
 ## Keyboard model (from the in-app guide; verified partially)
 
 - `Ctrl/Cmd+K` — jump to anything by name.
+- `?` — the focused view's shortcuts, read from its registered keys (hidden
+  navigation keys and `g` sequences included); `?` again closes it. Only the
+  key opens it: the command menu does not list it, since run from there it
+  would describe the menu. A view's `g` letters are listed under that view.
 - `c` then `d`/`t`/`e`/`m`/`a` — create doc / task / email / channel / AI chat.
   Single-letter shortcuts only work when no editor has focus; press `Escape` first.
-- `/` — search everything. `j`/`k` — move in lists. `e` — mark done.
+- `/` — search everything (in Email it focuses email search). `j`/`k` — move in
+  lists. `e` — mark done.
 - `#` — move email to Trash, with an Undo toast. Works on the selected or focused
   rows in a mail list and on the thread open in an email detail or block. Email
   only; other entity types keep Delete/Backspace and do not answer `#`.
-- `g` then `h` — Home; `g` then `i` remains an alias.
+- `g` then `h` — Home; `g` then `i` remains an alias. While Email is focused,
+  `g i`/`o`/`s`/`t`/`d`/`e`/`a` open its tabs instead (`g i` Signal, `g t` Sent;
+  see `email.md`); `g h` still goes Home.
 - In Email and Tasks search, `Escape` returns focus to the list and keeps the query.
   Use the search field's clear button to clear it.
 - Splits: `` ` `` split, `Shift+H`/`Shift+L` move focus, `Shift+Esc` maximize.
+- Desktop app only: `Ctrl/Cmd` with `+`, `-`, and `0` zoom the page and reset it,
+  through the same stops a browser uses. The level persists across relaunches,
+  and the commands appear in the command menu as Zoom in / Zoom out / Actual
+  size. In a browser tab these stay the browser's own zoom.
 - In any text surface: `@` mentions (bidirectional links), `#` tags, `/` block commands,
   `:` emoji. Clicking a rendered tag opens a Search split filtered to that tag.
 
@@ -963,31 +974,6 @@ picker; a failed catalog shows an inline error. The rest of settings stays usabl
 Settings → Agents → Agents ends with **Coding sessions**: per-user **Create
 tasks** and **Open pull requests** switches, both off by default. Each saves on
 toggle and reverts with a toast if the save fails.
-
-With the `claude-cloud` feature flag enabled, Claude Cloud connection setup is in
-Settings → Agents → Runtimes (Manage on Bring your own agent), above Cursor, with the
-Anthropic logo. The agent editor's Where it runs offers In Claude Code but does not host
-Claude's connection form. **Connect Claude** starts authorization and opens sign-in
-on the first click; a fallback link remains if the browser blocks the tab.
-Approve on Claude's page, copy the complete `code#state`, then use **Finish
-connecting**. Hosted and local deployments use the same flow. Grants and pending
-sign-in attempts are encrypted in MacroDB and survive restarts or replica changes.
-If the card says sign-in is not configured, the deployment is missing its Claude
-OAuth KMS key; changing the frontend flag cannot fix that backend configuration.
-Claude's model picker uses provider-reported IDs,
-names, descriptions, and order. Settings discovers from recent account sessions;
-session catalogs update through replay, polling, and streaming. Before any catalog
-is available, only subscription default is shown with an explanation. It saves the next-turn preference
-without waking an idle worker; provider model rejections surface during the turn.
-Claude agents use their saved MCP selection through the shared authenticated
-session egress path. Remote HTTP/SSE servers are supported; stdio servers are
-rejected. Tool permission requests use Macro's standard session policy. MCP setup
-failures surface as turn errors and request interruption; the first prompt also
-wakes the cloud worker, so setup failure may occur after submission. Reconnecting
-refreshes the session credential and restores the saved selection.
-Claude sessions expose **Open in Claude** in the header
-toolbar (or its overflow menu). With a live runtime, messages sent in Claude are
-polled into Macro about every two seconds; disconnected runtimes must resume first.
 
 Home does not bind Delete or Backspace to deleting list items. These keys remain
 available to the open editor (for example, clearing a selected spreadsheet range).
