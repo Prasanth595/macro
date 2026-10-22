@@ -572,6 +572,8 @@ picking. An occupied result cell is never overwritten.
 The **Find and replace** ribbon button (Cmd/Ctrl+F in the grid) opens a compact
 find bar in the top-right of the sheet (same pattern as channel find): query,
 match count, previous/next, and close. The sheet stays visible while searching.
+Cmd/Ctrl+F is captured on the editor (including the formula bar and find bar)
+so the browser find dialog never opens; a second press re-selects the query.
 Press the replace toggle to expand replace-with, Replace / All, and match options
 (case, entire cell, formulas). Next/previous select each result. Formula results
 can be searched, but replacements preserve the formulas unless **Formulas** is

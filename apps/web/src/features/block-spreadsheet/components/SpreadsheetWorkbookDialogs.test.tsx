@@ -114,6 +114,37 @@ describe('workbook dialogs', () => {
     expect(restoreFocus).toHaveBeenCalled();
   });
 
+  it('blocks the browser find shortcut while the find bar is focused', async () => {
+    render(() => (
+      <SpreadsheetFindDialog
+        open
+        onClose={() => {}}
+        query="Budget"
+        onQuery={() => {}}
+        replacement=""
+        onReplacement={() => {}}
+        options={{ matchCase: false, entireCell: false, formulas: false }}
+        onOptions={() => {}}
+        matchCount={1}
+        matchIndex={0}
+        readonly={false}
+        notice=""
+        onFind={() => {}}
+        onReplace={() => {}}
+      />
+    ));
+    const input = await screen.findByRole('textbox', { name: 'Find in sheet' });
+    const event = new KeyboardEvent('keydown', {
+      key: 'f',
+      code: 'KeyF',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it('keeps replace collapsed until the replace toggle is pressed', async () => {
     const [open, setOpen] = createSignal(true);
     render(() => (

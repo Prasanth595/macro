@@ -26,10 +26,20 @@ type SpreadsheetFindDialogProps = {
   onReplace: (all: boolean) => void;
 };
 
+/** Platform find shortcut (Cmd/Ctrl+F). */
+function isFindKey(event: KeyboardEvent) {
+  return (event.metaKey || event.ctrlKey) && event.code === 'KeyF';
+}
+
 /** Compact find bar (channel-style); expands for replace and search options. */
 export function SpreadsheetFindDialog(props: SpreadsheetFindDialogProps) {
   const [replacing, setReplacing] = createSignal(false);
   let findInputRef: HTMLInputElement | undefined;
+
+  const focusFind = () => {
+    findInputRef?.focus();
+    findInputRef?.select();
+  };
 
   createEffect(
     on(
@@ -39,10 +49,7 @@ export function SpreadsheetFindDialog(props: SpreadsheetFindDialogProps) {
           setReplacing(false);
           return;
         }
-        queueMicrotask(() => {
-          findInputRef?.focus();
-          findInputRef?.select();
-        });
+        queueMicrotask(focusFind);
       }
     )
   );
@@ -70,6 +77,12 @@ export function SpreadsheetFindDialog(props: SpreadsheetFindDialogProps) {
           if (event.key === 'Escape') {
             event.preventDefault();
             close();
+            return;
+          }
+          // Stop the browser find dialog while the bar owns keyboard focus.
+          if (isFindKey(event)) {
+            event.preventDefault();
+            focusFind();
           }
         }}
         onPointerDown={(event) => event.stopPropagation()}
@@ -96,6 +109,9 @@ export function SpreadsheetFindDialog(props: SpreadsheetFindDialogProps) {
               if (e.key === 'Enter' && !e.isComposing) {
                 e.preventDefault();
                 props.onFind(e.shiftKey);
+              } else if (isFindKey(e)) {
+                e.preventDefault();
+                focusFind();
               }
             }}
             class="min-w-0 flex-1 border-0 bg-transparent px-1 text-sm text-ink placeholder:text-ink-placeholder outline-none focus:ring-0"
