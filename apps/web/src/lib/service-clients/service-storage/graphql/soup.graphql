@@ -120,6 +120,7 @@ fragment SoupItemPreviewFields on GraphqlSoupEntity {
 		}
 		threadId
 		source
+		visibility
 		status
 		createdAt
 		updatedAt

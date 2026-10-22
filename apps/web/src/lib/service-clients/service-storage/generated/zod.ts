@@ -27886,6 +27886,12 @@ export const getItemsSoupResponse = zod
                       .describe(
                         'The time the session was last viewed by the requesting user'
                       ),
+                    visibility: zod
+                      .enum(['listed', 'unlisted'])
+                      .optional()
+                      .describe(
+                        "Whether Home and the default Agents list show an agent session; a\nroutine's setting decides it for each of its runs. The string form is the\n`agent_session.visibility` column's."
+                      ),
                     workingBranch: zod
                       .string()
                       .nullish()
@@ -32535,6 +32541,12 @@ export const postItemsSoupResponse = zod
                       .describe(
                         'The time the session was last viewed by the requesting user'
                       ),
+                    visibility: zod
+                      .enum(['listed', 'unlisted'])
+                      .optional()
+                      .describe(
+                        "Whether Home and the default Agents list show an agent session; a\nroutine's setting decides it for each of its runs. The string form is the\n`agent_session.visibility` column's."
+                      ),
                     workingBranch: zod
                       .string()
                       .nullish()
@@ -36659,6 +36671,12 @@ export const postItemsSoupAstResponse = zod
                       .nullish()
                       .describe(
                         'The time the session was last viewed by the requesting user'
+                      ),
+                    visibility: zod
+                      .enum(['listed', 'unlisted'])
+                      .optional()
+                      .describe(
+                        "Whether Home and the default Agents list show an agent session; a\nroutine's setting decides it for each of its runs. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -41202,6 +41220,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .describe(
                               'The time the session was last viewed by the requesting user'
                             ),
+                          visibility: zod
+                            .enum(['listed', 'unlisted'])
+                            .optional()
+                            .describe(
+                              "Whether Home and the default Agents list show an agent session; a\nroutine's setting decides it for each of its runs. The string form is the\n`agent_session.visibility` column's."
+                            ),
                           workingBranch: zod
                             .string()
                             .nullish()
@@ -45305,6 +45329,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .nullish()
                             .describe(
                               'The time the session was last viewed by the requesting user'
+                            ),
+                          visibility: zod
+                            .enum(['listed', 'unlisted'])
+                            .optional()
+                            .describe(
+                              "Whether Home and the default Agents list show an agent session; a\nroutine's setting decides it for each of its runs. The string form is the\n`agent_session.visibility` column's."
                             ),
                           workingBranch: zod
                             .string()

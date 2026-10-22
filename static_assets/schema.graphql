@@ -1241,6 +1241,11 @@ input GraphqlAgentSessionLiteral @oneOf {
 	does not opt the query in.
 	"""
 	source: GraphqlAgentSessionSource
+	"""
+	Whether the session is listed. Narrows the sessions a query asks for;
+	it does not opt the query in.
+	"""
+	visibility: GraphqlAgentSessionVisibility
 }
 
 """
@@ -1397,6 +1402,22 @@ enum GraphqlAgentSessionSource {
 	A routine's unattended run.
 	"""
 	ROUTINE
+}
+
+"""
+Whether Home and the default Agents list show an agent session: filter
+input, and the field Soup returns.
+"""
+enum GraphqlAgentSessionVisibility {
+	"""
+	Shown wherever the owner's sessions are.
+	"""
+	LISTED
+	"""
+	Left out of Home and the default Agents list; a routine's setting
+	decides it for each of its runs.
+	"""
+	UNLISTED
 }
 
 """
@@ -6777,6 +6798,10 @@ type GraphqlSoupAgentSession implements GraphqlSoupEntity {
 	Who started the session.
 	"""
 	source: GraphqlAgentSessionSource!
+	"""
+	Whether Home and the default Agents list show the session.
+	"""
+	visibility: GraphqlAgentSessionVisibility!
 	"""
 	The session's last known status: `no_messages`, `disconnected`, or the
 	wire name of the most recent system event (for example `session/end`).

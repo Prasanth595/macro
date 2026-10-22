@@ -63,6 +63,7 @@
 - [AgentSessionFilters](type-aliases/AgentSessionFilters.md)
 - [AgentSessionLifecycleEvent](type-aliases/AgentSessionLifecycleEvent.md)
 - [AgentSessionSource](type-aliases/AgentSessionSource.md)
+- [AgentSessionVisibility](type-aliases/AgentSessionVisibility.md)
 - [AgentTyping](type-aliases/AgentTyping.md)
 - [AgentTypingPhase](type-aliases/AgentTypingPhase.md)
 - [Anchor](type-aliases/Anchor.md)

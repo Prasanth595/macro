@@ -6,6 +6,7 @@
  */
 
 import type { AgentSessionSource } from './agentSessionSource';
+import type { AgentSessionVisibility } from './agentSessionVisibility';
 import type { SoupAgentSessionSoupPropertiesFieldAllOfTwoPullRequestId } from './soupAgentSessionSoupPropertiesFieldAllOfTwoPullRequestId';
 import type { SoupAgentSessionSoupPropertiesFieldAllOfTwoPullRequestState } from './soupAgentSessionSoupPropertiesFieldAllOfTwoPullRequestState';
 import type { SoupAgentSessionSoupPropertiesFieldAllOfTwoPullRequestUrl } from './soupAgentSessionSoupPropertiesFieldAllOfTwoPullRequestUrl';
@@ -56,6 +57,8 @@ of the most recent system event (for example `session/end`). */
   updatedAt: string;
   /** The time the session was last viewed by the requesting user */
   viewedAt?: SoupAgentSessionSoupPropertiesFieldAllOfTwoViewedAt;
+  /** Whether Home and the default Agents list show the session */
+  visibility?: AgentSessionVisibility;
   /** Last captured working branch, when the runtime has reported one. */
   workingBranch?: SoupAgentSessionSoupPropertiesFieldAllOfTwoWorkingBranch;
 };

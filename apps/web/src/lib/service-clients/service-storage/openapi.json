@@ -19278,6 +19278,11 @@
         "description": "Who started an agent session. The string form is the\n`agent_session.source` column's.",
         "enum": ["user", "routine"]
       },
+      "AgentSessionVisibility": {
+        "type": "string",
+        "description": "Whether Home and the default Agents list show an agent session; a\nroutine's setting decides it for each of its runs. The string form is the\n`agent_session.visibility` column's.",
+        "enum": ["listed", "unlisted"]
+      },
       "AgentTyping": {
         "type": "object",
         "description": "An agent session typing through its bot.",
@@ -37473,6 +37478,10 @@
                 "type": ["string", "null"],
                 "format": "date-time",
                 "description": "The time the session was last viewed by the requesting user"
+              },
+              "visibility": {
+                "$ref": "#/components/schemas/AgentSessionVisibility",
+                "description": "Whether Home and the default Agents list show the session"
               },
               "workingBranch": {
                 "type": ["string", "null"],
