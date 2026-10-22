@@ -427,7 +427,8 @@ existing dates, time zone, title, location, description, and repeat rule unless 
 changed. To verify, open a later occurrence of an event you were invited to,
 change the reminder, and inspect the PATCH: it should include only `reminders`
 plus the calendar and scope identifiers. Also verify that intentional edits to
-the start, end, all-day setting, title, location, description, or repeat rule are still sent.
+the start, end, all-day setting, title, location, description, or repeat rule are still sent
+by the organizer or a guest the organizer lets modify the event.
 Test reminder removal as well as changing its time, including a series whose stored
 rule contains `INTERVAL=1`, `WKST`, differently ordered weekdays, or a precise `UNTIL`:
 an untouched rule must not be reformatted and included in a reminder-only PATCH.
@@ -452,6 +453,19 @@ read-only pill that explains why. A guest on an event whose organizer hides the 
 may not invite either (`viewerCan.inviteGuests` is false; the route answers 403
 `guest_list_hidden`). To check the refusal state without a Google account, answer
 `POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
+A guest the organizer does not let modify the event (`viewerCan.editDetails` false while
+`viewerCan.rsvp` is true) opens an editor whose date/time, all-day, title, description,
+repeat, conferencing and location controls are disabled, each with the tooltip `Only the
+organizer can change this event.`; the same line shows under the pills, which is all a
+touch device shows. Notifications stay editable and Save sends only `reminders` (plus any
+invitation). That guest cannot drag or resize the event on the grid either. Someone
+neither organizing nor invited, such as a delegate on a shared calendar, keeps what their
+calendar access allows. The update refuses a detail change from such a guest with 403
+`guests_cannot_modify` (fields resent at their stored value are ignored, so the agent can
+pass them); the editor then shows the line in a toast and locks its details, and a refused
+drag snaps back with the same toast. To check the refusal without a Google account, answer
+`PATCH /events/{id}` (or the GraphQL `updateCalendarEvent` mutation) with HTTP 403 and code
+`guests_cannot_modify` on an event whose `viewerCan.editDetails` is still true.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description

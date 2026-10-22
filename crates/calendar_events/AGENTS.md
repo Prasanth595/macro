@@ -66,6 +66,12 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   the whole list Google returned plus the new guests, and a guest is refused
   (`guest_list_hidden`) while the organizer hides the guest list, since their
   copy lacks the guests it would drop.
+- A guest without `edit_details` may change only what Google keeps on each
+  guest's copy (reminders, availability) and add guests where allowed:
+  `update_event` drops details the patch repeats at their stored value
+  (`get_event_details`, the series or the addressed occurrence) and refuses
+  any other detail change with `GuestsCannotModify` before inviting anyone.
+  Someone neither organizing nor invited is left to their calendar access.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` wherever a read path marks the viewer, and never
   store it. `guest_policy` is stored on the entity row (the canonical copy's
