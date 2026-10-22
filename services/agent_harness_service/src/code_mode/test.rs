@@ -58,3 +58,11 @@ async fn owner_approval_is_required_before_credentials_and_cancel_skips_gate() {
             .is_ok()
     );
 }
+
+#[test]
+fn a_programs_view_is_checked_like_a_display_results_view() {
+    let md = serde_json::json!({"widgets": [{"type": "md", "markdown": "Two found"}]});
+    assert!(DisplayResultsViews.problems(&md).is_empty());
+    let unknown = serde_json::json!({"widgets": [{"type": "spreadsheet"}]});
+    assert!(!DisplayResultsViews.problems(&unknown).is_empty());
+}

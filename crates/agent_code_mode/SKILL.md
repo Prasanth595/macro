@@ -16,7 +16,7 @@ export async function main({macro, session, execution}) {
 }
 ```
 
-Return an object with data; reviews is optional and defaults to []. Include review references when you prepare editable drafts.
+Return an object with data; reviews is optional and defaults to []. Include review references when you prepare editable drafts. Return view, a DisplayResults view built from what the program found, to show the results to the user.
 
 macro, session and execution are real SDK handles. You can instead import {Macro} from '@macro-inc/sdk' and construct it with main's token and hosts. Do not log, return, persist or transmit that credential elsewhere. It is a short-lived normal user credential, with the user's API permissions. SDK operations make real HTTP calls. Messages are attributed to the session's agent, with the owner recorded as the requesting user; do not supply sender identities yourself. No custom sdk.ToolName dispatcher, TypeScript transpilation, runtime help or package installation is involved.
 
@@ -26,6 +26,7 @@ macro, session and execution are real SDK handles. You can instead import {Macro
 - Search several precise phrases concurrently, read relevant documents, then calculate an aggregate in one execution. Preserve query attribution, source IDs and sampling limits.
 - Collect a bounded recent-email batch, fetch relevant content, then map macro.ai.decide over it with bounded parallelism. Retain every error and distinguish probability estimates from facts. The ai guide has a complete example.
 - Generate structured extraction with macro.ai.structuredCompletion and toolset:{type:'none'}, using source text already fetched; check the returned outcome rather than assuming success.
+- Show what a run found by returning view with data, for example `view:{title:'Overdue tasks', widgets:[{type:'list', source:{kind:'items', entities:tasks.map(task=>({type:'document', id:task.id}))}}]}`, or a cards widget for the one to four items the answer is about. Readers open the items with their own access.
 - Use Handlebars to personalize many drafts, persist a single email review stack, and return its reference. The templates guide shows the full module. Chat continues while the user edits and sends later.
 - Persist calendar drafts with the same review entity, and let the user finish in the reused component. Reviews survive the Deno process and page reload. Creating one immediately presents a completed PresentReview tool call in the shared session stream; it does not wait for approval. The card can appear while main is still running. "Presented to the user" never means sent or approved. Submissions queue a separate outcome into the original session. The direct PresentReview tool offers the same UI outside code mode.
 

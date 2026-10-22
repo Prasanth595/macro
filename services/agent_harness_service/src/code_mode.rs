@@ -1,11 +1,21 @@
 //! Composition of code execution credentials with the harness's owner approval gate.
-use agent_code_mode::domain::{CodeModeError, ExecutionCredentials, ExecutionIdentity};
+use agent_code_mode::domain::{CodeModeError, ExecutionCredentials, ExecutionIdentity, ViewCheck};
 use agent_egress::outbound::macro_mcp::MacroApiTokenSigner;
 use agent_inmem::domain::tool_gate::{NativeToolGate, NativeToolVerdict};
 use async_trait::async_trait;
 use code_execution::domain::RunEnvironment;
 use std::{collections::BTreeMap, sync::Arc};
 use tokio_util::sync::CancellationToken;
+
+/// A program's view is checked the way `DisplayResults` checks its own, so
+/// the model is told about one the renderer would not draw.
+pub struct DisplayResultsViews;
+
+impl ViewCheck for DisplayResultsViews {
+    fn problems(&self, view: &serde_json::Value) -> Vec<String> {
+        ai_tools::view_problems(view)
+    }
+}
 
 pub struct RunCredentials {
     pub signer: MacroApiTokenSigner,

@@ -34,6 +34,7 @@ struct Inner {
     credentials: Arc<dyn ExecutionCredentials>,
     store: Arc<dyn ExecutionStore>,
     turns: Arc<dyn ExecutionTurns>,
+    views: Arc<dyn ViewCheck>,
     admission: Arc<Semaphore>,
 }
 
@@ -48,6 +49,7 @@ impl CodeModeService {
         credentials: Arc<dyn ExecutionCredentials>,
         store: Arc<dyn ExecutionStore>,
         turns: Arc<dyn ExecutionTurns>,
+        views: Arc<dyn ViewCheck>,
     ) -> Self {
         let limits = Limits::default();
         Self(Arc::new(Inner {
@@ -55,6 +57,7 @@ impl CodeModeService {
             credentials,
             store,
             turns,
+            views,
             admission: Arc::new(Semaphore::new(limits.max_running + limits.max_queued)),
         }))
     }
@@ -175,26 +178,9 @@ impl CodeModeService {
         super::activity::finish(&mut record);
         let (status, result, error) = match outcome {
             Outcome::Succeeded { mut value } => {
-                if let Some(object) = value.as_object_mut()
-                    && object.len() == 1
-                    && object.contains_key("data")
-                {
-                    object.insert("reviews".into(), serde_json::json!([]));
-                }
-                let valid = value.as_object().is_some_and(|object| {
-                    object.len() == 2
-                        && object.contains_key("data")
-                        && object.get("reviews").is_some_and(|references| {
-                            serde_json::from_value::<Vec<reviews::ReviewReference>>(
-                                references.clone(),
-                            )
-                            .is_ok()
-                        })
-                });
-                if valid {
-                    (ExecutionStatus::Succeeded, Some(value), None)
-                } else {
-                    (ExecutionStatus::Failed, Some(value), Some("main must return {data: JSON}; optional reviews must be an array of {kind, id} references.".into()))
+                match check_returned(&mut value, self.0.views.as_ref()) {
+                    Ok(()) => (ExecutionStatus::Succeeded, Some(value), None),
+                    Err(error) => (ExecutionStatus::Failed, Some(value), Some(error)),
                 }
             }
             Outcome::Failed { error } => (ExecutionStatus::Failed, None, Some(error.message)),
@@ -360,6 +346,55 @@ impl SessionCodeMode for CodeModeService {
         record.error = execution_error(&record);
         Ok(record)
     }
+}
+
+/// How many of a returned view's problems the model is told at once.
+const VIEW_PROBLEMS_LISTED: usize = 10;
+
+/// Check what `main` returned, filling in the reviews it left out. The error
+/// says what to change: a program's writes have already happened, so a view
+/// the renderer would not draw is fixed through `DisplayResults`, not by
+/// running the program again.
+fn check_returned(value: &mut serde_json::Value, views: &dyn ViewCheck) -> Result<(), String> {
+    const SHAPE: &str = "main must return {data: JSON}; optional reviews must be an array of {kind, id} references, and an optional view a DisplayResults view.";
+    let Some(object) = value.as_object_mut() else {
+        return Err(SHAPE.into());
+    };
+    if !object.contains_key("data")
+        || object
+            .keys()
+            .any(|key| !matches!(key.as_str(), "data" | "reviews" | "view"))
+    {
+        return Err(SHAPE.into());
+    }
+    let references = object
+        .entry("reviews")
+        .or_insert_with(|| serde_json::json!([]));
+    if serde_json::from_value::<Vec<reviews::ReviewReference>>(references.clone()).is_err() {
+        return Err(SHAPE.into());
+    }
+    let Some(view) = object.get("view").filter(|view| !view.is_null()) else {
+        return Ok(());
+    };
+    let problems = views.problems(view);
+    if problems.is_empty() {
+        return Ok(());
+    }
+    let mut lines: Vec<String> = problems
+        .iter()
+        .take(VIEW_PROBLEMS_LISTED)
+        .map(|problem| format!("- {problem}"))
+        .collect();
+    if problems.len() > VIEW_PROBLEMS_LISTED {
+        lines.push(format!(
+            "- and {} more",
+            problems.len() - VIEW_PROBLEMS_LISTED
+        ));
+    }
+    Err(format!(
+        "The view was not shown: it does not match the DisplayResults schema.\n{}\nEverything else the program did stands, so do not run it again: call DisplayResults with the corrected view.",
+        lines.join("\n")
+    ))
 }
 
 fn receipt(record: &ExecutionRecord) -> ExecutionReceipt {

@@ -13,7 +13,10 @@ execution records, and durable review stacks. Process isolation belongs to
 
 - `SKILL.md`: the agent-facing JavaScript contract and examples.
 - `src/domain/service.rs`: execution admission, identity and persistence; tool
-  receipts include observed SDK activity for inline conversation snapshots.
+  receipts include observed SDK activity for inline conversation snapshots. It
+  checks the `{data, reviews?, view?}` a program returns; a `view` goes through
+  the `ViewCheck` port, which the harness implements with the `DisplayResults`
+  schema check from `ai_tools`.
 - `src/domain/activity.rs`: SDK activity, and the item each completed write
   reports, which the conversation names on that operation's step.
   The SDK side of that mapping is `packages/code-mode-sdk/src/receipts.ts`.

@@ -115,6 +115,7 @@ fn service() -> (
             credentials.clone(),
             store.clone(),
             turns.clone(),
+            Arc::new(Views),
         ),
         credentials,
         store,
@@ -274,6 +275,18 @@ impl ProgramExecutor for ValueExecutor {
     }
 }
 
+/// Draws a view with a list of widgets, as the renderer's schema requires.
+struct Views;
+impl ViewCheck for Views {
+    fn problems(&self, view: &serde_json::Value) -> Vec<String> {
+        if view.get("widgets").is_some_and(serde_json::Value::is_array) {
+            Vec::new()
+        } else {
+            vec!["view.widgets should be array, not missing".into()]
+        }
+    }
+}
+
 #[tokio::test]
 async fn optional_reviews_default_to_empty_without_accepting_malformed_results() {
     for (value, succeeds) in [
@@ -288,6 +301,8 @@ async fn optional_reviews_default_to_empty_without_accepting_malformed_results()
         (json!({"data": 42, "reviews": [{}]}), false),
         (json!({"reviews": []}), false),
         (json!({"data": 42, "extra": true}), false),
+        (json!({"data": 42, "view": {"widgets": []}}), true),
+        (json!({"data": 42, "view": null}), true),
     ] {
         let store = Arc::new(MemoryStore::default());
         let service = CodeModeService::new(
@@ -295,6 +310,7 @@ async fn optional_reviews_default_to_empty_without_accepting_malformed_results()
             Arc::new(Credentials::default()),
             store.clone(),
             Arc::new(TestTurns::default()),
+            Arc::new(Views),
         );
         let session =
             test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
@@ -315,6 +331,36 @@ async fn optional_reviews_default_to_empty_without_accepting_malformed_results()
         }
         assert_eq!(saved.result, Some(expected));
     }
+}
+
+#[tokio::test]
+async fn a_view_the_renderer_would_not_draw_fails_the_run_and_says_why() {
+    let value = json!({"data": 42, "view": {"title": "Results"}});
+    let store = Arc::new(MemoryStore::default());
+    let service = CodeModeService::new(
+        Some(Arc::new(ValueExecutor(value.clone()))),
+        Arc::new(Credentials::default()),
+        store.clone(),
+        Arc::new(TestTurns::default()),
+        Arc::new(Views),
+    );
+    let session = test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
+    let receipt = service
+        .execute(
+            &session,
+            ExecutionId::mint(),
+            request(),
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(receipt.status, ExecutionStatus::Failed);
+    let error = receipt.error.unwrap();
+    assert!(error.contains("view.widgets should be array"), "{error}");
+    // The program's writes already happened: the fix is DisplayResults, not
+    // another run.
+    assert!(error.contains("do not run it again"), "{error}");
+    assert_eq!(receipt.result.unwrap()["view"], value["view"]);
 }
 
 struct ActivityExecutor;
@@ -364,6 +410,7 @@ async fn persists_live_activity_and_marks_unfinished_requests_unknown() {
         Arc::new(Credentials::default()),
         store.clone(),
         Arc::new(TestTurns::default()),
+        Arc::new(Views),
     );
     let session = test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
     let id = ExecutionId::mint();
@@ -496,6 +543,7 @@ async fn cancellation_is_not_blocked_by_a_stalled_activity_save() {
         Arc::new(Credentials::default()),
         store.clone(),
         Arc::new(TestTurns::default()),
+        Arc::new(Views),
     );
     let session = test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
     let cancel = CancellationToken::new();
@@ -677,6 +725,7 @@ async fn a_runs_receipt_carries_the_items_it_changed() {
         Arc::new(Credentials::default()),
         store.clone(),
         Arc::new(TestTurns::default()),
+        Arc::new(Views),
     );
     let session = test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
     let id = ExecutionId::mint();

@@ -603,6 +603,7 @@ async fn run() -> anyhow::Result<()> {
             Arc::new(agent_code_mode::outbound::turns::SessionTurns(
                 session_repo.clone(),
             )),
+            Arc::new(code_mode::DisplayResultsViews),
         ));
     let session_metadata_realtime = ConnectionGatewayAgentSessionRealtime::new(
         connection_gateway.clone(),

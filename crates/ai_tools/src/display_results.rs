@@ -22,6 +22,13 @@ const SCHEMA_JSON: &str = include_str!("display_results/schema.generated.json");
 /// How many of a view's problems the model is told at once.
 const PROBLEMS_LISTED: usize = 10;
 
+/// What the renderer would reject in a view, each problem with its place in
+/// the view; empty for a view it draws. Code mode checks the view a program
+/// returns with it, as this tool checks its own.
+pub fn view_problems(view: &serde_json::Value) -> Vec<String> {
+    view_check::view_problems(view)
+}
+
 /// A view rendered by the frontend directly from the tool-call arguments.
 ///
 /// The AI input schema is generated from the renderer's Zod schema. Keeping it
