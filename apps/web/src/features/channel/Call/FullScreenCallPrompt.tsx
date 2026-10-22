@@ -3,6 +3,8 @@ import { toast } from '@core/component/Toast/Toast';
 import { useTutorialCompleted } from '@core/context/user';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { isPlatform } from '@core/util/platform';
+import { catchToResult } from '@core/util/result';
+import { Telemetry } from '@macro-inc/observability';
 import { useNotificationSettings } from '@notifications/notification-settings';
 import PhoneIncoming from '@phosphor/phone-incoming.svg';
 import { useIsAuthenticated } from '@queries/auth';
@@ -17,20 +19,44 @@ const dismissedValue = z.literal('true');
 const fullScreenIntentState = z.object({ allowed: z.boolean() });
 
 async function canUseFullScreenIntent(): Promise<boolean> {
-  const state = await invoke<unknown>(
-    'plugin:call-kit|can_use_full_screen_intent'
-  ).catch((err) => {
-    // Builds before this command can't report it; don't prompt there.
-    console.error('[callkit] failed to read full-screen intent access', err);
-    return null;
+  return Telemetry.span('call.full_screen_intent.check', async (span) => {
+    const result = await catchToResult(() =>
+      invoke<unknown>('plugin:call-kit|can_use_full_screen_intent')
+    );
+    if (result.isErr()) {
+      // Builds before this command can't report it; don't prompt there.
+      console.error(
+        '[callkit] failed to read full-screen intent access',
+        result.error
+      );
+      span.setAttr('call.full_screen_intent.outcome', 'unavailable');
+      return true;
+    }
+    const allowed =
+      fullScreenIntentState.safeParse(result.value).data?.allowed ?? true;
+    span.setAttr('call.full_screen_intent.outcome', 'checked');
+    span.setAttr('call.full_screen_intent.allowed', allowed);
+    return allowed;
   });
-  return fullScreenIntentState.safeParse(state).data?.allowed ?? true;
 }
 
 async function openFullScreenIntentSettings(): Promise<void> {
-  await invoke('plugin:call-kit|open_full_screen_intent_settings').catch(
-    (err) =>
-      console.error('[callkit] failed to open full-screen intent settings', err)
+  await Telemetry.span(
+    'call.full_screen_intent.open_settings',
+    async (span) => {
+      const result = await catchToResult(() =>
+        invoke('plugin:call-kit|open_full_screen_intent_settings')
+      );
+      span.setAttr(
+        'call.full_screen_intent.outcome',
+        result.isOk() ? 'opened' : 'failed'
+      );
+      if (result.isErr())
+        console.error(
+          '[callkit] failed to open full-screen intent settings',
+          result.error
+        );
+    }
   );
 }
 
@@ -72,6 +98,14 @@ export function FullScreenCallPrompt() {
       settings.isEnabled()
   );
 
+  // The toast stays up while the user is in Settings; returning rechecks
+  // access, and granting it unmounts the toast.
+  const recheckOnReturn = () => {
+    if (shouldShow()) fireAndForget(checkBlocked(), 'channel-call');
+  };
+  window.addEventListener('focus', recheckOnReturn);
+  onCleanup(() => window.removeEventListener('focus', recheckOnReturn));
+
   return (
     <Show when={shouldShow()}>
       <FullScreenCallToastTrigger onHide={() => setDismissed(true)} />
@@ -102,10 +136,8 @@ function FullScreenCallToastTrigger(props: { onHide: () => void }) {
           },
           {
             label: 'Allow',
-            onClick: async () => {
-              await openFullScreenIntentSettings();
-              toast.dismiss(toastId);
-            },
+            onClick: () =>
+              fireAndForget(openFullScreenIntentSettings(), 'channel-call'),
           },
         ],
       },

@@ -870,7 +870,8 @@ entry point. Android 14+ revokes it by default for Play installs unless the Play
 Console's full-screen intent declaration names calling as core functionality;
 check with `adb shell appops get <package> USE_FULL_SCREEN_INTENT`. Once
 notifications are on, Macro shows a toast while the setting is off; **Allow**
-opens Android's per-app setting and **Hide** stops the prompt on that device. The
+opens Android's per-app setting, and the toast stays until returning to Macro
+finds access granted; **Hide** stops the prompt on that device. The
 call notification is public, so the lock screen shows the call and its actions.
 Test both permission states. Microphone access is required to join;
 camera access is requested when enabling video, and Bluetooth access when selecting
