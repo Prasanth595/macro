@@ -524,7 +524,7 @@ export function createCallLifecycle(options: {
           finish(new Error('Leaving call timed out'));
         }, LEAVE_TIMEOUT_MS);
         async function disconnect() {
-          let result: LeaveResult;
+          let result: LeaveResult = undefined;
           try {
             try {
               await options.disconnect(request.options);
