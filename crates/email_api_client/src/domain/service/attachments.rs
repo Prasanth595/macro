@@ -11,7 +11,7 @@ where
     L: ProviderRateLimiter,
 {
     /// Downloads an attachment from a provider message.
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), fields(retry_count = 0))]
     pub async fn get_attachment(
         &self,
         link_id: Uuid,

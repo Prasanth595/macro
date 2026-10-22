@@ -89,6 +89,8 @@ where
     /// A cached token can outlive its grant. Only a fresh fetch reaches the
     /// authentication service, which either renews the token or reports the
     /// revoked grant so the token source marks the link for reauthorization.
+    ///
+    /// Callers declare `retry_count = 0` on their span; a retry sets it to 1.
     async fn read_with_token<O, F, Fut>(
         &self,
         link_id: Uuid,
@@ -102,6 +104,7 @@ where
         let access_token = self.prepare(link_id, operation).await?;
         let result = match read(access_token).await {
             Err(EmailApiError::AuthRequired) => {
+                tracing::Span::current().record("retry_count", 1);
                 self.check_rate_limit(link_id, operation).await?;
                 let fresh = self
                     .get_access_token(link_id, TokenFreshness::Fresh)

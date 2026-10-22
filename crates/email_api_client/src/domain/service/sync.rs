@@ -22,7 +22,7 @@ where
     }
 
     /// Lists mailbox changes following `cursor`.
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), fields(retry_count = 0))]
     pub async fn list_changes(
         &self,
         link_id: Uuid,
