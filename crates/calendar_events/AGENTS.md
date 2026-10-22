@@ -69,12 +69,19 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   write either: an Outlook organizer adds guests with the same full-list write
   (`email_api_client`'s `outlook/calendar/invite.rs`), and an Outlook guest may
   only answer (`guests_cannot_invite`).
-- A channel-shared event reaches a member's calendar as a copy, not a seat:
-  `copy_shared_event` (`src/domain/mutations/copy.rs`) imports it under the
-  meeting's iCalendar UID with no guests or join link, behind the same
-  `event_export` visibility query as the .ics route. Google only: never
-  import over a UID the calendar already holds, since an import updates that
-  event in place and would strip an unsynced invitation's guests.
+- A channel-shared event reaches a member's calendar as a snapshot, not a
+  seat: `copy_shared_event` (`src/domain/mutations/copy.rs`) imports it under
+  the meeting's iCalendar UID with no join link, behind the same
+  `event_export` visibility query as the .ics route. Google imports only for
+  the organizer or an attendee (`participantIsNeitherOrganizerNorAttendee`,
+  mapped to `copy_refused`), so the body keeps the real organizer and lists
+  the target calendar, accepted, as the only guest, plus the private
+  `macroSnapshot` extended property. Sync stores it as `is_snapshot`, which
+  grants no capability and makes RSVPs and invites fail with `snapshot`,
+  since neither would reach the meeting; deleting it still works. Google
+  only: never import over a UID the calendar already holds, since an import
+  updates that event in place and would strip an unsynced invitation's
+  guests.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` and the copy's source link wherever a read path
   marks the viewer, and never store it. Each connected inbox gets its own copy

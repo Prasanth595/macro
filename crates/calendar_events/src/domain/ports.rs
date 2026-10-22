@@ -861,11 +861,11 @@ pub trait CalendarMutationService: Send + Sync + 'static {
         scope: CalendarUpdateScope,
     ) -> impl Future<Output = Result<CalendarEvent, CalendarMutationError>> + Send;
 
-    /// Add a private copy of an event shared with one of the requester's
+    /// Add a snapshot of an event shared with one of the requester's
     /// channels to one of their Google calendars — the selected one, or
     /// their primary inbox's primary calendar — and persist the provider
-    /// echo. The copy keeps the meeting's iCalendar UID, so it becomes the
-    /// requester's own projection of that meeting.
+    /// echo. The snapshot keeps the meeting's iCalendar UID, so it becomes
+    /// the requester's own projection of that meeting.
     fn copy_shared_event(
         &self,
         requester_id: &str,

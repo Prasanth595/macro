@@ -892,10 +892,10 @@ pub struct CopyCalendarEventRequest {
     pub calendar_id: Option<Uuid>,
 }
 
-/// Add a private copy of an event shared with one of the requester's
-/// channels to one of their Google calendars and return the synced copy. The
-/// copy keeps the meeting's iCalendar UID and carries no guests or join link;
-/// nobody is notified.
+/// Add a snapshot of an event shared with one of the requester's channels to
+/// one of their Google calendars and return the synced snapshot. The
+/// snapshot keeps the meeting's iCalendar UID and organizer, lists only the
+/// requester as a guest, and carries no join link; nobody is notified.
 #[tracing::instrument(skip_all, fields(event_id = %event_id), err)]
 #[utoipa::path(
     post,
@@ -909,7 +909,7 @@ pub struct CopyCalendarEventRequest {
         (status = 401, description = "Authentication required"),
         (status = 403, description = "Calendar is read-only or needs reauthorization", body = CalendarMutationApiError),
         (status = 404, description = "Event not found or not shared with the requester", body = CalendarMutationApiError),
-        (status = 409, description = "Already on the requester's calendar, no writable calendar, or the provider rejected the copy", body = CalendarMutationApiError),
+        (status = 409, description = "Already on the requester's calendar, no writable calendar, or the provider refused the copy", body = CalendarMutationApiError),
         (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
     )
 )]
