@@ -199,6 +199,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
     scheduleActionLabel,
     scheduleOperation,
     cancelSchedule,
+    checkScheduleStatus,
     schedulePickerDisabled,
     editingDisabled,
     sendUnavailableReason,
@@ -542,6 +543,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
                 operation={scheduleOperation()}
                 onSelectTime={handleSendTimeChange}
                 onCancelSchedule={cancelSchedule}
+                onCheckStatus={checkScheduleStatus}
               />
             }
             scheduleControl={
@@ -813,6 +815,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
                   hidden={sendActionHidden()}
                   onClick={() => sendEmail()}
                   tooltip={sendUnavailableReason() ?? scheduleActionLabel()}
+                  shortcut={sendUnavailableReason() ? undefined : 'cmd+enter'}
                   aria-label={scheduleActionLabel()}
                 />
               </div>
@@ -844,6 +847,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
           operation={scheduleOperation()}
           onSelectTime={handleSendTimeChange}
           onCancelSchedule={cancelSchedule}
+          onCheckStatus={checkScheduleStatus}
           class="-mx-4 -mb-4 mt-3 rounded-b-[26.25px] border-t border-edge-muted px-4 py-2 touch:rounded-b-lg mobile:rounded-none"
         />
       </Show>

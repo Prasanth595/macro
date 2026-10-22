@@ -166,6 +166,8 @@ fn timed_upsert(
                 comment: None,
             }],
             reminders: EventReminders::default(),
+            guest_policy: GuestPolicy::default(),
+            viewer_can: ViewerCapabilities::NONE,
             created_at: starts_at,
             updated_at: starts_at + Duration::minutes(i64::from(sequence)),
         },
@@ -1444,6 +1446,155 @@ async fn occurrence_range_uses_overlap_indexes_and_preserves_attendees(pool: PgP
         event.creator_email.as_deref() == Some("creator@example.com")
             && event.creator_name.as_deref() == Some("Creator")
     }));
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn guest_policy_follows_the_canonical_copy(pool: PgPool) {
+    let owner_id = "macro|calendar-guests@example.com";
+    let link_id = insert_link(&pool, owner_id).await;
+    let repo = PgCalendarRepository::new(pool);
+    let provider = provider_ids(&repo, link_id).await;
+    let locked_down = GuestPolicy {
+        can_modify: false,
+        can_invite_others: false,
+        can_see_other_guests: false,
+    };
+    let range = OccurrenceRange {
+        starts_at: Utc.with_ymd_and_hms(2026, 7, 24, 0, 0, 0).unwrap(),
+        ends_at: Utc.with_ymd_and_hms(2026, 7, 26, 0, 0, 0).unwrap(),
+        start_date: NaiveDate::from_ymd_opt(2026, 7, 24).unwrap(),
+        end_date: NaiveDate::from_ymd_opt(2026, 7, 26).unwrap(),
+    };
+    let mut first = timed_upsert(
+        owner_id,
+        link_id,
+        provider,
+        "guests@example.com",
+        "Planning",
+        1,
+    );
+    first.event.guest_policy = locked_down;
+    repo.upsert_event_fixture(first).await.unwrap();
+
+    let listed = repo
+        .list_occurrences(owner_id, range.clone(), None, 100)
+        .await
+        .unwrap();
+    assert!(!listed.is_empty());
+    assert!(
+        listed
+            .iter()
+            .all(|listing| listing.event.guest_policy == locked_down)
+    );
+
+    // The organizer restores Google's defaults; the next sync carries no
+    // switch at all and the entity follows.
+    let second = timed_upsert(
+        owner_id,
+        link_id,
+        provider,
+        "guests@example.com",
+        "Planning",
+        2,
+    );
+    repo.upsert_event_fixture(second).await.unwrap();
+
+    let listed = repo
+        .list_occurrences(owner_id, range, None, 100)
+        .await
+        .unwrap();
+    assert!(
+        listed
+            .iter()
+            .all(|listing| listing.event.guest_policy == GuestPolicy::default())
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_recorded_guest_policy_reaches_the_entity_and_every_copy(pool: PgPool) {
+    let owner_id = "macro|calendar-refused@example.com";
+    let link_id = insert_link(&pool, owner_id).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    let provider = provider_ids(&repo, link_id).await;
+    let event_id = repo
+        .upsert_event_fixture(timed_upsert(
+            owner_id,
+            link_id,
+            provider,
+            "refused@example.com",
+            "Planning",
+            1,
+        ))
+        .await
+        .unwrap();
+    let hidden = GuestPolicy {
+        can_modify: false,
+        can_invite_others: true,
+        can_see_other_guests: false,
+    };
+
+    repo.record_guest_policy(event_id, hidden).await.unwrap();
+
+    let entity = sqlx::query!(
+        r#"
+        SELECT guests_can_modify, guests_can_invite_others, guests_can_see_other_guests
+        FROM calendar_events
+        WHERE id = $1
+        "#,
+        event_id,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(!entity.guests_can_modify);
+    assert!(entity.guests_can_invite_others);
+    assert!(!entity.guests_can_see_other_guests);
+    let stored = sqlx::query_scalar!(
+        "SELECT normalized_payload FROM calendar_event_sources WHERE event_id = $1",
+        event_id,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let projection: StoredSourceProjection = serde_json::from_value(stored).unwrap();
+    assert_eq!(
+        projection.event.guest_policy, hidden,
+        "a restore from this copy keeps the recorded policy"
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn source_projections_store_neither_viewer_capabilities_nor_a_default_policy(pool: PgPool) {
+    let owner_id = "macro|calendar-projection@example.com";
+    let link_id = insert_link(&pool, owner_id).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    let provider = provider_ids(&repo, link_id).await;
+    let mut upsert = timed_upsert(
+        owner_id,
+        link_id,
+        provider,
+        "projection@example.com",
+        "Planning",
+        1,
+    );
+    upsert.event.viewer_can = ViewerCapabilities {
+        rsvp: true,
+        ..ViewerCapabilities::NONE
+    };
+    let event_id = repo.upsert_event_fixture(upsert).await.unwrap();
+
+    let stored = sqlx::query_scalar!(
+        "SELECT normalized_payload FROM calendar_event_sources WHERE event_id = $1",
+        event_id,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
+    // Projections stored before either field existed lack both keys, and an
+    // unchanged event must keep comparing equal to them.
+    assert!(stored["event"].get("viewerCan").is_none());
+    assert!(stored["event"].get("guestPolicy").is_none());
 }
 
 /// A Google out-of-office auto-decline records the decline on the exception
@@ -3395,6 +3546,8 @@ fn reminder_upsert(
             is_read_only: false,
             attendees: Vec::new(),
             reminders,
+            guest_policy: GuestPolicy::default(),
+            viewer_can: ViewerCapabilities::NONE,
             created_at: starts_at - Duration::days(1),
             updated_at: starts_at - Duration::days(1),
         },
@@ -6873,6 +7026,7 @@ async fn retiring_an_unrelated_copy_keeps_a_fresher_schedule_written_through_ano
 }
 
 mod changes;
+mod export;
 mod invitations;
 mod source_access;
 

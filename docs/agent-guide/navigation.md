@@ -369,6 +369,9 @@ Scheduling appears in Customize sidebar only when the calendar-scheduling flag i
 on. It starts hidden in More, including for existing sidebar preferences. Enable
 its checkbox to place it on the rail, then reorder or hide it like other apps.
 Showing Scheduling removes its duplicate from More; the choice survives reload.
+Activity appears in Customize sidebar only when the `enable-activity-feed` flag
+is on and, like Scheduling, starts hidden in More (also for existing preferences)
+until enabled on the rail.
 
 - Top: buttons `Create` and `Search`. Clicking `Search` opens a menu
   with `Command Menu` (⌘K on Mac / Ctrl+K elsewhere) and `Search everything`
@@ -415,6 +418,11 @@ edge so an older unread item can keep the dot lit. These witnesses must never be
 used as the complete mark-read/done input. The experimental notification-time
 sort remains on its existing REST path; disabling GraphQL or enabling that sort
 must not construct an unsupported GraphQL input or blank the app shell.
+Cold offline launch must retain navigation even while notification preferences
+or badge queries are pending. Unknown preferences use the default enabled
+behavior; loaded disabled preferences still suppress Email's dot, including
+after a failed refresh. Verify both unreachable services while the OS reports
+online and a paused offline transport, then reconnect without remounting chrome.
 Opening a view alone does not clear its dot — reading or completing the represented
 items does. The button's
 accessible description is `Unread items` while its dot is active.
@@ -527,28 +535,41 @@ changes roll back rather than becoming committed local favorites.
 On desktop, the rail **Create** button, **C**, and the command menu’s **Create**
 entry open the detailed launcher at standard dialog width. Selecting **Create**
 closes the command menu and hands focus to the launcher; individual creation
-commands remain searchable in the command menu. The left list starts with up to three **Recents** from
-actual launcher usage, followed by all choices grouped by category.
-Categories appear in this order: **Docs** (Document, Snippet), **Organization**
+commands remain searchable in the command menu. The left side is one continuous
+list without section labels or gaps. Up to three recently used choices appear
+first, followed by the remaining choices in this order: **Docs** (Document, Snippet), **Organization**
 (Folder), **Design** (Canvas, Design, Photoshop file, Illustrator file), **Data**
 (Database, Spreadsheet, Form), **Comms** (Email, Message, Channel, Call), **Tasks**
 (Task, Project, Reminder), **AI** (Agent, Routine, Skill), and **Other** (Code and
-any uncategorized entries). Only available entries and nonempty categories appear.
-Recent items also remain in their categories. With no history, the list starts
-with categories. Hover or keyboard navigation updates the right detail panel;
-click a row or press Enter to start that creation flow. The detail panel is
-top-aligned, shares the list background, and is separated by a vertical divider.
-The shortcut below the description shows the sequence, such as **C then T** for
-Task, while direct shortcut mode is active.
-Its lower-right **Create [type]** button starts the selected creation flow and
-shows the Enter shortcut. Holding Shift adds an **In new split** indicator and
-changes the button shortcut to Shift+Enter; clicking while holding Shift uses
-the same new-split behavior where supported.
+any uncategorized entries). Only available entries appear.
+Recent items appear only at the top, not again in their categories. With no
+history, the list starts with Document. Hover or keyboard navigation updates the right detail panel;
+click a row or press Enter to start that creation flow. List icons are monochrome:
+muted normally and full ink on the selected row. The detail panel centers
+its block-colored icon tile with a solid theme-aware fill and shared glass rim,
+and description over
+the shared onboarding grain. Light mode uses near-black icons and neutral, quieter grain and glow, with
+the homepage composer’s fill, border and shadow. Dark-mode dots and glow use
+the same shared block-icon color as the tile, rather than the workspace accent. Descriptions use two authored
+lines at desktop width, with a slightly shorter second line; narrow panels
+allow the text to wrap further. The **Create [type]** button
+sits 8px inside the bottom-right corner as a 32px-tall pill. Its 16px
+radius plus the inset matches the modal’s 24px radius. It uses
+a white fill in dark mode, black in light mode, medium-weight text, and a bare
+Enter symbol without a keycap. Footer keyboard hints are borderless.
+Visual references: [dark](media/command/create-menu-polished-dark.png) and
+[light](media/command/create-menu-polished-light.png).
+A vertical divider separates it from the list. In direct shortcut mode, the
+shortcut sequence (such as **C then T** for Task) appears below the centered
+detail content. The Create button includes the Enter shortcut. Holding Shift
+relabels the button **Create in new split** with Shift+Enter; clicking while
+holding Shift uses the same new-split behavior where supported.
 
 The **Search mode** toggle (or **/**) switches between direct entity shortcuts
 shown beside each choice and the standard create search input. Search mode is
-the default; the preference persists across opens. Search filters both Recents and categories. Up/Down moves
-through the displayed order and scrolls the selected row into view; Left/Right
+the default; the preference persists across opens. Search filters both Recents
+and categories; a recent choice appears only under Recents, not again in its
+category. Up/Down moves through the displayed order and scrolls the selected row into view; Left/Right
 edits the search input. Enter creates the selected item, Shift+Enter opens it in a
 new split where supported, and Escape closes the launcher. Typing in search mode
 never runs an entity shortcut. Switching modes preserves selection and dimensions.
@@ -933,6 +954,10 @@ restart rules still apply.
 - In Email and Tasks search, `Escape` returns focus to the list and keeps the query.
   Use the search field's clear button to clear it.
 - Splits: `` ` `` split, `Shift+H`/`Shift+L` move focus, `Shift+Esc` maximize.
+- Desktop app only: `Ctrl/Cmd` with `+`, `-`, and `0` zoom the page and reset it,
+  through the same stops a browser uses. The level persists across relaunches,
+  and the commands appear in the command menu as Zoom in / Zoom out / Actual
+  size. In a browser tab these stay the browser's own zoom.
 - In any text surface: `@` mentions (bidirectional links), `#` tags, `/` block commands,
   `:` emoji. Clicking a rendered tag opens a Search split filtered to that tag.
 

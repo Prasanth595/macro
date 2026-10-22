@@ -352,6 +352,100 @@
         }
       }
     },
+    "/events/{event_id}/guests": {
+      "post": {
+        "tags": ["calendar_events"],
+        "summary": "Add guests to a calendar event without touching anyone already invited,\nand return its synced entity. The organizer, and guests the organizer lets\ninvite others, may call it; Google emails the new guests.",
+        "operationId": "invite_calendar_event_guests",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "Calendar event entity id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteCalendarEventGuestsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The updated calendar event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarEvent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid guests or scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Calendar is read-only, only the organizer can invite guests, or the calendar needs reauthorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event or occurrence not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The connected account neither organizes nor attends the event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Transient provider failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{event_id}/provider-url": {
       "get": {
         "tags": ["calendar_events"],
@@ -904,6 +998,8 @@
           "sequence",
           "isReadOnly",
           "attendees",
+          "guestPolicy",
+          "viewerCan",
           "createdAt",
           "updatedAt"
         ],
@@ -955,6 +1051,10 @@
           "eventType": {
             "$ref": "#/components/schemas/EventType",
             "description": "Provider event type. Skipped when it is the regular type so\nprojections stored before event types were modeled still compare\nequal."
+          },
+          "guestPolicy": {
+            "$ref": "#/components/schemas/GuestPolicy",
+            "description": "What the organizer lets guests do: the canonical copy's values, or\nGoogle's defaults for an event synced before the policy was modeled."
           },
           "icalUid": {
             "type": "string",
@@ -1029,6 +1129,10 @@
             "type": "string",
             "format": "date-time",
             "description": "Entity update time."
+          },
+          "viewerCan": {
+            "$ref": "#/components/schemas/ViewerCapabilities",
+            "description": "What the viewing requester may do with the event. Resolved only on\nthe read path, alongside each attendee's `is_self`; nothing when no\nviewer is known. Source projections never store it."
           },
           "visibility": {
             "$ref": "#/components/schemas/EventVisibility",
@@ -1106,6 +1210,21 @@
           }
         }
       },
+      "CalendarGuestInputBody": {
+        "type": "object",
+        "description": "A guest added to an event.",
+        "required": ["email"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Guest email address."
+          },
+          "optional": {
+            "type": "boolean",
+            "description": "Whether attendance is optional."
+          }
+        }
+      },
       "CalendarMutationApiError": {
         "type": "object",
         "description": "HTTP error body returned by calendar mutation endpoints.",
@@ -1130,6 +1249,8 @@
           "read_only",
           "no_writable_calendar",
           "not_attendee",
+          "guests_cannot_invite",
+          "guest_list_hidden",
           "invalid_input",
           "reauth_required",
           "provider_rejected",
@@ -1463,6 +1584,59 @@
         "description": "Visibility of event details.",
         "enum": ["default", "public", "private", "confidential"]
       },
+      "GuestPolicy": {
+        "type": "object",
+        "description": "The switches an organizer sets on an event to bound what its guests may\ndo. Google omits a switch from the payload while it holds its default.",
+        "required": ["canModify", "canInviteOthers", "canSeeOtherGuests"],
+        "properties": {
+          "canInviteOthers": {
+            "type": "boolean",
+            "description": "Whether guests may invite others."
+          },
+          "canModify": {
+            "type": "boolean",
+            "description": "Whether guests may change the event, including its guest list."
+          },
+          "canSeeOtherGuests": {
+            "type": "boolean",
+            "description": "Whether guests may see the guest list."
+          }
+        }
+      },
+      "InviteCalendarEventGuestsRequest": {
+        "type": "object",
+        "description": "Request body adding guests to an event without touching anyone already\ninvited.",
+        "required": ["guests"],
+        "properties": {
+          "calendarId": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "Calendar whose copy of the event is written, for an event synced from\nmore than one calendar. Omit to write the canonical copy."
+          },
+          "guests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarGuestInputBody"
+            },
+            "description": "Guests to add; anyone already on the event is skipped."
+          },
+          "recurrenceId": {
+            "type": ["string", "null"],
+            "description": "Original-start key of the occurrence the guests are added to."
+          },
+          "scope": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CalendarUpdateScopeParam",
+                "description": "How much of a recurring series gains the guests. Omit to let\n`recurrenceId` decide: the identified occurrence alone when one is\nsupplied, otherwise the whole event or series. An explicit\n`this_event` scope requires `recurrenceId`."
+              }
+            ]
+          }
+        }
+      },
       "ListCalendarsResponse": {
         "type": "object",
         "description": "Calendars visible to the requester across connected and delegated inboxes.",
@@ -1731,6 +1905,39 @@
                 "description": "Replacement visibility."
               }
             ]
+          }
+        }
+      },
+      "ViewerCapabilities": {
+        "type": "object",
+        "description": "What the viewing requester may do with an event.",
+        "required": [
+          "editDetails",
+          "inviteGuests",
+          "removeGuests",
+          "setGuestPolicy",
+          "rsvp"
+        ],
+        "properties": {
+          "editDetails": {
+            "type": "boolean",
+            "description": "Change the event's details (title, time, description, conference)."
+          },
+          "inviteGuests": {
+            "type": "boolean",
+            "description": "Add guests."
+          },
+          "removeGuests": {
+            "type": "boolean",
+            "description": "Remove guests."
+          },
+          "rsvp": {
+            "type": "boolean",
+            "description": "Answer the invitation."
+          },
+          "setGuestPolicy": {
+            "type": "boolean",
+            "description": "Change the event's guest policy."
           }
         }
       },

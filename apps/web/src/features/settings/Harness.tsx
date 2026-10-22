@@ -42,7 +42,9 @@ function lastConnectedText(harness: RegisteredHarness): string {
 }
 
 /** Settings UI for choosing and configuring the available agent harnesses. */
-export function Harness(props: { onBack?: () => void } = {}) {
+export function Harness(
+  props: { onBack?: () => void; backLabel?: string } = {}
+) {
   const canUseCodex = useCodexAgentsAccess();
   const [cursorApiKey, setCursorApiKey] = createSignal('');
   const cursorStatus = useCursorApiKeyStatusQuery();
@@ -129,7 +131,7 @@ export function Harness(props: { onBack?: () => void } = {}) {
           title="Runtimes"
           description="Providers and machines your agents can run on."
           onBack={props.onBack}
-          backLabel="Agents"
+          backLabel={props.backLabel ?? 'Agents'}
           actions={
             <Button
               variant="cta"
