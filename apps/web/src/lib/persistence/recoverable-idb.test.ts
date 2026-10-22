@@ -182,6 +182,30 @@ describe('recoverable native IndexedDB connections', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('does not replay a body whose request callback throws', async () => {
+    const lost = vi.fn();
+    const db = new RecoverableIDB(
+      crypto.randomUUID(),
+      1,
+      (db) => db.createObjectStore('items'),
+      undefined,
+      lost
+    );
+    databases.push(db);
+    const native = await db.open();
+    const callback = vi.fn(() => {
+      throw new Error('Invalid stored value');
+    });
+    await expect(
+      db.run('items', 'readwrite', (tx) => {
+        tx.objectStore('items').get('key').onsuccess = callback;
+      })
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(callback).toHaveBeenCalledOnce();
+    expect(lost).not.toHaveBeenCalled();
+    expect(await db.open()).toBe(native);
+  });
+
   it('closes an in-flight open and never revives a disposed owner', async () => {
     const db = database();
     const pending = db.transaction('items', 'readonly');

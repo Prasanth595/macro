@@ -84,7 +84,8 @@ export class RecoverableIDB {
    * commits nothing, but a commit can land after the page saw the abort, so
    * `body` must read the state it depends on inside the transaction and be
    * safe to repeat. Report domain failures through the value, not
-   * `tx.abort()`, which looks like an interruption.
+   * `tx.abort()`, which looks like an interruption. A body that throws, or
+   * whose request callback throws, is not replayed.
    */
   async run<T>(
     stores: string | string[],
@@ -169,7 +170,11 @@ function settle<T>(
         tx.error ??
         requestError ??
         new DOMException('The transaction was aborted', 'AbortError');
-      reject(INTERRUPTIONS.has(cause.name) ? new Interrupted(cause) : cause);
+      // An exception thrown in a request callback aborts with a non-null
+      // AbortError. That is a bug in the body, so it is never replayed.
+      const interrupted =
+        INTERRUPTIONS.has(cause.name) && tx.error?.name !== 'AbortError';
+      reject(interrupted ? new Interrupted(cause) : cause);
     };
     try {
       body(tx, (next) => {
