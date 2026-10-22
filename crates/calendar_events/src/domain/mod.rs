@@ -4,10 +4,14 @@ pub mod invitations;
 
 /// The clicker's owned inboxes.
 pub mod acting;
+/// What a viewer may do with an event, following Google's guest permissions.
+pub mod capabilities;
 /// The per-email-link calendar change log.
 pub mod changes;
 /// Kafka event models for the calendar topic.
 pub mod events;
+/// iCalendar export of calendar events.
+pub mod ics;
 /// Macro meeting links carried by calendar events.
 pub mod meeting_links;
 /// Domain models.

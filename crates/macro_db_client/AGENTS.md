@@ -58,6 +58,11 @@ caller-scoped offline tag handles; their queries and replay policy belong to
 `properties`. Target deletion deliberately preserves bindings; account deletion
 cascades them so a delayed create cannot resurrect a deleted tag.
 
+`agent_preview_*` stores preview-specific ownership, credential hashes and
+watchers; its queries and policy belong to `agent_preview`. Leases have a bounded
+TTL, deletion cascades credentials, and sweepers reclaim expired watchers and
+unreferenced replicas. These additive tables do not change agent-session claims.
+
 ## Gotchas
 
 - Migrations deploy before service code: never drop a column/table in the

@@ -4,9 +4,9 @@ use crate::domain::models::{
     CalendarBackfillJobKey, CalendarCreationTarget, CalendarEventOverride, CalendarEventSource,
     CalendarLinkTokenIdentity, CalendarOccurrenceCursor, CalendarSyncStatus, CalendarWatchRelease,
     ConferenceChange, DisconnectedCalendar, EventStart, EventStatus, EventTransparency, EventType,
-    EventVisibility, GoogleCalendarSyncSnapshot, GoogleWatchChannel, OutOfOfficeAutoDeclineMode,
-    OutOfOfficeProperties, ProviderCalendar, ProviderCalendarTarget, ProviderEventSource,
-    StoredGoogleCalendar, VisibleCalendar,
+    EventVisibility, GoogleCalendarSyncSnapshot, GoogleWatchChannel, GuestPolicy,
+    OutOfOfficeAutoDeclineMode, OutOfOfficeProperties, ProviderCalendar, ProviderCalendarTarget,
+    ProviderEventSource, StoredGoogleCalendar, ViewerCapabilities, VisibleCalendar,
 };
 use crate::domain::ports::RetiredCalendarEvent;
 use chrono::{Duration, TimeZone};
@@ -35,6 +35,8 @@ fn mutation_target(is_read_only: bool) -> CalendarEventMutationTarget {
         provider_calendar_id: "primary".to_string(),
         token_identity: token_identity(),
         actor: Some(ActorInboxes::sole("self@example.com")),
+        organizer_email: Some("self@example.com".to_string()),
+        guest_policy: GuestPolicy::default(),
     }
 }
 
@@ -102,6 +104,8 @@ fn echo_upsert(target_owner: &str) -> CalendarEventUpsert {
             is_read_only: false,
             attendees: Vec::new(),
             reminders: EventReminders::default(),
+            guest_policy: GuestPolicy::default(),
+            viewer_can: ViewerCapabilities::NONE,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         },
@@ -166,6 +170,8 @@ struct FakeRepo {
     visible_calendars: Vec<VisibleCalendar>,
     fail_list_visible: bool,
     fail_owned_inboxes: bool,
+    /// Guest policies recorded after the provider refused an invite.
+    recorded_guest_policies: Arc<Mutex<Vec<(Uuid, GuestPolicy)>>>,
 }
 
 impl Default for FakeRepo {
@@ -186,6 +192,7 @@ impl Default for FakeRepo {
             visible_calendars: Vec::new(),
             fail_list_visible: false,
             fail_owned_inboxes: false,
+            recorded_guest_policies: Default::default(),
         }
     }
 }
@@ -253,6 +260,14 @@ impl CalendarRepository for FakeRepo {
         _items: Vec<crate::domain::models::CalendarMentionRequestItem>,
         _now: chrono::DateTime<chrono::Utc>,
     ) -> Result<Vec<crate::domain::models::CalendarMentionPreview>, rootcause::Report> {
+        unreachable!()
+    }
+
+    async fn event_export(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+    ) -> Result<Option<crate::domain::ics::CalendarEventExport>, rootcause::Report> {
         unreachable!()
     }
 
@@ -370,6 +385,18 @@ impl CalendarRepository for FakeRepo {
         Ok(self.occurrence_override_attendees.clone())
     }
 
+    async fn record_guest_policy(
+        &self,
+        event_id: Uuid,
+        policy: GuestPolicy,
+    ) -> Result<(), rootcause::Report> {
+        self.recorded_guest_policies
+            .lock()
+            .unwrap()
+            .push((event_id, policy));
+        Ok(())
+    }
+
     async fn get_creation_target(
         &self,
         _requester_id: &str,
@@ -430,6 +457,8 @@ enum FakeProviderBehavior {
     Gone,
     OccurrenceGone,
     NotAttendee,
+    Forbidden(GuestPolicy),
+    GuestListHidden(GuestPolicy),
     Fail(CalendarProviderErrorKind),
 }
 
@@ -443,6 +472,7 @@ struct FakeProvider {
     echo_time: Option<EventTime>,
     created_drafts: Arc<Mutex<Vec<CalendarEventDraft>>>,
     updated_patches: Arc<Mutex<Vec<CalendarEventPatch>>>,
+    invited_guests: Arc<Mutex<Vec<Vec<CalendarAttendeeInput>>>>,
 }
 
 impl FakeProvider {
@@ -456,6 +486,7 @@ impl FakeProvider {
             echo_time: None,
             created_drafts: Arc::new(Mutex::new(Vec::new())),
             updated_patches: Arc::new(Mutex::new(Vec::new())),
+            invited_guests: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -556,6 +587,41 @@ impl CalendarMutationProvider for FakeProvider {
             return Err(error);
         }
         Ok(())
+    }
+
+    async fn add_attendees(
+        &self,
+        _access_token: &str,
+        target: &ProviderCalendarTarget,
+        master_provider_event_id: &str,
+        _actor: &ActorInboxes,
+        guests: &[CalendarAttendeeInput],
+        scope: &CalendarUpdateScope,
+    ) -> Result<ProviderInviteOutcome, CalendarProviderError> {
+        let scope = match scope {
+            CalendarUpdateScope::All => "all".to_string(),
+            CalendarUpdateScope::ThisEvent { recurrence_id } => format!("this:{recurrence_id}"),
+        };
+        self.calls
+            .lock()
+            .unwrap()
+            .push(format!("invite:{master_provider_event_id}:{scope}"));
+        self.invited_guests.lock().unwrap().push(guests.to_vec());
+        if let Some(error) = self.fail() {
+            return Err(error);
+        }
+        Ok(match self.behavior {
+            FakeProviderBehavior::Gone => ProviderInviteOutcome::Gone,
+            FakeProviderBehavior::OccurrenceGone => {
+                ProviderInviteOutcome::OccurrenceGone(Box::new(self.echo(&target.owner_id)))
+            }
+            FakeProviderBehavior::NotAttendee => ProviderInviteOutcome::NotAttendee,
+            FakeProviderBehavior::Forbidden(policy) => ProviderInviteOutcome::Forbidden(policy),
+            FakeProviderBehavior::GuestListHidden(policy) => {
+                ProviderInviteOutcome::GuestListHidden(policy)
+            }
+            _ => ProviderInviteOutcome::Applied(Box::new(self.echo(&target.owner_id))),
+        })
     }
 
     async fn stop_watch_channel(
@@ -2752,4 +2818,5 @@ async fn outlook_write_pause_rejects_provider_operations_before_fetching_tokens(
         .unwrap();
 }
 
+mod invite;
 mod replacement;

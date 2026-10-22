@@ -7199,7 +7199,7 @@ export interface CreateDocumentResponse {
   documentId: string;
 }
 /**
- * Create a complete questionnaire with response columns, ordered sections, screeners and an optional saved booking link. Creates closed and private; use SetFormAccess afterward to open or share it. Existing-table attachment requires database Owner and an unbound table. Use local question/option keys in screeners and reference only earlier sections. Required questions require an answer; screeners compare answers using AND/OR. Empty answers pass only IsEmpty. A final booking step reveals an existing authorized link after acceptance; its independent URL remains usable, and strict qualification is unsupported. Each invocation creates a new form; after a timeout, use ListForms and ReadForm before trying again. Returns actual saved IDs, links and completion state; inspect partial work instead of recreating.
+ * Create a complete questionnaire with response columns, ordered sections, gates and an optional saved booking link. Creates closed and private; use SetFormAccess afterward to open or share it. Existing-table attachment requires database Owner and an unbound table. Use local question/option keys in gates and reference only earlier sections. Required questions require an answer; gates compare answers using AND/OR. Empty answers pass only IsEmpty. A final booking step reveals an existing authorized link after acceptance; its independent URL remains usable, and strict qualification is unsupported. Each invocation creates a new form; after a timeout, use ListForms and ReadForm before trying again. Returns actual saved IDs, links and completion state; inspect partial work instead of recreating.
  */
 export interface CreateForm {
   /**
@@ -7262,7 +7262,7 @@ export interface OptionDraft {
   label: string;
 }
 /**
- * Screeners support AND/OR, at most eight levels and 200 conditions.
+ * Gates support AND/OR, at most eight levels and 200 conditions.
  */
 export interface Rules {
   conjunction: Conjunction;
@@ -7552,7 +7552,7 @@ export interface Capabilities {
    */
   safeLinkedTypeChanges: boolean;
   /**
-   * False: screeners reveal links, but independent booking URLs remain usable.
+   * False: gates reveal links, but independent booking URLs remain usable.
    */
   requiredBookingQualification: boolean;
 }
@@ -8652,7 +8652,7 @@ export interface EditDocumentResponse {
   clarification?: string | null;
 }
 /**
- * Edit the live form using typed targeted operations. ReadForm provides stable question/section IDs. Edits produce granular CRDT updates; concurrent changes merge using the same rules as the builder. Omitted fields stay unchanged. Invalid merged layouts are refused. Changes can add or move questions/sections, edit requiredness/help/screeners and attach an existing booking target. New columns use explicit stable IDs. Question labels follow backing column names; rename them through database tools. Removing a question keeps its column and answers. Schema retyping and conditional column cleanup are unsupported. Keep screeners after the questions they test and booking last. Read the current form after a timeout or partial result before proceeding. Opening and sharing require SetFormAccess.
+ * Edit the live form using typed targeted operations. ReadForm provides stable question/section IDs. Edits produce granular CRDT updates; concurrent changes merge using the same rules as the builder. Omitted fields stay unchanged. Invalid merged layouts are refused. Changes can add or move questions/sections, edit requiredness/help/gates and attach an existing booking target. New columns use explicit stable IDs. Question labels follow backing column names; rename them through database tools. Removing a question keeps its column and answers. Schema retyping and conditional column cleanup are unsupported. Keep gates after the questions they test and booking last. Read the current form after a timeout or partial result before proceeding. Opening and sharing require SetFormAccess.
  */
 export interface EditForm {
   formId: FormId;
@@ -10865,6 +10865,7 @@ export interface CalendarEventListItem {
    * Whether the user's calendar prohibits modifying this event.
    */
   isReadOnly: boolean;
+  viewerCan: ViewerCapabilities;
   /**
    * Calendar the event belongs to, when known.
    */
@@ -10875,6 +10876,31 @@ export interface CalendarEventListItem {
    * or DeleteCalendarEvent to address that copy instead of the primary.
    */
   copies?: CalendarEventCopyItem[];
+}
+/**
+ * What the viewing requester may do with an event.
+ */
+export interface ViewerCapabilities {
+  /**
+   * Change the event's details (title, time, description, conference).
+   */
+  editDetails: boolean;
+  /**
+   * Add guests.
+   */
+  inviteGuests: boolean;
+  /**
+   * Remove guests.
+   */
+  removeGuests: boolean;
+  /**
+   * Change the event's guest policy.
+   */
+  setGuestPolicy: boolean;
+  /**
+   * Answer the invitation.
+   */
+  rsvp: boolean;
 }
 /**
  * One calendar's copy of an event synced from several calendars.
@@ -14795,7 +14821,7 @@ export interface UpdateBookingSettings {
  *
  * `scope` picks how much of a recurring series changes and is always required: "this_event" edits one occurrence (pass the occurrence's `recurrenceId` from ListCalendarEvents) and leaves the rest of the series alone; "all" edits the series itself — with `time` that MOVES EVERY OCCURRENCE, so never use "all" to reschedule a single occurrence. Non-recurring events use "all". There is no this-and-following update: end the series with DeleteCalendarEvent's "this_and_following" and create a new event instead.
  *
- * Passing `attendees` replaces the full attendee list — include everyone who should remain, not just additions. An empty string for `description` or `location` clears it. Fails on events from calendars the user cannot edit.
+ * Passing `attendees` replaces the full attendee list — include everyone who should remain, not just additions. That holds when `viewerCan.removeGuests` from ListCalendarEvents is true (the user organizes the event, or the organizer lets guests modify it). When it is false, the list may only grow: pass the current attendees plus the additions; the additions are invited without touching anyone else, and dropping any guest fails. Adding guests then needs `viewerCan.inviteGuests`; otherwise the organizer doesn't let guests invite others or hides the guest list. An empty string for `description` or `location` clears it. Fails on events from calendars the user cannot edit.
  *
  * `rsvp` sets the user's own response to an invitation and is independent of the field edits — it can be the only thing this call changes. It applies at the same `scope` as the rest of the call, and only works on events the user is actually an attendee of.
  */
@@ -14830,7 +14856,7 @@ export interface UpdateCalendarEvent {
    */
   time?: EventTimeInput | null;
   /**
-   * Replacement attendee list — replaces all current attendees, so include everyone who should remain. Omit to leave attendees unchanged.
+   * Replacement attendee list — replaces all current attendees, so include everyone who should remain. When `viewerCan.removeGuests` is false, it may only add to the current list. Omit to leave attendees unchanged.
    */
   attendees?: AttendeeInput[] | null;
   /**
