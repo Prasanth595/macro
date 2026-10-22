@@ -572,10 +572,6 @@ pub trait WorkspaceWriter: Send + Sync + 'static {
 
     /// Idempotently create a task from ordinary markdown, applying normalized
     /// task properties and approved visibility. Never uses Notion conversion.
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "stable task identity, content, properties and approved visibility"
-    )]
     fn create_tracker_task(
         &self,
         user: &MacroUserIdStr<'static>,

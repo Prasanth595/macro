@@ -29,7 +29,7 @@ pub(in crate::domain::service) fn rows(
     for issue in &inventory.issues {
         rows.push(row(
             source,
-            TrackerObject::Issue(issue.clone()),
+            TrackerObject::Issue(Box::new(issue.clone())),
             issue.id.as_str().to_string(),
             issue
                 .parent

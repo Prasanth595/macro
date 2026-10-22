@@ -38,7 +38,7 @@ mod test;
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 enum TrackerObject {
     Group(Group),
-    Issue(Issue),
+    Issue(Box<Issue>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
