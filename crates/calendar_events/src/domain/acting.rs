@@ -53,9 +53,8 @@ impl ActorInboxes {
             })
             .filter(|inbox| !inbox.email.is_empty())
             .collect();
-        inboxes.sort_by(|left, right| {
-            (&left.email, left.link_id).cmp(&(&right.email, right.link_id))
-        });
+        inboxes
+            .sort_by(|left, right| (&left.email, left.link_id).cmp(&(&right.email, right.link_id)));
         inboxes.dedup_by_key(|inbox| inbox.link_id);
         if inboxes.is_empty() {
             None

@@ -59,7 +59,10 @@ fn mark_attendees_marks_only_the_copys_inbox() {
         attendee("olivia@example.com", true),
     ];
     actor.mark_attendees(&mut attendees, Uuid::from_u128(1));
-    assert!(!attendees[0].is_self, "another owned inbox is not this copy's");
+    assert!(
+        !attendees[0].is_self,
+        "another owned inbox is not this copy's"
+    );
     assert!(attendees[1].is_self);
     assert!(!attendees[2].is_self);
 }

@@ -37,8 +37,7 @@ use crate::domain::{
         GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel,
         GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange, OwnedInbox,
         ProviderCalendar, StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities,
-        VisibleCalendar,
-        is_system_calendar,
+        VisibleCalendar, is_system_calendar,
     },
     ports::{
         CalendarBackfillRepository, CalendarEventChange, CalendarEventWrite,

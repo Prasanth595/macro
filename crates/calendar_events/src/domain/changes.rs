@@ -347,8 +347,7 @@ impl<R: CalendarChangeRepository> CalendarChangeService<R> {
                 CalendarChangeOp::DeleteCalendar(id) => page.deleted_calendar_ids.push(id),
             }
         }
-        if let Some(viewer) =
-            ActorInboxes::from_owned(self.repository.owned_inboxes(viewer).await?)
+        if let Some(viewer) = ActorInboxes::from_owned(self.repository.owned_inboxes(viewer).await?)
         {
             for change in &mut page.events {
                 mark_viewer(&viewer, change);
@@ -374,8 +373,7 @@ impl<R: CalendarChangeRepository> CalendarChangeService<R> {
         else {
             return Ok(None);
         };
-        if let Some(viewer) =
-            ActorInboxes::from_owned(self.repository.owned_inboxes(viewer).await?)
+        if let Some(viewer) = ActorInboxes::from_owned(self.repository.owned_inboxes(viewer).await?)
         {
             mark_viewer(&viewer, &mut change);
         }

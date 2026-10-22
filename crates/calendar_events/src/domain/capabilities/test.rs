@@ -90,10 +90,8 @@ const LOCKED_DOWN: GuestPolicy = GuestPolicy {
 
 #[test]
 fn the_organizer_may_do_everything() {
-    let capabilities = ViewerCapabilities::for_event(
-        &meeting(LOCKED_DOWN),
-        Some(&google("Olivia@Example.com")),
-    );
+    let capabilities =
+        ViewerCapabilities::for_event(&meeting(LOCKED_DOWN), Some(&google("Olivia@Example.com")));
 
     assert_eq!(capabilities, EVERYTHING);
 }
@@ -197,8 +195,7 @@ fn a_guest_cannot_change_a_hidden_guest_list_even_with_permission() {
 
 #[test]
 fn a_guest_without_permissions_may_only_answer() {
-    let capabilities =
-        ViewerCapabilities::for_event(&meeting(LOCKED_DOWN), Some(&google(GUEST)));
+    let capabilities = ViewerCapabilities::for_event(&meeting(LOCKED_DOWN), Some(&google(GUEST)));
 
     assert_eq!(
         capabilities,
