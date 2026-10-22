@@ -76,6 +76,11 @@ property selector for that document.
 Adding or reselecting a property from the title row pins it there. Adding from
 the side panel leaves it unpinned. The side panel shows all assigned properties,
 including unpinned ones.
+
+While editing an open document's title, **Tab** moves to the start of the body
+without inserting a paragraph or switching Drive views. Open emoji/tag menus
+keep their Tab selection behavior; Shift+Tab retains backward focus navigation.
+
 Hover or focus an inline property pill to find **Unpin** (keeps its saved
 value) and **Delete from item** (removes the document's assignment, without
 deleting the shared property definition). Pins are saved with the document.

@@ -49,6 +49,7 @@ import {
 } from 'solid-js';
 import { useMarkdownDocument } from '../context/markdown-document-context';
 import { useMarkdownName } from './MarkdownNameProvider';
+import { useTitleTabNavigation } from './useTitleTabNavigation';
 
 /**
  * Use the plugin architecture to set up command handlers on both the
@@ -128,7 +129,9 @@ function titleNavigationPlugin(
     );
 }
 
-export function TitleEditor(props: { autoFocusOnMount?: boolean } = {}) {
+export function TitleEditor(
+  props: { autoFocusOnMount?: boolean; hotkeyScope?: string } = {}
+) {
   const {
     documentId,
     kind,
@@ -210,6 +213,13 @@ export function TitleEditor(props: { autoFocusOnMount?: boolean } = {}) {
   const tagMenuOperations = createMenuOperations();
   const inlineMenuOpen = () =>
     emojiMenuOperations.isOpen() || tagMenuOperations.isOpen();
+
+  useTitleTabNavigation({
+    scopeId: () => props.hotkeyScope,
+    titleEditor: editor,
+    documentEditor: () => mdData.editor,
+    menuOpen: inlineMenuOpen,
+  });
 
   plugins
     .plainText()

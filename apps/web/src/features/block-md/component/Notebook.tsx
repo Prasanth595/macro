@@ -352,7 +352,10 @@ export function Notebook(props: {
         ref={contentRef}
         classList={{ relative: true }}
       >
-        <TitleEditor autoFocusOnMount={props.autoFocus} />
+        <TitleEditor
+          autoFocusOnMount={props.autoFocus}
+          hotkeyScope={props.hotkeyScope}
+        />
         <div class="spacer h-3" />
         <div class="mb-6 flex flex-row flex-wrap items-center gap-2 text-sm empty:hidden">
           <InlineTaskProperties />

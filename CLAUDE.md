@@ -79,6 +79,7 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 - Disagree when they're wrong. No flattery.
 - Answer simple questions directly.
 - For UI work, ask how it should behave on mobile unless that's obvious.
+- Use an isolated Chrome MCP window for browser verification so the user can keep using their own browser.
 - Be brief. No justification essays, no time estimates.
 
 **Environment**
