@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
   clearDocumentLifecycle,
+  recordDocumentNavigation,
   startDocumentLifecycle,
 } from './document-lifecycle';
 import { frontendInstanceId } from './frontend-instance';
@@ -119,6 +120,11 @@ it('logout removes the checkpoint and prevents callbacks from recreating it', ()
     true
   );
   clearDocumentLifecycle();
+  recordDocumentNavigation({
+    paneCount: 1,
+    historyEntryCount: 8,
+    savedEntryStateCount: 7,
+  });
   expect(lifecycle.attributes.previous_document_checkpoint_available).toBe(
     false
   );
@@ -131,6 +137,50 @@ it('logout removes the checkpoint and prevents callbacks from recreating it', ()
   expect(
     startDocumentLifecycle().attributes.previous_document_checkpoint_available
   ).toBe(false);
+});
+
+it('recovers navigation counts without saving route or result content', () => {
+  const first = startDocumentLifecycle();
+  recordDocumentNavigation({
+    paneCount: 2,
+    historyEntryCount: 15,
+    savedEntryStateCount: 4,
+  });
+  recordDocumentNavigation({
+    paneCount: 1,
+    historyEntryCount: 2,
+    savedEntryStateCount: 1,
+  });
+  const saved = JSON.parse(sessionStorage.getItem(key)!);
+  expect(saved.navigation).toEqual({
+    commits: 2,
+    paneCount: 1,
+    historyEntryCount: 2,
+    savedEntryStateCount: 1,
+  });
+  first.dispose();
+  sessionStorage.setItem(
+    key,
+    JSON.stringify({ ...saved, frontendInstanceId: previousId })
+  );
+  expect(startDocumentLifecycle().attributes).toMatchObject({
+    previous_document_navigation_commits: 2,
+    previous_document_pane_count: 1,
+    previous_document_history_entry_count: 2,
+    previous_document_saved_entry_state_count: 1,
+  });
+});
+
+it('an old disposer cannot stop navigation checkpoints for its successor', () => {
+  const first = startDocumentLifecycle();
+  startDocumentLifecycle();
+  first.dispose();
+  recordDocumentNavigation({
+    paneCount: 1,
+    historyEntryCount: 1,
+    savedEntryStateCount: 0,
+  });
+  expect(JSON.parse(sessionStorage.getItem(key)!).navigation?.commits).toBe(1);
 });
 
 it.each([

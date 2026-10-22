@@ -2,11 +2,20 @@ import { z } from 'zod';
 import { frontendInstanceId } from './frontend-instance';
 
 const KEY = 'macro-document-lifecycle';
+const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+const navigationSchema = z.object({
+  commits: count,
+  paneCount: count,
+  historyEntryCount: count,
+  savedEntryStateCount: count,
+});
+type NavigationSnapshot = Omit<z.infer<typeof navigationSchema>, 'commits'>;
 const checkpointSchema = z.object({
   frontendInstanceId: z.uuid(),
   startedAtMs: z.number().int().nonnegative(),
   updatedAtMs: z.number().int().nonnegative(),
   visible: z.boolean(),
+  navigation: navigationSchema.optional(),
   pagehide: z
     .object({ atMs: z.number().int().nonnegative(), persisted: z.boolean() })
     .optional(),
@@ -14,6 +23,12 @@ const checkpointSchema = z.object({
 
 // Document-owned diagnostics only; no account, URL, or content state.
 let stopCurrent: (() => void) | undefined;
+let recordNavigation: ((snapshot: NavigationSnapshot) => void) | undefined;
+
+/** Counts only: never pass routes, entry ids, or captured view state. */
+export function recordDocumentNavigation(snapshot: NavigationSnapshot): void {
+  recordNavigation?.(snapshot);
+}
 
 function readCheckpoint() {
   try {
@@ -80,6 +95,19 @@ export function startDocumentLifecycle() {
     checkpoint.pagehide = undefined;
     update();
   };
+  const navigation = (snapshot: NavigationSnapshot) => {
+    checkpoint.navigation = {
+      commits: Math.min(
+        (checkpoint.navigation?.commits ?? 0) + 1,
+        Number.MAX_SAFE_INTEGER
+      ),
+      paneCount: snapshot.paneCount,
+      historyEntryCount: snapshot.historyEntryCount,
+      savedEntryStateCount: snapshot.savedEntryStateCount,
+    };
+    update();
+  };
+  recordNavigation = navigation;
   write();
   document.addEventListener('visibilitychange', update);
   window.addEventListener('pagehide', hide);
@@ -87,6 +115,7 @@ export function startDocumentLifecycle() {
   const dispose = () => {
     active = false;
     previous = undefined;
+    if (recordNavigation === navigation) recordNavigation = undefined;
     document.removeEventListener('visibilitychange', update);
     window.removeEventListener('pagehide', hide);
     window.removeEventListener('pageshow', show);
@@ -107,6 +136,12 @@ export function startDocumentLifecycle() {
           : undefined,
         previous_document_pagehide_at_ms: previous?.pagehide?.atMs,
         previous_document_pagehide_persisted: previous?.pagehide?.persisted,
+        previous_document_navigation_commits: previous?.navigation?.commits,
+        previous_document_pane_count: previous?.navigation?.paneCount,
+        previous_document_history_entry_count:
+          previous?.navigation?.historyEntryCount,
+        previous_document_saved_entry_state_count:
+          previous?.navigation?.savedEntryStateCount,
       };
     },
   };
