@@ -21,8 +21,11 @@ mod harness_bindings;
 mod internal_mcp;
 mod model_providers;
 mod permission_policy;
+mod preview;
+mod public_mcp;
 mod routine_sessions;
 mod runtime_commands;
+mod scheduling;
 mod trigger;
 
 #[cfg(test)]
@@ -256,7 +259,7 @@ async fn run() -> anyhow::Result<()> {
 
     let pool = PgPoolOptions::new()
         .min_connections(1)
-        .max_connections(5)
+        .max_connections(config.database_max_connections)
         .connect(config.database_url.as_ref())
         .await
         .context("failed to connect to macrodb")?;
@@ -446,14 +449,14 @@ async fn run() -> anyhow::Result<()> {
     // keep in sync. The rows hold no secrets - Pipedream owns the grants.
     let mcp_connections = Arc::new(PgConnectionRepo::new(pool.clone()));
     // Custom MCP servers - the ones a person added by URL - in the same rows
-    // document_cognition_service manages, under the same encryption key, so
+    // agent_harness_service::cognition manages, under the same encryption key, so
     // the proxy can refresh a stored grant and persist what comes back.
     let mcp_credentials_key = AesKey::try_from(config.mcp_credentials_key_secret_name.as_ref())
         .context("invalid MCP credentials encryption key")?;
     let mcp_servers = Arc::new(PgServerRepo::new(pool.clone(), mcp_credentials_key));
 
     // The client that addresses Pipedream's remote MCP server, built from the
-    // same credentials `document_cognition_service` uses.
+    // same credentials `agent_harness_service::cognition` uses.
     let pipedream = PipedreamClient::new(PipedreamConfig {
         client_id: config.pipedream_client_id.to_string(),
         client_secret: config.pipedream_client_secret.to_string(),
@@ -550,6 +553,47 @@ async fn run() -> anyhow::Result<()> {
     )
     .await
     .context("failed to build the in-memory agent tool context")?;
+    let cognition_runtime = agent_harness_service::cognition::build(
+        agent_harness_service::cognition::config::Config::from_env()?,
+        pool.clone(),
+        event_broker_tracker.clone(),
+    )
+    .await
+    .context("failed to compose cognition APIs")?;
+    let cognition_router = cognition_runtime.router.clone();
+    let service_shutdown = tokio_util::sync::CancellationToken::new();
+    let (http_listening, http_ready) = tokio::sync::watch::channel(false);
+    let scheduling_runtime = scheduling::build(
+        scheduling::config::Config::from_env()?,
+        pool.clone(),
+        std::net::SocketAddr::from(([127, 0, 0, 1], config.port)),
+        http_ready,
+    )
+    .await?;
+    let scheduling_router = scheduling_runtime.router.clone();
+    let preview_router = preview::build(
+        macro_config::ConfigLoader::load::<preview::config::Config>()?,
+        config.database_url.as_ref(),
+        pool.clone(),
+        service_shutdown.clone(),
+        event_broker_tracker.clone(),
+    )
+    .await
+    .map_err(|error| anyhow::anyhow!("{error}"))?;
+    let public_mcp_router = public_mcp::router(
+        &config,
+        &secrets,
+        tool_context.clone(),
+        macro_auth::middleware::decode_jwt::JwtValidationArgs::new_with_secret_manager(
+            config.environment,
+            &secrets,
+        )
+        .await?,
+        event_broker_tracker.clone(),
+        service_shutdown.clone(),
+    )
+    .await
+    .context("failed to compose public MCP")?;
     // Session tasks are read as the owner through the same services Macro's own tools use.
     let task_directory = agent_harness::outbound::session_tasks::DocumentTaskDirectory::new(
         tool_context.document_tool_context.service.clone(),
@@ -1160,6 +1204,12 @@ async fn run() -> anyhow::Result<()> {
             // notification ingress channel messages use.
             IngressAgentSessionNotifier::new(Arc::clone(&notifications)),
         )
+        .with_external_replies(Arc::new(
+            agent_harness::outbound::external_replies::PgExternalReplyStore::new(pool.clone()),
+        ))
+        .with_notifications(Arc::new(
+            agent_session::outbound::notifications::PgNotificationStore(pool.clone()),
+        ))
         .with_conversation_turns(conversation_turns)
         .with_admission(admission.clone())
         .with_repositories(open_repositories)
@@ -1168,6 +1218,9 @@ async fn run() -> anyhow::Result<()> {
     let reviews = agent_code_mode::domain::reviews::ReviewService::new(
         Arc::new(agent_code_mode::outbound::reviews::PgReviewStore(
             pool.clone(),
+            Arc::new(agent_session::outbound::notifications::PgNotificationStore(
+                pool.clone(),
+            )),
         )),
         Arc::new(agent_code_mode::outbound::postgres::PgExecutionStore::new(
             pool.clone(),
@@ -1467,6 +1520,17 @@ async fn run() -> anyhow::Result<()> {
         entity_access.clone(),
         MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
     ));
+    let notification_ingress = agent_session::inbound::notifications::notification_router(
+        agent_session::inbound::notifications::NotificationRouterState {
+            authorization: MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
+            service: Arc::new(agent_session::domain::notifications::NotificationService(
+                Arc::new(agent_session::outbound::notifications::PgNotificationStore(
+                    pool.clone(),
+                )),
+            )),
+        },
+    );
+    let http_shutdown = service_shutdown.clone();
     let http = tokio::spawn(async move {
         if let Err(error) = api::setup_and_serve(
             api::ApiStates::new(
@@ -1486,14 +1550,21 @@ async fn run() -> anyhow::Result<()> {
             .with_capabilities(capabilities)
             .with_pull_requests(pull_requests)
             .with_tool_approvals(tool_approval_answers)
-            .with_code_executions(code_executions),
+            .with_code_executions(code_executions)
+            .with_notifications(notification_ingress)
+            .with_cognition(cognition_router)
+            .with_scheduling(scheduling_router)
+            .with_preview(preview_router)
+            .with_public_mcp(public_mcp_router)
+            .with_listening_signal(http_listening),
             http_runtime_commands_readiness,
             http_port,
-            shutdown_signal(),
+            http_shutdown.clone().cancelled_owned(),
         )
         .await
         {
             tracing::error!(error = ?error, "agent harness service http stopped");
+            http_shutdown.cancel();
         }
     });
 
@@ -1530,12 +1601,39 @@ async fn run() -> anyhow::Result<()> {
         }
     });
 
+    let notification_cancel = tokio_util::sync::CancellationToken::new();
+    let notification_tasks = tokio_util::task::TaskTracker::new();
+    let notification_harness = harness.clone();
+    let notification_stop = notification_cancel.clone();
+    notification_tasks.spawn(async move {
+        let mut ticker = tokio::time::interval(std::time::Duration::from_secs(2));
+        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            tokio::select! {
+                () = notification_stop.cancelled() => break,
+                _ = ticker.tick() => {
+                    tokio::select! {
+                        () = notification_stop.cancelled() => break,
+                        result = notification_harness.recover_notifications() => {
+                            if let Err(error) = result {
+                                tracing::warn!(?error, "durable session event recovery failed");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
     let recovery_harness = harness.clone();
     let dm_recovery = tokio::spawn(async move {
         let mut ticker = tokio::time::interval(std::time::Duration::from_secs(10));
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             ticker.tick().await;
+            if let Err(error) = recovery_harness.recover_external_replies().await {
+                tracing::error!(?error, "failed to reconcile external agent replies");
+            }
             if let Err(error) = recovery_harness.recover_conversations().await {
                 tracing::error!(
                     ?error,
@@ -1585,11 +1683,18 @@ async fn run() -> anyhow::Result<()> {
     ));
 
     let egress_port = config.egress_port;
+    let egress_shutdown = service_shutdown.clone();
     let egress_http = tokio::spawn(async move {
-        if let Err(error) =
-            api::serve_egress(egress, internal_mcp, egress_port, shutdown_signal()).await
+        if let Err(error) = api::serve_egress(
+            egress,
+            internal_mcp,
+            egress_port,
+            egress_shutdown.clone().cancelled_owned(),
+        )
+        .await
         {
             tracing::error!(error = ?error, "agent harness service egress stopped");
+            egress_shutdown.cancel();
         }
     });
 
@@ -1616,6 +1721,10 @@ async fn run() -> anyhow::Result<()> {
     let mut run_error = None;
     loop {
         tokio::select! {
+            () = service_shutdown.cancelled() => {
+                run_error = Some(anyhow::anyhow!("agent listener stopped unexpectedly"));
+                break;
+            }
             () = &mut shutdown => {
                 tracing::info!("agent harness service shutting down");
                 // SIGTERM lands minutes before the process actually stops:
@@ -1740,7 +1849,8 @@ async fn run() -> anyhow::Result<()> {
                                 | HarnessCommand::Turn(_)
                                 | HarnessCommand::ToolApproval(_)
                                 | HarnessCommand::PresentTool { .. }
-                                | HarnessCommand::SessionStopped { .. } => "agent_trigger.unexpected",
+                                | HarnessCommand::SessionStopped { .. }
+                                | HarnessCommand::DrainNotifications => "agent_trigger.unexpected",
                             };
                             tracing::Span::current().record("macro.event.type", event_type);
                             let execution_span = tracing::info_span!(
@@ -1821,6 +1931,12 @@ async fn run() -> anyhow::Result<()> {
         }
     }
 
+    service_shutdown.cancel();
+    scheduling_runtime.stop();
+    cognition_runtime.stop();
+    notification_cancel.cancel();
+    notification_tasks.close();
+    notification_tasks.wait().await;
     http.abort();
     trigger.abort();
     egress_http.abort();
@@ -1843,6 +1959,9 @@ async fn run() -> anyhow::Result<()> {
         }
     }
 
+    service_shutdown.cancel();
+    cognition_runtime.shutdown().await;
+    scheduling_runtime.shutdown().await;
     event_broker_tracker.close();
     if tokio::time::timeout(
         std::time::Duration::from_secs(10),

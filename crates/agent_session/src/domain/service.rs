@@ -216,6 +216,12 @@ pub trait AgentSessionService: Send + Sync + 'static {
         prompter: &TurnPrompter,
     ) -> impl Future<Output = Result<()>> + Send;
 
+    /// Read the persisted identity of the current turn during recovery.
+    fn turn_prompter(
+        &self,
+        id: AgentSessionId,
+    ) -> impl Future<Output = Result<Option<TurnPrompter>>> + Send;
+
     /// What `viewer` may see of each of `ids`, for rendering chips.
     ///
     /// Duplicate ids are collapsed, so the answer has one entry per distinct
@@ -349,6 +355,14 @@ pub trait AgentSessionService: Send + Sync + 'static {
     /// to WASM so a streamed session and a reloaded one are rendered by one
     /// implementation. See [`SessionLog`] and [`Self::folded_session_log`].
     fn session_log(&self, id: AgentSessionId) -> impl Future<Output = Result<SessionLog>> + Send;
+
+    /// Recover one action from a consistent durable snapshot, including history
+    /// replaced by session/load. No observer callback or live actor is required.
+    fn recorded_action(
+        &self,
+        id: AgentSessionId,
+        action: AgentActionId,
+    ) -> impl Future<Output = Result<Option<super::action_history::RecordedAction>>> + Send;
 
     /// The same history as [`Self::session_log`], folded server-side into
     /// renderable messages for readers that do not run the fold themselves,
@@ -880,6 +894,10 @@ where
         self.repo.set_turn_prompter(id, prompter).await
     }
 
+    async fn turn_prompter(&self, id: AgentSessionId) -> Result<Option<TurnPrompter>> {
+        self.repo.turn_prompter(id).await
+    }
+
     async fn preview_sessions(
         &self,
         viewer: &MacroUserIdStr<'static>,
@@ -1176,6 +1194,16 @@ where
     }
 
     #[tracing::instrument(err, skip(self))]
+    async fn recorded_action(
+        &self,
+        id: AgentSessionId,
+        action: AgentActionId,
+    ) -> Result<Option<super::action_history::RecordedAction>> {
+        let entries = self.repo.list_action_history(id, action).await?;
+        Ok(super::action_history::recorded_action(entries, action))
+    }
+
+    #[tracing::instrument(err, skip(self))]
     async fn folded_session_log(&self, id: AgentSessionId) -> Result<FoldedSessionLog> {
         let session = self.repo.get(id).await?;
         Ok(FoldedSessionLog {
@@ -1245,6 +1273,13 @@ where
     let AgentAction::Prompt(prompt) = action else {
         return None;
     };
+    if prompt
+        .notifications
+        .as_ref()
+        .is_some_and(|input| input.system_turn)
+    {
+        return None;
+    }
     // Whether anyone has *spoken* here yet, rather than whether the log has
     // opened a turn: controls take turns of their own, so a session whose
     // model was set before its first prompt would otherwise never be named.
@@ -1388,6 +1423,7 @@ fn frame_telemetry(content: &Message) -> (&'static str, Option<&str>) {
         Message::ToServer(ToServerMessage::Event { event }) => ("event", Some(event.as_str())),
         Message::ToServer(_) => ("acp_to_server", None),
         Message::ToRuntime(_) => ("acp_to_runtime", None),
+        Message::Notification(_) => ("notification", None),
     }
 }
 
@@ -1524,6 +1560,7 @@ fn flushes_through(content: &Message) -> bool {
     matches!(
         content,
         Message::ToRuntime(_)
+            | Message::Notification(_)
             | Message::ToServer(ToServerMessage::Event { .. })
             | Message::ToServer(ToServerMessage::Acp(AcpMessage(
                 RawJsonRpcMessage::Response(_)
@@ -1607,6 +1644,7 @@ where
             let (direction, frame) = match &log.content {
                 Message::ToServer(message) => ("to_server", serde_json::to_string(message)),
                 Message::ToRuntime(message) => ("to_runtime", serde_json::to_string(message)),
+                Message::Notification(message) => ("notification", serde_json::to_string(message)),
             };
             tracing::trace!(
                 %session,

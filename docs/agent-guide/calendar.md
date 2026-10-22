@@ -11,6 +11,14 @@ the connected calendar mailbox. Outlook out-of-office automatic replies show an
 uncertainty notice if a provider response cannot be confirmed; a reconnect must
 not resend an already attempted automatic reply.
 
+Google Meet joins from event details, the upcoming-events sidebar, and calendar
+search use the displayed occurrence's connected calendar email as `authuser` when
+that account is known. Existing parameters such as `hs` are preserved. Copied call
+links keep their original URL so they can be shared with other attendees. Verify
+desktop and mobile Join with work and personal Google accounts signed in; a work
+calendar should open Meet with the work account. Search results without loaded
+calendar account metadata and other conferencing providers keep their original URL.
+
 Event composer dropdown triggers and date/time inputs use the theme control
 surface, so they blend with the dialog instead of using the darker page fill.
 Their menus stay inside the composer's portal scope. Verify that calendar,
@@ -23,6 +31,11 @@ The path selects the Month, Week, or Day period, and choosing another period upd
 that path. Calendar navigation defaults to Day on phones and Week on desktop; the most
 recent choice is remembered locally for navigation that does not specify a period. An
 opened event is reflected in the pane-owned `sN.calendar.eventId` search parameter.
+
+Opening a calendar row in Home clears its loaded reminder dots immediately;
+failed read writes restore them. Opening event details directly from the grid
+also marks the event's notifications read. Verify both on desktop and mobile,
+including a delayed read response and a failed write followed by another click.
 
 Period selection updates its label and route immediately. The active grid redraws
 on a deferred task; hidden neighboring periods follow on separate tasks. Calendar
@@ -111,6 +124,10 @@ footer. Answering a recurring invitation opens a rounded glass sheet: choose
 `This event` or `All events`, then `Save response`. Cancel or Close returns to
 the event details without sending a response.
 
+While an event response saves, a small spinner appears beside `Going?` within
+the RSVP footer on desktop and mobile; the row and buttons stay in place.
+Failures appear below the buttons inside the padded footer and allow retrying.
+
 Calendar scheduling is on by default in dev. Production uses the PostHog flag
 `enable-calendar-scheduling` and stays off unless enabled remotely. Set
 `VITE_ENABLE_CALENDAR_SCHEDULING=false` to test the disabled state locally.
@@ -144,17 +161,17 @@ default personal link for a new profile. Public
 choose an event on the profile landing page, then choose their timezone, date,
 and time before entering attendee details. Date & time and Your details steps
 show progress; the event summary and selected time stay visible. Choose another
-time preserves attendee input. All meetings returns to the profile chooser when
-multiple events exist, but is disabled while a booking response is unresolved.
+time preserves attendee input. Event booking pages do not show an All meetings
+link back to the profile chooser.
 The private confirmation shows the meeting, date, timezone, location, and guest.
 In the native iOS and Android apps, standalone booking and receipt pages keep a
 sticky **Back to Macro** button below the device's top safe-area inset. It returns to
 the app through the router without reloading, including while the page is loading
 or unavailable. Browser pages and embedded booking dialogs omit this button.
 
-Public URLs and booking behavior remain unchanged. The website can frame the
-booking page and receipt without duplicate Macro branding. A completed booking
-notifies the same-origin parent page; other sites cannot frame these routes.
+The website can frame the booking page and receipt without duplicate Macro
+branding. A completed booking notifies the same-origin parent page; other sites
+cannot frame these routes.
 Uncertain calendar writes retain the booking and show its private receipt while automatic recovery runs.
 After a network response cannot be verified, `Check booking status` retries the original request;
 do not create a replacement booking. Receipt pages poll while the calendar update is pending. The private
@@ -419,6 +436,44 @@ carries `Copy guest emails` and `Email guests` icon buttons. Copying puts every 
 address on the clipboard, comma-separated. Emailing opens a new email addressed to every
 guest but you — in a split beside the calendar on desktop, as the full-screen composer on
 touch devices — and is hidden when you are the only guest.
+With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
+whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
+organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
+phones): the current guests are listed under `Invited` without a remove control, the picker
+adds people, each new guest has an `Optional` checkbox, a recurring event offers `This
+event` / `All events`, and `Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape
+closes. The new guests appear at once as unanswered and a toast confirms the invitation
+once the provider accepts it. A guest who may not invite gets no button; instead the guest
+list opens with `Only the organizer can invite guests.`, and the same happens after the
+provider refuses an invitation. In the event editor, the organizer edits guests as before,
+while a guest who may invite gets an add-only guests pill whose additions are sent as an
+invitation on save (other edits are saved first); a guest who may not invite keeps a
+read-only pill that explains why. A guest on an event whose organizer hides the guest list
+may not invite either (`viewerCan.inviteGuests` is false; the route answers 403
+`guest_list_hidden`). To check the refusal state without a Google account, answer
+`POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
+An event that reached several connected inboxes shows one chip per inbox (overlapping;
+tell them apart by calendar color), and each copy answers only for its own inbox: a
+guest copy stays a guest copy, marked `(you)` on that inbox's row alone, even when
+another connected inbox organizes the event. An Outlook guest copy never offers `Add
+guests` (Outlook lets only the organizer change a meeting) and shows the same
+explanation; an Outlook organizer adds guests like a Google one.
+The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
+iCalendar file named after its title, so it can be passed on or added to another calendar. The
+file holds the series (its repeat rule, in the event's original time zone), title, description
+as plain text, location and organizer, never the guest list or join link. Like `Copy event`, it
+is absent from teammates' out-of-office chips. Its endpoint, document storage's
+`GET /calendar-events/{event_id}/ics`, also exports an event shared with a channel the viewer
+belongs to.
+Beside it, `Forward by email` (shown under the same rule) passes the event on the way Gmail
+forwards an invitation: it closes the details, fetches the same file, and opens a new email
+where `Email guests` does (its own composer, even when another one is open), with no recipients, the title as subject, a plain-text summary in
+the body (title, when in the viewer's zone, the repeat rule in words, location, organizer and
+description, never guests or a join link) and the `.ics` attached as a picked file would be.
+Nothing is saved as a draft until you edit something. The file is `METHOD:PUBLISH`, so
+recipients get a copy to add to their calendar, not an invitation they can answer. If the file
+cannot be fetched, no composer opens and a `Failed to forward event` toast shows; to check it,
+answer the `.ics` route with an error.
 
 With the `enable-calendar-team-ooo` flag on, teammates' Google Calendar out-of-office events
 overlay the grid as read-only chips titled `<name>: <event title>`. The sidebar's

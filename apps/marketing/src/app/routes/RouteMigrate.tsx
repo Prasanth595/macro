@@ -4,12 +4,12 @@
  * guidance aligned with the authenticated app and import pipeline.
  */
 import CaretDown from '@phosphor/caret-down.svg';
-import { A } from '@solidjs/router';
 import { type Component, createSignal, For, type JSX, Show } from 'solid-js';
 import { isServer } from 'solid-js/web';
 import markDesyncPlaceholder from '../../assets/mark-desync-placeholder.jpg';
 import markAvatar from '../../assets/people/mark.jpeg';
-import { MacroMarkIcon } from '../components/graphics/MacroMarkIcon';
+import { FeatureComparisons } from '../../features/marketing/components/comparisons/FeatureComparisons';
+import { migrationComparisons } from '../../features/marketing/core/migration-comparisons';
 import { ModuleGraphic } from '../components/graphics/ModuleGraphic';
 import { MODULE_LOGOS } from '../components/graphics/moduleLogos';
 import { SetupGraphic } from '../components/graphics/SetupGraphic';
@@ -108,38 +108,6 @@ function BookCallButton(props: { large?: boolean; label?: string }) {
     >
       {props.label ?? 'Talk to us'}
     </a>
-  );
-}
-
-/** Inline link styled like the surrounding body copy. */
-function InlineLink(props: {
-  href: string;
-  external?: boolean;
-  children: JSX.Element;
-}) {
-  const style: JSX.CSSProperties = {
-    color: 'var(--a0)',
-    'text-decoration': 'none',
-  };
-  return (
-    <Show
-      when={props.external}
-      fallback={
-        <A href={props.href} class="migrate-link" style={style}>
-          {props.children}
-        </A>
-      }
-    >
-      <a
-        href={props.href}
-        target="_blank"
-        rel="noreferrer"
-        class="migrate-link"
-        style={style}
-      >
-        {props.children}
-      </a>
-    </Show>
   );
 }
 
@@ -702,7 +670,7 @@ export const RouteMigrate: Component = () => {
         .migrate-page :focus-visible { outline: 2px solid var(--c1); outline-offset: 4px; }
         .migrate-full-comparison { width: 100%; max-width: 980px; min-width: 0; }
         .migrate-full-comparison h2 { font-family: display; font-size: clamp(28px, 4vw, 40px); font-weight: calc(315 + var(--cream-slab-weight-increase, 0)); letter-spacing: -0.015em; margin: 0 0 16px; }
-        .migrate-full-comparison-content { display: grid; gap: 24px; padding-top: 20px; min-width: 0; }
+        .migrate-page .migrate-full-comparison .feature-comparisons { width: 100%; max-width: none; margin: 0; --comparison-header-size: 15px; --comparison-header-padding: 20px 10px; }
         .migrate-connected-tools { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px; width: 100%; max-width: 760px; justify-items: center; }
         .migrate-agent-prompt { max-width: 660px; margin: 0; padding: 4px 0 4px 24px; border-left: 2px solid var(--c4); color: var(--c2); font: 400 20px/1.55 Inter, body; text-wrap: pretty; }
         .migrate-practical-faq details { border-bottom: 1px solid var(--b2); padding: 20px 0; }
@@ -713,12 +681,9 @@ export const RouteMigrate: Component = () => {
         .migrate-practical-faq p { color: var(--c4); font: 400 15px/1.75 Inter, body; margin: 16px 0 0; }
         .migrate-practical-faq a { color: var(--c2); text-decoration: underline; text-underline-offset: 3px; }
         @media (max-width: 699px) { .migrate-connected-tools { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; } .migrate-agent-prompt { font-size: 17px; padding-left: 16px; } }
-        .migrate-comparison-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 24px; color: var(--c4); font-family: Inter, body; font-size: 12px; }
-        .migrate-comparison-legend > span { display: inline-flex; align-items: center; gap: 8px; }
         .migrate-scroll-hint { color: var(--c4); font-family: Inter, body; font-size: 12px; margin: 12px 0 0; }
         @media (hover) {
           .migrate-cta-button:hover { transform: scale(1.02); }
-          .migrate-link:hover { text-decoration: underline; }
         }
         .migrate-hero-graphic, .migrate-module-graphic { display: block; height: auto; width: 100%; }
         .migrate-world-table-scroll,
@@ -1253,14 +1218,14 @@ export const RouteMigrate: Component = () => {
         }}
       >
         <div class="migrate-full-comparison">
-          <h2>Compare all tools</h2>
-          <div class="migrate-full-comparison-content">
-            <WorldTable />
-            <ComparisonKey />
-            <Show when={mobile()}>
-              <p class="migrate-scroll-hint">Scroll sideways to compare →</p>
-            </Show>
-          </div>
+          <FeatureComparisons
+            title="Compare all tools"
+            comparisons={migrationComparisons}
+            tableMinWidth={900}
+          />
+          <Show when={mobile()}>
+            <p class="migrate-scroll-hint">Scroll sideways to compare →</p>
+          </Show>
         </div>
       </section>
 

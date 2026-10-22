@@ -2,7 +2,7 @@ import { ViewShell } from '@app/components/view-shell';
 import { startPendingSession } from '@app/features/block-agent/context/pending-session';
 import { QUERY_FILTERS_BASE } from '@app/features/next-soup/filters/query-filters';
 import { AgentSettings } from '@app/features/settings/AgentSettings';
-import { McpConnections } from '@app/features/settings/McpConnections';
+import { IntegrationsPage } from '@app/features/settings/IntegrationsPage';
 import { withEntityNotifications } from '@app/features/soup/entity-notifications';
 import { ViewTour } from '@app/features/tours/ViewTour';
 import {
@@ -38,6 +38,7 @@ import {
 import { routineContent } from '../../routines/routine-navigation';
 import { RoutinesPage } from '../../routines/routines-page';
 import '../agents-view.css';
+import { ComposerGreeting } from '@core/component/ComposerGreeting';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { AgentSessionPane } from '../components/AgentSessionPane';
 import { AgentsSidebar } from '../components/AgentsSidebar';
@@ -294,7 +295,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
   const pageTitle = () => {
     if (page() === 'routines') return 'Routines';
     if (page() === 'agents') return 'Agents';
-    if (page() === 'connections') return 'Connections';
+    if (page() === 'connections') return 'Integrations';
     return undefined;
   };
 
@@ -380,7 +381,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                                 <RoutinesPage />
                               </Match>
                               <Match when={page() === 'connections'}>
-                                <McpConnections />
+                                <IntegrationsPage />
                               </Match>
                               <Match when={page() === 'agents'}>
                                 <AgentSettings />
@@ -435,9 +436,9 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                               <ChatEmptyStateContext.Provider
                                 value={() => (
                                   <div class="px-4 py-16 text-center">
-                                    <h2 class="text-[28px] font-medium tracking-[-0.03em] text-ink">
+                                    <ComposerGreeting>
                                       What should we work on?
-                                    </h2>
+                                    </ComposerGreeting>
                                   </div>
                                 )}
                               >
@@ -445,9 +446,6 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                                   target={previewBlockTarget(conversation)}
                                   orchestrator={orchestrator}
                                   splitPanelContext={panel}
-                                  headerLeading={
-                                    <SplitPanel.CloseButton class="hidden shrink-0 @max-[720px]/view-shell:flex" />
-                                  }
                                 />
                               </ChatEmptyStateContext.Provider>
                             </Suspense>

@@ -43,9 +43,10 @@ Business or Enterprise API key) is the only setup; there are no sync controls.
 Within about 30 seconds the backend registers a Granola webhook at the widest
 scope the key allows, and removing or disabling the connection stops sync. Notes
 whose first summary is generated, edited, or shared after that are imported as
-private calls about a minute after Granola finishes the summary; history is not
-backfilled. Imported calls appear in `All` and `Attended`, never in a channel's
-`Calls` tab, and open in the normal call detail with title, summary, attendees
+private calls about a minute after Granola finishes the summary, and appear in
+Soup lists without a refresh; history is not backfilled. Imported calls appear
+in `All` and `Attended`, never in a channel's `Calls` tab, and open in the
+normal call detail with title, summary, attendees
 (shown as guests), and transcript but no recording. Rename and delete do not
 apply to imported calls yet. Webhooks require a public HTTPS `MCP_PUBLIC_URL`;
 on a laptop stack, expose the webhook path with a tunnel such as Tailscale Funnel.
@@ -243,12 +244,17 @@ joining a standalone call never makes its content available to the wider team.
 
 Android channel calls use a native call activity rather than browser media.
 After joining, the themed drawer shows a large participant tile and a horizontally
-scrolling participant strip; tap a strip tile to make it primary. Speaker toggles
+scrolling participant strip without the transcription agent; tap a strip tile to make it primary. Speaker toggles
 speaker mode (hold it for headset/Bluetooth routing), Mute and Video control capture, and **Leave** ends the call.
 The local primary video tile exposes Switch camera. Swipe the drawer handle down,
-tap outside the drawer, or use Back to enter PiP on supported devices; **Open call
-controls** in the web call controls restores the native surface. Leaving the channel does
-not end the call. Incoming calls expose Answer/Decline in the **Calls** notification
-channel, including while locked/backgrounded. PiP is a native, device-dependent
+tap outside the drawer, or use Back to shrink it to a thumbnail over Macro, as on
+iOS: tap it to reopen the drawer, drag it to another corner, or drag it past a side
+to tuck it away (an edge tab brings it back once someone else is in the call). Leaving the app continues the call in system PiP (you and the
+active speaker); tapping PiP shows Android's menu with Mute, **Leave** and expand,
+which reopens the drawer. **Open call controls** in the web call controls also
+reopens the drawer. Leaving the channel does not end the call. Incoming calls
+expose Answer/Decline in the **Calls** notification channel, including while
+locked/backgrounded; while Android 14+ blocks full-screen notifications, a toast
+offers **Allow** (system setting) or **Hide**. PiP is a native, device-dependent
 flow. Browser-only tests cannot validate Telecom, FCM wakeup or background media;
 follow the hardware matrix in [Android development](../development/android.md#native-calling).
