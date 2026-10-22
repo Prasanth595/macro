@@ -28,7 +28,8 @@ outbox rows, and migrations retain compatibility with prior table writers.
 
 The agent-session notification migration backfills legacy review outcomes and
 bridges old-producer writes during rollout; keep that bridge until legacy
-review producers have retired.
+review producers have retired. Encode empty legacy item lists as JSON arrays so
+the typed notification reader can decode them.
 
 ## Boundaries
 

@@ -185,7 +185,16 @@ where
                 // batch too, including responses committed during attachment.
                 Ok(NotificationRecovery::Running)
             }
-            Some(RecordedAction::Interrupted { .. }) | None => Ok(NotificationRecovery::Pending),
+            Some(RecordedAction::Interrupted { .. }) | None => {
+                if batch.notifications.is_empty() {
+                    return Err(AgentSessionError::from(
+                        rootcause::report!("notification payload requires a compatible consumer")
+                            .into_dynamic(),
+                    )
+                    .into());
+                }
+                Ok(NotificationRecovery::Pending)
+            }
         }
     }
 

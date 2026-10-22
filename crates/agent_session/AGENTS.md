@@ -58,7 +58,11 @@ effective history served to transcript readers: replayed prompts lose action IDs
 
 `domain/notifications.rs` owns durable typed system-event production and the
 transaction-aware producer port. `outbound/notifications.rs` owns the outbox
-queries and leased batches. Discovery uses bounded cursor pages so callers can
+queries and leased batches. Retain unreadable payloads for a delayed retry; a
+previously bound action stays whole and returns its identity for runtime
+reconciliation, even when this consumer cannot decode its input.
+Fresh unreadable rows keep no action identity and do not block valid siblings.
+Discovery uses bounded cursor pages so callers can
 advance past unavailable sessions. Quiet batches bind to the actual prompt action ID;
 notification-only turns record `PrompterKind::System` and no human authority.
 Never expose notification metadata through public session controls. Notification

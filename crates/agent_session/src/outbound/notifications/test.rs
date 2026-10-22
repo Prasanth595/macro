@@ -331,3 +331,110 @@ async fn discovery_pages_advance_while_previous_sessions_remain_eligible(pool: P
     );
     assert_eq!(store.pending_sessions(None).await.unwrap(), first);
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn unreadable_fresh_events_wait_without_blocking_or_sharing_a_delivered_action(pool: PgPool) {
+    sqlx::query!("INSERT INTO agent_session (id, owner_id, bot_id, model, harness, workspace) VALUES ('00000000-0000-0000-0000-000000000001','macro|owner@example.com','00000000-0000-0000-0000-00000000a9e7','test','macrod','/workspace')").execute(&pool).await.unwrap();
+    let session = AgentSessionId::new_from_uuid(Uuid::from_u128(1));
+    let store = PgNotificationStore(pool.clone());
+    for subject in ["future", "malformed", "valid"] {
+        store
+            .enqueue(
+                PendingNotification::new(ProduceNotification {
+                    session_id: session,
+                    subject_id: subject.into(),
+                    event: NotificationEvent::AppConnected {
+                        app: "Calendar".into(),
+                    },
+                    dedupe_key: None,
+                    wake: true,
+                })
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+    }
+    sqlx::query!(
+        "UPDATE agent_session_notification SET kind = 'future.event' WHERE subject_id = 'future'"
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query!(
+        "UPDATE agent_session_notification SET payload = '{}' WHERE subject_id = 'malformed'"
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let first = store.claim(session, false).await.unwrap().unwrap();
+    assert_eq!(first.notifications.len(), 1);
+    assert_eq!(first.notifications[0].subject_id, "valid");
+    store
+        .complete(first.lease_id, NotificationOutcome::Delivered)
+        .await
+        .unwrap();
+    let delayed = sqlx::query!("SELECT action_id, lease_id, delivered_at, lease_until > now() AS delayed FROM agent_session_notification WHERE subject_id != 'valid'").fetch_all(&pool).await.unwrap();
+    assert_eq!(delayed.len(), 2);
+    assert!(delayed.iter().all(|row| row.action_id.is_none()
+        && row.lease_id.is_none()
+        && row.delivered_at.is_none()
+        && row.delayed == Some(true)));
+    assert!(store.pending_sessions(None).await.unwrap().is_empty());
+    // A compatible consumer can deliver the retained rows under a new action.
+    sqlx::query!("UPDATE agent_session_notification SET kind = 'app.connected', payload = '{\"app\":\"Calendar\"}', lease_until = now() - interval '1 second' WHERE subject_id != 'valid'").execute(&pool).await.unwrap();
+    let next = store.claim(session, false).await.unwrap().unwrap();
+    assert_eq!(next.notifications.len(), 2);
+    assert_ne!(next.action_id, first.action_id);
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn unreadable_bound_events_keep_the_entire_original_action_for_a_compatible_consumer(
+    pool: PgPool,
+) {
+    sqlx::query!("INSERT INTO agent_session (id, owner_id, bot_id, model, harness, workspace) VALUES ('00000000-0000-0000-0000-000000000001','macro|owner@example.com','00000000-0000-0000-0000-00000000a9e7','test','macrod','/workspace')").execute(&pool).await.unwrap();
+    let session = AgentSessionId::new_from_uuid(Uuid::from_u128(1));
+    let store = PgNotificationStore(pool.clone());
+    for subject in ["future", "valid"] {
+        store
+            .enqueue(
+                PendingNotification::new(ProduceNotification {
+                    session_id: session,
+                    subject_id: subject.into(),
+                    event: NotificationEvent::AppConnected {
+                        app: "Calendar".into(),
+                    },
+                    dedupe_key: None,
+                    wake: true,
+                })
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+    }
+    let original = store.claim(session, false).await.unwrap().unwrap();
+    store.release(original.lease_id).await.unwrap();
+    sqlx::query!(
+        "UPDATE agent_session_notification SET kind = 'future.event' WHERE subject_id = 'future'"
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let opaque = store.claim(session, false).await.unwrap().unwrap();
+    assert!(opaque.notifications.is_empty());
+    assert_eq!(opaque.action_id, original.action_id);
+    let rows =
+        sqlx::query!("SELECT action_id, lease_id, delivered_at FROM agent_session_notification")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    assert!(
+        rows.iter()
+            .all(|row| row.action_id == Some(original.action_id.as_uuid())
+                && row.lease_id == Some(opaque.lease_id)
+                && row.delivered_at.is_none())
+    );
+    sqlx::query!("UPDATE agent_session_notification SET kind = 'app.connected', lease_until = now() - interval '1 second'").execute(&pool).await.unwrap();
+    let recovered = store.claim(session, false).await.unwrap().unwrap();
+    assert_eq!(recovered.action_id, original.action_id);
+    assert_eq!(recovered.notifications.len(), 2);
+}

@@ -97,7 +97,8 @@ pub struct NotificationBatch {
     pub action_id: AgentActionId,
     /// Whether this batch contains an event allowed to start a system turn.
     pub wake: bool,
-    /// Events in production order.
+    /// Events in production order. Empty only for an unreadable bound action:
+    /// reconcile its original invocation before attempting to deliver any input.
     pub notifications: Vec<Notification>,
     /// Original contexts for span links.
     pub producer_contexts: Vec<Map<String, Value>>,

@@ -43,10 +43,10 @@ SELECT (review.record->>'notificationId')::uuid,
 FROM agent_session_review review
 JOIN agent_session session ON session.id = review.agent_session_id
 CROSS JOIN LATERAL (
-    SELECT jsonb_agg(jsonb_build_object(
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
                'id', item.value->'id', 'status', item.value->'status',
                'edited', false, 'error', item.value->'error'
-           ) ORDER BY item.ordinality) AS items,
+           ) ORDER BY item.ordinality), '[]'::jsonb) AS items,
            bool_and(item.value->>'status' = 'dismissed') AS dismissed,
            bool_and(item.value->>'status' IN ('completed', 'submitting')) AS approved
     FROM jsonb_array_elements(review.record->'items') WITH ORDINALITY AS item
@@ -77,10 +77,10 @@ BEGIN
            (NEW.record->>'notificationId')::uuid
     FROM agent_session session
     CROSS JOIN LATERAL (
-        SELECT jsonb_agg(jsonb_build_object(
+        SELECT COALESCE(jsonb_agg(jsonb_build_object(
                    'id', item.value->'id', 'status', item.value->'status',
                    'edited', false, 'error', item.value->'error'
-               ) ORDER BY item.ordinality) AS items,
+               ) ORDER BY item.ordinality), '[]'::jsonb) AS items,
                bool_and(item.value->>'status' = 'dismissed') AS dismissed,
                bool_and(item.value->>'status' IN ('completed', 'submitting')) AS approved
         FROM jsonb_array_elements(NEW.record->'items') WITH ORDINALITY AS item

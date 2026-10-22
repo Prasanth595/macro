@@ -72,12 +72,12 @@ impl NotificationStore for PgNotificationStore {
             if locked.is_none() {
                 return Ok(None);
             }
-            let blocked = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM agent_session_notification WHERE session_id = $1 AND delivered_at IS NULL AND lease_until > now())", session.as_uuid())
+            let blocked = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM agent_session_notification WHERE session_id = $1 AND delivered_at IS NULL AND lease_id IS NOT NULL AND lease_until > now())", session.as_uuid())
                 .fetch_one(&mut *transaction).await.map_err(storage)?.unwrap_or(false);
             if blocked {
                 return Ok(None);
             }
-            let retry_action = sqlx::query_scalar!("SELECT action_id FROM agent_session_notification WHERE session_id = $1 AND delivered_at IS NULL AND ($2 OR wake OR action_id IS NOT NULL) ORDER BY (action_id IS NULL), created_at, id LIMIT 1", session.as_uuid(), real_prompt)
+            let retry_action = sqlx::query_scalar!("SELECT action_id FROM agent_session_notification WHERE session_id = $1 AND delivered_at IS NULL AND (lease_until IS NULL OR lease_until < now()) AND ($2 OR wake OR action_id IS NOT NULL) ORDER BY (action_id IS NULL), created_at, id LIMIT 1", session.as_uuid(), real_prompt)
                 .fetch_optional(&mut *transaction).await.map_err(storage)?.flatten();
             let lease = macro_uuid::generate_uuid_v7();
             let action = AgentActionId::mint();
@@ -124,23 +124,63 @@ impl NotificationStore for PgNotificationStore {
                     session.as_uuid(), action_id.as_uuid(),
                 ).execute(&mut *transaction).await.map_err(storage)?;
             }
-            let wake = rows.iter().any(|row| row.wake);
+            let decoded: Vec<_> = rows
+                .iter()
+                .map(|row| {
+                    serde_json::from_value(
+                        serde_json::json!({"kind": row.kind, "payload": row.payload}),
+                    )
+                })
+                .collect::<Vec<
+                    std::result::Result<
+                        agent_runtime_protocol::domain::notification::NotificationEvent,
+                        _,
+                    >,
+                >>();
+            // An older replica must not deliver only part of an already-bound
+            // action: its eventual Finished record would consume unseen siblings.
+            let quarantine_batch = retry_action.is_some() && decoded.iter().any(Result::is_err);
+            if quarantine_batch {
+                tracing::warn!(session_id = %session, %action_id,
+                    "bound notification payload unavailable; reconcile original action before retry");
+                let wake = rows.iter().any(|row| row.wake);
+                transaction.commit().await.map_err(storage)?;
+                return Ok(Some(NotificationBatch {
+                    lease_id: lease,
+                    action_id,
+                    wake,
+                    notifications: Vec::new(),
+                    producer_contexts: Vec::new(),
+                }));
+            }
+            let mut wake = false;
             let mut notifications = Vec::new();
             let mut producer_contexts = Vec::new();
-            for row in rows {
+            for (row, event) in rows.into_iter().zip(decoded) {
+                if event.is_err() {
+                    tracing::warn!(notification_id = %row.id, session_id = %session,
+                        "notification payload unavailable to this consumer; retaining for retry");
+                    sqlx::query!(
+                        "UPDATE agent_session_notification SET lease_id = NULL, lease_until = now() + interval '2 minutes', action_id = $2 WHERE id = $1",
+                        row.id, retry_action,
+                    ).execute(&mut *transaction).await.map_err(storage)?;
+                    continue;
+                }
+                let event = event.map_err(storage)?;
+                wake |= row.wake;
                 notifications.push(Notification {
                     id: row.id,
                     subject_id: row.subject_id,
                     created_at: row.created_at.to_rfc3339(),
-                    event: serde_json::from_value(
-                        serde_json::json!({"kind": row.kind, "payload": row.payload}),
-                    )
-                    .map_err(storage)?,
+                    event,
                 });
                 producer_contexts
-                    .push(serde_json::from_value(row.producer_context).map_err(storage)?);
+                    .push(serde_json::from_value(row.producer_context).unwrap_or_default());
             }
             transaction.commit().await.map_err(storage)?;
+            if notifications.is_empty() {
+                return Ok(None);
+            }
             Ok(Some(NotificationBatch {
                 lease_id: lease,
                 action_id,
