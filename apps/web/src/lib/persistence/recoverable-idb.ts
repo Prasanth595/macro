@@ -150,26 +150,34 @@ function settle<T>(
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     let value: T;
-    let thrown = false;
-    const fail = (error: DOMException | null) => {
-      if (thrown) return;
+    let thrown: { error: unknown } | undefined;
+    let requestError: DOMException | null = null;
+    tx.oncomplete = () => resolve(value);
+    // A request error bubbles before `tx.error` is set and before rollback
+    // finishes. Settle only on abort, so callers see the real cause and a
+    // replay never starts while the old transaction is still rolling back.
+    tx.onerror = (event) => {
+      requestError ??= (event.target as IDBRequest | null)?.error ?? null;
+    };
+    tx.onabort = () => {
+      if (thrown) {
+        reject(thrown.error);
+        return;
+      }
       // WebKit fails pending requests before it sets `tx.error`, often to null.
       const cause =
-        error ?? new DOMException('The transaction was aborted', 'AbortError');
+        tx.error ??
+        requestError ??
+        new DOMException('The transaction was aborted', 'AbortError');
       reject(INTERRUPTIONS.has(cause.name) ? new Interrupted(cause) : cause);
     };
-    tx.oncomplete = () => resolve(value);
-    tx.onerror = (event) =>
-      fail((event.target as IDBRequest | null)?.error ?? tx.error);
-    tx.onabort = () => fail(tx.error);
     try {
       body(tx, (next) => {
         value = next;
       });
     } catch (error) {
-      thrown = true;
+      thrown = { error };
       tx.abort();
-      reject(error);
     }
   });
 }

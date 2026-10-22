@@ -508,9 +508,10 @@ Repeat across background/resume on an iPhone. Persistent failures still block
 server autosave; copy unsaved content before restarting. Storage failures and
 recovery report current page visibility and network state without draft content.
 Request errors settle only after the transaction's abort event, preserving the
-underlying IndexedDB error and waiting for rollback before recovery. To verify,
-force a request constraint failure: the prior draft must remain intact, the error
-must be `ConstraintError`, and a subsequent valid save must succeed.
+underlying IndexedDB error and waiting for rollback before recovery or replay. To
+verify, force a request constraint failure: the prior draft must remain intact,
+the error must be `ConstraintError` and is not replayed, and a subsequent valid
+save must succeed.
 
 Repeated local-save failures show one persistent warning per composer; a later
 successful write dismisses it. Closing the composer writes the unsaved edit once
