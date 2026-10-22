@@ -3,6 +3,7 @@ import { createSignal } from 'solid-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EmailComposeContextOptions } from '../email-compose/compose-adapter';
 import { createComposeContext } from '../email-compose/tests/capabilities';
+import type { EmailThreadViewContext } from './context/email-thread-view-context';
 import { EmailThread } from './email-thread';
 import { createThreadContext, message, thread } from './tests/fixtures';
 import type { EmailThreadSurfaceProps } from './views/email-thread-surface';
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   clearDraft: vi.fn(),
   source: vi.fn(),
+  rendering: vi.fn<(rendering: EmailThreadViewContext['rendering']) => void>(),
   composeOptions: vi.fn<(options: EmailComposeContextOptions) => void>(),
   started: [] as Promise<void>[],
 }));
@@ -61,6 +63,7 @@ vi.mock('./views/email-thread-surface', () => ({
   EmailThreadSurface: (props: EmailThreadSurfaceProps) => {
     const source = props.context.thread.source;
     mocks.source(source);
+    mocks.rendering(props.context.rendering);
     return (
       <div>
         <span data-testid="body">
@@ -131,5 +134,24 @@ describe('email thread query ownership', () => {
     view.unmount();
     expect(mocks.clearDraft).toHaveBeenCalledWith('thread');
     await Promise.all(mocks.started);
+  });
+
+  it('lets only copies the viewer received load read-receipt pixels', () => {
+    const source = createThreadContext({
+      thread: () => thread([message('first')]),
+    }).source;
+    render(() => (
+      <EmailThread
+        title="Subject"
+        threadId={source.id}
+        source={source}
+        threadTransport={() => 'graphql'}
+      />
+    ));
+    const show = mocks.rendering.mock.calls[0][0].showReadReceiptPixel;
+    expect(show?.(message('received'))).toBe(true);
+    expect(show?.(message('sent', { from: { email: 'me@example.com' } }))).toBe(
+      false
+    );
   });
 });

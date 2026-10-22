@@ -21,6 +21,7 @@ import { createEmailAttachmentOpener } from '../email-message/attachment-action-
 import type { CalendarInvitation } from '../email-message/core/calendar-invitation';
 import type { EmailMessage } from '../email-message/core/email-message';
 import { operationSettled } from '../email-message/core/message-operation';
+import { showsReadReceiptPixel } from '../email-message/core/read-receipt';
 import { EmailMessageOperation } from '../email-message/email-message-operation';
 import { createEmailRenderingContext } from '../email-message/rendering-adapter';
 import { EmailSenderIcon } from '../email-message/sender-icon-adapter';
@@ -134,6 +135,8 @@ export function EmailThread(props: EmailThreadProps) {
         <EmailSenderIcon message={message} />
       ),
       readReceipt: createThreadReadReceipts(() => props.threadId()),
+      showReadReceiptPixel: (message: EmailMessage) =>
+        showsReadReceiptPixel(message, compose.accounts.inboxes()),
     },
   };
   const rendering = createEmailRenderingContext();
