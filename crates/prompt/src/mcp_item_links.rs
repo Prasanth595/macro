@@ -4,9 +4,10 @@
 //! Unlike the in-app [`crate::mentions`] section — which tells the model to emit
 //! `<m-document-mention>` XML tags that only render inside the Macro app — MCP
 //! responses are rendered by third-party clients that cannot resolve that
-//! markup. So over MCP the model must link items in its own replies as plain
-//! Markdown URLs built from the app base URL, and list multiple items as a
-//! Markdown table.
+//! markup. So over MCP the model must link most items in its own replies as
+//! plain Markdown URLs built from the app base URL, and list multiple items as a
+//! Markdown table. Tasks are the exception: session transcripts render the
+//! task mention chip, so the model must emit that tag whenever it names a task.
 //!
 //! This is scoped to the model's chat replies only. It does not govern content
 //! the model writes *into* a Macro document (e.g. via `CreateDocument` or
@@ -27,17 +28,23 @@ pub fn render(base_url: &str) -> String {
     format!(
         "# {TITLE}\n\
          When referring the user to a Macro item (document, channel, chat, \
-         project, task, email thread, or database) in your responses, write a plain URL of \
+         project, email thread, or database) in your responses, write a plain URL of \
          the form `{base_url}/app/<type>/<id>`, where `<type>` is the item's type \
-         — `md` for a document, `channel`, `chat`, `project`, `task`, `email` \
+         — `md` for a document, `channel`, `chat`, `project`, `email` \
          for an email thread, or `database` — and `<id>` is the item id. Render it as a normal \
          Markdown link, e.g. `[Name]({base_url}/app/md/<id>)`.\n\
          \n\
+         Exception: whenever you name a Macro task, emit an `<m-document-mention>` \
+         task chip instead of a URL, e.g. \
+         `<m-document-mention>{{\"documentId\":\"{{id}}\",\"documentName\":\"\",\"blockName\":\"task\",\"blockParams\":{{}}}}</m-document-mention>`. \
+         Use the `mention` field `link_task` returns when you have it. Do not also \
+         paste a URL or MACRO- id beside it. Session transcripts render that tag as a chip.\n\
+         \n\
          Do NOT emit `<m-document-mention>` XML tags or any other Macro internal \
-         mention/markup format in these responses. Those only render inside the \
+         mention/markup format for other item types in these responses. Those only render inside the \
          Macro app and appear as raw text to MCP clients. This rule overrides any \
-         other instruction about mention tags for your own conversational \
-         replies: over MCP, always link items in your chat responses with plain \
+         other instruction about mention tags for non-task items in your own conversational \
+         replies: over MCP, always link those items in your chat responses with plain \
          Markdown URLs, never mention tags.\n\
          \n\
          This rule does NOT apply to content you write into a Macro document, \
@@ -48,6 +55,7 @@ pub fn render(base_url: &str) -> String {
          \n\
          When you list multiple Macro items, present them as a Markdown table with \
          the columns `number`, `name`, and `link`, where `link` is the \
-         `{base_url}/app/<type>/<id>` URL for each item.\n"
+         `{base_url}/app/<type>/<id>` URL for each item. For a task row, put the \
+         mention chip in `link` instead of a URL.\n"
     )
 }

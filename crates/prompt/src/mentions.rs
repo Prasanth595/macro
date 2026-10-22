@@ -53,6 +53,8 @@ The `blockName` for an email thread is always exactly `email` — never `thread`
 The `blockName` for a calendar event is always exactly `calendar` — never `calendar_event`, which the frontend cannot resolve. `documentId` is the `eventId` a calendar tool returned. To point at one instance of a recurring event, pass that occurrence's `recurrenceId` from ListCalendarEvents as the `occurrenceKey` block param; otherwise omit it and the mention previews the nearest instance. A calendar event mention opens for people who have that event on their own calendar. After it is shared with a channel, current members who do not have a copy see a read-only preview instead. Private and confidential events are never shared.
 When a tool returns both a channel id and a channel message id, link the specific message using the channel message mention format. Do not link only the channel unless you are referring to the whole channel.
 
+Whenever you name a task — one you created, linked, searched, or were assigned — emit the task mention chip. Do not use a Markdown URL, MACRO- id, or bare title, and do not repeat the title beside the chip. Use the `mention` field a task tool returned when you have it.
+
 ### People, groups, dates, agent sessions, pull requests, and booking links
 
 These use their own tags — never wrap them in `<m-document-mention>`:
