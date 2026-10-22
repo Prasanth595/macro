@@ -450,7 +450,6 @@ export function NewChatPage(props: {
         </div>
       }
       drawerOpen
-      drawerExpandsInput={isTouchDevice() || coding()}
       placeholder={coding() ? 'Describe what you want to build' : undefined}
       onSend={send}
       supportsImages={

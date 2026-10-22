@@ -65,8 +65,6 @@ export function ChatComposer(props: {
   onRemoveAttachment?: (attachment: InputAttachmentData) => void;
   drawer?: JSX.Element;
   drawerOpen?: boolean;
-  /** Footer-only controls can stay visible without expanding the editor. */
-  drawerExpandsInput?: boolean;
   placeholder?: string;
 }) {
   const attachments = () => props.attachments ?? [];
@@ -112,8 +110,6 @@ export function ChatComposer(props: {
     !focused() &&
     !props.controlsOpen;
   const drawerOpen = () => props.drawerOpen && !collapsed();
-  const drawerExpandsInput = () =>
-    drawerOpen() && (props.drawerExpandsInput ?? true);
   useTouchOutsideToDismissKeyboard(() => container);
   const disabled = () => !!props.blockedReason || props.session?.disabled;
   const canSendNext = () =>
@@ -400,8 +396,8 @@ export function ChatComposer(props: {
                   top padding; touch keeps the compact row's vertical inset. */}
               <div
                 ref={setLayout}
-                data-composer-compact={!drawerExpandsInput() && isCompact()}
-                data-composer-coding={drawerExpandsInput() || undefined}
+                data-composer-compact={!drawerOpen() && isCompact()}
+                data-composer-coding={drawerOpen() || undefined}
                 data-composer-collapsed={collapsed() || undefined}
                 class="group/composer flex min-w-0 data-[composer-compact=false]:flex-wrap items-end gap-2 p-[7.5px] pl-3 data-[composer-compact=false]:pb-2.5 data-[composer-compact=false]:px-3 data-[composer-compact=false]:pt-[calc(7.5px_+_(33.75px_-_1.5rem)/2)] not-touch:data-[composer-compact=false]:pt-4 data-[composer-collapsed=true]:h-(--mobile-chrome-button-size) data-[composer-collapsed=true]:items-center data-[composer-collapsed=true]:py-0 data-[composer-collapsed=true]:pl-3.5 data-[composer-collapsed=true]:pr-[9.5px]"
               >

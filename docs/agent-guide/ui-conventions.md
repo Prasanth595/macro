@@ -76,7 +76,7 @@ cards inherit `ComposerSurface` through `SettingsSurface`. Use the shared surfac
 add diagonal reflections, dark inset shading, or custom shadows.
 Touch retains its existing glass treatment.
 The agent composer's tray sits below that surface with its own fill, and holds
-the Chat/Code switch. Keeping the tray visible does not expand an empty Chat input.
+the Chat/Code switch; the open tray gives the input its multiline layout.
 
 ## Scrolling content
 
