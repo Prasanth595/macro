@@ -2955,9 +2955,9 @@ input GraphqlCreateTagInput {
 	"""
 	value: String!
 	"""
-	Optional palette color.
+	Required palette color.
 	"""
-	color: String
+	color: String!
 }
 
 """

@@ -134,8 +134,8 @@ where
         }
         validate_option_color(
             &DataType::Tag,
-            request.color.as_deref(),
-            request.color.as_deref(),
+            Some(request.color.as_str()),
+            Some(request.color.as_str()),
         )?;
         let mut tag_set = self
             .ensure_tag_set_with_client_id(
@@ -154,7 +154,7 @@ where
                 request.client_option_id,
                 definition.id,
                 &request.value,
-                request.color.as_deref(),
+                Some(request.color.as_str()),
             )
             .await
             .map_err(anyhow::Error::from)?;

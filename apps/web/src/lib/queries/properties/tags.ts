@@ -293,7 +293,7 @@ export function useUpdatePropertyOptionMutation(
 type CreateTagParams = {
   scope: EnsureTagSetRequest['scope'];
   value: string;
-  color?: string;
+  color: string;
 };
 
 export type CreateTagResult = {

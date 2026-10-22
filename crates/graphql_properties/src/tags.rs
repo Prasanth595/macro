@@ -266,8 +266,8 @@ pub struct GraphqlCreateTagInput {
     client_option_id: ID,
     /// User-visible label.
     value: String,
-    /// Optional palette color.
-    color: Option<String>,
+    /// Required palette color.
+    color: String,
 }
 
 /// Changed fields of an existing label.

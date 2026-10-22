@@ -23,8 +23,8 @@ pub struct CreateTag {
     pub client_option_id: Uuid,
     /// User-visible label.
     pub value: String,
-    /// Optional tag palette color.
-    pub color: Option<String>,
+    /// Required tag palette color.
+    pub color: String,
 }
 
 /// Fields to change on a tag; omitted fields preserve the current value.

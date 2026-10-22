@@ -216,3 +216,26 @@ async fn concurrent_option_edges_share_one_batch_and_keep_empty_lists() {
     assert!(data["empty"].as_array().unwrap().is_empty());
     assert_eq!(calls.load(Ordering::Relaxed), 1);
 }
+
+#[tokio::test]
+async fn tag_creation_rejects_missing_color_before_resolving() {
+    let schema = schema(Arc::new(AtomicUsize::new(0)));
+    let response = schema
+        .execute(
+            r#"mutation {
+        createTag(input: {
+            scope: USER,
+            clientDefinitionId: "d0626d76-ab07-4c61-8cd4-4c2517789c46",
+            clientOptionId: "c07796df-55f0-431e-a8be-2af05e358c07",
+            value: "Offline"
+        }) { option { id } }
+    }"#,
+        )
+        .await;
+    assert!(
+        response
+            .errors
+            .iter()
+            .any(|error| error.message.contains("color") && error.message.contains("required"))
+    );
+}

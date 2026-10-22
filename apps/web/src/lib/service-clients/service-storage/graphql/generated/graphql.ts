@@ -716,8 +716,8 @@ export type GraphqlCreateTagInput = {
   clientDefinitionId: string | number;
   /** Stable caller-local creation handle, reused on every replay. */
   clientOptionId: string | number;
-  /** Optional palette color. */
-  color?: string | null | undefined;
+  /** Required palette color. */
+  color: string;
   /** Ownership scope, authorized against current membership. */
   scope: GraphqlTagScope;
   /** Team owning the queued creation; required for team scope. */

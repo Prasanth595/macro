@@ -39,7 +39,7 @@ async fn lost_acknowledgement_preserves_identity_after_rename_and_delete(
         client_definition_id: Uuid::new_v4(),
         client_option_id: Uuid::new_v4(),
         value: "Offline label".into(),
-        color: Some("#FF0000".into()),
+        color: "#FF0000".into(),
     };
     let first = service.create_tag(&user, None, request.clone()).await?;
     let second = service.create_tag(&user, None, request.clone()).await?;
@@ -153,7 +153,7 @@ async fn client_handles_are_scoped_to_the_authenticated_user(pool: PgPool) -> an
         client_definition_id: Uuid::new_v4(),
         client_option_id: Uuid::new_v4(),
         value: "Private".into(),
-        color: Some("#123456".into()),
+        color: "#123456".into(),
     };
     let first = service.create_tag(&user, None, request.clone()).await?;
     let second = service.create_tag(&other, None, request.clone()).await?;

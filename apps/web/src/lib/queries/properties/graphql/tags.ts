@@ -229,7 +229,7 @@ export async function ensureGraphqlTagSet(
 }
 
 export async function createGraphqlTag(
-  input: { scope: TagScope; value: string; color?: string },
+  input: { scope: TagScope; value: string; color: string },
   currentId: Accessor<string | undefined>
 ) {
   return Telemetry.span('tags.create', async (span) => {
@@ -250,7 +250,7 @@ export async function createGraphqlTag(
           __typename: 'GraphqlStringPropertyOptionValue',
           value: input.value,
         },
-        color: input.color ?? null,
+        color: input.color,
         createdAt: now,
         updatedAt: now,
       };
