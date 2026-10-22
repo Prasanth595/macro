@@ -24,6 +24,7 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
 | Text entry, search fields | `Input`, `InputGroup`, `SearchBar`, `settings-input` | A raw `<input>` with its own border, radius, or focus color |
 | Menu, popover, floating toolbar or editor panel | `Dropdown`, `Toolbar`, or `menu-surface` on the overlay root | A hand-built fill, border, and shadow, or `bg-menu-glass` |
 | Dialog or modal card | `Dialog`, or `elevated-surface` for a custom dialog root | `bg-dialog`/`bg-surface` with its own radius and shadow |
+| Loading placeholder, view skeleton | `ListSkeleton` (`Root`, `Row`, `Bar`); `ViewSkeleton` with the view's tabs and `controls` | `animate-pulse` boxes with their own fill |
 
 - **FE-58** Pick the component for the role from the table above, and import
   tabs only from `@ui`. Enforced by ast-grep `tsx-tabs-from-ui`, CI error; the
@@ -65,6 +66,12 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
   `bg-menu-glass` by ast-grep `tsx-overlay-canonical-surface`, CI error; the
   reply composer, mobile drawer, call controls, and fullscreen media viewers
   are the documented exceptions.
+- **FE-66** Loading placeholders use the shared shimmer: `ListSkeleton.Bar`
+  (a pill; pass size and radius) or `skeleton-shimmer bg-skeleton`. A view's
+  skeleton is built from `ViewSkeleton` and mirrors its header (title, view
+  tabs, and header controls as placeholders), so change the skeleton in the
+  same change as the header. Enforced for pulsing boxes by ast-grep
+  `tsx-skeleton-shimmer`, CI error.
 
 Check: `just check` passes the ast-grep rules; the changed bar shows one height,
 16px icon glyphs, tabs on the left, and islands only around actions, at desktop
