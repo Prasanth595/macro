@@ -70,11 +70,14 @@ export function selectFocusEmails(
       ) &&
       (text === '' || matchesSearch(email, text))
   );
-  return match(input.focusSort)
-    .with('priority', () => selected)
-    .with('importance', () => selected.sort(byImportance))
-    .with('recent', () => selected.sort(byRecency))
-    .exhaustive();
+  return (
+    match(input.focusSort)
+      .with('priority', () => selected)
+      .with('importance', () => selected.sort(byImportance))
+      .with('recent', () => selected.sort(byRecency))
+      // An order this build doesn't know keeps the server's priority order.
+      .exhaustive(() => selected)
+  );
 }
 
 /**
