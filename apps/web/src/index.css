@@ -107,6 +107,9 @@
   --glass-desktop-outline: rgb(0 0 0 / 0.4);
   --glass-desktop-inner-edge: rgb(255 255 255 / 0.08);
   --glass-desktop-top-edge: rgb(255 255 255 / 0.12);
+  /* Dark desktop glass separates by its outline; light adds a cast shadow. */
+  --glass-desktop-cast-alpha: 0;
+  --elevated-control-scale: 0.4;
   /* Mobile chrome has two diagonal reflections with quiet opposing corners. */
   --island-rim-strong: 28%;
   --island-rim-soft: 12%;
@@ -142,6 +145,10 @@ html[data-theme-light='true'] {
   --glass-desktop-outline: var(--color-edge-frame);
   --glass-desktop-inner-edge: rgb(255 255 255 / 0.6);
   --glass-desktop-top-edge: rgb(255 255 255 / 0.9);
+  /* A fine outline alone vanishes on near-white content: keep the glass cast
+     shadow, and give controls a full 1px edge like a bordered input. */
+  --glass-desktop-cast-alpha: var(--glass-shadow-alpha);
+  --elevated-control-scale: 1;
   --island-rim-strong: 75%;
   --island-rim-soft: 40%;
 }
@@ -741,16 +748,14 @@ html[data-theme-light='false'] {
   --color-composer: var(--color-surface-4);
 }
 
-/* Light floating surfaces need a close contact shadow against near-white
-   content, rather than the longer shadow used over dark backgrounds. */
+/* Desktop floating surfaces use a close contact shadow rather than the longer
+   touch shadow. */
 html:not([data-touch-device='true']) {
   --shadow-menu: 0 2px 6px -3px rgb(0 0 0 / 0.12), 0 1px 2px -1px rgb(0 0 0 / 0.08);
   --shadow-control: 0 1px 2px rgb(0 0 0 / 0.06);
 }
 
 html[data-theme-light='true']:not([data-touch-device='true']) {
-  --shadow-menu: 0 1px 2px rgb(0 0 0 / 0.03);
-  --shadow-control: 0 1px 1px rgb(0 0 0 / 0.02);
   --color-control-raised: color-mix(in oklch, var(--color-surface-2) 98%, var(--color-content-0));
 }
 
@@ -869,7 +874,9 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
   &:where(html:not([data-touch-device="true"]) *) {
     @apply elevation-shadow;
     --elevation-scale: 0.6;
-    --elevation-ambient-shadow: var(--shadow-menu);
+    --elevation-ambient-shadow: var(--shadow-menu),
+      0 var(--glass-shadow-y) var(--glass-shadow-blur) var(--glass-shadow-spread)
+        oklch(0 0 0 / calc(var(--glass-desktop-cast-alpha) * var(--glass-shadow-scale, var(--glass-scale))));
     --glass-backdrop: none;
     --glass-rim-background: none;
     --glass-rim-shade-base: 0%;
@@ -878,7 +885,7 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
 }
 
 /* Resolve the shared material on its host so local scale changes affect every
-   edge together. Compact controls use a gentler edge than floating surfaces. */
+   edge together. Compact controls use a gentler edge in dark mode only. */
 @utility elevation-shadow {
   --shadow-elevated:
     0 0 0 calc(1px * var(--elevation-scale, 1)) color-mix(in srgb, var(--glass-desktop-outline) calc(100% * var(--elevation-scale, 1)), transparent),
@@ -892,7 +899,7 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
    Tailwind's shadow utility composes this with focus and validation rings. */
 @utility elevated {
   @apply elevation-shadow border-transparent shadow-(--shadow-elevated);
-  --elevation-scale: 0.4;
+  --elevation-scale: var(--elevated-control-scale);
   --elevation-ambient-shadow: var(--shadow-control);
 }
 

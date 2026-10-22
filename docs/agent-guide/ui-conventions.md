@@ -47,16 +47,17 @@ inputs, and unselected tab pills share the same `shadow-elevated` treatment as
 composers, menus, settings cards, and dialogs: a fine outer outline, faint inner
 edge, brighter top edge, and compact shadow. Keep semantic fills and component
 geometry; a button group owns the frame so its child buttons remain flat.
-Compact controls use thinner, lower-opacity edges than composers and floating
-panels. Keep all desktop shadows close and faint, with only a slight top highlight.
-Define the border with subtle edge contrast instead of adding heavier shadows.
+In dark mode, compact controls use thinner, lower-opacity edges than composers
+and floating panels. Keep desktop shadows close and faint, with only a slight top
+highlight, and define the border with subtle edge contrast.
 Inside composers, dialogs, and menus, controls use `control-raised`: a lighter
 fill in dark mode and a faint neutral tint in light mode. Keep the container's
 base fill and border treatment; nested controls separate by fill rather than
 stronger outlines or shadows.
-In light mode, floating surfaces use the frame edge and a tighter, low-opacity
-contact shadow so white composers and menus separate cleanly from near-white
-content. Touch surfaces retain their existing shadows.
+In light mode a fine outline vanishes against near-white content, so controls
+draw a full 1px frame edge, menus keep the glass cast shadow, and
+`ComposerSurface` (composers and settings cards) keeps the wide `composer-shadow`
+halo. Touch surfaces retain their existing shadows.
 
 Tabs are separate pills, like Linear's view tabs: unselected pills use the
 outline Button frame, and the selected pill takes the pressed fill, flat, the
@@ -70,8 +71,8 @@ and Photoshop editors) floats on `menu-surface`; dialogs open through `Dialog`.
 Loading states use the shared shimmer, and each view's skeleton shows the same
 one-row header as the loaded view, with its tabs and controls as placeholders.
 Settings
-cards inherit `ComposerSurface` through `SettingsSurface`. Use the shared restrained bevel; do not
-add diagonal reflections, dark inset shading, broad halos, or custom shadows.
+cards inherit `ComposerSurface` through `SettingsSurface`. Use the shared surface; do not
+add diagonal reflections, dark inset shading, or custom shadows.
 Touch retains its existing glass treatment.
 Desktop Chat/Code footer controls sit below that surface without a second
 background or rim. Keeping the footer visible does not expand an empty Chat input.
