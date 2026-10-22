@@ -354,14 +354,18 @@ export class AgentHarnessService extends pulumi.ComponentResource {
         { parent: this }
       ),
     ];
-    const sharedApiRoutes: [GatewayService, string][] = [];
+    const sharedApiRoutes: [GatewayService, string][] = [
+      [GatewayService.MCP_SERVER, '/mcp'],
+      [GatewayService.DOCUMENT_COGNITION_SERVICE, '/cognition'],
+      [GatewayService.AGENT_SCHEDULE_SERVICE, '/scheduled-action'],
+    ];
     const sharedApiRules = sharedApiRoutes.map(
       ([service, prefix]) =>
         new aws.lb.ListenerRule(
           `${BASE_NAME}-${service}-${stack}`,
           {
             listenerArn: gatewayLoadBalancer.httpsListenerArn,
-            priority: GATEWAY_PRIORITIES[service],
+            priority: GATEWAY_PRIORITIES[service] - 1,
             actions: [
               { type: 'forward', targetGroupArn: this.targetGroup.arn },
             ],
