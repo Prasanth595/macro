@@ -21,6 +21,8 @@ import type { EventTime } from './eventTime';
 import type { EventTransparency } from './eventTransparency';
 import type { EventType } from './eventType';
 import type { EventVisibility } from './eventVisibility';
+import type { GuestPolicy } from './guestPolicy';
+import type { ViewerCapabilities } from './viewerCapabilities';
 
 /**
  * A stable, first-class Macro calendar event entity.
@@ -52,6 +54,9 @@ compare equal. */
 projections stored before event types were modeled still compare
 equal. */
   eventType?: EventType;
+  /** What the organizer lets guests do: the canonical copy's values, or
+Google's defaults for an event synced before the policy was modeled. */
+  guestPolicy: GuestPolicy;
   /** RFC 5545 UID used to reconcile provider and email sources. */
   icalUid: string;
   /** Macro entity identifier. */
@@ -92,6 +97,10 @@ only on the read path, so stored projections omit it. */
   transparency: EventTransparency;
   /** Entity update time. */
   updatedAt: string;
+  /** What the viewing requester may do with the event. Resolved only on
+the read path, alongside each attendee's `is_self`; nothing when no
+viewer is known. Source projections never store it. */
+  viewerCan: ViewerCapabilities;
   /** Event visibility. */
   visibility: EventVisibility;
 }

@@ -211,6 +211,18 @@ heartbeat without changing epochs or touching storage. A released lock confirms
 silent worker termination and triggers the usual fenced recovery. Read deadlines
 still bound callers waiting on an unresponsive engine.
 
+Safari can recreate the SharedWorker global while retaining a page's MessagePort,
+including when another tab closes. A second Effect ready frame is a transport
+reset, not a duplicate initial handshake: the page retires its orphanable engine
+and connection, then re-registers and initializes against the new coordinator.
+The same host and subscribers survive. Pending operations reject without replay;
+an admitted optimistic enqueue is reported as uncertain so it cannot fall through
+to a second API write. Durable storage and the cache scope are preserved, while
+live-query dependencies and revision checkpoints are invalidated after reconnect.
+Restarted startup is bounded by the registration retry budget; exhaustion uses
+the normal session fallback without quarantining a healthy database. The
+`graphql_cache.owner` event records `ownerEvent: coordinator-restarted`.
+
 Protocol v6 separates startup into asset loading, taking the database owner
 lock, and database opening. The engine loads/compiles WASM without touching OPFS
 and reports `engine-assets-ready`. It then takes the owner lock only if it is
@@ -651,7 +663,7 @@ Invalidations arriving during a refresh cause a trailing authorized read instead
 of being discarded; simultaneous refresh requests share one read.
 
 [Mutation coverage](../src/lib/queries/mutation-coverage.test.ts) enumerates all
-35 mutation documents and fails when a document has no declared strategy.
+37 mutation documents and fails when a document has no declared strategy.
 Because predictions are keyed by mutation field, it also checks that local
 resolver documents select only resolved fields, and that any other document
 reaching a field resolver is a listed exception the resolver declines.
@@ -663,8 +675,8 @@ every schema argument of its field with the schema's type:
 | Strategy | Operations |
 | --- | --- |
 | Local resolver (7) | MarkEmailThreadSeen, MarkEmailThreadUnread, SetEmailThreadArchived, UpdateNotifications, RenameEntities, UpdateInitiative, DeleteEntityProperty |
-| Existing domain optimistic recipe (11) | SaveEmailDraft, DeleteEmailDraft, SetFavorite, ReorderFavorites, SetEntityProperty, UpdateEntityPropertyOptions, CreateCalendarEvent, UpdateCalendarEvent, DeleteCalendarEvent, RespondToCalendarEvent, MarkWorkFeedItemsDone |
-| Authoritative outcome (10) | CreateInitiative, DeleteInitiative, EnsureInitiativeDescriptionSurface, RenameDatabase, TrashDatabase, RenameForm, TrashForm, RecordChannelActivity, UpdateNotificationsForEntity, UndoWorkFeedItemsDone |
+| Existing domain optimistic recipe (12) | SaveEmailDraft, DeleteEmailDraft, SetFavorite, ReorderFavorites, SetEntityProperty, UpdateEntityPropertyOptions, CreateCalendarEvent, UpdateCalendarEvent, DeleteCalendarEvent, RespondToCalendarEvent, InviteCalendarEventGuests, MarkWorkFeedItemsDone |
+| Authoritative outcome (11) | SendEmailMessage, CreateInitiative, DeleteInitiative, EnsureInitiativeDescriptionSurface, RenameDatabase, TrashDatabase, RenameForm, TrashForm, RecordChannelActivity, UpdateNotificationsForEntity, UndoWorkFeedItemsDone |
 | Document only; no production caller (7) | MoveEntities, UpdateEntitySharePolicies, TrashEntities, RestoreEntities, DeleteEntitiesPermanently, DuplicateEntities, SetEntityFavorite |
 
 The project resolver predicts names and members; sharing waits for the server.
