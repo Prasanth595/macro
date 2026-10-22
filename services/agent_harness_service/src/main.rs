@@ -656,8 +656,12 @@ async fn run() -> anyhow::Result<()> {
         Arc::new(McpToolCatalog::new(Arc::clone(&mcp_connector)));
     let sessions = sessions.with_tool_catalog(Arc::clone(&tool_catalog));
 
-    let mut inmem_engine =
-        RigTurnEngine::new(pool.clone(), tool_context.clone()).with_gate(owner_tool_gate);
+    let turn_prompters: Arc<dyn agent_inmem::domain::turn_prompter::TurnPrompterSource> = Arc::new(
+        agent_inmem::outbound::turn_prompter::RecordedTurnPrompter::new(session_repo.clone()),
+    );
+    let mut inmem_engine = RigTurnEngine::new(pool.clone(), tool_context.clone())
+        .with_gate(owner_tool_gate)
+        .with_prompter_source(turn_prompters);
     if code_mode_enabled && let Some(key) = config.posthog_api_key.value() {
         let flags = feature_flags::outbound::posthog::PostHogFeatureFlags::new(
             config

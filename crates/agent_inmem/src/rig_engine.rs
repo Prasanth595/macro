@@ -42,6 +42,7 @@ use crate::domain::auto_model::{AutoModelSelector, DefaultAutoModel, JevAutoMode
 use crate::domain::engine::{AgentIdentity, TurnEngine, TurnRequest};
 use crate::domain::tool_gate::{NativeToolGate, NativeToolVerdict, UngatedNativeTools};
 use crate::domain::tool_mode::{StandardTools, ToolMode, ToolModeSelector};
+use crate::domain::turn_prompter::{NoTurnPrompter, TurnPrompterSource};
 use crate::inbound::ask_user::{AskUser, AskUserContext};
 
 #[path = "outbound/rig_engine/opener.rs"]
@@ -79,12 +80,14 @@ pub struct RigTurnEngine {
     auto_model: Arc<dyn AutoModelSelector>,
     tool_context: ToolServiceContext,
     gate: Arc<dyn NativeToolGate>,
+    prompters: Arc<dyn TurnPrompterSource>,
 }
 
 impl RigTurnEngine {
     /// An engine whose tools run against `tool_context` and whose user
     /// memory comes from `db`. Every native tool runs ungated until
-    /// [`Self::with_gate`] says otherwise.
+    /// [`Self::with_gate`] says otherwise, and every turn runs as its owner
+    /// alone until [`Self::with_prompter_source`] tells the prompters apart.
     #[must_use]
     pub fn new(db: PgPool, tool_context: ToolServiceContext) -> Self {
         Self {
@@ -105,6 +108,7 @@ impl RigTurnEngine {
             },
             tool_context,
             gate: Arc::new(UngatedNativeTools),
+            prompters: Arc::new(NoTurnPrompter),
         }
     }
 
@@ -112,6 +116,14 @@ impl RigTurnEngine {
     #[must_use]
     pub fn with_gate(mut self, gate: Arc<dyn NativeToolGate>) -> Self {
         self.gate = gate;
+        self
+    }
+
+    /// Ask `prompters` who prompted each turn, so the routine tools act as
+    /// that person rather than the session's owner.
+    #[must_use]
+    pub fn with_prompter_source(mut self, prompters: Arc<dyn TurnPrompterSource>) -> Self {
+        self.prompters = prompters;
         self
     }
 
@@ -127,6 +139,18 @@ impl RigTurnEngine {
 /// loading a connected app's tools, spend nobody's access.
 const UNGATED_NATIVE_TOOLS: [&str; 3] = ["AskUser", "SearchTools", "LoadTools"];
 
+/// The routine tools. In a turn whose prompter is known they act as that
+/// person, spending their access and nobody else's, so the owner is not
+/// asked before they run.
+const PROMPTER_NATIVE_TOOLS: [&str; 6] = [
+    "CreateRoutine",
+    "ListRoutines",
+    "ReadRoutine",
+    "UpdateRoutine",
+    "RunRoutine",
+    "DeleteRoutine",
+];
+
 /// A turn's tools, each call to one of Macro's own asked of the gate first.
 /// Remote MCP tools are left to the egress proxy, which gates them already.
 struct GatedToolSet<Context> {
@@ -134,6 +158,17 @@ struct GatedToolSet<Context> {
     gate: Arc<dyn NativeToolGate>,
     session: agent_session::domain::model::AgentSessionId,
     awaiting: Arc<crate::domain::engine::AwaitingUser>,
+    /// Whether [`PROMPTER_NATIVE_TOOLS`] act as the turn's prompter this
+    /// turn, and so pass the gate unasked.
+    routines_as_prompter: bool,
+}
+
+impl<Context> GatedToolSet<Context> {
+    fn is_gated(&self, tool_name: &str) -> bool {
+        !UNGATED_NATIVE_TOOLS.contains(&tool_name)
+            && !tool_name.starts_with(mcp_select::MANGLED_PREFIX)
+            && !(self.routines_as_prompter && PROMPTER_NATIVE_TOOLS.contains(&tool_name))
+    }
 }
 
 impl<Context> AiToolSet<Context> for GatedToolSet<Context>
@@ -148,8 +183,7 @@ where
         json: &'a serde_json::Value,
     ) -> ai_toolset::ToolCallFuture<'a> {
         Box::pin(async move {
-            if !UNGATED_NATIVE_TOOLS.contains(&tool_name)
-                && !tool_name.starts_with(mcp_select::MANGLED_PREFIX)
+            if self.is_gated(tool_name)
                 && let NativeToolVerdict::Refuse(reason) = {
                     // A call held for the owner is the turn waiting on a
                     // person, not hanging: the idle timeout leaves it be.
@@ -281,6 +315,7 @@ impl TurnEngine for RigTurnEngine {
         let auto_model = Arc::clone(&self.auto_model);
         let tool_context = self.tool_context.clone();
         let gate = Arc::clone(&self.gate);
+        let prompters = Arc::clone(&self.prompters);
         let metering = agent::MeteringContext::current();
         tokio::spawn(
             agent::MeteringContext::carry(metering, async move {
@@ -305,6 +340,7 @@ impl TurnEngine for RigTurnEngine {
                     &native_tools,
                     tool_context,
                     gate,
+                    prompters.as_ref(),
                     request,
                     &parts,
                 ));
@@ -392,6 +428,7 @@ async fn drive_turn(
     native_tools: &NativeTools,
     base_context: ToolServiceContext,
     gate: Arc<dyn NativeToolGate>,
+    prompters: &dyn TurnPrompterSource,
     request: TurnRequest,
     parts: &mpsc::Sender<Result<StreamPart, AgentError>>,
 ) -> Result<(), AgentError> {
@@ -477,11 +514,12 @@ async fn drive_turn(
     // Chat's tools with the session's prompt: the user tools (`SendEmail`,
     // `CreateCalendarEvent`) defer to the user, and this runtime finishes
     // them in the turn through `reviewer`.
-    let (system_prompt, toolset, deferred) = if summarizing {
+    let (system_prompt, toolset, deferred, prompter) = if summarizing {
         (
             SystemPrompt::from(instructions.unwrap_or_default()),
             Arc::new(AsyncToolCollection::<InMemToolContext>::new()),
             Arc::from(Vec::new()),
+            None,
         )
     } else {
         let requested = messages
@@ -503,7 +541,11 @@ async fn drive_turn(
                 String::new()
             }
         };
-        let (user_memory, sdk_docs) = tokio::join!(fetch_user_memory(memory, &owner), docs);
+        let (user_memory, sdk_docs, prompter) = tokio::join!(
+            fetch_user_memory(memory, &owner),
+            docs,
+            fetch_prompter(prompters, session_id)
+        );
         let tools_prompt = format!("{}{}", native_tools.prompt, sdk_docs);
         let prompt = system_prompt(
             &tools_prompt,
@@ -516,6 +558,7 @@ async fn drive_turn(
             prompt,
             native_tools.for_turn(user_input.is_some()),
             Arc::clone(&native_tools.deferred),
+            prompter,
         )
     };
     // Carry the feature on the context so tool-spawned subagents attribute to it.
@@ -528,6 +571,11 @@ async fn drive_turn(
             .with_actor(identity.bot)
             .with_actor_name(&identity.name);
     }
+    // A routine runs as whoever asked for it once this session has ended, so
+    // the routine tools act as the turn's prompter, not as the owner lending
+    // the session their access. With no prompter known they stay the
+    // owner's, behind the gate like every other tool.
+    tool_context.schedule_tool_context.prompter = prompter.clone();
     let tool_context = InMemToolContext {
         base: tool_context,
         ask_user: AskUserContext {
@@ -574,6 +622,7 @@ async fn drive_turn(
         gate,
         session: session_id,
         awaiting,
+        routines_as_prompter: prompter.is_some(),
     });
     let session = agent_loop
         .session(toolset, Arc::new(tool_context), system_prompt, usage_ctx)
@@ -780,6 +829,21 @@ fn system_prompt(
         rest.push_str("\n</user_memory>");
     }
     SystemPrompt::split(shared, rest)
+}
+
+/// Who prompted the turn, or `None` when nobody is recorded or the read
+/// failed: the routine tools then act as the owner, and the gate asks them.
+async fn fetch_prompter(
+    prompters: &dyn TurnPrompterSource,
+    session_id: agent_session::domain::model::AgentSessionId,
+) -> Option<MacroUserIdStr<'static>> {
+    match prompters.prompter(session_id).await {
+        Ok(prompter) => prompter,
+        Err(error) => {
+            tracing::warn!(error = ?error, %session_id, "failed to read the turn's prompter; routine tools run as the owner");
+            None
+        }
+    }
 }
 
 /// The owner's memory block, or `None` when it is missing or failed to load.

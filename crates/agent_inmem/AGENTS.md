@@ -18,6 +18,9 @@ milliseconds instead of waiting on container provisioning.
   and log replay on reconnect.
 - `src/domain/admission.rs` + `src/outbound/approval_gate.rs`: usage/plan
   admission and tool-approval gating for in-memory sessions.
+- `src/domain/turn_prompter.rs` + `src/outbound/turn_prompter.rs`: who
+  prompted the turn, read from the session row, so the routine tools act as
+  that person rather than the session owner.
 
 ## Scope
 
@@ -53,6 +56,10 @@ milliseconds instead of waiting on container provisioning.
   `models::resolve`.
 - Keep session-aware `NameSearch`, `ContentSearch`, and `ListEntities` native in
   code mode; legacy `ReadChat` must not appear in either runtime tool catalog.
+- A turn's tools act as the session owner, except the routine tools
+  (`PROMPTER_NATIVE_TOOLS` in `rig_engine.rs`), which act as the turn's
+  prompter when one is recorded and then skip the owner's approval gate. With
+  no prompter recorded they stay the owner's and gated.
 - Replay tool calls using `_meta.macro.toolName`; ACP titles may be human-readable
   MCP labels, so only use the title for older frames without tool-name metadata.
 

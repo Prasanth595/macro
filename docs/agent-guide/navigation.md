@@ -820,7 +820,10 @@ MCP and Macro agent tools expose **CreateRoutine**, **ListRoutines**,
 `bot.botId` from **ListAgents** as `agentId`, or `target.type: "model"` with a runtime
 model ID. `schedule.type: "once"` accepts a future RFC3339 `at` timestamp;
 `"cron"` accepts a six-field `expression` and IANA `timezone`. Routine ownership
-comes from the authenticated caller, never a model-supplied user ID.
+comes from the authenticated caller, never a model-supplied user ID. In a Macro
+agent session, the routine tools act as the person who prompted the turn: a
+routine asked for in a session somebody else owns belongs to the asker, not the
+session owner, and runs as the asker after the session ends.
 
 ## Command menu (Ctrl+K)
 

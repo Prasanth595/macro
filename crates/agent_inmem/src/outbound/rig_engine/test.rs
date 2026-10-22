@@ -163,6 +163,7 @@ async fn shared_definitions_keep_the_callers_context_and_check_each_sessions_gat
             gate: gate.clone(),
             session,
             awaiting: Arc::default(),
+            routines_as_prompter: false,
         };
         let result = tools
             .dispatch_tool_call(
@@ -183,6 +184,50 @@ async fn shared_definitions_keep_the_callers_context_and_check_each_sessions_gat
         }
     }
     assert_eq!(*gate.calls.lock().unwrap(), vec![allowed, refused, allowed]);
+}
+
+/// A routine asked for by somebody other than the owner is theirs, not the
+/// owner's, so creating it spends nothing of the owner's and the owner is not
+/// asked. Every other native tool still is, and so are the routine tools in a
+/// turn whose prompter is unknown.
+#[test]
+fn routine_tools_pass_the_gate_only_when_they_act_as_the_prompter() {
+    let definitions: Arc<dyn AiToolSet<String> + Send + Sync> =
+        Arc::new(AsyncToolCollection::<String>::new());
+    let gated = |routines_as_prompter| GatedToolSet {
+        tools: Arc::clone(&definitions),
+        gate: Arc::new(UngatedNativeTools),
+        session: AgentSessionId::new(),
+        awaiting: Arc::default(),
+        routines_as_prompter,
+    };
+
+    let as_owner = gated(false);
+    assert!(as_owner.is_gated("CreateRoutine"));
+    assert!(as_owner.is_gated("CreateDocument"));
+    assert!(!as_owner.is_gated("AskUser"));
+    assert!(!as_owner.is_gated("mcp__github__create_issue"));
+
+    let as_prompter = gated(true);
+    for tool in PROMPTER_NATIVE_TOOLS {
+        assert!(!as_prompter.is_gated(tool), "{tool} acts as the prompter");
+    }
+    assert!(as_prompter.is_gated("CreateDocument"));
+}
+
+/// The names the gate lets through as the prompter's own are the routine
+/// tools the turn offers; a renamed tool would otherwise quietly fall back to
+/// waiting on the owner.
+#[test]
+fn prompter_tools_are_native_routine_tools() {
+    let native = NativeTools::new();
+    let tools = native.for_turn(false);
+    for name in PROMPTER_NATIVE_TOOLS {
+        assert!(
+            tools.tools.contains_key(name) || native.deferred.iter().any(|tool| tool.name == name),
+            "{name} is not a native tool"
+        );
+    }
 }
 
 #[test]

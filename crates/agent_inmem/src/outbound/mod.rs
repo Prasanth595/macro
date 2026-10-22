@@ -8,3 +8,5 @@ pub mod local_attachments;
 pub mod log_frames;
 pub mod manager;
 pub mod tool_catalog;
+/// Who prompted a turn, from the session row the harness stamps.
+pub mod turn_prompter;
