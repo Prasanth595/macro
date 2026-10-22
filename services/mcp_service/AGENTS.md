@@ -61,6 +61,7 @@ FusionAuth.
 ## Tool contracts
 
 - Agent sessions use the shared session toolset; legacy chat tools are not advertised or callable.
+- `RenderCanvas` promotes only its explicit top-level `modelMedia` contract to at most two bounded native PNG blocks; pixels are removed from text and structured JSON, nested scene media is never promoted, and this adapter never fetches image URLs.
 
 ## Checks
 
