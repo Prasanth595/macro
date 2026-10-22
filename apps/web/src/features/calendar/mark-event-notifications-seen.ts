@@ -5,7 +5,7 @@ import {
 import { fireAndForget } from '@core/util/fireAndForget';
 import type { EntityData } from '@entity/types/entity';
 import { notificationIsRead } from '@entity/utils/notification';
-import { markNotificationsForEntityAsReadInBackground } from '@notifications/notification-helpers';
+import { markNotificationsForEntityAsRead } from '@notifications/notification-helpers';
 import type { NotificationSource } from '@notifications/notification-source';
 
 /** Clear the reminders shown by the row before its calendar view opens. */
@@ -21,7 +21,7 @@ export function markCalendarNotificationSeenOnOpen(
   fireAndForget(
     notifications.length > 0
       ? notificationSource.bulkMarkAsRead(notifications)
-      : markNotificationsForEntityAsReadInBackground(notificationSource, {
+      : markNotificationsForEntityAsRead(notificationSource, {
           type: entity.type,
           id: entity.id,
         }),

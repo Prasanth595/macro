@@ -11,9 +11,15 @@ import type { UnifiedNotification } from '../types';
 
 const mocks = vi.hoisted(() => ({
   seen: vi.fn(),
+  entitySeen: vi.fn(),
   feed: vi.fn(() => []),
 }));
 
+vi.mock('@core/constant/featureFlags', () => ({
+  ENABLE_DOCUMENT_MENTION_NOTIFICATIONS: true,
+  enableGraphqlSoup: { key: 'enable-graphql-soup' },
+  isFeatureEnabled: () => true,
+}));
 vi.mock('@macro-inc/collaboration/websocket', () => ({
   createSocketEffect: vi.fn(),
 }));
@@ -37,8 +43,11 @@ vi.mock('@queries/notification/unsubscribes', () => ({
   useUnmuteItemMutation: () => ({ mutateAsync: vi.fn() }),
 }));
 vi.mock('@queries/notification/entity-mutations', () => ({
-  toNotificationEntityRef: vi.fn(),
-  updateNotificationsForEntities: vi.fn(),
+  toNotificationEntityRef: vi.fn(() => ({
+    type: 'calendar_event',
+    id: 'event',
+  })),
+  updateNotificationsForEntities: mocks.entitySeen,
 }));
 vi.mock('@service-storage/graphql-soup', () => ({
   mapGraphqlNotification: (value: unknown) => value,
@@ -84,6 +93,31 @@ const reminder: UnifiedNotification = {
 afterEach(() => vi.restoreAllMocks());
 
 describe('opening calendar notifications', () => {
+  it('reports a failed entity read when the row has no loaded notifications', async () => {
+    const error = new Error('offline');
+    const reported = Promise.withResolvers<void>();
+    const telemetry = vi
+      .spyOn(Telemetry, 'error')
+      .mockImplementation(() => reported.resolve());
+    mocks.entitySeen.mockRejectedValueOnce(error);
+    const { source, dispose } = createRoot((dispose) => ({
+      source: createNotificationSource({} as ConnectionGatewayWebsocket),
+      dispose,
+    }));
+    try {
+      markCalendarNotificationSeenOnOpen(
+        { ...event, notifications: [] },
+        source
+      );
+      await reported.promise;
+      expect(telemetry).toHaveBeenCalledWith(error, {
+        surface: 'calendar-notification-read',
+      });
+    } finally {
+      dispose();
+    }
+  });
+
   it.each(['array', 'accessor'] as const)(
     'clears an attached %s before the write finishes without loading the global feed',
     async (shape) => {

@@ -13,7 +13,7 @@ import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useUserId } from '@core/context/user';
 import { fireAndForget } from '@core/util/fireAndForget';
-import { markNotificationsForEntityAsReadInBackground } from '@notifications/notification-helpers';
+import { markNotificationsForEntityAsRead } from '@notifications/notification-helpers';
 import { useCalendarOccurrencesQuery } from '@queries/calendar/occurrences';
 import deepEqual from 'fast-deep-equal';
 import {
@@ -198,7 +198,7 @@ export function CalendarView(props: CalendarViewProps) {
     }
     if (eventId) {
       fireAndForget(
-        markNotificationsForEntityAsReadInBackground(notificationSource, {
+        markNotificationsForEntityAsRead(notificationSource, {
           type: 'calendar_event',
           id: eventId,
         }),
