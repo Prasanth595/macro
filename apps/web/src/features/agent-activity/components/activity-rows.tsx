@@ -1,3 +1,5 @@
+import { ItemChip } from '@app/features/agent-cards/components/item-chip';
+import type { ItemFact } from '@app/features/agent-cards/core/run-cards';
 import { TextShimmer } from '@app/features/block-agent/ui';
 import CaretRight from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
@@ -28,10 +30,12 @@ const VISIBLE_ROWS = 6;
 
 /**
  * The steps an agent took between two passages of its reply: what it did, to
- * what, and how that went, one quiet line each, with whatever a step
- * produced right under it. A long run keeps its latest steps in view and
- * folds the rest behind a count, so the newest step is always on screen;
- * what the folded steps produced stays in view above the count.
+ * what, and how that went, one quiet line each, with whatever the agent
+ * showed right under the step that showed it. A step that created, changed
+ * or sent an item names it, and opens it, on its line. A long run keeps its
+ * latest steps in view and folds the rest behind a count, so the newest
+ * step is always on screen; what the folded steps showed stays in view
+ * above the count.
  *
  * Steps are kept by id: a live run hands over new objects for the same steps
  * several times a second, and a step that only changed its status must not
@@ -39,10 +43,12 @@ const VISIBLE_ROWS = 6;
  */
 export function ActivityRows<Row extends ActivityRowView>(props: {
   rows: readonly Row[];
-  /** What a step produced, shown under its row, by the step's id. */
+  /** What a step showed, under its row, by the step's id. */
   after?: (id: string) => JSX.Element;
-  /** What the steps folded behind the count produced, by their ids. */
+  /** What the steps folded behind the count showed, by their ids. */
   earlier?: (ids: Accessor<readonly string[]>) => JSX.Element;
+  /** The item a step created, changed or sent, named on its line. */
+  item?: (row: Row) => ItemFact | undefined;
   /**
    * Steps whose product replaces their line: a view the agent composed is
    * shown where the step ran, with no line of its own.
@@ -84,12 +90,19 @@ export function ActivityRows<Row extends ActivityRowView>(props: {
                       active={row().status === 'running'}
                     />
                   </span>
-                  <Show when={row().detail}>
-                    {(detail) => (
-                      <span class="min-w-0 truncate font-mono text-ink-subtle">
-                        {detail()}
-                      </span>
-                    )}
+                  <Show
+                    when={props.item?.(row())}
+                    fallback={
+                      <Show when={row().detail}>
+                        {(detail) => (
+                          <span class="min-w-0 truncate font-mono text-ink-subtle">
+                            {detail()}
+                          </span>
+                        )}
+                      </Show>
+                    }
+                  >
+                    {(item) => <ItemChip fact={item()} />}
                   </Show>
                 </span>
               </Show>

@@ -9,6 +9,8 @@
  * transcript that let each message decide showed every one of them working.
  */
 
+import { ItemFacts } from '@app/features/agent-cards/core/item-facts';
+import { itemFacts } from '@app/features/agent-cards/core/run-cards';
 import { useUserId } from '@core/context/user';
 import { idToDisplayName } from '@core/user/util';
 import { messageSendMotion } from '@core/util/message-send-motion';
@@ -34,7 +36,7 @@ import { isControlMessage } from '../state/control-message';
 import { isNotificationMessage } from '../state/notification-message';
 import { agentContextText, promptOrigin } from '../state/prompt-origin';
 import { thoughtIsStreaming } from '../state/thought-streaming';
-import { isCodeExecution, segmentParts } from '../state/tool-groups';
+import { segmentParts } from '../state/tool-groups';
 import {
   ActionLine,
   FailureNoticeCard,
@@ -43,7 +45,6 @@ import {
   WorkingLine,
 } from '../ui';
 import { LiveToolGroup } from '../views/LiveToolGroup';
-import { ToolRunCards } from '../views/ToolRunCards';
 import { PromptFooter } from './PromptFooter';
 import { AttachmentPart } from './parts/AttachmentPart';
 import { ControlPart } from './parts/ControlPart';
@@ -111,29 +112,17 @@ function AgentMessagePart(props: {
       </Match>
       <Match when={props.part.kind === 'tool_use' && props.part}>
         {(part) => (
-          <>
-            <ToolCallPart
-              part={part()}
-              context={{
-                sessionId: props.message.agentSessionId,
-                // Turn and side identify a message within its session.
-                messageId: `${props.message.agentSessionId}:${props.message.turn}:${props.message.author.kind}`,
-                partIndex: props.index,
-                inFlight: props.inFlight,
-                followedBy: toolUsedAfter(props.message.parts, props.index),
-              }}
-            />
-            {/* A user tool stands outside the runs, so its receipt - the
-                email it sent, the event it made - sits under it. So do
-                the items a code run's writes changed. */}
-            <Show
-              when={
-                part().detail.kind === 'user_tool' || isCodeExecution(part())
-              }
-            >
-              <ToolRunCards message={props.message} calls={[part().id]} />
-            </Show>
-          </>
+          <ToolCallPart
+            part={part()}
+            context={{
+              sessionId: props.message.agentSessionId,
+              // Turn and side identify a message within its session.
+              messageId: `${props.message.agentSessionId}:${props.message.turn}:${props.message.author.kind}`,
+              partIndex: props.index,
+              inFlight: props.inFlight,
+              followedBy: toolUsedAfter(props.message.parts, props.index),
+            }}
+          />
         )}
       </Match>
       <Match when={props.part.kind === 'permission' && props.part}>
@@ -149,17 +138,7 @@ function AgentMessagePart(props: {
         {(part) => <ControlPart part={part()} />}
       </Match>
       <Match when={props.part.kind === 'elicitation' && props.part}>
-        {(part) => (
-          <>
-            <ElicitationPart part={part()} turn={props.message.turn} />
-            {/* A draft the user finished leaves its receipt under it. */}
-            <Show when={part().toolCall}>
-              {(call) => (
-                <ToolRunCards message={props.message} calls={[call()]} />
-              )}
-            </Show>
-          </>
-        )}
+        {(part) => <ElicitationPart part={part()} turn={props.message.turn} />}
       </Match>
     </Switch>
   );
@@ -168,7 +147,8 @@ function AgentMessagePart(props: {
 /**
  * A run of consecutive tool calls and their accompanying thoughts (see
  * `segmentParts`), folded to one row that opens to those parts, each at
- * its original index, with the cards of what the run produced under it.
+ * its original index. What the agent showed stands outside the run: a view
+ * breaks it, and an item a call touched is named on the call's own row.
  */
 function ToolGroupPart(props: {
   message: FoldedMessage;
@@ -213,10 +193,6 @@ function ToolGroupPart(props: {
       >
         {renderParts()}
       </LiveToolGroup>
-      <ToolRunCards
-        message={props.message}
-        calls={calls().map((call) => call.id)}
-      />
     </Show>
   );
 }
@@ -363,6 +339,11 @@ export function Message(props: {
   const inFlight = () => props.inFlight;
   const failure = () =>
     props.message.stop?.kind === 'failed' ? props.message.stop : undefined;
+  // What the reply did to each item it touched: a view it composed says so
+  // on the cards for those items.
+  const facts = createMemo(() =>
+    itemFacts(props.message.segments.flatMap((segment) => segment.rows))
+  );
 
   return (
     // A control and an event notification are both user-authored by the
@@ -375,69 +356,71 @@ export function Message(props: {
         !isNotificationMessage(props.message)
       }
       fallback={
-        <div class="flex flex-col gap-1 min-w-0">
-          {/* Segments are positional, and a run at the tail grows as calls
+        <ItemFacts.Provider value={facts}>
+          <div class="flex flex-col gap-1 min-w-0">
+            {/* Segments are positional, and a run at the tail grows as calls
               stream in — so rows are keyed by index, not by segment value,
               and a group keeps its open state while it fills. */}
-          <Index each={segmentParts(props.message.parts)}>
-            {(segment) => (
-              <Show
-                when={segment().kind === 'tools'}
-                fallback={
-                  <Show when={props.message.parts[segment().start]}>
-                    {(part) => (
-                      <AgentMessagePart
-                        part={part()}
-                        message={props.message}
-                        index={segment().start}
-                        inFlight={inFlight()}
-                      />
-                    )}
-                  </Show>
-                }
-              >
-                <ToolGroupPart
-                  message={props.message}
-                  start={segment().start}
-                  end={segment().end}
-                  inFlight={inFlight()}
-                />
-              </Show>
-            )}
-          </Index>
-          {/* The turn is open with nothing to read yet — a ripple and a label
+            <Index each={segmentParts(props.message.parts)}>
+              {(segment) => (
+                <Show
+                  when={segment().kind === 'tools'}
+                  fallback={
+                    <Show when={props.message.parts[segment().start]}>
+                      {(part) => (
+                        <AgentMessagePart
+                          part={part()}
+                          message={props.message}
+                          index={segment().start}
+                          inFlight={inFlight()}
+                        />
+                      )}
+                    </Show>
+                  }
+                >
+                  <ToolGroupPart
+                    message={props.message}
+                    start={segment().start}
+                    end={segment().end}
+                    inFlight={inFlight()}
+                  />
+                </Show>
+              )}
+            </Index>
+            {/* The turn is open with nothing to read yet — a ripple and a label
               naming the work, so the wait reads as work rather than a stall. */}
-          <Show when={inFlight() && showsWorkingLine(props.message)}>
-            <WorkingLine label={workingLabel(props.message)} />
-          </Show>
-          {/* A turn the runtime errored is something that happened to the
+            <Show when={inFlight() && showsWorkingLine(props.message)}>
+              <WorkingLine label={workingLabel(props.message)} />
+            </Show>
+            {/* A turn the runtime errored is something that happened to the
               session, like a model change or a stop — so it reads as one,
               at the foot of whatever the agent managed to say first. The
               line says what to do about it; the runtime's own account of
               what happened is the detail. A failure the runtime wrote in the
               person's terms is theirs to act on, so it gets a card instead. */}
-          <Show when={failure()}>
-            {(failed) => (
-              <Show
-                when={failed().notice}
-                fallback={
-                  <ActionLine
-                    label={TURN_FAILED_LABEL}
-                    detail={failed().message}
-                    failed
-                  />
-                }
-              >
-                {(notice) => (
-                  <FailureNoticeCard
-                    notice={notice()}
-                    onOpenLink={openExternalUrl}
-                  />
-                )}
-              </Show>
-            )}
-          </Show>
-        </div>
+            <Show when={failure()}>
+              {(failed) => (
+                <Show
+                  when={failed().notice}
+                  fallback={
+                    <ActionLine
+                      label={TURN_FAILED_LABEL}
+                      detail={failed().message}
+                      failed
+                    />
+                  }
+                >
+                  {(notice) => (
+                    <FailureNoticeCard
+                      notice={notice()}
+                      onOpenLink={openExternalUrl}
+                    />
+                  )}
+                </Show>
+              )}
+            </Show>
+          </div>
+        </ItemFacts.Provider>
       }
     >
       <UserMessage message={props.message} />

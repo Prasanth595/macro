@@ -1,3 +1,8 @@
+import { ItemChip } from '@app/features/agent-cards/components/item-chip';
+import {
+  type ItemFact,
+  itemKey,
+} from '@app/features/agent-cards/core/run-cards';
 import CodeIcon from '@phosphor/code.svg';
 import type {
   ExecutionRecord,
@@ -9,7 +14,11 @@ import { DisplayResultsToolCall } from './DisplayResultsToolCall';
 import { MacroToolCall } from './MacroToolCall';
 import type { ToolCallCommon, ToolCallContext } from './shared';
 
-/** Observed inner calls keep their registered Macro result components. */
+/**
+ * A code run's SDK operations, grouped by what they did, each group naming
+ * the items its writes created or changed. Observed inner calls keep their
+ * registered Macro result components.
+ */
 export function CodeExecutionToolCall(props: {
   common: ToolCallCommon;
   context: ToolCallContext;
@@ -34,6 +43,7 @@ export function CodeExecutionToolCall(props: {
         running: number;
         failed: number;
         unknown: number;
+        items: ItemFact[];
       }
     >();
     for (const item of props.record?.activity ?? []) {
@@ -43,7 +53,19 @@ export function CodeExecutionToolCall(props: {
         running: 0,
         failed: 0,
         unknown: 0,
+        items: [],
       };
+      const changed = item.status === 'completed' ? item.item : undefined;
+      if (
+        changed &&
+        !group.items.some((fact) => itemKey(fact.item) === itemKey(changed))
+      ) {
+        group.items.push({
+          item: { type: changed.type, id: changed.id },
+          action: changed.action,
+          title: changed.title,
+        });
+      }
       const status =
         item.status === 'running' && !isToolActive(props.common.status)
           ? 'unknown'
@@ -78,24 +100,33 @@ export function CodeExecutionToolCall(props: {
       </Show>
       <For each={activity()}>
         {(group) => (
-          <ToolCard
-            title={group.label}
-            status={
-              group.running > 0
-                ? 'running'
-                : group.failed > 0
-                  ? 'failed'
-                  : 'completed'
-            }
-            trailing={[
-              group.completed && `${group.completed} completed`,
-              group.running && `${group.running} running`,
-              group.failed && `${group.failed} failed`,
-              group.unknown && `${group.unknown} outcome unknown`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          />
+          <>
+            <ToolCard
+              title={group.label}
+              status={
+                group.running > 0
+                  ? 'running'
+                  : group.failed > 0
+                    ? 'failed'
+                    : 'completed'
+              }
+              trailing={[
+                group.completed && `${group.completed} completed`,
+                group.running && `${group.running} running`,
+                group.failed && `${group.failed} failed`,
+                group.unknown && `${group.unknown} outcome unknown`,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            />
+            <Show when={group.items.length > 0}>
+              <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pl-6 text-sm">
+                <For each={group.items}>
+                  {(fact) => <ItemChip fact={fact} />}
+                </For>
+              </div>
+            </Show>
+          </>
         )}
       </For>
       <Show when={props.record?.activityTruncated}>

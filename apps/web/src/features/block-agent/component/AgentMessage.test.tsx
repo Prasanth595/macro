@@ -61,28 +61,39 @@ vi.mock('./parts/TextPart', () => ({
     );
   },
 }));
-vi.mock('./parts/ToolCallPart', () => ({
-  ToolCallPart: (props: {
-    part: { id: string; status: string };
-    context: {
-      partIndex: number;
-      inFlight: boolean;
-      followedBy: (name: string) => boolean;
-    };
-  }) => (
-    <div
-      data-index={props.context.partIndex}
-      data-followed-by-save={String(
-        props.context.followedBy('SaveDatabaseQuery')
-      )}
-      data-status={props.part.status}
-      data-live={String(props.context.inFlight)}
-      data-testid="tool"
-    >
-      {props.part.id}
-    </div>
-  ),
-}));
+vi.mock('./parts/ToolCallPart', async () => {
+  const { useItemFacts } = await import(
+    '@app/features/agent-cards/core/item-facts'
+  );
+  return {
+    ToolCallPart: (props: {
+      part: { id: string; status: string };
+      context: {
+        partIndex: number;
+        inFlight: boolean;
+        followedBy: (name: string) => boolean;
+      };
+    }) => {
+      const facts = useItemFacts();
+      return (
+        <div
+          data-index={props.context.partIndex}
+          data-followed-by-save={String(
+            props.context.followedBy('SaveDatabaseQuery')
+          )}
+          data-status={props.part.status}
+          data-live={String(props.context.inFlight)}
+          data-facts={[...facts().values()]
+            .map((fact) => `${fact.action}:${fact.item.id}`)
+            .join(',')}
+          data-testid="tool"
+        >
+          {props.part.id}
+        </div>
+      );
+    },
+  };
+});
 vi.mock('./parts/PermissionPart', () => ({
   PermissionPart: () => <div data-testid="permission" />,
 }));
@@ -133,12 +144,6 @@ vi.mock('../views/LiveToolGroup', () => ({
     >
       {props.children}
     </div>
-  ),
-}));
-
-vi.mock('../views/ToolRunCards', () => ({
-  ToolRunCards: (props: { calls: readonly string[] }) => (
-    <div data-testid="run-cards">{props.calls.join(',')}</div>
   ),
 }));
 
@@ -308,112 +313,40 @@ describe('Message tool grouping', () => {
     expect(view.getByTestId('permission')).toBeTruthy();
   });
 
-  it("shows each run's cards under that run, outside its fold", () => {
-    const view = render(() => (
-      <Message
-        message={message([
-          tool('a'),
-          tool('b'),
-          text('Made the plan.'),
-          tool('c'),
-        ])}
-        inFlight={false}
-      />
-    ));
-    const cards = view.getAllByTestId('run-cards');
-    expect(cards.map((el) => el.textContent)).toEqual(['a,b', 'c']);
-    for (const [index, group] of view.getAllByTestId('group').entries()) {
-      expect(group.contains(cards[index])).toBe(false);
-      expect(group.nextElementSibling).toBe(cards[index]);
-    }
-  });
-
-  it('shows what a code run changed under the run, outside any group', () => {
-    const view = render(() => (
-      <Message
-        message={message([
-          tool('a'),
-          tool('code', {
-            name: {
-              kind: 'mcp',
-              server: 'macro_internal',
-              tool: 'ExecuteCode',
-            },
-            detail: {
-              kind: 'other',
-              acpKind: 'other',
-              output: null,
-              input: { execution_id: 'e', source: '' },
-              result: null,
-              error: null,
-            },
-          }),
-          text('Done.'),
-        ])}
-        inFlight={false}
-      />
-    ));
-    expect(
-      view.getAllByTestId('run-cards').map((el) => el.textContent)
-    ).toEqual(['a', 'code']);
-  });
-
-  it('shows the receipt of a user tool or a reviewed draft under it, outside any run', () => {
-    const view = render(() => (
-      <Message
-        message={message([
-          tool('a'),
-          tool('send', {
-            name: { kind: 'native', name: 'SendEmail' },
-            detail: {
-              kind: 'user_tool',
-              input: {},
-              outcome: { kind: 'pending' },
-            },
-          }),
+  it('tells what the reply shows what the reply did to each item, and puts no card under a run', () => {
+    const reply = message([tool('a'), tool('display'), text('Made the plan.')]);
+    reply.segments = [
+      {
+        index: 0,
+        kind: 'activity',
+        start: 0,
+        end: 2,
+        sealed: true,
+        rows: [
           {
-            kind: 'elicitation',
-            requestId: 1,
-            toolCall: 'review',
-            message: 'Send email?',
-            request: {
-              kind: 'form',
-              schema: {
-                title: null,
-                description: null,
-                required: [],
-                properties: [],
-              },
+            id: 'a',
+            label: 'Create document',
+            detail: null,
+            status: 'completed',
+            card: {
+              kind: 'item',
+              itemType: 'document',
+              itemId: 'doc-1',
+              fileType: 'md',
+              action: 'created',
+              title: 'Plan',
+              summary: null,
             },
-            outcome: { kind: 'accepted', answers: [] },
-            reported: null,
-            toolOutcome: null,
           },
-          {
-            kind: 'elicitation',
-            requestId: 2,
-            toolCall: null,
-            message: 'Which colour?',
-            request: {
-              kind: 'form',
-              schema: {
-                title: null,
-                description: null,
-                required: [],
-                properties: [],
-              },
-            },
-            outcome: { kind: 'declined' },
-            reported: null,
-            toolOutcome: null,
-          },
-        ])}
-        inFlight={false}
-      />
-    ));
+        ],
+      },
+    ];
+    const view = render(() => <Message message={reply} inFlight={false} />);
     expect(
-      view.getAllByTestId('run-cards').map((el) => el.textContent)
-    ).toEqual(['a', 'send', 'review']);
+      view.getAllByTestId('tool').map((tool) => tool.dataset.facts)
+    ).toEqual(['created:doc-1', 'created:doc-1']);
+    const group = view.getByTestId('group');
+    expect(group.nextElementSibling?.textContent).toBe('Made the plan.');
   });
 
   it('keeps DisplayResults outside the tool groups before and after it', () => {

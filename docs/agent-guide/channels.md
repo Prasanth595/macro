@@ -90,16 +90,19 @@ does not invoke the agent again. A reply inside a thread is not part of the
 conversation: the agent answers it only when mentioned there, in the thread,
 as in any channel.
 
-What a step made, changed, or showed appears as a card under its step: a
-document, a sent email, an event, a composed view. An agent working in code
-mode gets the same cards: each SDK operation its program ran is a step, and a
-write that created or changed an item carries that item's card. The cards of
-steps folded
-behind `N earlier steps` show above that control, and a finished run that
-folds into `Worked for … · N steps` keeps its cards. A card's short summary
-(`3 changes`, `to Ana Ruiz`) shows only while its run is live, to a reader of
-the session who can open the item. Once the run is over, the card shows the
-item's kind and when it last changed instead; the session keeps the summary.
+A step that made, changed, or sent an item names it on its line, where the
+step's detail would be, and clicking the name opens the item. Cards appear only
+for what the agent chose to show: a view it composed replaces its step, and a
+database answer it asked to show sits under its step. In a view, a card for an
+item the reply created or changed carries what was done to it (`Created`,
+`Sent`). An agent working in code mode works the same way: each SDK operation
+its program ran is a step, and a write that created or changed an item names
+that item on its step. What the steps folded behind `N earlier steps` showed
+appears above that control, and a finished run that folds into `Worked for … ·
+N steps` keeps what the agent showed. A card's short summary (`3 changes`, `to
+Ana Ruiz`) shows only while its run is live, to a reader of the session who can
+open the item. Once the run is over, the card shows the item's kind and when it
+last changed instead; the session keeps the summary.
 A drafted email or event the agent waits on is its composer for the person
 the agent works for, as in the agent's session: the email composer's Send
 sends it and **Discard** under it declines; the calendar's composer creates

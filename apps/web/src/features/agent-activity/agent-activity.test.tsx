@@ -25,6 +25,11 @@ vi.mock('./queries/live-session', () => ({
 vi.mock('@app/features/block-agent/ui', () => ({
   TextShimmer: (props: { text: string }) => <>{props.text}</>,
 }));
+vi.mock('@app/features/agent-cards/components/item-chip', () => ({
+  ItemChip: (props: { fact: { item: { id: string } } }) => (
+    <a href={`#${props.fact.item.id}`}>item:{props.fact.item.id}</a>
+  ),
+}));
 vi.mock('@app/features/agent-cards/components/run-cards', () => ({
   default: (props: {
     cards: { key: string; rowId: string }[];
@@ -141,7 +146,7 @@ it('keeps a long live run on its latest steps, folding the earlier ones behind a
   expect(view.getByText('Step 1')).toBeTruthy();
 });
 
-it('keeps a live step and what it produced in place while the run ticks', async () => {
+it('keeps a live step and the item it names in place while the run ticks', () => {
   const created = {
     id: 't1',
     label: 'Create document',
@@ -179,7 +184,7 @@ it('keeps a live step and what it produced in place while the run ticks', async 
     ]),
   ]);
   const step = view.getByText('Create document').closest('li');
-  const card = await view.findByRole('complementary', { name: 'Cards' });
+  const item = view.getByRole('link', { name: 'item:doc-1' });
   // A paint later the fold has sent new objects for every step.
   setMessages([
     reply([
@@ -201,7 +206,8 @@ it('keeps a live step and what it produced in place while the run ticks', async 
     ]),
   ]);
   expect(view.getByText('Create document').closest('li')).toBe(step);
-  expect(view.getByRole('complementary', { name: 'Cards' })).toBe(card);
+  expect(view.getByRole('link', { name: 'item:doc-1' })).toBe(item);
+  expect(view.queryByRole('complementary', { name: 'Cards' })).toBeNull();
   expect(steps(view).map(([, status]) => status)).toEqual([
     'completed',
     'completed',
@@ -209,21 +215,13 @@ it('keeps a live step and what it produced in place while the run ticks', async 
   ]);
 });
 
-it('keeps what folded-away steps produced in view above the count', async () => {
+it('keeps what folded-away steps showed in view above the count', async () => {
   const rows = (last: 'running' | 'failed'): AgentActivityRow[] =>
     Array.from({ length: 8 }, (_, index) => ({
       id: `t${index}`,
       label: `Step ${index}`,
       status: index === 7 ? last : 'completed',
-      card:
-        index === 0
-          ? {
-              kind: 'item',
-              itemType: 'document',
-              itemId: 'doc-1',
-              action: 'created',
-            }
-          : null,
+      card: index === 0 ? { kind: 'data', sql: 'SELECT 1' } : null,
     }));
   for (const [sealed, last] of [
     [false, 'running'],
@@ -241,7 +239,7 @@ it('keeps what folded-away steps produced in view above the count', async () => 
     const count = view.getByRole('button', { name: '2 earlier steps' });
     expect(view.queryByText('Step 0')).toBeNull();
     const card = await view.findByRole('complementary', { name: 'Cards' });
-    expect(card.textContent).toBe('t0:document:doc-1');
+    expect(card.textContent).toBe('t0:t0');
     expect(
       card.compareDocumentPosition(count) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
@@ -361,7 +359,7 @@ it('replaces a live code step with observed SDK operations and preserves uncerta
   );
 });
 
-it("shows a live code write's card under its operation's step", async () => {
+it("names a live code write's item on its operation's step", async () => {
   const executionId = '019a0000-0000-7000-8000-000000000002';
   const record: ExecutionRecord = {
     executionId,
@@ -418,8 +416,9 @@ it("shows a live code write's card under its operation's step", async () => {
     },
   ];
   setMessages([message]);
-  const cards = await view.findByRole('complementary', { name: 'Cards' });
-  expect(cards.textContent).toBe('code-1:1:document:doc-9');
+  const item = await view.findByRole('link', { name: 'item:doc-9' });
+  expect(item.closest('li')?.textContent).toBe('Create Markdownitem:doc-9');
+  expect(view.queryByRole('complementary', { name: 'Cards' })).toBeNull();
 });
 
 it('updates a live row in place as the run paints, rather than redrawing it', () => {
@@ -508,7 +507,7 @@ it('keeps a finished run open when a step failed', () => {
   ]);
 });
 
-it('shows what a step produced under it, and a composed view in place of its step', async () => {
+it('names the item a step made on its line, and shows a composed view in place of its step', async () => {
   const view = render(() => (
     <AgentActivity
       agentSessionId="session"
@@ -538,11 +537,11 @@ it('shows what a step produced under it, and a composed view in place of its ste
     />
   ));
   const cards = await view.findAllByRole('complementary', { name: 'Cards' });
-  expect(cards.map((card) => card.textContent)).toEqual([
-    't1:document:doc-1',
-    't2:t2',
-  ]);
-  expect(view.getByText('Create document')).toBeTruthy();
+  expect(cards.map((card) => card.textContent)).toEqual(['t2:t2']);
+  // The item stands in for the step's detail: it opens what the step made.
+  expect(view.getByText('Create document').closest('li')?.textContent).toBe(
+    'Create documentitem:doc-1'
+  );
   expect(view.queryByText('Display results')).toBeNull();
   expect(live.acquired).toEqual([]);
 });
@@ -578,7 +577,7 @@ it('shows drafts saved for review in place of the step that presented them', asy
   expect(view.getAllByText('Prepared drafts to review')).toHaveLength(1);
 });
 
-it('loads no cards for a run that produced none', () => {
+it('loads no cards for a run that showed nothing', () => {
   const view = render(() => (
     <AgentActivity
       agentSessionId="session"

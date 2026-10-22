@@ -2738,7 +2738,7 @@
       },
       "ActivityItem": {
         "type": "object",
-        "description": "A workspace item a completed SDK operation created or changed, as the\nprogram's SDK reported it. Advisory like the activity it came with: the\nconversation shows it as a card, and readers open the item with their own\naccess.",
+        "description": "A workspace item a completed SDK operation created or changed, as the\nprogram's SDK reported it. Advisory like the activity it came with: the\nconversation names it on the operation's step, and a card the agent\nshows for it says what was done to it. Readers open the item with their\nown access.",
         "required": ["type", "id", "action"],
         "properties": {
           "action": {

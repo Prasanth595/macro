@@ -20,7 +20,8 @@ to the browser via `inbound/wasm`.
   total by design (see "Why this cannot fail") and never errors on read.
 - `src/domain/model/segment/code_execution.rs`: expands internal code receipts
   into SDK activity rows for conversation snapshots, independent of harness;
-  a completed write's row carries the card of the item it changed.
+  a completed write's row carries the item it changed, which the row names
+  and a view showing the item marks.
 - `src/domain/model.rs`: the renderable vocabulary (`FoldedMessage`,
   `ToolStatus`, …) folds produce.
 - `src/domain/log.rs`: the raw log vocabulary folds consume.

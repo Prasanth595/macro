@@ -12,8 +12,9 @@ export type AccessLevel = 'view' | 'comment' | 'edit' | 'owner';
 /**
  * A workspace item a completed SDK operation created or changed, as the
  * program's SDK reported it. Advisory like the activity it came with: the
- * conversation shows it as a card, and readers open the item with their own
- * access.
+ * conversation names it on the operation's step, and a card the agent
+ * shows for it says what was done to it. Readers open the item with their
+ * own access.
  */
 export type ActivityItem = {
     /**

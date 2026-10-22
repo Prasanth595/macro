@@ -3,8 +3,6 @@ import { Key } from '@solid-primitives/keyed';
 import { lazy, Match, Show, Suspense, Switch } from 'solid-js';
 import type { RunCard } from '../core/run-cards';
 import { DataCard } from './data-card';
-import { ItemCard } from './item-card';
-import { type SourceRef, Sources } from './sources';
 
 // Its drafts open in the email and calendar composers: loaded only when a
 // run saved some.
@@ -12,19 +10,15 @@ const ReviewCard = lazy(async () => ({
   default: (await import('./review-card')).ReviewCard,
 }));
 
-const asItem = (card: RunCard) => (card.kind === 'item' ? card : undefined);
 const asView = (card: RunCard) => (card.kind === 'view' ? card : undefined);
 const asData = (card: RunCard) => (card.kind === 'data' ? card : undefined);
-const asSources = (card: RunCard) =>
-  card.kind === 'sources' ? card : undefined;
 const asReview = (card: RunCard) => (card.kind === 'review' ? card : undefined);
 
 /**
- * What steps produced: the items the agent created, changed or sent, the
- * views it composed for the user, the database answers it asked to show,
- * what its searches found, and drafts it saved for the user to review. An
- * agent's reply in a channel and its session's transcript both show them
- * under the steps. Loaded on its own, so a conversation without cards never
+ * What the agent chose to show: the views it composed for the user, the
+ * database answers it asked to show, and drafts it saved for the user to
+ * review. An agent's reply in a channel shows them where the steps that
+ * showed them ran. Loaded on its own, so a conversation without cards never
  * loads what they render with.
  *
  * Cards are kept by key: a live run works its cards out again on every
@@ -41,16 +35,6 @@ export default function RunCards(props: {
       <Key each={props.cards} by="key">
         {(entry) => (
           <Switch>
-            <Match when={asItem(entry())}>
-              {(item) => (
-                <ItemCard
-                  item={item().item}
-                  action={item().action}
-                  title={item().title}
-                  summary={item().summary}
-                />
-              )}
-            </Match>
             <Match when={asView(entry())}>
               {(view) => <AgentView view={view().view} />}
             </Match>
@@ -60,20 +44,6 @@ export default function RunCards(props: {
                   sql={data().sql}
                   databaseId={data().databaseId}
                   display={data().display}
-                />
-              )}
-            </Match>
-            <Match when={asSources(entry())}>
-              {(found) => (
-                <Sources
-                  queries={found().queries}
-                  sources={found().sources.flatMap((source) =>
-                    source.kind === 'item' &&
-                    source.itemType === 'calendar_event'
-                      ? []
-                      : [source as SourceRef]
-                  )}
-                  total={found().total}
                 />
               )}
             </Match>

@@ -43,11 +43,6 @@ import { NoticeCard } from '../components/notice';
 import { ReferenceCardView } from '../components/reference-card';
 import { ReviewWaitingCard } from '../components/review-card';
 import { RoutineCardView } from '../components/routine-card';
-import {
-  type SourceRef,
-  SourcesList,
-  SourcesPill,
-} from '../components/sources';
 
 const noop = () => {};
 
@@ -154,51 +149,6 @@ function FixedHeightDemo() {
         )}
       </For>
     </Example>
-  );
-}
-
-const SOURCES: SourceRef[] = [
-  {
-    kind: 'web',
-    url: 'https://www.theverge.com/2026/10/lumen-pricing',
-    title: 'Lumen raises team prices for the first time since 2023',
-  },
-  {
-    kind: 'web',
-    url: 'https://lumen.example/pricing',
-    title: 'Pricing · Lumen',
-  },
-  { kind: 'item', itemType: 'document', itemId: 'pricing-review' },
-  {
-    kind: 'web',
-    url: 'https://news.ycombinator.com/item?id=1',
-    title: 'Lumen pricing change (412 comments)',
-  },
-  { kind: 'item', itemType: 'email_thread', itemId: 'globex' },
-  {
-    kind: 'web',
-    url: 'https://www.reuters.com/technology/lumen',
-    title: 'Lumen to lift prices as AI costs climb',
-  },
-];
-
-const FIXTURE_ITEMS: Record<string, [string, string, string]> = {
-  'pricing-review': ['Pricing review notes', 'md', 'Document'],
-  globex: ['Re: Lumen renewal', 'email', 'Email'],
-};
-
-function FixtureItemSource(props: { id: string }) {
-  const [name, type, kind] = FIXTURE_ITEMS[props.id] ?? ['Item', 'md', ''];
-  return (
-    <CardRow onClick={noop}>
-      <Tile size={24}>
-        <EntityIcon targetType={type as 'md'} size="xs" />
-      </Tile>
-      <span class="flex min-w-0 flex-1 flex-col">
-        <span class="truncate text-sm text-ink">{name}</span>
-        <span class="truncate text-xs text-ink-subtle">{kind}</span>
-      </span>
-    </CardRow>
   );
 }
 
@@ -436,7 +386,10 @@ export default function AgentCardsGallery() {
           </Example>
         </Section>
 
-        <Section title="Receipt" note="What the agent did, so you can open it">
+        <Section
+          title="Receipt"
+          note="An item the reply made or changed, in a view the agent showed"
+        >
           <Example label="Single items · fixed 72">
             <ReferenceCardView
               tile={icon('md')}
@@ -796,25 +749,6 @@ export default function AgentCardsGallery() {
         </Section>
 
         <Section
-          title="Sources"
-          note="What the answer rests on: a pill under the steps that opens into the list"
-        >
-          <Example label="Folded, under the steps">
-            <RunSummary steps={5} duration="24s" open={false} onToggle={noop} />
-            <SourcesPill sources={SOURCES} total={14} onOpen={noop} />
-          </Example>
-          <Example label="Open">
-            <SourcesList
-              queries={['lumen pricing change', 'lumen renewal']}
-              sources={SOURCES}
-              total={14}
-              onClose={noop}
-              itemRow={(source) => <FixtureItemSource id={source.itemId} />}
-            />
-          </Example>
-        </Section>
-
-        <Section
           title="Data"
           note="A database answer the agent asked to show, live with your own access"
         >
@@ -941,7 +875,7 @@ export default function AgentCardsGallery() {
           title="Activity"
           note="Steps live, then one line once the answer arrives"
         >
-          <Example label="Live, with a card under the step that made it">
+          <Example label="Live, each step naming the item it touched">
             <ActivityRows
               rows={[
                 {
@@ -969,22 +903,9 @@ export default function AgentCardsGallery() {
                   status: 'running',
                 },
               ]}
-              after={(id) =>
-                id === 'c' ? (
-                  <div class="my-1.5">
-                    <ReferenceCardView
-                      tile={icon('md')}
-                      title="Globex pricing summary"
-                      badge={{ label: 'Created', tone: 'accent' }}
-                      meta="Document · just now"
-                      onOpen={noop}
-                    />
-                  </div>
-                ) : undefined
-              }
             />
           </Example>
-          <Example label="Done, folded into one line">
+          <Example label="Done, folded into one line, with what the agent showed">
             <RunSummary
               steps={6}
               duration="1m 12s"

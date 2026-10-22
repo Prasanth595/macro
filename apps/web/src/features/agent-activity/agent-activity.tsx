@@ -1,8 +1,11 @@
+import { ItemFacts } from '@app/features/agent-cards/core/item-facts';
 import {
+  itemFacts,
   type RunCard,
   replacesStep,
   runCards,
   runDuration,
+  stepItem,
 } from '@app/features/agent-cards/core/run-cards';
 import { useOptionalMessage } from '@app/features/channel/Message/context';
 import type { AgentActivityData } from '@macro-inc/lexical-core';
@@ -21,15 +24,16 @@ const RunCards = lazy(
 );
 
 /**
- * The steps of an agent's reply inside a channel message, and what they
- * produced.
+ * The steps of an agent's reply inside a channel message, and what the agent
+ * showed with them.
  *
  * Live while the run of steps is still open, from the session's own fold, so
- * a step ticks from running to done where it was posted and its card
- * appears under it as soon as it finishes. Once the run seals, or for a
- * viewer who cannot read the session, the snapshot the server wrote into the
- * message keeps each step's status and label, and its card. Raw commands and
- * tool-input details are available only in the authorized live session view.
+ * a step ticks from running to done where it was posted, and what it showed
+ * appears as soon as it finishes. Once the run seals, or for a viewer who
+ * cannot read the session, the snapshot the server wrote into the message
+ * keeps each step's status and label, the item it touched, and what it
+ * showed. Raw commands and tool-input details are available only in the
+ * authorized live session view.
  */
 export function AgentActivity(props: AgentActivityData) {
   return (
@@ -65,13 +69,15 @@ function LiveActivity(props: AgentActivityData) {
 }
 
 /**
- * A run's steps and what they produced. While it runs, each step shows as
- * it goes, with its card under it. Once it is over, the steps fold into one
- * line - how long it worked, and for how many steps - and the cards stay:
- * they are what the work was for. A run where a step failed stays open, so
- * the failure is never folded away, and a long open run keeps the cards of
- * the steps it folds behind a count above that count. A view the agent
- * composed replaces its own step: showing it is the step.
+ * A run's steps and what the agent showed with them. While it runs, each
+ * step shows as it goes, a step that touched an item naming it on its line.
+ * Once it is over, the steps fold into one line - how long it worked, and
+ * for how many steps - and what the agent showed stays: it is the answer. A
+ * run where a step failed stays open, so the failure is never folded away,
+ * and a long open run keeps what the steps it folds behind a count showed
+ * above that count. A view the agent composed replaces its own step:
+ * showing it is the step, and a card in it for an item the run created or
+ * changed says so.
  */
 function Run(props: {
   rows: readonly (ActivityRowView & { card?: unknown })[];
@@ -81,6 +87,7 @@ function Run(props: {
 }) {
   const message = useOptionalMessage();
   const cards = createMemo(() => runCards(props.rows));
+  const facts = createMemo(() => itemFacts(props.rows));
   const steps = () => props.rows.filter((row) => !replacesStep(row.card));
   const failed = () =>
     steps().some(
@@ -98,44 +105,47 @@ function Run(props: {
     cards().filter((card) => rowIds.includes(card.rowId));
 
   return (
-    <Show
-      when={foldable() && !open()}
-      fallback={
-        <>
-          <Show when={foldable()}>
-            <RunSummary
-              steps={steps().length}
-              duration={duration()}
-              open
-              onToggle={() => setOpen(false)}
+    <ItemFacts.Provider value={facts}>
+      <Show
+        when={foldable() && !open()}
+        fallback={
+          <>
+            <Show when={foldable()}>
+              <RunSummary
+                steps={steps().length}
+                duration={duration()}
+                open
+                onToggle={() => setOpen(false)}
+              />
+            </Show>
+            <ActivityRows
+              rows={props.rows}
+              all={foldable()}
+              inPlace={(row) => replacesStep(row.card)}
+              item={(row) => stepItem(row.card)}
+              after={(id) => (
+                <Cards cards={cardsOf([id])} sessionId={props.sessionId} />
+              )}
+              earlier={(ids) => (
+                <Cards cards={cardsOf(ids())} sessionId={props.sessionId} />
+              )}
             />
-          </Show>
-          <ActivityRows
-            rows={props.rows}
-            all={foldable()}
-            inPlace={(row) => replacesStep(row.card)}
-            after={(id) => (
-              <Cards cards={cardsOf([id])} sessionId={props.sessionId} />
-            )}
-            earlier={(ids) => (
-              <Cards cards={cardsOf(ids())} sessionId={props.sessionId} />
-            )}
-          />
-        </>
-      }
-    >
-      <RunSummary
-        steps={steps().length}
-        duration={duration()}
-        open={false}
-        onToggle={() => setOpen(true)}
-      />
-      <Cards cards={cards()} sessionId={props.sessionId} />
-    </Show>
+          </>
+        }
+      >
+        <RunSummary
+          steps={steps().length}
+          duration={duration()}
+          open={false}
+          onToggle={() => setOpen(true)}
+        />
+        <Cards cards={cards()} sessionId={props.sessionId} />
+      </Show>
+    </ItemFacts.Provider>
   );
 }
 
-/** Cards, loaded only when a run has any. */
+/** What the agent showed, loaded only when a run showed anything. */
 function Cards(props: { cards: readonly RunCard[]; sessionId: string }) {
   return (
     <Show when={props.cards.length > 0}>

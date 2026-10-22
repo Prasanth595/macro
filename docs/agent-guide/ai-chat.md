@@ -951,11 +951,11 @@ Presentation means “Presented to the user,” not approved or sent. SDK operat
 activity reports request outcomes, without storing request arguments or response
 bodies. An SDK write that creates or changes a document, project, channel,
 form, calendar event, email thread or initiative records that item on its
-operation, at most 32 per run. Its card, the same one the equivalent Macro tool
-earns, shows under **Run code** in the session once the run finishes, and under
-that operation's step in a channel reply as soon as the write completes.
-Document content edits and routines are not in the SDK, so they earn no card
-from code. The execution journal retains source, status and final JSON/error;
+operation, at most 32 per run. The session names the item under its group of
+operations in **Run code**, and a channel reply names it on that operation's
+step as soon as the write completes; a card the agent shows for it says what
+was done to it. Document content edits and routines are not in the SDK, so code
+records no item for them. The execution journal retains source, status and final JSON/error;
 completed API writes are not rolled back after failure or cancellation.
 If a reused execution ID refers to different source, the card reports that tool
 results are unavailable and does not display the other program's saved results.
@@ -1151,7 +1151,7 @@ it. Another editor sees the draft as the agent wrote it, with **Send** (or **Cre
 event**) and **Discard**. What you type or edit stays if the card scrolls away and comes
 back. Once answered the card collapses to `Question · <text>` with
 `Answered` / `Declined` / `Cancelled` on the right and the agent continues; a sent email or
-created event leaves its receipt card under its row. Messages typed while a question is
+created event is named on its row. Messages typed while a question is
 open queue behind it; the composer's `Stop` square cancels the question and the turn.
 Anyone with edit access to the session may answer; viewers see the card with `Only someone
 who can edit this session can answer.` and nothing to press. The owner and everyone
@@ -1346,12 +1346,11 @@ closing, or interacting with a group overrides automatic collapse. Subagents
 and tools requiring user input remain outside these groups so they stay visible
 during other tool bursts. Nested agent activity has its own scrollable window.
 
-Under each run of tool calls, open or folded, are the cards of what it made: a
-receipt for each document, email, event, project, routine or form it created,
-changed or sent, a database answer it showed, and one sources pill for what its
-searches found - the same cards its reply carries in a channel. A receipt
-appears as soon as its call finishes and opens its item; its summary shows only
-to a reader who can open the item.
+No cards sit under a run of tool calls. A call that created, changed or sent an
+item names it on its own row, and the agent shows what the reply is about with
+`DisplayResults`. In that view, a card for an item the reply created or changed
+carries what was done to it (`Created`, `Sent`), the same as in a channel reply;
+its summary shows only to a reader who can open the item.
 
 The group caret sits immediately after its label and appears on hover or keyboard
 focus. Expand an edit row to view its diffs. Result bodies load only when their
@@ -1364,6 +1363,9 @@ without opening a tool row. It breaks tool groups before and after itself,
 including while pending; later calls start a separate group.
 Its dashboard supports markdown, timelines, entity lists, calendar agendas, item
 cards, tags, and channel messages, using the same full-width view as AI chat.
+Item cards cover documents, email threads, events, projects, channels, routines,
+forms and initiatives, with the same controls as anywhere else (a routine's card
+pauses or runs it).
 Tags nest to any depth, each with its colour and what it is for; a tag that exists
 shows its current name and opens the items tagged with it. A card of more than
 eight tags holds its height and offers **Show all**. Incomplete arguments stay hidden while
