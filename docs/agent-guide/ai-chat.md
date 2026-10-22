@@ -2066,3 +2066,9 @@ can share a session into a channel. These tools cannot approve permission
 requests on a user's behalf.
 
 ![Expanded session read with a terminal failure visible after truncated text](media/ai-chat/read-agent-session.png)
+
+Agent-session system events appear as a single quiet row with a kind-specific
+icon, an outcome summary, and relative time (hover for the exact timestamp).
+Failures and unconfirmed outcomes use the error tone. Review events refresh
+the existing card without adding a second timeline row when that card is
+already in the thread. The row stays on one line and truncates on phones.

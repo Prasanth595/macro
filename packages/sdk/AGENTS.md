@@ -48,6 +48,8 @@ the existing gateway prefixes.
   export_types` writes it, and `foldedLog()` casts the opaque wire schema to it.
 - System events project separately in fold metadata and never appear as user
   messages in `foldedLog()`; silent notification turns have no assistant message.
+- Fold metadata notifications use a generated `kind`-discriminated payload union;
+  keep its phased serialization types and stored JSON shape aligned.
 - Workspace advanced filters use the server's serialized AST names, not Rust
   enum variant names. Validate new filter examples against the real local API.
 - Async iterators are lazy; `limit` is page size. Preserve filters on every page

@@ -79,7 +79,13 @@ their complete original prompt inputs, including split echoes. Notification sess
 read the original log across load boundaries so fresh readers retain provenance;
 turn numbers are rebuilt from the runtime's replay rather than copied.
 Notifications project separately from messages: cards refresh their subject;
-other events appear as quiet timeline markers. A pending review response shows
+other events appear as quiet timeline rows. The fold flattens the protocol’s
+`NotificationEvent` tagged enum into the existing `kind`/`payload` shape, so
+generated web and SDK clients narrow each payload by kind while stored rows
+remain readable. `SessionEventRow` renders an icon, factual one-line summary,
+relative time with exact time on hover, and an optional host-provided review
+subject action. Failed and unconfirmed outcomes use the error tone; summary
+text truncates on mobile without adding another row. A pending review response shows
 responding until agent output begins, on desktop and mobile.
 
 Only notification turns may suppress an exact `<noop/>` response, and only if
@@ -112,3 +118,10 @@ first reply, request rejection, and silent completion on desktop and mobile.
 
 [Desktop responding state](images/agent-session-notifications-desktop.png) ·
 [Mobile responding state](images/agent-session-notifications-mobile.png)
+
+The event-row fixture uses the real component, Tailwind styles, and shared
+controls. Desktop and touch checks cover every kind, review-subject navigation,
+relative/exact time, failures, and phone truncation without horizontal overflow.
+
+[Desktop event rows](images/session-event-rows-desktop.png) ·
+[Mobile event rows](images/session-event-rows-mobile.png)

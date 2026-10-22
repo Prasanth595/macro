@@ -17,19 +17,17 @@ import {
   Show,
 } from 'solid-js';
 import { match } from 'ts-pattern';
+import { SessionEventRow } from '../components/session-event-row';
 import { useAgentSession } from '../context/AgentSessionContext';
 import type { AgentMessageTarget } from '../core/search-location';
 import { isLiveTurn, liveTurnMessage } from '../state/live-turn';
-import {
-  notificationLabel,
-  timelineNotifications,
-} from '../state/session-notifications';
+import { timelineNotifications } from '../state/session-notifications';
 import { WorkingLine } from '../ui/WorkingLine';
 import { Message } from './AgentMessage';
 import { ReplyToSelection } from './ReplyToSelection';
 
 export function Transcript(props: { searchTarget?: AgentMessageTarget }) {
-  const { messages, metadata, quoteSelection, sessionId, turn } =
+  const { messages, metadata, quoteSelection, sessionId, turn, userId } =
     useAgentSession();
   // At most one turn runs, and the fold's `turn` is the one word on whether
   // it does - so which message shimmers is decided here, once, not by each
@@ -178,11 +176,8 @@ export function Transcript(props: { searchTarget?: AgentMessageTarget }) {
           >
             <Show when={eventsById().get(id)}>
               {(event) => (
-                <div
-                  class="macro-message-width mx-auto px-4 pb-2 text-xs text-ink-muted"
-                  role="status"
-                >
-                  {notificationLabel(event())}
+                <div class="macro-message-width mx-auto px-4 pb-2 min-w-0">
+                  <SessionEventRow event={event()} viewerId={userId()} />
                 </div>
               )}
             </Show>
