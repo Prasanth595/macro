@@ -10,8 +10,8 @@ use crate::domain::events::AgentSessionLifecycleEvent;
 use crate::domain::model::{
     AgentMcpServers, AgentSession, AgentSessionId, AgentSessionLog, AgentSessionPreviewData,
     ClaimOutcome, CreateAgentSessionParams, DEFAULT_AGENT_SESSION_NAME, LeaseView, LogAppended,
-    ManagerFence, ReplicaAddress, ReplicaId, SandboxSize, SessionBot, SessionClaim, SessionManager,
-    SessionPreviewCandidate, SessionSource, SessionStatus, SessionVisibility,
+    ManagerFence, Message, ReplicaAddress, ReplicaId, SandboxSize, SessionBot, SessionClaim,
+    SessionManager, SessionPreviewCandidate, SessionSource, SessionStatus, SessionVisibility,
     StoredAgentSessionLog, StoredQueuedAction, ThreadSession, TurnPrompter,
 };
 use crate::domain::ports::{
@@ -991,7 +991,16 @@ impl AgentSessionLogRepo for InMemoryAgentSessionRepo {
         let start = boundary
             .and_then(|id| rows.iter().position(|row| row.id == id))
             .unwrap_or(0);
-        Ok(rows.into_iter().skip(start).collect())
+        let has_notifications = rows.iter().any(|row| match &row.entry.content {
+            Message::ToRuntime(message) | Message::Notification(message) => {
+                agent_runtime_protocol::domain::notification::input_from_runtime(message).is_some()
+            }
+            _ => false,
+        });
+        Ok(rows
+            .into_iter()
+            .skip(if has_notifications { 0 } else { start })
+            .collect())
     }
 }
 

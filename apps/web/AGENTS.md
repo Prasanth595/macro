@@ -92,7 +92,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
 - Compose settings pages with `features/settings/primitives.tsx` so section headings,
-  flat neutral cards, row spacing, and control shapes stay consistent.
+  raised composer cards, row spacing, and control shapes stay consistent; keep
+  Integrations on the shared page width and side padding.
 - Keep personal accounts and agent tool connections together in Settings → Integrations;
   preserve `agent-connections` as an alias for existing links.
 - Keep bot setup focused on the token-and-SDK workflow; Agent and Ownership
@@ -135,6 +136,10 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Inline agent steps reuse the session code-execution query for live SDK operation
   names; completed step snapshots come from the shared fold of the tool receipt.
 - All API/network calls live in service-clients.
+- Open projects through `openProject` (`features/projects/open-project.ts`): it
+  retargets an already-open project split to the section or comment in place.
+  Opening the legacy `initiative-view` component route beside an open project
+  mounts a redirect shim that stays on "Loading project".
 - Bound Discussion comment readiness waits to ten seconds; recover from initial layout interruptions until the message is visible, and release the target on user input (including scrollbar pointer-down), timeout, or successful arrival.
 - Keep early DOCX opens loading while exports return processing (409); retry only
   that response, with a bounded wait. See the Word editor walkthrough in
@@ -142,6 +147,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Add Google Meet account hints only to join actions using the displayed calendar's
   connected email; keep stored and copied conference links unchanged. See the
   [calendar walkthrough](../../docs/agent-guide/calendar.md).
+- Mark loaded calendar row notifications through the notification source so read
+  dots update immediately and failed writes roll back; grid selections also mark
+  the canonical event read, excluding team projections.
 - Route explicit call exits using the server's `callEnded` result: ended calls
   open their record; ongoing channel and scheduled calls return to the channel
   and Calendar. Preserve the session ID before disconnecting.
@@ -259,14 +267,12 @@ Build and copy the agent-fold JavaScript glue and WASM before Vite runs, and
 check that both appear in the output. Without them, Vite leaves the worker's
 relative imports unchanged and Tauri can serve HTML for the missing module.
 
-## macOS desktop runtime: Chromium (CEF), experimental
-`tauri/desktop-cef` builds the macOS app with Chromium in its own Cargo workspace;
-the shipped builds of every platform still come from `tauri/src-tauri` on the
-system webview. See `tauri/desktop-cef/AGENTS.md` before changing Tauri
+## macOS desktop runtime: Chromium (CEF)
+`tauri/desktop-cef` builds the shipped macOS app with Chromium in its own Cargo
+workspace. The macOS release DMG builds this workspace; iOS, Android, Linux,
+and Windows still build `tauri/src-tauri` on the system webview. See
+`tauri/desktop-cef/AGENTS.md` before changing Tauri
 dependencies or the app's served origin.
-
-## macOS desktop gotcha: third-party iframes
-WKWebView asks the desktop navigation plugin about iframe loads as well as page loads, and the plugin cannot tell them apart. A third-party iframe is classified as external: its load is cancelled and the page opens in the browser, leaving an empty frame in the app. List a third-party page the app frames in `EMBEDDED_DOCUMENTS` in `tauri/src-tauri/src/lib.rs`.
 
 ## iOS gotcha: Web Workers must be lazy
 On iOS WKWebView, eagerly constructing an ES module Web Worker (`new Worker(url, { type: 'module' })`) whose script is served via the `tauri://` custom URL scheme **deadlocks the WebContent process**. The worker thread parks in WebKit's sync module loader waiting for an IPC response that never wakes it; JS execution silently stops after that point.
@@ -337,3 +343,23 @@ On a physical iPhone, WKWebView still synthesises the compatibility `mousedown`/
 3. **Run it on the device, not the Simulator**, with Safari Web Inspector attached (Develop → the iPhone → the Macro webview), filter the console by the prefix, reproduce, and read the order. A `mousedown` arriving after a `pointerdown` logged with `defaultPrevented: true`, followed by `focusout` whose `relatedTarget` is a container, is this bug.
 
 4. **Strip the instrumentation before committing.**
+
+### Agent system events
+
+Accept `notification` in both fetched and subscribed GraphQL session log rows.
+System notifications live in fold metadata, separate from messages. Review
+subjects refresh their existing card; other subjects render quiet timeline rows
+through `block-agent/components/session-event-row.tsx`. Match typed event
+payloads exhaustively, summarize outcomes without draft content, and keep the
+icon, truncated summary, timestamp, and optional subject action on one line on
+desktop and mobile.
+Keep Responding bound to the notification turn, including rejection and noop.
+The backend-free desktop/mobile check is
+`bunx playwright test --config src/features/block-agent/browser-test/playwright.config.ts`.
+Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
+
+### Agent backend hosting
+
+Cognition, routines, preview control, and MCP share `agent_harness_service`.
+Direct local hosts use port 8101 with the existing feature prefixes; the
+instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.
