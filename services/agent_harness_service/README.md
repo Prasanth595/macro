@@ -8,7 +8,9 @@ both dev and production, with rolling task replacement.
 Read [AGENTS.md](AGENTS.md) for the module map and checks, and the
 [consolidation guide](../../docs/guides/consolidate-agent-services.md) before
 cutting over existing deployments. Preview networking and the projection queue
-remain in resource-only stacks; connection gateway is app-wide realtime.
+remain in resource-only stacks, along with the original public cognition/MCP
+DNS records. Their URLs and OAuth callbacks stay unchanged while the shared
+gateway routes them to the harness; connection gateway is app-wide realtime.
 
 Use the [local development guide](../../docs/development/running-locally.md)
 for local stack setup. Configuration belongs to the `agent-harness-service`

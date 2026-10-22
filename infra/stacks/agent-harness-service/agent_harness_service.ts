@@ -10,6 +10,7 @@ import {
 } from '../../packages/resources';
 import { EcrImage } from '../../packages/service';
 import {
+  AGENT_PUBLIC_URLS,
   CLOUD_TRAIL_SNS_TOPIC_ARN,
   DopplerEcsEnvironment,
   getGatewayAlb,
@@ -305,6 +306,54 @@ export class AgentHarnessService extends pulumi.ComponentResource {
     );
 
     this.targetGroup = gatewayTargetGroup.target_group;
+    // Keep public OAuth identities and pinned clients on their original hosts.
+    // This shares the API target group, preserving ECS's five-target-group limit.
+    const publicHostRules = [
+      new aws.lb.ListenerRule(
+        `${BASE_NAME}-cognition-public-host-${stack}`,
+        {
+          listenerArn: gatewayLoadBalancer.httpsListenerArn,
+          priority:
+            GATEWAY_PRIORITIES[GatewayService.AGENT_COGNITION_PUBLIC_HOST],
+          conditions: [
+            {
+              hostHeader: {
+                values: [new URL(AGENT_PUBLIC_URLS.cognition).hostname],
+              },
+            },
+          ],
+          transforms: [
+            {
+              type: 'url-rewrite',
+              urlRewriteConfig: {
+                rewrite: {
+                  regex: '^/(cognition/)?(.*)$',
+                  replace: '/cognition/$2',
+                },
+              },
+            },
+          ],
+          actions: [{ type: 'forward', targetGroupArn: this.targetGroup.arn }],
+          tags,
+        },
+        { parent: this }
+      ),
+      new aws.lb.ListenerRule(
+        `${BASE_NAME}-mcp-public-host-${stack}`,
+        {
+          listenerArn: gatewayLoadBalancer.httpsListenerArn,
+          priority: GATEWAY_PRIORITIES[GatewayService.AGENT_MCP_PUBLIC_HOST],
+          conditions: [
+            {
+              hostHeader: { values: [new URL(AGENT_PUBLIC_URLS.mcp).hostname] },
+            },
+          ],
+          actions: [{ type: 'forward', targetGroupArn: this.targetGroup.arn }],
+          tags,
+        },
+        { parent: this }
+      ),
+    ];
     const sharedApiRoutes: [GatewayService, string][] = [
       [GatewayService.MCP_SERVER, '/mcp'],
       [GatewayService.DOCUMENT_COGNITION_SERVICE, '/cognition'],
@@ -493,6 +542,7 @@ export class AgentHarnessService extends pulumi.ComponentResource {
         dependsOn: [
           ...args.configurationSecrets,
           gatewayTargetGroup.listener_rule,
+          ...publicHostRules,
           ...sharedApiRules,
           egress.listener_rule,
           claudeOauthPolicy,

@@ -78,8 +78,9 @@ message attribution after owner approval, while retaining user authentication.
 
 All feature configs read the same harness `APP_SECRETS_JSON`; the harness
 Doppler validation binary validates each config. `MCP_PUBLIC_URL` is the public
-server base (`/mcp`); `MCP_CLIENT_PUBLIC_URL` is the integrations callback base
-(`/cognition`). Both settings are required; keep them separate. `POSTHOG_API_KEY` and `POSTHOG_HOST` remain
+server origin (`mcp-server[-dev].macro.com`); `MCP_CLIENT_PUBLIC_URL` is the
+integrations callback origin (`document-cognition[-dev].macro.com`). The shared
+gateway preserves these hostnames and internally rewrites cognition paths. Both settings are required; keep them separate. `POSTHOG_API_KEY` and `POSTHOG_HOST` remain
 available for feature flags and future analytics; MCP emits no analytics events.
 
 The shared Postgres pool defaults to 30 connections (`DATABASE_MAX_CONNECTIONS`).

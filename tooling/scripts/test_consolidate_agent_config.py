@@ -57,11 +57,11 @@ class ConsolidateAgentConfigTest(unittest.TestCase):
         self.assertEqual(target["EXISTING_SECRET"], "private-fixture")
         self.assertEqual(target["MISSING_SETTING"], "first-source")
         self.assertNotIn("PORT", target)
-        self.assertEqual(target["MCP_PUBLIC_URL"], "https://dev-gateway.macro.com/mcp")
-        self.assertEqual(target["MCP_CLIENT_PUBLIC_URL"], "https://dev-gateway.macro.com/cognition")
+        self.assertEqual(target["MCP_PUBLIC_URL"], "https://mcp-server-dev.macro.com")
+        self.assertEqual(target["MCP_CLIENT_PUBLIC_URL"], "https://document-cognition-dev.macro.com")
         self.assertEqual(
             target["PIPEDREAM_WEBHOOK_URI"],
-            "https://dev-gateway.macro.com/cognition/pipedream/mcp/webhook?secret=fixture",
+            "https://old.example/webhook?secret=fixture",
         )
         self.assertNotIn("private-fixture", output.getvalue())
         self.assertNotIn("replacement-fixture", output.getvalue())

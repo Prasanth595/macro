@@ -37,15 +37,20 @@ python tooling/scripts/consolidate-agent-config.py --config dev --apply
 
 The same script accepts `--config prd` for an explicitly authorized production
 cutover. It keeps existing harness keys, including explicit empty values, fills missing integration values,
-and sets the public MCP and connection-callback bases to the gateway URLs.
-It also moves the Pipedream webhook URL to the gateway while retaining its
-existing secret query parameter.
+and preserves the original public MCP and integration callback origins.
+It restores the existing Pipedream webhook URL from the cognition config, including
+its secret query parameter. Public URLs do not change when the process moves.
 Preserve the preview SSH host key and MCP credential encryption key; replacing
 them breaks pinned clients and stored credentials.
 
-`MCP_PUBLIC_URL` is the public server base ending in `/mcp`.
-`MCP_CLIENT_PUBLIC_URL` is the outbound integration callback base ending in
-`/cognition`. The former services used `MCP_PUBLIC_URL` for both meanings.
+`MCP_PUBLIC_URL` is the original `https://mcp-server[-dev].macro.com` server
+base. `MCP_CLIENT_PUBLIC_URL` is the original
+`https://document-cognition[-dev].macro.com` outbound integration callback base.
+The former services used `MCP_PUBLIC_URL` for both meanings. The gateway keeps
+its existing feature-prefix routes as well. Host rules on the shared gateway
+forward the original MCP paths unchanged and prepend `/cognition` internally
+for the original cognition host. The browser URL and OAuth redirect URI remain
+unchanged. The shared wildcard certificate already covers both hostnames.
 Local instance generation sets both values separately and sets `APP_BASE_URL`
 to the instance's frontend origin. Its FusionAuth configuration permits callbacks
 through both loopback and the machine hostname; the default harness API is
@@ -85,13 +90,10 @@ maintenance window:
 1. Merge and validate the destination Doppler configuration for the chosen
    environment. Wait for the Doppler Secrets Manager sync to include the new
    keys in `APP_SECRETS_JSON`; writing Doppler is not proof that its sync has
-   completed. Verify public OAuth clients accept the gateway callback URLs.
-   In particular, verify the target Slack app allows the new callback while
-   retaining legacy callbacks for environments that have not moved. The
-   checked-in manifest is additive; editing it does not update Slack. A shared
-   production-connected app needs separate authorization before changing its
-   configuration. Ensure FusionAuth permits the public MCP gateway callback
-   already listed in its stack.
+   completed. Preserve the existing public MCP and integration callback origins.
+   Slack and FusionAuth keep their existing redirect URLs; this cutover does not
+   require editing their allowlists. Confirm the shared gateway listener uses
+   the existing wildcard certificate for the original hostnames.
    Apply additive migration `20261021205701_agent_preview_replication.sql`
    before starting the combined process.
 2. Pause deployments for the chosen environment, cancel queued deployments,
@@ -114,25 +116,39 @@ maintenance window:
    and apply this routing update only after the combined tasks are healthy.
    The new rules transfer gateway traffic to those tasks while the old rules
    and services still exist. Verify authenticated requests through each prefix.
-5. Apply the retired `mcp-server` and `agent-schedule-service` stack programs,
+5. Before retiring any old public endpoint, test both original hostnames against
+   the gateway with `curl --connect-to`, preserving their Host header and TLS SNI.
+   Verify cognition callbacks preserve query parameters and MCP discovery still
+   advertises the original issuer. Make a separate DNS-handoff checkout from
+   the currently deployed pre-retirement source. In each old service component,
+   change only the existing Route53 alias destination from its ALB to
+   `gatewayLoadBalancer.albDnsName` / `gatewayLoadBalancer.albZoneId`. Keep every
+   old resource declaration, parent and name. Target only that existing record
+   and its existing `gateway-stack` StackReference. Save and inspect these
+   plans: each DNS record must update in place, and no old compute or ALB may be
+   changed or deleted. Do not use the final retirement program for this targeted
+   step: omitted resources can cause Pulumi to demand their deletion. Apply
+   those exact DNS-only plans, wait at least two observed DNS TTLs, and verify
+   the original URLs through normal DNS before applying the retirement programs.
+6. Apply the retired `mcp-server` and `agent-schedule-service` stack programs,
    then `document-cognition` (directory `document-cognition-service`). Remove
    their old ECS services and rules, plus cognition's refresh Lambda/EventBridge
    rules, retaining the projection queue and DLQ. The temporary harness rules
    continue serving traffic. The retired MCP and scheduler stacks are no longer
    automatic service builds; do not destroy the shared gateway or database.
-6. Apply network-only `preview-gateway`, removing its ECS task while retaining
+7. Apply network-only `preview-gateway`, removing its ECS task while retaining
    the domain, certificates, HTTPS/SSH load balancers, security group, and target
    groups. Preserve the control target group's default port to avoid replacing
    it. Wait for the old preview service and its target registrations to drain
    before attaching those target groups to the harness. Preview downtime is
    expected during this handoff.
-7. Preview and apply the final source, restoring the harness rules' intended
+8. Preview and apply the final source, restoring the harness rules' intended
    priorities and attaching all three existing preview target groups. ECS
    registers preview control targets on API port 8101 using an explicit port
    override; health checks use that port. Verify the saved plan updates the
    existing rules and target groups without replacing them. Wait for two
    healthy harness tasks and all five target groups to be healthy.
-8. Check OAuth discovery and authentication, chat/completions, routine
+9. Check OAuth discovery and authentication, chat/completions, routine
    dispatch, and a complete preview SSH/browser handoff. Verify tracing across
    the shared HTTP boundaries and confirm no retired agent ECS service or
    refresh Lambda remains. Merge the final source and resume deployments.
@@ -144,13 +160,9 @@ update in place. ALB priorities are unique: do not apply the final priorities
 until the old rules are removed. Preserve resource-only stacks rather than
 recreating durable queues or preview DNS/certificates in another stack.
 
-This sequence protects gateway URLs. Old direct cognition/MCP hostnames need a
-separate DNS/client cutover or explicitly prepared compatibility routing; their
-traffic does not pass through the gateway rules above. Before production
-retirement, migrate pinned clients and the production MCP links in `.mcp.json`,
-web setup cards, marketing, and public docs. Publish those links only when the
-production gateway endpoint is serving, or retain compatibility routing for the
-old hostname.
+The original cognition and MCP DNS records remain in their resource-only stacks
+and point at the shared gateway. Their old ALBs, tasks, and task definitions are
+retired after DNS drains. No public client URL or OAuth allowlist change is needed.
 
 Automatic deployment of the consolidated service requires this one-time
 cutover first. Do not merge and rely on an unordered parallel deployment to
@@ -160,6 +172,11 @@ retire old rules while creating their replacements.
 
 Save the deployed source revisions, task definitions, listener rules, and an
 encrypted export of each affected Pulumi stack before applying changes.
+
+For the hostname handoff, restore the saved DNS aliases to the old ALBs while
+those endpoints are still healthy, and wait for DNS caches to expire before
+removing the gateway host rules. After old ALB retirement, restore its saved
+stack before pointing DNS back.
 
 If the staged harness cannot become healthy, leave the old feature routes and
 services in place and restore the previous harness revision. If a feature route

@@ -3,6 +3,7 @@ import * as pulumi from '@pulumi/pulumi';
 import * as doppler from '@pulumiverse/doppler';
 import { createBucket } from '../../packages/resources';
 import {
+  AGENT_PUBLIC_URLS,
   config,
   CODEX_OAUTH_KMS_ALIAS,
   getAiToolsInfra,
@@ -138,10 +139,8 @@ const configurationSecrets = Object.entries({
     stack === 'prod' ? 'https://macro.com' : 'https://dev.macro.com',
   PREVIEW_CONTROL_HOSTS:
     stack === 'prod' ? 'gateway.macro.com' : 'dev-gateway.macro.com',
-  MCP_PUBLIC_URL: getServiceUrl(ServiceUrl.MCP_SERVER_URL),
-  MCP_CLIENT_PUBLIC_URL: getServiceUrl(
-    ServiceUrl.DOCUMENT_COGNITION_SERVICE_URL
-  ),
+  MCP_PUBLIC_URL: AGENT_PUBLIC_URLS.mcp,
+  MCP_CLIENT_PUBLIC_URL: AGENT_PUBLIC_URLS.cognition,
 }).map(
   ([key, value]) =>
     new doppler.Secret(`harness-${key}-${stack}`, {

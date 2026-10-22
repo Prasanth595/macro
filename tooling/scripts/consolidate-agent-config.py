@@ -4,7 +4,6 @@ import argparse
 import json
 import subprocess
 import tempfile
-from urllib.parse import urlsplit, urlunsplit
 
 
 def download(project, config):
@@ -25,21 +24,19 @@ def main():
     target = download("agent-harness-service", args.config)
     merged = dict(target)
     # Existing harness settings win, including rollout gates and credentials.
-    for project in ["document-cognition", "mcp-server", "agent-schedule-service", "preview-gateway"]:
-        for key, value in download(project, args.config).items():
+    sources = {project: download(project, args.config) for project in
+               ["document-cognition", "mcp-server", "agent-schedule-service", "preview-gateway"]}
+    for source in sources.values():
+        for key, value in source.items():
             if not key.startswith("DOPPLER_") and key not in ["PORT", "ENVIRONMENT"]:
                 if key not in merged:
                     merged[key] = value
-    gateway = "https://gateway.macro.com" if args.config == "prd" else "https://dev-gateway.macro.com"
-    merged["MCP_PUBLIC_URL"] = gateway + "/mcp"
-    merged["MCP_CLIENT_PUBLIC_URL"] = gateway + "/cognition"
-    if merged.get("PIPEDREAM_WEBHOOK_URI"):
-        webhook = urlsplit(merged["PIPEDREAM_WEBHOOK_URI"])
-        destination = urlsplit(gateway)
-        merged["PIPEDREAM_WEBHOOK_URI"] = urlunsplit((
-            destination.scheme, destination.netloc, "/cognition/pipedream/mcp/webhook",
-            webhook.query, "",
-        ))
+    # Preserve the public OAuth identities even though the serving process moves.
+    suffix = "" if args.config == "prd" else "-dev"
+    merged["MCP_PUBLIC_URL"] = f"https://mcp-server{suffix}.macro.com"
+    merged["MCP_CLIENT_PUBLIC_URL"] = f"https://document-cognition{suffix}.macro.com"
+    if sources["document-cognition"].get("PIPEDREAM_WEBHOOK_URI"):
+        merged["PIPEDREAM_WEBHOOK_URI"] = sources["document-cognition"]["PIPEDREAM_WEBHOOK_URI"]
     updates = {key: value for key, value in merged.items() if target.get(key) != value}
     print(f"agent-harness-service/{args.config}: {len(updates)} keys to merge")
     print(", ".join(sorted(updates)))
