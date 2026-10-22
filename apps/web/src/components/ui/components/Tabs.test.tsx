@@ -8,7 +8,10 @@ vi.mock('@core/mobile/isTouchDevice', () => ({
   isTouchDevice: () => device.touch,
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 it('switches a controlled view by its visible label', () => {
   const [value, setValue] = createSignal<'all' | 'recent' | 'threads'>('all');
@@ -79,7 +82,8 @@ it('does not select a disabled option', () => {
   expect(value()).toBe('personal');
 });
 
-it('slides the composer mode switch along its track on desktop', () => {
+// Kobalte's sliding indicator measures the selected option.
+const stubResizeObserver = () =>
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -88,6 +92,9 @@ it('slides the composer mode switch along its track on desktop', () => {
       disconnect() {}
     }
   );
+
+it('slides the composer mode switch along its track on desktop', () => {
+  stubResizeObserver();
   const [value, setValue] = createSignal<'chat' | 'code'>('chat');
   render(() => (
     <Tabs
@@ -105,25 +112,15 @@ it('slides the composer mode switch along its track on desktop', () => {
   fireEvent.click(screen.getByText('Code', { exact: true }));
   expect(value()).toBe('code');
   expect(document.querySelector('[role=presentation]')).not.toBeNull();
-  vi.unstubAllGlobals();
 });
 
 describe('on touch', () => {
   beforeEach(() => {
     device.touch = true;
-    // Kobalte's sliding indicator measures the selected option.
-    vi.stubGlobal(
-      'ResizeObserver',
-      class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      }
-    );
+    stubResizeObserver();
   });
   afterEach(() => {
     device.touch = false;
-    vi.unstubAllGlobals();
   });
 
   const renderTouch = (touch: TabsTouchStyle | undefined) => {
