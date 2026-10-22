@@ -472,9 +472,10 @@ calendar access allows. The update refuses a detail change from such a guest wit
 pass them); the editor then shows the line in a toast and locks its details, and a refused
 drag snaps back with the same toast. The refusal covers a stale `viewerCan`, an event the
 viewer still sees as editable after the organizer turned modifying off, so check it without a
-Google account by answering `PATCH /events/{id}` (or the GraphQL `updateCalendarEvent`
-mutation) with HTTP 403 and code `guests_cannot_modify` on an event whose
-`viewerCan.editDetails` is still true: only there does the editor send a detail change at all.
+Google account on an event whose `viewerCan.editDetails` is still true, the only case where
+the editor sends a detail change at all: answer `PATCH /events/{id}` with HTTP 403 and code
+`guests_cannot_modify`, or the GraphQL `updateCalendarEvent` mutation with an error whose
+`extensions.code` is `guests_cannot_modify`.
 With the `enable-calendar-guest-invites` flag on, the organizer sets what guests may do in the
 composer's `Guest permissions` row, under the pills on desktop and phones alike:
 `Modify event`, `Invite others` and `See guest list`, in Google Calendar's order, with Google's
