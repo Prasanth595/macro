@@ -7,7 +7,10 @@ mod test;
 use chrono::{DateTime, NaiveDate, Utc};
 use chrono_tz::Tz;
 
-use super::models::{EventTime, EventType};
+use super::{
+    meeting_links::{first_macro_call_url, strip_macro_call},
+    models::{EventTime, EventType},
+};
 
 /// Longest content line, in octets, before RFC 5545 folding.
 const MAX_LINE_OCTETS: usize = 75;
@@ -28,7 +31,8 @@ pub enum CalendarEventExportAccess {
 ///
 /// Attendees and the conference link are deliberately absent: a channel
 /// share exposes the meeting, not its guest list or join link, and the export
-/// has one shape however the requester sees the event.
+/// has one shape however the requester sees the event. A Macro call travels
+/// in the description and location instead, so the renderer strips it there.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CalendarEventExport {
     /// How the requester sees the event.
@@ -95,16 +99,22 @@ pub fn render_event_ics(event: &CalendarEventExport) -> String {
     lines.extend(time_lines(&event.time, !recurrence_lines.is_empty()));
     lines.extend(recurrence_lines.into_iter().map(str::to_string));
     lines.push(format!("SUMMARY:{}", escape_text(&event.title)));
-    if let Some(description) = event
+    let description = event
         .description
         .as_deref()
         .and_then(plain_text)
-        .filter(|text| !text.is_empty())
-    {
+        .unwrap_or_default();
+    let location = event.location.clone().unwrap_or_default();
+    let (description, location) =
+        match first_macro_call_url(event.location.as_deref(), event.description.as_deref()) {
+            Some(url) => strip_macro_call(&description, &location, &url),
+            None => (description, location),
+        };
+    if !description.is_empty() {
         lines.push(format!("DESCRIPTION:{}", escape_text(&description)));
     }
-    if let Some(location) = event.location.as_deref().filter(|value| !value.is_empty()) {
-        lines.push(format!("LOCATION:{}", escape_text(location)));
+    if !location.is_empty() {
+        lines.push(format!("LOCATION:{}", escape_text(&location)));
     }
     if let Some(email) = event.organizer_email.as_deref() {
         let name = event

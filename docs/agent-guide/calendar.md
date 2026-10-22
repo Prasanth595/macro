@@ -435,7 +435,8 @@ As in Google Calendar, the guests row of the details popover (a bottom sheet on 
 carries `Copy guest emails` and `Email guests` icon buttons. Copying puts every guest's
 address on the clipboard, comma-separated. Emailing opens a new email addressed to every
 guest but you — in a split beside the calendar on desktop, as the full-screen composer on
-touch devices — and is hidden when you are the only guest.
+touch devices, in its own composer even when another one is open — and is hidden when you
+are the only guest.
 With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
 whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
 organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
@@ -452,13 +453,30 @@ read-only pill that explains why. A guest on an event whose organizer hides the 
 may not invite either (`viewerCan.inviteGuests` is false; the route answers 403
 `guest_list_hidden`). To check the refusal state without a Google account, answer
 `POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
+An event that reached several connected inboxes shows one chip per inbox (overlapping;
+tell them apart by calendar color), and each copy answers only for its own inbox: a
+guest copy stays a guest copy, marked `(you)` on that inbox's row alone, even when
+another connected inbox organizes the event. An Outlook guest copy never offers `Add
+guests` (Outlook lets only the organizer change a meeting) and shows the same
+explanation; an Outlook organizer adds guests like a Google one.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description
-as plain text, location and organizer, never the guest list or join link. Like `Copy event`, it
+as plain text, location and organizer, never the guest list or join link. A Macro call's
+`Join Macro call` line and a location that is only its link are left out too, as event details
+leave them out. Like `Copy event`, it
 is absent from teammates' out-of-office chips. Its endpoint, document storage's
 `GET /calendar-events/{event_id}/ics`, also exports an event shared with a channel the viewer
 belongs to.
+Beside it, `Forward by email` (shown under the same rule) passes the event on the way Gmail
+forwards an invitation: it closes the details, fetches the same file, and opens a new email
+where `Email guests` does, with no recipients, the title as subject, a plain-text summary in
+the body (title, when in the viewer's zone, the repeat rule in words, location, organizer and
+description, never guests or a join link) and the `.ics` attached as a picked file would be.
+Nothing is saved as a draft until you edit something. The file is `METHOD:PUBLISH`, so
+recipients get a copy to add to their calendar, not an invitation they can answer. If the file
+cannot be fetched, no composer opens and a `Failed to forward event` toast shows; to check it,
+answer the `.ics` route with an error.
 
 With the `enable-calendar-team-ooo` flag on, teammates' Google Calendar out-of-office events
 overlay the grid as read-only chips titled `<name>: <event title>`. The sidebar's
