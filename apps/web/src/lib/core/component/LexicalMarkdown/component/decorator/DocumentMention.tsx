@@ -54,7 +54,7 @@ import { useFormDetailQuery } from '@queries/storage/forms';
 import { useSystemSkillsQuery } from '@queries/storage/system-skills';
 import { blockNameToItemType } from '@service-storage/client';
 import { createCallback } from '@solid-primitives/rootless';
-import { Button } from '@ui';
+import { Button, Tooltip } from '@ui';
 import {
   $getNodeByKey,
   COMMAND_PRIORITY_NORMAL,
@@ -418,6 +418,8 @@ export function DocumentMention(props: DocumentMentionDecoratorProps) {
 
 /** Routine references use their saved label; routines have no shared item preview. */
 function RoutineMention(props: DocumentMentionDecoratorProps) {
+  const name = () =>
+    props.documentName?.replaceAll('\n', ' ').trim() || 'Routine';
   const open = (event: MouseEvent | KeyboardEvent) => {
     event.preventDefault();
     event.stopPropagation();
@@ -429,18 +431,21 @@ function RoutineMention(props: DocumentMentionDecoratorProps) {
     );
   };
   return (
-    <span
-      class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
-      role="link"
-      tabIndex={0}
-      on:mousedown={(event) => event.preventDefault()}
-      on:click={open}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') open(event);
-      }}
-    >
-      <DocumentMentionStatic {...props} />
-    </span>
+    <Tooltip label={name()} as="span" disabled={!props.collapsed}>
+      <span
+        class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
+        role="link"
+        aria-label={name()}
+        tabIndex={0}
+        on:mousedown={(event) => event.preventDefault()}
+        on:click={open}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') open(event);
+        }}
+      >
+        <DocumentMentionStatic {...props} />
+      </span>
+    </Tooltip>
   );
 }
 

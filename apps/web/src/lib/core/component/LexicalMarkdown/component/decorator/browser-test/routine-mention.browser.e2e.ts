@@ -19,4 +19,10 @@ test('an agent routine link renders as a clickable mention', async ({
   await expect(page.getByLabel('Opened split')).toContainText(
     '"id":"0195ceb6-ec2e-7023-80e4-6e084fa6cccd"'
   );
+
+  const collapsed = page.getByRole('link', { name: 'Collapsed review' });
+  await expect(collapsed).toBeVisible();
+  await expect(collapsed.locator('[data-block-name="routine"]')).toBeHidden();
+  await collapsed.hover();
+  await expect(page.getByText('Collapsed review')).toBeVisible();
 });

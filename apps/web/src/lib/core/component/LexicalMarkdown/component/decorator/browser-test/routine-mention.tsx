@@ -12,6 +12,7 @@ import {
   StaticMarkdown,
   StaticMarkdownContext,
 } from '../../core/StaticMarkdown';
+import { DocumentMention } from '../DocumentMention';
 
 const id = '0195ceb6-ec2e-7023-80e4-6e084fa6cccd';
 
@@ -33,6 +34,16 @@ render(
               markdown={`Created [Daily review](routine:${id}).`}
               target="internal"
             />
+            <p>
+              <DocumentMention
+                key="collapsed-routine"
+                theme={channelTheme}
+                documentId={id}
+                documentName="Collapsed review"
+                blockName="routine"
+                collapsed
+              />
+            </p>
             <output id="opened" aria-label="Opened split" />
           </main>
         </StaticMarkdownContext>
