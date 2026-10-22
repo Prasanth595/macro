@@ -338,6 +338,19 @@ async fn seed_channel_list_notifications(pool: &Pool<Postgres>) -> anyhow::Resul
     insert_user_notification(pool, LEFT_USER, document_notification, false, false).await
 }
 
+#[test]
+fn channel_list_pending_states_read_the_user_notifications_once() {
+    use item_filters::NotificationState::{Done, Seen, Unseen};
+
+    for state in [Unseen, Seen] {
+        let sql = super::build_channel_notification_state_clause(state);
+        assert!(sql.contains("= ANY(ARRAY("), "{sql}");
+        assert!(!sql.contains("n.event_item_id = (c.id)"), "{sql}");
+    }
+    let done = super::build_channel_notification_state_clause(Done);
+    assert!(done.contains("n.event_item_id = (c.id)::text"), "{done}");
+}
+
 #[sqlx::test(
     fixtures(path = "../../../fixtures", scripts("channels_repo")),
     migrator = "MACRO_DB_MIGRATIONS"
