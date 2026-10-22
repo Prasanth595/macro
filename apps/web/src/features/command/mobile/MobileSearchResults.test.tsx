@@ -127,19 +127,22 @@ vi.mock('@entity', () => ({
   },
   ListEntity: (props: {
     entity: EntityData;
+    ref?: (element: HTMLDivElement) => void;
     onContentHitClick: (event: MouseEvent, location: SearchLocation) => void;
   }) => (
-    <button
-      type="button"
-      onClick={(event) =>
-        props.onContentHitClick(event, {
-          type: 'email',
-          messageId: 'matching-message',
-        })
-      }
-    >
-      {props.entity.name} snippet
-    </button>
+    <div ref={props.ref}>
+      <button
+        type="button"
+        onClick={(event) =>
+          props.onContentHitClick(event, {
+            type: 'email',
+            messageId: 'matching-message',
+          })
+        }
+      >
+        {props.entity.name} snippet
+      </button>
+    </div>
   ),
 }));
 vi.mock('../queries/entity-search', () => ({
@@ -452,21 +455,18 @@ it('restores full-text order, query, category, mode and scroll after measuring r
   expect(document.activeElement).not.toBe(input);
   expect(SearchState.category()).toBe('email');
   expect(SearchState.mode()).toBe('full-text');
-  expect(screen.queryByText('Searching…')).toBeNull();
+  expect(screen.getByText('Searching…')).toBeTruthy();
   expect(
-    screen.getByRole('button', { name: 'Weekly update snippet' })
-  ).toBeTruthy();
-  expect(screen.getByRole('region', { name: 'Search results' }).scrollTop).toBe(
-    0
-  );
+    screen.queryByRole('button', { name: 'Weekly update snippet' })
+  ).toBeNull();
   mocks.measureLayout();
+  setItems([email, other]);
+  setSettling(false);
   await waitFor(() =>
     expect(
       screen.getByRole('region', { name: 'Search results' }).scrollTop
     ).toBe(1280)
   );
-  setItems([email, other]);
-  setSettling(false);
   expect(
     within(screen.getByRole('region', { name: 'Search results' }))
       .getAllByRole('button')
@@ -560,23 +560,27 @@ it('restores the name list order and scroll after opening promotes a result by r
   expect(screen.getAllByRole('button').map((row) => row.textContent)).toEqual(
     visibleResults
   );
+  expect(mocks.entryState?.['mobileSearch.nameScroll']).toMatchObject({
+    offset: 800,
+  });
   view.unmount();
   mocks.setActive(true);
   render(() => <MobileSearchResults />);
   expect(SearchState.query()).toBe('Project');
   expect(SearchState.category()).toBe('projects');
-  await waitFor(() =>
-    expect(
-      screen.getByRole('region', { name: 'Search results' }).scrollTop
-    ).toBe(800)
-  );
-  fireEvent.scroll(screen.getByRole('region', { name: 'Search results' }));
-  expect(screen.getAllByRole('button').map((row) => row.textContent)).toEqual(
-    visibleResults
+  const restoredList = screen.getByRole('region', { name: 'Search results' });
+  await waitFor(() => expect(restoredList.scrollTop).toBe(800));
+  fireEvent.scroll(restoredList);
+  expect(screen.getByRole('button', { name: 'Project 2' })).toBeTruthy();
+  expect(mocks.entryState?.['mobileSearch.nameOrder']).toMatchObject({
+    ids: originalItems.map((item) => item.id),
+  });
+  expect(mocks.entryState?.['mobileSearch.nameScroll']).not.toHaveProperty(
+    'cache'
   );
 });
 
-it('restores loaded name pages and scroll before refresh resolves, without a loading footer', async () => {
+it('reloads name rows on remount instead of storing them in history', async () => {
   const savedItems: EntitySearchItem[] = Array.from(
     { length: 100 },
     (_, index) => ({
@@ -604,43 +608,28 @@ it('restores loaded name pages and scroll before refresh resolves, without a loa
       'button'
     )[0]
   );
+  expect(mocks.entryState?.['mobileSearch.nameOrder']).toEqual({
+    accountId: 'owner',
+    query: 'Project',
+    category: 'projects',
+    ids: savedItems.map((item) => item.id),
+  });
+  expect(mocks.entryState?.['mobileSearch.nameScroll']).not.toHaveProperty(
+    'cache'
+  );
   view.unmount();
-
   setLoading(true);
   setItems([]);
   mocks.setActive(true);
   render(() => <MobileSearchResults />);
-  expect(screen.queryByText('Loading…')).toBeNull();
-  expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
-  await waitFor(() =>
-    expect(
-      screen.getByRole('region', { name: 'Search results' }).scrollTop
-    ).toBe(800)
-  );
-
-  // Browsers emit this for the programmatic restoration; JSDOM does not.
-  fireEvent.scroll(screen.getByRole('region', { name: 'Search results' }));
-  // A first page must not replace the larger window this entry already loaded.
-  setItems(savedItems.slice(0, 1));
+  expect(screen.queryByRole('button', { name: 'Project 2' })).toBeNull();
+  expect(SearchState.query()).toBe('Project');
+  setItems(savedItems);
   setLoading(false);
-  expect(screen.queryByText('Loading…')).toBeNull();
+  const restoredList = screen.getByRole('region', { name: 'Search results' });
+  await waitFor(() => expect(restoredList.scrollTop).toBe(800));
+  fireEvent.scroll(restoredList);
   expect(screen.getByRole('button', { name: 'Project 2' })).toBeTruthy();
-  await waitFor(() => expect(mocks.loadMore).toHaveBeenCalledOnce());
-  expect(screen.getByRole('region', { name: 'Search results' }).scrollTop).toBe(
-    800
-  );
-  setItems(
-    savedItems.map((item) => ({
-      ...item,
-      searchText: `${item.searchText} refreshed`,
-    }))
-  );
-  expect(
-    screen.getByRole('button', { name: 'Project 2 refreshed' })
-  ).toBeTruthy();
-  expect(screen.getByRole('region', { name: 'Search results' }).scrollTop).toBe(
-    800
-  );
 });
 
 it('does not show a loading footer for available name results during a background lookup', () => {
@@ -733,7 +722,9 @@ it.each(['name', 'full-text'] as const)(
     mocks.setActive(true);
     render(() => <MobileSearchResults />);
     const list = screen.getByRole('region', { name: 'Search results' });
-    await waitFor(() => expect(list.scrollTop).toBe(300));
+    if (mode === 'full-text')
+      await waitFor(() => expect(list.scrollTop).toBe(300));
+    fireEvent.wheel(list);
     // Simulate the browser clamping the initial offset to the new scroll range.
     fireEvent.scroll(list, { target: { scrollTop: 200 } });
     fireEvent.scroll(list, { target: { scrollTop: 100 } });
@@ -782,7 +773,7 @@ it.each(['name', 'full-text'] as const)(
   }
 );
 
-it('keeps restored name results after a failed refresh but accepts a successful empty result', () => {
+it('does not revive saved name rows after a failed refresh or successful empty result', () => {
   const [items, setItems] = createSignal<EntitySearchItem[]>([
     {
       id: 'project',
@@ -811,8 +802,7 @@ it('keeps restored name results after a failed refresh but accepts a successful 
   render(() => <MobileSearchResults />);
   setFailed(true);
   setLoading(false);
-  expect(screen.getByRole('button', { name: 'Project' })).toBeTruthy();
-  expect(screen.queryByText('Loading…')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Project' })).toBeNull();
   expect(mocks.loadMore).not.toHaveBeenCalled();
   setLoading(true);
   setFailed(false);
@@ -985,7 +975,7 @@ it('fills empty full-text pages until pagination is exhausted', async () => {
   await waitFor(() => expect(mocks.fetchNextPage).toHaveBeenCalledTimes(2));
 });
 
-it('keeps full-text rows mounted during same-query refreshes but clears them for a new query', () => {
+it('uses current source rows during refresh and keeps row identity when pages append', () => {
   const email: EntityData = {
     id: 'thread',
     type: 'email',
@@ -1007,25 +997,23 @@ it('keeps full-text rows mounted during same-query refreshes but clears them for
   SearchState.setQuery('teo');
   SearchState.searchFullText();
   render(() => <MobileSearchResults />);
-  const row = screen.getByRole('button', { name: 'Weekly update snippet' });
   setLoading(true);
   setItems([]);
-  expect(screen.getByRole('button', { name: 'Weekly update snippet' })).toBe(
-    row
-  );
-  expect(screen.queryByText('Searching…')).toBeNull();
+  expect(
+    screen.queryByRole('button', { name: 'Weekly update snippet' })
+  ).toBeNull();
   setItems([email]);
   setLoading(false);
-  expect(screen.getByRole('button', { name: 'Weekly update snippet' })).toBe(
-    row
-  );
+  const refreshedRow = screen.getByRole('button', {
+    name: 'Weekly update snippet',
+  });
   // Service page selection rematerializes existing entities when it appends.
   setItems([
     { ...email, name: 'Updated subject' },
     { ...email, id: 'next', name: 'Next page' },
   ]);
   expect(screen.getByRole('button', { name: 'Updated subject snippet' })).toBe(
-    row
+    refreshedRow
   );
   expect(
     screen.getByRole('button', { name: 'Next page snippet' })
@@ -1036,4 +1024,80 @@ it('keeps full-text rows mounted during same-query refreshes but clears them for
   expect(
     screen.queryByRole('button', { name: 'Updated subject snippet' })
   ).toBeNull();
+});
+
+it('keeps a full-text top-of-list anchor below the mobile safe-area padding', async () => {
+  mocks.fullTextItems = [
+    {
+      id: 'first',
+      type: 'email',
+      name: 'First',
+      ownerId: 'owner',
+      isRead: true,
+      isDraft: false,
+      isImportant: false,
+      done: false,
+    },
+  ];
+  mocks.hasMore = false;
+  SearchState.setQuery('First');
+  SearchState.searchFullText();
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+    function (this: HTMLElement) {
+      return new DOMRect(0, this.dataset.mobileSearchId ? 80 : 0, 390, 64);
+    }
+  );
+  const view = render(() => <MobileSearchResults />);
+  fireEvent.click(screen.getByRole('button', { name: 'First snippet' }));
+  expect(mocks.entryState?.['mobileSearch.fullTextScroll']).toMatchObject({
+    id: 'first',
+    offset: 0,
+    within: -80,
+  });
+  view.unmount();
+  mocks.setActive(true);
+  render(() => <MobileSearchResults />);
+  await waitFor(() =>
+    expect(
+      screen.getByRole('region', { name: 'Search results' }).scrollTop
+    ).toBe(0)
+  );
+  await Promise.resolve();
+  expect(screen.getByRole('region', { name: 'Search results' }).scrollTop).toBe(
+    0
+  );
+});
+
+it('resumes viewport paging when editing a restored search in the dock', async () => {
+  mocks.items = () => [
+    {
+      id: 'first',
+      kind: 'initiative',
+      bucket: 'initiative',
+      name: 'First',
+      searchText: 'First',
+      sortTimestamp: 0,
+      timestamps: {},
+    },
+  ];
+  mocks.entryState = {
+    'mobileSearch.session': {
+      query: 'First',
+      category: 'projects',
+      mode: 'name',
+    },
+    'mobileSearch.nameScroll': {
+      accountId: 'owner',
+      query: 'First',
+      category: 'projects',
+      id: 'first',
+      offset: 0,
+      within: 0,
+    },
+  };
+  render(() => <MobileSearchResults />);
+  await Promise.resolve();
+  expect(mocks.loadMore).not.toHaveBeenCalled();
+  SearchState.setQuery('Next');
+  await waitFor(() => expect(mocks.loadMore).toHaveBeenCalledOnce());
 });
