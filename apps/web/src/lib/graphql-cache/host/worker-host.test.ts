@@ -746,6 +746,51 @@ describe('createWorkerCacheHost', () => {
     }
   );
 
+  it.each([false, true])(
+    'pauses initialization during a blocked handoff without failing writes (replacement: %s)',
+    async (replacement) => {
+      vi.useFakeTimers();
+      configureAdapter = (fake) => fake.ignoredKinds.add('init');
+      localStorage.setItem('graphql-cache:scope', 'scope-1');
+      const onInitializationError = vi.fn();
+      const host = createWorkerCacheHost({
+        scope: 'scope-1',
+        initializationTimeoutMs: 10,
+        onInitializationError,
+      });
+      const read = host.readQuery({ opKey: 7, query: 'query Read { user }' });
+      const rejected = expect(read).rejects.toThrow('owner handoff timeout');
+      const mutation = host.enqueueOptimisticMutation(
+        {
+          uuid: '00000000-0000-4000-8000-000000000100',
+          query: 'mutation Update { update }',
+          data: { update: true },
+        },
+        { owner: 'runner', nowMs: 1, leaseExpiresAtMs: 101 }
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      const adapter = requireAdapter();
+      adapter.options.onCacheReadAvailabilityChanged?.(false);
+      await rejected;
+      await vi.advanceTimersByTimeAsync(60_001);
+      expect(adapter.requests.map(({ kind }) => kind)).toEqual(['init']);
+      expect(onInitializationError).not.toHaveBeenCalled();
+      expect(localStorage.getItem('graphql-cache:scope')).toBe('scope-1');
+      if (replacement) adapter.replace(2);
+      else adapter.options.onCacheReadAvailabilityChanged?.(true);
+      adapter.respond(1, null);
+      await mutation;
+      expect(adapter.requests.map(({ kind }) => kind)).toEqual([
+        'init',
+        'enqueue-optimistic-mutation',
+      ]);
+      await expect(
+        host.readQuery({ query: 'query Recovered { user }' })
+      ).resolves.toEqual({ kind: 'miss' });
+      host.dispose();
+    }
+  );
+
   it('bounds hung registration/init before admitting reads or mutations', async () => {
     vi.useFakeTimers();
     configureAdapter = (fake) => fake.ignoredKinds.add('init');

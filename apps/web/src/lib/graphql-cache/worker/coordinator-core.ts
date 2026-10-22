@@ -83,7 +83,14 @@ export type CoordinatorAction =
       error: string;
       errorCode?: CacheResponseErrorCode;
     }
-  | { kind: 'drain-owner'; tabId: string; ownerEpoch: OwnerEpoch }
+  | {
+      kind: 'drain-owner';
+      tabId: string;
+      ownerEpoch: OwnerEpoch;
+      handoff?: true;
+    }
+  | { kind: 'release-owner'; tabId: string; ownerEpoch: OwnerEpoch }
+  | { kind: 'handoff-pending'; ownerEpoch: OwnerEpoch }
   | { kind: 'close-engine-route'; tabId: string; ownerEpoch: OwnerEpoch }
   | { kind: 'drop-tab'; tabId: string }
   | { kind: 'retire-tab'; tabId: string; ownerEpoch: OwnerEpoch }
@@ -139,6 +146,7 @@ export class CoordinatorCore {
   };
   private readonly tabs: string[] = [];
   private readonly retiringTabs = new Set<string>();
+  private readonly visibleTabs = new Set<string>();
   /** Tabs told the database is unavailable, with the reason they were given;
    * their pages stay uncached. */
   private readonly unavailableTabs = new Map<string, string>();
@@ -178,9 +186,10 @@ export class CoordinatorCore {
     return this.supersededReason !== undefined;
   }
 
-  registerTab(tabId: string): CoordinatorAction[] {
+  registerTab(tabId: string, visible = true): CoordinatorAction[] {
     if (this.tabs.includes(tabId)) return [];
     this.tabs.push(tabId);
+    if (visible) this.visibleTabs.add(tabId);
     if (this.supersededReason !== undefined) {
       // A page of this build loaded after the handover, as after a rollback
       // or from stale HTML. Reloading could land on this build again, so it
@@ -213,8 +222,16 @@ export class CoordinatorCore {
         },
       ];
     }
-    if (this.stateValue.kind !== 'waiting-for-tab') return [];
+    if (this.stateValue.kind !== 'waiting-for-tab')
+      return this.handoffIfNeeded();
     return this.activateNext(this.stateValue.nextDatabaseAction);
+  }
+
+  setTabVisibility(tabId: string, visible: boolean): CoordinatorAction[] {
+    if (!this.tabs.includes(tabId)) return [];
+    if (visible) this.visibleTabs.add(tabId);
+    else this.visibleTabs.delete(tabId);
+    return this.handoffIfNeeded();
   }
 
   request(tabId: string, request: CacheRequest): CoordinatorAction[] {
@@ -358,6 +375,10 @@ export class CoordinatorCore {
       tabId: state.tabId,
       ownerEpoch: state.ownerEpoch,
     };
+    // Visibility can change during startup. Do not route queued work into a
+    // hidden engine if a visible replacement can take over after a clean drain.
+    const handoff = this.handoffIfNeeded();
+    if (handoff.length > 0) return handoff;
     const actions: CoordinatorAction[] = [];
     if (state.ownerEpoch > 1) {
       actions.push({
@@ -412,7 +433,7 @@ export class CoordinatorCore {
   ): CoordinatorAction[] {
     const state = this.stateValue;
     if (
-      state.kind !== 'active' ||
+      (state.kind !== 'active' && state.kind !== 'draining') ||
       state.tabId !== tabId ||
       state.ownerEpoch !== ownerEpoch
     ) {
@@ -421,6 +442,8 @@ export class CoordinatorCore {
       );
     }
     this.retiringTabs.add(tabId);
+    // An explicit disposal may join an already-running visibility handoff.
+    if (state.kind === 'draining') return [];
     this.stateValue = { kind: 'draining', tabId, ownerEpoch };
     return [{ kind: 'drain-owner', tabId, ownerEpoch }];
   }
@@ -441,12 +464,15 @@ export class CoordinatorCore {
       ownerEpoch,
       'engine drained before delivering its response'
     );
-    this.removeTabRecord(tabId);
-    this.retiringTabs.delete(tabId);
-    actions.push(
-      { kind: 'close-engine-route', tabId, ownerEpoch },
-      { kind: 'retire-tab', tabId, ownerEpoch }
-    );
+    actions.push({ kind: 'close-engine-route', tabId, ownerEpoch });
+    if (this.retiringTabs.delete(tabId)) {
+      this.removeTabRecord(tabId);
+      actions.push({ kind: 'retire-tab', tabId, ownerEpoch });
+    } else {
+      // The engine closed storage, not the page. Its host and subscriptions
+      // remain connected and the usual replacement broadcast refreshes them.
+      actions.push({ kind: 'release-owner', tabId, ownerEpoch });
+    }
     this.stateValue = {
       kind: 'waiting-for-tab',
       nextDatabaseAction: 'open-existing',
@@ -708,12 +734,38 @@ export class CoordinatorCore {
     ];
   }
 
+  private handoffIfNeeded(): CoordinatorAction[] {
+    const state = this.stateValue;
+    if (
+      (state.kind !== 'active' && state.kind !== 'activating') ||
+      this.visibleTabs.has(state.tabId)
+    )
+      return [];
+    const candidate = this.chooseCandidate();
+    if (!candidate || !this.visibleTabs.has(candidate)) return [];
+    // Bound foreground reads even if a background engine is still loading or
+    // opening storage. Only a ready engine can perform the cooperative drain.
+    if (state.kind === 'activating')
+      return [{ kind: 'handoff-pending', ownerEpoch: state.ownerEpoch }];
+    this.stateValue = { ...state, kind: 'draining' };
+    return [
+      {
+        kind: 'drain-owner',
+        tabId: state.tabId,
+        ownerEpoch: state.ownerEpoch,
+        handoff: true,
+      },
+    ];
+  }
+
   private chooseCandidate(avoid?: string): string | undefined {
     const eligible = this.tabs.filter(
       (tabId) =>
         !this.retiringTabs.has(tabId) && !this.unavailableTabs.has(tabId)
     );
-    return eligible.find((tabId) => tabId !== avoid) ?? eligible[0];
+    const visible = eligible.filter((tabId) => this.visibleTabs.has(tabId));
+    const preferred = visible.length > 0 ? visible : eligible;
+    return preferred.find((tabId) => tabId !== avoid) ?? preferred[0];
   }
 
   private route(
@@ -743,6 +795,7 @@ export class CoordinatorCore {
     const index = this.tabs.indexOf(tabId);
     if (index >= 0) this.tabs.splice(index, 1);
     this.unavailableTabs.delete(tabId);
+    this.visibleTabs.delete(tabId);
     for (let index = this.queuedRequests.length - 1; index >= 0; index -= 1) {
       if (this.queuedRequests[index]?.tabId === tabId) {
         this.queuedRequests.splice(index, 1);

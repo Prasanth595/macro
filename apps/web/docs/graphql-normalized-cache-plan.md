@@ -209,7 +209,35 @@ SharedWorker still runs. The coordinator probes the physical owner Web Lock
 without waiting or stealing it; a held lock (or a failed probe) retries the
 heartbeat without changing epochs or touching storage. A released lock confirms
 silent worker termination and triggers the usual fenced recovery. Read deadlines
-still bound callers waiting on an unresponsive engine.
+still bound callers waiting on an unresponsive engine outside a visibility handoff.
+
+Protocol v9 reports each tab's visibility at registration and on changes. A
+visible owner stays put, including when another visible window gains focus.
+When a hidden owner has a visible consumer, the coordinator stops routing new
+work into that engine and asks it to drain. An engine still loading/opening first
+finishes startup before draining. The runtime waits for admitted work and closes
+OPFS before acknowledging the drain; only then can the coordinator elect the
+latest eligible visible survivor to open the existing database, still gated by
+the physical owner lock. The old page stays registered as a client. Visibility
+changes or departing candidates during the drain do not start overlapping owners.
+An explicit page disposal can join the same drain and retire that page normally.
+
+The handoff has a one-second read-availability budget covering startup, drain,
+and replacement. On expiry, existing and late-joining hosts reject reads promptly
+so ordinary queries can use their network fallback (`cache-only` still never
+forwards). New reads bypass without another ten-second wait. This cancels only
+read callers, not engine work: admitted mutations and never-routed writes keep
+waiting, and joining hosts pause their init deadline rather than quarantining a
+healthy scope. A ready replacement resumes reads/init deadlines and refreshes
+active dependency registrations with preserved-storage semantics. Availability
+also resumes when startup finishes with the original owner after it becomes
+visible again. The handoff read deadline never force-terminates the owner,
+steals its lock, wipes storage, or replays a write; if the owner remains
+suspended, writes remain pending until it can drain or the
+existing failure/navigation policy applies. Hidden-owner startup also starts the
+read budget without interrupting a possible storage open. The owner telemetry
+events `visibility-handoff-started`, `visibility-handoff-blocked`, and
+`visibility-handoff-completed` expose the transition and elapsed time.
 
 Every departure rejects already-routed optimistic enqueues whose replies were
 lost as `admitted-enqueue-uncertain`, including requests from surviving tabs.

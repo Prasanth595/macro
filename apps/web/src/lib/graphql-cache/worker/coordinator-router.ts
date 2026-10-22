@@ -19,6 +19,10 @@ import {
   startupPhaseMayTouchStorage,
 } from './coordinator-core';
 import {
+  CoordinatorHandoff,
+  OWNER_HANDOFF_READ_TIMEOUT_MS,
+} from './coordinator-handoff';
+import {
   type ActivationFailureCode,
   CACHE_COORDINATOR_PROTOCOL_VERSION,
   type CoordinatorToEngineEnvelope,
@@ -73,6 +77,7 @@ export interface CoordinatorRouterOptions {
   activationTimeoutMs?: number;
   heartbeatIntervalMs?: number;
   heartbeatTimeoutMs?: number;
+  handoffReadTimeoutMs?: number;
   verifyTabLockHeld?: (lockName: string) => Promise<boolean>;
   verifyOwnerLockHeld?: (lockName: string) => Promise<boolean>;
   /** Names of every Web Lock currently held in this storage partition. */
@@ -257,6 +262,7 @@ export class CoordinatorRouter {
   private readonly clearTimeoutFn: typeof globalThis.clearTimeout;
   private readonly queueMicrotaskFn: typeof globalThis.queueMicrotask;
   private readonly telemetry: CacheTelemetryRecorderLike;
+  private readonly handoff: CoordinatorHandoff;
   private readonly routeStarted = new Map<
     number,
     {
@@ -310,6 +316,21 @@ export class CoordinatorRouter {
           ? workerCacheTelemetry()
           : NOOP_CACHE_TELEMETRY)
     );
+    this.handoff = new CoordinatorHandoff({
+      timeoutMs: options.handoffReadTimeoutMs ?? OWNER_HANDOFF_READ_TIMEOUT_MS,
+      setTimeout: this.setTimeoutFn,
+      clearTimeout: this.clearTimeoutFn,
+      now: this.now,
+      telemetry: this.telemetry,
+      onBlocked: (ownerEpoch) =>
+        this.broadcast(
+          envelope<CoordinatorToTabEnvelope>({
+            kind: 'cache-read-availability',
+            ownerEpoch,
+            available: false,
+          })
+        ),
+    });
   }
 
   get core(): CoordinatorCore | undefined {
@@ -387,6 +408,9 @@ export class CoordinatorRouter {
     }
 
     match(message)
+      .with({ kind: 'tab-visibility' }, ({ visible }) => {
+        this.applyActions(core.setTabVisibility(tabId, visible));
+      })
       .with({ kind: 'cache-request' }, ({ request }) => {
         this.applyActions(core.request(tabId, request));
       })
@@ -530,8 +554,18 @@ export class CoordinatorRouter {
     ) {
       this.resetRecoveryRetries();
     }
-    const actions = this.coreValue.registerTab(message.tabId);
+    const actions = this.coreValue.registerTab(message.tabId, message.visible);
     this.applyActions(actions);
+    const blockedEpoch = this.handoff.readBlockedEpoch;
+    if (blockedEpoch !== undefined)
+      this.postToTab(
+        message.tabId,
+        envelope<CoordinatorToTabEnvelope>({
+          kind: 'cache-read-availability',
+          ownerEpoch: blockedEpoch,
+          available: false,
+        })
+      );
     // Late joiners must use the same startup budget as the elected owner.
     if (!actions.some((action) => action.kind === 'elect-owner')) {
       const progress = this.startupProgress();
@@ -699,6 +733,18 @@ export class CoordinatorRouter {
           core.state.kind === 'active' &&
           core.state.ownerEpoch === message.ownerEpoch
         ) {
+          if (this.handoff.readBlockedEpoch !== undefined) {
+            // Startup may finish with its original owner if visibility changed
+            // back. Reads must resume even without an engine-replaced broadcast.
+            this.broadcast(
+              envelope<CoordinatorToTabEnvelope>({
+                kind: 'cache-read-availability',
+                ownerEpoch: message.ownerEpoch,
+                available: true,
+              })
+            );
+          }
+          this.handoff.ready();
           const recoveryResetReason = this.pendingRecoveryResetEpochs.get(
             message.ownerEpoch
           );
@@ -904,7 +950,13 @@ export class CoordinatorRouter {
               : { errorCode: action.errorCode }),
           });
           break;
+        case 'handoff-pending':
+          this.handoff.start(action.ownerEpoch);
+          break;
         case 'drain-owner': {
+          if (action.handoff) this.handoff.start(action.ownerEpoch);
+          this.clearActivationTimer();
+          this.activationStarted.delete(action.ownerEpoch);
           this.telemetry.record({
             name: 'graphql_cache.owner',
             operationCategory: 'lifecycle',
@@ -949,6 +1001,13 @@ export class CoordinatorRouter {
           break;
         case 'drop-tab':
           this.removeTabConnection(action.tabId);
+          break;
+        case 'release-owner':
+          this.postTerminateEngine(
+            action.tabId,
+            action.ownerEpoch,
+            'visibility handoff drained'
+          );
           break;
         case 'retire-tab':
           this.postToTab(
@@ -1033,6 +1092,7 @@ export class CoordinatorRouter {
           );
           break;
         case 'terminal-failure':
+          this.handoff.cancel();
           this.broadcast(
             envelope<CoordinatorToTabEnvelope>({
               kind: 'terminal-error',
@@ -1148,6 +1208,7 @@ export class CoordinatorRouter {
         ? core.storageBusy(tabId, ownerEpoch)
         : core.ownerLockUnavailable(tabId, ownerEpoch);
     if (actions.length === 0) return;
+    this.handoff.cancel();
     this.activationStarted.delete(ownerEpoch);
     // Storage was not changed, or a busy wipe removed only part of it, so a
     // pending recovery wipe carries over to the next attempt exactly as after
@@ -1251,6 +1312,7 @@ export class CoordinatorRouter {
     if (!core) return;
     const actions = core.ownerLost(tabId, ownerEpoch, reason);
     if (actions.length === 0) return;
+    this.handoff.cancel();
     this.activationStarted.delete(ownerEpoch);
     const next = core.state;
     if (
@@ -1357,6 +1419,7 @@ export class CoordinatorRouter {
       state.kind !== 'failed' &&
       state.tabId === tabId
     ) {
+      this.handoff.cancel();
       this.activationStarted.delete(state.ownerEpoch);
       if (
         state.kind !== 'activating' ||

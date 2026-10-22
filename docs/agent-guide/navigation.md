@@ -47,6 +47,18 @@ queued mutations should resume promptly, without waiting for the old poll or
 local retry timer; durable leases and server-retry deadlines still apply.
 Switching tabs or navigating an in-app route is not a back/forward-cache restore.
 
+Browser cache ownership prefers a visible tab. Switching away from its hidden
+owner toward another app tab cooperatively drains and replaces the engine without
+reloading either page or retiring the old page's cache client. A visible owner is
+not moved just because another visible window gets focus. If handoff takes longer
+than one second, reads use their usual network fallback; cache-only reads never
+forward. Writes wait for safe recovery instead of being replayed or sent twice.
+Returning to an owner whose worker was suspended lets its drain finish. Verify
+with multiple surviving tabs and a synthetic blocked engine: no forced worker
+termination or overlapping storage owner, unchanged storage generation/queued
+mutations after recovery, and working reads in the old tab. Lifecycle telemetry
+uses the `visibility-handoff-*` owner events.
+
 Safari can also restart the SharedWorker when its creating tab closes, leaving
 another tab's port alive but its coordinator registrations gone. The surviving
 page must re-register without a reload or cache wipe. Open two tabs, close the

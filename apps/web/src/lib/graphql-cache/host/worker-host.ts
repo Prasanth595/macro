@@ -71,6 +71,10 @@ import {
 } from '../worker/startup';
 import { CacheNavigationError } from './navigation-error';
 import { createNoopCacheHost } from './noop-host';
+import {
+  CacheReadAvailability,
+  isReadOnlyCacheRequest,
+} from './read-availability';
 import type {
   AffectedOperationsListener,
   CacheChangeListener,
@@ -228,6 +232,7 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
 
   const clientId = crypto.randomUUID();
   const pending = new Map<number, Pending>();
+  const readAvailability = new CacheReadAvailability();
   const activeOpKeys = new Set<number>();
   const registeredOpKeys = new Set<number>();
   const lostRegisteredOpKeys = new Set<number>();
@@ -418,6 +423,7 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
       return;
     if (ownerEpoch <= latestReplacementEpoch) return;
     latestReplacementEpoch = ownerEpoch;
+    resumeCacheReads();
     // Initial readiness completes the already-running first handshake.
     if (state === 'initializing' && !recoveryInProgress) return;
     const change: CacheGenerationChange = {
@@ -433,6 +439,42 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
     }
     if (state !== 'ready' && state !== 'awaiting-replacement') return;
     void startInitialization().catch(() => undefined);
+  }
+
+  function resumeCacheReads(): void {
+    if (state === 'failed' || state === 'suspended' || state === 'disposed')
+      return;
+    readAvailability.resume();
+    for (const [id, entry] of pending) {
+      if (entry.kind === 'init')
+        armRequestTimeout(id, entry, initializationTimeoutMs);
+    }
+  }
+
+  function onOwnerHandoffBlocked(): void {
+    if (state === 'failed' || state === 'suspended' || state === 'disposed')
+      return;
+    const error = new Error(
+      'cache reads unavailable after owner handoff timeout'
+    );
+    beginRecoveryGeneration();
+    for (const key of activeOpKeys) lostRegisteredOpKeys.add(key);
+    replacementReadOpKeys.clear();
+    readAvailability.block(error);
+    // Cancel only the callers, not initialization or admitted worker fibers.
+    // Writes remain queued until the engine has safely drained and reopened.
+    for (const [id, entry] of pending) {
+      if (entry.kind === 'init' && entry.timer !== undefined) {
+        clearTimeout(entry.timer);
+        entry.timer = undefined;
+      }
+      if (!isReadOnlyCacheRequest(entry.kind)) continue;
+      pending.delete(id);
+      if (entry.timer !== undefined) clearTimeout(entry.timer);
+      recordRequestOutcome(entry, 'error', error);
+      entry.reject(error);
+    }
+    finishGracefulDisposeIfDrained();
   }
 
   function observeOwnerEpochLoss(error: CacheResponseError): void {
@@ -480,13 +522,18 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
       onEngineReplaced: (epoch, outcome) => {
         if (adapter === created) onEngineReplaced(epoch, outcome);
       },
+      onCacheReadAvailabilityChanged: (available) => {
+        if (adapter !== created) return;
+        if (available) resumeCacheReads();
+        else onOwnerHandoffBlocked();
+      },
       onStartupProgress: (progress) => {
         if (adapter !== created) return;
         initializationTimeoutMs =
           options.initializationTimeoutMs ??
           progress.timeoutMs + STARTUP_RESPONSE_GRACE_MS;
         for (const [id, entry] of pending) {
-          if (entry.kind === 'init')
+          if (entry.kind === 'init' && !readAvailability.error)
             armRequestTimeout(id, entry, initializationTimeoutMs);
         }
       },
@@ -682,6 +729,7 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
     { uncertain = false, preserveDatabase = false } = {}
   ): void {
     state = 'failed';
+    readAvailability.resume();
     initialization = undefined;
     initializationError = error;
     rejectPending(error, uncertain);
@@ -897,6 +945,7 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
 
   function suspendTransport(error: Error): void {
     state = 'suspended';
+    readAvailability.resume();
     transportGeneration += 1;
     transportInterruption = error;
     initializationAttempt += 1;
@@ -1008,6 +1057,9 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
       return Promise.reject(new Error('cache worker host was disposed'));
     }
 
+    if (isReadOnlyCacheRequest(msg.kind) && readAvailability.error) {
+      return Promise.reject(readAvailability.error);
+    }
     const id = nextRequestId++;
     return new Promise((resolve, reject) => {
       const entry: Pending = {
@@ -1020,17 +1072,10 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
       };
       const timeoutMs =
         msg.kind === 'init'
-          ? initializationTimeoutMs
-          : msg.kind === 'current-revision' ||
-              msg.kind === 'current-storage-generation' ||
-              msg.kind === 'read' ||
-              msg.kind === 'read-records-by-keys' ||
-              msg.kind === 'search' ||
-              msg.kind === 'entity-filter' ||
-              msg.kind === 'calendar-range' ||
-              msg.kind === 'inspect-mutations' ||
-              msg.kind === 'inspect-query' ||
-              msg.kind === 'inspect-query-variants'
+          ? readAvailability.error
+            ? undefined
+            : initializationTimeoutMs
+          : isReadOnlyCacheRequest(msg.kind)
             ? requestTimeoutMs
             : undefined;
       if (timeoutMs !== undefined) {
@@ -1219,7 +1264,14 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
     opKey?: number
   ): Promise<unknown> {
     const generation = transportGeneration;
-    await ensureInitialized();
+    if (state === 'ready') {
+      await ensureInitialized();
+    } else {
+      await readAvailability.waitUntilReady(
+        ensureInitialized,
+        isReadOnlyCacheRequest(msg.kind)
+      );
+    }
     // Never admit an interrupted operation to a different transport generation.
     if (generation !== transportGeneration)
       throw transportInterruption ?? new CacheNavigationError();
@@ -1228,7 +1280,8 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
 
   function trackActiveOperation(opKey: number): void {
     activeOpKeys.add(opKey);
-    if (state === 'suspended') lostRegisteredOpKeys.add(opKey);
+    if (state === 'suspended' || readAvailability.error)
+      lostRegisteredOpKeys.add(opKey);
     else if (recoveryInProgress) replacementReadOpKeys.add(opKey);
   }
 
@@ -1509,7 +1562,7 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
       if (state !== 'ready' && state !== 'initializing') return;
       if (state === 'initializing') {
         try {
-          await ensureInitialized();
+          await readAvailability.waitUntilReady(ensureInitialized, false);
         } catch {
           return;
         }

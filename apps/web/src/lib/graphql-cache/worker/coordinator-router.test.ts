@@ -72,6 +72,7 @@ const register = async (
     scope: 'scope',
     tabId,
     livenessLockName: `graphql-cache-tab:scope:${tabId}`,
+    visible: true,
     buildTime,
   });
 };
@@ -374,6 +375,7 @@ describe('CoordinatorRouter', () => {
       scope: 'scope',
       tabId: 'stale-tab',
       livenessLockName: 'graphql-cache-tab:scope:stale-tab',
+      visible: true,
       buildTime: 0,
     });
 
@@ -1580,6 +1582,50 @@ describe('CoordinatorRouter', () => {
     });
   });
 
+  it('resumes bounded startup reads when the original owner becomes visible before readiness', async () => {
+    vi.useFakeTimers();
+    const router = new CoordinatorRouter({
+      verifyTabLockHeld: async () => true,
+      watchTabLock: () => () => undefined,
+    });
+    const owner = new FakePort();
+    const client = new FakePort();
+    const engine = new FakePort();
+    await register(router, owner, 'owner');
+    await attach(router, owner, 'owner', 1, engine);
+    await register(router, client, 'client');
+    await router.handleTabMessage(owner, {
+      ...version,
+      kind: 'tab-visibility',
+      tabId: 'owner',
+      visible: false,
+    });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(messagesOfKind(client, 'cache-read-availability')).toMatchObject([
+      { ownerEpoch: 1, available: false },
+    ]);
+    expect(messagesOfKind(owner, 'terminate-engine')).toEqual([]);
+    expect(messagesOfKind(client, 'become-owner')).toEqual([]);
+    expect(router.snapshot()?.state.kind).toBe('activating');
+    await router.handleTabMessage(owner, {
+      ...version,
+      kind: 'tab-visibility',
+      tabId: 'owner',
+      visible: true,
+    });
+    ready(engine, 'owner', 1, 'opened-existing');
+    expect(messagesOfKind(client, 'cache-read-availability')).toMatchObject([
+      { ownerEpoch: 1, available: false },
+      { ownerEpoch: 1, available: true },
+    ]);
+    expect(messagesOfKind(client, 'engine-replaced')).toEqual([]);
+    expect(router.snapshot()?.state).toMatchObject({
+      kind: 'active',
+      tabId: 'owner',
+      ownerEpoch: 1,
+    });
+  });
+
   it('preserves the owner and in-flight work through repeated missed heartbeats', async () => {
     vi.useFakeTimers();
     const verifyLockHeld = vi.fn(async () => true);
@@ -1943,6 +1989,7 @@ describe('CoordinatorRouter', () => {
       scope: 'scope',
       tabId: 'tab-a',
       livenessLockName: 'graphql-cache-tab:scope:tab-a',
+      visible: true,
       buildTime: 0,
     });
     await vi.waitFor(() =>
