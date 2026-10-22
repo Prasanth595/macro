@@ -16,6 +16,9 @@ word docs, Illustrator/Photoshop files).
   Office formats, S3 locations).
 - `src/domain/docx_export.rs`: DOCX export readiness policy; empty parts mean
   extraction is pending. Its entry point requires a checked document receipt.
+- `src/domain/canvas.rs`: permission-scoped Canvas read/edit workflows, native
+  type checks, actor-bearing tokens, AI admission and per-model metering.
+  `ReadCanvas`/`EditCanvas` use live scene deltas, never whole-file saves.
 - `src/inbound/toolset.rs`: one submodule per AI document tool (`create_document`,
   `edit_document`, `word_document`, `spreadsheet`, `presentation`, ...).
 - `src/inbound/axum_router.rs`: the HTTP surface; `axum_router/get_text.rs`

@@ -539,6 +539,15 @@ pub(in crate::inbound::toolset) struct AddedCommentMark {
 }
 
 impl EditingWorkerService for FakeEditingWorker {
+    async fn canvas(
+        &self,
+        _: &str,
+        _: &DocumentPermissionToken,
+        _: &crate::domain::canvas::CanvasRequest,
+    ) -> anyhow::Result<crate::domain::canvas::CanvasResult> {
+        panic!("unexpected canvas call")
+    }
+
     async fn spreadsheet(
         &self,
         _document_id: &str,
