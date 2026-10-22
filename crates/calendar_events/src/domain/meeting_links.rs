@@ -3,8 +3,9 @@
 //! A Macro call is not provider conferencing: Google knows nothing about it,
 //! so the link travels in the event's ordinary location and description
 //! fields, in the exact shape the calendar UI recognizes and can later
-//! strip or replace. This module owns that shape and the create flow that
-//! mints a meeting and writes the event carrying it.
+//! strip or replace. This module owns that shape, finding and stripping it
+//! again, and the create flow that mints a meeting and writes the event
+//! carrying it.
 
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
@@ -114,6 +115,46 @@ pub fn attach_macro_call(
         _ => url.to_string(),
     };
     (description, location)
+}
+
+/// The join link already written into an event, including inside the
+/// generated HTML paragraph.
+pub fn first_macro_call_url(location: Option<&str>, description: Option<&str>) -> Option<String> {
+    for text in [location, description].into_iter().flatten() {
+        for token in text.split(|character: char| {
+            character.is_whitespace() || matches!(character, '"' | '\'' | '<' | '>' | '&')
+        }) {
+            let token = token.trim_end_matches(|character: char| {
+                matches!(character, '.' | ',' | ')' | ']' | ';')
+            });
+            if token.starts_with("http") && token.contains("/meet/join/") {
+                return Some(token.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Take back out what [`attach_macro_call`] wrote for `url`, as the calendar
+/// UI does before showing an event: the join line of a description already
+/// reduced to plain text, and a location that is only the link. Everything
+/// the user wrote stays, including the link written anywhere else.
+pub fn strip_macro_call(description_text: &str, location: &str, url: &str) -> (String, String) {
+    let join_line = format!("{JOIN_LINE_LABEL}: {url}");
+    let description = description_text
+        .lines()
+        .filter(|line| {
+            let line = line.trim();
+            line != JOIN_LINE_LABEL && line != join_line
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let location = if location.trim() == url {
+        String::new()
+    } else {
+        location.to_string()
+    };
+    (description.trim().to_string(), location)
 }
 
 /// Create an event that carries a Macro call.
