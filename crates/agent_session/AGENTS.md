@@ -68,6 +68,10 @@ effective history served to transcript readers: replayed prompts lose action IDs
 - The row's fenced log writer and the Cursor projection both lock the
   session row `FOR UPDATE`; never add a second `NOWAIT` locker without
   checking both paths (see git history on `src/domain/control.rs`).
+- `modified_at` is Agents/Home list recency. Bump it for user-visible work
+  (`moves_session_list`: starting/running/stopping/blocked) and metadata
+  the viewer asked to change. Do not bump it for claim, release, recovery,
+  ACP session id, or system events (`acp_ready`, `disconnected`).
 
 ## Related
 
