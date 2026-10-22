@@ -123,7 +123,9 @@ maintenance window:
    the currently deployed pre-retirement source. In each old service component,
    change only the existing Route53 alias destination from its ALB to
    `gatewayLoadBalancer.albDnsName` / `gatewayLoadBalancer.albZoneId`. Keep every
-   old resource declaration, parent and name. Target only that existing record
+   old resource declaration, parent and name. Supply any old Lambda build
+   artifacts needed for evaluation from the deployed version; do not invoke or
+   update those functions. Target only that existing record
    and its existing `gateway-stack` StackReference. Save and inspect these
    plans: each DNS record must update in place, and no old compute or ALB may be
    changed or deleted. Do not use the final retirement program for this targeted
@@ -172,6 +174,11 @@ retire old rules while creating their replacements.
 
 Save the deployed source revisions, task definitions, listener rules, and an
 encrypted export of each affected Pulumi stack before applying changes.
+Copy each running service image by digest into the existing harness ECR
+repository under a unique rollback tag, including the previous harness image,
+and verify each destination digest. Old repositories use `forceDelete`, so
+their tags are not a rollback backup. Save the deployed refresh Lambda ZIP and
+archive non-empty CloudWatch log groups before their retirement.
 
 For the hostname handoff, restore the saved DNS aliases to the old ALBs while
 those endpoints are still healthy, and wait for DNS caches to expire before
@@ -186,7 +193,9 @@ Do not retire old compute until the routed checks pass.
 
 After retiring a service, move the harness rules back to verified unused
 temporary priorities if their final priorities have already been applied. Restore
-the pre-cutover stack revision and wait for healthy targets before removing the
+the pre-cutover stack revision, copying preserved images back into recreated
+repositories first. Recreate task definition revisions from the saved definitions
+rather than assuming deregistered revisions remain usable. Wait for healthy targets before removing the
 temporary harness rules to return traffic.
 
 For previews, first detach the three preview target groups from the harness and

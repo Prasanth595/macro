@@ -22,11 +22,11 @@ Both must be set together or both omitted. If only one is set the service will p
 It can be used with the [Slack Manifest API](https://api.slack.com/reference/manifests) to create
 or update the app programmatically.
 
-Retain the legacy cognition callbacks alongside the gateway callbacks until
-both environments have completed their service cutover. Updating this file
-does not update Slack's registered redirect URLs; verify the target app's
-allowlist before moving OAuth traffic. The documented app covers both
-environments, so changes to that shared app require explicit authorization.
+The harness preserves the original cognition hostnames and OAuth callbacks;
+consolidating services does not require changing this app's allowlist. The
+manifest also includes optional gateway callbacks. Updating the manifest does
+not update Slack's registered URLs. The documented app covers both environments,
+so changing that shared app still requires explicit authorization.
 
 ## Docs
 - [MCP Docs](https://docs.slack.dev/ai/slack-mcp-server/)
