@@ -111,6 +111,62 @@ test('lists hidden navigation keys, leader sequences and the nearest binding of 
   ).not.toContain('Mark done');
 });
 
+test('keeps the keys of a partly shadowed command and follows handler priority', () => {
+  const view = domScope('sheet-partial-view');
+  createRoot((dispose) => {
+    disposers.push(dispose);
+    const handler = () => true;
+    // The view claims `e`; the global command still answers to `x`.
+    registerHotkey({
+      scopeId: view,
+      hotkey: 'e',
+      description: 'Mark done',
+      keyDownHandler: handler,
+    });
+    registerHotkey({
+      scopeId: 'global',
+      hotkey: ['e', 'x'],
+      description: 'Select',
+      keyDownHandler: handler,
+    });
+    // Two handlers on one key in one scope: the higher handler priority runs,
+    // whatever their display priority.
+    registerHotkey({
+      scopeId: view,
+      hotkey: 'o',
+      description: 'Open later',
+      keyDownHandler: handler,
+      registrationType: 'add',
+      displayPriority: 10,
+    });
+    registerHotkey({
+      scopeId: view,
+      hotkey: 'o',
+      description: 'Open now',
+      keyDownHandler: handler,
+      registrationType: 'add',
+      handlerPriority: 3,
+    });
+  });
+
+  const sheet = getShortcutSheet(view);
+  expect(sheet.view).toContainEqual({
+    description: 'Mark done',
+    bindings: [['e']],
+  });
+  expect(sheet.view).toContainEqual({
+    description: 'Open now',
+    bindings: [['o']],
+  });
+  expect(sheet.view.map((entry) => entry.description)).not.toContain(
+    'Open later'
+  );
+  expect(sheet.app).toContainEqual({
+    description: 'Select',
+    bindings: [['x']],
+  });
+});
+
 test('runnable keys include hidden commands and only those whose condition holds', () => {
   const goTo = leaderScope('runnable-go-to');
   const [viewFocused, setViewFocused] = createSignal(false);

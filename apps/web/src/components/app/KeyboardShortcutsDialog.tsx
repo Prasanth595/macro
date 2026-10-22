@@ -17,12 +17,15 @@ function ShortcutRow(props: { entry: ShortcutSheetEntry }) {
   return (
     <li class="flex min-h-8 items-center justify-between gap-4 text-sm">
       <span class="min-w-0 truncate text-ink">{props.entry.description}</span>
-      <span
-        class="flex shrink-0 flex-wrap items-center justify-end gap-1 text-xs text-ink-extra-muted"
-        // Screen readers get the keys as words; the glyphs are visual.
-        aria-label={props.entry.bindings
+      {/* Screen readers get the keys as words; the glyphs are visual. */}
+      <span class="sr-only">
+        {props.entry.bindings
           .map((binding) => binding.join(' then '))
           .join(' or ')}
+      </span>
+      <span
+        aria-hidden="true"
+        class="flex shrink-0 flex-wrap items-center justify-end gap-1 text-xs text-ink-extra-muted"
       >
         <Index each={props.entry.bindings}>
           {(binding, bindingIndex) => (
@@ -36,12 +39,10 @@ function ShortcutRow(props: { entry: ShortcutSheetEntry }) {
                     <Show when={keyIndex > 0}>
                       <span>then</span>
                     </Show>
-                    <span aria-hidden="true">
-                      <Hotkey
-                        shortcut={prettyPrintHotkeyString(key())}
-                        theme="muted"
-                      />
-                    </span>
+                    <Hotkey
+                      shortcut={prettyPrintHotkeyString(key())}
+                      theme="muted"
+                    />
                   </>
                 )}
               </Index>
@@ -90,7 +91,7 @@ function KeyboardShortcutsDialog(
         <div
           tabIndex={0}
           aria-label="Shortcuts"
-          class="grid min-h-0 gap-x-8 gap-y-6 overflow-y-auto p-5 focus-visible:outline-none sm:grid-cols-2"
+          class="grid min-h-0 gap-x-8 gap-y-6 overflow-y-auto p-5 outline-none focus-visible:ring focus-visible:ring-inset focus-visible:ring-accent sm:grid-cols-2"
         >
           <ShortcutSection title="This view" entries={props.sheet.view} />
           <ShortcutSection title="Everywhere" entries={props.sheet.app} />
