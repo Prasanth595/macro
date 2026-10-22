@@ -1271,13 +1271,13 @@ export const deleteAgentSession = async (
 };
 
 /**
- * The harness writes the prompt, as context the transcript does not show; it
-starts a turn at once when the session is idle and queues otherwise.
+ * The harness produces an `app.connected` system event, which the transcript
+shows as no prompt; it starts a turn once the session is idle.
  * @summary Continue the session now that its owner connected an app it asked for.
  */
-export type reportAgentSessionAppConnectedResponse200 = {
-  data: ControlResponse;
-  status: 200;
+export type reportAgentSessionAppConnectedResponse202 = {
+  data: void;
+  status: 202;
 };
 
 export type reportAgentSessionAppConnectedResponse401 = {
@@ -1306,7 +1306,7 @@ export type reportAgentSessionAppConnectedResponse500 = {
 };
 
 export type reportAgentSessionAppConnectedResponseSuccess =
-  reportAgentSessionAppConnectedResponse200 & {
+  reportAgentSessionAppConnectedResponse202 & {
     headers: Headers;
   };
 export type reportAgentSessionAppConnectedResponseError = (

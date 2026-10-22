@@ -297,8 +297,8 @@ export class Sdk extends HeyApiClient {
     /**
      * Continue the session now that its owner connected an app it asked for.
      *
-     * The harness writes the prompt, as context the transcript does not show; it
-     * starts a turn at once when the session is idle and queues otherwise.
+     * The harness produces an `app.connected` system event, which the transcript
+     * shows as no prompt; it starts a turn once the session is idle.
      */
     public reportAgentSessionAppConnected<ThrowOnError extends boolean = false>(options: Options<ReportAgentSessionAppConnectedData, ThrowOnError>): RequestResult<ReportAgentSessionAppConnectedResponses, ReportAgentSessionAppConnectedErrors, ThrowOnError> {
         return (options.client ?? this.client).post<ReportAgentSessionAppConnectedResponses, ReportAgentSessionAppConnectedErrors, ThrowOnError>({
