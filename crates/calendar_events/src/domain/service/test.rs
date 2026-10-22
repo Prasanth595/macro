@@ -8,8 +8,8 @@ use crate::domain::{
         CalendarOccurrence, CalendarSyncStatus, DisconnectedCalendar, EventReminders, EventStatus,
         EventTime, EventTransparency, EventType, EventVisibility, GOOGLE_CALENDAR_FULL_SCOPE,
         GOOGLE_CALENDAR_SCOPES, GoogleBackfillRunReport, GoogleCalendarSyncSnapshot,
-        GoogleEventSyncBatch, GoogleWatchChannel, GoogleWatchConfig, ProviderCalendar,
-        ProviderEventSource, StoredGoogleCalendar,
+        GoogleEventSyncBatch, GoogleWatchChannel, GoogleWatchConfig, GuestPolicy, ProviderCalendar,
+        ProviderEventSource, StoredGoogleCalendar, ViewerCapabilities,
     },
     ports::{
         CalendarBackfillRepository, CalendarEventWrite, CalendarProviderError,
@@ -105,6 +105,14 @@ impl CalendarRepository for FakeRepo {
             .collect())
     }
 
+    async fn event_export(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+    ) -> Result<Option<crate::domain::ics::CalendarEventExport>, Report> {
+        unreachable!("event export is not exercised by sync tests")
+    }
+
     async fn list_team_out_of_office(
         &self,
         _requester_id: &str,
@@ -133,6 +141,14 @@ impl CalendarRepository for FakeRepo {
         _recurrence_id: &str,
     ) -> Result<Option<Vec<CalendarAttendee>>, Report> {
         unreachable!("mutation lookups are not exercised by sync tests")
+    }
+
+    async fn record_guest_policy(
+        &self,
+        _event_id: Uuid,
+        _policy: GuestPolicy,
+    ) -> Result<(), Report> {
+        unreachable!("mutation writes are not exercised by sync tests")
     }
 
     async fn get_creation_target(
@@ -328,6 +344,8 @@ fn valid_upsert() -> CalendarEventUpsert {
                 comment: None,
             }],
             reminders: EventReminders::default(),
+            guest_policy: GuestPolicy::default(),
+            viewer_can: ViewerCapabilities::NONE,
             created_at: starts_at,
             updated_at: starts_at,
         },

@@ -298,12 +298,11 @@ the shimmer.
   (`enable-chat-v3-agents`), the workspace uses one sidebar for Chat and Code.
   **Agents** in the sidebar opens the same roster as the composer’s
   **Create agent** action. **Connections** manages MCP integrations (including
-  app authentication and disconnection); this section has moved out of Settings.
+  app authentication and disconnection), also available under Settings → Integrations.
   Home’s **Connect your tools** and agent replies’ **Connect app** chips open this
-  Connections page. Personal Gmail/GitHub account links remain under Settings →
-  Integrations.
+  Integrations page. It shows installed tools above the app catalog, with personal Gmail/GitHub account links in a separate section above.
 
-  To recreate Slack channels, open **Settings → Connections → Slack → Import
+  To recreate Slack channels, open **Settings → Integrations → Slack → Import
   channels** (or **Connections → Slack** from the Agents workspace). The card
   appears only for a connected, enabled Pipedream Slack account. Click **Find
   channels** (or **Refresh** on subsequent visits), then wait for discovery and
@@ -512,7 +511,8 @@ the shimmer.
   the catalog in place with a Back action. Search includes every model.
 - Desktop keeps the model selector and speedometer as separate controls. The
   speedometer opens a slider with a stop for each advertised effort level. Arrow keys
-  adjust the level; pointer drags commit on release. The popover stays open, and
+  and drags preview the level; it is applied once, when the popover closes, and
+  only if it differs from the current level. The popover stays open, and
   the model selector opens the full catalog independently. On mobile, the **speedometer-style
   effort** button opens its own sheet after the input expands. Choosing a level
   applies it and closes the sheet. Models with fewer than two effort choices
@@ -1096,14 +1096,17 @@ list, create, and update projects (initiatives in the API) and move tasks in or 
 render `displayResults` views). Requests go to `POST /cognition/stream/chat/message`; results
 stream over the app's websocket, not the HTTP response.
 
-When explicitly asked, the agent uses `CommentOnDocument` to reply with `threadId`,
-start an inline markdown comment with `quote`, or start a Discussion comment with
-neither. `threadId` and `quote` cannot be combined; `occurrence` only applies with
-`quote`. Thread ids come from the comments returned by `ReadContent`. A reply row reads
-**Replied to a comment on** (or **Commented on** for a new Discussion comment) followed
-by the document, and expands to the posted text; a resolve row reads **Resolved** or
-**Reopened a comment on** the document. Asked to comment on part of a markdown
-document, the agent starts an inline comment on the quoted passage: the row reads
+When explicitly asked, the agent uses `Comment` to start a Discussion comment on an
+item, addressed by `entityType` and `entityId` (a `document`, which includes tasks and
+PDFs, an `initiative`, which is a Tasks project, a `crm_company` or a `crm_contact`),
+or to reply with `threadId` alone: a thread id is enough to find its item. It reads any
+item's threads with `ReadDiscussion`, and edits, deletes and resolves comments by their
+ids with `EditComment`, `DeleteComment` and `ResolveComment`. For a document,
+`ReadContent` returns the same threads with the content. A reply row reads **Replied to
+a comment on** (or **Commented on** for a new Discussion comment) followed by the item,
+and expands to the posted text; a resolve row reads **Resolved** or **Reopened a comment
+on** the item. Asked to comment on part of a markdown document, the agent uses
+`CommentOnText` with `quote` (`occurrence` picks a repeated passage): the row reads
 **Commented on text in** the document and expands to the quoted text and the comment,
 and the passage is highlighted in the document with the comment floating beside it.
 A passage that is missing, spans blocks, or repeats with no occurrence chosen is
@@ -1168,7 +1171,7 @@ reads `Waiting for approval`. The agent's hidden context names the owner and the
 ## Forms authoring and sharing
 
 With Forms enabled, ask the agent to create a complete form, including ordered
-sections and qualification screeners. Creation starts closed and members-only.
+sections and qualification gates. Creation starts closed and members-only.
 The expandable tool result shows the saved questions, builder link, respondent
 link, and actual response availability. Edits use granular CRDT updates
 to preserve unrelated human changes. Partial outcomes have recovery guidance;
@@ -1178,7 +1181,7 @@ a link by itself is not a completed or open form.
 and channel-sharing services as the browser. There is no custom review card.
 Channel Edit also grants access to the entire response database. Settings and
 channel grants are separate writes; inspect any partial outcome before retrying.
-See [Forms](forms.md#forms-through-the-ai-tools) for screeners, booking link reveal,
+See [Forms](forms.md#forms-through-the-ai-tools) for gates, booking link reveal,
 supported edits and retry behavior.
 
 ## In channels
@@ -1380,9 +1383,12 @@ Details lists Status, Agent, Model, and dates for every session; the Runtime
 row appears only for coding runtimes, never for in-memory chat agents.
 `References` is the same section documents show: one row per channel message that
 `@`-mentioned or shared the session (sender, channel chip, time, and a two-line
-message excerpt) and per document that mentions it (author and document chip).
-Click a row to open that message or document in a split. The section is hidden
-until at least one reference exists, and only lists channels you belong to.
+message excerpt), per comment on a document, project, CRM record, or call that
+mentions it (sender, parent chip, time, excerpt), and per document that mentions
+it (author and document chip). Click a row to open that message, comment, or
+document in a split; a comment row opens its parent at the comment. The section
+is hidden until at least one reference exists, lists channels you belong to, and
+lists comments only on parents you can view.
 New conversation pages have no disabled session action buttons. Older chats
 also have one header row, and empty chats show a simple conversation prompt
 instead of the standalone recent-sessions and tips surface.
@@ -1576,7 +1582,10 @@ The owner can click **Stop sharing** in the banner; open preview connections
 close. Disconnection and expiry leave a banner asking the agent to share again.
 Leases last up to one hour and expire after 15 minutes without browser requests.
 Continue prompting in the agent session while the preview tab stays open; page
-edits should arrive through the app's own HMR connection.
+edits should arrive through the app's own HMR connection. Control requests, SSH,
+and preview navigation can reach different replicas without requiring sticky
+sessions. A rolling restart of the tunnel owner may disconnect its previews;
+the banner becomes offline within 45 seconds. Ask the agent to share again.
 
 ### Transcript navigation
 
@@ -1761,7 +1770,7 @@ There is no periodic PR lookup polling.
 On desktop, open the speedometer beside the model selector to adjust the
 current model with the **Reasoning effort** slider. The header and accessible value announce the
 selected level. Arrow keys move between supported levels; the menu stays open
-until dismissed. The model selector opens the full catalog independently; other
+until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
 models still offer their own effort submenu with Right Arrow. On mobile, tap a model
 to select it, then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
@@ -2007,7 +2016,7 @@ creating an event is a real action, including from a local app connected to dev.
 On desktop, open the speedometer beside the model selector to adjust the
 current model with the **Reasoning effort** slider. The header and accessible value announce the
 selected level. Arrow keys move between supported levels; the menu stays open
-until dismissed. The model selector opens the full catalog independently; other
+until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
 models still offer their own effort submenu with Right Arrow. On mobile, tap a model
 to select it, then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
