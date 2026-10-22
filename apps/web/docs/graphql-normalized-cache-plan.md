@@ -352,6 +352,27 @@ the engine directly from its multi-threaded runtime, and unbounded on wasm.
   the result returned across the worker/Tauri boundary. The directive is
   stripped before network transport; remaining fields are projected directly
   from the validated response during the write, avoiding a denormalizing read.
+- Client-only `@fromCache` fields are read only from the device cache, so a
+  query can show what another query fetched without asking the server for it.
+  - Transport (`transport-document.ts`, for HTTP and websocket requests)
+    removes each such field with its arguments and selections. A selection set
+    left empty selects `__typename`, so its parent is still fetched; fragments
+    and variables that only removed fields used are dropped.
+  - Normalization never writes the field, even if a response contains it, and
+    records its dependency. Dependencies stay exact unless the field's value
+    can link to other records, which the response cannot name.
+  - Put it on fields of normalized records. A response replaces an embedded
+    object as a whole, so a value stored inside one would not survive a
+    refresh of the query that selects it with `@fromCache`.
+  - A read returns the value another query stored under the same field key
+    (canonical arguments: a literal and a variable with the same value match),
+    or null when it is absent or lacks a selected subfield. A linked record
+    that is missing from the cache still makes the read miss.
+  - Watched queries update when another query writes the field. Network
+    results never contain it; the exchange's watched read after the write puts
+    the cached value into the live view, so read an absent field as null.
+  - Codegen rejects the directive on non-null fields. Native engines older than
+    the one that added it reject documents that use it.
 - On teardown: unregister operation (unpins dependencies).
 - Cross-context: engine broadcasts changed-keys; every context's exchange
   re-executes its own affected active operations.
