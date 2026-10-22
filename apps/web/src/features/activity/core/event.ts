@@ -17,6 +17,12 @@ export type ActivityAction =
   | { kind: 'task-removed'; taskId?: string }
   | { kind: 'unknown'; tag: string };
 
+/**
+ * Whose activity the Activity screen reads: the viewer's own, or their
+ * teammates' on items the viewer can open.
+ */
+export type ActivityScope = 'mine' | 'team';
+
 export type ActivityEntityType =
   | 'document'
   | 'project'
