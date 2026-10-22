@@ -30,7 +30,10 @@ execution, display) that don't belong to a single domain.
 - `src/import_jobs.rs`: `ImportJobs`, the shutdown token and tracker every
   host passes to `build_tool_service_context_from_env` (or its own import
   service) and calls `hand_over` on at shutdown, so running Notion imports
-  release their runs to another process.
+  release their runs to another process. Those hosts build the import ledger
+  with `build_import_repo`, which wires agent-session notifications so the
+  session presenting an import's review hears when its plan is ready and
+  when its write ends.
 - `src/bin/gen_tool_schemas.rs`, `src/bin/gen_ai_request_schemas.rs`:
   schema-generation binaries the frontend consumes.
 
