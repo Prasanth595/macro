@@ -494,9 +494,9 @@ GitHub and Granola rows and inline email account details that wrap on narrow scr
 Installed tools use a two-column card grid (one
 column on narrow screens), followed by Featured and All apps, without a Discover
 heading or a separate installed sidebar. All apps has a gray Add Custom action beside its
-heading. Search and the category picker share a row directly below that heading
-and stack on narrow screens. The category picker and search field use a subtle
-neutral fill to distinguish the controls from the raised cards.
+heading. Labelled Search apps and Category controls share a row directly below
+that heading and stack below a 560px catalog width. Both use matching 44px outlined
+frames with a subtle neutral fill; search includes an icon and a clear action.
 Installed, Featured, and All apps use headings above rounded cards. Their cards,
 the empty state, and the setup rows use the same raised composer surface as core
 integrations, with glass in dark mode and soft shadows in light mode.
