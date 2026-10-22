@@ -92,6 +92,12 @@ accumulate against the requested date and interrupt unfinished slides, without
 waiting for event responses or hidden-page redraws. Verify repeated forward clicks
 and mixed directions reach the cumulative date while events are still loading.
 Touch swipes retain their page-readiness gates.
+On phones, the grid follows horizontal drags directly; release speed and remaining
+distance determine the 150–300ms settle animation. Short flicks can change periods,
+while short drags released slowly or after a pause return to the current period.
+A slow drag past the distance threshold still advances. Vertical scrolling, the 40px
+screen-edge gesture zones, and event taps remain independent. Reduced motion
+skips settling animations; arrow and keyboard navigation retain their 140ms slide.
 
 Quick-call creation, incoming invitations, Live lists, Macro meeting links, and
 the `/app/meet/*` routes require the PostHog flag `enable-quick-calls`. While the

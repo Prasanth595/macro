@@ -2,10 +2,10 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import { createEffect, on, onCleanup } from 'solid-js';
 import { type PagerDirection, usePager } from './Pager';
 
-const DEFAULT_DIRECTION_LOCK_DISTANCE = 8;
-const DEFAULT_VELOCITY_ACTIVATION_DISTANCE = 24;
-const DEFAULT_VELOCITY_THRESHOLD = 0.5;
-const RELEASE_VELOCITY_WINDOW = 100;
+const DEFAULT_DIRECTION_LOCK_DISTANCE = 6;
+const DEFAULT_VELOCITY_ACTIVATION_DISTANCE = 16;
+const DEFAULT_VELOCITY_THRESHOLD = 0.25;
+const RELEASE_VELOCITY_WINDOW = 80;
 
 interface ActiveGesture {
   axis: 'x' | 'y' | undefined;
@@ -129,9 +129,11 @@ export function PagerSwipeGestures(props: PagerSwipeGesturesProps) {
       };
 
       const releaseVelocity = (gesture: ActiveGesture, endTime: number) => {
-        const samples = gesture.samples.filter(
-          (sample) => endTime - sample.time <= RELEASE_VELOCITY_WINDOW
-        );
+        // Include the release point so lifting after a pause loses momentum.
+        const samples = [
+          ...gesture.samples,
+          { time: endTime, x: gesture.currentX },
+        ].filter((sample) => endTime - sample.time <= RELEASE_VELOCITY_WINDOW);
         const first = samples[0];
         const last = samples.at(-1);
         if (!first || !last || last.time <= first.time) return 0;
@@ -142,7 +144,7 @@ export function PagerSwipeGestures(props: PagerSwipeGesturesProps) {
       const activationDistance = () => {
         const configured = props.activationDistance;
         if (configured === undefined) {
-          return Math.min(96, Math.max(48, viewport.clientWidth * 0.2));
+          return Math.min(80, Math.max(40, viewport.clientWidth * 0.15));
         }
 
         if (configured < 1) {
@@ -188,12 +190,12 @@ export function PagerSwipeGestures(props: PagerSwipeGesturesProps) {
           Math.sign(velocity) === Math.sign(offset);
 
         if (!commitsByDistance && !commitsByVelocity) {
-          pager.cancelDrag();
+          pager.cancelDrag(Math.abs(velocity));
           return;
         }
 
         const direction: PagerDirection = offset < 0 ? 'next' : 'previous';
-        fireAndForget(pager.commitDrag(direction), 'pager');
+        fireAndForget(pager.commitDrag(direction, Math.abs(velocity)), 'pager');
       };
 
       const handleTouchCancel = animateBackAfterInterruption;

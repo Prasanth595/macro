@@ -14,6 +14,8 @@ import {
 import './pager.css';
 
 const DEFAULT_ANIMATION_DURATION = 140;
+const DEFAULT_RELEASE_ANIMATION_DURATION = 300;
+const MIN_ANIMATION_DURATION = 150;
 const RAPID_NAVIGATION_CLICK_THRESHOLD = DEFAULT_ANIMATION_DURATION + 10;
 const TRANSITION_FALLBACK_BUFFER = 50;
 
@@ -49,7 +51,7 @@ export interface PagerOptions<PageId> {
   onTransitionStart?: (change: PagerChange<PageId>) => void;
   /** Called after the controlled page has been reconciled at rest. */
   onTransitionEnd?: (change: PagerChange<PageId>) => void;
-  /** Duration of programmatic and release animations. */
+  /** Programmatic duration and maximum swipe-settle duration, in milliseconds. */
   animationDuration?: number;
 }
 
@@ -78,10 +80,13 @@ export interface PagerController<PageId> {
   beginDrag: () => boolean;
   /** Moves the page rail during an externally controlled drag. */
   updateDrag: (offset: number) => void;
-  /** Commits an externally controlled drag in one direction. */
-  commitDrag: (direction: PagerDirection) => Promise<boolean>;
-  /** Animates an externally controlled drag back to the active page. */
-  cancelDrag: () => void;
+  /** Commits a drag, optionally supplying its release speed in pixels per millisecond. */
+  commitDrag: (
+    direction: PagerDirection,
+    releaseVelocity?: number
+  ) => Promise<boolean>;
+  /** Returns to the active page, optionally supplying release speed in pixels per millisecond. */
+  cancelDrag: (releaseVelocity?: number) => void;
   /** Returns whether this page is currently controlled as active. */
   isActive: (page: PageId) => boolean;
   /** Returns the page's position relative to the active page. */
@@ -93,7 +98,12 @@ export interface PagerController<PageId> {
   ) => () => void;
 }
 
-/** Creates a generic transform-driven pager for any ordered set of pages. */
+/**
+ * Creates a generic transform-driven pager for any ordered set of pages.
+ * @do Update activePage synchronously in onPageChange so the rail can recenter.
+ * @do Gate navigation on page readiness and exclude interactive targets from swipes.
+ * @dont Add competing transforms or transitions to the page rail.
+ */
 export function createPager<PageId>(
   options: PagerOptions<PageId>
 ): PagerController<PageId> {
@@ -102,15 +112,30 @@ export function createPager<PageId>(
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
 
   let rail: HTMLDivElement | undefined;
-  let dragFrame: number | undefined;
   let dragOffset = 0;
   let pendingTransition: PendingTransition<PageId> | undefined;
   let transitionTimer: number | undefined;
   let observedViewportWidth: number | undefined;
   let lastProgrammaticNavigationAt = Number.NEGATIVE_INFINITY;
 
-  const animationDuration = () =>
+  const baseAnimationDuration = () =>
     options.animationDuration ?? DEFAULT_ANIMATION_DURATION;
+
+  const computeSettleDuration = (
+    distance: number,
+    velocity: number | undefined
+  ) => {
+    const maximum =
+      options.animationDuration ?? DEFAULT_RELEASE_ANIMATION_DURATION;
+    if (velocity === undefined || Math.abs(velocity) < 0.1) return maximum;
+    const absDistance = Math.abs(distance);
+    const absVelocity = Math.abs(velocity);
+    const velocityDuration = absDistance / absVelocity;
+    return Math.min(
+      maximum,
+      Math.max(MIN_ANIMATION_DURATION, velocityDuration)
+    );
+  };
 
   const prefersReducedMotion = () =>
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -133,13 +158,6 @@ export function createPager<PageId>(
     transitionTimer = undefined;
   };
 
-  const clearDragFrame = () => {
-    if (dragFrame === undefined) return;
-
-    cancelAnimationFrame(dragFrame);
-    dragFrame = undefined;
-  };
-
   const setRailOffset = (offset: number) => {
     dragOffset = offset;
     if (!rail) return;
@@ -152,16 +170,11 @@ export function createPager<PageId>(
     rail.style.transform = `translate3d(${offset}px, 0, 0)`;
   };
 
-  const scheduleRailOffset = (offset: number) => {
-    dragOffset = offset;
-    if (dragFrame !== undefined) return;
-    dragFrame = requestAnimationFrame(() => {
-      dragFrame = undefined;
-      setRailOffset(dragOffset);
-    });
-  };
-
-  const setTransitionEnabled = (enabled: boolean) => {
+  const setTransitionEnabled = (
+    enabled: boolean,
+    durationMs?: number,
+    source: PagerNavigationSource = 'programmatic'
+  ) => {
     if (!rail) return;
 
     if (!enabled) {
@@ -170,7 +183,12 @@ export function createPager<PageId>(
       return;
     }
 
-    rail.style.transition = `transform ${animationDuration()}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+    const duration = durationMs ?? baseAnimationDuration();
+    const curve =
+      source === 'gesture'
+        ? 'cubic-bezier(0.33, 1, 0.68, 1)'
+        : 'cubic-bezier(0.22, 1, 0.36, 1)';
+    rail.style.transition = `transform ${duration}ms ${curve}`;
     rail.style.willChange = 'transform';
   };
 
@@ -204,7 +222,6 @@ export function createPager<PageId>(
 
   const finishAtRest = () => {
     clearTransitionTimer();
-    clearDragFrame();
     setTransitionEnabled(false);
     setRailOffset(0);
     batch(() => {
@@ -231,7 +248,6 @@ export function createPager<PageId>(
     }
 
     clearTransitionTimer();
-    clearDragFrame();
     setTransitionEnabled(false);
     setRailOffset(-transitionDistance(pending.change));
     options.onPageChange(pending.change.to, pending.change);
@@ -245,15 +261,18 @@ export function createPager<PageId>(
     pending.resolve(true);
   };
 
-  const scheduleTransitionFallback = (callback: () => void) => {
+  const scheduleTransitionFallback = (
+    callback: () => void,
+    duration: number
+  ) => {
     clearTransitionTimer();
     transitionTimer = window.setTimeout(
       callback,
-      animationDuration() + TRANSITION_FALLBACK_BUFFER
+      duration + TRANSITION_FALLBACK_BUFFER
     );
   };
 
-  const animateBack = () => {
+  const animateBack = (releaseVelocity?: number) => {
     pendingTransition?.resolve(false);
     pendingTransition = undefined;
     batch(() => {
@@ -261,17 +280,22 @@ export function createPager<PageId>(
       setTargetPage(undefined);
     });
 
-    if (prefersReducedMotion() || dragOffset === 0) {
+    const duration = computeSettleDuration(dragOffset, releaseVelocity);
+    if (prefersReducedMotion() || dragOffset === 0 || duration === 0) {
       finishAtRest();
       return;
     }
 
-    setTransitionEnabled(true);
+    setTransitionEnabled(true, duration, 'gesture');
     setRailOffset(0);
-    scheduleTransitionFallback(finishAtRest);
+    scheduleTransitionFallback(finishAtRest, duration);
   };
 
-  const startTransition = (change: PagerChange<PageId>, animate = true) =>
+  const startTransition = (
+    change: PagerChange<PageId>,
+    animate = true,
+    releaseVelocity?: number
+  ) =>
     new Promise<boolean>((resolve) => {
       const viewportElement = viewport();
       if (!viewportElement || !rail || phase() === 'settling') {
@@ -279,7 +303,6 @@ export function createPager<PageId>(
         return;
       }
 
-      clearDragFrame();
       pendingTransition = { change, resolve };
       batch(() => {
         setPhase('settling');
@@ -287,15 +310,25 @@ export function createPager<PageId>(
       });
       options.onTransitionStart?.(change);
 
-      const distance = transitionDistance(change);
-      if (!animate || prefersReducedMotion() || distance === 0) {
+      const targetOffset = -transitionDistance(change);
+      const remainingDistance = Math.abs(targetOffset - dragOffset);
+      const duration =
+        change.source === 'gesture'
+          ? computeSettleDuration(remainingDistance, releaseVelocity)
+          : baseAnimationDuration();
+      if (
+        !animate ||
+        prefersReducedMotion() ||
+        remainingDistance === 0 ||
+        duration === 0
+      ) {
         finishTransition();
         return;
       }
 
-      setTransitionEnabled(true);
-      setRailOffset(-distance);
-      scheduleTransitionFallback(finishTransition);
+      setTransitionEnabled(true, duration, change.source);
+      setRailOffset(targetOffset);
+      scheduleTransitionFallback(finishTransition, duration);
     });
 
   const navigate = (
@@ -394,21 +427,21 @@ export function createPager<PageId>(
       const constrainedOffset = transitionFor(direction, 'gesture')
         ? offset
         : offset * 0.12;
-      scheduleRailOffset(constrainedOffset);
+      setRailOffset(constrainedOffset);
     },
-    commitDrag(direction) {
+    commitDrag(direction, releaseVelocity) {
       if (phase() !== 'dragging') return Promise.resolve(false);
 
       const change = transitionFor(direction, 'gesture');
       if (!change) {
-        animateBack();
+        animateBack(releaseVelocity);
         return Promise.resolve(false);
       }
-      return startTransition(change);
+      return startTransition(change, true, releaseVelocity);
     },
-    cancelDrag() {
+    cancelDrag(releaseVelocity) {
       if (phase() !== 'dragging') return;
-      animateBack();
+      animateBack(releaseVelocity);
     },
     isActive: (page) => Object.is(options.activePage(), page),
     relativePosition,
@@ -422,7 +455,6 @@ export function createPager<PageId>(
       return () => {
         controller.cancel();
         clearTransitionTimer();
-        clearDragFrame();
         nextRail.removeEventListener('transitionend', handleTransitionEnd);
         setViewport(undefined);
         observedViewportWidth = undefined;
@@ -434,7 +466,6 @@ export function createPager<PageId>(
   onCleanup(() => {
     controller.cancel();
     clearTransitionTimer();
-    clearDragFrame();
   });
 
   return controller;
