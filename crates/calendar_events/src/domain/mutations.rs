@@ -7,6 +7,7 @@
 //! no-ops on the idempotency short-circuit.
 
 use std::collections::HashMap;
+mod details;
 mod invite;
 mod replacement;
 
@@ -33,6 +34,8 @@ use super::{
 };
 use crate::domain::events::{CalendarEventMetadata, CalendarMacroEvent, CalendarTopicEvent};
 use macro_event_broker::MacroEventBroker;
+
+const EMPTY_PATCH: &str = "the patch changes nothing";
 
 /// Calendar mutation use cases with provider, token, and persistence
 /// details behind ports.
@@ -298,9 +301,7 @@ where
         scope: CalendarUpdateScope,
     ) -> Result<CalendarEvent, CalendarMutationError> {
         if patch.is_empty() {
-            return Err(CalendarMutationError::InvalidInput(
-                "the patch changes nothing".to_string(),
-            ));
+            return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
         }
         if let Some(time) = &patch.time {
             validate_time(time)?;
@@ -328,12 +329,20 @@ where
         }
         self.require_provider_writes(target.token_identity.provider)?;
         validate_conference(target.token_identity.provider, patch.conference)?;
+        // The stored list is the baseline — an occurrence's own list when
+        // an occurrence-scoped patch addresses one — so a retained guest's
+        // per-instance RSVP wins over their series status.
+        let stored = self.stored_attendees(event_id, &scope).await?;
+        let capabilities = invite::copy_capabilities(&target, &stored);
+        // Checked before any guest is invited, so a refused change leaves
+        // the event untouched.
+        self.require_detail_rights(event_id, &scope, capabilities, &mut patch)
+            .await?;
+        if patch.is_empty() {
+            return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
+        }
         if let Some(mut attendees) = patch.attendees.take() {
-            // The stored list is the baseline — an occurrence's own list when
-            // an occurrence-scoped patch addresses one — so a retained guest's
-            // per-instance RSVP wins over their series status.
-            let stored = self.stored_attendees(event_id, &scope).await?;
-            if invite::copy_capabilities(&target, &stored).remove_guests {
+            if capabilities.remove_guests {
                 preserve_retained_attendee_state(&mut attendees, &stored);
                 patch.attendees = Some(attendees);
             } else {
@@ -355,9 +364,7 @@ where
                         return Ok(invited);
                     }
                 } else if patch.is_empty() {
-                    return Err(CalendarMutationError::InvalidInput(
-                        "the patch changes nothing".to_string(),
-                    ));
+                    return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
                 }
             }
         }

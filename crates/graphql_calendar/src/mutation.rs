@@ -231,6 +231,10 @@ pub(crate) fn mutation_error(error: CalendarMutationError) -> async_graphql::Err
             "guest_list_hidden",
             "Guests cannot be added while the organizer hides the guest list.".into(),
         ),
+        CalendarMutationError::GuestsCannotModify => (
+            "guests_cannot_modify",
+            "The organizer doesn't let guests change this event.".into(),
+        ),
         CalendarMutationError::InvalidInput(message) => ("invalid_input", message.clone()),
         CalendarMutationError::ReauthRequired(_) => (
             "reauth_required",

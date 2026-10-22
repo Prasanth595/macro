@@ -3,10 +3,11 @@ use crate::domain::models::{
     ActorInboxes, AppliedGoogleGrant, CalendarAttendee, CalendarAttendeeInput,
     CalendarBackfillJobKey, CalendarCreationTarget, CalendarEventOverride, CalendarEventSource,
     CalendarLinkTokenIdentity, CalendarOccurrenceCursor, CalendarSyncStatus, CalendarWatchRelease,
-    ConferenceChange, DisconnectedCalendar, EventStart, EventStatus, EventTransparency, EventType,
-    EventVisibility, GoogleCalendarSyncSnapshot, GoogleWatchChannel, GuestPolicy,
-    OutOfOfficeAutoDeclineMode, OutOfOfficeProperties, ProviderCalendar, ProviderCalendarTarget,
-    ProviderEventSource, StoredGoogleCalendar, ViewerCapabilities, VisibleCalendar,
+    ConferenceChange, DisconnectedCalendar, EventDetails, EventStart, EventStatus,
+    EventTransparency, EventType, EventVisibility, GoogleCalendarSyncSnapshot, GoogleWatchChannel,
+    GuestPolicy, OutOfOfficeAutoDeclineMode, OutOfOfficeProperties, ProviderCalendar,
+    ProviderCalendarTarget, ProviderEventSource, StoredGoogleCalendar, ViewerCapabilities,
+    VisibleCalendar,
 };
 use crate::domain::ports::RetiredCalendarEvent;
 use chrono::{Duration, TimeZone};
@@ -172,6 +173,10 @@ struct FakeRepo {
     fail_owned_inboxes: bool,
     /// Guest policies recorded after the provider refused an invite.
     recorded_guest_policies: Arc<Mutex<Vec<(Uuid, GuestPolicy)>>>,
+    /// Stored details a guest's update is compared against.
+    event_details: Option<EventDetails>,
+    /// The occurrence key of every stored-details read.
+    details_requests: Arc<Mutex<Vec<Option<String>>>>,
 }
 
 impl Default for FakeRepo {
@@ -193,6 +198,8 @@ impl Default for FakeRepo {
             fail_list_visible: false,
             fail_owned_inboxes: false,
             recorded_guest_policies: Default::default(),
+            event_details: None,
+            details_requests: Default::default(),
         }
     }
 }
@@ -383,6 +390,18 @@ impl CalendarRepository for FakeRepo {
         _recurrence_id: &str,
     ) -> Result<Option<Vec<CalendarAttendee>>, rootcause::Report> {
         Ok(self.occurrence_override_attendees.clone())
+    }
+
+    async fn get_event_details(
+        &self,
+        _event_id: Uuid,
+        occurrence_key: Option<&str>,
+    ) -> Result<Option<EventDetails>, rootcause::Report> {
+        self.details_requests
+            .lock()
+            .unwrap()
+            .push(occurrence_key.map(str::to_string));
+        Ok(self.event_details.clone())
     }
 
     async fn record_guest_policy(
@@ -2818,5 +2837,6 @@ async fn outlook_write_pause_rejects_provider_operations_before_fetching_tokens(
         .unwrap();
 }
 
+mod details;
 mod invite;
 mod replacement;

@@ -789,6 +789,11 @@ async fn every_failure_carries_its_rest_code_and_hides_provider_details() {
             false,
         ),
         (
+            CalendarMutationError::GuestsCannotModify,
+            "guests_cannot_modify",
+            false,
+        ),
+        (
             CalendarMutationError::InvalidInput("end before start".to_owned()),
             "invalid_input",
             false,

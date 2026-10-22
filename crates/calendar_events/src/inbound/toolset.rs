@@ -486,6 +486,12 @@ fn mutation_tool_error(action: &str, error: CalendarMutationError) -> ToolCallEr
              Suggest asking the organizer to add them."
                 .to_string()
         }
+        CalendarMutationError::GuestsCannotModify => {
+            "The organizer doesn't let guests change this event, so the user can only change \
+             their own reminders and availability, add guests where the organizer allows it, \
+             and answer the invitation. Suggest asking the organizer to make the change."
+                .to_string()
+        }
         CalendarMutationError::InvalidInput(message) => message.clone(),
         CalendarMutationError::ReauthRequired(_) => {
             "Calendar access must be re-authorized. Ask the user to reconnect their calendar in \
