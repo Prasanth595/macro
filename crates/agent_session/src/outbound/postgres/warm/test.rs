@@ -1,7 +1,7 @@
 use crate::domain::agent_conversation::{AgentConversation, AgentConversationRepo};
 use crate::domain::error::AgentSessionError;
-use crate::domain::model::{SessionPurpose, SessionVisibility};
 use crate::domain::model::SessionStatus;
+use crate::domain::model::{SessionPurpose, SessionVisibility};
 use crate::domain::ports::AgentSessionRepo;
 use crate::domain::warm::{WarmClaim, WarmMissReason, WarmSessionLifecycle};
 use crate::outbound::postgres::test::{OWNER, create_test_bot, new_session, test_repo};

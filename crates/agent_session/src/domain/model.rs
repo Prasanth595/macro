@@ -244,7 +244,6 @@ impl SessionPurpose {
             Self::Standalone | Self::Warm | Self::AgentDm => SessionSource::User,
         }
     }
-
 }
 
 /// Who started a session. Stored on the session and carried by its lifecycle
