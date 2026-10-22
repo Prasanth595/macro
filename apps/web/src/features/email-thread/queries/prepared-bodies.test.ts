@@ -1,11 +1,23 @@
 import type { EmailThreadPreparedBodiesQuery } from '@service-storage/graphql/generated/graphql';
 import { expect, it, vi } from 'vitest';
 
+const mocks = vi.hoisted(() => ({ flagOn: true }));
 vi.mock('@graphql-cache/solid/create-live-query', () => ({
   createLiveQuery: vi.fn(),
 }));
+vi.mock('@core/constant/featureFlags', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@core/constant/featureFlags')>()),
+  isFeatureEnabled: () => mocks.flagOn,
+}));
 
-import { preparedBodiesById, SERVER_PREPARE_VERSION } from './prepared-bodies';
+import type { ServerPreparedBody } from '@app/features/email-message/context/email-rendering-context';
+import { createLiveQuery } from '@graphql-cache/solid/create-live-query';
+import type { Client } from '@urql/core';
+import {
+  createPreparedBodiesQuery,
+  preparedBodiesById,
+  SERVER_PREPARE_VERSION,
+} from './prepared-bodies';
 
 const prepared = (version: number) => ({
   __typename: 'GraphqlPreparedEmailBody' as const,
@@ -56,4 +68,30 @@ it('keeps bodies of this client version, by message id', () => {
     imageProxyUrl: 'https://gateway.test/image-proxy/proxy',
     sourceLength: 9,
   });
+});
+
+it('neither requests nor mounts server bodies while the flag is off', () => {
+  const body = { sourceLength: 9 } as ServerPreparedBody;
+  let options: { enabled: boolean } | undefined;
+  vi.mocked(createLiveQuery).mockImplementation(((
+    _document: unknown,
+    _variables: unknown,
+    readOptions: () => { enabled: boolean }
+  ) => {
+    options = readOptions();
+    return { isSuccess: true, data: new Map([['a', body]]) };
+  }) as never);
+  const client = {} as Client;
+
+  mocks.flagOn = false;
+  const off = createPreparedBodiesQuery(
+    () => 'thread',
+    () => true,
+    () => client
+  );
+  expect(options?.enabled).toBe(false);
+  expect(off('a')).toBeUndefined();
+
+  mocks.flagOn = true;
+  expect(off('a')).toBe(body);
 });

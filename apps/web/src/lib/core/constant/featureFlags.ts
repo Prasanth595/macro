@@ -454,6 +454,16 @@ export const enableEmailSignatures = defineFlag({
   default: onInDev,
 });
 
+// Mount email bodies the server prepared (`preparedBody`) instead of preparing
+// them on the device. PostHog-gated with a dev-mode default, and the kill
+// switch for server-prepared HTML; override with
+// VITE_ENABLE_SERVER_EMAIL_PREPARATION.
+export const enableServerEmailPreparation = defineFlag({
+  key: 'enable-server-email-preparation',
+  env: 'ENABLE_SERVER_EMAIL_PREPARATION',
+  default: onInDev,
+});
+
 // CRM companies & contacts frontend: the Companies view + sidebar entry, the
 // company/contact detail blocks, CRM mentions / quick-access, and CRM rows in
 // global search. PostHog-gated (currently targeted at the Macro team in prod)

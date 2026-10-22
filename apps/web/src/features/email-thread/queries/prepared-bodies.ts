@@ -1,4 +1,8 @@
 import type { ServerPreparedBody } from '@app/features/email-message/context/email-rendering-context';
+import {
+  enableServerEmailPreparation,
+  isFeatureEnabled,
+} from '@core/constant/featureFlags';
 import { DEFAULT_THREAD_MESSAGES_LIMIT } from '@core/constant/pagination';
 import { createLiveQuery } from '@graphql-cache/solid/create-live-query';
 import {
@@ -51,13 +55,17 @@ export function createPreparedBodiesQuery(
     }),
     () => ({
       client: client(),
-      enabled: enabled(),
+      enabled: enabled() && isFeatureEnabled(enableServerEmailPreparation),
       // A prepared body only changes with its source or version, and the
       // client checks both, so a cached one is never re-prepared.
       requestPolicy: 'cache-first' as const,
       select: preparedBodiesById,
     })
   );
+  // Checked at mount too: turning the flag off stops cached server HTML from
+  // mounting, not only new requests.
   return (messageId) =>
-    query.isSuccess ? query.data?.get(messageId) : undefined;
+    isFeatureEnabled(enableServerEmailPreparation) && query.isSuccess
+      ? query.data?.get(messageId)
+      : undefined;
 }
