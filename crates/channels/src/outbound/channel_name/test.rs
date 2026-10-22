@@ -25,14 +25,14 @@ fn unnamed_private_channel_lists_people_and_bots_but_not_the_viewer() {
     let participants = vec![
         "macro|me@test.com".to_string(),
         "macro|gabriel@test.com".to_string(),
-        "bot|00000000-0000-0000-0000-00000000c1a0".to_string(),
+        "bot|00000000-0000-0000-0000-00000000c0de".to_string(),
     ];
     let mut user_names = NameLookup::new();
     user_names.insert(
         MacroUserIdStr::try_from("macro|gabriel@test.com".to_string()).unwrap(),
         "Gabriel Birman".to_string(),
     );
-    let bot_names = HashMap::from([(bot_id::CLAUDE_BOT_ID, "Claude".to_string())]);
+    let bot_names = HashMap::from([(bot_id::CODEX_BOT_ID, "Codex".to_string())]);
 
     let name = resolve_channel_name(
         ChannelType::Private,
@@ -44,5 +44,5 @@ fn unnamed_private_channel_lists_people_and_bots_but_not_the_viewer() {
         &bot_names,
     );
 
-    assert_eq!(name, "Claude, Gabriel Birman");
+    assert_eq!(name, "Codex, Gabriel Birman");
 }
