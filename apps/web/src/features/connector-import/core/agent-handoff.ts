@@ -9,10 +9,7 @@ export type AgentImportHandoff = {
   instructions: string;
 };
 
-function createWith(
-  config: ImportCategoryConfig,
-  provider: ImportProvider
-): string {
+function createWith(config: ImportCategoryConfig): string {
   return match(config.category)
     .with(
       'files',
@@ -71,7 +68,7 @@ export function agentImportHandoff(
       `Use the ${provider.name} connector tools to find their most relevant recent ${config.items}.`,
       ...ledgerSteps(provider),
       `Before creating anything, show a short numbered list and ask which ones to bring over.`,
-      createWith(config, provider),
+      createWith(config),
       `Only read from ${provider.name}; never edit or delete anything there.`,
       'Finish with links to everything you created.',
     ].join(' '),
