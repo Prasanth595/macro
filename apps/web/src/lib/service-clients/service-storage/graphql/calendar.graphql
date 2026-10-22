@@ -87,6 +87,7 @@ fragment CalendarEventFields on GraphqlCalendarEvent {
 		removeGuests
 		setGuestPolicy
 		rsvp
+		organize
 	}
 	createdAt
 	updatedAt
@@ -128,6 +129,7 @@ fragment CalendarFields on GraphqlCalendar {
 		emailReminders
 		removeConference
 		resetRsvp
+		guestPolicy
 	}
 	name
 	color

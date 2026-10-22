@@ -1895,6 +1895,11 @@ export type ViewerCapabilities = {
      */
     inviteGuests: boolean;
     /**
+     * Act as the event's organizer: replace its whole guest list and manage
+     * its conferencing.
+     */
+    organize: boolean;
+    /**
      * Remove guests.
      */
     removeGuests: boolean;
@@ -1903,7 +1908,7 @@ export type ViewerCapabilities = {
      */
     rsvp: boolean;
     /**
-     * Change the event's guest policy.
+     * Change the event's guest policy, which only Google calendars have.
      */
     setGuestPolicy: boolean;
 };
