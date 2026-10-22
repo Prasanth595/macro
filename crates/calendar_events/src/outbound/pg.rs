@@ -37,7 +37,7 @@ use crate::domain::{
         EventReminders, EventStart, EventStatus, EventTime, EventTransparency, EventType,
         EventVisibility, GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet,
         GoogleWatchChannel, GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange,
-        ProviderCalendar, StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities,
+        OwnedInbox, ProviderCalendar, StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities,
         VisibleCalendar, is_system_calendar,
     },
     ports::{
@@ -2111,7 +2111,7 @@ impl CalendarRepository for PgCalendarRepository {
         let Some(row) = row else {
             return Ok(None);
         };
-        let actor = ActorInboxes::from_owned(self.owned_inbox_emails(requester_id).await?);
+        let actor = ActorInboxes::from_owned(self.owned_inboxes(requester_id).await?);
         let token_identity = CalendarLinkTokenIdentity {
             binding: Some(CalendarGrantBinding {
                 link_id: row.email_link_id,
@@ -2271,7 +2271,7 @@ impl CalendarRepository for PgCalendarRepository {
         let Some(row) = row else {
             return Ok(None);
         };
-        let actor = ActorInboxes::from_owned(self.owned_inbox_emails(requester_id).await?);
+        let actor = ActorInboxes::from_owned(self.owned_inboxes(requester_id).await?);
         let token_identity = CalendarLinkTokenIdentity {
             binding: Some(CalendarGrantBinding {
                 link_id: row.email_link_id,
@@ -2384,10 +2384,13 @@ impl CalendarRepository for PgCalendarRepository {
     }
 
     #[tracing::instrument(skip(self, requester_id), err)]
-    async fn owned_inbox_emails(&self, requester_id: &str) -> Result<Vec<String>, Report> {
-        sqlx::query_scalar!(
+    async fn owned_inboxes(&self, requester_id: &str) -> Result<Vec<OwnedInbox>, Report> {
+        sqlx::query!(
             r#"
-            SELECT email_address::text AS "email_address!"
+            SELECT
+                id AS link_id,
+                email_address::text AS "email_address!",
+                provider::text AS "provider!"
             FROM email_links
             WHERE macro_id = $1
             "#,
@@ -2395,7 +2398,17 @@ impl CalendarRepository for PgCalendarRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(report)
+        .map_err(report)?
+        .into_iter()
+        .map(|row| {
+            Ok(OwnedInbox {
+                link_id: row.link_id,
+                email: row.email_address,
+                provider: CalendarProvider::from_link(&row.provider)
+                    .ok_or_else(|| rootcause::report!("unsupported calendar provider"))?,
+            })
+        })
+        .collect()
     }
 
     #[tracing::instrument(skip(self), err)]
