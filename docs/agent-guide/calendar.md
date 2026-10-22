@@ -156,8 +156,8 @@ default personal link for a new profile. Public
 choose an event on the profile landing page, then choose their timezone, date,
 and time before entering attendee details. Date & time and Your details steps
 show progress; the event summary and selected time stay visible. Choose another
-time preserves attendee input. All meetings returns to the profile chooser when
-multiple events exist, but is disabled while a booking response is unresolved.
+time preserves attendee input. Event booking pages do not show an All meetings
+link back to the profile chooser.
 The private confirmation shows the meeting, date, timezone, location, and guest.
 In the native iOS and Android apps, standalone booking and receipt pages keep a
 sticky **Back to Macro** button below the device's top safe-area inset. It returns to
