@@ -10,6 +10,30 @@ from unittest.mock import patch
 
 
 class ConsolidateAgentConfigTest(unittest.TestCase):
+    def test_missing_signer_reference_aborts_without_uploading(self):
+        spec = importlib.util.spec_from_file_location(
+            "consolidate_agent_config",
+            Path(__file__).with_name("consolidate-agent-config.py"),
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        key = "DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY"
+        for source in ({}, {key: ""}):
+            with self.subTest(source=source):
+                def download(project, config):
+                    if project == "agent-harness-service":
+                        return {key: "obsolete-private-fixture"}
+                    return source if project == "document-cognition" else {}
+
+                with (
+                    patch.object(module, "download", side_effect=download),
+                    patch.object(module.subprocess, "run") as upload,
+                    patch("sys.argv", ["consolidate-agent-config.py", "--config", "dev", "--apply"]),
+                    self.assertRaisesRegex(SystemExit, "missing or empty"),
+                ):
+                    module.main()
+                upload.assert_not_called()
+
     def test_existing_empty_values_are_preserved_and_missing_values_are_copied(self):
         spec = importlib.util.spec_from_file_location(
             "consolidate_agent_config",
