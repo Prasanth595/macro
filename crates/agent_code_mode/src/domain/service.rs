@@ -18,6 +18,7 @@ pub trait SessionCodeMode: Send + Sync + 'static {
         &self,
         session: &AgentSession,
         execution: ExecutionId,
+        acting_as: ai_toolset::actor::ToolActor,
         request: ExecuteRequest,
         cancel: CancellationToken,
     ) -> Result<ExecutionReceipt, CodeModeError>;
@@ -68,6 +69,8 @@ impl CodeModeService {
     ) -> Result<ExecutionReceipt, CodeModeError> {
         let mut record = ExecutionRecord {
             execution_id: execution,
+            acting_as: Some(identity.acting_as),
+            turn_id: Some(identity.turn),
             source: request.source.clone(),
             status: ExecutionStatus::Running,
             result: None,
@@ -91,7 +94,10 @@ impl CodeModeService {
                         ),
                         other => other,
                     })?;
-                if existing.source == request.source {
+                if existing.source == request.source
+                    && existing.acting_as == Some(identity.acting_as)
+                    && existing.turn_id == Some(identity.turn)
+                {
                     return Ok(receipt(&existing));
                 }
             }
@@ -284,6 +290,7 @@ impl SessionCodeMode for CodeModeService {
         &self,
         session: &AgentSession,
         execution: ExecutionId,
+        acting_as: ai_toolset::actor::ToolActor,
         request: ExecuteRequest,
         cancel: CancellationToken,
     ) -> Result<ExecutionReceipt, CodeModeError> {
@@ -310,6 +317,7 @@ impl SessionCodeMode for CodeModeService {
             .map_err(|_| CodeModeError::Busy)?;
         let identity = ExecutionIdentity {
             execution,
+            acting_as,
             session: session.id,
             agent_id: session.bot_id,
             owner,

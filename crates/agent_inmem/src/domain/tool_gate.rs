@@ -15,6 +15,8 @@ use agent_session::domain::model::AgentSessionId;
 pub enum NativeToolVerdict {
     /// Run the tool.
     Run,
+    /// Run with this verified user's access, preserving the session's billing identity.
+    RunAs(macro_user_id::user_id::MacroUserIdStr<'static>),
     /// Do not; this is what the model is told instead.
     Refuse(String),
 }

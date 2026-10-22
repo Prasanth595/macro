@@ -3,7 +3,10 @@
 ## Scope
 
 Execution credentials carry the authenticated session bot for SDK message
-attribution while retaining the owner's API permissions.
+attribution while using the explicitly selected `acting_as` account's API
+permissions. Credential issuance resolves and approves that selection before
+minting. Saved execution retries must match both actor selection and original
+turn, so a later requester cannot inherit an earlier execution result.
 
 Owns session-authorized code executions, SDK documentation selection, saved
 execution records, and durable review stacks. Process isolation belongs to
@@ -29,8 +32,12 @@ session presentation. Never replay an uncertain submitted action.
 
 Reviews write `review.decided` and `review.settled` through the injected
 transaction-aware notification writer in the same revision-checked transaction.
-Cards require direct user authentication; `DecideReview` uses the same claim and
-execute path but requires a real owner-prompted turn. `GetReview` reads final
+Reviews persist the immutable acting account. Only that account may edit or
+submit; historical reviews without an acting account use the session owner.
+ACP presentation uses the session owner's transcript capability, independently
+of the account that later sends the email or creates the event. Cards require
+direct user authentication; `DecideReview` requires a real turn prompted by the
+review's acting account. `GetReview` reads final
 drafts and outcomes. Legacy notificationId/notificationAttemptAt fields are no
 longer delivery state.
 

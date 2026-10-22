@@ -536,7 +536,10 @@ async fn run() -> anyhow::Result<()> {
             ))?,
             matches!(config.environment, Environment::Local),
         )?
-        .with_owner_approvals(Arc::clone(&tool_approvals)),
+        .with_owner_approvals(Arc::clone(&tool_approvals))
+        .with_actor_mcp(Arc::new(
+            agent_egress::outbound::actor_mcp::HttpActorMcpTransport::new()?,
+        )),
     );
 
     // The proxy's public address, read once: the provisioner builds the
@@ -687,6 +690,7 @@ async fn run() -> anyhow::Result<()> {
             .to_owned(),
         code_mode_enabled.then(|| code_mode.clone()),
         reviews_cell.clone(),
+        owner_tool_gate.clone(),
     );
     // One connector for the agent and the telemetry catalog. It pools each
     // server's session for the life of the egress token, so a replaced agent

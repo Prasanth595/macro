@@ -63,10 +63,28 @@ where
             return Ok(NativeToolVerdict::Refuse(UNDECIDED.to_owned()));
         };
         let prompter = self.sessions.turn_prompter(session).await?;
-        let Some(prompter) = prompter.filter(|prompter| prompter.acting_user() != Some(&owner))
-        else {
-            return Ok(NativeToolVerdict::Run);
+        if prompter.is_none() {
+            return Ok(NativeToolVerdict::Refuse(
+                "There is no active turn authorizing this tool; nothing was done.".into(),
+            ));
+        }
+        let (actor, _) = match ai_toolset::actor::ToolActor::take(arguments) {
+            Ok(selection) => selection,
+            Err(error) => return Ok(NativeToolVerdict::Refuse(error.to_string())),
         };
+        let user = match actor.resolve(
+            &owner,
+            prompter.as_ref().and_then(|turn| turn.acting_user()),
+        ) {
+            Ok(user) => user.clone(),
+            Err(error) => return Ok(NativeToolVerdict::Refuse(error.to_string())),
+        };
+        tracing::info!(%session, tool, ?actor, "resolved tool actor");
+        let Some(prompter) = prompter.filter(|prompter| prompter.acting_user() != Some(&user))
+        else {
+            return Ok(NativeToolVerdict::RunAs(user));
+        };
+        let original_turn = prompter.clone();
         let status = self
             .approvals
             .hold_in_process(InProcessCall {
@@ -79,8 +97,13 @@ where
                 arguments: arguments.clone(),
             })
             .await?;
+        if self.sessions.turn_prompter(session).await?.as_ref() != Some(&original_turn) {
+            return Ok(NativeToolVerdict::Refuse(
+                "The original turn ended; this tool did not run.".into(),
+            ));
+        }
         Ok(match refusal(status, owner.email_str(), tool) {
-            None => NativeToolVerdict::Run,
+            None => NativeToolVerdict::RunAs(user),
             Some(text) => NativeToolVerdict::Refuse(text),
         })
     }

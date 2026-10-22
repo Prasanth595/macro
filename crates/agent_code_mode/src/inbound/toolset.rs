@@ -44,6 +44,8 @@ pub struct ExecuteCode {
         description = "A fresh unique UUID for this execution, used to recover saved results if interrupted. Never use a placeholder, repeated-digit example, or an ID from another session. Reusing your existing ID with identical source returns its saved receipt without running again; different source is rejected. If an ID is unavailable, choose a fresh UUID."
     )]
     pub execution_id: ExecutionId,
+    /// Choose whose account authenticates every SDK operation in this execution.
+    pub acting_as: ai_toolset::actor::ToolActor,
     /// A JavaScript ES module, with imports and an exported async main function.
     #[schemars(
         description = "JavaScript module, at most 64 KiB. Import { Macro } from '@macro-inc/sdk' and Handlebars from 'handlebars'. Export async function main({token, hosts}) { const macro = new Macro({token, hosts}); return {data: ...}; }. The optional reviews array defaults to empty. Dependencies are preinstalled; no TypeScript syntax or package downloads. The token and hosts are supplied by the runner; never return or log the token."
@@ -80,6 +82,7 @@ impl AsyncTool<CodeModeToolContext> for ExecuteCode {
             .execute(
                 &context.session,
                 self.execution_id,
+                self.acting_as,
                 ExecuteRequest {
                     source: self.source.clone(),
                     timeout_ms: self.timeout_ms,

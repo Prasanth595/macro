@@ -40,8 +40,12 @@ milliseconds instead of waiting on container provisioning.
 - Add a new tool gate or admission check: `src/domain/tool_gate.rs` /
   `src/domain/admission.rs` → `src/outbound/approval_gate.rs`.
 
-Approval gating uses `TurnPrompter::acting_user()` so a System invocation
-cannot inherit owner authority from a retained user field. Model-context replay
+Session tool schemas require `acting_as: requester | owner` for tools using
+account access, including deferred tools. The gate resolves the selected account
+through `TurnPrompter::acting_user()` and requests owner approval only when that
+account differs from the turn's requester. System invocations have no requester.
+Reviewed user tools retain the selection through confirmation and execute with
+that account. Billing, memory, and session lifecycle remain owner-scoped. Model-context replay
 retains notification ACP inputs and their replies; the transcript fold separately
 omits system input from its message projection. PresentReview, GetReview and
 DecideReview are eager internal tools in both standard and code modes.

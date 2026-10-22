@@ -109,8 +109,11 @@ async fn rpc(
     app: Router,
     token: Option<&str>,
     method: &str,
-    params: serde_json::Value,
+    mut params: serde_json::Value,
 ) -> (StatusCode, serde_json::Value) {
+    if method == "tools/call" && params["name"] != "DescribeCodeTools" {
+        params["arguments"]["acting_as"] = serde_json::json!("owner");
+    }
     let mut request = Request::builder()
         .method("POST")
         .uri("/mcp/internal")
@@ -163,6 +166,7 @@ async fn each_harness_gets_only_internal_tools_and_writes_only_its_session() {
             "localhost".into(),
             None,
             Arc::new(OnceLock::new()),
+            Arc::new(agent_inmem::domain::tool_gate::UngatedNativeTools),
         );
         assert_eq!(
             rpc(app.clone(), None, "tools/list", serde_json::json!({}))

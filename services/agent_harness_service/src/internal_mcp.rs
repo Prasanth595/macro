@@ -48,6 +48,7 @@ pub fn router<A: AgentSessionRepo + 'static>(
     host: String,
     code_mode: Option<Arc<dyn SessionCodeMode>>,
     reviews: Arc<OnceLock<ReviewService>>,
+    gate: Arc<dyn agent_inmem::domain::tool_gate::NativeToolGate>,
 ) -> Router {
     let mut config = StreamableHttpServerConfig::default().with_allowed_hosts([
         host,
@@ -65,6 +66,7 @@ pub fn router<A: AgentSessionRepo + 'static>(
                 tasks: tasks.clone(),
                 code_mode: code_mode.clone(),
                 reviews: reviews.clone(),
+                gate: gate.clone(),
             })
         },
         Arc::new(LocalSessionManager::default()),
@@ -85,6 +87,7 @@ struct InternalTools {
     tasks: Arc<dyn SessionTasks>,
     code_mode: Option<Arc<dyn SessionCodeMode>>,
     reviews: Arc<OnceLock<ReviewService>>,
+    gate: Arc<dyn agent_inmem::domain::tool_gate::NativeToolGate>,
 }
 
 impl ServerHandler for InternalTools {
@@ -97,7 +100,7 @@ impl ServerHandler for InternalTools {
         .with_title("Macro Internal MCP");
         info.instructions = Some(prompt::pull_requests::internal_mcp_instructions());
         info.instructions.as_mut().expect("instructions are set").push_str(
-            " macro_internal.PresentReview presents editable email/calendar draft stacks or questions through the shared session stream. It completes immediately as Presented to the user and never waits for approval. Later owner decisions deliver typed review.decided and review.settled system events. GetReview reads saved drafts and outcomes by reviewId. DecideReview uses the same claim/execute path and requires a real owner request in the current turn; system notifications never authorize decisions. These tools are available even when code mode is disabled.",
+            " macro_internal.PresentReview presents editable email/calendar draft stacks or questions through the shared session stream. It completes immediately as Presented to the user and never waits for approval. Later account-holder decisions deliver typed review.decided and review.settled system events. GetReview reads saved drafts and outcomes by reviewId. DecideReview uses the same claim/execute path and requires a real request from the review’s account holder in the current turn; system notifications never authorize decisions. These tools are available even when code mode is disabled.",
         );
         if self.code_mode.is_some() {
             info.instructions.as_mut().expect("instructions are set").push_str(
@@ -173,6 +176,11 @@ impl ServerHandler for InternalTools {
                     )
                 }),
         );
+        for tool in &mut definitions {
+            if !matches!(tool.name.as_ref(), "DescribeCodeTools" | "ExecuteCode") {
+                ai_toolset::actor::add_actor_schema(Arc::make_mut(&mut tool.input_schema));
+            }
+        }
         Ok(ListToolsResult {
             tools: definitions,
             ..Default::default()
@@ -181,7 +189,7 @@ impl ServerHandler for InternalTools {
 
     async fn call_tool(
         &self,
-        request: CallToolRequestParams,
+        mut request: CallToolRequestParams,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<CallToolResult, rmcp::ErrorData> {
         let AuthenticatedSession(grant) = context
@@ -191,11 +199,36 @@ impl ServerHandler for InternalTools {
             .ok_or_else(|| {
                 rmcp::ErrorData::invalid_request("Missing session authorization", None)
             })?;
-        // Session tools run as the owner; a session owned by anything else
-        // has nobody to run them as.
+        // Resolve actor choices from a user-owned session and its verified turn.
+        // Sessions owned by anything else have no account authority.
         let owner = grant
             .owner_user()
             .map_err(|error| rmcp::ErrorData::invalid_request(error.to_string(), None))?;
+        let mut acting_user = owner.clone();
+        if !matches!(request.name.as_ref(), "ExecuteCode" | "DescribeCodeTools") {
+            let arguments = serde_json::Value::Object(request.arguments.take().unwrap_or_default());
+            let (_, cleaned) = match ai_toolset::actor::ToolActor::take(&arguments) {
+                Ok(selection) => selection,
+                Err(error) => {
+                    return Ok(CallToolResult::error(vec![Content::text(
+                        error.to_string(),
+                    )]));
+                }
+            };
+            use agent_inmem::domain::tool_gate::NativeToolVerdict;
+            match self
+                .gate
+                .check(grant.id, request.name.as_ref(), &arguments)
+                .await
+            {
+                NativeToolVerdict::RunAs(user) => acting_user = user,
+                NativeToolVerdict::Refuse(reason) => {
+                    return Ok(CallToolResult::error(vec![Content::text(reason)]));
+                }
+                NativeToolVerdict::Run => {}
+            }
+            request.arguments = cleaned.as_object().cloned();
+        }
         let review_tools = agent_code_mode::inbound::reviews::toolset();
         if review_tools.tools.contains_key(request.name.as_ref()) {
             let service = self.reviews.get().ok_or_else(|| {
@@ -207,7 +240,7 @@ impl ServerHandler for InternalTools {
                         service: service.clone(),
                         session: grant.clone(),
                     },
-                    RequestContext::new(owner.clone()).with_genai_telemetry(false),
+                    RequestContext::new(acting_user.clone()).with_genai_telemetry(false),
                     &request.name,
                     &serde_json::Value::Object(request.arguments.unwrap_or_default()),
                 )
@@ -224,7 +257,7 @@ impl ServerHandler for InternalTools {
                 // The session actor meters the outer MCP call. Only SDK calls
                 // bypass ACP and retain the toolset's own telemetry.
                 let mut request_context =
-                    RequestContext::new(owner.clone()).with_genai_telemetry(false);
+                    RequestContext::new(acting_user.clone()).with_genai_telemetry(false);
                 request_context.cancel = context.ct.clone();
                 let result = tools
                     .try_tool_call(
@@ -253,7 +286,7 @@ impl ServerHandler for InternalTools {
                     tasks: self.tasks.clone(),
                     session: grant.id,
                 },
-                RequestContext::new(owner.clone()),
+                RequestContext::new(acting_user.clone()),
                 &request.name,
                 &serde_json::Value::Object(request.arguments.unwrap_or_default()),
             )
