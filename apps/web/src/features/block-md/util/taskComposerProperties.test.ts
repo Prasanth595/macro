@@ -326,3 +326,15 @@ it('retains a created single-select definition when the definition query fails',
     dispose();
   }
 });
+
+it('lets the composer own failed-create feedback without silencing other callers', async () => {
+  mock.create.mockResolvedValue(null);
+  expect(
+    await createTaskWithProperties('Draft', '', [], new Map(), vi.fn(), {
+      showFailureToast: false,
+    })
+  ).toBeNull();
+  expect(mock.failure).not.toHaveBeenCalled();
+  expect(await create()).toBeNull();
+  expect(mock.failure).toHaveBeenCalledExactlyOnceWith('Failed to create Task');
+});

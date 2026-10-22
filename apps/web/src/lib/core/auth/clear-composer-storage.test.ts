@@ -26,12 +26,14 @@ it('retires mounted autosavers before wiping their saved data', () => {
   const key = 'task-composer-submission:alice:first:editing';
   localStorage.setItem(key, 'draft');
   let active = true;
+  let valueAtRetire: string | null | undefined;
   const retire = () => {
-    expect(localStorage.getItem(key)).toBe('draft');
+    valueAtRetire = localStorage.getItem(key);
     active = false;
   };
   window.addEventListener(COMPOSER_STORAGE_CLEARED, retire, { once: true });
   clearComposerStorage();
+  expect(valueAtRetire).toBe('draft');
   if (active) localStorage.setItem(key, 'late cleanup');
   expect(localStorage.getItem(key)).toBeNull();
 });

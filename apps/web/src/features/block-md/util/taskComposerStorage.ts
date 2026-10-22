@@ -1,5 +1,7 @@
+import { makePersistedState } from '@app/lib/persistence';
 import type { PropertyApiValues } from '@property/types';
 import type { SerializedEditorState } from 'lexical';
+import { createSignal } from 'solid-js';
 import { z } from 'zod';
 import { taskComposerDraftSchema } from './taskComposerDraftSchema';
 
@@ -8,6 +10,25 @@ const storedDraftSchema = taskComposerDraftSchema.extend({
 });
 
 const STORAGE_KEY = 'task-composer-draft';
+
+/** Recovered submissions keep their sharing choice separate from new-task defaults. */
+export function createTaskComposerSharing(recoveredShare?: boolean) {
+  if (recoveredShare !== undefined) return createSignal(recoveredShare);
+  return makePersistedState(createSignal(true), {
+    storages: {
+      restore: () => {
+        const stored = localStorage.getItem('task-composer-share-with-team');
+        return stored === 'true'
+          ? true
+          : stored === 'false'
+            ? false
+            : undefined;
+      },
+      write: (value) =>
+        localStorage.setItem('task-composer-share-with-team', String(value)),
+    },
+  });
+}
 
 /** Context drafts use their own key; the global composer retains its original key. */
 export function taskComposerContextStorage(

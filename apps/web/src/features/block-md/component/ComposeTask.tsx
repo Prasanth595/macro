@@ -1,4 +1,3 @@
-import { makePersistedState } from '@app/lib/persistence';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useMacroMentionLinkResolver } from '@components/app/split-layout/split-router/mention-links';
@@ -52,6 +51,7 @@ import {
 } from '../util/taskComposerProperties';
 import {
   clearTaskComposerDraft,
+  createTaskComposerSharing,
   loadTaskComposerDraft,
   saveTaskComposerDraft,
   taskComposerContextStorage,
@@ -230,24 +230,9 @@ export function ComposeTask(props: ComposeTaskProps) {
     initialState.isDraftLoaded
   );
   const [createMore, setCreateMore] = createSignal(false);
-  const [shareWithTeam, setShareWithTeam] = makePersistedState(
-    createSignal(true),
-    {
-      storages: {
-        restore: () => {
-          const stored = localStorage.getItem('task-composer-share-with-team');
-          return stored === 'true'
-            ? true
-            : stored === 'false'
-              ? false
-              : undefined;
-        },
-        write: (value) =>
-          localStorage.setItem('task-composer-share-with-team', String(value)),
-      },
-    }
+  const [shareWithTeam, setShareWithTeam] = createTaskComposerSharing(
+    recovered?.shareWithTeam
   );
-  if (recovered) setShareWithTeam(recovered.shareWithTeam);
   const [errorMessage, setErrorMessage] = createSignal<string>('');
   const userTeams = useUserTeamsQuery();
   const team = () =>
@@ -506,6 +491,7 @@ export function ComposeTask(props: ComposeTaskProps) {
             },
             {
               shareWithTeam,
+              showFailureToast: false,
               onCreated: confirm,
               onMutate: () => {
                 clearDraft();

@@ -28,7 +28,11 @@ const propertyValue = z.discriminatedUnion('valueType', [
     valueType: z.literal('ENTITY'),
     refs: z
       .array(
-        z.object({ entity_id: z.string(), entity_type: z.enum(EntityType) })
+        z.object({
+          entity_id: z.string(),
+          entity_type: z.enum(EntityType),
+          specific_message_id: z.uuid().nullable().optional(),
+        })
       )
       .nullable(),
   }),

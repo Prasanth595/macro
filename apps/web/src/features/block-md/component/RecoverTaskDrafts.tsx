@@ -31,6 +31,7 @@ export function RecoverTaskDrafts(props: {
             <Button
               variant="outline"
               class="mt-2 max-w-full"
+              tooltip={draft.draft.title || 'Untitled task'}
               disabled={pending().includes(draft.id)}
               onClick={() => props.onOpen(draft.id)}
             >

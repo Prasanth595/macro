@@ -515,7 +515,8 @@ filter sheets. Desktop uses the centered composer dialog.
    set, the task is still created and a toast says it wasn't added to the project.
    The `Share with <team name>` switch in the footer's left corner (hidden when you
    aren't on a team) defaults to on and remembers your
-   choice in local storage across composer openings and page reloads. Hovering it
+   choice in local storage across composer openings and page reloads. Recovered
+   submissions use their saved sharing choice without changing this default. Hovering it
    explains whether the task will be visible to your whole team or only to you and
    the people you share it with. The choice also applies to Create More, continuing
    in a split, and tasks created from a project.
