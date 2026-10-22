@@ -29,6 +29,7 @@ verified live against a local stack (`just run_local`).
 | [notifications.md](notifications.md) | Notifications |
 | [settings.md](settings.md) | Settings sections, including Slack import and team membership |
 | [onboarding.md](onboarding.md) | Onboarding bypass and setup plan |
+| [setup-cards.md](setup-cards.md) | Sidebar import and setup cards, the connector import dialog, and permanent dismissal |
 | [canvas.md](canvas.md) | Canvas colors and link paste |
 | [soup-live-updates.md](soup-live-updates.md) | Live updates in flat Soup lists |
 | [ui-conventions.md](ui-conventions.md) | Shared UI behavior: list loading, top bars, dialog actions, user cards, information panels |
@@ -54,3 +55,8 @@ hosted Google/SSO redirect allowlist does not include arbitrary hostnames.
 Email magic links retain the page's HTTP or HTTPS scheme and port.
 On allowed OAuth origins such as `https://localhost`, standalone Vite uses the
 session-code handoff to establish cookies on the local hostname after SSO.
+
+For the standalone marketing site, verify cold product-page navigation with the
+route module delayed: prerendered content must remain until the page is ready.
+On mobile, the single hamburger opens and closes navigation; there is no separate
+caret. Check Escape focus return and keyboard wrapping inside the open menu.

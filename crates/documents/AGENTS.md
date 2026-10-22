@@ -14,6 +14,8 @@ word docs, Illustrator/Photoshop files).
   adapters implement.
 - `src/domain/content.rs`: document content storage model (markdown vs legacy
   Office formats, S3 locations).
+- `src/domain/docx_export.rs`: DOCX export readiness policy; empty parts mean
+  extraction is pending. Its entry point requires a checked document receipt.
 - `src/inbound/toolset.rs`: one submodule per AI document tool (`create_document`,
   `edit_document`, `word_document`, `spreadsheet`, `presentation`, ...).
 - `src/inbound/axum_router.rs`: the HTTP surface; `axum_router/get_text.rs`
@@ -26,7 +28,10 @@ word docs, Illustrator/Photoshop files).
   markdown backfill, comments, AI-editing tools, and file-type domain services
   (spreadsheet, presentation, word, illustrator, photoshop).
 - Not here: realtime collaborative sync of document content → sync-service;
-  the lexical markdown node/editor implementation → `packages/lexical-core`.
+  the lexical markdown node/editor implementation → `packages/lexical-core`;
+  Discussion comments, replies and thread state on any entity → the `messages`
+  toolset (this crate keeps only `CommentOnText`, the inline comment that
+  places a mark).
 
 ## Boundaries
 
