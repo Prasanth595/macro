@@ -1288,9 +1288,12 @@ html[data-platform='ios'][data-touch-device='true'] :is(
   }
 }
 
-.skeleton-shimmer {
-  position: relative;
-  overflow: hidden;
+/* Components layer, so placement utilities such as `absolute` still win. */
+@layer components {
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
 }
 
 .skeleton-shimmer::after {

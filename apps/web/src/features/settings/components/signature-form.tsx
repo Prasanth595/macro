@@ -1,3 +1,4 @@
+import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
 import DownloadIcon from '@phosphor-icons/core/regular/download-simple.svg?component-solid';
 import SignatureIcon from '@phosphor-icons/core/regular/signature.svg?component-solid';
 import { ToggleSwitch } from '@ui';
@@ -64,9 +65,7 @@ export function SignatureForm(props: {
         }
       >
         <Suspense
-          fallback={
-            <div class="h-44 animate-pulse rounded-lg border-1 border-ink/10" />
-          }
+          fallback={<ListSkeleton.Bar class="h-44 w-full rounded-xl" />}
         >
           <SignatureEditor
             label={`Signature for ${props.email}`}

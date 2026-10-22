@@ -1,3 +1,4 @@
+import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
 import { URL_PARAMS as CHANNEL_URL_PARAMS } from '@block-channel/constants';
 import type { SplitContent } from '@components/app/split-layout/layoutManager';
 import { PopupPreview } from '@core/component/DocumentPreview';
@@ -463,9 +464,8 @@ export function PrOriginBadge(props: { origin: PrOrigin; onOpen: OpenPrLink }) {
 /** Space-holding placeholder while a row's links load, so pills don't shift. */
 export function PrLinksPending() {
   return (
-    <span
-      aria-hidden="true"
-      class="h-6 w-12 shrink-0 animate-pulse rounded-full bg-ink/5"
-    />
+    <span aria-hidden="true" class="shrink-0">
+      <ListSkeleton.Bar class="h-6 w-12" />
+    </span>
   );
 }

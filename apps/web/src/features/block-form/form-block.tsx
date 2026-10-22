@@ -1,3 +1,4 @@
+import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
 /**
  * App-facing entry for the `form` block. It reads the legacy block state once
  * (id, params, split) and hands identity, capabilities and host actions to
@@ -258,7 +259,7 @@ function FormCardContent() {
         fallback={
           <Show
             when={source.failure()}
-            fallback={<div class="h-24 animate-pulse rounded-lg bg-hover" />}
+            fallback={<ListSkeleton.Bar class="h-24 w-full rounded-xl" />}
           >
             <p class="p-3 text-sm text-ink-muted">This form isn’t available.</p>
           </Show>

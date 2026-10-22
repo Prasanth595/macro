@@ -1,3 +1,4 @@
+import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
 import { SearchBar } from '@app/components/view-shell/SearchBar';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { UserIcon } from '@core/component/UserIcon';
@@ -504,7 +505,7 @@ export function TeamMembers(props: { team: TeamSummary }) {
             when={!teamQuery.isLoading}
             fallback={
               <SettingsCard>
-                <div class="animate-pulse bg-skeleton rounded h-16 m-4" />
+                <ListSkeleton.Bar class="m-4 h-16 rounded-xl" />
               </SettingsCard>
             }
           >
