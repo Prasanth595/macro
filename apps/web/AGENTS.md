@@ -329,6 +329,7 @@ On a physical iPhone, WKWebView still synthesises the compatibility `mousedown`/
 
 ### Agent system events
 
+Accept `notification` in both fetched and subscribed GraphQL session log rows.
 System notifications live in fold metadata, separate from messages. Review
 subjects refresh their existing card; other subjects render quiet timeline rows.
 Keep Responding bound to the notification turn, including rejection and noop.

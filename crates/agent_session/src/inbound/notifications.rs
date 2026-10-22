@@ -38,10 +38,7 @@ pub fn notification_router<Auth: MacroAuthorizationService>(
     state: NotificationRouterState<Auth>,
 ) -> Router {
     Router::new()
-        .route(
-            "/agent-sessions/internal/notifications",
-            post(produce::<Auth>),
-        )
+        .route("/internal/notifications", post(produce::<Auth>))
         .with_state(state)
 }
 async fn produce<Auth: MacroAuthorizationService>(
