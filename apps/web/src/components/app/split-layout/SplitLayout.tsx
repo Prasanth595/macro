@@ -18,6 +18,7 @@ import {
   Suspense,
   useContext,
 } from 'solid-js';
+import { ViewSessionProvider } from '../view-session/view-session-context';
 import { PopoverSplitRenderer } from './components/PopoverSplitRenderer';
 import { SplitPanel } from './components/SplitPanel';
 import { SplitLayoutContext } from './context';
@@ -47,9 +48,11 @@ export function SplitLayoutProvider(props: ParentProps) {
 
   return (
     <SplitLayoutContext.Provider value={{ manager: splitManager }}>
-      <CreateContextProvider focusedPaneId={splitManager.activeSplitId}>
-        {props.children}
-      </CreateContextProvider>
+      <ViewSessionProvider router={router} manager={splitManager}>
+        <CreateContextProvider focusedPaneId={splitManager.activeSplitId}>
+          {props.children}
+        </CreateContextProvider>
+      </ViewSessionProvider>
     </SplitLayoutContext.Provider>
   );
 }

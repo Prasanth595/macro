@@ -9,6 +9,7 @@ import DotsThreeIcon from '@phosphor/dots-three.svg';
 import { Dropdown } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { useViewSession } from '../view-session/view-session-context';
 import { CustomizeSidebarModal } from './customize-sidebar-modal';
 import {
   moreMenuItems,
@@ -45,6 +46,7 @@ export function MoreMenu(props: MoreMenuProps) {
   const [customizeSidebarOpen, setCustomizeSidebarOpen] = createSignal(false);
   const analytics = useAnalytics();
   const layout = useSplitLayout();
+  const { openView } = useViewSession();
   const preloadItem = (item: SidebarNextMenuItem) =>
     layout.preloadContent(sidebarContent(item.id, item.params));
   const hiddenItems = () => moreMenuItems(props.gates);
@@ -82,12 +84,7 @@ export function MoreMenu(props: MoreMenuProps) {
                     onPointerDown={captureSplitIntent}
                     onKeyDown={captureSplitIntent}
                     onSelect={() =>
-                      navigateToItem(
-                        item,
-                        layout.openWithSplit,
-                        analytics,
-                        shiftHeld
-                      )
+                      navigateToItem(item, openView, analytics, shiftHeld)
                     }
                   >
                     <Dynamic

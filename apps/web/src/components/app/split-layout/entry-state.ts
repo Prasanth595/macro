@@ -22,7 +22,8 @@ export type UseEntryStateOptions<T> = {
  * Returns a signal whose initial value is read from the current split entry's
  * `state[key]` slot (if present) or from `options.default`. The signal value
  * is captured back into the entry just before any navigation away (back,
- * forward, replace, push), so it round-trips correctly across back/forward.
+ * forward, replace, push). It restores on back/forward and when app navigation
+ * resumes this view through the session view navigator.
  *
  * Slice keys are flat and shared across the split's entry state blob — use a
  * dotted namespace convention (e.g. `'search.text'`, `'soup.scroll'`).

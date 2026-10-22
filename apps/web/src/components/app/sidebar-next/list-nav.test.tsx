@@ -50,6 +50,9 @@ vi.mock('@components/app/split-layout/layout', () => ({
     preloadContent: vi.fn(),
   }),
 }));
+vi.mock('../view-session/view-session-context', () => ({
+  useViewSession: () => ({ openView: vi.fn() }),
+}));
 vi.mock('@ui', async () => ({
   ...(await import('@ui/utils/classname')),
   Button: (

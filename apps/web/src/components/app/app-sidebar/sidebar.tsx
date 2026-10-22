@@ -51,6 +51,7 @@ import {
   onCleanup,
   Show,
 } from 'solid-js';
+import { useViewSession } from '../view-session/view-session-context';
 
 // TODO(sidebar-next): move to app-sidebar/navigation.tsx once SidebarRail ships.
 export interface SidebarItem {
@@ -147,6 +148,7 @@ const SIDEBAR_LINKS = [
   },
 ] satisfies SidebarItem[];
 
+// Global view switches restore session context; explicit split opens stay fresh.
 type OpenWithSplitFn = ReturnType<typeof useSplitLayout>['openWithSplit'];
 
 export function sidebarContent(
@@ -161,9 +163,8 @@ export function sidebarContent(
 }
 
 /**
- * Navigate to a sidebar view by pushing a fresh entry into the active split.
- * Holding shift opens it in a new split. Use in-app back/forward to return to
- * prior entries.
+ * Navigate to a sidebar view using the supplied view navigator.
+ * Holding shift opens a fresh view in a new split.
  */
 export function navigateToSidebarView(args: {
   viewId: SidebarItem['id'];
@@ -171,14 +172,17 @@ export function navigateToSidebarView(args: {
   shiftKey: boolean;
   openWithSplit: OpenWithSplitFn;
   referredFrom?: ReferredFrom;
+  onApplied?: () => void;
 }): SplitHandle | undefined {
-  const { viewId, params, shiftKey, openWithSplit, referredFrom } = args;
+  const { viewId, params, shiftKey, openWithSplit, referredFrom, onApplied } =
+    args;
 
   return openWithSplit(sidebarContent(viewId, params), {
     preferNewSplit: shiftKey,
     mergeHistory: false,
     allowDuplicate: viewId !== 'calendar',
     referredFrom,
+    onApplied,
   }).split;
 }
 
@@ -201,7 +205,7 @@ const resetGoToHotkeysState = () => {
  * unmounts on those routes — so none of them go dead there.
  */
 export const GoToHotkeys = () => {
-  const { openWithSplit } = useSplitLayout();
+  const { openView } = useViewSession();
 
   const inviteHotkey = registerHotkey({
     scopeId: 'global',
@@ -321,7 +325,15 @@ export const GoToHotkeys = () => {
           viewId: link.id,
           params: link.params,
           shiftKey: !!e?.shiftKey,
-          openWithSplit,
+          openWithSplit: openView,
+          onApplied:
+            link.id === 'search'
+              ? () => {
+                  const split = globalSplitManager()?.activeSplit();
+                  if (split?.content().id === 'search')
+                    requestSearchFocus(split.id);
+                }
+              : undefined,
         });
         if (link.id === 'search' && handle) {
           requestSearchFocus(handle.id);

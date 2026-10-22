@@ -80,7 +80,7 @@ type SplitKey = `${BlockName | BlockAlias | 'component'}:${string}`;
 /**
  * Per-entry runtime state, opaque at the layout-manager level.
  * Owned by components via `useEntryState`. Survives back/forward within a
- * split's history. Does not contribute to entry identity.
+ * split's history and can be supplied on fresh entries. Does not contribute to entry identity.
  */
 export type EntryState = Record<string, unknown>;
 
@@ -203,6 +203,8 @@ export type CreateNewSplitOptions = {
 export type OpenWithSplitOptions = {
   /** Route-owned targets must pass through middleware and content claims before opening. */
   search?: Record<string, SplitSearchUpdate>;
+  /** Schema-validated route state, separate from opaque runtime EntryState. */
+  routeState?: unknown;
   /** Runs after a cooperating navigator applies or reuses its destination. */
   onApplied?: () => void;
   mergeHistory?: boolean;
@@ -1050,8 +1052,11 @@ export function createSplitLayout(
   /** Mirrors a pane's new current entry onto its split, creating the split when the pane is new. */
   function applyEntry(id: SplitId, entry: Entry, arrival: PaneArrival) {
     const deliversParams = arrival === 'fresh' || arrival === 'replace';
-    const content = contentOfEntry(entry, deliversParams);
     const meta = metaOf(entry);
+    if (meta.entryState && !entryStates.has(entry.id)) {
+      entryStates.set(entry.id, meta.entryState);
+    }
+    const content = contentOfEntry(entry, deliversParams);
     const referredFrom = deliversParams ? meta.referredFrom : undefined;
     const split = findSplitById(id);
 
@@ -1548,7 +1553,7 @@ export function createSplitLayout(
     }
   }
 
-  /** An open that carries search: the router merges it and checks claims as it lands. */
+  /** Route-owned search and state pass through the router and its content claims. */
   function openThroughRouter(
     content: SplitContent,
     options: OpenWithSplitOptions
@@ -1566,6 +1571,7 @@ export function createSplitLayout(
       replace: options.mergeHistory,
       search: options.search,
       allowDuplicate: options.allowDuplicate,
+      ...(options.routeState !== undefined && { state: options.routeState }),
     };
     const wantsNewPane = stacked()
       ? !options.mergeHistory
@@ -1595,7 +1601,7 @@ export function createSplitLayout(
     options: OpenWithSplitOptions = {}
   ): OpenSplitResult {
     const sourceOwner = options.handle?.id;
-    if (options.search) {
+    if (options.search || options.routeState !== undefined) {
       openThroughRouter(content, options);
       return { status: 'navigating', sourceOwner };
     }

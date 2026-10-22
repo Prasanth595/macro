@@ -1,5 +1,22 @@
 Split layout should support an arbitrary number of vertical splits.
 
+## Session view restoration
+
+`SplitLayoutProvider` owns `ViewSessionProvider` above the app chrome and pane
+content. Ordinary app navigation uses its `openView` / `replaceView` actions,
+which remember the last focused location and captured entry state per view.
+The record is memory-only and account-scoped; views still unmount normally.
+Explicit links and new-split actions do not consult this record. Native dock
+navigation still resets the pane stack, and dock Search starts a fresh session.
+
+Views retain local context through `useEntryState` or
+`registerEntryStateCaptor`. The same slices now restore both through pane
+Back/Forward and through global app switches. Route/schema state stays separate
+from these opaque runtime slices. Restores run through the existing router so
+leave guards, middleware, URL updates, and single-owner content claims still apply.
+
+The remaining notes below describe the original split layout.
+
 
 SplitLayoutRouter is responsible for handling the routing of the splits.
 
