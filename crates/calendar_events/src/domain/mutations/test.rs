@@ -176,6 +176,8 @@ struct FakeRepo {
     export: Option<crate::domain::ics::CalendarEventExport>,
     /// Inboxes a sync was scheduled for.
     scheduled_syncs: Arc<Mutex<Vec<Uuid>>>,
+    /// Join requests, keyed by event and requester like the table.
+    join_requests: Arc<Mutex<Vec<crate::domain::join_requests::CalendarJoinRequest>>>,
 }
 
 impl Default for FakeRepo {
@@ -199,6 +201,7 @@ impl Default for FakeRepo {
             recorded_guest_policies: Default::default(),
             export: None,
             scheduled_syncs: Default::default(),
+            join_requests: Default::default(),
         }
     }
 }
@@ -275,6 +278,100 @@ impl CalendarRepository for FakeRepo {
         _event_id: Uuid,
     ) -> Result<Option<crate::domain::ics::CalendarEventExport>, rootcause::Report> {
         Ok(self.export.clone())
+    }
+
+    async fn open_join_request(
+        &self,
+        event_id: Uuid,
+        requester_id: &str,
+        requester_email: &str,
+    ) -> Result<(crate::domain::join_requests::CalendarJoinRequest, bool), rootcause::Report> {
+        use crate::domain::join_requests::{CalendarJoinRequest, CalendarJoinRequestStatus};
+        let mut requests = self.join_requests.lock().unwrap();
+        if let Some(existing) = requests
+            .iter_mut()
+            .find(|request| request.event_id == event_id && request.requester_id == requester_id)
+        {
+            if existing.status != CalendarJoinRequestStatus::Declined {
+                return Ok((existing.clone(), false));
+            }
+            existing.status = CalendarJoinRequestStatus::Pending;
+            existing.requester_email = requester_email.to_string();
+            existing.created_at = Utc::now();
+            return Ok((existing.clone(), true));
+        }
+        let request = CalendarJoinRequest {
+            id: Uuid::now_v7(),
+            event_id,
+            requester_id: requester_id.to_string(),
+            requester_email: requester_email.to_string(),
+            status: CalendarJoinRequestStatus::Pending,
+            created_at: Utc::now(),
+        };
+        requests.push(request.clone());
+        Ok((request, true))
+    }
+
+    async fn find_join_request(
+        &self,
+        event_id: Uuid,
+        requester_id: &str,
+    ) -> Result<Option<crate::domain::join_requests::CalendarJoinRequest>, rootcause::Report> {
+        Ok(self
+            .join_requests
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|request| request.event_id == event_id && request.requester_id == requester_id)
+            .cloned())
+    }
+
+    async fn list_pending_join_requests(
+        &self,
+        event_id: Uuid,
+    ) -> Result<Vec<crate::domain::join_requests::CalendarJoinRequest>, rootcause::Report> {
+        Ok(self
+            .join_requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|request| {
+                request.event_id == event_id
+                    && request.status
+                        == crate::domain::join_requests::CalendarJoinRequestStatus::Pending
+            })
+            .cloned()
+            .collect())
+    }
+
+    async fn get_join_request(
+        &self,
+        request_id: Uuid,
+    ) -> Result<Option<crate::domain::join_requests::CalendarJoinRequest>, rootcause::Report> {
+        Ok(self
+            .join_requests
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|request| request.id == request_id)
+            .cloned())
+    }
+
+    async fn resolve_join_request(
+        &self,
+        request_id: Uuid,
+        status: crate::domain::join_requests::CalendarJoinRequestStatus,
+    ) -> Result<Option<crate::domain::join_requests::CalendarJoinRequest>, rootcause::Report> {
+        let mut requests = self.join_requests.lock().unwrap();
+        let Some(request) = requests.iter_mut().find(|request| {
+            request.id == request_id
+                && request.status
+                    == crate::domain::join_requests::CalendarJoinRequestStatus::Pending
+        }) else {
+            return Ok(None);
+        };
+        request.status = status;
+        Ok(Some(request.clone()))
     }
 
     async fn list_team_out_of_office(
@@ -2850,4 +2947,5 @@ async fn outlook_write_pause_rejects_provider_operations_before_fetching_tokens(
 
 mod copy;
 mod invite;
+mod join;
 mod replacement;

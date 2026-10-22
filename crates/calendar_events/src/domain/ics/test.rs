@@ -6,6 +6,7 @@ use crate::domain::models::{EventTime, EventType};
 fn export(time: EventTime) -> CalendarEventExport {
     CalendarEventExport {
         access: CalendarEventExportAccess::ChannelShared,
+        owner_id: "macro|organizer@example.com".to_string(),
         event_type: EventType::Default,
         ical_uid: "abc123@google.com".to_string(),
         sequence: 2,

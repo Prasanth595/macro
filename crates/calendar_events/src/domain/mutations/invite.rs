@@ -170,7 +170,7 @@ fn invite_refusal(capabilities: ViewerCapabilities, policy: GuestPolicy) -> Cale
 
 /// What the actor may do with the addressed copy, judged against its stored
 /// guest list.
-pub(super) fn copy_capabilities(
+pub(crate) fn copy_capabilities(
     target: &CalendarEventMutationTarget,
     stored: &[CalendarAttendee],
 ) -> ViewerCapabilities {
