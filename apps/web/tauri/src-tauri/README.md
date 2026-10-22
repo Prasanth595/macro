@@ -61,6 +61,21 @@ PostHog event (including automatic exceptions/pageviews) and OTel resource.
 with the same native ID establishes a document replacement; SPA navigation
 keeps both. OTel export still obeys the existing browser telemetry gate.
 
+The frontend also saves one content-free document checkpoint in session storage,
+including on older binaries. It updates only at startup, visibility changes,
+`pagehide`, and same-document bfcache restoration; there is no polling or native
+IPC. The next startup's `previous_document_*` properties report the last recorded
+visibility and whether `pagehide` was observed, including its `persisted` bit.
+Missing, malformed, future, or more-than-24-hour-old checkpoints report unavailable
+coverage. Logout clears the checkpoint and stops its listeners. A document that
+has lost checkpoint ownership cannot overwrite its successor's data.
+If that older document resumes from bfcache, it invalidates the checkpoint so
+the next startup reports unknown instead of attributing its exit to a successor.
+These are last-observed lifecycle signals: missing `pagehide` supports an abrupt
+exit hypothesis but does not prove a crash, and `persisted` is bfcache intent,
+not proof a document was later restored. This checkpoint cannot identify why
+WebKit terminated; correlate it with the native counters and device diagnostics.
+
 Frontend reloads go through `reloadApp(reason)`: automatic cache replacement,
 accepted update, failed-load recovery, user recovery, or logout. It saves a
 one-shot session-storage marker and asks native to record the request before
