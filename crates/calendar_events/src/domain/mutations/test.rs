@@ -362,11 +362,13 @@ impl CalendarRepository for FakeRepo {
         request_id: Uuid,
         status: crate::domain::join_requests::CalendarJoinRequestStatus,
     ) -> Result<Option<crate::domain::join_requests::CalendarJoinRequest>, rootcause::Report> {
+        use crate::domain::join_requests::CalendarJoinRequestStatus;
         let mut requests = self.join_requests.lock().unwrap();
         let Some(request) = requests.iter_mut().find(|request| {
             request.id == request_id
-                && request.status
-                    == crate::domain::join_requests::CalendarJoinRequestStatus::Pending
+                && (request.status == CalendarJoinRequestStatus::Pending
+                    || (status == CalendarJoinRequestStatus::Accepted
+                        && request.status == CalendarJoinRequestStatus::Declined))
         }) else {
             return Ok(None);
         };

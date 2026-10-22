@@ -45,9 +45,9 @@ async fn join_requests_open_once_and_resolve_once(pool: PgPool) {
         .unwrap()
         .expect("a pending request resolves");
     assert_eq!(declined.status, CalendarJoinRequestStatus::Declined);
-    // A second answer finds nothing pending to resolve.
+    // A second decline finds nothing pending to resolve.
     assert_eq!(
-        repo.resolve_join_request(first.id, CalendarJoinRequestStatus::Accepted)
+        repo.resolve_join_request(first.id, CalendarJoinRequestStatus::Declined)
             .await
             .unwrap(),
         None
@@ -79,6 +79,13 @@ async fn join_requests_open_once_and_resolve_once(pool: PgPool) {
         .unwrap()
         .expect("the reopened request resolves");
     assert_eq!(accepted.status, CalendarJoinRequestStatus::Accepted);
+    // A decline that arrives after the invitation was written changes nothing.
+    assert_eq!(
+        repo.resolve_join_request(first.id, CalendarJoinRequestStatus::Declined)
+            .await
+            .unwrap(),
+        None
+    );
     // An accepted request is not reopened by asking again.
     let (after_accept, opened) = repo
         .open_join_request(event_id, member_id, "member@work.example.com")
@@ -86,6 +93,20 @@ async fn join_requests_open_once_and_resolve_once(pool: PgPool) {
         .unwrap();
     assert!(!opened);
     assert_eq!(after_accept.status, CalendarJoinRequestStatus::Accepted);
+
+    // An acceptance whose invitation was written while a decline landed
+    // still records the grant the guest list now holds.
+    sqlx::query("UPDATE calendar_event_join_requests SET status = 'declined' WHERE id = $1")
+        .bind(first.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let granted = repo
+        .resolve_join_request(first.id, CalendarJoinRequestStatus::Accepted)
+        .await
+        .unwrap()
+        .expect("the acceptance overrides the decline");
+    assert_eq!(granted.status, CalendarJoinRequestStatus::Accepted);
 
     // Requests go with the shared event.
     sqlx::query("DELETE FROM calendar_events WHERE id = $1")

@@ -593,7 +593,10 @@ pub trait CalendarRepository: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Option<CalendarJoinRequest>, Report>> + Send;
 
     /// Move a pending request to `status`. `None` when the request is gone
-    /// or no longer pending, so two answers at once resolve it once.
+    /// or already answered, so two answers at once resolve it once. An
+    /// acceptance is recorded only after its invitation was written, so it
+    /// also overrides a decline that landed meanwhile: the stored status
+    /// then matches the guest list.
     fn resolve_join_request(
         &self,
         request_id: Uuid,

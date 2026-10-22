@@ -58,7 +58,7 @@ where
         {
             return Ok(resolved);
         }
-        // Another answer landed first; report where it left the request.
+        // Another acceptance landed first; report where it left the request.
         self.repository
             .get_join_request(request_id)
             .await

@@ -156,7 +156,8 @@ pub(super) async fn resolve_join_request(
         r#"
         UPDATE calendar_event_join_requests
         SET status = $2, resolved_at = now()
-        WHERE id = $1 AND status = 'pending'
+        WHERE id = $1
+          AND (status = 'pending' OR ($2 = 'accepted' AND status = 'declined'))
         RETURNING id, event_id, requester_id, requester_email, status, created_at
         "#,
         request_id,

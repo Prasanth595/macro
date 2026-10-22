@@ -139,13 +139,17 @@ export function useRespondToCalendarJoinRequestMutation(
       RespondToCalendarJoinRequestArgs
     >(
       {
-        onSettled: (_data, _error, { request, decision }) => {
-          queryClient.invalidateQueries({
+        // Settles once the list refetched, so the answered row is gone
+        // before the buttons enable again.
+        onSettled: async (_data, _error, { request, decision }) => {
+          const listRefreshed = queryClient.invalidateQueries({
             queryKey: calendarKeys.joinRequests(request.eventId).queryKey,
           });
-          if (decision !== 'accept') return;
-          invalidateCalendarEventPreviews(request.eventId);
-          return invalidateCalendarOccurrences();
+          if (decision === 'accept') {
+            invalidateCalendarEventPreviews(request.eventId);
+            await invalidateCalendarOccurrences();
+          }
+          await listRefreshed;
         },
       },
       callbacks
