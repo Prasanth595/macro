@@ -354,40 +354,6 @@ export class AgentHarnessService extends pulumi.ComponentResource {
         { parent: this }
       ),
     ];
-    const sharedApiRoutes: [GatewayService, string][] = [
-      [GatewayService.MCP_SERVER, '/mcp'],
-      [GatewayService.DOCUMENT_COGNITION_SERVICE, '/cognition'],
-      [GatewayService.AGENT_SCHEDULE_SERVICE, '/scheduled-action'],
-    ];
-    const sharedApiRules = sharedApiRoutes.map(
-      ([service, prefix]) =>
-        new aws.lb.ListenerRule(
-          `${BASE_NAME}-${service}-${stack}`,
-          {
-            listenerArn: gatewayLoadBalancer.httpsListenerArn,
-            priority: GATEWAY_PRIORITIES[service],
-            actions: [
-              { type: 'forward', targetGroupArn: this.targetGroup.arn },
-            ],
-            conditions: [
-              {
-                pathPattern: {
-                  values: [
-                    prefix,
-                    `${prefix}/*`,
-                    ...(service === GatewayService.MCP_SERVER
-                      ? ['/.well-known/openai-apps-challenge']
-                      : []),
-                  ],
-                },
-              },
-            ],
-            tags,
-          },
-          { parent: this }
-        )
-    );
-
     // Forward the egress prefix unchanged to its own listener. Session-token
     // Authorization headers are handled by the egress router as before.
     // Use a new target group: AWS cannot attach one to two ALBs during cutover.
@@ -441,21 +407,6 @@ export class AgentHarnessService extends pulumi.ComponentResource {
         // Both listeners use the shared gateway, with separate target groups
         // for the control API and sandbox egress proxy.
         loadBalancers: [
-          {
-            targetGroupArn: args.previewControlTargetGroupArn,
-            containerName: 'service',
-            containerPort: serviceContainerPort,
-          },
-          {
-            targetGroupArn: args.previewHttpTargetGroupArn,
-            containerName: 'service',
-            containerPort: 8111,
-          },
-          {
-            targetGroupArn: args.previewSshTargetGroupArn,
-            containerName: 'service',
-            containerPort: 2222,
-          },
           {
             targetGroupArn: gatewayTargetGroup.target_group.arn,
             containerName: 'service',
@@ -543,7 +494,6 @@ export class AgentHarnessService extends pulumi.ComponentResource {
           ...args.configurationSecrets,
           gatewayTargetGroup.listener_rule,
           ...publicHostRules,
-          ...sharedApiRules,
           egress.listener_rule,
           claudeOauthPolicy,
         ],
