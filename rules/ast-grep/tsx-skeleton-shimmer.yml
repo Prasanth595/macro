@@ -13,4 +13,4 @@ rule:
   kind: string_fragment
   all:
     - regex: (^|\s)(motion-safe:)?animate-pulse(\s|$)
-    - regex: (^|\s)bg-(hover|skeleton|surface|ink/\S+)(\s|$)
+    - regex: (^|\s)bg-(hover|skeleton|surface|ink-placeholder|ink/\S+)(\s|$)
