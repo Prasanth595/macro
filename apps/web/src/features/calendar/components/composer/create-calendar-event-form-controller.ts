@@ -617,6 +617,7 @@ export function createCalendarEventFormController(
     guestPolicy: () => guestPolicyOf(state()),
     setGuestPolicy: (guestPolicy: GuestPolicy) =>
       setField('guestPolicy', guestPolicy),
+    resetGuestPolicy: () => setField('guestPolicy', initialValue().guestPolicy),
     setSelectedGuests,
     startForRecurrence: recurrence.startForRecurrence,
     recurrenceChoice: recurrence.recurrenceChoice,

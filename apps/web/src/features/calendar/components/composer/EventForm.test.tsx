@@ -189,3 +189,20 @@ it('offers no guest permissions without the organizer’s rights', () => {
 
   expect(screen.queryByRole('group', { name: 'Guest permissions' })).toBeNull();
 });
+
+it('returns guest permissions to the stored ones when an edit targets one occurrence', async () => {
+  const user = userEvent.setup();
+  showForm({
+    isEdit: true,
+    guestPolicyEditable: true,
+    showRecurringEditNotice: true,
+  });
+  const seeGuests = screen.getByRole('checkbox', { name: 'See guest list' });
+
+  await user.click(seeGuests);
+  expect((seeGuests as HTMLInputElement).checked).toBe(false);
+  await user.click(screen.getByRole('radio', { name: 'This event' }));
+
+  expect((seeGuests as HTMLInputElement).checked).toBe(true);
+  expect((seeGuests as HTMLInputElement).disabled).toBe(true);
+});

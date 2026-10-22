@@ -736,7 +736,8 @@ fn validate_time(time: &EventTime) -> Result<(), CalendarMutationError> {
 
 /// Enforce Google's rules for creating an out-of-office event so the provider
 /// never rejects a write we already accepted: primary calendar only, a timed
-/// span rather than whole days, and no attendees, conference, or description.
+/// span rather than whole days, and no attendees, conference, description, or
+/// guest policy beyond Google's defaults.
 fn validate_out_of_office_create(
     draft: &CalendarEventDraft,
     target: &CalendarCreationTarget,
@@ -765,6 +766,11 @@ fn validate_out_of_office_create(
     if draft.description.as_deref().is_some_and(|d| !d.is_empty()) {
         return Err(CalendarMutationError::InvalidInput(
             "out-of-office events cannot have a description".to_string(),
+        ));
+    }
+    if draft.guest_policy.is_some() {
+        return Err(CalendarMutationError::InvalidInput(
+            "out-of-office events have no guests to set permissions for".to_string(),
         ));
     }
     Ok(())

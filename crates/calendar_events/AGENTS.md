@@ -79,7 +79,9 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   (`src/domain/mutations/guest_policy.rs`): drafts and patches carry it as
   Google's three switches, a policy equal to the stored one (or Google's
   defaults on create) is dropped, a change from anyone else is `NotOrganizer`,
-  and one on Outlook, which has no such switches, is `ProviderRejected`.
+  one on Outlook, which has no such switches, is `ProviderRejected`, and one
+  scoped to a single occurrence or on a new out-of-office event is
+  `InvalidInput`.
   `ViewerCapabilities::set_guest_policy` is therefore Google-only, and
   `organize` is the organizer signal clients read instead.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with

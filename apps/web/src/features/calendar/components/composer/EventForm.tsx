@@ -106,6 +106,12 @@ export function EventForm(props: EventFormProps) {
   // Recurring edits default to the whole series, matching the long-standing
   // behavior; "this event" writes a single-occurrence exception.
   const [editScope, setEditScope] = createSignal<CalendarUpdateScope>('all');
+  // Guest permissions belong to the whole series, so an occurrence edit
+  // returns them to what is stored rather than keep an edit it cannot save.
+  const changeEditScope = (scope: CalendarUpdateScope) => {
+    setEditScope(scope);
+    if (scope === 'this_event') controller.resetGuestPolicy();
+  };
 
   // An invalid range already speaks for itself; only one line shows at a time.
   const pastEventWarning = () =>
@@ -480,7 +486,7 @@ export function EventForm(props: EventFormProps) {
         <Show when={props.showRecurringEditNotice}>
           <RadioGroup
             value={editScope()}
-            onChange={(value) => setEditScope(value as CalendarUpdateScope)}
+            onChange={(value) => changeEditScope(value as CalendarUpdateScope)}
             disabled={formIsDisabled()}
             aria-label="Apply changes to"
             class="mr-auto flex-row items-center gap-3 text-xs text-ink-muted"

@@ -480,7 +480,7 @@ preselected on a new event and the stored `guestPolicy` on an edit. As in Google
 an edit whose `viewerCan.setGuestPolicy` is true, on Google calendars only (the calendar's
 `capabilities.guestPolicy`); Outlook calendars and out-of-office events have none. Like the
 repeat rule, it is disabled while a recurring edit targets `This event`, since the policy
-belongs to the whole series. Save sends `guestPolicy` only when it changed, and the guests'
+belongs to the whole series, and choosing `This event` returns it to the stored values. Save sends `guestPolicy` only when it changed, and the guests'
 `viewerCan` follows once their copies sync:
 turning `Invite others` off replaces a guest's `Add guests` with `Only the organizer can
 invite guests.` The update refuses a policy change from anyone but the organizer with 403

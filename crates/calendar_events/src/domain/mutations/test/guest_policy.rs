@@ -253,3 +253,35 @@ async fn a_guest_policy_change_to_one_occurrence_is_refused() {
     );
     assert!(calls.lock().unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn an_out_of_office_event_refuses_a_guest_policy() {
+    let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+    let calls = provider.calls.clone();
+
+    let error = service(
+        FakeRepo {
+            creation_target: Some(creation_target(false)),
+            ..FakeRepo::default()
+        },
+        provider,
+        FakeTokens::ok(),
+    )
+    .create_event(
+        "macro|user",
+        None,
+        None,
+        CalendarEventDraft {
+            guest_policy: Some(NO_INVITES),
+            ..out_of_office_draft()
+        },
+    )
+    .await
+    .unwrap_err();
+
+    assert!(
+        matches!(&error, CalendarMutationError::InvalidInput(message) if message.contains("guests to set permissions")),
+        "{error:?}"
+    );
+    assert!(calls.lock().unwrap().is_empty());
+}
