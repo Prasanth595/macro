@@ -41,6 +41,9 @@ updates over WebSocket.
   `src/domain/` (surface-specific logic) → migration in
   `src/durable_object/surface_migration.rs` if it changes stored shape.
 
+Active-peer queries with `include_ai=false` exclude signed agent actors and the
+legacy reserved AI peer range; Canvas workers use random full-width peer IDs.
+
 ## Checks
 
 - `just test` (runs `worker-build`, then `npx vitest run` and `cargo test`)
