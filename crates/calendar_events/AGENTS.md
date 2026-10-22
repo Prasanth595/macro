@@ -66,6 +66,12 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   the whole list Google returned plus the new guests, and a guest is refused
   (`guest_list_hidden`) while the organizer hides the guest list, since their
   copy lacks the guests it would drop.
+- A channel-shared event reaches a member's calendar as a copy, not a seat:
+  `copy_shared_event` (`src/domain/mutations/copy.rs`) imports it under the
+  meeting's iCalendar UID with no guests or join link, behind the same
+  `event_export` visibility query as the .ics route. Google only: never
+  import over a UID the calendar already holds, since an import updates that
+  event in place and would strip an unsynced invitation's guests.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` wherever a read path marks the viewer, and never
   store it. `guest_policy` is stored on the entity row (the canonical copy's
