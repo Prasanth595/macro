@@ -44,6 +44,8 @@ payloads.
 `domain/notification.rs` owns typed system events and their ACP metadata/XML.
 Notification-only invocations use `AgentAction::notification`; public control must
 reject caller-supplied notification metadata. Payloads contain facts, not drafts.
+Allow exact `<noop/>` only before any tool call in a notification turn; prompt
+instructions must match the fold's conservative treatment of all tool activity.
 
 ## Checks
 
