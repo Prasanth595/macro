@@ -15,6 +15,8 @@ threads, pins, recents, notifications, folders, activity.
 - `src/api/graphql_soup.rs`: the `/soup/graphql` (+ `/soup/graphql/ws`
   subscriptions) GraphQL API — the frontend's main read path for Home/Recent/
   search ("Soup" items); see `crates/graphql_soup` for resolvers/loaders.
+- Supply `TagGraphqlContext` on both GraphQL transports using the primary
+  properties service so catalog and mutation snapshots include committed tags.
 - `src/server.rs`: composition root, including access-request routes and the
   tracked delivery dispatcher; `src/outbound/access_requests.rs` composes the
   notification/withdrawal/realtime ports. Policy lives in `crates/access_requests`.

@@ -53,6 +53,11 @@ stable across retries, and `announced` records successful pending-message posts.
 The additive migrations are compatible with older service binaries; session
 deletion cascades its rows.
 
+`property_definition_client_ids` and `property_option_client_ids` retain
+caller-scoped offline tag handles; their queries and replay policy belong to
+`properties`. Target deletion deliberately preserves bindings; account deletion
+cascades them so a delayed create cannot resurrect a deleted tag.
+
 ## Gotchas
 
 - Migrations deploy before service code: never drop a column/table in the

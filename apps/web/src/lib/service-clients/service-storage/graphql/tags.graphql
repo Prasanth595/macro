@@ -1,0 +1,65 @@
+fragment TagOption on GraphqlPropertyOption {
+  __typename
+  id
+  propertyDefinitionId
+  displayOrder
+  value {
+    __typename
+    ... on GraphqlStringPropertyOptionValue { value }
+  }
+  color
+  createdAt
+  updatedAt
+}
+
+fragment TagDefinition on GraphqlPropertyDefinition {
+  __typename
+  id
+  owner { __typename scope principalId }
+  displayName
+  dataType
+  isMultiSelect
+  specificEntityType
+  isSystem
+  isMetadata
+  createdAt
+  updatedAt
+  options { ...TagOption }
+}
+
+fragment TagCatalogOwner on GraphqlUser {
+  __typename
+  id
+  tagCatalog {
+    __typename
+    scopes { __typename scope principalId }
+    definitions { ...TagDefinition }
+  }
+}
+
+query TagCatalog {
+  user { ...TagCatalogOwner }
+}
+
+mutation EnsureTagSet($scope: GraphqlTagScope!, $teamId: ID, $clientDefinitionId: ID!) {
+  ensureTagSet(scope: $scope, teamId: $teamId, clientDefinitionId: $clientDefinitionId) { ...TagDefinition }
+}
+
+mutation CreateTag($input: GraphqlCreateTagInput!) {
+  createTag(input: $input) {
+    __typename
+    definition { ...TagDefinition }
+    option { ...TagOption }
+  }
+}
+
+mutation UpdateTag($propertyDefinitionId: ID!, $optionId: ID!, $input: GraphqlUpdateTagInput!) {
+  updateTag(propertyDefinitionId: $propertyDefinitionId, optionId: $optionId, input: $input) { ...TagOption }
+}
+
+mutation DeleteTag($propertyDefinitionId: ID!, $optionId: ID!) {
+  deleteTag(propertyDefinitionId: $propertyDefinitionId, optionId: $optionId) {
+    graphqlTypeName
+    entityId
+  }
+}

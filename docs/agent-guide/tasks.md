@@ -865,6 +865,22 @@ catch up after switching tabs, including when the cache-owning tab is hidden.
 In any channel composer, toggle the `Task` switch before sending to create a task from the
 message.
 
+### Offline tags
+
+With GraphQL Soup and backfill enabled, let the tag catalog download while
+online, then block services and cold-launch the app. The picker should retain
+labels and colors even if it was never opened during that session. Create a
+private test label, assign it to a cached task, rename/recolor it, and restart
+again while offline. Verify both the catalog and task chip retain the edits.
+Reconnect and confirm one canonical tag and the same assignment; repeat after
+interrupting the creation response. Delete a pending test tag and reconnect to
+check it does not reappear. Exercise a scope whose TAG definition has never been
+provisioned as well as an existing definition. A catalog never downloaded to this
+device cannot offer offline creation. Promotion/merging still require a connection.
+Pending tags cannot be inserted as inline `#` mentions until they have synced:
+collaborative mention content needs canonical IDs. Existing synced tags remain
+available in that menu, and creating a tag there still requires a connection.
+
 ### Nested sidebar tags
 
 In the Email and Calls sidebar Tags sections, tag names containing `/` render with

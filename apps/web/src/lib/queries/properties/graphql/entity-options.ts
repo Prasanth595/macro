@@ -26,6 +26,7 @@ import {
   getGraphqlCacheHost,
   getGraphqlSoupClient,
 } from '@service-storage/graphql-soup';
+import { version as uuidVersion, validate as validateUuid } from 'uuid';
 import { buildOptimisticEntityPropertyOptions } from '../graphql-optimistic';
 import {
   type EntityPropertyOptionSelection,
@@ -36,6 +37,13 @@ import {
   buildEntityPropertiesInput,
   toGraphqlPropertyTargetEntityType,
 } from './entity';
+import { tagDefinitionBinding, tagOptionBinding } from './tags';
+
+// Server-owned IDs are v7 (system constants are v0). Only local v4 handles
+// need replay bindings; canonical selections must not consume the queue limit.
+function isLocalHandle(id: string): boolean {
+  return validateUuid(id) && uuidVersion(id) === 4;
+}
 
 export type GraphqlEntityPropertyOptionsInput = {
   entityType: EntityType | PropertyTargetEntityType;
@@ -144,7 +152,30 @@ export async function updateGraphqlEntityPropertyOptions(
     UpdateEntityPropertyOptionsDocument,
     variables,
     { updateEntityPropertyOptions: optimisticProperties },
-    { uuid: crypto.randomUUID(), updates, revalidations }
+    {
+      uuid: crypto.randomUUID(),
+      updates,
+      revalidations,
+      identityBindings: [
+        ...new Set(
+          input.properties.map((p) => getPropertyDefinitionId(p.property))
+        ),
+      ]
+        .filter(isLocalHandle)
+        .map((id) => tagDefinitionBinding(id))
+        .concat(
+          [
+            ...new Set(
+              input.properties.flatMap((p) => [
+                ...p.currentOptionIds,
+                ...p.nextOptionIds,
+              ])
+            ),
+          ]
+            .filter(isLocalHandle)
+            .map((id) => tagOptionBinding(id))
+        ),
+    }
   ).toPromise();
 
   const disposition = optimisticMutationDispositionOf<

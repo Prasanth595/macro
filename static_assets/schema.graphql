@@ -214,6 +214,22 @@ type CompleteMutationRoot {
 	"""
 	updateEntityPropertyOptions(input: UpdateEntityPropertyOptionsInput!): [GraphqlProperty!]!
 	"""
+	Provision a tag definition once for a caller-local handle.
+	"""
+	ensureTagSet(scope: GraphqlTagScope!, teamId: ID, clientDefinitionId: ID!): GraphqlPropertyDefinition!
+	"""
+	Create a tag once, returning the same identity on a lost-response replay.
+	"""
+	createTag(input: GraphqlCreateTagInput!): GraphqlCreatedTag!
+	"""
+	Rename or recolor a tag addressed by a canonical ID or caller-local handle.
+	"""
+	updateTag(propertyDefinitionId: ID!, optionId: ID!, input: GraphqlUpdateTagInput!): GraphqlPropertyOption!
+	"""
+	Delete a tag and its entity assignments without allowing replay to recreate it.
+	"""
+	deleteTag(propertyDefinitionId: ID!, optionId: ID!): GraphqlCacheDeletion!
+	"""
 	Rename heterogeneous entities in one request.
 	"""
 	renameEntities(inputs: [RenameEntityInput!]!): EntityMutationPayload!
@@ -2912,6 +2928,50 @@ type GraphqlCommentedOnDocumentMetadata {
 	Display name for a non-user sender.
 	"""
 	senderDisplayName: String
+}
+
+"""
+Stable handles and content for a new tag.
+"""
+input GraphqlCreateTagInput {
+	"""
+	Ownership scope, authorized against current membership.
+	"""
+	scope: GraphqlTagScope!
+	"""
+	Team owning the queued creation; required for team scope.
+	"""
+	teamId: ID
+	"""
+	Stable caller-local definition handle reused by dependent writes.
+	"""
+	clientDefinitionId: ID!
+	"""
+	Stable caller-local creation handle, reused on every replay.
+	"""
+	clientOptionId: ID!
+	"""
+	User-visible label.
+	"""
+	value: String!
+	"""
+	Optional palette color.
+	"""
+	color: String
+}
+
+"""
+Canonical identities acknowledged by a creation.
+"""
+type GraphqlCreatedTag {
+	"""
+	Containing definition, with committed options.
+	"""
+	definition: GraphqlPropertyDefinition!
+	"""
+	Created or previously acknowledged option.
+	"""
+	option: GraphqlPropertyOption!
 }
 
 """
@@ -8832,6 +8892,48 @@ type GraphqlStringPropertyValue {
 }
 
 """
+Account-scoped catalog; definitions and options carry the global identities.
+"""
+type GraphqlTagCatalog {
+	"""
+	Available ownership scopes, including sets not provisioned yet.
+	"""
+	scopes: [GraphqlTagOwner!]!
+	"""
+	Provisioned definitions and their current options.
+	"""
+	definitions: [GraphqlPropertyDefinition!]!
+}
+
+"""
+Ownership metadata for a tag set, including an unprovisioned set.
+"""
+type GraphqlTagOwner {
+	"""
+	Personal or current-team ownership.
+	"""
+	scope: GraphqlTagScope!
+	"""
+	Caller or team identity, used while the definition is pending locally.
+	"""
+	principalId: ID!
+}
+
+"""
+Personal or current-team tag ownership.
+"""
+enum GraphqlTagScope {
+	"""
+	The authenticated caller's labels.
+	"""
+	USER
+	"""
+	Labels shared with the caller's current team.
+	"""
+	TEAM
+}
+
+"""
 Metadata for a task assignment.
 """
 type GraphqlTaskAssignedMetadata {
@@ -8914,6 +9016,20 @@ type GraphqlTimedEventTime {
 }
 
 """
+Changed fields of an existing label.
+"""
+input GraphqlUpdateTagInput {
+	"""
+	New label; omission preserves the label.
+	"""
+	value: String
+	"""
+	New palette color; omission preserves the color.
+	"""
+	color: String
+}
+
+"""
 An update to an existing notification.
 """
 type GraphqlUpdatedNotification {
@@ -8943,6 +9059,10 @@ type GraphqlUser {
 	AI routines the authenticated user can access.
 	"""
 	scheduledActions: [GraphqlScheduledAction!]!
+	"""
+	Account-scoped tag catalog, including provisioned definitions and their options.
+	"""
+	tagCatalog: GraphqlTagCatalog!
 	"""
 	Authorized property definitions available to this viewer.
 	"""

@@ -69,7 +69,7 @@ pub use graphql_permission::{
 pub use graphql_properties::{
     EntityPropertiesLoader, EntityPropertyReader, EntityPropertyWriter, NoOpEntityPropertyReader,
     PropertiesEntityPropertyReader, PropertiesEntityPropertyWriter, PropertiesMutationRoot,
-    entity_properties_loader,
+    TagGraphqlContext, entity_properties_loader,
 };
 pub use graphql_work_feed::{
     EntityAccessWorkFeedViewers, WorkFeedGraphqlContext, WorkFeedGraphqlService,

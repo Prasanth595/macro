@@ -7,6 +7,8 @@ pub mod model;
 pub mod ports;
 pub mod service;
 pub mod service_impl;
+/// Durable tag creation handles and ordered lifecycle operations.
+pub mod tag_replay;
 #[cfg(test)]
 mod test;
 

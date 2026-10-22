@@ -26,6 +26,7 @@ import {
   onMount,
   Show,
 } from 'solid-js';
+import { version as uuidVersion, validate as validateUuid } from 'uuid';
 import { floatWithSelection } from '../../directive/floatWithSelection';
 import {
   CLOSE_INLINE_SEARCH_COMMAND,
@@ -44,6 +45,13 @@ type TagMenuItem = {
   name: string;
   color?: string;
 };
+
+// Pending UUIDv4 handles cannot be reconciled inside collaborative mention JSON.
+function isCanonicalMention(tag: TagMenuItem): boolean {
+  return [tag.optionId, tag.propertyDefinitionId].every(
+    (id) => !validateUuid(id) || uuidVersion(id) !== 4
+  );
+}
 
 type CreateStep = 'color' | 'scope';
 
@@ -102,7 +110,10 @@ export function TagsMenu(props: {
   const tagsQuery = useTagsQuery();
   const currentTeamQuery = useCurrentTeamQuery();
   const addOption = useAddPropertyOptionMutation();
-  const ensureTagSet = useEnsureTagSetMutation();
+  // Mention JSON is shared outside the normalized cache: only persist server IDs.
+  const ensureTagSet = useEnsureTagSetMutation(undefined, {
+    requireCanonical: true,
+  });
   const [mountSelection, setMountSelection] = createSignal<Selection | null>();
   const [menuAvailableHeight, setMenuAvailableHeight] = createSignal<
     number | undefined
@@ -134,7 +145,11 @@ export function TagsMenu(props: {
           color: option.color ?? undefined,
         }))
       )
-      .filter((tag) => !query || tag.name.toLowerCase().includes(query))
+      .filter(
+        (tag) =>
+          isCanonicalMention(tag) &&
+          (!query || tag.name.toLowerCase().includes(query))
+      )
       .sort((a, b) => a.name.localeCompare(b.name));
   });
 
@@ -201,7 +216,7 @@ export function TagsMenu(props: {
   };
 
   const selectItem = (item: TagMenuItem | undefined) => {
-    if (!item) {
+    if (!item || !isCanonicalMention(item)) {
       closeMenu();
       return;
     }

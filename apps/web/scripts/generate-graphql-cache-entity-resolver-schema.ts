@@ -204,8 +204,13 @@ export function renderEntityResolverSchema(
         }
         lines.push('      ],');
       }
-      if (field.argumentPaths.length === 1) {
-        lines.push(`      argumentPaths: [${tuple(field.argumentPaths[0] ?? [])}],`);
+      const pathsLine = `      argumentPaths: [${field.argumentPaths.map(tuple).join(', ')}],`;
+      if (
+        pathsLine.length <= FORMATTER_LINE_WIDTH &&
+        (field.argumentPaths.length === 1 ||
+          field.argumentPaths.every((path) => path.length === 1))
+      ) {
+        lines.push(pathsLine);
       } else {
         lines.push('      argumentPaths: [');
         for (const path of field.argumentPaths) {

@@ -1,6 +1,6 @@
 import type { Property, PropertyDefinitionDomain } from '@property/types';
 import { EntityPropertiesDocument } from '@service-storage/graphql/generated/graphql';
-import { validate as validateUuid } from 'uuid';
+import { v7 as uuidv7, validate as validateUuid } from 'uuid';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const executeOptimisticMutationMock = vi.hoisted(() => vi.fn());
@@ -88,6 +88,29 @@ describe('updateGraphqlEntityPropertyOptions', () => {
     optimisticMutationDispositionOfMock.mockReturnValue(
       committedWith(['spotlight'])
     );
+  });
+
+  it('does not spend the replay binding budget on existing tag selections', async () => {
+    const currentOptionIds = Array.from({ length: 40 }, () => uuidv7());
+    const localOptionId = '22222222-2222-4222-8222-222222222222';
+    await updateGraphqlEntityPropertyOptions({
+      entityType: 'DOCUMENT',
+      entityId: 'doc-1',
+      properties: [
+        {
+          property: { ...tagDefinition, id: uuidv7() },
+          currentOptionIds,
+          nextOptionIds: [localOptionId],
+        },
+      ],
+    });
+    const { variables, options } = optimisticArgs();
+    expect(variables.input.properties[0].removeOptionIds).toEqual(
+      currentOptionIds
+    );
+    expect(options.identityBindings).toMatchObject([
+      { localKey: `GraphqlPropertyOption:${localOptionId}` },
+    ]);
   });
 
   it('sends option deltas and writes the property record optimistically', async () => {

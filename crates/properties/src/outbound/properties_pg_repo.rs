@@ -66,6 +66,44 @@ fn regroup_entity_properties(
 impl PropertiesRepo for PropertiesPgRepo {
     type Err = anyhow::Error;
 
+    async fn bind_property_definition_client_id(
+        &self,
+        user_id: &str,
+        client_id: Uuid,
+        definition_id: Uuid,
+    ) -> anyhow::Result<Uuid> {
+        super::tag_replay_queries::bind_definition(&self.pool, user_id, client_id, definition_id)
+            .await
+    }
+
+    async fn property_client_bindings(
+        &self,
+        user_id: &str,
+        definition_ids: &[Uuid],
+        option_ids: &[Uuid],
+    ) -> anyhow::Result<crate::domain::tag_replay::PropertyClientBindings> {
+        super::tag_replay_queries::bindings(&self.pool, user_id, definition_ids, option_ids).await
+    }
+
+    async fn create_tag_option_with_client_id(
+        &self,
+        user_id: &str,
+        client_id: Uuid,
+        definition_id: Uuid,
+        value: &str,
+        color: Option<&str>,
+    ) -> anyhow::Result<crate::domain::tag_replay::CreateTagOptionOutcome> {
+        super::tag_replay_queries::create_option(
+            &self.pool,
+            user_id,
+            client_id,
+            definition_id,
+            value,
+            color,
+        )
+        .await
+    }
+
     #[tracing::instrument(skip(self))]
     async fn get_property_definition(
         &self,

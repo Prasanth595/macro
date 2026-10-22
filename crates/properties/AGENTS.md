@@ -16,6 +16,8 @@ events to the `macro.properties` Kafka topic.
   writer/notification/permission ports it composes.
 - `src/domain/model.rs`: `EntityPropertiesKey`, `PropertyTargetKey`, and the
   CRM team-stage definition constant.
+- `src/domain/tag_replay.rs` and `service_impl/tag_replay.rs`: caller-scoped
+  offline tag handles, ownership validation, and replay-safe lifecycle writes.
 - `src/outbound/properties_pg_repo.rs` +
   `src/outbound/*_queries.rs`: the Postgres adapters, one file per concern
   (definitions, options, entity values, metadata, tag promotion).

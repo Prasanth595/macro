@@ -85,6 +85,9 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+- Keep tag catalog warming and lifecycle mutations on the normalized cache when
+  GraphQL Soup is enabled; see `docs/graphql-normalized-cache-plan.md` for replay
+  and native rollout requirements.
 - Keep bot setup focused on the token-and-SDK workflow; Agent and Ownership
   controls live under collapsed Advanced settings. See the
   [Bots walkthrough](../../docs/agent-guide/settings.md#bots).

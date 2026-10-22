@@ -95,6 +95,7 @@ pub struct CompleteMutationRoot<
     ES: EmailService,
 >(
     PropertiesMutationRoot<W>,
+    graphql_properties::TagsMutationRoot,
     EntityMutationRoot<M, E>,
     FavoriteMutationRoot<F, E>,
     ChannelMutationRoot<C, A>,
@@ -120,6 +121,7 @@ impl<
     fn new() -> Self {
         Self(
             PropertiesMutationRoot::<W>::new(),
+            graphql_properties::TagsMutationRoot,
             EntityMutationRoot::<M, E>::new(),
             FavoriteMutationRoot::<F, E>::new(),
             ChannelMutationRoot::<C, A>::new(),
@@ -733,13 +735,21 @@ where
         resolve_scheduled_actions(ctx, self.user_id.clone()).await
     }
 
+    /// Account-scoped tag catalog, including provisioned definitions and their options.
+    async fn tag_catalog(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<graphql_properties::GraphqlTagCatalog> {
+        graphql_properties::load_tag_catalog(ctx).await
+    }
+
     /// Authorized property definitions available to this viewer.
     async fn property_definitions(
         &self,
         ctx: &Context<'_>,
         scope: GraphqlPropertyDefinitionScope,
         for_entity_type: Option<graphql_common::GraphqlPropertyEntityType>,
-    ) -> async_graphql::Result<Vec<GraphqlPropertyDefinition<PR>>> {
+    ) -> async_graphql::Result<Vec<GraphqlPropertyDefinition>> {
         load_property_definitions::<PR>(ctx, scope, for_entity_type).await
     }
 

@@ -37,6 +37,38 @@ use super::model::{
 pub trait PropertiesRepo: Send + Sync + 'static {
     type Err;
 
+    /// Bind an authenticated caller's definition handle without changing a prior binding.
+    /// Returns the canonical ID already bound or inserted by this call.
+    fn bind_property_definition_client_id(
+        &self,
+        user_id: &str,
+        client_id: Uuid,
+        definition_id: Uuid,
+    ) -> impl Future<Output = Result<Uuid, Self::Err>> + Send;
+
+    /// Look up only the requested caller-scoped handles; absent IDs remain canonical IDs.
+    fn property_client_bindings(
+        &self,
+        user_id: &str,
+        definition_ids: &[Uuid],
+        option_ids: &[Uuid],
+    ) -> impl Future<Output = Result<super::tag_replay::PropertyClientBindings, Self::Err>> + Send;
+
+    /// Atomically create a string tag and its replay binding, or return the prior result.
+    /// A retained binding to a deleted option must never create a replacement.
+    #[expect(
+        clippy::needless_lifetimes,
+        reason = "mockall requires a named lifetime for the optional borrow"
+    )]
+    fn create_tag_option_with_client_id<'a>(
+        &self,
+        user_id: &str,
+        client_id: Uuid,
+        definition_id: Uuid,
+        value: &str,
+        color: Option<&'a str>,
+    ) -> impl Future<Output = Result<super::tag_replay::CreateTagOptionOutcome, Self::Err>> + Send;
+
     /// Get a property definition by ID.
     /// Returns `None` if the property definition doesn't exist.
     fn get_property_definition(

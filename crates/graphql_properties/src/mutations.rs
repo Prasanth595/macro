@@ -198,12 +198,8 @@ where
             .await
             .map_err(|err| rootcause::report!(err))?;
 
-        let touched_definition_ids: Vec<Uuid> = updates
-            .iter()
-            .map(|update| update.property_definition_id)
-            .collect();
-
-        self.properties_service
+        let selections = self
+            .properties_service
             .bulk_update_entity_property_options(
                 &entity_access_receipt,
                 updates
@@ -217,6 +213,11 @@ where
             )
             .await
             .map_err(|err| rootcause::report!(err))?;
+
+        let touched_definition_ids = selections
+            .iter()
+            .map(|selection| selection.property_definition_id)
+            .collect::<Vec<_>>();
 
         // The domain returns reconciled option ids only. Re-read the committed
         // rows so the response carries whole property records: the client's
