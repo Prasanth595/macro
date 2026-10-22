@@ -129,7 +129,12 @@ export function getNotificationTargetName(
       // not carried in the metadata.
       .with({ tag: 'reminder' }, () => undefined)
       .with(
-        { tag: P.union('calendar_event_reminder', 'calendar_event_join_request') },
+        {
+          tag: P.union(
+            'calendar_event_reminder',
+            'calendar_event_join_request'
+          ),
+        },
         (m) => m.content.title || '(No title)'
       )
       .with({ tag: 'inbox_reauth_required' }, () => undefined)

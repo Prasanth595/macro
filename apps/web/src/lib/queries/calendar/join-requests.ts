@@ -36,9 +36,7 @@ export function useCalendarJoinRequestsQuery(
   eventId: Accessor<string>,
   options: Accessor<{ enabled: boolean }>
 ) {
-  return useQuery(() =>
-    joinRequestsQueryOptions(eventId(), options().enabled)
-  );
+  return useQuery(() => joinRequestsQueryOptions(eventId(), options().enabled));
 }
 
 /** Whether the person who shared the event cannot add guests to it. */

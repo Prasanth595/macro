@@ -117,6 +117,8 @@ describe('event join requests', () => {
     ));
 
     expect(mocks.listEnabled).toHaveBeenCalledWith(false);
-    expect(screen.queryByRole('region', { name: 'Requests to join' })).toBeNull();
+    expect(
+      screen.queryByRole('region', { name: 'Requests to join' })
+    ).toBeNull();
   });
 });
