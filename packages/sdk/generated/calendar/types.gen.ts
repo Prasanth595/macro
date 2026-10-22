@@ -1074,7 +1074,7 @@ export type UpdateCalendarEventErrors = {
      */
     401: unknown;
     /**
-     * Calendar is read-only or needs reauthorization
+     * Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting
      */
     403: CalendarMutationApiError;
     /**
@@ -1174,7 +1174,7 @@ export type InviteCalendarEventGuestsErrors = {
      */
     401: unknown;
     /**
-     * Calendar is read-only, only the organizer can invite guests, or the calendar needs reauthorization
+     * Calendar is read-only, only the organizer can invite guests, the event is a snapshot of a shared meeting, or the calendar needs reauthorization
      */
     403: CalendarMutationApiError;
     /**
@@ -1271,7 +1271,7 @@ export type RsvpCalendarEventErrors = {
      */
     401: unknown;
     /**
-     * Calendar is read-only or needs reauthorization
+     * Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting
      */
     403: CalendarMutationApiError;
     /**

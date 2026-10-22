@@ -310,7 +310,7 @@
             "description": "Authentication required"
           },
           "403": {
-            "description": "Calendar is read-only or needs reauthorization",
+            "description": "Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting",
             "content": {
               "application/json": {
                 "schema": {
@@ -498,7 +498,7 @@
             "description": "Authentication required"
           },
           "403": {
-            "description": "Calendar is read-only, only the organizer can invite guests, or the calendar needs reauthorization",
+            "description": "Calendar is read-only, only the organizer can invite guests, the event is a snapshot of a shared meeting, or the calendar needs reauthorization",
             "content": {
               "application/json": {
                 "schema": {
@@ -691,7 +691,7 @@
             "description": "Authentication required"
           },
           "403": {
-            "description": "Calendar is read-only or needs reauthorization",
+            "description": "Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting",
             "content": {
               "application/json": {
                 "schema": {
