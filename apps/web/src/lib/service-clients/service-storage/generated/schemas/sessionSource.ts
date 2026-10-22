@@ -14,5 +14,6 @@ export type SessionSource = (typeof SessionSource)[keyof typeof SessionSource];
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const SessionSource = {
   user: 'user',
+  agent: 'agent',
   routine: 'routine',
 } as const;

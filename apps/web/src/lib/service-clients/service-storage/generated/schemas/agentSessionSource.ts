@@ -15,5 +15,6 @@ export type AgentSessionSource =
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const AgentSessionSource = {
   user: 'user',
+  agent: 'agent',
   routine: 'routine',
 } as const;

@@ -417,6 +417,8 @@ export type GraphqlAgentSessionLiteral =
 
 /** Who started an agent session: filter input, and the field Soup returns. */
 export type GraphqlAgentSessionSource =
+  /** Another agent, which dispatched the session on its owner's behalf. */
+  | 'AGENT'
   /** A routine's unattended run. */
   | 'ROUTINE'
   /** A person, directly or through something they did. */

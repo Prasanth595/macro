@@ -1481,6 +1481,10 @@ enum GraphqlAgentSessionSource {
 	"""
 	USER
 	"""
+	Another agent, which dispatched the session on its owner's behalf.
+	"""
+	AGENT
+	"""
 	A routine's unattended run.
 	"""
 	ROUTINE

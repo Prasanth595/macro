@@ -27855,7 +27855,7 @@ export const getItemsSoupResponse = zod
                         'The repository the session works with, when one was selected.'
                       ),
                     source: zod
-                      .enum(['user', 'routine'])
+                      .enum(['user', 'agent', 'routine'])
                       .optional()
                       .describe(
                         "Who started an agent session. The string form is the\n`agent_session.source` column's."
@@ -32510,7 +32510,7 @@ export const postItemsSoupResponse = zod
                         'The repository the session works with, when one was selected.'
                       ),
                     source: zod
-                      .enum(['user', 'routine'])
+                      .enum(['user', 'agent', 'routine'])
                       .optional()
                       .describe(
                         "Who started an agent session. The string form is the\n`agent_session.source` column's."
@@ -36641,7 +36641,7 @@ export const postItemsSoupAstResponse = zod
                         'The repository the session works with, when one was selected.'
                       ),
                     source: zod
-                      .enum(['user', 'routine'])
+                      .enum(['user', 'agent', 'routine'])
                       .optional()
                       .describe(
                         "Who started an agent session. The string form is the\n`agent_session.source` column's."
@@ -41189,7 +41189,7 @@ export const postItemsSoupAstGroupedResponse = zod
                               'The repository the session works with, when one was selected.'
                             ),
                           source: zod
-                            .enum(['user', 'routine'])
+                            .enum(['user', 'agent', 'routine'])
                             .optional()
                             .describe(
                               "Who started an agent session. The string form is the\n`agent_session.source` column's."
@@ -45299,7 +45299,7 @@ export const postItemsSoupAstGroupedResponse = zod
                               'The repository the session works with, when one was selected.'
                             ),
                           source: zod
-                            .enum(['user', 'routine'])
+                            .enum(['user', 'agent', 'routine'])
                             .optional()
                             .describe(
                               "Who started an agent session. The string form is the\n`agent_session.source` column's."

@@ -19276,7 +19276,7 @@
       "AgentSessionSource": {
         "type": "string",
         "description": "Who started an agent session. The string form is the\n`agent_session.source` column's.",
-        "enum": ["user", "routine"]
+        "enum": ["user", "agent", "routine"]
       },
       "AgentSessionVisibility": {
         "type": "string",
@@ -36839,7 +36839,7 @@
       "SessionSource": {
         "type": "string",
         "description": "Who started a session. Stored on the session and carried by its lifecycle\nevents, so lists and notifications can treat unattended runs differently.",
-        "enum": ["user", "routine"]
+        "enum": ["user", "agent", "routine"]
       },
       "SessionStoppedMetadata": {
         "type": "object",

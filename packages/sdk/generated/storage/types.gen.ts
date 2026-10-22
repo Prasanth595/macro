@@ -418,7 +418,7 @@ export type AgentSessionLifecycleEvent = {
  * Who started an agent session. The string form is the
  * `agent_session.source` column's.
  */
-export type AgentSessionSource = 'user' | 'routine';
+export type AgentSessionSource = 'user' | 'agent' | 'routine';
 
 /**
  * Where an agent session is shown. The string form is the
@@ -11543,7 +11543,7 @@ export type SessionSettledMetadata = {
  * Who started a session. Stored on the session and carried by its lifecycle
  * events, so lists and notifications can treat unattended runs differently.
  */
-export type SessionSource = 'user' | 'routine';
+export type SessionSource = 'user' | 'agent' | 'routine';
 
 /**
  * The session's live actor is gone: idle teardown, transport loss, or crash.
