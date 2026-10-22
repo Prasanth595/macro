@@ -80,9 +80,9 @@ export type AgentsSidebarProps = Omit<
   hasNextPage: boolean;
   loadingNextPage: boolean;
   onSearchChange: (search: string) => void;
-  /** Whether sessions a routine's runs created are listed. */
-  showRoutineRuns: boolean;
-  onShowRoutineRunsChange: (show: boolean) => void;
+  /** Whether the list includes unlisted sessions: routine runs it hides by default. */
+  showUnlistedRuns: boolean;
+  onShowUnlistedRunsChange: (show: boolean) => void;
   onOpenConversation: (
     conversation: AgentConversationEntity,
     event?: MouseEvent
@@ -339,15 +339,11 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
                 <MagnifyingGlassIcon class="size-3.5" />
               </CollapsibleSection.Action>
               <CollapsibleSection.Action
-                label={
-                  props.showRoutineRuns
-                    ? 'Hide routine runs'
-                    : 'Show routine runs'
-                }
-                aria-pressed={props.showRoutineRuns}
-                class={cn(props.showRoutineRuns && 'bg-active text-ink')}
+                label="Show hidden routine runs"
+                aria-pressed={props.showUnlistedRuns}
+                class={cn(props.showUnlistedRuns && 'bg-active text-ink')}
                 onClick={() =>
-                  props.onShowRoutineRunsChange(!props.showRoutineRuns)
+                  props.onShowUnlistedRunsChange(!props.showUnlistedRuns)
                 }
               >
                 <RoutineIcon class="size-3.5" />

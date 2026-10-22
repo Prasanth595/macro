@@ -109,13 +109,14 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
   const [mobileList, setMobileList] = createSignal(!isRoutinesPage());
   const [draft, setDraft] = createSignal('');
   const [search, setSearch] = createSignal('');
-  // Routine runs pile up fast; they stay a click away instead of in the list.
-  const [showRoutineRuns, setShowRoutineRuns] = createSignal(false);
+  // Routines that run often leave their runs unlisted; those stay a click
+  // away instead of in the list.
+  const [showUnlistedRuns, setShowUnlistedRuns] = createSignal(false);
   const rosterSource = createAgentRosterSource();
   const query = useSoupAstItemsQuery(
     () =>
       agentConversationsQuery(userId() ?? '', {
-        showRoutineRuns: showRoutineRuns(),
+        showUnlistedRuns: showUnlistedRuns(),
       }),
     () => ({ enabled: Boolean(userId()), keepPreviousData: true })
   );
@@ -311,8 +312,8 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
       hasNextPage={Boolean(query.hasNextPage)}
       loadingNextPage={query.isFetchingNextPage}
       onSearchChange={setSearch}
-      showRoutineRuns={showRoutineRuns()}
-      onShowRoutineRunsChange={setShowRoutineRuns}
+      showUnlistedRuns={showUnlistedRuns()}
+      onShowUnlistedRunsChange={setShowUnlistedRuns}
       onOpenConversation={(conversation, event) =>
         openConversation(conversation, event, modeForConversation(conversation))
       }

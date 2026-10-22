@@ -211,6 +211,11 @@ export type AgentSessionEntity = EntityBase & {
   threadId?: string | null;
   /** Who started the session; absent from older cached rows. */
   source?: 'user' | 'routine';
+  /**
+   * Whether Home and the default Agents list show the session; a routine's
+   * setting decides it for its runs. Absent from older cached rows.
+   */
+  visibility?: 'listed' | 'unlisted';
   status: string;
   properties?: SoupProperty[];
 };

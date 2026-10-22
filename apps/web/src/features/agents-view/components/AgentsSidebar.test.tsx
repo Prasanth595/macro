@@ -158,8 +158,8 @@ describe('mixed Agents sidebar', () => {
         hasNextPage={false}
         loadingNextPage={false}
         onSearchChange={vi.fn()}
-        showRoutineRuns={false}
-        onShowRoutineRunsChange={vi.fn()}
+        showUnlistedRuns={false}
+        onShowUnlistedRunsChange={vi.fn()}
         onOpenConversation={open}
         onRetry={vi.fn()}
         onLoadMore={vi.fn()}
@@ -228,8 +228,8 @@ describe('mixed Agents sidebar', () => {
         hasNextPage
         loadingNextPage={false}
         onSearchChange={vi.fn()}
-        showRoutineRuns={false}
-        onShowRoutineRunsChange={vi.fn()}
+        showUnlistedRuns={false}
+        onShowUnlistedRunsChange={vi.fn()}
         onOpenConversation={vi.fn()}
         onRetry={vi.fn()}
         onLoadMore={loadMore}
@@ -243,7 +243,7 @@ describe('mixed Agents sidebar', () => {
     expect(clear).toHaveBeenCalledOnce();
   });
 
-  it('toggles routine runs and marks the runs it lists', () => {
+  it('toggles hidden routine runs and marks the runs it lists', () => {
     const [show, setShow] = createSignal(false);
     const change = vi.fn(setShow);
     render(() => (
@@ -285,21 +285,22 @@ describe('mixed Agents sidebar', () => {
         hasNextPage={false}
         loadingNextPage={false}
         onSearchChange={vi.fn()}
-        showRoutineRuns={show()}
-        onShowRoutineRunsChange={change}
+        showUnlistedRuns={show()}
+        onShowUnlistedRunsChange={change}
         onOpenConversation={vi.fn()}
         onRetry={vi.fn()}
         onLoadMore={vi.fn()}
       />
     ));
 
-    const toggle = screen.getByRole('button', { name: 'Show routine runs' });
+    const toggle = screen.getByRole('button', {
+      name: 'Show hidden routine runs',
+    });
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(toggle);
     expect(change).toHaveBeenLastCalledWith(true);
-    const hide = screen.getByRole('button', { name: 'Hide routine runs' });
-    expect(hide.getAttribute('aria-pressed')).toBe('true');
-    fireEvent.click(hide);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(toggle);
     expect(change).toHaveBeenLastCalledWith(false);
 
     const run = screen
@@ -351,8 +352,8 @@ describe('mixed Agents sidebar', () => {
         hasNextPage={false}
         loadingNextPage={false}
         onSearchChange={vi.fn()}
-        showRoutineRuns={false}
-        onShowRoutineRunsChange={vi.fn()}
+        showUnlistedRuns={false}
+        onShowUnlistedRunsChange={vi.fn()}
         onOpenConversation={vi.fn()}
         onRetry={vi.fn()}
         onLoadMore={vi.fn()}
@@ -438,8 +439,8 @@ describe.each(['home', 'sidebar'] as const)('%s agent rows', (surface) => {
           hasNextPage={false}
           loadingNextPage={false}
           onSearchChange={vi.fn()}
-          showRoutineRuns={false}
-          onShowRoutineRunsChange={vi.fn()}
+          showUnlistedRuns={false}
+          onShowUnlistedRunsChange={vi.fn()}
           onOpenConversation={open}
           onRetry={vi.fn()}
           onLoadMore={vi.fn()}

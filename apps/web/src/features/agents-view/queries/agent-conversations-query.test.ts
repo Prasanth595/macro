@@ -5,14 +5,16 @@ import { agentConversationsQuery } from './agent-conversations-query';
 const OWNER = 'macro|dana@example.com';
 
 describe('agentConversationsQuery', () => {
-  it('lists the owner’s chats and sessions without routine runs', () => {
-    const { body } = agentConversationsQuery(OWNER, { showRoutineRuns: false });
+  it('lists the owner’s chats and sessions without unlisted ones', () => {
+    const { body } = agentConversationsQuery(OWNER, {
+      showUnlistedRuns: false,
+    });
 
     expect(body.cf).toEqual({ l: { o: OWNER } });
     expect(body.asf).toEqual({
       '&': [
         { l: 'inc' },
-        { '&': [{ l: { o: OWNER } }, { '!': { l: { src: 'routine' } } }] },
+        { '&': [{ l: { o: OWNER } }, { '!': { l: { vis: 'unlisted' } } }] },
       ],
     });
     // Every other entity type is pinned to an id that cannot exist.
@@ -21,15 +23,15 @@ describe('agentConversationsQuery', () => {
     });
   });
 
-  it('keeps routine runs when asked to', () => {
-    const { body } = agentConversationsQuery(OWNER, { showRoutineRuns: true });
+  it('keeps unlisted sessions when asked to', () => {
+    const { body } = agentConversationsQuery(OWNER, { showUnlistedRuns: true });
 
     expect(body.asf).toEqual({ '&': [{ l: 'inc' }, { l: { o: OWNER } }] });
   });
 
-  it('translates the routine-run exclusion for GraphQL', () => {
+  it('translates the unlisted exclusion for GraphQL', () => {
     const input = makeGraphqlSoupInput(
-      agentConversationsQuery(OWNER, { showRoutineRuns: false })
+      agentConversationsQuery(OWNER, { showUnlistedRuns: false })
     );
 
     expect(input.initial?.filters?.agentSessionFilter).toEqual({
@@ -38,7 +40,7 @@ describe('agentConversationsQuery', () => {
         right: {
           and: {
             left: { literal: { owner: OWNER } },
-            right: { not: { literal: { source: 'ROUTINE' } } },
+            right: { not: { literal: { visibility: 'UNLISTED' } } },
           },
         },
       },

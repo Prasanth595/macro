@@ -268,6 +268,7 @@ const cron: ScheduledAction = {
     prompt: '',
   },
   enabled: true,
+  run_visibility: 'unlisted',
   configuration_revision: 1,
   created_at: '2026-09-22T12:00:00Z',
   updated_at: '2026-09-22T12:00:00Z',
@@ -753,6 +754,7 @@ describe('routine editor triggers', () => {
           user_prompt: 'New instructions',
           prompt: '',
         },
+        run_visibility: 'unlisted',
       },
     });
     openActions();
@@ -765,6 +767,7 @@ describe('routine editor triggers', () => {
       enabled: true,
       task: cron.task,
       trigger: cron.trigger,
+      run_visibility: 'unlisted',
     });
     await vi.advanceTimersByTimeAsync(300);
     fireEvent.click(screen.getByText('Run now'));
@@ -777,6 +780,25 @@ describe('routine editor triggers', () => {
       { type: 'chat', id: 'chat-id' },
       { activate: true, preferNewSplit: false }
     );
+  });
+
+  it('saves whether the routine’s runs show in Home and Agents', async () => {
+    render(() => <Routine />);
+    const visibility = screen.getByRole('button', { name: 'Runs hidden' });
+    visibility.focus();
+    fireEvent.keyDown(visibility, { key: 'Enter' });
+    fireEvent.keyDown(
+      await screen.findByRole('menuitemradio', { name: 'Show runs' }),
+      { key: 'Enter' }
+    );
+    await vi.advanceTimersByTimeAsync(300);
+    expect(mocks.update).toHaveBeenCalledExactlyOnceWith({
+      scheduleId: 'routine-id',
+      body: expect.objectContaining({
+        task: cron.task,
+        run_visibility: 'listed',
+      }),
+    });
   });
 
   it('cancels pending saves when the editor unmounts', async () => {

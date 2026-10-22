@@ -242,6 +242,7 @@ export const FILTER_TARGETS = {
     agentSessionId: { backend: 'id' },
     agentSessionOwnerId: { backend: 'o' },
     agentSessionSource: { backend: 'src' },
+    agentSessionVisibility: { backend: 'vis' },
     includeAgentSessions: { backend: 'inc', compile: 'unit' },
   },
 
@@ -391,6 +392,7 @@ type FilterTargetsMeta = {
     agentSessionId: string[];
     agentSessionOwnerId: string[];
     agentSessionSource: ('user' | 'routine')[];
+    agentSessionVisibility: ('listed' | 'unlisted')[];
     includeAgentSessions: boolean;
   };
 

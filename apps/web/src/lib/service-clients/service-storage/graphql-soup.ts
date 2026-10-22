@@ -1685,6 +1685,8 @@ export function mapGraphqlSoupItem(
             bot: entity.bot,
             threadId: entity.threadId,
             source: entity.source === 'ROUTINE' ? 'routine' : 'user',
+            visibility:
+              entity.visibility === 'UNLISTED' ? 'unlisted' : 'listed',
             status: entity.status,
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,

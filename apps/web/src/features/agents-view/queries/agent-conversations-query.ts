@@ -7,19 +7,19 @@ import {
 import type { SoupAstItemsQueryArgs } from '@queries/soup/items';
 
 /**
- * The owner's chats and agent sessions, newest first. Routine runs pile up
- * fast, so they are left out unless asked for.
+ * The owner's chats and agent sessions, newest first. Unlisted sessions, the
+ * runs of routines that don't list theirs, are left out unless asked for.
  */
 export function agentConversationsQuery(
   ownerId: string,
-  options: { showRoutineRuns: boolean }
+  options: { showUnlistedRuns: boolean }
 ): SoupAstItemsQueryArgs {
   const sessions: TargetExpr[] = [
     clause.eq('includeAgentSessions', true),
     clause.eq('agentSessionOwnerId', ownerId),
   ];
-  if (!options.showRoutineRuns) {
-    sessions.push(clause.not(clause.eq('agentSessionSource', 'routine')));
+  if (!options.showUnlistedRuns) {
+    sessions.push(clause.not(clause.eq('agentSessionVisibility', 'unlisted')));
   }
   return {
     params: { expand: true, sort_method: 'updated_at', limit: 100 },
