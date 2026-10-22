@@ -59,6 +59,10 @@ test('typed event rows stay on one line and open their review subject', async ({
   }
   const label = rows.nth(0).locator('.truncate').last();
   if (test.info().project.name === 'mobile') {
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-touch-device',
+      'true'
+    );
     expect(
       await label.evaluate(
         (element) => element.scrollWidth > element.clientWidth

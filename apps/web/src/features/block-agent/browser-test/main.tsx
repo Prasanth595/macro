@@ -1,3 +1,4 @@
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { createSignal, For } from 'solid-js';
 import '../../../index.css';
 import type { SessionNotification } from '@service-agent-fold/generated/types';
@@ -11,6 +12,9 @@ import {
   reviewId,
   session,
 } from './session';
+
+// The fixture uses the same touch variant switch as the app entry point.
+document.documentElement.dataset.touchDevice = String(isTouchDevice());
 
 const eventBase = {
   id: 'event',
