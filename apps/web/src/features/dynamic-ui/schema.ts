@@ -16,6 +16,7 @@
 import type { Query } from '@app/features/next-soup/filters/filter-store/types';
 import { TAG_COLOR_OPTIONS } from '@app/features/property/tags/tagColors';
 import { EntityType } from '@core/types';
+import { AGENT_ACTIVITY_CARD_ITEM_TYPES } from '@macro-inc/lexical-core';
 import { z } from 'zod';
 
 /** A reference to a workspace entity (document, channel, task, PR, person, …). */
@@ -127,16 +128,11 @@ export const EventsWidgetSchema = z
   );
 export type EventsWidget = z.infer<typeof EventsWidgetSchema>;
 
-/** The kinds of item a `cards` widget shows. */
-export const CARD_ITEM_TYPES = [
-  'document',
-  'email_thread',
-  'calendar_event',
-] as const;
-
 /**
- * Rich cards for the few specific items an answer is about. Each card loads
- * its item with the viewer's own access and opens it.
+ * Rich cards for the few specific items an answer is about: the same cards
+ * an agent's reply shows anywhere, with their controls. Each card loads its
+ * item with the viewer's own access and opens it. A card for an item the
+ * reply created or changed says so itself, from the step that did it.
  */
 export const CardsWidgetSchema = z
   .object({
@@ -144,17 +140,17 @@ export const CardsWidgetSchema = z
     title: z.string().optional(),
     items: z.array(
       z.object({
-        type: z.enum(CARD_ITEM_TYPES),
+        type: z.enum(AGENT_ACTIVITY_CARD_ITEM_TYPES),
         id: z
           .string()
           .describe(
-            'A document id (documents and spreadsheets), an email thread id, or a calendar eventId, exactly as a tool returned it.'
+            "The item's id exactly as a tool returned it: a document id (documents and spreadsheets), an email thread id, a calendar eventId, or a project, channel, routine, form or initiative id."
           ),
       })
     ),
   })
   .describe(
-    'Rich cards for the one to four specific items the answer is about: a document or spreadsheet, an email thread, or a calendar event. Each card opens its item. Use a list widget for longer sets.'
+    "Rich cards for the one to four specific items the answer is about: a document or spreadsheet, an email thread, a calendar event, a project, a channel, a routine, a form or an initiative. Each card opens its item, and a routine's card can pause it or run it now. A card for an item you created or changed this turn says so itself. Use a list widget for longer sets."
   );
 export type CardsWidget = z.infer<typeof CardsWidgetSchema>;
 

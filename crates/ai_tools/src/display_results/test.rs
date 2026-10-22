@@ -218,7 +218,7 @@ fn a_tags_widget_without_tags_and_a_markdown_type_are_named() {
 fn a_problem_names_its_place_in_nested_widgets_and_sources() {
     let view = json!({
         "widgets": [
-            { "type": "container", "children": [{ "type": "cards", "items": [{ "type": "project", "id": "p-1" }] }] },
+            { "type": "container", "children": [{ "type": "cards", "items": [{ "type": "spaceship", "id": "s-1" }] }] },
             { "type": "tags", "tags": [{ "label": "Type", "children": [{ "color": "red" }] }] },
             { "type": "list", "source": { "kind": "ids", "entities": [] } },
             { "type": "list", "source": { "entities": [] } },
@@ -228,7 +228,7 @@ fn a_problem_names_its_place_in_nested_widgets_and_sources() {
     assert_eq!(
         view_problems(&view),
         [
-            r#"view.widgets[0].children[0].items[0].type should be one of "document", "email_thread", "calendar_event""#.to_owned(),
+            r#"view.widgets[0].children[0].items[0].type should be one of "document", "email_thread", "calendar_event", "project", "channel", "routine", "form", "initiative""#.to_owned(),
             r#"view.widgets[1].tags[0].children[0] is missing "label""#.to_owned(),
             r#"view.widgets[2].source.kind should be one of "query", "items""#.to_owned(),
             r#"view.widgets[3].source is missing "kind", one of "query", "items""#.to_owned(),

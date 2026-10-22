@@ -1,25 +1,16 @@
 import {
   type AgentActivityCard,
-  type AgentActivitySource,
   isAgentActivityCard,
 } from '@macro-inc/lexical-core';
 import type { CardAction, CardItem } from './types';
 
 /**
- * A card as a run of steps shows it, once per item, attached to the step
- * that first touched the item.
+ * Something the agent chose to show the user, as a run of steps shows it:
+ * a view it composed, a database answer it asked to show, or drafts it saved
+ * for review. What a step did to an item is not one of them: the step's row
+ * names the item, and a view that shows the item says what was done to it.
  */
 export type RunCard =
-  | {
-      kind: 'item';
-      key: string;
-      /** The step the card sits under. */
-      rowId: string;
-      item: CardItem;
-      action: CardAction;
-      title?: string | null;
-      summary?: string | null;
-    }
   | { kind: 'view'; key: string; rowId: string; view: unknown }
   | {
       kind: 'data';
@@ -28,17 +19,6 @@ export type RunCard =
       sql: string;
       databaseId?: string | null;
       display?: string | null;
-    }
-  | {
-      kind: 'sources';
-      key: string;
-      /** The first step that found any. */
-      rowId: string;
-      /** What the run looked for, each search once. */
-      queries: string[];
-      sources: AgentActivitySource[];
-      /** How many different things the run found in all. */
-      total: number;
     }
   | {
       kind: 'review';
@@ -50,8 +30,18 @@ export type RunCard =
       drafts: 'email' | 'calendar';
     };
 
-// Which of two things done to one item a receipt says: making or removing
-// an item says more than sending it, and sending more than editing.
+/** What a reply's steps did to one item they created, changed or sent. */
+export type ItemFact = {
+  item: CardItem;
+  action: CardAction;
+  /** The item's name as the agent knew it, until it loads. */
+  title?: string | null;
+  /** What happened to it, in a few words, while one step says it all. */
+  summary?: string | null;
+};
+
+// Which of two things done to one item a fact says: making or removing an
+// item says more than sending it, and sending more than editing.
 const STRENGTH: Record<CardAction, number> = {
   created: 9,
   deleted: 8,
@@ -77,35 +67,62 @@ export function replacesStep(card: unknown): boolean {
   );
 }
 
-function sourceKey(source: AgentActivitySource): string {
-  return source.kind === 'web'
-    ? `web:${source.url}`
-    : `${source.itemType}:${source.itemId}`;
+/** The key an item goes by among a reply's facts: its kind and id. */
+export function itemKey(item: { type: string; id: string }): string {
+  return `${item.type}:${item.id}`;
+}
+
+/** The item a step created, changed or sent, which its row names. */
+export function stepItem(card: unknown): ItemFact | undefined {
+  if (!isAgentActivityCard(card) || card.kind !== 'item') return undefined;
+  return itemFact(card);
 }
 
 /**
- * The cards a run of steps produced, in the order the steps produced them.
- * An item the run touched more than once is one card, under the step that
- * first touched it, saying the most significant thing done to it. What the
- * run's searches found is one sources card, under the first step that found
- * anything. A card this version cannot read is left out; the step's row
- * still says what it did.
+ * What a reply's steps did to each item they touched, by `itemKey`: an item
+ * touched more than once is one fact, saying the most significant thing
+ * done to it. A view that shows the item says it on the item's card.
+ */
+export function itemFacts(
+  rows: readonly { card?: unknown }[]
+): ReadonlyMap<string, ItemFact> {
+  const facts = new Map<string, ItemFact>();
+  for (const row of rows) {
+    const fact = stepItem(row.card);
+    if (!fact) continue;
+    const key = itemKey(fact.item);
+    const seen = facts.get(key);
+    if (!seen) {
+      facts.set(key, fact);
+      continue;
+    }
+    if (STRENGTH[fact.action] > STRENGTH[seen.action]) {
+      seen.action = fact.action;
+      seen.summary = fact.summary;
+    } else if (fact.action === seen.action && fact.summary !== seen.summary) {
+      // Neither of two edits' summaries says what both did.
+      seen.summary = null;
+    }
+    seen.title ??= fact.title;
+  }
+  return facts;
+}
+
+/**
+ * What the agent chose to show in a run of steps, in the order it showed
+ * it, each under the step that showed it. A card this version cannot read
+ * is left out; the step's row still says what it did.
  */
 export function runCards(
   rows: readonly { id: string; card?: unknown }[]
 ): RunCard[] {
   const cards: RunCard[] = [];
-  const items = new Map<string, Extract<RunCard, { kind: 'item' }>>();
-  let found: Extract<RunCard, { kind: 'sources' }> | undefined;
-  const seenSources = new Set<string>();
   for (const row of rows) {
     const card: unknown = row.card;
     if (!isAgentActivityCard(card)) continue;
     if (card.kind === 'view') {
       cards.push({ kind: 'view', key: row.id, rowId: row.id, view: card.view });
-      continue;
-    }
-    if (card.kind === 'review') {
+    } else if (card.kind === 'review') {
       cards.push({
         kind: 'review',
         key: `review:${card.reviewId}`,
@@ -113,9 +130,7 @@ export function runCards(
         reviewId: card.reviewId,
         drafts: card.drafts,
       });
-      continue;
-    }
-    if (card.kind === 'data') {
+    } else if (card.kind === 'data') {
       cards.push({
         kind: 'data',
         key: row.id,
@@ -124,65 +139,15 @@ export function runCards(
         databaseId: card.databaseId,
         display: card.display,
       });
-      continue;
     }
-    if (card.kind === 'sources') {
-      if (!found) {
-        found = {
-          kind: 'sources',
-          key: 'sources',
-          rowId: row.id,
-          queries: [],
-          sources: [],
-          total: 0,
-        };
-        cards.push(found);
-      }
-      const query = card.query?.trim();
-      if (query && !found.queries.includes(query)) found.queries.push(query);
-      // What two searches both found is one source, counted once.
-      let repeated = 0;
-      for (const source of card.sources) {
-        const key = sourceKey(source);
-        if (seenSources.has(key)) {
-          repeated += 1;
-          continue;
-        }
-        seenSources.add(key);
-        found.sources.push(source);
-      }
-      found.total += Math.max(card.total - repeated, 0);
-      continue;
-    }
-    const key = `${card.itemType}:${card.itemId}`;
-    const seen = items.get(key);
-    if (seen) {
-      if (STRENGTH[card.action] > STRENGTH[seen.action]) {
-        seen.action = card.action;
-        seen.summary = card.summary;
-      } else if (card.action === seen.action && card.summary !== seen.summary) {
-        // Neither of two edits' summaries says what both did.
-        seen.summary = null;
-      }
-      seen.title ??= card.title;
-      continue;
-    }
-    const entry = itemCard(key, row.id, card);
-    items.set(key, entry);
-    cards.push(entry);
   }
   return cards;
 }
 
-function itemCard(
-  key: string,
-  rowId: string,
+function itemFact(
   card: Extract<AgentActivityCard, { kind: 'item' }>
-): Extract<RunCard, { kind: 'item' }> {
+): ItemFact {
   return {
-    kind: 'item',
-    key,
-    rowId,
     item: { type: card.itemType, id: card.itemId, fileType: card.fileType },
     action: card.action,
     title: card.title,
