@@ -1,31 +1,27 @@
 import { hasEveryoneElseDeclined } from '@app/features/calendar/components/EventContent';
-import {
-  EventAttendeesSection,
-  EventDetails,
-} from '@app/features/calendar/components/EventDetails';
+import { EventDetails } from '@app/features/calendar/components/EventDetails';
+import { createGuestInviteController } from '@app/features/calendar/hooks/create-guest-invite-controller';
+import { useCalendarGuestInvitesFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import {
   type CalendarEvent,
   type CalendarTimeFormat,
   reminderCalendarIdOf,
 } from '@app/features/calendar/types';
-import {
-  eventEmailRecipients,
-  guestEmails,
-} from '@app/features/calendar/utils/guest-emails';
 import { handleOpenEventOutsidePress } from '@app/features/calendar/utils/open-event-outside-press';
 import { TeamEventDetails } from '@app/features/calendar-team/components/team-event-details';
+import { EventGuests } from '@app/features/calendar-view/components/EventGuests';
 import { EventRsvpSection } from '@app/features/calendar-view/components/EventRsvpSection';
+import { useForwardEventEmail } from '@app/features/calendar-view/components/use-forward-event-email';
 import { useOpenEventComposer } from '@app/features/calendar-view/components/use-open-event-composer';
-import { useOpenEventEmail } from '@app/features/calendar-view/components/use-open-event-email';
 import { copyCalendarEventMention } from '@app/features/calendar-view/copy-event-mention';
-import { copyGuestEmails } from '@app/features/calendar-view/copy-guest-emails';
+import { downloadCalendarEventIcs } from '@app/features/calendar-view/download-event-ics';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { toast } from '@core/component/Toast/Toast';
 import { isMobile } from '@core/mobile/isMobile';
 import { openExternalUrl } from '@core/util/url';
 import { Popover } from '@kobalte/core/popover';
-import CopyIcon from '@phosphor/copy.svg';
-import EnvelopeIcon from '@phosphor/envelope.svg';
+import ArrowBendUpRightIcon from '@phosphor/arrow-bend-up-right.svg';
+import DownloadSimpleIcon from '@phosphor/download-simple.svg';
 import ExclamationIcon from '@phosphor/exclamation-mark.svg';
 import LinkIcon from '@phosphor/link.svg';
 import PencilSimpleIcon from '@phosphor/pencil-simple.svg';
@@ -174,56 +170,16 @@ function EveryoneElseDeclinedNotice(props: {
   );
 }
 
-/**
- * The guest-row actions Google Calendar users know: copy every guest's
- * address, or start an email to the other guests (hidden when the viewer is
- * the only one). Emailing closes the details first: closing hands focus back
- * to the calendar chip, and the composer's To field has to win that exchange.
- */
-function EventGuestActions(props: {
-  event: CalendarEvent;
-  closeDetails: () => void;
-}) {
-  const openEventEmail = useOpenEventEmail();
-
-  return (
-    <Show when={!props.event.teamProjection}>
-      <Button
-        label="Copy guest emails"
-        variant="ghost"
-        size="icon-sm"
-        depth={3}
-        class="text-ink-muted [&_svg]:size-4"
-        onClick={() => copyGuestEmails(guestEmails(props.event.attendees))}
-      >
-        <CopyIcon />
-      </Button>
-      <Show when={eventEmailRecipients(props.event).length > 0}>
-        <Button
-          label="Email guests"
-          variant="ghost"
-          size="icon-sm"
-          depth={3}
-          class="text-ink-muted [&_svg]:size-4"
-          onClick={() => {
-            const event = props.event;
-            props.closeDetails();
-            openEventEmail(event);
-          }}
-        >
-          <EnvelopeIcon />
-        </Button>
-      </Show>
-    </Show>
-  );
-}
-
 function EventDetailsDrawer(props: EventDetailsOverlayProps) {
   const openEventComposer = useOpenEventComposer();
   const deleteDialog = useDeleteEventDialog({
     event: () => props.event,
     onDeleted: () => props.onOpenChange(false),
   });
+  const invites = createGuestInviteController(
+    () => props.event,
+    useCalendarGuestInvitesFlag()
+  );
   const canModify = () =>
     !props.event.teamProjection &&
     !props.event.isReadOnly &&
@@ -232,13 +188,19 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
     openEventComposer({ event: props.event });
     props.onOpenChange(false);
   };
+  const forwardEventEmail = useForwardEventEmail();
+  const forwardByEmail = () =>
+    forwardEventEmail(props.event, {
+      timeFormat: props.timeFormat,
+      closeDetails: () => props.onOpenChange(false),
+    });
 
   return (
     <MobileDrawer
       side="bottom"
       open
       onOpenChange={(open) => {
-        if (!open && deleteDialog.isOpen()) return;
+        if (!open && (deleteDialog.isOpen() || invites.editorOpen())) return;
         props.onOpenChange(open);
       }}
       preventScroll={false}
@@ -265,7 +227,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
             <div class="flex items-center gap-1">
               <Show when={!props.event.teamProjection}>
                 <Button
-                  aria-label="Copy event"
+                  label="Copy event"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -274,10 +236,30 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                 >
                   <LinkIcon />
                 </Button>
+                <Button
+                  label="Download .ics"
+                  variant="ghost"
+                  size="icon-md"
+                  depth={3}
+                  class="size-11 bg-ink/6 text-ink-muted [&_svg]:size-5"
+                  onClick={() => downloadCalendarEventIcs(props.event)}
+                >
+                  <DownloadSimpleIcon />
+                </Button>
+                <Button
+                  label="Forward by email"
+                  variant="ghost"
+                  size="icon-md"
+                  depth={3}
+                  class="size-11 bg-ink/6 text-ink-muted [&_svg]:size-5"
+                  onClick={forwardByEmail}
+                >
+                  <ArrowBendUpRightIcon />
+                </Button>
               </Show>
               <Show when={canModify()}>
                 <Button
-                  aria-label="Edit event"
+                  label="Edit event"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -287,7 +269,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                   <PencilSimpleIcon />
                 </Button>
                 <Button
-                  aria-label="Delete event"
+                  label="Delete event"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -325,14 +307,10 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
               </Show>
             </div>
             <Show when={!props.event.teamProjection}>
-              <EventAttendeesSection
-                attendees={props.event.attendees}
-                actions={
-                  <EventGuestActions
-                    event={props.event}
-                    closeDetails={() => props.onOpenChange(false)}
-                  />
-                }
+              <EventGuests
+                event={props.event}
+                invites={invites}
+                closeDetails={() => props.onOpenChange(false)}
               />
             </Show>
             <Show when={!props.event.teamProjection}>
@@ -462,6 +440,10 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
     event: () => props.event,
     onDeleted: () => props.onOpenChange(false),
   });
+  const invites = createGuestInviteController(
+    () => props.event,
+    useCalendarGuestInvitesFlag()
+  );
   const canModify = () =>
     !props.event.teamProjection &&
     !props.event.isReadOnly &&
@@ -470,6 +452,12 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
     openEventComposer({ event: props.event });
     props.onOpenChange(false);
   };
+  const forwardEventEmail = useForwardEventEmail();
+  const forwardByEmail = () =>
+    forwardEventEmail(props.event, {
+      timeFormat: props.timeFormat,
+      closeDetails: () => props.onOpenChange(false),
+    });
 
   return (
     <Popover
@@ -477,8 +465,9 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
       boundary={() => props.boundary}
       open
       onOpenChange={(open) => {
-        // Keep the popover mounted while its delete dialog is open.
-        if (!open && deleteDialog.isOpen()) return;
+        // Keep the popover mounted while its delete dialog or guest editor
+        // is open.
+        if (!open && (deleteDialog.isOpen() || invites.editorOpen())) return;
         props.onOpenChange(open);
       }}
       placement="right-start"
@@ -523,7 +512,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
               <div class="flex shrink-0 items-center justify-end gap-1 px-2 pt-2">
                 <Show when={!props.event.teamProjection}>
                   <Button
-                    aria-label="Copy event"
+                    label="Copy event"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -532,10 +521,30 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                   >
                     <LinkIcon />
                   </Button>
+                  <Button
+                    label="Download .ics"
+                    variant="ghost"
+                    size="icon-sm"
+                    depth={3}
+                    class="text-ink-muted [&_svg]:size-4"
+                    onClick={() => downloadCalendarEventIcs(props.event)}
+                  >
+                    <DownloadSimpleIcon />
+                  </Button>
+                  <Button
+                    label="Forward by email"
+                    variant="ghost"
+                    size="icon-sm"
+                    depth={3}
+                    class="text-ink-muted [&_svg]:size-4"
+                    onClick={forwardByEmail}
+                  >
+                    <ArrowBendUpRightIcon />
+                  </Button>
                 </Show>
                 <Show when={canModify()}>
                   <Button
-                    aria-label="Edit event"
+                    label="Edit event"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -545,7 +554,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <PencilSimpleIcon />
                   </Button>
                   <Button
-                    aria-label="Delete event"
+                    label="Delete event"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -555,9 +564,12 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <TrashIcon />
                   </Button>
                 </Show>
+                {/* Kobalte names the button "Dismiss" unless it gets an
+                    aria-label, which Button prefers over `label`. */}
                 <Popover.CloseButton
                   as={Button}
                   aria-label="Close event details"
+                  tooltip="Close event details"
                   variant="ghost"
                   size="icon-sm"
                   depth={3}
@@ -592,14 +604,10 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                   </Show>
                 </div>
                 <Show when={!props.event.teamProjection}>
-                  <EventAttendeesSection
-                    attendees={props.event.attendees}
-                    actions={
-                      <EventGuestActions
-                        event={props.event}
-                        closeDetails={() => props.onOpenChange(false)}
-                      />
-                    }
+                  <EventGuests
+                    event={props.event}
+                    invites={invites}
+                    closeDetails={() => props.onOpenChange(false)}
                   />
                 </Show>
               </div>

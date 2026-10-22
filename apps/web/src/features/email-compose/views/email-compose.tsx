@@ -1,4 +1,3 @@
-import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { SplitHeaderLeft } from '@components/app/split-layout/components/SplitHeader';
 import {
   SplitHeaderBadge,
@@ -10,6 +9,7 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import { ComposerSurface } from '@ui';
 import { createResource, createSignal, Show } from 'solid-js';
 import { MessageOperationRecovery } from '../../email-message/views/message-operation-recovery';
+import { DraftBackMenu } from '../components/draft-back-menu';
 import { DraftSyncStatus } from '../components/draft-sync-status';
 import { EmailScheduleBar } from '../components/email-schedule-summary';
 import { SignaturePreview } from '../components/signature-preview';
@@ -33,6 +33,9 @@ export type EmailComposeViewProps = Pick<
   | 'onRecipientsChange'
   | 'initialTo'
   | 'initialInboxId'
+  | 'initialSubject'
+  | 'initialBodyText'
+  | 'initialAttachments'
 > & { context: EmailComposeContext };
 export function EmailComposeView(props: EmailComposeViewProps) {
   // The split mounts one composer per initial draft. Keep this content load
@@ -118,6 +121,7 @@ function LoadedEmailComposeView(
     notices: composeContext.notices,
     accounts: composeContext.accounts,
     connectivity: composeContext.connectivity,
+    editorFiles: composeContext.editorFiles,
     viewerEmail: composeContext.viewerEmail,
     hasPaidAccess: composeContext.hasPaidAccess,
     recipients: composeContext.recipients,
@@ -132,6 +136,9 @@ function LoadedEmailComposeView(
     onRecipientsChange: props.onRecipientsChange,
     initialTo: props.initialTo,
     initialInboxId: props.initialInboxId,
+    initialSubject: props.initialSubject,
+    initialBodyText: props.initialBodyText,
+    initialAttachments: props.initialAttachments,
   });
   const sync = createDraftSyncStatus({
     drafts: composeContext.drafts,
@@ -168,7 +175,6 @@ function LoadedEmailComposeView(
     },
     isMobile: composeContext.presentation.isMobile,
     scheduleEnabled: composeContext.presentation.scheduleEnabled,
-    attachmentFailure: composeContext.notices.feedback.failure,
     onUpgrade: composeContext.presentation.onUpgrade,
     viewerLoading: composeContext.presentation.viewerLoading,
     signaturePreview: () => (
@@ -265,8 +271,10 @@ function LoadedEmailComposeView(
         </Show>
         {/* No overflow clipping on desktop: the card clips its own content, and
             clipping here would slice the composer shadow flat at the top and
-            bottom while the side padding lets it show. */}
-        <div class="macro-message-width sm:macro-message-padding mx-auto w-full min-h-120 max-h-full my-2 sm:my-12 touch:my-0 px-2 sm:px-4 touch:px-0 touch:overflow-y-auto touch:scrollbar-hidden touch:min-h-full">
+            bottom while the side padding lets it show. Full-frame mobile/tablet
+            carries the bottom inset here so the body, signature and attachment
+            pills rest above the floating chrome (ComposeLayout owns the top). */}
+        <div class="macro-message-width sm:macro-message-padding mx-auto w-full min-h-120 max-h-full my-2 sm:my-12 touch:my-0 px-2 sm:px-4 touch:px-0 touch:pb-(--mobile-content-inset-bottom) touch:overflow-y-auto touch:scrollbar-hidden touch:min-h-full">
           <WrapUnlessMobile
             wrapper={(children) => (
               // The same card as the chat composer and the thread's message
@@ -285,6 +293,7 @@ function LoadedEmailComposeView(
                   operation={ctxValue.schedule.operation()}
                   onSelectTime={ctxValue.schedule.onSelect}
                   onCancelSchedule={ctxValue.schedule.onCancel}
+                  onCheckStatus={ctxValue.schedule.onCheckStatus}
                   class="-mt-6 rounded-b-[20px] border border-t-0 border-edge-muted px-4 pt-8 pb-2"
                 />
               </div>
@@ -301,46 +310,20 @@ function LoadedEmailComposeView(
         </div>
       </div>
       <Show when={composeContext.presentation.isMobile()}>
-        <MobileDrawer
-          side="bottom"
+        <DraftBackMenu
           open={draftBackMenuOpen()}
           onOpenChange={setDraftBackMenuOpen}
-          preventScroll={false}
-          preventScrollbarShift={false}
-        >
-          <MobileDrawer.Portal>
-            <MobileDrawer.Overlay />
-            <MobileDrawer.Content aria-label="Draft options">
-              <MobileDrawer.Handle />
-              <MobileDrawer.Section class="mb-3">
-                <button
-                  type="button"
-                  class="w-full bg-surface px-3 py-3.5 text-sm font-medium text-failure text-center not-last:mb-px"
-                  onClick={async () => {
-                    // Navigate only once the deletion landed; the mutation
-                    // toasts on failure and the composer stays put.
-                    try {
-                      if (!(await deleteDraftAndReset())) return;
-                    } catch {
-                      setDraftBackMenuOpen(false);
-                      return;
-                    }
-                    setDraftBackMenuOpen(false);
-                  }}
-                >
-                  Delete Draft
-                </button>
-                <button
-                  type="button"
-                  class="w-full bg-surface px-3 py-3.5 text-sm font-medium text-center"
-                  onClick={leaveCompose}
-                >
-                  Save Draft
-                </button>
-              </MobileDrawer.Section>
-            </MobileDrawer.Content>
-          </MobileDrawer.Portal>
-        </MobileDrawer>
+          onSave={leaveCompose}
+          onDelete={async () => {
+            try {
+              if (!(await deleteDraftAndReset())) return;
+            } catch {
+              setDraftBackMenuOpen(false);
+              return;
+            }
+            setDraftBackMenuOpen(false);
+          }}
+        />
       </Show>
     </ComposeProvider>
   );

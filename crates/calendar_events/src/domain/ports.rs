@@ -6,21 +6,22 @@ use chrono::{DateTime, Utc};
 use rootcause::Report;
 use uuid::Uuid;
 
+use super::ics::{CalendarEventExport, CalendarEventIcs};
 use super::meeting_links::{
     CreateEventWithMacroCallError, MeetingLink, MeetingLinkError, MeetingLinkRequest,
 };
 use super::models::{
     ActorInboxes, AppliedGoogleGrant, AttendeeResponseStatus, CalendarAttendee,
-    CalendarBackfillClaim, CalendarBackfillFailureDisposition, CalendarBackfillFailureOutcome,
-    CalendarBackfillJobKey, CalendarCreationTarget, CalendarEvent, CalendarEventDraft,
-    CalendarEventMutationTarget, CalendarEventPatch, CalendarEventUpsert, CalendarGrantIntent,
-    CalendarLinkTokenIdentity, CalendarMentionPreview, CalendarMentionRequestItem,
-    CalendarOccurrenceCursor, CalendarReminderDeliveryOutcome, CalendarReminderDispatchMessage,
-    CalendarReminderFiring, CalendarReminderSweepSummary, CalendarSyncStatus, DisconnectedCalendar,
-    DueCalendarReminder, GoogleCalendarSyncSnapshot, GoogleEventSyncBatch, GoogleScopeSet,
-    GoogleSyncPlan, GoogleWatchChannel, GoogleWatchConfig, OccurrenceListing, OccurrenceRange,
-    ProviderCalendar, ProviderCalendarTarget, StoredGoogleCalendar, TeamOutOfOffice,
-    VisibleCalendar,
+    CalendarAttendeeInput, CalendarBackfillClaim, CalendarBackfillFailureDisposition,
+    CalendarBackfillFailureOutcome, CalendarBackfillJobKey, CalendarCreationTarget, CalendarEvent,
+    CalendarEventDraft, CalendarEventMutationTarget, CalendarEventPatch, CalendarEventUpsert,
+    CalendarGrantIntent, CalendarLinkTokenIdentity, CalendarMentionPreview,
+    CalendarMentionRequestItem, CalendarOccurrenceCursor, CalendarReminderDeliveryOutcome,
+    CalendarReminderDispatchMessage, CalendarReminderFiring, CalendarReminderSweepSummary,
+    CalendarSyncStatus, DisconnectedCalendar, DueCalendarReminder, GoogleCalendarSyncSnapshot,
+    GoogleEventSyncBatch, GoogleScopeSet, GoogleSyncPlan, GoogleWatchChannel, GoogleWatchConfig,
+    GuestPolicy, OccurrenceListing, OccurrenceRange, OwnedInbox, ProviderCalendar,
+    ProviderCalendarTarget, StoredGoogleCalendar, TeamOutOfOffice, VisibleCalendar,
 };
 
 /// Classification supplied by provider adapters to backfill policy.
@@ -227,6 +228,30 @@ pub trait CalendarMutationProvider: Send + Sync + 'static {
         scope: &CalendarRsvpScope,
     ) -> impl Future<Output = Result<ProviderRsvpOutcome, CalendarProviderError>> + Send;
 
+    /// Add guests to the master ([`CalendarUpdateScope::All`]) or one
+    /// occurrence ([`CalendarUpdateScope::ThisEvent`]), keeping every guest
+    /// already invited with their answer, notify the new guests, and refresh
+    /// the series.
+    ///
+    /// `actor` is the inbox the addressed copy syncs through. The provider
+    /// event is read first: a vanished event surfaces as
+    /// [`ProviderInviteOutcome::Gone`], an actor who neither organizes nor
+    /// attends it as [`ProviderInviteOutcome::NotAttendee`], and a guest the
+    /// event's live policy refuses as [`ProviderInviteOutcome::Forbidden`] or
+    /// [`ProviderInviteOutcome::GuestListHidden`]. Outlook takes guests only
+    /// from the organizer, so it refuses anyone else with a permanent
+    /// provider error. Guests already on the event are dropped, and nothing
+    /// is written when none remain.
+    fn add_attendees(
+        &self,
+        access_token: &str,
+        target: &ProviderCalendarTarget,
+        master_provider_event_id: &str,
+        actor: &ActorInboxes,
+        guests: &[CalendarAttendeeInput],
+        scope: &CalendarUpdateScope,
+    ) -> impl Future<Output = Result<ProviderInviteOutcome, CalendarProviderError>> + Send;
+
     /// Close a push notification channel. A channel Google no longer knows
     /// about is success, since the goal is only that it stops delivering.
     fn stop_watch_channel(
@@ -330,6 +355,26 @@ pub enum ProviderRsvpOutcome {
     Gone,
 }
 
+/// Result of adding guests to an event.
+pub enum ProviderInviteOutcome {
+    /// The guests were added, or were already on the event; the echo carries
+    /// the refreshed event.
+    Applied(Box<CalendarEventUpsert>),
+    /// The targeted occurrence is gone from the series; nothing was written,
+    /// and the echo carries the provider's current series.
+    OccurrenceGone(Box<CalendarEventUpsert>),
+    /// The connected account neither organizes nor attends the event.
+    NotAttendee,
+    /// The organizer does not let this guest add guests. Carries the policy
+    /// the provider reported, for the stored copy to follow.
+    Forbidden(GuestPolicy),
+    /// The organizer hides the guest list from guests. Carries the policy the
+    /// provider reported, for the stored copy to follow.
+    GuestListHidden(GuestPolicy),
+    /// The event no longer exists at the provider.
+    Gone,
+}
+
 /// Inbound service port for querying calendar occurrence projections.
 pub trait CalendarOccurrenceService: Send + Sync + 'static {
     /// Return occurrences visible to a requester in a bounded viewport.
@@ -378,6 +423,15 @@ pub trait CalendarOccurrenceService: Send + Sync + 'static {
         &self,
         requester_id: &str,
     ) -> impl Future<Output = Result<Option<String>, Report>> + Send;
+
+    /// Render an event the requester can see — their own, or one shared with
+    /// a channel they belong to — as an iCalendar document, with its title.
+    /// `None` when the event does not exist or is not visible to them.
+    fn event_ics(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> impl Future<Output = Result<Option<CalendarEventIcs>, Report>> + Send;
 }
 
 /// What a write did to one event's canonical `calendar_events` row.
@@ -483,6 +537,18 @@ pub trait CalendarRepository: Send + Sync + 'static {
         items: Vec<CalendarMentionRequestItem>,
         now: DateTime<Utc>,
     ) -> impl Future<Output = Result<Vec<CalendarMentionPreview>, Report>> + Send;
+
+    /// Series content of an event the requester can see, for export: the
+    /// requester's own projection of the meeting (same iCalendar UID) on one
+    /// of their own or linked calendars, else the requested row itself when
+    /// it is neither private nor confidential and was shared with a channel
+    /// they currently belong to. `None` covers an unknown or cancelled event
+    /// and one they cannot see.
+    fn event_export(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> impl Future<Output = Result<Option<CalendarEventExport>, Report>> + Send;
 
     /// Out-of-office occurrences owned by the requester's teammates — the
     /// other members of the requester's team — overlapping the viewport,
@@ -615,6 +681,16 @@ pub trait CalendarRepository: Send + Sync + 'static {
         recurrence_id: &str,
     ) -> impl Future<Output = Result<Option<Vec<CalendarAttendee>>, Report>> + Send;
 
+    /// Store the guest policy the provider reported when it refused an
+    /// invite, on the entity and every copy's projection. Incremental sync
+    /// resends only changed events, so the stored policy can predate the
+    /// organizer's choice.
+    fn record_guest_policy(
+        &self,
+        event_id: Uuid,
+        policy: GuestPolicy,
+    ) -> impl Future<Output = Result<(), Report>> + Send;
+
     /// Resolve the calendar a requester-created event lands in: the exact
     /// calendar when one is supplied, otherwise the supplied inbox's primary
     /// calendar, otherwise the requester's primary inbox's primary calendar.
@@ -640,13 +716,13 @@ pub trait CalendarRepository: Send + Sync + 'static {
         requester_id: &str,
     ) -> impl Future<Output = Result<Option<String>, Report>> + Send;
 
-    /// Addresses of every connected inbox the requester owns
+    /// Every connected inbox the requester owns
     /// (`email_links.macro_id = requester`). Raw and unnormalized;
     /// [`ActorInboxes::from_owned`] is the single normalization point.
-    fn owned_inbox_emails(
+    fn owned_inboxes(
         &self,
         requester_id: &str,
-    ) -> impl Future<Output = Result<Vec<String>, Report>> + Send;
+    ) -> impl Future<Output = Result<Vec<OwnedInbox>, Report>> + Send;
 
     /// Retire a Google source the provider confirmed deleted (a recurring
     /// master also retires its expanded instances), restoring the best
@@ -744,6 +820,18 @@ pub trait CalendarMutationService: Send + Sync + 'static {
         responding_email: Option<String>,
     ) -> impl Future<Output = Result<CalendarEvent, CalendarMutationError>> + Send;
 
+    /// Add guests to an event — the whole event or series, or one occurrence
+    /// — without touching anyone already invited, and persist the echo. A
+    /// guest may do this when the organizer lets guests invite others.
+    fn invite_guests(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+        calendar_id: Option<Uuid>,
+        guests: Vec<CalendarAttendeeInput>,
+        scope: CalendarUpdateScope,
+    ) -> impl Future<Output = Result<CalendarEvent, CalendarMutationError>> + Send;
+
     /// Turn calendar off for one of the requester's own connected inboxes:
     /// its calendar data is removed, the calendar scopes leave the recorded
     /// grant, and its push channels are closed at Google.
@@ -839,6 +927,15 @@ pub enum CalendarMutationError {
     /// The connected account is not an attendee of the event.
     #[error("the connected account is not an attendee of this event")]
     NotAttendee,
+    /// Only the organizer may invite guests: the organizer does not let
+    /// guests invite others, or the event is an Outlook meeting, which
+    /// gives its attendees no way to change it.
+    #[error("only the organizer can invite guests to this event")]
+    GuestsCannotInvite,
+    /// The organizer hides the guest list, so a guest's copy cannot hold the
+    /// whole list a guest addition must write.
+    #[error("guests cannot be added while the organizer hides the guest list")]
+    GuestListHidden,
     /// The supplied fields were invalid.
     #[error("invalid calendar mutation: {0}")]
     InvalidInput(String),

@@ -1,5 +1,10 @@
 # iOS releases and breaking Tauri changes
 
+Native reload history and UIKit memory-warning diagnostics require an App Store
+binary update. Their IPC is optional: OTA-only clients retain frontend reload
+markers and instance IDs, with missing native coverage explicitly reported.
+See [reload diagnostics](../tauri/src-tauri/README.md#diagnosing-unexpected-webview-reloads).
+
 (The Android counterpart — `android-update`, `Android Native Check`, Google
 Play as the source of truth — is described in `docs/development/android.md`.)
 
@@ -27,7 +32,14 @@ icon and app-name branding are Android-only.
    - the iOS release numbers to be bumped relative to `main`, and
    - that exact version + build to be **live on the App Store**.
 
-   Until both hold, the check fails and the PR cannot merge.
+   Until both hold, the check fails and the PR cannot merge. On same-repo
+   PRs, the gate maintains one status comment with the version/build, current
+   App Store state, next steps, and a workflow link. Infrastructure failures,
+   including an unavailable native-tree hash, are reported as an inability
+   to verify the release without instructions to release again, separately from a
+   confirmed release requirement. Each gate run refreshes the comment; a
+   successful watcher-triggered recheck marks the release verified. Fork PRs
+   retain the check logs because their token cannot write PR comments.
 2. You bump the numbers locally and commit the result:
 
    ```bash
@@ -62,6 +74,14 @@ icon and app-name branding are Android-only.
    itself: that would need a user token, because a merge set up by the
    Actions token doesn't trigger the push-to-`main` workflows such as the
    dev redeploy.) To retry after a failure, remove and re-add the label.
+   The label only works on a PR that is mergeable: GitHub does not run
+   `pull_request` workflows on a PR that conflicts with `main`, so the
+   release never starts there. The **`Release Label Check`** workflow
+   (`.github/workflows/release-label-check.yml`, a `pull_request_target`
+   workflow, which GitHub does run) then comments and removes the label;
+   resolve the conflicts and re-add it. On a mergeable PR that workflow
+   instead comments that the release started, with the version in flight
+   and a link to the run.
 4. Wait for Apple to approve. The version releases automatically, and the
    **`iOS Release Watch`** workflow (`.github/workflows/ios-release-watch.yml`,
    every 30 minutes) notices: for each open PR labeled `ios-update` it asks
@@ -90,7 +110,7 @@ a CI-pushed bump commit would wedge the PR.
 
 If the tauri change doesn't break the native/web contract (comments, dev-only
 tooling, desktop-only config), add the **`skip-ios-update`** label instead;
-the **`iOS Native Check Label`** workflow re-runs just the gate job (and the
+the **`Native Check Label`** workflow re-runs just the gate job (and the
 status check that depends on it) when that label is added or removed, so the
 gate passes without a release and without re-running the whole web suite.
 That workflow is not a required check: it waits for the web suite run to
@@ -106,7 +126,8 @@ Two things:
   Android-only by Tauri's naming convention (a path component `android`,
   `android_*`, `android.*` or `*.android.*` — the `android_*` plugins, every
   `android/` directory, `android.rs`, `tauri.android.conf.json` and so on),
-  `desktop-release.json`, and `.helix/`.
+  `desktop-release.json`, `.helix/`, and Markdown docs. Desktop, macOS,
+  Linux, and Windows-only paths are excluded too.
 - **A bump of the client cache wasm package version** in
   `crates/client/cache-wasm/Cargo.toml`. The app compiles the cache crates
   (`crates/client/cache-core`, `cache-turso` and what they pull in)

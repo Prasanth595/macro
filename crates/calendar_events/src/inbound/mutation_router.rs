@@ -100,6 +100,10 @@ where
             "/events/{event_id}/rsvp",
             put(rsvp_calendar_event::<S, L, Auth>),
         )
+        .route(
+            "/events/{event_id}/guests",
+            post(invite_calendar_event_guests::<S, L, Auth>),
+        )
         .with_state(state)
 }
 
@@ -279,6 +283,7 @@ pub enum CalendarRsvpScopeParam {
 #[serde(rename_all = "camelCase")]
 pub struct RsvpCalendarEventRequest {
     /// The owned connected address whose attendance is changed. Validated by the domain.
+    /// Omit to answer as the inbox the addressed copy syncs through.
     pub responding_email: Option<String>,
     /// Calendar whose copy of the event is answered, for an event synced
     /// from more than one calendar. Omit to answer on the canonical copy.
@@ -292,6 +297,46 @@ pub struct RsvpCalendarEventRequest {
     /// widened to the series.
     pub scope: Option<CalendarRsvpScopeParam>,
     /// Original-start key of the occurrence the response targets.
+    pub recurrence_id: Option<String>,
+}
+
+/// A guest added to an event.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CalendarGuestInputBody {
+    /// Guest email address.
+    pub email: String,
+    /// Whether attendance is optional.
+    #[serde(default)]
+    pub optional: bool,
+}
+
+impl From<CalendarGuestInputBody> for CalendarAttendeeInput {
+    fn from(body: CalendarGuestInputBody) -> Self {
+        Self {
+            email: body.email,
+            is_optional: body.optional,
+            response_status: None,
+        }
+    }
+}
+
+/// Request body adding guests to an event without touching anyone already
+/// invited.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct InviteCalendarEventGuestsRequest {
+    /// Calendar whose copy of the event is written, for an event synced from
+    /// more than one calendar. Omit to write the canonical copy.
+    pub calendar_id: Option<Uuid>,
+    /// Guests to add; anyone already on the event is skipped.
+    pub guests: Vec<CalendarGuestInputBody>,
+    /// How much of a recurring series gains the guests. Omit to let
+    /// `recurrenceId` decide: the identified occurrence alone when one is
+    /// supplied, otherwise the whole event or series. An explicit
+    /// `this_event` scope requires `recurrenceId`.
+    pub scope: Option<CalendarUpdateScopeParam>,
+    /// Original-start key of the occurrence the guests are added to.
     pub recurrence_id: Option<String>,
 }
 
@@ -310,6 +355,11 @@ pub enum CalendarMutationErrorCode {
     NoWritableCalendar,
     /// The connected account is not an attendee of the event.
     NotAttendee,
+    /// Only the organizer may invite guests: the organizer does not let
+    /// guests invite others, or the event is an Outlook meeting.
+    GuestsCannotInvite,
+    /// The organizer hides the guest list, so a guest cannot add guests.
+    GuestListHidden,
     /// The request was invalid.
     InvalidInput,
     /// The calendar grant must be re-consented.
@@ -378,6 +428,16 @@ impl From<CalendarMutationError> for CalendarMutationApiError {
                 StatusCode::CONFLICT,
                 CalendarMutationErrorCode::NotAttendee,
                 "the connected account is not an attendee of this event".to_string(),
+            ),
+            CalendarMutationError::GuestsCannotInvite => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::GuestsCannotInvite,
+                "Only the organizer can invite guests to this event.".to_string(),
+            ),
+            CalendarMutationError::GuestListHidden => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::GuestListHidden,
+                "Guests cannot be added while the organizer hides the guest list.".to_string(),
             ),
             CalendarMutationError::InvalidInput(message) => (
                 StatusCode::BAD_REQUEST,
@@ -736,6 +796,62 @@ where
             request.response,
             scope,
             request.responding_email,
+        )
+        .await?;
+    Ok(Json(event))
+}
+
+/// Add guests to a calendar event without touching anyone already invited,
+/// and return its synced entity. The organizer, and guests the organizer lets
+/// invite others, may call it; Google emails the new guests.
+#[tracing::instrument(skip_all, fields(event_id = %event_id), err)]
+#[utoipa::path(
+    post,
+    path = "/events/{event_id}/guests",
+    tag = "calendar_events",
+    params(("event_id" = Uuid, Path, description = "Calendar event entity id")),
+    request_body = InviteCalendarEventGuestsRequest,
+    responses(
+        (status = 200, description = "The updated calendar event", body = CalendarEvent),
+        (status = 400, description = "Invalid guests or scope", body = CalendarMutationApiError),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Calendar is read-only, only the organizer can invite guests, or the calendar needs reauthorization", body = CalendarMutationApiError),
+        (status = 404, description = "Event or occurrence not found", body = CalendarMutationApiError),
+        (status = 409, description = "The connected account neither organizes nor attends the event", body = CalendarMutationApiError),
+        (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
+    )
+)]
+pub async fn invite_calendar_event_guests<S, L, Auth>(
+    State(state): State<CalendarMutationRouterState<S, L, Auth>>,
+    user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    Path(event_id): Path<Uuid>,
+    Json(request): Json<InviteCalendarEventGuestsRequest>,
+) -> Result<Json<CalendarEvent>, CalendarMutationApiError>
+where
+    S: CalendarMutationService,
+    L: MeetingLinkProvider,
+    Auth: MacroAuthorizationService,
+{
+    let scope = match (request.scope, request.recurrence_id) {
+        (Some(CalendarUpdateScopeParam::All), _) | (None, None) => CalendarUpdateScope::All,
+        (Some(CalendarUpdateScopeParam::ThisEvent), Some(recurrence_id))
+        | (None, Some(recurrence_id)) => CalendarUpdateScope::ThisEvent { recurrence_id },
+        (Some(CalendarUpdateScopeParam::ThisEvent), None) => {
+            return Err(CalendarMutationApiError {
+                code: CalendarMutationErrorCode::InvalidInput,
+                message: "a this-event invite requires recurrenceId".to_string(),
+                status: StatusCode::BAD_REQUEST,
+            });
+        }
+    };
+    let event = state
+        .service
+        .invite_guests(
+            user.authorization.user.macro_user_id.as_ref(),
+            event_id,
+            request.calendar_id,
+            request.guests.into_iter().map(Into::into).collect(),
+            scope,
         )
         .await?;
     Ok(Json(event))

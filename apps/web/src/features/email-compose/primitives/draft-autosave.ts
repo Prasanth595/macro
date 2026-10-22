@@ -105,6 +105,10 @@ export function createDraftAutosave<Snapshot, Result>(options: {
   });
   return {
     save,
+    async saveLocal(snapshot = options.capture()) {
+      cancel();
+      await saveLocally(snapshot);
+    },
     cancel,
     settled: () => queue,
     flushLocal,

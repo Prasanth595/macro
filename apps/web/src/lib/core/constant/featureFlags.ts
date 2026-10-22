@@ -157,6 +157,13 @@ export const enableSlackArchiveImport = defineFlag({
   default: onInDev,
 });
 
+/** Sidebar prompt cards: imports, calendars, repositories, and Home setup. */
+export const enableSidebarPromotions = defineFlag({
+  key: 'enable-sidebar-promotions',
+  env: 'ENABLE_SIDEBAR_PROMOTIONS',
+  default: onInDev,
+});
+
 /** Shows the Reviews shortcut in Tasks; copied Reviews links remain accessible. */
 export const enableTasksReviews = defineFlag({
   key: 'enable-tasks-reviews',
@@ -168,14 +175,6 @@ export const enableTasksReviews = defineFlag({
 export const enableGantt = defineFlag({
   key: 'enable-gantt',
   env: 'ENABLE_GANTT',
-});
-
-// Claude Cloud: the built-in @claude mention and agent assignee, its Runtimes
-// connection card, and harness/model discovery. Off until PostHog enables it,
-// including in dev; override locally with VITE_CLAUDE_CLOUD.
-export const claudeCloud = defineFlag({
-  key: 'claude-cloud',
-  env: 'CLAUDE_CLOUD',
 });
 
 export const ENABLE_PDF_MODIFICATION_DATA_AUTOSAVE = defineFlag({
@@ -457,6 +456,12 @@ export const enableCrm = defineFlag({
   default: onInDev,
 });
 
+/** CRM activity tabs and context-aware task composition. Off until opted in. */
+export const enableCrmActivity = defineFlag({
+  key: 'enable-crm-activity',
+  env: 'ENABLE_CRM_ACTIVITY',
+});
+
 // Company collections are paused until ready; preserve stored lists while off.
 export const enableCrmLists = defineFlag({
   key: 'enable-crm-lists',
@@ -668,6 +673,17 @@ export const enableCalendarTeamOoo = defineFlag({
 export const enableCalendarTeamSharing = defineFlag({
   key: 'enable-calendar-team-sharing',
   env: 'ENABLE_CALENDAR_TEAM_SHARING',
+  default: onInDev,
+});
+
+// A guest adding guests: the event details "Add guests" action and the
+// composer's add-only guest editing. The invite endpoints enforce the
+// organizer's policy unflagged, so this only hides the entry points.
+// PostHog-gated with a dev-mode default; override with
+// VITE_ENABLE_CALENDAR_GUEST_INVITES.
+export const enableCalendarGuestInvites = defineFlag({
+  key: 'enable-calendar-guest-invites',
+  env: 'ENABLE_CALENDAR_GUEST_INVITES',
   default: onInDev,
 });
 

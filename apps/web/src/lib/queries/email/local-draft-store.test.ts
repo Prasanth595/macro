@@ -49,6 +49,61 @@ describe('draft connection recovery', () => {
     });
   });
 
+  it('reopens without losing frozen sends, cancellation decisions or editing locks', async () => {
+    const store = open();
+    const session = await store.activate('owner');
+    await store.save(session, snapshot());
+    await store.putSend(session, sendIntent(), true);
+    connections[0].close();
+    expect(await store.sends(session)).toEqual([sendIntent()]);
+    await expect(store.save(session, snapshot('Late edit', 1))).rejects.toThrow(
+      'Cancel and restore'
+    );
+    await store.putSend(session, {
+      ...sendIntent(),
+      cancellationRequested: true,
+    });
+    connections.at(-1)!.close();
+    expect((await store.sends(session))[0].cancellationRequested).toBe(true);
+    await expect(
+      store.save(session, snapshot('Still locked', 1))
+    ).rejects.toThrow('Cancel and restore');
+  });
+  it('waits for rollback and preserves the underlying request error', async () => {
+    const report = vi.fn();
+    const store = createLocalDraftStore(crypto.randomUUID(), report);
+    stores.push(store);
+    const session = await store.activate('owner');
+    await store.save(session, snapshot());
+    let aborted = false;
+    vi.spyOn(IDBObjectStore.prototype, 'get').mockImplementationOnce(function (
+      this: IDBObjectStore
+    ) {
+      this.transaction.addEventListener('abort', () => {
+        aborted = true;
+      });
+      // The session key already exists. The request's ConstraintError bubbles
+      // before IDBTransaction.error is populated.
+      return this.add('duplicate', 'session');
+    });
+    await expect(
+      store.save(session, snapshot('Rejected edit', 1))
+    ).rejects.toMatchObject({
+      name: 'ConstraintError',
+    });
+    expect(aborted).toBe(true);
+    expect(report).toHaveBeenCalledWith({
+      type: 'failed',
+      error: expect.objectContaining({ name: 'ConstraintError' }),
+    });
+    expect(await store.read(session, 'local')).toMatchObject({
+      revision: 1,
+      content: { subject: 'Keep this draft' },
+    });
+    await store.save(session, snapshot('Later edit', 1));
+    expect(await store.read(session, 'local')).toMatchObject({ revision: 2 });
+  });
+
   it.each(['closed', 'terminated'])(
     'saves the latest edit and continues server autosave after a connection is %s',
     async (reason) => {
@@ -614,4 +669,156 @@ describe('notification failures do not affect durable commits', () => {
     expect(await store.list(owner)).toHaveLength(1);
     expect(listener).toHaveBeenCalledOnce();
   });
+});
+
+const sendIntent = (
+  uuid = 'attempt'
+): import('./send-queue').EmailSendIntent => ({
+  uuid,
+  accountId: 'owner',
+  dispatchVersion: 2,
+  phase: 'pending',
+  locallyCancelled: false,
+  metadata: {
+    kind: 'email-send-v1',
+    payload: {
+      input: {
+        attempt: { attemptId: uuid, linkId: 'inbox' },
+        message: {
+          draftId: 'local',
+          subject: 'Approved',
+          linkId: 'inbox',
+          bodyText: 'Approved body',
+        },
+        attachmentIds: [],
+        forwardedAttachmentIds: [],
+      },
+      draft: {
+        draftId: 'local',
+        threadDbId: 'thread',
+        senderEmail: 'owner@example.com',
+        optimisticBodyHtml: null,
+        senderLinkId: 'inbox',
+        subject: 'Approved',
+        bodyText: 'Approved body',
+      },
+      workingCopy: {
+        key: 'local',
+        generation: 'generation',
+        revision: 1,
+        attachments: [],
+      },
+    },
+  },
+});
+
+describe('independent send recovery records', () => {
+  it('retains the frozen snapshot and attempt identity independently of the cache', async () => {
+    const name = crypto.randomUUID();
+    const first = open(name);
+    const owner = await first.activate('owner');
+    await first.save(owner, snapshot());
+    await first.putSend(owner, sendIntent(), true);
+    await first.close();
+    const second = open(name);
+    const restoredOwner = await second.activate('owner');
+    expect(await second.sends(restoredOwner)).toEqual([sendIntent()]);
+    await expect(
+      second.save(restoredOwner, snapshot('Late edit', 1))
+    ).rejects.toThrow('Cancel and restore');
+    expect((await second.read(restoredOwner, 'local'))?.content.subject).toBe(
+      'Keep this draft'
+    );
+  });
+  it('atomically admits only one send across tabs and rejects a stale snapshot', async () => {
+    const name = crypto.randomUUID();
+    const first = open(name),
+      second = open(name);
+    const owner = await first.activate('owner');
+    await second.activate('owner', owner.epoch);
+    await first.save(owner, snapshot());
+    const results = await Promise.allSettled([
+      first.putSend(owner, sendIntent('one'), true),
+      second.putSend(owner, sendIntent('two'), true),
+    ]);
+    expect(
+      results.filter((result) => result.status === 'fulfilled')
+    ).toHaveLength(1);
+    expect(await first.sends(owner)).toHaveLength(1);
+    await first.putSend(owner, {
+      ...(await first.sends(owner))[0],
+      cancellationRequested: true,
+    });
+    await first.restoreSend(owner, (await first.sends(owner))[0].uuid);
+    const restored = (await first.read(owner, 'local'))!;
+    await first.save(owner, {
+      ...snapshot('New edit', restored.revision),
+      generation: restored.generation,
+    });
+    await expect(first.putSend(owner, sendIntent(), true)).rejects.toThrow(
+      'changed'
+    );
+  });
+  it('keeps cancellation and restoration when a late original send settles', async () => {
+    const store = open(),
+      owner = await store.activate('owner');
+    await store.save(owner, snapshot());
+    await store.putSend(
+      owner,
+      { ...sendIntent(), cancellationRequested: true },
+      true
+    );
+    await store.putSend(owner, sendIntent());
+    expect((await store.sends(owner))[0].cancellationRequested).toBe(true);
+    await store.restoreSend(owner, sendIntent().uuid);
+    await expect(store.putSend(owner, sendIntent())).rejects.toThrow(
+      'already resolved'
+    );
+    const restored = (await store.read(owner, 'local'))!;
+    await expect(
+      store.save(owner, {
+        ...snapshot('Restored edit', restored.revision),
+        generation: restored.generation,
+      })
+    ).resolves.toMatchObject({ revision: restored.revision + 1 });
+  });
+  it('clears send content and fences old sessions on account changes and logout', async () => {
+    const store = open(),
+      owner = await store.activate('owner');
+    await store.save(owner, snapshot());
+    await store.putSend(owner, sendIntent(), true);
+    const next = await store.activate('next', 'next-epoch');
+    expect(await store.sends(next)).toEqual([]);
+    await expect(store.putSend(owner, sendIntent())).rejects.toThrow(
+      'no longer active'
+    );
+    await store.clear(true, next.epoch);
+    expect(await store.sends(next)).toEqual([]);
+  });
+});
+
+it('a late old cancellation cannot release a newer send reservation', async () => {
+  const store = open(),
+    owner = await store.activate('owner');
+  await store.save(owner, snapshot());
+  const old = await store.putSend(
+    owner,
+    { ...sendIntent('old'), cancellationRequested: true },
+    true
+  );
+  await store.restoreSend(owner, old.uuid);
+  const restored = (await store.read(owner, 'local'))!;
+  const next = sendIntent('new');
+  next.metadata.payload.workingCopy = {
+    key: restored.key,
+    generation: restored.generation,
+    revision: restored.revision,
+    attachments: [],
+  };
+  await store.putSend(owner, next, true);
+  await expect(store.putSend(owner, old)).rejects.toThrow('already resolved');
+  await expect(
+    store.save(owner, snapshot('Late edit', restored.revision))
+  ).rejects.toThrow('Cancel and restore');
+  expect((await store.sends(owner))[0].uuid).toBe('new');
 });

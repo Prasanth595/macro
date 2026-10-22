@@ -1013,6 +1013,23 @@ export const listOccurrencesResponse = zod
                 .describe(
                   "Google's event type: ordinary meetings versus the status-style entries\n(working location, out of office, focus time, birthdays) Google renders\nand notifies differently. Immutable at the provider after creation."
                 ),
+              guestPolicy: zod
+                .object({
+                  canInviteOthers: zod
+                    .boolean()
+                    .describe('Whether guests may invite others.'),
+                  canModify: zod
+                    .boolean()
+                    .describe(
+                      'Whether guests may change the event, including its guest list.'
+                    ),
+                  canSeeOtherGuests: zod
+                    .boolean()
+                    .describe('Whether guests may see the guest list.'),
+                })
+                .describe(
+                  'The switches an organizer sets on an event to bound what its guests may\ndo. Google omits a switch from the payload while it holds its default.'
+                ),
               icalUid: zod
                 .string()
                 .describe(
@@ -1225,6 +1242,21 @@ export const listOccurrencesResponse = zod
                 .enum(['opaque', 'transparent'])
                 .describe('Whether an event blocks availability.'),
               updatedAt: zod.iso.datetime({}).describe('Entity update time.'),
+              viewerCan: zod
+                .object({
+                  editDetails: zod
+                    .boolean()
+                    .describe(
+                      "Change the event's details (title, time, description, conference)."
+                    ),
+                  inviteGuests: zod.boolean().describe('Add guests.'),
+                  removeGuests: zod.boolean().describe('Remove guests.'),
+                  rsvp: zod.boolean().describe('Answer the invitation.'),
+                  setGuestPolicy: zod
+                    .boolean()
+                    .describe("Change the event's guest policy."),
+                })
+                .describe('What the viewing requester may do with an event.'),
               visibility: zod
                 .enum(['default', 'public', 'private', 'confidential'])
                 .describe('Visibility of event details.'),
@@ -1714,6 +1746,14 @@ export const listTeamOutOfOfficeResponse = zod
     ),
   })
   .describe('Team out-of-office viewport response.');
+
+/**
+ * @summary Export an event the requester can see — their own, or one shared with a
+channel they belong to — as an iCalendar file named after its title.
+ */
+export const eventIcsParams = zod.object({
+  event_id: zod.uuid().describe('Calendar event entity id'),
+});
 
 /**
  * Lists all active calls in channels the caller is an active member of,
@@ -2475,12 +2515,37 @@ export const getCallRecordResponse = zod
       .string()
       .nullish()
       .describe('Presigned URL for the call recording, if available.'),
-    roomName: zod.string().describe('The RTC room name.'),
+    roomName: zod
+      .string()
+      .nullish()
+      .describe(
+        'The RTC room name. `None` for imported calls, which never had a room.'
+      ),
     shareWithTeam: zod
       .boolean()
       .describe(
         "Whether the call is shared with the creator's team. While the call is\nlive this is the pending toggle applied at archive; afterwards it\nmirrors `team_share_access_level`."
       ),
+    source: zod
+      .union([
+        zod.null(),
+        zod
+          .object({
+            externalUrl: zod
+              .string()
+              .nullish()
+              .describe(
+                "Link to the call in the provider's app, if it has one."
+              ),
+            provider: zod
+              .enum(['macro', 'granola'])
+              .describe(
+                'Supported call and transcript providers. Add variants as integrations grow.'
+              ),
+          })
+          .describe('Where an imported call came from.'),
+      ])
+      .optional(),
     startedAt: zod.iso
       .datetime({})
       .describe(
@@ -3348,6 +3413,49 @@ export const getAttachmentReferencesResponse = zod
                 })
               )
               .describe('Referenced from a channel message.'),
+            zod
+              .object({
+                attachment_created_at: zod.iso
+                  .datetime({})
+                  .describe('When the mention or attachment row was created.'),
+                message_content: zod
+                  .string()
+                  .describe(
+                    'Full message content (might be used for preview\/snippet).'
+                  ),
+                message_created_at: zod.iso
+                  .datetime({})
+                  .describe('When the message itself was created.'),
+                message_id: zod
+                  .uuid()
+                  .describe('Message that contains the reference.'),
+                parent_entity_id: zod
+                  .string()
+                  .describe('Id of the entity the comment belongs to.'),
+                parent_entity_type: zod
+                  .string()
+                  .describe(
+                    'Stored type of the entity the comment belongs to\n(`document`, `initiative`, `crm_company`, `crm_contact`, or `call`).'
+                  ),
+                sender_id: zod.string().describe('Sender of the message.'),
+                thread_id: zod
+                  .uuid()
+                  .nullish()
+                  .describe(
+                    'If the message belongs to a thread this is the parent id.'
+                  ),
+              })
+              .describe(
+                'A reference to an attachment entity from a comment on a non-channel entity.'
+              )
+              .and(
+                zod.object({
+                  reference_type: zod.enum(['comment']),
+                })
+              )
+              .describe(
+                'Referenced from a comment on a document, initiative, CRM record, or call.'
+              ),
             zod
               .object({
                 created_at: zod.iso
@@ -9671,6 +9779,347 @@ export const getDatabaseQueryResponse = zod
     id: zod.uuid().describe('Identifier.'),
   })
   .describe('A stored, immutable query. Editing a question saves a new one.');
+
+/**
+ * @summary Run one statement as the authenticated user. The viewer's catalog authorizes reads;
+the SQL domain service obtains an edit receipt for every written database.
+ */
+export const queryDatabasesBody = zod
+  .object({
+    baseVersions: zod
+      .record(
+        zod.string(),
+        zod
+          .number()
+          .describe(
+            "Monotonic per-table version, bumped once by every committed change to a\ntable's schema or rows. Schema edits name the version they were made\nagainst, and change events carry the new one."
+          )
+      )
+      .optional()
+      .describe(
+        'Expected version for each table a subsequent statement writes.'
+      ),
+    databaseId: zod
+      .union([
+        zod.null(),
+        zod
+          .uuid()
+          .describe(
+            'Identifier of reusable database storage. Its optional Macro entity uses\nthe same identity, so existing routes and grants keep their IDs.'
+          ),
+      ])
+      .optional(),
+    sql: zod
+      .string()
+      .describe(
+        'One supported SQL statement. Writes execute once, without automatic retries.'
+      ),
+  })
+  .describe(
+    'One SQL statement with an optional default database and optimistic write guards.'
+  );
+
+export const queryDatabasesResponseChangesAppliedMin = 0;
+
+export const queryDatabasesResponse = zod
+  .object({
+    changesApplied: zod
+      .number()
+      .min(queryDatabasesResponseChangesAppliedMin)
+      .describe('How many rows a write changed.'),
+    insertedRowIds: zod
+      .array(zod.uuid().describe('Identifier of a row.'))
+      .describe('The rows an `INSERT` created, in statement order.'),
+    newVersions: zod
+      .record(
+        zod.string(),
+        zod
+          .number()
+          .describe(
+            "Monotonic per-table version, bumped once by every committed change to a\ntable's schema or rows. Schema edits name the version they were made\nagainst, and change events carry the new one."
+          )
+      )
+      .describe('The new version of every table written.'),
+    readVersions: zod
+      .record(
+        zod.string(),
+        zod
+          .number()
+          .describe(
+            "Monotonic per-table version, bumped once by every committed change to a\ntable's schema or rows. Schema edits name the version they were made\nagainst, and change events carry the new one."
+          )
+      )
+      .describe(
+        'The version of every table read, for a follow-up write to guard on.'
+      ),
+    result: zod
+      .union([
+        zod.null(),
+        zod
+          .object({
+            columns: zod
+              .array(
+                zod
+                  .object({
+                    kind: zod
+                      .enum([
+                        'text',
+                        'number',
+                        'boolean',
+                        'date',
+                        'select',
+                        'entity',
+                        'row',
+                      ])
+                      .describe('The value kind of a result column.'),
+                    name: zod
+                      .string()
+                      .describe('The name or alias the statement gave it.'),
+                    options: zod
+                      .array(
+                        zod
+                          .object({
+                            id: zod
+                              .uuid()
+                              .describe(
+                                'Identifier of an option of a select or tag column.'
+                              ),
+                            label: zod
+                              .string()
+                              .describe('The label users type in SQL.'),
+                          })
+                          .describe('One option of a select column.')
+                      )
+                      .optional()
+                      .describe(
+                        'For a select column, its options: its cells hold their ids.'
+                      ),
+                    relatedTable: zod
+                      .union([
+                        zod.null(),
+                        zod
+                          .uuid()
+                          .describe(
+                            'Identifier of one table (tab) within a database.'
+                          ),
+                      ])
+                      .optional(),
+                    target: zod
+                      .union([
+                        zod.null(),
+                        zod
+                          .enum([
+                            'USER',
+                            'DOCUMENT',
+                            'TASK',
+                            'COMPANY',
+                            'CONTACT',
+                            'CALL_RECORD',
+                            'CHANNEL',
+                            'CHAT',
+                            'PROJECT',
+                            'THREAD',
+                            'CALENDAR_EVENT',
+                            'INITIATIVE',
+                            'DATABASE_ROW',
+                          ])
+                          .describe(
+                            "What an entity column's references point at: a kind of Macro entity, or\nthe rows of another table for a relation.\n\nSpelled as the properties system spells entity types (`USER`,\n`DATABASE_ROW`), on the wire and in SQL, where it parses\ncase-insensitively."
+                          ),
+                      ])
+                      .optional(),
+                  })
+                  .describe('One result column, with what its cells mean.')
+              )
+              .describe('The columns, in select-list order.'),
+            rowIds: zod
+              .array(zod.uuid().describe('Identifier of a row.'))
+              .describe(
+                'For a row-shaped result, the id of the row behind each result row;\nempty for an aggregate.'
+              ),
+            rows: zod
+              .array(
+                zod.array(
+                  zod.union([
+                    zod.null(),
+                    zod
+                      .union([
+                        zod
+                          .object({
+                            type: zod.enum(['text']),
+                            value: zod.string().describe('Text or link.'),
+                          })
+                          .describe('Text or link.'),
+                        zod
+                          .object({
+                            type: zod.enum(['number']),
+                            value: zod.number().describe('A number.'),
+                          })
+                          .describe('A number.'),
+                        zod
+                          .object({
+                            type: zod.enum(['bool']),
+                            value: zod.boolean().describe('A checkbox.'),
+                          })
+                          .describe('A checkbox.'),
+                        zod
+                          .object({
+                            type: zod.enum(['date']),
+                            value: zod.iso
+                              .datetime({})
+                              .describe('A date-time.'),
+                          })
+                          .describe('A date-time.'),
+                        zod
+                          .object({
+                            type: zod.enum(['options']),
+                            value: zod
+                              .array(
+                                zod
+                                  .uuid()
+                                  .describe(
+                                    'Identifier of an option of a select or tag column.'
+                                  )
+                              )
+                              .describe(
+                                'The selected option ids; one for single-select columns.'
+                              ),
+                          })
+                          .describe(
+                            'The selected option ids; one for single-select columns.'
+                          ),
+                        zod
+                          .object({
+                            type: zod.enum(['entities']),
+                            value: zod
+                              .array(zod.string())
+                              .describe(
+                                'The referenced entity ids; one for single-valued columns.'
+                              ),
+                          })
+                          .describe(
+                            'The referenced entity ids; one for single-valued columns.'
+                          ),
+                        zod
+                          .object({
+                            type: zod.enum(['row']),
+                            value: zod.uuid().describe('Identifier of a row.'),
+                          })
+                          .describe(
+                            "A table row's own id, the `row_id` column."
+                          ),
+                      ])
+                      .describe(
+                        'A cell as fetched. An absent cell is `NULL`; an absent multi-valued cell\nis the empty set.'
+                      ),
+                  ])
+                )
+              )
+              .describe(
+                'One cell per column per row; `null` is an empty cell.'
+              ),
+            sourceTable: zod
+              .union([
+                zod.null(),
+                zod
+                  .uuid()
+                  .describe('Identifier of one table (tab) within a database.'),
+              ])
+              .optional(),
+          })
+          .describe("A `SELECT`'s rows, as the engine's typed cells."),
+      ])
+      .optional(),
+    statement: zod
+      .union([
+        zod
+          .object({
+            databaseId: zod
+              .uuid()
+              .describe(
+                'Identifier of reusable database storage. Its optional Macro entity uses\nthe same identity, so existing routes and grants keep their IDs.'
+              ),
+            kind: zod.enum(['schema']),
+            summary: zod
+              .string()
+              .describe('What changed and how to read the resulting schema.'),
+          })
+          .describe(
+            'A committed schema command. IDs remain available even without a follow-up read.'
+          ),
+        zod
+          .object({
+            kind: zod.enum(['select']),
+          })
+          .describe('A `SELECT`.'),
+        zod
+          .object({
+            kind: zod.enum(['insert']),
+            tableId: zod
+              .uuid()
+              .describe('Identifier of one table (tab) within a database.'),
+            tableName: zod.string().describe('Its name.'),
+          })
+          .describe('An `INSERT`.'),
+        zod
+          .object({
+            kind: zod.enum(['update']),
+            tableId: zod
+              .uuid()
+              .describe('Identifier of one table (tab) within a database.'),
+            tableName: zod.string().describe('Its name.'),
+          })
+          .describe('An `UPDATE`.'),
+        zod
+          .object({
+            kind: zod.enum(['delete']),
+            tableId: zod
+              .uuid()
+              .describe('Identifier of one table (tab) within a database.'),
+            tableName: zod.string().describe('Its name.'),
+          })
+          .describe('A `DELETE`.'),
+        zod
+          .object({
+            columnId: zod
+              .uuid()
+              .describe('Identifier of a column placement within a table.'),
+            columnName: zod.string().describe("The column's name."),
+            kind: zod.enum(['alterColumnType']),
+            tableId: zod
+              .uuid()
+              .describe('Identifier of one table (tab) within a database.'),
+            tableName: zod.string().describe('Its name.'),
+            to: zod
+              .string()
+              .describe(
+                'The type it became, as SQL spells it, e.g. `select[]`.'
+              ),
+          })
+          .describe('An `ALTER COLUMN … TYPE`.'),
+      ])
+      .describe(
+        'The statement that ran: a read, or the table (and for a type change, the\ncolumn) it wrote.'
+      ),
+    tableDatabases: zod
+      .record(
+        zod.string(),
+        zod
+          .uuid()
+          .describe(
+            'Identifier of reusable database storage. Its optional Macro entity uses\nthe same identity, so existing routes and grants keep their IDs.'
+          )
+      )
+      .describe(
+        'Owning database of each visible table referenced by this outcome.'
+      ),
+    truncatedTables: zod
+      .array(zod.string())
+      .describe(
+        "Every table the statement read, when any read hit the engine's row\ncap: the engine reports the cap per statement, so aggregates over any\nof them may be partial."
+      ),
+  })
+  .describe('The answer to one statement.');
 
 /**
  * @summary Create a small example once for the authenticated user, if they have no databases.
@@ -19135,6 +19584,11 @@ export const listFormsResponseItem = zod
     databaseId: zod.uuid().describe('The database holding its responses.'),
     description: zod.string().describe('What respondents read under the name.'),
     id: zod.uuid().describe('The form.'),
+    isHiddenInDrive: zod
+      .boolean()
+      .describe(
+        'Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll.'
+      ),
     name: zod
       .string()
       .describe(
@@ -19182,6 +19636,12 @@ export const createFormBody = zod
       .union([
         zod
           .object({
+            isHiddenInDrive: zod
+              .boolean()
+              .optional()
+              .describe(
+                'Keep the form, and the database made for it, out of Drive, as\nfor a channel poll.'
+              ),
             kind: zod.enum(['new']),
           })
           .describe(
@@ -19233,6 +19693,11 @@ export const listAccessibleFormsResponseItem = zod
           .string()
           .describe('What respondents read under the name.'),
         id: zod.uuid().describe('The form.'),
+        isHiddenInDrive: zod
+          .boolean()
+          .describe(
+            'Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll.'
+          ),
         name: zod
           .string()
           .describe(
@@ -19310,6 +19775,11 @@ export const getFormResponse = zod
           .string()
           .describe('What respondents read under the name.'),
         id: zod.uuid().describe('The form.'),
+        isHiddenInDrive: zod
+          .boolean()
+          .describe(
+            'Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll.'
+          ),
         name: zod
           .string()
           .describe(
@@ -19714,7 +20184,7 @@ export const getFormResponse = zod
                 title: zod.string().describe('Its title.'),
               })
               .describe(
-                'A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.'
+                'A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.'
               ),
           ])
           .describe('One section of a form as it reads.')
@@ -19785,6 +20255,11 @@ export const updateFormResponse = zod
     databaseId: zod.uuid().describe('The database holding its responses.'),
     description: zod.string().describe('What respondents read under the name.'),
     id: zod.uuid().describe('The form.'),
+    isHiddenInDrive: zod
+      .boolean()
+      .describe(
+        'Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll.'
+      ),
     name: zod
       .string()
       .describe(
@@ -19859,6 +20334,11 @@ export const collaborateFormResponse = zod
               .string()
               .describe('What respondents read under the name.'),
             id: zod.uuid().describe('The form.'),
+            isHiddenInDrive: zod
+              .boolean()
+              .describe(
+                'Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll.'
+              ),
             name: zod
               .string()
               .describe(
@@ -20277,7 +20757,7 @@ export const collaborateFormResponse = zod
                     title: zod.string().describe('Its title.'),
                   })
                   .describe(
-                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.'
+                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.'
                   ),
               ])
               .describe('One section of a form as it reads.')
@@ -20309,7 +20789,7 @@ export const collaborateFormResponse = zod
                     kind: zod.enum(['bookingMustBeLast']),
                   })
                   .describe(
-                    'A booking step must be unique and follow all questions and screeners.'
+                    'A booking step must be unique and follow all questions and gates.'
                   ),
                 zod
                   .object({
@@ -20720,6 +21200,11 @@ export const putFormLayoutResponse = zod
               .string()
               .describe('What respondents read under the name.'),
             id: zod.uuid().describe('The form.'),
+            isHiddenInDrive: zod
+              .boolean()
+              .describe(
+                'Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll.'
+              ),
             name: zod
               .string()
               .describe(
@@ -21138,7 +21623,7 @@ export const putFormLayoutResponse = zod
                     title: zod.string().describe('Its title.'),
                   })
                   .describe(
-                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.'
+                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.'
                   ),
               ])
               .describe('One section of a form as it reads.')
@@ -21170,7 +21655,7 @@ export const putFormLayoutResponse = zod
                     kind: zod.enum(['bookingMustBeLast']),
                   })
                   .describe(
-                    'A booking step must be unique and follow all questions and screeners.'
+                    'A booking step must be unique and follow all questions and gates.'
                   ),
                 zod
                   .object({

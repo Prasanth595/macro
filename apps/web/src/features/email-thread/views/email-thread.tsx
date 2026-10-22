@@ -1,4 +1,5 @@
 import { EmailFormContextProvider } from '@app/features/email-compose/context/email-form-context';
+import { observeDraftRestoration } from '@app/features/email-compose/primitives/draft-restoration';
 import { EmailComposeView } from '@app/features/email-compose/views/email-compose';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import type { JSX } from 'solid-js';
@@ -10,7 +11,7 @@ import { createThreadNavigation } from '../primitives/thread-navigation';
 import { createThreadReplyArea } from '../primitives/thread-reply-area';
 import { BottomReplyButtons } from './bottom-reply-buttons';
 import { MessageList } from './message-list';
-import { MobileEmailComposeDrawer } from './mobile-email-compose-drawer';
+import { MobileEmailCompose } from './mobile-email-compose';
 export type EmailThreadViewProps = {
   title: string;
   threadId: Accessor<string>;
@@ -23,6 +24,22 @@ export function EmailThreadView(props: EmailThreadViewProps) {
   const viewContext = useEmailThreadViewContext();
   const threadContext = viewContext.thread;
   const isTouchDevice = threadContext.isTouch;
+  observeDraftRestoration({
+    storage: viewContext.compose.drafts,
+    accepts: (change) =>
+      change.threadId === props.threadId() && !!change.replyingToId,
+    version: props.threadId,
+    cancelPendingSave() {},
+    setPending() {},
+    restore: (draft) => {
+      context.drafts.restoreDraftForMessage(draft);
+      if (!draft.replying_to_id) return;
+      if (isTouchDevice())
+        context.mobileReplyComposer.openForMessage(draft.replying_to_id);
+      else context.messages.setReplyingToMessageId(draft.replying_to_id);
+    },
+    reportError: viewContext.compose.notices.reportError,
+  });
   const navigation = createThreadNavigation(
     props,
     context,
@@ -64,9 +81,9 @@ export function EmailThreadView(props: EmailThreadViewProps) {
           }
         >
           {(draft) => (
-            // The email block is bottom-anchored (no default panel inset),
-            // so the compose branch pads around the chrome itself.
-            <div class="size-full touch:pt-(--mobile-content-inset-top) touch:pb-(--mobile-content-inset-bottom)">
+            // The compose view carries the mobile chrome insets itself, so
+            // this branch only has to hand it the full frame.
+            <div class="size-full">
               <EmailComposeView
                 context={viewContext.compose}
                 host={{
@@ -100,7 +117,9 @@ export function EmailThreadView(props: EmailThreadViewProps) {
             <div class="size-full select-none overscroll-none overflow-hidden flex flex-col">
               {props.header}
               {props.actions}
-              {viewContext.rendering.renderOrganizationStatus?.()}
+              {viewContext.rendering.renderOrganizationStatus?.({
+                announceRead: context.isThreadMarkedRead,
+              })}
               {/* Measure message gutters against the thread, excluding the side panel. */}
               <div
                 class="@container w-full flex-1 flex flex-col items-center overflow-hidden"
@@ -137,7 +156,7 @@ export function EmailThreadView(props: EmailThreadViewProps) {
                 )}
               </Show>
               <Show when={isTouchDevice()}>
-                <MobileEmailComposeDrawer
+                <MobileEmailCompose
                   markdownDomRef={(el) => {
                     navigation.setMarkdownDomRef(el);
                   }}

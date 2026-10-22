@@ -48,6 +48,15 @@ queued mutations should resume promptly, without waiting for the old poll or
 local retry timer; durable leases and server-retry deadlines still apply.
 Switching tabs or navigating an in-app route is not a back/forward-cache restore.
 
+Safari can also restart the SharedWorker when its creating tab closes, leaving
+another tab's port alive but its coordinator registrations gone. The surviving
+page must re-register without a reload or cache wipe. Open two tabs, close the
+first, and verify that cached reads and live updates continue in the second.
+Repeat through another handoff and while requests are pending. Interrupted
+optimistic enqueues must not be sent twice. A `graphql_cache.owner` event with
+`ownerEvent: coordinator-restarted` distinguishes this from engine replacement
+or a BFCache restore.
+
 ## Android system navigation and sharing
 
 In the Android app, Back first hides the keyboard, then dismisses the active
@@ -121,7 +130,9 @@ successfully rather than hashing the empty JavaScript placeholder.
 | `/app/coders/<uuid>` | Code session with the Agents sidebar |
 | `/app/agents/chat/<uuid>` | Legacy AI chat opened in the Agents workspace (`/app/agent-chats/<uuid>` remains a compatibility alias) |
 | `/app/calls` | Calls list |
-| `/app/companies` | Customers (CRM; needs a team). The selected tab is `sN.crm.tab` |
+| `/app/companies` | Customers (CRM; needs a team). The selected list is `sN.crm.tab` |
+| `/app/companies/<company-or-contact>/<uuid>` | Customers with a company or contact opened inline, keeping its list's `sN.crm.tab`; a record tab other than Overview adds `/<team-emails-files-tasks-or-calls>`. On desktop, `/app/company/<uuid>` and `/app/contact/<uuid>` redirect here, a `comment_id` moving to `sN.crm-record.commentId`; touch devices keep those standalone pages |
+| `/app/companies/pipeline/<uuid>` | Customers on a pipeline; `/<company-or-contact>/<uuid>` after it opens a record from the pipeline. `/app/pipeline/<uuid>` redirects here |
 | `/app/activity` | Activity heatmap + feed |
 | `/app/calendar/<month-or-week-or-day>` | Calendar; the focused event, its occurrence, and the locator range use `sN.calendar.*` |
 | `/app/scheduling` | Scheduling workspace: booking links, availability, bookings, insights, and booking page |
@@ -202,8 +213,8 @@ namespaced query parameters such as `s0.drive.sort=created_at`. Route identity
 and breadcrumb nesting remain in the path. Home, Email, Tasks, Channels, and
 Customers store the selected tab under `sN.home.tab`, `sN.mail.tab`,
 `sN.tasks.tab`, `sN.channels.tab`, and `sN.crm.tab`. Customers uses `people`,
-`pipeline:<uuid>`, `list:<uuid>`, or `hidden`. Companies is the default and
-omits the key. Omitted tab keys mean each view's default. Mobile Channels always opens its
+`list:<uuid>`, or `hidden`; a pipeline is a path instead. Companies is the
+default and omits the key. Omitted tab keys mean each view's default. Mobile Channels always opens its
 Recent conversation feed and ignores legacy mobile-tab selections.
 Changing tabs updates the URL, and browser Back and Forward restore the
 selection independently in each pane. Inline detail links preserve these keys.
@@ -358,6 +369,9 @@ Scheduling appears in Customize sidebar only when the calendar-scheduling flag i
 on. It starts hidden in More, including for existing sidebar preferences. Enable
 its checkbox to place it on the rail, then reorder or hide it like other apps.
 Showing Scheduling removes its duplicate from More; the choice survives reload.
+Activity appears in Customize sidebar only when the `enable-activity-feed` flag
+is on and, like Scheduling, starts hidden in More (also for existing preferences)
+until enabled on the rail.
 
 - Top: buttons `Create` and `Search`. Clicking `Search` opens a menu
   with `Command Menu` (⌘K on Mac / Ctrl+K elsewhere) and `Search everything`
@@ -404,6 +418,11 @@ edge so an older unread item can keep the dot lit. These witnesses must never be
 used as the complete mark-read/done input. The experimental notification-time
 sort remains on its existing REST path; disabling GraphQL or enabling that sort
 must not construct an unsupported GraphQL input or blank the app shell.
+Cold offline launch must retain navigation even while notification preferences
+or badge queries are pending. Unknown preferences use the default enabled
+behavior; loaded disabled preferences still suppress Email's dot, including
+after a failed refresh. Verify both unreachable services while the OS reports
+online and a paused offline transport, then reconnect without remounting chrome.
 Opening a view alone does not clear its dot — reading or completing the represented
 items does. The button's
 accessible description is `Unread items` while its dot is active.
@@ -469,6 +488,12 @@ Widening the sidebar while its split is constrained also reduces the main
 content's soft width preference, so the next split resize keeps that choice
 instead of snapping the sidebar back to its constrained width.
 
+Split handles apply pointer movement once per animation frame and commit the
+final position on release. Check a rapid drag followed by immediate release,
+dragging at non-default zoom, and closing a split during a drag; later pointer
+movement must not keep resizing the removed split. Arrow keys still resize
+immediately, with Shift selecting the larger step.
+
 Email, Tasks, and Agents use the same sidebar rows, including favorites, tags,
 inboxes, and recent agent chats: 32px high on desktop and 44px on touch devices,
 with regular-weight labels and consistent icon spacing.
@@ -510,28 +535,41 @@ changes roll back rather than becoming committed local favorites.
 On desktop, the rail **Create** button, **C**, and the command menu’s **Create**
 entry open the detailed launcher at standard dialog width. Selecting **Create**
 closes the command menu and hands focus to the launcher; individual creation
-commands remain searchable in the command menu. The left list starts with up to three **Recents** from
-actual launcher usage, followed by all choices grouped by category.
-Categories appear in this order: **Docs** (Document, Snippet), **Organization**
+commands remain searchable in the command menu. The left side is one continuous
+list without section labels or gaps. Up to three recently used choices appear
+first, followed by the remaining choices in this order: **Docs** (Document, Snippet), **Organization**
 (Folder), **Design** (Canvas, Design, Photoshop file, Illustrator file), **Data**
 (Database, Spreadsheet, Form), **Comms** (Email, Message, Channel, Call), **Tasks**
 (Task, Project, Reminder), **AI** (Agent, Routine, Skill), and **Other** (Code and
-any uncategorized entries). Only available entries and nonempty categories appear.
-Recent items also remain in their categories. With no history, the list starts
-with categories. Hover or keyboard navigation updates the right detail panel;
-click a row or press Enter to start that creation flow. The detail panel is
-top-aligned, shares the list background, and is separated by a vertical divider.
-The shortcut below the description shows the sequence, such as **C then T** for
-Task, while direct shortcut mode is active.
-Its lower-right **Create [type]** button starts the selected creation flow and
-shows the Enter shortcut. Holding Shift adds an **In new split** indicator and
-changes the button shortcut to Shift+Enter; clicking while holding Shift uses
-the same new-split behavior where supported.
+any uncategorized entries). Only available entries appear.
+Recent items appear only at the top, not again in their categories. With no
+history, the list starts with Document. Hover or keyboard navigation updates the right detail panel;
+click a row or press Enter to start that creation flow. List icons are monochrome:
+muted normally and full ink on the selected row. The detail panel centers
+its block-colored icon tile with a solid theme-aware fill and shared glass rim,
+and description over
+the shared onboarding grain. Light mode uses near-black icons and neutral, quieter grain and glow, with
+the homepage composer’s fill, border and shadow. Dark-mode dots and glow use
+the same shared block-icon color as the tile, rather than the workspace accent. Descriptions use two authored
+lines at desktop width, with a slightly shorter second line; narrow panels
+allow the text to wrap further. The **Create [type]** button
+sits 8px inside the bottom-right corner as a 32px-tall pill. Its 16px
+radius plus the inset matches the modal’s 24px radius. It uses
+a white fill in dark mode, black in light mode, medium-weight text, and a bare
+Enter symbol without a keycap. Footer keyboard hints are borderless.
+Visual references: [dark](media/command/create-menu-polished-dark.png) and
+[light](media/command/create-menu-polished-light.png).
+A vertical divider separates it from the list. In direct shortcut mode, the
+shortcut sequence (such as **C then T** for Task) appears below the centered
+detail content. The Create button includes the Enter shortcut. Holding Shift
+relabels the button **Create in new split** with Shift+Enter; clicking while
+holding Shift uses the same new-split behavior where supported.
 
 The **Search mode** toggle (or **/**) switches between direct entity shortcuts
 shown beside each choice and the standard create search input. Search mode is
-the default; the preference persists across opens. Search filters both Recents and categories. Up/Down moves
-through the displayed order and scrolls the selected row into view; Left/Right
+the default; the preference persists across opens. Search filters both Recents
+and categories; a recent choice appears only under Recents, not again in its
+category. Up/Down moves through the displayed order and scrolls the selected row into view; Left/Right
 edits the search input. Enter creates the selected item, Shift+Enter opens it in a
 new split where supported, and Escape closes the launcher. Typing in search mode
 never runs an entity shortcut. Switching modes preserves selection and dimensions.
@@ -545,22 +583,39 @@ search mode, and shortcuts; Left/Right also navigates its cards outside search.
 The inline `/app/debug/create-menu-demo` keeps all three layouts for comparison
 without creating data. Mobile continues to use its create sheet.
 
-On mobile, the bottom dock fits fixed-width buttons in this order: Notifications,
-Calendar, Email, Channels, Agents, Files, Tasks, Calls, and CRM (when enabled). Calendar appears in the
-dock only when the calendar UI flag is enabled. Search has its own entity categories.
-Resizing the screen moves views between the dock
-and More views, which always includes Settings and lists the overflow views in
-reverse order. More and the separate bottom-right Search button always retain
-their space. Search opens the persistent Search… input and entity category pills (see [Search](search.md)).
-Once every view fits, the navigation island stops growing; Search stays aligned
-to the right edge.
-Scheduling is a drawer-only destination in **More views** when the
-calendar-scheduling feature flag is enabled; it does not add a search-scope pill or
-a fixed dock button. It opens `/app/scheduling`, highlights while Scheduling is
-active, and uses header islands for its section and Personal/team owner drawers.
+On mobile, the bottom dock defaults to Notifications, Calendar, Email, Channels,
+Agents, Files, Tasks, Calls, CRM, Reviews, and Scheduling. Feature-gated views
+appear only when enabled. The navigation island measures its width and fits as
+many fixed-size app buttons as possible, reserving room for More. Search stays
+in its own island at the right edge and opens the persistent Search… input and
+entity category pills (see [Search](search.md)). Once every view fits, the
+navigation island stops growing.
 
-Primary dock navigation buttons, including Search, give haptic feedback on
-pointer down and activate on click/release. Holding a button only shows its
+Notifications, Email, and Channels use the same reactive unread-presence checks
+as the desktop sidebar, via `useNavigationUnread`. Their accent dots clear when
+the represented items are read or completed, not merely when opening a view.
+Overflow destinations keep their dots in More; More itself has a dot when any
+hidden destination is unread. Resizing or reordering moves the indicator with
+its destination. These remain presence indicators, with no extra pagination.
+
+Open **More views → Customize dock** to change the order. Drag a row's handle immediately,
+without holding first, and move it across the **In dock** / **In More** boundary. The counts use the
+same live measurement as the dock and update on resize or rotation. Swiping
+elsewhere on a row scrolls normally; dragging a handle scrolls at the list's
+edges. Neighboring rows slide into their new positions during a drag, with
+reduced motion respected. A tap or small finger movement leaves the order unchanged.
+Keyboard users can focus a handle and press Up/Down; Escape during a drag
+cancels it. Changes save immediately per user on this device and survive reload.
+Search and More stay fixed. Settings and Customize dock stay in More, followed
+by overflow destinations in their saved order. **Back to More views** returns to
+the menu; **Done** closes the drawer.
+
+Reviews and Scheduling can be moved into the dock when enabled. Scheduling
+opens `/app/scheduling`, highlights while active, and uses header islands for its
+section and Personal/team owner drawers; it does not add a search-scope pill.
+
+Dock navigation, Search, filter pills, and create-menu taps do not trigger
+haptics. Buttons activate on click/release. Holding a button only shows its
 pressed state; cancelling the touch does not navigate. More views also opens on
 release so holding its trigger cannot drag or dismiss the opening sheet. Mouse,
 keyboard, and assistive activation use the normal click behavior.
@@ -639,17 +694,22 @@ When calls are enabled, `C C` (Create → Call) opens `/app/meet/new`. The call 
 created only after `Start call`; Escape closes the Create menu.
 Project opens the native project composer; Folder remains the Files folder action.
 
-Mobile glass presses animate the enclosing surface over 300ms. Round buttons
-retain roughly 20% growth; wide pills and grouped controls extend their glass
-fill and rim by up to 3px per edge, with 8% icon growth around each icon's center.
+## Mobile glass feedback
+
+In the native iOS app, glass presses animate the enclosing surface over 300ms.
+Round buttons grow by 28%; wide pills and grouped controls extend their glass
+fill and rim by up to 6px per edge, with 18% icon growth around each icon's center.
 Labels and layout stay fixed; icons remain visually aligned through release.
 Selecting or deselecting a pill updates its fill and text together, including
-during release or a rapid second tap. A subtle radial sheen spreads from the tap
-location and fades on release. On touch devices, buttons omit the circular
-hover/press overlay and native tap highlight; the shimmer supplies feedback.
-Release, cancellation, or dragging outside
-restores the surface. Disabled controls stay still; reduced motion keeps only
-the static highlight.
+during release or a rapid second tap. The fill changes with a radial spotlight
+centered on the touch, brightening the surface in both light and dark themes.
+The spotlight follows the finger while it moves within the surface, updating
+at most once per animation frame.
+These iOS surfaces omit the native tap highlight; the spotlight supplies feedback.
+Release, cancellation, dragging outside, or losing window focus restores the
+surface. Disabled controls stay still; reduced motion keeps only the static
+color feedback. Android and web keep normal tap feedback without this expansion
+or spotlight.
 
 ## Routines
 
@@ -811,7 +871,23 @@ notifications. External contacts insert a link to their original CRM record;
 they do not invite or notify that email address. Assignee and other user-only
 pickers continue to list Macro users only.
 
-Cmd+K **People** and a typed **All** query also find CRM contacts, using the same
+Typed Cmd+K **People** and **All** queries find known Macro users, including
+teammates supplied by the contacts service, before their first DM and without a
+CRM record or the CRM feature. Search by name or email. Selecting a person opens
+their direct message; an existing one-to-one DM replaces the person row without
+losing name/email matches. Group DMs stay separate, and the viewer is excluded
+from person results. Empty queries keep the existing recency lists. Verify a
+teammate with no DM or CRM record in both categories, including with CRM disabled,
+then verify that loading their DM produces one row and that Files/Channels do not
+show that person.
+
+Browser examples: [desktop](media/command/teammate-desktop.png) and
+[mobile](media/command/teammate-mobile.png), using a known-user fixture with no DM
+or CRM record and an intercepted DM request. These captures used a bundle-only
+guard for the unrelated disabled grouped-Soup startup crash in
+`create-grouped-soup-live-query.ts`; unmodified app startup remains unverified.
+
+With CRM enabled, Cmd+K **People** and a typed **All** query also find CRM contacts, using the same
 accessible-team search, hidden-record exclusions, and full-email collapsing as
 mentions. Cached contacts appear at once; the server search starts about 250 ms
 after typing stops and pages 100 contacts at a time, so contacts beyond the first
@@ -868,16 +944,27 @@ restart rules still apply.
 ## Keyboard model (from the in-app guide; verified partially)
 
 - `Ctrl/Cmd+K` — jump to anything by name.
+- `?` — the focused view's shortcuts, read from its registered keys (hidden
+  navigation keys and `g` sequences included); `?` again closes it. Only the
+  key opens it: the command menu does not list it, since run from there it
+  would describe the menu. A view's `g` letters are listed under that view.
 - `c` then `d`/`t`/`e`/`m`/`a` — create doc / task / email / channel / AI chat.
   Single-letter shortcuts only work when no editor has focus; press `Escape` first.
-- `/` — search everything. `j`/`k` — move in lists. `e` — mark done.
+- `/` — search everything (in Email it focuses email search). `j`/`k` — move in
+  lists. `e` — mark done.
 - `#` — move email to Trash, with an Undo toast. Works on the selected or focused
   rows in a mail list and on the thread open in an email detail or block. Email
   only; other entity types keep Delete/Backspace and do not answer `#`.
-- `g` then `h` — Home; `g` then `i` remains an alias.
+- `g` then `h` — Home; `g` then `i` remains an alias. While Email is focused,
+  `g i`/`o`/`s`/`t`/`d`/`e`/`a` open its tabs instead (`g i` Signal, `g t` Sent;
+  see `email.md`); `g h` still goes Home.
 - In Email and Tasks search, `Escape` returns focus to the list and keeps the query.
   Use the search field's clear button to clear it.
 - Splits: `` ` `` split, `Shift+H`/`Shift+L` move focus, `Shift+Esc` maximize.
+- Desktop app only: `Ctrl/Cmd` with `+`, `-`, and `0` zoom the page and reset it,
+  through the same stops a browser uses. The level persists across relaunches,
+  and the commands appear in the command menu as Zoom in / Zoom out / Actual
+  size. In a browser tab these stay the browser's own zoom.
 - In any text surface: `@` mentions (bidirectional links), `#` tags, `/` block commands,
   `:` emoji. Clicking a rendered tag opens a Search split filtered to that tag.
 
@@ -887,31 +974,6 @@ picker; a failed catalog shows an inline error. The rest of settings stays usabl
 Settings → Agents → Agents ends with **Coding sessions**: per-user **Create
 tasks** and **Open pull requests** switches, both off by default. Each saves on
 toggle and reverts with a toast if the save fails.
-
-With the `claude-cloud` feature flag enabled, Claude Cloud connection setup is in
-Settings → Agents → Runtimes (Manage on Bring your own agent), above Cursor, with the
-Anthropic logo. The agent editor's Where it runs offers In Claude Code but does not host
-Claude's connection form. **Connect Claude** starts authorization and opens sign-in
-on the first click; a fallback link remains if the browser blocks the tab.
-Approve on Claude's page, copy the complete `code#state`, then use **Finish
-connecting**. Hosted and local deployments use the same flow. Grants and pending
-sign-in attempts are encrypted in MacroDB and survive restarts or replica changes.
-If the card says sign-in is not configured, the deployment is missing its Claude
-OAuth KMS key; changing the frontend flag cannot fix that backend configuration.
-Claude's model picker uses provider-reported IDs,
-names, descriptions, and order. Settings discovers from recent account sessions;
-session catalogs update through replay, polling, and streaming. Before any catalog
-is available, only subscription default is shown with an explanation. It saves the next-turn preference
-without waking an idle worker; provider model rejections surface during the turn.
-Claude agents use their saved MCP selection through the shared authenticated
-session egress path. Remote HTTP/SSE servers are supported; stdio servers are
-rejected. Tool permission requests use Macro's standard session policy. MCP setup
-failures surface as turn errors and request interruption; the first prompt also
-wakes the cloud worker, so setup failure may occur after submission. Reconnecting
-refreshes the session credential and restores the saved selection.
-Claude sessions expose **Open in Claude** in the header
-toolbar (or its overflow menu). With a live runtime, messages sent in Claude are
-polled into Macro about every two seconds; disconnected runtimes must resume first.
 
 Home does not bind Delete or Backspace to deleting list items. These keys remain
 available to the open editor (for example, clearing a selected spreadsheet range).

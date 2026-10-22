@@ -10,10 +10,20 @@
 - The app does not register a service worker. Keep `public/sw.js` as a retirement
   endpoint for existing installations; see the [startup bundle rule](../../.agents/rules/web/startup-bundle.md).
   Loro uses async WASM loading and HTML preloads independently of service workers.
+- Web asset publication and cache headers are covered by
+  [web-app delivery](../../infra/stacks/web-app/README.md); its publisher tests
+  are backend-free, and its Pulumi tests must not run real staging/cloud commands.
 
 ## Verifying a change in a real browser
 
 Any user-visible change should be exercised in a browser before you call it fixed — type-check, biome, and vitest all pass on code that still has the interaction bug.
+
+Split dragging and composer reflow have a backend-free browser regression:
+`bunx playwright test --config src/lib/core/component/Resize/browser-test/playwright.config.ts`.
+It exercises the real resize solver, scroll container, and Lexical layout primitive.
+
+Discussion link scrolling has a backend-free browser regression:
+`bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.
 
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 
@@ -66,6 +76,9 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 
 ## Development Patterns
 
+- Reuse `src/components/WorkspaceTexture.tsx` for the onboarding and Create
+  detail panel grain; pass the surface accent and a unique SVG filter ID.
+
 ### Pipedream native authorization
 
 Keep native Pipedream consent in the system browser: the desktop navigation
@@ -78,25 +91,81 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+- Email draft reads compare server generations before choosing cached delivery state over a restored working copy; only a definitive first-submission rejection permits local send recovery without server cancellation.
+- Compose settings pages with `features/settings/primitives.tsx` so section headings,
+  raised composer cards, row spacing, and control shapes stay consistent; keep
+  Integrations on the shared page width and side padding.
+- Keep personal accounts and agent tool connections together in Settings → Integrations;
+  preserve `agent-connections` as an alias for existing links.
+- Keep bot setup focused on the token-and-SDK workflow; Agent and Ownership
+  controls live under collapsed Advanced settings. See the
+  [Bots walkthrough](../../docs/agent-guide/settings.md#bots).
+- Label the notification permission toast **Enable Desktop Notifications** in
+  the desktop app and keep its Enable action on the native notification provider.
 - Keep signed-out Drive document routes on the shared detail viewer without
   mounting private list/sidebar sources; let document access checks decide visibility.
 - Gate account-only queries, comment readers, and account WebSockets on confirmed
-  authentication; keep public document loading independent of those services.
+  authentication; keep public document loading independent of those services
+  and distinguish unresolved identity from confirmed sign-out in UI prompts.
+- Probe identity on deploy-preview origins even without a local login hint;
+  shared HttpOnly dev cookies are not visible to JavaScript or localStorage.
 - Disable GraphQL cache sessions and clear login hints on confirmed auth 401s,
   even with retained user data; preserve session state on transient failures.
+- Treat a repeated worker-ready frame as a coordinator restart: retire the old
+  engine and re-register in place, preserving durable storage and never replaying
+  uncertain enqueues. See `docs/graphql-normalized-cache-plan.md`.
+- Mobile dock customization shares the navigation island’s measured capacity; persist ordering per user with `mobile-dock-order.ts`, preserve gated destinations, and keep Search and More fixed. Reorder handles drag without a hold delay; the rest of each row scrolls.
+- Share sidebar and mobile dock unread presence through `components/app/use-navigation-unread.ts`; keep badges reactive to read/done changes, guard all query data with `queryReadyGate` so pending preferences or paused queries cannot suspend the shell, and avoid fetching extra pages for counts.
 - Mobile dock search owns transient category/mode state in `features/command/mobile`; reuse the shared entity source and explicit full-text adapter rather than overlaying the dock query on view tabs or saved facets. See `docs/agent-guide/search.md` at the repository root.
+- Include known Macro users in typed All/People name searches without requiring a DM or CRM contact; resolve a matching person to their existing one-to-one DM while preserving name/email matching.
+- Key mobile name-result history ordering and scroll anchors by the other participant for one-to-one DMs, preserving a person's position when their conversation is created; keep group DMs keyed by channel.
+- Keep mobile Search history lightweight: save query/category/mode, account-scoped item anchors, and at most 200 ordering IDs per mode; never save row objects or virtualizer caches. Restore from current sources with at most three additional pages, fall back when an anchor disappears, and stop restoration on user interaction or scope changes. Dock navigation starts a fresh search session; cached rows belong to the source, not history.
+- Release saved entry state when its router entry is replaced, pruned, or closed; retain only the latest split event so obsolete payloads cannot keep result lists alive. Preserve snapshots for entries still reachable through Back/Forward.
 - Keep Quick Access cache availability reactive to the GraphQL rollout flag; it can arrive after the provider mounts, and email has no legacy source fallback.
 - Virtualize mobile name results like desktop Command Menu; local Quick Access sources are unbounded, and mounting them all stalls iOS keyboard focus during layout. Load additional search pages near the scroll end instead of reserving a paging bar.
-- Reconcile mobile full-text rows by entity ID so appending a page preserves DOM rows and scroll position.
-- Reserve only the safe-area inset above mobile Search and Channels; their hidden split headers must not leave a blank strip or extend the top fade.
+- Reconcile mobile full-text rows by entity ID so appending a page preserves DOM rows and scroll position; restore item anchors after responsive row measurement and disable browser scroll anchoring so layout changes cannot override restoration.
+- Reserve the safe area plus the category row above mobile Search, and only the safe area above Channels; their hidden split headers must not add another blank strip.
+- Follow [mobile layout and chrome](../../.agents/rules/web/mobile.md#layout-and-chrome) for full-frame views and record tabs; verify their first controls below the navigation with a nonzero safe area on phones and tablets.
+- Keep split chrome portal targets reactive so cached views can mount before their header, and clear a retiring header's targets only while it still owns them.
+- Let `ViewShell.TopBar` own split close and navigation controls; do not add a second split close button inside Agents headers or their preview `headerLeading`.
 - Show only the Recent conversation feed in mobile Channels, without view tabs or a persisted mobile tab selection.
 - Mount the mobile search input before focusing it inside the dock tap; keep navigation in that handler so focus does not trigger a second navigation or lose iOS keyboard activation.
 - Preserve focused chrome editors during deferred split insertion/removal autofocus; explicit return-focus commands may still focus the pane.
 - Reconcile global focus when focused DOM subtrees are removed; iOS can omit blur events, otherwise floating creation actions stay hidden after search or editor teardown.
 - Mount the floating mobile AI composer only on the Agents view; other views keep their New action or their own reply/comment composer.
+- Keep desktop model and effort controls separate: the model selector opens the catalog and the speedometer opens the runtime's advertised slider stops; retain the mobile effort sheet.
+- Passive PR mentions must not retry initial GitHub status failures on remount; preserve confirmed status through refetch errors and keep pending data reads out of their parent Suspense boundary.
+- Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
+- Diagnose native full reloads with `native_webview_started`, `native_diagnostic_recovered`, and the shared `frontend_instance_id`; use `reloadApp(reason)` for frontend reloads and keep breadcrumbs content-free. Treat `previous_document_*` checkpoints as last-observed lifecycle evidence, never a crash verdict; clear them on logout. See [frontend checkpoints](docs/native-reload-diagnostics.md) and `tauri/src-tauri/README.md`.
+- Inline agent steps reuse the session code-execution query for live SDK operation
+  names; completed step snapshots come from the shared fold of the tool receipt.
 - All API/network calls live in service-clients.
+- Open projects through `openProject` (`features/projects/open-project.ts`): it
+  retargets an already-open project split to the section or comment in place.
+  Opening the legacy `initiative-view` component route beside an open project
+  mounts a redirect shim that stays on "Loading project".
+- Bound Discussion comment readiness waits to ten seconds; recover from initial layout interruptions until the message is visible, and release the target on user input (including scrollbar pointer-down), timeout, or successful arrival.
+- Keep early DOCX opens loading while exports return processing (409); retry only
+  that response, with a bounded wait. See the Word editor walkthrough in
+  `docs/agent-guide/documents.md` at the repository root.
+- Add Google Meet account hints only to join actions using the displayed calendar's
+  connected email; keep stored and copied conference links unchanged. See the
+  [calendar walkthrough](../../docs/agent-guide/calendar.md).
+- Mark loaded calendar row notifications through the notification source so read
+  dots update immediately and failed writes roll back; grid selections also mark
+  the canonical event read, excluding team projections.
+- Route explicit call exits using the server's `callEnded` result: ended calls
+  open their record; ongoing channel and scheduled calls return to the channel
+  and Calendar. Preserve the session ID before disconnecting.
+- Diagnose browser call media with `call.media.*` spans and the `meeting.setup.id`
+  on `meeting.join`; keep provider messages, device labels/IDs, and call-link
+  tokens out of telemetry. See [call diagnostics](../../docs/agent-guide/calls.md#browser-call-diagnostics).
 - Keep desktop Gmail and Outlook inbox consent in the system browser with a
   `macro:///inbox-link-callback` return; webview origins are not desktop callbacks.
+- Keep send reservations, leases, and cancellation in the email journal; the general GraphQL queue handles draft autosaves only.
+- Always persist composer sends in account-scoped IndexedDB and dispatch through the fetch-only email client, without a feature flag; cache health and unrelated mutation queues must not gate delivery. See `docs/architecture/email.md` for state and rollout invariants.
+- Retry cache bootstrap on reconnect/foreground or draft Retry only when storage was proven untouched; retain the same scope and block draft sync until the replacement queue is readable.
+- Touch email replies and forwards use the full-screen composer with the shared new-email header actions; preserve thread state underneath and flush local edits before closing.
 - Draft autosaves preserve active email thread messages; evict inactive legacy
   caches on save and the active cache on thread exit. Revalidate GraphQL thread
   pages only when a save cannot patch the message list (missing snapshot or a
@@ -105,9 +174,25 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   reply transitions preserve the card's focus target and return to natural height.
 - Shared server-state queries and mutations live in `src/lib/queries`; keep
   feature-specific query orchestration with its owning feature.
+- Refresh the channel list's bounded unread edge when opening a conversation,
+  including an empty unread result after a read on another device.
+- Route supported move, trash, restore, permanent-delete, duplicate, and share-policy
+  writes through `queries/storage/entity-mutations` when GraphQL Soup is enabled;
+  never retry failed GraphQL writes through REST. Preserve non-owner history removal
+  and version-specific markdown forks on their existing paths. Confirmed restores
+  clear earlier deletion markers without clearing a newer delete's intent.
 - Preserve loaded block content on initial access confirmation when its loader
   supplies no permissions; reload only on a later confirmed permission change.
   Apply shared access in place only after a successful permissionless load.
+- Grouped Soup's `graphql/create-grouped-soup-live-query.ts` owns initial and
+  continuation pages plus their local predicate projection. Group readers only
+  delegate paging; pass the parent's live `groupedPaging` accessor from every
+  caller, including Tasks and project-task lists. Do not introduce independent
+  continuation owners. Keep server
+  membership snapshots separate from normalized field/link updates; restored
+  properties do not prove prior membership. Supply complete prior multi-value
+  memberships when adjusting counts: a row loaded in one bin may already be an
+  unloaded member of another.
 - Reactive GraphQL reads use `createLiveQuery` for a document and
   `useSoupAstItemsQuery` (backed by `createSoupLiveQuery`) for Soup lists; see
   [choosing a reactive read](docs/graphql-normalized-cache-plan.md#choosing-a-reactive-read).
@@ -148,6 +233,36 @@ Follow [`docs/ios-releases.md`](docs/ios-releases.md) for App Store signing and
 provisioning, including both extensions. The release script temporarily selects
 manual export when a distribution certificate path is supplied.
 
+## macOS notification activation
+
+Carry the notification ID through native delivery and the buffered `navigate`
+bridge, so clicks survive app restarts and wait for the split layout to be ready.
+Install and retain the UserNotifications delegate before the native event loop
+starts. Clicking restores and focuses the main window; receipt and dismissal do
+not navigate. Preserve iOS and Android `createPushApi` tap navigation when changing
+desktop delivery, including buffered launch taps before device registration.
+Send the sender and conversation as their own fields so macOS can show a
+communication notification (avatar, sender, conversation); keep new native
+arguments optional for OTA compatibility. Releases need the Developer ID
+provisioning profile for the communication entitlement; see
+`tauri/src-tauri/README.md`. This requires a native macOS release; see the
+[notification walkthrough](../../docs/agent-guide/notifications.md).
+
+## Desktop page zoom
+
+The desktop app binds `Ctrl/Cmd` with `+`, `-`, and `0` itself in
+`src/lib/tauri/zoom.ts`; nothing underneath provides them. Wry's
+`zoomHotkeysEnabled` is Windows-only and Tauri's default menu has no zoom items.
+The hotkeys call the webview's `setZoom`, which needs
+`core:webview:allow-set-webview-zoom` in `tauri/src-tauri/capabilities/desktop.json`,
+so a build without that permission fails the call at runtime. That permission
+lives in a `desktop`-named capability rather than `default.json` because the iOS
+and Android native gates hash every file under `tauri/` whose path doesn't name a
+platform: editing `default.json` would demand a store release for a command that
+only exists on desktop. The saved factor is
+re-applied on launch because the webview always starts at 100%. `RootFrame`, not
+`GlobalHotkeys`, registers them, so zoom also works on pages without app chrome.
+
 ## Desktop file drops
 
 Keep `app.windows[].dragDropEnabled` false in `tauri/src-tauri/tauri.macos.conf.json`.
@@ -170,8 +285,20 @@ on focus/reconnect; route existing subscriptions to billing management. Keep
 known management access through refetch failures, but hide unconfirmed trials.
 Reset rejected checkout offers before refetching eligibility.
 
-## macOS desktop gotcha: third-party iframes
-WKWebView asks the desktop navigation plugin about iframe loads as well as page loads, and the plugin cannot tell them apart. A third-party iframe is classified as external: its load is cancelled and the page opens in the browser, leaving an empty frame in the app. List a third-party page the app frames in `EMBEDDED_DOCUMENTS` in `tauri/src-tauri/src/lib.rs`.
+## Desktop release builds: generated WASM
+
+Keep `nix/tauri-desktop.nix` in sync with generated WASM dependencies: desktop
+releases run Vite directly and do not call `just build-tauri` or `build-wasm`.
+Build and copy the agent-fold JavaScript glue and WASM before Vite runs, and
+check that both appear in the output. Without them, Vite leaves the worker's
+relative imports unchanged and Tauri can serve HTML for the missing module.
+
+## macOS desktop runtime: Chromium (CEF)
+`tauri/desktop-cef` builds the shipped macOS app with Chromium in its own Cargo
+workspace. The macOS release DMG builds this workspace; iOS, Android, Linux,
+and Windows still build `tauri/src-tauri` on the system webview. See
+`tauri/desktop-cef/AGENTS.md` before changing Tauri
+dependencies or the app's served origin.
 
 ## iOS gotcha: Web Workers must be lazy
 On iOS WKWebView, eagerly constructing an ES module Web Worker (`new Worker(url, { type: 'module' })`) whose script is served via the `tauri://` custom URL scheme **deadlocks the WebContent process**. The worker thread parks in WebKit's sync module loader waiting for an IPC response that never wakes it; JS execution silently stops after that point.
@@ -242,3 +369,23 @@ On a physical iPhone, WKWebView still synthesises the compatibility `mousedown`/
 3. **Run it on the device, not the Simulator**, with Safari Web Inspector attached (Develop → the iPhone → the Macro webview), filter the console by the prefix, reproduce, and read the order. A `mousedown` arriving after a `pointerdown` logged with `defaultPrevented: true`, followed by `focusout` whose `relatedTarget` is a container, is this bug.
 
 4. **Strip the instrumentation before committing.**
+
+### Agent system events
+
+Accept `notification` in both fetched and subscribed GraphQL session log rows.
+System notifications live in fold metadata, separate from messages. Review
+subjects refresh their existing card; other subjects render quiet timeline rows
+through `block-agent/components/session-event-row.tsx`. Match typed event
+payloads exhaustively, summarize outcomes without draft content, and keep the
+icon, truncated summary, timestamp, and optional subject action on one line on
+desktop and mobile.
+Keep Responding bound to the notification turn, including rejection and noop.
+The backend-free desktop/mobile check is
+`bunx playwright test --config src/features/block-agent/browser-test/playwright.config.ts`.
+Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
+
+### Agent backend hosting
+
+Cognition, routines, preview control, and MCP share `agent_harness_service`.
+Direct local hosts use port 8101 with the existing feature prefixes; the
+instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.

@@ -29,9 +29,27 @@ Unlike Calls, it lists only personal tags; team-shared tags are hidden,
 and its `New tag` action creates a personal tag with no Team sharing option.
 
 Full email client. Tabs: `Signal` / `Noise` / `Favorites` / `Sent` / `Scheduled` / `Calendar` / `Drafts` / `Shared` /
-`Archived` / `All`. Compose via the `Email` button (or `Create` → `Email E`). On a fresh local user it
+`Archived` / `All`, plus `Reminders` when reminders are enabled. Compose via the `Email` button (or `Create` → `Email E`). On a fresh local user it
 shows `Connect your email`; Gmail/Google Workspace and enabled Outlook connections
-use provider consent. Most functionality needs a connected account. Search is `Ctrl+F` within the surface.
+use provider consent. Most functionality needs a connected account. Search is `Ctrl+F` or `/` within the surface.
+
+Mail-client keys work in the list, the reading pane, and the open thread while
+Email is focused: `s` star, `z` undo the last action, and `g` then a letter
+for a tab (`i` Signal, `o` Noise, `s` Favorites, `t` Sent, `d` Drafts, `e`
+Archived, `a` All). These letters replace the app-wide `g` targets only inside
+Email (`g t` is still Tasks elsewhere); `g h` still goes Home. `Escape` in a
+list with nothing selected returns to Signal; in the reading pane it first
+hands the keyboard back to the list. `?` lists every shortcut for the focused
+view. `Shift+M` mutes the selected rows or the open thread, and `S` and
+`Shift+M` also work on a thread opened in its own split. In a thread, `O` opens
+or closes the selected message (the latest when none is selected), `Shift+O`
+opens every message including the collapsed middle run, and `N`/`P` step
+messages like the arrows. `Cmd+Up`/`Cmd+Down` jump to either end of a list.
+In every composer `Cmd+Shift+.`, `Cmd+Shift+,` and `Cmd+Shift+D` discard the
+draft exactly like its trash button, `Cmd+Shift+U` opens the attach picker, and
+`Cmd+Shift+X`, `7`, `8` and `9` apply strikethrough, numbered list, bulleted
+list and quote. Check discard from both a reply (the reply closes) and
+standalone compose (the view goes back), with focus in the body.
 
 Outlook connections support personal Outlook.com and individual Microsoft 365
 inboxes. Choose the inbox explicitly when testing mixed-provider accounts. The
@@ -39,10 +57,22 @@ same thread, search, Signal/Noise, draft, and schedule surfaces apply to both
 providers. Shared/delegated Microsoft mailboxes are outside this account scope;
 sharing an inbox or thread inside Macro remains available.
 
+A Microsoft 365 tenant that lets only administrators consent sends the user
+back to an `Admin approval required` dialog with `Copy admin approval link`
+(a tenant-wide approval link for IT) and `Connect a different account`.
+Cancelling on the provider's consent screen returns to the previous view
+silently. An administrator who opens the approval link returns to
+`Approved. Try connecting again.` with the connect dialog open. On native
+mobile the approval dialog is not shown; connect from the web app instead.
+
 For Outlook writes, distinguish acceptance from provider confirmation. Thread
-organization notices and inbox settings show pending or failed changes. A saved
-draft can show a conflict or an uncertain delivery: use its recovery actions and
-check the provider copy before choosing an explicit resend. Switching the sender
+organization notices and inbox settings show pending or failed changes; the
+mark-as-read from opening a thread is announced only if it fails. Draft sync and
+delivery progress is silent, as on Gmail: a composer or sent message shows a
+notice only for a conflict, uncertain or rejected delivery, revoked access,
+unsavable content, or an inbox move. Use its recovery actions and check the
+provider copy before choosing an explicit resend; a resend in flight shows as
+the send button's pending state. Switching the sender
 inbox copies the draft and attachments into the destination; wait for completion
 before sending. If the copy is interrupted, use retry or keep the original.
 
@@ -78,6 +108,11 @@ Rows offer **Unarchive email**;
 unarchiving removes the row at once. The tab persists across reloads. An empty
 list shows `No archived email`.
 
+A thread carrying a sent file shows a muted paperclip immediately before its
+date, in every list layout. Inline images (an image with a Content-ID, such as
+a signature logo) and calendar invites do not count; invites keep their own row
+icon. Search-service results carry no attachments, so they never show it.
+
 On desktop, a favorited email keeps a filled, muted star just before its
 timestamp. Other rows reserve only that small star slot. Hovering reveals
 **Star email** (Macro favorites), **Archive email** (Mark Done, with Undo), and
@@ -98,6 +133,15 @@ under the new heading. Active searches also hide retained results and show loadi
 while selected tag sets are pending. Background refreshes retain the current list. To check this,
 rapidly alternate Signal, Noise, and Sent, then change inboxes; a delayed cache or
 network read must not leave the old rows visible or expose their Load more action.
+
+For native offline reads, let the GraphQL email backfill finish, block dev-service
+traffic, terminate the app, and relaunch it. Open Mail and a backfilled thread:
+cached rows and message bodies must remain visible while REST inbox identity and
+mailbox-operation requests are pending or paused. Restore connectivity and check
+that supplemental metadata appears without replacing the rows or thread body.
+On the first mobile Mail visit, its filter button and Signal/Noise pills must
+also appear. Navigate Home → Mail → a thread → Mail and verify those controls
+survive header replacement, including with the network still blocked.
 
 Opening an email shows loading while its local draft identity and thread data
 resolve. Verify a cold open and switching directly between threads with delayed
@@ -319,7 +363,9 @@ first); the list keeps the row you came from focused. The inline header uses the
 email title menu: open the menu button beside the subject for **Ask AI**, **Create a
 Task**, and the other thread actions. On desktop, **Mark as unread**, **Mark done**,
 and **Previous item** / **Next item** sit at the right of that header. The arrows
-follow the current filtered list and disable at its ends. Mark done advances in
+follow the current filtered list and disable at its ends. When the open thread
+leaves the list while it stays open (a reply in Signal marks it done, or another
+device archives it), they step from its former neighbours. Mark done advances in
 that list. In a list, the Mark done, Mark as not done and Delete keys act once per
 press: a held key auto-repeats, and those repeats are ignored. Mark as unread (in
 the header or title menu) returns to the originating list with its tab, inbox, and
@@ -355,7 +401,18 @@ separators and 16px side gutters; collapsed previews show one line. Desktop
 keeps rounded cards matching the chat composer: soft shadows in light mode,
 the same subtle 3D rim in dark mode, and a faint hover tint. Desktop selection
 does not add an accent-colored ring; keyboard focus has a neutral outline.
-Replies appear inline on desktop and in a composer drawer on touch devices.
+On touch, the floating Reply, Forward, previous/next email, and done controls
+use the mobile dock's chrome fill and icon color in both themes.
+Replies appear inline on desktop and in a full-screen composer on touch devices,
+including tablets. Reply, Reply all, and Forward use the same grouped header
+actions as new email: attach, schedule, and send. The schedule clock matches
+Attach's touch icon size. The Back control returns to the thread; when a reply
+has content, choose Save Draft or Delete Draft. Escape
+and Android Back follow the same close flow, including Escape with a header
+button focused. Closing an empty reply discards its local/server draft and
+removes its Draft preview from the thread. Saving must finish before leaving;
+a failed local save keeps the composer and draft options open. The message list
+stays mounted underneath so closing a reply preserves its scroll position.
 On touch, a saved reply shows as a **Draft** row with its opening words under the
 message it answers (which stays expanded); tapping it reopens the draft.
 On desktop, a saved reply that reappears with its thread (opening it, stepping
@@ -390,6 +447,13 @@ During send or discard, its sender and scheduling controls cannot change the ope
 Attachments that can be opened are buttons named by their filename; Tab to one
 and press Enter or Space. Removal is a separate button named `Remove <filename>`.
 Removing a forwarded file keeps the received original.
+Files that would push the email over the sending inbox's delivery limit (18 MB
+on Gmail, 25 MB on Outlook) are not attached:
+a confirmation (a drawer on phones) offers to upload them to Macro and share
+view-only links instead. Confirming inserts one link per file at the end of the
+written message, above a reply's quoted thread, and the draft autosaves; Cancel
+adds nothing. Files that fit still attach, and the same check covers files
+dropped onto the body.
 To forward from another inbox, open Forward, expand the forwarding envelope on
 desktop, and select a different account in From (already visible on mobile).
 Forwarded files must remain attached after switching to an owned or delegated
@@ -408,6 +472,15 @@ Ordinary queued saves must not request another `EmailThreadPage`; a missing
 thread snapshot or a move between inboxes still requires reconciliation.
 AI email tool drafts persist body-only edits; changing recipients or the subject
 is not required to save the body.
+For an AI-drafted reply with no explicit sender, the backend selects the inbox
+that received the original message. Delay the reply-inbox lookup: the composer
+shows `Resolving sender...`, hides the signature, and disables Send (including
+the keyboard shortcut and batch submission). Fail the lookup and check Retry; choosing a From inbox
+also enables sending immediately. A late lookup must not overwrite that choice.
+Implicit senders omit `from` on edits and sends. An explicit sender is preserved
+even while inboxes load or after disconnection; an unavailable sender blocks Send
+until another connected inbox is selected. New emails default to the primary
+inbox after inboxes load. Repeat on mobile using the expanded `Cc/Bcc, From:` row.
 
 With GraphQL draft queuing enabled, working copies and pending attachment bytes
 are saved on this device independently of the mutation queue. A failed server
@@ -425,15 +498,19 @@ continues saving locally without repeatedly submitting the rejected request.
 Local draft storage reopens unexpectedly closed IndexedDB connections. If creating
 a transaction fails because the connection is closing, it retries once before
 running any writes. When WebKit aborts a started transaction (typically while the
-iOS app is backgrounded), the whole transaction replays on a new connection, at
-most three attempts; a save recognizes its own commit, so a replay never
-duplicates a revision. Hiding the app writes a debounced edit immediately, and
-any visibility change retries a failed local write with the live editor content.
-Verify by closing the draft database connection, then editing: the latest content
-must persist locally and server autosave must continue without reloading. Repeat
-across background/resume on an iPhone. Persistent failures still block server
-autosave; copy unsaved content before restarting. Storage failures and recovery
-report current page visibility and network state without draft content.
+iOS app is backgrounded), the whole transaction, draft or outbox, replays on a new
+connection, at most three attempts; a save recognizes its own commit, so a replay
+never duplicates a revision. Hiding the app writes a debounced edit immediately,
+and any visibility change retries a failed local write with the live editor
+content. Verify by closing the draft database connection, then editing: the latest
+content must persist locally and server autosave must continue without reloading.
+Repeat across background/resume on an iPhone. Persistent failures still block
+server autosave; copy unsaved content before restarting. Storage failures and
+recovery report current page visibility and network state without draft content.
+Request errors settle only after the transaction's abort event, preserving the
+underlying IndexedDB error and waiting for rollback before recovery. To verify,
+force a request constraint failure: the prior draft must remain intact, the error
+must be `ConstraintError`, and a subsequent valid save must succeed.
 
 Repeated local-save failures show one persistent warning per composer; a later
 successful write dismisses it. Closing the composer writes the unsaved edit once
@@ -497,8 +574,12 @@ Macro Markdown messages retain document mentions. Ordinary HTML bodies use an
 open shadow root: Playwright text locators can reach them, but a card's ordinary
 `innerText` or `querySelector` does not traverse that root.
 
-Sending a reply from an inbox thread marks that thread done but stays on it;
-only the explicit Mark done action opens the next email.
+Sending a reply from an inbox thread marks that thread done but stays on it.
+Send and mark done (Shift+Cmd+Enter) and Mark done open the next email, counted
+from where the thread sat when it was opened (a reply draft lifts its thread to
+the top of Signal while it is written). If the user has already moved to
+another thread when the send finishes, the replied thread is marked done
+without navigating; Undo before then leaves it in the inbox.
 Sending a message shows it in the open thread immediately, while delivery is
 still pending. It stays visible until the thread refresh confirms it, with no
 duplicate message. Failed delivery removes that message and restores the reply
@@ -523,18 +604,116 @@ final sent update, then switching offline and opening Sent. Existing provider
 timestamps and timestamps from repeated finalization remain unchanged; an unsent
 or cancelled draft must not acquire Sent membership.
 
-Send and schedule are refused with a notice while the device is offline, while a
-draft is still syncing (its save was accepted locally but not yet confirmed by the
-server; retry after a moment), or while an attachment has no completed upload. The
-composer keeps its content in each case. Attachments cannot be added while
-offline: a blocking notice explains and nothing is attached.
-For a new standalone email, a failed REST draft save is best-effort: Send can
-still proceed without a draft ID when no save was queued and no attachment is
-waiting to upload. A server rejection blocks sending even an existing draft.
+**Send** and **Send Later** always persist new messages, replies, and forwards
+for Gmail and Outlook in device email storage; no outbox feature flag is required.
+This works with either thread read transport, including when normalized-cache
+initialization has failed. Recipients, inbox, sender alias, body, displayed
+signature, attachment references, and any scheduled time are frozen under one
+attempt ID. Completed uploads are required; adding files offline is unavailable.
+
+An authenticated app-level dispatcher submits online immediately and retries the
+same attempt independently of unrelated draft, archive, and property mutations.
+**Queued on this device** means the app must run again to submit. **Accepted by
+server** means delivery continues after the browser closes. Never equate local
+queueing or server acceptance with provider delivery. Only one active send can
+own a draft across tabs; queued composers remain read-only.
+
+Queued sends remain visible in **Drafts** and their conversation with a persistent
+status and **Cancel** action. A never-attempted send can be cancelled offline.
+If admission may have reached the server, **Cancellation pending** keeps it locked
+until the server confirms cancellation. A definitive inbox-access rejection of
+the first submission permits restoring the saved draft locally. Verify this still
+works after reload without a cancellation request to the inaccessible inbox.
+A lost response followed by an inbox-access error must remain locked. Once delivery starts, cancellation may
+be too late. Confirmed cancellation automatically restores the working copy,
+including after navigation or reload. Restoration and removal of local send
+authority commit together. It preserves newer edits and fences callbacks from
+before cancellation; older autosaves cannot overwrite or delete the restored copy. A failed queue attempt retains recovery content;
+cancel it before restoring and sending again. The server starts the undo delay
+at first admission, so reconnecting does not consume that delay while offline.
+The send toast's **Undo** works after navigation closes the composer. It restores
+the draft only after cancellation is confirmed. Pending cancellation, an expired
+undo window, and failed cancellation each display a notice. Delivered attempts
+remain complete even if the sent message is later deleted from the provider.
+After Undo, delay the accepted cache record's refresh: the newer restored draft
+must still reopen with its body and attachments. A later confirmed send must still
+prevent reopening that older draft.
+
+In local backend tests, delete a message after acceptance and during uncertain
+submission. Its body, attachments, delivery job, and reconciliation identifier
+must remain intact. After cancellation, the deferred deletion must not delete the
+restored draft or a subsequent send, even when the provider ID stays the same.
+
+If an approved attachment is no longer available before delivery, the send stops
+with a failure so the draft can be restored and reviewed. It must never silently
+send a smaller attachment set. An interrupted worker can retry preparation, but
+after submission may have begun it only checks Gmail for the original Message-ID.
+An unresolved outcome shows **Delivery unconfirmed** with **Check status**; it
+remains locked and is never automatically resent. A confirmed Gmail match marks
+the original attempt delivered. A definite preparation failure or provider
+rejection allows cancellation and draft restoration.
+
+When Gmail sync imports a delivered message before recovery completes, recovery
+keeps the Gmail-synced conversation and the original local message ID. Links to
+the now-empty draft conversation redirect for users with access to that inbox.
+Sharing only the old conversation must not grant access to the destination.
+Existing properties and reminders on the old conversation stay attached to it.
+
+Switching an existing draft's sending inbox while offline must send from the
+selected inbox after reconnect, even when the intermediate draft save is still
+queued. Uploaded files remain attached. Forwarded and imported provider attachments retain their source-inbox access checks.
+Provider-bound drafts use the explicit inbox-transfer flow. Accepted Outlook
+sends remain owned by its provider coordinator; ambiguity is reconciled there.
+
+Verify: queue a new message and a reply offline, close and reopen the app, and
+check their persistent status and read-only content. Cancel one before reconnect
+and confirm its send mutation is never issued. Reconnect the other and check
+that one stable attempt is replayed even after a lost response. Also test a
+cancel racing admission, unavailable local storage, and a pending upload. Queue
+admission means **Email queued to send** or **Email sending**, not provider delivery.
+Send a standalone message, let it open its thread, then use the toast's Undo and
+confirm the original draft reopens. Repeat after delivery starts and check the
+visible failure notice. Cancel a draft-only thread and check it returns to Drafts
+without requiring another save.
+Restore both a standalone draft and a reply, then edit and save without reloading;
+confirm the original content is visible and no send watermark returns. While a
+standalone send is queued, verify sender, recipients, subject, body, attachments,
+signature, formatting, schedule picker, delete, and Send remain disabled. Only
+Cancel may change the queued send. The disabled reply Send action explains
+**Queued to send. Cancel the send before editing.**
+Open the formatting ribbon before queueing
+and verify it disappears while locked. Repeat after reload and restore in the
+same mounted composer; no schedule proposal should survive the queued state.
+Drop an inline image while queued and confirm no upload or insertion occurs.
+Queue the same draft from another composer while its link editor is open;
+the link editor must close. Repeat while image conversion or file upload is
+pending and verify completion does not insert content into the locked body.
+While a
+reply is queued, click Forward on another message and confirm the queued content
+and recipients stay unchanged. Race Send from two tabs and confirm only one
+active intent exists; cancellation must not leave a second send queued.
+Queue Send before the latest edit reaches the server. The send journal takes
+ownership of that exact local revision. After cancelling, edit the restored draft before reconnecting and verify those later
+edits still sync. Repeat across tabs: a newer local edit racing Send must block
+the stale submission, and old send cleanup must preserve a restored draft and
+its attachments. Logout should warn about queued sends even after their original
+local working copies have been retired; it must not claim to cancel server sends.
+Approved local sends survive sign-out, are hidden from other accounts, and resume
+only when the same account signs back in. The status panel also lists pending and
+failed server attempts from other devices, with pagination. Cancelling one must
+preserve this device's unsynced edits. A malformed or newer-version journal record
+shows a recovery warning, retains its recognizable draft locks, and does not stop
+unrelated valid sends. Reconnecting an expired email account requires **Check
+status** to resume a paused local attempt.
+
+New messages and replies persist a local draft identity before Send; an ordinary
+autosave does not need server acknowledgement when the frozen message and
+completed attachment references are available locally.
 GraphQL draft saves automatically retry only network failures. GraphQL errors,
 including internal, invalid, and unauthorized errors, fail the mutation and
-release the queue. The local working copy offers explicit Retry; Send stays
-blocked until a save is confirmed.
+release the queue. The local working copy offers explicit Retry. Send and Send
+Later capture the latest local revision and completed attachments for offline
+delivery.
 A successful save response with an invalid cache identity binding still commits
 its normalizable server data and reports a cache diagnostic without replaying
 the mutation or asking the user to save again. If that response also cannot be
@@ -608,6 +787,50 @@ and reconnect. Opening through an older local thread link must reach the same
 server thread after synchronization. Repeat with an existing reply and confirm
 that other messages, attachments, and the Sent preview remain intact.
 
+Attachments require connectivity: adding files offline is refused in both composers.
+Existing attachments stay visible and preserved while offline, but Send and Schedule
+send require reconnection for any draft with attachments. Online, clicking Send before
+a save debounce finishes must start or continue uploads; a queued save's confirmation
+must also resume pending uploads after reload. Pending or failed inline image/video
+uploads block Send and Schedule send until they have durable URLs or are removed.
+
+Queued sends survive query-cache recovery in independent account-scoped storage,
+retaining their original attempt IDs, frozen bodies, attachments and cancellation
+requests. After cache loss, status reconciliation must reuse that attempt identity;
+it must not create a second delivery.
+Cancel a reconstructed send while its original HTTP request is delayed: the draft
+must stay locked until the server confirms cancellation, even if recovery's status
+lookup found no attempt. A fresh queue entry cannot prove the original was never tried.
+Repeat while the general GraphQL queue is blocked on an unrelated mutation;
+Outbox submission and cancellation must proceed independently.
+After durable reply Undo, delay the restored working-copy read until UI callbacks
+finish, then edit and send again. New edits must save using the restored generation.
+Repeat provider draft sync followed by trash and a new explicit Send: a delayed
+Undo for the trashed send must preserve the newer send's schedule and body.
+Restart after persisting Cancel but before submitting it: app-shell recovery must
+finish cancellation and restore the draft atomically. Repeat with no email view
+mounted. Reset the actual WASM cache and verify the independent send journal,
+approved body, attempt ID and draft reservation remain intact.
+Cancel and Restore must win over a delayed Send completion in both composers. Start
+another send after restoration, delay its preparation, then release the old response:
+the newer send must remain locked until its own preparation and delivery finish.
+Restore while an editor is still connecting and verify that its text, HTML, or
+empty body survives initialization. Leave a reply attachment picker open, start
+restoration, then finish picking a file: the delayed callback must not change
+attachments until restoration completes. Existing attachments must stay intact.
+Trashing a thread may cancel unsubmitted scheduled drafts, but must preserve
+submitted and delivery-unconfirmed claims. It must not make either send appear
+cancelled or allow a second delivery while the original outcome is unresolved.
+Resizing media must stop immediately when an editor
+locks, including an active drag and a pending debounced resize. Open the GIF
+picker before the lock arrives: it must close, and a pending selection or
+deferred opening must not insert content into the locked draft.
+Keep an oversized-file link confirmation or upload pending while another tab
+queues the send, changes the inbox, or restores the draft. Its late completion
+must leave the uploaded files private and the draft body unchanged. Restore a
+queued reply while Send and mark done is waiting for the next page: the delayed
+completion must not archive the restored thread.
+
 With GraphQL Mail enabled, discarding the last draft in a thread must remove the
 thread from every local Mail view, including after queued replay. Discarding a
 standalone draft from its composer returns to the previous list after deletion
@@ -651,6 +874,19 @@ time, and never fall through to immediate Send. At narrow split widths the bar's
 label truncates while Cancel stays at its far edge; the bar never covers discard,
 attachment, formatting, the clock, or the primary action. Reply recipients
 cannot be edited or dragged during a confirmed schedule or active delivery mutation.
+
+Scheduled delivery failures replace the time summary with **Send failed before
+delivery** and **Restore draft**. Restoration cancels delivery before unlocking the
+message. **Delivery unconfirmed** explains that the email may already have been
+sent and offers **Check status**; it never offers restoration or automatic resend.
+The time picker stays disabled for failed, sending, and unconfirmed deliveries.
+Preparation that has not reached provider submission remains cancellable, including
+after its due time or a retry delay. Verify both standalone and reply composers,
+including a status refresh whose scheduled time is unchanged and a failure arriving
+while a replacement time is selected.
+Block the REST lifecycle read while GraphQL loads a failed scheduled draft. It
+must still show failure recovery and keep the time picker disabled; GraphQL
+provides both the scheduled time and delivery status.
 
 When verifying, use an intercepted or isolated delivery fixture: choose a time,
 confirm that the editable **Scheduled send** preview makes zero delivery calls, then use
@@ -724,7 +960,12 @@ and address pickers remain available. To check without sending real mail, open
 both pickers, select an alias, switch to the primary address, reopen a saved alias
 draft, and confirm the address remains unchanged. Alias discovery uses
 `MailAccounts`, draft saves use `saveEmailDraft`, and delivery uses
-`sendEmailMessage` in GraphQL; the existing undo-send window still applies.
+`sendEmailAttempt` for durable delivery or `sendEmailMessage` for foreground
+GraphQL delivery; the existing undo-send window still applies. Verify an alias
+through offline queueing, reconnect, and Undo: it must stay attached to the
+captured inbox and must never fall back to that inbox's primary address. Existing
+queued sends created before alias support must still replay with the same attempt
+identity.
 
 If an explicitly selected sending inbox is unavailable, Send reports
 `Unable to find linked email account. Select a sending inbox.` without delivering
@@ -773,3 +1014,14 @@ A confirmed save archives the thread and advances within the invoking list.
 Cancel and failed saves keep the current email. H on a pending snooze edits it;
 **Remove reminder** returns it to the inbox. Bare H in a reply or search field
 remains ordinary typing.
+
+### Cache initialization recovery
+
+With the GraphQL draft queue enabled, block the cache WASM download until its
+bootstrap retries fail. Compose text and verify it remains saved on this device
+with a synchronization status and Retry. Restore network access and reconnect or
+press Retry: the same composer and working copy must remain, and synchronization
+must resume only after the preserved queue is readable. Repeat while another tab
+holds the cache owner lock; recovery must never steal the lock or erase its queue.
+Storage/schema failures that cannot prove preservation show recovery/update
+instructions instead of repeatedly reopening potentially damaged storage.

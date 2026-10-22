@@ -38,9 +38,15 @@ MCP app, a custom server, or a GitHub installation token) on each request.
   `src/outbound/` (adapter) → `src/domain/service.rs` (dispatch) →
   `src/domain/approval.rs` if it needs owner approval.
 
+Check turn authority through `TurnPrompter::acting_user()`: System turns never
+inherit owner access, including malformed records that still contain a user ID.
+
 ## Checks
 
 - `cargo test -p agent_egress` (`SQLX_OFFLINE` unset).
+
+Code-mode minting attaches the session agent to a short-lived owner token;
+ordinary MCP owner tokens omit agent attribution.
 
 ## Gotchas
 

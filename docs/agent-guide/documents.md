@@ -9,7 +9,9 @@ Verify **Public → View** links in a fresh signed-out browser context. The
 `/app/md/<id>` redirects) must show the document without private Drive lists or
 folder navigation, on desktop and touch devices. The login banner may remain;
 it must not replace the public document. Signed-out readers see **Sign in to view
-comments**, not a comment-fetch error or composer. Account-only lists, contacts,
+comments**, not a comment-fetch error or composer. While identity is unresolved,
+the discussion shows neither comments nor a sign-in prompt; throttle the preview
+auth response to check this on desktop and touch devices. Account-only lists, contacts,
 notifications, activity, and gateway/storage WebSockets must stay idle until
 sign-in; public document metadata, properties, and sync still load normally.
 Check that signing in restores account services and signing out stops them.
@@ -567,9 +569,15 @@ Escape from the address or font-size field returns keyboard navigation to the gr
 the result in the empty cell below; for one cell it opens `=FUNCTION(` for reference
 picking. An occupied result cell is never overwritten.
 
-The **Find and replace** ribbon button (Cmd/Ctrl+F in the grid) supports
-case-sensitive and whole-cell matching. Find next selects each result. Formula results can be searched
-but replacements preserve the formulas unless **Search within formulas** is checked.
+The **Find and replace** ribbon button (Cmd/Ctrl+F in the grid) opens a compact
+find bar in the top-right of the sheet (same pattern as channel find): query,
+match count, previous/next, and close. The sheet stays visible while searching.
+Cmd/Ctrl+F is captured on the editor (including the formula bar and find bar)
+so the browser find dialog never opens; a second press re-selects the query.
+Press the replace toggle to expand replace-with, Replace / All, and match options
+(case, entire cell, formulas). Next/previous select each result. Formula results
+can be searched, but replacements preserve the formulas unless **Formulas** is
+checked.
 **Format and data** sorts the selected rectangle by its active column, keeping each
 row's values, styles, and relative formulas together, or trims whitespace in text
 cells. **Goal Seek…** in that menu finds the number to put in one cell so a formula
@@ -2286,7 +2294,12 @@ keeps the default behavior.
 
 1. `Create` → `Document D`. The app navigates to `/app/md/<uuid>` with the **title field
    focused**.
-2. `type_text` the title, then `submitKey: "Enter"` to drop into the body.
+2. `type_text` the title, then `submitKey: "Enter"` to drop into the body. Tab
+   from the title also moves to the start of the body, without inserting a
+   paragraph. While a document is open, Tab and Shift+Tab never switch the
+   hosting view's tabs (e.g. Drive's My Files / Recent): opened from Drive,
+   focus a non-editable control in the document, press Tab, and the
+   document must stay open.
 3. Type paragraphs with plain `type_text`; use Enter between paragraphs. Do NOT use `fill` —
    the editor is contenteditable and `fill` does not work on it.
 4. The document auto-saves continuously (collaborative CRDT; no save button). The tab title
@@ -2387,17 +2400,16 @@ them.
 Pipelines are not in the `@` menu or the command menu. Pasting a pipeline link
 into an editor or composer inserts a document mention with a table icon and the
 pipeline's current name: the pipeline's copy-link action
+(`/app/companies/pipeline/<id>`), an older shared view link
 (`/app/companies?crmView=…` whose view is that pipeline) and
-`/app/pipeline/<id>` both work. Copied Customers links for other views
+`/app/pipeline/<id>` all work. Copied Customers links for other views
 (Companies, People, lists) stay plain links. A pipeline you cannot read shows
 **No Access**; a trashed one shows **Deleted**.
 
 Clicking the mention, or pressing Enter on it, opens Customers on the pipeline
-(on touch devices too). If Customers is already open in a split, that split
-switches to the pipeline instead of a second one opening. The request travels
-as the Customers pane search `crm.pipeline` (with a `crm.seek` that makes a
-repeat click a new request), which Customers drops once you leave the
-pipeline.
+at `/app/companies/pipeline/<id>` (on touch devices too), in the mention's split
+like other entity mentions. A split already showing that pipeline is brought
+forward instead.
 
 The mention is stored as
 `<m-document-mention>{"documentId":"<pipeline id>","blockName":"pipeline",…}</m-document-mention>`.
@@ -2584,8 +2596,15 @@ and inline input.
 Comments anchored to selected text open in a floating margin card on desktop and
 a `Comments` drawer on touch devices. Hovering a desktop card reveals its actions
 without changing the card size or header text wrapping. New comments, replies,
-and edits use plain inputs on the card or drawer's background. The pinned reply
-keeps at least 16px of
+and edits use plain inputs on the card or drawer's background. On desktop, with
+the margin card focused: Enter opens a reply (same as the Reply action; Enter in
+the composer then sends), and Escape closes the reply composer, then the card.
+A press anywhere outside the comments and the document text (another split, the
+sidebar, the document header or empty page) returns a selected card and its
+highlighted text to their resting state; menus and dialogs opened from the card
+do not, and an unsent new comment keeps its composer. Clicking the commented
+text again selects the card again.
+The pinned reply keeps at least 16px of
 bottom clearance above the drawer's curve, including while the keyboard is open,
 and accounts for the home-indicator safe area when the keyboard is closed.
 
@@ -2595,6 +2614,25 @@ when the document has not loaded yet. Verify both comments arriving before the
 editor and comments arriving after it. Once loaded, click elsewhere in the
 document, then click the same notification again: it should revisit the comment,
 while background comment refreshes should leave the user's position alone.
+
+Verify bottom Discussion links from Home too:
+`/app/home/md/<id>?s0.drive.commentId=<comment-id>`. Open a long document from
+another Home item with its caches cold. The first click should reach the comment
+even when its messages arrive before the editor or loading content interrupts
+the initial scroll. Repeat the click after scrolling away. Wheel, touch,
+keyboard input, or dragging the scrollbar during navigation should take control
+immediately; later background refreshes must not pull the reader back. If the
+editor never becomes ready, its pending comment jump expires after ten seconds;
+subsequent recovery must not revive it without a new navigation.
+
+A document row keeps pointing at its newest comment notification until that
+notification is done, so on desktop the row opens the document at that comment.
+On touch the thread is a drawer over the whole page rather than a margin card,
+so a row tap opens the document itself: no drawer, with the comment's highlight
+still in the text. Verify this from Home, Inbox, and Files with a comment
+notification that has already been read — the drawer must not reappear on every
+open. Tapping the highlighted text still offers `Show comment`, and opening the
+notification itself still opens the thread.
 
 When checking desktop margin placement, scroll a long document while an embed
 or image above the highlighted text changes height. Scroll anchoring may keep
@@ -2647,7 +2685,15 @@ on phones) and never in the bottom Discussion, including after live updates or
 reloads. Links to these threads open the margin without changing the bottom
 Discussion's timeline or expanding it. Existing highlights locate threads by
 their stable mark IDs. Replies, attachments, reactions, and editing use the same
-message controls as channels.
+message controls as channels. In every floating comment card (the Markdown,
+PDF, and Word margins and expanded minimized threads), a long comment folds to
+a faded preview with **Show more**; **Show less** folds it again. Short
+comments, the phone drawer, the bottom Discussion, and channels always show the
+full text. Markdown and Word margin cards stack without overlapping: a tall or expanded card
+pushes the cards below it down (past the end of a short document if needed),
+and no card starts above the top of the document. Check this with a long
+thread active near the bottom of a short document that has another thread
+above and below it.
 Removing the last marked text moves its retained conversation to Discussion,
 where it remains after reload. Removing only part of a marked range keeps the
 conversation anchored to the remaining text. On phones, the active Markdown
@@ -2703,6 +2749,13 @@ in the DOM. Edits sync through the sync service as you type: every open copy
 updates live and shows each collaborator's caret with their name
 (`[data-docx-peer]`).
 
+- Open a newly uploaded DOCX while it is still processing. The view stays
+  loading and retries the original export once per second for up to 30 seconds,
+  then renders as soon as extraction finishes without needing a reopen. If
+  processing takes longer, it asks you to try opening it again shortly.
+  A first-open sync `/exists` 404 is expected: the editor seeds collaboration
+  from the stored upload. The export endpoint returns 409 while parts are
+  missing and never publishes an empty archive.
 - Pages are `[data-docx-page="<index>"]` elements. Click a page to place the
   caret, drag to select, double-click for a word and triple-click for a
   paragraph. On a touch screen a swipe scrolls, a tap places the caret, and
@@ -2785,7 +2838,7 @@ updates live and shows each collaborator's caret with their name
   the file on download; reply with a Macro comment.
 - Threads whose text was deleted are listed under `Comments on text that has
   changed`, above the `Discussion` composer.
-- AI `CommentOnDocument` works on DOCX by quote. The editor pins each quote to
+- AI `CommentOnText` works on DOCX by quote. The editor pins each quote to
   the first matching text the next time someone opens the file.
 - AI `EditWordDocument` can record its edits as tracked changes
   (`trackChanges`, or by default when the document tracks changes) and add

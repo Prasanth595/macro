@@ -287,6 +287,7 @@ dependencies = [
 name = "agent_code_mode"
 version = "0.1.0"
 dependencies = [
+ "agent_runtime_protocol",
  "agent_session",
  "ai_toolset",
  "anyhow",
@@ -410,7 +411,6 @@ dependencies = [
  "channel_sender",
  "channels",
  "chrono",
- "claude_cloud_agents",
  "codex_cloud_agents",
  "codex_connection",
  "cursor_api_key",
@@ -422,6 +422,7 @@ dependencies = [
  "entity_registry",
  "entity_registry_db_utils",
  "futures",
+ "genai_telemetry",
  "github",
  "harness_id",
  "kafka_util",
@@ -474,6 +475,7 @@ dependencies = [
 name = "agent_harness_service"
 version = "0.1.0"
 dependencies = [
+ "activity",
  "agent",
  "agent-client-protocol",
  "agent_changes",
@@ -482,18 +484,26 @@ dependencies = [
  "agent_fold",
  "agent_harness",
  "agent_inmem",
+ "agent_preview",
  "agent_runtime_protocol",
  "agent_session",
  "agent_session_realtime",
  "agent_trigger",
+ "aho-corasick",
  "ai_billing",
+ "ai_projections",
  "ai_tools",
  "ai_toolset",
  "ai_usage",
  "anyhow",
+ "async-openai",
+ "async-stream",
  "async-trait",
+ "attachment",
  "authentication_service_client",
+ "aws-sdk-dynamodb",
  "aws-sdk-kms",
+ "aws-sdk-s3",
  "aws-sdk-secretsmanager",
  "aws-sdk-sqs",
  "axum",
@@ -501,80 +511,139 @@ dependencies = [
  "bot_id",
  "bots",
  "call",
+ "channel_sender",
  "channels",
- "claude_cloud_agents",
+ "chat",
+ "chrono",
+ "chrono-tz",
  "code_execution",
  "codex_cloud_agents",
  "codex_connection",
+ "connection_gateway",
  "connection_gateway_client",
  "contacts",
+ "cookie",
  "crm",
+ "cron",
  "cursor_api_key",
  "cursor_cloud_agents",
  "database_env_vars",
+ "databases",
+ "databases_sql",
  "document_storage_service_client",
+ "document_sub_type",
+ "documents",
+ "doppleganger",
  "doppler-config",
+ "email",
+ "email_service_client",
  "entity_access",
+ "entity_access_db_utils",
+ "entity_access_management",
  "entity_registry",
  "entity_registry_db_utils",
  "feature_flags",
+ "foreign_entity",
+ "frecency",
+ "fusionauth",
  "futures",
  "github",
  "github_pull_requests",
+ "granola_sync",
  "harness_id",
  "harnesses",
+ "http 1.4.0",
  "http-body-util",
+ "import",
  "initiative",
+ "jev",
  "kafka_util",
+ "last_online_tracker",
+ "lazy_static",
  "lexical_client",
  "lexical_mention_extractor",
+ "log",
  "macro_auth",
  "macro_authorization",
  "macro_aws_config",
  "macro_config",
  "macro_cors",
+ "macro_db_client",
  "macro_db_migrator",
  "macro_entrypoint",
  "macro_env",
  "macro_env_var",
  "macro_event_broker",
+ "macro_event_topics",
+ "macro_middleware",
  "macro_queues",
  "macro_service_urls",
  "macro_tower_layers",
  "macro_user_id",
  "macro_uuid",
+ "mcp_auth_proxy",
  "mcp_client",
  "mcp_select",
+ "memory",
+ "mention_utils",
  "messages",
+ "model",
+ "model-entity",
+ "model-error-response",
+ "model_notifications",
  "model_owner",
+ "models_ai_projection",
+ "models_dcs",
+ "models_opensearch",
+ "models_permissions",
+ "models_properties",
+ "non_empty",
  "notification",
+ "onboarding",
  "pipedream_mcp",
  "prompt",
  "properties",
  "rdkafka",
+ "readonly_pool",
  "redis",
+ "regex",
+ "reqwest 0.13.4",
  "rmcp",
  "roles_and_permissions",
  "rootcause",
+ "scheduled_action",
  "schemars 1.2.1",
+ "search_service_client",
  "secretsmanager_client",
  "serde",
  "serde_json",
+ "share_permission_db_utils",
+ "soup",
  "sqlx",
+ "sqs_client",
+ "sqs_worker",
  "static_file",
  "static_file_service_client",
+ "stream",
+ "strum 0.27.2",
+ "sync_service_client",
  "system_properties",
  "teams",
  "tempfile",
+ "thiserror 2.0.18",
+ "time",
  "tokio",
  "tokio-retry",
  "tokio-util",
  "tower 0.5.3",
  "tower-http",
  "tracing",
+ "trigger_context",
+ "unfurl_service",
  "url",
  "utoipa",
  "utoipa-swagger-ui",
+ "uuid",
  "workspace-hack",
 ]
 
@@ -600,6 +669,7 @@ dependencies = [
  "bot_id",
  "bytes",
  "chat",
+ "cognition",
  "dashmap",
  "feature_flags",
  "futures",
@@ -620,6 +690,7 @@ dependencies = [
  "rig-agent",
  "rmcp",
  "roles_and_permissions",
+ "rootcause",
  "schemars 1.2.1",
  "serde",
  "serde_json",
@@ -645,12 +716,15 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "bytes",
+ "chrono",
  "entity_access",
  "futures-util",
  "http-body-util",
  "hyper 1.9.0",
  "hyper-util",
  "macro_authorization",
+ "macro_db_migrator",
+ "macro_tower_layers",
  "macro_user_id",
  "rand 0.9.4",
  "rmcp",
@@ -660,6 +734,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "sqlx",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -668,6 +743,7 @@ dependencies = [
  "tower 0.5.3",
  "tracing",
  "url",
+ "uuid",
  "workspace-hack",
 ]
 
@@ -723,6 +799,7 @@ dependencies = [
  "macro_db_migrator",
  "macro_event_broker",
  "macro_event_topics",
+ "macro_tower_layers",
  "macro_user_id",
  "macro_uuid",
  "messages",
@@ -919,6 +996,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ai_billing_cli"
+version = "0.1.0"
+dependencies = [
+ "ai_billing",
+ "clap",
+ "macro_env_var",
+ "macro_user_id",
+ "macro_uuid",
+ "rootcause",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
 name = "ai_engine"
 version = "0.1.0"
 dependencies = [
@@ -978,33 +1071,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ai_projections_refresh_handler"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "aws-sdk-sqs",
- "aws-smithy-types",
- "chrono",
- "futures",
- "lambda_runtime",
- "macro_aws_config",
- "macro_config",
- "macro_db_migrator",
- "macro_entrypoint",
- "macro_env",
- "macro_env_var",
- "macro_queues",
- "models_ai_projection",
- "serde",
- "serde_json",
- "sqlx",
- "sqs_client",
- "tokio",
- "tracing",
- "workspace-hack",
-]
-
-[[package]]
 name = "ai_tools"
 version = "0.1.0"
 dependencies = [
@@ -1030,6 +1096,7 @@ dependencies = [
  "channels",
  "chat",
  "chrono",
+ "clap",
  "cognition",
  "collab_surface",
  "connection",
@@ -1564,13 +1631,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "129397200fe83088e8a68407a8e2b1f826cf0086b21ccdb866a722c8bcd3a94f"
 dependencies = [
  "askama_parser",
- "basic-toml",
  "memchr",
  "proc-macro2",
  "quote",
  "rustc-hash 2.1.2",
- "serde",
- "serde_derive",
  "syn 2.0.117",
 ]
 
@@ -1581,8 +1645,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6ab5630b3d5eaf232620167977f95eb51f3432fc76852328774afbd242d4358"
 dependencies = [
  "memchr",
- "serde",
- "serde_derive",
  "winnow 0.7.15",
 ]
 
@@ -2111,6 +2173,7 @@ dependencies = [
  "secretsmanager_client",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "serde_utils",
  "ses_client",
  "sha1 0.10.6",
@@ -2133,6 +2196,7 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
+ "wiremock",
  "workspace-hack",
  "zeroize",
 ]
@@ -3062,15 +3126,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
-name = "basic-toml"
-version = "0.1.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba62675e8242a4c4e806d12f11d136e626e6c8361d6b829310732241652a178a"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "bcrypt-pbkdf"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3553,6 +3608,7 @@ dependencies = [
  "chrono",
  "lru 0.16.4",
  "maybe_send",
+ "miniz_oxide",
  "pollster",
  "postcard",
  "predicate-index",
@@ -3571,6 +3627,7 @@ dependencies = [
  "cache-core",
  "chrono",
  "maybe_send",
+ "miniz_oxide",
  "pollster",
  "predicate-index",
  "proptest",
@@ -3585,7 +3642,7 @@ dependencies = [
 
 [[package]]
 name = "cache-wasm"
-version = "0.6.48"
+version = "0.6.52"
 dependencies = [
  "async-lock",
  "cache-core",
@@ -3672,6 +3729,7 @@ dependencies = [
  "call",
  "chrono",
  "chrono-tz",
+ "email_utils",
  "futures",
  "macro_authorization",
  "macro_db_migrator",
@@ -3829,6 +3887,7 @@ dependencies = [
  "sha2 0.10.9",
  "share_permission_db_utils",
  "sqlx",
+ "strum 0.27.2",
  "subtle",
  "thiserror 2.0.18",
  "tokio",
@@ -4122,6 +4181,7 @@ dependencies = [
  "share_permission_db_utils",
  "sqlx",
  "static_file_service_client",
+ "strum 0.27.2",
  "thiserror 2.0.18",
  "tokio",
  "tokio-retry",
@@ -4293,37 +4353,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
-name = "claude_cloud_agents"
-version = "0.1.0"
-dependencies = [
- "agent-client-protocol",
- "agent_runtime_protocol",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "clap",
- "cursor_api_key",
- "futures",
- "macro_authorization",
- "macro_db_migrator",
- "rand 0.9.4",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "sqlx",
- "sse-core",
- "subtle",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "utoipa",
- "uuid",
- "workspace-hack",
- "zeroize",
-]
-
-[[package]]
 name = "claude_fold"
 version = "0.1.0"
 dependencies = [
@@ -4484,6 +4513,7 @@ dependencies = [
  "macro_user_id",
  "macro_uuid",
  "messages",
+ "openssl-sys",
  "ratatui",
  "reqwest 0.13.4",
  "rootcause",
@@ -4508,6 +4538,7 @@ dependencies = [
  "uuid",
  "webbrowser",
  "webhook",
+ "windows-sys 0.61.2",
  "workspace-hack",
 ]
 
@@ -5246,6 +5277,7 @@ dependencies = [
  "unfurl",
  "utoipa",
  "uuid",
+ "wiremock",
  "workspace-hack",
 ]
 
@@ -5780,6 +5812,7 @@ dependencies = [
  "strum 0.27.2",
  "thiserror 2.0.18",
  "tokio",
+ "utoipa",
  "uuid",
  "wasm-bindgen",
 ]
@@ -5866,6 +5899,7 @@ dependencies = [
  "ai_toolset",
  "anyhow",
  "async-trait",
+ "axum",
  "bot_id",
  "chrono",
  "contacts",
@@ -5875,7 +5909,9 @@ dependencies = [
  "entity_access",
  "filter_ast",
  "item_filters",
+ "macro_authorization",
  "macro_user_id",
+ "model-error-response",
  "model_owner",
  "models_databases",
  "models_grouping",
@@ -5889,7 +5925,9 @@ dependencies = [
  "soup",
  "thiserror 2.0.18",
  "tokio",
+ "tower 0.5.3",
  "tracing",
+ "utoipa",
  "uuid",
  "workspace-hack",
 ]
@@ -6321,128 +6359,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "document_cognition_service"
-version = "0.1.0"
-dependencies = [
- "agent",
- "aho-corasick",
- "ai_billing",
- "ai_projections",
- "ai_tools",
- "ai_toolset",
- "ai_usage",
- "anyhow",
- "async-openai",
- "async-stream",
- "async-trait",
- "attachment",
- "authentication_service_client",
- "aws-sdk-dynamodb",
- "aws-sdk-s3",
- "aws-sdk-secretsmanager",
- "aws-sdk-sqs",
- "axum",
- "bots",
- "call",
- "channels",
- "chat",
- "chrono",
- "connection_gateway",
- "connection_gateway_client",
- "cookie",
- "crm",
- "databases",
- "databases_sql",
- "document_storage_service_client",
- "documents",
- "doppleganger",
- "doppler-config",
- "email",
- "email_service_client",
- "entity_access",
- "entity_access_management",
- "entity_registry",
- "entity_registry_db_utils",
- "foreign_entity",
- "frecency",
- "futures",
- "github_pull_requests",
- "http 1.4.0",
- "http-body-util",
- "import",
- "jev",
- "last_online_tracker",
- "lazy_static",
- "lexical_client",
- "log",
- "macro_auth",
- "macro_authorization",
- "macro_aws_config",
- "macro_config",
- "macro_cors",
- "macro_db_client",
- "macro_db_migrator",
- "macro_entrypoint",
- "macro_env",
- "macro_env_var",
- "macro_event_broker",
- "macro_middleware",
- "macro_queues",
- "macro_service_urls",
- "macro_user_id",
- "macro_uuid",
- "mcp_client",
- "mcp_select",
- "memory",
- "model",
- "model-entity",
- "model-error-response",
- "model_notifications",
- "model_owner",
- "models_dcs",
- "models_opensearch",
- "models_permissions",
- "non_empty",
- "notification",
- "onboarding",
- "pipedream_mcp",
- "prompt",
- "readonly_pool",
- "redis",
- "regex",
- "reqwest 0.13.4",
- "roles_and_permissions",
- "schemars 1.2.1",
- "search_service_client",
- "secretsmanager_client",
- "serde",
- "serde_json",
- "share_permission_db_utils",
- "soup",
- "sqlx",
- "sqs_client",
- "sqs_worker",
- "static_file",
- "stream",
- "strum 0.27.2",
- "sync_service_client",
- "teams",
- "thiserror 2.0.18",
- "time",
- "tokio",
- "tokio-util",
- "tower 0.5.3",
- "tower-http",
- "tracing",
- "unfurl_service",
- "url",
- "utoipa",
- "utoipa-swagger-ui",
- "uuid",
- "workspace-hack",
-]
-
-[[package]]
 name = "document_storage_service"
 version = "0.1.0"
 dependencies = [
@@ -6493,6 +6409,7 @@ dependencies = [
  "crm",
  "database_webhooks",
  "databases",
+ "databases_sql",
  "dictation",
  "document_sub_type",
  "documents",
@@ -6589,6 +6506,7 @@ dependencies = [
  "secretsmanager_client",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "slack_integration",
  "soup",
  "soup_realtime",
@@ -7322,6 +7240,8 @@ dependencies = [
  "aws-sdk-sqs",
  "aws_lambda_events",
  "chrono",
+ "email",
+ "futures",
  "lambda_runtime",
  "macro_aws_config",
  "macro_db_migrator",
@@ -7352,6 +7272,7 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "calendar_events",
+ "channels",
  "chrono",
  "cloudfront_sign",
  "connection_gateway_client",
@@ -7370,6 +7291,7 @@ dependencies = [
  "filter_ast",
  "frecency",
  "futures",
+ "generic_email_domains",
  "gmail_client",
  "google_token",
  "html-escape",
@@ -8770,6 +8692,7 @@ dependencies = [
  "urlencoding",
  "utoipa",
  "uuid",
+ "wiremock",
  "workspace-hack",
 ]
 
@@ -8864,6 +8787,37 @@ dependencies = [
  "email_utils",
  "redis",
  "tracing",
+ "workspace-hack",
+]
+
+[[package]]
+name = "granola_sync"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm 0.10.3",
+ "anyhow",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "call",
+ "chrono",
+ "hmac 0.12.1",
+ "macro_db_migrator",
+ "macro_user_id",
+ "macro_uuid",
+ "pipedream_mcp",
+ "rootcause",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "strum 0.27.2",
+ "thiserror 2.0.18",
+ "tokio",
+ "tower 0.5.3",
+ "tracing",
+ "url",
+ "uuid",
  "workspace-hack",
 ]
 
@@ -9994,7 +9948,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower-service",
- "webpki-roots 1.0.7",
+ "webpki-roots 1.0.10",
 ]
 
 [[package]]
@@ -11273,7 +11227,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "url",
- "webpki-roots 1.0.7",
+ "webpki-roots 1.0.10",
 ]
 
 [[package]]
@@ -11836,6 +11790,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "uuid",
  "workspace-hack",
 ]
 
@@ -12400,81 +12355,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mcp_service"
-version = "0.1.0"
-dependencies = [
- "ai_billing",
- "ai_tools",
- "ai_toolset",
- "ai_usage",
- "anyhow",
- "async-trait",
- "attachment",
- "authentication_service_client",
- "aws-sdk-secretsmanager",
- "aws-sdk-sqs",
- "axum",
- "bots",
- "call",
- "channels",
- "chat",
- "connection_gateway_client",
- "crm",
- "database_env_vars",
- "databases",
- "documents",
- "doppler-config",
- "email",
- "email_service_client",
- "entity_access",
- "entity_access_management",
- "entity_registry",
- "entity_registry_db_utils",
- "foreign_entity",
- "frecency",
- "fusionauth",
- "futures",
- "github_pull_requests",
- "http 1.4.0",
- "import",
- "lexical_client",
- "macro_auth",
- "macro_aws_config",
- "macro_config",
- "macro_entrypoint",
- "macro_env",
- "macro_env_var",
- "macro_event_broker",
- "macro_queues",
- "macro_service_urls",
- "macro_user_id",
- "mcp_auth_proxy",
- "mcp_client",
- "mcp_select",
- "notification",
- "pipedream_mcp",
- "prompt",
- "readonly_pool",
- "redis",
- "reqwest 0.13.4",
- "rmcp",
- "roles_and_permissions",
- "search_service_client",
- "secretsmanager_client",
- "serde_json",
- "soup",
- "sqlx",
- "sqs_client",
- "sync_service_client",
- "teams",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
- "workspace-hack",
-]
-
-[[package]]
 name = "mcp_toolset"
 version = "0.1.0"
 dependencies = [
@@ -12636,6 +12516,7 @@ name = "messages"
 version = "0.1.0"
 dependencies = [
  "activity",
+ "ai_toolset",
  "async-trait",
  "axum",
  "bot_id",
@@ -12658,6 +12539,7 @@ dependencies = [
  "model_notifications",
  "model_owner",
  "models_pagination",
+ "models_permissions",
  "models_properties",
  "notification",
  "properties",
@@ -14932,6 +14814,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "base64 0.22.1",
  "futures",
  "macro_authorization",
  "macro_user_id",
@@ -15266,47 +15149,6 @@ checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
 dependencies = [
  "proc-macro2",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "preview_gateway"
-version = "0.1.0"
-dependencies = [
- "agent_egress",
- "agent_preview",
- "agent_session",
- "anyhow",
- "async-trait",
- "aws-sdk-secretsmanager",
- "axum",
- "bots",
- "connection_gateway_client",
- "database_env_vars",
- "doppler-config",
- "entity_access",
- "entity_registry",
- "entity_registry_db_utils",
- "macro_auth",
- "macro_authorization",
- "macro_aws_config",
- "macro_config",
- "macro_cors",
- "macro_entrypoint",
- "macro_env",
- "macro_env_var",
- "macro_service_urls",
- "macro_user_id",
- "macro_uuid",
- "model-entity",
- "rootcause",
- "secretsmanager_client",
- "serde",
- "serde_json",
- "sqlx",
- "tokio",
- "tokio-util",
- "tracing",
- "workspace-hack",
 ]
 
 [[package]]
@@ -16360,7 +16202,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "webpki-roots 1.0.7",
+ "webpki-roots 1.0.10",
 ]
 
 [[package]]
@@ -16944,9 +16786,9 @@ checksum = "f87165f0995f63a9fbeea62b64d10b4d9d8e78ec6d7d51fb2125fda7bb36788f"
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.15"
+version = "0.103.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3c3cf1d8b1e7d4927e2d154c3fcb02979afb9939629c62cd9048d4f07b60ac2"
+checksum = "4443b1b6d39d7c663139942cc4558262562d2c84123bb6282ef177009ca8b281"
 dependencies = [
  "aws-lc-rs",
  "ring",
@@ -17057,8 +16899,6 @@ dependencies = [
  "ai_billing",
  "ai_usage",
  "anyhow",
- "authentication_service_client",
- "aws-sdk-secretsmanager",
  "axum",
  "bot_id",
  "bots",
@@ -17070,10 +16910,8 @@ dependencies = [
  "connection_gateway_client",
  "crm",
  "cron",
- "database_env_vars",
  "document_sub_type",
  "documents",
- "doppler-config",
  "email",
  "entity_access",
  "entity_access_db_utils",
@@ -17087,14 +16925,10 @@ dependencies = [
  "lexical_client",
  "macro_auth",
  "macro_authorization",
- "macro_aws_config",
- "macro_config",
  "macro_cors",
  "macro_db_client",
  "macro_db_migrator",
  "macro_entrypoint",
- "macro_env",
- "macro_env_var",
  "macro_event_broker",
  "macro_event_topics",
  "macro_service_urls",
@@ -17112,7 +16946,6 @@ dependencies = [
  "reqwest 0.13.4",
  "roles_and_permissions",
  "rootcause",
- "secretsmanager_client",
  "serde",
  "serde_json",
  "share_permission_db_utils",
@@ -18518,6 +18351,7 @@ version = "0.1.0"
 dependencies = [
  "agent_session",
  "broadcast",
+ "call",
  "channels",
  "chat",
  "chrono",
@@ -21454,9 +21288,9 @@ dependencies = [
 
 [[package]]
 name = "webpki-root-certs"
-version = "1.0.7"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f31141ce3fc3e300ae89b78c0dd67f9708061d1d2eda54b8209346fd6be9a92c"
+checksum = "58ec80e73fd8baf57bf0d9615554c75348bda990d6d5bbeab964dd068319fecb"
 dependencies = [
  "rustls-pki-types",
 ]
@@ -21467,14 +21301,14 @@ version = "0.26.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "521bc38abb08001b01866da9f51eb7c5d647a19260e00054a8c7fd5f9e57f7a9"
 dependencies = [
- "webpki-roots 1.0.7",
+ "webpki-roots 1.0.10",
 ]
 
 [[package]]
 name = "webpki-roots"
-version = "1.0.7"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52f5ee44c96cf55f1b349600768e3ece3a8f26010c05265ab73f945bb1a2eb9d"
+checksum = "1c1c8e20c8a38fc7d65abfe74eb7280e4aa667e8eec8bc84996d2874810748d9"
 dependencies = [
  "rustls-pki-types",
 ]
@@ -22434,6 +22268,16 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "guppy",
+ "xtask_paths",
+]
+
+[[package]]
+name = "xtask_graphql_schema_compat"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "apollo-compiler",
+ "chrono",
  "xtask_paths",
 ]
 
