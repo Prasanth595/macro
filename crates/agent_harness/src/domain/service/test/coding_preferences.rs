@@ -193,7 +193,7 @@ async fn a_managed_open_ends_with_both_workflows() {
             owner: model_owner::Owner::User(sender()),
             prompt: None,
             profile: None,
-            routine_id: None,
+            source: agent_session::domain::model::SessionSource::User,
         })
         .await
         .expect_err("the sandbox never comes up");

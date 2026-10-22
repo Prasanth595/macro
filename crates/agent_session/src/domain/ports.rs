@@ -129,8 +129,8 @@ pub struct RequestedExternalSession {
     pub model: Option<String>,
     /// Remote repository selected for this external coding session.
     pub repo_url: Option<String>,
-    /// The routine whose unattended run this session is, when it is one.
-    pub routine_id: Option<Uuid>,
+    /// Who is starting the session.
+    pub source: SessionSource,
 }
 
 /// Validate the base branch supported by external repository provisioning.
@@ -326,8 +326,8 @@ pub struct OpenManagedSession {
     /// Model to run on instead of the persona's own. The session's model from
     /// creation, so its runtime starts on it and nothing is sent to change it.
     pub model: Option<String>,
-    /// The routine whose unattended run this session is, when it is one.
-    pub routine_id: Option<Uuid>,
+    /// Who is starting the session.
+    pub source: SessionSource,
 }
 
 /// Opens sessions, however they are served. Implemented by the harness, which
@@ -516,12 +516,12 @@ pub trait AgentSessionRepo: Send + Sync + 'static {
     fn set_model(&self, id: AgentSessionId, model: &str)
     -> impl Future<Output = Result<()>> + Send;
 
-    /// Record the routine whose run the session is, for a session whose
-    /// runtime created the row without knowing it. Idempotent.
-    fn set_routine(
+    /// Record who started the session, for a session whose runtime created
+    /// the row without knowing it. Idempotent.
+    fn set_source(
         &self,
         id: AgentSessionId,
-        routine_id: Uuid,
+        source: SessionSource,
     ) -> impl Future<Output = Result<()>> + Send;
 
     /// Persist the user-facing session name. Idempotent.

@@ -4,7 +4,7 @@ use agent_session::domain::events::{
     SessionOpenedMetadata, SessionSettledMetadata, ThreadOrigin, TurnStartedMetadata, TurnSummary,
     WaitingForInputMetadata,
 };
-use agent_session::domain::model::AgentSessionId;
+use agent_session::domain::model::{AgentSessionId, SessionSource};
 use bot_id::BotId;
 
 const SESSION: Uuid = Uuid::from_u128(0xA);
@@ -35,7 +35,7 @@ fn identity() -> SessionIdentity {
             Uuid::from_u128(3),
         )),
         audience: vec![owner(), user("alice@macro.com"), user("bob@macro.com")],
-        routine_id: None,
+        source: agent_session::domain::model::SessionSource::User,
     }
 }
 
@@ -199,7 +199,7 @@ fn settled_without_a_turn_record_notifies_nobody() {
 fn routine_run() -> SessionIdentity {
     SessionIdentity {
         origin: None,
-        routine_id: Some(Uuid::from_u128(0x7007)),
+        source: SessionSource::Routine,
         ..identity()
     }
 }

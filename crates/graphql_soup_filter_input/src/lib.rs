@@ -20,7 +20,7 @@ use item_filters::{
     CallStatus, SharedEmailFilter,
     ast::{
         CrmScope, EmailFilterAst, EntityFilterAst,
-        agent_session::AgentSessionLiteral,
+        agent_session::{AgentSessionLiteral, AgentSessionSource},
         calendar_event::CalendarEventLiteral,
         call::CallLiteral,
         channel::{ChannelLiteral, ChannelThreadLiteral, ChannelTypeFilter},
@@ -1206,6 +1206,39 @@ enum GraphqlAgentSessionLiteral {
     /// The owner principal option — a user (`macro|<email>`), a bot
     /// (`bot|<uuid>`), or a team (a bare hyphenated uuid).
     Owner(String),
+    /// Who started the session. Narrows the sessions a query asks for; it
+    /// does not opt the query in.
+    Source(GraphqlAgentSessionSource),
+}
+
+/// Who started an agent session: filter input, and the field Soup returns.
+#[cfg_attr(feature = "server", derive(async_graphql::Enum))]
+#[derive(Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GraphqlAgentSessionSource {
+    /// A person, directly or through something they did.
+    User,
+    /// A routine's unattended run.
+    Routine,
+}
+
+impl GraphqlAgentSessionSource {
+    /// Convert this GraphQL source into the filter model.
+    fn into_model(self) -> AgentSessionSource {
+        match self {
+            Self::User => AgentSessionSource::User,
+            Self::Routine => AgentSessionSource::Routine,
+        }
+    }
+}
+
+impl From<AgentSessionSource> for GraphqlAgentSessionSource {
+    fn from(source: AgentSessionSource) -> Self {
+        match source {
+            AgentSessionSource::User => Self::User,
+            AgentSessionSource::Routine => Self::Routine,
+        }
+    }
 }
 
 impl IntoFilterExpr<AgentSessionLiteral> for GraphqlAgentSessionLiteral {
@@ -1222,6 +1255,7 @@ impl IntoFilterExpr<AgentSessionLiteral> for GraphqlAgentSessionLiteral {
             Self::Include(true) => AgentSessionLiteral::Include,
             Self::Id(id) => AgentSessionLiteral::Id(parse_id(id, "id")?),
             Self::Owner(owner) => AgentSessionLiteral::Owner(parse_owner(owner, "owner")?),
+            Self::Source(source) => AgentSessionLiteral::Source(source.into_model()),
         };
         Ok(Expr::val(literal))
     }

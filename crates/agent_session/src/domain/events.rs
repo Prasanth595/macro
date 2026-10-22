@@ -23,7 +23,8 @@ use messages::domain::models::MessageParent;
 use serde::{Deserialize, Serialize};
 
 use super::model::{
-    AgentSessionId, AgentSessionLog, LogAppended, Message, StoredAgentSessionLog, TurnId,
+    AgentSessionId, AgentSessionLog, LogAppended, Message, SessionSource, StoredAgentSessionLog,
+    TurnId,
 };
 
 /// The thread a session was opened from, when it was.
@@ -113,9 +114,10 @@ pub struct SessionIdentity {
     /// a consumer fanning out never has to read the session's log.
     #[serde(default)]
     pub audience: Vec<MacroUserIdStr<'static>>,
-    /// The routine whose unattended run the session is, when it is one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub routine_id: Option<Uuid>,
+    /// Who started the session. Events from before it was recorded say
+    /// nothing and read as a person.
+    #[serde(default)]
+    pub source: SessionSource,
 }
 
 /// A turn the runtime answered.

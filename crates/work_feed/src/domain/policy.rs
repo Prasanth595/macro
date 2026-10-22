@@ -12,8 +12,11 @@ use filter_ast::Expr;
 use item_filters::{
     SharedEmailFilter,
     ast::{
-        EmailFilterAst, EntityFilterAst, agent_session::AgentSessionLiteral,
-        channel::ChannelThreadLiteral, document::DocumentLiteral, email::EmailLiteral,
+        EmailFilterAst, EntityFilterAst,
+        agent_session::{AgentSessionLiteral, AgentSessionSource},
+        channel::ChannelThreadLiteral,
+        document::DocumentLiteral,
+        email::EmailLiteral,
         foreign_entity::ForeignEntityLiteral,
     },
 };
@@ -63,7 +66,9 @@ pub fn signal_filter(user: &MacroUserIdStr<'static>, include_snippets: bool) -> 
         ))),
         agent_session_filter: Some(Arc::new(Expr::and(
             Expr::val(AgentSessionLiteral::Include),
-            Expr::is_not(Expr::val(AgentSessionLiteral::RoutineRun)),
+            Expr::is_not(Expr::val(AgentSessionLiteral::Source(
+                AgentSessionSource::Routine,
+            ))),
         ))),
         ..Default::default()
     }

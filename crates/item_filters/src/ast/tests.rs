@@ -1799,30 +1799,21 @@ fn crm_associations_deduplicate_repeated_records() {
 }
 
 #[test]
-fn it_expands_routine_run_exclusion_as_a_constraint() {
-    let expand = |agent_session_filters| {
-        EntityFilterAst::new_from_filters(EntityFilters {
-            agent_session_filters,
-            ..Default::default()
-        })
-        .unwrap()
-        .and_then(|ast| ast.agent_session_filter)
-        .map(|tree| serde_json::to_value(&*tree).unwrap())
-    };
+fn agent_session_source_literals_use_the_column_values() {
+    use crate::ast::agent_session::{AgentSessionLiteral, AgentSessionSource};
 
+    let tree: Expr<AgentSessionLiteral> =
+        serde_json::from_value(json!({ "!": { "l": { "src": "routine" } } })).unwrap();
+    assert_matches!(&tree, Expr::Not(inner) => {
+        assert_matches!(
+            **inner,
+            Expr::Literal(AgentSessionLiteral::Source(AgentSessionSource::Routine))
+        );
+    });
     assert_eq!(
-        expand(crate::AgentSessionFilters {
-            include: true,
-            exclude_routine_runs: true,
-            ..Default::default()
-        }),
-        Some(json!({ "&": [{ "l": "inc" }, { "!": { "l": "rr" } }] }))
+        serde_json::to_value(&tree).unwrap(),
+        json!({ "!": { "l": { "src": "routine" } } })
     );
-    assert_eq!(
-        expand(crate::AgentSessionFilters {
-            include: true,
-            ..Default::default()
-        }),
-        Some(json!({ "l": "inc" }))
-    );
+    assert_eq!(<&str>::from(AgentSessionSource::User), "user");
+    assert_eq!("routine".parse(), Ok(AgentSessionSource::Routine));
 }

@@ -1,7 +1,7 @@
 use super::*;
 use crate::PROTOCOL_VERSION;
 use crate::domain::model::{
-    DEFAULT_AGENT_SESSION_NAME, LeaseView, Message, ReplicaAddress, SessionBot,
+    DEFAULT_AGENT_SESSION_NAME, LeaseView, Message, ReplicaAddress, SessionBot, SessionSource,
 };
 use crate::domain::ports::NoOpRealtime;
 use crate::domain::ports::{NoOpTurnObserver, NoopLifecyclePublisher};
@@ -680,8 +680,8 @@ impl AgentSessionRepo for BlockingPromptLogs {
         self.repo.set_model(id, model).await
     }
 
-    async fn set_routine(&self, id: AgentSessionId, routine_id: Uuid) -> Result<()> {
-        self.repo.set_routine(id, routine_id).await
+    async fn set_source(&self, id: AgentSessionId, source: SessionSource) -> Result<()> {
+        self.repo.set_source(id, source).await
     }
 
     async fn set_name(&self, id: AgentSessionId, name: &str) -> Result<()> {

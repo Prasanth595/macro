@@ -69,7 +69,7 @@ use agent_session::domain::events::{
     AgentSessionLifecycleEvent, SessionIdentity, SessionMentionedMetadata, SessionSettledMetadata,
     WaitingForInputMetadata,
 };
-use agent_session::domain::model::TurnId;
+use agent_session::domain::model::{SessionSource, TurnId};
 use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
 use model_entity::{Entity, EntityType};
@@ -199,7 +199,7 @@ fn plan_settled(settled: &SessionSettledMetadata, is_coding: bool) -> Vec<Planne
         return Vec::new();
     }
     // A routine run that did its job is in the routine's history.
-    if settled.identity.routine_id.is_some()
+    if settled.identity.source == SessionSource::Routine
         && turn.turn == ROUTINE_TURN
         && turn.stop_reason == END_TURN_STOP_REASON
     {

@@ -3,10 +3,9 @@
 use agent_runtime_protocol::domain::action::AgentActionId;
 use bots::domain::models::BotId;
 use macro_user_id::user_id::MacroUserIdStr;
-use macro_uuid::Uuid;
 use serde::{Deserialize, Serialize};
 
-use crate::domain::model::AgentSessionId;
+use crate::domain::model::{AgentSessionId, SessionSource};
 
 /// A persona selected by a routine's validated user owner.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,10 +32,10 @@ pub struct PrepareRoutineSession {
     pub selection: ValidateRoutineSession,
     /// Caller-generated UUIDv7, allocated before awaiting preparation.
     pub session_id: AgentSessionId,
-    /// The routine being run, recorded on the session. Absent for a coding
-    /// agent dispatched on the user's behalf, and from older schedulers.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub routine_id: Option<Uuid>,
+    /// Who is starting the session: a routine for the scheduler, the user
+    /// for a coding agent dispatched on their behalf. Older schedulers omit it.
+    #[serde(default)]
+    pub source: SessionSource,
 }
 
 /// A verified, persisted session ready for its first prompt.

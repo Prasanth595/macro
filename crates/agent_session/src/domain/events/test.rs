@@ -23,7 +23,7 @@ fn identity() -> SessionIdentity {
             Uuid::from_u128(3),
         )),
         audience: vec![owner()],
-        routine_id: None,
+        source: crate::domain::model::SessionSource::User,
     }
 }
 

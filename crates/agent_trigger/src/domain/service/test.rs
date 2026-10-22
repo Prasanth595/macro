@@ -132,7 +132,7 @@ fn session(id: AgentSessionId, bot_id: BotId) -> AgentSession {
         status: SessionStatus::NoMessages,
         created_at: Utc::now(),
         modified_at: Utc::now(),
-        routine_id: None,
+        source: agent_session::domain::model::SessionSource::User,
     }
 }
 

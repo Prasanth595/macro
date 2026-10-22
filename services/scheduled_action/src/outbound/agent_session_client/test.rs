@@ -1,6 +1,6 @@
 use super::*;
 use agent_runtime_protocol::domain::action::AgentActionId;
-use agent_session::domain::model::AgentSessionId;
+use agent_session::domain::model::{AgentSessionId, SessionSource};
 use bot_id::BotId;
 use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::{Uuid, generate_uuid_v7};
@@ -143,7 +143,7 @@ async fn all_commands_use_internal_auth_and_domain_wire_contract_at_both_prefixe
         let prepare = PrepareRoutineSession {
             selection: selection.clone(),
             session_id: identity.session_id,
-            routine_id: Some(Uuid::nil()),
+            source: SessionSource::Routine,
         };
         let prompt = PromptRoutineSession {
             action: identity.clone(),
@@ -249,7 +249,7 @@ async fn typed_sanitized_domain_errors_are_preserved() {
             .prepare(PrepareRoutineSession {
                 selection: selection(),
                 session_id: identity().session_id,
-                routine_id: None,
+                source: SessionSource::User,
             })
             .await
             .unwrap_err();

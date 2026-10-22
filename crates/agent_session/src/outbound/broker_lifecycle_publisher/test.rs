@@ -60,7 +60,7 @@ fn deleted() -> AgentSessionLifecycleEvent {
                 .into_owned(),
             origin: None,
             audience: Vec::new(),
-            routine_id: None,
+            source: crate::domain::model::SessionSource::User,
         },
     })
 }

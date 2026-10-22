@@ -1,6 +1,7 @@
 use super::*;
 use crate::domain::models::{WorkFeedCandidateRequest, WorkFeedSoupMode};
 use crate::outbound::pg_soup_repo::work_feed::work_feed_soup_page;
+use item_filters::ast::agent_session::AgentSessionSource;
 
 fn work_request<'a>(
     filter: &'a EntityFilterAst,
@@ -136,9 +137,8 @@ async fn routine_runs_with_notifications_stay_out_of_feeds_that_exclude_them(
     let (mine, _) = seed_agent_sessions(&pool).await?;
     let sources = sources();
     sqlx::query!(
-        "UPDATE agent_session SET routine_id = $2 WHERE id = $1",
+        "UPDATE agent_session SET source = 'routine' WHERE id = $1",
         mine,
-        Uuid::now_v7(),
     )
     .execute(&pool)
     .await?;
@@ -149,7 +149,9 @@ async fn routine_runs_with_notifications_stay_out_of_feeds_that_exclude_them(
     let without_runs = EntityFilterAst {
         agent_session_filter: Some(Arc::new(Expr::and(
             Expr::val(AgentSessionLiteral::Include),
-            Expr::is_not(Expr::val(AgentSessionLiteral::RoutineRun)),
+            Expr::is_not(Expr::val(AgentSessionLiteral::Source(
+                AgentSessionSource::Routine,
+            ))),
         ))),
         ..Default::default()
     };

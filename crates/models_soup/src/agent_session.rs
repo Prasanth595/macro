@@ -1,4 +1,5 @@
 use chrono::Utc;
+pub use item_filters::ast::agent_session::AgentSessionSource;
 use model_owner::Owner;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -70,9 +71,9 @@ pub struct SoupAgentSession<T = ()> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thread_id: Option<Uuid>,
 
-    /// The routine whose unattended run created the session, when one did
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub routine_id: Option<Uuid>,
+    /// Who started the session
+    #[serde(default)]
+    pub source: AgentSessionSource,
 
     /// The session's last known status.
     ///

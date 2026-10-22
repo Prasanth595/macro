@@ -8,7 +8,7 @@ use macro_user_id::user_id::MacroUserIdStr;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::model::AgentSessionId;
+use super::model::{AgentSessionId, SessionSource};
 use super::routines::{
     PrepareRoutineSession, PromptRoutineSession, RoutineSessionAction, RoutineSessionError,
     RoutineSessions, ValidateRoutineSession,
@@ -225,7 +225,7 @@ impl<Directory: CodingAgentDirectory, Sessions: RoutineSessions>
                         model: None,
                     },
                     session_id,
-                    routine_id: None,
+                    source: SessionSource::User,
                 })
                 .await
                 .map_err(failed)?;

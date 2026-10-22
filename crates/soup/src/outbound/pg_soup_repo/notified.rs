@@ -138,7 +138,7 @@ pub(super) fn foreign_entity_gate(filter: Option<&EntityFilterAst>) -> String {
 pub(super) fn agent_session_gate(filter: Option<&EntityFilterAst>) -> String {
     let tree = filter.and_then(|filter| filter.agent_session_filter.as_deref());
     let implied = implied_conjuncts_sql(tree, |literal| match literal {
-        AgentSessionLiteral::RoutineRun => Some(super::agent_session::ROUTINE_RUN_SQL.to_owned()),
+        AgentSessionLiteral::Source(source) => Some(super::agent_session::source_sql(*source)),
         AgentSessionLiteral::Include
         | AgentSessionLiteral::Id(_)
         | AgentSessionLiteral::Owner(_) => None,

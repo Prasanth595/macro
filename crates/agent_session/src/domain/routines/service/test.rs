@@ -1,6 +1,6 @@
 use super::*;
 use crate::domain::error::Result as SessionResult;
-use crate::domain::model::{AgentMcpServers, ReplicaId, SandboxSize};
+use crate::domain::model::{AgentMcpServers, ReplicaId, SandboxSize, SessionSource};
 use crate::domain::ports::{
     AcceptedControl, BotFacts, ManagedAgentProfile, NoOpAgentSessionNameGenerator, NoOpRealtime,
     NoOpTurnObserver, NoopLifecyclePublisher, OpenExternalAgentSession, QueuedControl,
@@ -14,8 +14,6 @@ use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
 use shared_entity_registry::OwnedPurgeOutcome;
 use std::sync::{Arc, Mutex};
-
-const ROUTINE_ID: Uuid = Uuid::from_u128(0x0190_0000_0000_7000_8000_0000_0000_0001);
 
 #[test]
 #[cfg(feature = "admission")]
@@ -258,7 +256,7 @@ impl Fixture {
         PrepareRoutineSession {
             selection: self.selection(),
             session_id: self.session.id,
-            routine_id: Some(ROUTINE_ID),
+            source: SessionSource::Routine,
         }
     }
 
@@ -287,7 +285,7 @@ async fn managed_preparation_preserves_persona_and_applies_override_without_prom
     assert!(request.prompt.is_none());
     assert!(request.instructions.is_none());
     assert!(request.repo_url.is_none() && request.repo_branch.is_none());
-    assert_eq!(request.routine_id, Some(ROUTINE_ID));
+    assert_eq!(request.source, SessionSource::Routine);
     let persona = request.profile.as_ref().unwrap();
     assert_eq!(persona.bot_id, fx.session.bot_id);
     let profile = persona.profile.as_ref().unwrap();
@@ -318,7 +316,7 @@ async fn external_preparation_uses_requested_identity_and_model() {
                 bot_id: fx.session.bot_id,
                 owner: fx.session.owner_user().unwrap().clone(),
                 model: override_model,
-                routine_id: Some(ROUTINE_ID),
+                source: SessionSource::Routine,
             }]
         );
         assert!(fx.openings.managed.lock().unwrap().is_empty());

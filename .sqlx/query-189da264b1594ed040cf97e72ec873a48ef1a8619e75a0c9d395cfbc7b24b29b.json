@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                id, name, is_archived, owner_id, thread_id, originating_message_id, bot_id,\n                model, harness, repo_url, repo_branch, pull_request_url, task_id, routine_id, workspace, sandbox_size, instructions,\n                mcp_scope, mcp_servers, acp_session_id, status,\n                status_event_name, agent_session.created_at, modified_at,\n                (SELECT jsonb_build_object('type', parent_entity_type, 'id', parent_entity_id)\n                 FROM comms_messages WHERE id = agent_session.thread_id)\n                    AS \"thread_parent?: Json<MessageParent>\",\n                ext.provider AS \"external_provider?\", ext.external_id AS \"external_id?\",\n                ext.external_name AS \"external_name?\", ext.external_url AS \"external_url?\",\n                ext.last_run_id AS \"external_last_run_id?\"\n            FROM agent_session\n            LEFT JOIN external_agent_session AS ext ON ext.agent_session_id = agent_session.id\n            WHERE thread_id = $1\n            ORDER BY agent_session.created_at DESC\n            ",
+  "query": "\n            INSERT INTO agent_session (\n                id, owner_id, thread_id, originating_message_id, bot_id, model,\n                harness, repo_url, workspace, sandbox_size, instructions,\n                acp_session_id, status, status_event_name, egress_token_hash,\n                mcp_scope, mcp_servers, repo_branch, list_hidden, for_warming, source\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)\n            RETURNING\n                id, name, is_archived, owner_id, thread_id, originating_message_id, bot_id,\n                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, workspace, sandbox_size, instructions,\n                mcp_scope, mcp_servers, acp_session_id, status,\n                status_event_name, created_at, modified_at,\n                (SELECT jsonb_build_object('type', parent_entity_type, 'id', parent_entity_id)\n                 FROM comms_messages WHERE id = agent_session.thread_id)\n                    AS \"thread_parent?: Json<MessageParent>\",\n                -- A row being created cannot have an external identity yet.\n                NULL::TEXT AS \"external_provider?\", NULL::TEXT AS \"external_id?\",\n                NULL::TEXT AS \"external_name?\", NULL::TEXT AS \"external_url?\",\n                NULL::TEXT AS \"external_last_run_id?\"\n            ",
   "describe": {
     "columns": [
       {
@@ -70,8 +70,8 @@
       },
       {
         "ordinal": 13,
-        "name": "routine_id",
-        "type_info": "Uuid"
+        "name": "source",
+        "type_info": "Text"
       },
       {
         "ordinal": 14,
@@ -156,7 +156,27 @@
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Bool",
+        "Bool",
+        "Text"
       ]
     },
     "nullable": [
@@ -173,7 +193,7 @@
       true,
       true,
       true,
-      true,
+      false,
       false,
       false,
       true,
@@ -185,12 +205,12 @@
       false,
       false,
       null,
-      false,
-      false,
-      true,
-      true,
-      true
+      null,
+      null,
+      null,
+      null,
+      null
     ]
   },
-  "hash": "babd18444a1569ab5d35fe6cc1c7534d8673482c5ad07f6d97f677857f618118"
+  "hash": "189da264b1594ed040cf97e72ec873a48ef1a8619e75a0c9d395cfbc7b24b29b"
 }

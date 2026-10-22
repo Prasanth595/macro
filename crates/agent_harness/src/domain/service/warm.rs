@@ -2,7 +2,7 @@
 use super::open::starting_branch;
 use super::*;
 use crate::domain::model::SessionRepository;
-use agent_session::domain::model::session_owner_user;
+use agent_session::domain::model::{SessionSource, session_owner_user};
 use agent_session::domain::ports::{OpenManagedSession, SelectedManagedPersona};
 use agent_session::domain::warm::WarmClaim;
 use model_owner::Owner;
@@ -52,16 +52,12 @@ where
     Mentions: PromptMentions,
     Notifier: AgentSessionNotifier,
 {
-    #[tracing::instrument(skip_all, err, fields(agent.session.id = tracing::field::Empty, agent.harness = tracing::field::Empty, agent.session.warm = warm, agent.session.warm_hit = false, agent.session.warm_id_sent = tracing::field::Empty, agent.session.warm_miss_reason = tracing::field::Empty, agent.session.model = tracing::field::Empty, agent.routine.id = tracing::field::Empty))]
+    #[tracing::instrument(skip_all, err, fields(agent.session.id = tracing::field::Empty, agent.harness = tracing::field::Empty, agent.session.warm = warm, agent.session.warm_hit = false, agent.session.warm_id_sent = tracing::field::Empty, agent.session.warm_miss_reason = tracing::field::Empty, agent.session.model = tracing::field::Empty, agent.session.source = <&str>::from(request.source)))]
     pub(super) async fn open_managed_session_inner(
         &self,
         request: agent_session::domain::ports::OpenManagedSession,
         warm: bool,
     ) -> agent_session::domain::error::Result<AgentSession> {
-        if let Some(routine_id) = request.routine_id {
-            tracing::Span::current()
-                .record("agent.routine.id", tracing::field::display(routine_id));
-        }
         let managed_defaults = self.inner.defaults.managed();
         let (bot_id, model, harness, instructions, mut mcp_servers) = match request.profile {
             Some(SelectedManagedPersona {
@@ -163,13 +159,13 @@ where
         let claim = if warm {
             None
         } else {
-            // A warm row was created without the routine, so a routine run
-            // opens its own and stays recognizable as one.
+            // A warm row was created for a person, so a routine run opens its
+            // own and stays recognizable as one.
             let eligible = kind == AgentKind::InMemory
                 && bot_id == bot_id::MACRO_NEW_BOT_ID
                 && matches!(mcp_servers, AgentMcpServers::OwnerConnections)
                 && request.repo_url.is_none()
-                && request.routine_id.is_none();
+                && request.source == SessionSource::User;
             let claim = match &self.warm_lifecycle {
                 Some(lifecycle) if eligible => Some(
                     lifecycle
@@ -240,12 +236,14 @@ where
             .inner
             .sessions
             .create_session(CreateAgentSessionParams {
-                purpose: match (warm, request.routine_id) {
+                purpose: match (warm, request.source) {
                     (true, _) => agent_session::domain::model::SessionPurpose::Warm,
-                    (false, Some(routine_id)) => {
-                        agent_session::domain::model::SessionPurpose::Routine { routine_id }
+                    (false, SessionSource::Routine) => {
+                        agent_session::domain::model::SessionPurpose::Routine
                     }
-                    (false, None) => agent_session::domain::model::SessionPurpose::Standalone,
+                    (false, SessionSource::User) => {
+                        agent_session::domain::model::SessionPurpose::Standalone
+                    }
                 },
                 repo_branch: selected_repo.as_ref().map(|(_, branch)| branch.clone()),
                 id: session_id,
@@ -437,7 +435,7 @@ where
             }),
             instructions: None,
             model: None,
-            routine_id: None,
+            source: SessionSource::User,
         };
         match tokio::time::timeout(
             WARM_PREPARATION_TIMEOUT,

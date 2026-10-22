@@ -5,7 +5,7 @@ mod search;
 mod session_task;
 mod user_cleanup;
 mod working_branch;
-use crate::domain::model::{AgentMcpServer, DEFAULT_AGENT_SESSION_NAME};
+use crate::domain::model::{AgentMcpServer, DEFAULT_AGENT_SESSION_NAME, SessionSource};
 use crate::domain::ports::AgentSessionRepo;
 use agent_client_protocol::RawJsonRpcMessage;
 use agent_runtime_protocol::domain::schema::v0::{AcpMessage, SystemEvent};
@@ -1319,24 +1319,23 @@ async fn inline_macro_sessions_start_hidden(pool: PgPool) {
     assert!(!hidden[1].list_hidden, "a composer session is listed");
 }
 
-/// A routine's run records its routine, whether the harness created the row
+/// A routine's run records its source, whether the harness created the row
 /// knowing it or an external runtime created it first. It stays listed: lists
 /// leave routine runs out by asking to, not by hiding them.
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
-async fn routine_runs_record_their_routine(pool: PgPool) {
+async fn routine_runs_record_their_source(pool: PgPool) {
     let repo = test_repo(&pool);
     let bot_id = create_test_bot(&pool).await;
-    let routine_id = Uuid::now_v7();
 
     let managed = create_session(
         &repo,
         CreateAgentSessionParams {
-            purpose: crate::domain::model::SessionPurpose::Routine { routine_id },
+            purpose: crate::domain::model::SessionPurpose::Routine,
             ..new_session(bot_id, None, None)
         },
     )
     .await;
-    assert_eq!(managed.routine_id, Some(routine_id));
+    assert_eq!(managed.source, SessionSource::Routine);
     let listed = sqlx::query_scalar!(
         "SELECT NOT list_hidden AS \"listed!\" FROM agent_session WHERE id = $1",
         managed.id.as_uuid(),
@@ -1347,17 +1346,17 @@ async fn routine_runs_record_their_routine(pool: PgPool) {
     assert!(listed, "a routine run is listed");
 
     let external = create_session(&repo, new_session(bot_id, None, None)).await;
-    assert_eq!(external.routine_id, None);
-    AgentSessionRepo::set_routine(&repo, external.id, routine_id)
+    assert_eq!(external.source, SessionSource::User);
+    AgentSessionRepo::set_source(&repo, external.id, SessionSource::Routine)
         .await
-        .expect("record the routine");
-    AgentSessionRepo::set_routine(&repo, external.id, routine_id)
+        .expect("record the source");
+    AgentSessionRepo::set_source(&repo, external.id, SessionSource::Routine)
         .await
         .expect("recording it again is a no-op");
     let external = AgentSessionRepo::get(&repo, external.id)
         .await
         .expect("read the session");
-    assert_eq!(external.routine_id, Some(routine_id));
+    assert_eq!(external.source, SessionSource::Routine);
 }
 
 /// A preview reports every existing id with whether the viewer holds a grant:

@@ -7,7 +7,7 @@
 use chrono::{DateTime, Utc};
 use filter_ast::Expr;
 use item_filters::ast::{
-    agent_session::AgentSessionLiteral,
+    agent_session::{AgentSessionLiteral, AgentSessionSource},
     properties::{PropertiesLiteral, properties_filter_matches_propertyless},
 };
 use model_entity::EntityType;
@@ -22,9 +22,11 @@ use crate::domain::models::{AdvancedSortParams, SimpleSortQuery, SimpleSortReque
 #[cfg(test)]
 mod test;
 
-/// [`AgentSessionLiteral::RoutineRun`] over the `agent_session` row `s`,
-/// shared with the candidate gates.
-pub(super) const ROUTINE_RUN_SQL: &str = "s.routine_id IS NOT NULL";
+/// [`AgentSessionLiteral::Source`] over the `agent_session` row `s`, shared
+/// with the candidate gates. The value is a closed enum's, so it is inlined.
+pub(super) fn source_sql(source: AgentSessionSource) -> String {
+    format!("s.source = '{}'", <&str>::from(source))
+}
 
 #[derive(FromRow)]
 struct AgentSessionRow {
@@ -40,7 +42,7 @@ struct AgentSessionRow {
     pull_request_url: Option<String>,
     turn_state: Option<String>,
     thread_id: Option<Uuid>,
-    routine_id: Option<Uuid>,
+    source: String,
     status: String,
     status_event_name: Option<String>,
     created_at: DateTime<Utc>,
@@ -74,7 +76,7 @@ pub(super) fn opted_in(expr: &Expr<AgentSessionLiteral>) -> bool {
                 out.named = true
             }
             // Narrows the sessions a query asks for; never asks for them.
-            Expr::Literal(AgentSessionLiteral::RoutineRun) => {}
+            Expr::Literal(AgentSessionLiteral::Source(_)) => {}
             Expr::And(a, b) | Expr::Or(a, b) => {
                 walk(a, out);
                 walk(b, out);
@@ -237,7 +239,7 @@ const ACCESS_SQL: &str = r#" AND cp.left_at IS NULL
         s.pull_request_url,
         s.turn_state,
         s.thread_id,
-        s.routine_id,
+        s.source,
         s.status,
         s.status_event_name,
         s.created_at,
@@ -320,8 +322,8 @@ fn push_filter(builder: &mut QueryBuilder<'_, Postgres>, expression: &Expr<Agent
             builder.push("s.owner_id = ");
             builder.push_bind(owner.principal_id());
         }
-        Expr::Literal(AgentSessionLiteral::RoutineRun) => {
-            builder.push(ROUTINE_RUN_SQL);
+        Expr::Literal(AgentSessionLiteral::Source(source)) => {
+            builder.push(source_sql(*source));
         }
     }
 }
@@ -349,7 +351,7 @@ fn row_to_item(row: AgentSessionRow) -> Result<SoupItem<()>, sqlx::Error> {
         pull_request_id: None,
         turn_state: row.turn_state,
         thread_id: row.thread_id,
-        routine_id: row.routine_id,
+        source: row.source.parse().map_err(super::type_err)?,
         status,
         created_at: row.created_at,
         updated_at: row.modified_at,

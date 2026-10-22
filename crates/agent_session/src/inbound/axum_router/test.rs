@@ -233,7 +233,7 @@ impl SessionOpener for RecordingOpener {
             status: SessionStatus::NoMessages,
             created_at: Utc::now(),
             modified_at: Utc::now(),
-            routine_id: None,
+            source: crate::domain::model::SessionSource::User,
         };
         self.opened.lock().unwrap().push(request);
         Ok(session)
@@ -272,7 +272,7 @@ impl SessionOpener for RecordingOpener {
             status: SessionStatus::NoMessages,
             created_at: Utc::now(),
             modified_at: Utc::now(),
-            routine_id: None,
+            source: crate::domain::model::SessionSource::User,
         };
         self.managed.lock().unwrap().push(request);
         Ok(session)
@@ -493,7 +493,7 @@ impl ExternalSessionRequester for RecordingRequester {
             status: SessionStatus::NoMessages,
             created_at: Utc::now(),
             modified_at: Utc::now(),
-            routine_id: None,
+            source: crate::domain::model::SessionSource::User,
         };
         self.requested.lock().unwrap().push(request);
         Ok(session)

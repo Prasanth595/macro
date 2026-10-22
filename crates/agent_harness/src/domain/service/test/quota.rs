@@ -187,7 +187,7 @@ async fn managed_open_checks_quota_before_provisioning_without_an_initial_prompt
                     bot_id: bot_id::MACRO_CODER_BOT_ID,
                     profile: None,
                 }),
-                routine_id: None,
+                source: agent_session::domain::model::SessionSource::User,
             })
             .await;
         assert!(matches!(result, Err(AgentSessionError::Admission(error)) if error == failure));

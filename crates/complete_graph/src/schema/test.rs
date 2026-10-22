@@ -117,7 +117,7 @@ fn soup_agent_session(id: Uuid) -> SoupItem<()> {
         updated_at: Default::default(),
         viewed_at: None,
         extra: (),
-        routine_id: None,
+        source: models_soup::agent_session::AgentSessionSource::User,
     })
 }
 

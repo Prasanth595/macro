@@ -22,9 +22,34 @@ pub enum AgentSessionLiteral {
     /// Filter by the session's owner.
     #[serde(rename = "o")]
     Owner(Owner),
-    /// Sessions a routine's unattended run created.
-    #[serde(rename = "rr")]
-    RoutineRun,
+    /// Filter by who started the session.
+    #[serde(rename = "src")]
+    Source(AgentSessionSource),
+}
+
+/// Who started an agent session. The string form is the
+/// `agent_session.source` column's.
+#[derive(
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    strum::EnumString,
+    strum::IntoStaticStr,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+pub enum AgentSessionSource {
+    /// A person, directly or through something they did.
+    #[default]
+    User,
+    /// A routine's unattended run.
+    Routine,
 }
 
 impl ExpandFrame<AgentSessionLiteral> for AgentSessionFilters {
@@ -37,7 +62,6 @@ impl ExpandFrame<AgentSessionLiteral> for AgentSessionFilters {
             include,
             ids,
             owners,
-            exclude_routine_runs,
         } = filter_request;
 
         let include = include.then_some(Expr::val(AgentSessionLiteral::Include));
@@ -52,11 +76,6 @@ impl ExpandFrame<AgentSessionLiteral> for AgentSessionFilters {
             .map(|owner| Owner::from_principal_str(owner))
             .try_expand(|r| r.map(AgentSessionLiteral::Owner), Expr::or)?;
 
-        let routine_runs =
-            exclude_routine_runs.then(|| Expr::is_not(Expr::val(AgentSessionLiteral::RoutineRun)));
-
-        Ok([include, ids, owners, routine_runs]
-            .into_iter()
-            .fold_with(Expr::and))
+        Ok([include, ids, owners].into_iter().fold_with(Expr::and))
     }
 }

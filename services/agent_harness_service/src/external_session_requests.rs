@@ -8,7 +8,7 @@
 use std::time::Duration;
 
 use agent_session::domain::error::AgentSessionError;
-use agent_session::domain::model::AgentSession;
+use agent_session::domain::model::{AgentSession, SessionSource};
 use agent_session::domain::ports::{
     AgentSessionRepo, ExternalSessionRequester, RequestedExternalSession,
 };
@@ -65,7 +65,7 @@ where
         loop {
             match self.sessions.get(session_id).await {
                 Ok(session) => {
-                    if request.model.is_none() && request.routine_id.is_none() {
+                    if request.model.is_none() && request.source == SessionSource::User {
                         return Ok(session);
                     }
                     // The runtime created the row on the persona's default.
@@ -76,9 +76,9 @@ where
                     if let Some(model) = &request.model {
                         self.sessions.set_model(session_id, model).await?;
                     }
-                    // The runtime does not know about routines either.
-                    if let Some(routine_id) = request.routine_id {
-                        self.sessions.set_routine(session_id, routine_id).await?;
+                    // The runtime does not know who started it either.
+                    if request.source != SessionSource::User {
+                        self.sessions.set_source(session_id, request.source).await?;
                     }
                     return self.sessions.get(session_id).await;
                 }
