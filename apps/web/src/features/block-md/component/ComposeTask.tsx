@@ -21,7 +21,6 @@ import {
   forceSetTextContent,
   initializeEditorEmpty,
   isRectFlushWith,
-  trimWhitespace,
 } from '@core/component/LexicalMarkdown/utils';
 import type { PortalScope } from '@core/component/ScopedPortal';
 import { toast } from '@core/component/Toast/Toast';
@@ -211,6 +210,7 @@ export function ComposeTaskTitleEditor(props: {
     type: 'title',
     isInteractable: () => !props.disabled(),
   });
+  onCleanup(cleanup);
 
   const emojiMenuOperations = createMenuOperations();
   const tagMenuOperations = createMenuOperations();
@@ -294,10 +294,6 @@ export function ComposeTaskTitleEditor(props: {
   const onConnect = (el: HTMLDivElement) => {
     editor.setRootElement(el);
     setRootConnected(true);
-    onCleanup(() => {
-      trimWhitespace(editor, { trailing: true });
-      cleanup();
-    });
   };
 
   return (

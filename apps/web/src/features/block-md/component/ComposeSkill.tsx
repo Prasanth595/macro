@@ -13,7 +13,6 @@ import {
   forceSetTextContent,
   initializeEditorEmpty,
   isRectFlushWith,
-  trimWhitespace,
 } from '@core/component/LexicalMarkdown/utils';
 import type { PortalScope } from '@core/component/ScopedPortal';
 import { toast } from '@core/component/Toast/Toast';
@@ -105,6 +104,7 @@ function ComposeSkillTitleEditor(props: {
     type: 'title',
     isInteractable: () => !props.disabled(),
   });
+  onCleanup(cleanup);
 
   initializeEditorEmpty(editor);
   forceSetTextContent(editor, props.value());
@@ -162,10 +162,6 @@ function ComposeSkillTitleEditor(props: {
   const onConnect = (el: HTMLDivElement) => {
     editor.setRootElement(el);
     setRootConnected(true);
-    onCleanup(() => {
-      trimWhitespace(editor, { trailing: true });
-      cleanup();
-    });
   };
 
   return (
