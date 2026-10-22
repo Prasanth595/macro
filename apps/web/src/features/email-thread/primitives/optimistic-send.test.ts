@@ -104,7 +104,7 @@ it('shows a send from a new thread that the read has no draft for', () => {
   }
 });
 
-it('returns the draft when the send is cancelled or fails before delivery', () => {
+it('returns the draft and reads the thread again when the send is cancelled or fails', () => {
   const state = setup();
   try {
     state.setSends([outgoing]);
@@ -114,6 +114,8 @@ it('returns the draft when the send is cancelled or fails before delivery', () =
       is_draft: true,
       body_text: 'Older body',
     });
+    // Admission already made the server's copy a sent message.
+    expect(state.refresh).toHaveBeenCalledOnce();
   } finally {
     state.dispose();
   }
@@ -128,6 +130,22 @@ it('keeps a delivered send after it leaves the outbox and reads the thread once'
     expect(state.refresh).toHaveBeenCalledOnce();
     state.setSends([]);
     expect(state.source.thread()?.messages[1].is_draft).toBe(false);
+    expect(state.refresh).toHaveBeenCalledOnce();
+  } finally {
+    state.dispose();
+  }
+});
+
+it('reads the thread again when a send the read already shows is undone', () => {
+  const state = setup();
+  try {
+    state.setSends([outgoing]);
+    // The read caught up after admission, so nothing is projected.
+    state.setSnapshot(
+      thread([message('received'), message('draft', { body_text: 'Sent' })])
+    );
+    expect(state.source.thread()).toBe(state.snapshot());
+    state.setSends([]);
     expect(state.refresh).toHaveBeenCalledOnce();
   } finally {
     state.dispose();

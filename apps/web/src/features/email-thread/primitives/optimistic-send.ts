@@ -1,5 +1,5 @@
 import { fireAndForget } from '@core/util/fireAndForget';
-import { createEffect, createMemo } from 'solid-js';
+import { createEffect, createMemo, on } from 'solid-js';
 import type {
   EmailComposeContext,
   OutgoingEmail,
@@ -15,10 +15,11 @@ export function createOptimisticThreadSend(
   source: EmailThreadSource,
   compose: Pick<EmailComposeContext, 'delivery' | 'accounts' | 'viewerEmail'>
 ): EmailThreadSource {
+  const outgoing = createMemo(() => compose.delivery.outgoing?.() ?? []);
   const tracked = createMemo(
     (previous: { pending: PendingSend[]; confirmed: Set<string> }) => {
       const messages = source.thread()?.messages ?? [];
-      const live = compose.delivery.outgoing?.() ?? [];
+      const live = outgoing();
       const confirmed = new Set(previous.confirmed);
       const pending: PendingSend[] = [];
       for (const send of [
@@ -56,21 +57,27 @@ export function createOptimisticThreadSend(
     { pending: [], confirmed: new Set<string>() }
   );
 
-  // Delivery is when the server's copy stops being a draft; read it once.
-  const refreshed = new Set<string>();
-  createEffect(() => {
-    const id = source.id();
-    for (const { send } of tracked().pending) {
-      if (
-        !send.delivered ||
-        !send.threadIds.includes(id) ||
-        refreshed.has(send.sendAttemptId)
-      )
-        continue;
-      refreshed.add(send.sendAttemptId);
-      fireAndForget(source.refresh(), 'email-thread-send');
-    }
-  });
+  // The server's copy changes on delivery, and again when a cancelled or
+  // failed send returns to a draft; read the thread at either moment.
+  createEffect(
+    on(outgoing, (current, previous: OutgoingEmail[] = []) => {
+      const id = source.id();
+      const find = (list: OutgoingEmail[], send: OutgoingEmail) =>
+        list.find((row) => row.sendAttemptId === send.sendAttemptId);
+      const delivered = current.some(
+        (send) =>
+          send.delivered &&
+          send.threadIds.includes(id) &&
+          !find(previous, send)?.delivered
+      );
+      const returned = previous.some(
+        (send) =>
+          !send.delivered && send.threadIds.includes(id) && !find(current, send)
+      );
+      if (delivered || returned)
+        fireAndForget(source.refresh(), 'email-thread-send');
+    })
+  );
 
   function sentMessage(current: EmailThread, entry: PendingSend): EmailMessage {
     const { send, shownAt } = entry;

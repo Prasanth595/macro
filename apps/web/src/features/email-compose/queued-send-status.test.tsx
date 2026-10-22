@@ -42,7 +42,11 @@ beforeEach(() => {
 
 function showStatus(
   status: 'ACCEPTED' | 'FAILED' | 'DELIVERY_UNCONFIRMED',
-  { cancellationPending = false, sendTime = null as string | null } = {}
+  {
+    cancellationPending = false,
+    sendTime = null as string | null,
+    failures = 0,
+  } = {}
 ) {
   mocks.intents = [
     {
@@ -51,6 +55,7 @@ function showStatus(
       locallyCancelled: false,
       dispatchVersion: 2,
       cancellationRequested: cancellationPending,
+      dispatch: { generation: 1, leaseUntil: 0, nextAttemptAt: 0, failures },
       metadata: {
         kind: 'email-send-v1',
         payload: {
@@ -103,8 +108,13 @@ it('keeps an accepted scheduled send cancellable until its send time', async () 
   expect(mocks.restore).not.toHaveBeenCalled();
 });
 
-it('keeps a pending cancellation visible after an accepted preparation', () => {
+it('stays silent while an Undo is confirming with the server', () => {
   showStatus('ACCEPTED', { cancellationPending: true });
+  expect(screen.queryByLabelText('Queued email sends')).toBeNull();
+});
+
+it('shows a cancellation that cannot reach the server', () => {
+  showStatus('ACCEPTED', { cancellationPending: true, failures: 1 });
   expect(screen.getByRole('status').textContent).toBe('Cancellation pending');
   expect(
     screen.getByRole('button', { name: 'Cancel' }).hasAttribute('disabled')

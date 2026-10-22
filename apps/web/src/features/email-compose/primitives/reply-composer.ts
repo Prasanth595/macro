@@ -1422,7 +1422,7 @@ export function createReplyComposer(
         void Promise.resolve(
           props.sideEffectOnSend?.(draftId ?? null, {
             // Send and mark done already leaves the thread.
-            queuedOffline: offline && !willMarkDone,
+            queuedOffline: offline && !markDone,
           })
         ).catch(props.notices.reportError);
       } catch (error) {

@@ -626,9 +626,12 @@ authority commit together. It preserves newer edits and fences callbacks from
 before cancellation; older autosaves cannot overwrite or delete the restored copy. A failed queue attempt retains recovery content;
 cancel it before restoring and sending again. The server starts the undo delay
 at first admission, so reconnecting does not consume that delay while offline.
-The send toast's **Undo** works after navigation closes the composer. It restores
-the draft only after cancellation is confirmed. Pending cancellation, an expired
-undo window, and failed cancellation each display a notice. Delivered attempts
+The send toast's **Undo** works after navigation closes the composer. It shows
+**Cancelling send…** until the server confirms, then **Send cancelled**, and
+restores the draft only after that confirmation. The open conversation reads the
+thread again, so the cancelled message never stays visible as sent beside the
+restored draft. Cancellation that cannot be confirmed in time, an expired undo
+window, and failed cancellation each display a notice. Delivered attempts
 remain complete even if the sent message is later deleted from the provider.
 After Undo, delay the accepted cache record's refresh: the newer restored draft
 must still reopen with its body and attachments. A later confirmed send must still

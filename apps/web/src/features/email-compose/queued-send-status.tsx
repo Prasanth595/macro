@@ -32,17 +32,18 @@ function sendNeedsNotice(intent: EmailSendIntent, offline: boolean) {
   if (
     intent.metadata.payload.input.message.sendTime ||
     !emailSendLocked(intent) ||
-    intent.cancellationRequested ||
     intent.dispatch?.paused ||
     intent.phase === 'failed' ||
     status === 'FAILED' ||
     status === 'DELIVERY_UNCONFIRMED'
   )
     return true;
+  // Delivery and Undo in progress stay silent unless they are stuck.
   if (
-    status === 'ACCEPTED' ||
-    status === 'SENDING' ||
-    intent.phase === 'committed'
+    !intent.cancellationRequested &&
+    (status === 'ACCEPTED' ||
+      status === 'SENDING' ||
+      intent.phase === 'committed')
   )
     return false;
   return offline || (intent.dispatch?.failures ?? 0) > 0;
