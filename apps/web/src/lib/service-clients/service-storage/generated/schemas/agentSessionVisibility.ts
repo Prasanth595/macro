@@ -6,8 +6,7 @@
  */
 
 /**
- * Whether Home and the default Agents list show an agent session; a
-routine's setting decides it for each of its runs. The string form is the
+ * Where an agent session is shown. The string form is the
 `agent_session.visibility` column's.
  */
 export type AgentSessionVisibility =
@@ -17,4 +16,5 @@ export type AgentSessionVisibility =
 export const AgentSessionVisibility = {
   listed: 'listed',
   unlisted: 'unlisted',
+  hidden: 'hidden',
 } as const;

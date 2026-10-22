@@ -1405,8 +1405,7 @@ enum GraphqlAgentSessionSource {
 }
 
 """
-Whether Home and the default Agents list show an agent session: filter
-input, and the field Soup returns.
+Where an agent session is shown: filter input, and the field Soup returns.
 """
 enum GraphqlAgentSessionVisibility {
 	"""
@@ -1414,10 +1413,15 @@ enum GraphqlAgentSessionVisibility {
 	"""
 	LISTED
 	"""
-	Left out of Home and the default Agents list; a routine's setting
-	decides it for each of its runs.
+	Left out of Home and the default Agents list, but a filter can still
+	ask for it; a routine's setting decides it for each of its runs.
 	"""
 	UNLISTED
+	"""
+	Out of every list and search; only a query naming the session's id
+	returns it.
+	"""
+	HIDDEN
 }
 
 """
@@ -6799,7 +6803,7 @@ type GraphqlSoupAgentSession implements GraphqlSoupEntity {
 	"""
 	source: GraphqlAgentSessionSource!
 	"""
-	Whether Home and the default Agents list show the session.
+	Where the session is shown.
 	"""
 	visibility: GraphqlAgentSessionVisibility!
 	"""

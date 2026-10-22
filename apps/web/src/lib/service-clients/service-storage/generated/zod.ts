@@ -27887,10 +27887,10 @@ export const getItemsSoupResponse = zod
                         'The time the session was last viewed by the requesting user'
                       ),
                     visibility: zod
-                      .enum(['listed', 'unlisted'])
+                      .enum(['listed', 'unlisted', 'hidden'])
                       .optional()
                       .describe(
-                        "Whether Home and the default Agents list show an agent session; a\nroutine's setting decides it for each of its runs. The string form is the\n`agent_session.visibility` column's."
+                        "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -32542,10 +32542,10 @@ export const postItemsSoupResponse = zod
                         'The time the session was last viewed by the requesting user'
                       ),
                     visibility: zod
-                      .enum(['listed', 'unlisted'])
+                      .enum(['listed', 'unlisted', 'hidden'])
                       .optional()
                       .describe(
-                        "Whether Home and the default Agents list show an agent session; a\nroutine's setting decides it for each of its runs. The string form is the\n`agent_session.visibility` column's."
+                        "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -36673,10 +36673,10 @@ export const postItemsSoupAstResponse = zod
                         'The time the session was last viewed by the requesting user'
                       ),
                     visibility: zod
-                      .enum(['listed', 'unlisted'])
+                      .enum(['listed', 'unlisted', 'hidden'])
                       .optional()
                       .describe(
-                        "Whether Home and the default Agents list show an agent session; a\nroutine's setting decides it for each of its runs. The string form is the\n`agent_session.visibility` column's."
+                        "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -41221,10 +41221,10 @@ export const postItemsSoupAstGroupedResponse = zod
                               'The time the session was last viewed by the requesting user'
                             ),
                           visibility: zod
-                            .enum(['listed', 'unlisted'])
+                            .enum(['listed', 'unlisted', 'hidden'])
                             .optional()
                             .describe(
-                              "Whether Home and the default Agents list show an agent session; a\nroutine's setting decides it for each of its runs. The string form is the\n`agent_session.visibility` column's."
+                              "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                             ),
                           workingBranch: zod
                             .string()
@@ -45331,10 +45331,10 @@ export const postItemsSoupAstGroupedResponse = zod
                               'The time the session was last viewed by the requesting user'
                             ),
                           visibility: zod
-                            .enum(['listed', 'unlisted'])
+                            .enum(['listed', 'unlisted', 'hidden'])
                             .optional()
                             .describe(
-                              "Whether Home and the default Agents list show an agent session; a\nroutine's setting decides it for each of its runs. The string form is the\n`agent_session.visibility` column's."
+                              "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                             ),
                           workingBranch: zod
                             .string()

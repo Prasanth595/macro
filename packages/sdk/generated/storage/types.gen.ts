@@ -421,11 +421,10 @@ export type AgentSessionLifecycleEvent = {
 export type AgentSessionSource = 'user' | 'routine';
 
 /**
- * Whether Home and the default Agents list show an agent session; a
- * routine's setting decides it for each of its runs. The string form is the
+ * Where an agent session is shown. The string form is the
  * `agent_session.visibility` column's.
  */
-export type AgentSessionVisibility = 'listed' | 'unlisted';
+export type AgentSessionVisibility = 'listed' | 'unlisted' | 'hidden';
 
 /**
  * An agent session typing through its bot.
@@ -11967,7 +11966,7 @@ export type SoupAgentSessionSoupPropertiesField = {
      */
     viewedAt?: string | null;
     /**
-     * Whether Home and the default Agents list show the session
+     * Where the session is shown
      */
     visibility?: AgentSessionVisibility;
     /**

@@ -19280,8 +19280,8 @@
       },
       "AgentSessionVisibility": {
         "type": "string",
-        "description": "Whether Home and the default Agents list show an agent session; a\nroutine's setting decides it for each of its runs. The string form is the\n`agent_session.visibility` column's.",
-        "enum": ["listed", "unlisted"]
+        "description": "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's.",
+        "enum": ["listed", "unlisted", "hidden"]
       },
       "AgentTyping": {
         "type": "object",
@@ -37481,7 +37481,7 @@
               },
               "visibility": {
                 "$ref": "#/components/schemas/AgentSessionVisibility",
-                "description": "Whether Home and the default Agents list show the session"
+                "description": "Where the session is shown"
               },
               "workingBranch": {
                 "type": ["string", "null"],

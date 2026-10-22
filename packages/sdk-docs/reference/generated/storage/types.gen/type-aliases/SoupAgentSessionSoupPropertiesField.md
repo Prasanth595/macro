@@ -33,5 +33,5 @@ coding and non-coding sessions without fetching each session separately.
 | `turnState?` | `string` \| `null` | Last persisted fold turn state. Absent until an older session next runs. |
 | `updatedAt` | `string` | The time the session was last modified |
 | `viewedAt?` | `string` \| `null` | The time the session was last viewed by the requesting user |
-| `visibility?` | [`AgentSessionVisibility`](AgentSessionVisibility.md) | Whether Home and the default Agents list show the session |
+| `visibility?` | [`AgentSessionVisibility`](AgentSessionVisibility.md) | Where the session is shown |
 | `workingBranch?` | `string` \| `null` | Last captured working branch, when the runtime has reported one. |

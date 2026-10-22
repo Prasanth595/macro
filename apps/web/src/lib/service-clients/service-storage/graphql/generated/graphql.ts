@@ -397,16 +397,18 @@ export type GraphqlAgentSessionSource =
   /** A person, directly or through something they did. */
   | 'USER';
 
-/**
- * Whether Home and the default Agents list show an agent session: filter
- * input, and the field Soup returns.
- */
+/** Where an agent session is shown: filter input, and the field Soup returns. */
 export type GraphqlAgentSessionVisibility =
+  /**
+   * Out of every list and search; only a query naming the session's id
+   * returns it.
+   */
+  | 'HIDDEN'
   /** Shown wherever the owner's sessions are. */
   | 'LISTED'
   /**
-   * Left out of Home and the default Agents list; a routine's setting
-   * decides it for each of its runs.
+   * Left out of Home and the default Agents list, but a filter can still
+   * ask for it; a routine's setting decides it for each of its runs.
    */
   | 'UNLISTED';
 
