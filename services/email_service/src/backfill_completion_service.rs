@@ -407,8 +407,8 @@ async fn handle_contacts_sync(ctx: &PubSubContext, link: &Link) -> Result<(), Pr
             ProcessingError::NonRetryable(DetailedError {
                 reason: FailureReason::SqsEnqueueFailed,
                 source: anyhow::anyhow!("{e:?}").context(format!(
-                    "Failed to enqueue contacts message for {}",
-                    email_addresses.join(", ")
+                    "Failed to enqueue {length} contact connections for link {}",
+                    link.id
                 )),
             })
         })?;
