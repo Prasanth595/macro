@@ -926,6 +926,10 @@ export type SessionConfigSelectOption = {
  *  `PartialEq` only: a pending form's numeric bounds are `f64`.
  */
 export type SessionMetadata = {
+	/**  System events, projected independently of the conversation messages. */
+	notifications: SessionNotification[],
+	/**  The last notification turn whose entire answer was suppressed. */
+	noopTurn: number | null,
 	/**  The agent that produced the log. See [`Harness`]. */
 	harness: Harness,
 	/**
@@ -965,6 +969,26 @@ export type SessionMetadata = {
 	 *  they had posted; this is that derivation done once, in the fold.
 	 */
 	turn: TurnState,
+};
+
+/**  A timeline event or a card state change. Never a conversation message. */
+export type SessionNotification = {
+	/**  Outbox identity. */
+	id: string,
+	/**  Subject identity used to find an existing card. */
+	subjectId: string,
+	/**  Stable event kind. */
+	kind: string,
+	/**  Event creation time, RFC3339. */
+	createdAt: string,
+	/**  Kind-specific facts, kept out of message search and export. */
+	payload: unknown,
+	/**  Turn that received it. */
+	turn: number,
+	/**  Stable delivery action identity. */
+	actionId: string,
+	/**  Whether this turn had no user prompt. */
+	systemTurn: boolean,
 };
 
 /**

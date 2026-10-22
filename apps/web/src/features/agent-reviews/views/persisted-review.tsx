@@ -1,6 +1,7 @@
 import { fireAndForget } from '@core/util/fireAndForget';
-import { Show, Suspense } from 'solid-js';
+import { createEffect, on, Show, Suspense } from 'solid-js';
 import { match } from 'ts-pattern';
+import { decisionWakesAgent, type Review } from '../core/review';
 import { useReview, useReviewActions } from '../queries/reviews';
 import { ImportReview } from './import-review';
 import { ReviewStack } from './review-stack';
@@ -10,6 +11,9 @@ export function PersistedReview(props: {
   sessionId: string;
   reviewId: string;
   canAct: boolean;
+  eventId?: string;
+  onDecision?: () => void;
+  onDecisionFailed?: () => void;
 }) {
   const query = useReview(
     () => props.sessionId,
@@ -19,6 +23,27 @@ export function PersistedReview(props: {
     () => props.sessionId,
     () => props.reviewId
   );
+  createEffect(
+    on(
+      () => props.eventId,
+      (id) => {
+        if (id) fireAndForget(query.refetch(), 'agent-reviews');
+      }
+    )
+  );
+  const decisions = (kind: Review['kind']) => ({
+    reload: actions.reload,
+    decide: async (decision: Parameters<typeof actions.decide>[0]) => {
+      const wakes = decisionWakesAgent(kind, decision);
+      if (wakes) props.onDecision?.();
+      try {
+        return await actions.decide(decision);
+      } catch (error) {
+        if (wakes) props.onDecisionFailed?.();
+        throw error;
+      }
+    },
+  });
   return (
     <Suspense fallback={<p class="text-xs text-ink-muted">Loading review…</p>}>
       <Show when={query.isError}>
@@ -41,14 +66,14 @@ export function PersistedReview(props: {
               <ImportReview
                 review={record()}
                 canAct={props.canAct}
-                actions={actions}
+                actions={decisions('import')}
               />
             ))
-            .with('email', 'calendar', () => (
+            .with('email', 'calendar', (kind) => (
               <ReviewStack
                 review={record()}
                 canAct={props.canAct}
-                actions={actions}
+                actions={decisions(kind)}
               />
             ))
             .exhaustive()

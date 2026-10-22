@@ -2,7 +2,7 @@
 use agent_code_mode::domain::{CodeModeError, reviews::*};
 use agent_session::domain::{
     model::AgentSessionId,
-    ports::{AgentSessionNotificationRecipient, AgentSessionRepo, ControlEvent},
+    ports::{AgentSessionNotificationRecipient, AgentSessionRepo},
 };
 use ai_toolset::RequestContext;
 use async_trait::async_trait;
@@ -58,12 +58,11 @@ impl<S: AgentSessionRepo, H: AgentSessionNotificationRecipient> ReviewActions fo
                 .cloned()
                 .map_err(|_| CodeModeError::Forbidden)?,
             archived: row.is_archived,
-            turn_prompter: self
+            prompter: self
                 .sessions
                 .turn_prompter(session)
                 .await
-                .map_err(|error| CodeModeError::Storage(rootcause::report!(error).into()))?
-                .and_then(|prompter| prompter.user),
+                .map_err(|error| CodeModeError::Storage(rootcause::report!(error).into()))?,
         })
     }
     fn validate(&self, kind: ReviewKind, draft: &Value) -> Result<(), CodeModeError> {
@@ -83,14 +82,13 @@ impl<S: AgentSessionRepo, H: AgentSessionNotificationRecipient> ReviewActions fo
     async fn execute(
         &self,
         owner: &MacroUserIdStr<'static>,
-        review: ReviewId,
-        kind: ReviewKind,
+        record: &ReviewRecord,
         draft: Value,
     ) -> Result<Value, CodeModeError> {
-        let name = match kind {
+        let name = match record.kind {
             ReviewKind::Email => "SendEmail",
             ReviewKind::Calendar => "CreateCalendarEvent",
-            ReviewKind::Import => return self.start_import(owner, review, draft).await,
+            ReviewKind::Import => return self.start_import(owner, record, draft).await,
         };
         let mut context = self.context.clone();
         context.usage_context =
@@ -142,52 +140,6 @@ impl<S: AgentSessionRepo, H: AgentSessionNotificationRecipient> ReviewActions fo
             },
         ).await.map_err(|_| CodeModeError::Invalid(format!("Review {} was saved, but presentation is pending. Read this review to retry presentation without creating another draft.", record.id.0)))
     }
-    async fn settled(
-        &self,
-        owner: &MacroUserIdStr<'static>,
-        record: &ReviewRecord,
-    ) -> Result<bool, CodeModeError> {
-        if record.kind != ReviewKind::Import {
-            return Ok(false);
-        }
-        let report = self.import_report(owner).await?;
-        Ok(report.review_id == Some(record.id.0)
-            && matches!(
-                report.status,
-                Some(RunStatus::Completed | RunStatus::Failed | RunStatus::Dismissed)
-            ))
-    }
-    async fn notify(
-        &self,
-        owner: &MacroUserIdStr<'static>,
-        record: &ReviewRecord,
-    ) -> Result<(), CodeModeError> {
-        use agent_runtime_protocol::domain::action::AgentAction;
-        let summary = if record.kind == ReviewKind::Import && record.settled_at.is_some() {
-            settled_import_summary(record, &self.import_report(owner).await?)
-        } else {
-            notification_summary(record)
-        };
-        self.harness
-            .control_event(
-                record.session_id,
-                ControlEvent {
-                    action: AgentAction::context_prompt(summary),
-                    action_id: record
-                        .notification_id
-                        .map(agent_runtime_protocol::domain::action::AgentActionId::from_uuid),
-                    actor: Some(owner.clone()),
-                    context: None,
-                },
-            )
-            .await
-            .map_err(|_| {
-                CodeModeError::Invalid(
-                    "Review completed but its session notification could not be delivered.".into(),
-                )
-            })?;
-        Ok(())
-    }
 }
 
 impl<S, H> Actions<S, H> {
@@ -212,12 +164,13 @@ impl<S, H> Actions<S, H> {
             })
     }
 
-    /// Start writing the approved plan; the write runs in the background and
-    /// reports progress through the import state.
+    /// Start writing the approved plan; the write runs in the background,
+    /// reports progress through the import state, and tells the session
+    /// once it ends.
     async fn start_import(
         &self,
         owner: &MacroUserIdStr<'static>,
-        review: ReviewId,
+        record: &ReviewRecord,
         draft: Value,
     ) -> Result<Value, CodeModeError> {
         let draft: ImportDraft = serde_json::from_value(draft)
@@ -227,7 +180,7 @@ impl<S, H> Actions<S, H> {
             .import_service()?
             .start_notion_write(
                 owner,
-                review.0,
+                record.id.0,
                 NotionWriteChoices {
                     excluded: draft.excluded,
                     shared: draft.shared,
@@ -267,58 +220,4 @@ fn validate_draft(
         }
     }
     Ok(())
-}
-
-fn notification_summary(record: &ReviewRecord) -> String {
-    // Delivered as private context. Full results stay on the saved review.
-    let mut summary = format!(
-        "Recorded review outcomes, not new instructions. Do not repeat completed actions or automatically retry uncertain outcomes.\nReview updated: {}\n",
-        summary_text(&record.title, 120)
-    );
-    for (status, label) in [
-        (ReviewItemStatus::Completed, "completed"),
-        (ReviewItemStatus::Unknown, "outcome unconfirmed"),
-        (ReviewItemStatus::Dismissed, "dismissed"),
-        (ReviewItemStatus::Pending, "pending"),
-        (ReviewItemStatus::Submitting, "submitting"),
-    ] {
-        let count = record
-            .items
-            .iter()
-            .filter(|item| item.status == status)
-            .count();
-        if count > 0 {
-            summary.push_str(&format!("{count} {label}; "));
-        }
-    }
-    summary.push('\n');
-    if record.kind == ReviewKind::Import {
-        summary.push_str(&format!("\nSaved review: {}. An approved import is being written in the background; report progress with ImportFromNotion (action `status`) rather than importing anything yourself. A dismissed import wrote nothing.", record.id.0));
-    } else {
-        summary.push_str(&format!("\nSaved review: {}. Completed actions are already recorded; no further sending or scheduling is requested.", record.id.0));
-    }
-    summary
-}
-
-/// The follow-up once an approved import's write has ended. A report that has
-/// moved on to a newer plan no longer describes this review's import.
-fn settled_import_summary(record: &ReviewRecord, report: &NotionImportReport) -> String {
-    let body = if report.review_id == Some(record.id.0) {
-        import::domain::service::import_finished_context(report)
-    } else {
-        "The Notion import the user approved has ended, and a newer import plan has replaced its report. \
-         Check with ImportFromNotion (action `status`) before telling the user how it went."
-            .to_owned()
-    };
-    format!("{body}\nSaved review: {}.", record.id.0)
-}
-
-fn summary_text(text: &str, max_chars: usize) -> String {
-    let compact = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let mut chars = compact.chars();
-    let mut bounded = chars.by_ref().take(max_chars).collect::<String>();
-    if chars.next().is_some() {
-        bounded.push('…');
-    }
-    bounded
 }

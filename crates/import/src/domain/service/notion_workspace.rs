@@ -36,7 +36,6 @@ use mcp_select::ConnectorSelect;
 use object::{Outcome, Target};
 use run::{IMPORT_STOPPED, JobControl, Stop, WriteSet};
 
-pub(super) mod follow_up;
 mod object;
 mod plan;
 mod report;
@@ -644,7 +643,6 @@ where
             tracing::warn!(error = ?error, "could not record the notion write outcome");
         }
         self.notify(user).await;
-        self.follow_up_review(user).await;
     }
 
     /// Write every pending object, reusing what earlier attempts wrote;

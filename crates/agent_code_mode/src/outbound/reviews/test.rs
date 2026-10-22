@@ -30,7 +30,12 @@ async fn review_revision_claim_is_atomic_and_session_deletion_removes_reviews(po
         )
         .await
         .unwrap();
-    let store = PgReviewStore(pool.clone());
+    let store = PgReviewStore(
+        pool.clone(),
+        std::sync::Arc::new(agent_session::outbound::notifications::PgNotificationStore(
+            pool.clone(),
+        )),
+    );
     let mut record = ReviewRecord {
         id: ReviewId(macro_uuid::generate_uuid_v7()),
         session_id: session,
@@ -40,13 +45,11 @@ async fn review_revision_claim_is_atomic_and_session_deletion_removes_reviews(po
         title: "Pick one".into(),
         revision: 0,
         updated_at: 0,
-        notification_id: None,
-        notification_attempt_at: None,
-        settled_at: None,
-        approved_by_agent: None,
+        decision: None,
         items: vec![ReviewItem {
             id: macro_uuid::generate_uuid_v7(),
             draft: json!({"subject":"Which?"}),
+            edited: false,
             status: ReviewItemStatus::Pending,
             result: None,
             error: None,
@@ -73,11 +76,6 @@ async fn review_revision_claim_is_atomic_and_session_deletion_removes_reviews(po
         Err(CodeModeError::NotFound)
     ));
     assert!(store.list(other, execution).await.unwrap().is_empty());
-    assert_eq!(store.find(record.id).await.unwrap().title, "Pick one");
-    assert!(matches!(
-        store.find(ReviewId(macro_uuid::generate_uuid_v7())).await,
-        Err(CodeModeError::NotFound)
-    ));
     let mut standalone = record.clone();
     standalone.id = ReviewId(macro_uuid::generate_uuid_v7());
     standalone.execution_id = None;
@@ -96,16 +94,52 @@ async fn review_revision_claim_is_atomic_and_session_deletion_removes_reviews(po
     );
     record.revision = 1;
     record.items[0].status = ReviewItemStatus::Submitting;
-    let (first, second) = tokio::join!(store.save(0, &record), store.save(0, &record));
+    let notification = agent_session::domain::notifications::PendingNotification::new(
+        agent_session::domain::notifications::ProduceNotification {
+            session_id: session,
+            subject_id: record.id.0.to_string(),
+            event: agent_runtime_protocol::domain::notification::NotificationEvent::ReviewDecided(
+                agent_runtime_protocol::domain::notification::ReviewOutcome {
+                    outcome:
+                        agent_runtime_protocol::domain::notification::DecisionOutcome::Approved,
+                    by: "macro|owner@example.com".into(),
+                    via: agent_runtime_protocol::domain::notification::DecisionVia::Card,
+                    items: vec![],
+                },
+            ),
+            dedupe_key: None,
+            wake: true,
+        },
+    )
+    .unwrap();
+    let (first, second) = tokio::join!(
+        store.save(0, &record, Some(&notification)),
+        store.save(0, &record, Some(&notification))
+    );
+    assert_eq!(
+        sqlx::query_scalar!(
+            "SELECT COUNT(*) FROM agent_session_notification WHERE session_id = $1",
+            session.as_uuid()
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap(),
+        Some(1)
+    );
     assert_eq!(usize::from(first.is_ok()) + usize::from(second.is_ok()), 1);
     assert!(matches!(
         first.err().or(second.err()),
         Some(CodeModeError::Conflict)
     ));
-    let persisted = PgReviewStore(pool.clone())
-        .get(session, record.id)
-        .await
-        .unwrap();
+    let persisted = PgReviewStore(
+        pool.clone(),
+        std::sync::Arc::new(agent_session::outbound::notifications::PgNotificationStore(
+            pool.clone(),
+        )),
+    )
+    .get(session, record.id)
+    .await
+    .unwrap();
     assert_eq!(persisted.revision, 1);
     assert_eq!(persisted.items[0].status, ReviewItemStatus::Submitting);
     sqlx::raw_sql("DELETE FROM agent_session WHERE id = '00000000-0000-0000-0000-000000000001'")

@@ -1,6 +1,11 @@
 //! Persistent session interactions; completing an execution never closes a review.
 use super::{CodeModeError, ExecutionId, ExecutionStore};
-use agent_session::domain::model::AgentSessionId;
+use agent_runtime_protocol::domain::notification::{
+    DecisionOutcome, DecisionVia, ItemStatus, NotificationEvent, ReviewItemOutcome, ReviewOutcome,
+    ReviewSettlement,
+};
+use agent_session::domain::model::{AgentSessionId, PrompterKind, TurnPrompter};
+use agent_session::domain::notifications::{PendingNotification, ProduceNotification};
 use async_trait::async_trait;
 use entity_access::domain::models::{
     EditAccessLevel, EntityAccessReceipt, EntityType, ViewAccessLevel,
@@ -10,13 +15,13 @@ use macro_uuid::Uuid;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
+use tracing::Instrument as _;
 use utoipa::ToSchema;
 
 #[cfg(test)]
 mod test;
 
 const MAX_REVIEWS_PER_SESSION: u16 = 100;
-const NOTIFICATION_RETRY_MS: i64 = 30_000;
 const MAX_DRAFT_BYTES: usize = 128 * 1024;
 const MAX_RECORD_BYTES: usize = 2 * 1024 * 1024;
 const MAX_INPUT_BYTES: usize = 1024 * 1024;
@@ -77,21 +82,8 @@ pub struct CreateReview {
     pub drafts: Vec<Value>,
 }
 
-/// A review item never retries an ambiguous external result automatically.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ReviewItemStatus {
-    /// Still editable and not submitted.
-    Pending,
-    /// Claimed before external work begins.
-    Submitting,
-    /// External success was observed and saved.
-    Completed,
-    /// User dismissed this draft.
-    Dismissed,
-    /// External work might have happened; reconcile before retrying.
-    Unknown,
-}
+/// Persisted review item state shared with typed system notifications.
+pub use agent_runtime_protocol::domain::notification::ItemStatus as ReviewItemStatus;
 
 /// One editable item and its durable outcome.
 #[derive(Clone, Serialize, Deserialize, ToSchema)]
@@ -101,6 +93,9 @@ pub struct ReviewItem {
     pub id: Uuid,
     /// Validated arguments for the existing composer/action.
     pub draft: Value,
+    /// Whether the owner edited this draft before deciding.
+    #[serde(default)]
+    pub edited: bool,
     /// Current outcome.
     pub status: ReviewItemStatus,
     /// Actual backend response, never a model assertion.
@@ -133,35 +128,27 @@ pub struct ReviewRecord {
     pub updated_at: i64,
     /// Drafts and per-item outcomes.
     pub items: Vec<ReviewItem>,
-    /// Stable queued-action identity until the outcome has reached the session.
-    /// A failed notification may be retried without repeating external actions.
+    /// Current batch's authenticated decision, preserved for interrupted work.
     #[serde(default)]
-    pub notification_id: Option<Uuid>,
-    /// Most recent delivery claim, allowing retry after a replica stops.
-    #[serde(default)]
-    pub notification_attempt_at: Option<i64>,
-    /// When the approved action's background work ended. Set once, so the
-    /// session hears the final outcome once.
-    #[serde(default)]
-    pub settled_at: Option<i64>,
-    /// Set when the session's agent approved the review because its owner
-    /// said so in chat, instead of the owner approving it on the card.
-    #[serde(default)]
-    pub approved_by_agent: Option<AgentApproval>,
+    pub decision: Option<ReviewDecisionContext>,
 }
 
-/// The agent approved a review on its owner's word in chat.
+/// Facts about the most recent owner decision.
 #[derive(Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct AgentApproval {
-    /// The owner who prompted the turn the agent approved it in.
-    pub requested_by: MacroUserIdStr<'static>,
-    /// Milliseconds since epoch.
-    pub at: i64,
+pub struct ReviewDecisionContext {
+    /// Authenticated owner.
+    pub by: String,
+    /// Entry surface.
+    pub via: DecisionVia,
+    /// Revision claimed by this batch, used in notification deduplication.
+    pub revision: i64,
+    /// Items selected by this decision.
+    pub items: Vec<Uuid>,
 }
 
 /// One atomic user decision against the displayed revision.
-#[derive(Clone, Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Deserialize, Serialize, ToSchema, schemars::JsonSchema)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ReviewDecision {
     /// Save one edited draft.
@@ -211,9 +198,12 @@ pub trait ReviewStore: Send + Sync + 'static {
         execution: ExecutionId,
     ) -> Result<Vec<ReviewRecord>, CodeModeError>;
     /// Save iff the persisted revision equals `expected`.
-    async fn save(&self, expected: i64, record: &ReviewRecord) -> Result<(), CodeModeError>;
-    /// Look up by identity alone, for internal callers that know only the review.
-    async fn find(&self, id: ReviewId) -> Result<ReviewRecord, CodeModeError>;
+    async fn save(
+        &self,
+        expected: i64,
+        record: &ReviewRecord,
+        notification: Option<&PendingNotification>,
+    ) -> Result<(), CodeModeError>;
 }
 
 /// Authoritative session facts used by review authorization and dispatch.
@@ -222,9 +212,8 @@ pub struct ReviewSession {
     pub owner: MacroUserIdStr<'static>,
     /// Archived sessions cannot start actions or new notification turns.
     pub archived: bool,
-    /// Who prompted the turn the session is running or last ran; `None`
-    /// before its first turn or when a bot prompted it on nobody's behalf.
-    pub turn_prompter: Option<MacroUserIdStr<'static>>,
+    /// Current invocation authority, used only for agent-initiated decisions.
+    pub prompter: Option<TurnPrompter>,
 }
 
 /// Existing domain actions and session control composed by the harness.
@@ -241,30 +230,18 @@ pub trait ReviewActions: Send + Sync + 'static {
         owner: &MacroUserIdStr<'static>,
         record: &ReviewRecord,
     ) -> Result<bool, CodeModeError>;
-    /// Execute the reviewed draft of `review` as its authenticated owner.
+    /// Execute the reviewed draft of `record` as its authenticated owner.
+    /// An import only starts here: its background write reports its own end
+    /// as a `review.settled` event once it stops.
     async fn execute(
         &self,
         owner: &MacroUserIdStr<'static>,
-        review: ReviewId,
-        kind: ReviewKind,
+        record: &ReviewRecord,
         draft: Value,
     ) -> Result<Value, CodeModeError>;
     /// Persist and stream a completed presentation without waiting for user action.
     /// Repeated calls with the same review ID must not duplicate its ACP frames.
     async fn present(
-        &self,
-        owner: &MacroUserIdStr<'static>,
-        record: &ReviewRecord,
-    ) -> Result<(), CodeModeError>;
-    /// Whether the background work an approved action started has ended, so
-    /// its final outcome can be reported.
-    async fn settled(
-        &self,
-        owner: &MacroUserIdStr<'static>,
-        record: &ReviewRecord,
-    ) -> Result<bool, CodeModeError>;
-    /// Deliver one batch outcome through the existing ordered session control queue.
-    async fn notify(
         &self,
         owner: &MacroUserIdStr<'static>,
         record: &ReviewRecord,
@@ -365,16 +342,14 @@ impl ReviewService {
             title: input.title,
             revision: 0,
             updated_at: chrono::Utc::now().timestamp_millis(),
-            notification_id: None,
-            notification_attempt_at: None,
-            settled_at: None,
-            approved_by_agent: None,
+            decision: None,
             items: input
                 .drafts
                 .into_iter()
                 .map(|draft| ReviewItem {
                     id: macro_uuid::generate_uuid_v7(),
                     draft,
+                    edited: false,
                     status: ReviewItemStatus::Pending,
                     result: None,
                     error: None,
@@ -396,7 +371,7 @@ impl ReviewService {
         // retry after the writer succeeded but this acknowledgment was interrupted.
         self.actions.present(actor, &record).await?;
         record.presented_at = Some(chrono::Utc::now().timestamp_millis());
-        match self.save(&mut record).await {
+        match self.save(&mut record, None).await {
             Ok(()) => Ok(record),
             Err(CodeModeError::Conflict) => self.store.get(record.session_id, record.id).await,
             Err(error) => Err(error),
@@ -436,6 +411,21 @@ impl ReviewService {
                 .iter()
                 .any(|item| item.status == ReviewItemStatus::Submitting)
         {
+            // Old review records predate typed decision context. Preserve their
+            // interrupted batch when replacing the former mini-outbox.
+            if record.decision.is_none() {
+                record.decision = Some(ReviewDecisionContext {
+                    by: self.owner(record.session_id).await?.to_string(),
+                    via: DecisionVia::Card,
+                    revision: record.revision,
+                    items: record
+                        .items
+                        .iter()
+                        .filter(|item| item.status == ReviewItemStatus::Submitting)
+                        .map(|item| item.id)
+                        .collect(),
+                });
+            }
             for item in &mut record.items {
                 if item.status == ReviewItemStatus::Submitting {
                     item.status = ReviewItemStatus::Unknown;
@@ -444,28 +434,16 @@ impl ReviewService {
                     );
                 }
             }
-            match self.save(&mut record).await {
+            let event = record.decision.as_ref().map(|_| {
+                NotificationEvent::ReviewSettled(ReviewSettlement::Actions(review_outcome(&record)))
+            });
+            match self.save(&mut record, event).await {
                 Ok(()) => {}
                 Err(CodeModeError::Conflict) => {
                     record = self.store.get(record.session_id, record.id).await?
                 }
                 Err(error) => return Err(error),
             }
-        }
-        if record.notification_id.is_some()
-            && record.notification_attempt_at.is_none_or(|attempt| {
-                chrono::Utc::now().timestamp_millis() - attempt >= NOTIFICATION_RETRY_MS
-            })
-            && !record
-                .items
-                .iter()
-                .any(|item| item.status == ReviewItemStatus::Submitting)
-        {
-            let service = self.clone();
-            let pending = record.clone();
-            tokio::spawn(async move {
-                service.deliver_notification(pending).await;
-            });
         }
         Ok(record)
     }
@@ -475,80 +453,42 @@ impl ReviewService {
         }
         self.actions.validate(kind, draft)
     }
-    async fn deliver_notification(&self, mut record: ReviewRecord) {
-        let Some(_) = record.notification_id else {
-            return;
-        };
-        let now = chrono::Utc::now().timestamp_millis();
-        if record
-            .notification_attempt_at
-            .is_some_and(|attempt| now - attempt < NOTIFICATION_RETRY_MS)
-        {
-            return;
-        }
-        record.notification_attempt_at = Some(now);
-        if self.save(&mut record).await.is_err() {
-            return;
-        }
-        let Ok(owner) = self.owner(record.session_id).await else {
-            return;
-        };
-        // Persisted pending state is retained on failure. A later read retries using
-        // the same queue identity; it never re-enters the external action path.
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            self.actions.notify(&owner, &record),
-        )
-        .await
-        {
-            Ok(Ok(())) => {
-                record.notification_id = None;
-                if let Err(error) = self.save(&mut record).await {
-                    tracing::warn!(?error, "could not acknowledge review notification");
-                }
-            }
-            _ => tracing::warn!("review notification pending retry"),
-        }
-    }
-    /// Tell the session, once, that the background work its approved action
-    /// started has ended. `actor` must own the session. Repeating the call is
-    /// harmless: a settled review only retries a notification still pending.
-    #[tracing::instrument(skip(self), fields(review = %id.0, session = tracing::field::Empty), err(Debug))]
-    pub async fn settle(
+    async fn save(
         &self,
-        actor: &MacroUserIdStr<'static>,
-        id: ReviewId,
-    ) -> Result<ReviewRecord, CodeModeError> {
-        let mut record = self.store.find(id).await?;
-        tracing::Span::current().record("session", tracing::field::display(record.session_id));
-        let owner = self.owner(record.session_id).await?;
-        if owner != *actor {
-            return Err(CodeModeError::Forbidden);
-        }
-        if record.settled_at.is_none() {
-            if !self.actions.settled(&owner, &record).await? {
-                return Err(CodeModeError::Invalid(
-                    "The review's background work has not finished.".into(),
-                ));
-            }
-            record.settled_at = Some(chrono::Utc::now().timestamp_millis());
-            record.notification_id = Some(macro_uuid::generate_uuid_v7());
-            record.notification_attempt_at = None;
-            self.save(&mut record).await?;
-        }
-        if record.notification_id.is_some() {
-            self.deliver_notification(record.clone()).await;
-        }
-        Ok(record)
-    }
-    async fn save(&self, record: &mut ReviewRecord) -> Result<(), CodeModeError> {
+        record: &mut ReviewRecord,
+        event: Option<NotificationEvent>,
+    ) -> Result<(), CodeModeError> {
         if serde_json::to_vec(record).map_err(|_| invalid())?.len() > MAX_RECORD_BYTES {
             return Err(invalid());
         }
         let previous = record.revision;
         record.revision += 1;
         record.updated_at = chrono::Utc::now().timestamp_millis();
-        self.store.save(previous, record).await
+        let pending = event
+            .map(|event| {
+                // An approved import only started: its write settles later, and
+                // that wakes the session instead.
+                let wake = !(record.kind == ReviewKind::Import
+                    && matches!(&event, NotificationEvent::ReviewDecided(outcome) if outcome.outcome != DecisionOutcome::Dismissed));
+                PendingNotification::new(ProduceNotification {
+                    session_id: record.session_id,
+                    subject_id: record.id.0.to_string(),
+                    dedupe_key: Some(format!(
+                        "{}:{}:{}",
+                        event.kind(),
+                        record.id.0,
+                        record
+                            .decision
+                            .as_ref()
+                            .map_or(previous, |decision| decision.revision)
+                    )),
+                    event,
+                    wake,
+                })
+                .map_err(|error| CodeModeError::Storage(rootcause::report!(error).into()))
+            })
+            .transpose()?;
+        self.store.save(previous, record, pending.as_ref()).await
     }
     /// Claim the exact saved revision, then complete independently of the request.
     /// Persisted submitting states become unknown after interrupted work.
@@ -561,6 +501,127 @@ impl ReviewService {
         decision: ReviewDecision,
     ) -> Result<ReviewRecord, CodeModeError> {
         let session = self.authorize(access, actor).await?;
+        self.decide_owned(session, actor, id, decision, DecisionVia::Card)
+            .await
+    }
+
+    /// Read final drafts and results from an authenticated session tool.
+    pub async fn read_for_session(
+        &self,
+        session: AgentSessionId,
+        actor: &MacroUserIdStr<'static>,
+        id: ReviewId,
+    ) -> Result<ReviewRecord, CodeModeError> {
+        if self.owner(session).await? != *actor {
+            return Err(CodeModeError::Forbidden);
+        }
+        self.refresh(self.store.get(session, id).await?).await
+    }
+
+    /// Owner-only actions in chat require a real owner prompt. A system event
+    /// cannot approve itself, even when tools authenticate with owner credentials.
+    pub async fn decide_for_session(
+        &self,
+        session: AgentSessionId,
+        actor: &MacroUserIdStr<'static>,
+        id: ReviewId,
+        decision: ReviewDecision,
+    ) -> Result<ReviewRecord, CodeModeError> {
+        self.owner_prompted(session, actor).await?;
+        if let ReviewDecision::Submit { .. } = decision {
+            self.ensure_approvable(actor, &self.store.get(session, id).await?)
+                .await?;
+        }
+        self.decide_owned(session, actor, id, decision, DecisionVia::Chat)
+            .await
+    }
+
+    /// Approve every pending item of an open review in `session`, because
+    /// its owner told the agent to in chat. It runs the card's Submit with
+    /// the draft the card saved, so the owner's changes there stand, and
+    /// only in a turn the owner prompted: anyone else's message, a bot's, or
+    /// a system event never approves. Racing the card, or repeating, claims
+    /// once; the loser gets [`CodeModeError::Conflict`].
+    #[tracing::instrument(skip(self, session), fields(session = %session.id, review = %id.0), err(Debug))]
+    pub async fn approve_for_session(
+        &self,
+        session: &agent_session::domain::model::AgentSession,
+        actor: &MacroUserIdStr<'static>,
+        id: ReviewId,
+    ) -> Result<ReviewRecord, CodeModeError> {
+        if session.owner_user().map_err(|_| CodeModeError::Forbidden)? != actor {
+            return Err(CodeModeError::Forbidden);
+        }
+        self.owner_prompted(session.id, actor).await?;
+        let record = self.store.get(session.id, id).await?;
+        if !record
+            .items
+            .iter()
+            .any(|item| item.status == ReviewItemStatus::Pending)
+        {
+            return Err(CodeModeError::Conflict);
+        }
+        self.ensure_approvable(actor, &record).await?;
+        self.decide_owned(
+            session.id,
+            actor,
+            id,
+            ReviewDecision::Submit {
+                revision: record.revision,
+                items: Vec::new(),
+            },
+            DecisionVia::Chat,
+        )
+        .await
+    }
+
+    /// Refuse unless `actor` owns the live session and prompted its current
+    /// turn as a person. A system event's turn has no acting user.
+    async fn owner_prompted(
+        &self,
+        session: AgentSessionId,
+        actor: &MacroUserIdStr<'static>,
+    ) -> Result<(), CodeModeError> {
+        let state = self.actions.session(session).await?;
+        if state.archived || state.owner != *actor {
+            return Err(CodeModeError::Forbidden);
+        }
+        match state.prompter {
+            Some(TurnPrompter {
+                kind: PrompterKind::System,
+                ..
+            }) => Err(CodeModeError::Invalid(
+                "A system event started this turn, not the session's owner, so it cannot approve or decide a review. Tell the owner what happened and let them approve on the card or ask you to.".into(),
+            )),
+            Some(prompter) if prompter.acting_user() == Some(actor) => Ok(()),
+            _ => Err(CodeModeError::Invalid(
+                "Only the session's owner can have you approve a review, and someone else prompted this turn. Ask the owner to approve it on the card.".into(),
+            )),
+        }
+    }
+
+    async fn ensure_approvable(
+        &self,
+        actor: &MacroUserIdStr<'static>,
+        record: &ReviewRecord,
+    ) -> Result<(), CodeModeError> {
+        if self.actions.approvable(actor, record).await? {
+            return Ok(());
+        }
+        Err(CodeModeError::Invalid(
+            "This review is not ready to approve yet; its plan is still being prepared. Check again before approving.".into(),
+        ))
+    }
+
+    #[tracing::instrument(name = "review.decide", skip_all, fields(session_id = %session, review_id = %id.0), err)]
+    async fn decide_owned(
+        &self,
+        session: AgentSessionId,
+        actor: &MacroUserIdStr<'static>,
+        id: ReviewId,
+        decision: ReviewDecision,
+        via: DecisionVia,
+    ) -> Result<ReviewRecord, CodeModeError> {
         let mut record = self.store.get(session, id).await?;
         let revision = match &decision {
             ReviewDecision::Edit { revision, .. }
@@ -569,7 +630,6 @@ impl ReviewService {
         };
         if revision != record.revision
             || record.presented_at.is_none()
-            || record.notification_id.is_some()
             || record
                 .items
                 .iter()
@@ -585,6 +645,7 @@ impl ReviewService {
                 .find(|entry| entry.id == item && entry.status == ReviewItemStatus::Pending)
                 .ok_or(CodeModeError::Conflict)?;
             target.draft = draft;
+            target.edited = true;
             if record
                 .items
                 .iter()
@@ -598,7 +659,7 @@ impl ReviewService {
             {
                 return Err(invalid());
             }
-            self.save(&mut record).await?;
+            self.save(&mut record, None).await?;
             return Ok(record);
         }
         let (ids, submit) = match decision {
@@ -606,67 +667,6 @@ impl ReviewService {
             ReviewDecision::Dismiss { items, .. } => (items, false),
             ReviewDecision::Edit { .. } => unreachable!(),
         };
-        self.claim(record, actor, ids, submit).await
-    }
-    /// Approve every pending item of an open review in `session`, because
-    /// its owner told the agent to in chat. It runs the card's Submit with
-    /// the draft the card saved, so the owner's changes there stand, and
-    /// only in a turn the owner prompted: anyone else's message, or a bot's,
-    /// never approves. Racing the card, or repeating, claims once; the loser
-    /// gets [`CodeModeError::Conflict`].
-    #[tracing::instrument(skip(self, session), fields(session = %session.id, review = %id.0), err(Debug))]
-    pub async fn approve_for_session(
-        &self,
-        session: &agent_session::domain::model::AgentSession,
-        actor: &MacroUserIdStr<'static>,
-        id: ReviewId,
-    ) -> Result<ReviewRecord, CodeModeError> {
-        let state = self.actions.session(session.id).await?;
-        if session.owner_user().map_err(|_| CodeModeError::Forbidden)? != actor
-            || state.archived
-            || state.owner != *actor
-        {
-            return Err(CodeModeError::Forbidden);
-        }
-        if state.turn_prompter.as_ref() != Some(actor) {
-            return Err(CodeModeError::Invalid(
-                "Only the session's owner can have you approve a review, and someone else prompted this turn. Ask the owner to approve it on the card.".into(),
-            ));
-        }
-        let mut record = self.store.get(session.id, id).await?;
-        if record.presented_at.is_none()
-            || record.notification_id.is_some()
-            || !record
-                .items
-                .iter()
-                .any(|item| item.status == ReviewItemStatus::Pending)
-            || record
-                .items
-                .iter()
-                .any(|item| item.status == ReviewItemStatus::Submitting)
-        {
-            return Err(CodeModeError::Conflict);
-        }
-        if !self.actions.approvable(actor, &record).await? {
-            return Err(CodeModeError::Invalid(
-                "This review is not ready to approve yet; its plan is still being prepared. Check again before approving.".into(),
-            ));
-        }
-        record.approved_by_agent = Some(AgentApproval {
-            requested_by: actor.clone(),
-            at: chrono::Utc::now().timestamp_millis(),
-        });
-        self.claim(record, actor, Vec::new(), true).await
-    }
-    /// Claim the selected pending items at the record's revision, then run or
-    /// dismiss them independently of the request.
-    async fn claim(
-        &self,
-        mut record: ReviewRecord,
-        actor: &MacroUserIdStr<'static>,
-        ids: Vec<Uuid>,
-        submit: bool,
-    ) -> Result<ReviewRecord, CodeModeError> {
         if ids.iter().any(|id| {
             !record
                 .items
@@ -695,14 +695,23 @@ impl ReviewService {
                 ReviewItemStatus::Dismissed
             };
         }
-        record.notification_id = Some(macro_uuid::generate_uuid_v7());
-        record.notification_attempt_at = None;
-        self.save(&mut record).await?;
+        record.decision = Some(ReviewDecisionContext {
+            by: actor.to_string(),
+            via,
+            revision,
+            items: selected
+                .iter()
+                .map(|index| record.items[*index].id)
+                .collect(),
+        });
+        let event = NotificationEvent::ReviewDecided(review_outcome(&record));
+        self.save(&mut record, Some(event)).await?;
         let response = record.clone();
         let service = self.clone();
         let actor = actor.clone();
         tokio::spawn(async move {
             if submit {
+                let last = selected.last().copied();
                 for index in selected {
                     let outcome = tokio::time::timeout(ACTION_TIMEOUT, async {
                         if service.owner(record.session_id).await? != actor {
@@ -710,12 +719,7 @@ impl ReviewService {
                         }
                         service
                             .actions
-                            .execute(
-                                &actor,
-                                record.id,
-                                record.kind,
-                                record.items[index].draft.clone(),
-                            )
+                            .execute(&actor, &record, record.items[index].draft.clone())
                             .await
                     })
                     .await;
@@ -738,13 +742,22 @@ impl ReviewService {
                             item.error = Some("The submission outcome could not be confirmed. Check the destination before retrying.".into());
                         }
                     }
-                    if service.save(&mut record).await.is_err() {
+                    // A started import settles when its write ends; only one that
+                    // could not start settles here.
+                    let event = (Some(index) == last
+                        && !(record.kind == ReviewKind::Import
+                            && record.items[index].status == ReviewItemStatus::Completed))
+                        .then(|| {
+                            NotificationEvent::ReviewSettled(ReviewSettlement::Actions(
+                                review_outcome(&record),
+                            ))
+                        });
+                    if service.save(&mut record, event).await.is_err() {
                         return;
                     }
                 }
             }
-            service.deliver_notification(record).await;
-        });
+        }.in_current_span());
         Ok(response)
     }
 }
@@ -758,4 +771,39 @@ fn session_id(kind: EntityType, id: &str) -> Result<AgentSessionId, CodeModeErro
 }
 fn invalid() -> CodeModeError {
     CodeModeError::Invalid("Provide a title and 1–100 valid drafts within 1 MiB.".into())
+}
+
+/// Bounded outcome facts; final drafts and provider results stay on the review.
+pub fn review_outcome(record: &ReviewRecord) -> ReviewOutcome {
+    let decision = record.decision.as_ref();
+    let items: Vec<_> = record
+        .items
+        .iter()
+        .filter(|item| decision.is_some_and(|decision| decision.items.contains(&item.id)))
+        .map(|item| ReviewItemOutcome {
+            id: item.id,
+            status: item.status,
+            edited: item.edited,
+            error: item.error.clone(),
+        })
+        .collect();
+    let outcome = if items
+        .iter()
+        .all(|item| item.status == ItemStatus::Dismissed)
+    {
+        DecisionOutcome::Dismissed
+    } else if items
+        .iter()
+        .all(|item| matches!(item.status, ItemStatus::Completed | ItemStatus::Submitting))
+    {
+        DecisionOutcome::Approved
+    } else {
+        DecisionOutcome::Partial
+    };
+    ReviewOutcome {
+        outcome,
+        by: decision.map_or_else(String::new, |decision| decision.by.clone()),
+        via: decision.map_or(DecisionVia::Card, |decision| decision.via),
+        items,
+    }
 }

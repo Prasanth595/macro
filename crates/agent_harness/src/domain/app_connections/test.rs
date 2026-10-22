@@ -1,9 +1,10 @@
 use std::sync::{Arc, Mutex};
 
-use agent_runtime_protocol::domain::action::{AgentAction, AgentActionId};
+use agent_runtime_protocol::domain::action::AgentActionId;
+use agent_runtime_protocol::domain::notification::NotificationEvent;
 use agent_session::domain::error::AgentSessionError;
 use agent_session::domain::model::AgentSessionId;
-use agent_session::domain::ports::{AcceptedControl, ControlDisposition, ControlEvent};
+use agent_session::domain::notifications::ProduceNotification;
 use macro_user_id::user_id::MacroUserIdStr;
 
 use super::*;
@@ -43,20 +44,12 @@ impl ConnectedApps for Connections {
 }
 
 #[derive(Default)]
-struct RecordedControls(Mutex<Vec<(AgentSessionId, ControlEvent)>>);
+struct RecordedNotifications(Mutex<Vec<ProduceNotification>>);
 
-impl SessionControls for RecordedControls {
-    async fn control_event(
-        &self,
-        session_id: AgentSessionId,
-        event: ControlEvent,
-    ) -> Result<AcceptedControl, AgentSessionError> {
-        let action_id = event.action_id.unwrap_or_else(AgentActionId::mint);
-        self.0.lock().unwrap().push((session_id, event));
-        Ok(AcceptedControl {
-            action_id,
-            disposition: ControlDisposition::Sent,
-        })
+impl SessionNotifications for RecordedNotifications {
+    async fn produce(&self, notification: ProduceNotification) -> Result<(), AgentSessionError> {
+        self.0.lock().unwrap().push(notification);
+        Ok(())
     }
 }
 
@@ -65,10 +58,10 @@ fn user(email: &str) -> MacroUserIdStr<'static> {
 }
 
 #[tokio::test]
-async fn the_owner_connecting_notion_continues_the_session_on_a_hidden_prompt() {
+async fn the_owner_connecting_notion_wakes_the_session_with_an_app_connected_event() {
     let session_id = AgentSessionId::new();
-    let action_id = AgentActionId::mint();
-    let controls = Arc::new(RecordedControls::default());
+    let report_id = AgentActionId::mint();
+    let notifications = Arc::new(RecordedNotifications::default());
     let service = AppConnectedContinuation::new(
         Arc::new(FixedStanding(SessionStanding {
             owner: Some(user("owner@example.com")),
@@ -79,44 +72,42 @@ async fn the_owner_connecting_notion_continues_the_session_on_a_hidden_prompt() 
             "notion",
             "Notion",
         )])),
-        Arc::clone(&controls),
+        Arc::clone(&notifications),
     );
 
-    let accepted = service
-        .continue_session(
-            session_id,
-            &user("owner@example.com"),
-            "notion",
-            Some(action_id),
-        )
-        .await
-        .unwrap();
+    for _ in 0..2 {
+        service
+            .continue_session(
+                session_id,
+                &user("owner@example.com"),
+                "notion",
+                Some(report_id),
+            )
+            .await
+            .unwrap();
+    }
 
-    assert_eq!(accepted.action_id, action_id);
-    let sent = controls.0.lock().unwrap();
-    assert_eq!(sent.len(), 1);
-    let (sent_to, event) = &sent[0];
-    assert_eq!(*sent_to, session_id);
-    assert_eq!(event.actor, Some(user("owner@example.com")));
-    assert_eq!(event.action_id, Some(action_id));
-    assert!(event.context.is_none());
-    let AgentAction::Prompt(prompt) = &event.action else {
-        panic!("expected a prompt, got {:?}", event.action);
-    };
-    assert_eq!(prompt.prompt, "", "the transcript shows nothing typed");
+    let produced = notifications.0.lock().unwrap();
+    assert_eq!(produced.len(), 2);
+    let event = &produced[0];
+    assert_eq!(event.session_id, session_id);
+    assert_eq!(event.subject_id, "notion");
+    assert!(event.wake);
     assert_eq!(
-        prompt.private_context.as_deref(),
-        Some(
-            "The user just connected Notion. Its tools are available from this turn on. \
-             Continue the user's previous request with them; do not ask them to connect \
-             Notion again."
-        )
+        event.event,
+        NotificationEvent::AppConnected {
+            app: "Notion".into()
+        }
+    );
+    assert_eq!(
+        event.dedupe_key, produced[1].dedupe_key,
+        "a retried report produces the event once"
     );
 }
 
 #[tokio::test]
 async fn someone_other_than_the_owner_cannot_continue_the_session() {
-    let controls = Arc::new(RecordedControls::default());
+    let notifications = Arc::new(RecordedNotifications::default());
     let service = AppConnectedContinuation::new(
         Arc::new(FixedStanding(SessionStanding {
             owner: Some(user("owner@example.com")),
@@ -127,7 +118,7 @@ async fn someone_other_than_the_owner_cannot_continue_the_session() {
             "notion",
             "Notion",
         )])),
-        Arc::clone(&controls),
+        Arc::clone(&notifications),
     );
 
     let result = service
@@ -140,19 +131,19 @@ async fn someone_other_than_the_owner_cannot_continue_the_session() {
         .await;
 
     assert!(matches!(result, Err(AppConnectedError::NotOwner)));
-    assert!(controls.0.lock().unwrap().is_empty());
+    assert!(notifications.0.lock().unwrap().is_empty());
 }
 
 #[tokio::test]
 async fn an_app_the_owner_has_not_connected_sends_nothing() {
-    let controls = Arc::new(RecordedControls::default());
+    let notifications = Arc::new(RecordedNotifications::default());
     let service = AppConnectedContinuation::new(
         Arc::new(FixedStanding(SessionStanding {
             owner: Some(user("owner@example.com")),
             archived: false,
         })),
         Arc::new(Connections(vec![])),
-        Arc::clone(&controls),
+        Arc::clone(&notifications),
     );
 
     let result = service
@@ -165,12 +156,12 @@ async fn an_app_the_owner_has_not_connected_sends_nothing() {
         .await;
 
     assert!(matches!(result, Err(AppConnectedError::NotConnected(slug)) if slug == "notion"));
-    assert!(controls.0.lock().unwrap().is_empty());
+    assert!(notifications.0.lock().unwrap().is_empty());
 }
 
 #[tokio::test]
 async fn an_archived_session_is_not_continued() {
-    let controls = Arc::new(RecordedControls::default());
+    let notifications = Arc::new(RecordedNotifications::default());
     let service = AppConnectedContinuation::new(
         Arc::new(FixedStanding(SessionStanding {
             owner: Some(user("owner@example.com")),
@@ -181,7 +172,7 @@ async fn an_archived_session_is_not_continued() {
             "notion",
             "Notion",
         )])),
-        Arc::clone(&controls),
+        Arc::clone(&notifications),
     );
 
     let result = service
@@ -194,5 +185,5 @@ async fn an_archived_session_is_not_continued() {
         .await;
 
     assert!(matches!(result, Err(AppConnectedError::Archived)));
-    assert!(controls.0.lock().unwrap().is_empty());
+    assert!(notifications.0.lock().unwrap().is_empty());
 }

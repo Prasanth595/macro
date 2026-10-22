@@ -1,19 +1,19 @@
 //! Picking a session back up once its owner connects the app it was waiting on.
 //!
 //! An agent that needs an app the owner has not connected asks for it with a
-//! connect chip. When the owner finishes connecting, the session continues on
-//! a prompt the harness writes as private context: the agent is told the app
-//! is there, and the transcript shows no message the owner did not type.
+//! connect chip. When the owner finishes connecting, the harness produces an
+//! `app.connected` system event that wakes the session: the agent is told the
+//! app is there, and the transcript shows no message the owner did not type.
 
 use std::future::Future;
 use std::sync::Arc;
 
-use agent_runtime_protocol::domain::action::{AgentAction, AgentActionId};
+use agent_runtime_protocol::domain::action::AgentActionId;
+use agent_runtime_protocol::domain::notification::NotificationEvent;
 use agent_session::domain::error::AgentSessionError;
 use agent_session::domain::model::AgentSessionId;
-use agent_session::domain::ports::{
-    AcceptedControl, AgentSessionNotificationRecipient, AgentSessionRepo, ControlEvent,
-};
+use agent_session::domain::notifications::{NotificationService, ProduceNotification};
+use agent_session::domain::ports::AgentSessionRepo;
 use macro_user_id::user_id::MacroUserIdStr;
 
 #[cfg(test)]
@@ -50,23 +50,21 @@ impl<Repo: AgentSessionRepo> SessionStandings for Repo {
     }
 }
 
-/// Starts or queues a turn in a session.
-pub trait SessionControls: Send + Sync + 'static {
-    /// Deliver `event` to `session_id`, queueing it behind a running turn.
-    fn control_event(
+/// Produces system events for a session.
+pub trait SessionNotifications: Send + Sync + 'static {
+    /// Persist `notification` idempotently.
+    fn produce(
         &self,
-        session_id: AgentSessionId,
-        event: ControlEvent,
-    ) -> impl Future<Output = Result<AcceptedControl, AgentSessionError>> + Send;
+        notification: ProduceNotification,
+    ) -> impl Future<Output = Result<(), AgentSessionError>> + Send;
 }
 
-impl<Recipient: AgentSessionNotificationRecipient> SessionControls for Recipient {
-    fn control_event(
+impl SessionNotifications for NotificationService {
+    fn produce(
         &self,
-        session_id: AgentSessionId,
-        event: ControlEvent,
-    ) -> impl Future<Output = Result<AcceptedControl, AgentSessionError>> + Send {
-        AgentSessionNotificationRecipient::control_event(self, session_id, event)
+        notification: ProduceNotification,
+    ) -> impl Future<Output = Result<(), AgentSessionError>> + Send {
+        NotificationService::produce(self, notification)
     }
 }
 
@@ -105,51 +103,45 @@ pub enum AppConnectedError {
     Internal(rootcause::Report),
 }
 
-/// The private context the agent continues on once `app_name` is connected.
-#[must_use]
-pub fn continuation_context(app_name: &str) -> String {
-    format!(
-        "The user just connected {app_name}. Its tools are available from this turn on. \
-         Continue the user's previous request with them; do not ask them to connect \
-         {app_name} again."
-    )
-}
-
-/// Continues a session on a hidden prompt once its owner connects an app.
-pub struct AppConnectedContinuation<Sessions, Apps, Controls> {
+/// Wakes a session with an `app.connected` event once its owner connects an app.
+pub struct AppConnectedContinuation<Sessions, Apps, Notifications> {
     sessions: Arc<Sessions>,
     apps: Arc<Apps>,
-    controls: Arc<Controls>,
+    notifications: Arc<Notifications>,
 }
 
-impl<Sessions, Apps, Controls> AppConnectedContinuation<Sessions, Apps, Controls>
+impl<Sessions, Apps, Notifications> AppConnectedContinuation<Sessions, Apps, Notifications>
 where
     Sessions: SessionStandings,
     Apps: ConnectedApps,
-    Controls: SessionControls,
+    Notifications: SessionNotifications,
 {
     /// Build the service.
-    pub fn new(sessions: Arc<Sessions>, apps: Arc<Apps>, controls: Arc<Controls>) -> Self {
+    pub fn new(
+        sessions: Arc<Sessions>,
+        apps: Arc<Apps>,
+        notifications: Arc<Notifications>,
+    ) -> Self {
         Self {
             sessions,
             apps,
-            controls,
+            notifications,
         }
     }
 
-    /// Continue `session_id` now that `user` has connected `app_slug`.
+    /// Tell `session_id` that `user` has connected `app_slug`.
     ///
-    /// The turn starts at once when the session is idle and queues behind a
-    /// running one otherwise. `action_id` makes a retried request report the
-    /// first one's fate rather than prompt twice.
+    /// The event starts a turn once the session is idle, after any running
+    /// one. `report_id` names the report, so a retried request produces the
+    /// event once.
     #[tracing::instrument(skip(self), fields(%session_id, %app_slug), err)]
     pub async fn continue_session(
         &self,
         session_id: AgentSessionId,
         user: &MacroUserIdStr<'static>,
         app_slug: &str,
-        action_id: Option<AgentActionId>,
-    ) -> Result<AcceptedControl, AppConnectedError> {
+        report_id: Option<AgentActionId>,
+    ) -> Result<(), AppConnectedError> {
         let standing = self.sessions.standing(session_id).await?;
         if standing.owner.as_ref() != Some(user) {
             return Err(AppConnectedError::NotOwner);
@@ -165,18 +157,16 @@ where
                 AppConnectedError::Internal(rootcause::Report::new(error).into_dynamic())
             })?
             .ok_or_else(|| AppConnectedError::NotConnected(app_slug.to_owned()))?;
-        let accepted = self
-            .controls
-            .control_event(
+        let report_id = report_id.unwrap_or_else(AgentActionId::mint);
+        self.notifications
+            .produce(ProduceNotification {
                 session_id,
-                ControlEvent {
-                    action: AgentAction::context_prompt(continuation_context(&app_name)),
-                    action_id,
-                    actor: Some(user.clone()),
-                    context: None,
-                },
-            )
+                dedupe_key: Some(format!("app.connected:{app_slug}:{report_id}")),
+                subject_id: app_slug.to_owned(),
+                event: NotificationEvent::AppConnected { app: app_name },
+                wake: true,
+            })
             .await?;
-        Ok(accepted)
+        Ok(())
     }
 }

@@ -291,7 +291,7 @@ describe('import review', () => {
   it("says when the agent started the import at the owner's request", () => {
     setup({
       item: { status: 'submitting' },
-      review: { approvedByAgent: { requestedBy: 'owner', at: 1 } },
+      review: { decision: { via: 'chat' } },
     });
     expect(
       screen.getByText('Started by the agent at your request')

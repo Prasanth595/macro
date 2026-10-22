@@ -956,98 +956,6 @@
         }
       }
     },
-    "/agent-sessions/{session_id}/app-connections": {
-      "post": {
-        "tags": ["agent-sessions"],
-        "summary": "Continue the session now that its owner connected an app it asked for.",
-        "description": "The harness writes the prompt, as context the transcript does not show; it\nstarts a turn at once when the session is idle and queues otherwise.",
-        "operationId": "report_agent_session_app_connected",
-        "parameters": [
-          {
-            "name": "session_id",
-            "in": "path",
-            "description": "ID of the agent session",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AppConnectedRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ControlResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not the session's owner, or no edit access",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The session is archived or its runtime is not connected",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "The owner has not connected that app",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/agent-sessions/{session_id}/archived": {
       "put": {
         "tags": ["agent-sessions"],
@@ -2955,22 +2863,6 @@
         "format": "uuid",
         "description": "Identifies one accepted [`AgentAction`] end to end: returned by the\ncontrol endpoint, written as the JSON-RPC request id on the action's wire\nframe, and read back off that frame as `request_id` on the folded message\nit derives.\n\nA v7 uuid, so ids sort by mint time. Minted by the server at accept time,\nor by a client that speculated the action and named it in the control\nrequest - either way the server is the only writer of runtime-bound\nframes, so a uuid-shaped request id remains the whole ownership test. The\nmachine's own handshake request ids (`agent_session:{session}:{n}`) are\nnot uuids and stay `None`."
       },
-      "AgentApproval": {
-        "type": "object",
-        "description": "The agent approved a review on its owner's word in chat.",
-        "required": ["requestedBy", "at"],
-        "properties": {
-          "at": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Milliseconds since epoch."
-          },
-          "requestedBy": {
-            "$ref": "#/components/schemas/MacroUserIdStr",
-            "description": "The owner who prompted the turn the agent approved it in."
-          }
-        }
-      },
       "AgentConfigKindDto": {
         "oneOf": [
           {
@@ -3770,28 +3662,6 @@
           }
         }
       },
-      "AppConnectedRequest": {
-        "type": "object",
-        "description": "Request body for reporting a connected app.",
-        "required": ["appSlug"],
-        "properties": {
-          "actionId": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/AgentActionId",
-                "description": "Names the continuation, so a retried report does not prompt twice."
-              }
-            ]
-          },
-          "appSlug": {
-            "type": "string",
-            "description": "The Pipedream app slug the owner connected, e.g. `notion`."
-          }
-        }
-      },
       "BotId": {
         "type": "string"
       },
@@ -4142,7 +4012,7 @@
           "drafts": {
             "type": "array",
             "items": {},
-            "description": "One to one hundred independent drafts. Email: {subject, body: Markdown,\nto: [{email, name?}], cc?: [{email, name?}], bcc?: [{email, name?}],\nreplyingToId?, attachments?: [{documentId}]}. Calendar: {title,\ntime: {kind: \"timed\", startsAt: ISO datetime, endsAt: ISO datetime,\ntimeZone?: IANA zone} or {kind: \"allDay\", startDate: ISO date,\nendDate: exclusive ISO date}, description?, location?, attendees?:\n[{email, isOptional?}]}. Import: exactly one draft {source: \"notion\"},\npresenting the plan ImportFromNotion staged.\nCreating any review only presents these drafts; the user acts separately."
+            "description": "One to one hundred independent drafts. Email: {subject, body: Markdown,\nto: [{email, name?}], cc?: [{email, name?}], bcc?: [{email, name?}],\nreplyingToId?, attachments?: [{documentId}]}. Calendar: {title,\ntime: {kind: \"timed\", startsAt: ISO datetime, endsAt: ISO datetime,\ntimeZone?: IANA zone} or {kind: \"allDay\", startDate: ISO date,\nendDate: exclusive ISO date}, description?, location?, attendees?:\n[{email, isOptional?}]}.\nCreating any review only presents these drafts; the user acts separately."
           },
           "executionId": {
             "oneOf": [
@@ -4206,6 +4076,11 @@
             "description": "Thread the session belongs to; defaults to the message itself, which\nis how a top-level mention roots its own thread."
           }
         }
+      },
+      "DecisionVia": {
+        "type": "string",
+        "description": "Surface of a review decision.",
+        "enum": ["card", "chat", "inbox"]
       },
       "DiscoverAgentCapabilitiesRequest": {
         "type": "object",
@@ -4513,7 +4388,7 @@
       "LogDirectionDto": {
         "type": "string",
         "description": "Which way a logged frame travelled, mirroring [`Message`]'s discriminant.",
-        "enum": ["to_server", "to_runtime"]
+        "enum": ["notification", "to_server", "to_runtime"]
       },
       "LogFrameDto": {
         "type": "object",
@@ -4529,9 +4404,6 @@
             "description": "Which way the frame travelled."
           }
         }
-      },
-      "MacroUserIdStr": {
-        "type": "string"
       },
       "MessageParent": {
         "oneOf": [
@@ -5008,6 +4880,34 @@
         ],
         "description": "One atomic user decision against the displayed revision."
       },
+      "ReviewDecisionContext": {
+        "type": "object",
+        "description": "Facts about the most recent owner decision.",
+        "required": ["by", "via", "revision", "items"],
+        "properties": {
+          "by": {
+            "type": "string",
+            "description": "Authenticated owner."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Items selected by this decision."
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Revision claimed by this batch, used in notification deduplication."
+          },
+          "via": {
+            "$ref": "#/components/schemas/DecisionVia",
+            "description": "Entry surface."
+          }
+        }
+      },
       "ReviewId": {
         "type": "string",
         "format": "uuid",
@@ -5020,6 +4920,10 @@
         "properties": {
           "draft": {
             "description": "Validated arguments for the existing composer/action."
+          },
+          "edited": {
+            "type": "boolean",
+            "description": "Whether the owner edited this draft before deciding."
           },
           "error": {
             "type": ["string", "null"],
@@ -5041,13 +4945,13 @@
       },
       "ReviewItemStatus": {
         "type": "string",
-        "description": "A review item never retries an ambiguous external result automatically.",
+        "description": "Review item state, shared with notification consumers.",
         "enum": ["pending", "submitting", "completed", "dismissed", "unknown"]
       },
       "ReviewKind": {
         "type": "string",
         "description": "The component and action used to finish a review.",
-        "enum": ["email", "calendar", "import"]
+        "enum": ["email", "calendar"]
       },
       "ReviewRecord": {
         "type": "object",
@@ -5062,14 +4966,14 @@
           "items"
         ],
         "properties": {
-          "approvedByAgent": {
+          "decision": {
             "oneOf": [
               {
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/AgentApproval",
-                "description": "Set when the session's agent approved the review because its owner\nsaid so in chat, instead of the owner approving it on the card."
+                "$ref": "#/components/schemas/ReviewDecisionContext",
+                "description": "Current batch's authenticated decision, preserved for interrupted work."
               }
             ]
           },
@@ -5099,16 +5003,6 @@
             "$ref": "#/components/schemas/ReviewKind",
             "description": "Component kind."
           },
-          "notificationAttemptAt": {
-            "type": ["integer", "null"],
-            "format": "int64",
-            "description": "Most recent delivery claim, allowing retry after a replica stops."
-          },
-          "notificationId": {
-            "type": ["string", "null"],
-            "format": "uuid",
-            "description": "Stable queued-action identity until the outcome has reached the session.\nA failed notification may be retried without repeating external actions."
-          },
           "presentedAt": {
             "type": ["integer", "null"],
             "format": "int64",
@@ -5123,11 +5017,6 @@
             "type": "string",
             "format": "uuid",
             "description": "Owning session."
-          },
-          "settledAt": {
-            "type": ["integer", "null"],
-            "format": "int64",
-            "description": "When the approved action's background work ended. Set once, so the\nsession hears the final outcome once."
           },
           "title": {
             "type": "string",

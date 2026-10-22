@@ -435,11 +435,11 @@ export const agentHarnessServiceClient = {
 
   /**
    * Continue the session now that its owner connected `appSlug`. The
-   * harness writes the continuation as private context, so the transcript
+   * harness wakes it with an `app.connected` system event, so the transcript
    * shows no prompt. 422 when the app is not actually connected.
    */
   reportAppConnected(sessionId: string, appSlug: string) {
-    return fetchWithToken<ControlResponse, typeof AI_USAGE_LIMIT_ERROR>(
+    return fetchWithToken<Record<string, never>, typeof AI_USAGE_LIMIT_ERROR>(
       `${agentHarnessHost}/agent-sessions/${sessionId}/app-connections`,
       {
         method: 'POST',

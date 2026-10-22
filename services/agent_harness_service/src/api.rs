@@ -79,7 +79,7 @@ pub struct ApiStates<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes
     tool_approvals: Router,
     app_connections: Router,
     code_executions: Router,
-    review_settlements: Router,
+    notifications: Router,
     changes: AgentChangesRouterState<Changes, Access, Auth>,
 }
 
@@ -113,9 +113,15 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
             tool_approvals: Router::new(),
             app_connections: Router::new(),
             code_executions: Router::new(),
-            review_settlements: Router::new(),
+            notifications: Router::new(),
             changes,
         }
+    }
+
+    /// Attach internal durable system-event production.
+    pub fn with_notifications(mut self, router: Router) -> Self {
+        self.notifications = router;
+        self
     }
 
     /// Attach model-specific harness capability discovery routes.
@@ -133,12 +139,6 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
     /// Attach session-authorized code execution records.
     pub fn with_code_executions(mut self, router: Router) -> Self {
         self.code_executions = router;
-        self
-    }
-
-    /// Attach the internal route services call when work a review started ends.
-    pub fn with_review_settlements(mut self, router: Router) -> Self {
-        self.review_settlements = router;
         self
     }
 
@@ -291,6 +291,7 @@ where
         .merge(states.tool_approvals)
         .merge(states.app_connections)
         .merge(states.code_executions)
+        .merge(states.notifications)
         .merge(agent_changes_router(states.changes));
     Router::new()
         .nest("/agent-sessions", agent_sessions)
@@ -304,7 +305,6 @@ where
         .merge(states.coding_agents)
         .merge(states.capabilities)
         .merge(states.conversations)
-        .merge(states.review_settlements)
         .nest("/runtime", runtime_gateway_router(states.gateway))
 }
 

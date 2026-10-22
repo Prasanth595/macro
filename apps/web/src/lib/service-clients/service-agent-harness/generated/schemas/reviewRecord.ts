@@ -8,18 +8,15 @@
 import type { ReviewId } from './reviewId';
 import type { ReviewItem } from './reviewItem';
 import type { ReviewKind } from './reviewKind';
-import type { ReviewRecordApprovedByAgent } from './reviewRecordApprovedByAgent';
+import type { ReviewRecordDecision } from './reviewRecordDecision';
 import type { ReviewRecordExecutionId } from './reviewRecordExecutionId';
-import type { ReviewRecordNotificationAttemptAt } from './reviewRecordNotificationAttemptAt';
-import type { ReviewRecordNotificationId } from './reviewRecordNotificationId';
 import type { ReviewRecordPresentedAt } from './reviewRecordPresentedAt';
-import type { ReviewRecordSettledAt } from './reviewRecordSettledAt';
 
 /**
  * Full UI record, fetched outside the model context.
  */
 export interface ReviewRecord {
-  approvedByAgent?: ReviewRecordApprovedByAgent;
+  decision?: ReviewRecordDecision;
   executionId?: ReviewRecordExecutionId;
   /** Review identity. */
   id: ReviewId;
@@ -27,20 +24,12 @@ export interface ReviewRecord {
   items: ReviewItem[];
   /** Component kind. */
   kind: ReviewKind;
-  /** Most recent delivery claim, allowing retry after a replica stops. */
-  notificationAttemptAt?: ReviewRecordNotificationAttemptAt;
-  /** Stable queued-action identity until the outcome has reached the session.
-A failed notification may be retried without repeating external actions. */
-  notificationId?: ReviewRecordNotificationId;
   /** Durable presentation acknowledgment, separate from user decisions. */
   presentedAt?: ReviewRecordPresentedAt;
   /** Compare-and-swap revision for edits and submissions. */
   revision: number;
   /** Owning session. */
   sessionId: string;
-  /** When the approved action's background work ended. Set once, so the
-session hears the final outcome once. */
-  settledAt?: ReviewRecordSettledAt;
   /** Stack label. */
   title: string;
   /** Milliseconds since epoch of the last state change. */

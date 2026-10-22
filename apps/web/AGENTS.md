@@ -337,3 +337,13 @@ On a physical iPhone, WKWebView still synthesises the compatibility `mousedown`/
 3. **Run it on the device, not the Simulator**, with Safari Web Inspector attached (Develop → the iPhone → the Macro webview), filter the console by the prefix, reproduce, and read the order. A `mousedown` arriving after a `pointerdown` logged with `defaultPrevented: true`, followed by `focusout` whose `relatedTarget` is a container, is this bug.
 
 4. **Strip the instrumentation before committing.**
+
+### Agent system events
+
+Accept `notification` in both fetched and subscribed GraphQL session log rows.
+System notifications live in fold metadata, separate from messages. Review
+subjects refresh their existing card; other subjects render quiet timeline rows.
+Keep Responding bound to the notification turn, including rejection and noop.
+The backend-free desktop/mobile check is
+`bunx playwright test --config src/features/block-agent/browser-test/playwright.config.ts`.
+Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.

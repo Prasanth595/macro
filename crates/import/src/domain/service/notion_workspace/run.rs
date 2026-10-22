@@ -314,9 +314,6 @@ where
         }
         let _ = self.repo.settle_importing(user, IMPORT_STOPPED).await;
         self.notify(user).await;
-        if status == RunStatus::Importing {
-            self.follow_up_review(user).await;
-        }
     }
 
     /// The write for `review_id` as the ledger has it: the plan's copied

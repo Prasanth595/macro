@@ -38,7 +38,6 @@ mod slack;
 mod slack_discovery;
 
 pub use notion_workspace::NoNotionConnections;
-pub use notion_workspace::follow_up::import_finished_context;
 pub use slack_discovery::NoSlackSource;
 use slack_discovery::SlackBatch;
 
@@ -95,13 +94,6 @@ fn notion_import_failure_reason(outcome: &anyhow::Result<()>) -> String {
 /// a gateway just don't set it.
 pub type ImportNotify =
     Arc<dyn Fn(MacroUserIdStr<'static>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
-
-/// Tells the session behind a review that the import it approved has ended:
-/// called with the run's owner and the review id once a workspace write
-/// stops, however it ended. Hosts without an agent harness don't set it.
-pub type ReviewFollowUp = Arc<
-    dyn Fn(MacroUserIdStr<'static>, Uuid) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync,
->;
 
 /// Outcome of accepting/declining staged rows via `POST /import/run`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
@@ -319,7 +311,6 @@ pub struct ImportServiceImpl<R, S, C, W = NoSlackSource, N = NoNotionConnections
     recorder: Arc<dyn ai_usage::UsageRecorder>,
     admission: Arc<dyn ai_billing::AiAdmissionService>,
     notifier: Option<ImportNotify>,
-    review_follow_up: Option<ReviewFollowUp>,
     jobs: NotionJobs,
 }
 
@@ -354,7 +345,6 @@ impl<R: Clone, S, C, W: SlackWorkspaceSource, N> Clone for ImportServiceImpl<R, 
             recorder: self.recorder.clone(),
             admission: self.admission.clone(),
             notifier: self.notifier.clone(),
-            review_follow_up: self.review_follow_up.clone(),
             jobs: self.jobs.clone(),
         }
     }
@@ -377,7 +367,6 @@ impl<R, S, C> ImportServiceImpl<R, S, C> {
             recorder,
             admission: Arc::new(ai_billing::DisabledAiAdmissionService),
             notifier: None,
-            review_follow_up: None,
             jobs: NotionJobs::new(),
         }
     }
@@ -397,7 +386,6 @@ impl<R, S, C, W: SlackWorkspaceSource, N: Send + Sync + 'static> ImportServiceIm
             recorder: self.recorder,
             admission: self.admission,
             notifier: self.notifier,
-            review_follow_up: self.review_follow_up,
             jobs: self.jobs,
             slack_source: source,
         }
@@ -406,13 +394,6 @@ impl<R, S, C, W: SlackWorkspaceSource, N: Send + Sync + 'static> ImportServiceIm
     /// Push state-change nudges through the given notifier.
     pub fn with_notifier(mut self, notifier: ImportNotify) -> Self {
         self.notifier = Some(notifier);
-        self
-    }
-
-    /// Follow up on a reviewed workspace import through `follow_up` once its
-    /// write ends.
-    pub fn with_review_follow_up(mut self, follow_up: ReviewFollowUp) -> Self {
-        self.review_follow_up = Some(follow_up);
         self
     }
 
@@ -444,7 +425,6 @@ impl<R, S, C, W: SlackWorkspaceSource, N: Send + Sync + 'static> ImportServiceIm
             recorder: self.recorder,
             admission: self.admission,
             notifier: self.notifier,
-            review_follow_up: self.review_follow_up,
             jobs: self.jobs,
             slack_source: self.slack_source,
         }

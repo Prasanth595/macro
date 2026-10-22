@@ -49,6 +49,10 @@ pub enum Harness {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionMetadata {
+    /// System events, projected independently of the conversation messages.
+    pub notifications: Vec<SessionNotification>,
+    /// The last notification turn whose entire answer was suppressed.
+    pub noop_turn: Option<u32>,
     /// The agent that produced the log. See [`Harness`].
     pub harness: Harness,
     /// Current model per the runtime's own `configOptions` responses, so a
@@ -148,4 +152,27 @@ pub struct ModelOption {
     /// that offered a flat list; the flattened order still follows the
     /// runtime's, group by group.
     pub group: Option<String>,
+}
+
+/// A timeline event or a card state change. Never a conversation message.
+#[derive(Debug, Clone, PartialEq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionNotification {
+    /// Outbox identity.
+    pub id: String,
+    /// Subject identity used to find an existing card.
+    pub subject_id: String,
+    /// Stable event kind.
+    pub kind: String,
+    /// Event creation time, RFC3339.
+    pub created_at: String,
+    /// Kind-specific facts, kept out of message search and export.
+    #[specta(type = specta_typescript::Unknown)]
+    pub payload: serde_json::Value,
+    /// Turn that received it.
+    pub turn: u32,
+    /// Stable delivery action identity.
+    pub action_id: String,
+    /// Whether this turn had no user prompt.
+    pub system_turn: bool,
 }

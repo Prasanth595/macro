@@ -40,6 +40,8 @@ excluded from source linting.
   run that package's checks because web CI verifies the reference is current.
 - `generated/agent-fold/` is not from OpenAPI: `cargo run -p agent_fold --bin
   export_types` writes it, and `foldedLog()` casts the opaque wire schema to it.
+- System events project separately in fold metadata and never appear as user
+  messages in `foldedLog()`; silent notification turns have no assistant message.
 - Workspace advanced filters use the server's serialized AST names, not Rust
   enum variant names. Validate new filter examples against the real local API.
 - Async iterators are lazy; `limit` is page size. Preserve filters on every page

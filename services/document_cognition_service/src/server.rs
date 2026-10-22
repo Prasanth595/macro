@@ -744,10 +744,6 @@ pub async fn run() -> anyhow::Result<()> {
         ))
         .with_admission(admission.clone())
         .with_notifier(import_notify)
-        .with_review_follow_up(ai_tools::build_review_follow_up(
-            macro_service_urls::AgentHarnessServiceUrl::new()?,
-            &internal_api_key,
-        )?)
         .with_job_shutdown(import_jobs.shutdown.clone(), import_jobs.tracker.clone()),
     );
 

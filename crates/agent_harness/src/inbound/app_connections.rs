@@ -1,15 +1,15 @@
 //! Telling a session its owner connected an app, mounted under
 //! `/agent-sessions`.
 //!
-//! The browser reports the connection; the harness checks it and writes the
-//! prompt that continues the session, so the caller can neither choose the
-//! words nor slip private context into someone's session.
+//! The browser reports the connection; the harness checks it and produces the
+//! `app.connected` event that continues the session, so the caller can
+//! neither choose the words nor slip anything else into someone's session.
 
 use std::sync::Arc;
 
 use agent_runtime_protocol::domain::action::AgentActionId;
 use agent_session::domain::model::AgentSessionId;
-use agent_session::inbound::axum_router::{AgentSessionApiError, ControlResponse};
+use agent_session::inbound::axum_router::AgentSessionApiError;
 use axum::Router;
 use axum::extract::{FromRef, Json, Path, State};
 use axum::http::StatusCode;
@@ -24,7 +24,8 @@ use serde::Deserialize;
 use utoipa::ToSchema;
 
 use crate::domain::app_connections::{
-    AppConnectedContinuation, AppConnectedError, ConnectedApps, SessionControls, SessionStandings,
+    AppConnectedContinuation, AppConnectedError, ConnectedApps, SessionNotifications,
+    SessionStandings,
 };
 
 /// Request body for reporting a connected app.
@@ -33,24 +34,24 @@ use crate::domain::app_connections::{
 pub struct AppConnectedRequest {
     /// The Pipedream app slug the owner connected, e.g. `notion`.
     pub app_slug: String,
-    /// Names the continuation, so a retried report does not prompt twice.
+    /// Names the report, so a retried one wakes the session once.
     pub action_id: Option<AgentActionId>,
 }
 
 /// Router state: the continuation, plus what the access extractor resolves
 /// grants and identity through.
-pub struct AppConnectionsRouterState<Sessions, Apps, Controls, Access, Auth> {
-    continuation: Arc<AppConnectedContinuation<Sessions, Apps, Controls>>,
+pub struct AppConnectionsRouterState<Sessions, Apps, Notifications, Access, Auth> {
+    continuation: Arc<AppConnectedContinuation<Sessions, Apps, Notifications>>,
     entity_access: Arc<Access>,
     authorization: MacroAuthorizationState<Auth>,
 }
 
-impl<Sessions, Apps, Controls, Access, Auth>
-    AppConnectionsRouterState<Sessions, Apps, Controls, Access, Auth>
+impl<Sessions, Apps, Notifications, Access, Auth>
+    AppConnectionsRouterState<Sessions, Apps, Notifications, Access, Auth>
 {
     /// Build the state.
     pub fn new(
-        continuation: Arc<AppConnectedContinuation<Sessions, Apps, Controls>>,
+        continuation: Arc<AppConnectedContinuation<Sessions, Apps, Notifications>>,
         entity_access: Arc<Access>,
         authorization: MacroAuthorizationState<Auth>,
     ) -> Self {
@@ -62,8 +63,8 @@ impl<Sessions, Apps, Controls, Access, Auth>
     }
 }
 
-impl<Sessions, Apps, Controls, Access, Auth> Clone
-    for AppConnectionsRouterState<Sessions, Apps, Controls, Access, Auth>
+impl<Sessions, Apps, Notifications, Access, Auth> Clone
+    for AppConnectionsRouterState<Sessions, Apps, Notifications, Access, Auth>
 {
     fn clone(&self) -> Self {
         Self {
@@ -74,31 +75,36 @@ impl<Sessions, Apps, Controls, Access, Auth> Clone
     }
 }
 
-impl<Sessions, Apps, Controls, Access, Auth>
-    FromRef<AppConnectionsRouterState<Sessions, Apps, Controls, Access, Auth>>
+impl<Sessions, Apps, Notifications, Access, Auth>
+    FromRef<AppConnectionsRouterState<Sessions, Apps, Notifications, Access, Auth>>
     for MacroAuthorizationState<Auth>
 {
-    fn from_ref(state: &AppConnectionsRouterState<Sessions, Apps, Controls, Access, Auth>) -> Self {
+    fn from_ref(
+        state: &AppConnectionsRouterState<Sessions, Apps, Notifications, Access, Auth>,
+    ) -> Self {
         state.authorization.clone()
     }
 }
 
-impl<Sessions, Apps, Controls, Access, Auth>
-    FromRef<AppConnectionsRouterState<Sessions, Apps, Controls, Access, Auth>> for Arc<Access>
+impl<Sessions, Apps, Notifications, Access, Auth>
+    FromRef<AppConnectionsRouterState<Sessions, Apps, Notifications, Access, Auth>>
+    for Arc<Access>
 {
-    fn from_ref(state: &AppConnectionsRouterState<Sessions, Apps, Controls, Access, Auth>) -> Self {
+    fn from_ref(
+        state: &AppConnectionsRouterState<Sessions, Apps, Notifications, Access, Auth>,
+    ) -> Self {
         Arc::clone(&state.entity_access)
     }
 }
 
 /// Build the router. Mount it under `/agent-sessions`.
-pub fn app_connections_router<Sessions, Apps, Controls, Access, Auth, S>(
-    state: AppConnectionsRouterState<Sessions, Apps, Controls, Access, Auth>,
+pub fn app_connections_router<Sessions, Apps, Notifications, Access, Auth, S>(
+    state: AppConnectionsRouterState<Sessions, Apps, Notifications, Access, Auth>,
 ) -> Router<S>
 where
     Sessions: SessionStandings,
     Apps: ConnectedApps,
-    Controls: SessionControls,
+    Notifications: SessionNotifications,
     Access: EntityAccessService,
     Auth: MacroAuthorizationService,
     S: Clone + Send + Sync + 'static,
@@ -106,7 +112,7 @@ where
     Router::new()
         .route(
             "/{session_id}/app-connections",
-            post(app_connected_handler::<Sessions, Apps, Controls, Access, Auth>),
+            post(app_connected_handler::<Sessions, Apps, Notifications, Access, Auth>),
         )
         .with_state(state)
 }
@@ -134,29 +140,29 @@ fn error_response(error: AppConnectedError) -> Response {
     params(("session_id" = Uuid, Path, description = "ID of the agent session")),
     request_body = AppConnectedRequest,
     responses(
-        (status = 200, body = ControlResponse),
+        (status = 202, description = "The session continues once it is idle"),
         (status = 401, body = String),
         (status = 403, body = String, description = "Not the session's owner, or no edit access"),
-        (status = 409, body = String, description = "The session is archived or its runtime is not connected"),
+        (status = 409, body = String, description = "The session is archived"),
         (status = 422, body = String, description = "The owner has not connected that app"),
         (status = 500, body = String),
     )
 )]
 /// Continue the session now that its owner connected an app it asked for.
 ///
-/// The harness writes the prompt, as context the transcript does not show; it
-/// starts a turn at once when the session is idle and queues otherwise.
+/// The harness produces an `app.connected` system event, which the transcript
+/// shows as no prompt; it starts a turn once the session is idle.
 #[tracing::instrument(skip_all, fields(%session_id, app_slug = %request.app_slug), err(Debug))]
-pub async fn app_connected_handler<Sessions, Apps, Controls, Access, Auth>(
+pub async fn app_connected_handler<Sessions, Apps, Notifications, Access, Auth>(
     access: AgentSessionAccessLevelExtractor<EditAccessLevel, Access, Auth>,
-    State(state): State<AppConnectionsRouterState<Sessions, Apps, Controls, Access, Auth>>,
+    State(state): State<AppConnectionsRouterState<Sessions, Apps, Notifications, Access, Auth>>,
     Path(session_id): Path<Uuid>,
     Json(request): Json<AppConnectedRequest>,
-) -> Result<Json<ControlResponse>, Response>
+) -> Result<StatusCode, Response>
 where
     Sessions: SessionStandings,
     Apps: ConnectedApps,
-    Controls: SessionControls,
+    Notifications: SessionNotifications,
     Access: EntityAccessService,
     Auth: MacroAuthorizationService,
 {
@@ -165,7 +171,7 @@ where
         .get_authenticated_user()
         .map_err(|_| (StatusCode::FORBIDDEN, "a person must connect the app").into_response())?
         .clone();
-    let accepted = state
+    state
         .continuation
         .continue_session(
             AgentSessionId::new_from_uuid(session_id),
@@ -175,8 +181,5 @@ where
         )
         .await
         .map_err(error_response)?;
-    Ok(Json(ControlResponse {
-        action_id: accepted.action_id,
-        status: accepted.disposition.into(),
-    }))
+    Ok(StatusCode::ACCEPTED)
 }

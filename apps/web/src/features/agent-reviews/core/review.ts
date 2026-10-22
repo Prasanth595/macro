@@ -8,10 +8,8 @@ export type Review = {
   revision: number;
   updatedAt: number;
   presentedAt?: number | null;
-  notificationId?: string | null;
-  notificationAttemptAt?: number | null;
-  /** Set when the agent approved it on the owner's word in chat. */
-  approvedByAgent?: { requestedBy: string; at: number } | null;
+  /** The most recent decision; `chat` when the agent acted on the owner's word. */
+  decision?: { via: 'card' | 'chat' | 'inbox' } | null;
   items: ReviewItem[];
 };
 export type ReviewItem = {
@@ -28,3 +26,15 @@ export type ReviewActions = {
   reload: () => Promise<Review>;
   decide: (decision: ReviewDecision) => Promise<Review>;
 };
+
+/**
+ * Whether the agent answers a decision as soon as it is made. Approving an
+ * import only starts its write; the agent answers when the write settles.
+ */
+export function decisionWakesAgent(
+  kind: Review['kind'],
+  decision: ReviewDecision
+): boolean {
+  if (decision.action === 'edit') return false;
+  return !(kind === 'import' && decision.action === 'submit');
+}

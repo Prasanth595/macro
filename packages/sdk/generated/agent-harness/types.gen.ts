@@ -44,20 +44,6 @@ export type AgentAction = (AgentPromptAction & {
 export type AgentActionId = string;
 
 /**
- * The agent approved a review on its owner's word in chat.
- */
-export type AgentApproval = {
-    /**
-     * Milliseconds since epoch.
-     */
-    at: number;
-    /**
-     * The owner who prompted the turn the agent approved it in.
-     */
-    requestedBy: MacroUserIdStr;
-};
-
-/**
  * Type-specific state for one agent session setting.
  */
 export type AgentConfigKindDto = {
@@ -674,17 +660,6 @@ export type AnswerToolApprovalResponse = {
     status: ToolApprovalStatusDto;
 };
 
-/**
- * Request body for reporting a connected app.
- */
-export type AppConnectedRequest = {
-    actionId?: null | AgentActionId;
-    /**
-     * The Pipedream app slug the owner connected, e.g. `notion`.
-     */
-    appSlug: string;
-};
-
 export type BotId = string;
 
 /**
@@ -1015,8 +990,7 @@ export type CreateReview = {
      * time: {kind: "timed", startsAt: ISO datetime, endsAt: ISO datetime,
      * timeZone?: IANA zone} or {kind: "allDay", startDate: ISO date,
      * endDate: exclusive ISO date}, description?, location?, attendees?:
-     * [{email, isOptional?}]}. Import: exactly one draft {source: "notion"},
-     * presenting the plan ImportFromNotion staged.
+     * [{email, isOptional?}]}.
      * Creating any review only presents these drafts; the user acts separately.
      */
     drafts: Array<unknown>;
@@ -1061,6 +1035,11 @@ export type CreateSessionThread = {
      */
     threadId?: string | null;
 };
+
+/**
+ * Surface of a review decision.
+ */
+export type DecisionVia = 'card' | 'chat' | 'inbox';
 
 /**
  * HTTP request selecting one provider to probe.
@@ -1298,7 +1277,7 @@ export type LoadAgentModelsResponse = {
 /**
  * Which way a logged frame travelled, mirroring [`Message`]'s discriminant.
  */
-export type LogDirectionDto = 'to_server' | 'to_runtime';
+export type LogDirectionDto = 'notification' | 'to_server' | 'to_runtime';
 
 /**
  * The two fields [`AgentSessionLogEntryDto`] flattens in.
@@ -1322,8 +1301,6 @@ export type LogFrameDto = {
      */
     direction: LogDirectionDto;
 };
-
-export type MacroUserIdStr = string;
 
 /**
  * The entity whose permissions and lifecycle govern a message.
@@ -1657,6 +1634,28 @@ export type ReviewDecision = {
 };
 
 /**
+ * Facts about the most recent owner decision.
+ */
+export type ReviewDecisionContext = {
+    /**
+     * Authenticated owner.
+     */
+    by: string;
+    /**
+     * Items selected by this decision.
+     */
+    items: Array<string>;
+    /**
+     * Revision claimed by this batch, used in notification deduplication.
+     */
+    revision: number;
+    /**
+     * Entry surface.
+     */
+    via: DecisionVia;
+};
+
+/**
  * Persisted review identity.
  */
 export type ReviewId = string;
@@ -1669,6 +1668,10 @@ export type ReviewItem = {
      * Validated arguments for the existing composer/action.
      */
     draft: unknown;
+    /**
+     * Whether the owner edited this draft before deciding.
+     */
+    edited?: boolean;
     /**
      * Failure or uncertainty description.
      */
@@ -1688,20 +1691,20 @@ export type ReviewItem = {
 };
 
 /**
- * A review item never retries an ambiguous external result automatically.
+ * Review item state, shared with notification consumers.
  */
 export type ReviewItemStatus = 'pending' | 'submitting' | 'completed' | 'dismissed' | 'unknown';
 
 /**
  * The component and action used to finish a review.
  */
-export type ReviewKind = 'email' | 'calendar' | 'import';
+export type ReviewKind = 'email' | 'calendar';
 
 /**
  * Full UI record, fetched outside the model context.
  */
 export type ReviewRecord = {
-    approvedByAgent?: null | AgentApproval;
+    decision?: null | ReviewDecisionContext;
     executionId?: null | ExecutionId;
     /**
      * Review identity.
@@ -1716,15 +1719,6 @@ export type ReviewRecord = {
      */
     kind: ReviewKind;
     /**
-     * Most recent delivery claim, allowing retry after a replica stops.
-     */
-    notificationAttemptAt?: number | null;
-    /**
-     * Stable queued-action identity until the outcome has reached the session.
-     * A failed notification may be retried without repeating external actions.
-     */
-    notificationId?: string | null;
-    /**
      * Durable presentation acknowledgment, separate from user decisions.
      */
     presentedAt?: number | null;
@@ -1736,11 +1730,6 @@ export type ReviewRecord = {
      * Owning session.
      */
     sessionId: string;
-    /**
-     * When the approved action's background work ended. Set once, so the
-     * session hears the final outcome once.
-     */
-    settledAt?: number | null;
     /**
      * Stack label.
      */
@@ -2483,43 +2472,6 @@ export type GetAgentSessionResponses = {
 };
 
 export type GetAgentSessionResponse = GetAgentSessionResponses[keyof GetAgentSessionResponses];
-
-export type ReportAgentSessionAppConnectedData = {
-    body: AppConnectedRequest;
-    path: {
-        /**
-         * ID of the agent session
-         */
-        session_id: string;
-    };
-    query?: never;
-    url: '/agent-sessions/{session_id}/app-connections';
-};
-
-export type ReportAgentSessionAppConnectedErrors = {
-    401: string;
-    /**
-     * Not the session's owner, or no edit access
-     */
-    403: string;
-    /**
-     * The session is archived or its runtime is not connected
-     */
-    409: string;
-    /**
-     * The owner has not connected that app
-     */
-    422: string;
-    500: string;
-};
-
-export type ReportAgentSessionAppConnectedError = ReportAgentSessionAppConnectedErrors[keyof ReportAgentSessionAppConnectedErrors];
-
-export type ReportAgentSessionAppConnectedResponses = {
-    200: ControlResponse;
-};
-
-export type ReportAgentSessionAppConnectedResponse = ReportAgentSessionAppConnectedResponses[keyof ReportAgentSessionAppConnectedResponses];
 
 export type SetAgentSessionArchivedData = {
     body: SetAgentSessionArchivedRequest;
