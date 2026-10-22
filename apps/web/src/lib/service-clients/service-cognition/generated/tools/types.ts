@@ -220,11 +220,7 @@ export type DiscussionParentType =
 /**
  * The runtimes an agent can be moved onto.
  */
-export type AgentHarnessOption =
-  | 'in-memory'
-  | 'cursor'
-  | 'claude-cloud'
-  | 'macrod';
+export type AgentHarnessOption = 'in-memory' | 'cursor' | 'macrod';
 /**
  * Where an agent can be mentioned.
  */
@@ -5725,7 +5721,7 @@ export interface AgentSummary {
    */
   instructions: string;
   /**
-   * Harness slug: `in-memory`, `cursor`, `claude-cloud`, or `macrod`.
+   * Harness slug: `in-memory`, `cursor`, or `macrod`.
    */
   harness: string;
   /**
@@ -14825,7 +14821,7 @@ export interface UpdateBookingSettings {
  *
  * A guest without modify rights (`viewerCan.editDetails` false while `viewerCan.rsvp` is true) may only change their own `reminders`, add guests where `viewerCan.inviteGuests` allows it, and answer with `rsvp`; changing the title, time, description, location, recurrence or conference fails because the organizer doesn't let guests change the event.
  *
- * `rsvp` sets the user's own response to an invitation and is independent of the field edits — it can be the only thing this call changes. It applies at the same `scope` as the rest of the call, and only works on events the user is actually an attendee of.
+ * `rsvp` sets the user's own response to an invitation and is independent of the field edits — it can be the only thing this call changes. It applies at the same `scope` as the rest of the call and answers as the connected inbox the event's copy belongs to, so it only works when that inbox is an attendee.
  */
 export interface UpdateCalendarEvent {
   /**
