@@ -57,29 +57,49 @@ pub(super) fn rows(
         _ => None,
     }?;
     let activity: Vec<Operation> = serde_json::from_value(output.get("activity")?.clone()).ok()?;
-    if activity.is_empty() {
+    let view = shown_view(output);
+    if activity.is_empty() && view.is_none() {
         return None;
     }
-    Some(
-        activity
-            .into_iter()
-            .take(128)
-            .map(|operation| ActivityRow {
-                id: format!("{id}:{}", operation.id),
-                label: operation.label,
-                detail: None,
-                card: matches!(operation.status, Status::Completed)
-                    .then(|| card(operation.item?))
-                    .flatten(),
-                status: match operation.status {
-                    Status::Running if !closed => ActivityStatus::Running,
-                    Status::Completed => ActivityStatus::Completed,
-                    Status::Failed => ActivityStatus::Failed,
-                    Status::Running | Status::Unknown => ActivityStatus::Interrupted,
-                },
-            })
-            .collect(),
-    )
+    let mut rows: Vec<ActivityRow> = activity
+        .into_iter()
+        .take(128)
+        .map(|operation| ActivityRow {
+            id: format!("{id}:{}", operation.id),
+            label: operation.label,
+            detail: None,
+            card: matches!(operation.status, Status::Completed)
+                .then(|| card(operation.item?))
+                .flatten(),
+            status: match operation.status {
+                Status::Running if !closed => ActivityStatus::Running,
+                Status::Completed => ActivityStatus::Completed,
+                Status::Failed => ActivityStatus::Failed,
+                Status::Running | Status::Unknown => ActivityStatus::Interrupted,
+            },
+        })
+        .collect();
+    // Showing the view is the run's last step, as calling DisplayResults
+    // after it would have been.
+    rows.extend(view.map(|view| ActivityRow {
+        id: format!("{id}:view"),
+        label: "Show results".into(),
+        detail: None,
+        card: Some(ActivityCard::View { view }),
+        status: ActivityStatus::Completed,
+    }));
+    Some(rows)
+}
+
+/// The view a run returned for the user. Code mode checked it against the
+/// schema `DisplayResults` views follow, and failed a run whose view the
+/// renderer would not draw, so only a run that succeeded shows one.
+fn shown_view(output: &serde_json::Value) -> Option<serde_json::Value> {
+    if output.get("status")?.as_str()? != "succeeded" {
+        return None;
+    }
+    let view = output.get("result")?.get("view")?;
+    view.is_object().then(|| view.clone())
 }
 
 /// The card a completed operation earns: the same card the Macro tool that

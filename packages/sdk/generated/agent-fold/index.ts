@@ -34,8 +34,9 @@ title: string | null;
 summary: string | null } |
 /**
  *  A view the agent composed for the user: the `DisplayResults` tool's
- *  `view` argument, as the model wrote it. Its widgets name the items
- *  they show, and readers load those with their own access.
+ *  `view` argument, or the view a code run returned, as the model wrote
+ *  it. Its widgets name the items they show, and readers load those with
+ *  their own access.
  */
 { kind: "view";
 /**  The dynamic-UI view. */

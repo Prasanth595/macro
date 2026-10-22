@@ -1524,3 +1524,46 @@ fn a_code_run_cards_the_item_each_of_its_writes_changed() {
     assert_eq!(rows[3].label, "Create Task");
     assert_eq!(rows[3].status, ActivityStatus::Completed);
 }
+
+#[test]
+fn a_code_run_shows_the_view_it_returned_as_its_last_step() {
+    let view = serde_json::json!({"widgets": [{"type": "md", "markdown": "Two found"}]});
+    let receipt = |status: &str, activity: serde_json::Value| MessagePart::ToolUse {
+        id: ToolUseId("code-1".into()),
+        name: ToolName::Mcp {
+            server: "macro_internal".into(),
+            tool: "ExecuteCode".into(),
+        },
+        status: ToolStatus::Completed,
+        detail: ToolDetail::Other {
+            kind: "other".into(),
+            input: Some(serde_json::json!({"source": "program"})),
+            result: Some(serde_json::json!({
+                "status": status,
+                "result": {"data": null, "reviews": [], "view": view},
+                "activity": activity,
+            })),
+            output: None,
+            error: None,
+        },
+    };
+    let read = serde_json::json!([{"id": 1, "label": "Search documents", "status": "completed"}]);
+    let rows = &segments(&[receipt("succeeded", read.clone())], true)[0].rows;
+    assert_eq!(
+        rows.last(),
+        Some(&ActivityRow {
+            id: "code-1:view".into(),
+            label: "Show results".into(),
+            detail: None,
+            status: ActivityStatus::Completed,
+            card: Some(ActivityCard::View { view: view.clone() }),
+        })
+    );
+    // A run with no SDK calls still shows what it returned.
+    let rows = &segments(&[receipt("succeeded", serde_json::json!([]))], true)[0].rows;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].id, "code-1:view");
+    // Code mode failed the run: its view was not one the renderer draws.
+    let rows = &segments(&[receipt("failed", read)], true)[0].rows;
+    assert!(rows.iter().all(|row| row.card.is_none()));
+}

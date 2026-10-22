@@ -21,7 +21,8 @@ to the browser via `inbound/wasm`.
 - `src/domain/model/segment/code_execution.rs`: expands internal code receipts
   into SDK activity rows for conversation snapshots, independent of harness;
   a completed write's row carries the item it changed, which the row names
-  and a view showing the item marks.
+  and a view showing the item marks, and the view a succeeded run returned
+  is its last row's view card.
 - `src/domain/model.rs`: the renderable vocabulary (`FoldedMessage`,
   `ToolStatus`, …) folds produce.
 - `src/domain/log.rs`: the raw log vocabulary folds consume.
