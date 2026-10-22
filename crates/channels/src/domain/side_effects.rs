@@ -23,6 +23,8 @@ use std::collections::HashSet;
 use tracing::Instrument as _;
 use uuid::Uuid;
 
+mod dm_email;
+
 /// Parse a mention entity id in the canonical `bot|<uuid>` principal form.
 fn mention_bot_id(entity_id: &str) -> Option<BotId> {
     BotIdStr::parse_from_str(entity_id)
@@ -208,6 +210,8 @@ pub enum ChannelNotificationEffect {
     },
     /// Participants were invited to a channel.
     Invite {
+        /// Stable identity for a DM email; ordinary invitations have no message key.
+        message_id: Option<Uuid>,
         /// Channel receiving participants.
         channel_id: Uuid,
         /// User that invited the participants.
@@ -507,7 +511,7 @@ where
         } else {
             return;
         };
-        let context = match self
+        let mut context = match self
             .build_posted_message_context(
                 channel_id,
                 metadata,
@@ -524,6 +528,11 @@ where
                 return;
             }
         };
+
+        if notification_policy == PostMessageNotificationPolicy::Default {
+            self.send_unregistered_dm_email(channel_id, &message, &mut context)
+                .await;
+        }
 
         self.send_user_mention_notifications(channel_id, &message, has_attachments, &context)
             .await;
@@ -870,6 +879,7 @@ where
                 .partition(|id| existing_user_ids.contains(id.as_ref()));
 
         self.send_notification(ChannelNotificationEffect::Invite {
+            message_id: None,
             channel_id,
             invited_by_user_id,
             registered_recipient_ids,
