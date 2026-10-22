@@ -470,9 +470,11 @@ neither organizing nor invited, such as a delegate on a shared calendar, keeps w
 calendar access allows. The update refuses a detail change from such a guest with 403
 `guests_cannot_modify` (fields resent at their stored value are ignored, so the agent can
 pass them); the editor then shows the line in a toast and locks its details, and a refused
-drag snaps back with the same toast. To check the refusal without a Google account, answer
-`PATCH /events/{id}` (or the GraphQL `updateCalendarEvent` mutation) with HTTP 403 and code
-`guests_cannot_modify` on an event whose `viewerCan.editDetails` is still true.
+drag snaps back with the same toast. The refusal covers a stale `viewerCan`, an event the
+viewer still sees as editable after the organizer turned modifying off, so check it without a
+Google account by answering `PATCH /events/{id}` (or the GraphQL `updateCalendarEvent`
+mutation) with HTTP 403 and code `guests_cannot_modify` on an event whose
+`viewerCan.editDetails` is still true: only there does the editor send a detail change at all.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description
