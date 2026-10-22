@@ -202,6 +202,76 @@ fn a_stored_value_missing_selected_fields_reads_as_null() {
 }
 
 #[test]
+fn a_value_linking_another_record_reads_like_an_ordinary_link_once_stored() {
+    block_on(async {
+        let mut engine = engine();
+        let latest = r#"
+            query Latest($threadId: ID!) {
+              user { id emailThread(input: { threadId: $threadId }) {
+                __typename id latestContentMessage @fromCache { __typename id subject }
+              } }
+            }"#;
+        engine
+            .write_query(
+                None,
+                latest,
+                None,
+                &page_variables(),
+                &json!({"user": {"id": "viewer", "emailThread": {
+                    "__typename": "GraphqlSoupEmailThread", "id": "thread"
+                }}}),
+                None,
+            )
+            .await
+            .unwrap();
+        let read = engine
+            .read_query(None, latest, None, &page_variables())
+            .await
+            .unwrap();
+        assert!(matches!(
+            read,
+            ReadResult::Hit { data } if data["user"]["emailThread"]["latestContentMessage"].is_null()
+        ));
+
+        // A linked record may be loaded from storage after the walk suspends,
+        // so a missing subfield misses whether or not the record is hot.
+        engine
+            .write_query(
+                None,
+                &latest.replace("@fromCache { __typename id subject }", "{ __typename id }"),
+                None,
+                &page_variables(),
+                &json!({"user": {"id": "viewer", "emailThread": {
+                    "__typename": "GraphqlSoupEmailThread", "id": "thread",
+                    "latestContentMessage": {"__typename": "GraphqlSoupEmailMessage", "id": "m1"}
+                }}}),
+                None,
+            )
+            .await
+            .unwrap();
+        let read = engine
+            .read_query(None, latest, None, &page_variables())
+            .await
+            .unwrap();
+        assert!(matches!(read, ReadResult::Miss));
+
+        engine
+            .write_query(None, PAGE, None, &page_variables(), &page_response(), None)
+            .await
+            .unwrap();
+        let read = engine
+            .read_query(None, latest, None, &page_variables())
+            .await
+            .unwrap();
+        assert!(matches!(
+            read,
+            ReadResult::Hit { data } if data["user"]["emailThread"]["latestContentMessage"]
+                == json!({"__typename": "GraphqlSoupEmailMessage", "id": "m1", "subject": "Hello"})
+        ));
+    });
+}
+
+#[test]
 fn network_writes_keep_stored_values_and_exact_dependencies() {
     block_on(async {
         let mut engine = engine();

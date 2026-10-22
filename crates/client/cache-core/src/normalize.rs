@@ -278,7 +278,7 @@ fn selection_returns_data(selection: &Selection) -> bool {
 }
 
 /// Whether a stored value of `field` on `type_name` can link to other records.
-fn links_records(
+pub(crate) fn links_records(
     schema: &crate::meta::Schema,
     entity_resolvers: &EntityResolverLookup,
     type_name: &str,

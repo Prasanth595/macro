@@ -453,7 +453,7 @@ impl<'document, S: RecordSource, D: DependencyTracker> Walk<'_, 'document, S, D>
                 if matches!(fields.get(storage_key.as_ref()), Some(CacheValue::Null)) {
                     return Ok(Some(Json::Null));
                 }
-                self.read_cached_value(owner, field.node, ty, &CacheValue::Ref(key.clone()))
+                self.read_value(owner, field.node, ty, &CacheValue::Ref(key.clone()))
                     .map(Some)
             }
             FieldSource::Stored { key, ty } => {
@@ -465,29 +465,16 @@ impl<'document, S: RecordSource, D: DependencyTracker> Walk<'_, 'document, S, D>
                     self.mark_miss(owner, key.to_string());
                     return Ok(None);
                 };
-                self.read_cached_value(owner, field.node, ty, value)
-                    .map(Some)
+                if !field.null_when_incomplete {
+                    return self.read_value(owner, field.node, ty, value).map(Some);
+                }
+                // The value has no links, so every miss inside it is found now.
+                let outer_miss = self.miss.take();
+                let data = self.read_value(owner, field.node, ty, value)?;
+                let incomplete = std::mem::replace(self.miss, outer_miss).is_some();
+                Ok(Some(if incomplete { Json::Null } else { data }))
             }
         }
-    }
-
-    /// Reads a stored value. A `@fromCache` value that another query stored
-    /// with fewer fields than this selection needs reads as null. Linked
-    /// records absent from the cache still suspend or miss the read.
-    fn read_cached_value(
-        &mut self,
-        owner: &EntityKey<'static>,
-        field: &'document FieldNode,
-        ty: &meta::FieldType<'document>,
-        value: &CacheValue,
-    ) -> Result<Json, DenormalizeError> {
-        if !field.from_cache {
-            return self.read_value(owner, field, ty, value);
-        }
-        let outer_miss = self.miss.take();
-        let data = self.read_value(owner, field, ty, value)?;
-        let incomplete = std::mem::replace(self.miss, outer_miss).is_some();
-        Ok(if incomplete { Json::Null } else { data })
     }
 
     fn mark_miss(&mut self, owner: &EntityKey<'static>, field: String) {
