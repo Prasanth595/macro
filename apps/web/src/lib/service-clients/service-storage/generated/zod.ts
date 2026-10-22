@@ -32861,6 +32861,11 @@ export const postItemsSoupAstBody = zod
                   .describe('Items associated with the contact.'),
               })
               .describe('Items associated with the contact.'),
+            zod
+              .enum(['activity'])
+              .describe(
+                'Activity across visible CRM-enabled teams, excluding hidden records.'
+              ),
           ])
           .describe('The CRM record an association filter names.'),
       ])
@@ -36984,6 +36989,11 @@ export const postItemsSoupAstGroupedBody = zod
                       .describe('Items associated with the contact.'),
                   })
                   .describe('Items associated with the contact.'),
+                zod
+                  .enum(['activity'])
+                  .describe(
+                    'Activity across visible CRM-enabled teams, excluding hidden records.'
+                  ),
               ])
               .describe('The CRM record an association filter names.'),
           ])
@@ -37191,6 +37201,11 @@ export const postItemsSoupAstGroupedBody = zod
                       .describe('Items associated with the contact.'),
                   })
                   .describe('Items associated with the contact.'),
+                zod
+                  .enum(['activity'])
+                  .describe(
+                    'Activity across visible CRM-enabled teams, excluding hidden records.'
+                  ),
               ])
               .describe('The CRM record an association filter names.'),
           ])
