@@ -52,7 +52,7 @@ execution, display) that don't belong to a single domain.
   `messages`, `routines`, `ai_billing`, `ai_usage`, `ai_toolset`, `agent`),
   plus `bot_id`, `attachment`, `static_file`.
 - Used by: `document_storage_service`, `document_cognition_service`,
-  `agent_harness_service`, `mcp_service`.
+  `agent_harness_service`.
 
 ## Recipes
 
@@ -71,6 +71,14 @@ edit capability but calls no nested model and emits no additional model charge; 
 - Session user-tool finishers authorize the final edited arguments after review; preserve the selected account through confirmation and never approve an earlier draft then execute a changed one.
 
 - Executable toolsets exclude legacy chats in every host and code mode. Keep historical parsing compatibility only in `frontend_compat.rs`; never merge it into provider schemas.
+
+## Gotchas
+
+- `tools_for(AiHost::Mcp)` never includes the agent-led Setup tools;
+  `mcp_tools_with_agent_setup()` adds them, and the harness's public MCP uses
+  it only while `ENABLE_AGENT_SETUP` is on. `ToolServiceContext::agent_setup_parts`
+  carries setup's import, connection and inbox adapters; only the public MCP
+  composes setup from them.
 
 ## Checks
 
