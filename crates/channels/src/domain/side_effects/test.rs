@@ -103,6 +103,7 @@ impl ChannelRealtimePublisher for FakeRealtime {
 #[derive(Clone, Default)]
 struct FakeNotifications {
     effects: Arc<Mutex<Vec<ChannelNotificationEffect>>>,
+    fail_next: Arc<Mutex<bool>>,
 }
 
 impl ChannelNotificationSender for FakeNotifications {
@@ -110,6 +111,9 @@ impl ChannelNotificationSender for FakeNotifications {
 
     async fn send(&self, notification: ChannelNotificationEffect) -> Result<(), Self::Err> {
         self.effects.lock().unwrap().push(notification);
+        if std::mem::take(&mut *self.fail_next.lock().unwrap()) {
+            anyhow::bail!("notification queue unavailable");
+        }
         Ok(())
     }
 }
@@ -1466,4 +1470,54 @@ async fn creating_empty_dm_does_not_send_email_or_notifications() {
         })
         .await;
     assert!(notifications.effects.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn first_dm_email_fallback_preserves_message_deduplication_key() {
+    let sender = user("sender@example.com");
+    let recipient = user("new@example.com");
+    let message_id = Uuid::new_v4();
+    let notifications = FakeNotifications::default();
+    *notifications.fail_next.lock().unwrap() = true;
+    let service = ChannelSideEffectService::new(
+        FakeContext {
+            message_count: 1,
+            unregistered_users: HashSet::from([recipient.to_string()]),
+            ..FakeContext::default()
+        },
+        FakeRealtime::default(),
+        notifications.clone(),
+        FakeContacts::default(),
+    );
+    let mut event = bot_message_posted_event(
+        Uuid::new_v4(),
+        message_id,
+        None,
+        &[sender.as_ref(), recipient.as_ref()],
+    );
+    if let ChannelEvent::MessagePosted {
+        metadata, message, ..
+    } = &mut event
+    {
+        metadata.channel_type = ChannelType::DirectMessage;
+        message.sender_id = Sender::new_from_user(sender);
+    }
+    service.handle(event).await;
+    let effects = notifications.effects.lock().unwrap();
+    assert_eq!(effects.len(), 2);
+    for effect in effects.iter() {
+        let ChannelNotificationEffect::Invite {
+            message_id: key,
+            unregistered_recipient_ids,
+            ..
+        } = effect
+        else {
+            panic!("expected email attempt");
+        };
+        assert_eq!(*key, Some(message_id));
+        assert_eq!(
+            *unregistered_recipient_ids,
+            HashSet::from([recipient.clone()])
+        );
+    }
 }

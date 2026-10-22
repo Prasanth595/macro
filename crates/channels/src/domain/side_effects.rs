@@ -240,6 +240,7 @@ pub struct ChannelSideEffectService<C, R, N, K, B = NoopMacroEventBroker> {
 }
 
 struct InviteNotificationRequest {
+    message_id: Option<Uuid>,
     channel_id: Uuid,
     invited_by_user_id: MacroUserIdStr<'static>,
     recipient_user_ids: Vec<MacroUserIdStr<'static>>,
@@ -795,6 +796,8 @@ where
             }
         };
         self.send_invite_notification(InviteNotificationRequest {
+            message_id: (context.metadata.channel_type == ChannelType::DirectMessage)
+                .then_some(message.id),
             channel_id,
             invited_by_user_id,
             recipient_user_ids,
@@ -852,6 +855,7 @@ where
         };
 
         self.send_invite_notification(InviteNotificationRequest {
+            message_id: None,
             channel_id,
             invited_by_user_id,
             recipient_user_ids,
@@ -865,6 +869,7 @@ where
 
     async fn send_invite_notification(&self, req: InviteNotificationRequest) {
         let InviteNotificationRequest {
+            message_id,
             channel_id,
             invited_by_user_id,
             recipient_user_ids,
@@ -879,7 +884,7 @@ where
                 .partition(|id| existing_user_ids.contains(id.as_ref()));
 
         self.send_notification(ChannelNotificationEffect::Invite {
-            message_id: None,
+            message_id,
             channel_id,
             invited_by_user_id,
             registered_recipient_ids,
