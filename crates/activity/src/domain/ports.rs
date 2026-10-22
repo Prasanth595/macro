@@ -181,6 +181,17 @@ pub trait ActivityReads {
         limit: NonZeroU32,
     ) -> impl Future<Output = Result<ActivityFeedPage, Self::Err>> + Send;
 
+    /// One page of the activity of everyone who shares a team with
+    /// `viewer_id`, the viewer excluded, newest first, paginated like
+    /// [`subject_feed`](Self::subject_feed). Rows are not access-checked:
+    /// callers must drop rows on entities the viewer cannot currently see.
+    fn teammate_feed(
+        &self,
+        viewer_id: &str,
+        cursor: Option<(DateTime<Utc>, Uuid)>,
+        limit: NonZeroU32,
+    ) -> impl Future<Output = Result<ActivityFeedPage, Self::Err>> + Send;
+
     /// The newest `per_entity_limit` activities for each requested entity,
     /// in one round trip. Entities with no activity are absent from the map.
     fn entity_activity(

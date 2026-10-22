@@ -110,6 +110,20 @@ impl<R: ActivityReads + Send + Sync, A: EntityAccessService> ActivityReads
         })
     }
 
+    async fn teammate_feed(
+        &self,
+        viewer_id: &str,
+        cursor: Option<(DateTime<Utc>, Uuid)>,
+        limit: NonZeroU32,
+    ) -> Result<ActivityFeedPage, Self::Err> {
+        // Teammate rows reach no feed until the caller checks every entity,
+        // initiatives included, against the viewer's current access.
+        self.reads
+            .teammate_feed(viewer_id, cursor, limit)
+            .await
+            .map_err(|error| InitiativeError::Internal(rootcause::report!(error).into()))
+    }
+
     async fn subject_activity_range(
         &self,
         subject_id: &str,

@@ -32,6 +32,8 @@ distribution.
 
 - Depends on: `macro_event_broker`, `macro_event_topics`, `channel_sender`,
   `model-entity`, `model_owner`.
+- Reads `team_user` (owned by `teams`) only to find the viewer's teammates
+  for `teammate_feed`; that read does not check access, so callers filter rows.
 - Used by: most domain crates with activity surfaces (`documents`, `forms`,
   `databases`, `initiative`, `messages`, `channels`, `soup`, `call`, `chat`,
   `work_feed`, `projects`, `github`, `email`, `properties`) and `ai_tools`.
