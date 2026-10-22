@@ -34,8 +34,7 @@ shows `Connect your email`; Gmail/Google Workspace and enabled Outlook connectio
 use provider consent. Most functionality needs a connected account. Search is `Ctrl+F` or `/` within the surface.
 
 Mail-client keys work in the list, the reading pane, and the open thread while
-Email is focused: `c` new email (so the Create menu's `c` then a letter does not
-work inside Email), `s` star, `z` undo the last action, and `g` then a letter
+Email is focused: `s` star, `z` undo the last action, and `g` then a letter
 for a tab (`i` Signal, `o` Noise, `s` Favorites, `t` Sent, `d` Drafts, `e`
 Archived, `a` All). These letters replace the app-wide `g` targets only inside
 Email (`g t` is still Tasks elsewhere); `g h` still goes Home. `Escape` in a

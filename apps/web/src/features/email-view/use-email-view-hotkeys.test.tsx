@@ -25,7 +25,7 @@ function press(key: string, init: KeyboardEventInit = {}) {
 
 function setup(initialTab: EmailTab = 'noise') {
   const goHome = vi.fn(() => true);
-  const compose = vi.fn();
+  const openCreateMenu = vi.fn(() => true);
   const [tab, setTab] = createSignal<EmailTab>(initialTab);
   let pushUndo!: ReturnType<typeof useMutationUndoContext>['pushUndo'];
 
@@ -45,6 +45,13 @@ function setup(initialTab: EmailTab = 'noise') {
       registrationType: 'add',
       hide: true,
     });
+    // The app-wide Create menu, registered by GlobalHotkeys.
+    registerHotkey({
+      hotkey: 'c',
+      scopeId: 'global',
+      description: 'Create',
+      keyDownHandler: openCreateMenu,
+    });
     const registerHome = () =>
       registerHotkey({
         hotkey: ['h', 'i'],
@@ -61,7 +68,6 @@ function setup(initialTab: EmailTab = 'noise') {
       setTab,
       listHasKeyboard: () => !isScopeInActiveBranch(readerScope),
       hasSelection: () => false,
-      compose,
     });
     // Flags loading later re-register the sidebar's letters.
     registerHome();
@@ -80,7 +86,7 @@ function setup(initialTab: EmailTab = 'noise') {
       <Harness />
     </MutationUndoProvider>
   ));
-  return { view, goHome, compose, tab, pushUndo: () => pushUndo };
+  return { view, goHome, openCreateMenu, tab, pushUndo: () => pushUndo };
 }
 
 it('goes to email tabs with g sequences only while Email is focused', () => {
@@ -108,14 +114,14 @@ it('leaves g h to Home inside Email', () => {
   expect(tab()).toBe('noise');
 });
 
-it('returns to Signal on Escape and composes with c', () => {
-  const { view, compose, tab } = setup('archived');
+it('returns to Signal on Escape and leaves c to the Create menu', () => {
+  const { view, openCreateMenu, tab } = setup('archived');
   view.getByTestId('email').focus();
 
   press('Escape');
   expect(tab()).toBe('important');
   press('c');
-  expect(compose).toHaveBeenCalledOnce();
+  expect(openCreateMenu).toHaveBeenCalledOnce();
 });
 
 it('undoes the latest action with z', () => {
@@ -145,7 +151,7 @@ it('undoes once while z is held', () => {
 });
 
 it('works from the reading pane, where Escape stays with the reader', () => {
-  const { view, compose, tab, pushUndo } = setup('archived');
+  const { view, openCreateMenu, tab, pushUndo } = setup('archived');
   const undo = vi.fn();
   pushUndo()({ undo });
   view.getByTestId('reader').focus();
@@ -153,7 +159,7 @@ it('works from the reading pane, where Escape stays with the reader', () => {
   press('Escape');
   expect(tab()).toBe('archived');
   press('c');
-  expect(compose).toHaveBeenCalledOnce();
+  expect(openCreateMenu).toHaveBeenCalledOnce();
   press('z');
   expect(undo).toHaveBeenCalledOnce();
   press('g');

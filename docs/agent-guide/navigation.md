@@ -949,7 +949,6 @@ restart rules still apply.
   would describe the menu. A view's `g` letters are listed under that view.
 - `c` then `d`/`t`/`e`/`m`/`a` — create doc / task / email / channel / AI chat.
   Single-letter shortcuts only work when no editor has focus; press `Escape` first.
-  In Email, `c` alone opens a new email instead.
 - `/` — search everything (in Email it focuses email search). `j`/`k` — move in
   lists. `e` — mark done.
 - `#` — move email to Trash, with an Undo toast. Works on the selected or focused

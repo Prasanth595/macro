@@ -1,7 +1,6 @@
 import { GO_TO_COMMAND_SCOPE } from '@app/constants/hotkeys';
 import { toast } from '@core/component/Toast/Toast';
 import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
-import { TOKENS } from '@core/hotkey/tokens';
 import { HOTKEY_PRIORITY_HIGH, type ValidHotkey } from '@core/hotkey/types';
 import { isScopeInActiveBranch } from '@core/hotkey/utils';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -33,7 +32,6 @@ export type UseEmailViewHotkeysOptions = {
   /** The list is on screen and has the keyboard, not the reader or a thread. */
   listHasKeyboard: () => boolean;
   hasSelection: () => boolean;
-  compose: () => void;
 };
 
 /** Keys that work in Email's list, its reading pane and an open thread. */
@@ -77,19 +75,6 @@ export function useEmailViewHotkeys(options: UseEmailViewHotkeysOptions) {
       return true;
     },
     registrationType: 'add',
-  }).withGroup(group);
-
-  registerHotkey({
-    hotkey: 'c',
-    hotkeyToken: TOKENS.email.compose.new,
-    scopeId: options.scopeId,
-    description: 'New email',
-    condition: options.enabled,
-    keyDownHandler: () => {
-      options.compose();
-      return true;
-    },
-    displayPriority: 10,
   }).withGroup(group);
 
   registerHotkey({

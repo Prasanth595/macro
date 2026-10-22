@@ -9,7 +9,6 @@ import { SplitRouter } from '@app/lib/split-router';
 import { usePreference } from '@app/preferences/use-preference';
 import { type PillTabItem, PillTabs } from '@components/app/mobile/PillTabs';
 import { SplitHeaderLeft } from '@components/app/split-layout/components/SplitHeader';
-import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { SplitPanel } from '@components/app/split-panel';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
@@ -34,7 +33,6 @@ import {
 import { EmailList } from './components/EmailList';
 import { EmailReader } from './components/EmailReader';
 import { EmailSidebar } from './components/EmailSidebar';
-import { composeEmail } from './compose-email';
 import { EMAIL_TABS } from './constants';
 import { EmailViewProvider, useEmailView } from './email-view-context';
 import type { EmailListPane } from './reader-pane';
@@ -216,7 +214,6 @@ function EmailMobileLayout(props: ParentProps) {
 
 function EmailViewRoot() {
   const panel = useSplitPanelOrThrow();
-  const { openWithSplit } = useSplitLayout();
   const {
     state,
     setTab,
@@ -250,7 +247,6 @@ function EmailViewRoot() {
       return pane ? !pane.readerHasKeyboard() : selectedThread() === undefined;
     },
     hasSelection: () => listController.selection.count() > 0,
-    compose: () => composeEmail(openWithSplit, state.inboxIds),
   });
 
   const list = () => (
