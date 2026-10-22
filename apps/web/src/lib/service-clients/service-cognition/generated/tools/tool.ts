@@ -156,6 +156,7 @@ type ToolParserMap = {
     call: types.EditBookingLink;
     response: types.BookingLinkResult;
   };
+  EditCanvas: { call: types.EditCanvas; response: types.CanvasResponse };
   EditChannelMessage: {
     call: types.EditChannelMessage;
     response: types.EditChannelMessageResponse;
@@ -358,6 +359,7 @@ type ToolParserMap = {
     call: types.ReadCallRecord;
     response: types.ReadCallRecordResponse;
   };
+  ReadCanvas: { call: types.ReadCanvas; response: types.CanvasResponse };
   ReadChannelMessageContext: {
     call: types.ReadChannelMessageContext;
     response: types.ReadChannelMessageContextResponse;
@@ -676,6 +678,7 @@ const toolParserMap = {
     call: schemas.EditBookingLink,
     response: schemas.BookingLinkResult,
   },
+  EditCanvas: { call: schemas.EditCanvas, response: schemas.CanvasResponse },
   EditChannelMessage: {
     call: schemas.EditChannelMessage,
     response: schemas.EditChannelMessageResponse,
@@ -908,6 +911,7 @@ const toolParserMap = {
     call: schemas.ReadCallRecord,
     response: schemas.ReadCallRecordResponse,
   },
+  ReadCanvas: { call: schemas.ReadCanvas, response: schemas.CanvasResponse },
   ReadChannelMessageContext: {
     call: schemas.ReadChannelMessageContext,
     response: schemas.ReadChannelMessageContextResponse,
@@ -1252,6 +1256,7 @@ type ToolDataMap = {
     call: types.EditBookingLink;
     response: types.BookingLinkResult;
   };
+  EditCanvas: { call: types.EditCanvas; response: types.CanvasResponse };
   EditChannelMessage: {
     call: types.EditChannelMessage;
     response: types.EditChannelMessageResponse;
@@ -1454,6 +1459,7 @@ type ToolDataMap = {
     call: types.ReadCallRecord;
     response: types.ReadCallRecordResponse;
   };
+  ReadCanvas: { call: types.ReadCanvas; response: types.CanvasResponse };
   ReadChannelMessageContext: {
     call: types.ReadChannelMessageContext;
     response: types.ReadChannelMessageContextResponse;

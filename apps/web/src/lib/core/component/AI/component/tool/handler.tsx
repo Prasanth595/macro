@@ -56,6 +56,7 @@ import {
   deleteCallRecordHandler,
   updateCallRecordHandler,
 } from './CallRecordMutations';
+import { editCanvasHandler, readCanvasHandler } from './Canvas';
 import {
   deleteChannelMessageHandler,
   editChannelMessageHandler,
@@ -291,6 +292,8 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   CreateTag: createTagHandler,
   DeleteTag: deleteTagHandler,
   EditDocument: editDocumentHandler,
+  ReadCanvas: readCanvasHandler,
+  EditCanvas: editCanvasHandler,
   EditTag: editTagHandler,
   GetThread: getThreadHandler,
   NameSearch: nameSearchHandler,

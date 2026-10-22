@@ -4726,6 +4726,18 @@ export const EditBookingLink = z
   })
   .strict();
 
+export const EditCanvas = z.object({
+  document_id: z.string(),
+  instructions: z.string(),
+});
+
+export const CanvasResponse = z.object({
+  canvas: z.union([z.string(), z.null()]).optional(),
+  operationsApplied: z.number().int().gte(0),
+  summary: z.string(),
+  clarification: z.union([z.string(), z.null()]).optional(),
+});
+
 export const EditChannelMessage = z.object({
   channelId: z.string().uuid(),
   messageId: z.string().uuid(),
@@ -11642,6 +11654,11 @@ export const ReadCallRecordResponse = z.object({
         .optional(),
     })
   ),
+});
+
+export const ReadCanvas = z.object({
+  document_id: z.string(),
+  item_ids: z.union([z.array(z.string()), z.null()]).optional(),
 });
 
 export const ReadChannelMessageContext = z.object({

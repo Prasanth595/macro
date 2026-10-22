@@ -87,11 +87,13 @@ export function createCanvasPresence(
                   {
                     ...peer.selection,
                     id: peer.user.peerId,
-                    name: displayName(
-                      typeof peer.user.userId === 'string'
-                        ? peer.user.userId
-                        : undefined
-                    ),
+                    name: peer.selection.name.endsWith('(AI)')
+                      ? peer.selection.name.slice(0, 200)
+                      : displayName(
+                          typeof peer.user.userId === 'string'
+                            ? peer.user.userId
+                            : undefined
+                        ),
                     color:
                       typeof peer.user.color === 'string' &&
                       /^[a-z]+$/.test(peer.user.color)

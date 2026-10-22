@@ -1,5 +1,35 @@
 # Canvas architecture
 
+## AI editing
+
+Ask Macro in the Drive header and standalone title menu attaches the canvas to the agent composer.
+Documents owns `ReadCanvas` and `EditCanvas`, checked view/edit receipts, native
+file-type validation, scoped actor-bearing document tokens, AI admission and
+usage metering. Its existing tool context registers them for chat, agent
+sessions and MCP; the toolset framework is unchanged.
+
+`POST /canvas` on the AI editing worker joins the initialized shared scene using
+the collaboration manager, sync engine and WAL. The model reads stable IDs,
+containment/order, local/world transforms and bounds, then generates JavaScript
+for `CanvasEditor` in bounded QuickJS. The host parses and validates operations,
+executes a complete snippet on a disposable graphics editor, and commits its
+delta once through the externally owned live Loro backend. It reads current
+merged state immediately before that commit. Each snippet waits for a server
+acknowledgement; an uncertain write stops the model and requires rereading
+before another request. Earlier acknowledged snippets survive cancellation;
+there is no transactional rollback of a whole model run.
+
+The SDK supports boxes, text, bound connectors, world-space movement, box
+resizing, styles, plain-text labels, grouping, reparenting and sibling ordering.
+Existing embedded assets can move/resize/style, but new assets and reference
+deletion stay in Canvas's authorized upload/mention lifecycle. Label content
+remains one LWW string encoded by the shared Lexical codec, independent of pose
+and appearance. Headless label heights are estimated; text shapes have explicit
+layout dimensions. Initialization remains first-editor-wins in the web host;
+tools ask users to open uninitialized legacy canvases rather than minting a
+second seed. The scene overview is bounded to 300 items, with stable-ID filters
+for inspecting items beyond that overview.
+
 Canvas Next is the Macro host for a reusable graphics engine. The host owns
 product UI and services; `@macro-inc/graphics` owns the portable scene and editing
 model.

@@ -3,6 +3,14 @@
 Canvas Next is the default editor for saved canvases, drive details, and embeds.
 No rollout flag or local override is required.
 
+**Ask Macro** in the Drive header and standalone title menu attaches the canvas to an agent conversation
+on desktop and mobile. `ReadCanvas` inspects its live scene; `EditCanvas` runs
+bounded SDK commands as a peer in that same Loro room. Results show acknowledged
+operation counts and expandable outcomes. Unrelated concurrent edits survive.
+Text remains a whole-string register; new media/document references and deletion
+of embedded items stay in the authorized UI flow. See the worker
+[Canvas flow](../../../../../services/ai-editing-worker/AI_EDITING.md#canvas).
+
 The frontend treats unversioned JSON (and explicit version 1) as legacy Canvas.
 It converts supported records on load to `{ version: 2, document, legacy? }`.
 `document` is the graphics scene; `legacy` retains the original JSON and migration
@@ -441,3 +449,5 @@ selection, and group movement. Scene hierarchy, paint order, and picking bounds
 are indexed on immutable snapshots; edits and undo replace those indexes.
 Selection outlines share a camera transform so panning does not rewrite every
 outline. Mutable scene builders continue to bypass caches.
+
+On touch layouts, keep the floating zoom/inspector below the split header so the details button and document-title file menu remain reachable.

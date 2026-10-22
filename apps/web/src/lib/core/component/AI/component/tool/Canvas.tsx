@@ -1,0 +1,89 @@
+import { ItemPreview } from '@core/component/ItemPreview';
+import PencilSimple from '@phosphor-icons/core/regular/pencil-simple.svg';
+import { createSignal, Show, Suspense } from 'solid-js';
+import { BaseTool } from './BaseTool';
+import { Tool } from './Tool';
+import { createToolRenderer, type RenderContext } from './ToolRenderer';
+
+function CanvasToolRow(props: {
+  verb: string;
+  documentId: string;
+  summary?: string;
+  details?: string;
+  renderContext: RenderContext['renderContext'];
+}) {
+  const [expanded, setExpanded] = createSignal(false);
+  return (
+    <BaseTool
+      icon={PencilSimple}
+      type="call"
+      renderContext={props.renderContext}
+      response={
+        <Show when={expanded() && props.details}>
+          {(details) => (
+            <pre class="max-h-80 overflow-auto whitespace-pre-wrap pb-1 font-mono text-ink text-xs">
+              {details()}
+            </pre>
+          )}
+        </Show>
+      }
+    >
+      <div class="flex items-center gap-2">
+        <div class="min-w-0 flex-1">
+          {props.verb} canvas{' '}
+          <Suspense>
+            <ItemPreview
+              class="inline-flex align-middle ring-0"
+              id={props.documentId}
+              type="document"
+            />
+          </Suspense>
+        </div>
+        <Show when={props.summary}>
+          <Tool.ResultToggle
+            expanded={expanded()}
+            showToggle={!!props.details}
+            onToggle={() => setExpanded((value) => !value)}
+            status={<span>{props.summary}</span>}
+          />
+        </Show>
+      </div>
+    </BaseTool>
+  );
+}
+
+export const readCanvasHandler = createToolRenderer({
+  name: 'ReadCanvas',
+  render: (ctx) => (
+    <CanvasToolRow
+      verb="Read"
+      documentId={ctx.tool.data.document_id}
+      summary={ctx.response?.data.summary}
+      details={ctx.response?.data.canvas ?? undefined}
+      renderContext={ctx.renderContext}
+    />
+  ),
+});
+
+export const editCanvasHandler = createToolRenderer({
+  name: 'EditCanvas',
+  render: (ctx) => (
+    <CanvasToolRow
+      verb="Edit"
+      documentId={ctx.tool.data.document_id}
+      summary={
+        ctx.response
+          ? `${ctx.response.data.operationsApplied} operation${ctx.response.data.operationsApplied === 1 ? '' : 's'}`
+          : undefined
+      }
+      details={
+        ctx.response
+          ? [ctx.response.data.summary, ctx.response.data.clarification]
+              .filter(Boolean)
+              .join('\n\n')
+          : undefined
+      }
+      renderContext={ctx.renderContext}
+    />
+  ),
+});
