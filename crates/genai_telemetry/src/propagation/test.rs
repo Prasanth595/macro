@@ -101,5 +101,10 @@ fn async_delivery_links_to_producer_without_replacing_its_own_parent() {
     let spans = exporter.get_finished_spans().unwrap();
     let delivery = spans.iter().find(|span| span.name == "delivery").unwrap();
     assert_eq!(delivery.links.links.len(), 1);
-    assert_eq!(delivery.links.links[0].span_context, expected);
+    let linked = &delivery.links.links[0].span_context;
+    assert_eq!(linked.trace_id(), expected.trace_id());
+    assert_eq!(linked.span_id(), expected.span_id());
+    assert_eq!(linked.trace_flags(), expected.trace_flags());
+    assert_eq!(linked.trace_state(), expected.trace_state());
+    assert!(linked.is_remote());
 }
