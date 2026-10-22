@@ -62,6 +62,7 @@ const DETAIL_FIELDS = {
   recurrence: true,
   location: true,
   description: true,
+  outOfOffice: true,
 } satisfies EventEditorDisabledFields;
 
 /**

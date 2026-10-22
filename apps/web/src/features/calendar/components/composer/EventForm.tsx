@@ -350,7 +350,7 @@ export function EventForm(props: EventFormProps) {
                 <EventComposerDeclinePill
                   value={state().outOfOffice}
                   onChange={controller.setOutOfOffice}
-                  disabled={formIsDisabled()}
+                  disabled={fieldIsDisabled('outOfOffice')}
                 />
               </Show>
               <Show
@@ -368,7 +368,7 @@ export function EventForm(props: EventFormProps) {
                       declineMessage,
                     })
                   }
-                  disabled={formIsDisabled()}
+                  disabled={fieldIsDisabled('outOfOffice')}
                 />
               </Show>
             </Show>
