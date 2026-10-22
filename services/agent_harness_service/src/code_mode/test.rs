@@ -19,6 +19,7 @@ impl NativeToolGate for Gate {
     ) -> Pin<Box<dyn Future<Output = NativeToolVerdict> + Send + 'a>> {
         assert_eq!(name, "ExecuteCode");
         assert_eq!(args["source"], "fixture");
+        assert_eq!(args["turn_id"], macro_uuid::Uuid::from_u128(1).to_string());
         self.calls.fetch_add(1, Ordering::SeqCst);
         Box::pin(async { self.verdict.clone() })
     }

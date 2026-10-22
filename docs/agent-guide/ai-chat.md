@@ -1170,7 +1170,8 @@ executable tools; non-tool MCP protocol methods retain their existing proxy
 behavior. Model-provider credentials, repository/git access, previews, billing,
 and memory retain their
 existing session identities. ExecuteCode chooses one account for every SDK call
-in that execution. Retrying an execution ID requires the same source, actor
+in that execution. It must echo the server-issued `turn_id` from its originating
+prompt; delayed calls cannot adopt a newer requester’s turn. Retrying an execution ID requires the same source, actor
 selection, and original turn; use a new ID for another turn or account.
 
 When another person requests owner access, the session view shows what the agent

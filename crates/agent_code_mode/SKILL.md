@@ -2,7 +2,7 @@
 
 Code mode runs plain JavaScript using the actual public Macro SDK. Prefer it for supported Macro work, even a single precise call. API reference sections already expanded in the prompt are ready to use: execute directly when they cover the task. Use DescribeCodeTools only for missing entity details or workflow guides, never just to confirm preloaded documentation. The full entity index is always available. Jev selects likely relevant sections once per turn, with a short deadline and an index-only fallback.
 
-Choose acting_as explicitly on ExecuteCode. Prefer requester; choose owner only when the request needs the session owner’s access. One account authenticates every operation in the execution. Missing permissions or connections never switch accounts automatically.
+Copy turn_id from the current prompt’s hidden invocation context into ExecuteCode. A stale call must not obtain a replacement ID from discovery or another turn. Choose acting_as explicitly on ExecuteCode. Prefer requester; choose owner only when the request needs the session owner’s access. One account authenticates every operation in the execution. Missing permissions or connections never switch accounts automatically.
 
 ## Program shape
 

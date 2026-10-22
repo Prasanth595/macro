@@ -94,7 +94,7 @@ async fn approve_run(
     source: &str,
     cancel: &CancellationToken,
 ) -> Result<macro_user_id::user_id::MacroUserIdStr<'static>, CodeModeError> {
-    let args = serde_json::json!({"source": source, "acting_as": identity.acting_as});
+    let args = serde_json::json!({"source": source, "acting_as": identity.acting_as, "turn_id": identity.turn});
     let verdict = tokio::select! {
         biased;
         _ = cancel.cancelled() => return Err(CodeModeError::Forbidden),

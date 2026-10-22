@@ -15332,7 +15332,7 @@ export interface SdkDocumentation {
   documentation?: string | null;
 }
 /**
- * Run a JavaScript ES module in Deno. Export async function main({macro, session, execution}); return {data: <JSON>}. Optional reviews: [{kind: "email" | "calendar", id: "..."}] defaults to an empty list when omitted. The host supplies real public Macro SDK handles authenticated as the explicitly selected acting_as account. Optional imports: import {Macro} from "@macro-inc/sdk"; import Handlebars from "handlebars". main also receives token, hosts, sessionId and executionId for explicit SDK construction. Never print, return or persist token. No TypeScript syntax or package installation.
+ * Copy turn_id from the current prompt’s hidden invocation context; never substitute another turn’s ID for a stale call. Run a JavaScript ES module in Deno. Export async function main({macro, session, execution}); return {data: <JSON>}. Optional reviews: [{kind: "email" | "calendar", id: "..."}] defaults to an empty list when omitted. The host supplies real public Macro SDK handles authenticated as the explicitly selected acting_as account. Optional imports: import {Macro} from "@macro-inc/sdk"; import Handlebars from "handlebars". main also receives token, hosts, sessionId and executionId for explicit SDK construction. Never print, return or persist token. No TypeScript syntax or package installation.
  *
  * Prefer ExecuteCode for supported Macro work, including a single precise call. Use nested SDK entities, e.g. macro.documents.search(query) is an async iterator and document.content() is a promise. Use for await...of, break, conditions and ordinary JavaScript freely. Batch useful independent work with Promise.all or Promise.allSettled; inspect partial failures and await every started operation. Use bounded concurrency for large inputs. Preserve user source scope on every search and retry: macro.documents.search searches documents; macro.email.search searches emails. Return compact evidence with source IDs, explicit failures and coverage limits; do not return SDK objects, raw large batches, or claim a stopped iterator is exhaustive.
  *
@@ -15348,6 +15348,11 @@ export interface SdkDocumentation {
 export interface ExecuteCode {
   execution_id: ExecutionId;
   acting_as: ToolActor;
+  /**
+   * Copy the current server-issued turn_id from the prompt's execution context.
+   * Never reuse an ID from another turn or discover a replacement for a stale call.
+   */
+  turn_id: string;
   /**
    * JavaScript module, at most 64 KiB. Import { Macro } from '@macro-inc/sdk' and Handlebars from 'handlebars'. Export async function main({token, hosts}) { const macro = new Macro({token, hosts}); return {data: ...}; }. The optional reviews array defaults to empty. Dependencies are preinstalled; no TypeScript syntax or package downloads. The token and hosts are supplied by the runner; never return or log the token.
    */

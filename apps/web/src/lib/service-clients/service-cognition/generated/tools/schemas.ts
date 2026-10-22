@@ -16423,6 +16423,7 @@ export const ExecuteCode = z
         });
       }
     }),
+    turn_id: z.string().uuid(),
     source: z.string(),
     timeout_ms: z.number().int().gte(0).optional(),
   })

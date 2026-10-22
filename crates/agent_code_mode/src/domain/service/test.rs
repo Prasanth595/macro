@@ -139,6 +139,7 @@ async fn run_uses_session_owner_and_records_source_and_result_without_credential
             &session,
             id,
             ai_toolset::actor::ToolActor::Owner,
+            macro_uuid::Uuid::from_u128(1),
             request(),
             CancellationToken::new(),
         )
@@ -162,6 +163,7 @@ async fn run_uses_session_owner_and_records_source_and_result_without_credential
             &session,
             id,
             ai_toolset::actor::ToolActor::Owner,
+            macro_uuid::Uuid::from_u128(1),
             request(),
             CancellationToken::new(),
         )
@@ -176,6 +178,7 @@ async fn run_uses_session_owner_and_records_source_and_result_without_credential
                 &session,
                 id,
                 ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
                 changed,
                 CancellationToken::new()
             )
@@ -195,6 +198,7 @@ async fn archived_or_inactive_sessions_never_receive_credentials() {
                 &session,
                 ExecutionId::mint(),
                 ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
                 request(),
                 CancellationToken::new()
             )
@@ -209,6 +213,7 @@ async fn archived_or_inactive_sessions_never_receive_credentials() {
                 &session,
                 ExecutionId::mint(),
                 ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
                 request(),
                 CancellationToken::new()
             )
@@ -227,6 +232,7 @@ async fn collision_does_not_lookup_another_session_or_issue_a_credential() {
             &session,
             id,
             ai_toolset::actor::ToolActor::Owner,
+            macro_uuid::Uuid::from_u128(1),
             request(),
             CancellationToken::new(),
         )
@@ -240,6 +246,7 @@ async fn collision_does_not_lookup_another_session_or_issue_a_credential() {
                 &other,
                 id,
                 ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
                 request(),
                 CancellationToken::new()
             )
@@ -279,6 +286,7 @@ async fn unfinished_journal_reads_and_retries_report_uncertainty_without_replayi
             &session,
             id,
             ai_toolset::actor::ToolActor::Owner,
+            macro_uuid::Uuid::from_u128(1),
             request(),
             CancellationToken::new(),
         )
@@ -344,6 +352,7 @@ async fn optional_reviews_default_to_empty_without_accepting_malformed_results()
                 &session,
                 id,
                 ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
                 request(),
                 CancellationToken::new(),
             )
@@ -420,6 +429,7 @@ async fn persists_live_activity_and_marks_unfinished_requests_unknown() {
                 &session,
                 id,
                 ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
                 request(),
                 CancellationToken::new(),
             )
@@ -560,6 +570,7 @@ async fn cancellation_is_not_blocked_by_a_stalled_activity_save() {
                 &session,
                 ExecutionId::mint(),
                 ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
                 request(),
                 token,
             )
@@ -587,6 +598,7 @@ async fn execution_retries_cannot_change_accounts_or_move_between_turns() {
             &session,
             id,
             ai_toolset::actor::ToolActor::Owner,
+            macro_uuid::Uuid::from_u128(1),
             request(),
             CancellationToken::new(),
         )
@@ -598,6 +610,7 @@ async fn execution_retries_cannot_change_accounts_or_move_between_turns() {
                 &session,
                 id,
                 ai_toolset::actor::ToolActor::Requester,
+                macro_uuid::Uuid::from_u128(1),
                 request(),
                 CancellationToken::new()
             )
@@ -611,6 +624,7 @@ async fn execution_retries_cannot_change_accounts_or_move_between_turns() {
                 &session,
                 id,
                 ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(2),
                 request(),
                 CancellationToken::new()
             )
@@ -618,4 +632,24 @@ async fn execution_retries_cannot_change_accounts_or_move_between_turns() {
         Err(CodeModeError::Duplicate)
     ));
     assert_eq!(credentials.0.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_delayed_call_cannot_adopt_a_new_turn_or_receive_credentials() {
+    let (service, credentials, store, turns) = service();
+    let session = test_agent_session(AgentSessionId::new());
+    *turns.0.lock().unwrap() = Some(macro_uuid::Uuid::from_u128(2));
+    let result = service
+        .execute(
+            &session,
+            ExecutionId::mint(),
+            ai_toolset::actor::ToolActor::Requester,
+            macro_uuid::Uuid::from_u128(1),
+            request(),
+            CancellationToken::new(),
+        )
+        .await;
+    assert!(matches!(result, Err(CodeModeError::Forbidden)));
+    assert!(credentials.0.lock().unwrap().is_empty());
+    assert!(store.0.lock().unwrap().is_empty());
 }

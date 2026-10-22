@@ -216,3 +216,48 @@ async fn missing_actor_and_system_requester_are_refused_without_using_owner_acce
     ));
     assert!(rig.store.all().is_empty());
 }
+
+#[tokio::test]
+async fn code_execution_cannot_resolve_the_requester_of_a_replacement_turn() {
+    let rig = rig();
+    prompted_by(&rig, Some(owner())).await;
+    let old = rig
+        .sessions
+        .turn_prompter(rig.session)
+        .await
+        .unwrap()
+        .unwrap();
+    let requester = MacroUserIdStr::try_from_email("requester@example.com").unwrap();
+    prompted_by(&rig, Some(requester.clone())).await;
+    let current = rig
+        .sessions
+        .turn_prompter(rig.session)
+        .await
+        .unwrap()
+        .unwrap();
+    for turn in [serde_json::Value::Null, serde_json::json!(old.action_id)] {
+        let verdict = rig
+            .gate
+            .check(
+                rig.session,
+                "ExecuteCode",
+                &serde_json::json!({
+                    "acting_as": "requester", "turn_id": turn,
+                }),
+            )
+            .await;
+        assert!(matches!(verdict, NativeToolVerdict::Refuse(_)));
+    }
+    let verdict = rig
+        .gate
+        .check(
+            rig.session,
+            "ExecuteCode",
+            &serde_json::json!({
+                "acting_as": "requester", "turn_id": current.action_id,
+            }),
+        )
+        .await;
+    assert_eq!(verdict, NativeToolVerdict::RunAs(requester));
+    assert!(rig.heard.statuses.lock().unwrap().is_empty());
+}

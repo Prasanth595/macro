@@ -5,7 +5,9 @@
 Execution credentials carry the authenticated session bot for SDK message
 attribution while using the explicitly selected `acting_as` account's API
 permissions. Credential issuance resolves and approves that selection before
-minting. Saved execution retries must match both actor selection and original
+minting. ExecuteCode requires the originating prompt’s `turn_id`; admission and
+credential approval must reject a replacement turn before adopting its account.
+Saved execution retries must match both actor selection and original
 turn, so a later requester cannot inherit an earlier execution result.
 
 Owns session-authorized code executions, SDK documentation selection, saved

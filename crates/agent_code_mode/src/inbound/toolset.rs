@@ -46,6 +46,9 @@ pub struct ExecuteCode {
     pub execution_id: ExecutionId,
     /// Choose whose account authenticates every SDK operation in this execution.
     pub acting_as: ai_toolset::actor::ToolActor,
+    /// Copy the current server-issued turn_id from the prompt's execution context.
+    /// Never reuse an ID from another turn or discover a replacement for a stale call.
+    pub turn_id: macro_uuid::Uuid,
     /// A JavaScript ES module, with imports and an exported async main function.
     #[schemars(
         description = "JavaScript module, at most 64 KiB. Import { Macro } from '@macro-inc/sdk' and Handlebars from 'handlebars'. Export async function main({token, hosts}) { const macro = new Macro({token, hosts}); return {data: ...}; }. The optional reviews array defaults to empty. Dependencies are preinstalled; no TypeScript syntax or package downloads. The token and hosts are supplied by the runner; never return or log the token."
@@ -83,6 +86,7 @@ impl AsyncTool<CodeModeToolContext> for ExecuteCode {
                 &context.session,
                 self.execution_id,
                 self.acting_as,
+                self.turn_id,
                 ExecuteRequest {
                     source: self.source.clone(),
                     timeout_ms: self.timeout_ms,

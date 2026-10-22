@@ -68,6 +68,17 @@ where
                 "There is no active turn authorizing this tool; nothing was done.".into(),
             ));
         }
+        if tool == "ExecuteCode"
+            && arguments.get("turn_id").and_then(serde_json::Value::as_str)
+                != prompter
+                    .as_ref()
+                    .map(|turn| turn.action_id.to_string())
+                    .as_deref()
+        {
+            return Ok(NativeToolVerdict::Refuse(
+                "The original execution turn is no longer active; nothing was done.".into(),
+            ));
+        }
         let (actor, _) = match ai_toolset::actor::ToolActor::take(arguments) {
             Ok(selection) => selection,
             Err(error) => return Ok(NativeToolVerdict::Refuse(error.to_string())),
