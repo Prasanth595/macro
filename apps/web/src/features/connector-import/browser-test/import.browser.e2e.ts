@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto(fixture, { waitUntil: 'domcontentloaded' });
 });
 
-test('starts the Notion agent flow once Notion connects from the Drive card', async ({
+test('hands a Notion import from the Drive card to the agent', async ({
   page,
 }) => {
   const sidebar = page.getByRole('complementary', { name: 'files sidebar' });
@@ -21,15 +21,30 @@ test('starts the Notion agent flow once Notion connects from the Drive card', as
     .click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Connect Notion' }).click();
+  await dialog.getByRole('button', { name: 'Import from Notion' }).click();
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole('status', { name: 'Agent handoff' })).toHaveText(
-    'Import my Notion workspace into Macro.'
+    'Import my most recent documents and files from Notion into my Macro Drive.'
   );
 });
 
-test('hands a connected provider without an importer to the agent', async ({
+test('connects GitHub natively, then hands its import to the agent', async ({
   page,
 }) => {
+  const sidebar = page.getByRole('complementary', { name: 'tasks sidebar' });
+  await sidebar
+    .getByRole('button', { name: 'Import tasks', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Connect GitHub' }).click();
+  await dialog.getByRole('button', { name: 'Import from GitHub' }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole('status', { name: 'Agent handoff' })).toHaveText(
+    'Import my most recent issues and tasks from GitHub into Macro tasks.'
+  );
+});
+
+test('hands a connected Pipedream provider to the agent', async ({ page }) => {
   const sidebar = page.getByRole('complementary', { name: 'tasks sidebar' });
   await sidebar
     .getByRole('button', { name: 'Import tasks', exact: true })
@@ -43,21 +58,23 @@ test('hands a connected provider without an importer to the agent', async ({
   );
 });
 
-test('picks Slack channels or hands history to the archive upload', async ({
+test('hands Slack channels to the agent or history to the archive upload', async ({
   page,
 }) => {
   const sidebar = page.getByRole('complementary', { name: 'channels sidebar' });
-  await sidebar
-    .getByRole('button', { name: 'Import from Slack', exact: true })
-    .click();
+  const open = () =>
+    sidebar
+      .getByRole('button', { name: 'Import from Slack', exact: true })
+      .click();
+  await open();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Connect Slack' }).click();
-  await dialog.getByText('#general', { exact: true }).click();
-  await dialog.getByRole('button', { name: 'Import 1' }).click();
-  await expect(
-    dialog.getByRole('link', { name: 'Open imported #general' })
-  ).toBeVisible();
-  await dialog.getByRole('button', { name: 'Back to apps' }).click();
+  await dialog.getByRole('button', { name: 'Import from Slack' }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole('status', { name: 'Agent handoff' })).toHaveText(
+    'Import my most recent channels from Slack into Macro channels.'
+  );
+  await open();
   await dialog.getByRole('button', { name: /Import with history/ }).click();
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole('status', { name: 'Agent handoff' })).toHaveText(

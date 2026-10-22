@@ -6,26 +6,23 @@ export type ImportIcon = Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
 /** The Macro surface an import fills: Drive, Tasks, the CRM, or Channels. */
 export type ImportCategory = 'files' | 'tasks' | 'crm' | 'channels';
 
-/** A reviewed import the agent runs with its own tools, start to finish. */
-export type AgentFlow = 'notion-workspace';
-
 export type ImportProvider = {
-  /** Pipedream app slug the provider connects through. */
+  /** Pipedream app slug; also keys the provider's connection state. */
   appSlug: string;
   name: string;
   /** What comes over, in a few words. */
   detail: string;
   icon: ImportIcon;
   /**
-   * The import pipeline source that discovers and copies items without an
-   * agent. Providers without one hand off to an agent chat.
+   * Macro's native MCP server for the app, connected with Macro's own OAuth
+   * instead of Pipedream. Agents prefer it over a Pipedream connection.
    */
-  native?: ImportSource;
+  mcpUrl?: string;
   /**
-   * The agent flow Import starts instead of the generic handoff: the agent
-   * opens in a side split and runs it.
+   * The import ledger source the agent records copies under, so the user
+   * and teammates are never handed a duplicate.
    */
-  agentFlow?: AgentFlow;
+  ledger?: ImportSource;
 };
 
 type ImportCategoryCopy = {

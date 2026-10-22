@@ -10,11 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConnectorImportProvider } from '../context/connector-import-context';
 import { IMPORT_CATEGORIES } from '../core/catalog';
 import type { ImportCategory } from '../core/providers';
-import {
-  fakeConnectorImport,
-  importEntity,
-  importRunState,
-} from '../tests/fake-context';
+import { fakeConnectorImport } from '../tests/fake-context';
 import { ConnectorImportDialog } from './import-dialog';
 
 vi.mock('@core/mobile/isMobile', () => ({ isMobile: () => false }));
@@ -47,14 +43,12 @@ function setup(
 ) {
   const fake = fakeConnectorImport(options);
   const [open, setOpen] = createSignal(true);
-  const onImported = vi.fn();
   render(() => (
     <ConnectorImportProvider context={fake.context}>
       <ConnectorImportDialog
         config={IMPORT_CATEGORIES[category]}
         open={open()}
         onOpenChange={setOpen}
-        onImported={onImported}
         alternatives={
           options?.alternative && [
             {
@@ -68,7 +62,7 @@ function setup(
       />
     </ConnectorImportProvider>
   ));
-  return { ...fake, open, onImported };
+  return { ...fake, open };
 }
 
 describe('connector import dialog', () => {
@@ -90,7 +84,7 @@ describe('connector import dialog', () => {
     const { context, open } = setup('tasks');
     fireEvent.click(screen.getByRole('button', { name: 'Connect Jira' }));
     expect(context.connect).toHaveBeenCalledWith(
-      { appSlug: 'jira', name: 'Jira' },
+      { appSlug: 'jira', name: 'Jira', mcpUrl: undefined },
       expect.anything()
     );
     const importButton = await screen.findByRole('button', {
@@ -120,125 +114,39 @@ describe('connector import dialog', () => {
     );
   });
 
-  it('hands Notion to the agent flow instead of the generic handoff', async () => {
+  it("hands Notion to the agent's workspace importer", async () => {
     const { context, open } = setup('files', { connected: ['notion'] });
     fireEvent.click(screen.getByRole('button', { name: 'Import from Notion' }));
     await waitFor(() => expect(open()).toBe(false));
-    expect(context.startAgentFlow).toHaveBeenCalledWith('notion-workspace');
-    expect(context.startAgentImport).not.toHaveBeenCalled();
-    expect(context.discover).not.toHaveBeenCalled();
-  });
-
-  it('starts the Notion agent flow as soon as Notion connects', async () => {
-    const { context, open } = setup('files');
-    fireEvent.click(screen.getByRole('button', { name: 'Connect Notion' }));
-    await waitFor(() => expect(open()).toBe(false));
-    expect(context.startAgentFlow).toHaveBeenCalledWith('notion-workspace');
-  });
-
-  it('hands Linear to a generic agent chat', async () => {
-    const { context, open } = setup('tasks', { connected: ['linear'] });
-    fireEvent.click(screen.getByRole('button', { name: 'Import from Linear' }));
-    await waitFor(() => expect(open()).toBe(false));
     expect(context.startAgentImport).toHaveBeenCalledWith(
       expect.objectContaining({
-        input:
-          'Import my most recent issues and tasks from Linear into Macro tasks.',
+        input: 'Import my Notion workspace into Macro.',
+        instructions: expect.stringContaining('ImportFromNotion'),
       })
     );
-    expect(context.discover).not.toHaveBeenCalled();
   });
 
-  it('discovers, imports selected native items, and reports confirmed imports', async () => {
-    const { context, setState, onImported } = setup('channels', {
-      connected: ['slack'],
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Import from Slack' }));
-    expect(screen.getByText('Import from Slack')).toBeTruthy();
-    await waitFor(() => expect(context.discover).toHaveBeenCalledWith('slack'));
-
-    setState({
-      runs: [importRunState({ source: 'slack', status: 'running' })],
-      entities: [],
-    });
-    expect(screen.getByText(/Finding your recent channels/)).toBeTruthy();
-
-    setState({
-      runs: [importRunState({ source: 'slack' })],
-      entities: [
-        importEntity({
-          id: 'a',
-          source: 'slack',
-          metadata: { name: 'general' },
-        }),
-        importEntity({
-          id: 'b',
-          source: 'slack',
-          metadata: { name: 'eng' },
-        }),
-      ],
-    });
-    fireEvent.click(screen.getByRole('checkbox', { name: /Select #general/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Import 1' }));
-    await waitFor(() => expect(context.runImport).toHaveBeenCalledWith(['a']));
-    expect(onImported).not.toHaveBeenCalled();
-
-    setState({
-      runs: [importRunState({ source: 'slack' })],
-      entities: [
-        importEntity({
-          id: 'a',
-          source: 'slack',
-          status: 'imported',
-          metadata: { name: 'general' },
-          entity_id: 'channel-1',
-          entity_type: 'channel',
-        }),
-        importEntity({
-          id: 'b',
-          source: 'slack',
-          metadata: { name: 'eng' },
-        }),
-      ],
-    });
+  it('connects GitHub through its native MCP server, not Pipedream', async () => {
+    const fake = setup('tasks');
+    fake.setConnectOutcome('started');
+    fireEvent.click(screen.getByRole('button', { name: 'Connect GitHub' }));
+    expect(fake.context.connect).toHaveBeenCalledWith(
+      {
+        appSlug: 'github',
+        name: 'GitHub',
+        mcpUrl: 'https://api.githubcopilot.com/mcp',
+      },
+      expect.anything()
+    );
+    // Authorization finishes in another tab; the row waits for the result.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Connect GitHub' })
+      ).toHaveProperty('disabled', false)
+    );
+    fake.setConnected(new Set(['github']));
     expect(
-      screen
-        .getByRole('link', { name: 'Open imported #general' })
-        .getAttribute('href')
-    ).toBe('/app/channel/channel-1');
-    expect(onImported).toHaveBeenCalled();
-    expect(context.discover).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not rediscover when items are already staged', async () => {
-    const fake = fakeConnectorImport({ connected: ['slack'] });
-    fake.setState({
-      runs: [importRunState({ source: 'slack' })],
-      entities: [
-        importEntity({
-          id: 'x',
-          source: 'slack',
-          metadata: { name: 'ship-it', member_count: 4 },
-        }),
-      ],
-    });
-    render(() => (
-      <ConnectorImportProvider context={fake.context}>
-        <ConnectorImportDialog
-          config={IMPORT_CATEGORIES.channels}
-          open
-          onOpenChange={() => {}}
-          onImported={() => {}}
-        />
-      </ConnectorImportProvider>
-    ));
-    fireEvent.click(screen.getByRole('button', { name: 'Import from Slack' }));
-    expect(await screen.findByText('#ship-it')).toBeTruthy();
-    expect(screen.getByText('4 members')).toBeTruthy();
-    expect(fake.context.discover).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Back to apps' }));
-    expect(
-      screen.getByRole('button', { name: 'Import from Slack' })
+      await screen.findByRole('button', { name: 'Import from GitHub' })
     ).toBeTruthy();
   });
 

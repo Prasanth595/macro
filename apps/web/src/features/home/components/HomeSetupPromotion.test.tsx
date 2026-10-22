@@ -44,7 +44,7 @@ afterEach(() => {
 });
 
 describe('HomeSetupPromotion', () => {
-  it('opens Connections and Team settings', () => {
+  it('opens Integrations and Team settings', () => {
     render(() => <HomeSetupPromotion />);
     fireEvent.click(screen.getByRole('button', { name: 'Connect tools' }));
     fireEvent.click(screen.getByRole('button', { name: 'Invite team' }));
