@@ -11,20 +11,14 @@ FusionAuth.
 
 - `src/main.rs`: composition root — builds `McpAuthProxyService`
   (from `mcp_auth_proxy`), the `rmcp` streamable HTTP transport, and
-  `AuthenticatedToolService`. Also includes the OpenAI domain verification
-  endpoint at `/.well-known/openai-apps-challenge`.
+  `AuthenticatedToolService`.
 - `src/tool_service.rs`: `ServerHandler` impl — extracts the authenticated
   user from request parts and maps `ai_toolset` tools/annotations onto the
   MCP wire format.
 - `src/config.rs`: typed env vars (`macro_config`/`macro_env_var` pattern),
-  including `DEFAULT_MCP_ALLOWED_REDIRECT_HOSTS` and
-  `OPENAI_DOMAIN_VERIFICATION_TOKEN`.
+  including `DEFAULT_MCP_ALLOWED_REDIRECT_HOSTS`.
 - `src/markdown_images.rs`: resolves markdown image references in tool output.
 - `src/tool_response.rs`: shapes tool results (incl. media) for MCP responses.
-- `OPENAI_SUBMISSION.md`: comprehensive submission guide for the OpenAI ChatGPT
-  Apps Directory.
-- `OPENAI_SUBMISSION.json`: machine-readable submission manifest with field
-  values.
 
 ## Scope
 
@@ -53,10 +47,6 @@ FusionAuth.
 - Allow a new MCP client origin: `src/config.rs`
   (`DEFAULT_MCP_ALLOWED_REDIRECT_HOSTS`) — see `mcp_auth_proxy/README.md` for
   the redirect URI policy this feeds.
-- Submit to OpenAI ChatGPT Apps Directory: follow `OPENAI_SUBMISSION.md` →
-  complete organization verification and demo account setup → obtain domain
-  verification token and set `OPENAI_DOMAIN_VERIFICATION_TOKEN` env var →
-  submit via OpenAI portal.
 
 ## Tool contracts
 
