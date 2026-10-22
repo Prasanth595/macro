@@ -162,9 +162,10 @@ pub async fn select_documentation(
     output
 }
 
-/// Budget for one task-documentation tool result. MCP clients truncate tool
-/// results around 25k tokens; this stays under that with room for guides.
-const TASK_DOCUMENTATION_BYTES: usize = 80 * 1024;
+/// Budget for one task-documentation tool result. Claude Code moved an 87K
+/// character response out of context into a file; reference Markdown tokenizes
+/// densely, so stay well below that.
+const TASK_DOCUMENTATION_BYTES: usize = 32 * 1024;
 
 /// Every SDK reference Jev considers relevant to a described task.
 #[derive(Clone, Serialize, JsonSchema)]

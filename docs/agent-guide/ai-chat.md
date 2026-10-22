@@ -925,7 +925,7 @@ parallel; it reports sampled coverage rather than treating a mixed recent page
 as the whole workspace. `DescribeCodeTools` takes entity names (such as `documents`, `email`,
 `ai`, `agentSessions`) and guide topics (`examples`, `search`, `ai`, `templates`).
 It also takes a `task`: the same Jev selection runs over that text and returns
-every relevant entity reference within an 80 KiB budget, falling back to an
+every relevant entity reference within a 32 KiB budget, falling back to an
 entity's namespace overview and naming entities omitted for size.
 Expanded API references are already loaded: the agent should execute directly when
 they cover the task and request only missing details. The compact index alone
@@ -1007,8 +1007,13 @@ tool stays callable; MCP clients cache tool lists, so a flag change appears afte
 reconnecting. Public runs use their own Deno budget (four running, eight queued
 per replica) so external traffic cannot take agent sessions' slots.
 
-To verify locally, connect an MCP client (or `curl` the stateless endpoint with
-a bearer token) as a flagged and an unflagged user and compare `tools/list`.
+To verify locally, run Claude Code against the stack's MCP with
+`tooling/scripts/claude-local-mcp.sh --instance <name> --email <email>`. It mints
+a local token for an existing user and passes only the Macro MCP. Local Doppler
+has no PostHog keys: add `POSTHOG_API_KEY` and `POSTHOG_HOST` to the instance's
+`local.generated.env` before services start, pointing at a stand-in `/flags/`
+server on the `macro-<name>_services` network, and compare a flagged and an
+unflagged user's `tools/list`.
 
 ## Start a doc-scoped chat
 

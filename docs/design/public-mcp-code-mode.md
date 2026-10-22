@@ -121,9 +121,11 @@ selection status. Trace headers already reach SDK calls.
 - **Email send.** Allowed. The SDK's `email.send` works over MCP code mode;
   the MCP client's own approval before each `ExecuteCode` call is the gate, as
   it is for every other MCP write.
-- **Tool-result budget.** 80 KiB of references per task response, under the
-  ~25k-token limit common MCP clients apply. Entities that do not fit whole
-  fall back to their namespace overview, then to `omitted`.
+- **Tool-result budget.** 32 KiB of references per task response. A first
+  local run at 80 KiB produced an 87K-character response that Claude Code moved
+  out of context into a file. Entities that do not fit whole fall back to their
+  namespace overview, then to `omitted`; the overview was enough to write the
+  program in that run.
 - **Reviews.** An empty `reviews: []` (which the shared guides use) is dropped;
   any review reference fails the run. The `templates` and `examples` guides,
   which depend on reviews, are unavailable to MCP clients.

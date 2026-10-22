@@ -20,7 +20,7 @@ stacks. Process isolation belongs to
 - `src/domain/reviews.rs`: review validation, revisions, claims and outcomes.
 - `src/domain/documentation.rs`: Jev selection of generated SDK docs, rendered
   into the per-turn prompt (top four, 48 KiB) or returned for a
-  `DescribeCodeTools` `task` (every relevant entity, 80 KiB).
+  `DescribeCodeTools` `task` (every relevant entity, 32 KiB).
 - `src/inbound/toolset.rs`: `toolset()` for sessions, `user_toolset()` for the
   public MCP; the user variant's texts live in `toolset/user/`.
 

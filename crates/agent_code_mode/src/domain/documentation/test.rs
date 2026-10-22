@@ -198,7 +198,7 @@ async fn task_documentation_stays_within_budget_and_names_omissions() {
         .iter()
         .map(|doc| doc.documentation.as_ref().unwrap().len())
         .sum();
-    assert!(bytes <= 80 * 1024);
+    assert!(bytes <= 32 * 1024);
     assert!(!result.omitted.is_empty());
     assert_eq!(
         result.entities.len() + result.omitted.len(),
