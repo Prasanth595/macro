@@ -573,8 +573,10 @@ export function createLocalDraftStore(
           }
           for (const name of STORES)
             if (name !== 'sends') tx.objectStore(name).clear();
-          if (retire && previous)
-            meta.put(true, ['retired-session', previous.epoch]);
+          // A replay of a clear that already landed finds no session; the
+          // caller's epoch still names the session to fence.
+          const retired = previous?.epoch ?? expectedEpoch;
+          if (retire && retired) meta.put(true, ['retired-session', retired]);
           finish();
         };
       });

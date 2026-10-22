@@ -29,6 +29,25 @@ const snapshot = (
   attachments: [],
   status: 'dirty',
 });
+/**
+ * The next transaction commits, but the connection drops before the page hears
+ * about it, so it observes an abort instead of completion and replays.
+ */
+const landBeforeAbort = () => {
+  const transaction = IDBDatabase.prototype.transaction;
+  vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementationOnce(
+    function (this: IDBDatabase, ...args) {
+      const tx = transaction.apply(this, args);
+      Object.defineProperty(tx, 'oncomplete', {
+        set: () =>
+          tx.addEventListener('complete', () =>
+            tx.onabort?.call(tx, new Event('abort'))
+          ),
+      });
+      return tx;
+    }
+  );
+};
 afterEach(async () => {
   for (const store of stores.splice(0)) await store.close();
   vi.unstubAllGlobals();
@@ -305,21 +324,7 @@ describe('draft connection recovery', () => {
   it('does not reject a save whose commit landed before the page saw an abort', async () => {
     const store = open();
     const session = await store.activate('owner');
-    const transaction = IDBDatabase.prototype.transaction;
-    vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementationOnce(
-      function (this: IDBDatabase, ...args) {
-        const tx = transaction.apply(this, args);
-        // The commit reaches disk, but the connection drops before the page
-        // hears about it, so it observes an abort instead of completion.
-        Object.defineProperty(tx, 'oncomplete', {
-          set: () =>
-            tx.addEventListener('complete', () =>
-              tx.onabort?.call(tx, new Event('abort'))
-            ),
-        });
-        return tx;
-      }
-    );
+    landBeforeAbort();
     expect(await store.save(session, snapshot())).toMatchObject({
       revision: 1,
     });
@@ -386,19 +391,7 @@ describe('draft connection recovery', () => {
     const session = await store.activate('owner');
     await store.save(session, snapshot());
     await store.putSend(session, sendIntent(), true);
-    const transaction = IDBDatabase.prototype.transaction;
-    vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementationOnce(
-      function (this: IDBDatabase, ...args) {
-        const tx = transaction.apply(this, args);
-        Object.defineProperty(tx, 'oncomplete', {
-          set: () =>
-            tx.addEventListener('complete', () =>
-              tx.onabort?.call(tx, new Event('abort'))
-            ),
-        });
-        return tx;
-      }
-    );
+    landBeforeAbort();
     // The replay finds its own lease and declines rather than sending again.
     expect(
       await store.claimSend(session, 'attempt', 'worker', 1_000)
@@ -564,6 +557,15 @@ describe('working-copy concurrency fences', () => {
     expect(
       await store.list(await store.activate('owner', 'new-epoch'))
     ).toEqual([]);
+  });
+  it('keeps the logout fence when a landed clear is replayed', async () => {
+    const store = open();
+    await store.activate('owner', 'old-epoch');
+    landBeforeAbort();
+    await store.clear(true, 'old-epoch');
+    await expect(store.activate('owner', 'old-epoch')).rejects.toThrow(
+      'no longer active'
+    );
   });
   it('merges upload receipts committed after a snapshot was captured', async () => {
     const store = open();
@@ -834,6 +836,24 @@ describe('independent send recovery records', () => {
         generation: restored.generation,
       })
     ).resolves.toMatchObject({ revision: restored.revision + 1 });
+  });
+  it('returns the restored copy when a restore that already landed is replayed', async () => {
+    const store = open(),
+      owner = await store.activate('owner');
+    await store.save(owner, snapshot());
+    await store.putSend(
+      owner,
+      { ...sendIntent(), cancellationRequested: true },
+      true
+    );
+    landBeforeAbort();
+    const restored = await store.restoreSend(owner, sendIntent().uuid);
+    expect(restored?.intent.uuid).toBe(sendIntent().uuid);
+    expect(await store.read(owner, 'local')).toMatchObject({
+      generation: restored?.draft.generation,
+      revision: restored?.draft.revision,
+    });
+    expect(await store.sends(owner)).toEqual([]);
   });
   it('clears send content and fences old sessions on account changes and logout', async () => {
     const store = open(),
