@@ -3291,6 +3291,8 @@ export const MutationResult = z.object({
             }
           }),
           tallyVisible: z.boolean(),
+          responsesVisible: z.boolean(),
+          respondentHidden: z.boolean(),
           status: z.any().superRefine((x, ctx) => {
             const schemas = [z.literal('open'), z.literal('closed')];
             const errors = schemas.reduce<z.ZodError[]>(
@@ -10135,6 +10137,8 @@ export const ListResult = z.object({
           }
         }),
         tallyVisible: z.boolean(),
+        responsesVisible: z.boolean(),
+        respondentHidden: z.boolean(),
         status: z.any().superRefine((x, ctx) => {
           const schemas = [z.literal('open'), z.literal('closed')];
           const errors = schemas.reduce<z.ZodError[]>(
@@ -12747,6 +12751,8 @@ export const ReadResult = z.any().superRefine((x, ctx) => {
             }
           }),
           tallyVisible: z.boolean(),
+          responsesVisible: z.boolean(),
+          respondentHidden: z.boolean(),
           status: z.any().superRefine((x, ctx) => {
             const schemas = [z.literal('open'), z.literal('closed')];
             const errors = schemas.reduce<z.ZodError[]>(
@@ -13321,6 +13327,8 @@ export const ReadResult = z.any().superRefine((x, ctx) => {
             }
           }),
           tallyVisible: z.boolean(),
+          responsesVisible: z.boolean(),
+          respondentHidden: z.boolean(),
           status: z.any().superRefine((x, ctx) => {
             const schemas = [z.literal('open'), z.literal('closed')];
             const errors = schemas.reduce<z.ZodError[]>(
@@ -15072,6 +15080,8 @@ export const SetFormAccess = z.object({
         .union([z.string().datetime({ offset: true }), z.null()])
         .optional(),
       tallyVisible: z.boolean(),
+      responsesVisible: z.union([z.boolean(), z.null()]).optional(),
+      respondentHidden: z.union([z.boolean(), z.null()]).optional(),
       channelGrants: z
         .array(
           z.any().superRefine((x, ctx) => {

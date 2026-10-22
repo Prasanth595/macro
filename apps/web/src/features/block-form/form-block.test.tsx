@@ -97,6 +97,8 @@ beforeEach(() => {
         status: 'open',
         closesAt: null,
         tallyVisible: false,
+        responsesVisible: false,
+        respondentHidden: false,
         confirmationMessage: 'Thank you',
         submittedColumnId: null,
         respondentColumnId: null,

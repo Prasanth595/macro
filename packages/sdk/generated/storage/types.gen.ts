@@ -6802,9 +6802,19 @@ export type Form = {
     ownerId: string;
     /**
      * The person column each signed-in submission names its respondent in;
-     * `null` once deleted.
+     * `null` once deleted. When `respondent_hidden`, the form still owns
+     * this column but does not write it.
      */
     respondentColumnId: string | null;
+    /**
+     * Whether respondent identity is withheld from response rows. The
+     * ledger still records who responded so they cannot submit twice.
+     */
+    respondentHidden: boolean;
+    /**
+     * Whether people with View may read individual response rows.
+     */
+    responsesVisible: boolean;
     /**
      * Whether its owner closed it.
      */
@@ -6828,8 +6838,9 @@ export type Form = {
 };
 
 /**
- * The caller's level on a form: view responds, edit changes questions and
- * reads responses, owner also sets the audience, closes and trashes it.
+ * The caller's level on a form: view responds (and reads responses when
+ * they are shared), edit changes questions and reads responses, owner
+ * also sets the audience, closes and trashes it.
  */
 export type FormAccess = 'view' | 'edit' | 'owner';
 
@@ -14686,6 +14697,14 @@ export type UpdateForm = {
      * Its new description.
      */
     description?: string;
+    /**
+     * Whether respondent identity is withheld from response rows.
+     */
+    respondentHidden?: boolean;
+    /**
+     * Whether people with View may read individual response rows.
+     */
+    responsesVisible?: boolean;
     /**
      * Open or close it.
      */
