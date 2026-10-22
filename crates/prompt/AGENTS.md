@@ -38,6 +38,9 @@ AI system prompts: one module per prompt section, each exporting a
 
 - Direct session-aware search/listing stays available in code mode; do not route conversation work to legacy chat tools or SDK namespaces.
 
+- Canvas live reads/edits stay on `ReadCanvas`/`EditCanvas`, including code mode;
+  the public SDK document content endpoint does not represent the shared scene.
+
 ## Checks
 
 - `cargo test -p prompt` (`SQLX_OFFLINE` unset).

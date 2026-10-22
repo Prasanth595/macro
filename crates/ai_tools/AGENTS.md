@@ -47,6 +47,9 @@ execution, display) that don't belong to a single domain.
 - Add a cross-domain tool: new module in `src/` → register in
   `src/lib.rs`'s toolset assembly → regenerate schemas (see Checks).
 
+Canvas tools come from the Documents subtoolset and inherit its worker client,
+admission and usage recorder in every host; no new context or env vars are needed.
+
 ## Tool contracts
 
 - Executable toolsets exclude legacy chats in every host and code mode. Keep historical parsing compatibility only in `frontend_compat.rs`; never merge it into provider schemas.
