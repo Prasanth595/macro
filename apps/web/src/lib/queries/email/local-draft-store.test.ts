@@ -215,7 +215,7 @@ describe('draft connection recovery', () => {
     await store.save(session, snapshot());
   });
 
-  it('never replays a started transaction when a request throws InvalidStateError', async () => {
+  it('does not replay a transaction whose body throws InvalidStateError', async () => {
     const store = open();
     const session = await store.activate('owner');
     const error = new DOMException('Request failed', 'InvalidStateError');
@@ -357,6 +357,59 @@ describe('draft connection recovery', () => {
     });
     await store.save(session, snapshot('After returning', 1));
     expect(report).toHaveBeenLastCalledWith({ type: 'recovered' });
+  });
+
+  it('replays an interrupted send claim on a new connection', async () => {
+    const store = open();
+    const session = await store.activate('owner');
+    await store.save(session, snapshot());
+    await store.putSend(session, sendIntent(), true);
+    const put = IDBObjectStore.prototype.put;
+    let interrupted = 0;
+    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
+      this: IDBObjectStore,
+      ...args
+    ) {
+      const request = put.apply(this, args);
+      if (this.name === 'sends' && interrupted++ === 0)
+        this.transaction.abort();
+      return request;
+    });
+    const claimed = await store.claimSend(session, 'attempt', 'worker', 1_000);
+    expect(claimed?.dispatch).toMatchObject({ generation: 1, owner: 'worker' });
+    expect(interrupted).toBe(2);
+    expect(connections).toHaveLength(2);
+  });
+
+  it('does not claim a send twice when the claim committed before the page saw an abort', async () => {
+    const store = open();
+    const session = await store.activate('owner');
+    await store.save(session, snapshot());
+    await store.putSend(session, sendIntent(), true);
+    const transaction = IDBDatabase.prototype.transaction;
+    vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementationOnce(
+      function (this: IDBDatabase, ...args) {
+        const tx = transaction.apply(this, args);
+        Object.defineProperty(tx, 'oncomplete', {
+          set: () =>
+            tx.addEventListener('complete', () =>
+              tx.onabort?.call(tx, new Event('abort'))
+            ),
+        });
+        return tx;
+      }
+    );
+    // The replay finds its own lease and declines rather than sending again.
+    expect(
+      await store.claimSend(session, 'attempt', 'worker', 1_000)
+    ).toBeUndefined();
+    const [row] = await store.sends(session);
+    expect(row.submissionStarted).toBe(true);
+    expect(row.dispatch).toMatchObject({ generation: 1, owner: 'worker' });
+    // Once the lease expires, the next claim resumes the same send.
+    expect(
+      await store.claimSend(session, 'attempt', 'worker', 62_000)
+    ).toMatchObject({ dispatch: { generation: 2 } });
   });
 
   it('keeps persistence working when recovery reporting throws', async () => {

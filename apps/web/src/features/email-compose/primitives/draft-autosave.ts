@@ -84,8 +84,8 @@ export function createDraftAutosave<Snapshot, Result>(options: {
     void save().catch((error) => options.onError?.(error));
   }, 500);
   // WebKit can suspend storage and timers once the app is hidden, and aborts
-  // writes in flight. Persist a debounced edit before that happens, and retry
-  // a failed local write whenever visibility changes.
+  // writes in flight. Send the debounced server save before that happens, and
+  // retry a failed local write whenever visibility changes.
   const flushOnVisibilityChange = () => {
     if (options.paused() || (!pending && !failed)) return;
     void save().catch((error) => options.onError?.(error));
