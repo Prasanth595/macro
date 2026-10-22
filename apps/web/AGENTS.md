@@ -76,6 +76,11 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 
 ## Development Patterns
 
+Keep deferred MarkdownShell initialization under its Solid owner, and keep
+persistent list hotkeys free of mounted-view closures; clear virtualizer
+accessors when their view unmounts. The editor cleanup browser regression is
+in `src/lib/core/component/LexicalMarkdown/component/core/browser-test`.
+
 - Reuse `src/components/WorkspaceTexture.tsx` for the onboarding and Create
   detail panel grain; pass the surface accent and a unique SVG filter ID.
 
