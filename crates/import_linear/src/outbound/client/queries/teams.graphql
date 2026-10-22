@@ -1,0 +1,6 @@
+query ImportTeams($after: String) {
+  teams(first: 50, after: $after) {
+    nodes { id name }
+    pageInfo { hasNextPage endCursor }
+  }
+}
