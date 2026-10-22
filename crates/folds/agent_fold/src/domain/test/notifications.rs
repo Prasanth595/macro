@@ -156,3 +156,38 @@ fn interrupted_delivery_keeps_one_event_attached_to_the_retry_turn() {
     assert_eq!(machine.metadata().notifications[0].turn, 1);
     assert!(machine.messages().is_empty());
 }
+
+#[test]
+fn stored_flat_notification_rows_keep_their_typed_payloads() {
+    use crate::domain::model::SessionNotification;
+    use agent_runtime_protocol::domain::notification::{
+        DecisionOutcome, DecisionVia, ItemStatus, ReviewSettlement,
+    };
+
+    // These are the flat kind/payload rows emitted before the typed fold model.
+    let stored = r#"[
+      {"id":"connected","subjectId":"notion","kind":"app.connected","createdAt":"2026-10-22T12:00:00Z","payload":{"app":"Notion"},"turn":1,"actionId":"a","systemTurn":true},
+      {"id":"decided","subjectId":"review","kind":"review.decided","createdAt":"2026-10-22T12:00:00Z","payload":{"outcome":"approved","by":"owner","via":"card","items":[{"id":"019a0000-0000-7000-8000-000000000005","status":"submitting","edited":true}]},"turn":2,"actionId":"b","systemTurn":true},
+      {"id":"settled","subjectId":"review","kind":"review.settled","createdAt":"2026-10-22T12:00:00Z","payload":{"outcome":"partial","by":"owner","via":"chat","items":[{"id":"019a0000-0000-7000-8000-000000000005","status":"unknown","edited":false,"error":"Provider rejected"}]},"turn":3,"actionId":"c","systemTurn":false}
+    ]"#;
+    let rows: Vec<SessionNotification> = serde_json::from_str(stored).unwrap();
+    assert!(matches!(&rows[0].event, NotificationEvent::AppConnected { app } if app == "Notion"));
+    let NotificationEvent::ReviewDecided(decided) = &rows[1].event else {
+        panic!("stored decision lost its kind");
+    };
+    assert_eq!(decided.outcome, DecisionOutcome::Approved);
+    assert_eq!(decided.via, DecisionVia::Card);
+    assert_eq!(decided.items[0].status, ItemStatus::Submitting);
+    assert!(decided.items[0].edited);
+    let NotificationEvent::ReviewSettled(ReviewSettlement::Actions(settled)) = &rows[2].event
+    else {
+        panic!("stored settlement lost its kind");
+    };
+    assert_eq!(settled.items[0].error.as_deref(), Some("Provider rejected"));
+    assert!(!rows[2].system_turn);
+    let wire = serde_json::to_value(rows).unwrap();
+    assert_eq!(
+        wire,
+        serde_json::from_str::<serde_json::Value>(stored).unwrap()
+    );
+}

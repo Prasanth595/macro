@@ -142,15 +142,13 @@ impl FoldState {
                     existing.system_turn = system_turn;
                     continue;
                 }
-                let payload = serde_json::to_value(&notification.event).unwrap_or_default();
                 self.metadata
                     .notifications
                     .push(crate::domain::model::SessionNotification {
                         id: notification.id.to_string(),
                         subject_id: notification.subject_id,
-                        kind: notification.event.kind().to_owned(),
                         created_at: notification.created_at,
-                        payload: payload["payload"].clone(),
+                        event: notification.event,
                         turn: id.0,
                         action_id: prompt_id.to_string(),
                         system_turn,

@@ -21,7 +21,7 @@ pub struct Notification {
 }
 
 /// Supported event contracts. Add new kinds here rather than inventing prompts.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", content = "payload")]
 pub enum NotificationEvent {
     /// Owner decision and its confirmed results.
@@ -54,7 +54,7 @@ impl NotificationEvent {
 }
 
 /// The result of a review batch, with no draft content.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ReviewOutcome {
     /// Overall result.
@@ -69,7 +69,7 @@ pub struct ReviewOutcome {
 
 /// How the work a review decision started ended. Untagged so settlements
 /// stored before imports existed, bare [`ReviewOutcome`]s, still read.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(untagged)]
 pub enum ReviewSettlement {
     /// An approved import's background write ended.
@@ -82,7 +82,7 @@ pub enum ReviewSettlement {
 }
 
 /// The final report of an approved workspace import, with no page content.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportSettlement {
     /// How the write ended.
@@ -116,6 +116,7 @@ pub struct ImportSettlement {
     pub waiting_on_teammates: u32,
     /// The Macro folder the import writes into.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[specta(type = Option<String>)]
     pub root_folder_id: Option<Uuid>,
     /// Objects that could not be imported, at most [`MAX_IMPORT_ITEMS`].
     pub failures: Vec<ImportItem>,
@@ -127,7 +128,7 @@ pub struct ImportSettlement {
 pub const MAX_IMPORT_ITEMS: usize = 50;
 
 /// How an approved import's write ended.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ImportOutcome {
     /// Every planned object was written or accounted for.
@@ -139,7 +140,7 @@ pub enum ImportOutcome {
 }
 
 /// One object an import report calls out.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct ImportItem {
     /// The object's title.
     pub title: String,
@@ -152,7 +153,7 @@ pub struct ImportItem {
 }
 
 /// What an import plan proposes, once it is ready to approve.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportPlan {
     /// Objects to copy as they are.
@@ -166,7 +167,7 @@ pub struct ImportPlan {
 }
 
 /// Overall review decision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionOutcome {
@@ -179,7 +180,7 @@ pub enum DecisionOutcome {
 }
 
 /// Surface of a review decision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionVia {
@@ -192,9 +193,10 @@ pub enum DecisionVia {
 }
 
 /// One reviewed action's outcome.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct ReviewItemOutcome {
     /// Stable item identity.
+    #[specta(type = String)]
     pub id: Uuid,
     /// Confirmed state.
     pub status: ItemStatus,
@@ -206,7 +208,7 @@ pub struct ReviewItemOutcome {
 }
 
 /// Review item state, shared with notification consumers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "utoipa", schema(as = ReviewItemStatus))]
 #[serde(rename_all = "snake_case")]

@@ -4,6 +4,7 @@ import type { FoldStream } from '@core/agent-fold/wasm-module';
 import type {
   FoldedMessage,
   SessionMetadata,
+  SessionNotification,
 } from '@service-agent-fold/generated/types';
 import { beforeAll, expect, it } from 'vitest';
 import { timelineNotifications } from './session-notifications';
@@ -118,4 +119,83 @@ it('folds notification frames into timeline metadata without manufacturing user 
   } finally {
     stream.free();
   }
+});
+
+it('suppresses review events only when their trusted card is in the thread', () => {
+  const reviewId = '019a0000-0000-7000-8000-000000000005';
+  const events: SessionNotification[] = [
+    {
+      id: 'decided',
+      subjectId: reviewId,
+      kind: 'review.decided',
+      createdAt: '2026-10-22T12:00:00Z',
+      turn: 1,
+      actionId: 'a',
+      systemTurn: true,
+      payload: { outcome: 'approved', by: 'owner', via: 'card', items: [] },
+    },
+    {
+      id: 'settled',
+      subjectId: reviewId,
+      kind: 'review.settled',
+      createdAt: '2026-10-22T12:00:00Z',
+      turn: 2,
+      actionId: 'b',
+      systemTurn: true,
+      payload: { outcome: 'approved', by: 'owner', via: 'card', items: [] },
+    },
+    {
+      id: 'connected',
+      subjectId: 'notion',
+      kind: 'app.connected',
+      createdAt: '2026-10-22T12:00:00Z',
+      turn: 3,
+      actionId: 'c',
+      systemTurn: true,
+      payload: { app: 'Notion' },
+    },
+  ];
+  const card: FoldedMessage = {
+    agentSessionId: 'session',
+    turn: 0,
+    author: { kind: 'agent' },
+    requestId: null,
+    stop: null,
+    segments: [],
+    phase: null,
+    postedAt: null,
+    pending: false,
+    parts: [
+      {
+        kind: 'tool_use',
+        id: `review_${reviewId}`,
+        name: { kind: 'mcp', server: 'macro_internal', tool: 'PresentReview' },
+        status: 'completed',
+        detail: {
+          kind: 'other',
+          acpKind: 'other',
+          input: { reviewId },
+          output: null,
+          result: null,
+          error: null,
+        },
+      },
+    ],
+  };
+  expect(timelineNotifications([], events)).toEqual(events);
+  expect(
+    timelineNotifications([card], events).map((event) => event.id)
+  ).toEqual(['connected']);
+  const externalCard: FoldedMessage = {
+    ...card,
+    parts: card.parts.map((part) =>
+      part.kind === 'tool_use'
+        ? {
+            ...part,
+            name: { kind: 'mcp', server: 'external', tool: 'PresentReview' },
+          }
+        : part
+    ),
+  };
+  expect(timelineNotifications([externalCard], events)).toEqual(events);
 });

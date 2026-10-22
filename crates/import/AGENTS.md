@@ -81,8 +81,8 @@ from this import's other databases into it are not linked.
   review), `ai_toolset`, `ai_usage`, `ai_billing`, `connection_gateway_client`,
   `mcp_select`, `properties`, `import_notion` (Notion REST), `models_databases`
   (database ops the workspace import writes).
-- Used by: `ai_tools`, `slack_integration`, `services/document_cognition_service`,
-  `services/agent_harness_service` (import reviews).
+- Used by: `ai_tools`, `slack_integration`, `services/agent_harness_service`
+  (cognition `/import/*` routes, the Notion sweeper, import reviews).
 
 ## Recipes
 
@@ -116,7 +116,7 @@ from this import's other databases into it are not linked.
   `review_id`). A cancel from any process flips the run to `dismissed`; on
   shutdown the job stops at its next checkpoint and releases the lease. A run
   whose lease lapsed is adopted (`FOR UPDATE SKIP LOCKED`) by the next report
-  read for that user or by document-cognition-service's sweeper: planning
+  read for that user or by the harness's sweeper (`agent_harness_service::cognition`): planning
   restarts, writing continues with the rows still `importing`. After five
   adoptions the run fails. Stale-run and stale-row reapers skip Notion
   workspace imports for this reason.

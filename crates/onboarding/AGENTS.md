@@ -23,7 +23,7 @@ onboarding does not start an import.
 ## Boundaries
 
 - Depends on: `mcp_client`, `generic_email_domains`, `macro_authorization`.
-- Used by: `services/document_cognition_service`,
+- Used by: `services/agent_harness_service`,
   `services/authentication_service` (onboarding deletes its row during
   account deletion).
 
