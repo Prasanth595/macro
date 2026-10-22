@@ -392,7 +392,7 @@ type FilterTargetsMeta = {
     agentSessionId: string[];
     agentSessionOwnerId: string[];
     agentSessionSource: ('user' | 'routine')[];
-    agentSessionVisibility: ('listed' | 'unlisted')[];
+    agentSessionVisibility: ('listed' | 'unlisted' | 'hidden')[];
     includeAgentSessions: boolean;
   };
 

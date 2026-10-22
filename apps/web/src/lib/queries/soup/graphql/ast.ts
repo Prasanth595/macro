@@ -765,6 +765,8 @@ function makeGraphqlFilters(body: AstBody): GraphqlEntityFilterAstInput {
           return { visibility: 'LISTED' };
         if (field === 'vis' && value === 'unlisted')
           return { visibility: 'UNLISTED' };
+        if (field === 'vis' && value === 'hidden')
+          return { visibility: 'HIDDEN' };
         return unsupported(`agent session literal ${field}`);
       }
     );
