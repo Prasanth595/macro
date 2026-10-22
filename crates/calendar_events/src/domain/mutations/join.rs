@@ -24,10 +24,14 @@ where
             .ok_or(CalendarMutationError::NotFound)?;
         // Only someone who can change the shared event answers for it;
         // anyone else learns nothing about the request.
-        self.resolve_mutation_target(requester_id, request.event_id, None)
+        let target = self
+            .resolve_mutation_target(requester_id, request.event_id, None)
             .await?;
         if request.status != CalendarJoinRequestStatus::Pending {
             return Ok(request);
+        }
+        if target.is_read_only {
+            return Err(CalendarMutationError::ReadOnly);
         }
         if accept {
             // The guest's invite path: it keeps every guest Google holds,

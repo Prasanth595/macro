@@ -279,14 +279,22 @@ async fn only_someone_who_can_change_the_event_lists_its_requests() {
         [request.clone()]
     );
 
-    let (service, _) = asking(FakeRepo {
-        mutation_target: None,
-        ..sharer_organizes()
-    });
-    assert!(matches!(
-        service.list_join_requests(MEMBER, request.event_id).await,
-        Err(CalendarJoinRequestError::NotFound)
-    ));
+    for (mutation_target, case) in [
+        (None, "no copy of the event"),
+        (Some(mutation_target(true)), "a read-only copy"),
+    ] {
+        let (service, _) = asking(FakeRepo {
+            mutation_target,
+            ..sharer_organizes()
+        });
+        assert!(
+            matches!(
+                service.list_join_requests(MEMBER, request.event_id).await,
+                Err(CalendarJoinRequestError::NotFound)
+            ),
+            "{case}"
+        );
+    }
 }
 
 #[tokio::test]
@@ -392,6 +400,36 @@ async fn someone_who_cannot_change_the_event_cannot_answer() {
         requests.lock().unwrap()[0].status,
         CalendarJoinRequestStatus::Pending
     );
+}
+
+#[tokio::test]
+async fn a_read_only_copy_cannot_answer() {
+    for accept in [true, false] {
+        let repo = FakeRepo {
+            mutation_target: Some(mutation_target(true)),
+            ..sharer_organizes()
+        };
+        let request = pending_request(&repo, CalendarJoinRequestStatus::Pending);
+        let requests = repo.join_requests.clone();
+        let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+        let calls = provider.calls.clone();
+
+        let error = service(repo, provider, FakeTokens::ok())
+            .respond_to_join_request(SHARER, request.id, accept)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(error, CalendarMutationError::ReadOnly),
+            "accept={accept}: {error:?}"
+        );
+        assert!(calls.lock().unwrap().is_empty(), "accept={accept}");
+        assert_eq!(
+            requests.lock().unwrap()[0].status,
+            CalendarJoinRequestStatus::Pending,
+            "accept={accept}"
+        );
+    }
 }
 
 fn preview(viewer_event_id: Option<Uuid>) -> CalendarMentionPreview {

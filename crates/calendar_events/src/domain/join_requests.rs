@@ -275,6 +275,7 @@ where
             .get_event_mutation_target(requester_id, event_id, None)
             .await
             .map_err(CalendarJoinRequestError::Internal)?
+            .filter(|target| !target.is_read_only)
             .ok_or(CalendarJoinRequestError::NotFound)?;
         self.repository
             .list_pending_join_requests(event_id)
