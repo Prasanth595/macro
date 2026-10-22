@@ -1,6 +1,7 @@
 # Code mode on the public MCP
 
-Status: sketch. No product code has changed as part of this document.
+Status: implemented behind `ai-code-mode`. The agent guide's "Code mode on the
+public MCP" section is the current behaviour; this document keeps the reasoning.
 
 Sources:
 
@@ -114,13 +115,17 @@ Span `mcp.code_execution` with user id, status, duration, activity count and
 source bytes, never source or results. Span `mcp.code_docs` with the selected
 entities, bytes and selection status. Trace headers already reach SDK calls.
 
-## Open questions
+## Decisions
 
-- **Email send.** `AiHost::Mcp` deliberately has no direct `SendEmail`; the SDK
-  has `email.send`. Accept it under the client's own approval prompt, or block
-  that operation in the MCP runtime?
-- **Tool-result budget** for the docs-for-task response: what Claude, ChatGPT
-  and Cursor truncate at.
+- **Email send.** Allowed. The SDK's `email.send` works over MCP code mode;
+  the MCP client's own approval before each `ExecuteCode` call is the gate, as
+  it is for every other MCP write.
+- **Tool-result budget.** 80 KiB of references per task response, under the
+  ~25k-token limit common MCP clients apply. Entities that do not fit whole
+  fall back to their namespace overview, then to `omitted`.
+- **Reviews.** An empty `reviews: []` (which the shared guides use) is dropped;
+  any review reference fails the run. The `templates` and `examples` guides,
+  which depend on reviews, are unavailable to MCP clients.
 
 ## Plan
 
