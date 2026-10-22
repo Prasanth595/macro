@@ -7,19 +7,34 @@ mod test;
 use chrono::{DateTime, NaiveDate, Utc};
 use chrono_tz::Tz;
 
-use super::models::EventTime;
+use super::models::{EventTime, EventType};
 
 /// Longest content line, in octets, before RFC 5545 folding.
 const MAX_LINE_OCTETS: usize = 75;
 
+/// How a requester sees an event they export or copy.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CalendarEventExportAccess {
+    /// A projection of the meeting is on one of the requester's own or
+    /// linked calendars.
+    OwnCopy,
+    /// The requester sees the event only because it was shared with a
+    /// channel they currently belong to.
+    ChannelShared,
+}
+
 /// Series-level content of an event a requester can see, as exported to
-/// iCalendar.
+/// iCalendar or copied onto one of their own calendars.
 ///
 /// Attendees and the conference link are deliberately absent: a channel
 /// share exposes the meeting, not its guest list or join link, and the export
 /// has one shape however the requester sees the event.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CalendarEventExport {
+    /// How the requester sees the event.
+    pub access: CalendarEventExportAccess,
+    /// Provider event type; only regular events can be copied.
+    pub event_type: EventType,
     /// RFC 5545 UID shared by every projection of the meeting.
     pub ical_uid: String,
     /// Provider/iCalendar sequence number.

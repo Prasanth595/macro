@@ -1,10 +1,12 @@
 use chrono::{NaiveDate, TimeZone, Utc};
 
-use super::{CalendarEventExport, render_event_ics};
-use crate::domain::models::EventTime;
+use super::{CalendarEventExport, CalendarEventExportAccess, render_event_ics};
+use crate::domain::models::{EventTime, EventType};
 
 fn export(time: EventTime) -> CalendarEventExport {
     CalendarEventExport {
+        access: CalendarEventExportAccess::ChannelShared,
+        event_type: EventType::Default,
         ical_uid: "abc123@google.com".to_string(),
         sequence: 2,
         title: "Planning, part 1; kickoff".to_string(),
