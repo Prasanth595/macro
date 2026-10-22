@@ -1,4 +1,5 @@
 import {
+  ADMITTED_ENQUEUE_UNCERTAIN_ERROR_CODE,
   type CachePush,
   type CacheRequest,
   type CacheResponse,
@@ -666,8 +667,15 @@ export class CoordinatorCore {
     for (const [routeId, request] of this.inFlight) {
       if (request.ownerEpoch !== ownerEpoch) continue;
       this.inFlight.delete(routeId);
+      // Fencing an engine does not undo a durable enqueue. Even a planned
+      // reset has not erased it yet, so a missing reply must never cause
+      // the caller to retry or forward the mutation directly to the API.
+      const requestErrorCode =
+        request.request.kind === 'enqueue-optimistic-mutation'
+          ? ADMITTED_ENQUEUE_UNCERTAIN_ERROR_CODE
+          : errorCode;
       actions.push(
-        this.reject(request.tabId, request.request.id, error, errorCode)
+        this.reject(request.tabId, request.request.id, error, requestErrorCode)
       );
     }
     return actions;

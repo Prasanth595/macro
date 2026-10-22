@@ -8,9 +8,14 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeSubject, pipe, type Source, subscribe } from 'wonka';
 import { normalizedCacheExchange } from '../exchange/normalized-cache-exchange';
-import type { CacheRequest, CacheResponse } from '../protocol';
+import type {
+  CacheRequest,
+  CacheResponse,
+  OptimisticLinkPatchWire,
+} from '../protocol';
 import { installCacheCoordinatorWorker } from '../worker/cache-coordinator-runtime';
 import { installCacheEngineWorker } from '../worker/cache-engine-runtime';
+import { createCacheCoordinatorPageAdapter } from '../worker/coordinator-page-adapter';
 import { CoordinatorRouter } from '../worker/coordinator-router';
 import { EFFECT_WORKER_CLOSE_FRAME } from '../worker/effect-worker-transport';
 import type { CacheHost } from './types';
@@ -40,7 +45,8 @@ const RETIREMENT_FAILURE_MUTATION = gql`
 function exchangeHarness(
   host: CacheHost,
   operation: Operation,
-  onResult?: (result: OperationResult) => void
+  onResult?: (result: OperationResult) => void,
+  onForward?: () => void
 ) {
   const operations = makeSubject<Operation>();
   const network = makeSubject<OperationResult>();
@@ -50,7 +56,10 @@ function exchangeHarness(
   const forward = (source: Source<Operation>): Source<OperationResult> => {
     pipe(
       source,
-      subscribe((forwardedOperation) => forwarded.push(forwardedOperation))
+      subscribe((forwardedOperation) => {
+        forwarded.push(forwardedOperation);
+        onForward?.();
+      })
     );
     return network.source;
   };
@@ -69,7 +78,11 @@ function exchangeHarness(
   return { forwarded, results };
 }
 
-function optimisticMutation(key: number, query: Operation['query']): Operation {
+function optimisticMutation(
+  key: number,
+  query: Operation['query'],
+  linkPatches?: OptimisticLinkPatchWire[]
+): Operation {
   return makeOperation('mutation', { key, query, variables: {} }, {
     requestPolicy: 'cache-first',
     url: 'http://integration.test',
@@ -77,6 +90,7 @@ function optimisticMutation(key: number, query: Operation['query']): Operation {
     normalizedCacheOptimistic: {
       uuid: '00000000-0000-4000-8000-000000000001',
       optimisticResponse: { held: true },
+      linkPatches,
     },
   } as never);
 }
@@ -131,6 +145,8 @@ type RuntimeLog = {
 };
 
 const requestObservers = new Set<(entry: RuntimeLog) => void>();
+// Fake durable storage shared by successive engine instances.
+const committedEnqueues: string[] = [];
 
 type Deferred = { promise: Promise<void>; resolve: () => void };
 const deferred = (): Deferred => {
@@ -179,6 +195,7 @@ class IntegrationCore {
       return;
     }
     if (request.kind === 'enqueue-optimistic-mutation') {
+      committedEnqueues.push(request.uuid);
       const gate = this.enqueueGates.get(request.operationName ?? '');
       if (gate) await gate;
     }
@@ -315,6 +332,7 @@ describe('worker CacheHost coordinator integration', () => {
     hostInitGates.clear();
     enqueueGates.clear();
     requestObservers.clear();
+    committedEnqueues.length = 0;
     router = new CoordinatorRouter({
       verifyTabLockHeld: async () => true,
       watchTabLock: () => () => undefined,
@@ -804,6 +822,75 @@ describe('worker CacheHost coordinator integration', () => {
       'integration-scope'
     );
   });
+
+  it.each([false, true])(
+    'never forwards a committed standby enqueue after owner navigation (link patches: %s)',
+    async (withLinkPatches) => {
+      // Only the owner navigates; the standby's page/host remains alive.
+      const owner = createCacheCoordinatorPageAdapter({
+        scope: 'integration-scope',
+      });
+      await owner.start();
+      const admitted = Promise.withResolvers<void>();
+      requestObservers.add((entry) => {
+        if (entry.kind === 'enqueue-optimistic-mutation') admitted.resolve();
+      });
+      const gate = deferred();
+      enqueueGates.set('HoldStandby', gate.promise);
+      const standby = createWorkerCacheHost({ scope: 'integration-scope' });
+      const recovered = Promise.withResolvers<unknown>();
+      standby.onCacheGenerationChanged(recovered.resolve);
+      const completed = Promise.withResolvers<OperationResult | 'forwarded'>();
+      const { forwarded, results } = exchangeHarness(
+        standby,
+        optimisticMutation(
+          105,
+          STANDBY_MUTATION,
+          withLinkPatches
+            ? [
+                {
+                  query: 'query Items { items { id } }',
+                  variablesJson: '{}',
+                  path: [{ field: 'items' }],
+                  operation: { kind: 'remove', entityKey: 'Item:1' },
+                },
+              ]
+            : []
+        ),
+        completed.resolve,
+        () => completed.resolve('forwarded')
+      );
+      try {
+        await admitted.promise;
+        expect(committedEnqueues).toEqual([
+          '00000000-0000-4000-8000-000000000001',
+        ]);
+        await owner.dispose({ graceful: false, preserveDatabase: true });
+        expect(await completed.promise).toMatchObject({
+          error: { networkError: { errorCode: 'admitted-enqueue-uncertain' } },
+        });
+        expect(await recovered.promise).toEqual({ storage: 'preserved' });
+        await expect(
+          standby.readQuery({ query: 'query After { after }' })
+        ).resolves.toEqual({ kind: 'miss' });
+        gate.resolve();
+        expect(dedicatedWorkers.map(({ epoch }) => epoch)).toEqual([1, 2]);
+        expect(dedicatedWorkers[0]?.terminated).toBe(true);
+        expect(forwarded).toHaveLength(0);
+        expect(results).toHaveLength(1);
+        expect(committedEnqueues).toEqual([
+          '00000000-0000-4000-8000-000000000001',
+        ]);
+        expect(
+          logs.filter(({ kind }) => kind === 'enqueue-optimistic-mutation')
+        ).toHaveLength(1);
+      } finally {
+        gate.resolve();
+        standby.dispose();
+        await owner.dispose({ graceful: false, preserveDatabase: true });
+      }
+    }
+  );
 
   it('keeps a standby connected until its admitted enqueue response settles', async () => {
     const owner = createWorkerCacheHost({ scope: 'integration-scope' });

@@ -211,6 +211,14 @@ heartbeat without changing epochs or touching storage. A released lock confirms
 silent worker termination and triggers the usual fenced recovery. Read deadlines
 still bound callers waiting on an unresponsive engine.
 
+Every departure rejects already-routed optimistic enqueues whose replies were
+lost as `admitted-enqueue-uncertain`, including requests from surviving tabs.
+An engine epoch fence does not undo a committed queue entry, and a planned
+recovery wipe has not erased it yet. The exchange must neither retry those
+enqueues nor forward them directly to the API. Requests queued at the coordinator
+but not yet routed remain eligible for one dispatch to the replacement engine;
+late old-epoch responses cannot settle the rejected requests.
+
 Safari can recreate the SharedWorker global while retaining a page's MessagePort,
 including when another tab closes. A second Effect ready frame is a transport
 reset, not a duplicate initial handshake: the page retires its orphanable engine

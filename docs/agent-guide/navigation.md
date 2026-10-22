@@ -56,6 +56,12 @@ optimistic enqueues must not be sent twice. A `graphql_cache.owner` event with
 `ownerEvent: coordinator-restarted` distinguishes this from engine replacement
 or a BFCache restore.
 
+The same write-safety rule applies when an owner navigates away without restarting
+the coordinator: a surviving tab's enqueue may be committed even if its reply was
+lost. It must report an uncertain outcome, not retry or fall through to a second
+API write. Verify this lost-reply case only with an isolated synthetic fixture,
+not by injecting mutation failures into a dev or production account.
+
 ## Android system navigation and sharing
 
 In the Android app, Back first hides the keyboard, then dismisses the active
