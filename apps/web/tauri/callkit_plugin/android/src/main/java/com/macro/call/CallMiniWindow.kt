@@ -199,7 +199,8 @@ internal class CallMiniWindow(private val activity: Activity, private val webVie
         thumbnail.addView(halves, FrameLayout.LayoutParams(-1, -1))
         thumbnail.visibility = View.VISIBLE
         thumbnail.bringToFront()
-        place()
+        // A speaker change mid-drag must not snap the thumbnail out from under the finger.
+        if (!dragging) place()
     }
 
     fun release() {

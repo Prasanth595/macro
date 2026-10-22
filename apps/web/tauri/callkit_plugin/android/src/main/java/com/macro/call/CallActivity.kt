@@ -272,12 +272,13 @@ class CallActivity : Activity() {
         // As on iOS, the call shrinks to a thumbnail over Macro; PiP starts once the user leaves the app.
         keepCamera = true
         Calls.setOverlay("minimized")
-        packageManager.getLaunchIntentForPackage(packageName)?.let { startActivity(it) }
+        // Not a user leave: without the flag, onUserLeaveHint would put the closing drawer into PiP.
+        packageManager.getLaunchIntentForPackage(packageName)?.let { startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION)) }
         finish()
     }
     @Deprecated("Deprecated in Android") override fun onBackPressed() { dismissDrawer() }
     private fun pip(): Boolean {
-        if (Calls.room == null || !packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return false
+        if (isFinishing || Calls.room == null || !packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return false
         pipRequested = true
         return runCatching { enterPictureInPictureMode(CallPictureInPicture.params(this)) }
             .getOrDefault(false).also { if (!it) pipRequested = false }
