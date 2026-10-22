@@ -87,19 +87,24 @@ pub struct ActivityRow {
     pub detail: Option<String>,
     /// Where it got to.
     pub status: ActivityStatus,
-    /// What the step produced that a reader may want to see or open, once
-    /// it has produced it.
+    /// What the step produced, once it has produced it: the item it
+    /// created, changed or sent, or what the agent chose to show with it.
     #[serde(default)]
     pub card: Option<ActivityCard>,
 }
 
-/// Something a step produced, shown as a card after the steps of its run.
+/// Something a step produced. What the agent chose to show - a view, a
+/// database answer, drafts to review - is shown where the step ran. An item
+/// the step created, changed or sent is not shown on its own: the step's
+/// row names it, and a view that shows the item says what was done to it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ActivityCard {
     /// A workspace item the step created, changed or sent. Readers load the
     /// item with their own access; the title is what the step knew it as,
     /// for the moment before it loads and for a reader who cannot open it.
+    /// The step's row names it, and a card for it in a view of the same
+    /// reply says what was done to it.
     Item {
         /// What kind of item it is.
         #[serde(rename = "itemType")]
@@ -126,16 +131,6 @@ pub enum ActivityCard {
         /// The dynamic-UI view.
         #[specta(type = specta_typescript::Unknown)]
         view: serde_json::Value,
-    },
-    /// What a search or a read found, for a reader checking what the answer
-    /// rests on: web pages by address, workspace items by kind and id.
-    Sources {
-        /// What the step looked for: `lumen pricing change`.
-        query: Option<String>,
-        /// The first of what it found, in the order it found them.
-        sources: Vec<Source>,
-        /// How many different things it found in all.
-        total: u32,
     },
     /// A database answer the agent asked to show. Only the statement is
     /// stored: readers run it again with their own access, so the numbers
@@ -170,29 +165,6 @@ pub enum ReviewDrafts {
     Email,
     /// Calendar events to create.
     Calendar,
-}
-
-/// Something an answer rests on.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Source {
-    /// A web page: its address, and its title when the step had one.
-    Web {
-        /// The page's `http` or `https` address.
-        url: String,
-        /// The page's title.
-        title: Option<String>,
-    },
-    /// A workspace item. Nothing about it but its kind and id is stored:
-    /// readers load it with their own access.
-    Item {
-        /// What kind of item it is.
-        #[serde(rename = "itemType")]
-        item_type: CardItemType,
-        /// The item's id.
-        #[serde(rename = "itemId")]
-        item_id: String,
-    },
 }
 
 /// The kinds of workspace item a card opens.
@@ -803,7 +775,7 @@ fn text(value: Option<&serde_json::Value>, key: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// What a receipt knows besides the item and what happened to it.
+/// What an item card knows besides the item and what happened to it.
 #[derive(Default)]
 struct ItemFacts {
     file_type: Option<String>,
@@ -873,89 +845,7 @@ fn changes_summary(changes: Option<&serde_json::Value>) -> Option<String> {
     (count > 1).then(|| format!("{count} changes"))
 }
 
-/// Most sources a card keeps; the total says how many there were.
-const MAX_SOURCES: usize = 12;
-
-/// Longest web address a source keeps; a longer one is left out.
-const MAX_SOURCE_URL_CHARS: usize = 2048;
-
-/// Longest page title a source keeps, in characters.
-const MAX_SOURCE_TITLE_CHARS: usize = 160;
-
-/// A web page as a source, when its address is one a reader can open.
-fn web_source(url: String, title: Option<String>) -> Option<Source> {
-    let scheme = url.get(..8).unwrap_or(&url).to_ascii_lowercase();
-    let openable = scheme.starts_with("https://") || scheme.starts_with("http://");
-    (openable && url.chars().count() <= MAX_SOURCE_URL_CHARS).then(|| Source::Web {
-        url,
-        title: title.map(|title| {
-            if title.chars().count() <= MAX_SOURCE_TITLE_CHARS {
-                return title;
-            }
-            let cut: String = title.chars().take(MAX_SOURCE_TITLE_CHARS - 1).collect();
-            format!("{}…", cut.trim_end())
-        }),
-    })
-}
-
-/// The pages a web search returned.
-fn web_results(output: Option<&serde_json::Value>) -> Vec<Source> {
-    output
-        .and_then(|output| output.get("content"))
-        .and_then(serde_json::Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter(|result| text(Some(result), "type").as_deref() == Some("web_search_result"))
-        .filter_map(|result| web_source(text(Some(result), "url")?, text(Some(result), "title")))
-        .collect()
-}
-
-/// The workspace items a search returned, of the kinds a card can show.
-/// Search results keep their Rust names.
-fn workspace_results(output: Option<&serde_json::Value>) -> Vec<Source> {
-    output
-        .and_then(|output| output.get("results"))
-        .and_then(serde_json::Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|result| {
-            let (item_type, id) = match text(Some(result), "type")?.as_str() {
-                "document" => (CardItemType::Document, "id"),
-                "email" => (CardItemType::EmailThread, "thread_id"),
-                "channel" | "channelMessage" => (CardItemType::Channel, "channel_id"),
-                "project" => (CardItemType::Project, "id"),
-                _ => return None,
-            };
-            Some(Source::Item {
-                item_type,
-                item_id: text(Some(result), id)?,
-            })
-        })
-        .collect()
-}
-
-/// A sources card for what a step found, each thing once, the first few
-/// kept; nothing for a step that found nothing.
-fn sources_card(query: Option<String>, found: Vec<Source>) -> Option<ActivityCard> {
-    let mut unique: Vec<Source> = Vec::new();
-    for source in found {
-        if !unique.contains(&source) {
-            unique.push(source);
-        }
-    }
-    if unique.is_empty() {
-        return None;
-    }
-    let total = u32::try_from(unique.len()).unwrap_or(u32::MAX);
-    unique.truncate(MAX_SOURCES);
-    Some(ActivityCard::Sources {
-        query,
-        sources: unique,
-        total,
-    })
-}
-
-/// What a form change that did not finish left behind, worded for a receipt.
+/// What a form change that did not finish left behind, worded for its item card.
 fn form_state(output: Option<&serde_json::Value>) -> Option<String> {
     match text(output, "state").as_deref() {
         Some("partiallyApplied") => Some("Partly saved".to_owned()),
@@ -991,8 +881,7 @@ fn refused(output: Option<&serde_json::Value>, key: &str) -> bool {
 }
 
 /// The card a finished Macro tool call earns, by the tool's own arguments
-/// and result: a receipt for the item it made or changed, or the view it
-/// composed.
+/// and result: the item it made or changed, or the view it composed.
 fn macro_card(
     tool: &str,
     input: &serde_json::Value,
@@ -1020,7 +909,7 @@ fn macro_card(
         )),
         // EditDocument's arguments keep their Rust names. An edit that asked
         // for clarification instead changed nothing. Its instructions are
-        // the text it was asked to write, so they stay out of the receipt.
+        // the text it was asked to write, so they stay out of the item card.
         "EditDocument" => output
             .and_then(|output| output.get("clarification"))
             .is_none_or(serde_json::Value::is_null)
@@ -1222,20 +1111,6 @@ fn macro_card(
                 ..ItemFacts::default()
             },
         )),
-        "WebSearch" => sources_card(arg("input"), web_results(output)),
-        "WebFetch" => {
-            let fetched = output?.get("content")?;
-            if text(Some(fetched), "type").as_deref() != Some("web_fetch_result") {
-                return None;
-            }
-            let page = web_source(
-                text(Some(fetched), "url")?,
-                text(fetched.get("content"), "title"),
-            );
-            sources_card(None, page.into_iter().collect())
-        }
-        "ContentSearch" => sources_card(arg("query"), workspace_results(output)),
-        "NameSearch" => sources_card(arg("name"), workspace_results(output)),
         // A read the agent asked to show; a query it ran for itself, or a
         // write, is not a card.
         "QueryDatabase" => {

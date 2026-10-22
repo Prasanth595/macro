@@ -61,23 +61,9 @@ const sessionAnnouncementRequest = z.object({
  * turn runs, or prose the harness patches in - the answer, a fallback for a
  * turn that said nothing, a question only the session view can answer.
  */
-/** Something an answer rests on: a web page, or a workspace item by id. */
-const activitySource = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('web'),
-    url: z.string().regex(/^https?:\/\//i),
-    title: z.string().nullish(),
-  }),
-  z.object({
-    kind: z.literal('item'),
-    itemType: z.enum(AGENT_ACTIVITY_CARD_ITEM_TYPES),
-    itemId: z.string().min(1),
-  }),
-]);
-
 /**
- * What a step produced: an item it made, changed or sent, a view, what a
- * search found, a database answer to show, or drafts saved for review.
+ * What a step produced: an item it made, changed or sent, or what the agent
+ * chose to show - a view, a database answer, or drafts saved for review.
  */
 const activityCard = z.discriminatedUnion('kind', [
   z.object({
@@ -90,12 +76,6 @@ const activityCard = z.discriminatedUnion('kind', [
     summary: z.string().nullish(),
   }),
   z.object({ kind: z.literal('view'), view: z.unknown() }),
-  z.object({
-    kind: z.literal('sources'),
-    query: z.string().nullish(),
-    sources: z.array(activitySource),
-    total: z.number().int().nonnegative(),
-  }),
   z.object({
     kind: z.literal('data'),
     sql: z.string().min(1),

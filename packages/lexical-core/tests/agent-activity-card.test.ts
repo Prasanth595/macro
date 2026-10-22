@@ -26,18 +26,7 @@ describe('isAgentActivityCard', () => {
     );
   });
 
-  it('accepts what a search found and a database answer to show', () => {
-    expect(
-      isAgentActivityCard({
-        kind: 'sources',
-        query: 'lumen pricing',
-        total: 3,
-        sources: [
-          { kind: 'web', url: 'https://lumen.example/blog', title: 'Prices' },
-          { kind: 'item', itemType: 'document', itemId: 'doc-1' },
-        ],
-      })
-    ).toBe(true);
+  it('accepts a database answer the agent asked to show', () => {
     expect(
       isAgentActivityCard({
         kind: 'data',
@@ -64,12 +53,13 @@ describe('isAgentActivityCard', () => {
     ).toBe(false);
   });
 
-  it('refuses a source a reader could not safely open', () => {
+  it("leaves out what an older reply's searches found, which no longer shows", () => {
     expect(
       isAgentActivityCard({
         kind: 'sources',
+        query: 'lumen pricing',
         total: 1,
-        sources: [{ kind: 'web', url: 'javascript:alert(1)' }],
+        sources: [{ kind: 'web', url: 'https://lumen.example/blog' }],
       })
     ).toBe(false);
     expect(isAgentActivityCard({ kind: 'data', sql: '' })).toBe(false);

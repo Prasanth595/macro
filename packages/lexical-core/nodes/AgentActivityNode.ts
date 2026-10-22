@@ -58,10 +58,10 @@ export const AGENT_ACTIVITY_CARD_ACTIONS = [
 export const AGENT_ACTIVITY_REVIEW_DRAFTS = ['email', 'calendar'] as const;
 
 /**
- * Something a step produced, shown as a card after the steps of its run: a
- * workspace item it created, changed or sent, a view the agent composed for
- * the user, what its searches found, a database answer, or drafts it saved
- * for the user to review. The same shape the session's fold gives its rows.
+ * Something a step produced: a workspace item it created, changed or sent,
+ * which the step's row names, or what the agent chose to show with it - a
+ * view it composed for the user, a database answer, or drafts it saved for
+ * the user to review. The same shape the session's fold gives its rows.
  */
 export type AgentActivityCard =
   | {
@@ -86,15 +86,6 @@ export type AgentActivityCard =
       view: unknown;
     }
   | {
-      kind: 'sources';
-      /** What the step looked for. */
-      query?: string | null;
-      /** The first of what it found. */
-      sources: AgentActivitySource[];
-      /** How many different things it found in all. */
-      total: number;
-    }
-  | {
       kind: 'data';
       /** A `SELECT` statement readers run again with their own access. */
       sql: string;
@@ -107,18 +98,6 @@ export type AgentActivityCard =
       /** The saved review, which readers load with their own access. */
       reviewId: string;
       drafts: (typeof AGENT_ACTIVITY_REVIEW_DRAFTS)[number];
-    };
-
-/**
- * Something an answer rests on: a web page by address, or a workspace item
- * by kind and id only, which readers load with their own access.
- */
-export type AgentActivitySource =
-  | { kind: 'web'; url: string; title?: string | null }
-  | {
-      kind: 'item';
-      itemType: (typeof AGENT_ACTIVITY_CARD_ITEM_TYPES)[number];
-      itemId: string;
     };
 
 /** One step of work as the agent session's fold worded it. */
@@ -136,27 +115,6 @@ export type AgentActivityRow = {
 
 const isOptionalText = (value: unknown) =>
   value === undefined || value === null || typeof value === 'string';
-
-const isWebAddress = (value: unknown) =>
-  typeof value === 'string' && /^https?:\/\//i.test(value);
-
-/** Return whether a value is a source this version knows how to show. */
-export function isAgentActivitySource(
-  value: unknown
-): value is AgentActivitySource {
-  if (!value || typeof value !== 'object') return false;
-  const source = value as Record<string, unknown>;
-  if (source.kind === 'web')
-    return isWebAddress(source.url) && isOptionalText(source.title);
-  return (
-    source.kind === 'item' &&
-    (AGENT_ACTIVITY_CARD_ITEM_TYPES as readonly unknown[]).includes(
-      source.itemType
-    ) &&
-    typeof source.itemId === 'string' &&
-    source.itemId.length > 0
-  );
-}
 
 function isItemCard(card: Record<string, unknown>) {
   return (
@@ -179,13 +137,6 @@ export function isAgentActivityCard(
   if (!value || typeof value !== 'object') return false;
   const card = value as Record<string, unknown>;
   if (card.kind === 'view') return 'view' in card;
-  if (card.kind === 'sources')
-    return (
-      isOptionalText(card.query) &&
-      typeof card.total === 'number' &&
-      Array.isArray(card.sources) &&
-      card.sources.every(isAgentActivitySource)
-    );
   if (card.kind === 'review')
     return (
       typeof card.reviewId === 'string' &&

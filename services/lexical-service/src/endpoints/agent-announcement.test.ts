@@ -181,17 +181,8 @@ describe('agent announcements', () => {
     );
   });
 
-  it('keeps what a search found and a database answer to show', async () => {
+  it('keeps a database answer the agent asked to show', async () => {
     const cards = [
-      {
-        kind: 'sources',
-        query: 'lumen pricing',
-        sources: [
-          { kind: 'web', url: 'https://lumen.example/blog', title: 'Prices' },
-          { kind: 'item', itemType: 'document', itemId: 'doc-1' },
-        ],
-        total: 2,
-      },
       { kind: 'data', sql: 'SELECT 1', databaseId: null, display: 'table' },
     ];
     const response = await request({
@@ -289,10 +280,11 @@ describe('agent announcements', () => {
                   id: 't2',
                   label: 'Searched',
                   status: 'completed',
+                  // What an older server said a search found no longer shows.
                   card: {
                     kind: 'sources',
                     total: 1,
-                    sources: [{ kind: 'web', url: 'javascript:alert(1)' }],
+                    sources: [{ kind: 'web', url: 'https://lumen.example' }],
                   },
                 },
               ],
