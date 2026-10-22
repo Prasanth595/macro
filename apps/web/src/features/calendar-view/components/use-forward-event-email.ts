@@ -58,7 +58,9 @@ export function useForwardEventEmail() {
           },
           preserveParams: true,
         },
-        { preferNewSplit: true }
+        // A composer already open holds another message; reusing it would
+        // drop this one's subject, body and file.
+        { preferNewSplit: true, allowDuplicate: true }
       );
     });
 }

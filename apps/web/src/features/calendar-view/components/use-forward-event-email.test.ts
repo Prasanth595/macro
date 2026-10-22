@@ -63,7 +63,7 @@ describe('useForwardEventEmail', () => {
     expect(mocks.fetchIcs).toHaveBeenCalledWith('event');
     expect(mocks.openWithSplit).toHaveBeenCalledOnce();
     const [content, options] = mocks.openWithSplit.mock.calls[0];
-    expect(options).toEqual({ preferNewSplit: true });
+    expect(options).toEqual({ preferNewSplit: true, allowDuplicate: true });
     expect(content.params.initialTo).toBeUndefined();
     expect(content.params.initialSubject).toBe('Design review');
     expect(content.params.initialBodyText).toMatch(/^Design review\nWhen: /);
