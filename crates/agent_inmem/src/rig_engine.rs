@@ -165,9 +165,10 @@ struct GatedToolSet<Context> {
 
 impl<Context> GatedToolSet<Context> {
     fn is_gated(&self, tool_name: &str) -> bool {
-        !UNGATED_NATIVE_TOOLS.contains(&tool_name)
-            && !tool_name.starts_with(mcp_select::MANGLED_PREFIX)
-            && !(self.routines_as_prompter && PROMPTER_NATIVE_TOOLS.contains(&tool_name))
+        let unasked = UNGATED_NATIVE_TOOLS.contains(&tool_name)
+            || tool_name.starts_with(mcp_select::MANGLED_PREFIX)
+            || (self.routines_as_prompter && PROMPTER_NATIVE_TOOLS.contains(&tool_name));
+        !unasked
     }
 }
 
