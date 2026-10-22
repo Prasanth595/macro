@@ -197,7 +197,7 @@ fn execution_context_is_model_only_and_user_authored_suffix_context_remains_visi
         .to_runtime(&SessionId::new("s"), turn.to_request_id())
         .unwrap();
     let mut machine = LifecycleFold::new();
-    machine.push(AgentSessionLog {
+    let _ = machine.push(AgentSessionLog {
         agent_session_id: test_session(),
         user_id: None,
         content: Message::Notification(request),
