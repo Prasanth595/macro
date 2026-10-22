@@ -898,31 +898,15 @@ export function createEmailComposer(props: EmailComposerOptions) {
       return refuseSend(props.notices, 'media-not-uploaded');
     if (attachmentLinks.uploading())
       return refuseSend(props.notices, 'files-uploading');
+    // Send Later schedules the saved draft; only immediate sends use the outbox.
     const scheduleAction = schedule.action();
-    const queuedLater =
-      scheduleAction === 'schedule' &&
-      !!props.delivery.queueActive?.(activeInboxId());
-    const selectedTime = queuedLater ? schedule.selectedTime() : undefined;
-    if (
-      queuedLater &&
-      (!selectedTime ||
-        !Number.isFinite(selectedTime.getTime()) ||
-        selectedTime.getTime() <= Date.now())
-    ) {
-      props.notices.feedback.alert('Choose a future send time.');
-      return;
-    }
-    const sendTime = selectedTime?.toISOString();
     if (scheduleAction === 'unavailable') {
       props.notices.feedback.alert(
         `This email is scheduled for ${schedule.confirmedTime()?.toLocaleString()}. Choose a new time to update it, or cancel the schedule to edit.`
       );
       return;
     }
-    if (
-      (scheduleAction === 'schedule' && !queuedLater) ||
-      scheduleAction === 'update'
-    ) {
+    if (scheduleAction === 'schedule' || scheduleAction === 'update') {
       const result = await schedule.submit();
       if (result === 'scheduled') {
         const scheduledDraftId = currentDraftId();
@@ -987,8 +971,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
         completed() ||
         terminalState() ||
         schedule.pending() ||
-        (schedule.action() !== 'send' &&
-          !(queuedLater && schedule.selectedTime()?.toISOString() === sendTime))
+        schedule.action() !== 'send'
       )
         return;
 
@@ -1019,7 +1002,6 @@ export function createEmailComposer(props: EmailComposerOptions) {
       try {
         setSendPhase('sending');
         const result = await props.delivery.sendMessage({
-          sendTime,
           expectedLocalVersion,
           clientHandles: {
             draftId: currentDraftId()!,

@@ -594,12 +594,19 @@ final sent update, then switching offline and opening Sent. Existing provider
 timestamps and timestamps from repeated finalization remain unchanged; an unsent
 or cancelled draft must not acquire Sent membership.
 
-**Send** and **Send Later** always persist new messages, replies, and forwards
-for Gmail and Outlook in device email storage; no outbox feature flag is required.
-This works with either thread read transport, including when normalized-cache
+**Send** always persists new messages, replies, and forwards for Gmail and
+Outlook in device email storage; no outbox feature flag is required. This works
+with either thread read transport, including when normalized-cache
 initialization has failed. Recipients, inbox, sender alias, body, displayed
-signature, attachment references, and any scheduled time are frozen under one
-attempt ID. Completed uploads are required; adding files offline is unavailable.
+signature, and attachment references are frozen under one attempt ID. Completed
+uploads are required; adding files offline is unavailable.
+
+**Send Later** schedules the saved draft through the schedule endpoint instead
+of the outbox. It shows **Email scheduled** with the send time, **Undo**, and
+**View message**; the message stays a draft, is listed under **Scheduled**, and
+opens with **Scheduled for …** and **Cancel**. Cancelling leaves it an editable
+draft. Sends scheduled through the outbox before this change still show in the
+status panel with **Cancel**.
 
 An authenticated app-level dispatcher submits online immediately and retries the
 same attempt independently of unrelated draft, archive, and property mutations.

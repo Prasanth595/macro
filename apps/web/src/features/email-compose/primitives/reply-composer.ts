@@ -1117,31 +1117,15 @@ export function createReplyComposer(
         },
       });
     };
+    // Send Later schedules the saved draft; only immediate sends use the outbox.
     const scheduleAction = schedule.action();
-    const queuedLater =
-      scheduleAction === 'schedule' &&
-      !!props.delivery.queueActive?.(sendingInbox()?.id);
-    const selectedTime = queuedLater ? schedule.selectedTime() : undefined;
-    if (
-      queuedLater &&
-      (!selectedTime ||
-        !Number.isFinite(selectedTime.getTime()) ||
-        selectedTime.getTime() <= Date.now())
-    ) {
-      props.notices.feedback.alert('Choose a future send time.');
-      return;
-    }
-    const sendTime = selectedTime?.toISOString();
     if (scheduleAction === 'unavailable') {
       props.notices.feedback.alert(
         `This email is scheduled for ${schedule.confirmedTime()?.toLocaleString()}. Choose a new time to update it, or cancel the schedule to edit.`
       );
       return;
     }
-    if (
-      (scheduleAction === 'schedule' && !queuedLater) ||
-      scheduleAction === 'update'
-    ) {
+    if (scheduleAction === 'schedule' || scheduleAction === 'update') {
       const result = await schedule.submit();
       if (result === 'scheduled') {
         const scheduledDraftId = savedDraftId();
@@ -1221,11 +1205,7 @@ export function createReplyComposer(
       // Remember by draft so sends in separate composers cannot replace each other.
       rememberCurrentReply();
 
-      if (
-        scheduling() ||
-        (schedule.action() !== 'send' &&
-          !(queuedLater && schedule.selectedTime()?.toISOString() === sendTime))
-      ) {
+      if (scheduling() || schedule.action() !== 'send') {
         return;
       }
 
@@ -1260,7 +1240,6 @@ export function createReplyComposer(
 
       setSendPhase('sending');
       const pendingSend = props.delivery.sendMessage({
-        sendTime,
         expectedLocalVersion,
         clientHandles: {
           draftId: currentDraftId!,
