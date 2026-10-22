@@ -30,6 +30,11 @@ split — and the dropped tab leaves the strip. Tabs persist per user and
 restore on launch. In the browser and on other platforms the strip does not
 render.
 
+Reference captures (browser fixture with the desktop gates forced):
+[a three-split tab beside a second tab](media/desktop-tabs/three-split-tab.png),
+[drop zones while dragging a tab over the workspace](media/desktop-tabs/drag-drop-zones.png),
+and [tabs restored after a reload](media/desktop-tabs/restored-tabs.png).
+
 After native bundle updates, verify that Home and channel details load without
 an update toast on every launch. Relative bundled assets such as Loro's WASM
 must load through the webview, not native HTTP. A `vite:preloadError` with
