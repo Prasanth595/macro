@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Roboto Slab Variable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./features/onboarding/assets/roboto-slab-variable.woff2') format('woff2');
+}
+
 @source inline("{data-highlighted:}text-{comment,note,canvas,html,folder,email,code,pdf,image,write,chat,video,rss,calendar,contact,default},{tauri-ios:}{hidden}");
 @source inline("z-{popup-viewer,viewer-definition-lookup}");
 @source './lib/core/component/LexicalMarkdown/theme.ts';
@@ -923,6 +931,13 @@ html[data-theme-light='false'] {
 @utility menu-surface {
   @apply glass relative min-h-0 rounded-xl bg-menu text-ink;
   --color-surface: var(--color-menu);
+}
+
+/* Shared light-surface edge and ambient shadow from the homepage composer. */
+@utility composer-shadow {
+  box-shadow: 0 0 0 1px var(--color-drop-shadow),
+    0 2px 8px 0 var(--color-drop-shadow),
+    0 4px 80px 8px color-mix(in srgb, var(--color-drop-shadow) 60%, transparent);
 }
 
 /* Shared dialog appearance; composers retain their original glass. */

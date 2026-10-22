@@ -48,6 +48,15 @@ queued mutations should resume promptly, without waiting for the old poll or
 local retry timer; durable leases and server-retry deadlines still apply.
 Switching tabs or navigating an in-app route is not a back/forward-cache restore.
 
+Safari can also restart the SharedWorker when its creating tab closes, leaving
+another tab's port alive but its coordinator registrations gone. The surviving
+page must re-register without a reload or cache wipe. Open two tabs, close the
+first, and verify that cached reads and live updates continue in the second.
+Repeat through another handoff and while requests are pending. Interrupted
+optimistic enqueues must not be sent twice. A `graphql_cache.owner` event with
+`ownerEvent: coordinator-restarted` distinguishes this from engine replacement
+or a BFCache restore.
+
 ## Android system navigation and sharing
 
 In the Android app, Back first hides the keyboard, then dismisses the active
@@ -360,6 +369,9 @@ Scheduling appears in Customize sidebar only when the calendar-scheduling flag i
 on. It starts hidden in More, including for existing sidebar preferences. Enable
 its checkbox to place it on the rail, then reorder or hide it like other apps.
 Showing Scheduling removes its duplicate from More; the choice survives reload.
+Activity appears in Customize sidebar only when the `enable-activity-feed` flag
+is on and, like Scheduling, starts hidden in More (also for existing preferences)
+until enabled on the rail.
 
 - Top: buttons `Create` and `Search`. Clicking `Search` opens a menu
   with `Command Menu` (⌘K on Mac / Ctrl+K elsewhere) and `Search everything`
@@ -406,6 +418,11 @@ edge so an older unread item can keep the dot lit. These witnesses must never be
 used as the complete mark-read/done input. The experimental notification-time
 sort remains on its existing REST path; disabling GraphQL or enabling that sort
 must not construct an unsupported GraphQL input or blank the app shell.
+Cold offline launch must retain navigation even while notification preferences
+or badge queries are pending. Unknown preferences use the default enabled
+behavior; loaded disabled preferences still suppress Email's dot, including
+after a failed refresh. Verify both unreachable services while the OS reports
+online and a paused offline transport, then reconnect without remounting chrome.
 Opening a view alone does not clear its dot — reading or completing the represented
 items does. The button's
 accessible description is `Unread items` while its dot is active.
@@ -471,6 +488,12 @@ Widening the sidebar while its split is constrained also reduces the main
 content's soft width preference, so the next split resize keeps that choice
 instead of snapping the sidebar back to its constrained width.
 
+Split handles apply pointer movement once per animation frame and commit the
+final position on release. Check a rapid drag followed by immediate release,
+dragging at non-default zoom, and closing a split during a drag; later pointer
+movement must not keep resizing the removed split. Arrow keys still resize
+immediately, with Shift selecting the larger step.
+
 Email, Tasks, and Agents use the same sidebar rows, including favorites, tags,
 inboxes, and recent agent chats: 32px high on desktop and 44px on touch devices,
 with regular-weight labels and consistent icon spacing.
@@ -512,23 +535,35 @@ changes roll back rather than becoming committed local favorites.
 On desktop, the rail **Create** button, **C**, and the command menu’s **Create**
 entry open the detailed launcher at standard dialog width. Selecting **Create**
 closes the command menu and hands focus to the launcher; individual creation
-commands remain searchable in the command menu. The left list starts with up to three **Recents** from
-actual launcher usage, followed by all choices grouped by category.
-Categories appear in this order: **Docs** (Document, Snippet), **Organization**
+commands remain searchable in the command menu. The left side is one continuous
+list without section labels or gaps. Up to three recently used choices appear
+first, followed by all choices in this order: **Docs** (Document, Snippet), **Organization**
 (Folder), **Design** (Canvas, Design, Photoshop file, Illustrator file), **Data**
 (Database, Spreadsheet, Form), **Comms** (Email, Message, Channel, Call), **Tasks**
 (Task, Project, Reminder), **AI** (Agent, Routine, Skill), and **Other** (Code and
-any uncategorized entries). Only available entries and nonempty categories appear.
-Recent items also remain in their categories. With no history, the list starts
-with categories. Hover or keyboard navigation updates the right detail panel;
-click a row or press Enter to start that creation flow. The detail panel is
-top-aligned, shares the list background, and is separated by a vertical divider.
-The shortcut below the description shows the sequence, such as **C then T** for
-Task, while direct shortcut mode is active.
-Its lower-right **Create [type]** button starts the selected creation flow and
-shows the Enter shortcut. Holding Shift adds an **In new split** indicator and
-changes the button shortcut to Shift+Enter; clicking while holding Shift uses
-the same new-split behavior where supported.
+any uncategorized entries). Only available entries appear.
+Recent items also remain in their normal positions. With no history, the list
+starts with Document. Hover or keyboard navigation updates the right detail panel;
+click a row or press Enter to start that creation flow. List icons are monochrome:
+muted normally and full ink on the selected row. The detail panel centers
+its block-colored icon tile with a solid theme-aware fill and shared glass rim,
+and description over
+the shared onboarding grain. Light mode uses near-black icons and neutral, quieter grain and glow, with
+the homepage composer’s fill, border and shadow. Dark-mode dots and glow use
+the same shared block-icon color as the tile, rather than the workspace accent. Descriptions use two authored
+lines at desktop width, with a slightly shorter second line; narrow panels
+allow the text to wrap further. The **Create [type]** button
+sits 8px inside the bottom-right corner as a 32px-tall pill. Its 16px
+radius plus the inset matches the modal’s 24px radius. It uses
+a white fill in dark mode, black in light mode, medium-weight text, and a bare
+Enter symbol without a keycap. Footer keyboard hints are borderless.
+Visual references: [dark](media/command/create-menu-polished-dark.png) and
+[light](media/command/create-menu-polished-light.png).
+A vertical divider separates it from the list. In direct shortcut mode, the
+shortcut sequence (such as **C then T** for Task) appears below the centered
+detail content. The Create button includes the Enter shortcut. Holding Shift
+relabels the button **Create in new split** with Shift+Enter; clicking while
+holding Shift uses the same new-split behavior where supported.
 
 The **Search mode** toggle (or **/**) switches between direct entity shortcuts
 shown beside each choice and the standard create search input. Search mode is
@@ -835,7 +870,23 @@ notifications. External contacts insert a link to their original CRM record;
 they do not invite or notify that email address. Assignee and other user-only
 pickers continue to list Macro users only.
 
-Cmd+K **People** and a typed **All** query also find CRM contacts, using the same
+Typed Cmd+K **People** and **All** queries find known Macro users, including
+teammates supplied by the contacts service, before their first DM and without a
+CRM record or the CRM feature. Search by name or email. Selecting a person opens
+their direct message; an existing one-to-one DM replaces the person row without
+losing name/email matches. Group DMs stay separate, and the viewer is excluded
+from person results. Empty queries keep the existing recency lists. Verify a
+teammate with no DM or CRM record in both categories, including with CRM disabled,
+then verify that loading their DM produces one row and that Files/Channels do not
+show that person.
+
+Browser examples: [desktop](media/command/teammate-desktop.png) and
+[mobile](media/command/teammate-mobile.png), using a known-user fixture with no DM
+or CRM record and an intercepted DM request. These captures used a bundle-only
+guard for the unrelated disabled grouped-Soup startup crash in
+`create-grouped-soup-live-query.ts`; unmodified app startup remains unverified.
+
+With CRM enabled, Cmd+K **People** and a typed **All** query also find CRM contacts, using the same
 accessible-team search, hidden-record exclusions, and full-email collapsing as
 mentions. Cached contacts appear at once; the server search starts about 250 ms
 after typing stops and pages 100 contacts at a time, so contacts beyond the first
