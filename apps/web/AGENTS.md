@@ -236,8 +236,12 @@ The desktop app binds `Ctrl/Cmd` with `+`, `-`, and `0` itself in
 `src/lib/tauri/zoom.ts`; nothing underneath provides them. Wry's
 `zoomHotkeysEnabled` is Windows-only and Tauri's default menu has no zoom items.
 The hotkeys call the webview's `setZoom`, which needs
-`core:webview:allow-set-webview-zoom` in `tauri/src-tauri/capabilities/default.json`,
-so a build without that permission fails the call at runtime. The saved factor is
+`core:webview:allow-set-webview-zoom` in `tauri/src-tauri/capabilities/desktop.json`,
+so a build without that permission fails the call at runtime. That permission
+lives in a `desktop`-named capability rather than `default.json` because the iOS
+and Android native gates hash every file under `tauri/` whose path doesn't name a
+platform: editing `default.json` would demand a store release for a command that
+only exists on desktop. The saved factor is
 re-applied on launch because the webview always starts at 100%. `RootFrame`, not
 `GlobalHotkeys`, registers them, so zoom also works on pages without app chrome.
 
