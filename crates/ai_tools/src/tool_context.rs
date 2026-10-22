@@ -734,6 +734,17 @@ pub fn build_team_repository(pool: sqlx::PgPool) -> Arc<ToolTeamService> {
     Arc::new(TeamRepositoryImpl::new(pool))
 }
 
+/// Build the import ledger for hosts that run Notion workspace imports: it
+/// tells the agent session presenting a plan's review when the plan is ready
+/// and when its write ends.
+pub fn build_import_repo(pool: sqlx::PgPool) -> import::outbound::pg_import_repo::PgImportRepo {
+    import::outbound::pg_import_repo::PgImportRepo::new(pool.clone()).with_session_notifications(
+        Arc::new(agent_session::outbound::notifications::PgNotificationStore(
+            pool,
+        )),
+    )
+}
+
 /// Build the team AI tool context from a Postgres pool.
 pub fn build_team_tool_context(pool: sqlx::PgPool) -> ToolTeamToolContext {
     TeamToolContext::new(

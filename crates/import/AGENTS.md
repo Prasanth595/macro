@@ -77,7 +77,8 @@ from this import's other databases into it are not linked.
 
 ## Boundaries
 
-- Depends on: `ai_toolset`, `ai_usage`, `ai_billing`, `connection_gateway_client`,
+- Depends on: `agent_session` (system events for the session presenting a
+  review), `ai_toolset`, `ai_usage`, `ai_billing`, `connection_gateway_client`,
   `mcp_select`, `properties`, `import_notion` (Notion REST), `models_databases`
   (database ops the workspace import writes).
 - Used by: `ai_tools`, `slack_integration`, `services/document_cognition_service`,
@@ -145,13 +146,19 @@ from this import's other databases into it are not linked.
   outlive their own run; `settle_importing` leaves them while the holder is
   still being written. Left open: a takeover racing the original holder's own
   resume can leave both copies.
-- When a workspace write stops (completed, failed or cancelled, including a
-  resumed write and a stalled one given up on), the service
-  calls the host's `ReviewFollowUp` with the plan's review
-  (`notion_workspace/follow_up.rs`). Hosts wire it to the harness's internal
-  `POST /internal/agent-reviews/{id}/settled` (`ai_tools::build_review_follow_up`),
-  which settles the review once and continues the session on
-  `import_finished_context` as private context.
+- The agent session presenting a plan's review hears what becomes of it as
+  system events (`notion_workspace/events.rs`), each produced in the
+  transaction that moves the run (`NotionRunRepo::transition_reviewed_run`,
+  through `agent_session`'s `NotificationWriter`): `import.planned` once a
+  plan presented while planning is `ready`, and `review.settled` with the
+  final report (outcome, counts, failures, by-hand items, root folder) once
+  its write ends however it ended, including a resumed write and a stalled
+  one given up on. A cancel from another process keeps the run `dismissed`,
+  so the write's end reports it cancelled. `attach_review` records the
+  session (`import_run.review_session_id`); hosts that run Notion imports
+  build the ledger with `ai_tools::build_import_repo`, which wires the
+  writer. Left open: a writer whose process dies after a cancel never ends,
+  so that cancel is not reported.
 - The inventory counts each data source's rows, and takes its sample titles,
   from the pages `/v1/search` already returned (every row is a page there);
   only a data source search showed no rows for (a root fetched by id, or an

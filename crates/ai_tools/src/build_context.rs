@@ -582,7 +582,7 @@ pub async fn build_tool_service_context_from_env(
         ));
         let import_service = Arc::new(
             import::domain::service::ImportServiceImpl::new(
-                import::outbound::pg_import_repo::PgImportRepo::new(pool.clone()),
+                crate::tool_context::build_import_repo(pool.clone()),
                 mcp_selector.clone(),
                 Arc::new(crate::ToolEntityCreator {
                     document_creator: document_tool_context.creator.clone(),

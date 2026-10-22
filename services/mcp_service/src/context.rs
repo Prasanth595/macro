@@ -518,7 +518,7 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
     ));
     let import_service = Arc::new(
         import::domain::service::ImportServiceImpl::new(
-            import::outbound::pg_import_repo::PgImportRepo::new(db.clone()),
+            ai_tools::build_import_repo(db.clone()),
             mcp_selector.clone(),
             Arc::new(ai_tools::ToolEntityCreator {
                 document_creator: document_tool_context.creator.clone(),

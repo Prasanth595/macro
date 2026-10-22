@@ -4,14 +4,17 @@
 use std::str::FromStr;
 use std::time::Duration;
 
+use agent_session::domain::model::AgentSessionId;
+use agent_session::domain::notifications::PendingNotification;
 use import_notion::domain::model::ImportScope;
 use macro_user_id::cowlike::CowLike;
 use macro_user_id::user_id::MacroUserIdStr;
 use uuid::Uuid;
 
-use super::PgImportRepo;
+use super::{PgImportRepo, run_status_strings};
 use crate::domain::models::{
-    AdoptedRun, NotionJob, NotionSharing, RunStatus, WrittenKind, WrittenObject,
+    AdoptedRun, NotionJob, NotionSharing, ReviewedRun, RunReview, RunStatus, WrittenKind,
+    WrittenObject,
 };
 use crate::domain::ports::{ImportError, NotionRunRepo, Result, WrittenObjects};
 
@@ -189,6 +192,64 @@ impl NotionRunRepo for PgImportRepo {
             });
         }
         Ok(adopted)
+    }
+
+    #[tracing::instrument(skip(self, event), fields(notified = tracing::field::Empty), err)]
+    async fn transition_reviewed_run<Event>(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        from: &[RunStatus],
+        to: RunStatus,
+        error: Option<&str>,
+        event: Event,
+    ) -> Result<Option<ReviewedRun>>
+    where
+        Event: FnOnce(&ReviewedRun) -> Option<PendingNotification> + Send,
+    {
+        let from = run_status_strings(from);
+        let mut transaction = self.pool.begin().await?;
+        let Some(row) = sqlx::query!(
+            r#"
+            UPDATE import_run
+            SET status = CASE WHEN status = 'dismissed' THEN status
+                              ELSE $2::text::import_run_status END,
+                error = CASE WHEN status = 'dismissed' THEN error ELSE $3 END,
+                updated_at = NOW(), lease_owner = NULL, lease_expires_at = NULL
+            WHERE user_id = $1 AND source = 'notion' AND status::text = ANY($4::text[])
+            RETURNING status::text AS "status!", error, review_id, review_session_id
+            "#,
+            user.as_ref(),
+            to.as_ref(),
+            error,
+            &from,
+        )
+        .fetch_optional(&mut *transaction)
+        .await?
+        else {
+            return Ok(None);
+        };
+        let run = ReviewedRun {
+            status: RunStatus::from_str(&row.status)
+                .map_err(|_| anyhow::anyhow!("unknown run status: {}", row.status))?,
+            error: row.error,
+            review: row
+                .review_id
+                .zip(row.review_session_id)
+                .map(|(review_id, session_id)| RunReview {
+                    review_id,
+                    session_id: AgentSessionId::new_from_uuid(session_id),
+                }),
+        };
+        let pending = event(&run);
+        tracing::Span::current().record("notified", pending.is_some());
+        if let (Some(pending), Some(notifications)) = (pending, &self.notifications) {
+            notifications
+                .produce(&mut *transaction, &pending)
+                .await
+                .map_err(|error| ImportError::Db(rootcause::report!(error).into_dynamic()))?;
+        }
+        transaction.commit().await?;
+        Ok(Some(run))
     }
 
     #[tracing::instrument(skip(self), err)]

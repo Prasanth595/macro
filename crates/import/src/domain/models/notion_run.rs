@@ -1,6 +1,7 @@
 //! What makes a Notion workspace import resumable: the job recorded on its
 //! run, and what a write already created.
 
+use agent_session::domain::model::AgentSessionId;
 use import_notion::domain::model::{ImportScope, NotionId};
 use macro_user_id::user_id::MacroUserIdStr;
 use uuid::Uuid;
@@ -36,6 +37,26 @@ pub struct AdoptedRun {
     pub job: Option<NotionJob>,
     /// How many times the run has been adopted, this time included.
     pub adoptions: u16,
+}
+
+/// A Notion run as a transition left it, with the review presenting it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewedRun {
+    /// The run's new status.
+    pub status: RunStatus,
+    /// The run's error, when it has one.
+    pub error: Option<String>,
+    /// The review presenting the run and its session, once both are known.
+    pub review: Option<RunReview>,
+}
+
+/// The review a Notion run is tied to, and the agent session presenting it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RunReview {
+    /// The review.
+    pub review_id: Uuid,
+    /// The session the review is presented in.
+    pub session_id: AgentSessionId,
 }
 
 /// One thing a write created for a ledger row, recorded as it is created so

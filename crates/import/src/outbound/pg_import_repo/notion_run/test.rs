@@ -382,3 +382,109 @@ async fn review(pool: &PgPool, owner: &MacroUserIdStr<'static>) -> Uuid {
     .unwrap();
     review
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_reviewed_run_reports_its_review_and_a_cancel_survives_the_write_ending(pool: PgPool) {
+    let repo = PgImportRepo::new(pool.clone());
+    let alice = user("reviewed-run");
+    let review = review(&pool, &alice).await;
+    let session = sqlx::query_scalar!(
+        "SELECT agent_session_id FROM agent_session_review WHERE id = $1",
+        review
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    repo.start_run(&alice, ImportSource::Notion, &[])
+        .await
+        .unwrap();
+    repo.attach_review(
+        &alice,
+        ImportSource::Notion,
+        review,
+        AgentSessionId::new_from_uuid(session),
+    )
+    .await
+    .unwrap();
+    let to_importing = repo
+        .transition_reviewed_run(
+            &alice,
+            &[RunStatus::Running],
+            RunStatus::Importing,
+            None,
+            |_| None,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        to_importing.review,
+        Some(RunReview {
+            review_id: review,
+            session_id: AgentSessionId::new_from_uuid(session),
+        })
+    );
+    // The owner cancels from another process while the write runs.
+    repo.transition_run(
+        &alice,
+        ImportSource::Notion,
+        &[RunStatus::Importing],
+        RunStatus::Dismissed,
+        Some("Cancelled"),
+    )
+    .await
+    .unwrap();
+
+    let mut seen = None;
+    let ended = repo
+        .transition_reviewed_run(
+            &alice,
+            &[RunStatus::Importing, RunStatus::Dismissed],
+            RunStatus::Completed,
+            None,
+            |run| {
+                seen = Some(run.status);
+                None
+            },
+        )
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(seen, Some(RunStatus::Dismissed));
+    assert_eq!(ended.status, RunStatus::Dismissed);
+    assert_eq!(ended.error.as_deref(), Some("Cancelled"));
+    assert!(
+        repo.transition_reviewed_run(
+            &alice,
+            &[RunStatus::Importing],
+            RunStatus::Completed,
+            None,
+            |_| None
+        )
+        .await
+        .unwrap()
+        .is_none(),
+        "a run in none of `from` does not move"
+    );
+
+    sqlx::query!("DELETE FROM agent_session WHERE id = $1", session)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let orphaned = repo
+        .transition_reviewed_run(
+            &alice,
+            &[RunStatus::Dismissed],
+            RunStatus::Dismissed,
+            None,
+            |_| None,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        orphaned.review, None,
+        "a deleted session no longer hears of the run"
+    );
+}

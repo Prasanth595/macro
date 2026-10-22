@@ -276,11 +276,14 @@ pub trait NotionWorkspaceImporter: Send + Sync + 'static {
         user: &MacroUserIdStr<'static>,
     ) -> impl Future<Output = Result<NotionImportReport>> + Send;
 
-    /// Tie the staged plan to the review presenting it.
+    /// Tie the staged plan to the review presenting it in agent session
+    /// `session_id`, which then hears when the plan is ready and when its
+    /// write ends.
     fn attach_notion_review(
         &self,
         user: &MacroUserIdStr<'static>,
         review_id: Uuid,
+        session_id: agent_session::domain::model::AgentSessionId,
     ) -> impl Future<Output = Result<u64>> + Send;
 
     /// Write the plan tied to `review_id` with the owner's `choices`.

@@ -9,12 +9,14 @@ use crate::domain::models::{
     ScanCounts, TEAMMATE_STOPPED,
 };
 use crate::domain::ports::{ImportError, ImportRepo, Result};
+use agent_session::domain::notifications::NotificationWriter;
 use chrono::{DateTime, Utc};
 use macro_user_id::cowlike::CowLike;
 use macro_user_id::user_id::MacroUserIdStr;
-use sqlx::PgPool;
+use sqlx::{PgConnection, PgPool};
 use std::collections::HashSet;
 use std::str::FromStr;
+use std::sync::Arc;
 use uuid::Uuid;
 
 mod notion_run;
@@ -29,12 +31,27 @@ mod test;
 #[derive(Clone)]
 pub struct PgImportRepo {
     pool: PgPool,
+    notifications: Option<Arc<dyn NotificationWriter<PgConnection>>>,
 }
 
 impl PgImportRepo {
     /// Build the repository on the MacroDB pool.
     pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+        Self {
+            pool,
+            notifications: None,
+        }
+    }
+
+    /// Produce agent-session system events through `notifications`, in the
+    /// transactions that move a reviewed Notion run. Hosts that run Notion
+    /// workspace imports set it; without it, sessions are not told.
+    pub fn with_session_notifications(
+        mut self,
+        notifications: Arc<dyn NotificationWriter<PgConnection>>,
+    ) -> Self {
+        self.notifications = Some(notifications);
+        self
     }
 }
 
@@ -600,7 +617,8 @@ impl ImportRepo for PgImportRepo {
             ON CONFLICT (user_id, source) DO UPDATE
             SET status = 'running', error = NULL, updated_at = NOW(),
                 scanned_pages = NULL, scanned_data_sources = NULL,
-                lease_owner = NULL, lease_expires_at = NULL, adoptions = 0
+                lease_owner = NULL, lease_expires_at = NULL, adoptions = 0,
+                review_session_id = NULL
             WHERE import_run.status::text = ANY($3::text[])
             "#,
             user.as_ref(),

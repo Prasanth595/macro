@@ -297,19 +297,27 @@ where
     }
 
     /// Fail a run that cannot be resumed and send its rows back to staged.
+    /// A write given up on ends like any other, so its session hears of it.
     async fn give_up(&self, user: &MacroUserIdStr<'static>, status: RunStatus) {
         tracing::warn!("giving up on a stalled notion import");
-        if let Err(error) = self
-            .repo
-            .transition_run(
-                user,
-                ImportSource::Notion,
-                &[status],
-                RunStatus::Failed,
-                Some(IMPORT_STOPPED),
-            )
-            .await
-        {
+        let failed = match status {
+            RunStatus::Importing => {
+                self.end_write(user, RunStatus::Failed, Some(IMPORT_STOPPED))
+                    .await
+            }
+            _ => {
+                self.repo
+                    .transition_run(
+                        user,
+                        ImportSource::Notion,
+                        &[status],
+                        RunStatus::Failed,
+                        Some(IMPORT_STOPPED),
+                    )
+                    .await
+            }
+        };
+        if let Err(error) = failed {
             tracing::warn!(error = ?error, "could not fail the stalled notion import");
         }
         let _ = self.repo.settle_importing(user, IMPORT_STOPPED).await;

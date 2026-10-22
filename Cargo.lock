@@ -10492,6 +10492,8 @@ name = "import"
 version = "0.1.0"
 dependencies = [
  "agent",
+ "agent_runtime_protocol",
+ "agent_session",
  "ai_billing",
  "ai_toolset",
  "ai_usage",

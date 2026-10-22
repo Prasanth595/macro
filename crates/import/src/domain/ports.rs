@@ -3,9 +3,11 @@
 use super::models::{
     AdoptedRun, ImportEntity, ImportKind, ImportRun, ImportSource, ImportSourceBinding,
     ImportStatus, ImportTargetKey, ImportTargetKind, ImportTargetReservation, Initiator, NotionJob,
-    RunStatus, ScanCounts, SlackConversationId, SlackConversationPage, SlackMemberPage,
-    SlackUserPage, SlackWorkspaceId, TeamClaim, WrittenObject,
+    ReviewedRun, RunStatus, ScanCounts, SlackConversationId, SlackConversationPage,
+    SlackMemberPage, SlackUserPage, SlackWorkspaceId, TeamClaim, WrittenObject,
 };
+use agent_session::domain::model::AgentSessionId;
+use agent_session::domain::notifications::PendingNotification;
 use import_notion::domain::model::NotionId;
 use macro_user_id::user_id::MacroUserIdStr;
 use std::collections::HashMap;
@@ -727,14 +729,17 @@ pub trait NotionPlanRepo: Send + Sync + 'static {
         holder: Uuid,
     ) -> impl Future<Output = Result<bool>> + Send;
 
-    /// Tie the current plan to `review_id`: its staged rows, and the run
-    /// while it is still planning (`running`), so rows staged later are
-    /// tied too. Returns how many rows it tied.
+    /// Tie the current plan to `review_id`, presented in `session_id`: its
+    /// staged rows, and the run while it is still planning (`running`), so
+    /// rows staged later are tied too. The first review presenting a plan
+    /// keeps its session, which hears when the plan is ready and when its
+    /// write ends. Returns how many rows it tied.
     fn attach_review(
         &self,
         user: &MacroUserIdStr<'static>,
         source: ImportSource,
         review_id: Uuid,
+        session_id: AgentSessionId,
     ) -> impl Future<Output = Result<u64>> + Send;
 
     /// Move `user`'s run for `source` to `to` when it is in one of `from`,
@@ -806,6 +811,23 @@ pub trait NotionRunRepo: Send + Sync + 'static {
         stale_after: Duration,
         limit: u16,
     ) -> impl Future<Output = Result<Vec<AdoptedRun>>> + Send;
+
+    /// Move the user's Notion run to `to` with `error` when it is in one of
+    /// `from`, dropping any lease on it; a run cancelled meanwhile stays
+    /// `dismissed` with its own error. In the same transaction, produce the
+    /// system event `event` makes of the moved run, so the session presenting
+    /// its review hears of the change exactly when it happens. Returns the
+    /// moved run, or `None` when it was in none of `from`.
+    fn transition_reviewed_run<Event>(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        from: &[RunStatus],
+        to: RunStatus,
+        error: Option<&str>,
+        event: Event,
+    ) -> impl Future<Output = Result<Option<ReviewedRun>>> + Send
+    where
+        Event: FnOnce(&ReviewedRun) -> Option<PendingNotification> + Send;
 
     /// The user's "Notion" folder, once an import has made one.
     fn root_folder(

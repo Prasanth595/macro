@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 
+use agent_session::domain::model::AgentSessionId;
 use macro_user_id::user_id::MacroUserIdStr;
 use uuid::Uuid;
 
@@ -158,18 +159,23 @@ impl NotionPlanRepo for PgImportRepo {
         user: &MacroUserIdStr<'static>,
         source: ImportSource,
         review_id: Uuid,
+        session_id: AgentSessionId,
     ) -> Result<u64> {
         let mut transaction = self.pool.begin().await?;
         // First, so a plan being staged right now finishes before the rows
         // are tied (it holds the run), or stages them with this review.
         sqlx::query!(
             r#"
-            UPDATE import_run SET review_id = $3
-            WHERE user_id = $1 AND source = $2 AND status = 'running'
+            UPDATE import_run
+            SET review_id = CASE WHEN status = 'running' THEN $3 ELSE review_id END,
+                review_session_id = CASE WHEN status = 'running' THEN $4
+                                         ELSE COALESCE(review_session_id, $4) END
+            WHERE user_id = $1 AND source = $2 AND status IN ('running', 'ready')
             "#,
             user.as_ref(),
             source.as_ref(),
             review_id,
+            session_id.as_uuid(),
         )
         .execute(&mut *transaction)
         .await?;

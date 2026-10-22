@@ -5,6 +5,8 @@ publish = false
 version = "0.1.0"
 
 [dependencies]
+agent_runtime_protocol = { path = "../agent_runtime_protocol", default-features = false }
+agent_session = { path = "../agent_session", default-features = false }
 ai_billing = { path = "../ai_billing" }
 rootcause = { workspace = true }
 agent = { path = "../agent" }

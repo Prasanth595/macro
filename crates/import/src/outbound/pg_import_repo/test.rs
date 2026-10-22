@@ -1022,9 +1022,14 @@ async fn a_review_ties_only_the_staged_plan_and_runs_move_only_from_the_given_st
     .unwrap();
 
     assert_eq!(
-        repo.attach_review(&actor, ImportSource::Notion, review)
-            .await
-            .unwrap(),
+        repo.attach_review(
+            &actor,
+            ImportSource::Notion,
+            review,
+            agent_session::domain::model::AgentSessionId::new_from_uuid(session),
+        )
+        .await
+        .unwrap(),
         1
     );
     let tied = repo.get(&actor, staged[0].id).await.unwrap().unwrap();

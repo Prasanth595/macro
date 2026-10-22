@@ -12,6 +12,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+use agent_session::domain::model::AgentSessionId;
 use futures::{FutureExt, StreamExt, stream};
 use import_notion::domain::inventory::{all_users, inventory};
 use import_notion::domain::model::{
@@ -36,6 +37,7 @@ use mcp_select::ConnectorSelect;
 use object::{Outcome, Target};
 use run::{IMPORT_STOPPED, JobControl, Stop, WriteSet};
 
+mod events;
 mod object;
 mod plan;
 mod report;
@@ -215,29 +217,18 @@ where
         if let Err(error) = self.repo.settle_importing(user, IMPORT_STOPPED).await {
             tracing::warn!(error = ?error, "could not settle stopped notion rows");
         }
-        let run = self
-            .repo
-            .list_runs(user)
-            .await?
-            .into_iter()
-            .find(|run| run.source == ImportSource::Notion);
-        let rows = self
-            .repo
-            .list(user, Some(ImportSource::Notion), None)
-            .await?;
-        let mut report = report(run.as_ref(), &rows);
-        report.on_team = self.repo.user_team_id(user).await?.is_some();
-        Ok(report)
+        self.current_report(user).await
     }
 
     async fn attach_notion_review(
         &self,
         user: &MacroUserIdStr<'static>,
         review_id: Uuid,
+        session_id: AgentSessionId,
     ) -> Result<u64> {
         let attached = self
             .repo
-            .attach_review(user, ImportSource::Notion, review_id)
+            .attach_review(user, ImportSource::Notion, review_id, session_id)
             .await?;
         self.notify(user).await;
         Ok(attached)
@@ -432,17 +423,7 @@ where
                 }
             };
             // A cancelled run is `dismissed` already, so this moves nothing.
-            if let Err(error) = self
-                .repo
-                .transition_run(
-                    user,
-                    ImportSource::Notion,
-                    &[RunStatus::Running],
-                    to,
-                    error.as_deref(),
-                )
-                .await
-            {
+            if let Err(error) = self.end_plan(user, to, error.as_deref()).await {
                 tracing::warn!(error = ?error, "could not record the notion planning outcome");
             }
             self.notify(user).await;
@@ -629,17 +610,7 @@ where
                     .await;
             }
         }
-        if let Err(error) = self
-            .repo
-            .transition_run(
-                user,
-                ImportSource::Notion,
-                &[RunStatus::Importing],
-                to,
-                error.as_deref(),
-            )
-            .await
-        {
+        if let Err(error) = self.end_write(user, to, error.as_deref()).await {
             tracing::warn!(error = ?error, "could not record the notion write outcome");
         }
         self.notify(user).await;

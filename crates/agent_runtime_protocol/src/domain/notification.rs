@@ -67,7 +67,8 @@ pub struct ReviewOutcome {
     pub items: Vec<ReviewItemOutcome>,
 }
 
-/// How the work a review decision started ended.
+/// How the work a review decision started ended. Untagged so settlements
+/// stored before imports existed, bare [`ReviewOutcome`]s, still read.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ReviewSettlement {
