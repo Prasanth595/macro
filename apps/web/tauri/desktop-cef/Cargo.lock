@@ -277,6 +277,7 @@ dependencies = [
  "objc2 0.6.5",
  "objc2-foundation",
  "objc2-intents",
+ "objc2-ui-kit",
  "objc2-user-notifications",
  "reqwest",
  "rootcause",
@@ -822,6 +823,7 @@ dependencies = [
  "chrono",
  "lru",
  "maybe_send",
+ "miniz_oxide 0.8.9",
  "postcard",
  "predicate-index",
  "serde",
@@ -4113,6 +4115,7 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+ "uuid",
  "zip 6.0.0",
 ]
 
