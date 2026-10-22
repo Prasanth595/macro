@@ -19,8 +19,8 @@ use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
 use uuid::Uuid;
 
+use super::super::notion_workspace::{CANCEL_CHECK_EVERY, write};
 use super::super::{AbortOnDrop, IMPORT_HEARTBEAT, ImportServiceImpl};
-use super::{CANCEL_CHECK_EVERY, write};
 use crate::domain::models::{
     AdoptedRun, ImportSource, ImportStatus, NotionDecision, NotionJob, RunStatus,
 };
@@ -33,7 +33,8 @@ use crate::domain::ports::{
 mod test;
 
 /// How long a run stays held without a heartbeat: three missed beats.
-pub(super) const LEASE: Duration = Duration::from_secs(IMPORT_HEARTBEAT.as_secs() * 3);
+pub(in crate::domain::service) const LEASE: Duration =
+    Duration::from_secs(IMPORT_HEARTBEAT.as_secs() * 3);
 /// How long a run nobody leased (started by code that predates leases) may
 /// go untouched before it is adopted.
 const STALE_UNLEASED: Duration = Duration::from_secs(LEASE.as_secs() * 3);
@@ -45,13 +46,13 @@ const ADOPT_PER_SWEEP: u16 = 10;
 /// process would otherwise restart forever.
 const MAX_ADOPTIONS: u16 = 5;
 /// What a run given up on, or a write row left behind, says.
-pub(super) const IMPORT_STOPPED: &str =
-    "The Notion import stopped before it finished. Start it again to pick up what is left.";
+pub(in crate::domain::service) const IMPORT_STOPPED: &str =
+    "The workspace import stopped before it finished. Start it again to pick up what is left.";
 
 /// Why a job stopped before finishing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::AsRefStr)]
 #[strum(serialize_all = "snake_case")]
-pub(super) enum Stop {
+pub(in crate::domain::service) enum Stop {
     /// The user cancelled the import.
     Cancelled,
     /// This process is shutting down; the run was handed over.
@@ -61,7 +62,7 @@ pub(super) enum Stop {
 }
 
 /// A running job's view of its run: whether, and why, it must stop.
-pub(super) struct JobControl {
+pub(in crate::domain::service) struct JobControl {
     reason: OnceLock<Stop>,
     shutdown: CancellationToken,
     stopped: CancellationToken,
@@ -111,7 +112,7 @@ impl JobControl {
 /// A Notion write to resume or start: every object of the plan, for the
 /// folder tree and links, and those still to write.
 #[derive(Debug, Clone, Default)]
-pub(super) struct WriteSet {
+pub(in crate::domain::service) struct WriteSet {
     /// The review that approved the plan.
     pub review_id: Uuid,
     /// Every planned object being written, done or not.
@@ -129,7 +130,7 @@ where
     N: NotionConnections,
 {
     /// Hold the user's run for this process, recording `job` on it.
-    pub(super) async fn take_run(
+    pub(in crate::domain::service) async fn take_run(
         &self,
         user: &MacroUserIdStr<'static>,
         job: &NotionJob,
@@ -141,7 +142,7 @@ where
 
     /// Watch the held run for as long as the returned guard lives: renew the
     /// lease, notice a cancel within seconds, and stop on shutdown.
-    pub(super) fn hold_run(
+    pub(in crate::domain::service) fn hold_run(
         &self,
         user: &MacroUserIdStr<'static>,
     ) -> (Arc<JobControl>, AbortOnDrop) {
@@ -195,7 +196,7 @@ where
     }
 
     /// Give the run up so another process adopts it straight away.
-    pub(super) async fn release_run(&self, user: &MacroUserIdStr<'static>) {
+    pub(in crate::domain::service) async fn release_run(&self, user: &MacroUserIdStr<'static>) {
         match self.repo.release_lease(user, self.jobs.instance).await {
             Ok(released) => tracing::info!(released, "notion import handed over"),
             Err(error) => tracing::warn!(error = ?error, "notion import lease was not released"),
@@ -205,7 +206,10 @@ where
     /// Adopt and resume the stalled Notion runs, only `user`'s when given.
     /// Best-effort: a failure is logged and adopts nothing. Returns how many
     /// runs were adopted.
-    pub(super) async fn adopt_stalled(&self, user: Option<&MacroUserIdStr<'static>>) -> usize {
+    pub(in crate::domain::service) async fn adopt_stalled(
+        &self,
+        user: Option<&MacroUserIdStr<'static>>,
+    ) -> usize {
         let limit = if user.is_some() { 1 } else { ADOPT_PER_SWEEP };
         let adopted = match self
             .repo
@@ -234,7 +238,12 @@ where
                 () = shutdown.cancelled() => return,
                 _ = sweep.tick() => {
                     let span = tracing::info_span!("notion_import.sweep", adopted = tracing::field::Empty);
-                    let adopted = self.adopt_stalled(None).instrument(span.clone()).await;
+                    let mut adopted = self.adopt_stalled(None).instrument(span.clone()).await;
+                    for source in [ImportSource::Linear, ImportSource::Jira] {
+                        if self.trackers.contains_key(&source) {
+                            adopted += self.scoped(source).adopt_stalled(None).instrument(span.clone()).await;
+                        }
+                    }
                     span.record("adopted", adopted);
                 }
             }
@@ -246,7 +255,7 @@ where
     /// review, which reads the report, which adopts.
     fn resume(&self, run: AdoptedRun) -> futures::future::BoxFuture<'_, ()> {
         let job = match &run.job {
-            Some(NotionJob::Plan { .. }) => "plan",
+            Some(NotionJob::Plan { .. } | NotionJob::TrackerPlan { .. }) => "plan",
             Some(NotionJob::Write { .. }) => "write",
             None => "none",
         };
@@ -263,6 +272,10 @@ where
         let user = run.user.clone();
         async move {
             match run.job {
+                Some(NotionJob::TrackerPlan { sharing }) if run.adoptions <= MAX_ADOPTIONS => {
+                    let service = self.clone();
+                    self.jobs.tracker.spawn(async move { service.plan_workspace(&user, import_notion::domain::model::ImportScope::Everything, sharing).await }.in_current_span());
+                }
                 Some(NotionJob::Plan { scope, sharing }) if run.adoptions <= MAX_ADOPTIONS => {
                     let service = self.clone();
                     self.jobs.tracker.spawn(
@@ -309,7 +322,7 @@ where
                 self.repo
                     .transition_run(
                         user,
-                        ImportSource::Notion,
+                        self.workspace_source,
                         &[status],
                         RunStatus::Failed,
                         Some(IMPORT_STOPPED),
@@ -326,14 +339,20 @@ where
 
     /// The write for `review_id` as the ledger has it: the plan's copied
     /// objects, and those still `importing`.
-    async fn resumable_write(
+    pub(in crate::domain::service) async fn resumable_write(
         &self,
         user: &MacroUserIdStr<'static>,
         review_id: Uuid,
     ) -> Result<WriteSet> {
+        if self.workspace_source != ImportSource::Notion {
+            return Ok(WriteSet {
+                review_id,
+                ..WriteSet::default()
+            });
+        }
         let rows = self
             .repo
-            .list(user, Some(ImportSource::Notion), None)
+            .list(user, Some(self.workspace_source), None)
             .await?;
         let mut set = WriteSet {
             review_id,

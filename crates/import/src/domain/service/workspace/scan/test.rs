@@ -156,7 +156,10 @@ async fn scan_counts_are_written_at_most_every_two_seconds_and_once_at_the_end()
         drop(counts);
         second_at
     };
-    let (second_at, ()) = tokio::join!(walk, record_scan(&repo, &user, scanned));
+    let (second_at, ()) = tokio::join!(
+        walk,
+        record_scan(&repo, &user, scanned, ImportSource::Notion)
+    );
 
     let (last_at, last) = written.recv().await.unwrap();
     assert_eq!(

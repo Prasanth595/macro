@@ -81,8 +81,8 @@ pub struct PipedreamLinearConnections<Store, Proxy>(Connections<Store, Proxy>);
 
 impl<Store: ConnectionStore, Proxy: ConnectedAppProxy> PipedreamLinearConnections<Store, Proxy> {
     /// One account budget is shared by concurrent imports. One request per
-    /// second stays below the OAuth hourly budget; complexity is kept small by
-    /// fetching comments and labels independently, 50 nodes at a time.
+    /// second stays below the OAuth hourly budget; issues include only the
+    /// first ten comments and labels, with remaining pages fetched separately.
     pub fn new(store: Arc<Store>, proxy: Option<Arc<Proxy>>) -> Self {
         Self(Connections::new(
             store,

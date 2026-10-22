@@ -24,6 +24,8 @@ local_queue = []
 
 
 [dependencies]
+import_linear = { path = "../../crates/import_linear" }
+import_jira = { path = "../../crates/import_jira" }
 agent = { path = "../../crates/agent", features = ["debug-messages"] }
 ai_projections = { path = "../../crates/ai_projections", features = ["agent"] }
 ai_billing = { path = "../../crates/ai_billing" }

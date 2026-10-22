@@ -530,6 +530,7 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
                         properties_service.clone(),
                     ),
                 team_repository: ai_tools::build_team_repository(db.clone()),
+                initiative_service: initiative_tool_context.service.clone(),
                 project_service: project_tool_context.service.clone(),
                 databases_service: databases_tool_context.service.clone(),
                 document_service: document_tool_context.service.clone(),
@@ -539,9 +540,23 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         .with_slack_source(Arc::new(
             import::outbound::mcp_slack_source::McpSlackSource::new(mcp_selector),
         ))
+        .with_tracker_connections(
+            Arc::new(
+                import_linear::outbound::client::PipedreamLinearConnections::new(
+                    pipedream_connections.clone(),
+                    pipedream_client.clone(),
+                ),
+            ),
+            Arc::new(
+                import_jira::outbound::client::PipedreamJiraConnections::new(
+                    pipedream_connections.clone(),
+                    pipedream_client.clone(),
+                ),
+            ),
+        )
         .with_notion_connections(Arc::new(
             import_notion::outbound::pipedream::PipedreamNotionConnections::new(
-                pipedream_connections,
+                pipedream_connections.clone(),
                 pipedream_client.clone(),
             ),
         ))

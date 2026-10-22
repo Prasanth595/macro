@@ -5,7 +5,7 @@ use macro_user_id::user_id::MacroUserIdStr;
 use tokio::sync::watch;
 use tokio::time::Instant;
 
-use super::NOTIFY_EVERY;
+use super::super::notion_workspace::NOTIFY_EVERY;
 use crate::domain::models::{ImportSource, ScanCounts};
 use crate::domain::ports::NotionPlanRepo;
 
@@ -15,10 +15,11 @@ mod test;
 /// Write the newest counts from `counts` to the run, at most every
 /// [`NOTIFY_EVERY`], and the last ones as soon as the sender is dropped.
 /// Returns once the sender is gone and everything sent is written.
-pub(super) async fn record_scan<R: NotionPlanRepo>(
+pub(in crate::domain::service) async fn record_scan<R: NotionPlanRepo>(
     repo: &R,
     user: &MacroUserIdStr<'static>,
     mut counts: watch::Receiver<ScanCounts>,
+    source: ImportSource,
 ) {
     let mut unwritten = false;
     let mut next_write = Instant::now();
@@ -30,7 +31,7 @@ pub(super) async fn record_scan<R: NotionPlanRepo>(
             },
             () = tokio::time::sleep_until(next_write), if unwritten => {
                 let latest = *counts.borrow();
-                write(repo, user, latest).await;
+                write(repo, user, latest, source).await;
                 unwritten = false;
                 next_write = Instant::now() + NOTIFY_EVERY;
             }
@@ -38,12 +39,17 @@ pub(super) async fn record_scan<R: NotionPlanRepo>(
     }
     if unwritten {
         let latest = *counts.borrow();
-        write(repo, user, latest).await;
+        write(repo, user, latest, source).await;
     }
 }
 
-async fn write<R: NotionPlanRepo>(repo: &R, user: &MacroUserIdStr<'static>, scanned: ScanCounts) {
-    if let Err(error) = repo.record_scan(user, ImportSource::Notion, scanned).await {
+async fn write<R: NotionPlanRepo>(
+    repo: &R,
+    user: &MacroUserIdStr<'static>,
+    scanned: ScanCounts,
+    source: ImportSource,
+) {
+    if let Err(error) = repo.record_scan(user, source, scanned).await {
         tracing::warn!(error = ?error, "could not record the notion scan progress");
     }
 }

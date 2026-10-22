@@ -14,6 +14,8 @@ name = "mcp_service_doppler_config"
 path = "src/doppler_config.rs"
 
 [dependencies]
+import_linear = { path = "../../crates/import_linear" }
+import_jira = { path = "../../crates/import_jira" }
 ai_billing = { path = "../../crates/ai_billing", features = ["pg-admission"] }
 roles_and_permissions = { path = "../../crates/roles_and_permissions", default-features = false, features = ["outbound"] }
 teams = { path = "../../crates/teams", default-features = false, features = ["outbound"] }

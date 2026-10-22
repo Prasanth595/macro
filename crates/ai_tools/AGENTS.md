@@ -75,3 +75,8 @@ execution, display) that don't belong to a single domain.
 ## Related
 
 - Rules: `.agents/rules/rust/architecture.md` · Skill: `create-ai-tool`
+
+Reviewed Linear/Jira imports also register read-only tracker connections in every
+host. `src/import_trackers.rs` creates stable-id tasks via ordinary markdown and
+projects via `InitiativeServiceImpl::create_imported`, with Macro AI attribution;
+project, parent and label writes pass through the owning property services.

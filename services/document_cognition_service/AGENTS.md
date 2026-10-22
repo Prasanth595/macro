@@ -61,3 +61,7 @@ completion, citations, and chat/attachment management.
 
 - Skills: `debug-service`, `live-debug` · Rules: `.agents/rules/rust/db.md`,
   `.agents/rules/observability.md`
+
+The import composition registers Notion, Linear and Jira read-only Pipedream
+readers. Authenticated `/import/workspaces/{source}` report and `/cancel` routes
+serve the shared review card; `/import/notion` remains available to existing clients.

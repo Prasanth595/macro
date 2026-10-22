@@ -41,10 +41,10 @@ sessions: agent-session trigger events in, sandboxed coding agent sessions
 ## Tool contracts
 
 - Internal session tools require a verified acting user plus owner/edit authorization. Keep their restricted prompt/stop route separate from human approval controls.
-- An import review's draft is `{source, excluded, shared, personal}`: the rows the owner left out and the rows whose sharing they flipped, passed to `start_notion_write` as `NotionWriteChoices`.
-- The harness hands running Notion imports over on shutdown (`ai_tools::ImportJobs::hand_over`), as every host that builds the import service does.
+- An import review's one draft is `{source, excluded, shared, personal}` (`source` is `notion`, `linear`, or `jira`): the rows the owner left out and the rows whose sharing they flipped, passed to `start_workspace_write` as `NotionWriteChoices`.
+- The harness hands running workspace imports over on shutdown (`ai_tools::ImportJobs::hand_over`), as every host that builds the import service does.
 - `ApproveReview` lets the agent approve a presented review after the owner says yes in chat: `Actions::session` reports the turn's prompter from `agent_session.turn_prompter`, and `approvable` refuses an import whose plan is not `ready` for that review.
-- Presenting an import review ties its plan to the review and the session (`attach_notion_review`); the import then produces `import.planned` and `review.settled` for that session itself, in the run's transaction (`crates/import`).
+- Presenting an import review ties its plan to the review and the session (`attach_workspace_review`); the import then produces `import.planned` and `review.settled` for that session itself, in the run's transaction (`crates/import`).
 - The owner connecting an app a session asked for produces an `app.connected` event (`agent_harness::domain::app_connections`).
 
 The composition root wires `PgExternalReplyStore` into the harness and recovers

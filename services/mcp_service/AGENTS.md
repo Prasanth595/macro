@@ -69,3 +69,6 @@ FusionAuth.
 ## Related
 
 - Skill: `create-ai-tool`, `new-service` · `services/mcp_auth_proxy/AGENTS.md`
+
+MCP hosts register the same read-only Notion, Linear and Jira workspace readers
+as chat hosts. Workspace tools stage reviewed plans; they never write upstream.

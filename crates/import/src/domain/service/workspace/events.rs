@@ -18,10 +18,8 @@ use mcp_select::ConnectorSelect;
 use uuid::Uuid;
 
 use super::super::ImportServiceImpl;
-use super::report;
-use crate::domain::models::{
-    ImportSource, NotionImportReport, NotionReportItem, ReviewedRun, RunStatus,
-};
+use super::super::notion_workspace::report;
+use crate::domain::models::{NotionImportReport, NotionReportItem, ReviewedRun, RunStatus};
 use crate::domain::ports::{
     CanonicalImportRepo, EntityCreator, ImportRepo, NotionPlanRepo, NotionRunRepo, Result,
     SlackWorkspaceSource, WorkspaceWriter, WrittenObjects,
@@ -41,7 +39,7 @@ where
     /// End the user's write: move the run from `importing` to `to` (a
     /// cancelled run stays `dismissed`) and tell the session presenting its
     /// review how it went. Returns whether the run moved.
-    pub(super) async fn end_write(
+    pub(in crate::domain::service) async fn end_write(
         &self,
         user: &MacroUserIdStr<'static>,
         to: RunStatus,
@@ -79,7 +77,7 @@ where
     /// Finish planning: move the run from `running` to `to` and, once the
     /// plan is ready, tell the session presenting its review. Returns
     /// whether the run moved.
-    pub(super) async fn end_plan(
+    pub(in crate::domain::service) async fn end_plan(
         &self,
         user: &MacroUserIdStr<'static>,
         to: RunStatus,
@@ -107,7 +105,7 @@ where
 
     /// The report on the user's current plan as the ledger has it now,
     /// without adopting or settling anything.
-    pub(super) async fn current_report(
+    pub(in crate::domain::service) async fn current_report(
         &self,
         user: &MacroUserIdStr<'static>,
     ) -> Result<NotionImportReport> {
@@ -116,10 +114,10 @@ where
             .list_runs(user)
             .await?
             .into_iter()
-            .find(|run| run.source == ImportSource::Notion);
+            .find(|run| run.source == self.workspace_source);
         let rows = self
             .repo
-            .list(user, Some(ImportSource::Notion), None)
+            .list(user, Some(self.workspace_source), None)
             .await?;
         let mut report = report(run.as_ref(), &rows);
         report.on_team = self.repo.user_team_id(user).await?.is_some();
