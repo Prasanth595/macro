@@ -61,6 +61,35 @@ pub struct CalendarEventExport {
     pub updated_at: DateTime<Utc>,
 }
 
+impl CalendarEventExport {
+    /// The description and location without the Macro call join link
+    /// [`attach_macro_call`](super::meeting_links::attach_macro_call) wrote
+    /// into them, the way a copy of the meeting carries them: it shares the
+    /// meeting, not a way into its call. A description holding the link is
+    /// reduced to plain text to take its join line out; one without it is
+    /// left as written.
+    pub fn without_macro_call(&self) -> (Option<String>, Option<String>) {
+        let Some(url) = first_macro_call_url(self.location.as_deref(), self.description.as_deref())
+        else {
+            return (self.description.clone(), self.location.clone());
+        };
+        let description = self
+            .description
+            .as_deref()
+            .and_then(plain_text)
+            .unwrap_or_default();
+        let (description, location) = strip_macro_call(
+            &description,
+            self.location.as_deref().unwrap_or_default(),
+            &url,
+        );
+        (
+            (!description.is_empty()).then_some(description),
+            (!location.is_empty()).then_some(location),
+        )
+    }
+}
+
 /// One event rendered as an iCalendar document.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CalendarEventIcs {

@@ -51,6 +51,39 @@ async fn copy_imports_a_channel_shared_event_onto_the_requesters_calendar() {
 }
 
 #[tokio::test]
+async fn copy_leaves_the_meetings_macro_call_out() {
+    let call = "https://macro.com/app/meet/join/0123456789abcdef0123456789abcdef";
+    let (description, location) = crate::domain::meeting_links::attach_macro_call(
+        Some("<p>Bring the budget draft</p>"),
+        None,
+        call,
+    );
+    let repo = FakeRepo {
+        export: Some(CalendarEventExport {
+            description: Some(description),
+            location: Some(location),
+            ..export(CalendarEventExportAccess::ChannelShared)
+        }),
+        ..shared_repo()
+    };
+    let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+    let imported = provider.imported.clone();
+
+    service(repo, provider, FakeTokens::ok())
+        .copy_shared_event("macro|user", Uuid::now_v7(), None)
+        .await
+        .unwrap();
+
+    let imported = imported.lock().unwrap();
+    let source = &imported[0].1;
+    assert_eq!(
+        source.description.as_deref(),
+        Some("Bring the budget draft")
+    );
+    assert_eq!(source.location, None);
+}
+
+#[tokio::test]
 async fn copy_refuses_before_the_provider_when_the_event_cannot_be_copied() {
     let out_of_office = CalendarEventExport {
         event_type: EventType::OutOfOffice,
