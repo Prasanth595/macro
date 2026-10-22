@@ -98,10 +98,9 @@ export function PreviewFrame(props: PreviewFrameProps) {
       onPointerDown={() => setInteractedWith(true)}
       tabIndex={-1}
     >
-      <div
+      <ViewShell.TopBar
         ref={headerCollapseController.setRow}
-        class="@container/split-header relative flex h-12 w-full min-w-0 items-center gap-1 px-2 py-0 not-touch:pl-3 touch:flex touch:hidden"
-        data-preview-panel-header=""
+        class="relative w-full py-0 touch:flex"
       >
         <Show when={props.headerLeading}>
           <div class="flex shrink-0 items-center">{props.headerLeading}</div>
@@ -125,7 +124,7 @@ export function PreviewFrame(props: PreviewFrameProps) {
             scopedLayoutRefs.headerRight = ref;
           }}
         />
-      </div>
+      </ViewShell.TopBar>
       <div
         ref={toolbarCollapseController.setRow}
         class="relative flex min-h-0 w-full shrink-0 items-center justify-between px-2"
