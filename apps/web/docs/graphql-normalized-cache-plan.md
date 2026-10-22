@@ -374,6 +374,12 @@ the engine directly from its multi-threaded runtime, and unbounded on wasm.
   - Watched queries update when another query writes the field. Network
     results never contain it; the exchange's watched read after the write puts
     the cached value into the live view, so read an absent field as null.
+  - An engine built before the directive (a native app's, which ships with
+    the app while its web bundle updates on its own, or a stale dev wasm)
+    rejects such documents. `withFromCacheFallback` wraps every host: after the
+    first rejection it removes `@fromCache` fields before the engine sees
+    them, keeping `@cacheOnly`, so that engine caches the rest of the query
+    and the field reads as absent.
   - Codegen rejects the directive on non-null fields. Native engines older than
     the one that added it reject documents that use it.
 - On teardown: unregister operation (unpins dependencies).

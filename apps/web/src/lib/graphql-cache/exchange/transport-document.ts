@@ -29,6 +29,21 @@ export function hasClientDirectives(query: string): boolean {
  * fragments and variables that only removed fields used are dropped.
  */
 export function transportDocument(document: DocumentNode): DocumentNode {
+  return removeFromCacheFields(document, { stripCacheOnly: true });
+}
+
+/**
+ * The document for a cache engine built before `@fromCache`: its fields are
+ * removed as for the server, and `@cacheOnly` is kept.
+ */
+export function withoutFromCacheFields(document: DocumentNode): DocumentNode {
+  return removeFromCacheFields(document, { stripCacheOnly: false });
+}
+
+function removeFromCacheFields(
+  document: DocumentNode,
+  options: { stripCacheOnly: boolean }
+): DocumentNode {
   let removedFields = false;
   const stripped = visit(document, {
     Field(node) {
@@ -38,7 +53,9 @@ export function transportDocument(document: DocumentNode): DocumentNode {
       return null;
     },
     Directive(node) {
-      return node.name.value === 'cacheOnly' ? null : undefined;
+      return options.stripCacheOnly && node.name.value === 'cacheOnly'
+        ? null
+        : undefined;
     },
     SelectionSet: {
       leave(node) {

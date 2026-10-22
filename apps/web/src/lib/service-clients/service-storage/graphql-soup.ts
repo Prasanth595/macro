@@ -21,6 +21,7 @@ import {
   hasClientDirectives,
   transportDocument,
 } from '@graphql-cache/exchange/transport-document';
+import { withFromCacheFallback } from '@graphql-cache/host/from-cache-fallback';
 import { CacheNavigationError } from '@graphql-cache/host/navigation-error';
 import { createRetirableCacheHost } from '@graphql-cache/host/retirable-host';
 import { NativeCacheUpgradeRequiredError } from '@graphql-cache/host/tauri-host';
@@ -651,15 +652,18 @@ export function getGraphqlSoupClient(): Client {
     try {
       const scope = getOrCreateCacheScope();
       host = createRetirableCacheHost(
-        native
-          ? createTauriCacheHost({ scope, onInitializationError })
-          : createWorkerCacheHost({
-              scope,
-              onInitializationError,
-              rolloutCohort: rollout.cohort,
-              // A newer deploy took the local cache over: move to it.
-              onSuperseded: () => reloadForNewerBuild(),
-            })
+        // A native engine ships with its app, so it can predate `@fromCache`.
+        withFromCacheFallback(
+          native
+            ? createTauriCacheHost({ scope, onInitializationError })
+            : createWorkerCacheHost({
+                scope,
+                onInitializationError,
+                rolloutCohort: rollout.cohort,
+                // A newer deploy took the local cache over: move to it.
+                onSuperseded: () => reloadForNewerBuild(),
+              })
+        )
       );
       const graphqlWsClient = createGraphqlSoupWebSocketClient(
         subscriptionsLifecycle.connected
