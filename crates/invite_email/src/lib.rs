@@ -291,6 +291,10 @@ pub struct InviteToTeamMetadata {
     /// What the invitee gets by joining, as the team stood when the invite was sent.
     #[serde(default, alias = "invitee_plan")]
     pub invitee_plan: InviteePlan,
+
+    /// Whether this email reminds the invitee of an invite they have not answered.
+    #[serde(default)]
+    pub reminder: bool,
 }
 
 /// What a team invitee gets by joining.
@@ -343,7 +347,8 @@ impl NotificationExtEmail for InviteToTeamMetadata {
     fn format_email(&self) -> EmailContent {
         EmailContent {
             subject: format!(
-                "{} invited you to join {} on Macro",
+                "{}{} invited you to join {} on Macro",
+                if self.reminder { "Reminder: " } else { "" },
                 self.inviter(),
                 self.team_name
             ),
