@@ -120,10 +120,9 @@ async fn remove_link(
     let Some(link) = find_idp_link(links, linked_email) else {
         // the link is already gone; treat removal as an idempotent no-op so retries don't wedge
         tracing::warn!(
-            "no {} link found for user id {} and email {}; treating remove as no-op",
+            "no {} link found for user id {}; treating remove as no-op",
             idp_name,
-            fusionauth_user_id,
-            linked_email
+            fusionauth_user_id
         );
         return Ok((StatusCode::OK, Json(EmptyResponse::default())).into_response());
     };
