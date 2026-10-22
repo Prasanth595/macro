@@ -1161,6 +1161,7 @@ export type ExecutionId = string;
  * The full journal is not included in the model's tool result.
  */
 export type ExecutionRecord = {
+    actingAs?: null | ToolActor;
     /**
      * Advisory SDK operation activity, without arguments or response contents.
      */
@@ -1193,6 +1194,10 @@ export type ExecutionRecord = {
      * Overall execution state.
      */
     status: ExecutionStatus;
+    /**
+     * Original turn, preventing another requester from replaying a saved result.
+     */
+    turnId?: string | null;
 };
 
 /**
@@ -1634,11 +1639,11 @@ export type ReviewDecision = {
 };
 
 /**
- * Facts about the most recent owner decision.
+ * Facts about the most recent account-holder decision.
  */
 export type ReviewDecisionContext = {
     /**
-     * Authenticated owner.
+     * Authenticated account holder.
      */
     by: string;
     /**
@@ -1669,7 +1674,7 @@ export type ReviewItem = {
      */
     draft: unknown;
     /**
-     * Whether the owner edited this draft before deciding.
+     * Whether the account holder edited this draft before deciding.
      */
     edited?: boolean;
     /**
@@ -1704,6 +1709,10 @@ export type ReviewKind = 'email' | 'calendar';
  * Full UI record, fetched outside the model context.
  */
 export type ReviewRecord = {
+    /**
+     * Account whose email/calendar the drafts use; historical records use the session owner.
+     */
+    actingUser?: string | null;
     decision?: null | ReviewDecisionContext;
     executionId?: null | ExecutionId;
     /**
@@ -1905,6 +1914,11 @@ export type StatusResponse = {
      */
     ephemeral: boolean;
 };
+
+/**
+ * Which authenticated participant's access a tool call requests.
+ */
+export type ToolActor = 'requester' | 'owner';
 
 /**
  * How a person answers a held tool call.

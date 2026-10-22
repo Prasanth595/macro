@@ -208,7 +208,7 @@ pub trait ReviewStore: Send + Sync + 'static {
 
 /// Authoritative session facts used by review authorization and dispatch.
 pub struct ReviewSession {
-    /// User that owns actions initiated from this session.
+    /// Session owner, independent of the account saved on each review.
     pub owner: MacroUserIdStr<'static>,
     /// Archived sessions cannot start actions or new notification turns.
     pub archived: bool,

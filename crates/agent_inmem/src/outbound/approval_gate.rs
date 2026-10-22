@@ -1,8 +1,8 @@
 //! [`NativeToolGate`] over the egress proxy's approvals.
 //!
-//! The same rule and the same record as a sandbox's MCP calls: a turn
-//! somebody other than the owner prompted waits on the owner for each of
-//! Macro's own tools, and the hold shows in the session like any other.
+//! Native calls resolve their explicit account choice just like sandbox MCP
+//! tool calls. A choice that differs from the verified requester waits for
+//! owner approval, using the same session approval record.
 
 use std::pin::Pin;
 use std::sync::Arc;
@@ -23,7 +23,7 @@ mod test;
 const UNDECIDED: &str = "This tool did not run: whether it may run in this turn could not be \
     checked. Tell the person who asked, and do not try to do the same thing another way.";
 
-/// Holds native tool calls for the owner in turns somebody else prompted.
+/// Resolve native actors and hold calls that need owner approval.
 pub struct OwnerApprovalGate<Sessions, Store, Signals, Announcer> {
     sessions: Sessions,
     approvals: Arc<ToolApprovalService<Store, Signals, Announcer>>,
