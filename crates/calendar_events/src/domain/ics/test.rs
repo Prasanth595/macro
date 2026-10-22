@@ -139,7 +139,10 @@ fn a_macro_call_leaves_neither_its_join_line_nor_its_link_as_the_location() {
         lines.contains(&"DESCRIPTION:Bring the budget draft".to_string()),
         "{lines:?}"
     );
-    assert!(!lines.iter().any(|line| line.starts_with("LOCATION")), "{lines:?}");
+    assert!(
+        !lines.iter().any(|line| line.starts_with("LOCATION")),
+        "{lines:?}"
+    );
     assert!(!document.contains("/meet/join/"), "{lines:?}");
 }
 
@@ -153,7 +156,10 @@ fn a_macro_call_keeps_a_physical_location_and_drops_an_empty_description() {
     let lines = unfolded(&render_event_ics(&event));
 
     assert!(lines.contains(&"LOCATION:Room 4".to_string()), "{lines:?}");
-    assert!(!lines.iter().any(|line| line.starts_with("DESCRIPTION")), "{lines:?}");
+    assert!(
+        !lines.iter().any(|line| line.starts_with("DESCRIPTION")),
+        "{lines:?}"
+    );
 }
 
 #[test]

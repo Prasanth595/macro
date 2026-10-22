@@ -138,13 +138,14 @@ pub fn first_macro_call_url(location: Option<&str>, description: Option<&str>) -
 /// Take back out what [`attach_macro_call`] wrote for `url`, as the calendar
 /// UI does before showing an event: the join line of a description already
 /// reduced to plain text, and a location that is only the link. Everything
-/// the user wrote stays, including the link written anywhere else.
+/// the user wrote stays, including the link written anywhere else. The text
+/// may show the link in brackets, as html2text writes links.
 pub fn strip_macro_call(description_text: &str, location: &str, url: &str) -> (String, String) {
     let join_line = format!("{JOIN_LINE_LABEL}: {url}");
     let description = description_text
         .lines()
         .filter(|line| {
-            let line = line.trim();
+            let line = line.trim().replace(['[', ']'], "");
             line != JOIN_LINE_LABEL && line != join_line
         })
         .collect::<Vec<_>>()
