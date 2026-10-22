@@ -1,3 +1,4 @@
+import { QueuedSendStatus } from '../../email-compose/queued-send-status';
 import '@entity/composed/ListEntity.css';
 import { type ListActivation, useListInteractions } from '@app/components/list';
 import { CommandState } from '@app/features/command/state';
@@ -509,6 +510,9 @@ export function EmailList(props: EmailListProps) {
         tabIndex={0}
         class="soup-list relative flex size-full min-h-0 min-w-0 flex-col overflow-hidden outline-none [--color-list-highlighted:var(--color-active)]"
       >
+        <Show when={state.tab === 'drafts'}>
+          <QueuedSendStatus inboxIds={state.inboxIds} />
+        </Show>
         <PullToRefresh
           scrollContainer={pullScrollContainer}
           onRefresh={pullRefresh}
