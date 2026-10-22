@@ -509,13 +509,14 @@ meeting on that calendar (an invitation Macro has not synced yet), nothing is im
 is scheduled and the card reports that it is already on their calendar. `Download .ics` saves
 the event as an iCalendar file. The copy is a snapshot: later changes by the organizer do not
 reach it. `Ask to join` asks the person who shared the event to add the viewer as a guest; it
-shows only when that person's copy lets them add guests (they organize it, or the organizer lets
-guests invite others and shows the guest list), and otherwise the card reads `The person who
+shows only when that person's copy lets them add guests (they organize it, or it is a Google
+copy whose organizer lets guests invite others and shows the guest list), and otherwise the card
+reads `The person who
 shared this event can't add guests to it.` The card then shows `Requested`, and `Invited` once
 accepted. The sharer gets a `calendar_event_join_request` notification (Settings →
 Notifications → Calendar → Requests to join) that opens the event, whose details list each
 request with `Add as guest` and `Decline` on desktop and in the phone drawer. Adding writes the
-guest through the same invite path as `Add guests`, so Google sends the invitation and the
+guest through the same invite path as `Add guests`, so Google or Outlook sends the invitation and the
 mention then opens the viewer's own copy; declining tells the requester nothing, and asking
 again reopens the request. A classic `@Macro` reply that mentions an event does not share
 it by posting the chip. It asks whether to share with the channel, and a yes in that thread

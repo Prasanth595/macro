@@ -76,7 +76,7 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   import over a UID the calendar already holds, since an import updates that
   event in place and would strip an unsynced invitation's guests.
 - Asking to join a channel-shared event (`src/domain/join_requests.rs`) is a
-  Macro-stored request, not an `entity_access` row: the grant is a Google guest
+  Macro-stored request, not an `entity_access` row: the grant is a provider guest
   write. Eligibility is the invite path's own `copy_capabilities` on the
   sharer's copy, so a request that can be made is one the sharer can accept,
   and accepting calls `invite_guests` as the sharer
