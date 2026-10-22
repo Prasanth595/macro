@@ -366,6 +366,11 @@ pub enum CalendarMutationErrorCode {
     GuestListHidden,
     /// The meeting is already on one of the requester's calendars.
     AlreadyOnCalendar,
+    /// The provider refused to add a copy of the event to the calendar.
+    CopyRefused,
+    /// The event is a snapshot of a shared meeting, so an answer or a new
+    /// guest would never reach the meeting.
+    Snapshot,
     /// The request was invalid.
     InvalidInput,
     /// The calendar grant must be re-consented.
@@ -449,6 +454,16 @@ impl From<CalendarMutationError> for CalendarMutationApiError {
                 StatusCode::CONFLICT,
                 CalendarMutationErrorCode::AlreadyOnCalendar,
                 "this event is already on one of your calendars".to_string(),
+            ),
+            CalendarMutationError::CopyRefused(_) => (
+                StatusCode::CONFLICT,
+                CalendarMutationErrorCode::CopyRefused,
+                "Google Calendar won't add a copy of this event to that calendar.".to_string(),
+            ),
+            CalendarMutationError::Snapshot => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::Snapshot,
+                "This is your own copy of a shared event, so answers and guests won't reach its organizer.".to_string(),
             ),
             CalendarMutationError::InvalidInput(message) => (
                 StatusCode::BAD_REQUEST,

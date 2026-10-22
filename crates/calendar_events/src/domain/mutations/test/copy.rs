@@ -181,3 +181,113 @@ async fn copy_leaves_an_event_the_calendar_already_holds_and_syncs_it_in() {
     assert!(upserts.lock().unwrap().is_empty());
     assert_eq!(*scheduled_syncs.lock().unwrap(), vec![email_link_id]);
 }
+
+#[tokio::test]
+async fn copy_reports_a_refused_import_without_persisting_anything() {
+    let repo = shared_repo();
+    let upserts = repo.upserts.clone();
+
+    let result = service(
+        repo,
+        FakeProvider::new(FakeProviderBehavior::Forbidden(GuestPolicy::default())),
+        FakeTokens::ok(),
+    )
+    .copy_shared_event("macro|user", Uuid::now_v7(), None)
+    .await;
+
+    assert_eq!(super::super::copy::copy_outcome(&result), "copy_refused");
+    assert!(matches!(
+        result,
+        Err(CalendarMutationError::CopyRefused(message))
+            if message.contains("participantIsNeitherOrganizerNorAttendee")
+    ));
+    assert!(upserts.lock().unwrap().is_empty());
+}
+
+/// The requester's snapshot of a shared meeting: they are its only guest,
+/// already accepted, so Google imported it.
+fn snapshot_repo() -> FakeRepo {
+    let mut owner = echo_attendee("self@example.com", false);
+    owner.response_status = AttendeeResponseStatus::Accepted;
+    FakeRepo {
+        mutation_target: Some(CalendarEventMutationTarget {
+            organizer_email: Some("organizer@example.com".to_string()),
+            is_snapshot: true,
+            ..mutation_target(false)
+        }),
+        stored_attendees: vec![owner],
+        ..FakeRepo::default()
+    }
+}
+
+#[tokio::test]
+async fn a_snapshot_refuses_answers_and_guests_before_the_provider() {
+    let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+    let calls = provider.calls.clone();
+    let service = service(snapshot_repo(), provider, FakeTokens::ok());
+
+    let answered = service
+        .respond_to_event(
+            "macro|user",
+            Uuid::now_v7(),
+            None,
+            AttendeeResponseStatus::Declined,
+            CalendarRsvpScope::All,
+            None,
+        )
+        .await;
+    let invited = service
+        .invite_guests(
+            "macro|user",
+            Uuid::now_v7(),
+            None,
+            vec![CalendarAttendeeInput {
+                email: "ada@example.com".to_string(),
+                is_optional: false,
+                response_status: None,
+            }],
+            CalendarUpdateScope::All,
+        )
+        .await;
+    // The editor's guest list goes through the invite path for anyone who
+    // may not remove guests.
+    let edited = service
+        .update_event(
+            "macro|user",
+            Uuid::now_v7(),
+            None,
+            CalendarEventPatch {
+                attendees: Some(vec![CalendarAttendeeInput {
+                    email: "ada@example.com".to_string(),
+                    is_optional: false,
+                    response_status: None,
+                }]),
+                ..CalendarEventPatch::default()
+            },
+            CalendarUpdateScope::All,
+        )
+        .await;
+
+    assert!(matches!(answered, Err(CalendarMutationError::Snapshot)));
+    assert!(matches!(invited, Err(CalendarMutationError::Snapshot)));
+    assert!(matches!(edited, Err(CalendarMutationError::Snapshot)));
+    assert!(calls.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_snapshot_can_still_be_deleted() {
+    let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+    let calls = provider.calls.clone();
+
+    service(snapshot_repo(), provider, FakeTokens::ok())
+        .delete_event(
+            "macro|user",
+            Uuid::now_v7(),
+            None,
+            CalendarDeletionScope::All,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(calls.lock().unwrap().len(), 1);
+}

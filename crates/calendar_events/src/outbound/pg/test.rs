@@ -167,6 +167,7 @@ fn timed_upsert(
             }],
             reminders: EventReminders::default(),
             guest_policy: GuestPolicy::default(),
+            is_snapshot: false,
             viewer_can: ViewerCapabilities::NONE,
             created_at: starts_at,
             updated_at: starts_at + Duration::minutes(i64::from(sequence)),
@@ -1591,10 +1592,64 @@ async fn source_projections_store_neither_viewer_capabilities_nor_a_default_poli
     .await
     .unwrap();
 
-    // Projections stored before either field existed lack both keys, and an
+    // Projections stored before these fields existed lack their keys, and an
     // unchanged event must keep comparing equal to them.
     assert!(stored["event"].get("viewerCan").is_none());
     assert!(stored["event"].get("guestPolicy").is_none());
+    assert!(stored["event"].get("isSnapshot").is_none());
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_snapshot_stays_marked_on_reads_and_mutation_targets(pool: PgPool) {
+    let owner_id = "macro|calendar-snapshot@example.com";
+    let link_id = insert_link(&pool, owner_id).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    let provider = provider_ids(&repo, link_id).await;
+    let mut upsert = timed_upsert(
+        owner_id,
+        link_id,
+        provider,
+        "snapshot@example.com",
+        "Shared meeting",
+        1,
+    );
+    upsert.event.is_snapshot = true;
+    let event_id = repo.upsert_event_fixture(upsert).await.unwrap();
+
+    let listed = repo
+        .list_occurrences(
+            owner_id,
+            OccurrenceRange {
+                starts_at: Utc.with_ymd_and_hms(2026, 7, 24, 0, 0, 0).unwrap(),
+                ends_at: Utc.with_ymd_and_hms(2026, 7, 26, 0, 0, 0).unwrap(),
+                start_date: NaiveDate::from_ymd_opt(2026, 7, 24).unwrap(),
+                end_date: NaiveDate::from_ymd_opt(2026, 7, 26).unwrap(),
+            },
+            None,
+            100,
+        )
+        .await
+        .unwrap();
+    assert!(!listed.is_empty());
+    assert!(listed.iter().all(|listing| listing.event.is_snapshot));
+    let target = repo
+        .get_event_mutation_target(owner_id, event_id, None)
+        .await
+        .unwrap()
+        .expect("the owner may address their snapshot");
+    assert!(target.is_snapshot);
+    let stored = sqlx::query_scalar!(
+        "SELECT normalized_payload FROM calendar_event_sources WHERE event_id = $1",
+        event_id,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let projection: StoredSourceProjection = serde_json::from_value(stored).unwrap();
+    assert!(
+        projection.event.is_snapshot,
+        "a restore from this copy keeps it a snapshot"
+    );
 }
 
 /// A Google out-of-office auto-decline records the decline on the exception
@@ -3547,6 +3602,7 @@ fn reminder_upsert(
             attendees: Vec::new(),
             reminders,
             guest_policy: GuestPolicy::default(),
+            is_snapshot: false,
             viewer_can: ViewerCapabilities::NONE,
             created_at: starts_at - Duration::days(1),
             updated_at: starts_at - Duration::days(1),

@@ -160,6 +160,8 @@ fn error_from_response(status: StatusCode, body: Option<String>) -> CalendarMuta
         "guests_cannot_invite" => CalendarMutationError::GuestsCannotInvite,
         "guest_list_hidden" => CalendarMutationError::GuestListHidden,
         "already_on_calendar" => CalendarMutationError::AlreadyOnCalendar,
+        "copy_refused" => CalendarMutationError::CopyRefused(error.message),
+        "snapshot" => CalendarMutationError::Snapshot,
         "invalid_input" => CalendarMutationError::InvalidInput(error.message),
         "reauth_required" => CalendarMutationError::ReauthRequired(error.message),
         "provider_rejected" => CalendarMutationError::ProviderRejected(error.message),
