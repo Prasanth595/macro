@@ -70,3 +70,10 @@ default. Check wrapped paragraphs, long unbroken strings, standalone text and
 ellipses after relabeling, font changes and narrowing width. Explicit fixed-size
 containment may scale text; an explicit overflow error commits no partial batch.
 The renderer regressions inspect actual text DOM bounds, including phone viewports.
+
+Create a fresh Canvas manually and through CreateDocument (`canvas`, empty
+fileContent). ReadCanvas and EditCanvas must work immediately before any editor
+opens it. Open it as its owner and another editor, reload, and verify the same
+items persist. Reopen a legacy S3 Canvas and verify its scene migrates without
+replacement. Native sync-backed Canvas loading must never request a presigned
+blob URL. A missing native snapshot is an error, never an empty reseed.

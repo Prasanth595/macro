@@ -3,6 +3,10 @@
 Canvas Next is the default editor for saved canvases, drive details, and embeds.
 No rollout flag or local override is required.
 
+Both the Drive detail and block hosts use `queries/document.ts` to authorize and
+select shared content before fetching a legacy file seed. Native canvases never
+require a presigned blob URL.
+
 **Ask Macro** in the Drive header and standalone title menu attaches the canvas to an agent conversation
 on desktop and mobile. `ReadCanvas` inspects its live scene; `EditCanvas` runs
 bounded SDK commands as a peer in that same Loro room. Results show acknowledged
@@ -14,8 +18,7 @@ of embedded items stay in the authorized UI flow. See the worker
 The frontend treats unversioned JSON (and explicit version 1) as legacy Canvas.
 It converts supported records on load to `{ version: 2, document, legacy? }`.
 `document` is the graphics scene; `legacy` retains the original JSON and migration
-notes for recovery. No migration is saved merely by viewing a file. The first editor opening a canvas initializes one versioned Loro snapshot in
-SyncService. The server serializes initialization; competing openers import only
+notes for recovery. No migration is saved merely by viewing a file. Native Canvas creation initializes the canonical versioned Loro snapshot on the backend and marks content ready in SyncService before returning. `POST /documents/create_canvas` and CreateDocument with empty Canvas content share this lifecycle. Native loading uses the content location and does not request an S3 presigned URL. The first editor opening a legacy S3 canvas migrates its scene into one versioned Loro snapshot in SyncService. The server serializes initialization; competing openers import only
 the winning seed. Subsequent opens use the shared scene and never replay the
 original JSON over live edits. JSON remains the import/export format and retains
 the legacy source for recovery.

@@ -816,14 +816,8 @@ impl DocumentSyncSession {
         }
     }
 
-    /// Check if provided document_id exists.
-    /// 1. is self.document_id set, or is document_id in do::kv
-    /// 2. does snapshot exist with document_id?
+    /// A connected room identity does not imply initialized collaborative content.
     async fn exists(&self, document_id: &str) -> Result<bool> {
-        if let Ok(Some(_)) = self.try_document_id().await {
-            return Ok(true);
-        }
-        // self.session_storage would not be set because it requires self.document_id be set
         let snapshot_storage =
             get_snapshot_storage(&self.env, &self.state, document_id.to_string())?;
 

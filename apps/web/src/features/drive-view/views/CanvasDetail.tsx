@@ -35,10 +35,9 @@ function CanvasDetailContent(props: {
   );
   const operations = [
     downloadFileOperation(() => {
-      fireAndForget(
-        downloadFile(props.savedFile() ?? props.data.file, downloadName),
-        'drive-file-download'
-      );
+      const file = props.savedFile() ?? props.data.file;
+      if (!file) return;
+      fireAndForget(downloadFile(file, downloadName), 'drive-file-download');
       analytics.track('download', { blockType: 'canvas' });
     }),
   ];
@@ -90,6 +89,7 @@ export function CanvasDetailDocument(props: {
       <CanvasDocument
         documentId={props.documentId}
         file={props.data.file}
+        shared={props.data.shared}
         canEdit={canEdit()}
         locationParams={searchParams}
       >

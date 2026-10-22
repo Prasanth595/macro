@@ -19,7 +19,7 @@ import {
 import { pressedKeys } from '@core/hotkey/state';
 import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
 import {
-  createCanvasFileFromJsonString,
+  createCanvasFile,
   createChat,
   createMarkdownFile,
   createTask,
@@ -150,8 +150,7 @@ const BLOCK_CREATE_SPECS: CreateBlockSpec[] = [
     ),
     loading: true,
     createFn: async (projectId) => {
-      const result = await createCanvasFileFromJsonString({
-        json: JSON.stringify({ nodes: [], edges: [] }),
+      const result = await createCanvasFile({
         title: 'New Canvas',
         projectId,
       });

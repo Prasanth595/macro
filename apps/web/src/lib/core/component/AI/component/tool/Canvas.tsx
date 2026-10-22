@@ -10,6 +10,7 @@ function CanvasToolRow(props: {
   documentId: string;
   summary?: string;
   details?: string;
+  image?: string;
   renderContext: RenderContext['renderContext'];
 }) {
   const [expanded, setExpanded] = createSignal(false);
@@ -19,13 +20,24 @@ function CanvasToolRow(props: {
       type="call"
       renderContext={props.renderContext}
       response={
-        <Show when={expanded() && props.details}>
-          {(details) => (
-            <pre class="max-h-80 overflow-auto whitespace-pre-wrap pb-1 font-mono text-ink text-xs">
-              {details()}
-            </pre>
-          )}
-        </Show>
+        <>
+          <Show when={expanded() && props.image}>
+            {(src) => (
+              <img
+                src={src()}
+                alt="Canvas snapshot"
+                class="max-h-96 max-w-full object-contain"
+              />
+            )}
+          </Show>
+          <Show when={expanded() && props.details}>
+            {(details) => (
+              <pre class="max-h-80 overflow-auto whitespace-pre-wrap pb-1 font-mono text-ink text-xs">
+                {details()}
+              </pre>
+            )}
+          </Show>
+        </>
       }
     >
       <div class="flex items-center gap-2">
@@ -60,6 +72,42 @@ export const readCanvasHandler = createToolRenderer({
       documentId={ctx.tool.data.document_id}
       summary={ctx.response?.data.summary}
       details={ctx.response?.data.canvas ?? undefined}
+      renderContext={ctx.renderContext}
+    />
+  ),
+});
+
+export const renderCanvasHandler = createToolRenderer({
+  name: 'RenderCanvas',
+  render: (ctx) => (
+    <CanvasToolRow
+      verb="Rendered"
+      documentId={ctx.tool.data.document_id}
+      summary={
+        ctx.response
+          ? `${ctx.response.data.width} × ${ctx.response.data.height}`
+          : undefined
+      }
+      image={
+        ctx.response?.data.modelMedia[0]
+          ? `data:image/png;base64,${ctx.response.data.modelMedia[0].data}`
+          : undefined
+      }
+      details={
+        ctx.response
+          ? JSON.stringify(
+              {
+                revision: ctx.response.data.revision,
+                crop: ctx.response.data.crop,
+                objects: ctx.response.data.objects,
+                textLayout: ctx.response.data.textLayout,
+                unavailable: ctx.response.data.unavailable,
+              },
+              null,
+              2
+            )
+          : undefined
+      }
       renderContext={ctx.renderContext}
     />
   ),

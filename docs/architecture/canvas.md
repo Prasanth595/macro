@@ -106,3 +106,15 @@ AI requests. Native CRDT merging and fresh dependency validation still apply the
 Requested fonts remain readable by default: persistent grow fitting increases box
 height at the wrapping width; deliberate fixed sizes opt into contain or error.
 Visual work receives an image before planning and a bounded final visual review.
+
+Native creation follows the markdown lifecycle: create metadata, initialize the
+canonical browser-generated `static_assets/canvas-golden.1.bin` snapshot, then mark
+content ready in SyncService before returning. Manual creation and the empty
+Canvas CreateDocument tool use this path; the tool rejects nonempty content before
+creation and directs population through EditCanvas. Failed initialization or ready-state
+updates compensate the possibly created room and metadata. The block selects
+content location before requesting a blob through one Canvas query shared by the
+Drive detail and block hosts, preserving legacy S3 migration.
+Room existence requires an actual snapshot: a WebSocket connection alone never
+marks an empty room initialized. Worker readiness errors distinguish a missing
+snapshot from an initial-sync connection failure.

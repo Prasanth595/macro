@@ -429,6 +429,7 @@ type ToolParserMap = {
     response: types.RenameDocumentResponse;
   };
   RenameItem: { call: types.RenameItem; response: types.RenameItemResponse };
+  RenderCanvas: { call: types.RenderCanvas; response: types.CanvasRender };
   ResolveComment: {
     call: types.ResolveComment;
     response: types.ResolveCommentResponse;
@@ -993,6 +994,7 @@ const toolParserMap = {
     call: schemas.RenameItem,
     response: schemas.RenameItemResponse,
   },
+  RenderCanvas: { call: schemas.RenderCanvas, response: schemas.CanvasRender },
   ResolveComment: {
     call: schemas.ResolveComment,
     response: schemas.ResolveCommentResponse,
@@ -1529,6 +1531,7 @@ type ToolDataMap = {
     response: types.RenameDocumentResponse;
   };
   RenameItem: { call: types.RenameItem; response: types.RenameItemResponse };
+  RenderCanvas: { call: types.RenderCanvas; response: types.CanvasRender };
   ResolveComment: {
     call: types.ResolveComment;
     response: types.ResolveCommentResponse;

@@ -60,6 +60,27 @@ app.post('/', zValidator('json', body), async (c) => {
         );
         url.searchParams.set('token', documentToken);
         const trace = span.traceparent();
+        const readiness = new URL(url);
+        if (readiness.protocol === 'wss:') readiness.protocol = 'https:';
+        else if (readiness.protocol === 'ws:') readiness.protocol = 'http:';
+        readiness.pathname = `/document/${documentId}/exists`;
+        readiness.search = '';
+        const status = await fetch(readiness, {
+          method: 'HEAD',
+          headers: {
+            Authorization: `Bearer ${documentToken}`,
+            ...(trace ? { traceparent: trace } : {}),
+          },
+          signal,
+        });
+        if (status.status === 404)
+          throw new Error(
+            'Canvas shared snapshot is missing. Native Canvas creation must finish before editing. For an existing imported Canvas, open it once to migrate its stored scene; no edits were attempted.'
+          );
+        if (!status.ok)
+          throw new Error(
+            `Canvas shared storage check failed (HTTP ${status.status}); no edits were attempted.`
+          );
         if (trace) url.searchParams.set('traceparent', trace);
         if (request.action === 'read')
           return withCanvasSession(

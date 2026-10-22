@@ -2,10 +2,11 @@ import { schema } from '@loro-mirror/core';
 import { createAwareness } from '@macro-inc/collaboration/collab/awareness';
 import { SyncEngine } from '@macro-inc/collaboration/collab/engine';
 import { LoroManager } from '@macro-inc/collaboration/collab/manager';
-import type {
-  InitialSync,
-  LiveSyncSource,
-  SyncError,
+import {
+  type InitialSync,
+  type LiveSyncSource,
+  type SyncError,
+  SyncSourceStatus,
 } from '@macro-inc/collaboration/collab/source';
 import {
   InMemoryWALStore,
@@ -105,7 +106,7 @@ export async function withCanvasSession<T>(
     );
     if (initial.isErr())
       throw new Error(
-        `Canvas sync failed (${initial.error.type}). Open the canvas in Macro before editing.`
+        `Canvas initial sync failed (${initial.error.type}; connection: ${SyncSourceStatus[source.status()]}). No scene was loaded or edited. Check shared storage initialization and sync connectivity before retrying.`
       );
     const loaded = await manager.initializeFromSnapshot(initial.value.snapshot);
     if (loaded.isErr()) throw new Error('Invalid canvas snapshot.');
@@ -114,7 +115,7 @@ export async function withCanvasSession<T>(
     const rootId = meta.get('rootId');
     if (meta.get('format') !== 1 || typeof rootId !== 'string')
       throw new Error(
-        'Unsupported shared canvas. Open the canvas in Macro to initialize it.'
+        'Shared storage does not contain a supported Canvas snapshot. No scene was edited.'
       );
     // Full-width random session IDs cannot collide across worker isolates.
     // Durable bot attribution comes from the signed actor, not this peer range.

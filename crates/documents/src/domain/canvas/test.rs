@@ -10,6 +10,71 @@ use std::sync::Mutex;
 
 const DOCUMENT: &str = "019fd3b9-3c6c-7c05-89c2-a27f0121813b";
 const SECRET: &str = "local-canvas-test-secret";
+
+#[tokio::test]
+async fn render_mints_view_access_and_does_not_admit_or_meter_a_model() {
+    let mut worker = MockEditingWorkerService::new();
+    worker.expect_canvas().times(1).returning(|id, token, request| {
+        assert_eq!(id, DOCUMENT);
+        assert!(matches!(request, CanvasRequest::Render { .. }));
+        let claims: serde_json::Value = macro_sync_service_jwt::decode(token.as_str(), SECRET).unwrap();
+        assert_eq!(claims["access_level"], "view");
+        assert_eq!(claims["actor"], "macro|ai@macro.com");
+        assert_eq!(serde_json::to_value(request).unwrap(), serde_json::json!({"action":"render"}));
+        Box::pin(async { Ok(CanvasResult { failure: None, usage: vec![], response: CanvasResponse {
+            render: Some(serde_json::from_value(serde_json::json!({"revision":"snapshot-1","clock":{},"crop":{"x":0,"y":0,"width":100,"height":80},"width":200,"height":160,"objects":[],"unavailable":[],"modelMedia":[{"type":"image","mediaType":"image/png","data":"iVBORw0KGgo="}]})).unwrap()),
+            canvas: None, operations_applied: 0, summary: "Rendered".into(), clarification: None,
+        } }) })
+    });
+    let recorder = Arc::new(Recorder::default());
+    let service = CanvasService::new(
+        Arc::new(documents("canvas")),
+        Arc::new(worker),
+        SECRET.into(),
+        Arc::new(Admission(Err(AiAdmissionError::Unavailable))),
+        recorder.clone(),
+    );
+    let render = service
+        .render(
+            receipt(AccessLevel::View),
+            &user(),
+            "macro|ai@macro.com",
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(render.revision, "snapshot-1");
+    assert!(recorder.0.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn invalid_render_crop_never_starts_storage_or_worker_access() {
+    let service = CanvasService::new(
+        Arc::new(MockCanvasDocumentLookup::new()),
+        Arc::new(MockEditingWorkerService::new()),
+        SECRET.into(),
+        Arc::new(Admission(Ok(()))),
+        Arc::new(Recorder::default()),
+    );
+    assert!(
+        service
+            .render(
+                receipt(AccessLevel::View),
+                &user(),
+                "macro|ai@macro.com",
+                None,
+                Some(CanvasBounds {
+                    x: 0.0,
+                    y: 0.0,
+                    width: -1.0,
+                    height: 100.0
+                })
+            )
+            .await
+            .is_err()
+    );
+}
 fn user() -> MacroUserIdStr<'static> {
     "macro|canvas@example.com".to_owned().try_into().unwrap()
 }
@@ -78,6 +143,7 @@ async fn read_mints_only_view_access_and_preserves_actor_without_admission_or_us
                 Ok(CanvasResult {
                     failure: None,
                     response: CanvasResponse {
+                        render: None,
                         canvas: Some("scene".into()),
                         operations_applied: 0,
                         summary: "Read".into(),
@@ -101,6 +167,7 @@ async fn read_mints_only_view_access_and_preserves_actor_without_admission_or_us
                 receipt(AccessLevel::View),
                 &user(),
                 "macro|ai@macro.com",
+                None,
                 None
             )
             .await
@@ -154,7 +221,7 @@ async fn admitted_edit_mints_edit_access_and_records_actual_worker_usage() {
         let claims: serde_json::Value=macro_sync_service_jwt::decode(token.as_str(),SECRET).unwrap();
         assert_eq!(claims["access_level"],"edit");
         assert_eq!(claims["actor"],"macro|ai@macro.com");
-        Box::pin(async {Ok(CanvasResult { failure: None,response:CanvasResponse {canvas:None,operations_applied:3,summary:"Applied".into(),clarification:None},usage:vec![EditUsage {model:"test-model".into(),input_tokens:100,output_tokens:20}]})})
+        Box::pin(async {Ok(CanvasResult { failure: None,response:CanvasResponse { render: None,canvas:None,operations_applied:3,summary:"Applied".into(),clarification:None},usage:vec![EditUsage {model:"test-model".into(),input_tokens:100,output_tokens:20}]})})
     });
     let recorder = Arc::new(Recorder::default());
     let service = CanvasService::new(
@@ -219,6 +286,7 @@ async fn failed_later_step_still_records_completed_provider_usage() {
                         .into(),
                 ),
                 response: CanvasResponse {
+                    render: None,
                     canvas: None,
                     operations_applied: 1,
                     summary: "Stopped".into(),

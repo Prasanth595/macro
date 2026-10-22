@@ -318,7 +318,9 @@ export function createCanvasRenderer(
               height,
               objects,
               unavailable,
-              textLayout: textLayout.filter((item) => objects.some((object) => object.id === item.id)),
+              textLayout: textLayout.filter((item) =>
+                objects.some((object) => object.id === item.id)
+              ),
               modelMedia: [{ type: 'image', mediaType: 'image/png', data }],
             };
           }),

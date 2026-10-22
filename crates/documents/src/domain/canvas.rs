@@ -29,6 +29,18 @@ pub enum CanvasRequest {
         /// Filter to known stable IDs when the overview is truncated.
         #[serde(skip_serializing_if = "Option::is_none")]
         item_ids: Option<Vec<String>>,
+        /// Concise graph or precise scene JSON.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        format: Option<CanvasReadFormat>,
+    },
+    /// Produce a read-only image from an immutable live scene snapshot.
+    Render {
+        /// Optional item selection used to derive crop bounds.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        item_ids: Option<Vec<String>>,
+        /// Explicit world crop overrides selection bounds.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        crop: Option<CanvasBounds>,
     },
     /// Ask the sandboxed editor to change the live scene.
     Edit {
@@ -40,10 +52,102 @@ pub enum CanvasRequest {
     },
 }
 
+/// Scene representation requested by a reader.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum CanvasReadFormat {
+    /// Exact object data and geometry.
+    Scene,
+    /// Approximate compact graph with stable ID mapping.
+    Overview,
+}
+
+/// World-space crop or object bounds.
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+pub struct CanvasBounds {
+    /// World x coordinate.
+    pub x: f64,
+    /// World y coordinate.
+    pub y: f64,
+    /// Positive world width.
+    pub width: f64,
+    /// Positive world height.
+    pub height: f64,
+}
+
+/// Native PNG media recognized explicitly by the agent adapter.
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CanvasImage {
+    /// Always image.
+    pub r#type: String,
+    /// Always image/png.
+    pub media_type: String,
+    /// Bounded base64 image bytes, never a remote URL.
+    pub data: String,
+}
+
+/// Stable object-to-image mapping.
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct CanvasRenderObject {
+    /// Canvas item ID.
+    pub id: String,
+    /// World-space bounds in the frozen scene.
+    pub bounds: CanvasBounds,
+}
+
+/// Explicitly unavailable referenced content.
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct CanvasUnavailable {
+    /// Canvas item ID.
+    pub id: String,
+    /// Why no referenced resource was loaded.
+    pub reason: String,
+}
+
+/// Actual browser text bounds and overflow for a read-only render.
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct CanvasTextLayout {
+    /// Stable item ID.
+    pub id: String,
+    /// Actual rendered text bounds in world coordinates.
+    pub bounds: CanvasBounds,
+    /// Whether the DOM text exceeds its intended text frame.
+    pub overflow: bool,
+}
+
+/// Image and metadata captured from the same immutable revision.
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CanvasRender {
+    /// SHA-256 of the immutable scene snapshot and clock.
+    pub revision: String,
+    /// Source CRDT version vector.
+    pub clock: std::collections::BTreeMap<String, u64>,
+    /// World bounds mapped to the image rectangle.
+    pub crop: CanvasBounds,
+    /// PNG width in pixels.
+    pub width: u32,
+    /// PNG height in pixels.
+    pub height: u32,
+    /// Objects intersecting the world crop.
+    pub objects: Vec<CanvasRenderObject>,
+    /// Referenced content omitted without widening access.
+    pub unavailable: Vec<CanvasUnavailable>,
+    /// Actual DOM measurement from the same scene and render surface.
+    #[serde(default)]
+    pub text_layout: Vec<CanvasTextLayout>,
+    /// Native media for the model and UI.
+    pub model_media: Vec<CanvasImage>,
+}
+
 /// High-signal outcome shared by agent tools and caller integrations.
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CanvasResponse {
+    /// Immutable visual read, when requested.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub render: Option<CanvasRender>,
     /// Bounded scene JSON with stable item IDs, transforms, bounds and labels.
     pub canvas: Option<String>,
     /// Number of validated operations acknowledged by live storage.
@@ -117,6 +221,7 @@ impl<D: CanvasDocumentLookup, W: EditingWorkerService> CanvasService<D, W> {
         user: &MacroUserIdStr<'static>,
         actor: &str,
         item_ids: Option<Vec<String>>,
+        format: Option<CanvasReadFormat>,
     ) -> anyhow::Result<CanvasResponse> {
         anyhow::ensure!(
             item_ids
@@ -131,10 +236,64 @@ impl<D: CanvasDocumentLookup, W: EditingWorkerService> CanvasService<D, W> {
                 user,
                 actor,
                 AccessLevel::View,
-                CanvasRequest::Read { item_ids },
+                CanvasRequest::Read { item_ids, format },
             )
             .await?
             .response)
+    }
+
+    /// Render with the same view-only capability as scene reads; no model is called.
+    #[tracing::instrument(skip_all, fields(document_id = %receipt.entity().entity_id), err)]
+    pub async fn render(
+        &self,
+        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        user: &MacroUserIdStr<'static>,
+        actor: &str,
+        item_ids: Option<Vec<String>>,
+        crop: Option<CanvasBounds>,
+    ) -> anyhow::Result<CanvasRender> {
+        anyhow::ensure!(
+            item_ids.as_ref().is_none_or(|ids| !ids.is_empty()
+                && ids.len() <= 100
+                && ids.iter().all(|id| !id.is_empty() && id.len() <= 200)),
+            "Render at most 100 nonempty item IDs."
+        );
+        if let Some(crop) = &crop {
+            anyhow::ensure!(
+                [crop.x, crop.y, crop.width, crop.height]
+                    .iter()
+                    .all(|value| value.is_finite() && value.abs() <= 1_000_000.0)
+                    && crop.width > 0.0
+                    && crop.height > 0.0,
+                "Invalid bounded Canvas crop."
+            );
+        }
+        self.ensure_canvas(&receipt.entity().entity_id).await?;
+        let result = self
+            .run(
+                &receipt.entity().entity_id,
+                user,
+                actor,
+                AccessLevel::View,
+                CanvasRequest::Render { item_ids, crop },
+            )
+            .await?;
+        let render = result
+            .response
+            .render
+            .ok_or_else(|| anyhow::anyhow!("Canvas renderer returned no image."))?;
+        anyhow::ensure!(
+            render.model_media.len() == 1
+                && render
+                    .model_media
+                    .iter()
+                    .all(|image| image.r#type == "image"
+                        && image.media_type == "image/png"
+                        && image.data.len() <= 4_000_000
+                        && image.data.starts_with("iVBORw0KGgo")),
+            "Invalid Canvas render image."
+        );
+        Ok(render)
     }
 
     /// Authorize, admit, run and meter one natural-language edit.

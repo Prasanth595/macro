@@ -71,3 +71,8 @@ legacy reserved AI peer range; Canvas workers use random full-width peer IDs.
 ## Related
 
 - Docs: this directory's `README.md`
+
+- Room `/exists` checks the durable snapshot, not the document ID set by a
+  connection. To regress connect-before-initialize, build without
+  `create-default-state` and run `SYNC_TEST_UNINITIALIZED_ROOMS=true npx vitest run
+  tests/canvas_initialization.test.ts`; the usual test build seeds automatically.
