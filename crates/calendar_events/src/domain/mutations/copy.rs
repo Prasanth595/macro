@@ -2,7 +2,7 @@
 //! Google calendar.
 use super::*;
 use crate::domain::{
-    ics::CalendarEventExportAccess,
+    ics::{CalendarEventExport, CalendarEventExportAccess},
     models::{CalendarProvider, EventType},
 };
 
@@ -54,6 +54,12 @@ where
                 "shared events can be added to Google calendars only".to_string(),
             ));
         }
+        let (description, location) = source.without_macro_call();
+        let source = CalendarEventExport {
+            description,
+            location,
+            ..source
+        };
         let access_token = self.fetch_token(&target.token_identity).await?;
         let Some(upsert) = self
             .provider

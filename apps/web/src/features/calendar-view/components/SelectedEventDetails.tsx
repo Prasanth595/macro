@@ -12,6 +12,7 @@ import { TeamEventDetails } from '@app/features/calendar-team/components/team-ev
 import { EventGuests } from '@app/features/calendar-view/components/EventGuests';
 import { EventJoinRequests } from '@app/features/calendar-view/components/EventJoinRequests';
 import { EventRsvpSection } from '@app/features/calendar-view/components/EventRsvpSection';
+import { useForwardEventEmail } from '@app/features/calendar-view/components/use-forward-event-email';
 import { useOpenEventComposer } from '@app/features/calendar-view/components/use-open-event-composer';
 import { copyCalendarEventMention } from '@app/features/calendar-view/copy-event-mention';
 import { downloadCalendarEventIcs } from '@app/features/calendar-view/download-event-ics';
@@ -20,6 +21,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { isMobile } from '@core/mobile/isMobile';
 import { openExternalUrl } from '@core/util/url';
 import { Popover } from '@kobalte/core/popover';
+import ArrowBendUpRightIcon from '@phosphor/arrow-bend-up-right.svg';
 import DownloadSimpleIcon from '@phosphor/download-simple.svg';
 import ExclamationIcon from '@phosphor/exclamation-mark.svg';
 import LinkIcon from '@phosphor/link.svg';
@@ -187,6 +189,12 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
     openEventComposer({ event: props.event });
     props.onOpenChange(false);
   };
+  const forwardEventEmail = useForwardEventEmail();
+  const forwardByEmail = () =>
+    forwardEventEmail(props.event, {
+      timeFormat: props.timeFormat,
+      closeDetails: () => props.onOpenChange(false),
+    });
 
   return (
     <MobileDrawer
@@ -238,6 +246,16 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                   onClick={() => downloadCalendarEventIcs(props.event)}
                 >
                   <DownloadSimpleIcon />
+                </Button>
+                <Button
+                  aria-label="Forward by email"
+                  variant="ghost"
+                  size="icon-md"
+                  depth={3}
+                  class="size-11 bg-ink/6 text-ink-muted [&_svg]:size-5"
+                  onClick={forwardByEmail}
+                >
+                  <ArrowBendUpRightIcon />
                 </Button>
               </Show>
               <Show when={canModify()}>
@@ -439,6 +457,12 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
     openEventComposer({ event: props.event });
     props.onOpenChange(false);
   };
+  const forwardEventEmail = useForwardEventEmail();
+  const forwardByEmail = () =>
+    forwardEventEmail(props.event, {
+      timeFormat: props.timeFormat,
+      closeDetails: () => props.onOpenChange(false),
+    });
 
   return (
     <Popover
@@ -511,6 +535,16 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     onClick={() => downloadCalendarEventIcs(props.event)}
                   >
                     <DownloadSimpleIcon />
+                  </Button>
+                  <Button
+                    aria-label="Forward by email"
+                    variant="ghost"
+                    size="icon-sm"
+                    depth={3}
+                    class="text-ink-muted [&_svg]:size-4"
+                    onClick={forwardByEmail}
+                  >
+                    <ArrowBendUpRightIcon />
                   </Button>
                 </Show>
                 <Show when={canModify()}>
