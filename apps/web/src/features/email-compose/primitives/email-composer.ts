@@ -667,16 +667,30 @@ export function createEmailComposer(props: EmailComposerOptions) {
   const handleAddAttachments = (files: File[]) =>
     addAttachments(files, { edit: true });
 
-  let initialAttachmentsAdded = false;
+  // Generated files wait for the editor, which a link offer writes into, and
+  // for the composer to accept attachments: the outbox locks it until it loads.
+  const [initialAttachmentsPending, setInitialAttachmentsPending] =
+    createSignal(false);
+  let editorInitialized = false;
   const addInitialAttachments = () => {
-    if (initialDraftId || initialAttachmentsAdded) return;
-    initialAttachmentsAdded = true;
-    if (!props.initialAttachments?.length) return;
-    fireAndForget(
-      addAttachments(props.initialAttachments, { edit: false }),
-      'email-compose'
-    );
+    if (editorInitialized) return;
+    editorInitialized = true;
+    if (!initialDraftId && props.initialAttachments?.length)
+      setInitialAttachmentsPending(true);
   };
+  createEffect(
+    on(
+      () => initialAttachmentsPending() && !persistencePaused(),
+      (ready) => {
+        if (!ready) return;
+        setInitialAttachmentsPending(false);
+        fireAndForget(
+          addAttachments(props.initialAttachments ?? [], { edit: false }),
+          'email-compose'
+        );
+      }
+    )
+  );
 
   const handleRemoveAttachment = async (attachment: DraftFormAttachment) => {
     if (persistencePaused()) return;

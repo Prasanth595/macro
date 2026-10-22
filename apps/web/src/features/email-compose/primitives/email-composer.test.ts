@@ -1,3 +1,4 @@
+import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { message } from '../../email-message/tests/messages';
 import { decodeBase64Utf8 } from '../core/decode-base64';
@@ -285,6 +286,29 @@ describe('standalone compose controller', () => {
       expect(context.attachmentStorage.uploadAttachments).toHaveBeenCalledWith(
         expect.objectContaining({ attachments: [ics] })
       );
+    } finally {
+      root.dispose();
+    }
+  });
+
+  it('attaches a generated file once the outbox stops locking the composer', async () => {
+    const context = createComposeContext();
+    const [locked, setLocked] = createSignal(true);
+    context.delivery.sendLocked = locked;
+    const ics = new File(['BEGIN:VCALENDAR'], 'Team sync.ics');
+    const root = mountEmailComposer(context, undefined, {
+      initialAttachments: [ics],
+    });
+    try {
+      root.state.context.onEditorInitialized?.(root.editor);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(root.state.context.attachments()).toEqual([]);
+
+      setLocked(false);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(root.state.context.attachments()).toEqual([
+        { type: 'local', file: ics },
+      ]);
     } finally {
       root.dispose();
     }
