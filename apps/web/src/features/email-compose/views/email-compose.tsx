@@ -33,6 +33,9 @@ export type EmailComposeViewProps = Pick<
   | 'onRecipientsChange'
   | 'initialTo'
   | 'initialInboxId'
+  | 'initialSubject'
+  | 'initialBodyText'
+  | 'initialAttachments'
 > & { context: EmailComposeContext };
 export function EmailComposeView(props: EmailComposeViewProps) {
   // The split mounts one composer per initial draft. Keep this content load
@@ -133,6 +136,9 @@ function LoadedEmailComposeView(
     onRecipientsChange: props.onRecipientsChange,
     initialTo: props.initialTo,
     initialInboxId: props.initialInboxId,
+    initialSubject: props.initialSubject,
+    initialBodyText: props.initialBodyText,
+    initialAttachments: props.initialAttachments,
   });
   const sync = createDraftSyncStatus({
     drafts: composeContext.drafts,
@@ -287,6 +293,7 @@ function LoadedEmailComposeView(
                   operation={ctxValue.schedule.operation()}
                   onSelectTime={ctxValue.schedule.onSelect}
                   onCancelSchedule={ctxValue.schedule.onCancel}
+                  onCheckStatus={ctxValue.schedule.onCheckStatus}
                   class="-mt-6 rounded-b-[20px] border border-t-0 border-edge-muted px-4 pt-8 pb-2"
                 />
               </div>

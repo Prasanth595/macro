@@ -11,6 +11,7 @@ import { handleOpenEventOutsidePress } from '@app/features/calendar/utils/open-e
 import { TeamEventDetails } from '@app/features/calendar-team/components/team-event-details';
 import { EventGuests } from '@app/features/calendar-view/components/EventGuests';
 import { EventRsvpSection } from '@app/features/calendar-view/components/EventRsvpSection';
+import { useForwardEventEmail } from '@app/features/calendar-view/components/use-forward-event-email';
 import { useOpenEventComposer } from '@app/features/calendar-view/components/use-open-event-composer';
 import { copyCalendarEventMention } from '@app/features/calendar-view/copy-event-mention';
 import { downloadCalendarEventIcs } from '@app/features/calendar-view/download-event-ics';
@@ -19,6 +20,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { isMobile } from '@core/mobile/isMobile';
 import { openExternalUrl } from '@core/util/url';
 import { Popover } from '@kobalte/core/popover';
+import ArrowBendUpRightIcon from '@phosphor/arrow-bend-up-right.svg';
 import DownloadSimpleIcon from '@phosphor/download-simple.svg';
 import ExclamationIcon from '@phosphor/exclamation-mark.svg';
 import LinkIcon from '@phosphor/link.svg';
@@ -186,6 +188,12 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
     openEventComposer({ event: props.event });
     props.onOpenChange(false);
   };
+  const forwardEventEmail = useForwardEventEmail();
+  const forwardByEmail = () =>
+    forwardEventEmail(props.event, {
+      timeFormat: props.timeFormat,
+      closeDetails: () => props.onOpenChange(false),
+    });
 
   return (
     <MobileDrawer
@@ -219,7 +227,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
             <div class="flex items-center gap-1">
               <Show when={!props.event.teamProjection}>
                 <Button
-                  aria-label="Copy event"
+                  label="Copy event"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -229,7 +237,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                   <LinkIcon />
                 </Button>
                 <Button
-                  aria-label="Download .ics"
+                  label="Download .ics"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -238,10 +246,20 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                 >
                   <DownloadSimpleIcon />
                 </Button>
+                <Button
+                  label="Forward by email"
+                  variant="ghost"
+                  size="icon-md"
+                  depth={3}
+                  class="size-11 bg-ink/6 text-ink-muted [&_svg]:size-5"
+                  onClick={forwardByEmail}
+                >
+                  <ArrowBendUpRightIcon />
+                </Button>
               </Show>
               <Show when={canModify()}>
                 <Button
-                  aria-label="Edit event"
+                  label="Edit event"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -251,7 +269,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                   <PencilSimpleIcon />
                 </Button>
                 <Button
-                  aria-label="Delete event"
+                  label="Delete event"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -434,6 +452,12 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
     openEventComposer({ event: props.event });
     props.onOpenChange(false);
   };
+  const forwardEventEmail = useForwardEventEmail();
+  const forwardByEmail = () =>
+    forwardEventEmail(props.event, {
+      timeFormat: props.timeFormat,
+      closeDetails: () => props.onOpenChange(false),
+    });
 
   return (
     <Popover
@@ -488,7 +512,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
               <div class="flex shrink-0 items-center justify-end gap-1 px-2 pt-2">
                 <Show when={!props.event.teamProjection}>
                   <Button
-                    aria-label="Copy event"
+                    label="Copy event"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -498,7 +522,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <LinkIcon />
                   </Button>
                   <Button
-                    aria-label="Download .ics"
+                    label="Download .ics"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -507,10 +531,20 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                   >
                     <DownloadSimpleIcon />
                   </Button>
+                  <Button
+                    label="Forward by email"
+                    variant="ghost"
+                    size="icon-sm"
+                    depth={3}
+                    class="text-ink-muted [&_svg]:size-4"
+                    onClick={forwardByEmail}
+                  >
+                    <ArrowBendUpRightIcon />
+                  </Button>
                 </Show>
                 <Show when={canModify()}>
                   <Button
-                    aria-label="Edit event"
+                    label="Edit event"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -520,7 +554,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <PencilSimpleIcon />
                   </Button>
                   <Button
-                    aria-label="Delete event"
+                    label="Delete event"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -530,9 +564,12 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <TrashIcon />
                   </Button>
                 </Show>
+                {/* Kobalte names the button "Dismiss" unless it gets an
+                    aria-label, which Button prefers over `label`. */}
                 <Popover.CloseButton
                   as={Button}
                   aria-label="Close event details"
+                  tooltip="Close event details"
                   variant="ghost"
                   size="icon-sm"
                   depth={3}

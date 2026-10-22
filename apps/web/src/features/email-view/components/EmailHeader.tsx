@@ -9,6 +9,7 @@ import {
 import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
+import { registerHotkey } from '@core/hotkey/hotkeys';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { Tabs } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
@@ -72,17 +73,30 @@ export function EmailHeader(props: EmailHeaderProps) {
       ? 'Inbox'
       : (EMAIL_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Email');
 
+  const runSearch = () => {
+    focusSearch?.();
+    return true;
+  };
+  const canSearch = () =>
+    state.tab !== 'scheduled' && state.tab !== 'reminders';
+
+  // Mail clients search with `/`; elsewhere it opens the app's search view.
+  registerHotkey({
+    hotkey: '/',
+    scopeId: panel.splitHotkeyScope,
+    description: 'Search email',
+    condition: () => panel.isPanelActive() && canSearch(),
+    keyDownHandler: runSearch,
+  });
+
   // The view's control hotkeys are registered once, here, for the split scope.
   useViewControlHotkeys({
     scopeId: panel.splitHotkeyScope,
     enabled: panel.isPanelActive,
     search: {
       description: 'Search email',
-      condition: () => state.tab !== 'scheduled' && state.tab !== 'reminders',
-      run: () => {
-        focusSearch?.();
-        return true;
-      },
+      condition: canSearch,
+      run: runSearch,
     },
     filter: {
       description: 'Filter email',

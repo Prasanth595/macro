@@ -74,7 +74,6 @@ pub struct ApiStates<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes
     cognition: Router,
     scheduling: Router,
     preview: Router,
-    claude_auth: Router,
     sharing: Router,
     routine_sessions: Router,
     coding_agents: Router,
@@ -83,6 +82,7 @@ pub struct ApiStates<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes
     pull_requests: Router,
     tool_approvals: Router,
     code_executions: Router,
+    notifications: Router,
     changes: AgentChangesRouterState<Changes, Access, Auth>,
 }
 
@@ -111,7 +111,6 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
             cognition: Router::new(),
             scheduling: Router::new(),
             preview: Router::new(),
-            claude_auth: Router::new(),
             sharing: Router::new(),
             routine_sessions: Router::new(),
             coding_agents: Router::new(),
@@ -120,8 +119,15 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
             pull_requests: Router::new(),
             tool_approvals: Router::new(),
             code_executions: Router::new(),
+            notifications: Router::new(),
             changes,
         }
+    }
+
+    /// Attach internal durable system-event production.
+    pub fn with_notifications(mut self, router: Router) -> Self {
+        self.notifications = router;
+        self
     }
 
     /// Release background dispatch only once this process has bound HTTP.
@@ -169,12 +175,6 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
     /// Attach session-authorized code execution records.
     pub fn with_code_executions(mut self, router: Router) -> Self {
         self.code_executions = router;
-        self
-    }
-
-    /// Attach the optional owner-authenticated Claude demo connection routes.
-    pub fn with_claude_auth(mut self, router: Router) -> Self {
-        self.claude_auth = router;
         self
     }
 
@@ -326,6 +326,7 @@ where
         .merge(states.pull_requests)
         .merge(states.tool_approvals)
         .merge(states.code_executions)
+        .merge(states.notifications)
         .merge(agent_changes_router(states.changes));
     Router::new()
         .nest("/agent-sessions", agent_sessions)
@@ -334,7 +335,6 @@ where
         .merge(agent_coding_preferences_router(states.read))
         .merge(agent_models_router(states.models))
         .merge(agent_repositories_router(states.repositories))
-        .merge(states.claude_auth)
         .merge(states.routine_sessions)
         .merge(states.coding_agents)
         .merge(states.capabilities)

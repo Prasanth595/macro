@@ -553,13 +553,13 @@ entry open the detailed launcher at standard dialog width. Selecting **Create**
 closes the command menu and hands focus to the launcher; individual creation
 commands remain searchable in the command menu. The left side is one continuous
 list without section labels or gaps. Up to three recently used choices appear
-first, followed by all choices in this order: **Docs** (Document, Snippet), **Organization**
+first, followed by the remaining choices in this order: **Docs** (Document, Snippet), **Organization**
 (Folder), **Design** (Canvas, Design, Photoshop file, Illustrator file), **Data**
 (Database, Spreadsheet, Form), **Comms** (Email, Message, Channel, Call), **Tasks**
 (Task, Project, Reminder), **AI** (Agent, Routine, Skill), and **Other** (Code and
 any uncategorized entries). Only available entries appear.
-Recent items also remain in their normal positions. With no history, the list
-starts with Document. Hover or keyboard navigation updates the right detail panel;
+Recent items appear only at the top, not again in their categories. With no
+history, the list starts with Document. Hover or keyboard navigation updates the right detail panel;
 click a row or press Enter to start that creation flow. List icons are monochrome:
 muted normally and full ink on the selected row. The detail panel centers
 its block-colored icon tile with a solid theme-aware fill and shared glass rim,
@@ -583,8 +583,9 @@ holding Shift uses the same new-split behavior where supported.
 
 The **Search mode** toggle (or **/**) switches between direct entity shortcuts
 shown beside each choice and the standard create search input. Search mode is
-the default; the preference persists across opens. Search filters both Recents and categories. Up/Down moves
-through the displayed order and scrolls the selected row into view; Left/Right
+the default; the preference persists across opens. Search filters both Recents
+and categories; a recent choice appears only under Recents, not again in its
+category. Up/Down moves through the displayed order and scrolls the selected row into view; Left/Right
 edits the search input. Enter creates the selected item, Shift+Enter opens it in a
 new split where supported, and Escape closes the launcher. Typing in search mode
 never runs an entity shortcut. Switching modes preserves selection and dimensions.
@@ -959,16 +960,27 @@ restart rules still apply.
 ## Keyboard model (from the in-app guide; verified partially)
 
 - `Ctrl/Cmd+K` — jump to anything by name.
+- `?` — the focused view's shortcuts, read from its registered keys (hidden
+  navigation keys and `g` sequences included); `?` again closes it. Only the
+  key opens it: the command menu does not list it, since run from there it
+  would describe the menu. A view's `g` letters are listed under that view.
 - `c` then `d`/`t`/`e`/`m`/`a` — create doc / task / email / channel / AI chat.
   Single-letter shortcuts only work when no editor has focus; press `Escape` first.
-- `/` — search everything. `j`/`k` — move in lists. `e` — mark done.
+- `/` — search everything (in Email it focuses email search). `j`/`k` — move in
+  lists. `e` — mark done.
 - `#` — move email to Trash, with an Undo toast. Works on the selected or focused
   rows in a mail list and on the thread open in an email detail or block. Email
   only; other entity types keep Delete/Backspace and do not answer `#`.
-- `g` then `h` — Home; `g` then `i` remains an alias.
+- `g` then `h` — Home; `g` then `i` remains an alias. While Email is focused,
+  `g i`/`o`/`s`/`t`/`d`/`e`/`a` open its tabs instead (`g i` Signal, `g t` Sent;
+  see `email.md`); `g h` still goes Home.
 - In Email and Tasks search, `Escape` returns focus to the list and keeps the query.
   Use the search field's clear button to clear it.
 - Splits: `` ` `` split, `Shift+H`/`Shift+L` move focus, `Shift+Esc` maximize.
+- Desktop app only: `Ctrl/Cmd` with `+`, `-`, and `0` zoom the page and reset it,
+  through the same stops a browser uses. The level persists across relaunches,
+  and the commands appear in the command menu as Zoom in / Zoom out / Actual
+  size. In a browser tab these stay the browser's own zoom.
 - In any text surface: `@` mentions (bidirectional links), `#` tags, `/` block commands,
   `:` emoji. Clicking a rendered tag opens a Search split filtered to that tag.
 
@@ -978,31 +990,6 @@ picker; a failed catalog shows an inline error. The rest of settings stays usabl
 Settings → Agents → Agents ends with **Coding sessions**: per-user **Create
 tasks** and **Open pull requests** switches, both off by default. Each saves on
 toggle and reverts with a toast if the save fails.
-
-With the `claude-cloud` feature flag enabled, Claude Cloud connection setup is in
-Settings → Agents → Runtimes (Manage on Bring your own agent), above Cursor, with the
-Anthropic logo. The agent editor's Where it runs offers In Claude Code but does not host
-Claude's connection form. **Connect Claude** starts authorization and opens sign-in
-on the first click; a fallback link remains if the browser blocks the tab.
-Approve on Claude's page, copy the complete `code#state`, then use **Finish
-connecting**. Hosted and local deployments use the same flow. Grants and pending
-sign-in attempts are encrypted in MacroDB and survive restarts or replica changes.
-If the card says sign-in is not configured, the deployment is missing its Claude
-OAuth KMS key; changing the frontend flag cannot fix that backend configuration.
-Claude's model picker uses provider-reported IDs,
-names, descriptions, and order. Settings discovers from recent account sessions;
-session catalogs update through replay, polling, and streaming. Before any catalog
-is available, only subscription default is shown with an explanation. It saves the next-turn preference
-without waking an idle worker; provider model rejections surface during the turn.
-Claude agents use their saved MCP selection through the shared authenticated
-session egress path. Remote HTTP/SSE servers are supported; stdio servers are
-rejected. Tool permission requests use Macro's standard session policy. MCP setup
-failures surface as turn errors and request interruption; the first prompt also
-wakes the cloud worker, so setup failure may occur after submission. Reconnecting
-refreshes the session credential and restores the saved selection.
-Claude sessions expose **Open in Claude** in the header
-toolbar (or its overflow menu). With a live runtime, messages sent in Claude are
-polled into Macro about every two seconds; disconnected runtimes must resume first.
 
 Home does not bind Delete or Backspace to deleting list items. These keys remain
 available to the open editor (for example, clearing a selected spreadsheet range).
