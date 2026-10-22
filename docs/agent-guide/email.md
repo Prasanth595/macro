@@ -402,8 +402,8 @@ to it with j/k, the reading pane following the list) stays unfocused, so the
 next j moves on instead of typing into it; `r` or a click continues it.
 Desktop draft bodies and app-controlled message text use 15px, matching channels.
 HTML messages with preserved sender typography retain their explicit sizes.
-Desktop reply actions sit together at the bottom right: discard, attach, schedule,
-then Send, with circular hover backgrounds inside the card's 16px padding.
+Desktop reply actions sit together at the bottom right: pop out, discard, attach,
+schedule, then Send, with circular hover backgrounds inside the card's 16px padding.
 Standalone compose uses one right-aligned row inside its 16px content padding:
 delete, attach, format, schedule, and send. Touch compose uses its header toolbar.
 `R` and `Alt+R` (`Option+R` on macOS) open reply-all for the selected message,
@@ -416,6 +416,21 @@ src/features/email-compose/browser-test/playwright.app.config.ts` (from
 `apps/web`) checks both shortcuts in all four composers.
 While an editable field is focused, Escape is handled by that field before the
 close-reply shortcut.
+On desktop, a reply's Pop out button (Shift+Cmd+P) saves the draft and reopens
+it in a reply window floating in the app's bottom-right corner. The window stays
+open while the user reads other threads or leaves Email; its message shows
+"Reply open in a window" with a Show button, and `r`/`R`/`f` on that message
+bring the window forward instead of opening a second editor. The title bar
+minimizes the window, fills the screen, or closes it (Shift+Cmd+P too), which
+saves the reply and gives it back to its thread inline. Text must survive each
+hand-off, including keys typed while the move saves; sending or discarding from
+the window closes it and leaves no draft in an open thread, and Undo on the sent
+toast reopens the window with the reply, even after leaving Email. A reply to
+an older message of a long thread (more than 20 messages) loads that message's
+page in the window. One reply is in the window at a time. Check the window in light
+and dark themes: it is an opaque raised panel with a shadow, never the inline
+composer's glass, which makes itself `position: relative` and drops a `fixed`
+window into the page flow below the viewport.
 An edited reply remains a draft when navigating away and returning. Standalone
 compose also flushes pending edits when leaving through app navigation. Switch
 views immediately after typing, before the 500 ms autosave debounce: the old

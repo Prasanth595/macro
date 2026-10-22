@@ -6,6 +6,7 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import { Layer } from '@ui';
 import {
   type Accessor,
+  type ComponentProps,
   createMemo,
   createSignal,
   type Setter,
@@ -27,6 +28,7 @@ interface ThreadReplyInputProps {
     onClose: () => void;
     registerClose: (handler: () => void) => void;
   };
+  popout?: ComponentProps<typeof ReplyInputView>['popout'];
 }
 
 /** A reply target owns one editor/form lifetime; changing targets must reset the draft latch. */
@@ -164,6 +166,7 @@ function ThreadReplyInputSession(props: ThreadReplyInputProps) {
               markdownDomRef={props.markdownDomRef}
               unframed={props.unframed}
               mobileCompose={props.mobileCompose}
+              popout={props.popout}
               isEditingExisting={
                 props.replyingTo() == null && props.draft != null
               }

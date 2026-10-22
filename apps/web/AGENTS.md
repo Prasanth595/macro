@@ -18,6 +18,8 @@
 
 Any user-visible change should be exercised in a browser before you call it fixed — type-check, biome, and vitest all pass on code that still has the interaction bug.
 
+Look at screenshots of the change, in light and dark themes, not just DOM assertions: a check that text was typed and focus moved passes on a window nobody can see (a glass surface's `position: relative` once pushed a `fixed` panel below the viewport in dark mode only).
+
 Split dragging and composer reflow have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/Resize/browser-test/playwright.config.ts`.
 It exercises the real resize solver, scroll container, and Lexical layout primitive.
