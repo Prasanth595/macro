@@ -8,6 +8,7 @@ import {
   screen,
   waitFor,
 } from '@solidjs/testing-library';
+import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { SelectSessionConfigOption } from '../state/session-config';
 import { EffortSelector } from './EffortSelector';
@@ -170,6 +171,32 @@ it('does not commit when the desktop slider returns to the current effort', asyn
   await waitFor(() => expect(document.activeElement).toBe(slider));
   fireEvent.keyDown(slider, { key: 'ArrowRight' });
   fireEvent.keyDown(slider, { key: 'ArrowLeft' });
+  fireEvent.keyDown(slider, { key: 'Escape' });
+  await waitFor(() => expect(openChange).toHaveBeenLastCalledWith(false));
+  expect(change).not.toHaveBeenCalled();
+});
+
+it('drops a staged desktop effort when the config changes before close', async () => {
+  vi.mocked(isTouchDevice).mockReturnValue(false);
+  const change = vi.fn();
+  const openChange = vi.fn();
+  const [current, setCurrent] = createSignal(config);
+  render(() => (
+    <EffortSelector
+      config={current()}
+      onChange={change}
+      onOpenChange={openChange}
+    />
+  ));
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Effort: Low' }), {
+    key: 'Enter',
+  });
+  const slider = await screen.findByRole('slider', {
+    name: 'Reasoning effort',
+  });
+  await waitFor(() => expect(document.activeElement).toBe(slider));
+  fireEvent.keyDown(slider, { key: 'ArrowRight' });
+  setCurrent({ ...config, id: 'other-effort' });
   fireEvent.keyDown(slider, { key: 'Escape' });
   await waitFor(() => expect(openChange).toHaveBeenLastCalledWith(false));
   expect(change).not.toHaveBeenCalled();

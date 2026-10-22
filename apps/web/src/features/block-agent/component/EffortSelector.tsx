@@ -27,7 +27,13 @@ export function EffortSelector(props: {
     if (!value) {
       const choice = pending();
       setPending(undefined);
-      if (choice && choice.value !== committed() && !props.disabled)
+      if (
+        choice &&
+        choice.configId === props.config?.id &&
+        choices().some((option) => option.value === choice.value) &&
+        choice.value !== committed() &&
+        !props.disabled
+      )
         props.onChange(choice);
     }
     props.onOpenChange?.(value);
