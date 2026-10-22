@@ -125,6 +125,7 @@ export function mapCalendarEvent(
       removeGuests: event.viewerCan.removeGuests,
       setGuestPolicy: event.viewerCan.setGuestPolicy,
       rsvp: event.viewerCan.rsvp,
+      organize: event.viewerCan.organize,
     },
     createdAt: restInstant(event.createdAt),
     updatedAt: restInstant(event.updatedAt),
@@ -187,6 +188,7 @@ export function mapVisibleCalendar(
       emailReminders: calendar.capabilities.emailReminders,
       removeConference: calendar.capabilities.removeConference,
       resetRsvp: calendar.capabilities.resetRsvp,
+      guestPolicy: calendar.capabilities.guestPolicy,
       conferenceProvider:
         calendar.capabilities.conferenceProvider === null
           ? null

@@ -467,6 +467,7 @@ export async function executeGraphqlUpdate(
         ...(patch.reminders
           ? { reminders: graphqlReminders(patch.reminders) }
           : {}),
+        ...(patch.guestPolicy ? { guestPolicy: patch.guestPolicy } : {}),
         ...(patch.conference
           ? {
               conference: graphqlEnum<GraphqlCalendarConferenceChange>(
@@ -633,7 +634,7 @@ export async function executeGraphqlCreate(
       comment: null,
     })),
     reminders,
-    guestPolicy: {
+    guestPolicy: args.guestPolicy ?? {
       canModify: false,
       canInviteOthers: true,
       canSeeOtherGuests: true,
@@ -644,8 +645,9 @@ export async function executeGraphqlCreate(
       editDetails: true,
       inviteGuests: true,
       removeGuests: true,
-      setGuestPolicy: true,
+      setGuestPolicy: calendar?.capabilities.guestPolicy ?? false,
       rsvp: false,
+      organize: true,
     },
     createdAt: now,
     updatedAt: now,
@@ -701,6 +703,7 @@ export async function executeGraphqlCreate(
             }
           : {}),
         ...(args.macroCall ? { macroCall: true } : {}),
+        ...(args.guestPolicy ? { guestPolicy: args.guestPolicy } : {}),
         ...(args.outOfOffice
           ? {
               outOfOffice: {

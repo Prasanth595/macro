@@ -316,6 +316,7 @@ function CalendarDraftComposerContent(props: CalendarDraftComposerProps) {
           <EventForm
             controller={controller}
             macroCallsEnabled={macroCallsEnabled()}
+            guestPolicyEditable
             class="min-w-0"
             disabled={
               finalized || !props.sink.canAct() || operation() === 'reject'

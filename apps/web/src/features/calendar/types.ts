@@ -162,6 +162,7 @@ export const NO_VIEWER_CAPABILITIES: ViewerCapabilities = {
   removeGuests: false,
   setGuestPolicy: false,
   rsvp: false,
+  organize: false,
 };
 
 /** Shared presentation source until calendar/account metadata is exposed. */

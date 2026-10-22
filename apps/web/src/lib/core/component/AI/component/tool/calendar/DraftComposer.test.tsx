@@ -124,6 +124,7 @@ const calendar = (id: string): VisibleCalendar => ({
     customRecurrence: false,
     removeConference: false,
     resetRsvp: false,
+    guestPolicy: true,
   },
   defaultReminders: [],
 });

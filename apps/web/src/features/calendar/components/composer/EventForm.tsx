@@ -17,6 +17,7 @@ import {
 } from '../../utils/calendar-description';
 import type { CalendarEventFormController } from './create-calendar-event-form-controller';
 import { EventDateTimeRangeFields } from './EventDateTimeRangeFields';
+import { EventGuestPolicyRow } from './EventGuestPolicyRow';
 import {
   EventComposerCalendarPill,
   EventComposerConferencePill,
@@ -45,6 +46,8 @@ export interface EventFormProps {
   addOnlyGuests?: boolean;
   /** Why a read-only guest list cannot change. */
   guestsReadOnlyReason?: string;
+  /** Whether the viewer may set what guests may do, as the organizer. */
+  guestPolicyEditable?: boolean;
   /**
    * Why the event's title, time, description, location, recurrence and
    * conferencing cannot change.
@@ -384,6 +387,21 @@ export function EventForm(props: EventFormProps) {
             />
           </div>
 
+          {/* Outlook has no guest permissions, and an out-of-office event
+              no guests. */}
+          <Show
+            when={
+              props.guestPolicyEditable &&
+              capabilities()?.guestPolicy !== false &&
+              !isOutOfOffice()
+            }
+          >
+            <EventGuestPolicyRow
+              value={controller.guestPolicy()}
+              onChange={controller.setGuestPolicy}
+              disabled={formIsDisabled()}
+            />
+          </Show>
           <Show when={props.detailsReadOnlyReason}>
             {(reason) => <p class="text-xs text-ink-muted">{reason()}</p>}
           </Show>

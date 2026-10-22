@@ -86,6 +86,7 @@ export function createCalendarEventToEditorInitialValues(
           declineMessage: event.outOfOffice?.declineMessage ?? '',
         }
       : undefined,
+    guestPolicy: event.guestPolicy ?? undefined,
   };
 
   if (event.time.kind === 'allDay') {
@@ -190,5 +191,8 @@ export function editorSubmitValuesToCreateCalendarEvent(
             : {}),
         }
       : undefined,
+    guestPolicy: outOfOffice
+      ? undefined
+      : (values.guestPolicy ?? original.guestPolicy),
   };
 }

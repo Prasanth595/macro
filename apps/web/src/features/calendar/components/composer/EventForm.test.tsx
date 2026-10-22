@@ -41,6 +41,7 @@ const WORK_CALENDAR: EventEditorCalendarOption = {
     customRecurrence: false,
     removeConference: false,
     resetRsvp: false,
+    guestPolicy: true,
     conferenceProvider: 'google_meet',
   },
   label: 'Work',
@@ -158,4 +159,33 @@ it('keeps a guest the organizer does not let modify to their own reminders', asy
 
   await user.click(screen.getByRole('button', { name: /Notifications/ }));
   expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
+});
+
+it('lets the organizer set guest permissions, with modifying implying inviting', async () => {
+  const user = userEvent.setup();
+  showForm({ guestPolicyEditable: true });
+
+  const permissions = screen.getByRole('group', { name: 'Guest permissions' });
+  const modify = screen.getByRole('checkbox', { name: 'Modify event' });
+  const invite = screen.getByRole('checkbox', { name: 'Invite others' });
+  const seeGuests = screen.getByRole('checkbox', { name: 'See guest list' });
+  expect(permissions).toBeTruthy();
+  expect([
+    (modify as HTMLInputElement).checked,
+    (invite as HTMLInputElement).checked,
+    (seeGuests as HTMLInputElement).checked,
+  ]).toEqual([false, true, true]);
+
+  await user.click(invite);
+  expect((invite as HTMLInputElement).checked).toBe(false);
+  await user.click(modify);
+  expect((modify as HTMLInputElement).checked).toBe(true);
+  expect((invite as HTMLInputElement).checked).toBe(true);
+  expect((invite as HTMLInputElement).disabled).toBe(true);
+});
+
+it('offers no guest permissions without the organizer’s rights', () => {
+  showForm();
+
+  expect(screen.queryByRole('group', { name: 'Guest permissions' })).toBeNull();
 });
