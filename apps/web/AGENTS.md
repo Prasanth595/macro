@@ -137,6 +137,10 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Inline agent steps reuse the session code-execution query for live SDK operation
   names; completed step snapshots come from the shared fold of the tool receipt.
 - All API/network calls live in service-clients.
+- Open projects through `openProject` (`features/projects/open-project.ts`): it
+  retargets an already-open project split to the section or comment in place.
+  Opening the legacy `initiative-view` component route beside an open project
+  mounts a redirect shim that stays on "Loading project".
 - Bound Discussion comment readiness waits to ten seconds; recover from initial layout interruptions until the message is visible, and release the target on user input (including scrollbar pointer-down), timeout, or successful arrival.
 - Keep early DOCX opens loading while exports return processing (409); retry only
   that response, with a bounded wait. See the Word editor walkthrough in
@@ -340,6 +344,20 @@ On a physical iPhone, WKWebView still synthesises the compatibility `mousedown`/
 3. **Run it on the device, not the Simulator**, with Safari Web Inspector attached (Develop → the iPhone → the Macro webview), filter the console by the prefix, reproduce, and read the order. A `mousedown` arriving after a `pointerdown` logged with `defaultPrevented: true`, followed by `focusout` whose `relatedTarget` is a container, is this bug.
 
 4. **Strip the instrumentation before committing.**
+
+### Agent system events
+
+Accept `notification` in both fetched and subscribed GraphQL session log rows.
+System notifications live in fold metadata, separate from messages. Review
+subjects refresh their existing card; other subjects render quiet timeline rows
+through `block-agent/components/session-event-row.tsx`. Match typed event
+payloads exhaustively, summarize outcomes without draft content, and keep the
+icon, truncated summary, timestamp, and optional subject action on one line on
+desktop and mobile.
+Keep Responding bound to the notification turn, including rejection and noop.
+The backend-free desktop/mobile check is
+`bunx playwright test --config src/features/block-agent/browser-test/playwright.config.ts`.
+Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
 
 ### Agent backend hosting
 

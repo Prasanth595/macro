@@ -2,8 +2,8 @@
 edition = "2024"
 name = "cache-wasm"
 publish = false
-# Rebuild with draft link patches independent of email send persistence.
-version = "0.6.51"
+# Rebuild with draft link patches and compressed normalized records.
+version = "0.6.52"
 
 [features]
 default = []
