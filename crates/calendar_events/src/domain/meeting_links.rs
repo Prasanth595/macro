@@ -135,19 +135,16 @@ pub fn first_macro_call_url(location: Option<&str>, description: Option<&str>) -
     None
 }
 
-/// Take back out what [`attach_macro_call`] wrote for `url`, as the calendar
-/// UI does before showing an event: the join line of a description already
-/// reduced to plain text, and a location that is only the link. Everything
-/// the user wrote stays, including the link written anywhere else. The text
-/// may show the link in brackets, as html2text writes links.
+/// Take back out what [`attach_macro_call`] wrote, as the calendar UI does
+/// before showing an event: the join line of a description already reduced
+/// to plain text, whichever call it names, and a location that is only the
+/// event's call link `url`. Everything the user wrote stays, including a
+/// link written anywhere else. The text may show the link in brackets, as
+/// html2text writes links.
 pub fn strip_macro_call(description_text: &str, location: &str, url: &str) -> (String, String) {
-    let join_line = format!("{JOIN_LINE_LABEL}: {url}");
     let description = description_text
         .lines()
-        .filter(|line| {
-            let line = line.trim().replace(['[', ']'], "");
-            line != JOIN_LINE_LABEL && line != join_line
-        })
+        .filter(|line| !is_join_line(&line.trim().replace(['[', ']'], "")))
         .collect::<Vec<_>>()
         .join("\n");
     let location = if location.trim() == url {
@@ -156,6 +153,18 @@ pub fn strip_macro_call(description_text: &str, location: &str, url: &str) -> (S
         location.to_string()
     };
     (description.trim().to_string(), location)
+}
+
+/// Whether `line` is the generated join line: the label alone, or the label
+/// followed by a Macro call link.
+fn is_join_line(line: &str) -> bool {
+    match line.strip_prefix(JOIN_LINE_LABEL) {
+        Some("") => true,
+        Some(rest) => rest
+            .strip_prefix(": ")
+            .is_some_and(|link| first_macro_call_url(Some(link), None).as_deref() == Some(link)),
+        None => false,
+    }
 }
 
 /// Create an event that carries a Macro call.

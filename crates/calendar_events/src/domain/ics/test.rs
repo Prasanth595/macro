@@ -163,6 +163,28 @@ fn a_macro_call_keeps_a_physical_location_and_drops_an_empty_description() {
 }
 
 #[test]
+fn the_join_line_goes_even_when_an_earlier_call_link_is_found_first() {
+    let earlier = "https://macro.com/app/meet/join/fedcba9876543210fedcba9876543210";
+    let mut event = export(all_day());
+    let (description, location) = attach_macro_call(
+        Some(&format!("<p>Last week: {earlier}</p>")),
+        Some("Room 4"),
+        CALL_URL,
+    );
+    event.description = Some(description);
+    event.location = Some(location);
+
+    let document = render_event_ics(&event);
+    let lines = unfolded(&document);
+
+    assert!(
+        lines.contains(&format!("DESCRIPTION:Last week: {earlier}")),
+        "{lines:?}"
+    );
+    assert!(!document.contains(CALL_URL), "{lines:?}");
+}
+
+#[test]
 fn stored_line_breaks_cannot_start_a_new_property() {
     let mut event = export(EventTime::Timed {
         starts_at: Utc.with_ymd_and_hms(2026, 9, 24, 23, 30, 0).unwrap(),
