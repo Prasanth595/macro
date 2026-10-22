@@ -48,6 +48,96 @@ fn calendar_access_role_is_reflected_on_mapped_events() {
 }
 
 #[test]
+fn guest_permissions_default_when_omitted_and_raw_payload_keeps_unmapped_fields() {
+    let target = ProviderCalendarTarget {
+        binding: None,
+        provider: crate::domain::models::CalendarProvider::Google,
+        observed_access_role: Some("owner".to_owned()),
+        owner_id: "macro|guest@example.com".to_string(),
+        email_link_id: Uuid::now_v7(),
+        account_id: Uuid::now_v7(),
+        calendar_id: Uuid::now_v7(),
+        provider_calendar_id: "primary".to_string(),
+        is_read_only: false,
+        range: OccurrenceRange {
+            starts_at: DateTime::parse_from_rfc3339("2026-10-01T00:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            ends_at: DateTime::parse_from_rfc3339("2026-11-01T00:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            start_date: NaiveDate::from_ymd_opt(2026, 10, 1).unwrap(),
+            end_date: NaiveDate::from_ymd_opt(2026, 11, 1).unwrap(),
+        },
+    };
+    let event = |permissions: serde_json::Value| -> GoogleEvent {
+        let mut value = serde_json::json!({
+            "id": "provider-event",
+            "iCalUID": "planning@example.com",
+            "summary": "Planning",
+            "start": {"dateTime": "2026-10-22T17:00:00Z"},
+            "end": {"dateTime": "2026-10-22T18:00:00Z"},
+            "htmlLink": "https://calendar.google.com/event?eid=abc",
+            "attendeesOmitted": false
+        });
+        value
+            .as_object_mut()
+            .unwrap()
+            .extend(permissions.as_object().unwrap().clone());
+        serde_json::from_value(value).unwrap()
+    };
+
+    let defaults = map_upsert(
+        &target,
+        event(serde_json::json!({})),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let locked = map_upsert(
+        &target,
+        event(serde_json::json!({
+            "guestsCanModify": true,
+            "guestsCanInviteOthers": false,
+            "guestsCanSeeOtherGuests": false
+        })),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+
+    assert_eq!(
+        defaults.event.guest_policy,
+        GuestPolicy {
+            can_modify: false,
+            can_invite_others: true,
+            can_see_other_guests: true,
+        }
+    );
+    assert_eq!(
+        locked.event.guest_policy,
+        GuestPolicy {
+            can_modify: true,
+            can_invite_others: false,
+            can_see_other_guests: false,
+        }
+    );
+    let raw = &locked.source.details().raw_payload;
+    assert_eq!(raw["htmlLink"], "https://calendar.google.com/event?eid=abc");
+    assert_eq!(raw["attendeesOmitted"], false);
+    assert_eq!(raw["guestsCanInviteOthers"], false);
+    assert!(
+        defaults
+            .source
+            .details()
+            .raw_payload
+            .get("guestsCanInviteOthers")
+            .is_none(),
+        "an omitted switch stays omitted in the raw payload"
+    );
+}
+
+#[test]
 fn event_type_is_mapped_with_an_unknown_fallback() {
     let range = OccurrenceRange {
         starts_at: DateTime::parse_from_rfc3339("2026-08-01T00:00:00Z")
@@ -963,6 +1053,48 @@ fn rsvp_patch_updates_only_the_connected_attendee() {
     assert_eq!(attendees[0]["email"], "self@example.com");
     assert_eq!(attendees[0]["responseStatus"], "declined");
     assert_eq!(attendees[0]["comment"], "unrelated state that must survive");
+}
+
+/// Google refuses new attendees in `attendeesOmitted` mode
+/// (`omittedAttendeesSpecified`), so an invite writes the whole list and
+/// must carry every existing attendee exactly as Google returned it.
+#[test]
+fn invite_body_keeps_every_attendee_as_google_returned_it_and_appends_the_guests() {
+    let current: Vec<GoogleAttendee> = serde_json::from_value(serde_json::json!([
+        {
+            "email": "olivia@example.com",
+            "organizer": true,
+            "responseStatus": "accepted"
+        },
+        {
+            "email": "jacob@example.com",
+            "self": true,
+            "responseStatus": "tentative",
+            "comment": "running late",
+            "additionalGuests": 1
+        }
+    ]))
+    .unwrap();
+
+    let body = invite_attendees_body(
+        &current,
+        &[CalendarAttendeeInput {
+            email: "ada@example.com".to_string(),
+            is_optional: true,
+            response_status: None,
+        }],
+    );
+
+    assert!(body.get("attendeesOmitted").is_none());
+    let attendees = body["attendees"].as_array().unwrap();
+    assert_eq!(attendees.len(), 3);
+    assert_eq!(attendees[0]["responseStatus"], "accepted");
+    assert_eq!(attendees[1]["responseStatus"], "tentative");
+    assert_eq!(attendees[1]["comment"], "running late");
+    assert_eq!(attendees[1]["additionalGuests"], 1);
+    assert_eq!(attendees[2]["email"], "ada@example.com");
+    assert_eq!(attendees[2]["optional"], true);
+    assert!(attendees[2].get("responseStatus").is_none());
 }
 
 fn google_attendee(email: &str, is_self: bool) -> GoogleAttendee {
