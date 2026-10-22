@@ -476,7 +476,10 @@ an inbox is visible with All inboxes selected. Sender metadata warms alongside
 GraphQL backfill, before opening a composer. Test an empty sender catalog too:
 create a draft offline, restart, find it in Drafts/name search, and reopen its
 subject and body. Reconnect, select the sending inbox, edit, and verify it syncs
-without a duplicate row.
+without a duplicate row. Reopen an unqueued local draft while online too: its
+temporary thread's server 404 must not hide the local composer or mark that
+temporary ID read. Confirmed server threads still respect deletion/access errors;
+local working copies do not override authentication or permission failures.
 
 **Saved on this device** distinguishes an unsynced working copy from **Draft
 saved** after server confirmation. The status sits immediately left of the desktop
