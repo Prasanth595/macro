@@ -1,7 +1,7 @@
 use super::*;
 use crate::domain::models::{WorkFeedCandidateRequest, WorkFeedSoupMode};
 use crate::outbound::pg_soup_repo::work_feed::work_feed_soup_page;
-use item_filters::ast::agent_session::AgentSessionSource;
+use item_filters::ast::agent_session::AgentSessionVisibility;
 
 fn work_request<'a>(
     filter: &'a EntityFilterAst,
@@ -125,19 +125,19 @@ async fn hidden_contexts_with_notifications_and_activity_stay_out_of_broad_feeds
     Ok(())
 }
 
-/// Home's work feed leaves routine runs out even while they hold attention,
-/// and a feed that does not exclude them still shows them.
+/// Home's work feed leaves unlisted routine runs out even while they hold
+/// attention, and a feed that does not exclude them still shows them.
 #[sqlx::test(
     fixtures(path = "../../../../../fixtures", scripts("notified_at")),
     migrator = "MACRO_DB_MIGRATIONS"
 )]
-async fn routine_runs_with_notifications_stay_out_of_feeds_that_exclude_them(
+async fn unlisted_runs_with_notifications_stay_out_of_feeds_that_exclude_them(
     pool: Pool<Postgres>,
 ) -> anyhow::Result<()> {
     let (mine, _) = seed_agent_sessions(&pool).await?;
     let sources = sources();
     sqlx::query!(
-        "UPDATE agent_session SET source = 'routine' WHERE id = $1",
+        "UPDATE agent_session SET source = 'routine', visibility = 'unlisted' WHERE id = $1",
         mine,
     )
     .execute(&pool)
@@ -149,8 +149,8 @@ async fn routine_runs_with_notifications_stay_out_of_feeds_that_exclude_them(
     let without_runs = EntityFilterAst {
         agent_session_filter: Some(Arc::new(Expr::and(
             Expr::val(AgentSessionLiteral::Include),
-            Expr::is_not(Expr::val(AgentSessionLiteral::Source(
-                AgentSessionSource::Routine,
+            Expr::is_not(Expr::val(AgentSessionLiteral::Visibility(
+                AgentSessionVisibility::Unlisted,
             ))),
         ))),
         ..Default::default()

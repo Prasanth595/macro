@@ -7,7 +7,7 @@
 use chrono::{DateTime, Utc};
 use filter_ast::Expr;
 use item_filters::ast::{
-    agent_session::{AgentSessionLiteral, AgentSessionSource},
+    agent_session::{AgentSessionLiteral, AgentSessionSource, AgentSessionVisibility},
     properties::{PropertiesLiteral, properties_filter_matches_propertyless},
 };
 use model_entity::EntityType;
@@ -28,6 +28,12 @@ pub(super) fn source_sql(source: AgentSessionSource) -> String {
     format!("s.source = '{}'", <&str>::from(source))
 }
 
+/// [`AgentSessionLiteral::Visibility`] over the `agent_session` row `s`, shared
+/// with the candidate gates. The value is a closed enum's, so it is inlined.
+pub(super) fn visibility_sql(visibility: AgentSessionVisibility) -> String {
+    format!("s.visibility = '{}'", <&str>::from(visibility))
+}
+
 #[derive(FromRow)]
 struct AgentSessionRow {
     id: Uuid,
@@ -43,6 +49,7 @@ struct AgentSessionRow {
     turn_state: Option<String>,
     thread_id: Option<Uuid>,
     source: String,
+    visibility: String,
     status: String,
     status_event_name: Option<String>,
     created_at: DateTime<Utc>,
@@ -76,7 +83,7 @@ pub(super) fn opted_in(expr: &Expr<AgentSessionLiteral>) -> bool {
                 out.named = true
             }
             // Narrows the sessions a query asks for; never asks for them.
-            Expr::Literal(AgentSessionLiteral::Source(_)) => {}
+            Expr::Literal(AgentSessionLiteral::Source(_) | AgentSessionLiteral::Visibility(_)) => {}
             Expr::And(a, b) | Expr::Or(a, b) => {
                 walk(a, out);
                 walk(b, out);
@@ -240,6 +247,7 @@ const ACCESS_SQL: &str = r#" AND cp.left_at IS NULL
         s.turn_state,
         s.thread_id,
         s.source,
+        s.visibility,
         s.status,
         s.status_event_name,
         s.created_at,
@@ -325,6 +333,9 @@ fn push_filter(builder: &mut QueryBuilder<'_, Postgres>, expression: &Expr<Agent
         Expr::Literal(AgentSessionLiteral::Source(source)) => {
             builder.push(source_sql(*source));
         }
+        Expr::Literal(AgentSessionLiteral::Visibility(visibility)) => {
+            builder.push(visibility_sql(*visibility));
+        }
     }
 }
 
@@ -352,6 +363,7 @@ fn row_to_item(row: AgentSessionRow) -> Result<SoupItem<()>, sqlx::Error> {
         turn_state: row.turn_state,
         thread_id: row.thread_id,
         source: row.source.parse().map_err(super::type_err)?,
+        visibility: row.visibility.parse().map_err(super::type_err)?,
         status,
         created_at: row.created_at,
         updated_at: row.modified_at,

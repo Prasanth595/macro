@@ -1,5 +1,5 @@
 use super::*;
-use agent_session::domain::model::SessionSource;
+use agent_session::domain::model::{SessionSource, SessionVisibility};
 use agent_session::domain::warm::{WarmClaim, WarmMissReason};
 
 struct WarmLifecycleStub {
@@ -145,6 +145,7 @@ async fn warming_initializes_without_a_prompt_or_visible_created_event() {
                 profile: None,
             }),
             source: SessionSource::User,
+            visibility: SessionVisibility::Listed,
         })
         .await
         .expect("claim prepared session");
@@ -225,6 +226,7 @@ async fn a_missed_warm_claim_records_why_on_the_open_span() {
                 profile: None,
             }),
             source: SessionSource::User,
+            visibility: SessionVisibility::Listed,
         })
         .await
         .expect("cold open after a missed claim");
@@ -277,6 +279,7 @@ async fn an_open_without_a_client_id_records_that_no_warm_id_was_sent() {
                 profile: None,
             }),
             source: SessionSource::User,
+            visibility: SessionVisibility::Listed,
         })
         .await
         .expect("cold open");
@@ -358,15 +361,15 @@ async fn a_routine_run_opens_its_own_session_instead_of_claiming_a_warm_one() {
                 profile: None,
             }),
             source: SessionSource::Routine,
+            visibility: SessionVisibility::Unlisted,
         })
         .await
         .expect("open the routine run");
 
     assert_eq!(session.source, SessionSource::Routine);
-    assert_eq!(
-        repo.get(session.id).await.expect("persisted").source,
-        SessionSource::Routine
-    );
+    let persisted = repo.get(session.id).await.expect("persisted");
+    assert_eq!(persisted.source, SessionSource::Routine);
+    assert_eq!(persisted.visibility, SessionVisibility::Unlisted);
     assert_eq!(containers.spawned(), 1, "a fresh runtime, not a warm one");
     service
         .execute(session.id, HarnessCommand::Delete)

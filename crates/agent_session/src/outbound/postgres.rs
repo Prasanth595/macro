@@ -24,8 +24,9 @@ use crate::domain::model::{
     AgentMcpServers, AgentSession, AgentSessionId, AgentSessionLog, AgentSessionPreviewData,
     ClaimOutcome, CreateAgentSessionParams, ExternalSession, LeaseView, ManagerFence, Message,
     ReplicaAddress, ReplicaId, SandboxSize, SessionBot, SessionClaim, SessionManager,
-    SessionPreviewCandidate, SessionSource, SessionStatus, StoredAgentSessionLog,
-    StoredQueuedAction, ThreadSession, TurnPrompter, cursor_run_checkpoint, session_owner_user,
+    SessionPreviewCandidate, SessionSource, SessionStatus, SessionVisibility,
+    StoredAgentSessionLog, StoredQueuedAction, ThreadSession, TurnPrompter, cursor_run_checkpoint,
+    session_owner_user,
 };
 use crate::domain::ports::{
     AgentSessionLogRepo, AgentSessionRepo, ExternalSessionRepo, REPLICA_STALE_AFTER,
@@ -244,6 +245,7 @@ struct AgentSessionRow {
     pull_request_url: Option<String>,
     task_id: Option<String>,
     source: String,
+    visibility: String,
     workspace: String,
     sandbox_size: String,
     instructions: Option<String>,
@@ -290,6 +292,9 @@ impl TryFrom<AgentSessionRow> for AgentSession {
                 .source
                 .parse()
                 .map_err(|_| anyhow::anyhow!("unknown agent_session source {:?}", row.source))?,
+            visibility: row.visibility.parse().map_err(|_| {
+                anyhow::anyhow!("unknown agent_session visibility {:?}", row.visibility)
+            })?,
             workspace: row.workspace,
             sandbox_size: parse_sandbox_size(&row.sandbox_size)?,
             instructions: row.instructions,
@@ -383,12 +388,12 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
                 id, owner_id, thread_id, originating_message_id, bot_id, model,
                 harness, repo_url, workspace, sandbox_size, instructions,
                 acp_session_id, status, status_event_name, egress_token_hash,
-                mcp_scope, mcp_servers, repo_branch, list_hidden, for_warming, source
+                mcp_scope, mcp_servers, repo_branch, list_hidden, for_warming, source, visibility
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
             RETURNING
                 id, name, is_archived, owner_id, thread_id, originating_message_id, bot_id,
-                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, workspace, sandbox_size, instructions,
+                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, visibility, workspace, sandbox_size, instructions,
                 mcp_scope, mcp_servers, acp_session_id, status,
                 status_event_name, created_at, modified_at,
                 (SELECT jsonb_build_object('type', parent_entity_type, 'id', parent_entity_id)
@@ -420,6 +425,7 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
             list_hidden,
             warm,
             <&str>::from(purpose.source()),
+            <&str>::from(purpose.visibility()),
         )
         .fetch_one(&mut *transaction)
         .await
@@ -520,7 +526,7 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
             r#"
             SELECT
                 id, name, is_archived, owner_id, thread_id, originating_message_id, bot_id,
-                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, workspace, sandbox_size, instructions,
+                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, visibility, workspace, sandbox_size, instructions,
                 mcp_scope, mcp_servers, acp_session_id, status,
                 status_event_name, agent_session.created_at, modified_at,
                 (SELECT jsonb_build_object('type', parent_entity_type, 'id', parent_entity_id)
@@ -627,7 +633,7 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
             r#"
             SELECT
                 id, name, is_archived, owner_id, thread_id, originating_message_id, bot_id,
-                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, workspace, sandbox_size, instructions,
+                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, visibility, workspace, sandbox_size, instructions,
                 mcp_scope, mcp_servers, acp_session_id, status,
                 status_event_name, agent_session.created_at, modified_at,
                 (SELECT jsonb_build_object('type', parent_entity_type, 'id', parent_entity_id)
@@ -668,7 +674,7 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
             r#"
             SELECT
                 id, name, is_archived, owner_id, thread_id, originating_message_id, bot_id,
-                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, workspace, sandbox_size, instructions,
+                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, visibility, workspace, sandbox_size, instructions,
                 mcp_scope, mcp_servers, acp_session_id, status,
                 status_event_name, agent_session.created_at, modified_at,
                 (SELECT jsonb_build_object('type', parent_entity_type, 'id', parent_entity_id)
@@ -702,7 +708,7 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
             r#"
             SELECT
                 id, name, is_archived, owner_id, thread_id, originating_message_id, bot_id,
-                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, workspace, sandbox_size, instructions,
+                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, visibility, workspace, sandbox_size, instructions,
                 mcp_scope, mcp_servers, acp_session_id, status,
                 status_event_name, agent_session.created_at, modified_at,
                 (SELECT jsonb_build_object('type', parent_entity_type, 'id', parent_entity_id)
@@ -738,7 +744,7 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
             r#"
             SELECT
                 id, name, is_archived, owner_id, thread_id, originating_message_id, bot_id,
-                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, workspace, sandbox_size, instructions,
+                model, harness, repo_url, repo_branch, pull_request_url, task_id, source, visibility, workspace, sandbox_size, instructions,
                 mcp_scope, mcp_servers, acp_session_id, status,
                 status_event_name, agent_session.created_at, modified_at,
                 (SELECT jsonb_build_object('type', parent_entity_type, 'id', parent_entity_id)
@@ -917,34 +923,40 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
         Ok(())
     }
 
-    async fn set_source(&self, id: AgentSessionId, source: SessionSource) -> Result<()> {
+    async fn mark_routine_run(
+        &self,
+        id: AgentSessionId,
+        visibility: SessionVisibility,
+    ) -> Result<()> {
         let mut transaction = self
             .pool
             .begin()
             .await
-            .context("begin agent session set_source")?;
+            .context("begin agent session mark_routine_run")?;
         let modified_at = sqlx::query_scalar!(
             r#"
             UPDATE agent_session
             SET source = $2,
+                visibility = $3,
                 modified_at = NOW()
             WHERE id = $1
-              AND source <> $2
+              AND (source <> $2 OR visibility <> $3)
             RETURNING modified_at
             "#,
             id.as_uuid(),
-            <&str>::from(source),
+            <&str>::from(SessionSource::Routine),
+            <&str>::from(visibility),
         )
         .fetch_optional(&mut *transaction)
         .await
-        .context("failed to persist agent session source")?;
-        // Lists re-read the session, so a routine run leaves the ones that
-        // exclude routine runs.
+        .context("failed to mark agent session as a routine run")?;
+        // Lists re-read the session, so an unlisted run leaves the ones that
+        // exclude unlisted sessions.
         touch_entity_updated(&mut transaction, id, modified_at).await?;
         transaction
             .commit()
             .await
-            .context("commit agent session set_source")?;
+            .context("commit agent session mark_routine_run")?;
         Ok(())
     }
 

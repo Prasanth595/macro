@@ -118,6 +118,7 @@ impl AgentSessionRepo for StubSessions {
             created_at: chrono::Utc::now(),
             modified_at: chrono::Utc::now(),
             source: agent_session::domain::model::SessionSource::User,
+            visibility: agent_session::domain::model::SessionVisibility::Listed,
         })
     }
 
@@ -160,12 +161,12 @@ impl AgentSessionRepo for StubSessions {
         unimplemented!("the manager never sets models")
     }
 
-    async fn set_source(
+    async fn mark_routine_run(
         &self,
         _id: AgentSessionId,
-        _source: agent_session::domain::model::SessionSource,
+        _visibility: agent_session::domain::model::SessionVisibility,
     ) -> SessionResult<()> {
-        unimplemented!("the manager never records sources")
+        unimplemented!("the manager never marks routine runs")
     }
 
     async fn set_egress_token_hash(&self, _id: AgentSessionId, _hash: &str) -> SessionResult<()> {

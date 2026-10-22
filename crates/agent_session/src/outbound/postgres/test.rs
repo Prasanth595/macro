@@ -5,7 +5,9 @@ mod search;
 mod session_task;
 mod user_cleanup;
 mod working_branch;
-use crate::domain::model::{AgentMcpServer, DEFAULT_AGENT_SESSION_NAME, SessionSource};
+use crate::domain::model::{
+    AgentMcpServer, DEFAULT_AGENT_SESSION_NAME, SessionSource, SessionVisibility,
+};
 use crate::domain::ports::AgentSessionRepo;
 use agent_client_protocol::RawJsonRpcMessage;
 use agent_runtime_protocol::domain::schema::v0::{AcpMessage, SystemEvent};
@@ -1319,23 +1321,27 @@ async fn inline_macro_sessions_start_hidden(pool: PgPool) {
     assert!(!hidden[1].list_hidden, "a composer session is listed");
 }
 
-/// A routine's run records its source, whether the harness created the row
-/// knowing it or an external runtime created it first. It stays listed: lists
-/// leave routine runs out by asking to, not by hiding them.
+/// A routine's run records its source and its routine's visibility, whether
+/// the harness created the row knowing them or an external runtime created it
+/// first. An unlisted run is not `list_hidden`: lists leave it out by asking
+/// to, so the Agents list can still show it on request.
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
-async fn routine_runs_record_their_source(pool: PgPool) {
+async fn routine_runs_record_their_source_and_visibility(pool: PgPool) {
     let repo = test_repo(&pool);
     let bot_id = create_test_bot(&pool).await;
 
     let managed = create_session(
         &repo,
         CreateAgentSessionParams {
-            purpose: crate::domain::model::SessionPurpose::Routine,
+            purpose: crate::domain::model::SessionPurpose::Routine {
+                visibility: SessionVisibility::Unlisted,
+            },
             ..new_session(bot_id, None, None)
         },
     )
     .await;
     assert_eq!(managed.source, SessionSource::Routine);
+    assert_eq!(managed.visibility, SessionVisibility::Unlisted);
     let listed = sqlx::query_scalar!(
         "SELECT NOT list_hidden AS \"listed!\" FROM agent_session WHERE id = $1",
         managed.id.as_uuid(),
@@ -1343,20 +1349,34 @@ async fn routine_runs_record_their_source(pool: PgPool) {
     .fetch_one(&pool)
     .await
     .expect("read list visibility");
-    assert!(listed, "a routine run is listed");
+    assert!(listed, "an unlisted routine run is not list-hidden");
+
+    let shown = create_session(
+        &repo,
+        CreateAgentSessionParams {
+            purpose: crate::domain::model::SessionPurpose::Routine {
+                visibility: SessionVisibility::Listed,
+            },
+            ..new_session(bot_id, None, None)
+        },
+    )
+    .await;
+    assert_eq!(shown.visibility, SessionVisibility::Listed);
 
     let external = create_session(&repo, new_session(bot_id, None, None)).await;
     assert_eq!(external.source, SessionSource::User);
-    AgentSessionRepo::set_source(&repo, external.id, SessionSource::Routine)
+    assert_eq!(external.visibility, SessionVisibility::Listed);
+    AgentSessionRepo::mark_routine_run(&repo, external.id, SessionVisibility::Unlisted)
         .await
-        .expect("record the source");
-    AgentSessionRepo::set_source(&repo, external.id, SessionSource::Routine)
+        .expect("mark the routine run");
+    AgentSessionRepo::mark_routine_run(&repo, external.id, SessionVisibility::Unlisted)
         .await
-        .expect("recording it again is a no-op");
+        .expect("marking it again is a no-op");
     let external = AgentSessionRepo::get(&repo, external.id)
         .await
         .expect("read the session");
     assert_eq!(external.source, SessionSource::Routine);
+    assert_eq!(external.visibility, SessionVisibility::Unlisted);
 }
 
 /// A preview reports every existing id with whether the viewer holds a grant:

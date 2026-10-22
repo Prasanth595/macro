@@ -17180,6 +17180,7 @@ dependencies = [
  "serde_json",
  "share_permission_db_utils",
  "sqlx",
+ "strum 0.27.2",
  "system_properties",
  "teams",
  "thiserror 2.0.18",

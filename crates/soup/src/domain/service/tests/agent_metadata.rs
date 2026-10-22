@@ -40,6 +40,7 @@ fn agent(id: AgentSessionId, pull_request: Option<&str>) -> SoupCandidate {
         viewed_at: None,
         extra: (),
         source: models_soup::agent_session::AgentSessionSource::User,
+        visibility: models_soup::agent_session::AgentSessionVisibility::Listed,
     }))
 }
 

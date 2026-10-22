@@ -139,6 +139,9 @@ pub(super) fn agent_session_gate(filter: Option<&EntityFilterAst>) -> String {
     let tree = filter.and_then(|filter| filter.agent_session_filter.as_deref());
     let implied = implied_conjuncts_sql(tree, |literal| match literal {
         AgentSessionLiteral::Source(source) => Some(super::agent_session::source_sql(*source)),
+        AgentSessionLiteral::Visibility(visibility) => {
+            Some(super::agent_session::visibility_sql(*visibility))
+        }
         AgentSessionLiteral::Include
         | AgentSessionLiteral::Id(_)
         | AgentSessionLiteral::Owner(_) => None,

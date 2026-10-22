@@ -11,8 +11,8 @@ use crate::domain::model::{
     AgentMcpServers, AgentSession, AgentSessionId, AgentSessionLog, AgentSessionPreviewData,
     ClaimOutcome, CreateAgentSessionParams, DEFAULT_AGENT_SESSION_NAME, LeaseView, LogAppended,
     ManagerFence, ReplicaAddress, ReplicaId, SandboxSize, SessionBot, SessionClaim, SessionManager,
-    SessionPreviewCandidate, SessionSource, SessionStatus, StoredAgentSessionLog,
-    StoredQueuedAction, ThreadSession, TurnPrompter,
+    SessionPreviewCandidate, SessionSource, SessionStatus, SessionVisibility,
+    StoredAgentSessionLog, StoredQueuedAction, ThreadSession, TurnPrompter,
 };
 use crate::domain::ports::{
     AgentSessionLifecyclePublisher, AgentSessionLogRepo, AgentSessionRealtime, AgentSessionRepo,
@@ -213,6 +213,7 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
             created_at: now,
             modified_at: now,
             source: params.purpose.source(),
+            visibility: params.purpose.visibility(),
         };
         if let Some(hash) = params.egress_token_hash {
             self.egress_token_hashes
@@ -428,7 +429,11 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
         Ok(())
     }
 
-    async fn set_source(&self, id: AgentSessionId, source: SessionSource) -> Result<()> {
+    async fn mark_routine_run(
+        &self,
+        id: AgentSessionId,
+        visibility: SessionVisibility,
+    ) -> Result<()> {
         let mut sessions = self
             .sessions
             .lock()
@@ -436,7 +441,8 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
         let session = sessions.get_mut(&id).ok_or_else(|| {
             AgentSessionError::Unknown(anyhow::anyhow!("no agent session {}", id.as_uuid()))
         })?;
-        session.source = source;
+        session.source = SessionSource::Routine;
+        session.visibility = visibility;
         session.modified_at = chrono::Utc::now();
         Ok(())
     }
@@ -1038,6 +1044,7 @@ pub fn test_agent_session(id: AgentSessionId) -> AgentSession {
         created_at: now,
         modified_at: now,
         source: SessionSource::User,
+        visibility: SessionVisibility::Listed,
     }
 }
 

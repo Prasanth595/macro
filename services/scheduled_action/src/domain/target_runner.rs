@@ -64,6 +64,7 @@ impl<Sessions: RoutineSessions, Events: RoutineEventReader> ScheduledAgentRunner
                 },
                 session_id: identity.session_id,
                 source: SessionSource::Routine,
+                visibility: action.run_visibility.into(),
             })
             .await;
         match prepared {

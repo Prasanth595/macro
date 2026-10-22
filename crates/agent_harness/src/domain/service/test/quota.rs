@@ -188,6 +188,7 @@ async fn managed_open_checks_quota_before_provisioning_without_an_initial_prompt
                     profile: None,
                 }),
                 source: agent_session::domain::model::SessionSource::User,
+                visibility: agent_session::domain::model::SessionVisibility::Listed,
             })
             .await;
         assert!(matches!(result, Err(AgentSessionError::Admission(error)) if error == failure));

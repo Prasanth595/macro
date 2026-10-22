@@ -5,7 +5,7 @@ use bots::domain::models::BotId;
 use macro_user_id::user_id::MacroUserIdStr;
 use serde::{Deserialize, Serialize};
 
-use crate::domain::model::{AgentSessionId, SessionSource};
+use crate::domain::model::{AgentSessionId, SessionSource, SessionVisibility};
 
 /// A persona selected by a routine's validated user owner.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +36,10 @@ pub struct PrepareRoutineSession {
     /// for a coding agent dispatched on their behalf. Older schedulers omit it.
     #[serde(default)]
     pub source: SessionSource,
+    /// Whether a routine's run is listed, from the routine's setting. Older
+    /// schedulers omit it along with `source`.
+    #[serde(default)]
+    pub visibility: SessionVisibility,
 }
 
 /// A verified, persisted session ready for its first prompt.

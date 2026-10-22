@@ -2,7 +2,7 @@
 use super::open::starting_branch;
 use super::*;
 use crate::domain::model::SessionRepository;
-use agent_session::domain::model::{SessionSource, session_owner_user};
+use agent_session::domain::model::{SessionSource, SessionVisibility, session_owner_user};
 use agent_session::domain::ports::{OpenManagedSession, SelectedManagedPersona};
 use agent_session::domain::warm::WarmClaim;
 use model_owner::Owner;
@@ -52,7 +52,7 @@ where
     Mentions: PromptMentions,
     Notifier: AgentSessionNotifier,
 {
-    #[tracing::instrument(skip_all, err, fields(agent.session.id = tracing::field::Empty, agent.harness = tracing::field::Empty, agent.session.warm = warm, agent.session.warm_hit = false, agent.session.warm_id_sent = tracing::field::Empty, agent.session.warm_miss_reason = tracing::field::Empty, agent.session.model = tracing::field::Empty, agent.session.source = <&str>::from(request.source)))]
+    #[tracing::instrument(skip_all, err, fields(agent.session.id = tracing::field::Empty, agent.harness = tracing::field::Empty, agent.session.warm = warm, agent.session.warm_hit = false, agent.session.warm_id_sent = tracing::field::Empty, agent.session.warm_miss_reason = tracing::field::Empty, agent.session.model = tracing::field::Empty, agent.session.source = <&str>::from(request.source), agent.session.visibility = <&str>::from(request.visibility)))]
     pub(super) async fn open_managed_session_inner(
         &self,
         request: agent_session::domain::ports::OpenManagedSession,
@@ -239,7 +239,9 @@ where
                 purpose: match (warm, request.source) {
                     (true, _) => agent_session::domain::model::SessionPurpose::Warm,
                     (false, SessionSource::Routine) => {
-                        agent_session::domain::model::SessionPurpose::Routine
+                        agent_session::domain::model::SessionPurpose::Routine {
+                            visibility: request.visibility,
+                        }
                     }
                     (false, SessionSource::User) => {
                         agent_session::domain::model::SessionPurpose::Standalone
@@ -436,6 +438,7 @@ where
             instructions: None,
             model: None,
             source: SessionSource::User,
+            visibility: SessionVisibility::Listed,
         };
         match tokio::time::timeout(
             WARM_PREPARATION_TIMEOUT,

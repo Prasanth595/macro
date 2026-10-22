@@ -1299,6 +1299,11 @@ where
         self.0.source.into()
     }
 
+    /// Whether Home and the default Agents list show the session.
+    async fn visibility(&self) -> graphql_soup_filter_input::GraphqlAgentSessionVisibility {
+        self.0.visibility.into()
+    }
+
     /// The session's last known status: `no_messages`, `disconnected`, or the
     /// wire name of the most recent system event (for example `session/end`).
     async fn status(&self) -> &str {

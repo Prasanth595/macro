@@ -174,6 +174,7 @@ impl AgentSessionRepo for FixedBotSessions {
             created_at: chrono::Utc::now(),
             modified_at: chrono::Utc::now(),
             source: agent_session::domain::model::SessionSource::User,
+            visibility: agent_session::domain::model::SessionVisibility::Listed,
         })
     }
 
@@ -216,12 +217,12 @@ impl AgentSessionRepo for FixedBotSessions {
         unimplemented!("the router never sets models")
     }
 
-    async fn set_source(
+    async fn mark_routine_run(
         &self,
         _id: AgentSessionId,
-        _source: agent_session::domain::model::SessionSource,
+        _visibility: agent_session::domain::model::SessionVisibility,
     ) -> SessionResult<()> {
-        unimplemented!("the router never records sources")
+        unimplemented!("the router never marks routine runs")
     }
 
     async fn set_egress_token_hash(&self, _id: AgentSessionId, _hash: &str) -> SessionResult<()> {

@@ -1,6 +1,8 @@
 use super::*;
 use crate::domain::error::Result as SessionResult;
-use crate::domain::model::{AgentMcpServers, ReplicaId, SandboxSize, SessionSource};
+use crate::domain::model::{
+    AgentMcpServers, ReplicaId, SandboxSize, SessionSource, SessionVisibility,
+};
 use crate::domain::ports::{
     AcceptedControl, BotFacts, ManagedAgentProfile, NoOpAgentSessionNameGenerator, NoOpRealtime,
     NoOpTurnObserver, NoopLifecyclePublisher, OpenExternalAgentSession, QueuedControl,
@@ -257,6 +259,7 @@ impl Fixture {
             selection: self.selection(),
             session_id: self.session.id,
             source: SessionSource::Routine,
+            visibility: SessionVisibility::Unlisted,
         }
     }
 
@@ -317,6 +320,7 @@ async fn external_preparation_uses_requested_identity_and_model() {
                 owner: fx.session.owner_user().unwrap().clone(),
                 model: override_model,
                 source: SessionSource::Routine,
+                visibility: SessionVisibility::Unlisted,
             }]
         );
         assert!(fx.openings.managed.lock().unwrap().is_empty());

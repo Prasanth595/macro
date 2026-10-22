@@ -142,6 +142,7 @@ where
                         instructions: None,
                         model: selection.model.clone(),
                         source: command.source,
+                        visibility: command.visibility,
                     })
                     .await
             }
@@ -154,6 +155,7 @@ where
                         repo_url: None,
                         model: selection.model.clone(),
                         source: command.source,
+                        visibility: command.visibility,
                     })
                     .await
             }

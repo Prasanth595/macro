@@ -118,6 +118,7 @@ fn soup_agent_session(id: Uuid) -> SoupItem<()> {
         viewed_at: None,
         extra: (),
         source: models_soup::agent_session::AgentSessionSource::User,
+        visibility: models_soup::agent_session::AgentSessionVisibility::Listed,
     })
 }
 

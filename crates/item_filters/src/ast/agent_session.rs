@@ -25,6 +25,9 @@ pub enum AgentSessionLiteral {
     /// Filter by who started the session.
     #[serde(rename = "src")]
     Source(AgentSessionSource),
+    /// Filter by whether the session is listed.
+    #[serde(rename = "vis")]
+    Visibility(AgentSessionVisibility),
 }
 
 /// Who started an agent session. The string form is the
@@ -50,6 +53,32 @@ pub enum AgentSessionSource {
     User,
     /// A routine's unattended run.
     Routine,
+}
+
+/// Whether Home and the default Agents list show an agent session; a
+/// routine's setting decides it for each of its runs. The string form is the
+/// `agent_session.visibility` column's.
+#[derive(
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    strum::EnumString,
+    strum::IntoStaticStr,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+pub enum AgentSessionVisibility {
+    /// Shown wherever the owner's sessions are.
+    #[default]
+    Listed,
+    /// Left out of Home and the default Agents list.
+    Unlisted,
 }
 
 impl ExpandFrame<AgentSessionLiteral> for AgentSessionFilters {

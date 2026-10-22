@@ -1,5 +1,5 @@
 use chrono::Utc;
-pub use item_filters::ast::agent_session::AgentSessionSource;
+pub use item_filters::ast::agent_session::{AgentSessionSource, AgentSessionVisibility};
 use model_owner::Owner;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -74,6 +74,10 @@ pub struct SoupAgentSession<T = ()> {
     /// Who started the session
     #[serde(default)]
     pub source: AgentSessionSource,
+
+    /// Whether Home and the default Agents list show the session
+    #[serde(default)]
+    pub visibility: AgentSessionVisibility,
 
     /// The session's last known status.
     ///

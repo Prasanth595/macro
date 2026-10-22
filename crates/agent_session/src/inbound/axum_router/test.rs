@@ -234,6 +234,7 @@ impl SessionOpener for RecordingOpener {
             created_at: Utc::now(),
             modified_at: Utc::now(),
             source: crate::domain::model::SessionSource::User,
+            visibility: crate::domain::model::SessionVisibility::Listed,
         };
         self.opened.lock().unwrap().push(request);
         Ok(session)
@@ -273,6 +274,7 @@ impl SessionOpener for RecordingOpener {
             created_at: Utc::now(),
             modified_at: Utc::now(),
             source: crate::domain::model::SessionSource::User,
+            visibility: crate::domain::model::SessionVisibility::Listed,
         };
         self.managed.lock().unwrap().push(request);
         Ok(session)
@@ -494,6 +496,7 @@ impl ExternalSessionRequester for RecordingRequester {
             created_at: Utc::now(),
             modified_at: Utc::now(),
             source: crate::domain::model::SessionSource::User,
+            visibility: crate::domain::model::SessionVisibility::Listed,
         };
         self.requested.lock().unwrap().push(request);
         Ok(session)

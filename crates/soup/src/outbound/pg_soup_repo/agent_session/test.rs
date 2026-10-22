@@ -26,6 +26,7 @@ fn persisted_row_metadata_survives_property_enrichment() {
         turn_state: Some("running".to_owned()),
         thread_id: None,
         source: "user".to_owned(),
+        visibility: "listed".to_owned(),
         is_archived: false,
         status: "event".to_owned(),
         status_event_name: Some("acp_ready".to_owned()),
@@ -520,18 +521,24 @@ async fn hidden_dm_contexts_are_omitted_from_home_and_agents_but_open_by_id(
     Ok(())
 }
 
-/// A routine's runs stay listed for whoever asks for them, say a routine
-/// started them, and are what a list asks for by source: alone, or left out.
+/// A routine's unlisted runs stay reachable for whoever asks for them, say a
+/// routine started them, and are what a list asks for by source or
+/// visibility: alone, or left out.
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
-async fn routine_runs_leave_lists_that_exclude_them(pool: PgPool) -> anyhow::Result<()> {
+async fn unlisted_runs_leave_lists_that_exclude_them(pool: PgPool) -> anyhow::Result<()> {
     let fixture = seed(&pool).await?;
     sqlx::query!(
-        "UPDATE agent_session SET source = 'routine' WHERE id = $1",
+        "UPDATE agent_session SET source = 'routine', visibility = 'unlisted' WHERE id = $1",
         fixture.private,
     )
     .execute(&pool)
     .await?;
     let routine = || Expr::val(AgentSessionLiteral::Source(AgentSessionSource::Routine));
+    let unlisted = || {
+        Expr::val(AgentSessionLiteral::Visibility(
+            AgentSessionVisibility::Unlisted,
+        ))
+    };
 
     let all = cursor_soup(
         &pool,
@@ -543,6 +550,7 @@ async fn routine_runs_leave_lists_that_exclude_them(pool: PgPool) -> anyhow::Res
         panic!("expected an agent session");
     };
     assert_eq!(run.source, AgentSessionSource::Routine);
+    assert_eq!(run.visibility, AgentSessionVisibility::Unlisted);
 
     let only_runs = cursor_soup(
         &pool,
@@ -568,5 +576,17 @@ async fn routine_runs_leave_lists_that_exclude_them(pool: PgPool) -> anyhow::Res
     )
     .await?;
     assert_eq!(ids(&without_runs), vec![fixture.shared]);
+    let listed = cursor_soup(
+        &pool,
+        request(
+            OWNER,
+            Some(Expr::and(
+                Expr::val(AgentSessionLiteral::Include),
+                Expr::is_not(unlisted()),
+            )),
+        ),
+    )
+    .await?;
+    assert_eq!(ids(&listed), vec![fixture.shared]);
     Ok(())
 }

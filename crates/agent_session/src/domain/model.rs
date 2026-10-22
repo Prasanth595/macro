@@ -193,9 +193,12 @@ pub enum SessionPurpose {
     Warm,
     /// Context backing an agent DM; accessed through its conversation.
     AgentDm,
-    /// A routine's unattended run. Listed, but kept out of Home and the
-    /// default Agents list, and its successful turns notify nobody.
-    Routine,
+    /// A routine's unattended run. Its successful turns notify nobody, and
+    /// the routine's setting decides whether it is listed.
+    Routine {
+        /// Whether Home and the default Agents list show the run.
+        visibility: SessionVisibility,
+    },
 }
 
 impl SessionPurpose {
@@ -218,15 +221,24 @@ impl SessionPurpose {
             Self::Warm => true,
             Self::AgentDm => hide_agent_dms,
             Self::Standalone => bot_id == bot_id::MACRO_NEW_BOT_ID && thread_id.is_some(),
-            Self::Routine => false,
+            Self::Routine { .. } => false,
         }
     }
 
     /// Who starts a session created for this purpose.
     pub fn source(self) -> SessionSource {
         match self {
-            Self::Routine => SessionSource::Routine,
+            Self::Routine { .. } => SessionSource::Routine,
             Self::Standalone | Self::Warm | Self::AgentDm => SessionSource::User,
+        }
+    }
+
+    /// Whether Home and the default Agents list show a session created for
+    /// this purpose. Only a routine run can be unlisted.
+    pub fn visibility(self) -> SessionVisibility {
+        match self {
+            Self::Routine { visibility } => visibility,
+            Self::Standalone | Self::Warm | Self::AgentDm => SessionVisibility::Listed,
         }
     }
 }
@@ -255,6 +267,33 @@ pub enum SessionSource {
     User,
     /// A routine's unattended run.
     Routine,
+}
+
+/// Whether Home and the default Agents list show a session. An unlisted
+/// session is still reachable directly and from its routine's history, and
+/// the Agents list shows it on request. Independent of `list_hidden`, which
+/// keeps warm and DM-backing sessions out of every list.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    strum::IntoStaticStr,
+)]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SessionVisibility {
+    /// Shown wherever the owner's sessions are.
+    #[default]
+    Listed,
+    /// Left out of Home and the default Agents list.
+    Unlisted,
 }
 
 /// Caller-provided values required to create an agent session.
@@ -337,6 +376,8 @@ pub struct AgentSession {
     pub task_id: Option<String>,
     /// Who started the session.
     pub source: SessionSource,
+    /// Whether Home and the default Agents list show the session.
+    pub visibility: SessionVisibility,
     /// Directory the harness runs in, snapshotted at creation. The session
     /// actor sends it as the working directory of `session/new`, and resume
     /// and load re-enter it - the directory the session actually ran in,
