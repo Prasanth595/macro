@@ -66,6 +66,11 @@ async fn import_writes_only_when_the_calendar_does_not_hold_the_meeting() {
         State(remote): State<Remote>,
         Query(query): Query<std::collections::HashMap<String, String>>,
     ) -> Json<serde_json::Value> {
+        // Hidden invitations count: an import would overwrite them too.
+        assert_eq!(
+            query.get("showHiddenInvitations").map(String::as_str),
+            Some("true")
+        );
         remote
             .listed_uids
             .lock()

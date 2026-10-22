@@ -10,16 +10,10 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
         target: &ProviderCalendarTarget,
         source: &CalendarEventExport,
     ) -> Result<Option<CalendarEventUpsert>, CalendarProviderError> {
-        // showDeleted=false: only a live event would be overwritten.
-        let held = self
-            .events_by_ical_uid(
-                access_token,
-                target.email_link_id,
-                &target.provider_calendar_id,
-                &source.ical_uid,
-            )
-            .await?;
-        if !held.is_empty() {
+        if self
+            .holds_ical_uid(access_token, target, &source.ical_uid)
+            .await?
+        {
             return Ok(None);
         }
         let calendar = urlencoding::encode(&target.provider_calendar_id);
@@ -43,6 +37,32 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
                 )
             })
             .map(Some)
+    }
+
+    /// Whether the calendar holds a live event under `ical_uid`, counting an
+    /// invitation the user has hidden: Macro never syncs those, and an
+    /// import would update one in place all the same.
+    async fn holds_ical_uid(
+        &self,
+        access_token: &str,
+        target: &ProviderCalendarTarget,
+        ical_uid: &str,
+    ) -> Result<bool, CalendarProviderError> {
+        let calendar = urlencoding::encode(&target.provider_calendar_id);
+        self.gate.acquire(target.email_link_id).await?;
+        let request = self
+            .client
+            .get(format!("{}/calendars/{calendar}/events", self.api_base))
+            .bearer_auth(access_token)
+            .query(&[
+                ("maxResults", "1"),
+                ("singleEvents", "false"),
+                ("showDeleted", "false"),
+                ("showHiddenInvitations", "true"),
+                ("iCalUID", ical_uid),
+            ]);
+        let page: GoogleEventListResponse = send_google(GoogleRequestKind::Read, request).await?;
+        Ok(!page.items.is_empty())
     }
 }
 
