@@ -15,6 +15,7 @@ import {
   OTHER_DOCUMENT_ID,
   soupDocument,
   tagAssignment,
+  tagCatalog,
 } from './optimistic-mutations/data';
 import type {} from './optimistic-mutations/fixture';
 
@@ -60,6 +61,23 @@ async function mount(page: Page, mode: CacheMode, initial?: string[]) {
     const url = new URL(route.request().url());
     if (url.origin !== origin) {
       await route.abort();
+      return;
+    }
+    if (url.pathname === '/auth/user/legacy_user_permissions') {
+      await route.fulfill({
+        json: {
+          userId: 'functional-viewer',
+          email: 'viewer@example.test',
+          name: 'Viewer',
+          permissions: [],
+          licenseStatus: 'active',
+          tutorialComplete: true,
+          hasChromeExt: false,
+          hasTrialed: false,
+          aiDataConsent: false,
+          referralCode: '',
+        },
+      });
       return;
     }
     if (
@@ -114,6 +132,7 @@ async function mount(page: Page, mode: CacheMode, initial?: string[]) {
       user: {
         id: 'functional-viewer',
         emailLinks: [],
+        tagCatalog,
         soup: ({ input }: { input: SoupInput }) => ({
           items: items.filter(
             ({ id }) =>
