@@ -70,11 +70,13 @@ impl NotificationStore for PgNotificationStore {
             .await
             .map_err(storage)?;
             if locked.is_none() {
+                transaction.rollback().await.map_err(storage)?;
                 return Ok(None);
             }
             let blocked = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM agent_session_notification WHERE session_id = $1 AND delivered_at IS NULL AND lease_id IS NOT NULL AND lease_until > now())", session.as_uuid())
                 .fetch_one(&mut *transaction).await.map_err(storage)?.unwrap_or(false);
             if blocked {
+                transaction.rollback().await.map_err(storage)?;
                 return Ok(None);
             }
             let retry_action = sqlx::query_scalar!("SELECT action_id FROM agent_session_notification WHERE session_id = $1 AND delivered_at IS NULL AND (lease_until IS NULL OR lease_until < now()) AND ($2 OR wake OR action_id IS NOT NULL) ORDER BY (action_id IS NULL), created_at, id LIMIT 1", session.as_uuid(), real_prompt)
@@ -108,6 +110,9 @@ impl NotificationStore for PgNotificationStore {
             .await
             .map_err(storage)?;
             if rows.is_empty() {
+                // Dropping a transaction only queues its rollback. Release the
+                // session lock before a following real prompt tries to claim.
+                transaction.rollback().await.map_err(storage)?;
                 return Ok(None);
             }
             let mut rows = rows;

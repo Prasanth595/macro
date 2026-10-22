@@ -39,7 +39,12 @@ export function receiveDecision() {
         subjectId: reviewId,
         kind: 'review.decided',
         createdAt: '2026-10-21T00:00:00Z',
-        payload: { outcome: 'approved', items: [] },
+        payload: {
+          outcome: 'approved',
+          by: session.userId(),
+          via: 'card',
+          items: [],
+        },
         turn: 1,
         actionId: '019a0000-0000-7000-8000-000000000007',
         systemTurn: true,

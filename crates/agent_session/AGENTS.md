@@ -62,6 +62,8 @@ queries and leased batches. Retain unreadable payloads for a delayed retry; a
 previously bound action stays whole and returns its identity for runtime
 reconciliation, even when this consumer cannot decode its input.
 Fresh unreadable rows keep no action identity and do not block valid siblings.
+Await rollback on empty or blocked claims so their session lock is released
+before the next real prompt attempts to attach quiet events.
 Discovery uses bounded cursor pages so callers can
 advance past unavailable sessions. Quiet batches bind to the actual prompt action ID;
 notification-only turns record `PrompterKind::System` and no human authority.

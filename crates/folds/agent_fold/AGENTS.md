@@ -59,7 +59,10 @@ aligned; recovery must never guess the answer from another turn.
 
 Notification log frames open system turns without user messages. Their events
 project into `SessionMetadata.notifications`, separate from message search and
-exports. Exact `<noop/>` is buffered and suppressed only for notification-only
+exports. `SessionNotification` flattens the protocol’s tagged event enum into
+its existing `kind`/`payload` wire shape; generated clients narrow payloads by
+kind. Export with Specta’s phased format to retain optional error fields, and
+keep deserialization compatible with existing flat rows. Exact `<noop/>` is buffered and suppressed only for notification-only
 turns without tool activity; lifecycle still reports the turn ending. User turns
 and tool-bearing turns preserve the literal text.
 
