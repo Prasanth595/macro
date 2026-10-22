@@ -79,6 +79,35 @@ it('does not select a disabled option', () => {
   expect(value()).toBe('personal');
 });
 
+it('slides the composer mode switch along its track on desktop', () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  );
+  const [value, setValue] = createSignal<'chat' | 'code'>('chat');
+  render(() => (
+    <Tabs
+      aria-label="Conversation mode"
+      variant="track"
+      options={[
+        { value: 'chat', label: 'Chat' },
+        { value: 'code', label: 'Code' },
+      ]}
+      value={value()}
+      onChange={setValue}
+    />
+  ));
+
+  fireEvent.click(screen.getByText('Code', { exact: true }));
+  expect(value()).toBe('code');
+  expect(document.querySelector('[role=presentation]')).not.toBeNull();
+  vi.unstubAllGlobals();
+});
+
 describe('on touch', () => {
   beforeEach(() => {
     device.touch = true;

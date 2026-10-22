@@ -31,19 +31,33 @@ export type TabsProps<T extends string> = {
   options: readonly TabOption<T>[];
   value: T | undefined;
   onChange: (value: T) => void;
-  size?: TabsSize;
   /** Stretch to the container with equal-width options. */
   fullWidth?: boolean;
   /** Show only icons, with each label as a tooltip; options without an icon keep their label. */
   iconOnly?: boolean;
-  /** Let many options flow onto more lines; renders pills on touch too. */
-  wrap?: boolean;
-  touch?: TabsTouchStyle;
   disabled?: boolean;
   /** Placement only (margins, width, alignment); never restyle the options. */
   class?: string;
   ref?: (element: HTMLElement) => void;
-};
+} & (
+  | {
+      variant?: 'pills';
+      size?: TabsSize;
+      /** Let many options flow onto more lines; renders pills on touch too. */
+      wrap?: boolean;
+      touch?: TabsTouchStyle;
+    }
+  | {
+      /**
+       * One raised pill slides along a filled track, on every device. Only for
+       * the agent composer's mode switch, which sits in the composer's tray.
+       */
+      variant: 'track';
+      size?: never;
+      wrap?: never;
+      touch?: never;
+    }
+);
 
 /**
  * One inline single choice: switch a view, a section, or a small set of
@@ -60,12 +74,16 @@ export type TabsProps<T extends string> = {
  * @dont Do not put Tabs inside a HeaderActionGroup or ButtonGroup.
  * @dont Do not use Tabs for tabs that own panels or a dynamic collection; use TabSelector.
  * @dont Do not branch on `isTouchDevice()` to pick a tab component; set `touch`.
+ * @dont Do not use `variant="track"` outside the agent composer's tray.
  */
 export function Tabs<T extends string>(props: TabsProps<T>) {
   const select = (value: string) => {
     const option = props.options.find((option) => option.value === value);
     if (option) props.onChange(option.value);
   };
+  // Desktop and wrapping rows always render separate pills.
+  const touchStyle = (): TabsTouchStyle =>
+    isTouchDevice() && !props.wrap ? (props.touch ?? 'pill') : 'pills';
 
   return (
     <KSegmentedControl
@@ -80,8 +98,7 @@ export function Tabs<T extends string>(props: TabsProps<T>) {
         props.class
       )}
     >
-      <Show
-        when={isTouchDevice() && !props.wrap && props.touch !== 'pills'}
+      <Switch
         fallback={
           <div
             class={cn(
@@ -104,18 +121,19 @@ export function Tabs<T extends string>(props: TabsProps<T>) {
           </div>
         }
       >
-        <Switch>
-          <Match when={(props.touch ?? 'pill') === 'pill'}>
-            <TouchPill {...props} />
-          </Match>
-          <Match when={props.touch === 'inset'}>
-            <TouchInset {...props} />
-          </Match>
-          <Match when={props.touch === 'segmented'}>
-            <TouchSegmented {...props} />
-          </Match>
-        </Switch>
-      </Show>
+        <Match when={props.variant === 'track'}>
+          <Track {...props} />
+        </Match>
+        <Match when={touchStyle() === 'pill'}>
+          <TouchPill {...props} />
+        </Match>
+        <Match when={touchStyle() === 'inset'}>
+          <TouchInset {...props} />
+        </Match>
+        <Match when={touchStyle() === 'segmented'}>
+          <TouchSegmented {...props} />
+        </Match>
+      </Switch>
     </KSegmentedControl>
   );
 }
@@ -205,6 +223,46 @@ function PillOption<T extends string>(props: {
     <Show when={square()} fallback={item()}>
       <Tooltip label={props.option.label}>{item()}</Tooltip>
     </Show>
+  );
+}
+
+function Track<T extends string>(props: TabsProps<T>) {
+  return (
+    <div
+      class={cn(
+        'relative flex h-9 items-center rounded-full bg-ink/3 light-mode:bg-[rgb(246_246_246)] dark-mode:bg-[rgb(24_24_24)]',
+        props.fullWidth && 'w-full'
+      )}
+    >
+      <KSegmentedControl.Indicator class="pointer-events-none absolute top-0 left-0 z-0 rounded-full bg-panel bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--color-ink)_2%,transparent),transparent)] transition-[transform,width,height] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none dark-mode:bg-[rgb(32_32_32)] light-mode:border light-mode:border-ink/7 light-mode:bg-[rgb(250_250_250)] light-mode:bg-none light-mode:shadow-[0_1px_6px_0_color-mix(in_srgb,var(--color-ink)_5%,transparent)]" />
+      <For each={props.options}>
+        {(option) => (
+          <KSegmentedControl.Item
+            value={option.value}
+            disabled={option.disabled}
+            class={cn(
+              'relative z-1 inline-flex h-full min-w-0 items-center rounded-full',
+              'has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-edge-focus data-disabled:pointer-events-none data-disabled:opacity-50',
+              props.fullWidth && 'flex-1'
+            )}
+          >
+            <KSegmentedControl.ItemInput class="pointer-events-none absolute inset-0" />
+            <KSegmentedControl.ItemLabel
+              class={cn(
+                'flex h-full items-center gap-1.5 rounded-full px-4 text-sm font-medium whitespace-nowrap select-none text-ink-extra-muted hover:text-ink data-checked:text-ink transition-colors duration-120 motion-reduce:transition-none touch:px-2.5',
+                props.fullWidth && 'w-full justify-center'
+              )}
+            >
+              <OptionContent
+                option={option}
+                iconOnly={props.iconOnly ?? false}
+                iconClass="size-3.5"
+              />
+            </KSegmentedControl.ItemLabel>
+          </KSegmentedControl.Item>
+        )}
+      </For>
+    </div>
   );
 }
 

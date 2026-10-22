@@ -409,17 +409,6 @@
 		visibility: visible;
 	}
 
-	/* Desktop footer controls sit below the shared composer surface. */
-	html:not([data-touch-device="true"]) :where(.agents-view, .agents-view-portal) .composer-drawer {
-		border-radius: 0;
-		background: transparent;
-	}
-
-	html:not([data-touch-device="true"]) :where(.agents-view, .agents-view-portal) .composer-drawer::before,
-	html:not([data-touch-device="true"]) :where(.agents-view, .agents-view-portal) .composer-drawer::after {
-		content: none;
-	}
-
 	:where(.agents-view, .agents-view-portal) .composer-drawer-inner {
 		min-height: 0;
 		overflow: hidden;

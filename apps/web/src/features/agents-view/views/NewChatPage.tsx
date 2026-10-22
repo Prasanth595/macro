@@ -370,9 +370,8 @@ export function NewChatPage(props: {
           { value: 'chat', label: agentsModeLabel('chat'), icon: ChatIcon },
           { value: 'code', label: agentsModeLabel('code'), icon: CodeIcon },
         ]}
-        size="lg"
+        variant="track"
         fullWidth
-        touch="inset"
         // Phones keep the icons; the name stays for assistive tech.
         iconOnly={isTouchDevice()}
         value={mode()}

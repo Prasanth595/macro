@@ -1,5 +1,6 @@
 import { defineDoc } from '@app/features/ui-gallery/types';
 import ChatIcon from '@phosphor/chat-text.svg';
+import CodeIcon from '@phosphor/code.svg';
 import PaperclipIcon from '@phosphor/paperclip.svg';
 import UsersIcon from '@phosphor/users.svg';
 import { createSignal } from 'solid-js';
@@ -87,6 +88,26 @@ function ValueDemo() {
 }
 // #endregion
 
+// #region demo:track
+function TrackDemo() {
+  const [value, setValue] = createSignal<'chat' | 'code'>('chat');
+  return (
+    <Tabs
+      aria-label="Conversation mode"
+      variant="track"
+      fullWidth
+      options={[
+        { value: 'chat', label: 'Chat', icon: ChatIcon },
+        { value: 'code', label: 'Code', icon: CodeIcon },
+      ]}
+      value={value()}
+      onChange={setValue}
+      class="w-56"
+    />
+  );
+}
+// #endregion
+
 export default defineDoc({
   name: 'Tabs',
   category: 'Navigation',
@@ -123,6 +144,13 @@ export default defineDoc({
       description:
         'In forms and dialogs, `fullWidth` gives equal-width options and `size="sm"` matches compact rows.',
       render: ValueDemo,
+    },
+    {
+      id: 'track',
+      title: 'Composer mode switch',
+      description:
+        '`variant="track"` slides one raised pill along a filled track on every device. It is only for the agent composer\'s Chat/Code switch in the composer tray.',
+      render: TrackDemo,
     },
   ],
 });

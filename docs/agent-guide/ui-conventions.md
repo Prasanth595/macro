@@ -62,7 +62,8 @@ halo. Touch surfaces retain their existing shadows.
 Tabs are separate pills, like Linear's view tabs: unselected pills use the
 outline Button frame, and the selected pill takes the pressed fill, flat, the
 same state as a pressed (`aria-pressed`) Button. There is no track and no
-separate active tint. Touch keeps each surface's existing tab treatment.
+separate active tint, except the agent composer's Chat/Code switch
+(`variant="track"`). Touch keeps each surface's existing tab treatment.
 
 Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`, and
 `elevated-surface` instead of introducing one-off surface styling. Every menu,
@@ -74,8 +75,8 @@ Settings
 cards inherit `ComposerSurface` through `SettingsSurface`. Use the shared surface; do not
 add diagonal reflections, dark inset shading, or custom shadows.
 Touch retains its existing glass treatment.
-Desktop Chat/Code footer controls sit below that surface without a second
-background or rim. Keeping the footer visible does not expand an empty Chat input.
+The agent composer's tray sits below that surface with its own fill, and holds
+the Chat/Code switch. Keeping the tray visible does not expand an empty Chat input.
 
 ## Scrolling content
 

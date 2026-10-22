@@ -50,7 +50,9 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
   for wrappers by ast-grep `tsx-no-descendant-button-styles`, warning.
 - **FE-62** Keep one selected state: a selected tab and a pressed button share
   the pressed fill, flat; unselected options keep the outline Button frame. No
-  accent text, underlines, or bespoke tints for selection on desktop.
+  accent text, underlines, or bespoke tints for selection on desktop. The one
+  exception is the agent composer's Chat/Code switch: `Tabs variant="track"`,
+  a raised pill sliding along the composer tray's track.
 - **FE-63** Components own their touch treatment. Never branch on
   `isTouchDevice()` to choose a tab component or variant; set `Tabs`' `touch`
   to the style that surface already uses on touch.
