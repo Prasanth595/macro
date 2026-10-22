@@ -255,6 +255,60 @@ describe('standalone compose controller', () => {
     }
   });
 
+  it('prefills a new message whose generated attachment saves with the first edit', async () => {
+    const context = createComposeContext();
+    const ics = new File(['BEGIN:VCALENDAR'], 'Team sync.ics', {
+      type: 'text/calendar',
+    });
+    const root = mountEmailComposer(context, undefined, {
+      initialSubject: 'Team sync',
+      initialBodyText: 'Team sync\nWhere: Room 4',
+      initialAttachments: [ics],
+    });
+    try {
+      expect(root.state.context.subject()).toBe('Team sync');
+      expect(root.state.context.initialHtml()).toContain('Where: Room 4');
+      expect(root.state.context.attachments()).toEqual([]);
+
+      root.state.context.onEditorInitialized?.(root.editor);
+      root.state.context.onEditorInitialized?.(root.editor);
+      await vi.advanceTimersByTimeAsync(600);
+      expect(root.state.context.attachments()).toEqual([
+        { type: 'local', file: ics },
+      ]);
+      expect(root.state.draftDirty()).toBe(false);
+      expect(context.drafts.saveDraft).not.toHaveBeenCalled();
+
+      root.edit('Passing this on', 'Team sync');
+      await vi.advanceTimersByTimeAsync(600);
+      expect(context.drafts.saveDraft).toHaveBeenCalledOnce();
+      expect(context.attachmentStorage.uploadAttachments).toHaveBeenCalledWith(
+        expect.objectContaining({ attachments: [ics] })
+      );
+    } finally {
+      root.dispose();
+    }
+  });
+
+  it('offers a generated attachment over the inbox limit as a link, like a picked file', async () => {
+    const context = createComposeContext();
+    const oversized = new File(['x'], 'Team sync.ics');
+    Object.defineProperty(oversized, 'size', { value: 30_000_000 });
+    const root = mountEmailComposer(context, undefined, {
+      initialAttachments: [oversized],
+    });
+    try {
+      root.state.context.onEditorInitialized?.(root.editor);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(root.state.context.attachments()).toEqual([]);
+      expect(context.notices.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({ confirmLabel: 'Share link' })
+      );
+    } finally {
+      root.dispose();
+    }
+  });
+
   it('rejects an empty body in an otherwise ready composer and sends once content is added', async () => {
     const context = createComposeContext();
     const root = mountEmailComposer(context);
