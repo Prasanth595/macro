@@ -773,14 +773,16 @@ where
         resolve_folders(ctx, &self.user_id).await
     }
 
-    /// A page of the authenticated user's own activity, newest first.
-    /// Delegated actions performed on the user's behalf are included.
+    /// A page of activity, newest first: by default the authenticated
+    /// user's own, delegated actions included; in the `TEAM` scope, their
+    /// teammates' activity on entities the user can currently see.
     async fn activity(
         &self,
         ctx: &Context<'_>,
         input: ActivityFeedInput,
     ) -> async_graphql::Result<GraphqlActivityPage> {
-        resolve_activity_feed::<AcR>(ctx, &self.user_id, input).await
+        let access = Arc::<EAS>::from_ref(ctx.data::<St>()?);
+        resolve_activity_feed::<AcR, EAS>(ctx, &*access, &self.user_id, input).await
     }
 
     /// The newest activity on a database the authenticated user can view,

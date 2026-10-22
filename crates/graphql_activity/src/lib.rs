@@ -4,8 +4,9 @@
 //!
 //! Three read surfaces over the `activity_events` log:
 //!
-//! - the authenticated user's own feed ([`resolve_activity_feed`]), a
-//!   keyset-paginated field on `GraphqlUser`;
+//! - the authenticated user's feed ([`resolve_activity_feed`]), a
+//!   keyset-paginated field on `GraphqlUser` scoped to the user's own
+//!   activity or to their teammates' activity on entities the user can see;
 //! - the authenticated user's trailing-year aggregate
 //!   ([`resolve_activity_overview`]);
 //! - a lazily-loaded `activity` edge on every Soup entity, batched across
@@ -30,13 +31,15 @@ mod objects;
 mod overview;
 /// Realtime activity subscription root and patch union.
 mod subscriptions;
+/// The feed's team scope: teammates' rows filtered to what the viewer can see.
+mod team_feed;
 /// The access-checked timeline of one database or form.
 mod timeline;
 
 pub use activity::{ActivitySubscriptionService, NoOpActivitySubscriptionService};
 pub use feed::{
-    ActivityFeedInput, DEFAULT_ACTIVITY_FEED_LIMIT, GraphqlActivityPage, MAX_ACTIVITY_FEED_LIMIT,
-    resolve_activity_feed,
+    ActivityFeedInput, ActivityFeedScope, DEFAULT_ACTIVITY_FEED_LIMIT, GraphqlActivityPage,
+    MAX_ACTIVITY_FEED_LIMIT, resolve_activity_feed,
 };
 pub use loaders::{
     ActivityEdgeKey, ActivityEdgeLoad, ActivityFeedReader, ActivityPortReader, ActivityReadFailed,
