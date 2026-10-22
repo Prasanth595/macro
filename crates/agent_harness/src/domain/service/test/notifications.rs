@@ -12,6 +12,8 @@ struct Outbox {
     claimed: Mutex<Option<NotificationBatch>>,
     completed: Mutex<Vec<NotificationOutcome>>,
     fail_ack: AtomicBool,
+    fail_renew: AtomicBool,
+    renewals: Mutex<Vec<Uuid>>,
     expired: AtomicBool,
     session: Mutex<Option<AgentSessionId>>,
 }
@@ -105,8 +107,14 @@ impl NotificationStore for Outbox {
             Ok(())
         })
     }
-    fn renew(&self, _: Uuid) -> NotificationFuture<'_, ()> {
-        Box::pin(async { Ok(()) })
+    fn renew(&self, lease: Uuid) -> NotificationFuture<'_, ()> {
+        Box::pin(async move {
+            self.renewals.lock().unwrap().push(lease);
+            if self.fail_renew.load(Ordering::SeqCst) {
+                return Err(rootcause::report!("renew unavailable").into());
+            }
+            Ok(())
+        })
     }
     fn complete(&self, lease: Uuid, outcome: NotificationOutcome) -> NotificationFuture<'_, ()> {
         Box::pin(async move {
@@ -391,44 +399,56 @@ async fn recovered_system_identity_overrides_a_legacy_wire_owner() {
 
 #[tokio::test]
 async fn quiet_batch_recovery_keeps_its_real_prompt_identity() {
-    let outbox = Arc::new(Outbox::default());
-    let ((service, repo, containers, _, _), mut turns) = harness_with_outbox(outbox.clone());
-    let id = AgentSessionId::new();
-    let container = live_session(&service, &containers, id).await;
-    turns.settled(id).await;
-    event(&outbox, id, "quiet", false).await;
-    let command = forward_message("owner request");
-    let original_id = command.id;
-    let original_actor = command.actor.clone();
-    service
-        .execute(id, HarnessCommand::Deliver(command))
-        .await
-        .unwrap();
-    container.agent().wait_for_requests(4).await;
-    assert_eq!(
-        outbox.claimed.lock().unwrap().as_ref().unwrap().action_id,
-        original_id
-    );
-    service.inner.notification_batches.remove(&id);
-    service.inner.busy.clear(id);
-    outbox.expired.store(true, Ordering::SeqCst);
-    service
-        .execute(id, HarnessCommand::Deliver(forward_message("next request")))
-        .await
-        .unwrap();
-    assert_eq!(prompts(&container.agent()).len(), 2);
-    let prompter = repo.turn_prompter(id).await.unwrap().unwrap();
-    assert_eq!(prompter.action_id, original_id);
-    assert_eq!(prompter.user, original_actor);
-    assert_eq!(service.inner.busy.turn(id).unwrap().actor, original_actor);
-    assert_eq!(
-        prompter.kind,
-        agent_session::domain::model::PrompterKind::User
-    );
-    container.agent().completes_prompt().await;
-    turns.settled(id).await;
-    container.agent().wait_for_requests(5).await;
-    assert_eq!(prompts(&container.agent()).len(), 3);
+    for opaque in [false, true] {
+        let outbox = Arc::new(Outbox::default());
+        let ((service, repo, containers, _, _), mut turns) = harness_with_outbox(outbox.clone());
+        let id = AgentSessionId::new();
+        let container = live_session(&service, &containers, id).await;
+        turns.settled(id).await;
+        event(&outbox, id, "quiet", false).await;
+        let command = forward_message("owner request");
+        let original_id = command.id;
+        let original_actor = command.actor.clone();
+        service
+            .execute(id, HarnessCommand::Deliver(command))
+            .await
+            .unwrap();
+        container.agent().wait_for_requests(4).await;
+        assert_eq!(
+            outbox.claimed.lock().unwrap().as_ref().unwrap().action_id,
+            original_id
+        );
+        service.inner.notification_batches.remove(&id);
+        if opaque {
+            outbox
+                .claimed
+                .lock()
+                .unwrap()
+                .as_mut()
+                .unwrap()
+                .notifications
+                .clear();
+        }
+        service.inner.busy.clear(id);
+        outbox.expired.store(true, Ordering::SeqCst);
+        service
+            .execute(id, HarnessCommand::Deliver(forward_message("next request")))
+            .await
+            .unwrap();
+        assert_eq!(prompts(&container.agent()).len(), 2);
+        let prompter = repo.turn_prompter(id).await.unwrap().unwrap();
+        assert_eq!(prompter.action_id, original_id);
+        assert_eq!(prompter.user, original_actor);
+        assert_eq!(service.inner.busy.turn(id).unwrap().actor, original_actor);
+        assert_eq!(
+            prompter.kind,
+            agent_session::domain::model::PrompterKind::User
+        );
+        container.agent().completes_prompt().await;
+        turns.settled(id).await;
+        container.agent().wait_for_requests(5).await;
+        assert_eq!(prompts(&container.agent()).len(), 3);
+    }
 }
 
 #[tokio::test]
@@ -679,4 +699,31 @@ async fn recovering_an_interrupted_real_prompt_cleans_up_its_pending_reply() {
     assert!(service.inner.busy.turn(id).is_none());
     assert!(outbox.claimed.lock().unwrap().is_none());
     assert_eq!(prompts(&container.agent()).len(), 2);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_blocked_worker_does_not_block_discovery_or_renewal_or_queue_duplicate_drains() {
+    let outbox = Arc::new(Outbox::default());
+    let ((service, _, containers, _, _), mut turns) = harness_with_outbox(outbox.clone());
+    let blocked = AgentSessionId::new_from_uuid(Uuid::from_u128(1));
+    let blocked_open = service.enqueue(blocked, HarnessCommand::Open(open_command()), true);
+    containers.first_spawned().await;
+    let id = AgentSessionId::new();
+    let opened = service.enqueue(id, HarnessCommand::Open(open_command()), true);
+    let container = containers.wait_for_spawn(id).await;
+    complete_handshake(&container).await;
+    opened.await.unwrap();
+    turns.settled(id).await;
+    event(&outbox, blocked, "blocked", true).await;
+    event(&outbox, id, "available", true).await;
+    service.recover_notifications().await.unwrap();
+    assert_eq!(prompts(&container.agent()).len(), 2);
+    let pending = service.inner.notification_drains.lock().await[&blocked].clone();
+    outbox.fail_renew.store(true, Ordering::SeqCst);
+    service.recover_notifications().await.unwrap();
+    assert_eq!(outbox.renewals.lock().unwrap().len(), 1);
+    assert!(pending.ptr_eq(&service.inner.notification_drains.lock().await[&blocked]));
+    // Finish the blocked command using its real transport handshake.
+    complete_handshake(&containers.container(blocked).unwrap()).await;
+    blocked_open.await.unwrap();
 }

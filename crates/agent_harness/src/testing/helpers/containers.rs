@@ -252,6 +252,19 @@ impl MockContainerManager {
         }
     }
 
+    /// Wait for one specific session's sandbox without polling.
+    pub async fn wait_for_spawn(&self, session: AgentSessionId) -> ContainerMock {
+        loop {
+            let waited = self.spawned_signal.notified();
+            tokio::pin!(waited);
+            waited.as_mut().enable();
+            if let Some(container) = self.container(session) {
+                return container;
+            }
+            waited.await;
+        }
+    }
+
     /// Answer every preflight with `blocker` from now on: the owner is not
     /// set up for this provider.
     pub fn block_with(&self, blocker: SessionBlocker) {

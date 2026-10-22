@@ -571,9 +571,15 @@ where
                 turn,
                 ..
             }) => {
-                if fold_action_id.is_some_and(|action| {
-                    self.notification_finished.contains(&(session_id, action))
-                }) {
+                let duplicate = match fold_action_id {
+                    Some(action) => self
+                        .notification_finished
+                        .lock()
+                        .await
+                        .contains(&(session_id, action)),
+                    None => false,
+                };
+                if duplicate {
                     return Ok(CommandOutcome::Completed);
                 }
                 if let Some(action) = fold_action_id {
@@ -661,8 +667,13 @@ where
                         .get(&session_id)
                         .map(|batch| batch.clone())
                 {
-                    self.notification_finished
-                        .insert((session_id, batch.action_id));
+                    {
+                        let mut finished = self.notification_finished.lock().await;
+                        finished.push_back((session_id, batch.action_id));
+                        if finished.len() > 1024 {
+                            finished.pop_front();
+                        }
+                    }
                     let outcome = if notification_noop {
                         agent_session::domain::notifications::NotificationOutcome::Noop
                     } else {
@@ -888,6 +899,8 @@ where
             }
             HarnessCommand::Delete => {
                 self.notification_finished
+                    .lock()
+                    .await
                     .retain(|(session, _)| *session != session_id);
                 // Identity first: the row is gone once the delete succeeds.
                 let identity = self.identity(session_id).await;
@@ -1492,6 +1505,22 @@ where
                 return Err(error);
             }
 
+            match self
+                .attach_notifications(session_id, entry.action_id, &mut composed)
+                .await
+            {
+                Ok(true) => {}
+                Ok(false) => {
+                    self.queues.requeue_front(session_id, entry);
+                    self.write_queue(session_id).await?;
+                    return Ok(Dispatch::Dispatched);
+                }
+                Err(error) => {
+                    self.requeue_claimed(session_id, entry).await?;
+                    return Err(error);
+                }
+            }
+
             // A reply shown in segments posts nothing until the agent has
             // something to say or do: the bot types meanwhile.
             let in_segments = entry.announce.as_ref().is_some_and(|origin| {
@@ -1537,6 +1566,11 @@ where
                             self.busy.clear(session_id);
                             return Ok(Dispatch::QueueEmpty);
                         }
+                        if let Some(store) = &self.notification_store
+                            && let Some((_, batch)) = self.notification_batches.remove(&session_id)
+                        {
+                            store.release(batch.lease_id).await?;
+                        }
                         continue;
                     }
                     Err(error) => {
@@ -1572,22 +1606,6 @@ where
                             return Err(error);
                         }
                     }
-                }
-            }
-
-            match self
-                .attach_notifications(session_id, entry.action_id, &mut composed)
-                .await
-            {
-                Ok(true) => {}
-                Ok(false) => {
-                    self.queues.requeue_front(session_id, entry);
-                    self.write_queue(session_id).await?;
-                    return Ok(Dispatch::Dispatched);
-                }
-                Err(error) => {
-                    self.requeue_claimed(session_id, entry).await?;
-                    return Err(error);
                 }
             }
 

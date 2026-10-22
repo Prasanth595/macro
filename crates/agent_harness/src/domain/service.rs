@@ -27,7 +27,10 @@ mod queue;
 mod session_mcp;
 mod warm;
 
+use futures::FutureExt as _;
 use std::sync::Arc;
+
+type NotificationDrain = futures::future::Shared<futures::future::BoxFuture<'static, ()>>;
 
 use agent_runtime_protocol::domain::action::{AgentAction, AgentActionId};
 use agent_session::domain::error::AgentSessionError;
@@ -146,12 +149,15 @@ struct AgentHarnessInner<
     notification_store: Option<Arc<dyn agent_session::domain::notifications::NotificationStore>>,
     /// Discovery advances past busy or unreachable sessions and wraps each cycle.
     notification_cursor: tokio::sync::Mutex<Option<AgentSessionId>>,
+    notification_drains:
+        tokio::sync::Mutex<std::collections::HashMap<AgentSessionId, NotificationDrain>>,
     notification_batches:
         DashMap<AgentSessionId, agent_session::domain::notifications::NotificationBatch>,
     notification_completions:
         DashMap<AgentSessionId, agent_session::domain::notifications::NotificationOutcome>,
-    /// Completed notification actions on this replica, suppressing late observer callbacks.
-    notification_finished: DashSet<(AgentSessionId, AgentActionId)>,
+    /// Bounded recent completions suppress duplicate observer callbacks.
+    notification_finished:
+        tokio::sync::Mutex<std::collections::VecDeque<(AgentSessionId, AgentActionId)>>,
     defaults: HarnessDefaults,
     /// Turn-occupying actions waiting for their session's running turn to
     /// end. In-memory working copy; the session store is the durable source.
@@ -374,9 +380,10 @@ where
                 external_replies: None,
                 notification_store: None,
                 notification_cursor: tokio::sync::Mutex::new(None),
+                notification_drains: Default::default(),
                 notification_batches: DashMap::new(),
                 notification_completions: DashMap::new(),
-                notification_finished: DashSet::new(),
+                notification_finished: Default::default(),
                 defaults: defaults.into(),
                 queues: SessionQueues::new(),
                 hydrated: DashSet::new(),
@@ -431,7 +438,9 @@ where
             .map(|batch| batch.lease_id)
             .collect();
         for lease in leases {
-            store.renew(lease).await?;
+            if let Err(error) = store.renew(lease).await {
+                tracing::warn!(?error, %lease, "notification lease renewal failed");
+            }
         }
         let mut cursor = self.inner.notification_cursor.lock().await;
         let mut sessions = store.pending_sessions(*cursor).await?;
@@ -454,14 +463,30 @@ where
         );
         sessions.sort_by_key(AgentSessionId::as_uuid);
         sessions.dedup();
+        // The command worker keeps running when the recovery budget expires.
+        // Retain its result future so the next tick neither queues a duplicate
+        // nor waits for a slow session before renewing other delivery leases.
+        let mut drains = self.inner.notification_drains.lock().await;
+        drains.retain(|_, drain| drain.peek().is_none());
         for session in sessions {
-            if let Err(error) = self
-                .enqueue(session, HarnessCommand::DrainNotifications, true)
-                .await
-            {
-                tracing::warn!(?error, %session, "system event delivery will retry");
-            }
+            drains.entry(session).or_insert_with(|| {
+                let drain = self.enqueue(session, HarnessCommand::DrainNotifications, true);
+                async move {
+                    if let Err(error) = drain.await {
+                        tracing::warn!(?error, %session, "system event delivery will retry");
+                    }
+                }
+                .boxed()
+                .shared()
+            });
         }
+        let pending: Vec<_> = drains.values().cloned().collect();
+        drop(drains);
+        let _ = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            futures::future::join_all(pending),
+        )
+        .await;
         Ok(())
     }
 

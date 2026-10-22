@@ -30,7 +30,22 @@ Failed delivery retains it for retry after the lease expires. The stable action
 id prevents a retry from repeating an accepted action. Every worker is tracked
 and cancellable. Discovery advances a 100-session keyset cursor even when those
 sessions cannot accept delivery, wrapping at the end so newer sessions are not
-starved by busy or unreachable peers. Producer trace context travels with the row and links delivery.
+starved by busy or unreachable peers. A sweep retains at most one queued drain
+per session and waits at most two seconds, allowing the next sweep to renew
+other leases and discover work even if one command is stalled. Renewal errors
+are isolated per lease. The duplicate-completion cache retains at most 1,024
+recent actions. Notification attachment precedes conversation-journal claims,
+so recovering a running quiet batch leaves the next real message queued.
+
+Fresh unreadable payloads remain undelivered with a two-minute retry delay,
+without an active lease that would block the session. They retain no action ID.
+An already-bound batch stays whole and returns its identity for action
+reconciliation, even without decoded events. A finished action acknowledges it;
+a running action is reattached and blocks overlapping turns; an unaccepted
+opaque action retains its lease until a compatible consumer can retry. Keeping
+the batch whole prevents an older consumer from consuming unseen siblings by
+finishing a partial action. Invalid trace metadata is ignored without losing
+the event. Producer trace context travels with the row and links delivery.
 
 Independent services enqueue through `POST /agent-sessions/internal/notifications`
 with internal credentials. The endpoint returns 202 after the idempotent insert;
@@ -68,7 +83,9 @@ other events appear as quiet timeline markers. A pending review response shows
 responding until agent output begins, on desktop and mobile.
 
 Only notification turns may suppress an exact `<noop/>` response, and only if
-no tool with potential side effects ran. Noop turns generate no assistant
+no tool was called in that turn. This conservatively treats all tool activity
+as potentially mutating, including tools without reliable effect annotations.
+Noop turns generate no assistant
 message, unread, push or activity bump; their outbox outcome records noop.
 Ordinary user turns preserve the same literal text. Tool-bearing turns preserve
 it as well, since suppressing evidence of work is unsafe.

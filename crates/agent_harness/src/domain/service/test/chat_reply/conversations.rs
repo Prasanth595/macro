@@ -1,4 +1,5 @@
 mod final_reply;
+mod notifications;
 
 use super::*;
 use crate::domain::model::ReplyPlacement;
