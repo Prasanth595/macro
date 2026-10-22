@@ -259,7 +259,8 @@ code files, images, canvases, spreadsheets, email, channels, calls, and projects
 also open agent sessions. Like command-menu Ask AI, they open the bare session in
 a new split, without the Agents workspace's conversation sidebar. Their entity mention stays
 in the composer as an unsent draft. Spreadsheet mentions retain the current sheet
-and selected range; channel-message actions retain the referenced message.
+and selected range; channel-message actions retain the referenced message. On
+phones, the channel message long-press drawer offers the same action as **Ask Macro**.
 Add a question and press Send to submit that context. These actions do not create
 legacy cognition chats, regardless of the Agents workspace feature flag.
 
@@ -301,6 +302,12 @@ the shimmer.
   app authentication and disconnection), also available under Settings → Integrations.
   Home’s **Connect your tools** and agent replies’ **Connect app** chips open this
   Integrations page. It shows installed tools above the app catalog, with personal Gmail/GitHub account links in a separate section above.
+
+  In a secondary desktop split, the new-conversation page and existing chats show
+  one close button beside **Show navigation** while the sidebar is collapsed.
+  Verify this below 720px pane width, then expand and collapse navigation and
+  check that closing the split works. Mobile **Back to conversations** still
+  returns to the conversation list.
 
   To recreate Slack channels, open **Settings → Integrations → Slack → Import
   channels** (or **Connections → Slack** from the Agents workspace). The card
@@ -511,7 +518,8 @@ the shimmer.
   the catalog in place with a Back action. Search includes every model.
 - Desktop keeps the model selector and speedometer as separate controls. The
   speedometer opens a slider with a stop for each advertised effort level. Arrow keys
-  adjust the level; pointer drags commit on release. The popover stays open, and
+  and drags preview the level; it is applied once, when the popover closes, and
+  only if it differs from the current level. The popover stays open, and
   the model selector opens the full catalog independently. On mobile, the **speedometer-style
   effort** button opens its own sheet after the input expands. Choosing a level
   applies it and closes the sheet. Models with fewer than two effort choices
@@ -1170,7 +1178,7 @@ reads `Waiting for approval`. The agent's hidden context names the owner and the
 ## Forms authoring and sharing
 
 With Forms enabled, ask the agent to create a complete form, including ordered
-sections and qualification screeners. Creation starts closed and members-only.
+sections and qualification gates. Creation starts closed and members-only.
 The expandable tool result shows the saved questions, builder link, respondent
 link, and actual response availability. Edits use granular CRDT updates
 to preserve unrelated human changes. Partial outcomes have recovery guidance;
@@ -1180,7 +1188,7 @@ a link by itself is not a completed or open form.
 and channel-sharing services as the browser. There is no custom review card.
 Channel Edit also grants access to the entire response database. Settings and
 channel grants are separate writes; inspect any partial outcome before retrying.
-See [Forms](forms.md#forms-through-the-ai-tools) for screeners, booking link reveal,
+See [Forms](forms.md#forms-through-the-ai-tools) for gates, booking link reveal,
 supported edits and retry behavior.
 
 ## In channels
@@ -1581,7 +1589,10 @@ The owner can click **Stop sharing** in the banner; open preview connections
 close. Disconnection and expiry leave a banner asking the agent to share again.
 Leases last up to one hour and expire after 15 minutes without browser requests.
 Continue prompting in the agent session while the preview tab stays open; page
-edits should arrive through the app's own HMR connection.
+edits should arrive through the app's own HMR connection. Control requests, SSH,
+and preview navigation can reach different replicas without requiring sticky
+sessions. A rolling restart of the tunnel owner may disconnect its previews;
+the banner becomes offline within 45 seconds. Ask the agent to share again.
 
 ### Transcript navigation
 
@@ -1766,7 +1777,7 @@ There is no periodic PR lookup polling.
 On desktop, open the speedometer beside the model selector to adjust the
 current model with the **Reasoning effort** slider. The header and accessible value announce the
 selected level. Arrow keys move between supported levels; the menu stays open
-until dismissed. The model selector opens the full catalog independently; other
+until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
 models still offer their own effort submenu with Right Arrow. On mobile, tap a model
 to select it, then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
@@ -1994,11 +2005,14 @@ Invalid drafts remain editable; navigation opens the first draft needing attenti
 A revision conflict or uncertain request shows **Reload saved review**. Reload
 reads the saved version and discards the local edit; it never retries an external
 send automatically. If the outcome is unknown, check the inbox/calendar before
-attempting another send elsewhere. A completed review queues bounded outcome
-context for the agent through the normal session queue, without interrupting its
-current turn. The existing context
-control exposes this metadata on demand; individual outcomes remain on the review
-card instead of appearing as a long user message. Questions and their answers use
+attempting another send elsewhere. Owner decisions produce durable system events
+for the same review ID. The card refreshes in place, with **Responding** below it
+until the agent starts its reply. This behaves the same on mobile. These events
+create no user bubble; events without an existing card use a quiet timeline row.
+The agent can read final drafts and confirmed outcomes through **GetReview**.
+An exact silent response produces no assistant message or unread notification.
+An owner decision in chat uses the same saved-revision claim as the card;
+a system event cannot approve a review. Ordinary questions still use
 the existing ACP question tool; they are not saved reviews.
 
 For browser verification, inspect email stacks without clicking Send, or dismiss
@@ -2012,7 +2026,7 @@ creating an event is a real action, including from a local app connected to dev.
 On desktop, open the speedometer beside the model selector to adjust the
 current model with the **Reasoning effort** slider. The header and accessible value announce the
 selected level. Arrow keys move between supported levels; the menu stays open
-until dismissed. The model selector opens the full catalog independently; other
+until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
 models still offer their own effort submenu with Right Arrow. On mobile, tap a model
 to select it, then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
@@ -2059,3 +2073,9 @@ can share a session into a channel. These tools cannot approve permission
 requests on a user's behalf.
 
 ![Expanded session read with a terminal failure visible after truncated text](media/ai-chat/read-agent-session.png)
+
+Agent-session system events appear as a single quiet row with a kind-specific
+icon, an outcome summary, and relative time (hover for the exact timestamp).
+Failures and unconfirmed outcomes use the error tone. Review events refresh
+the existing card without adding a second timeline row when that card is
+already in the thread. The row stays on one line and truncates on phones.

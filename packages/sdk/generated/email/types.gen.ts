@@ -175,6 +175,10 @@ export type ApiDraftInput = {
      * Existing message DB ID (for updating an existing draft).
      */
     db_id?: string | null;
+    /**
+     * Generation from the last loaded draft; legacy clients begin at zero.
+     */
+    draft_generation?: number;
     headers_json?: null | Value;
     /**
      * Per-message override for whether to include the signature on send:
@@ -236,6 +240,10 @@ export type ApiDraftOutput = {
      * Message DB ID.
      */
     db_id?: string | null;
+    /**
+     * Generation required for subsequent edits.
+     */
+    draft_generation: number;
     headers_json?: null | Value;
     /**
      * Link ID.
@@ -313,6 +321,10 @@ export type ApiMessage = {
     cc: Array<ApiContactInfo>;
     created_at: string;
     db_id: string;
+    /**
+     * Draft edit generation; changes at send and cancellation boundaries.
+     */
+    draft_generation: number;
     from?: null | ApiContactInfo;
     global_id?: string | null;
     has_attachments: boolean;
@@ -329,6 +341,7 @@ export type ApiMessage = {
     provider_id?: string | null;
     provider_thread_id?: string | null;
     replying_to_id?: string | null;
+    scheduled_send_status?: null | ScheduledSendStatus;
     scheduled_send_time?: string | null;
     sent_at?: string | null;
     size_estimate?: number | null;
@@ -666,11 +679,10 @@ export type CalendarEvent = {
      */
     eventType?: EventType;
     /**
-     * What the organizer lets guests do. Skipped when it is Google's
-     * default so projections stored before the policy was modeled still
-     * compare equal.
+     * What the organizer lets guests do: the canonical copy's values, or
+     * Google's defaults for an event synced before the policy was modeled.
      */
-    guestPolicy?: GuestPolicy;
+    guestPolicy: GuestPolicy;
     /**
      * RFC 5545 UID used to reconcile provider and email sources.
      */
@@ -742,10 +754,10 @@ export type CalendarEvent = {
     updatedAt: string;
     /**
      * What the viewing requester may do with the event. Resolved only on
-     * the read path, alongside each attendee's `is_self`, so stored
-     * projections omit it.
+     * the read path, alongside each attendee's `is_self`; nothing when no
+     * viewer is known. Source projections never store it.
      */
-    viewerCan?: ViewerCapabilities;
+    viewerCan: ViewerCapabilities;
     /**
      * Event visibility.
      */
@@ -1524,6 +1536,10 @@ export type ParsedMessage = {
     body_parsed?: string | null;
     cc: Array<ContactInfo>;
     db_id: string;
+    /**
+     * Draft edit generation captured with this message snapshot.
+     */
+    draft_generation?: number;
     from?: null | ContactInfo;
     internal_date_ts?: string | null;
     labels: Array<LabelInfo>;
@@ -1603,6 +1619,11 @@ export type ResyncResponse = {
      */
     backfill_job_id: string;
 };
+
+/**
+ * The user-visible delivery state of an unsent scheduled message.
+ */
+export type ScheduledSendStatus = 'pending' | 'sending' | 'failed' | 'unconfirmed';
 
 /**
  * Request body for sending a message (backward-compatible with `{ message: MessageToSend }`).
@@ -1718,6 +1739,10 @@ export type ThreadSummary = {
  */
 export type TransferDraftRequest = {
     destination_link_id: string;
+    /**
+     * Generation captured with the source draft.
+     */
+    draft_generation?: number;
     operation_id: string;
 };
 
@@ -2191,7 +2216,12 @@ export type UpsertScheduledMessageData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/scheduled/{id}';
 };
 
@@ -2219,7 +2249,12 @@ export type DeleteScheduledDraftData = {
          */
         message_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/scheduled/{message_id}';
 };
 
@@ -2250,7 +2285,12 @@ export type DeleteDraftData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/{id}';
 };
 
@@ -2277,7 +2317,12 @@ export type AddDraftAttachmentData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/{id}/attachments';
 };
 
@@ -2308,7 +2353,12 @@ export type RemoveDraftAttachmentData = {
          */
         attachment_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/{id}/attachments/{attachment_id}';
 };
 
@@ -2333,7 +2383,12 @@ export type CompleteDraftAttachmentData = {
         id: string;
         attachment_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/{id}/attachments/{attachment_id}/complete';
 };
 
@@ -2359,7 +2414,12 @@ export type AddForwardedAttachmentData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/{id}/forwarded-attachments';
 };
 
@@ -2388,7 +2448,12 @@ export type RemoveForwardedAttachmentData = {
          */
         attachment_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/{id}/forwarded-attachments/{attachment_id}';
 };
 
@@ -2902,6 +2967,12 @@ export type MailboxSettingsOperationsResponse = MailboxSettingsOperationsRespons
 
 export type DisableSyncData = {
     body?: never;
+    headers?: {
+        /**
+         * Inbox link ID to act on instead of the caller's primary inbox; may name a delegated inbox.
+         */
+        'X-Email-Link-Id'?: string | null;
+    };
     path?: never;
     query?: never;
     url: '/email/sync';
@@ -2910,6 +2981,9 @@ export type DisableSyncData = {
 export type DisableSyncErrors = {
     400: ErrorResponse;
     401: ErrorResponse;
+    403: ErrorResponse;
+    404: ErrorResponse;
+    409: ErrorResponse;
     500: ErrorResponse;
 };
 

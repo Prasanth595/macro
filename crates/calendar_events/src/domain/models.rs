@@ -6,7 +6,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub use super::acting::ActorInboxes;
+pub use super::acting::{ActorInboxes, OwnedInbox};
 pub use super::capabilities::{GuestPolicy, ViewerCapabilities};
 
 /// Read and write events on every calendar the user can access. Covers the
@@ -669,15 +669,16 @@ pub struct CalendarEvent {
     /// compare equal.
     #[serde(default, skip_serializing_if = "EventReminders::is_default")]
     pub reminders: EventReminders,
-    /// What the organizer lets guests do. Skipped when it is Google's
-    /// default so projections stored before the policy was modeled still
-    /// compare equal.
-    #[serde(default, skip_serializing_if = "GuestPolicy::is_default")]
+    /// What the organizer lets guests do: the canonical copy's values, or
+    /// Google's defaults for an event synced before the policy was modeled.
+    #[serde(default)]
+    #[cfg_attr(feature = "schema", schema(required = true))]
     pub guest_policy: GuestPolicy,
     /// What the viewing requester may do with the event. Resolved only on
-    /// the read path, alongside each attendee's `is_self`, so stored
-    /// projections omit it.
-    #[serde(default, skip_serializing_if = "ViewerCapabilities::is_none")]
+    /// the read path, alongside each attendee's `is_self`; nothing when no
+    /// viewer is known. Source projections never store it.
+    #[serde(default)]
+    #[cfg_attr(feature = "schema", schema(required = true))]
     pub viewer_can: ViewerCapabilities,
     /// Entity creation time.
     pub created_at: DateTime<Utc>,
@@ -1379,9 +1380,21 @@ pub struct CalendarEventMutationTarget {
     pub token_identity: CalendarLinkTokenIdentity,
     /// The clicker's owned inboxes. `None` when they own none.
     pub actor: Option<ActorInboxes>,
+    /// Organizer email stored on the entity.
+    pub organizer_email: Option<String>,
+    /// What the organizer lets guests do, as stored on the entity.
+    pub guest_policy: GuestPolicy,
 }
 
 impl CalendarEventMutationTarget {
+    /// The actor's inbox the addressed copy syncs through: every write to the
+    /// copy goes out through its grant, so the actor organizes or attends the
+    /// copy only as this inbox. `None` when the actor does not own it, as for
+    /// a delegate.
+    pub fn copy_inbox(&self) -> Option<&OwnedInbox> {
+        self.actor.as_ref()?.inbox(self.email_link_id)
+    }
+
     /// Provider identifier the mutation must address: the recurring master
     /// when the stored source is an expanded instance acting as canonical.
     pub fn master_provider_event_id(&self) -> &str {

@@ -1055,6 +1055,48 @@ fn rsvp_patch_updates_only_the_connected_attendee() {
     assert_eq!(attendees[0]["comment"], "unrelated state that must survive");
 }
 
+/// Google refuses new attendees in `attendeesOmitted` mode
+/// (`omittedAttendeesSpecified`), so an invite writes the whole list and
+/// must carry every existing attendee exactly as Google returned it.
+#[test]
+fn invite_body_keeps_every_attendee_as_google_returned_it_and_appends_the_guests() {
+    let current: Vec<GoogleAttendee> = serde_json::from_value(serde_json::json!([
+        {
+            "email": "olivia@example.com",
+            "organizer": true,
+            "responseStatus": "accepted"
+        },
+        {
+            "email": "jacob@example.com",
+            "self": true,
+            "responseStatus": "tentative",
+            "comment": "running late",
+            "additionalGuests": 1
+        }
+    ]))
+    .unwrap();
+
+    let body = invite_attendees_body(
+        &current,
+        &[CalendarAttendeeInput {
+            email: "ada@example.com".to_string(),
+            is_optional: true,
+            response_status: None,
+        }],
+    );
+
+    assert!(body.get("attendeesOmitted").is_none());
+    let attendees = body["attendees"].as_array().unwrap();
+    assert_eq!(attendees.len(), 3);
+    assert_eq!(attendees[0]["responseStatus"], "accepted");
+    assert_eq!(attendees[1]["responseStatus"], "tentative");
+    assert_eq!(attendees[1]["comment"], "running late");
+    assert_eq!(attendees[1]["additionalGuests"], 1);
+    assert_eq!(attendees[2]["email"], "ada@example.com");
+    assert_eq!(attendees[2]["optional"], true);
+    assert!(attendees[2].get("responseStatus").is_none());
+}
+
 fn google_attendee(email: &str, is_self: bool) -> GoogleAttendee {
     serde_json::from_value(serde_json::json!({
         "email": email,
@@ -1070,8 +1112,7 @@ fn rsvp_patches_the_actor_row_not_the_google_self_flag() {
         google_attendee("jacob@example.com", true),
         google_attendee("jackson@example.com", false),
     ];
-    let actor = ActorInboxes::from_owned(vec!["jackson@example.com".to_string()])
-        .expect("owned addresses remain after normalize");
+    let actor = ActorInboxes::sole("jackson@example.com");
     let found = find_actor_attendee(&attendees, &actor);
     assert_eq!(
         found.and_then(|attendee| attendee.email.as_deref()),
@@ -1082,8 +1123,7 @@ fn rsvp_patches_the_actor_row_not_the_google_self_flag() {
 #[test]
 fn rsvp_does_not_patch_another_attendee_when_the_requester_is_absent() {
     let attendees = vec![google_attendee("jacob@example.com", true)];
-    let actor = ActorInboxes::from_owned(vec!["jackson@example.com".to_string()])
-        .expect("owned addresses remain after normalize");
+    let actor = ActorInboxes::sole("jackson@example.com");
     assert!(find_actor_attendee(&attendees, &actor).is_none());
 }
 

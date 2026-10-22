@@ -1,6 +1,7 @@
 //! Microsoft Graph calendar adapter using the same transport and admission as mail.
 mod automatic_decline;
 mod conference_body;
+mod invite;
 mod normalize;
 mod recurrence;
 mod replacement;
@@ -886,6 +887,25 @@ impl CalendarMutationProvider for OutlookApiClientRepository {
         Ok(ProviderRsvpOutcome::RespondedAndRemoved(Box::new(
             echo.event,
         )))
+    }
+    async fn add_attendees(
+        &self,
+        token: &str,
+        target: &ProviderCalendarTarget,
+        id: &str,
+        _actor: &ActorInboxes,
+        guests: &[CalendarAttendeeInput],
+        scope: &CalendarUpdateScope,
+    ) -> Result<ProviderInviteOutcome, CalendarProviderError> {
+        self.calendar_scope(target)?
+            .add_calendar_guests(
+                &AccessToken::new(token.to_owned()),
+                target,
+                id,
+                guests,
+                scope,
+            )
+            .await
     }
     async fn stop_watch_channel(
         &self,

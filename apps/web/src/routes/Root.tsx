@@ -13,6 +13,7 @@ import { IncomingCallEvents } from '@block-call/sidebar/incoming-calls';
 import { CallAloneWatcher } from '@channel/Call/CallAloneWatcher';
 import { CallProvider } from '@channel/Call/CallContext';
 import { CallStartedNotifier } from '@channel/Call/CallStartedNotifier';
+import { FullScreenCallPrompt } from '@channel/Call/FullScreenCallPrompt';
 import { CallKitSync } from '@channel/Call/use-callkit';
 import { dismissBootShell } from '@components/app/boot-shell';
 import { RootFrame } from '@components/app/Layout';
@@ -217,6 +218,7 @@ export function Root() {
               <UserContextProvider>
                 <EmailLinksContextProvider>
                   <BrowserNotificationModal />
+                  <FullScreenCallPrompt />
                   <IosPushNotificationModal />
                   <IpadUnsupportedDialog />
                   <GlobalShareInboxConflictDialog />

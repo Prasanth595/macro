@@ -1,6 +1,7 @@
 //! PostgreSQL implementation of the calendar repository port.
 mod change_log;
 mod changes;
+mod export;
 mod invitations;
 #[cfg(feature = "outlook")]
 mod outlook;
@@ -20,6 +21,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     changes::CalendarChangeOp,
+    ics::CalendarEventExport,
     models::{
         ActorInboxes, AppliedGoogleGrant, AttendeeResponseStatus,
         CALENDAR_SYNC_FAILURE_BADGE_THRESHOLD, CalendarAttendee, CalendarBackfillClaim,
@@ -33,9 +35,9 @@ use crate::domain::{
         DisconnectedCalendar, DueCalendarReminder, EventReminderOverride, EventReminders,
         EventStart, EventStatus, EventTime, EventTransparency, EventType, EventVisibility,
         GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel,
-        GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange, ProviderCalendar,
-        StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities, VisibleCalendar,
-        is_system_calendar,
+        GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange, OwnedInbox,
+        ProviderCalendar, StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities,
+        VisibleCalendar, is_system_calendar,
     },
     ports::{
         CalendarBackfillRepository, CalendarEventChange, CalendarEventWrite,
@@ -457,9 +459,28 @@ struct AttendeeRow {
 struct StoredSourceProjection {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     automatic_decline: Option<crate::domain::models::AutomaticDeclinePolicy>,
+    #[serde(serialize_with = "serialize_stored_event")]
     event: CalendarEvent,
     overrides: Vec<CalendarEventOverride>,
     occurrences: Vec<CalendarOccurrence>,
+}
+
+/// The entity as a source projection stores it: never the viewer's
+/// capabilities, and the guest policy only when it differs from Google's
+/// default, so projections stored before either was modeled still compare
+/// equal and an unchanged event is not rewritten.
+fn serialize_stored_event<S: serde::Serializer>(
+    event: &CalendarEvent,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let mut value = serde_json::to_value(event).map_err(serde::ser::Error::custom)?;
+    if let Some(fields) = value.as_object_mut() {
+        fields.remove("viewerCan");
+        if event.guest_policy.is_default() {
+            fields.remove("guestPolicy");
+        }
+    }
+    value.serialize(serializer)
 }
 
 impl From<&CalendarEventUpsert> for StoredSourceProjection {
@@ -1397,6 +1418,15 @@ impl CalendarRepository for PgCalendarRepository {
     }
 
     #[tracing::instrument(skip(self, requester_id), err)]
+    async fn event_export(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> Result<Option<CalendarEventExport>, Report> {
+        export::event_export(&self.pool, requester_id, event_id).await
+    }
+
+    #[tracing::instrument(skip(self, requester_id), err)]
     async fn sync_status(&self, requester_id: &str) -> Result<CalendarSyncStatus, Report> {
         let is_syncing = sqlx::query_scalar!(
             r#"
@@ -2024,6 +2054,10 @@ impl CalendarRepository for PgCalendarRepository {
             SELECT
                 event.id AS event_id,
                 event.owner_id,
+                event.organizer_email,
+                event.guests_can_modify,
+                event.guests_can_invite_others,
+                event.guests_can_see_other_guests,
                 source.is_read_only,
                 source.provider_event_id AS "provider_event_id!",
                 source.provider_recurring_event_id,
@@ -2076,7 +2110,7 @@ impl CalendarRepository for PgCalendarRepository {
         let Some(row) = row else {
             return Ok(None);
         };
-        let actor = ActorInboxes::from_owned(self.owned_inbox_emails(requester_id).await?);
+        let actor = ActorInboxes::from_owned(self.owned_inboxes(requester_id).await?);
         let token_identity = CalendarLinkTokenIdentity {
             binding: Some(CalendarGrantBinding {
                 link_id: row.email_link_id,
@@ -2101,7 +2135,56 @@ impl CalendarRepository for PgCalendarRepository {
             observed_access_role: row.access_role,
             token_identity,
             actor,
+            organizer_email: row.organizer_email,
+            guest_policy: GuestPolicy {
+                can_modify: row.guests_can_modify,
+                can_invite_others: row.guests_can_invite_others,
+                can_see_other_guests: row.guests_can_see_other_guests,
+            },
         }))
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn record_guest_policy(&self, event_id: Uuid, policy: GuestPolicy) -> Result<(), Report> {
+        let mut tx = self.pool.begin().await.map_err(report)?;
+        let source_link_id = sqlx::query_scalar!(
+            r#"
+            UPDATE calendar_events
+            SET guests_can_modify = $2,
+                guests_can_invite_others = $3,
+                guests_can_see_other_guests = $4
+            WHERE id = $1
+            RETURNING source_link_id
+            "#,
+            event_id,
+            policy.can_modify,
+            policy.can_invite_others,
+            policy.can_see_other_guests,
+        )
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(report)?;
+        let Some(source_link_id) = source_link_id else {
+            return Ok(());
+        };
+        // Each copy's stored projection carries the policy too, so a restore
+        // from another copy cannot bring the stale switches back.
+        sqlx::query!(
+            r#"
+            UPDATE calendar_event_sources
+            SET normalized_payload = jsonb_set(normalized_payload, '{event,guestPolicy}', $2)
+            WHERE event_id = $1
+              AND normalized_payload ? 'event'
+            "#,
+            event_id,
+            serde_json::to_value(policy).map_err(report)?,
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(report)?;
+        let mut log = ChangeLogBatch::default();
+        log.record(source_link_id, CalendarChangeOp::UpsertEvent(event_id));
+        log.commit(tx).await
     }
 
     #[tracing::instrument(skip(self), err)]
@@ -2178,7 +2261,7 @@ impl CalendarRepository for PgCalendarRepository {
         let Some(row) = row else {
             return Ok(None);
         };
-        let actor = ActorInboxes::from_owned(self.owned_inbox_emails(requester_id).await?);
+        let actor = ActorInboxes::from_owned(self.owned_inboxes(requester_id).await?);
         let token_identity = CalendarLinkTokenIdentity {
             binding: Some(CalendarGrantBinding {
                 link_id: row.email_link_id,
@@ -2291,10 +2374,13 @@ impl CalendarRepository for PgCalendarRepository {
     }
 
     #[tracing::instrument(skip(self, requester_id), err)]
-    async fn owned_inbox_emails(&self, requester_id: &str) -> Result<Vec<String>, Report> {
-        sqlx::query_scalar!(
+    async fn owned_inboxes(&self, requester_id: &str) -> Result<Vec<OwnedInbox>, Report> {
+        sqlx::query!(
             r#"
-            SELECT email_address::text AS "email_address!"
+            SELECT
+                id AS link_id,
+                email_address::text AS "email_address!",
+                provider::text AS "provider!"
             FROM email_links
             WHERE macro_id = $1
             "#,
@@ -2302,7 +2388,17 @@ impl CalendarRepository for PgCalendarRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(report)
+        .map_err(report)?
+        .into_iter()
+        .map(|row| {
+            Ok(OwnedInbox {
+                link_id: row.link_id,
+                email: row.email_address,
+                provider: CalendarProvider::from_link(&row.provider)
+                    .ok_or_else(|| rootcause::report!("unsupported calendar provider"))?,
+            })
+        })
+        .collect()
     }
 
     #[tracing::instrument(skip(self), err)]

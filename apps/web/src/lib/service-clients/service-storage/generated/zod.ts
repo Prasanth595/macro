@@ -1027,7 +1027,6 @@ export const listOccurrencesResponse = zod
                     .boolean()
                     .describe('Whether guests may see the guest list.'),
                 })
-                .optional()
                 .describe(
                   'The switches an organizer sets on an event to bound what its guests may\ndo. Google omits a switch from the payload while it holds its default.'
                 ),
@@ -1257,7 +1256,6 @@ export const listOccurrencesResponse = zod
                     .boolean()
                     .describe("Change the event's guest policy."),
                 })
-                .optional()
                 .describe('What the viewing requester may do with an event.'),
               visibility: zod
                 .enum(['default', 'public', 'private', 'confidential'])
@@ -1748,6 +1746,14 @@ export const listTeamOutOfOfficeResponse = zod
     ),
   })
   .describe('Team out-of-office viewport response.');
+
+/**
+ * @summary Export an event the requester can see — their own, or one shared with a
+channel they belong to — as an iCalendar file named after its title.
+ */
+export const eventIcsParams = zod.object({
+  event_id: zod.uuid().describe('Calendar event entity id'),
+});
 
 /**
  * Lists all active calls in channels the caller is an active member of,
@@ -20188,7 +20194,7 @@ export const getFormResponse = zod
                 title: zod.string().describe('Its title.'),
               })
               .describe(
-                'A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.'
+                'A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.'
               ),
           ])
           .describe('One section of a form as it reads.')
@@ -20761,7 +20767,7 @@ export const collaborateFormResponse = zod
                     title: zod.string().describe('Its title.'),
                   })
                   .describe(
-                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.'
+                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.'
                   ),
               ])
               .describe('One section of a form as it reads.')
@@ -20793,7 +20799,7 @@ export const collaborateFormResponse = zod
                     kind: zod.enum(['bookingMustBeLast']),
                   })
                   .describe(
-                    'A booking step must be unique and follow all questions and screeners.'
+                    'A booking step must be unique and follow all questions and gates.'
                   ),
                 zod
                   .object({
@@ -21627,7 +21633,7 @@ export const putFormLayoutResponse = zod
                     title: zod.string().describe('Its title.'),
                   })
                   .describe(
-                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.'
+                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.'
                   ),
               ])
               .describe('One section of a form as it reads.')
@@ -21659,7 +21665,7 @@ export const putFormLayoutResponse = zod
                     kind: zod.enum(['bookingMustBeLast']),
                   })
                   .describe(
-                    'A booking step must be unique and follow all questions and screeners.'
+                    'A booking step must be unique and follow all questions and gates.'
                   ),
                 zod
                   .object({
