@@ -19083,10 +19083,6 @@
         "type": "object",
         "description": "Filters for agent sessions.",
         "properties": {
-          "exclude_routine_runs": {
-            "type": "boolean",
-            "description": "Leave out sessions a routine's unattended run created. Constrains the\nsessions a query already asks for; it does not opt the query in."
-          },
           "ids": {
             "type": "array",
             "items": {
@@ -19276,6 +19272,11 @@
           }
         ],
         "description": "Events publishable to [`MacroAgentSessionLifecycleTopic`].\n\nThe serde tag and [`AgentSessionLifecycleEventName`] spell the same wire\nnames: subscribers filter on them, so they are API. The\n`event_names_match_the_wire` test holds the two in step. Exhaustive on\npurpose: a consumer's match should break when a variant is added."
+      },
+      "AgentSessionSource": {
+        "type": "string",
+        "description": "Who started an agent session. The string form is the\n`agent_session.source` column's.",
+        "enum": ["user", "routine"]
       },
       "AgentTyping": {
         "type": "object",
@@ -36725,11 +36726,6 @@
             "$ref": "#/components/schemas/MacroUserIdStr",
             "description": "User who owns the session."
           },
-          "routine_id": {
-            "type": ["string", "null"],
-            "format": "uuid",
-            "description": "The routine whose unattended run the session is, when it is one."
-          },
           "session_id": {
             "type": "string",
             "format": "uuid",
@@ -36738,6 +36734,10 @@
           "session_name": {
             "type": "string",
             "description": "User-facing session name at the time of the event."
+          },
+          "source": {
+            "$ref": "#/components/schemas/SessionSource",
+            "description": "Who started the session. Events from before it was recorded say\nnothing and read as a person."
           }
         }
       },
@@ -36830,6 +36830,11 @@
             ]
           }
         }
+      },
+      "SessionSource": {
+        "type": "string",
+        "description": "Who started a session. Stored on the session and carried by its lifecycle\nevents, so lists and notifications can treat unattended runs differently.",
+        "enum": ["user", "routine"]
       },
       "SessionStoppedMetadata": {
         "type": "object",
@@ -37442,10 +37447,9 @@
                 "type": ["string", "null"],
                 "description": "The repository the session works with, when one was selected."
               },
-              "routineId": {
-                "type": ["string", "null"],
-                "format": "uuid",
-                "description": "The routine whose unattended run created the session, when one did"
+              "source": {
+                "$ref": "#/components/schemas/AgentSessionSource",
+                "description": "Who started the session"
               },
               "status": {
                 "type": "string",

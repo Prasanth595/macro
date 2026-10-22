@@ -182,10 +182,6 @@
         "type": "object",
         "description": "Filters for agent sessions.",
         "properties": {
-          "exclude_routine_runs": {
-            "type": "boolean",
-            "description": "Leave out sessions a routine's unattended run created. Constrains the\nsessions a query already asks for; it does not opt the query in."
-          },
           "ids": {
             "type": "array",
             "items": {

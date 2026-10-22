@@ -1236,6 +1236,11 @@ input GraphqlAgentSessionLiteral @oneOf {
 	(`bot|<uuid>`), or a team (a bare hyphenated uuid).
 	"""
 	owner: String
+	"""
+	Who started the session. Narrows the sessions a query asks for; it
+	does not opt the query in.
+	"""
+	source: GraphqlAgentSessionSource
 }
 
 """
@@ -1378,6 +1383,20 @@ type GraphqlAgentSessionSettledMetadata {
 	The agent's last prose in the turn.
 	"""
 	excerpt: String
+}
+
+"""
+Who started an agent session: filter input, and the field Soup returns.
+"""
+enum GraphqlAgentSessionSource {
+	"""
+	A person, directly or through something they did.
+	"""
+	USER
+	"""
+	A routine's unattended run.
+	"""
+	ROUTINE
 }
 
 """
@@ -6754,6 +6773,10 @@ type GraphqlSoupAgentSession implements GraphqlSoupEntity {
 	The channel thread the session was opened from, when any.
 	"""
 	threadId: ID
+	"""
+	Who started the session.
+	"""
+	source: GraphqlAgentSessionSource!
 	"""
 	The session's last known status: `no_messages`, `disconnected`, or the
 	wire name of the most recent system event (for example `session/end`).

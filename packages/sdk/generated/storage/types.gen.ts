@@ -321,11 +321,6 @@ export type AgentPullRequestState = 'open' | 'draft' | 'closed' | 'merged';
  */
 export type AgentSessionFilters = {
     /**
-     * Leave out sessions a routine's unattended run created. Constrains the
-     * sessions a query already asks for; it does not opt the query in.
-     */
-    exclude_routine_runs?: boolean;
-    /**
      * Agent session ids to filter by. Empty to include all accessible sessions.
      */
     ids?: Array<string>;
@@ -418,6 +413,12 @@ export type AgentSessionLifecycleEvent = {
      */
     metadata: SessionDeletedMetadata;
 };
+
+/**
+ * Who started an agent session. The string form is the
+ * `agent_session.source` column's.
+ */
+export type AgentSessionSource = 'user' | 'routine';
 
 /**
  * An agent session typing through its bot.
@@ -11451,10 +11452,6 @@ export type SessionIdentity = {
      */
     owner_id: MacroUserIdStr;
     /**
-     * The routine whose unattended run the session is, when it is one.
-     */
-    routine_id?: string | null;
-    /**
      * The session.
      */
     session_id: string;
@@ -11462,6 +11459,11 @@ export type SessionIdentity = {
      * User-facing session name at the time of the event.
      */
     session_name: string;
+    /**
+     * Who started the session. Events from before it was recorded say
+     * nothing and read as a person.
+     */
+    source?: SessionSource;
 };
 
 /**
@@ -11530,6 +11532,12 @@ export type SessionSettledMetadata = {
     identity: SessionIdentity;
     last_turn?: null | TurnSummary;
 };
+
+/**
+ * Who started a session. Stored on the session and carried by its lifecycle
+ * events, so lists and notifications can treat unattended runs differently.
+ */
+export type SessionSource = 'user' | 'routine';
 
 /**
  * The session's live actor is gone: idle teardown, transport loss, or crash.
@@ -11924,9 +11932,9 @@ export type SoupAgentSessionSoupPropertiesField = {
      */
     repoUrl?: string | null;
     /**
-     * The routine whose unattended run created the session, when one did
+     * Who started the session
      */
-    routineId?: string | null;
+    source?: AgentSessionSource;
     /**
      * The session's last known status.
      *

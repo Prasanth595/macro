@@ -4,12 +4,13 @@
  * document_storage_service
  * OpenAPI spec version: 0.1.0
  */
+
+import type { AgentSessionSource } from './agentSessionSource';
 import type { SoupAgentSessionSoupPropertiesFieldAllOfTwoPullRequestId } from './soupAgentSessionSoupPropertiesFieldAllOfTwoPullRequestId';
 import type { SoupAgentSessionSoupPropertiesFieldAllOfTwoPullRequestState } from './soupAgentSessionSoupPropertiesFieldAllOfTwoPullRequestState';
 import type { SoupAgentSessionSoupPropertiesFieldAllOfTwoPullRequestUrl } from './soupAgentSessionSoupPropertiesFieldAllOfTwoPullRequestUrl';
 import type { SoupAgentSessionSoupPropertiesFieldAllOfTwoRepoBranch } from './soupAgentSessionSoupPropertiesFieldAllOfTwoRepoBranch';
 import type { SoupAgentSessionSoupPropertiesFieldAllOfTwoRepoUrl } from './soupAgentSessionSoupPropertiesFieldAllOfTwoRepoUrl';
-import type { SoupAgentSessionSoupPropertiesFieldAllOfTwoRoutineId } from './soupAgentSessionSoupPropertiesFieldAllOfTwoRoutineId';
 import type { SoupAgentSessionSoupPropertiesFieldAllOfTwoThreadId } from './soupAgentSessionSoupPropertiesFieldAllOfTwoThreadId';
 import type { SoupAgentSessionSoupPropertiesFieldAllOfTwoTurnState } from './soupAgentSessionSoupPropertiesFieldAllOfTwoTurnState';
 import type { SoupAgentSessionSoupPropertiesFieldAllOfTwoViewedAt } from './soupAgentSessionSoupPropertiesFieldAllOfTwoViewedAt';
@@ -39,8 +40,8 @@ export type SoupAgentSessionSoupPropertiesFieldAllOfTwo = {
   repoBranch?: SoupAgentSessionSoupPropertiesFieldAllOfTwoRepoBranch;
   /** The repository the session works with, when one was selected. */
   repoUrl?: SoupAgentSessionSoupPropertiesFieldAllOfTwoRepoUrl;
-  /** The routine whose unattended run created the session, when one did */
-  routineId?: SoupAgentSessionSoupPropertiesFieldAllOfTwoRoutineId;
+  /** Who started the session */
+  source?: AgentSessionSource;
   /** The session's last known status.
 
 `no_messages` until the first system event arrives, `disconnected` if

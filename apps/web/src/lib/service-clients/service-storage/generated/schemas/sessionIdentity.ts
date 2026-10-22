@@ -8,7 +8,7 @@
 import type { BotId } from './botId';
 import type { MacroUserIdStr } from './macroUserIdStr';
 import type { SessionIdentityOrigin } from './sessionIdentityOrigin';
-import type { SessionIdentityRoutineId } from './sessionIdentityRoutineId';
+import type { SessionSource } from './sessionSource';
 
 /**
  * Who and what a session is; carried by every lifecycle event so a
@@ -26,10 +26,11 @@ a consumer fanning out never has to read the session's log. */
   origin?: SessionIdentityOrigin;
   /** User who owns the session. */
   owner_id: MacroUserIdStr;
-  /** The routine whose unattended run the session is, when it is one. */
-  routine_id?: SessionIdentityRoutineId;
   /** The session. */
   session_id: string;
   /** User-facing session name at the time of the event. */
   session_name: string;
+  /** Who started the session. Events from before it was recorded say
+nothing and read as a person. */
+  source?: SessionSource;
 }
