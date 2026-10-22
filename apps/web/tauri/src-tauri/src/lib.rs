@@ -130,6 +130,19 @@ type Type = std::sync::OnceLock<
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    run_with(tauri::Builder::default());
+}
+
+/// The runtime type behind the default `tauri::Builder`: wry everywhere, except
+/// the macOS Chromium build, whose Tauri selects the runtime at startup.
+#[cfg(not(feature = "cef"))]
+pub type AppRuntime = tauri::Wry;
+#[cfg(feature = "cef")]
+pub type AppRuntime = tauri::DynRuntime;
+
+/// Runs the app on a builder whose webview runtime is already selected.
+/// `desktop-cef` passes a Chromium builder; every other build calls [`run`].
+pub fn run_with(builder: tauri::Builder<AppRuntime>) {
     use tracing_subscriber::EnvFilter;
 
     let diagnostics = diagnostics::Diagnostics::from_launch();
@@ -183,11 +196,11 @@ pub fn run() {
         .with_app_link_hosts(APP_LINK_HOSTS)
         .with_embedded_documents(EMBEDDED_DOCUMENTS)
         .expect("Embedded documents must be valid urls");
-    let mut builder = tauri::Builder::default();
+    let mut builder = builder;
 
     #[cfg(any(target_os = "ios", target_os = "macos"))]
     {
-        builder = builder.on_web_content_process_terminate(|webview| {
+        let on_terminate = |webview: &tauri::Webview<AppRuntime>| {
             tracing::warn!(webview = %webview.label(), "WebContent process terminated; reloading");
             if let Some(state) = webview.try_state::<diagnostics::Diagnostics>() {
                 let _ = state.record_web_content_termination().inspect_err(|error| {
@@ -199,7 +212,16 @@ pub fn run() {
             let _ = webview.reload().inspect_err(|error| {
                 tracing::error!(%error, "Failed to reload terminated WebContent process");
             });
-        });
+        };
+        #[cfg(feature = "cef")]
+        {
+            builder = builder
+                .on_web_content_process_terminate(move |webview, _details| on_terminate(webview));
+        }
+        #[cfg(not(feature = "cef"))]
+        {
+            builder = builder.on_web_content_process_terminate(on_terminate);
+        }
     }
 
     #[cfg(desktop)]
@@ -309,7 +331,10 @@ pub fn run() {
     // Window origin differs by platform:
     // macOS/iOS/Linux: tauri://localhost
     // Windows/Android: https://tauri.localhost (or http://)
-    let window_origin = if cfg!(any(target_os = "windows", target_os = "android")) {
+    // Chromium (the `cef` feature): http://tauri.localhost
+    let window_origin = if cfg!(feature = "cef") {
+        "http://tauri.localhost"
+    } else if cfg!(any(target_os = "windows", target_os = "android")) {
         "https://tauri.localhost"
     } else {
         "tauri://localhost"
@@ -341,6 +366,7 @@ pub fn run() {
             desktop_update::get_native_update_status,
             desktop_update::restart_native_update,
             diagnostics::read_desktop_diagnostics,
+            diagnostics::record_frontend_diagnostic,
             #[cfg(target_os = "linux")]
             linux_notification::send_linux_notification,
             #[cfg(target_os = "linux")]
@@ -464,6 +490,9 @@ pub fn run() {
             ..
         } => {
             tracing::debug!(window_label = %label, "mobile window resumed");
+            if let Some(state) = app_handle.try_state::<diagnostics::Diagnostics>() {
+                state.record_native_event(diagnostics::events::NativeEvent::Foreground);
+            }
             let app = app_handle.clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = retry_waiting_for_wifi(&app).await {
@@ -491,6 +520,15 @@ pub fn run() {
                         }
                     }
                 });
+            }
+        }
+        #[cfg(mobile)]
+        RunEvent::WindowEvent {
+            event: tauri::WindowEvent::Suspended,
+            ..
+        } => {
+            if let Some(state) = app_handle.try_state::<diagnostics::Diagnostics>() {
+                state.record_native_event(diagnostics::events::NativeEvent::Background);
             }
         }
         #[cfg(desktop)]

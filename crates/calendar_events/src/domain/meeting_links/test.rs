@@ -4,8 +4,9 @@ use chrono::{NaiveDate, TimeZone, Utc};
 
 use super::*;
 use crate::domain::models::{
-    AttendeeResponseStatus, CalendarEventPatch, ConferenceChange, EventReminders, EventStatus,
-    EventTransparency, EventType, EventVisibility, OutOfOfficeProperties, VisibleCalendar,
+    AttendeeResponseStatus, CalendarAttendeeInput, CalendarEventPatch, ConferenceChange,
+    EventReminders, EventStatus, EventTransparency, EventType, EventVisibility, GuestPolicy,
+    OutOfOfficeProperties, ViewerCapabilities, VisibleCalendar,
 };
 use crate::domain::ports::{
     CalendarDeletionScope, CalendarRsvpScope, CalendarUpdateScope, UnavailableMeetingLinks,
@@ -39,6 +40,8 @@ fn sample_event() -> CalendarEvent {
         is_read_only: false,
         attendees: Vec::new(),
         reminders: EventReminders::default(),
+        guest_policy: GuestPolicy::default(),
+        viewer_can: ViewerCapabilities::NONE,
         created_at: Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap(),
         updated_at: Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap(),
     }
@@ -137,6 +140,17 @@ impl CalendarMutationService for FakeMutations {
         _responding_email: Option<String>,
     ) -> Result<CalendarEvent, CalendarMutationError> {
         unreachable!("creating with a Macro call answers no invitation")
+    }
+
+    async fn invite_guests(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+        _calendar_id: Option<Uuid>,
+        _guests: Vec<CalendarAttendeeInput>,
+        _scope: CalendarUpdateScope,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
+        unreachable!("creating with a Macro call invites no one afterwards")
     }
 
     async fn disconnect_calendar(

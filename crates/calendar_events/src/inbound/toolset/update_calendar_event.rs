@@ -98,12 +98,19 @@ update: end the series with DeleteCalendarEvent's \"this_and_following\" and cre
 event instead.\n\
 \n\
 Passing `attendees` replaces the full attendee list — include everyone who should remain, \
-not just additions. An empty string for `description` or `location` clears it. Fails on \
-events from calendars the user cannot edit.\n\
+not just additions. That holds when `viewerCan.removeGuests` from ListCalendarEvents is \
+true (the user organizes the event, or the organizer lets guests modify it). When it is \
+false, the list may only grow: pass the current attendees plus the additions; the additions \
+are invited without touching anyone else, and dropping any guest fails. Adding guests then \
+needs `viewerCan.inviteGuests`; otherwise the organizer doesn't let guests invite others \
+or hides the guest list, or the event is an Outlook meeting the user doesn't organize. \
+An empty string for `description` or `location` clears it. Fails on events from calendars \
+the user cannot edit.\n\
 \n\
 `rsvp` sets the user's own response to an invitation and is independent of the field \
 edits — it can be the only thing this call changes. It applies at the same `scope` as \
-the rest of the call, and only works on events the user is actually an attendee of."
+the rest of the call and answers as the connected inbox the event's copy belongs to, so \
+it only works when that inbox is an attendee."
 )]
 pub struct UpdateCalendarEvent {
     /// Event to update.
@@ -169,7 +176,8 @@ pub struct UpdateCalendarEvent {
     /// Replacement attendee list.
     #[schemars(
         description = "Replacement attendee list — replaces all current attendees, so include \
-                       everyone who should remain. Omit to leave attendees unchanged."
+                       everyone who should remain. When `viewerCan.removeGuests` is false, it \
+                       may only add to the current list. Omit to leave attendees unchanged."
     )]
     #[serde(default)]
     pub attendees: Option<Vec<AttendeeInput>>,
