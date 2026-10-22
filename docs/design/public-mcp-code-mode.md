@@ -58,14 +58,14 @@ then. Agent sessions get the `task` field too.
 
 ### 2. Flagged tool surface
 
-Evaluate `ai-code-mode` for the OAuth user in `list_tools` and `call_tool`,
+Evaluate `ai-code-mode` for the OAuth user in `initialize`, `list_tools` and `call_tool`,
 reusing `agent_inmem::domain::tool_mode::FlaggedToolMode`.
 
 - Off: unchanged.
 - On: `tools_for_inner(AiHost::Mcp, true)` (new `ai_tools::tools_for_mcp_code_mode`),
   which already drops SDK-covered tools via `covered_by_code_sdk`, plus
-  `ExecuteCode` and `DescribeCodeTools`. `get_info` instructions switch to a
-  code-mode variant. `get_info` has no user, so its text covers both modes.
+  `ExecuteCode` and `DescribeCodeTools`. `initialize` (which, unlike
+  `get_info`, sees the request) appends code-mode instructions.
 - `call_tool` rejects `ExecuteCode` / `DescribeCodeTools` for unflagged users.
   Hidden native tools stay callable; they are the same tools.
 
@@ -97,7 +97,7 @@ pub trait UserCodeMode: Send + Sync + 'static {
 - **No journal:** the MCP response is the record, and there is no UI to load a
   saved execution into. The MCP `ExecuteCode` therefore drops `execution_id`.
 - **No reviews:** there is no session stream to present into. `main` returns
-  `{data}`; a `reviews` key is rejected. `session` / `execution` are undefined
+  `{data}`; review references fail the run. `session` / `execution` are undefined
   (the bootstrap already handles absent ids).
 - **Cancellation:** the rmcp request token (`context.ct`); no turn watcher.
 - **Admission:** a separate `ExecutionService` with its own limits, sharing the
@@ -111,9 +111,10 @@ journal, turn watch and gate.
 
 ### 4. Telemetry
 
-Span `mcp.code_execution` with user id, status, duration, activity count and
-source bytes, never source or results. Span `mcp.code_docs` with the selected
-entities, bytes and selection status. Trace headers already reach SDK calls.
+Span `code_mode.user_execution` with status, activity count, timeout and source
+bytes, never source, results or the user's email-bearing id. Span
+`code_mode.task_documentation` with the selected and omitted entities, bytes and
+selection status. Trace headers already reach SDK calls.
 
 ## Decisions
 
@@ -126,12 +127,3 @@ entities, bytes and selection status. Trace headers already reach SDK calls.
 - **Reviews.** An empty `reviews: []` (which the shared guides use) is dropped;
   any review reference fails the run. The `templates` and `examples` guides,
   which depend on reviews, are unavailable to MCP clients.
-
-## Plan
-
-1. Split docs selection; add `task` to `DescribeCodeTools` (both MCPs).
-2. `UserCodeMode` and the shared run helper in `agent_code_mode`; user
-   credentials and a dedicated `ExecutionService` in the harness.
-3. Flagged tool surface, flag cache and instructions in the public MCP.
-4. Update `agent_code_mode` / `agent_harness_service` `AGENTS.md`,
-   `code_execution/README.md`, and this document.
