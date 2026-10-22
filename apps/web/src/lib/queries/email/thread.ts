@@ -39,8 +39,10 @@ import { type UndoHandle, useUndoableMutation } from '../undo';
 import { type MutationCallbacks, withCallbacks } from '../utils';
 import { updateEmailThreadState } from './cache-cleanup';
 import {
+  type CachedPreparedBody,
   createGraphqlEmailThreadQuery,
   fetchGraphqlEmailThread,
+  type GraphqlEmailThreadPages,
   mapGraphqlThreadError,
 } from './graphql/thread';
 import {
@@ -182,6 +184,8 @@ export async function threadCanBeMarkedNotDone(
 export type ThreadQueryData = {
   thread: Thread;
   hasMore: boolean;
+  /** Server-prepared bodies the cache holds, by message id (GraphQL only). */
+  preparedBodies?: ReadonlyMap<string, CachedPreparedBody>;
 };
 
 export type ThreadQueryTransport = 'rest' | 'graphql';
@@ -203,20 +207,22 @@ export type ThreadQueryResult<TData> = {
   refetch(): Promise<void>;
 };
 
-type ThreadQuerySelector<TData> = (data: InfiniteData<Thread, number>) => TData;
+type ThreadQueryPages = InfiniteData<Thread, number> &
+  Partial<Pick<GraphqlEmailThreadPages, 'preparedBodies'>>;
+
+type ThreadQuerySelector<TData> = (data: ThreadQueryPages) => TData;
 
 type UseThreadQueryOptions<TData> = {
   enabled?: boolean;
   select?: ThreadQuerySelector<TData>;
 };
 
-function selectThreadQueryData(
-  data: InfiniteData<Thread, number>
-): ThreadQueryData {
+function selectThreadQueryData(data: ThreadQueryPages): ThreadQueryData {
   const lastPage = data.pages.at(-1)!;
   return {
     thread: flattenThreadPages(data)!,
     hasMore: lastPage.messages.length === DEFAULT_THREAD_MESSAGES_LIMIT,
+    preparedBodies: data.preparedBodies,
   };
 }
 

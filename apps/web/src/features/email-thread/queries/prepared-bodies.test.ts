@@ -1,26 +1,22 @@
-import type { EmailThreadPreparedBodiesQuery } from '@service-storage/graphql/generated/graphql';
 import { expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ flagOn: true }));
-vi.mock('@graphql-cache/solid/create-live-query', () => ({
-  createLiveQuery: vi.fn(),
-}));
 vi.mock('@core/constant/featureFlags', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@core/constant/featureFlags')>()),
   isFeatureEnabled: () => mocks.flagOn,
 }));
 
-import type { ServerPreparedBody } from '@app/features/email-message/context/email-rendering-context';
-import { createLiveQuery } from '@graphql-cache/solid/create-live-query';
+import { EmailThreadPageDocument } from '@service-storage/graphql/generated/graphql';
 import type { Client } from '@urql/core';
+import { type ArgumentNode, Kind, visit } from 'graphql';
+import { createRoot, createSignal } from 'solid-js';
 import {
-  createPreparedBodiesQuery,
-  preparedBodiesById,
+  createPreparedBodiesFill,
   SERVER_PREPARE_VERSION,
+  toServerPreparedBody,
 } from './prepared-bodies';
 
 const prepared = (version: number) => ({
-  __typename: 'GraphqlPreparedEmailBody' as const,
   version,
   html: '<p>Hi</p>',
   hasTable: false,
@@ -29,36 +25,8 @@ const prepared = (version: number) => ({
   sourceLength: 9,
 });
 
-it('keeps bodies of this client version, by message id', () => {
-  const data = {
-    user: {
-      id: 'user',
-      emailThread: {
-        __typename: 'GraphqlSoupEmailThread',
-        id: 'thread',
-        messages: [
-          {
-            __typename: 'GraphqlSoupEmailMessage',
-            id: 'a',
-            preparedBody: prepared(SERVER_PREPARE_VERSION),
-          },
-          {
-            __typename: 'GraphqlSoupEmailMessage',
-            id: 'b',
-            preparedBody: prepared(SERVER_PREPARE_VERSION + 1),
-          },
-          {
-            __typename: 'GraphqlSoupEmailMessage',
-            id: 'c',
-            preparedBody: null,
-          },
-        ],
-      },
-    },
-  } as unknown as EmailThreadPreparedBodiesQuery;
-  const bodies = preparedBodiesById(data);
-  expect([...bodies.keys()]).toEqual(['a']);
-  expect(bodies.get('a')).toEqual({
+it('mounts only bodies of this client version', () => {
+  expect(toServerPreparedBody(prepared(SERVER_PREPARE_VERSION))).toEqual({
     body: {
       html: '<p>Hi</p>',
       kind: 'html',
@@ -68,30 +36,75 @@ it('keeps bodies of this client version, by message id', () => {
     imageProxyUrl: 'https://gateway.test/image-proxy/proxy',
     sourceLength: 9,
   });
+  expect(
+    toServerPreparedBody(prepared(SERVER_PREPARE_VERSION + 1))
+  ).toBeUndefined();
+  expect(toServerPreparedBody(undefined)).toBeUndefined();
 });
 
-it('neither requests nor mounts server bodies while the flag is off', () => {
-  const body = { sourceLength: 9 } as ServerPreparedBody;
-  let options: { enabled: boolean } | undefined;
-  vi.mocked(createLiveQuery).mockImplementation(((
-    _document: unknown,
-    _variables: unknown,
-    readOptions: () => { enabled: boolean }
-  ) => {
-    options = readOptions();
-    return { isSuccess: true, data: new Map([['a', body]]) };
-  }) as never);
-  const client = {} as Client;
+it('reads the version the thread page selects from the cache', () => {
+  const versions: unknown[] = [];
+  visit(EmailThreadPageDocument, {
+    Field(node) {
+      if (node.name.value !== 'preparedBody') return;
+      const version = node.arguments?.find(
+        (argument: ArgumentNode) => argument.name.value === 'version'
+      )?.value;
+      versions.push(version?.kind === Kind.INT ? Number(version.value) : null);
+    },
+  });
+  expect(versions).toEqual([SERVER_PREPARE_VERSION]);
+});
+
+it('fills the cache once per thread, only while the flag is on', () => {
+  const query = vi.fn((..._args: unknown[]) => ({
+    toPromise: async () => ({}),
+  }));
+  const client = { query } as unknown as Pick<Client, 'query'>;
+  const [threadId, setThreadId] = createSignal('thread');
 
   mocks.flagOn = false;
-  const off = createPreparedBodiesQuery(
-    () => 'thread',
-    () => true,
-    () => client
-  );
-  expect(options?.enabled).toBe(false);
-  expect(off('a')).toBeUndefined();
+  createRoot((dispose) => {
+    createPreparedBodiesFill(
+      threadId,
+      () => true,
+      () => client
+    );
+    dispose();
+  });
+  expect(query).not.toHaveBeenCalled();
 
   mocks.flagOn = true;
-  expect(off('a')).toBe(body);
+  const dispose = createRoot((dispose) => {
+    createPreparedBodiesFill(
+      threadId,
+      () => true,
+      () => client
+    );
+    return dispose;
+  });
+  setThreadId('other');
+  dispose();
+  expect(
+    query.mock.calls.map(([, variables, context]) => [variables, context])
+  ).toEqual([
+    [
+      {
+        threadId: 'thread',
+        offset: 0,
+        limit: 20,
+        version: SERVER_PREPARE_VERSION,
+      },
+      { requestPolicy: 'cache-first' },
+    ],
+    [
+      {
+        threadId: 'other',
+        offset: 0,
+        limit: 20,
+        version: SERVER_PREPARE_VERSION,
+      },
+      { requestPolicy: 'cache-first' },
+    ],
+  ]);
 });

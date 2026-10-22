@@ -1,4 +1,8 @@
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
+import {
+  enableServerEmailPreparation,
+  isFeatureEnabled,
+} from '@core/constant/featureFlags';
 import { useEmail, useUserContext } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { useContacts } from '@core/user';
@@ -36,7 +40,10 @@ import type {
 import type { EmailThreadOrganizationStatus } from './context/email-thread-view-context';
 import { EmailThreadOperations } from './email-thread-operations';
 import { createOptimisticThreadSend } from './primitives/optimistic-send';
-import { createPreparedBodiesQuery } from './queries/prepared-bodies';
+import {
+  createPreparedBodiesFill,
+  toServerPreparedBody,
+} from './queries/prepared-bodies';
 import { createThreadActionAdapter } from './thread-action-adapter';
 import {
   EmailThreadSurface,
@@ -136,12 +143,19 @@ export function EmailThread(props: EmailThreadProps) {
       ),
     },
   };
+  createPreparedBodiesFill(
+    source.id,
+    () => props.threadTransport() === 'graphql',
+    getGraphqlSoupClient
+  );
   const rendering = createEmailRenderingContext({
-    preparedBody: createPreparedBodiesQuery(
-      source.id,
-      () => props.threadTransport() === 'graphql',
-      getGraphqlSoupClient
-    ),
+    // Read from the thread page's own result, so a body the cache holds is on
+    // hand the moment its message renders. The flag also stops cached server
+    // HTML from mounting.
+    preparedBody: (messageId) =>
+      isFeatureEnabled(enableServerEmailPreparation)
+        ? toServerPreparedBody(props.source.preparedBody?.(messageId))
+        : undefined,
   });
   createEffectOnEntityTypeNotification(
     useGlobalNotificationSource(),

@@ -34,11 +34,34 @@ import {
 import { registerActiveGraphqlSoupQuery } from '../../soup/graphql/active-queries';
 import { mapGraphqlEmailThreadPage } from './mapper';
 
+/** A message body the server prepared, as the thread page read it from the cache. */
+export type CachedPreparedBody = {
+  version: number;
+  html: string;
+  hasTable: boolean;
+  hasHiddenContent: boolean;
+  imageProxyUrl?: string | null;
+  sourceLength: number;
+};
+
 /** REST-compatible pages exposed to the email query facade. */
 export type GraphqlEmailThreadPages = {
   pages: ApiThread[];
   pageParams: number[];
+  /** Server-prepared bodies the cache holds for these pages, by message id. */
+  preparedBodies: ReadonlyMap<string, CachedPreparedBody>;
 };
+
+/** Prepared bodies across loaded pages, by message id; absent ones are skipped. */
+export function preparedBodiesOf(
+  pages: readonly EmailThreadPageQuery[]
+): ReadonlyMap<string, CachedPreparedBody> {
+  const bodies = new Map<string, CachedPreparedBody>();
+  for (const page of pages)
+    for (const message of page.user.emailThread?.messages ?? [])
+      if (message.preparedBody) bodies.set(message.id, message.preparedBody);
+  return bodies;
+}
 
 /** Reactive controls accepted by the GraphQL thread query. */
 export type GraphqlEmailThreadQueryOptions<TData> = {
@@ -323,6 +346,7 @@ export function createGraphqlEmailThreadQuery<TData = GraphqlEmailThreadPages>(
           mapGraphqlEmailThreadPage(threadFromPage(page))
         ),
         pageParams: [...pageParams],
+        preparedBodies: preparedBodiesOf(pages),
       };
       return options().select?.(mapped) ?? (mapped as TData);
     },

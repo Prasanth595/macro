@@ -1,3 +1,4 @@
+import type { CachedPreparedBody } from '@queries/email/graphql/thread';
 import type { Accessor } from 'solid-js';
 import type { EmailRecipient } from '../../email-compose/core/email-recipient';
 import type { EmailThread } from '../core/email-thread';
@@ -34,6 +35,8 @@ export interface EmailThreadSource {
   isFetching: Accessor<boolean>;
   isFetchingOlder: Accessor<boolean>;
   hasMore: Accessor<boolean>;
+  /** A server-prepared body the thread page read from the cache. */
+  preparedBody?: (messageId: string) => CachedPreparedBody | undefined;
   fetchOlder(): Promise<void>;
   refresh(): Promise<void>;
 }

@@ -3,6 +3,22 @@ query EmailThreadPage($threadId: ID!, $offset: Int!, $limit: Int!) {
 		id
 		emailThread(input: { threadId: $threadId }) {
 			...EmailThreadPageFields
+			# Read from the device cache only, so bodies are on hand the moment the
+			# thread renders and a refresh never prepares them on the server.
+			# EmailThreadPreparedBodies fetches them; the version is the client's
+			# SERVER_PREPARE_VERSION.
+			messages(offset: $offset, limit: $limit) {
+				__typename
+				id
+				preparedBody(version: 1) @fromCache {
+					version
+					html
+					hasTable
+					hasHiddenContent
+					imageProxyUrl
+					sourceLength
+				}
+			}
 		}
 	}
 }
