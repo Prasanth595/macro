@@ -21,6 +21,8 @@ class ConsolidateAgentConfigTest(unittest.TestCase):
             "OPTIONAL_INTEGRATION": "",
             "EXISTING_SECRET": "private-fixture",
             "MCP_PUBLIC_URL": "https://old.example",
+            "DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY": "private-pem-fixture",
+            "DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY_SECRET_NAME": "signer-key-secret",
         }
         sources = {
             "document-cognition": {
@@ -29,6 +31,7 @@ class ConsolidateAgentConfigTest(unittest.TestCase):
                 "MISSING_SETTING": "first-source",
                 "PIPEDREAM_WEBHOOK_URI": "https://old.example/webhook?secret=fixture",
                 "PORT": "8085",
+                "DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY": "signer-key-secret",
             },
             "mcp-server": {"MISSING_SETTING": "later-source"},
             "agent-schedule-service": {},
@@ -55,6 +58,14 @@ class ConsolidateAgentConfigTest(unittest.TestCase):
 
         self.assertEqual(target["OPTIONAL_INTEGRATION"], "")
         self.assertEqual(target["EXISTING_SECRET"], "private-fixture")
+        self.assertEqual(
+            target["DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY"],
+            "signer-key-secret",
+        )
+        self.assertEqual(
+            target["DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY_SECRET_NAME"],
+            "signer-key-secret",
+        )
         self.assertEqual(target["MISSING_SETTING"], "first-source")
         self.assertNotIn("PORT", target)
         self.assertEqual(target["MCP_PUBLIC_URL"], "https://mcp-server-dev.macro.com")
@@ -66,6 +77,7 @@ class ConsolidateAgentConfigTest(unittest.TestCase):
         self.assertNotIn("private-fixture", output.getvalue())
         self.assertNotIn("replacement-fixture", output.getvalue())
         self.assertNotIn("secret=fixture", output.getvalue())
+        self.assertNotIn("private-pem-fixture", output.getvalue())
 
 
 if __name__ == "__main__":
