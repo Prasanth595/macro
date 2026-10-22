@@ -188,9 +188,11 @@ with a ringed send arrow; with a draft it offers **Send**. Each queued row offer
 draft or queue, the busy composer offers **Stop**. Send-next actions disable and
 Steer is hidden during stopping/starting and for read-only sessions.
 
-Phone verification: check portrait and landscape with touch emulation. In the
-Agents composer, enter multiple lines and tap Send, attach, or the model control;
-blurring the editor during the tap must not collapse or move the controls. Then exercise
+Phone verification: check portrait and landscape with touch emulation. The first
+tap on the collapsed Agents composer must keep the input focused; it must not
+flash unselected and collapse. In the Agents composer, enter multiple lines and
+tap Send, attach, or the model control; blurring the editor during the tap must
+not collapse or move the controls. Then exercise
 list → new conversation → back → new conversation, a row and direct session link,
 the model sheet and repository controls, queued sends, and Changes → back. Check
 that composers remain above the keyboard and neither Changes nor headers cause

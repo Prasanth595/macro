@@ -617,7 +617,68 @@ it.each([undefined, 'Describe what you want to build'])(
   }
 );
 
-it('expands mobile controls on focus without replacing the editor or model picker', () => {
+const flushTouchExpand = () =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, 0);
+  });
+
+it('does not expand the collapsed mobile composer until the focusing tap finishes', async () => {
+  vi.mocked(isTouchDevice).mockReturnValue(true);
+  const { container } = render(() => (
+    <ChatComposer
+      collapseOnBlur
+      draft=""
+      onDraftChange={() => {}}
+      onSend={() => {}}
+      onAttachFiles={() => {}}
+      selector={<button>Model</button>}
+    />
+  ));
+  const input = screen.getByTestId('editor');
+  const surface = container.querySelector('[data-agent-composer]');
+  const compact = () =>
+    input
+      .closest('[data-composer-compact]')
+      ?.getAttribute('data-composer-compact');
+
+  fireEvent.pointerDown(input);
+  fireEvent.focusIn(input);
+  expect(compact()).toBe('true');
+  expect(surface?.hasAttribute('data-composer-expanded')).toBe(false);
+
+  // iOS still synthesises mousedown after the focusing pointerdown.
+  fireEvent.mouseDown(input);
+  expect(compact()).toBe('true');
+  expect(surface?.hasAttribute('data-composer-expanded')).toBe(false);
+  expect(screen.getByTestId('editor')).toBe(input);
+
+  await flushTouchExpand();
+  expect(compact()).toBe('false');
+  expect(surface?.getAttribute('data-composer-expanded')).toBe('true');
+});
+
+it('cancels a pending mobile expand when the tap leaves the composer', async () => {
+  vi.mocked(isTouchDevice).mockReturnValue(true);
+  const { container } = render(() => (
+    <ChatComposer
+      collapseOnBlur
+      draft=""
+      onDraftChange={() => {}}
+      onSend={() => {}}
+      selector={<button>Model</button>}
+    />
+  ));
+  const input = screen.getByTestId('editor');
+  const surface = container.querySelector('[data-agent-composer]');
+
+  fireEvent.focusIn(input);
+  fireEvent.pointerDown(document.body);
+  await flushTouchExpand();
+  expect(surface?.hasAttribute('data-composer-expanded')).toBe(false);
+  expect(screen.getByTestId('editor')).toBe(input);
+});
+
+it('expands mobile controls on focus without replacing the editor or model picker', async () => {
   vi.mocked(isTouchDevice).mockReturnValue(true);
   const { container } = render(() => (
     <ChatComposer
@@ -645,6 +706,7 @@ it('expands mobile controls on focus without replacing the editor or model picke
   expect(surface?.hasAttribute('data-composer-expanded')).toBe(false);
 
   fireEvent.focusIn(input);
+  await flushTouchExpand();
   expect(compact()?.getAttribute('data-composer-compact')).toBe('false');
   expect(model.parentElement?.classList.contains('hidden')).toBe(false);
   expect(attach.parentElement?.classList.contains('hidden')).toBe(false);
@@ -683,7 +745,7 @@ it('expands a short mobile session draft on focus and keeps the editor mounted',
   expect(editor.clear).not.toHaveBeenCalled();
 });
 
-it('reveals the mobile model trigger after focusing the input', () => {
+it('reveals the mobile model trigger after focusing the input', async () => {
   vi.mocked(isTouchDevice).mockReturnValue(true);
   const open = vi.fn();
   render(() => (
@@ -702,6 +764,7 @@ it('reveals the mobile model trigger after focusing the input', () => {
 
   expect(trigger.parentElement?.classList.contains('hidden')).toBe(true);
   fireEvent.focusIn(screen.getByTestId('editor'));
+  await flushTouchExpand();
   expect(trigger.parentElement?.classList.contains('hidden')).toBe(false);
   expect(compact?.getAttribute('data-composer-compact')).toBe('false');
   fireEvent.click(trigger);
@@ -711,7 +774,7 @@ it('reveals the mobile model trigger after focusing the input', () => {
 
 it.each(['Send', 'Attach files', 'Model'])(
   'keeps the expanded Home composer stable through an iOS %s tap',
-  (control) => {
+  async (control) => {
     vi.mocked(isTouchDevice).mockReturnValue(true);
     const send = vi.fn();
     render(() => (
@@ -728,6 +791,7 @@ it.each(['Send', 'Attach files', 'Model'])(
     const input = screen.getByTestId('editor');
     const clipped = () => input.parentElement?.classList.contains('max-h-6');
     fireEvent.focusIn(input);
+    await flushTouchExpand();
     expect(clipped()).toBe(false);
     const button = screen.getByRole('button', { name: control });
     fireEvent.pointerDown(button);
@@ -743,7 +807,7 @@ it.each(['Send', 'Attach files', 'Model'])(
 
 it.each(['Repository', 'Branch'])(
   'keeps the mobile composer expanded while the portaled %s picker has focus',
-  (control) => {
+  async (control) => {
     vi.mocked(isTouchDevice).mockReturnValue(true);
     const [controlsOpen, setControlsOpen] = createSignal(false);
     const { container } = render(() => (
@@ -777,6 +841,7 @@ it.each(['Repository', 'Branch'])(
     ));
     const input = screen.getByTestId('editor');
     fireEvent.focusIn(input);
+    await flushTouchExpand();
     fireEvent.click(screen.getByRole('button', { name: control }));
     const search = screen.getByRole('combobox');
     expect(container.contains(search)).toBe(false);
