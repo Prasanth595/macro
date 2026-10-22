@@ -53,6 +53,7 @@ import { archiveEmailThread } from '../integration';
 import {
   createGraphqlEmailThreadQuery,
   fetchGraphqlEmailThread,
+  preparedBodiesOf,
 } from './thread';
 
 const cachedPage: EmailThreadPageQuery = {
@@ -110,6 +111,7 @@ function threadMessages(offset: number, count: number) {
   return Array.from({ length: count }, (_, i) => ({
     __typename: 'GraphqlSoupEmailMessage' as const,
     operationStatus: null,
+    preparedBody: null,
     id: `message-${offset + i}`,
     threadId: 'thread-1',
     linkId: 'link-1',
@@ -1005,4 +1007,36 @@ it('preserves loaded older pages while saving a reply to an existing server thre
   } finally {
     root.dispose();
   }
+});
+
+it('collects the prepared bodies the cache holds across loaded pages', () => {
+  const body = {
+    __typename: 'GraphqlPreparedEmailBody' as const,
+    version: 1,
+    html: '<p>Hi</p>',
+    hasTable: false,
+    hasHiddenContent: false,
+    imageProxyUrl: null,
+    sourceLength: 9,
+  };
+  const page = (offset: number, prepared: boolean) => ({
+    ...cachedPage,
+    user: {
+      ...cachedPage.user,
+      emailThread: {
+        ...cachedPage.user.emailThread!,
+        messages: threadMessages(offset, 2).map((message, index) => ({
+          ...message,
+          preparedBody: prepared && index === 0 ? body : null,
+        })),
+      },
+    },
+  });
+  const bodies = preparedBodiesOf([
+    page(0, true),
+    page(2, true),
+    page(4, false),
+  ]);
+  expect([...bodies.keys()]).toEqual(['message-0', 'message-2']);
+  expect(bodies.get('message-0')).toBe(body);
 });

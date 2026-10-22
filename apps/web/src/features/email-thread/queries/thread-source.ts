@@ -235,6 +235,7 @@ export function createEmailThreadSource(
     isFetching: () => query.isFetching,
     isFetchingOlder: () => query.isFetchingNextPage,
     hasMore: () => query.hasNextPage,
+    preparedBody: (messageId) => query.data?.preparedBodies?.get(messageId),
     fetchOlder: async () => {
       await query.fetchNextPage();
     },
