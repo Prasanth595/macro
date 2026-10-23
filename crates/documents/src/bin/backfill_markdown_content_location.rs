@@ -240,19 +240,10 @@ impl MarkdownInitializationPort for OptionalMarkdownInitializer {
 
     async fn initialize_existing_notion(
         &self,
-        document_id: &str,
-        notion: &documents::domain::notion_markdown::NotionMarkdown,
+        _document_id: &str,
+        _notion: &documents::domain::notion_markdown::NotionMarkdown,
     ) -> Result<documents::domain::ports::markdown::MarkdownSnapshot, DocumentError> {
-        match self {
-            Self::Disabled => Err(DocumentError::Internal(anyhow::anyhow!(
-                "markdown initializer disabled"
-            ))),
-            Self::Enabled(initializer) => {
-                initializer
-                    .initialize_existing_notion(document_id, notion)
-                    .await
-            }
-        }
+        unimplemented!("the markdown backfill never imports Notion pages")
     }
 }
 
