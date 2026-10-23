@@ -586,9 +586,15 @@ Escape from the address or font-size field returns keyboard navigation to the gr
 the result in the empty cell below; for one cell it opens `=FUNCTION(` for reference
 picking. An occupied result cell is never overwritten.
 
-The **Find and replace** ribbon button (Cmd/Ctrl+F in the grid) supports
-case-sensitive and whole-cell matching. Find next selects each result. Formula results can be searched
-but replacements preserve the formulas unless **Search within formulas** is checked.
+The **Find and replace** ribbon button (Cmd/Ctrl+F in the grid) opens a compact
+find bar in the top-right of the sheet (same pattern as channel find): query,
+match count, previous/next, and close. The sheet stays visible while searching.
+Cmd/Ctrl+F is captured on the editor (including the formula bar and find bar)
+so the browser find dialog never opens; a second press re-selects the query.
+Press the replace toggle to expand replace-with, Replace / All, and match options
+(case, entire cell, formulas). Next/previous select each result. Formula results
+can be searched, but replacements preserve the formulas unless **Formulas** is
+checked.
 **Format and data** sorts the selected rectangle by its active column, keeping each
 row's values, styles, and relative formulas together, or trims whitespace in text
 cells. **Goal Seek…** in that menu finds the number to put in one cell so a formula
@@ -2305,7 +2311,12 @@ keeps the default behavior.
 
 1. `Create` → `Document D`. The app navigates to `/app/md/<uuid>` with the **title field
    focused**.
-2. `type_text` the title, then `submitKey: "Enter"` to drop into the body.
+2. `type_text` the title, then `submitKey: "Enter"` to drop into the body. Tab
+   from the title also moves to the start of the body, without inserting a
+   paragraph. While a document is open, Tab and Shift+Tab never switch the
+   hosting view's tabs (e.g. Drive's My Files / Recent): opened from Drive,
+   focus a non-editable control in the document, press Tab, and the
+   document must stay open.
 3. Type paragraphs with plain `type_text`; use Enter between paragraphs. Do NOT use `fill` —
    the editor is contenteditable and `fill` does not work on it.
 4. The document auto-saves continuously (collaborative CRDT; no save button). The tab title
@@ -2602,8 +2613,15 @@ and inline input.
 Comments anchored to selected text open in a floating margin card on desktop and
 a `Comments` drawer on touch devices. Hovering a desktop card reveals its actions
 without changing the card size or header text wrapping. New comments, replies,
-and edits use plain inputs on the card or drawer's background. The pinned reply
-keeps at least 16px of
+and edits use plain inputs on the card or drawer's background. On desktop, with
+the margin card focused: Enter opens a reply (same as the Reply action; Enter in
+the composer then sends), and Escape closes the reply composer, then the card.
+A press anywhere outside the comments and the document text (another split, the
+sidebar, the document header or empty page) returns a selected card and its
+highlighted text to their resting state; menus and dialogs opened from the card
+do not, and an unsent new comment keeps its composer. Clicking the commented
+text again selects the card again.
+The pinned reply keeps at least 16px of
 bottom clearance above the drawer's curve, including while the keyboard is open,
 and accounts for the home-indicator safe area when the keyboard is closed.
 
@@ -2613,6 +2631,16 @@ when the document has not loaded yet. Verify both comments arriving before the
 editor and comments arriving after it. Once loaded, click elsewhere in the
 document, then click the same notification again: it should revisit the comment,
 while background comment refreshes should leave the user's position alone.
+
+Verify bottom Discussion links from Home too:
+`/app/home/md/<id>?s0.drive.commentId=<comment-id>`. Open a long document from
+another Home item with its caches cold. The first click should reach the comment
+even when its messages arrive before the editor or loading content interrupts
+the initial scroll. Repeat the click after scrolling away. Wheel, touch,
+keyboard input, or dragging the scrollbar during navigation should take control
+immediately; later background refreshes must not pull the reader back. If the
+editor never becomes ready, its pending comment jump expires after ten seconds;
+subsequent recovery must not revive it without a new navigation.
 
 A document row keeps pointing at its newest comment notification until that
 notification is done, so on desktop the row opens the document at that comment.

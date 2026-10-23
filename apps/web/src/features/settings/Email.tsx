@@ -22,6 +22,7 @@ import {
   reconnectScopes,
 } from '@core/email-link/consent';
 import { fireAndForget } from '@core/util/fireAndForget';
+import GearIcon from '@phosphor/gear.svg';
 import ArrowsClockwiseIcon from '@phosphor-icons/core/regular/arrows-clockwise.svg?component-solid';
 import CalendarSlashIcon from '@phosphor-icons/core/regular/calendar-slash.svg?component-solid';
 import EnvelopeIcon from '@phosphor-icons/core/regular/envelope.svg?component-solid';
@@ -39,7 +40,7 @@ import {
   type Link as EmailLink,
   SyncStatus,
 } from '@service-email/generated/schemas';
-import { Dialog, Panel, Tooltip } from '@ui';
+import { Dialog, Panel, Tooltip, Button as UiButton } from '@ui';
 import { createMemo, createSignal, For, Match, Show, Switch } from 'solid-js';
 import { match } from 'ts-pattern';
 import { InboxSettingsOperations } from './InboxSettingsOperations';
@@ -58,7 +59,9 @@ import { clearSignatureState } from './SignatureSection';
  * disconnect controls. All the inbox + backfill logic is unchanged; only the
  * surrounding chrome moved from a standalone panel to a shared card.
  */
-export function EmailCard() {
+export function EmailCard(
+  props: { class?: string; onOpenSettings?: () => void } = {}
+) {
   const email = useEmail();
   const userId = useUserId();
   const multiInboxFlag = useFeatureFlag(enableMultiInbox);
@@ -157,11 +160,10 @@ export function EmailCard() {
 
   return (
     <>
-      <SettingsCard>
+      <SettingsCard class={props.class}>
         <IntegrationRow
           icon={<EnvelopeIcon />}
           title="Email"
-          description="Read, organize, and act on your email."
           status={
             <Show when={emailActive()}>
               <StatusDot state="connected" label="Connected" />
@@ -174,6 +176,17 @@ export function EmailCard() {
               onClick={onConnectEmail}
               disabled={isEmailActionPending()}
             />
+          </Show>
+          <Show when={props.onOpenSettings}>
+            <UiButton
+              variant="ghost"
+              size="icon-md"
+              label="Email settings"
+              onClick={props.onOpenSettings}
+              class="touch:min-h-11 touch:min-w-11"
+            >
+              <GearIcon class="size-4" />
+            </UiButton>
           </Show>
         </IntegrationRow>
 
@@ -427,8 +440,8 @@ function Chip(props: { label: string }) {
 // flow, which re-links and backfills.
 function DisabledPrimaryRow(props: { email: string; onEnable: () => void }) {
   return (
-    <div class="flex items-center justify-between gap-3 min-h-16 px-4 py-4">
-      <div class="min-w-0 flex flex-col gap-0.5">
+    <div class="flex flex-wrap items-center justify-between gap-3 min-h-14 px-4 py-3">
+      <div class="min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1">
         <div class="flex items-center gap-2 min-w-0">
           <span class="ph-no-capture text-sm truncate text-ink-muted">
             {props.email}
@@ -460,8 +473,8 @@ function InboxRow(props: {
   const calendarUiEnabled = useCalendarUiFlag();
   return (
     <div class="flex flex-col">
-      <div class="flex flex-wrap items-center justify-between gap-3 min-h-15.25 py-4 px-4">
-        <div class="min-w-0 flex flex-col gap-0.5">
+      <div class="flex flex-wrap items-center justify-between gap-3 min-h-14 py-3 px-4">
+        <div class="min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1">
           <div class="flex items-center gap-2 min-w-0">
             <span class="ph-no-capture text-sm truncate">
               {props.link.email_address}
@@ -520,7 +533,7 @@ function InboxRow(props: {
             </Switch>
           </Show>
         </div>
-        <div class="flex flex-wrap items-center gap-2 shrink-0">
+        <div class="flex max-w-full flex-wrap items-center gap-2 shrink-0">
           <Show when={props.link.needs_reauth}>
             <Button
               variant="accent"

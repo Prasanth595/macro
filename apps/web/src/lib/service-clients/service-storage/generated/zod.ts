@@ -1013,6 +1013,23 @@ export const listOccurrencesResponse = zod
                 .describe(
                   "Google's event type: ordinary meetings versus the status-style entries\n(working location, out of office, focus time, birthdays) Google renders\nand notifies differently. Immutable at the provider after creation."
                 ),
+              guestPolicy: zod
+                .object({
+                  canInviteOthers: zod
+                    .boolean()
+                    .describe('Whether guests may invite others.'),
+                  canModify: zod
+                    .boolean()
+                    .describe(
+                      'Whether guests may change the event, including its guest list.'
+                    ),
+                  canSeeOtherGuests: zod
+                    .boolean()
+                    .describe('Whether guests may see the guest list.'),
+                })
+                .describe(
+                  'The switches an organizer sets on an event to bound what its guests may\ndo. Google omits a switch from the payload while it holds its default.'
+                ),
               icalUid: zod
                 .string()
                 .describe(
@@ -1023,6 +1040,11 @@ export const listOccurrencesResponse = zod
                 .boolean()
                 .describe(
                   "Whether the canonical source's calendar prohibits editing it."
+                ),
+              isSnapshot: zod
+                .boolean()
+                .describe(
+                  "Whether this is a snapshot of a meeting shared with the owner, which\nMacro added to their calendar as a private copy: the meeting's changes\nnever reach it, and nothing done to it reaches the meeting."
                 ),
               location: zod
                 .string()
@@ -1225,6 +1247,28 @@ export const listOccurrencesResponse = zod
                 .enum(['opaque', 'transparent'])
                 .describe('Whether an event blocks availability.'),
               updatedAt: zod.iso.datetime({}).describe('Entity update time.'),
+              viewerCan: zod
+                .object({
+                  editDetails: zod
+                    .boolean()
+                    .describe(
+                      "Change the event's details (title, time, description, conference)."
+                    ),
+                  inviteGuests: zod.boolean().describe('Add guests.'),
+                  organize: zod
+                    .boolean()
+                    .describe(
+                      "Act as the event's organizer: replace its whole guest list and manage\nits conferencing."
+                    ),
+                  removeGuests: zod.boolean().describe('Remove guests.'),
+                  rsvp: zod.boolean().describe('Answer the invitation.'),
+                  setGuestPolicy: zod
+                    .boolean()
+                    .describe(
+                      "Change the event's guest policy, which only Google calendars have."
+                    ),
+                })
+                .describe('What the viewing requester may do with an event.'),
               visibility: zod
                 .enum(['default', 'public', 'private', 'confidential'])
                 .describe('Visibility of event details.'),
@@ -1340,6 +1384,12 @@ export const mentionPreviewsResponse = zod
                     .number()
                     .min(mentionPreviewsResponseItemsItemEventAttendeeCountMin)
                     .describe('Number of attendees on the previewed copy.'),
+                  canRequestToJoin: zod
+                    .boolean()
+                    .optional()
+                    .describe(
+                      "For a channel-shared preview, whether the person who shared it can\nadd the requester as a guest. Always false for the requester's own\ncopy."
+                    ),
                   description: zod
                     .string()
                     .nullish()
@@ -1349,6 +1399,16 @@ export const mentionPreviewsResponse = zod
                   isRecurring: zod
                     .boolean()
                     .describe('Whether the event repeats.'),
+                  joinRequestStatus: zod
+                    .union([
+                      zod.null(),
+                      zod
+                        .enum(['pending', 'accepted', 'declined'])
+                        .describe(
+                          'Lifecycle of a request to be added as a guest of a shared event.'
+                        ),
+                    ])
+                    .optional(),
                   location: zod
                     .string()
                     .nullish()
@@ -1714,6 +1774,86 @@ export const listTeamOutOfOfficeResponse = zod
     ),
   })
   .describe('Team out-of-office viewport response.');
+
+/**
+ * @summary Export an event the requester can see — their own, or one shared with a
+channel they belong to — as an iCalendar file named after its title.
+ */
+export const eventIcsParams = zod.object({
+  event_id: zod.uuid().describe('Calendar event entity id'),
+});
+
+/**
+ * @summary List pending requests to join an event the requester can change.
+ */
+export const listJoinRequestsParams = zod.object({
+  event_id: zod.uuid().describe('Calendar event entity id'),
+});
+
+export const listJoinRequestsResponse = zod
+  .object({
+    requests: zod
+      .array(
+        zod
+          .object({
+            createdAt: zod.iso
+              .datetime({})
+              .describe('When the request was made, or last reopened.'),
+            eventId: zod
+              .uuid()
+              .describe(
+                "The sharer's event entity that was shared with the channel."
+              ),
+            id: zod.uuid().describe('Request identifier.'),
+            requesterEmail: zod
+              .string()
+              .describe('Address the sharer invites when accepting.'),
+            requesterId: zod.string().describe('Macro user asking to join.'),
+            status: zod
+              .enum(['pending', 'accepted', 'declined'])
+              .describe(
+                'Lifecycle of a request to be added as a guest of a shared event.'
+              ),
+          })
+          .describe(
+            "A channel member's request to be added as a guest of an event they see\nonly through a channel share."
+          )
+      )
+      .describe('Oldest first.'),
+  })
+  .describe('Pending requests to join one event.');
+
+/**
+ * @summary Ask the person who shared an event with one of the requester's channels
+to add them as a guest. Asking again while the request is pending changes
+nothing; asking after a decline reopens it.
+ */
+export const requestToJoinParams = zod.object({
+  event_id: zod.uuid().describe('Shared calendar event entity id'),
+});
+
+export const requestToJoinResponse = zod
+  .object({
+    createdAt: zod.iso
+      .datetime({})
+      .describe('When the request was made, or last reopened.'),
+    eventId: zod
+      .uuid()
+      .describe("The sharer's event entity that was shared with the channel."),
+    id: zod.uuid().describe('Request identifier.'),
+    requesterEmail: zod
+      .string()
+      .describe('Address the sharer invites when accepting.'),
+    requesterId: zod.string().describe('Macro user asking to join.'),
+    status: zod
+      .enum(['pending', 'accepted', 'declined'])
+      .describe(
+        'Lifecycle of a request to be added as a guest of a shared event.'
+      ),
+  })
+  .describe(
+    "A channel member's request to be added as a guest of an event they see\nonly through a channel share."
+  );
 
 /**
  * Lists all active calls in channels the caller is an active member of,
@@ -3373,6 +3513,49 @@ export const getAttachmentReferencesResponse = zod
                 })
               )
               .describe('Referenced from a channel message.'),
+            zod
+              .object({
+                attachment_created_at: zod.iso
+                  .datetime({})
+                  .describe('When the mention or attachment row was created.'),
+                message_content: zod
+                  .string()
+                  .describe(
+                    'Full message content (might be used for preview\/snippet).'
+                  ),
+                message_created_at: zod.iso
+                  .datetime({})
+                  .describe('When the message itself was created.'),
+                message_id: zod
+                  .uuid()
+                  .describe('Message that contains the reference.'),
+                parent_entity_id: zod
+                  .string()
+                  .describe('Id of the entity the comment belongs to.'),
+                parent_entity_type: zod
+                  .string()
+                  .describe(
+                    'Stored type of the entity the comment belongs to\n(`document`, `initiative`, `crm_company`, `crm_contact`, or `call`).'
+                  ),
+                sender_id: zod.string().describe('Sender of the message.'),
+                thread_id: zod
+                  .uuid()
+                  .nullish()
+                  .describe(
+                    'If the message belongs to a thread this is the parent id.'
+                  ),
+              })
+              .describe(
+                'A reference to an attachment entity from a comment on a non-channel entity.'
+              )
+              .and(
+                zod.object({
+                  reference_type: zod.enum(['comment']),
+                })
+              )
+              .describe(
+                'Referenced from a comment on a document, initiative, CRM record, or call.'
+              ),
             zod
               .object({
                 created_at: zod.iso
@@ -20198,7 +20381,7 @@ export const getFormResponse = zod
                 title: zod.string().describe('Its title.'),
               })
               .describe(
-                'A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.'
+                'A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.'
               ),
           ])
           .describe('One section of a form as it reads.')
@@ -20771,7 +20954,7 @@ export const collaborateFormResponse = zod
                     title: zod.string().describe('Its title.'),
                   })
                   .describe(
-                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.'
+                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.'
                   ),
               ])
               .describe('One section of a form as it reads.')
@@ -20803,7 +20986,7 @@ export const collaborateFormResponse = zod
                     kind: zod.enum(['bookingMustBeLast']),
                   })
                   .describe(
-                    'A booking step must be unique and follow all questions and screeners.'
+                    'A booking step must be unique and follow all questions and gates.'
                   ),
                 zod
                   .object({
@@ -21637,7 +21820,7 @@ export const putFormLayoutResponse = zod
                     title: zod.string().describe('Its title.'),
                   })
                   .describe(
-                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.'
+                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.'
                   ),
               ])
               .describe('One section of a form as it reads.')
@@ -21669,7 +21852,7 @@ export const putFormLayoutResponse = zod
                     kind: zod.enum(['bookingMustBeLast']),
                   })
                   .describe(
-                    'A booking step must be unique and follow all questions and screeners.'
+                    'A booking step must be unique and follow all questions and gates.'
                   ),
                 zod
                   .object({

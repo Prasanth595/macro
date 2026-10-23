@@ -405,3 +405,26 @@ it('writes only changed fields, preserving zero, false and empty registers', () 
   mirror.dispose();
   doc.free();
 });
+
+it('accepts structurally shared empty child arrays while retaining native identities', () => {
+  const doc = new LoroDoc();
+  const mirror = new Mirror({ doc, schema: documentSchema });
+  const empty: Node[] = [];
+  mirror.setState({ scene: [node('a', empty), node('b', empty)] });
+  expect(mirror.syncFromLoro().scene).toEqual([node('a'), node('b')]);
+  const ids = doc
+    .getTree('scene')
+    .roots()
+    .map((n) => n.id);
+  mirror.setState((state) => {
+    state.scene[0].data.title = 'updated';
+  });
+  expect(
+    doc
+      .getTree('scene')
+      .roots()
+      .map((n) => n.id)
+  ).toEqual(ids);
+  mirror.dispose();
+  doc.free();
+});

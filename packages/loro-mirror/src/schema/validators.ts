@@ -390,6 +390,7 @@ export function validateTree<
       if (
         !node ||
         typeof node !== 'object' ||
+        Array.isArray(node) ||
         !('data' in node) ||
         !('children' in node)
       ) {
@@ -414,6 +415,8 @@ export function validateTree<
       }
       visit(node.children);
     }
+    // Shared empty arrays are ordinary structural sharing, not a cycle.
+    seen.delete(nodes);
   }
   visit(value);
   return errors;

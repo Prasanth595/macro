@@ -1,5 +1,15 @@
 # iOS releases and breaking Tauri changes
 
+Native reload history and UIKit memory-warning diagnostics require an App Store
+binary update. Their IPC is optional: OTA-only clients retain frontend reload
+markers and instance IDs, with missing native coverage explicitly reported.
+See [reload diagnostics](../tauri/src-tauri/README.md#diagnosing-unexpected-webview-reloads).
+
+The optional `file_export_plugin` adds the native file save picker and share
+sheet. The web bundle probes availability and keeps Web Share on older binaries,
+so it does not raise the native floor. The picker itself still needs an App Store
+release; see [file exports](../tauri/file_export_plugin/AGENTS.md).
+
 (The Android counterpart — `android-update`, `Android Native Check`, Google
 Play as the source of truth — is described in `docs/development/android.md`.)
 
@@ -121,7 +131,8 @@ Two things:
   Android-only by Tauri's naming convention (a path component `android`,
   `android_*`, `android.*` or `*.android.*` — the `android_*` plugins, every
   `android/` directory, `android.rs`, `tauri.android.conf.json` and so on),
-  `desktop-release.json`, and `.helix/`.
+  `desktop-release.json`, `.helix/`, and Markdown docs. Desktop, macOS,
+  Linux, and Windows-only paths are excluded too.
 - **A bump of the client cache wasm package version** in
   `crates/client/cache-wasm/Cargo.toml`. The app compiles the cache crates
   (`crates/client/cache-core`, `cache-turso` and what they pull in)

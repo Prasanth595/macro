@@ -177,14 +177,6 @@ export const enableGantt = defineFlag({
   env: 'ENABLE_GANTT',
 });
 
-// Claude Cloud: the built-in @claude mention and agent assignee, its Runtimes
-// connection card, and harness/model discovery. Off until PostHog enables it,
-// including in dev; override locally with VITE_CLAUDE_CLOUD.
-export const claudeCloud = defineFlag({
-  key: 'claude-cloud',
-  env: 'CLAUDE_CLOUD',
-});
-
 export const ENABLE_PDF_MODIFICATION_DATA_AUTOSAVE = defineFlag({
   env: 'ENABLE_PDF_MODIFICATION_DATA_AUTOSAVE',
   default: true,
@@ -681,6 +673,28 @@ export const enableCalendarTeamOoo = defineFlag({
 export const enableCalendarTeamSharing = defineFlag({
   key: 'enable-calendar-team-sharing',
   env: 'ENABLE_CALENDAR_TEAM_SHARING',
+  default: onInDev,
+});
+
+// A guest adding guests: the event details "Add guests" action and the
+// composer's add-only guest editing. The invite endpoints enforce the
+// organizer's policy unflagged, so this only hides the entry points.
+// PostHog-gated with a dev-mode default; override with
+// VITE_ENABLE_CALENDAR_GUEST_INVITES.
+export const enableCalendarGuestInvites = defineFlag({
+  key: 'enable-calendar-guest-invites',
+  env: 'ENABLE_CALENDAR_GUEST_INVITES',
+  default: onInDev,
+});
+
+// Adding a channel-shared event to your own calendar: the "Add to calendar"
+// action on a shared event's mention card. On in dev only until a real Google
+// import has passed on dev; there is no PostHog flag yet, so it stays off in
+// production. "Download .ics" beside it is not gated. Override with
+// VITE_ENABLE_CALENDAR_ADD_SHARED_EVENT.
+export const enableCalendarAddSharedEvent = defineFlag({
+  key: 'enable-calendar-add-shared-event',
+  env: 'ENABLE_CALENDAR_ADD_SHARED_EVENT',
   default: onInDev,
 });
 

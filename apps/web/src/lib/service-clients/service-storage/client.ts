@@ -44,6 +44,9 @@ import type { Bot } from './generated/schemas/bot';
 import type { BotChannel } from './generated/schemas/botChannel';
 import type { BotOwnerProfile } from './generated/schemas/botOwnerProfile';
 import type { BotToken } from './generated/schemas/botToken';
+import type { CalendarJoinRequest } from './generated/schemas/calendarJoinRequest';
+import { CalendarJoinRequestErrorCode } from './generated/schemas/calendarJoinRequestErrorCode';
+import type { CalendarJoinRequestsResponse } from './generated/schemas/calendarJoinRequestsResponse';
 import type { CalendarMentionPreviewRequest } from './generated/schemas/calendarMentionPreviewRequest';
 import type { CalendarMentionPreviewResponse } from './generated/schemas/calendarMentionPreviewResponse';
 import type { CalendarOccurrenceResponse } from './generated/schemas/calendarOccurrenceResponse';
@@ -72,7 +75,6 @@ import type { CreateDocumentRequest } from './generated/schemas/createDocumentRe
 import type { CreatedUserApiKey } from './generated/schemas/createdUserApiKey';
 import type { CreateEntityMentionRequest } from './generated/schemas/createEntityMentionRequest';
 import type { CreateEntityMentionResponse } from './generated/schemas/createEntityMentionResponse';
-import type { CreateInstructionsDocumentResponse } from './generated/schemas/createInstructionsDocumentResponse';
 import type { CreateMarkdownDocumentRequest } from './generated/schemas/createMarkdownDocumentRequest';
 import type { CreateMarkdownHandler200 } from './generated/schemas/createMarkdownHandler200';
 import type { CreateProjectResponse } from './generated/schemas/createProjectResponse';
@@ -111,7 +113,6 @@ import type { GetDocumentPermissionsResponseDataV2 } from './generated/schemas/g
 import type { GetDocumentProcessingResultResponse } from './generated/schemas/getDocumentProcessingResultResponse';
 import type { GetDocumentResponseData } from './generated/schemas/getDocumentResponseData';
 import type { GetDocumentSearchResponse } from './generated/schemas/getDocumentSearchResponse';
-import type { GetInstructionsDocumentResponse } from './generated/schemas/getInstructionsDocumentResponse';
 import type { GetOrCreateChannelResponse } from './generated/schemas/getOrCreateChannelResponse';
 import type { GetOrCreateDmRequest } from './generated/schemas/getOrCreateDmRequest';
 import type { GetOrCreatePrivateRequest } from './generated/schemas/getOrCreatePrivateRequest';
@@ -238,6 +239,28 @@ export function dssFetch<T extends Record<string, any> = never>(
   | Promise<Result<T, ResultError<FetchWithTokenErrorCode>[]>>
   | Promise<Result<void, ResultError<FetchWithTokenErrorCode>[]>> {
   return fetchWithToken<T>(`${dssHost}${url}`, init);
+}
+
+/**
+ * Join-request failures carry a machine-readable `{ code, message }` body;
+ * surface it so callers can explain a refusal.
+ */
+async function calendarJoinRequestErrorHandler(response: Response) {
+  const body = (await response.json().catch(() => null)) as {
+    code?: string;
+    message?: string;
+  } | null;
+  const code =
+    body?.code && body.code in CalendarJoinRequestErrorCode
+      ? (body.code as CalendarJoinRequestErrorCode)
+      : undefined;
+  if (code) {
+    return { code, message: body?.message ?? '' };
+  }
+  return {
+    code: 'HTTP_ERROR' as const,
+    message: `HTTP error! status: ${response.status}`,
+  };
 }
 
 export async function getDocumentPermissionToken(
@@ -594,6 +617,30 @@ export const storageServiceClient = {
         { method: 'GET', signal }
       )
     ).map((result) => result);
+  },
+
+  async requestToJoinCalendarEvent(eventId: string) {
+    return await fetchWithToken<
+      CalendarJoinRequest,
+      CalendarJoinRequestErrorCode
+    >(`${dssHost}/calendar-events/${eventId}/join-requests`, {
+      method: 'POST',
+      errorResponseHandler: calendarJoinRequestErrorHandler,
+    });
+  },
+
+  async listCalendarEventJoinRequests(eventId: string) {
+    return await dssFetch<CalendarJoinRequestsResponse>(
+      `/calendar-events/${eventId}/join-requests`,
+      { method: 'GET' }
+    );
+  },
+
+  async getCalendarEventIcs(eventId: string) {
+    return await dssFetch<Uint8Array<ArrayBuffer>>(
+      `/calendar-events/${eventId}/ics`,
+      { method: 'GET' }
+    );
   },
 
   async getBatchCalendarEventPreviews(args: CalendarMentionPreviewRequest) {
@@ -2531,20 +2578,6 @@ export const storageServiceClient = {
         method: 'GET',
       })
     ).map((result) => result.data);
-  },
-
-  instructions: {
-    async create() {
-      return await dssFetch<CreateInstructionsDocumentResponse>(
-        '/instructions',
-        {
-          method: 'POST',
-        }
-      );
-    },
-    get: async () => {
-      return await dssFetch<GetInstructionsDocumentResponse>('/instructions');
-    },
   },
 
   views: {
