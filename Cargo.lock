@@ -8955,6 +8955,8 @@ dependencies = [
  "model-entity",
  "models_permissions",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
  "workspace-hack",
 ]
