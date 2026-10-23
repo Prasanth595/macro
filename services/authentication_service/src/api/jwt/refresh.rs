@@ -20,8 +20,14 @@ use macro_auth::{
     },
 };
 use model::response::UserTokensResponse;
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use tower_cookies::Cookies;
+
+/// Minimum age of a token without the Macro claims before it is refreshed. A newer one most
+/// likely came from a refresh whose populate lambda just failed, and while the lambda keeps
+/// failing, every client retry (websocket reconnects refresh on each attempt) would otherwise be
+/// another FusionAuth refresh and lambda run.
+const MISSING_MACRO_CLAIMS_REFRESH_COOLDOWN: Duration = Duration::from_secs(30);
 
 #[derive(Debug, thiserror::Error)]
 pub enum RefreshError {
@@ -30,6 +36,8 @@ pub enum RefreshError {
     #[error("refresh in progress")]
     #[allow(dead_code)]
     RefreshInProgress,
+    #[error("access token without macro claims was issued too recently to refresh")]
+    MissingMacroClaimsCooldown,
     #[error("invalid refresh token")]
     InvalidRefreshToken,
     #[error("unauthorized")]
@@ -41,7 +49,9 @@ impl IntoResponse for RefreshError {
         let status_code = match self {
             RefreshError::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
             RefreshError::InvalidRefreshToken => StatusCode::BAD_REQUEST,
-            RefreshError::RefreshInProgress => StatusCode::TOO_MANY_REQUESTS,
+            RefreshError::RefreshInProgress | RefreshError::MissingMacroClaimsCooldown => {
+                StatusCode::TOO_MANY_REQUESTS
+            }
             RefreshError::Unauthorized => StatusCode::UNAUTHORIZED,
         };
 
@@ -63,7 +73,7 @@ impl IntoResponse for RefreshError {
             (status = 200, body = UserTokensResponse),
             (status = 400, body=String),
             (status = 401, body=String),
-            (status = 429, body=String, description = "Refresh already in progress for this user"),
+            (status = 429, body=String, description = "Refresh already in progress for this user, or the access token lacks the Macro claims and was issued too recently to refresh"),
             (status = 500, body=String),
         )
     )]
@@ -86,18 +96,24 @@ pub async fn handler(
         Err(MacroAuthError::JwtExpired) => {}
         // FusionAuth issues the token without the Macro claims when the JWT populate lambda
         // fails; refreshing runs the lambda again.
-        Err(e)
-            if validate_fusionauth_access_token_allow_expired(
-                &token_context.access_token,
-                &jwt,
-            )
-            .is_ok() =>
-        {
-            tracing::info!(error=?e, "refreshing access token without macro claims");
-        }
         Err(e) => {
-            tracing::error!(error=?e, "unable to decode jwt");
-            return Err(RefreshError::Unauthorized);
+            match validate_fusionauth_access_token_allow_expired(&token_context.access_token, &jwt)
+            {
+                Ok(issued_at)
+                    if issued_at.elapsed().unwrap_or_default()
+                        < MISSING_MACRO_CLAIMS_REFRESH_COOLDOWN =>
+                {
+                    tracing::info!(error=?e, "access token without macro claims is too new to refresh");
+                    return Err(RefreshError::MissingMacroClaimsCooldown);
+                }
+                Ok(_) => {
+                    tracing::info!(error=?e, "refreshing access token without macro claims");
+                }
+                Err(_) => {
+                    tracing::error!(error=?e, "unable to decode jwt");
+                    return Err(RefreshError::Unauthorized);
+                }
+            }
         }
     }
 
