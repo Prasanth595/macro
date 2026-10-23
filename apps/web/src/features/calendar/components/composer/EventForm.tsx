@@ -46,6 +46,8 @@ export interface EventFormProps {
   addOnlyGuests?: boolean;
   /** Why a read-only guest list cannot change. */
   guestsReadOnlyReason?: string;
+  /** The organizer hides the guest list, so the seeded guests are not all of them. */
+  guestListHidden?: boolean;
   /** Whether the viewer may set what guests may do, as the organizer. */
   guestPolicyEditable?: boolean;
   /**
@@ -125,6 +127,7 @@ export function EventForm(props: EventFormProps) {
     props.disabledFields?.[field] === true;
   const fieldIsDisabled = (field: keyof EventEditorDisabledFields) =>
     formIsDisabled() || fieldIsReadOnly(field);
+  const detailsLocked = () => props.detailsReadOnlyReason !== undefined;
 
   const capabilities = () => controller.selectedCalendarOption()?.capabilities;
   const conferenceLocked = () =>
@@ -157,6 +160,30 @@ export function EventForm(props: EventFormProps) {
     if (option) props.onCalendarChange?.(option.id, option.color);
   });
   createEffect(() => props.onDirtyChange?.(controller.isDirty()));
+
+  const descriptionEditor = () => (
+    <MarkdownTextarea
+      resolveAppLink={resolveAppLink}
+      type="calendar"
+      initialHtml={calendarDescriptionToEditorHtml(initialDescription)}
+      editable={() => !fieldIsDisabled('description')}
+      onInitialized={(editor) => {
+        loadedDescription = exportCalendarDescription(editor);
+      }}
+      onChange={(_markdown, editor) => {
+        if (!editor) return;
+        const next = exportCalendarDescription(editor);
+        controller.setField(
+          'description',
+          next === loadedDescription ? initialDescription : next
+        );
+      }}
+      placeholder="Add description..."
+      portalScope="local"
+      domRef={(element) => element.setAttribute('aria-label', 'Description')}
+      class="h-full w-full bg-transparent px-2 text-sm text-ink outline-none"
+    />
+  );
 
   const submit = () => {
     const values = controller.submitValues();
@@ -191,7 +218,7 @@ export function EventForm(props: EventFormProps) {
                   end={state().end}
                   allDay={state().allDay}
                   onStartChange={controller.setStart}
-                  onEndChange={(end) => controller.setField('end', end)}
+                  onEndChange={controller.setEnd}
                   onAllDayChange={controller.setAllDay}
                   startDisabled={fieldIsDisabled('start')}
                   endDisabled={fieldIsDisabled('end')}
@@ -251,63 +278,51 @@ export function EventForm(props: EventFormProps) {
                 class="block w-full"
               >
                 <div class="h-12 overflow-y-auto">
-                  <MarkdownTextarea
-                    resolveAppLink={resolveAppLink}
-                    type="calendar"
-                    initialHtml={calendarDescriptionToEditorHtml(
-                      initialDescription
-                    )}
-                    editable={() => !fieldIsDisabled('description')}
-                    onInitialized={(editor) => {
-                      loadedDescription = exportCalendarDescription(editor);
-                    }}
-                    onChange={(_markdown, editor) => {
-                      if (!editor) return;
-                      const next = exportCalendarDescription(editor);
-                      controller.setField(
-                        'description',
-                        next === loadedDescription ? initialDescription : next
-                      );
-                    }}
-                    placeholder="Add description..."
-                    portalScope="local"
-                    domRef={(element) =>
-                      element.setAttribute('aria-label', 'Description')
-                    }
-                    class="h-full w-full bg-transparent px-2 text-sm text-ink outline-none"
-                  />
+                  {/* The editor reads the description only when it mounts.
+                      Details that lock after a refused save return to the
+                      event's own, so the editor mounts again to show them. */}
+                  <Show
+                    when={fieldIsReadOnly('description')}
+                    fallback={descriptionEditor()}
+                  >
+                    {descriptionEditor()}
+                  </Show>
                 </div>
               </LockedField>
             </Show>
           </div>
 
           <div class="flex min-w-0 flex-wrap items-center gap-2">
-            <EventComposerKindPill
-              eventType={state().eventType}
-              onChange={controller.setEventKind}
-              disabled={formIsDisabled()}
-              readOnly={isEdit()}
-            />
-            <EventComposerCalendarPill
-              options={controller.calendarOptions()}
-              value={controller.selectedCalendarOption()}
-              onChange={(calendarId) =>
-                controller.setField('calendarId', calendarId)
-              }
-              disabled={formIsDisabled()}
-              readOnly={fieldIsReadOnly('calendar')}
-            />
+            {/* Read-only on every edit, they open their one value as a list;
+                locked, they are as unavailable as the other details. */}
+            <LockedField reason={props.detailsReadOnlyReason}>
+              <EventComposerKindPill
+                eventType={state().eventType}
+                onChange={controller.setEventKind}
+                disabled={formIsDisabled() || detailsLocked()}
+                readOnly={isEdit()}
+              />
+            </LockedField>
+            <LockedField reason={props.detailsReadOnlyReason}>
+              <EventComposerCalendarPill
+                options={controller.calendarOptions()}
+                value={controller.selectedCalendarOption()}
+                onChange={(calendarId) =>
+                  controller.setField('calendarId', calendarId)
+                }
+                disabled={formIsDisabled() || detailsLocked()}
+                readOnly={fieldIsReadOnly('calendar')}
+              />
+            </LockedField>
             <LockedField reason={props.detailsReadOnlyReason}>
               <EventComposerRecurrencePill
                 options={controller.recurrenceOptions()}
                 value={controller.selectedRecurrenceOption()}
                 onChange={controller.changeRecurrenceChoice}
-                disabled={formIsDisabled()}
+                disabled={fieldIsDisabled('recurrence')}
                 // A single occurrence has no recurrence rule of its own, so the
                 // recurrence cannot be edited while the scope is one event.
-                readOnly={
-                  fieldIsReadOnly('recurrence') || editScope() === 'this_event'
-                }
+                readOnly={editScope() === 'this_event'}
               />
             </LockedField>
             <Show when={!isOutOfOffice()}>
@@ -318,6 +333,7 @@ export function EventForm(props: EventFormProps) {
                 disabled={formIsDisabled()}
                 readOnly={fieldIsReadOnly('guests')}
                 readOnlyReason={props.guestsReadOnlyReason}
+                guestListHidden={props.guestListHidden}
                 currentGuests={
                   props.addOnlyGuests ? controller.initialGuests() : undefined
                 }
@@ -407,6 +423,11 @@ export function EventForm(props: EventFormProps) {
               value={controller.guestPolicy()}
               onChange={controller.setGuestPolicy}
               disabled={formIsDisabled() || editScope() === 'this_event'}
+              disabledReason={
+                editScope() === 'this_event'
+                  ? 'Guest permissions apply to all events. Choose All events to change them.'
+                  : undefined
+              }
             />
           </Show>
           <Show when={props.detailsReadOnlyReason}>

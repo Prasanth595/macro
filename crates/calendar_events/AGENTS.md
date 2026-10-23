@@ -15,6 +15,8 @@ reminder dispatch, team availability, and provider/Postgres persistence.
 - `src/domain/capabilities.rs`: Google's organizer-set `GuestPolicy` and the
   `ViewerCapabilities` every read surface exposes as `viewerCan`.
 - `src/domain/team_availability.rs` + `src/domain/team.rs`: team sharing/availability.
+- `src/domain/notes.rs`, `src/outbound/pg_notes.rs`, `src/inbound/notes_router.rs`:
+  occurrence-scoped markdown links and optional team view access (feature `notes`).
 - `src/outbound/google.rs`, `src/outbound/pg.rs`: Google Calendar and Postgres adapters.
 - `src/outbound/pg/outlook.rs`: durable Outlook synchronization; preserve
   provider-specific coverage on discovery.
@@ -50,9 +52,15 @@ reminder dispatch, team availability, and provider/Postgres persistence.
 ## Checks
 
 - `cargo test -p calendar_events` (`SQLX_OFFLINE` unset).
+- `cargo test -p calendar_events --features notes,postgres` covers meeting-note
+  policy and its document-access integration against a migrated local MacroDB.
 
 ## Gotchas
 
+- Keep note links separate from sync-owned occurrence rows; require a live
+  occurrence and corroborated inbox copies for inherited view access. A document
+  owner can unlink after losing meeting access. See
+  [meeting-note access](../../docs/architecture/calendar-meeting-notes.md).
 - `CalendarEvent` is the stable Macro entity; external calendars and email
   invitations are sources feeding it, and recurrence instances are queryable
   occurrence projections, not separate events — don't model them as new entities.
@@ -93,7 +101,14 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   the target calendar, accepted, as the only guest, plus the private
   `macroSnapshot` extended property. Sync stores it as `is_snapshot`, which
   grants no capability and makes RSVPs and invites fail with `snapshot`,
-  since neither would reach the meeting. Its owner changes its details only
+  since neither would reach the meeting. An invitation to the same meeting
+  later lands on the snapshot's Google event (same UID, marker kept), so
+  `import::is_snapshot` counts a marked copy as a snapshot only while it holds
+  what the import wrote: the calendar as its only attendee, answered. Another
+  attendee (a Google meeting with guests lists its organizer) or the
+  calendar's row back at `needsAction` makes it the owner's seat, and the
+  Postgres upsert keeps a source stored as a seat from turning back after
+  they answer. Its owner changes its details only
   as a guest without modify rights would (reminders and availability), and
   may delete it. The mutation target reads the flag from the addressed
   copy's projection, since a snapshot can share its entity with the real
@@ -106,7 +121,9 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   write. Eligibility is the invite path's own `copy_capabilities` on the
   sharer's copy, so a request that can be made is one the sharer can accept,
   and accepting calls `invite_guests` as the sharer
-  (`src/domain/mutations/join.rs`).
+  (`src/domain/mutations/join.rs`). A declined request stands: asking again
+  is refused with `Declined` (409 `request_declined`) and never notifies the
+  sharer twice.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` and the copy's source link wherever a read path
   marks the viewer, and never store it. Each connected inbox gets its own copy

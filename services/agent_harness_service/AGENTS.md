@@ -23,7 +23,9 @@ Pulumi stacks; they do not host extra agent processes.
 - `src/trigger.rs`: turns channel/webhook triggers into sessions.
 - `src/internal_mcp.rs`: the internal MCP server exposed to running sessions.
 - `src/public_mcp.rs` + `src/public_mcp/`: public workspace MCP and OAuth;
-  reuses the harness tool context and retains bearer authentication.
+  reuses the harness tool context and retains bearer authentication. Users with
+  `ai-code-mode` get `ExecuteCode`/`DescribeCodeTools` in place of SDK-covered
+  tools (`tool_service.rs`); the flag is cached per user (`tool_mode_cache.rs`).
 - `src/cognition/`: existing chat, completions, integrations, and projection
   workers; the library also exports their OpenAPI document.
 - `src/scheduling.rs`: routine HTTP routes and background scheduling;
@@ -54,7 +56,7 @@ Pulumi stacks; they do not host extra agent processes.
 
 ## Tool contracts
 
-- Internal session tools require a verified acting user plus owner/edit authorization. Keep their restricted prompt/stop route separate from human approval controls.
+- Internal session tools require explicit `acting_as`, resolved by the shared gate, plus existing owner/edit authorization. SDK executions choose one account for the whole program; review decisions use the saved acting account. Keep their restricted prompt/stop route separate from human approval controls.
 
 The composition root wires `PgExternalReplyStore` into the harness and recovers
 unfinished external chat replies alongside conversation recovery every ten seconds.
@@ -74,8 +76,9 @@ produce events, independently of public session control.
 - `just run-local` — needs `DAYTONA_API_KEY`, `DAYTONA_SNAPSHOT`,
   `GITHUB_TOKEN` in the environment or a local `.env`.
 
-Code-mode credentials sign the authenticated session bot identity for SDK
-message attribution after owner approval, while retaining user authentication.
+Code-mode credentials sign the session bot for SDK attribution and the selected
+user for API authorization; owner approval is required only for cross-account
+access. Lifecycle, runtime provider connections, billing, and memory stay owner-scoped.
 
 ## Configuration and lifecycle
 
