@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   startAddInbox: vi.fn(),
   execute: vi.fn(),
   quickCalls: () => ({ loading: false, enabled: true }),
-  guestInvites: () => true,
+  guestInvites: (): boolean => true,
 }));
 vi.mock('@app/features/meetings/use-quick-calls-flag', () => ({
   useQuickCallsFlag: () => () => mocks.quickCalls(),
