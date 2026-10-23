@@ -405,7 +405,8 @@ pub(super) enum AttachmentUploads {
 }
 
 /// Claims a message's unstored attachments and uploads them. A rate-limited upload releases its
-/// claim so a retry can claim it again; any other failure keeps the claim.
+/// claim so a retry can claim it again; any other failure keeps the claim. Only the Gmail fetch,
+/// before anything is stored, reports a rate limit, so a released attachment was never stored.
 pub(super) async fn upload_message_attachments(
     ctx: &PubSubContext,
     link: &link::Link,

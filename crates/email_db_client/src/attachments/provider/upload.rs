@@ -333,7 +333,8 @@ pub async fn new_email_document_atts(
         claimed AS (
             UPDATE email_attachments
             SET upload_claimed_at = NOW()
-            WHERE id IN (
+            -- Only this outer condition is rechecked after waiting on a concurrent claim.
+            WHERE upload_claimed_at IS NULL AND id IN (
                 SELECT a.id
                 FROM email_attachments a
                 JOIN email_messages m ON a.message_id = m.id
@@ -443,7 +444,8 @@ pub async fn new_email_document_atts(
         claimed AS (
             UPDATE email_attachments
             SET upload_claimed_at = NOW()
-            WHERE id IN (
+            -- Only this outer condition is rechecked after waiting on a concurrent claim.
+            WHERE upload_claimed_at IS NULL AND id IN (
                 SELECT a.id
                 FROM email_attachments a
                 JOIN email_messages m ON a.message_id = m.id
@@ -525,7 +527,8 @@ pub async fn new_email_media_atts(
         WITH claimed AS (
             UPDATE email_attachments
             SET upload_claimed_at = NOW()
-            WHERE id IN (
+            -- Only this outer condition is rechecked after waiting on a concurrent claim.
+            WHERE upload_claimed_at IS NULL AND id IN (
                 SELECT a.id
                 FROM email_attachments a
                 JOIN email_messages m ON a.message_id = m.id
