@@ -372,7 +372,13 @@ procedure. Operators must approve and record each release gate.
 2. **Deploy all application changes with the flag false (or absent).** Include
    default-off admission, counted readers/writers, protocol/client contracts, and
    all host wiring before considering activation. Existing historical usage is
-   no longer billed just because its feature is billable.
+   no longer billed just because its feature is billable. Before deploying the
+   agent harness (which hosts cognition, public MCP, and scheduling), confirm
+   `AUTHENTICATION_SERVICE_SECRET_KEY` in its `agent-harness-service` Doppler
+   config is exactly the secret name `authentication-service-internal-api-key-<env>`
+   (see [Settlement](#settlement-enable_ai_usage_billing)) and that its task role
+   can read that secret. Whatever the flags say, the harness refuses to start in
+   dev and prod with the key absent, empty, or a name it cannot read.
 3. **Register `ENABLE_AI_USAGE_ENFORCEMENT` as raw `false` in Doppler for every
    participating service configuration**, including relevant environment variants:
    authentication, document cognition, document storage, MCP, agent harness,
@@ -383,13 +389,9 @@ procedure. Operators must approve and record each release gate.
    `AI_USAGE_INCLUDED_ALLOWANCE_CENTS`, `AI_USAGE_MAX_INCLUDED_ALLOWANCE_CENTS`,
    and `AI_USAGE_OVERAGE_MARKUP_PERCENT` are mandatory for these same hosts
    whatever the flags say; see [Settlement](#settlement-enable_ai_usage_billing).
-   Before `ENABLE_AI_USAGE_BILLING` is turned on for the agent harness (which
-   hosts cognition, public MCP, and scheduling), confirm
-   `AUTHENTICATION_SERVICE_SECRET_KEY` in its `agent-harness-service` Doppler
-   config is exactly the secret name `authentication-service-internal-api-key-<env>`
-   (see [Settlement](#settlement-enable_ai_usage_billing)) and that its task role
-   can read that secret; the harness refuses to start with the key absent, empty,
-   or a name it cannot read.
+   Before `ENABLE_AI_USAGE_BILLING` is turned on for the agent harness, recheck
+   the `AUTHENTICATION_SERVICE_SECRET_KEY` secret name and task-role read access
+   from step 2.
    Verify the effective startup value for every replica/worker. Registration and
    hosted access require operator approval; code defaults are not proof of it.
 4. **Validate locally, then in an approved staging environment.** Use the checklist
