@@ -1830,21 +1830,30 @@ impl CallRepository for PgCallRepo {
                     FROM generate_series(0, $9::int - 1) AS clause(idx)
                     WHERE NOT EXISTS (
                         SELECT 1
-                        FROM UNNEST($10::int[], $11::bool[], $12::uuid[], $13::text[])
-                            AS term(clause_idx, negated, definition_id, value)
+                        FROM UNNEST($10::int[], $11::bool[], $12::uuid[], $13::text[],
+                                    $17::bool[], $18::timestamptz[], $19::timestamptz[])
+                            AS term(clause_idx, negated, definition_id, value, is_date, date_start, date_end)
                         WHERE term.clause_idx = clause.idx
                           AND term.negated <> EXISTS (
                               SELECT 1 FROM entity_properties ep
                               WHERE ep.entity_id = ce.id::text
                                 AND ep.entity_type = 'CALL_RECORD'
-                                AND jsonb_typeof(ep.values -> 'value') = 'array'
-                                AND CASE
-                                    WHEN term.definition_id IS NULL
+                                AND CASE WHEN term.is_date THEN
+                                    ep.property_definition_id = term.definition_id
+                                    AND CASE WHEN ep.values ->> 'type' = 'Date'
+                                                  AND ep.values ->> 'value' IS NOT NULL THEN
+                                        (term.date_start IS NULL OR (ep.values ->> 'value')::timestamptz >= term.date_start)
+                                        AND (term.date_end IS NULL OR (ep.values ->> 'value')::timestamptz < term.date_end)
+                                    ELSE FALSE END
+                                ELSE
+                                    jsonb_typeof(ep.values -> 'value') = 'array'
+                                    AND CASE WHEN term.definition_id IS NULL
                                         THEN jsonb_exists(ep.values -> 'value', term.value)
-                                    ELSE ep.property_definition_id = term.definition_id
-                                        AND ep.values -> 'value' @> jsonb_build_array(
-                                            jsonb_build_object('entity_id', term.value)
-                                        )
+                                        ELSE ep.property_definition_id = term.definition_id
+                                            AND ep.values -> 'value' @> jsonb_build_array(
+                                                jsonb_build_object('entity_id', term.value)
+                                            )
+                                    END
                                 END
                           )
                     )

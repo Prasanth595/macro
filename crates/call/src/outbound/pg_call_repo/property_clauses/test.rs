@@ -323,3 +323,117 @@ async fn call_date_filters_apply_to_active_and_archived_records(
     );
     Ok(())
 }
+
+#[sqlx::test(
+    fixtures(path = "../../../../fixtures", scripts("call_repo")),
+    migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS"
+)]
+async fn date_filters_include_imported_records_without_broadening_access(
+    pool: sqlx::PgPool,
+) -> anyhow::Result<()> {
+    use crate::domain::{models::CallRecordPage, ports::CallRepository};
+    use crate::outbound::pg_call_repo::{
+        PgCallRepo,
+        test::{USER_A, USER_B},
+    };
+    use macro_user_id::cowlike::CowLike;
+    use std::{ops::Deref, sync::Arc};
+
+    let id = Uuid::now_v7();
+    let permission = Uuid::now_v7().to_string();
+    let definition = Uuid::from_u128(0x00000001_0000_0000_0000_000000000004);
+    sqlx::query!(
+        r#"INSERT INTO "SharePermission" (id, "createdAt", "updatedAt") VALUES ($1, now(), now())"#,
+        permission
+    )
+    .execute(&pool)
+    .await?;
+    sqlx::query!(
+        "INSERT INTO call_entities (id, user_id, title, created_via, share_permission_id) VALUES ($1, $2, 'Imported call', 'import', $3)",
+        id, USER_A.as_ref(), permission
+    ).execute(&pool).await?;
+    sqlx::query!(
+        "INSERT INTO entity_access (entity_id, entity_type, source_id, source_type, access_level) VALUES ($1, 'call', $2, 'user', 'owner')",
+        id, USER_A.as_ref()
+    ).execute(&pool).await?;
+    sqlx::query!(
+        r#"INSERT INTO entity_properties (id, entity_id, entity_type, property_definition_id, values)
+           VALUES ($1, $2, 'CALL_RECORD', $3, '{"type":"Date","value":"2026-10-22T12:00:00Z"}'::jsonb)"#,
+        Uuid::now_v7(), id.to_string(), definition
+    ).execute(&pool).await?;
+    let repo = PgCallRepo::new(pool.clone());
+    let page = CallRecordPage {
+        by_start: false,
+        after: None,
+    };
+    let predicate = |value| {
+        Expr::Literal(CallLiteral::Property(PropertiesLiteral {
+            property_definition_id: definition,
+            entity_type: None,
+            value,
+        }))
+    };
+    let filter = |expr| {
+        Some(Arc::new(Expr::and(
+            Expr::Literal(CallLiteral::CallId(id)),
+            expr,
+        )))
+    };
+    for value in [
+        PropertyMatchValue::DatePresent,
+        PropertyMatchValue::DateRange(DateRange {
+            start: Some("2026-10-22T00:00:00Z".parse()?),
+            end: Some("2026-10-23T00:00:00Z".parse()?),
+        }),
+    ] {
+        let records = repo
+            .get_call_records_by_user(USER_A.deref().copied(), 1, &filter(predicate(value)), page)
+            .await?;
+        assert_eq!(
+            records.iter().map(|row| row.call_id).collect::<Vec<_>>(),
+            [id]
+        );
+    }
+    let present = filter(predicate(PropertyMatchValue::DatePresent));
+    assert!(
+        repo.get_call_records_by_user(USER_B.deref().copied(), 1, &present, page)
+            .await?
+            .is_empty()
+    );
+    let outside = filter(predicate(PropertyMatchValue::DateRange(DateRange {
+        start: Some("2026-10-23T00:00:00Z".parse()?),
+        end: None,
+    })));
+    assert!(
+        repo.get_call_records_by_user(USER_A.deref().copied(), 1, &outside, page)
+            .await?
+            .is_empty()
+    );
+    let missing = filter(Expr::is_not(predicate(PropertyMatchValue::DatePresent)));
+    assert!(
+        repo.get_call_records_by_user(USER_A.deref().copied(), 1, &missing, page)
+            .await?
+            .is_empty()
+    );
+    for value in [
+        serde_json::json!({"type": "Date", "value": null}),
+        serde_json::json!({"type": "String", "value": "not a timestamp"}),
+    ] {
+        sqlx::query!(
+            "UPDATE entity_properties SET values = $1 WHERE entity_id = $2 AND property_definition_id = $3",
+            value, id.to_string(), definition
+        ).execute(&pool).await?;
+        assert!(
+            repo.get_call_records_by_user(USER_A.deref().copied(), 1, &present, page)
+                .await?
+                .is_empty()
+        );
+        assert_eq!(
+            repo.get_call_records_by_user(USER_A.deref().copied(), 1, &missing, page)
+                .await?
+                .len(),
+            1
+        );
+    }
+    Ok(())
+}
