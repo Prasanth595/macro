@@ -107,7 +107,9 @@ export function EmailCard(
   const [resyncingIds, setResyncingIds] = createSignal<ReadonlySet<string>>(
     new Set()
   );
-  const [isEmailActionPending, setIsEmailActionPending] = createSignal(false);
+  // Not a disabled state: disabling the opener drops focus to <body>, which
+  // is where closing the provider chooser would then return it.
+  let addingInbox = false;
 
   // The primary inbox is the user's own is_primary link; it sorts to the top
   // and is labelled. Everything else (other own inboxes + delegated/shared) follows.
@@ -122,12 +124,12 @@ export function EmailCard(
   });
 
   const onConnectEmail = async () => {
-    if (isEmailActionPending()) return;
-    setIsEmailActionPending(true);
+    if (addingInbox) return;
+    addingInbox = true;
     try {
       await startAddInbox();
     } finally {
-      setIsEmailActionPending(false);
+      addingInbox = false;
     }
   };
 
@@ -170,11 +172,7 @@ export function EmailCard(
           }
         >
           <Show when={!emailActive()}>
-            <ConnectAction
-              label="Connect"
-              onClick={onConnectEmail}
-              disabled={isEmailActionPending()}
-            />
+            <ConnectAction label="Connect" onClick={onConnectEmail} />
           </Show>
           <Show when={props.onOpenSettings}>
             <UiButton
@@ -301,7 +299,6 @@ export function EmailCard(
                   size="md"
                   depth={3}
                   aria-label="Add inbox"
-                  disabled={isEmailActionPending()}
                   onClick={onConnectEmail}
                 >
                   <PlusIcon class="size-3.5" />
