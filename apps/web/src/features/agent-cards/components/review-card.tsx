@@ -1,5 +1,6 @@
 import { createLiveSession } from '@app/features/agent-activity/queries/live-session';
 import { createReviewResponse } from '@app/features/agent-reviews/core/review-response';
+import { useReview } from '@app/features/agent-reviews/queries/reviews';
 import { PersistedReview } from '@app/features/agent-reviews/views/persisted-review';
 import { WorkingLine } from '@app/features/block-agent/ui/WorkingLine';
 import { useUserId } from '@core/context/user';
@@ -22,7 +23,7 @@ export type ReviewDrafts = 'email' | 'calendar';
  */
 export function ReviewWaitingCard(props: {
   drafts: ReviewDrafts;
-  /** The person the agent works for: `Maya Chen`. Unknown to a reader who cannot see the session. */
+  /** The person who decides the drafts: `Maya Chen`. Unknown to a reader who cannot see the session. */
   waitingOn?: string;
 }) {
   return (
@@ -50,12 +51,13 @@ export function ReviewWaitingCard(props: {
 
 /**
  * Drafts the agent saved for the user to edit and send, in a conversation:
- * the saved review itself (`agent-reviews`) for the person the agent works
- * for, who sends or dismisses each draft, and one line for everyone else.
+ * the saved review itself (`agent-reviews`) for the person who decides it,
+ * who sends or dismisses each draft, and one line for everyone else.
  *
- * A review belongs to the session it was saved in, and only the session's
- * owner decides it - not whoever asked the agent in a shared conversation.
- * Nothing loads until the session says who the reader is to it.
+ * A review is decided by the account its drafts go out under: whoever
+ * asked, when the agent acted as them, or the session's owner, as for every
+ * review saved before reviews named one. Nothing loads until the session
+ * says the reader may read it, and the review then says who decides it.
  */
 export function ReviewCard(props: {
   sessionId: string;
@@ -64,9 +66,21 @@ export function ReviewCard(props: {
 }) {
   const userId = useUserId();
   const session = useAgentSessionQuery(() => props.sessionId);
-  // Who owns the session, once both it and the reader are known.
-  const owner = () =>
-    userId() && queryReadyGate(session) ? session.data?.ownerId : undefined;
+  // The session, once both it and the reader are known.
+  const readable = () =>
+    userId() && queryReadyGate(session) ? session.data : undefined;
+  const review = useReview(
+    () => (readable() ? props.sessionId : ''),
+    () => props.reviewId
+  );
+  // Who decides the review. One that will not load is left to the owner,
+  // whose card says so and offers to load it again.
+  const decider = () => {
+    const data = readable();
+    if (!data) return undefined;
+    if (queryReadyGate(review)) return review.data.actingUser ?? data.ownerId;
+    return review.isError ? data.ownerId : undefined;
+  };
   return (
     <Switch
       fallback={
@@ -80,14 +94,18 @@ export function ReviewCard(props: {
       <Match when={session.isError}>
         <ReviewWaitingCard drafts={props.drafts} />
       </Match>
-      <Match when={owner() && owner() === userId()}>
-        <OwnerReview
+      <Match when={decider() && decider() === userId()}>
+        <DeciderReview
           sessionId={props.sessionId}
           reviewId={props.reviewId}
-          canAct={!!session.data?.canEdit && !session.data?.isArchived}
+          ownerId={readable()?.ownerId}
+          canAct={!!readable()?.canEdit && !readable()?.isArchived}
         />
       </Match>
-      <Match when={owner()}>
+      <Match when={review.isError}>
+        <ReviewWaitingCard drafts={props.drafts} />
+      </Match>
+      <Match when={decider()}>
         {(by) => (
           <ReviewWaitingCard
             drafts={props.drafts}
@@ -100,14 +118,16 @@ export function ReviewCard(props: {
 }
 
 /**
- * The review as its owner decides it, following the session's notifications
- * about it as the session view does: a decision made anywhere, or a send that
- * settles later, reloads it, and the agent responding to a decision shows
- * under it. The session's fold is the one every surface on it shares.
+ * The review as the person who decides it sees it, following the session's
+ * notifications about it as the session view does: a decision made anywhere,
+ * or a send that settles later, reloads it, and the agent responding to a
+ * decision shows under it. The session's fold is the one every surface on it
+ * shares.
  */
-function OwnerReview(props: {
+function DeciderReview(props: {
   sessionId: string;
   reviewId: string;
+  ownerId?: string;
   canAct: boolean;
 }) {
   const live = createLiveSession(() => props.sessionId);
@@ -122,6 +142,7 @@ function OwnerReview(props: {
         sessionId={props.sessionId}
         reviewId={props.reviewId}
         canAct={props.canAct}
+        ownerId={props.ownerId}
         eventId={response.eventId()}
         onDecision={response.onDecision}
         onDecisionFailed={response.onDecisionFailed}

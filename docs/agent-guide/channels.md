@@ -121,9 +121,10 @@ When the agent saves drafts for you to review without waiting on you
 (`PresentReview`, in any mode), its reply carries the saved review in place
 of the step: the drafts in their composers, `1 of N` with a draft picker and
 **Send all** (**Create all** for events) for several, each sent or dismissed
-on its own. The drafts are the session owner's to decide; anyone else in the
-thread sees `Email drafts to review · Waiting for <owner>` and nothing of the
-drafts. As in the session, the owner's card refreshes in place when the review
+on its own. The drafts are decided by the account they go out under: whoever
+asked, when the agent acted as them, or else the session owner. Anyone else in
+the thread sees `Email drafts to review · Waiting for <that person>` and nothing
+of the drafts. As in the session, the deciding card refreshes in place when the review
 is decided anywhere or a send settles, with **Responding** below it until the
 agent answers the decision; a silent answer clears it. When the agent needs an app, its reply ends with a
 **Connect** card. Connecting from the agent's latest reply, while nothing else
