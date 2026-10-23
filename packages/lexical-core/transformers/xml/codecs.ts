@@ -93,6 +93,7 @@ const KNOWN_TYPES: Record<KnownNode['type'], 1> = {
   'booking-link-mention': 1,
   'agent-session-mention': 1,
   'tag-mention': 1,
+  'template-variable': 1,
   'theme-mention': 1,
   'unknown-mention': 1,
 };
@@ -392,6 +393,9 @@ export function serializeNode(node: SerNode): FxpNode {
           ...(n.label && { label: n.label }),
         })
       )
+    )
+    .with({ type: 'template-variable' }, (n) =>
+      el('template-variable', [], nodeAttrs(n, { key: n.key }))
     )
     .with({ type: 'theme-mention' }, (n) =>
       el('theme-mention', [], nodeAttrs(n, { ...(n.name && { name: n.name }) }))

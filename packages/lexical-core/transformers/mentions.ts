@@ -30,6 +30,10 @@ import {
   PullRequestMentionNode,
 } from '../nodes/PullRequestMentionNode';
 import { TagMentionNode } from '../nodes/TagMentionNode';
+import {
+  TEMPLATE_VARIABLE_TAG,
+  TemplateVariableNode,
+} from '../nodes/TemplateVariableNode';
 import { ThemeMentionNode } from '../nodes/ThemeMentionNode';
 import { UserMentionNode } from '../nodes/UserMentionNode';
 import {
@@ -805,5 +809,40 @@ export const E_BOOKING_LINK_MENTION: ElementTransformer = {
     _isImport: boolean
   ) => {
     return false;
+  },
+};
+
+// Routine template variable slots: `<m-template-variable>{"key":"…"}</…>`.
+// Keep in step with `crates/mention_utils`.
+const TEMPLATE_VARIABLE_PATTERN = new RegExp(
+  `<${TEMPLATE_VARIABLE_TAG}>(.*?)</${TEMPLATE_VARIABLE_TAG}>`
+);
+
+export const I_TEMPLATE_VARIABLE: TextMatchTransformer = {
+  dependencies: [TemplateVariableNode, UnknownMentionNode],
+  type: 'text-match',
+  regExp: TEMPLATE_VARIABLE_PATTERN,
+  importRegExp: TEMPLATE_VARIABLE_PATTERN,
+  export: (node) => {
+    if (!(node instanceof TemplateVariableNode)) return null;
+    const data = JSON.stringify({ key: node.getVariableKey() });
+    return `<${TEMPLATE_VARIABLE_TAG}>${data}</${TEMPLATE_VARIABLE_TAG}>`;
+  },
+  replace: (node: TextNode, match: RegExpMatchArray) => {
+    try {
+      const parsed: unknown = JSON.parse(match[1]);
+      if (
+        typeof parsed !== 'object' ||
+        parsed === null ||
+        !('key' in parsed) ||
+        typeof parsed.key !== 'string'
+      ) {
+        throw new Error('Invalid template variable JSON');
+      }
+      node.replace(new TemplateVariableNode(parsed.key));
+    } catch (e) {
+      console.error('Error in I_TEMPLATE_VARIABLE replace:', e);
+      replaceTextWithUnknownMention(node, 'Unknown variable');
+    }
   },
 };

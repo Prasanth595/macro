@@ -83,6 +83,10 @@ import type {
   TagMentionNode,
 } from './nodes/TagMentionNode';
 import type {
+  TemplateVariableDecoratorProps,
+  TemplateVariableNode,
+} from './nodes/TemplateVariableNode';
+import type {
   ThemeMentionDecoratorProps,
   ThemeMentionNode,
 } from './nodes/ThemeMentionNode';
@@ -186,6 +190,10 @@ export interface NodeDecoratorMap {
   ThemeMentionNode: {
     klass: typeof ThemeMentionNode;
     props: ThemeMentionDecoratorProps;
+  };
+  TemplateVariableNode: {
+    klass: typeof TemplateVariableNode;
+    props: TemplateVariableDecoratorProps;
   };
   TagMentionNode: {
     klass: typeof TagMentionNode;

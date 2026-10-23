@@ -47,6 +47,7 @@ import { SearchMatchNode } from './nodes/SearchMatchNode';
 import { SnapshotNode } from './nodes/SnapshotNode';
 import { TagMentionNode } from './nodes/TagMentionNode';
 import { TaskListNode } from './nodes/TaskListNode';
+import { TemplateVariableNode } from './nodes/TemplateVariableNode';
 import { ThemeMentionNode } from './nodes/ThemeMentionNode';
 import { UnknownMentionNode } from './nodes/UnknownMentionNode';
 import { UnlinkedTextNode } from './nodes/UnlinkedTextNode';
@@ -120,6 +121,7 @@ export const SupportedNodeTypes = [
   ClassedBlockNode,
   WatermarkNode,
   ThemeMentionNode,
+  TemplateVariableNode,
   TagMentionNode,
   ConnectAppNode,
   UnknownMentionNode,

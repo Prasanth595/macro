@@ -38,6 +38,7 @@ export * from './nodes/ReplyTargetNode';
 export * from './nodes/SnapshotNode';
 export * from './nodes/TagMentionNode';
 export * from './nodes/TaskListNode';
+export * from './nodes/TemplateVariableNode';
 export * from './nodes/ThemeMentionNode';
 export * from './nodes/UnknownMentionNode';
 export * from './nodes/UnlinkedTextNode';

@@ -187,6 +187,21 @@ export function parseTagMentions(text: string): string {
   });
 }
 
+/** Routine template slots read as `{key}`. */
+export function parseTemplateVariables(text: string): string {
+  return text.replace(
+    /<m-template-variable>(.*?)<\/m-template-variable>/g,
+    (_, json) => {
+      try {
+        const data = JSON.parse(json);
+        return data.key ? `{${data.key}}` : '';
+      } catch {
+        return '';
+      }
+    }
+  );
+}
+
 export function parseLinks(text: string): string {
   return text.replace(/<m-link>(.*?)<\/m-link>/g, (_, json) => {
     try {
@@ -320,6 +335,7 @@ function flattenMarkdown(
     parsePullRequestMentions,
     parseAgentSessionMentions,
     parseTagMentions,
+    parseTemplateVariables,
     parseConnectApps,
     parseCursorSystemNotifications,
     parseDatabaseQueries,
@@ -520,6 +536,9 @@ export function markdownToEmbeddingText(markdown: string): string {
     data.name ? `#${data.name}` : ''
   );
   text = replaceJsonTag(text, 'm-theme-mention', (data) => data.name || '');
+  text = replaceJsonTag(text, 'm-template-variable', (data) =>
+    data.key ? `{${data.key}}` : ''
+  );
   text = replaceJsonTag(text, 'm-connect-app', (data) =>
     data.name ? `Connect ${data.name}` : ''
   );

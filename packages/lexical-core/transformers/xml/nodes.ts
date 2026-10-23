@@ -218,6 +218,12 @@ export type BookingLinkMentionNode = Id & {
   url: string;
 };
 
+export type TemplateVariableNode = Id & {
+  type: 'template-variable';
+  version: number;
+  key: string;
+};
+
 export type ThemeMentionNode = Id & {
   type: 'theme-mention';
   version: number;
@@ -272,6 +278,7 @@ export type KnownNode =
   | BookingLinkMentionNode
   | TagMentionNode
   | ThemeMentionNode
+  | TemplateVariableNode
   | UnknownMentionNode;
 
 export type UnknownNode = Id & {
