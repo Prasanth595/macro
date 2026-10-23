@@ -12,12 +12,16 @@ import type { OutOfOfficeProperties } from '@service-calendar/generated/schemas/
 import type { EventReminderOverride } from '@service-storage/generated/schemas/eventReminderOverride';
 import type { EventReminders } from '@service-storage/generated/schemas/eventReminders';
 import type { EventType } from '@service-storage/generated/schemas/eventType';
+import type { GuestPolicy } from '@service-storage/generated/schemas/guestPolicy';
 import {
   addDays,
   addHours,
+  addMinutes,
   differenceInCalendarDays,
+  differenceInMinutes,
   endOfDay,
   format,
+  isValid,
   parseISO,
   startOfHour,
 } from 'date-fns';
@@ -104,6 +108,8 @@ export interface EventEditorInitialValues {
   outOfOffice?: EventEditorOutOfOffice;
   /** Event type of the copy `reminders` belong to. Absent for new events. */
   reminderEventType?: EventType;
+  /** What guests may do; absent means Google's defaults. */
+  guestPolicy?: GuestPolicy;
 }
 
 /** Calendar option displayed by the event editor. */
@@ -132,7 +138,8 @@ type EventEditorField =
   | 'location'
   | 'description'
   | 'conference'
-  | 'reminders';
+  | 'reminders'
+  | 'outOfOffice';
 
 /** Field-level disabled state supplied by a create/edit owner. */
 export type EventEditorDisabledFields = Partial<
@@ -160,6 +167,8 @@ export interface EventEditorSubmitValues {
    * event that already is.
    */
   outOfOffice?: OutOfOfficeProperties;
+  /** Present only when the user changed what guests may do. */
+  guestPolicy?: GuestPolicy;
 }
 
 export function defaultEditorInitialValues(
@@ -264,6 +273,7 @@ export function calendarEventToEditorInitialValues(
       reminders: event.reminders,
       eventType: event.eventType,
       reminderEventType: event.reminderEventType,
+      guestPolicy: event.guestPolicy,
     };
   }
 
@@ -289,6 +299,7 @@ export function calendarEventToEditorInitialValues(
     reminders: event.reminders,
     eventType: event.eventType,
     reminderEventType: event.reminderEventType,
+    guestPolicy: event.guestPolicy,
   };
 }
 
@@ -428,6 +439,30 @@ export function moveAllDayRange(
     ...state,
     start: nextStart,
     end: shiftDateValue(nextStart, durationDays),
+  };
+}
+
+/**
+ * Moves a timed range's end with its start, keeping the duration, as Google
+ * Calendar does. A range with no positive duration (incomplete, or already
+ * ending before it starts) keeps its end, since there is nothing to keep.
+ */
+export function moveTimedRange(
+  state: EventEditorInitialValues,
+  nextStart: string
+): EventEditorInitialValues {
+  const start = parseISO(nextStart);
+  const duration = differenceInMinutes(
+    parseISO(state.end),
+    parseISO(state.start)
+  );
+  if (!isValid(start) || !Number.isFinite(duration) || duration <= 0) {
+    return { ...state, start: nextStart };
+  }
+  return {
+    ...state,
+    start: nextStart,
+    end: format(addMinutes(start, duration), DATETIME_VALUE),
   };
 }
 

@@ -15,7 +15,7 @@ import type {
   GuestInviteController,
 } from '@app/features/calendar/hooks/create-guest-invite-controller';
 import type { CalendarEvent } from '@app/features/calendar/types';
-import { GUEST_INVITES_RESTRICTED } from '@app/features/calendar/utils/event-guest-editing';
+import { guestListHidden } from '@app/features/calendar/utils/event-guest-editing';
 import {
   eventEmailRecipients,
   guestEmails,
@@ -29,7 +29,7 @@ import CopyIcon from '@phosphor/copy.svg';
 import EnvelopeIcon from '@phosphor/envelope.svg';
 import UserPlusIcon from '@phosphor/user-plus.svg';
 import type { CalendarInviteScope } from '@service-email/client';
-import { Button, Checkbox, Dialog, Layer, SegmentedControl } from '@ui';
+import { Button, Checkbox, Dialog, Layer, Tabs } from '@ui';
 import { createMemo, createSignal, Show } from 'solid-js';
 
 /** Same wording as the RSVP and delete scope choices. */
@@ -62,7 +62,9 @@ function InviteGuestsForm(props: {
   const [optionalIds, setOptionalIds] = createSignal<ReadonlySet<string>>(
     new Set()
   );
-  const [scope, setScope] = createSignal<CalendarInviteScope>('this_event');
+  // A recurring event invites to the whole series unless the viewer narrows
+  // it, as the composer's edits do.
+  const [scope, setScope] = createSignal<CalendarInviteScope>('all');
   const recurring = () =>
     props.event.recurrenceLines.length > 0 ||
     props.event.recurrenceId !== undefined;
@@ -125,7 +127,8 @@ function InviteGuestsForm(props: {
       />
       <div class="flex shrink-0 flex-wrap items-center gap-2 border-t border-edge-muted p-2">
         <Show when={recurring()}>
-          <SegmentedControl
+          <Tabs
+            touch="segmented"
             aria-label="Invite to"
             size="sm"
             value={scope()}
@@ -189,7 +192,7 @@ function EventInviteGuestsAction(props: {
           </Popover.Trigger>
           <EventComposerPopoverPortal>
             <Layer depth={3}>
-              <Popover.Content class="z-action-menu flex max-h-[min(30rem,var(--kb-popper-content-available-height,30rem))] w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-edge bg-menu-glass text-sm glass menu-open-animation">
+              <Popover.Content class="menu-surface z-action-menu flex max-h-[min(30rem,var(--kb-popper-content-available-height,30rem))] w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden text-sm menu-open-animation">
                 <Popover.Title class="sr-only">Add guests</Popover.Title>
                 {form()}
               </Popover.Content>
@@ -223,10 +226,10 @@ function EventInviteGuestsAction(props: {
 
 /**
  * The guest-row actions Google Calendar users know: copy every guest's
- * address, start an email to the other guests (hidden when the viewer is the
- * only one), or add guests when the organizer allows it. Emailing closes the
- * details first: closing hands focus back to the calendar chip, and the
- * composer's To field has to win that exchange.
+ * address and start an email to the other guests (both hidden when the
+ * viewer is the only one, as on a snapshot), or add guests when the organizer
+ * allows it. Emailing closes the details first: closing hands focus back to
+ * the calendar chip, and the composer's To field has to win that exchange.
  */
 function EventGuestActions(props: {
   event: CalendarEvent;
@@ -237,17 +240,17 @@ function EventGuestActions(props: {
 
   return (
     <Show when={!props.event.teamProjection}>
-      <Button
-        label="Copy guest emails"
-        variant="ghost"
-        size="icon-sm"
-        depth={3}
-        class="text-ink-muted [&_svg]:size-4"
-        onClick={() => copyGuestEmails(guestEmails(props.event.attendees))}
-      >
-        <CopyIcon />
-      </Button>
       <Show when={eventEmailRecipients(props.event).length > 0}>
+        <Button
+          label="Copy guest emails"
+          variant="ghost"
+          size="icon-sm"
+          depth={3}
+          class="text-ink-muted [&_svg]:size-4"
+          onClick={() => copyGuestEmails(guestEmails(props.event.attendees))}
+        >
+          <CopyIcon />
+        </Button>
         <Button
           label="Email guests"
           variant="ghost"
@@ -279,7 +282,8 @@ export function EventGuests(props: {
   return (
     <EventAttendeesSection
       attendees={props.event.attendees}
-      notice={props.invites.restricted() ? GUEST_INVITES_RESTRICTED : undefined}
+      guestListHidden={guestListHidden(props.event)}
+      notice={props.invites.restrictedReason()}
       actions={
         <EventGuestActions
           event={props.event}

@@ -157,9 +157,13 @@ fn error_from_response(status: StatusCode, body: Option<String>) -> CalendarMuta
         "read_only" => CalendarMutationError::ReadOnly,
         "no_writable_calendar" => CalendarMutationError::NoWritableCalendar,
         "not_attendee" => CalendarMutationError::NotAttendee,
+        "not_organizer" => CalendarMutationError::NotOrganizer,
         "guests_cannot_invite" => CalendarMutationError::GuestsCannotInvite,
         "guest_list_hidden" => CalendarMutationError::GuestListHidden,
+        "guests_cannot_modify" => CalendarMutationError::GuestsCannotModify,
         "already_on_calendar" => CalendarMutationError::AlreadyOnCalendar,
+        "copy_refused" => CalendarMutationError::CopyRefused(error.message),
+        "snapshot" => CalendarMutationError::Snapshot,
         "invalid_input" => CalendarMutationError::InvalidInput(error.message),
         "reauth_required" => CalendarMutationError::ReauthRequired(error.message),
         "provider_rejected" => CalendarMutationError::ProviderRejected(error.message),
@@ -223,6 +227,7 @@ fn create_body(
         "reminders": draft.reminders,
         "conference": draft.conference,
         "outOfOffice": draft.out_of_office,
+        "guestPolicy": draft.guest_policy,
         "idempotencyKey": draft.idempotency_key,
         "macroCall": macro_call,
     })
@@ -256,6 +261,7 @@ fn update_body(
         "reminders": patch.reminders,
         "conference": patch.conference,
         "outOfOffice": patch.out_of_office,
+        "guestPolicy": patch.guest_policy,
         "scope": scope_name,
         "recurrenceId": recurrence_id,
     })
@@ -510,6 +516,33 @@ impl CalendarMutationService for CalendarServiceMutations {
             .json(&serde_json::json!({ "calendarId": calendar_id })),
         )
         .await
+    }
+
+    #[tracing::instrument(skip(self, requester_id), err)]
+    async fn respond_to_join_request(
+        &self,
+        requester_id: &str,
+        request_id: Uuid,
+        accept: bool,
+    ) -> Result<crate::domain::join_requests::CalendarJoinRequest, CalendarMutationError> {
+        self.send(
+            self.request(
+                reqwest::Method::PUT,
+                &format!("/join-requests/{request_id}"),
+                requester_id,
+            )
+            .json(&serde_json::json!({
+                "decision": if accept { "accept" } else { "decline" },
+            })),
+        )
+        .await?
+        .json()
+        .await
+        .map_err(|error| {
+            CalendarMutationError::PersistFailed(format!(
+                "the join request was answered but its response could not be parsed: {error}"
+            ))
+        })
     }
 
     /// Not reachable over this transport. Disconnecting a calendar is part of
