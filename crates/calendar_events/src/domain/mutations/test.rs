@@ -3,9 +3,9 @@ use crate::domain::models::{
     ActorInboxes, AppliedGoogleGrant, CalendarAttendee, CalendarAttendeeInput,
     CalendarBackfillJobKey, CalendarCreationTarget, CalendarEventOverride, CalendarEventSource,
     CalendarLinkTokenIdentity, CalendarOccurrenceCursor, CalendarSyncStatus, CalendarWatchRelease,
-    ConferenceChange, DisconnectedCalendar, EventStart, EventStatus, EventTransparency, EventType,
-    EventVisibility, GoogleCalendarSyncSnapshot, GoogleWatchChannel, GuestPolicy,
-    OutOfOfficeAutoDeclineMode, OutOfOfficeProperties, OwnedInbox, ProviderCalendar,
+    ConferenceChange, DisconnectedCalendar, EventDetails, EventStart, EventStatus,
+    EventTransparency, EventType, EventVisibility, GoogleCalendarSyncSnapshot, GoogleWatchChannel,
+    GuestPolicy, OutOfOfficeAutoDeclineMode, OutOfOfficeProperties, OwnedInbox, ProviderCalendar,
     ProviderCalendarTarget, ProviderEventSource, StoredGoogleCalendar, ViewerCapabilities,
     VisibleCalendar,
 };
@@ -50,6 +50,7 @@ fn mutation_target(is_read_only: bool) -> CalendarEventMutationTarget {
         actor: Some(ActorInboxes::sole("self@example.com")),
         organizer_email: Some("self@example.com".to_string()),
         guest_policy: GuestPolicy::default(),
+        is_snapshot: false,
     }
 }
 
@@ -118,6 +119,7 @@ fn echo_upsert(target_owner: &str) -> CalendarEventUpsert {
             attendees: Vec::new(),
             reminders: EventReminders::default(),
             guest_policy: GuestPolicy::default(),
+            is_snapshot: false,
             viewer_can: ViewerCapabilities::NONE,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -185,6 +187,14 @@ struct FakeRepo {
     fail_owned_inboxes: bool,
     /// Guest policies recorded after the provider refused an invite.
     recorded_guest_policies: Arc<Mutex<Vec<(Uuid, GuestPolicy)>>>,
+    /// Stored details a guest's update is compared against.
+    event_details: Option<EventDetails>,
+    /// The occurrence key of every stored-details read.
+    details_requests: Arc<Mutex<Vec<Option<String>>>>,
+    /// What `event_export` resolves for the requester.
+    export: Option<crate::domain::ics::CalendarEventExport>,
+    /// Inboxes a sync was scheduled for.
+    scheduled_syncs: Arc<Mutex<Vec<Uuid>>>,
 }
 
 impl Default for FakeRepo {
@@ -206,6 +216,10 @@ impl Default for FakeRepo {
             fail_list_visible: false,
             fail_owned_inboxes: false,
             recorded_guest_policies: Default::default(),
+            event_details: None,
+            details_requests: Default::default(),
+            export: None,
+            scheduled_syncs: Default::default(),
         }
     }
 }
@@ -281,7 +295,7 @@ impl CalendarRepository for FakeRepo {
         _requester_id: &str,
         _event_id: Uuid,
     ) -> Result<Option<crate::domain::ics::CalendarEventExport>, rootcause::Report> {
-        unreachable!()
+        Ok(self.export.clone())
     }
 
     async fn list_team_out_of_office(
@@ -356,8 +370,9 @@ impl CalendarRepository for FakeRepo {
 
     async fn schedule_google_sync_for_link(
         &self,
-        _email_link_id: Uuid,
+        email_link_id: Uuid,
     ) -> Result<bool, rootcause::Report> {
+        self.scheduled_syncs.lock().unwrap().push(email_link_id);
         Ok(true)
     }
 
@@ -396,6 +411,18 @@ impl CalendarRepository for FakeRepo {
         _recurrence_id: &str,
     ) -> Result<Option<Vec<CalendarAttendee>>, rootcause::Report> {
         Ok(self.occurrence_override_attendees.clone())
+    }
+
+    async fn get_event_details(
+        &self,
+        _event_id: Uuid,
+        occurrence_key: Option<&str>,
+    ) -> Result<Option<EventDetails>, rootcause::Report> {
+        self.details_requests
+            .lock()
+            .unwrap()
+            .push(occurrence_key.map(str::to_string));
+        Ok(self.event_details.clone())
     }
 
     async fn record_guest_policy(
@@ -486,6 +513,7 @@ struct FakeProvider {
     created_drafts: Arc<Mutex<Vec<CalendarEventDraft>>>,
     updated_patches: Arc<Mutex<Vec<CalendarEventPatch>>>,
     invited_guests: Arc<Mutex<Vec<Vec<CalendarAttendeeInput>>>>,
+    imported: Arc<Mutex<Vec<(String, crate::domain::ics::CalendarEventExport)>>>,
     invited_as: Arc<Mutex<Vec<Vec<String>>>>,
 }
 
@@ -501,6 +529,7 @@ impl FakeProvider {
             created_drafts: Arc::new(Mutex::new(Vec::new())),
             updated_patches: Arc::new(Mutex::new(Vec::new())),
             invited_guests: Arc::new(Mutex::new(Vec::new())),
+            imported: Arc::new(Mutex::new(Vec::new())),
             invited_as: Arc::new(Mutex::new(Vec::new())),
         }
     }
@@ -641,6 +670,35 @@ impl CalendarMutationProvider for FakeProvider {
                 ProviderInviteOutcome::GuestListHidden(policy)
             }
             _ => ProviderInviteOutcome::Applied(Box::new(self.echo(target))),
+        })
+    }
+
+    async fn import_event(
+        &self,
+        _access_token: &str,
+        target: &ProviderCalendarTarget,
+        source: &crate::domain::ics::CalendarEventExport,
+    ) -> Result<ProviderImportOutcome, CalendarProviderError> {
+        self.calls.lock().unwrap().push("import".to_string());
+        self.imported
+            .lock()
+            .unwrap()
+            .push((target.provider_calendar_id.clone(), source.clone()));
+        if let Some(error) = self.fail() {
+            return Err(error);
+        }
+        // `Gone` stands for Google already holding the meeting's UID, and
+        // `Forbidden` for Google refusing the import.
+        Ok(match self.behavior {
+            FakeProviderBehavior::Gone => ProviderImportOutcome::AlreadyHeld,
+            FakeProviderBehavior::Forbidden(_) => {
+                ProviderImportOutcome::Refused(CalendarProviderError::new(
+                    CalendarProviderErrorKind::Permanent,
+                    "The owner of the calendar must either be the organizer or an attendee of \
+                     an event that is imported. (reasons: participantIsNeitherOrganizerNorAttendee)",
+                ))
+            }
+            _ => ProviderImportOutcome::Imported(Box::new(self.echo(target))),
         })
     }
 
@@ -2873,5 +2931,7 @@ async fn outlook_write_pause_rejects_provider_operations_before_fetching_tokens(
         .unwrap();
 }
 
+mod copy;
+mod details;
 mod invite;
 mod replacement;

@@ -18,10 +18,11 @@ use super::models::{
     CalendarGrantIntent, CalendarLinkTokenIdentity, CalendarMentionPreview,
     CalendarMentionRequestItem, CalendarOccurrenceCursor, CalendarReminderDeliveryOutcome,
     CalendarReminderDispatchMessage, CalendarReminderFiring, CalendarReminderSweepSummary,
-    CalendarSyncStatus, DisconnectedCalendar, DueCalendarReminder, GoogleCalendarSyncSnapshot,
-    GoogleEventSyncBatch, GoogleScopeSet, GoogleSyncPlan, GoogleWatchChannel, GoogleWatchConfig,
-    GuestPolicy, OccurrenceListing, OccurrenceRange, OwnedInbox, ProviderCalendar,
-    ProviderCalendarTarget, StoredGoogleCalendar, TeamOutOfOffice, VisibleCalendar,
+    CalendarSyncStatus, DisconnectedCalendar, DueCalendarReminder, EventDetails,
+    GoogleCalendarSyncSnapshot, GoogleEventSyncBatch, GoogleScopeSet, GoogleSyncPlan,
+    GoogleWatchChannel, GoogleWatchConfig, GuestPolicy, OccurrenceListing, OccurrenceRange,
+    OwnedInbox, ProviderCalendar, ProviderCalendarTarget, StoredGoogleCalendar, TeamOutOfOffice,
+    VisibleCalendar,
 };
 
 /// Classification supplied by provider adapters to backfill policy.
@@ -252,6 +253,24 @@ pub trait CalendarMutationProvider: Send + Sync + 'static {
         scope: &CalendarUpdateScope,
     ) -> impl Future<Output = Result<ProviderInviteOutcome, CalendarProviderError>> + Send;
 
+    /// Import a snapshot of another calendar's event into the target
+    /// calendar under the source's iCalendar UID: the meeting's organizer
+    /// and content, with the calendar's owner as its only guest, since
+    /// Google imports an event only for its organizer or an attendee. No one
+    /// is notified: the meeting's guests are left out and an import sends
+    /// nothing.
+    ///
+    /// Imports nothing when the calendar already holds a live event with
+    /// that UID ([`ProviderImportOutcome::AlreadyHeld`]). Google's import
+    /// updates such an event in place, which would strip the guests and join
+    /// link of an invitation Macro has not synced yet.
+    fn import_event(
+        &self,
+        access_token: &str,
+        target: &ProviderCalendarTarget,
+        source: &CalendarEventExport,
+    ) -> impl Future<Output = Result<ProviderImportOutcome, CalendarProviderError>> + Send;
+
     /// Close a push notification channel. A channel Google no longer knows
     /// about is success, since the goal is only that it stops delivering.
     fn stop_watch_channel(
@@ -373,6 +392,17 @@ pub enum ProviderInviteOutcome {
     GuestListHidden(GuestPolicy),
     /// The event no longer exists at the provider.
     Gone,
+}
+
+/// Result of importing a snapshot of a shared event.
+pub enum ProviderImportOutcome {
+    /// The snapshot was imported; the echo carries the new event.
+    Imported(Box<CalendarEventUpsert>),
+    /// The calendar already holds a live event under the meeting's UID;
+    /// nothing was imported.
+    AlreadyHeld,
+    /// The provider refused to import the snapshot into this calendar.
+    Refused(CalendarProviderError),
 }
 
 /// Inbound service port for querying calendar occurrence projections.
@@ -538,12 +568,12 @@ pub trait CalendarRepository: Send + Sync + 'static {
         now: DateTime<Utc>,
     ) -> impl Future<Output = Result<Vec<CalendarMentionPreview>, Report>> + Send;
 
-    /// Series content of an event the requester can see, for export: the
-    /// requester's own projection of the meeting (same iCalendar UID) on one
-    /// of their own or linked calendars, else the requested row itself when
-    /// it is neither private nor confidential and was shared with a channel
-    /// they currently belong to. `None` covers an unknown or cancelled event
-    /// and one they cannot see.
+    /// Series content of an event the requester can see, for export or
+    /// copying, with how they see it: the requester's own projection of the
+    /// meeting (same iCalendar UID) on one of their own or linked calendars,
+    /// else the requested row itself when it is neither private nor
+    /// confidential and was shared with a channel they currently belong to.
+    /// `None` covers an unknown or cancelled event and one they cannot see.
     fn event_export(
         &self,
         requester_id: &str,
@@ -680,6 +710,15 @@ pub trait CalendarRepository: Send + Sync + 'static {
         event_id: Uuid,
         recurrence_id: &str,
     ) -> impl Future<Output = Result<Option<Vec<CalendarAttendee>>, Report>> + Send;
+
+    /// The stored details of a canonical event, or of one occurrence when
+    /// `occurrence_key` names it: the occurrence's own content and time where
+    /// it overrides the series. `None` covers an unknown event.
+    fn get_event_details(
+        &self,
+        event_id: Uuid,
+        occurrence_key: Option<&str>,
+    ) -> impl Future<Output = Result<Option<EventDetails>, Report>> + Send;
 
     /// Store the guest policy the provider reported when it refused an
     /// invite, on the entity and every copy's projection. Incremental sync
@@ -832,6 +871,18 @@ pub trait CalendarMutationService: Send + Sync + 'static {
         scope: CalendarUpdateScope,
     ) -> impl Future<Output = Result<CalendarEvent, CalendarMutationError>> + Send;
 
+    /// Add a snapshot of an event shared with one of the requester's
+    /// channels to one of their Google calendars — the selected one, or
+    /// their primary inbox's primary calendar — and persist the provider
+    /// echo. The snapshot keeps the meeting's iCalendar UID, so it becomes
+    /// the requester's own projection of that meeting.
+    fn copy_shared_event(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+        calendar_id: Option<Uuid>,
+    ) -> impl Future<Output = Result<CalendarEvent, CalendarMutationError>> + Send;
+
     /// Turn calendar off for one of the requester's own connected inboxes:
     /// its calendar data is removed, the calendar scopes leave the recorded
     /// grant, and its push channels are closed at Google.
@@ -936,6 +987,19 @@ pub enum CalendarMutationError {
     /// whole list a guest addition must write.
     #[error("guests cannot be added while the organizer hides the guest list")]
     GuestListHidden,
+    /// The organizer does not let guests change the event's details.
+    #[error("the organizer doesn't let guests change this event")]
+    GuestsCannotModify,
+    /// The meeting is already on one of the requester's calendars.
+    #[error("the event is already on one of the requester's calendars")]
+    AlreadyOnCalendar,
+    /// The provider refused to add a copy of the event to the calendar.
+    #[error("the calendar provider refused to add a copy of the event: {0}")]
+    CopyRefused(String),
+    /// The event is a snapshot of a shared meeting, so an answer or a new
+    /// guest would never reach the meeting.
+    #[error("the event is a snapshot of a shared meeting")]
+    Snapshot,
     /// The supplied fields were invalid.
     #[error("invalid calendar mutation: {0}")]
     InvalidInput(String),

@@ -4,6 +4,21 @@ import type { CalendarEvent } from '../types';
 /** Shown where a guest would add guests when the organizer does not allow it. */
 export const GUEST_INVITES_RESTRICTED = 'Only the organizer can invite guests.';
 
+/** Shown where a guest would change the event when the organizer does not allow it. */
+export const GUEST_EDITS_RESTRICTED =
+  'Only the organizer can change this event.';
+
+/**
+ * Whether the viewer is a guest the organizer does not let modify the event,
+ * so its title, time, description, location, recurrence and conferencing stay
+ * as the organizer set them. Reminders stay the guest's own. Someone neither
+ * organizing nor invited keeps what their calendar access allows, as on the
+ * server.
+ */
+export function guestEditsRestricted(event: CalendarEvent): boolean {
+  return event.viewerCan.rsvp && !event.viewerCan.editDetails;
+}
+
 function normalizeGuestEmail(email: string) {
   return email.trim().toLowerCase();
 }
@@ -68,12 +83,15 @@ export function eventGuestEditing(
 
 /**
  * Whether the viewer is a guest on a writable event whose organizer does not
- * let guests invite others, so the guest list explains why it cannot grow.
+ * let guests invite others, so the guest list explains why it cannot grow. A
+ * snapshot lists the viewer only so Google would take it; the details
+ * already say it is a copy.
  */
 export function guestInvitesRestricted(event: CalendarEvent): boolean {
   return (
     !event.isReadOnly &&
     !event.teamProjection &&
+    !event.isSnapshot &&
     !event.viewerCan.inviteGuests &&
     event.attendees.some((attendee) => attendee.isSelf)
   );

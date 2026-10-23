@@ -195,6 +195,12 @@ export type CalendarEvent = {
      */
     isReadOnly: boolean;
     /**
+     * Whether this is a snapshot of a meeting shared with the owner, which
+     * Macro added to their calendar as a private copy: the meeting's changes
+     * never reach it, and nothing done to it reaches the meeting.
+     */
+    isSnapshot: boolean;
+    /**
      * Optional physical or virtual location label.
      */
     location?: string | null;
@@ -360,7 +366,7 @@ export type CalendarMutationApiError = {
 /**
  * Machine-readable failure category for calendar mutations.
  */
-export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'guests_cannot_invite' | 'guest_list_hidden' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
+export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'guests_cannot_invite' | 'guest_list_hidden' | 'guests_cannot_modify' | 'already_on_calendar' | 'copy_refused' | 'snapshot' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
 
 /**
  * Provider selected from the persisted calendar account and email binding.
@@ -453,6 +459,17 @@ export type ConferenceChange = 'provider_default' | 'microsoft_teams' | 'google_
  * changes still require provider and calendar capability validation.
  */
 export type ConferenceProvider = 'microsoft_teams' | 'google_meet' | 'other';
+
+/**
+ * Request body adding a channel-shared event to the requester's calendar.
+ */
+export type CopyCalendarEventRequest = {
+    /**
+     * Google calendar to add the copy to; defaults to the requester's
+     * primary inbox's primary calendar.
+     */
+    calendarId?: string | null;
+};
 
 /**
  * Request body creating a calendar event on the requester's calendar.
@@ -1057,7 +1074,7 @@ export type UpdateCalendarEventErrors = {
      */
     401: unknown;
     /**
-     * Calendar is read-only or needs reauthorization
+     * Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting
      */
     403: CalendarMutationApiError;
     /**
@@ -1085,6 +1102,56 @@ export type UpdateCalendarEventResponses = {
 
 export type UpdateCalendarEventResponse = UpdateCalendarEventResponses[keyof UpdateCalendarEventResponses];
 
+export type CopyCalendarEventData = {
+    body: CopyCalendarEventRequest;
+    path: {
+        /**
+         * Shared calendar event entity id
+         */
+        event_id: string;
+    };
+    query?: never;
+    url: '/events/{event_id}/copy';
+};
+
+export type CopyCalendarEventErrors = {
+    /**
+     * The event cannot be copied, or the calendar is not a Google calendar
+     */
+    400: CalendarMutationApiError;
+    /**
+     * Authentication required
+     */
+    401: unknown;
+    /**
+     * Calendar is read-only or needs reauthorization
+     */
+    403: CalendarMutationApiError;
+    /**
+     * Event not found or not shared with the requester
+     */
+    404: CalendarMutationApiError;
+    /**
+     * Already on the requester's calendar, no writable calendar, or the provider refused the copy
+     */
+    409: CalendarMutationApiError;
+    /**
+     * Transient provider failure
+     */
+    503: CalendarMutationApiError;
+};
+
+export type CopyCalendarEventError = CopyCalendarEventErrors[keyof CopyCalendarEventErrors];
+
+export type CopyCalendarEventResponses = {
+    /**
+     * The copy on the requester's calendar
+     */
+    201: CalendarEvent;
+};
+
+export type CopyCalendarEventResponse = CopyCalendarEventResponses[keyof CopyCalendarEventResponses];
+
 export type InviteCalendarEventGuestsData = {
     body: InviteCalendarEventGuestsRequest;
     path: {
@@ -1107,7 +1174,7 @@ export type InviteCalendarEventGuestsErrors = {
      */
     401: unknown;
     /**
-     * Calendar is read-only, only the organizer can invite guests, or the calendar needs reauthorization
+     * Calendar is read-only, only the organizer can invite guests, the event is a snapshot of a shared meeting, or the calendar needs reauthorization
      */
     403: CalendarMutationApiError;
     /**
@@ -1204,7 +1271,7 @@ export type RsvpCalendarEventErrors = {
      */
     401: unknown;
     /**
-     * Calendar is read-only or needs reauthorization
+     * Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting
      */
     403: CalendarMutationApiError;
     /**

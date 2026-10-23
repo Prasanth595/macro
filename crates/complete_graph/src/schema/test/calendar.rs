@@ -59,6 +59,7 @@ fn listing() -> OccurrenceListing {
             attendees: Vec::new(),
             reminders: EventReminders::default(),
             guest_policy: GuestPolicy::default(),
+            is_snapshot: false,
             viewer_can: ViewerCapabilities::NONE,
             created_at: starts_at,
             updated_at: starts_at,
@@ -300,6 +301,15 @@ impl calendar_events::domain::ports::CalendarMutationService for RecordingCalend
         _calendar_id: Option<Uuid>,
         _guests: Vec<calendar_events::domain::models::CalendarAttendeeInput>,
         _scope: calendar_events::domain::ports::CalendarUpdateScope,
+    ) -> Result<CalendarEvent, calendar_events::domain::ports::CalendarMutationError> {
+        unreachable!("only deletion is exercised")
+    }
+
+    async fn copy_shared_event(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+        _calendar_id: Option<Uuid>,
     ) -> Result<CalendarEvent, calendar_events::domain::ports::CalendarMutationError> {
         unreachable!("only deletion is exercised")
     }

@@ -7,6 +7,8 @@
 //! no-ops on the idempotency short-circuit.
 
 use std::collections::HashMap;
+mod copy;
+mod details;
 mod invite;
 mod replacement;
 
@@ -26,13 +28,15 @@ use super::{
         CalendarEventWrite, CalendarEventWriteOutcome, CalendarMutationError,
         CalendarMutationProvider, CalendarMutationService, CalendarProviderError,
         CalendarProviderErrorKind, CalendarRefreshNotifier, CalendarRepository, CalendarRsvpScope,
-        CalendarTokenError, CalendarUpdateScope, ProviderInstanceUpdateOutcome,
-        ProviderInviteOutcome, ProviderRsvpOutcome, ProviderSeriesMutationOutcome,
-        RetiredCalendarEvent,
+        CalendarTokenError, CalendarUpdateScope, ProviderImportOutcome,
+        ProviderInstanceUpdateOutcome, ProviderInviteOutcome, ProviderRsvpOutcome,
+        ProviderSeriesMutationOutcome, RetiredCalendarEvent,
     },
 };
 use crate::domain::events::{CalendarEventMetadata, CalendarMacroEvent, CalendarTopicEvent};
 use macro_event_broker::MacroEventBroker;
+
+const EMPTY_PATCH: &str = "the patch changes nothing";
 
 /// Calendar mutation use cases with provider, token, and persistence
 /// details behind ports.
@@ -298,9 +302,7 @@ where
         scope: CalendarUpdateScope,
     ) -> Result<CalendarEvent, CalendarMutationError> {
         if patch.is_empty() {
-            return Err(CalendarMutationError::InvalidInput(
-                "the patch changes nothing".to_string(),
-            ));
+            return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
         }
         if let Some(time) = &patch.time {
             validate_time(time)?;
@@ -328,12 +330,26 @@ where
         }
         self.require_provider_writes(target.token_identity.provider)?;
         validate_conference(target.token_identity.provider, patch.conference)?;
+        // The stored list is the baseline — an occurrence's own list when
+        // an occurrence-scoped patch addresses one — so a retained guest's
+        // per-instance RSVP wins over their series status.
+        let stored = self.stored_attendees(event_id, &scope).await?;
+        let capabilities = invite::copy_capabilities(&target, &stored);
+        // Checked before any guest is invited, so a refused change leaves
+        // the event untouched.
+        self.require_detail_rights(
+            event_id,
+            &scope,
+            capabilities,
+            target.is_snapshot,
+            &mut patch,
+        )
+        .await?;
+        if patch.is_empty() {
+            return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
+        }
         if let Some(mut attendees) = patch.attendees.take() {
-            // The stored list is the baseline — an occurrence's own list when
-            // an occurrence-scoped patch addresses one — so a retained guest's
-            // per-instance RSVP wins over their series status.
-            let stored = self.stored_attendees(event_id, &scope).await?;
-            if invite::copy_capabilities(&target, &stored).remove_guests {
+            if capabilities.remove_guests {
                 preserve_retained_attendee_state(&mut attendees, &stored);
                 patch.attendees = Some(attendees);
             } else {
@@ -355,9 +371,7 @@ where
                         return Ok(invited);
                     }
                 } else if patch.is_empty() {
-                    return Err(CalendarMutationError::InvalidInput(
-                        "the patch changes nothing".to_string(),
-                    ));
+                    return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
                 }
             }
         }
@@ -520,6 +534,11 @@ where
         if target.is_read_only {
             return Err(CalendarMutationError::ReadOnly);
         }
+        // The owner is listed on a snapshot only so the provider accepts it;
+        // their answer would never reach the meeting.
+        if target.is_snapshot {
+            return Err(CalendarMutationError::Snapshot);
+        }
         self.require_provider_writes(target.token_identity.provider)?;
         let Some(actor) = target.actor.as_ref() else {
             return Err(CalendarMutationError::NotAttendee);
@@ -599,6 +618,33 @@ where
             .add_guests(requester_id, event_id, calendar_id, guests, scope)
             .await;
         tracing::Span::current().record("outcome", invite::invite_outcome(&result));
+        result
+    }
+
+    #[tracing::instrument(
+        name = "calendar.copy_shared_event",
+        skip(self, requester_id),
+        fields(
+            event_id = %event_id,
+            copied_event_id = tracing::field::Empty,
+            outcome = tracing::field::Empty,
+        ),
+        err
+    )]
+    async fn copy_shared_event(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+        calendar_id: Option<Uuid>,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
+        let result = self
+            .copy_into_calendar(requester_id, event_id, calendar_id)
+            .await;
+        let span = tracing::Span::current();
+        if let Ok(copied) = &result {
+            span.record("copied_event_id", tracing::field::display(copied.id));
+        }
+        span.record("outcome", copy::copy_outcome(&result));
         result
     }
 

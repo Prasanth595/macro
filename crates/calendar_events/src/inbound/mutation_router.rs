@@ -104,6 +104,10 @@ where
             "/events/{event_id}/guests",
             post(invite_calendar_event_guests::<S, L, Auth>),
         )
+        .route(
+            "/events/{event_id}/copy",
+            post(copy_calendar_event::<S, L, Auth>),
+        )
         .with_state(state)
 }
 
@@ -360,6 +364,15 @@ pub enum CalendarMutationErrorCode {
     GuestsCannotInvite,
     /// The organizer hides the guest list, so a guest cannot add guests.
     GuestListHidden,
+    /// The organizer does not let guests change the event's details.
+    GuestsCannotModify,
+    /// The meeting is already on one of the requester's calendars.
+    AlreadyOnCalendar,
+    /// The provider refused to add a copy of the event to the calendar.
+    CopyRefused,
+    /// The event is a snapshot of a shared meeting, so an answer or a new
+    /// guest would never reach the meeting.
+    Snapshot,
     /// The request was invalid.
     InvalidInput,
     /// The calendar grant must be re-consented.
@@ -438,6 +451,26 @@ impl From<CalendarMutationError> for CalendarMutationApiError {
                 StatusCode::FORBIDDEN,
                 CalendarMutationErrorCode::GuestListHidden,
                 "Guests cannot be added while the organizer hides the guest list.".to_string(),
+            ),
+            CalendarMutationError::GuestsCannotModify => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::GuestsCannotModify,
+                "The organizer doesn't let guests change this event.".to_string(),
+            ),
+            CalendarMutationError::AlreadyOnCalendar => (
+                StatusCode::CONFLICT,
+                CalendarMutationErrorCode::AlreadyOnCalendar,
+                "this event is already on one of your calendars".to_string(),
+            ),
+            CalendarMutationError::CopyRefused(_) => (
+                StatusCode::CONFLICT,
+                CalendarMutationErrorCode::CopyRefused,
+                "Google Calendar won't add a copy of this event to that calendar.".to_string(),
+            ),
+            CalendarMutationError::Snapshot => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::Snapshot,
+                "This is your own copy of a shared event, so answers and guests won't reach its organizer.".to_string(),
             ),
             CalendarMutationError::InvalidInput(message) => (
                 StatusCode::BAD_REQUEST,
@@ -643,7 +676,7 @@ fn update_scope(
         (status = 200, description = "The updated calendar event", body = CalendarEvent),
         (status = 400, description = "Invalid event fields", body = CalendarMutationApiError),
         (status = 401, description = "Authentication required"),
-        (status = 403, description = "Calendar is read-only or needs reauthorization", body = CalendarMutationApiError),
+        (status = 403, description = "Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting", body = CalendarMutationApiError),
         (status = 404, description = "Event or targeted occurrence not found", body = CalendarMutationApiError),
         (status = 409, description = "The provider rejected the update", body = CalendarMutationApiError),
         (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
@@ -758,7 +791,7 @@ where
     responses(
         (status = 200, description = "The updated calendar event", body = CalendarEvent),
         (status = 401, description = "Authentication required"),
-        (status = 403, description = "Calendar is read-only or needs reauthorization", body = CalendarMutationApiError),
+        (status = 403, description = "Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting", body = CalendarMutationApiError),
         (status = 404, description = "Event not found", body = CalendarMutationApiError),
         (status = 409, description = "The connected account is not an attendee", body = CalendarMutationApiError),
         (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
@@ -815,7 +848,7 @@ where
         (status = 200, description = "The updated calendar event", body = CalendarEvent),
         (status = 400, description = "Invalid guests or scope", body = CalendarMutationApiError),
         (status = 401, description = "Authentication required"),
-        (status = 403, description = "Calendar is read-only, only the organizer can invite guests, or the calendar needs reauthorization", body = CalendarMutationApiError),
+        (status = 403, description = "Calendar is read-only, only the organizer can invite guests, the event is a snapshot of a shared meeting, or the calendar needs reauthorization", body = CalendarMutationApiError),
         (status = 404, description = "Event or occurrence not found", body = CalendarMutationApiError),
         (status = 409, description = "The connected account neither organizes nor attends the event", body = CalendarMutationApiError),
         (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
@@ -855,4 +888,56 @@ where
         )
         .await?;
     Ok(Json(event))
+}
+
+/// Request body adding a channel-shared event to the requester's calendar.
+#[derive(Debug, Default, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CopyCalendarEventRequest {
+    /// Google calendar to add the copy to; defaults to the requester's
+    /// primary inbox's primary calendar.
+    pub calendar_id: Option<Uuid>,
+}
+
+/// Add a snapshot of an event shared with one of the requester's channels to
+/// one of their Google calendars and return the synced snapshot. The
+/// snapshot keeps the meeting's iCalendar UID and organizer, lists only the
+/// requester as a guest, and carries no join link; nobody is notified.
+#[tracing::instrument(skip_all, fields(event_id = %event_id), err)]
+#[utoipa::path(
+    post,
+    path = "/events/{event_id}/copy",
+    tag = "calendar_events",
+    params(("event_id" = Uuid, Path, description = "Shared calendar event entity id")),
+    request_body = CopyCalendarEventRequest,
+    responses(
+        (status = 201, description = "The copy on the requester's calendar", body = CalendarEvent),
+        (status = 400, description = "The event cannot be copied, or the calendar is not a Google calendar", body = CalendarMutationApiError),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Calendar is read-only or needs reauthorization", body = CalendarMutationApiError),
+        (status = 404, description = "Event not found or not shared with the requester", body = CalendarMutationApiError),
+        (status = 409, description = "Already on the requester's calendar, no writable calendar, or the provider refused the copy", body = CalendarMutationApiError),
+        (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
+    )
+)]
+pub async fn copy_calendar_event<S, L, Auth>(
+    State(state): State<CalendarMutationRouterState<S, L, Auth>>,
+    user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    Path(event_id): Path<Uuid>,
+    Json(request): Json<CopyCalendarEventRequest>,
+) -> Result<(StatusCode, Json<CalendarEvent>), CalendarMutationApiError>
+where
+    S: CalendarMutationService,
+    L: MeetingLinkProvider,
+    Auth: MacroAuthorizationService,
+{
+    let event = state
+        .service
+        .copy_shared_event(
+            user.authorization.user.macro_user_id.as_ref(),
+            event_id,
+            request.calendar_id,
+        )
+        .await?;
+    Ok((StatusCode::CREATED, Json(event)))
 }
