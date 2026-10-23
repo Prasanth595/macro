@@ -92,7 +92,8 @@ as in any channel.
 
 A step that made, changed, or sent an item names it on its line, where the
 step's detail would be, and clicking the name opens the item. Cards appear only
-for what the agent chose to show: a view it showed with `Show` replaces its
+for what the agent chose to show, unasked: the few items it made, changed or
+found that you will want to open. A view it showed with `Show` replaces its
 step, and a database answer it asked to show sits under its step. A view `Show`
 turned back as one it could not draw is no step at all, so it neither shows nor
 keeps the run from folding; the agent shows the view again. The reply's text

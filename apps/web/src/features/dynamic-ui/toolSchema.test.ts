@@ -129,6 +129,11 @@ describe('Show tool contract', () => {
     expect(schema.description).toContain(
       'Never mention, link or name in your reply an item the view shows'
     );
+    // The agent shows what matters without being asked, and only that.
+    expect(schema.description).toContain('the user will not ask');
+    expect(schema.description).toContain(
+      'Show the smallest set that does the job'
+    );
     expect(schema.required).toEqual(['view']);
   });
 });
