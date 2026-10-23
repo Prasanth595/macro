@@ -28,26 +28,18 @@ test.beforeEach(async ({ page }) => {
 
 test('downloads the original video from the message and expanded viewer', async ({
   page,
-}, info) => {
-  const touch = info.project.name !== 'desktop';
-  const action = touch ? 'Save or share' : 'Download';
+}) => {
+  const action = 'Download';
   const clickDownload = async () => {
     await page
       .getByRole('button', { name: action, exact: true })
       .last()
       .click();
-    if (touch) {
-      await expect(
-        page.getByRole('dialog', { name: 'Save or share file' })
-      ).toContainText('Team demo.webm');
-      await page
-        .getByRole('button', { name: 'Download file', exact: true })
-        .click();
-    }
   };
   const firstDownload = page.waitForEvent('download');
   await clickDownload();
   const first = await firstDownload;
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(first.suggestedFilename()).toBe('Team demo.webm');
   expect(await readFile((await first.path())!)).toEqual(
     await readFile(videoPath)
@@ -71,7 +63,7 @@ test('downloads the original video from the message and expanded viewer', async 
 
 test('recovers from a failed transfer and never opens the viewer when downloading', async ({
   page,
-}, info) => {
+}) => {
   let failed = false;
   const video = await readFile(videoPath);
   await page.route('**/file/download-video', (route) => {
@@ -80,29 +72,21 @@ test('recovers from a failed transfer and never opens the viewer when downloadin
     failed = true;
     return route.fulfill({ status: 404 });
   });
-  const touch = info.project.name !== 'desktop';
   await page
     .getByRole('button', {
-      name: touch ? 'Save or share' : 'Download',
+      name: 'Download',
       exact: true,
     })
     .click();
   await expect(page.locator('video[controls]')).toHaveCount(0);
   const saved = page.waitForEvent('download');
-  if (touch) {
-    await page.getByRole('button', { name: 'Try again', exact: true }).click();
-    await page
-      .getByRole('button', { name: 'Download file', exact: true })
-      .click();
-  } else {
-    await page
-      .getByRole('button', { name: 'Retry download', exact: true })
-      .click();
-  }
+  await page
+    .getByRole('button', { name: 'Retry download', exact: true })
+    .click();
   expect((await saved).suggestedFilename()).toBe('Team demo.webm');
   await expect(
     page.getByRole('button', {
-      name: touch ? 'Save or share' : 'Download',
+      name: 'Download',
       exact: true,
     })
   ).toBeFocused();
@@ -110,25 +94,67 @@ test('recovers from a failed transfer and never opens the viewer when downloadin
 
 test('the shared Drive and standalone header downloads through its visible action', async ({
   page,
-}, info) => {
+}) => {
   await page.goto('/?header');
-  const touch = info.project.name !== 'desktop';
   const trigger = page.getByRole('button', {
-    name: touch ? 'Save or share' : 'Download',
+    name: 'Download',
     exact: true,
   });
   const saved = page.waitForEvent('download');
   await trigger.click();
-  if (touch)
-    await page
-      .getByRole('button', { name: 'Download file', exact: true })
-      .click();
   const file = await saved;
   expect(file.suggestedFilename()).toBe('Team demo.webm');
   expect(await readFile((await file.path())!)).toEqual(
     await readFile(videoPath)
   );
   await expect(trigger).toBeFocused();
+  await expect(page.locator('body')).toHaveJSProperty(
+    'scrollWidth',
+    await page.locator('body').evaluate((body) => body.clientWidth)
+  );
+});
+
+test('shares from a separate action after a transfer outlives browser activation', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'canShare', { value: () => true });
+    Object.defineProperty(navigator, 'userActivation', {
+      value: { isActive: false },
+    });
+    Object.defineProperty(navigator, 'share', {
+      value: async (data: ShareData) => {
+        Object.defineProperty(window, 'sharedFileName', {
+          configurable: true,
+          value: data.files?.[0]?.name,
+        });
+      },
+    });
+  });
+  await page.reload();
+  const share = page.getByRole('button', { name: 'Share file', exact: true });
+  await share.click();
+  await expect(
+    page.getByText('File ready — tap Share file', { exact: true })
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => Reflect.get(window, 'sharedFileName'))
+  ).toBeUndefined();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const saving = page.waitForEvent('download');
+  const download = page.getByRole('button', { name: 'Download', exact: true });
+  await download.click();
+  expect((await saving).suggestedFilename()).toBe('Team demo.webm');
+  await expect(download).toBeFocused();
+  await share.click();
+  await expect(
+    page.getByText('File ready — tap Share file', { exact: true })
+  ).toBeVisible();
+  await share.click();
+  await expect
+    .poll(() => page.evaluate(() => Reflect.get(window, 'sharedFileName')))
+    .toBe('Team demo.webm');
+  await expect(share).toBeFocused();
   await expect(page.locator('body')).toHaveJSProperty(
     'scrollWidth',
     await page.locator('body').evaluate((body) => body.clientWidth)

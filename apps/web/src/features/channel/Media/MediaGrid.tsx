@@ -1,7 +1,4 @@
-import {
-  FileDownloadButton,
-  FileDownloadDialog,
-} from '@core/component/FileDownload';
+import { FileDownloadButton } from '@core/component/FileDownload';
 import { createFileDownload } from '@core/util/createFileDownload';
 import { constrainImageDimensions } from '@macro-inc/lexical-core/utils/media';
 import ExpandIcon from '@phosphor/arrows-out-simple.svg';
@@ -163,7 +160,6 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
           <FileDownloadButton download={download} />
         </div>
       </div>
-      <FileDownloadDialog download={download} />
     </div>
   );
 }

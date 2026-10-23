@@ -1,7 +1,4 @@
-import {
-  FileDownloadButton,
-  FileDownloadDialog,
-} from '@core/component/FileDownload';
+import { FileDownloadButton } from '@core/component/FileDownload';
 import { Lightbox, LightboxToolbar } from '@core/component/Lightbox';
 import { isMobile } from '@core/mobile/isMobile';
 import {
@@ -83,12 +80,6 @@ function VideoViewerContent(props: {
     >
       <Dialog.Content
         class="flex items-center justify-center bg-surface"
-        onInteractOutside={(event) => {
-          if (props.download.open()) event.preventDefault();
-        }}
-        onEscapeKeyDown={(event) => {
-          if (props.download.open()) event.preventDefault();
-        }}
         onOpenAutoFocus={() => {
           if (document.activeElement instanceof HTMLElement)
             opener = document.activeElement;
@@ -111,7 +102,6 @@ function VideoViewerContent(props: {
             <XIcon />
           </Dialog.CloseButton>
         </LightboxToolbar>
-        <FileDownloadDialog download={props.download} />
 
         <Show when={props.indexLabel}>
           <div
@@ -185,7 +175,6 @@ export function MediaViewerDialog(props: MediaViewerDialogProps) {
   return (
     <Dialog
       open={props.open}
-      modal={!download.open()}
       onOpenChange={(open) => {
         if (!open) download.cancel();
         props.onOpenChange(open);

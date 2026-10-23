@@ -1,6 +1,6 @@
 import { toast } from '@core/component/Toast/Toast';
 import { exportAndroidFileWithProgress } from '@core/mobile/exportAndroidFileWithProgress';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { exportIosFile, hasIosFileExport } from '@core/mobile/iosFiles';
 import { isPlatform } from '@core/util/platform';
 import type { ResultError } from '@core/util/result';
 import { downloadFile } from '@filesystem/download';
@@ -31,7 +31,8 @@ export function createFileDownload(
   const [phase, setPhase] = createSignal<
     'idle' | 'loading' | 'ready' | 'saving' | 'error'
   >('idle');
-  const [open, setOpen] = createSignal(false);
+  const [action, setAction] = createSignal<'save' | 'share'>('save');
+  let nativeIos = false;
   const [file, setFile] = createSignal<File>();
   const [name, setName] = createSignal('');
   const [progress, setProgress] = createSignal<FetchProgress>({
@@ -39,6 +40,8 @@ export function createFileDownload(
     total: 0,
   });
   let controller: AbortController | undefined;
+  const isCurrent = (request: AbortController) =>
+    controller === request && !request.signal.aborted;
   let selectedId: string | undefined;
   let trace: Span | undefined;
   const finishTrace = (outcome: string, error?: unknown) => {
@@ -56,7 +59,6 @@ export function createFileDownload(
     finishTrace('canceled');
     controller?.abort();
     controller = undefined;
-    setOpen(false);
     setFile(undefined);
     setPhase('idle');
   };
@@ -65,16 +67,22 @@ export function createFileDownload(
   createEffect(on(() => source()?.id, cancel, { defer: true }));
 
   const busy = () => phase() === 'loading' || phase() === 'saving';
+  const canOfferShare = () =>
+    isPlatform('android') ||
+    isPlatform('ios') ||
+    typeof navigator.share === 'function';
   const canShare = () => {
     const ready = file();
     return (
       !!ready &&
-      (isPlatform('android') || !!navigator.canShare?.({ files: [ready] }))
+      (isPlatform('android') ||
+        nativeIos ||
+        !!navigator.canShare?.({ files: [ready] }))
     );
   };
 
-  // Called directly from the ready sheet's button, without a network await:
-  // Web Share requires a fresh user gesture, especially for large videos on iOS.
+  // A prepared Web Share file can be handed off from the original control on
+  // a fresh tap if loading outlived the browser's user activation.
   const handOff = async (action: 'save' | 'share') => {
     const ready = file();
     const request = controller;
@@ -100,7 +108,18 @@ export function createFileDownload(
             action,
             request.signal
           ));
-        } else if (action === 'share') {
+        } else if (nativeIos) {
+          ({ canceled } = await exportIosFile(ready, action, {
+            signal: request.signal,
+            onProgress: (fraction) => {
+              if (controller === request)
+                setProgress({
+                  loaded: fraction * ready.size,
+                  total: ready.size,
+                });
+            },
+          }));
+        } else if (action === 'share' || isPlatform('ios')) {
           await navigator.share({ files: [ready] });
         } else {
           const { saved } = await downloadFile(ready, ready.name);
@@ -120,19 +139,22 @@ export function createFileDownload(
           setPhase('ready');
           return;
         }
-        if (action === 'save') {
+        if (action === 'save' && (!isPlatform('ios') || nativeIos)) {
           toast.success(
-            isPlatform('android') ? 'File saved' : 'Download started',
+            isPlatform('android') || nativeIos
+              ? 'File saved'
+              : 'Download started',
             {
-              subtext: isPlatform('android')
-                ? ready.name
-                : `${ready.name} — check your browser or device downloads.`,
+              subtext:
+                isPlatform('android') || nativeIos
+                  ? ready.name
+                  : `${ready.name} — check your browser or device downloads.`,
             }
           );
         }
         finishTrace('handed_off');
         cancel();
-        if (!isTouchDevice()) restoreFocus();
+        restoreFocus();
       });
     } catch (error) {
       const canceled =
@@ -148,22 +170,54 @@ export function createFileDownload(
       );
       if (canceled) return;
       Telemetry.error(error, { surface: 'file-download' });
-      toast.failure('Unable to save or share file', {
-        subtext: 'Please try again.',
-      });
+      toast.failure(
+        action === 'share' ? 'Unable to share file' : 'Unable to download file',
+        {
+          subtext: 'Please try again.',
+        }
+      );
     } finally {
       span.end();
     }
   };
 
-  const start = async () => {
+  const handOffWhenReady = async (nextAction: 'save' | 'share') => {
+    const usesWebShare =
+      !nativeIos &&
+      !isPlatform('android') &&
+      (nextAction === 'share' || isPlatform('ios'));
+    if (usesWebShare) {
+      if (!canShare()) {
+        setPhase('error');
+        finishTrace('unsupported');
+        toast.failure('This device can’t share this file');
+        return;
+      }
+      if (!navigator.userActivation?.isActive) {
+        toast.custom({
+          title:
+            nextAction === 'share'
+              ? 'File ready — tap Share file'
+              : 'File ready — tap Save file',
+        });
+        return;
+      }
+    }
+    await handOff(nextAction);
+  };
+
+  const start = async (nextAction: 'save' | 'share' = 'save') => {
     if (busy()) return;
+    if (document.activeElement instanceof HTMLElement)
+      opener = document.activeElement;
+    if (phase() === 'ready' && file() && source()?.id === selectedId) {
+      setAction(nextAction);
+      await handOff(nextAction);
+      return;
+    }
     const snapshot = source();
     if (!snapshot) return;
-    if (!open() && document.activeElement instanceof HTMLElement)
-      opener = document.activeElement;
     const request = new AbortController();
-    const mobile = isTouchDevice();
     batch(() => {
       cancel();
       selectedId = snapshot.id;
@@ -171,12 +225,18 @@ export function createFileDownload(
       setName(snapshot.name);
       setProgress({ loaded: 0, total: 0 });
       setPhase('loading');
-      setOpen(mobile);
+      setAction(nextAction);
     });
     trace = Telemetry.span('file.download');
     trace.setAttr('file.id', snapshot.id);
+    trace.setAttr('file.action', nextAction);
     const span = trace.span('file.load');
     try {
+      nativeIos = isPlatform('ios') && (await hasIosFileExport());
+      if (!isCurrent(request)) {
+        span.end();
+        return;
+      }
       const result = await span.run(async () => {
         try {
           const result = await snapshot.load({
@@ -196,7 +256,7 @@ export function createFileDownload(
           span.end();
         }
       });
-      if (controller !== request || request.signal.aborted) return;
+      if (!isCurrent(request)) return;
       if (source()?.id !== snapshot.id) {
         cancel();
         return;
@@ -204,10 +264,9 @@ export function createFileDownload(
       if (result.isErr()) {
         setPhase('error');
         finishTrace('failed', result.error);
-        if (!mobile)
-          toast.failure('Unable to download file', {
-            subtext: 'Try again. The file may no longer be available.',
-          });
+        toast.failure('Unable to download file', {
+          subtext: 'Try again. The file may no longer be available.',
+        });
         return;
       }
       const filename = result.value.name || snapshot.name;
@@ -219,31 +278,28 @@ export function createFileDownload(
         })
       );
       setPhase('ready');
-      if (!mobile) await handOff('save');
+      await handOffWhenReady(nextAction);
     } catch (error) {
-      if (controller !== request || request.signal.aborted) return;
+      if (!isCurrent(request)) return;
       setPhase('error');
       finishTrace('failed', error);
       Telemetry.error(error, { surface: 'file-download' });
-      if (!mobile)
-        toast.failure('Unable to download file', {
-          subtext: 'Try again. The file may no longer be available.',
-        });
+      toast.failure('Unable to download file', {
+        subtext: 'Try again. The file may no longer be available.',
+      });
     }
   };
 
   return {
     start,
     cancel,
-    handOff,
-    open,
+    action,
     phase,
     busy,
     file,
     name,
     progress,
-    canShare,
-    restoreFocus,
+    canOfferShare,
   };
 }
 

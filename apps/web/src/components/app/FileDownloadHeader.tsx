@@ -1,7 +1,4 @@
-import {
-  FileDownloadButton,
-  FileDownloadDialog,
-} from '@core/component/FileDownload';
+import { FileDownloadButton } from '@core/component/FileDownload';
 import type { FileDownloadController } from '@core/util/createFileDownload';
 import { HeaderActionGroup } from './HeaderActionGroup';
 import { SidePanel } from './side-panel/SidePanel';
@@ -11,13 +8,10 @@ export function FileDownloadHeader(props: {
   download: FileDownloadController;
 }) {
   return (
-    <>
-      <SidePanel.HeaderActions>
-        <HeaderActionGroup label="File download">
-          <FileDownloadButton download={props.download} />
-        </HeaderActionGroup>
-      </SidePanel.HeaderActions>
-      <FileDownloadDialog download={props.download} />
-    </>
+    <SidePanel.HeaderActions>
+      <HeaderActionGroup label="File download">
+        <FileDownloadButton download={props.download} />
+      </HeaderActionGroup>
+    </SidePanel.HeaderActions>
   );
 }

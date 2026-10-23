@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   platform: 'web',
   save: vi.fn(),
   android: vi.fn(),
+  ios: vi.fn(),
+  hasIos: vi.fn(),
+  custom: vi.fn(),
   success: vi.fn(),
   failure: vi.fn(),
 }));
@@ -20,12 +23,20 @@ vi.mock('@core/mobile/isTouchDevice', () => ({
 vi.mock('@core/util/platform', () => ({
   isPlatform: (platform: string) => mocks.platform === platform,
 }));
+vi.mock('@core/mobile/iosFiles', () => ({
+  exportIosFile: mocks.ios,
+  hasIosFileExport: mocks.hasIos,
+}));
 vi.mock('@filesystem/download', () => ({ downloadFile: mocks.save }));
 vi.mock('@core/mobile/exportAndroidFileWithProgress', () => ({
   exportAndroidFileWithProgress: mocks.android,
 }));
 vi.mock('@core/component/Toast/Toast', () => ({
-  toast: { success: mocks.success, failure: mocks.failure },
+  toast: {
+    success: mocks.success,
+    failure: mocks.failure,
+    custom: mocks.custom,
+  },
 }));
 
 type DownloadResult = Awaited<ReturnType<DownloadSource['load']>>;
@@ -35,6 +46,9 @@ beforeEach(() => {
   mocks.platform = 'web';
   vi.clearAllMocks();
   mocks.save.mockResolvedValue({ saved: true });
+  mocks.hasIos.mockResolvedValue(true);
+  mocks.ios.mockResolvedValue({ canceled: false });
+  mocks.android.mockResolvedValue({ canceled: false });
 });
 afterEach(() => {
   dispose?.();
@@ -114,10 +128,14 @@ describe('file download lifecycle', () => {
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
-  it('prepares mobile files without opening a chooser, then shares synchronously from the next tap', async () => {
+  it('shares prepared files from a fresh tap when browser activation expired', async () => {
     mocks.touch = true;
     const share = vi.fn().mockResolvedValue(undefined);
-    vi.stubGlobal('navigator', { canShare: () => true, share });
+    vi.stubGlobal('navigator', {
+      canShare: () => true,
+      share,
+      userActivation: { isActive: false },
+    });
     const download = createRoot((cleanup) => {
       dispose = cleanup;
       return createFileDownload(() => ({
@@ -129,11 +147,11 @@ describe('file download lifecycle', () => {
           }),
       }));
     });
-    await download.start();
+    await download.start('share');
     expect(download.phase()).toBe('ready');
     expect(share).not.toHaveBeenCalled();
     expect(mocks.save).not.toHaveBeenCalled();
-    const sharing = download.handOff('share');
+    const sharing = download.start('share');
     expect(share).toHaveBeenCalledTimes(1);
     await sharing;
     expect(mocks.success).not.toHaveBeenCalled();
@@ -153,11 +171,83 @@ describe('file download lifecycle', () => {
       }));
     });
     await download.start();
-    await download.handOff('save');
     expect(download.phase()).toBe('ready');
     expect(download.file()?.name).toBe('demo.mp4');
     expect(mocks.success).not.toHaveBeenCalled();
     expect(mocks.failure).not.toHaveBeenCalled();
+  });
+
+  it.each(['web', 'android', 'ios'])(
+    'downloads directly on %s without a confirmation step',
+    async (platform) => {
+      mocks.touch = true;
+      mocks.platform = platform;
+      const download = createRoot((cleanup) => {
+        dispose = cleanup;
+        return createFileDownload(() => ({
+          id: 'video',
+          name: 'demo.mp4',
+          load: async () => ok({ blob: new Blob(['video']) }),
+        }));
+      });
+      await download.start();
+      expect(
+        platform === 'android'
+          ? mocks.android
+          : platform === 'ios'
+            ? mocks.ios
+            : mocks.save
+      ).toHaveBeenCalledTimes(1);
+      expect(download.phase()).toBe('idle');
+    }
+  );
+
+  it('opens browser sharing directly while the user gesture remains active', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', {
+      canShare: () => true,
+      share,
+      userActivation: { isActive: true },
+    });
+    const download = createRoot((cleanup) => {
+      dispose = cleanup;
+      return createFileDownload(() => ({
+        id: 'video',
+        name: 'demo.mp4',
+        load: async () => ok({ blob: new Blob(['video']) }),
+      }));
+    });
+    await download.start('share');
+    expect(share).toHaveBeenCalledTimes(1);
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it('keeps older iOS builds usable through the system share sheet', async () => {
+    mocks.platform = 'ios';
+    mocks.hasIos.mockResolvedValue(false);
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', {
+      canShare: () => true,
+      share,
+      userActivation: { isActive: false },
+    });
+    const load = vi.fn(async () => ok({ blob: new Blob(['video']) }));
+    const download = createRoot((cleanup) => {
+      dispose = cleanup;
+      return createFileDownload(() => ({
+        id: 'video',
+        name: 'demo.mp4',
+        load,
+      }));
+    });
+    await download.start();
+    expect(download.phase()).toBe('ready');
+    const saving = download.start();
+    expect(share).toHaveBeenCalledTimes(1);
+    await saving;
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(mocks.ios).not.toHaveBeenCalled();
+    expect(mocks.success).not.toHaveBeenCalled();
   });
 
   it('allows retry after a network failure', async () => {
