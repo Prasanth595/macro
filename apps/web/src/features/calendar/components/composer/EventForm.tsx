@@ -46,6 +46,8 @@ export interface EventFormProps {
   addOnlyGuests?: boolean;
   /** Why a read-only guest list cannot change. */
   guestsReadOnlyReason?: string;
+  /** The organizer hides the guest list, so the seeded guests are not all of them. */
+  guestListHidden?: boolean;
   /** Whether the viewer may set what guests may do, as the organizer. */
   guestPolicyEditable?: boolean;
   /**
@@ -125,6 +127,7 @@ export function EventForm(props: EventFormProps) {
     props.disabledFields?.[field] === true;
   const fieldIsDisabled = (field: keyof EventEditorDisabledFields) =>
     formIsDisabled() || fieldIsReadOnly(field);
+  const detailsLocked = () => props.detailsReadOnlyReason !== undefined;
 
   const capabilities = () => controller.selectedCalendarOption()?.capabilities;
   const conferenceLocked = () =>
@@ -290,21 +293,27 @@ export function EventForm(props: EventFormProps) {
           </div>
 
           <div class="flex min-w-0 flex-wrap items-center gap-2">
-            <EventComposerKindPill
-              eventType={state().eventType}
-              onChange={controller.setEventKind}
-              disabled={formIsDisabled()}
-              readOnly={isEdit()}
-            />
-            <EventComposerCalendarPill
-              options={controller.calendarOptions()}
-              value={controller.selectedCalendarOption()}
-              onChange={(calendarId) =>
-                controller.setField('calendarId', calendarId)
-              }
-              disabled={formIsDisabled()}
-              readOnly={fieldIsReadOnly('calendar')}
-            />
+            {/* Read-only on every edit, they open their one value as a list;
+                locked, they are as unavailable as the other details. */}
+            <LockedField reason={props.detailsReadOnlyReason}>
+              <EventComposerKindPill
+                eventType={state().eventType}
+                onChange={controller.setEventKind}
+                disabled={formIsDisabled() || detailsLocked()}
+                readOnly={isEdit()}
+              />
+            </LockedField>
+            <LockedField reason={props.detailsReadOnlyReason}>
+              <EventComposerCalendarPill
+                options={controller.calendarOptions()}
+                value={controller.selectedCalendarOption()}
+                onChange={(calendarId) =>
+                  controller.setField('calendarId', calendarId)
+                }
+                disabled={formIsDisabled() || detailsLocked()}
+                readOnly={fieldIsReadOnly('calendar')}
+              />
+            </LockedField>
             <LockedField reason={props.detailsReadOnlyReason}>
               <EventComposerRecurrencePill
                 options={controller.recurrenceOptions()}
@@ -324,6 +333,7 @@ export function EventForm(props: EventFormProps) {
                 disabled={formIsDisabled()}
                 readOnly={fieldIsReadOnly('guests')}
                 readOnlyReason={props.guestsReadOnlyReason}
+                guestListHidden={props.guestListHidden}
                 currentGuests={
                   props.addOnlyGuests ? controller.initialGuests() : undefined
                 }
@@ -413,6 +423,11 @@ export function EventForm(props: EventFormProps) {
               value={controller.guestPolicy()}
               onChange={controller.setGuestPolicy}
               disabled={formIsDisabled() || editScope() === 'this_event'}
+              disabledReason={
+                editScope() === 'this_event'
+                  ? 'Guest permissions apply to all events. Choose All events to change them.'
+                  : undefined
+              }
             />
           </Show>
           <Show when={props.detailsReadOnlyReason}>

@@ -154,6 +154,14 @@ it('keeps a guest the organizer does not let modify to their own reminders', asy
   expect(
     screen.getByRole('button', { name: /Video conferencing/ })
   ).toHaveProperty('disabled', true);
+  // Read-only on every edit, the kind and calendar no longer open their one
+  // value as a list once the details are locked.
+  for (const name of ['Event kind', 'Calendar']) {
+    const pill = screen.getByLabelText(name);
+    expect(pill).toHaveProperty('disabled', true);
+    await user.click(pill);
+    expect(screen.queryByRole('listbox')).toBeNull();
+  }
   expect(
     screen.getByText('Only the organizer can change this event.')
   ).toBeTruthy();
@@ -206,6 +214,21 @@ it('returns guest permissions to the stored ones when an edit targets one occurr
 
   expect((seeGuests as HTMLInputElement).checked).toBe(true);
   expect((seeGuests as HTMLInputElement).disabled).toBe(true);
+  expect(
+    screen.getByRole('group', {
+      name: 'Guest permissions',
+      description:
+        'Guest permissions apply to all events. Choose All events to change them.',
+    })
+  ).toBeTruthy();
+
+  await user.click(screen.getByRole('radio', { name: 'All events' }));
+  expect((seeGuests as HTMLInputElement).disabled).toBe(false);
+  expect(
+    screen.queryByText(
+      'Guest permissions apply to all events. Choose All events to change them.'
+    )
+  ).toBeNull();
 });
 
 it('moves the end with the start until the end is picked', async () => {

@@ -74,7 +74,20 @@ new MutationObserver(() => {
 
 Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '1,2,3'` (the same ids coming back) is a `<Suspense>` detach and re-attach. Fresh ids are a true remount. Nothing at all means the subtree never moved and the cause is elsewhere. Re-running the same interaction a second time is the cheapest way to prove a cold-cache cause: a once-per-session query settles after the first attempt, so the second attempt stays clean.
 
+## Canvas collaboration
+
+Saved canvases use the shared Loro runtime; the stored JSON is only the original
+migration seed. Keep whole-file simple-save out of scene editing. Canvas
+initialization, WAL/snapshot recovery and teardown live in
+`features/block-canvas/queries/canvas-session.ts`; presence is ephemeral and
+reference bookkeeping is excluded from scene undo. Run the feature tests and
+`bunx playwright test --config src/features/block-canvas/browser-test/playwright.config.ts`
+for multiplayer changes.
+
 ## Development Patterns
+
+Keep persistent list hotkeys free of mounted-view closures, and clear
+virtualizer accessors when their view unmounts.
 
 - Reuse `src/components/WorkspaceTexture.tsx` for the onboarding and Create
   detail panel grain; pass the surface accent and a unique SVG filter ID.
@@ -171,6 +184,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Diagnose browser call media with `call.media.*` spans and the `meeting.setup.id`
   on `meeting.join`; keep provider messages, device labels/IDs, and call-link
   tokens out of telemetry. See [call diagnostics](../../docs/agent-guide/calls.md#browser-call-diagnostics).
+- Diagnose the GraphQL mutation queue with `graphql.mutation_queue.*` spans and logs keyed by `mutation_queue.item_id`; route queue telemetry through `mutation-queue-telemetry.ts`, which dedupes per item and failure class and turns repeats into the periodic summary. Never add per-attempt `console.*` lines or record variables, draft content, or emails.
 - Keep desktop Gmail and Outlook inbox consent in the system browser with a
   `macro:///inbox-link-callback` return; webview origins are not desktop callbacks.
 - Keep send reservations, leases, and cancellation in the email journal; the general GraphQL queue handles draft autosaves only.
@@ -405,10 +419,12 @@ instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.
 
 ## File downloads
 
-Channel videos and Drive video/image/code/canvas/unknown previews share
+Channel videos, linked video previews, and Drive video/image/code/canvas/unknown previews share
 `createFileDownload` and `FileDownloadButton`. Keep menu and visible controls
 bound to the same controller. Download hands off directly to browser downloads
-or the native save picker; keep Share separate and do not add a custom
+or the native save picker. Show channel Download on hover or keyboard focus,
+always on touch, without a footer. Keep system Share inside the touch Download
+menu; desktop Share belongs to Macro permissions. Do not add a custom
 confirmation sheet. Snapshot file/version before loading, cancel on disposal or
 selection change, and preserve original filenames from static-file metadata.
 Native Android and iOS use bounded byte exports. Older iOS binaries use Web
@@ -416,6 +432,7 @@ Share until the optional file-export bridge ships. If browser activation expires
 while preparing a share, retain the bytes and let the same action's next tap
 open the system sheet synchronously. Browser success means handoff, not confirmed
 disk completion. See the native bridge's `tauri/file_export_plugin/AGENTS.md`.
+Keep download confirmations title-only.
 
 The backend-free browser regression downloads real fixture bytes from channel
 cards, the expanded viewer, and the shared Drive/standalone header on desktop,
