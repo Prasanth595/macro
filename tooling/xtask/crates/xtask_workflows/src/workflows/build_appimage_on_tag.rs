@@ -19,6 +19,10 @@ pub const DESKTOP_TAG_PATTERN: &str = "v[0-9]*";
 /// upload anything.
 pub const NOT_PULL_REQUEST: &str = "github.event_name != 'pull_request'";
 
+/// GitHub-hosted image for the desktop resolve and publish jobs. Pinned so the
+/// `ubuntu-latest` move to Ubuntu 26 cannot change a release job underneath it.
+pub const DESKTOP_HOSTED_RUNNER: &str = "ubuntu-24.04";
+
 /// Secrets a caller must forward to the reusable desktop build workflows. A
 /// called workflow cannot read repository secrets on its own, and the desktop
 /// bundle is built with PostHog's key inlined, so the key has to arrive here.
@@ -87,7 +91,7 @@ pub fn prepare_desktop_release(ref_expr: &str) -> Step<Run> {
 pub fn publish_job(ref_expr: &str, artifacts_path: xtask_paths::RuntimePath<'_>) -> Job {
     Job::default()
         .name("Upload Release Artifacts")
-        .runs_on("ubuntu-latest")
+        .runs_on(DESKTOP_HOSTED_RUNNER)
         .permissions(Permissions {
             contents: Some(Level::Write),
             ..Default::default()

@@ -15,7 +15,7 @@ use gh_workflow::{
     Workflow, WorkflowDispatch, WorkflowDispatchInput,
 };
 
-use crate::workflows::build_appimage_on_tag::{self, NOT_PULL_REQUEST};
+use crate::workflows::build_appimage_on_tag::{self, DESKTOP_HOSTED_RUNNER, NOT_PULL_REQUEST};
 use crate::workflows::{build_dmg_on_tag, runners, steps, vars};
 
 #[cfg(test)]
@@ -117,7 +117,7 @@ fn check_release_secrets(names: &BTreeSet<&str>) -> Job {
 fn publish_desktop_job() -> Job {
     Job::default()
         .name("Sign and publish desktop updates")
-        .runs_on("ubuntu-latest")
+        .runs_on(DESKTOP_HOSTED_RUNNER)
         // Serialize channel promotion across tags; an older build cannot win a race.
         .concurrency(
             Concurrency::new(Expression::new("desktop-stable-publish")).cancel_in_progress(false),
@@ -217,7 +217,7 @@ fn resolve_ref() -> Job {
             "github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') || (github.event_name == 'create' && github.event.ref_type == 'tag')",
         ))
         .name("Resolve build ref")
-        .runs_on("ubuntu-latest")
+        .runs_on(DESKTOP_HOSTED_RUNNER)
         .add_output("ref", "${{ steps.resolve.outputs.ref }}")
         .add_step(resolve_ref_step())
 }

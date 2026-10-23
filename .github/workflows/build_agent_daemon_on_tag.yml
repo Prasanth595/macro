@@ -1033,7 +1033,7 @@ jobs:
     - build-daemon-windows-x86-64
     if: '!cancelled() && needs.resolve-ref.result == ''success'' && (needs.build-daemon-linux-x86-64.result == ''success'' || needs.build-daemon-linux-aarch64.result == ''success'' || needs.build-daemon-macos-aarch64.result == ''success'' || needs.build-daemon-macos-x86-64.result == ''success'' || needs.build-daemon-windows-x86-64.result == ''success'')'
     name: Upload Release Artifacts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
