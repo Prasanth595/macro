@@ -49,7 +49,9 @@ if the meeting was cancelled, fell outside the sync window, or stopped being
 shared with the owner. **Unlink** asks before removing its meeting/team grants.
 Unavailable meetings use a safe label rather than revealing private details.
 
-Busy-only team entries and imported snapshots have no meeting-note controls.
+Full-detail team events expose the same note controls; provider actions such as
+editing the event or RSVPing stay unavailable. Busy-only team entries and
+imported snapshots have no meeting-note controls.
 Inherited access follows current meeting details and requires a synced live
 occurrence. If the provider hides its guest list, some guests need a direct
 document share. Independent team sharing lasts until the link is removed or the
@@ -64,6 +66,7 @@ sample data and preview service adapters. It is
 `apps/web/src/features/calendar-notes/browser-test/playwright.config.ts`.
 API permission cases are covered in `crates/calendar_events/src/outbound/pg/test/notes.rs`.
 The fixture accepts `?notes=off` to check the event details without notes.
+Use `?team=details` or `?team=busy` to check team visibility boundaries.
 
 Browser fixture screenshots: [desktop](media/calendar-notes/desktop.png) ·
 [phone](media/calendar-notes/phone.png) ·

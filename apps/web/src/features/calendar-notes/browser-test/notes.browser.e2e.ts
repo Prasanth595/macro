@@ -1,5 +1,43 @@
 import { expect, test } from '@playwright/test';
 
+test('full-detail team viewers can link and open notes without provider actions', async ({
+  page,
+}) => {
+  await page.goto('/?team=details');
+  const notes = page.getByRole('region', { name: 'Meeting notes' });
+  await notes
+    .getByRole('button', { name: 'Link existing', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Link meeting notes' });
+  await dialog
+    .getByRole('button', { name: 'Weekly product sync', exact: true })
+    .click();
+  await dialog.getByRole('button', { name: 'Link note', exact: true }).click();
+  await notes
+    .getByRole('button', { name: 'Open Weekly product sync', exact: true })
+    .click();
+  await expect(page.getByRole('status', { name: 'Preview action' })).toHaveText(
+    'Opened Weekly product sync'
+  );
+
+  await page
+    .getByRole('button', { name: 'Weekly product sync', exact: true })
+    .click();
+  await expect(notes).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Yes', exact: true })
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Edit event', exact: true })
+  ).toHaveCount(0);
+
+  await page.goto('/?team=busy');
+  await expect(
+    page.getByRole('button', { name: 'Close event details', exact: true })
+  ).toBeVisible();
+  await expect(notes).toHaveCount(0);
+});
+
 test('a note tooltip does not block selecting a neighboring document', async ({
   page,
   isMobile,

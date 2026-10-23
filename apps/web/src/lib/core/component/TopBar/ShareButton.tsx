@@ -961,8 +961,19 @@ export function ShareModal(props: ShareModalProps) {
     ? permissionsBlockResource[1].refetch
     : refetchFallback;
   const userId = useUserId();
-  const [meetingAccess, setMeetingAccess] =
-    createSignal<MeetingAccessState>('loading');
+  const [meetingAccessSnapshot, setMeetingAccessSnapshot] = createSignal<{
+    documentId: string;
+    userId: string | undefined;
+    state: MeetingAccessState;
+  }>();
+  const setMeetingAccess = (state: MeetingAccessState) =>
+    setMeetingAccessSnapshot({ documentId: props.id, userId: userId(), state });
+  const meetingAccess = (): MeetingAccessState => {
+    const snapshot = meetingAccessSnapshot();
+    return snapshot?.documentId === props.id && snapshot.userId === userId()
+      ? snapshot.state
+      : 'loading';
+  };
   const canManageMeetingLinks = () =>
     props.blockAlias === 'md' &&
     props.itemType === 'document' &&

@@ -113,8 +113,13 @@ function Fixture() {
   const fake = createFakeNotesSource({
     fail: params.has('fail'),
   });
-  const [event, setEvent] = createSignal({
+  const teamProjectionKind = params.get('team');
+  const [event, setEvent] = createSignal<CalendarEvent>({
     ...sampleEvent,
+    teamProjection:
+      teamProjectionKind === 'details' || teamProjectionKind === 'busy'
+        ? { kind: teamProjectionKind, ownerId: 'macro|alex@example.com' }
+        : undefined,
     guestPolicy: {
       ...sampleEvent.guestPolicy,
       canSeeOtherGuests: !params.has('hidden'),

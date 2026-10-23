@@ -335,26 +335,24 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                 />
               </Show>
             </div>
+            <Show
+              when={
+                meetingNotesEnabled() &&
+                props.event.teamProjection?.kind !== 'busy' &&
+                !props.event.isCancelled &&
+                !props.event.isSnapshot
+              }
+            >
+              <CalendarMeetingNotes
+                event={props.event}
+                onDialogChange={setNotesOpen}
+                onOpenDocument={(id) => {
+                  openWithSplit({ type: 'md', id }, { preferNewSplit: false });
+                  props.onOpenChange(false);
+                }}
+              />
+            </Show>
             <Show when={!props.event.teamProjection}>
-              <Show
-                when={
-                  meetingNotesEnabled() &&
-                  !props.event.isCancelled &&
-                  !props.event.isSnapshot
-                }
-              >
-                <CalendarMeetingNotes
-                  event={props.event}
-                  onDialogChange={setNotesOpen}
-                  onOpenDocument={(id) => {
-                    openWithSplit(
-                      { type: 'md', id },
-                      { preferNewSplit: false }
-                    );
-                    props.onOpenChange(false);
-                  }}
-                />
-              </Show>
               <EventGuests
                 event={props.event}
                 invites={invites}
@@ -669,27 +667,28 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     />
                   </Show>
                 </div>
+                <Show
+                  when={
+                    meetingNotesEnabled() &&
+                    props.event.teamProjection?.kind !== 'busy' &&
+                    !props.event.isCancelled &&
+                    !props.event.isSnapshot
+                  }
+                >
+                  <CalendarMeetingNotes
+                    event={props.event}
+                    onDialogChange={setNotesOpen}
+                    onOpenDocument={(id) => {
+                      openingDocument = true;
+                      openWithSplit(
+                        { type: 'md', id },
+                        { preferNewSplit: true }
+                      );
+                      props.onOpenChange(false);
+                    }}
+                  />
+                </Show>
                 <Show when={!props.event.teamProjection}>
-                  <Show
-                    when={
-                      meetingNotesEnabled() &&
-                      !props.event.isCancelled &&
-                      !props.event.isSnapshot
-                    }
-                  >
-                    <CalendarMeetingNotes
-                      event={props.event}
-                      onDialogChange={setNotesOpen}
-                      onOpenDocument={(id) => {
-                        openingDocument = true;
-                        openWithSplit(
-                          { type: 'md', id },
-                          { preferNewSplit: true }
-                        );
-                        props.onOpenChange(false);
-                      }}
-                    />
-                  </Show>
                   <EventGuests
                     event={props.event}
                     invites={invites}

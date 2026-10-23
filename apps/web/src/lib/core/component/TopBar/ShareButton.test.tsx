@@ -453,10 +453,11 @@ describe('document meeting-link management', () => {
     async (mobile) => {
       mocks.mobile = mobile;
       const [flag, setFlag] = createSignal({ enabled: false, loading: true });
+      const [documentId, setDocumentId] = createSignal('meeting-note');
       mocks.meetingNotesFlag = flag;
       render(() => (
         <ShareModal
-          id="meeting-note"
+          id={documentId()}
           name="Notes"
           owner={ME}
           itemType="document"
@@ -487,6 +488,14 @@ describe('document meeting-link management', () => {
       expect(mocks.unmountMeetingNotes).toHaveBeenCalledOnce();
       expect(screen.getByText('Shared')).toBeDefined();
       expect(screen.queryByText('Just me')).toBeNull();
+
+      setDocumentId('another-note');
+      expect(screen.queryByText('Shared')).toBeNull();
+      expect(screen.getByText('Restricted')).toBeDefined();
+      expect(mocks.mountMeetingNotes).toHaveBeenCalledTimes(1);
+      setFlag({ enabled: true, loading: false });
+      expect(mocks.mountMeetingNotes).toHaveBeenLastCalledWith('another-note');
+      expect(screen.getByText('Just me')).toBeDefined();
     }
   );
   it.each([false, true])(
