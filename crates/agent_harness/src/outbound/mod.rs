@@ -10,6 +10,7 @@ pub mod conversation_turns;
 pub mod cursor;
 pub mod daytona;
 pub mod egress;
+pub mod external_replies;
 pub mod forward;
 pub mod github_branches;
 pub mod github_repositories;
@@ -29,6 +30,3 @@ pub mod tool_approvals;
 pub mod acp_pipe;
 /// Per-owner Codex cloud runtime.
 pub mod codex;
-
-/// Claude cloud container and model adapters.
-pub mod claude;

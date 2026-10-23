@@ -12,7 +12,8 @@ execution records, and durable review stacks. Process isolation belongs to
 ## Start here
 
 - `SKILL.md`: the agent-facing JavaScript contract and examples.
-- `src/domain/service.rs`: execution admission, identity and persistence.
+- `src/domain/service.rs`: execution admission, identity and persistence; tool
+  receipts include observed SDK activity for inline conversation snapshots.
 - `src/domain/reviews.rs`: review validation, revisions, claims and outcomes.
 - `src/domain/documentation.rs`: bounded selection of generated SDK docs.
 
@@ -25,6 +26,13 @@ session presentation. Never replay an uncertain submitted action.
 ## Tool contracts
 
 - Keep native `NameSearch` and `ListEntities` available for session-aware discovery; agent SDK documentation excludes legacy chats and workspace feeds.
+
+Reviews write `review.decided` and `review.settled` through the injected
+transaction-aware notification writer in the same revision-checked transaction.
+Cards require direct user authentication; `DecideReview` uses the same claim and
+execute path but requires a real owner-prompted turn. `GetReview` reads final
+drafts and outcomes. Legacy notificationId/notificationAttemptAt fields are no
+longer delivery state.
 
 ## Checks
 
