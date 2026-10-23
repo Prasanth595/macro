@@ -1699,7 +1699,9 @@ describe('code execution results', () => {
       .filter((row) => row.textContent?.includes('Create Markdown'));
     expect(rows).toHaveLength(2);
     expect(
-      rows[0].querySelector('[data-testid="item-preview"]')?.getAttribute('data-id')
+      rows[0]
+        .querySelector('[data-testid="item-preview"]')
+        ?.getAttribute('data-id')
     ).toBe(document);
     expect(rows[1].querySelector('[data-testid="item-preview"]')).toBeNull();
   });
