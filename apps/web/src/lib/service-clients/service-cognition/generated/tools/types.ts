@@ -4775,6 +4775,15 @@ export type SearchResult = {
  */
 export type CodeGuideTopic = 'search' | 'ai' | 'templates' | 'examples';
 /**
+ * How the Jev relevance pass ended.
+ */
+export type SelectionStatus =
+  | 'selected'
+  | 'unconfigured'
+  | 'cancelled'
+  | 'provider_error'
+  | 'timeout';
+/**
  * Caller-selected UUID persisted in tool input before execution begins.
  */
 export type ExecutionId = string;
@@ -15267,11 +15276,15 @@ export interface WebSearchToolError {
   error_code: string;
 }
 /**
- * Look up SDK documentation missing from the current context. Entity reference sections may already be loaded before your turn: use them to write ExecuteCode directly, without calling this tool again for confirmation. Request up to five missing SDK entity names together for their public TypeScript declarations. Request topics for search, AI, Handlebars, or workflow examples; topic-only requests omit the tool catalog. Empty names and topics return the compact catalog. Reuse documentation already learned in this conversation.
+ * Look up Macro SDK documentation for ExecuteCode. Before writing a program, pass task, a short description of what the program must do, to receive every relevant SDK entity reference in one call; skip it only when the references you need are already in context. Request up to five entity names together for full declarations, e.g. entities omitted for size. Request topics for workflow guides. With no arguments, returns the compact entity catalog.
  */
 export interface DescribeCodeTools {
   /**
-   * Up to five SDK entity names such as documents, email, ai, or core. Empty names and topics list the compact entity catalog.
+   * What the program you are about to write must do, in the user's terms, e.g. 'find unread emails from Acme this week and summarize them'. Returns every relevant SDK entity reference.
+   */
+  task?: string | null;
+  /**
+   * Up to five SDK entity names such as documents, email, ai, or core. Empty names, topics and task list the compact entity catalog.
    */
   names?: string[];
   /**
@@ -15283,6 +15296,10 @@ export interface DescribeCodeTools {
  * Runtime and discovery instructions beside selected entity declarations.
  */
 export interface CodeToolsDescription {
+  /**
+   * References selected for the requested task.
+   */
+  task_documentation?: TaskDocumentation | null;
   /**
    * SDK overview and how to request detailed guides.
    */
@@ -15301,14 +15318,19 @@ export interface CodeToolsDescription {
   tools: SdkDocumentation[];
 }
 /**
- * One requested Markdown guide.
+ * Every SDK reference Jev considers relevant to a described task.
  */
-export interface CodeGuide {
-  topic: CodeGuideTopic;
+export interface TaskDocumentation {
+  status: SelectionStatus;
   /**
-   * Usage guidance and examples.
+   * Relevant entities, most relevant first, each with its full reference or,
+   * when that does not fit, its namespace overview.
    */
-  markdown: string;
+  entities: SdkDocumentation[];
+  /**
+   * Relevant entities left out for size; request them by name.
+   */
+  omitted: string[];
 }
 /**
  * Public Markdown documentation generated from the real SDK by TypeDoc.
@@ -15326,6 +15348,16 @@ export interface SdkDocumentation {
    * API reference Markdown; omitted in a compact catalog.
    */
   documentation?: string | null;
+}
+/**
+ * One requested Markdown guide.
+ */
+export interface CodeGuide {
+  topic: CodeGuideTopic;
+  /**
+   * Usage guidance and examples.
+   */
+  markdown: string;
 }
 /**
  * Run a JavaScript ES module in Deno. Export async function main({macro, session, execution}); return {data: <JSON>}. Optional reviews: [{kind: "email" | "calendar", id: "..."}] defaults to an empty list when omitted. The host supplies real public Macro SDK handles authenticated as the session owner. Optional imports: import {Macro} from "@macro-inc/sdk"; import Handlebars from "handlebars". main also receives token, hosts, sessionId and executionId for explicit SDK construction. Never print, return or persist token. No TypeScript syntax or package installation.
