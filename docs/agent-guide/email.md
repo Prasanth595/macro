@@ -85,6 +85,11 @@ the send button's pending state. Switching the sender
 inbox copies the draft and attachments into the destination; wait for completion
 before sending. If the copy is interrupted, use retry or keep the original.
 
+Opening an attachment Macro has a viewer for opens it in a split from its Drive
+copy. A file with no viewer (one that would only say "No preview available")
+downloads instead and creates no Drive file; calendar files open their event
+(see the calendar invitations section of the calendar guide).
+
 Imported Outlook attachments keep their provider identity, including inline
 images. Cloud-reference attachment chips open the original Outlook message.
 Forwarding a message with cloud references shows a notice to share those links
