@@ -1,5 +1,6 @@
 import '@fontsource-variable/inter';
 import '../../../index.css';
+import { fireAndForget } from '@core/util/fireAndForget';
 import CalendarIcon from '@phosphor/calendar-blank.svg';
 import { Button, ImperativeDialogHost } from '@ui';
 import { ok } from 'neverthrow';
@@ -109,8 +110,16 @@ function Fixture() {
         </div>
       </main>
     );
-  const fake = createFakeNotesSource({ fail: params.has('fail') });
-  const [event, setEvent] = createSignal(sampleEvent);
+  const fake = createFakeNotesSource({
+    fail: params.has('fail'),
+  });
+  const [event, setEvent] = createSignal({
+    ...sampleEvent,
+    guestPolicy: {
+      ...sampleEvent.guestPolicy,
+      canSeeOtherGuests: !params.has('hidden'),
+    },
+  });
   const [selected, setSelected] = createSignal(true);
   const [boundary, setBoundary] = createSignal<HTMLDivElement>();
   const [anchor, setAnchor] = createSignal<HTMLButtonElement>();
@@ -135,11 +144,21 @@ function Fixture() {
       ),
     }));
   };
+  const onRemoteUnlink = (event: Event) => {
+    if (event instanceof CustomEvent && typeof event.detail === 'string') {
+      fireAndForget(
+        fake.source.unlink(event.detail),
+        'calendar.preview.unlink'
+      );
+    }
+  };
   document.addEventListener('calendar-preview-message', onMessage);
   document.addEventListener('calendar-preview-rsvp', onRsvp);
+  document.addEventListener('calendar-preview-unlink', onRemoteUnlink);
   onCleanup(() => {
     document.removeEventListener('calendar-preview-message', onMessage);
     document.removeEventListener('calendar-preview-rsvp', onRsvp);
+    document.removeEventListener('calendar-preview-unlink', onRemoteUnlink);
   });
   return (
     <PreviewNotesProvider source={fake.source}>

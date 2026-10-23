@@ -1,7 +1,8 @@
 # Calendar meeting notes
 
-Meeting notes link an existing markdown document to a one-time meeting or one
-occurrence of a recurring meeting.
+Meeting notes link Markdown documents to a one-time meeting or one occurrence of a
+recurring meeting. Each occurrence can have multiple notes, created from event
+details or linked from the owner's existing documents.
 They reuse the document's content, editor, collaboration, and ownership; calendar
 sync does not copy or own that content.
 
@@ -12,6 +13,8 @@ sync does not copy or own that content.
   visibility, snapshots, and anonymous links do not qualify.
 - The selected team's current members independently receive **view** access.
   Team access does not expose the calendar event itself.
+- `team_user_user_id_unique` restricts each account to one current team; the
+  optional checkbox uses that membership, with no subteam picker.
 - Existing ownership, editor, public, and other document grants remain unchanged.
 - Unlinking removes only this occurrence's meeting/team grant, never the document.
   An owner can revoke it from the document's Share panel, SDK, or API even after
@@ -57,8 +60,16 @@ updates the existing grant and removes duplicates across those copies.
 
 The web feature lives in `apps/web/src/features/calendar-notes`, with an injected
 data source, query adapter, controller, and presentational view. It mounts within
-desktop and mobile event details. Its shared dialog becomes a phone sheet, keeps
-the submit buttons visible while content scrolls, and retains choices on failure.
+desktop and mobile event details. Its shared dialog becomes a phone sheet with
+`Dialog.contentOwnsScroll`: only document results scroll, while context, sharing,
+and actions stay visible. Choices survive failures. Note options use labeled menu
+actions; the host dialog guard follows both the menu and access dialog, and clears
+when a note disappears during a live refresh.
+**Create notes** uses the standard Markdown creation flow, links the resulting
+document with no team grant, then opens the editor. It captures the account and
+occurrence before creation starts, suppresses duplicate clicks, and retains the
+created document for retry if linking fails. A disposed view never navigates on a
+late result. There is no separate calendar-owned content store or create endpoint.
 The document Share panel also lists owner-only durable links and offers inline
 unlink confirmation. That list does not require current meeting access. It uses
 generic labels for inaccessible or indirectly shared meetings, so it cannot reveal

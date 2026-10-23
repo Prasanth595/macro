@@ -1,3 +1,4 @@
+import { createMarkdownFile } from '@core/util/create';
 import { catchToResult, throwOnErr } from '@core/util/result';
 import { Telemetry } from '@macro-inc/observability';
 import { queryClient } from '@queries/client';
@@ -5,9 +6,15 @@ import { queryReadyGate } from '@queries/gate';
 import { calendarNotesClient } from '@service-calendar/notes';
 import { createDebouncedMemo } from '@solid-primitives/memo';
 import { useMutation, useQuery } from '@tanstack/solid-query';
+import { err, ok } from 'neverthrow';
 import type { Accessor } from 'solid-js';
 import type { DocumentNotesSource, NotesSource } from '../context/notes-source';
-import type { MeetingNote, NoteFailure, NoteTarget } from '../core/types';
+import type {
+  MeetingNote,
+  NoteCreateFailure,
+  NoteFailure,
+  NoteTarget,
+} from '../core/types';
 import { notesKeys } from './keys';
 
 function notesOptions(userId: string | undefined, target: NoteTarget) {
@@ -104,6 +111,55 @@ export function createNotesSource(
       pending: notes.isPending,
       error: notes.isError ? 'Couldn’t load meeting notes.' : undefined,
     }),
+    async create(name) {
+      // Capture the occurrence and account before document creation yields.
+      const destination = { ...target() };
+      const owner = userId();
+      return Telemetry.span('calendar.notes.create', async (span) => {
+        span.setAttr('event.id', destination.eventId);
+        const created = await catchToResult(() =>
+          createMarkdownFile({
+            title: name,
+            source: 'calendar_notes',
+          })
+        );
+        if (created.isErr() || !created.value) {
+          span.setAttr('calendar.notes.outcome', 'create_failed');
+          span.error('Meeting note creation failed');
+          return err({
+            kind: 'create_failed',
+            message: 'Couldn’t create the note. Please try again.',
+          } satisfies NoteCreateFailure);
+        }
+        const document = { documentId: created.value, name };
+        span.setAttr('document.id', document.documentId);
+        if (userId() !== owner) {
+          span.setAttr('calendar.notes.outcome', 'account_changed');
+          span.error('Account changed before meeting note linking');
+          return err({
+            kind: 'created_unlinked',
+            document,
+            message:
+              'Your note was saved, but your account changed before it could be linked.',
+          } satisfies NoteCreateFailure);
+        }
+        const linked = await catchToResult(() =>
+          link.mutateAsync({ ...destination, documentId: document.documentId })
+        );
+        if (linked.isErr()) {
+          span.setAttr('calendar.notes.outcome', 'created_unlinked');
+          span.error('Created meeting note could not be linked');
+          return err({
+            kind: 'created_unlinked',
+            document,
+            message:
+              'Your note was saved, but couldn’t be linked to this meeting. Retry linking or open the saved note.',
+          } satisfies NoteCreateFailure);
+        }
+        span.setAttr('calendar.notes.outcome', 'linked');
+        return ok(document);
+      });
+    },
     picker(query, enabled) {
       const debounced = createDebouncedMemo(query, 180);
       const picker = useQuery(() =>

@@ -3,6 +3,8 @@ import type { Accessor } from 'solid-js';
 import type {
   DocumentNoteLink,
   MeetingNote,
+  NoteCreateFailure,
+  NoteDocument,
   NoteFailure,
   NotePicker,
   NoteRead,
@@ -12,6 +14,7 @@ import type {
 /** Reactive reads and writes owned by the calendar-note feature. */
 export type NotesSource = {
   notes: Accessor<NoteRead<MeetingNote[]>>;
+  create: (name: string) => Promise<Result<NoteDocument, NoteCreateFailure>>;
   picker: (
     query: Accessor<string>,
     enabled: Accessor<boolean>

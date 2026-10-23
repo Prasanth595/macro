@@ -1,16 +1,22 @@
 import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
-import ArrowUpRightIcon from '@phosphor/arrow-up-right.svg';
+import CaretDownIcon from '@phosphor/caret-down.svg';
 import FileTextIcon from '@phosphor/file-text.svg';
 import LinkIcon from '@phosphor/link.svg';
-import LinkBreakIcon from '@phosphor/link-break.svg';
-import UsersIcon from '@phosphor/users.svg';
-import { Button } from '@ui';
-import { For, Show } from 'solid-js';
+import PlusIcon from '@phosphor/plus.svg';
+import { Button, Dropdown } from '@ui';
+import { For, onCleanup, Show } from 'solid-js';
 import type { MeetingNote, NoteRead } from '../core/types';
 
 export function NotesSection(props: {
   state: NoteRead<MeetingNote[]>;
   recurring: boolean;
+  creating: boolean;
+  createdUnlinked: boolean;
+  createError?: string;
+  onCreate: () => void;
+  onOpenSaved: () => void;
+  dialogOpen: boolean;
+  onMenuChange: (documentId: string, open: boolean) => void;
   onLink: () => void;
   onOpen: (note: MeetingNote) => void;
   onSharing: (note: MeetingNote) => void;
@@ -33,17 +39,6 @@ export function NotesSection(props: {
               </span>
             </Show>
           </div>
-          <Show when={props.state.data?.length}>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              depth={3}
-              label="Link another note"
-              onClick={props.onLink}
-            >
-              <LinkIcon />
-            </Button>
-          </Show>
         </div>
         <Show when={props.recurring}>
           <p class="mb-2 text-xs text-ink-extra-muted sm:text-xxs">
@@ -71,68 +66,126 @@ export function NotesSection(props: {
             </Button>
           </div>
         </Show>
-        <Show when={props.state.data?.length === 0}>
-          <Button variant="ghost" size="sm" depth={3} onClick={props.onLink}>
-            <LinkIcon />
-            Link a note
-          </Button>
-          <p class="mt-1 text-xs text-ink-extra-muted sm:text-xxs">
-            Meeting viewers can read linked notes.
+        <Show when={props.state.data}>
+          <p class="mb-2 text-xs leading-relaxed text-ink-extra-muted sm:text-xxs">
+            People who can see this meeting’s details can read these notes.
           </p>
         </Show>
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-1">
           <For each={props.state.data}>
-            {(note) => (
-              <div class="min-w-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  depth={3}
-                  fullWidth
-                  label={note.name}
-                  onClick={() => props.onOpen(note)}
-                >
-                  <span class="min-w-0 flex-1 truncate text-left">
-                    {note.name}
-                  </span>
-                  <ArrowUpRightIcon class="size-3 text-ink-extra-muted" />
-                </Button>
-                <div class="flex min-w-0 items-center justify-between gap-1">
-                  <Show
-                    when={note.canManage}
-                    fallback={
-                      <span class="text-xxs text-ink-extra-muted">
-                        Meeting viewers{note.team ? ` + ${note.team.name}` : ''}{' '}
-                        · Can view
-                      </span>
-                    }
-                  >
+            {(note) => {
+              onCleanup(() => props.onMenuChange(note.documentId, false));
+              return (
+                <div class="min-w-0">
+                  <div class="flex min-w-0 items-center gap-1">
                     <Button
                       variant="ghost"
-                      size="xs"
-                      label="Manage note access"
-                      onClick={() => props.onSharing(note)}
+                      size="sm"
+                      depth={3}
+                      class="min-w-0 flex-1"
+                      label={`Open ${note.name}`}
+                      onClick={() => props.onOpen(note)}
                     >
-                      <UsersIcon />
-                      <span class="min-w-0 truncate">
-                        Meeting viewers{note.team ? ` + ${note.team.name}` : ''}
+                      <span class="min-w-0 flex-1 truncate text-left">
+                        {note.name}
                       </span>
-                      <span class="text-ink-extra-muted">· View</span>
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      label={`Unlink ${note.name}`}
-                      onClick={() => props.onUnlink(note)}
-                    >
-                      <LinkBreakIcon />
-                    </Button>
+                    <Show when={note.canManage}>
+                      <Dropdown
+                        modal={false}
+                        placement="bottom-end"
+                        onOpenChange={(open) =>
+                          props.onMenuChange(note.documentId, open)
+                        }
+                      >
+                        <Dropdown.Trigger
+                          variant="ghost"
+                          size="xs"
+                          label={`Options for ${note.name}`}
+                          disabled={props.creating}
+                        >
+                          Options
+                          <CaretDownIcon />
+                        </Dropdown.Trigger>
+                        <Dropdown.Content
+                          portalScope="local"
+                          class="z-nested-action-menu min-w-44"
+                          onCloseAutoFocus={(event) => {
+                            if (props.dialogOpen) event.preventDefault();
+                          }}
+                        >
+                          <Dropdown.Group>
+                            <Dropdown.Item
+                              onSelect={() => props.onSharing(note)}
+                            >
+                              Manage access
+                            </Dropdown.Item>
+                            <Dropdown.Item
+                              onSelect={() => props.onUnlink(note)}
+                            >
+                              Unlink from meeting
+                            </Dropdown.Item>
+                          </Dropdown.Group>
+                        </Dropdown.Content>
+                      </Dropdown>
+                    </Show>
+                  </div>
+                  <Show when={note.team}>
+                    {(team) => (
+                      <p class="px-2 text-xs text-ink-extra-muted sm:text-xxs">
+                        Also shared with {team().name}
+                      </p>
+                    )}
                   </Show>
                 </div>
-              </div>
-            )}
+              );
+            }}
           </For>
         </div>
+        <Show when={props.state.data}>
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <Button
+              variant={props.state.data?.length ? 'ghost' : 'strong'}
+              size="sm"
+              disabled={props.creating}
+              onClick={props.onCreate}
+            >
+              <PlusIcon />
+              {props.creating
+                ? props.createdUnlinked
+                  ? 'Linking…'
+                  : 'Creating…'
+                : props.createdUnlinked
+                  ? 'Retry linking'
+                  : 'Create notes'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              depth={3}
+              disabled={props.creating}
+              onClick={props.onLink}
+            >
+              <LinkIcon />
+              Link existing
+            </Button>
+          </div>
+        </Show>
+        <Show when={props.createError}>
+          <div role="alert" class="my-2 text-xs text-ink-muted">
+            <p>{props.createError}</p>
+            <Show when={props.createdUnlinked}>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={props.creating}
+                onClick={props.onOpenSaved}
+              >
+                Open saved note
+              </Button>
+            </Show>
+          </div>
+        </Show>
       </div>
     </section>
   );

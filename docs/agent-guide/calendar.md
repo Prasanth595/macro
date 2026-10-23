@@ -2,10 +2,16 @@
 
 ## Meeting notes
 
-Open a live meeting's details and choose **Link a note** in **Meeting notes**.
-Search your markdown documents, select one, review **Meeting viewers · Can view**,
-and optionally include your existing team before **Link note**. Team access starts off for
-each note. Recurring meetings link only the displayed occurrence. Notes on a
+Open a live meeting's details and choose **Create notes** in **Meeting notes**.
+This creates a Markdown document named after the meeting, links it with meeting
+viewer access, and opens it immediately. Team access starts off. A meeting can
+have multiple notes; **Create notes** and **Link existing** remain below the list
+so you can add more.
+
+Choose **Link existing** to search your markdown documents, select one, review
+the sharing explanation, and optionally include your existing team before
+**Link note**. Team access starts off for each note. Recurring meetings link only
+the displayed occurrence. Notes on a
 one-time meeting follow it when its date or time changes.
 Existing document editors and other sharing keep their access.
 Notes use the event details' existing row layout and controls. Team choices come
@@ -15,10 +21,19 @@ Open the linked title to read the original document. On desktop it opens in a
 new split; on mobile it replaces the calendar pane and closes event details.
 Opening a note leaves focus available to the document as it mounts; dismissing
 desktop details normally returns focus to the calendar event.
-Document owners can select the audience label to change the optional team, or
-use **Unlink** to remove the meeting's grants without deleting the document.
+Meeting access is explained once above the list; each note shows any additional
+team audience. Document owners use **Options → Manage access** to change that
+team, or **Options → Unlink from meeting** to remove this meeting's grants without
+deleting the document. Keep access explanations as plain text and actions labeled.
+In the linking dialog, only the document results scroll. The meeting context,
+sharing controls, and action buttons stay visible, including in a short viewport.
 If the owner has since left the selected team, **Remove team access** still works.
 Failed saves retain the selection and audience for retry; dismissing starts fresh.
+If creation succeeds but linking fails, **Retry linking** reuses the saved document;
+**Open saved note** lets you continue editing before the link is confirmed. Closing
+details never deletes that document; it remains in Drive. Changing the selected
+meeting or account prevents a late creation result from navigating away from the
+new selection.
 
 Owners can also open the markdown document's **Share** panel and find **Meeting
 links** (inside **Link** on mobile). Every saved link remains removable here even
@@ -32,15 +47,18 @@ occurrence. If the provider hides its guest list, some guests need a direct
 document share. Independent team sharing lasts until the link is removed or the
 viewer leaves that team; it does not make the calendar event visible to that team.
 
-Verify on desktop and phone: link with team unchecked, add/remove a team, open the
-document, retry a rejected save, and unlink while keeping the document. The
+Verify on desktop and phone: create and open notes, add a second note, retry a failed
+link without duplicating the new document, link an existing note with team unchecked,
+add/remove a team, and unlink while keeping the document. The
 backend-free browser suite mounts the real event popover and mobile drawer with
 sample data and preview service adapters. It is
 `apps/web/src/features/calendar-notes/browser-test/playwright.config.ts`.
 API permission cases are covered in `crates/calendar_events/src/outbound/pg/test/notes.rs`.
 
 Browser fixture screenshots: [desktop](media/calendar-notes/desktop.png) ·
-[phone](media/calendar-notes/phone.png).
+[phone](media/calendar-notes/phone.png) ·
+[desktop picker](media/calendar-notes/link-desktop.png) ·
+[phone picker](media/calendar-notes/link-phone.png).
 
 ## Calendar — `/app/calendar/<month-or-week-or-day>`
 

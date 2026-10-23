@@ -13,6 +13,7 @@ export function createFakeNotesSource(options: { fail?: boolean } = {}) {
   const team = { id: 'macro', name: 'Macro' };
   const [notes, setNotes] = createSignal<MeetingNote[]>([]);
   const [fail, setFail] = createSignal(options.fail ?? false);
+  let createdCount = 0;
   const source: NotesSource = {
     notes: () => ({ data: notes(), pending: false }),
     picker: (query) => () => ({
@@ -25,6 +26,20 @@ export function createFakeNotesSource(options: { fail?: boolean } = {}) {
       pending: false,
     }),
     retry: async () => {},
+    async create(name) {
+      const document = { documentId: `created-${++createdCount}`, name };
+      documents.push(document);
+      const linked = await source.link(document.documentId);
+      if (linked.isErr()) {
+        return err({
+          kind: 'created_unlinked',
+          document,
+          message:
+            'Your note was saved, but couldn’t be linked to this meeting. Retry linking or open the saved note.',
+        });
+      }
+      return ok(document);
+    },
     async link(documentId, teamId) {
       if (fail()) {
         setFail(false);
@@ -38,7 +53,11 @@ export function createFakeNotesSource(options: { fail?: boolean } = {}) {
         return err({ kind: 'link_failed', message: 'Document not found' });
       setNotes((current) => [
         ...current.filter((note) => note.documentId !== documentId),
-        { ...document, team: teamId ? team : undefined, canManage: true },
+        {
+          ...document,
+          team: teamId ? team : undefined,
+          canManage: true,
+        },
       ]);
       return ok(undefined);
     },

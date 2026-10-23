@@ -16,6 +16,7 @@ export function createNotesController(
   const [teamId, setTeamId] = createSignal<string>();
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal<string>();
+  let menuDocumentId: string | undefined;
   let disposed = false;
   onCleanup(() => {
     disposed = true;
@@ -26,6 +27,11 @@ export function createNotesController(
     () => !!dialog() && dialog()?.kind !== 'unlink'
   );
 
+  function reportOpen() {
+    if (disposed) return;
+    onDialogChange(!!menuDocumentId || !!dialog());
+  }
+
   function open(next: NoteDialog) {
     if (saving()) return;
     setQuery('');
@@ -33,13 +39,13 @@ export function createNotesController(
     setSelected(next.kind === 'link' ? undefined : next.note);
     setTeamId(next.kind === 'link' ? undefined : next.note.team?.id);
     setDialog(next);
-    onDialogChange(true);
+    reportOpen();
   }
 
   function close() {
     if (saving()) return;
     setDialog(undefined);
-    onDialogChange(false);
+    reportOpen();
   }
 
   async function save() {
@@ -72,6 +78,11 @@ export function createNotesController(
     saving,
     error,
     picker,
+    setMenuOpen: (documentId: string, open: boolean) => {
+      if (open) menuDocumentId = documentId;
+      else if (menuDocumentId === documentId) menuDocumentId = undefined;
+      reportOpen();
+    },
     close,
     save,
     openLink: () => open({ kind: 'link' }),

@@ -40,6 +40,7 @@ export function CalendarMeetingNotes(props: {
       source={source}
       eventTitle={props.event.title}
       recurring={props.event.recurrenceLines.length > 0}
+      guestListHidden={!props.event.guestPolicy.canSeeOtherGuests}
       onOpen={(note) => {
         announce(`Opened ${note.name}`);
         props.onOpenDocument(note.documentId);

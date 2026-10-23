@@ -15,6 +15,10 @@ export type NoteFailure =
   | { kind: 'link_failed'; message: string }
   | { kind: 'unlink_failed'; message: string };
 
+export type NoteCreateFailure =
+  | { kind: 'create_failed'; message: string }
+  | { kind: 'created_unlinked'; message: string; document: NoteDocument };
+
 export type NoteRead<T> = {
   data?: T;
   pending: boolean;

@@ -179,6 +179,7 @@ function EveryoneElseDeclinedNotice(props: {
 
 function EventDetailsDrawer(props: EventDetailsOverlayProps) {
   const [notesOpen, setNotesOpen] = createSignal(false);
+  let content: HTMLDivElement | undefined;
   const { openWithSplit } = useSplitLayout();
   const openEventComposer = useOpenEventComposer();
   const deleteDialog = useDeleteEventDialog({
@@ -216,10 +217,16 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
       }}
       preventScroll={false}
       preventScrollbarShift={false}
+      trapFocus={!notesOpen()}
+      onInitialFocus={(event) => {
+        if (notesOpen() || content?.contains(document.activeElement))
+          event.preventDefault();
+      }}
     >
       <MobileDrawer.Portal>
         <MobileDrawer.Overlay />
         <MobileDrawer.Content
+          ref={content}
           aria-label={props.event.title}
           class="overflow-hidden"
         >
