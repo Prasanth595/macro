@@ -11,6 +11,8 @@ AI editors, lexical, and notification text.
 
 - `src/parse.rs`: `nom` parsers for each mention chip XML tag.
 - `src/serialize.rs`: renders mentions back to chip XML or plain text.
+- `raw_segments` in `src/parse.rs`: tags with their source text, for callers
+  that rewrite some tags and keep the rest byte for byte (routine templates).
 - `src/tests.rs`: round-trip parse/serialize cases.
 
 ## Scope
@@ -18,6 +20,9 @@ AI editors, lexical, and notification text.
 - Owns: the mention chip wire format (XML-ish tags embedded in message/doc
   text) and parsing it into typed references (`macro_user_id`, `BotIdStr`,
   `ChannelSender`, GitHub PR URLs).
+- Also owns the routine template variable slot,
+  `<m-template-variable>{"key":…}`, kept in step with
+  `packages/lexical-core/nodes/TemplateVariableNode.ts`.
 - Not here: rendering mentions in the UI (web app), or deciding who gets
   notified for a mention → `model_notifications`, `messages`.
 

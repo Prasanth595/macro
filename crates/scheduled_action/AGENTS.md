@@ -18,12 +18,18 @@ each run.
   `src/inbound/event_run_worker.rs`: the three inbound adapters.
 - `services/agent_harness_service/src/scheduling.rs`: the sole runtime host;
   this crate has no deployed binary.
+- `src/domain/templates/`: routine templates. `render.rs` (pure: template +
+  bindings → the create body) and `extract.rs` (routine → template) carry
+  the logic; `service.rs` authorizes, fills and activates;
+  `src/inbound/template_router.rs` is their HTTP surface.
 
 ## Scope
 
 - Owns: scheduled-action and event-trigger CRUD, dispatch (in-process or
   tokio), run history, and live-update notifications over the connection
-  gateway.
+  gateway. Routine templates: sharing a routine as a template
+  (`routine_template`, its `entity_access` grants), AI drafting and filling,
+  activation into the activator's own routine, and provenance on that routine.
 - Not here: the target being run (an agent turn, a routine's tool logic) →
   `crates/agent_session`, `ai_tools`; Jev condition evaluation → `crates/jev`.
 
@@ -31,6 +37,8 @@ each run.
 
 - Depends on: `agent_session`, `trigger_context`, `jev`, `channels`, `crm`,
   `documents`, `macro_event_broker`/`macro_event_topics` (Kafka), `macro_db_client`.
+  Template drafting and filling call `document_cognition_service` through
+  `cognition` (structured completion, read-only workspace tools) as the user.
 - Used by: the web app's automations/routines UI and agent tooling, through
   the gateway.
 
@@ -59,6 +67,12 @@ that listener is ready. Cancellation can stop the gate before startup finishes.
 
 ## Gotchas
 
+- Every template route is mounted only while `ROUTINE_TEMPLATES_ENABLED` is
+  on. A template never stores the creator's values for variable slots, and
+  activation goes through `create_action`'s validation, never around it.
+- Change a template or rendering rule in `render.rs` and keep
+  `extract/test.rs`'s round trip passing: rendering the creator's values must
+  reproduce their routine.
 - `TODO.md` tracks open follow-ups (unified history list, delete schedules,
   sharing/permissions) — check it before assuming a listed gap is unintentional.
 - A new configuration field needs `#[serde(default)]` in `ActionConfiguration`

@@ -142,6 +142,7 @@ successfully rather than hashing the empty JavaScript placeholder.
 | `/app/routines` | Routines list in the Agents workspace |
 | `/app/routines/new` | Opens the routine creation modal |
 | `/app/routines/<uuid>` | Routine settings, triggers, and run history in the Agents workspace |
+| `/app/routine-template/<uuid>` | A shared routine template, with **Activate for me** (requires the routine templates flag) |
 | `/app/agent/<uuid>` | An agent session (opened from `@macro` under the agents rollout, or `@coder` / `@cursor`) |
 | `/app/md/<doc>/chat/<chat>` | Doc + doc-scoped chat in a split |
 | `/app/md/<doc>/channel/<channel>` | Doc + channel in a split |
@@ -766,7 +767,9 @@ saved trigger becomes a chip, with another **Add trigger** always at the end.
 The last chip, **Runs hidden**, opens **Hide runs** / **Show runs**.
 **Start enabled** controls whether the saved routine starts listening immediately. **Create routine** opens
 its details inside the Agents pane, retaining the sidebar. Creation has no history
-tab or templates. Unsaved drafts are retained for three minutes.
+tab; to start from someone else's routine, use **Activate for me** on a shared
+template (see [Routine templates](#routine-templates)). Unsaved drafts are
+retained for three minutes.
 
 **Add trigger → Scheduled** offers Hourly, Daily, Weekly, Monthly, and Custom
 (cron) in a single anchored panel. Choose the frequency and type a time, or type
@@ -855,6 +858,41 @@ MCP and Macro agent tools expose **CreateRoutine**, **ListRoutines**,
 model ID. `schedule.type: "once"` accepts a future RFC3339 `at` timestamp;
 `"cron"` accepts a six-field `expression` and IANA `timezone`. Routine ownership
 comes from the authenticated caller, never a model-supplied user ID.
+
+## Routine templates
+
+When `enable-routine-templates` is on (and the scheduled-action service runs
+with `ROUTINE_TEMPLATES_ENABLED`), a routine's owner can share it as a template.
+A template never runs; each person who activates it gets their own routine that
+runs as them.
+
+- **Share:** open a routine you own, click its **…** menu next to the name, and
+  choose **Share as template**. The dialog shows **How the template reads**, with
+  every person-specific value (the agent, schedules, event-trigger items, and
+  people, channels and documents mentioned in the instructions, plus customer
+  names or domains the AI finds) replaced by a violet `{Variable}` chip. Rename
+  and describe each variable, and switch it between **Variable** (each person
+  fills it in) and **Fixed** (everyone gets your value; the agent is always a
+  variable). **Share template** saves it and opens the recipient picker; it
+  posts the template to the chosen channels or people, which grants them view
+  access. Sharing a routine again offers **Update template** or **Share
+  existing**.
+- **View:** a posted template shows as a **Routine template** card with
+  **View template** and **Activate for me** (or **Active for you** and **Open**
+  once you activated it). **View template** opens `/app/routine-template/<uuid>`:
+  the creator, variable count, triggers and instructions with chips, and the
+  variable list. The owner's **…** menu deletes the template; activated
+  routines keep running.
+- **Activate:** **Activate for me** opens a review dialog that reads your inbox,
+  channels, docs and agents to fill in each variable (blue), flags uncertain
+  values in amber with **Check this**, and keeps fixed values grey. **Change**
+  opens the picker for that kind (agent picker, schedule editor, entity search,
+  or text). **Ask for changes** re-fills with an instruction such as "do this
+  for Initech instead". **Activate** stays disabled until every variable has a
+  value, then creates and opens your routine.
+- **Activated routine:** its page shows **From <creator>'s template** with
+  **View**, and **Your variables** with **Change** and **Fill in again with AI**
+  until you edit the instructions by hand.
 
 ## Command menu (Ctrl+K)
 
