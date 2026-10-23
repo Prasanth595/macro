@@ -26,7 +26,8 @@ use crate::domain::ports::{
 };
 
 use super::super::values::{
-    ColumnShape, PeopleMap, PlannedColumn, capped_name, cell, derived_id, planned_column,
+    ColumnNames, ColumnShape, PeopleMap, PlannedColumn, capped_name, cell, derived_id,
+    planned_column,
 };
 
 #[cfg(test)]
@@ -117,10 +118,11 @@ pub(in super::super) async fn write_database<
             .await?;
     }
     let table = created.table;
+    let names = ColumnNames::new(&source.properties);
     let columns: Vec<PlannedColumn> = source
         .properties
         .iter()
-        .filter_map(|property| planned_column(property, created.database_id))
+        .filter_map(|property| planned_column(property, &names, created.database_id))
         .collect();
     let page_column = PageColumn {
         id: ColumnId::from_uuid(derived_id(created.database_id, "column/page")),
@@ -136,7 +138,7 @@ pub(in super::super) async fn write_database<
             .apply_database_ops(
                 user,
                 created.database_id,
-                schema_ops(item, &source, &created, &columns),
+                schema_ops(item, &source, &names, &created, &columns),
             )
             .await?;
         progress
@@ -274,6 +276,7 @@ async fn database_once<Writer: WorkspaceWriter, Store: WrittenObjects>(
 fn schema_ops(
     item: &WriteItem,
     source: &NotionDataSource,
+    names: &ColumnNames,
     created: &NewDatabase,
     columns: &[PlannedColumn],
 ) -> Vec<DatabaseOp> {
@@ -294,7 +297,7 @@ fn schema_ops(
             table,
             column: created.title_column,
             change: ColumnChange::Rename {
-                name: capped_name(&title.name),
+                name: names.of(title),
                 previous_name: None,
             },
         });
@@ -357,6 +360,7 @@ fn pending_relations(
     let Some(table) = written.table else {
         return Vec::new();
     };
+    let names = ColumnNames::new(&source.properties);
     source
         .properties
         .iter()
@@ -378,7 +382,7 @@ fn pending_relations(
             Some(PendingRelation {
                 database: written.database_id,
                 table,
-                name: capped_name(&property.name),
+                name: names.of(property),
                 target: data_source_id.clone(),
                 links,
             })
@@ -414,11 +418,10 @@ pub(in super::super) async fn recorded_database<Api: NotionApi, Store: WrittenOb
         ..WrittenDatabase::default()
     };
     let source = api.data_source(&item.notion_id).await?;
+    let names = ColumnNames::new(&source.properties);
     let unlinked = source.properties.iter().any(|property| {
         matches!(property.kind, NotionPropertyKind::Relation { .. })
-            && !written
-                .relations_linked
-                .contains(&capped_name(&property.name))
+            && !written.relations_linked.contains(&names.of(property))
     });
     // Only a database with relations left to link needs its rows again.
     if unlinked {
