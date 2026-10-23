@@ -1,6 +1,10 @@
 use super::*;
 
 const TEAMMATE_ID: &str = "macro|teammate@example.com";
+/// A channel the viewer participates in.
+pub(super) const JOINED_CHANNEL_ID: &str = "0199a000-0000-7000-8000-00000000c1c1";
+/// A document the viewer can open only through its share link.
+pub(super) const LINK_SHARED_DOCUMENT_ID: &str = "0199a000-0000-7000-8000-00000000a1a1";
 
 /// A teammate's edit, as ingestion records it.
 fn teammates_edit(
@@ -97,9 +101,43 @@ async fn team_activity_shows_teammates_rows_on_entities_the_viewer_can_see() {
 }
 
 #[tokio::test]
+async fn team_activity_needs_the_viewer_in_the_entitys_audience() {
+    let harness = harness();
+    harness.activity_reader.set_records(vec![
+        teammates_edit(4, ModelEntityType::Channel, JOINED_CHANNEL_ID),
+        teammates_edit(
+            3,
+            ModelEntityType::Channel,
+            "0199a000-0000-7000-8000-00000000c2c2",
+        ),
+        // Opening a link does not reveal the rest of the team's work on it.
+        teammates_edit(2, ModelEntityType::Document, LINK_SHARED_DOCUMENT_ID),
+        teammates_edit(
+            1,
+            ModelEntityType::Database,
+            database_activity::VIEWABLE_DATABASE_ID,
+        ),
+    ]);
+
+    let first = team_page(&harness, None).await;
+    assert_eq!(
+        first["items"],
+        serde_json::json!([{ "id": Uuid::from_u128(4).to_string(), "actorId": TEAMMATE_ID }])
+    );
+    let cursor = first["nextCursor"].as_str().expect("more rows exist");
+
+    let last = team_page(&harness, Some(cursor)).await;
+    assert_eq!(
+        last["items"],
+        serde_json::json!([{ "id": Uuid::from_u128(1).to_string(), "actorId": TEAMMATE_ID }])
+    );
+    assert!(last["nextCursor"].is_null());
+}
+
+#[tokio::test]
 async fn team_activity_fails_rather_than_hiding_rows_when_access_checks_fail() {
     let harness = harness();
-    // The test access service fails every document check.
+    // The test access service fails every other document check.
     harness.activity_reader.set_records(vec![teammates_edit(
         1,
         ModelEntityType::Document,

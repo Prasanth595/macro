@@ -38,8 +38,9 @@ pub enum ActivityFeedScope {
     /// The authenticated user's own activity, delegated actions included.
     #[default]
     Mine,
-    /// Activity by the authenticated user's teammates, on entities the user
-    /// can currently see (forms: only those the user can edit).
+    /// Activity by the authenticated user's teammates, on entities shared
+    /// with the user (link sharing alone does not count; forms only when the
+    /// user can edit them).
     Team,
 }
 
@@ -99,7 +100,7 @@ fn encode_cursor(occurred_at: DateTime<Utc>, id: Uuid, limit: u32) -> String {
 /// In the `MINE` scope the subject is the viewer's principal string, so
 /// delegated actions a bot performed on the user's behalf appear in the
 /// user's own feed. The `TEAM` scope reads the user's teammates and drops
-/// rows on entities the viewer cannot currently see. Pagination follows the
+/// rows on entities not shared with the viewer. Pagination follows the
 /// page's `next` position, which storage derives from raw rows — a corrupt
 /// or hidden row shrinks a page (possibly to empty) but never ends the feed.
 pub async fn resolve_activity_feed<R, A>(

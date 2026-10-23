@@ -19,7 +19,7 @@ export type ActivityAction =
 
 /**
  * Whose activity the Activity screen reads: the viewer's own, or their
- * teammates' on items the viewer can open.
+ * teammates' on items shared with the viewer.
  */
 export type ActivityScope = 'mine' | 'team';
 

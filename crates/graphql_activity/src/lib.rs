@@ -6,7 +6,7 @@
 //!
 //! - the authenticated user's feed ([`resolve_activity_feed`]), a
 //!   keyset-paginated field on `GraphqlUser` scoped to the user's own
-//!   activity or to their teammates' activity on entities the user can see;
+//!   activity or to their teammates' activity on entities shared with the user;
 //! - the authenticated user's trailing-year aggregate
 //!   ([`resolve_activity_overview`]);
 //! - a lazily-loaded `activity` edge on every Soup entity, batched across
@@ -31,7 +31,7 @@ mod objects;
 mod overview;
 /// Realtime activity subscription root and patch union.
 mod subscriptions;
-/// The feed's team scope: teammates' rows filtered to what the viewer can see.
+/// The feed's team scope: teammates' rows filtered to entities shared with the viewer.
 mod team_feed;
 /// The access-checked timeline of one database or form.
 mod timeline;

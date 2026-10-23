@@ -775,7 +775,7 @@ where
 
     /// A page of activity, newest first: by default the authenticated
     /// user's own, delegated actions included; in the `TEAM` scope, their
-    /// teammates' activity on entities the user can currently see.
+    /// teammates' activity on entities shared with the user.
     async fn activity(
         &self,
         ctx: &Context<'_>,

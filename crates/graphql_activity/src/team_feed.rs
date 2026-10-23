@@ -3,7 +3,7 @@ use std::{collections::HashSet, num::NonZeroU32};
 use activity::{ActivityFeedPage, EntityType};
 use chrono::{DateTime, Utc};
 use entity_access::domain::{
-    models::{AccessError, EditAccessLevel, ViewAccessLevel},
+    models::{AccessError, EditAccessLevel},
     ports::EntityAccessService,
 };
 use futures::{StreamExt as _, TryStreamExt as _, stream};
@@ -16,7 +16,7 @@ use crate::loaders::{ActivityFeedReader, ActivityReadFailed};
 const MAX_CONCURRENT_ACCESS_CHECKS: usize = 8;
 
 /// One page of the viewer's teammates' activity, keeping only rows on
-/// entities the viewer can currently see. The page's `next` is the raw
+/// entities shared with the viewer (`can_read_activity`). The page's `next` is the raw
 /// storage position, so hidden rows shrink a page but never end the feed.
 #[tracing::instrument(
     name = "activity.team_feed",
@@ -71,35 +71,44 @@ where
     })
 }
 
-/// Whether the viewer may read activity on an entity right now: View for
-/// every kind except forms, whose activity names respondents and so is
-/// Edit-gated like the form timeline. Refusals read as hidden; failures
-/// propagate so an outage never silently empties the feed.
+/// Whether the viewer may read activity on an entity right now: they must be
+/// in its explicit audience, the users granted access directly or through a
+/// project, team, or channel, and the active participants of a channel. That
+/// is the audience realtime activity is addressed to. Link sharing does not
+/// count: new documents are link-shared by default, and the feed would
+/// otherwise hand every teammate's drafts, and their links, to the team.
+/// Forms are also Edit-gated like the form timeline, because their activity
+/// names respondents. Refusals read as hidden; failures propagate so an
+/// outage never silently empties the feed.
 async fn can_read_activity<A: EntityAccessService>(
     access: &A,
     viewer: &MacroUserIdStr<'static>,
     entity_type: EntityType,
     entity_id: &str,
 ) -> Result<bool, AccessError> {
-    let receipt = if entity_type == EntityType::Form {
-        access
-            .generate_entity_access_receipt::<EditAccessLevel>(viewer, None, entity_id, entity_type)
-            .await
-            .map(drop)
-    } else {
-        access
-            .generate_entity_access_receipt::<ViewAccessLevel>(viewer, None, entity_id, entity_type)
-            .await
-            .map(drop)
+    let in_audience = match access.get_users_by_entity(entity_id, entity_type).await {
+        Ok(users) => users.iter().any(|user| user == viewer),
+        Err(error) => return refusal_or(error),
     };
-    match receipt {
-        Ok(()) => Ok(true),
-        Err(
-            AccessError::Unauthorized
-            | AccessError::UnauthorizedWithMessage(_)
-            | AccessError::NotFound(_)
-            | AccessError::BadRequest(_),
-        ) => Ok(false),
-        Err(error) => Err(error),
+    if !in_audience || entity_type != EntityType::Form {
+        return Ok(in_audience);
+    }
+    match access
+        .generate_entity_access_receipt::<EditAccessLevel>(viewer, None, entity_id, entity_type)
+        .await
+    {
+        Ok(_) => Ok(true),
+        Err(error) => refusal_or(error),
+    }
+}
+
+/// An access refusal reads as hidden; anything else is a failure.
+fn refusal_or(error: AccessError) -> Result<bool, AccessError> {
+    match error {
+        AccessError::Unauthorized
+        | AccessError::UnauthorizedWithMessage(_)
+        | AccessError::NotFound(_)
+        | AccessError::BadRequest(_) => Ok(false),
+        error => Err(error),
     }
 }

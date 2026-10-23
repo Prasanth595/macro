@@ -17,9 +17,12 @@ DataLoader) — plus database/form timelines and a realtime subscription.
 - `src/feed.rs` / `src/overview.rs`: the viewer feed and yearly aggregate.
   The feed's `scope` input picks the viewer's own activity (`MINE`) or their
   teammates' (`TEAM`).
-- `src/team_feed.rs`: the `TEAM` scope keeps only rows on entities the viewer
-  can see right now (forms: Edit, like the form timeline). Hidden rows shrink
-  a page, possibly to empty, but its cursor still advances.
+- `src/team_feed.rs`: the `TEAM` scope keeps only rows on entities whose
+  explicit audience (`get_users_by_entity`, the same one realtime activity is
+  addressed to) includes the viewer. Link sharing alone does not count, since
+  new documents are link-shared by default. Forms also need Edit, like the
+  form timeline. Hidden rows shrink a page, possibly to empty, but its cursor
+  still advances.
 - `src/timeline.rs`: by-id, access-checked timelines for databases/forms
   (not Soup items, so not loader-batched).
 - `src/subscriptions.rs`: the realtime `activityUpdates` subscription.

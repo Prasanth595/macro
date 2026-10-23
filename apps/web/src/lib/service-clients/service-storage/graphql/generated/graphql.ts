@@ -21,8 +21,9 @@ export type ActivityFeedScope =
   /** The authenticated user's own activity, delegated actions included. */
   | 'MINE'
   /**
-   * Activity by the authenticated user's teammates, on entities the user
-   * can currently see (forms: only those the user can edit).
+   * Activity by the authenticated user's teammates, on entities shared
+   * with the user (link sharing alone does not count; forms only when the
+   * user can edit them).
    */
   | 'TEAM';
 

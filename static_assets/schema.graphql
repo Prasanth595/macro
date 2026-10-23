@@ -26,8 +26,9 @@ enum ActivityFeedScope {
 	"""
 	MINE
 	"""
-	Activity by the authenticated user's teammates, on entities the user
-	can currently see (forms: only those the user can edit).
+	Activity by the authenticated user's teammates, on entities shared
+	with the user (link sharing alone does not count; forms only when the
+	user can edit them).
 	"""
 	TEAM
 }
@@ -8985,7 +8986,7 @@ type GraphqlUser {
 	"""
 	A page of activity, newest first: by default the authenticated
 	user's own, delegated actions included; in the `TEAM` scope, their
-	teammates' activity on entities the user can currently see.
+	teammates' activity on entities shared with the user.
 	"""
 	activity(input: ActivityFeedInput!): GraphqlActivityPage!
 	"""

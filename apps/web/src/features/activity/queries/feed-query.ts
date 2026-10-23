@@ -28,7 +28,7 @@ function feedInput(
 
 /**
  * Infinite query over one activity feed, newest first: the authenticated
- * user's own, or their teammates' on items the user can open. Pages chase
+ * user's own, or their teammates' on items shared with the user. Pages chase
  * the server's opaque keyset cursor until it comes back null.
  */
 export function createMyActivityQuery(
