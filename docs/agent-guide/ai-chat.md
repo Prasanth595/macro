@@ -833,6 +833,12 @@ keep using Macro usage):
   providers have one; only admins and the owner can save, replace, or remove a
   key.
 
+Keys are part of the Premium and Max plans (and enterprise teams). On Free,
+both sections show **Included with Premium and Max** with an **Upgrade** button
+that opens Billing, and saving is disabled (the API answers 403). A key saved
+before a downgrade stays listed and can be removed, but chat never runs on it:
+the composer offers no key and the out-of-usage card offers none.
+
 Only the in-memory agent (Macro's own chat, `macro-inmem`) uses these keys, and
 only for Anthropic and OpenAI models:
 

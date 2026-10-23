@@ -5,6 +5,7 @@
  */
 
 import { toast } from '@core/component/Toast/Toast';
+import { useSettingsState } from '@core/constant/SettingsState';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { ThrownResultError } from '@core/util/result';
 import { formatRelativeTimestamp } from '@entity';
@@ -39,6 +40,10 @@ export function AiApiKeys(props: { owner: AiApiKeyOwner; canManage: boolean }) {
   const save = useSaveAiApiKey(props.owner);
   const remove = useRemoveAiApiKey(props.owner);
   const whose = props.owner === 'personal' ? 'your' : "your team's";
+  const { openSettings } = useSettingsState();
+  // Keys are a paid-plan feature. A key saved before a downgrade is still
+  // listed and removable, but chat does not run on it.
+  const locked = () => keys.data?.usable === false;
   const [drafts, setDrafts] = createSignal<Partial<Record<AiProvider, string>>>(
     {}
   );
@@ -51,7 +56,7 @@ export function AiApiKeys(props: { owner: AiApiKeyOwner; canManage: boolean }) {
 
   const handleSave = async (provider: AiProvider, name: string) => {
     const apiKey = draft(provider).trim();
-    if (apiKey.length === 0 || save.isPending) return;
+    if (locked() || apiKey.length === 0 || save.isPending) return;
     try {
       await save.mutateAsync({ provider, apiKey });
       setDraft(provider, '');
@@ -88,6 +93,26 @@ export function AiApiKeys(props: { owner: AiApiKeyOwner; canManage: boolean }) {
       }
     >
       <SettingsCard>
+        <Show when={locked()}>
+          <SettingsRow
+            label="Included with Premium and Max"
+            description={
+              stored('anthropic') || stored('openai')
+                ? 'Your plan doesn’t include your own API keys, so AI chat won’t use the keys below until you upgrade.'
+                : 'Upgrade to save your own API keys for AI chat.'
+            }
+            stackOnNarrow
+          >
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => openSettings('Billing')}
+            >
+              Upgrade
+            </Button>
+          </SettingsRow>
+        </Show>
         <For each={PROVIDERS}>
           {(provider) => (
             <SettingsRow
@@ -119,6 +144,7 @@ export function AiApiKeys(props: { owner: AiApiKeyOwner; canManage: boolean }) {
                     spellcheck={false}
                     aria-label={`${provider.name} API key`}
                     class="settings-input ph-no-capture w-44 min-w-0"
+                    disabled={locked()}
                     placeholder={
                       stored(provider.id) ? 'Replace key' : provider.placeholder
                     }
@@ -139,7 +165,9 @@ export function AiApiKeys(props: { owner: AiApiKeyOwner; canManage: boolean }) {
                     variant="outline"
                     size="sm"
                     disabled={
-                      draft(provider.id).trim().length === 0 || save.isPending
+                      locked() ||
+                      draft(provider.id).trim().length === 0 ||
+                      save.isPending
                     }
                     onClick={() =>
                       fireAndForget(

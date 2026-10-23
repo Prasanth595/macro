@@ -22,8 +22,14 @@ vi.mock('@queries/user-api-keys/user-api-keys', () => ({
     mutateAsync: vi.fn(),
   }),
 }));
+vi.mock('@core/constant/SettingsState', () => ({
+  useSettingsState: () => ({ openSettings: vi.fn() }),
+}));
 vi.mock('@queries/auth/ai-api-keys', () => ({
-  useAiApiKeysQuery: () => ({ isLoading: false, data: { keys: [] } }),
+  useAiApiKeysQuery: () => ({
+    isLoading: false,
+    data: { keys: [], usable: true },
+  }),
   useSaveAiApiKey: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useRemoveAiApiKey: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }));
