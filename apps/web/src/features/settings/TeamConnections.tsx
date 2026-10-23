@@ -6,6 +6,7 @@ import ArrowUpRightIcon from '@phosphor/arrow-up-right.svg';
 import { useGithubLinkStatusQuery } from '@queries/auth';
 import type { Team as TeamSummary } from '@service-auth/generated/schemas/team';
 import { Show } from 'solid-js';
+import { TeamAiApiKeys } from './components/team-ai-api-keys';
 import { ConnectAction } from './integration-ui';
 import {
   IntegrationRow,
@@ -15,7 +16,7 @@ import {
 } from './primitives';
 import { useTeamViewer } from './Team';
 
-/** Team › Connections: team-wide Slack import and the GitHub App. */
+/** Team › Connections: team-wide Slack import, the GitHub App, and AI chat API keys. */
 export function TeamConnections(props: { team: TeamSummary }) {
   const { isAdminOrOwner } = useTeamViewer(() => props.team);
   const githubLink = useGithubLinkStatusQuery();
@@ -63,6 +64,8 @@ export function TeamConnections(props: { team: TeamSummary }) {
           </IntegrationRow>
         </SettingsCard>
       </SettingsSection>
+
+      <TeamAiApiKeys canManage={isAdminOrOwner()} />
     </SettingsPage>
   );
 }
