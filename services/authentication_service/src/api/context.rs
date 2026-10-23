@@ -151,9 +151,9 @@ pub(crate) type FavoritesServiceType = favorites::domain::service::FavoritesServ
 
 pub(crate) type AuthorizationService = MacroAuthorizationServiceImpl<MacroAuthJwtValidator>;
 
-pub(crate) type TeamProviderKeysType = team_provider_keys::domain::TeamProviderKeyService<
-    team_provider_keys::outbound::PgProviderKeyRepo,
-    team_provider_keys::outbound::KmsProviderKeyCipher<cursor_api_key::cipher::AwsKmsCiphertexts>,
+pub(crate) type ProviderKeysType = model_provider_keys::domain::ProviderKeyService<
+    model_provider_keys::outbound::PgProviderKeyRepo,
+    model_provider_keys::outbound::KmsProviderKeyCipher<cursor_api_key::cipher::AwsKmsCiphertexts>,
 >;
 
 #[derive(Clone, FromRef)]
@@ -166,8 +166,8 @@ pub(crate) struct ApiContext {
     pub microsoft_auth: Option<Arc<dyn MicrosoftAuth>>,
     /// Encrypts users' Cursor API keys.
     pub cursor_api_key_cipher: Arc<dyn CursorApiKeyCipher>,
-    /// Teams' own Anthropic and OpenAI keys for AI chat.
-    pub team_provider_keys: Arc<TeamProviderKeysType>,
+    /// People's and teams' own Anthropic and OpenAI keys for AI chat.
+    pub model_provider_keys: Arc<ProviderKeysType>,
     /// Owner-bound Codex OAuth lifecycle and cloud target settings.
     pub codex_connection: Option<Arc<dyn codex_connection::domain::ConnectionService>>,
     pub macro_cache_client: Arc<MacroCache>,

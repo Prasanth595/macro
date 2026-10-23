@@ -24,6 +24,7 @@ mod link;
 mod merge;
 mod mobile_welcome_email;
 
+mod ai_api_keys;
 mod github_pull_requests;
 mod health;
 mod internal;
@@ -121,6 +122,7 @@ fn api_router(state: ApiContext) -> Router<ApiContext> {
         .nest("/user", user::router())
         .nest("/link", link::router())
         .nest("/cursor-api-key", cursor_api_key::router())
+        .nest("/ai-api-keys", ai_api_keys::router())
         .nest("/team-ai-api-keys", team_ai_api_keys::router())
         .nest("/codex", codex::router())
         .nest("/github_pull_requests", github_pull_requests::router())

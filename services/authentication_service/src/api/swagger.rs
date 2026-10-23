@@ -30,6 +30,7 @@ use teams::inbound::axum_router::{
 use user_quota::UserQuota;
 use utoipa::OpenApi;
 
+use crate::api::ai_api_keys::{AiApiKey, AiApiKeys, AiProvider, PutAiApiKeyRequest};
 use crate::api::cursor_api_key::{CursorApiKeyStatus, put_cursor_api_key::PutCursorApiKeyRequest};
 use crate::api::email::generate_email_link::GenerateEmailLinkRequest;
 use crate::api::email::resend_fusionauth_verify_user_email::ResendFusionauthVerifyUserEmailRequest;
@@ -39,9 +40,6 @@ use crate::api::link::github::{GithubLinkStatusResponse, InitGithubLinkResponse}
 use crate::api::link::gmail::{GmailLinkStatusResponse, InitGmailLinkResponse};
 use crate::api::link::outlook::InitOutlookLinkResponse;
 use crate::api::merge::create_merge_request::CreateAccountMergeRequest;
-use crate::api::team_ai_api_keys::{
-    PutTeamAiApiKeyRequest, TeamAiApiKey, TeamAiApiKeys, TeamAiProvider,
-};
 use crate::api::user::get_legacy_user_permissions::GetLegacyUserPermissionsResponse;
 use crate::api::user::get_user_link_exists::UserLinkResponse;
 use crate::api::user::get_user_organization::UserOrganizationResponse;
@@ -117,6 +115,9 @@ use model::user::{
                 crate::api::cursor_api_key::delete_cursor_api_key::handler,
                 crate::api::cursor_api_key::list_cursor_models::handler,
                 crate::api::cursor_api_key::put_cursor_default_model::handler,
+                crate::api::ai_api_keys::list_handler,
+                crate::api::ai_api_keys::put_handler,
+                crate::api::ai_api_keys::delete_handler,
                 crate::api::team_ai_api_keys::list_handler,
                 crate::api::team_ai_api_keys::put_handler,
                 crate::api::team_ai_api_keys::delete_handler,
@@ -249,10 +250,10 @@ use model::user::{
                         InitOutlookLinkResponse,
                         CursorApiKeyStatus,
                         PutCursorApiKeyRequest,
-                        TeamAiApiKeys,
-                        TeamAiApiKey,
-                        TeamAiProvider,
-                        PutTeamAiApiKeyRequest,
+                        AiApiKeys,
+                        AiApiKey,
+                        AiProvider,
+                        PutAiApiKeyRequest,
 
                         // GTM invite links
                         GtmInviteLink,
