@@ -4,7 +4,6 @@
  * Document Cognition Service
  * OpenAPI spec version: 1.0.0
  */
-import type { NotionDocMetaPlan } from './notionDocMetaPlan';
 import type { NotionDocMetaSummary } from './notionDocMetaSummary';
 import type { NotionDocMetaUrl } from './notionDocMetaUrl';
 
@@ -13,7 +12,6 @@ import type { NotionDocMetaUrl } from './notionDocMetaUrl';
 page bodies are fetched at import time, for accepted pages only.
  */
 export interface NotionDocMeta {
-  plan?: NotionDocMetaPlan;
   /** One-line summary of what the page contains. */
   summary?: NotionDocMetaSummary;
   /** Page title. */

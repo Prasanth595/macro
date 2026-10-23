@@ -15,6 +15,8 @@ reminder dispatch, team availability, and provider/Postgres persistence.
 - `src/domain/capabilities.rs`: Google's organizer-set `GuestPolicy` and the
   `ViewerCapabilities` every read surface exposes as `viewerCan`.
 - `src/domain/team_availability.rs` + `src/domain/team.rs`: team sharing/availability.
+- `src/domain/notes.rs`, `src/outbound/pg_notes.rs`, `src/inbound/notes_router.rs`:
+  occurrence-scoped markdown links and optional team view access (feature `notes`).
 - `src/outbound/google.rs`, `src/outbound/pg.rs`: Google Calendar and Postgres adapters.
 - `src/outbound/pg/outlook.rs`: durable Outlook synchronization; preserve
   provider-specific coverage on discovery.
@@ -50,9 +52,15 @@ reminder dispatch, team availability, and provider/Postgres persistence.
 ## Checks
 
 - `cargo test -p calendar_events` (`SQLX_OFFLINE` unset).
+- `cargo test -p calendar_events --features notes,postgres` covers meeting-note
+  policy and its document-access integration against a migrated local MacroDB.
 
 ## Gotchas
 
+- Keep note links separate from sync-owned occurrence rows; require a live
+  occurrence and corroborated inbox copies for inherited view access. A document
+  owner can unlink after losing meeting access. See
+  [meeting-note access](../../docs/architecture/calendar-meeting-notes.md).
 - `CalendarEvent` is the stable Macro entity; external calendars and email
   invitations are sources feeding it, and recurrence instances are queryable
   occurrence projections, not separate events — don't model them as new entities.
@@ -128,6 +136,9 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   canonical copy's values) and in each source's projection, omitted there while
   it holds Google's default. Event responses always carry both;
   `StoredSourceProjection` strips them so unchanged events keep comparing equal.
+  Since one meeting on two inboxes is two entities, the agent tools label every
+  event they return with its calendar's name, its `inbox` and the user's
+  `myRole` there (`ToolEventRole::of`), so the agent can ask or pick by inbox.
 - Preserve the conservative OOO refresh hint on write outcomes and sync reports;
   its contract is in [team sharing](../../docs/design/calendar-team-sharing.md).
 

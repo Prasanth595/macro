@@ -8,12 +8,12 @@ import type { ImportEntity } from './importEntity';
 import type { ImportRun } from './importRun';
 
 /**
- * The full import aggregate for a user: discovery runs plus visible ledger
+ * The full import aggregate for a user: gather runs plus visible ledger
 rows (their own, and teammates' team-imported rows).
  */
 export interface ImportState {
   /** Visible import entities, newest first. */
   entities: ImportEntity[];
-  /** Discovery runs, one per source that ever ran discovery. */
+  /** Gather runs, one per source that ever gathered. */
   runs: ImportRun[];
 }

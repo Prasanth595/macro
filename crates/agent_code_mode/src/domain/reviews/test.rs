@@ -103,6 +103,8 @@ impl ExecutionStore for Executions {
             return Err(CodeModeError::NotFound);
         }
         Ok(ExecutionRecord {
+            acting_as: None,
+            turn_id: None,
             execution_id: execution,
             source: String::new(),
             status: ExecutionStatus::Running,
@@ -119,6 +121,7 @@ struct Actions {
     archived: AtomicBool,
     prompter: Mutex<Option<TurnPrompter>>,
     calls: Mutex<Vec<Value>>,
+    actors: Mutex<Vec<String>>,
     presentations: Mutex<Vec<ReviewId>>,
     fail_presentation: AtomicBool,
     block_actions: AtomicBool,
@@ -155,7 +158,7 @@ impl ReviewActions for Actions {
         _: &ReviewRecord,
         draft: Value,
     ) -> Result<Value, CodeModeError> {
-        assert_eq!(owner, &self.owner);
+        self.actors.lock().unwrap().push(owner.to_string());
         self.calls.lock().unwrap().push(draft.clone());
         self.action_started.notify_one();
         if self.block_actions.load(Ordering::SeqCst) {
@@ -199,6 +202,7 @@ impl Fixture {
             archived: AtomicBool::new(false),
             prompter: Mutex::new(None),
             calls: Mutex::default(),
+            actors: Mutex::default(),
             presentations: Mutex::default(),
             fail_presentation: AtomicBool::new(false),
             block_actions: AtomicBool::new(false),
@@ -959,4 +963,45 @@ async fn dismissing_an_import_wakes_the_session() {
     assert_eq!(events.len(), 1);
     assert!(events[0].wake);
     assert!(f.actions.calls.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn requester_reviews_are_decided_and_executed_only_with_their_account() {
+    let f = Fixture::new();
+    let requester = MacroUserIdStr::try_from_email("requester@example.com").unwrap();
+    let access = EntityAccessReceipt::dangerously_assert_authenticated_user(
+        requester.clone(),
+        &f.session.to_string(),
+        EntityType::AgentSession,
+    );
+    let row = f
+        .service
+        .create(
+            &access,
+            &requester,
+            f.input(vec![json!({"subject":"requester draft"})]),
+        )
+        .await
+        .unwrap();
+    assert_eq!(row.acting_user.as_ref(), Some(&requester));
+    let decision = ReviewDecision::Submit {
+        revision: row.revision,
+        items: vec![],
+    };
+    assert!(matches!(
+        f.service
+            .decide(&f.edit(), &f.actions.owner, row.id, decision.clone())
+            .await,
+        Err(CodeModeError::Forbidden)
+    ));
+    f.service
+        .decide(&access, &requester, row.id, decision)
+        .await
+        .unwrap();
+    let settled = f.settled(row.id).await;
+    assert_eq!(settled.items[0].status, ReviewItemStatus::Completed);
+    assert_eq!(
+        *f.actions.actors.lock().unwrap(),
+        vec![requester.to_string()]
+    );
 }

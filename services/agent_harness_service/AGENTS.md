@@ -56,7 +56,7 @@ Pulumi stacks; they do not host extra agent processes.
 
 ## Tool contracts
 
-- Internal session tools require a verified acting user plus owner/edit authorization. Keep their restricted prompt/stop route separate from human approval controls.
+- Internal session tools require explicit `acting_as`, resolved by the shared gate, plus existing owner/edit authorization. SDK executions choose one account for the whole program; review decisions use the saved acting account. Keep their restricted prompt/stop route separate from human approval controls.
 - An import review's draft is `{source, excluded, shared, personal}`: the rows the owner left out and the rows whose sharing they flipped, passed to `start_notion_write` as `NotionWriteChoices`.
 - One `ai_tools::ImportJobs` serves the whole process: session tools, public MCP, and `cognition::build` (the `/import/*` routes and the only stalled-Notion-import sweeper) share it, and `main.rs` hands running imports over on shutdown (`ImportJobs::hand_over`).
 - `ApproveReview` lets the agent approve a presented review after the owner says yes in chat: `Actions::session` reports the turn's prompter from `agent_session.turn_prompter`, and `approvable` refuses an import whose plan is not `ready` for that review.
@@ -81,8 +81,9 @@ produce events, independently of public session control.
 - `just run-local` — needs `DAYTONA_API_KEY`, `DAYTONA_SNAPSHOT`,
   `GITHUB_TOKEN` in the environment or a local `.env`.
 
-Code-mode credentials sign the authenticated session bot identity for SDK
-message attribution after owner approval, while retaining user authentication.
+Code-mode credentials sign the session bot for SDK attribution and the selected
+user for API authorization; owner approval is required only for cross-account
+access. Lifecycle, runtime provider connections, billing, and memory stay owner-scoped.
 
 ## Configuration and lifecycle
 
