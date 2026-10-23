@@ -162,7 +162,8 @@ export const getAiApiKeys = async (
 };
 
 /**
- * @summary Registers or replaces the caller's own key for a provider.
+ * @summary Registers or replaces the caller's own key for a provider. Needs a paid
+plan.
  */
 export type putAiApiKeyResponse200 = {
   data: AiApiKeys;
@@ -179,12 +180,18 @@ export type putAiApiKeyResponse401 = {
   status: 401;
 };
 
+export type putAiApiKeyResponse403 = {
+  data: ErrorResponse;
+  status: 403;
+};
+
 export type putAiApiKeyResponseSuccess = putAiApiKeyResponse200 & {
   headers: Headers;
 };
 export type putAiApiKeyResponseError = (
   | putAiApiKeyResponse400
   | putAiApiKeyResponse401
+  | putAiApiKeyResponse403
 ) & {
   headers: Headers;
 };
@@ -4253,7 +4260,8 @@ export const getTeamAiApiKeys = async (
 };
 
 /**
- * @summary Registers or replaces the team's key for a provider. Team admins only.
+ * @summary Registers or replaces the team's key for a provider. Team admins on a
+paid plan only.
  */
 export type putTeamAiApiKeyResponse200 = {
   data: AiApiKeys;

@@ -74,7 +74,8 @@ export class Sdk extends HeyApiClient {
     }
     
     /**
-     * Registers or replaces the caller's own key for a provider.
+     * Registers or replaces the caller's own key for a provider. Needs a paid
+     * plan.
      */
     public putAiApiKey<ThrowOnError extends boolean = false>(options: Options<PutAiApiKeyData, ThrowOnError>): RequestResult<PutAiApiKeyResponses, PutAiApiKeyErrors, ThrowOnError> {
         return (options.client ?? this.client).put<PutAiApiKeyResponses, PutAiApiKeyErrors, ThrowOnError>({
@@ -738,7 +739,8 @@ export class Sdk extends HeyApiClient {
     }
     
     /**
-     * Registers or replaces the team's key for a provider. Team admins only.
+     * Registers or replaces the team's key for a provider. Team admins on a
+     * paid plan only.
      */
     public putTeamAiApiKey<ThrowOnError extends boolean = false>(options: Options<PutTeamAiApiKeyData, ThrowOnError>): RequestResult<PutTeamAiApiKeyResponses, PutTeamAiApiKeyErrors, ThrowOnError> {
         return (options.client ?? this.client).put<PutTeamAiApiKeyResponses, PutTeamAiApiKeyErrors, ThrowOnError>({

@@ -12,4 +12,7 @@ import type { AiApiKey } from './aiApiKey';
 export interface AiApiKeys {
   /** One entry per provider with a key. */
   keys: AiApiKey[];
+  /** Whether the caller's plan lets them save keys and run AI chat on
+them. Keys saved before a downgrade are still listed when it doesn't. */
+  usable: boolean;
 }

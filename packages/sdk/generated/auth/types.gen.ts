@@ -28,6 +28,11 @@ export type AiApiKeys = {
      * One entry per provider with a key.
      */
     keys: Array<AiApiKey>;
+    /**
+     * Whether the caller's plan lets them save keys and run AI chat on
+     * them. Keys saved before a downgrade are still listed when it doesn't.
+     */
+    usable: boolean;
 };
 
 /**
@@ -2072,6 +2077,7 @@ export type PutAiApiKeyData = {
 export type PutAiApiKeyErrors = {
     400: ErrorResponse;
     401: string;
+    403: ErrorResponse;
 };
 
 export type PutAiApiKeyError = PutAiApiKeyErrors[keyof PutAiApiKeyErrors];
