@@ -18,7 +18,7 @@ vi.mock('node:child_process', async (importOriginal) => ({
 
 afterEach(() => vi.mocked(execFileSync).mockReset());
 
-const config = (project: string, packageName = 'com.macro.workspace.mobile') => ({
+const config = (project: string, packageName = 'com.macro.app.prod') => ({
   project_info: { project_id: project, project_number: '123456789' },
   client: [
     {
@@ -37,16 +37,16 @@ describe('Android Firebase environment selection', () => {
       validateAndroidFirebase(config('macro-app-dev-12ae0'), 'dev')
     ).not.toThrow();
     expect(() =>
-      validateAndroidFirebase(config('macro-app-prod'), 'build')
+      validateAndroidFirebase(config('macro-app-955f1'), 'build')
     ).not.toThrow();
   });
 
   it('rejects crossed environments even with the correct package', () => {
     expect(() =>
       validateAndroidFirebase(config('macro-app-dev-12ae0'), 'build')
-    ).toThrow('must use macro-app-prod');
+    ).toThrow('must use macro-app-955f1');
     expect(() =>
-      validateAndroidFirebase(config('macro-app-prod'), 'dev')
+      validateAndroidFirebase(config('macro-app-955f1'), 'dev')
     ).toThrow('must use macro-app-dev-12ae0');
   });
 
@@ -56,10 +56,10 @@ describe('Android Firebase environment selection', () => {
     expect(() => validateAndroidFirebase(fork, 'build', true)).not.toThrow();
     expect(() =>
       validateAndroidFirebase(config('macro-app-dev-12ae0'), 'build', true)
-    ).toThrow('must use macro-app-prod');
+    ).toThrow('must use macro-app-955f1');
     expect(() =>
       validateAndroidFirebase(config('my-fork', 'wrong.package'), 'build', true)
-    ).toThrow('must contain com.macro.workspace.mobile');
+    ).toThrow('must contain com.macro.app.prod');
   });
 
   it.each([undefined, ''])(
@@ -121,27 +121,15 @@ describe('Android Firebase environment selection', () => {
         config('macro-app-dev-12ae0', 'com.tauri.dev'),
         'dev'
       )
-    ).toThrow('must contain com.macro.workspace.mobile');
+    ).toThrow('must contain com.macro.app.prod');
     expect(() => validateAndroidFirebase(null, 'dev')).toThrow(
       'Invalid Android Firebase configuration'
     );
   });
-
-  it('rejects the previous package and production project', () => {
-    expect(() =>
-      validateAndroidFirebase(
-        config('macro-app-prod', 'com.macro.app.prod'),
-        'build'
-      )
-    ).toThrow('must contain com.macro.workspace.mobile');
-    expect(() =>
-      validateAndroidFirebase(config('macro-app-955f1'), 'build')
-    ).toThrow('must use macro-app-prod');
-  });
 });
 
 describe('Pinned Android Firebase download', () => {
-  const contents = JSON.stringify(config('macro-app-prod'));
+  const contents = JSON.stringify(config('macro-app-955f1'));
   const pin = {
     project: 'android-release',
     config: 'prd',
