@@ -2,26 +2,22 @@
  * @vitest-environment jsdom
  */
 
+import { FakeToaster } from '@core/component/Toast/tests/fake-toast';
 import type { Link as EmailLink } from '@service-email/generated/schemas';
+import { cleanup, render, screen } from '@solidjs/testing-library';
+import userEvent from '@testing-library/user-event';
 import { createSignal } from 'solid-js';
-import { render } from 'solid-js/web';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-  toastCustom: vi.fn(),
-  toastDismiss: vi.fn(),
-  startAddInbox: vi.fn(),
-}));
+const mocks = vi.hoisted(() => ({ startAddInbox: vi.fn() }));
 
 const [userId, setUserId] = createSignal<string | undefined>('macro|self');
 const [links, setLinks] = createSignal<EmailLink[]>([]);
 
-vi.mock('@core/component/Toast/Toast', () => ({
-  toast: {
-    custom: mocks.toastCustom,
-    dismiss: mocks.toastDismiss,
-  },
-}));
+vi.mock(
+  '@core/component/Toast/Toast',
+  () => import('@core/component/Toast/tests/fake-toast')
+);
 
 vi.mock('@core/mobile/isMobile', () => ({ isMobile: () => false }));
 
@@ -49,12 +45,6 @@ import { CalendarPermissionPrompt } from './CalendarPermissionPrompt';
 
 const PERSIST_KEY = 'macro:calendar-prompt:dismissed';
 
-type ToastConfig = {
-  title: string;
-  content: () => string;
-  actions: { label: string; onClick: () => void }[];
-};
-
 const link = (id: string, overrides: Partial<EmailLink> = {}): EmailLink =>
   ({
     id,
@@ -69,25 +59,16 @@ const link = (id: string, overrides: Partial<EmailLink> = {}): EmailLink =>
     ...overrides,
   }) as unknown as EmailLink;
 
-function promptedText(): string[] {
-  return mocks.toastCustom.mock.calls.map(([config]) =>
-    (config as ToastConfig).content()
-  );
-}
-
-function renderPrompt(): () => void {
-  const container = document.createElement('div');
-  document.body.appendChild(container);
-  const dispose = render(() => <CalendarPermissionPrompt />, container);
-  return () => {
-    dispose();
-    container.remove();
-  };
+function renderPrompt() {
+  render(() => (
+    <>
+      <FakeToaster />
+      <CalendarPermissionPrompt />
+    </>
+  ));
 }
 
 beforeEach(() => {
-  let nextToastId = 1;
-  mocks.toastCustom.mockImplementation(() => nextToastId++);
   mocks.startAddInbox.mockResolvedValue(undefined);
   localStorage.clear();
   setUserId('macro|self');
@@ -95,30 +76,35 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanup();
   vi.clearAllMocks();
 });
 
 describe('CalendarPermissionPrompt', () => {
-  it('asks only for the viewer’s own inbox, never for one another user delegated', () => {
+  it('asks only for the viewer’s own inbox, never for one another user delegated', async () => {
+    const user = userEvent.setup();
     setLinks([
       link('own'),
       link('delegated', { macro_id: 'macro|someone-else' }),
     ]);
-    const cleanup = renderPrompt();
+    renderPrompt();
 
-    expect(promptedText()).toEqual([
-      'Macro can now sync your calendar. Grant calendar access for own@example.com to turn it on.',
-    ]);
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(
+      screen.getByText(
+        'Macro can now sync your calendar. Grant calendar access for own@example.com to turn it on.'
+      )
+    ).toBeTruthy();
+    expect(screen.queryByText(/delegated@example\.com/)).toBeNull();
 
-    const config = mocks.toastCustom.mock.calls[0]?.[0] as ToastConfig;
-    config.actions.find((action) => action.label === 'Grant access')?.onClick();
+    await user.click(screen.getByRole('button', { name: 'Grant access' }));
     expect(mocks.startAddInbox).toHaveBeenCalledWith({
       scopes: 'calendar',
       provider: 'GMAIL',
       reconnectLinkId: 'own',
       emailAddress: 'own@example.com',
     });
-    cleanup();
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('stays quiet when the only inbox missing calendar is delegated', () => {
@@ -126,24 +112,22 @@ describe('CalendarPermissionPrompt', () => {
       link('own', { needs_calendar_permission: false }),
       link('delegated', { macro_id: 'macro|someone-else' }),
     ]);
-    const cleanup = renderPrompt();
+    renderPrompt();
 
-    expect(mocks.toastCustom).not.toHaveBeenCalled();
-    cleanup();
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('keeps a closed prompt closed while the viewer is still loading', () => {
     localStorage.setItem(PERSIST_KEY, JSON.stringify(['own']));
     setUserId(undefined);
     setLinks([link('own')]);
-    const cleanup = renderPrompt();
+    renderPrompt();
 
     setUserId('macro|self');
 
-    expect(mocks.toastCustom).not.toHaveBeenCalled();
+    expect(screen.queryByRole('status')).toBeNull();
     expect(JSON.parse(localStorage.getItem(PERSIST_KEY) ?? '[]')).toEqual([
       'own',
     ]);
-    cleanup();
   });
 });
