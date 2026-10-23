@@ -1,16 +1,18 @@
 import { throwOnErr } from '@core/util/result';
 import { storageServiceClient } from '@service-storage/client';
 import type { TeamOutOfOfficeItem } from '@service-storage/generated/schemas/teamOutOfOfficeItem';
-import { queryOptions, useQuery } from '@tanstack/solid-query';
+import { focusManager, queryOptions, useQueries } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
+import { queryClient } from '../client';
 import { type CalendarOccurrenceQueryRange, calendarKeys } from './keys';
 import { useCalendarTeamIdentityQuery } from './team';
 
 const TEAM_OOO_PAGE_SIZE = 2000;
+const TEAM_OOO_POLL_INTERVAL = 30_000;
 
-export interface TeamOutOfOfficeQueryInput {
+export interface TeamOutOfOfficeQueriesInput {
   userId: string | undefined;
-  range: CalendarOccurrenceQueryRange | undefined;
+  ranges: readonly CalendarOccurrenceQueryRange[];
 }
 
 export interface TeamOutOfOfficeQueryOptions {
@@ -36,7 +38,7 @@ export async function fetchTeamOutOfOffice(
 // Cached callbacks close over the resolved range and flags only.
 function teamOutOfOfficeQueryOptions(
   userId: string | undefined,
-  range: CalendarOccurrenceQueryRange | undefined,
+  range: CalendarOccurrenceQueryRange,
   teamId: string | undefined,
   enabled: boolean,
   refetchOnWindowFocus: boolean
@@ -44,33 +46,47 @@ function teamOutOfOfficeQueryOptions(
   return queryOptions({
     queryKey: calendarKeys.teamOutOfOffice(userId ?? '', range, teamId)
       .queryKey,
-    queryFn: ({ signal }) => {
-      if (!range) {
-        throw new Error('Team out-of-office range is unavailable');
-      }
-
-      return fetchTeamOutOfOffice(range, signal);
-    },
-    enabled:
-      Boolean(userId) && Boolean(teamId) && range !== undefined && enabled,
+    queryFn: ({ signal }) => fetchTeamOutOfOffice(range, signal),
+    enabled: Boolean(userId) && Boolean(teamId) && enabled,
     staleTime: 0,
     gcTime: 0,
-    refetchInterval: 30_000,
     refetchOnReconnect: 'always',
     refetchOnWindowFocus,
   });
 }
 
-export function useTeamOutOfOfficeQuery(
-  input: Accessor<TeamOutOfOfficeQueryInput>,
+let pollInstalled = false;
+
+/**
+ * Polls every mounted out-of-office range once per interval. TanStack runs
+ * `refetchInterval` per observer, and the calendar's pages and its sidebar
+ * observe the same ranges, so per-query intervals would fetch each range once
+ * per observer. Like `refetchInterval`, it waits while the window is hidden.
+ */
+function ensureTeamOutOfOfficePolling() {
+  if (pollInstalled) return;
+  pollInstalled = true;
+  setInterval(() => {
+    if (!focusManager.isFocused()) return;
+    queryClient.invalidateQueries(
+      { queryKey: calendarKeys.teamOutOfOffice._def },
+      { cancelRefetch: false }
+    );
+  }, TEAM_OOO_POLL_INTERVAL);
+}
+
+/** One query per range; observers of the same range share its request. */
+export function useTeamOutOfOfficeQueries(
+  input: Accessor<TeamOutOfOfficeQueriesInput>,
   options?: Accessor<TeamOutOfOfficeQueryOptions>
 ) {
+  ensureTeamOutOfOfficePolling();
   const identity = useCalendarTeamIdentityQuery(
     () => input().userId,
     () => options?.().enabled !== false
   );
-  return useQuery(() => {
-    const { userId, range } = input();
+  return useQueries(() => {
+    const { userId, ranges } = input();
     const opts = options?.();
     const team =
       identity.isSuccess && !identity.isPaused ? identity.data : undefined;
@@ -78,12 +94,16 @@ export function useTeamOutOfOfficeQuery(
       ? team.team.id
       : undefined;
 
-    return teamOutOfOfficeQueryOptions(
-      userId,
-      range,
-      teamId,
-      opts?.enabled !== false,
-      opts?.refetchOnWindowFocus ?? true
-    );
+    return {
+      queries: ranges.map((range) =>
+        teamOutOfOfficeQueryOptions(
+          userId,
+          range,
+          teamId,
+          opts?.enabled !== false,
+          opts?.refetchOnWindowFocus ?? true
+        )
+      ),
+    };
   });
 }
