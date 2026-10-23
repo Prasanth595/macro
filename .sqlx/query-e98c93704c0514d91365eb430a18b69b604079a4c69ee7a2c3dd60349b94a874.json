@@ -1,10 +1,6 @@
 {
   "db_name": "PostgreSQL",
-<<<<<<<< HEAD:.sqlx/query-e1d42468d2b2401c0d05aa3f38e6431d227d5bda371f75d4e5bd1f48c3fb54b4.json
-  "query": "\n            INSERT INTO scheduled_action\n                (id, owner, name, schedule, kind, timezone, task, next_run_at, enabled,\n                 trigger_type, event_filters, configuration_revision, event_activated_at, trigger_config,\n                 run_visibility)\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)\n            RETURNING id, owner, name, schedule, kind, timezone, task, claimed, created_at,\n                      updated_at, next_run_at, enabled, trigger_type, event_filters,\n                      configuration_revision, event_activated_at, trigger_config, run_visibility\n            ",
-========
-  "query": "\n            INSERT INTO scheduled_action\n                (id, owner, name, schedule, kind, timezone, task, next_run_at, enabled,\n                 trigger_type, event_filters, configuration_revision, event_activated_at, trigger_config,\n                 source_template_id, template_bindings)\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)\n            RETURNING id, owner, name, schedule, kind, timezone, task, claimed, created_at,\n                      updated_at, next_run_at, enabled, trigger_type, event_filters,\n                      configuration_revision, event_activated_at, trigger_config\n            ",
->>>>>>>> 542118d465 (chore(routines): refresh SQLx metadata and dependency closures for templates):.sqlx/query-f31f7e7b0b0e14d9fd65028ebdb0325dbfcf0df32d73965b41cb1df5abffaf39.json
+  "query": "\n            INSERT INTO scheduled_action\n                (id, owner, name, schedule, kind, timezone, task, next_run_at, enabled,\n                 trigger_type, event_filters, configuration_revision, event_activated_at, trigger_config,\n                 run_visibility, source_template_id, template_bindings)\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)\n            RETURNING id, owner, name, schedule, kind, timezone, task, claimed, created_at,\n                      updated_at, next_run_at, enabled, trigger_type, event_filters,\n                      configuration_revision, event_activated_at, trigger_config, run_visibility\n            ",
   "describe": {
     "columns": [
       {
@@ -114,12 +110,9 @@
         "Int8",
         "Timestamptz",
         "Jsonb",
-<<<<<<<< HEAD:.sqlx/query-e1d42468d2b2401c0d05aa3f38e6431d227d5bda371f75d4e5bd1f48c3fb54b4.json
-        "Text"
-========
+        "Text",
         "Uuid",
         "Jsonb"
->>>>>>>> 542118d465 (chore(routines): refresh SQLx metadata and dependency closures for templates):.sqlx/query-f31f7e7b0b0e14d9fd65028ebdb0325dbfcf0df32d73965b41cb1df5abffaf39.json
       ]
     },
     "nullable": [
@@ -143,9 +136,5 @@
       false
     ]
   },
-<<<<<<<< HEAD:.sqlx/query-e1d42468d2b2401c0d05aa3f38e6431d227d5bda371f75d4e5bd1f48c3fb54b4.json
-  "hash": "e1d42468d2b2401c0d05aa3f38e6431d227d5bda371f75d4e5bd1f48c3fb54b4"
-========
-  "hash": "f31f7e7b0b0e14d9fd65028ebdb0325dbfcf0df32d73965b41cb1df5abffaf39"
->>>>>>>> 542118d465 (chore(routines): refresh SQLx metadata and dependency closures for templates):.sqlx/query-f31f7e7b0b0e14d9fd65028ebdb0325dbfcf0df32d73965b41cb1df5abffaf39.json
+  "hash": "e98c93704c0514d91365eb430a18b69b604079a4c69ee7a2c3dd60349b94a874"
 }
