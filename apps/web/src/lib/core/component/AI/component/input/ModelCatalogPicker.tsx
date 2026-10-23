@@ -19,7 +19,6 @@ import { ModelIcon } from '../ProviderIcon';
 import {
   buildModelCatalog,
   type CatalogModelOption,
-  featuredModelOptions,
   matchesModelQuery,
   modelProviderLabel,
 } from './modelCatalog';
@@ -32,8 +31,6 @@ type ModelCatalogPickerProps = {
   modelRow?: Component<ModelRowProps>;
   disabled?: boolean;
   pending?: boolean;
-  fullCatalog?: boolean;
-  flat?: boolean;
   triggerLabel?: JSX.Element;
   children?: JSX.Element;
   /** Optional overview that can reveal the complete catalog. */
@@ -194,8 +191,6 @@ export function ModelCatalogPicker(props: ModelCatalogPickerProps) {
   const displayValue = () => selected()?.label ?? props.placeholder ?? 'Model';
   const catalog = () => (
     <ModelCatalogMenu
-      fullCatalog={props.fullCatalog}
-      flat={props.flat}
       value={props.value}
       options={props.options}
       disabled={props.disabled || props.pending}
@@ -277,7 +272,6 @@ export function ModelCatalogMenu(
     | 'emptyMessage'
     | 'searchPlaceholder'
     | 'children'
-    | 'flat'
   > & {
     searchRef?: (element: HTMLInputElement) => void;
     /**
@@ -302,10 +296,7 @@ export function ModelCatalogMenu(
   const normalizedQuery = () => query().trim().toLowerCase();
   const filtered = createMemo(() => {
     const currentQuery = normalizedQuery();
-    if (!currentQuery)
-      return props.flat && !showAll()
-        ? featuredModelOptions(props.options, props.value)
-        : props.options;
+    if (!currentQuery) return [];
     return props.options.filter((option) =>
       matchesModelQuery(option, currentQuery)
     );
@@ -351,7 +342,7 @@ export function ModelCatalogMenu(
         </div>
       </Show>
       <Show
-        when={props.flat || normalizedQuery().length > 0}
+        when={normalizedQuery().length > 0}
         fallback={
           <div class="space-y-1">
             <Show
@@ -462,50 +453,29 @@ export function ModelCatalogMenu(
         }
       >
         <Dropdown.Group class="max-h-72 overflow-y-auto overscroll-contain">
-          <Show when={!props.flat}>
-            <Dropdown.GroupLabel>
-              {filtered().length === 1
-                ? '1 matching model'
-                : `${filtered().length} matching models`}
-            </Dropdown.GroupLabel>
-          </Show>
+          <Dropdown.GroupLabel>
+            {filtered().length === 1
+              ? '1 matching model'
+              : `${filtered().length} matching models`}
+          </Dropdown.GroupLabel>
           <For each={filtered()}>
             {(option) => (
               <Row
                 option={option}
                 onClose={props.onClose}
-                hint={props.flat ? undefined : modelProviderLabel(option)}
+                hint={modelProviderLabel(option)}
                 selected={option.id === props.value}
                 disabled={props.disabled}
                 onSelect={() => props.onSelect(option.id)}
               />
             )}
           </For>
-          <Show when={normalizedQuery() && filtered().length === 0}>
+          <Show when={filtered().length === 0}>
             <div class="px-3 py-4 text-sm text-ink-muted">
               No models match that search.
             </div>
           </Show>
         </Dropdown.Group>
-        <Show
-          when={
-            props.flat &&
-            !showAll() &&
-            !normalizedQuery() &&
-            filtered().length < props.options.length
-          }
-        >
-          <Dropdown.Item
-            closeOnSelect={false}
-            class="h-8 text-ink-muted"
-            onSelect={() => {
-              setShowAll(true);
-              searchEl?.focus();
-            }}
-          >
-            Show all models
-          </Dropdown.Item>
-        </Show>
       </Show>
     </>
   );

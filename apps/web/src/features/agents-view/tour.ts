@@ -35,7 +35,7 @@ export const agentsTour = defineViewTour({
       entryLabel: 'Choose Create → Agent to start a conversation',
       title: 'Choose your agent and model',
       description:
-        'Choose Default agent or a saved agent on the left, then pick one of its models on the right. Change reasoning effort with the separate control beside the model.',
+        'Open this picker to choose an agent for the current mode. In Chat, Macro’s models are listed here too; each agent’s submenu lets you choose a model for that conversation.',
     },
     {
       target: AGENTS_TOUR.agentList,

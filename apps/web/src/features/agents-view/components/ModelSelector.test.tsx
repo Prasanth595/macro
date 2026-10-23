@@ -100,21 +100,7 @@ describe('shared model selector', () => {
     expect(trigger.textContent).toBe('Sonnet 5.5');
     expect(trigger.title).toBe('Sonnet 5.5');
     fireEvent.keyDown(trigger, { key: 'Enter' });
-    expect(screen.queryByRole('menuitem', { name: 'More models' })).toBeNull();
-    expect(
-      screen.queryByRole('menuitem', { name: /GPT-5.6 mini/i })
-    ).toBeNull();
-    fireEvent.keyDown(
-      screen.getByRole('menuitem', { name: 'Show all models' }),
-      {
-        key: 'Enter',
-      }
-    );
-    expect(select).not.toHaveBeenCalled();
-    expect(screen.getAllByRole('menu')).toHaveLength(1);
-    expect(
-      screen.getByRole('menuitem', { name: /GPT-5.6 mini/i })
-    ).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'More models' })).toBeTruthy();
     expect(screen.queryByText(ids[0])).toBeNull();
     fireEvent.keyDown(screen.getByRole('menuitem', { name: /^Opus 5.5/ }), {
       key: 'Enter',
@@ -153,7 +139,7 @@ describe('shared model selector', () => {
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
   });
 
-  it('searches the complete flat catalog and retains model ids and provider icons', async () => {
+  it('groups a large catalog by provider and searches every model with provider icons', async () => {
     const select = vi.fn();
     render(() => (
       <ModelSelector
@@ -172,6 +158,7 @@ describe('shared model selector', () => {
     });
     expect(screen.getAllByRole('menuitem')).toHaveLength(60);
     expect(screen.queryByRole('menuitem', { name: /More models/ })).toBeNull();
+    expect(screen.getByRole('group', { name: 'OpenAI' })).toBeTruthy();
     expect(screen.queryByRole('group', { name: 'Suggested' })).toBeNull();
     fireEvent.input(screen.getByRole('textbox', { name: 'Search models' }), {
       target: { value: 'variant 59' },

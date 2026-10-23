@@ -140,14 +140,21 @@ The mobile conversation list omits the desktop **Agents** and **Connections** co
 a conversation. Returning to the list and reopening the composer preserves the
 draft, attachments, agent, model, repository, and branch. Tap the
 agent/model control once to open a bottom sheet with its search field focused,
-without first focusing or expanding the message input. **Default agent** appears
-first, followed by saved agents in a single list. Each row shows its name and
-icon; agents that need a connection also show their setup action. Tap an agent
-to update the model list in the same sheet; tap a model to select it and close.
-The active agent's main models and current selection appear beneath **Models**.
-**Show all models** expands the list in place; search always includes every model
-and accepts model names, IDs, and providers. **Create agent** is a quiet action at the bottom.
-The gauge button opens one flat sheet for effort and supported speed choices.
+without first focusing or expanding the message input. Tap an agent to use its
+default model, or its model arrow to choose a model; **Create agent** opens the
+roster. Agents are clustered into **Built-in**, **Your agents**, and **Needs
+connection**, with runtime/model details below their names. Code opens directly
+on these groups without an empty Models section or an unrelated runtime warning.
+**Create agent** uses the shared rounded pill button with a subtle fill at the
+bottom right at the end of the scrolling list. The picker uses one
+continuous surface, with labels and spacing separating groups instead of nested
+shaded cards. Provider sections use compact spacing, with labels close to their
+rows. Model lists start with
+**Suggested**, with Gemini last when available, followed by **More models** and your agents. **More models**
+opens the complete provider catalog, including copies of Suggested choices;
+use Back to return. Search accepts
+model names, IDs, and providers. When browsing an agent, **Use default** in the
+header selects its configured model.
 
 The floating mobile composer appears only on **Agents**; Home and other views
 keep their New action or their own reply/comment composer.
@@ -162,9 +169,8 @@ appear alongside it in Code mode.
 Tapping outside collapses the composer and restores New.
 The editor and model picker stay mounted so collapsing preserves the draft.
 Dismissing the model or effort selector on mobile returns focus to the message input.
-Active sessions use the same compact mobile model drawer: focused search and one
-flat shortlist that keeps the current selection visible. Search and **Show all
-models** reach the complete catalog without opening another menu.
+Active sessions use the same compact mobile model drawer: focused search, Suggested
+with Gemini last, and More models for the complete provider catalog.
 Repository and branch pickers keep the composer expanded while their search
 fields are focused, so their anchor stays in place.
 
@@ -404,23 +410,20 @@ the shimmer.
   keeps the saved model name visible in its picker, including unavailable models.
 - The agent dropdown includes saved agents of the selected mode regardless of
   runtime, plus Cursor in Code mode.
-  The desktop picker uses a wide, height-limited layout with agents on the
-  left and the selected agent's models on the right. **Default agent** is the
-  first choice in Chat mode. Selecting another agent updates the model column
-  in place and uses that agent's default, while keeping the picker open.
-  Selecting the current agent preserves its model choice. Picking a model
-  closes the picker. Neither agents nor models open nested menus.
-  The model column starts with Auto and the main model choices, always retaining
-  the current selection. **Show all models** expands the list in place; search
-  always includes the complete catalog. Each model appears once, without provider
-  headings. Custom catalogs without main choices remain fully visible. Both columns scroll independently. Phones keep a
-  searchable bottom sheet with agent choices first and the active agent's models
-  below. Changing agents updates that list in place. Agent rows show a small
-  icon and name; only unavailable agents add their setup action or reason.
-  **Create agent** is a quiet action below the agents. The separate gauge control
-  displays the current effort on desktop and opens a flat list of choices.
-  The catalog's opaque search header meets the top of the scroll area so rows
-  cannot show through above it. Models have readable
+  In Chat mode, the desktop picker uses a wide, height-limited layout with
+  agents on the left without a redundant Your agents subheading. The models
+  column starts with unlabeled suggested choices, followed by the complete
+  catalog grouped by provider. There is no search box or More step; each column scrolls independently.
+  It shares the Plus menu's width and below-composer anchor. Code mode keeps its
+  compact agent dropdown above the selector. Phones retain their single-column
+  searchable sheet, Suggested choices, and More models action. Model-specific
+  submenus also retain search. Choosing a model does not reorder the sections.
+  The separate speedometer controls effort. The catalog's opaque header
+  meets the top of the scroll area so rows cannot show through above it.
+  **Built-in**, **Your agents**, and **Needs connection** groups follow when
+  they have entries. Each agent row shows its runtime and model, or its setup
+  action/availability reason. **Create agent** uses the shared rounded pill
+  button at the bottom right with a subtle background. Models have readable
   names (for example, **Sonnet 5.5**) and provider or model icons aligned with the
   agent icons. The in-memory catalog leads with **Auto**, where Jev sorts each
   turn's prompt: hard prompts run on **Opus 5.5**, simple ones on **Gemini 3.8
@@ -430,10 +433,10 @@ the shimmer.
   are **Sonnet 5.5**, **Opus 5.5**, and **Haiku 4.5**; older Claude versions
   (Sonnet 5, Opus 5, Fable 5.1) are not offered.
   Selecting a model here selects
-  the chosen runtime and applies that model to the next send, while keeping the mode bar visible.
+  the default runtime and applies that model to the next send, hiding the repository controls while keeping the mode bar visible.
   A model chosen from that catalog is remembered in local storage as the
   default for Macro's in-memory agent until another model entry is picked.
-  The built-in Macro agent appears first as **Default agent**, ahead of the grouped saved agents.
+  The built-in Macro agent is the only agent excluded from these sections; its models remain available.
   Unavailable paired agents stay visible with a reason.
   If Macro is unavailable, its catalog stays visible but
   model choices are disabled in every list. Model discovery uses the
@@ -442,9 +445,13 @@ the shimmer.
   only to Cursor sessions by the create-session API.
   The most recently used supported,
   available agent is selected initially; otherwise Macro is selected.
-  Click an agent, or press Enter/Space on its focused row, to choose it and
-  update the model column. Escape dismisses the picker and restores focus to
-  the composer. Agent changes preserve the draft and attachments.
+  Hover an agent (or use the right arrow key) to open its model submenu, with
+  the searchable Settings catalog, provider icons, and scrollable provider sections.
+  The submenu focuses the `Search models` field so you can type immediately.
+  Clicking an agent directly, or pressing Enter/Space on its focused row, uses
+  its default and clears any previous model override. Right Arrow still opens
+  the model submenu; choosing a submenu model selects both the agent and that
+  model. Escape dismisses the picker and restores focus to its trigger.
   A checkmark identifies the selected model,
   including when it is the agent’s configured default; there is no separate default row.
   Disconnected Cursor offers **Connect Cursor**, opening Settings → Agents → Runtimes.
@@ -505,20 +512,24 @@ the shimmer.
   and cannot be changed for local sessions. The native Claude/Codex TUI remains
   interactive in Herdr, and local turns appear in the Macro transcript.
 - Sending starts a session with the chosen agent's configured default model;
-  a model selected from its inline catalog overrides that default for the next send
+  a model selected from its submenu overrides that default for the next send
   only. Sending or choosing another agent clears the override. This does not
   update the saved agent; configure persistent defaults in the agent editor.
   Within an existing session, the model picker remains available on the right.
   Its trigger, model options, and session metadata use the same readable model names
-  as the new-conversation picker. Desktop sessions show the complete searchable
-  shortlist in one menu, with **Show all models** and search reaching the full
-  catalog. Phone sessions use the same approach in a bottom sheet.
-- The separate gauge control opens one menu with **Reasoning effort** and
-  supported **Speed** choices using the current model's advertised capabilities. Click a level, or select it with the
-  keyboard, to apply it and close the menu. On phones the same choices appear
-  in their own bottom sheet. Models with fewer than two effort choices omit the effort section;
-  the control remains available if they support accelerated speed. Choose the model first, then adjust its effort; model
-  rows no longer contain effort submenus.
+  as the new-conversation picker. Large catalogs share the Settings picker:
+  provider icons, search, **Suggested** first, and **More models** for the
+  complete provider catalog. Desktop opens a submenu; phone widths show
+  the catalog in place with a Back action. Search includes every model.
+- Desktop keeps the model selector and speedometer as separate controls. The
+  speedometer opens a slider with a stop for each advertised effort level. Arrow keys
+  and drags preview the level; it is applied once, when the popover closes, and
+  only if it differs from the current level. The popover stays open, and
+  the model selector opens the full catalog independently. On mobile, the **speedometer-style
+  effort** button opens its own sheet after the input expands. Choosing a level
+  applies it and closes the sheet. Models with fewer than two effort choices
+  omit the effort button.
+  Model-specific effort choices remain available in desktop model submenus.
   Free and Pro users start new conversations at the lowest advertised level,
   unless they explicitly choose another. Existing sessions keep their current setting.
 - On desktop, chat agents' empty input shows the static hint **Type @ to mention
@@ -587,10 +598,10 @@ the shimmer.
   changes the model of an idle native session after native confirmation and
   displays the model identified by the session (Codex's live footer, or native
   transcript metadata). Unexpected native dialogs must be completed in Herdr.
-  For Codex, use the separate gauge control to select **Reasoning effort**.
+  For Codex, open the current model's submenu to select **Reasoning effort**.
   Choices come from the installed Codex catalog; the selected effort is confirmed
   from the native session and shown beside the model. Local Herdr changes and
-  `/effort` also update this menu. The effort menu appears once the native
+  `/effort` also update this menu. The effort submenu appears once the native
   session starts on the first prompt, before its first reply; a startup screen
   that temporarily hides the footer is retried during the turn. The menu does not list
   installed native skills or session-switching commands such as `/resume`.
@@ -1287,8 +1298,8 @@ virtual keyboard inserts a newline and never sends; only **Send** submits, the
 same as channel composers. This also applies to the Agents workspace session
 and new-conversation inputs and to the mobile **Ask AI** composer. On desktop
 Enter still sends and Shift+Enter inserts a newline. Tapping the model opens a
-bottom sheet with the main models and a check on the current one. Pick a row to
-switch, or use search or **Show all models** to find the remaining choices. Models read as names even when the runtime reports
+bottom sheet listing every model the same way, with a check on the current one
+— pick a row to switch. Models read as names even when the runtime reports
 only ids: Macro Agent's `anthropic/claude-sonnet-5-5` shows as **Sonnet 5.5**. On desktop the
 transcript and composer use the shared channel message width so expanding **Context** only
 grows vertically; your messages are right-aligned bubbles and the model pill
@@ -1767,17 +1778,17 @@ There is no periodic PR lookup polling.
 
 ### Agent reasoning effort
 
-Open the gauge control beside the model selector to choose from a flat list of
-**Reasoning effort** levels and, on supported models, **Speed** choices. Both
-current settings have checkmarks. Choosing a level
-applies it immediately and closes the menu; Escape closes it without a change.
-Phones show the same choices in a bottom sheet. Select a model first, then use
-its advertised effort choices. Cursor and Macro's in-memory agent discover
-capabilities for the selected model. The model trigger shows the model name;
-the gauge control displays the current effort and enabled accelerated speed on
-desktop and announces both on mobile. Models without effort support remain
-selectable; the gauge still appears if accelerated speed is available. Default retains the runtime's default
-behavior when it is advertised.
+On desktop, open the speedometer beside the model selector to adjust the
+current model with the **Reasoning effort** slider. The header and accessible value announce the
+selected level. Arrow keys move between supported levels; the menu stays open
+until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
+models still offer their own effort submenu with Right Arrow. On mobile, tap a model
+to select it, then use the adjacent effort button to adjust effort.
+Cursor and Macro's in-memory agent load the hovered model's own advertised
+choices. The model trigger shows the model name; the speedometer announces the effort.
+Models without effort
+support remain selectable through `Use <model>` (or a desktop click/Enter).
+Default keeps the model's existing behavior.
 
 In an open session, choosing a different model's effort confirms the model first,
 then validates and applies effort. Wait for the selector to become available
@@ -1906,23 +1917,20 @@ choose a vision model or start a conversation without images.
 
 ## Accelerated model speed
 
-In new and running agent conversations, the gauge menu combines **Reasoning
-effort** with **Speed**. Choose Standard or Ultrafast for GPT-6 Astra and
-GPT-6.1 Sol; Ultrafast shows **6× AI usage** before selection. The preference is
-saved in browser local storage and remains independent of effort. The trigger
-includes Ultrafast while enabled. Claude models, including Opus 5.5, stay on
-standard speed until Anthropic approves fast mode for this account. Models without
-accelerated speed omit the Speed section. External coding agents retain their own
-speed behavior.
+The lightning button beside the model selector enables Ultrafast for GPT-6 Astra
+and GPT-6.1 Sol (6× token pricing). Its tooltip shows the mode, state, and usage
+multiplier before sending. Claude models, including Opus 5.5, stay on standard
+speed until Anthropic approves fast mode for this account. Other models keep
+standard speed. The preference is saved in browser local storage and shared by
+legacy chat and native Macro agent composers. External coding agents use their
+own speed controls.
 
-Preview the combined menu at `/app/debug/ui?ui=speed-toggle`.
-Legacy chat retains the lightning button, sharing the same saved preference.
-Its gallery example is on the same page; its scale/rotation animation
-respects reduced motion. In the agent composer, select speed and effort from the
-same menu, reopen it, and verify both choices remain independent. Change between
-supported models and confirm the speed preference survives. Select an unsupported
-model and verify the Speed section disappears; switching back restores the
-preference. Native sessions confirm speed configuration before sending the prompt;
+Preview the controls at `/app/debug/ui?ui=speed-toggle`.
+Click the bolt and verify its brief scale/rotation animation and highlighted state.
+Reload, change between supported models, and confirm the preference survives.
+Select an unsupported model and verify the bolt is hidden; switching back restores
+the preference. With reduced motion enabled, toggling changes the state without
+animation. Native sessions confirm speed configuration before sending the prompt;
 a rejected configuration must retain the unsent draft and attachments.
 
 Usage records follow the provider's delivered speed for each call, including tool
@@ -2017,6 +2025,30 @@ navigation and page reload,
 that a single draft has no stack controls, that a batch's picker finds drafts,
 that chat remains usable, and that a non-owner cannot submit. Sending an email or
 creating an event is a real action, including from a local app connected to dev.
+## Agent reasoning effort
+
+On desktop, open the speedometer beside the model selector to adjust the
+current model with the **Reasoning effort** slider. The header and accessible value announce the
+selected level. Arrow keys move between supported levels; the menu stays open
+until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
+models still offer their own effort submenu with Right Arrow. On mobile, tap a model
+to select it, then use the adjacent effort button to adjust effort.
+Cursor and Macro's in-memory agent load the hovered model's own advertised
+choices. The model trigger shows the model name; the speedometer announces the effort.
+Models without effort
+support remain selectable through `Use <model>` (or a desktop click/Enter).
+Default keeps the model's existing behavior.
+
+In an open session, choosing a different model's effort confirms the model first,
+then validates and applies effort. Wait for the selector to become available
+again. If the model succeeds but effort is rejected, the new model remains
+selected with its confirmed effort; the error is shown and no unsupported
+setting is presented as accepted.
+
+New conversations confirm selected model and effort settings before sending the
+first message. If startup reports a rejected setting or timeout, the first prompt
+has not been sent. See [effort capabilities](../architecture/agent-effort.md) for the harness
+contracts and test coverage.
 
 ### Read another agent session
 

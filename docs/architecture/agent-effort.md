@@ -92,29 +92,20 @@ an external harness result.
 
 ## Model menu interaction
 
-Desktop new-chat selectors keep agent choices and the selected agent's full
-model catalog in one popup. Choosing an agent updates the model column without
-opening a submenu. Model lists are searchable, with one row per model and no
-provider headings. Auto, the main models, and the current selection form the
-initial shortlist; search and **Show all models** reveal the complete catalog
-in place. Custom catalogs without main choices remain fully visible. Running
-sessions use the same flat model list.
+Desktop new-chat and running-session model selectors open the full model catalog.
+The adjacent speedometer opens a discrete **Reasoning effort** slider. Slider
+stops come directly from the runtime's advertised choices and retain their opaque
+values, including Default when advertised. Arrow keys change one level at a time;
+pointer drags commit on release. The menu stays open while its accessible value
+updates. Mobile retains the dedicated effort sheet.
 
-The adjacent gauge control shows the current effort on desktop and opens one flat
-menu for **Reasoning effort** and supported **Speed** choices. Entries come
-from the selected model's advertised choices and retain their opaque values,
-including Default when advertised. Selecting a level applies it immediately and
-closes the menu; Escape discards no staged value because selection is immediate.
-Speed choices share that menu: Standard and the supported accelerated tier, with
-its usage multiplier visible. Choosing speed updates the persisted preference
-without changing effort; the send path applies it as before. Models with no effort
-choices can still expose speed. Mobile keeps an agent/model sheet and one combined
-effort/speed sheet.
-
-Capability discovery is scoped to the selected model and harness. Current
-session metadata takes precedence for its active model. Loading, discovery
-errors, and models with no effort options keep ordinary model selection
-available. Choose a model first, then adjust effort from its separate control.
+On desktop, effort remains available in each model’s submenu.
+Discovery runs when the submenu opens, scoped to that model and harness;
+the current session's advertised options take precedence for its selected model.
+The model trigger displays the model; the adjacent speedometer shows effort. Keyboard Right Arrow
+opens the submenu. On mobile, tapping a model selects it directly; use the adjacent
+effort button to adjust its supported effort levels. Loading, discovery errors, and models with
+no effort options keep ordinary model selection available.
 
 A combined running-session selection waits for the model's correlated ACP
 confirmation, validates effort against the new snapshot, then confirms effort.

@@ -2,34 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildModelCatalog,
   type CatalogModelOption,
-  featuredModelOptions,
   matchesModelQuery,
 } from './modelCatalog';
-
-describe('featured model options', () => {
-  it('keeps a selected secondary model beside the main choices', () => {
-    const options = [
-      { id: 'auto', label: 'Auto' },
-      { id: 'sonnet', label: 'Sonnet 5.5' },
-      { id: 'haiku', label: 'Haiku 4.5' },
-      { id: 'mini', label: 'GPT-5.6 mini' },
-    ];
-    expect(
-      featuredModelOptions(options, 'mini').map((option) => option.id)
-    ).toEqual(['auto', 'sonnet', 'mini']);
-    expect(
-      featuredModelOptions(options, 'sonnet').map((option) => option.id)
-    ).toEqual(['auto', 'sonnet']);
-  });
-
-  it('keeps a custom runtime catalog intact when it has no main choices', () => {
-    const options = [
-      { id: 'custom-default', label: 'Custom default' },
-      { id: 'private-model', label: 'Private model' },
-    ];
-    expect(featuredModelOptions(options, 'custom-default')).toEqual(options);
-  });
-});
 
 describe('model catalog sections', () => {
   it('keeps flagship models first and leaves all other variants in their providers', () => {

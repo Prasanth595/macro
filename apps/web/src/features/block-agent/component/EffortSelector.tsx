@@ -1,64 +1,75 @@
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
-import type { ModelSpeed } from '@core/component/AI/constant/speed';
+import { ModelEffortMenu } from '@core/component/AI/component/input/ModelEffortMenu';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import CaretDown from '@phosphor/caret-down.svg';
 import Check from '@phosphor/check.svg';
-import Gauge from '@phosphor/gauge.svg';
-import { Button, cn, Dropdown, Tooltip } from '@ui';
+import { Button, Dropdown, Tooltip } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import type {
   EffortChoice,
   SelectSessionConfigOption,
 } from '../state/session-config';
 
-/** One menu for the model's reasoning effort and optional accelerated speed. */
+/** Effort control beside the selected model in the composer. */
 export function EffortSelector(props: {
   config?: SelectSessionConfigOption;
   value?: string;
   disabled?: boolean;
-  speed?: {
-    tier: Exclude<ModelSpeed, 'standard'>;
-    enabled: boolean;
-    onChange: (enabled: boolean) => void;
-  };
   onChange: (choice: EffortChoice) => void;
   onOpenChange?: (open: boolean) => void;
   onCloseAutoFocus?: (event: Event) => void;
 }) {
   const [open, setOpen] = createSignal(false);
+  // The desktop slider stages its choice here and commits it when the menu closes.
+  const [pending, setPending] = createSignal<EffortChoice>();
+  let content: HTMLElement | undefined;
   const changeOpen = (value: boolean) => {
     setOpen(value);
+    if (!value) {
+      const choice = pending();
+      setPending(undefined);
+      if (
+        choice &&
+        choice.configId === props.config?.id &&
+        choices().some((option) => option.value === choice.value) &&
+        choice.value !== committed() &&
+        !props.disabled
+      )
+        props.onChange(choice);
+    }
     props.onOpenChange?.(value);
   };
   const choices = () => props.config?.options ?? [];
-  const value = () => props.value ?? props.config?.currentValue;
+  const committed = () => props.value ?? props.config?.currentValue;
+  const value = () => pending()?.value ?? committed();
   const index = () =>
     Math.max(
       0,
       choices().findIndex((choice) => choice.value === value())
     );
   const label = () => choices()[index()]?.name ?? 'Default';
-  const hasEffort = () => choices().length > 1;
-  const speedName = () =>
-    props.speed?.tier === 'ultrafast' ? 'Ultrafast' : 'Fast';
-  const speedLabel = () => (props.speed?.enabled ? speedName() : 'Standard');
-  const title = () =>
-    hasEffort()
-      ? props.speed
-        ? 'Effort and speed'
-        : 'Reasoning effort'
-      : 'Speed';
-  const triggerLabel = () =>
-    hasEffort()
-      ? `${label()}${props.speed?.enabled ? ` · ${speedName()}` : ''}`
-      : speedLabel();
-  const description = () =>
-    [
-      hasEffort() && `Effort: ${label()}`,
-      props.speed && `Speed: ${speedLabel()}`,
-    ]
-      .filter(Boolean)
-      .join(' · ');
+  const angle = () => {
+    return -70 + (index() / Math.max(1, choices().length - 1)) * 140;
+  };
+  const contents = () => (
+    <svg viewBox="0 0 24 24" class="size-[22px]" fill="none" aria-hidden="true">
+      <path
+        d="M4.5 18a9 9 0 1 1 15 0"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        opacity="0.45"
+      />
+      <g transform={`rotate(${angle()} 12 14)`}>
+        <path
+          d="M12 14V8"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        />
+      </g>
+      <circle cx="12" cy="14" r="2" fill="currentColor" />
+    </svg>
+  );
   const choose = (choice: SelectSessionConfigOption['options'][number]) => {
     if (!props.config || props.disabled) return;
     props.onChange({
@@ -78,89 +89,52 @@ export function EffortSelector(props: {
       </Show>
     </>
   );
-  const chooseSpeed = (enabled: boolean) => {
-    if (props.disabled || !props.speed) return;
-    props.speed.onChange(enabled);
-    changeOpen(false);
-  };
-  const speedOptionLabel = (enabled: boolean) => (
-    <>
-      <span class="flex-1">{enabled ? speedName() : 'Standard'}</span>
-      <Show when={enabled}>
-        <span class="text-xs text-ink-muted">
-          {props.speed?.tier === 'ultrafast' ? '6×' : '2×'} AI usage
-        </span>
-      </Show>
-      <Show when={props.speed?.enabled === enabled}>
-        <Check class="size-4" />
-      </Show>
-    </>
-  );
   return (
-    <Show when={hasEffort() || props.speed}>
+    <Show when={choices().length > 1}>
       <Show
         when={isTouchDevice()}
         fallback={
           <Dropdown open={open()} onOpenChange={changeOpen} placement="bottom">
-            <Tooltip label={description()} disabled={open()}>
+            <Tooltip label={`Effort: ${label()}`} disabled={open()}>
               <Dropdown.Trigger
                 variant="ghost"
                 size="sm"
-                class="h-[33.75px] gap-1.5 rounded-full px-2 text-ink-muted"
+                class="size-8 rounded-full p-0"
                 disabled={props.disabled}
-                aria-label={description()}
+                aria-label={`Effort: ${label()}`}
               >
-                <Gauge class="size-4" />
-                <span>{triggerLabel()}</span>
-                <CaretDown class="size-3.5" />
+                {contents()}
               </Dropdown.Trigger>
             </Tooltip>
             <Dropdown.Content
-              class={cn(
-                'max-h-[min(28rem,var(--kb-popper-content-available-height))] overflow-y-auto rounded-2xl',
-                props.speed ? 'w-56' : 'w-44'
-              )}
-              aria-label={title()}
+              ref={content}
+              onOpenAutoFocus={(event) => {
+                // This menu contains a slider rather than roving menu items.
+                event.preventDefault();
+                content?.querySelector<HTMLElement>('[role="slider"]')?.focus();
+              }}
+              class="w-64 rounded-2xl"
+              aria-label="Reasoning effort"
               onCloseAutoFocus={props.onCloseAutoFocus}
             >
-              <Show when={hasEffort()}>
-                <Dropdown.Group>
-                  <Show when={props.speed}>
-                    <Dropdown.GroupLabel>Reasoning effort</Dropdown.GroupLabel>
-                  </Show>
-                  <For each={choices()}>
-                    {(choice) => (
-                      <Dropdown.Item
-                        closeOnSelect
-                        title={choice.description ?? undefined}
-                        disabled={props.disabled}
-                        onSelect={() => choose(choice)}
-                      >
-                        {optionLabel(choice)}
-                      </Dropdown.Item>
-                    )}
-                  </For>
-                </Dropdown.Group>
-              </Show>
-              <Show when={props.speed}>
-                <Show when={hasEffort()}>
-                  <Dropdown.Separator />
-                </Show>
-                <Dropdown.Group>
-                  <Dropdown.GroupLabel>Speed</Dropdown.GroupLabel>
-                  <For each={[false, true]}>
-                    {(enabled) => (
-                      <Dropdown.Item
-                        closeOnSelect
-                        disabled={props.disabled}
-                        onSelect={() => chooseSpeed(enabled)}
-                      >
-                        {speedOptionLabel(enabled)}
-                      </Dropdown.Item>
-                    )}
-                  </For>
-                </Dropdown.Group>
-              </Show>
+              <ModelEffortMenu
+                effortOnly
+                label="Reasoning effort"
+                config={props.config}
+                value={value()}
+                disabled={props.disabled}
+                onChange={(next) => {
+                  const choice = choices().find(
+                    (choice) => choice.value === next
+                  );
+                  if (props.config && choice)
+                    setPending({
+                      configId: props.config.id,
+                      value: choice.value,
+                      name: choice.name,
+                    });
+                }}
+              />
             </Dropdown.Content>
           </Dropdown>
         }
@@ -178,58 +152,37 @@ export function EffortSelector(props: {
             size="sm"
             class="size-[34px] rounded-full p-0"
             disabled={props.disabled}
-            aria-label={description()}
-            title={description()}
+            aria-label={`Effort: ${label()}`}
+            title={`Effort: ${label()}`}
             onPointerDown={(event: PointerEvent) => event.preventDefault()}
             onMouseDown={(event: MouseEvent) => event.preventDefault()}
           >
-            <Gauge class="size-[18px]" />
+            {contents()}
           </MobileDrawer.Trigger>
           <MobileDrawer.Portal>
             <MobileDrawer.Overlay />
-            <MobileDrawer.Content aria-label={title()}>
+            <MobileDrawer.Content aria-label="Reasoning effort">
               <MobileDrawer.Handle />
               <MobileDrawer.Title class="px-4 pb-3 font-medium">
-                {title()}
+                Reasoning effort
               </MobileDrawer.Title>
               <MobileDrawer.ScrollBody>
-                <Show when={hasEffort()}>
-                  <Show when={props.speed}>
-                    <MobileDrawer.Label>Reasoning effort</MobileDrawer.Label>
-                  </Show>
-                  <MobileDrawer.Section
-                    role="group"
-                    aria-label="Reasoning effort"
-                  >
-                    <For each={choices()}>
-                      {(choice) => (
-                        <MobileDrawer.Item
-                          aria-pressed={choice.value === value()}
-                          disabled={props.disabled}
-                          onClick={() => choose(choice)}
-                        >
-                          {optionLabel(choice)}
-                        </MobileDrawer.Item>
-                      )}
-                    </For>
-                  </MobileDrawer.Section>
-                </Show>
-                <Show when={props.speed}>
-                  <MobileDrawer.Label>Speed</MobileDrawer.Label>
-                  <MobileDrawer.Section role="group" aria-label="Speed">
-                    <For each={[false, true]}>
-                      {(enabled) => (
-                        <MobileDrawer.Item
-                          aria-pressed={props.speed?.enabled === enabled}
-                          disabled={props.disabled}
-                          onClick={() => chooseSpeed(enabled)}
-                        >
-                          {speedOptionLabel(enabled)}
-                        </MobileDrawer.Item>
-                      )}
-                    </For>
-                  </MobileDrawer.Section>
-                </Show>
+                <MobileDrawer.Section
+                  role="group"
+                  aria-label="Reasoning effort"
+                >
+                  <For each={choices()}>
+                    {(choice) => (
+                      <MobileDrawer.Item
+                        aria-pressed={choice.value === value()}
+                        disabled={props.disabled}
+                        onClick={() => choose(choice)}
+                      >
+                        {optionLabel(choice)}
+                      </MobileDrawer.Item>
+                    )}
+                  </For>
+                </MobileDrawer.Section>
               </MobileDrawer.ScrollBody>
             </MobileDrawer.Content>
           </MobileDrawer.Portal>

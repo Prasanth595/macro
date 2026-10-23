@@ -6,14 +6,12 @@ import {
   uploadInputAttachments,
 } from '@channel/Input';
 import { FloatRegionOrInline } from '@components/app/mobile/float-regions/FloatRegion';
+import { SpeedToggle } from '@core/component/AI/component/input/SpeedToggle';
 import {
   acceleratedSpeed,
   speedForModel,
 } from '@core/component/AI/constant/speed';
-import {
-  fastModeEnabled,
-  setFastModeEnabled,
-} from '@core/component/AI/signal/speed';
+import { fastModeEnabled } from '@core/component/AI/signal/speed';
 import { ComposerGreeting } from '@core/component/ComposerGreeting';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { useUserId } from '@core/context/user';
@@ -29,7 +27,11 @@ import { Tabs } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createMemo, createSignal, Show } from 'solid-js';
 import { EffortSelector } from '../../block-agent/component/EffortSelector';
-import { effortConfigOption } from '../../block-agent/state/session-config';
+import {
+  type EffortChoice,
+  effortConfigOption,
+  effortLabel,
+} from '../../block-agent/state/session-config';
 import { ChatComposer } from '../components/ChatComposer';
 import { type AgentKind, kindForMode } from '../core/agent-kind';
 import { type AgentsMode, agentsModeLabel } from '../core/mode';
@@ -100,7 +102,7 @@ export function NewChatPage(props: {
   const options = () =>
     props.roster.filter((agent) => agent.kind === kindForMode(mode()));
   const [agentId, setAgentId] = createSignal<string>();
-  /** One-shot coding-agent model choice; Macro uses {@link preferredInmem}. */
+  /** One-shot model from a coding agent's submenu; Macro uses {@link preferredInmem}. */
   const [modelOverride, setModelOverride] = createSignal<string>();
   const [effortPickerOpen, setEffortPickerOpen] = createSignal(false);
   const [repositoryPickerOpen, setRepositoryPickerOpen] = createSignal(false);
@@ -164,14 +166,6 @@ export function NewChatPage(props: {
     effortConfigOption(
       capabilities.isSuccess ? capabilities.data.configOptions : []
     );
-  const speed = () => {
-    if (!['macro-inmem', 'in-memory'].includes(selected()?.harness ?? ''))
-      return;
-    const tier = acceleratedSpeed(composerModelOverride() ?? '');
-    return tier
-      ? { tier, enabled: fastModeEnabled(), onChange: setFastModeEnabled }
-      : undefined;
-  };
   const [effortSelection, setEffortSelection] = createSignal<{
     target: string;
     configId: string;
@@ -184,7 +178,7 @@ export function NewChatPage(props: {
       ? selection
       : undefined;
   };
-  // The effort picker already validated this choice. Retain it while the selected
+  // The submenu already validated this choice. Retain it while the selected
   // model's discovery refreshes; startup revalidates against the runtime.
   const effortOverride = () => {
     const config = effort();
@@ -311,12 +305,16 @@ export function NewChatPage(props: {
           }
         : {}),
     });
-    // Macro's preferred model stays; coding-agent model picks are one-shot.
+    // Macro's preferred model stays; coding-agent submenu picks are one-shot.
     setModelOverride(undefined);
     setEffortSelection(undefined);
   };
 
-  const selectAgent = (agent: RosterAgent, model?: string) => {
+  const selectAgent = (
+    agent: RosterAgent,
+    model?: string,
+    selection?: EffortChoice
+  ) => {
     setAgentId(agent.id);
     if (agent.id === MACRO_PERSONA_ID) {
       if (model) preferredInmem.remember(model);
@@ -326,7 +324,11 @@ export function NewChatPage(props: {
     } else {
       setModelOverride(model);
     }
-    setEffortSelection(undefined);
+    setEffortSelection(
+      selection
+        ? { ...selection, target: JSON.stringify(capabilityTarget()) }
+        : undefined
+    );
   };
 
   let focusInput: (() => void) | undefined;
@@ -340,8 +342,13 @@ export function NewChatPage(props: {
       selected={selected()}
       modelOverride={composerModelOverride()}
       loading={props.rosterLoading}
+      effortLabel={
+        selectedEffort()?.name ?? effortLabel(effort(), effortOverride()?.value)
+      }
+      effortSelection={effortOverride()}
       onCloseAutoFocus={restoreInputFocus}
       onSelect={selectAgent}
+      onSelectEffort={selectAgent}
       onConnect={connect}
       onCreate={() => props.onOpenRoster(coding() ? 'coder' : 'agent')}
     />
@@ -414,7 +421,6 @@ export function NewChatPage(props: {
             onCloseAutoFocus={restoreInputFocus}
             onOpenChange={setEffortPickerOpen}
             config={effort()}
-            speed={speed()}
             value={effortOverride()?.value}
             disabled={Boolean(blocked())}
             onChange={(choice) =>
@@ -424,6 +430,13 @@ export function NewChatPage(props: {
               })
             }
           />
+          <Show
+            when={['macro-inmem', 'in-memory'].includes(
+              selected()?.harness ?? ''
+            )}
+          >
+            <SpeedToggle model={composerModelOverride() ?? ''} />
+          </Show>
         </div>
       }
       drawer={

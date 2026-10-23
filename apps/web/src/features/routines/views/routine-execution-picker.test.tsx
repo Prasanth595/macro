@@ -144,8 +144,14 @@ async function expectClosed(trigger: HTMLElement) {
 async function openModels(name: string) {
   const trigger = openPicker();
   const row = screen.getByRole('menuitem', { name: new RegExp(`^${name}`) });
-  fireEvent.keyDown(row, { key: 'Enter' });
-  const menu = screen.getByRole('group', { name: 'Models' });
+  row.focus();
+  fireEvent.keyDown(row, { key: 'ArrowRight' });
+  // The root Macro catalog also has a search box; wait for the agent submenu.
+  const menu = await screen.findByRole('menu', {
+    name: new RegExp(`^${name}`),
+  });
+  expect(menu.getAttribute('aria-label')).toBe(`Models for ${name}`);
+  await within(menu).findByRole('textbox', { name: 'Search models' });
   return { trigger, menu: within(menu) };
 }
 
@@ -191,10 +197,6 @@ describe('routine execution picker', () => {
       screen.getByRole('group', { name: 'Routine model or agent' })
     ).toBeTruthy();
     const trigger = openPicker();
-    const defaultAgent = screen.getByRole('menuitem', {
-      name: /^Default agent/,
-    });
-    fireEvent.keyDown(defaultAgent, { key: 'Enter' });
     const item = screen.getByRole('menuitem', { name: 'Other model' });
     item.focus();
     fireEvent.keyDown(item, { key: 'Enter' });
@@ -208,54 +210,27 @@ describe('routine execution picker', () => {
     async (name) => {
       const { selection } = mount({
         kind: 'agent',
-        agentId: name === 'Local worker' ? managedId : externalId,
+        agentId: externalId,
         modelOverride: 'old-model',
       });
       const trigger = openPicker();
-      fireEvent.keyDown(
-        screen.getByRole('menuitem', { name: new RegExp(`^${name}`) }),
-        { key: 'Enter' }
+      fireEvent.click(
+        screen.getByRole('menuitem', { name: new RegExp(`^${name}`) })
       );
       expect(selection()).toEqual({
         kind: 'agent',
         agentId: name === 'Researcher' ? managedId : externalId,
       });
       expect(trigger.textContent).toContain(name);
-      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
       await expectClosed(trigger);
     }
   );
-
-  it('switches a saved-agent routine to the Default agent model', async () => {
-    const { selection } = mount(
-      { kind: 'agent', agentId: externalId, modelOverride: 'old-model' },
-      {
-        roster: roster().map((agent) =>
-          agent.id === 'macro'
-            ? { ...agent, defaultModel: 'chat-model' }
-            : agent
-        ),
-      }
-    );
-    const trigger = openPicker();
-    const option = screen.getByRole('menuitem', { name: /^Default agent/ });
-    fireEvent.keyDown(option, { key: 'Enter' });
-    expect(selection()).toEqual({ kind: 'model', model: 'chat-model' });
-    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
-    await expectClosed(trigger);
-    openPicker();
-    expect(
-      within(screen.getByRole('group', { name: 'Models' })).getByTitle(
-        'Chat model'
-      )
-    ).toBeTruthy();
-  });
 
   it.each([
     ['Researcher', managedId, 'Other model', 'other-model'],
     ['Local worker', externalId, 'Custom model', 'vendor/custom-model'],
   ])(
-    'selects runtime-specific inline models for %s',
+    'selects runtime-specific nested models for %s',
     async (name, agentId, label, model) => {
       const { selection } = mount({ kind: 'model', model: 'chat-model' });
       const { trigger, menu } = await openModels(name);
@@ -284,7 +259,6 @@ describe('routine execution picker', () => {
       row.focus();
       fireEvent.keyDown(row, { key });
       expect(selection()).toEqual({ kind: 'agent', agentId: managedId });
-      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
       await expectClosed(trigger);
     }
   );
@@ -434,10 +408,7 @@ describe('routine execution picker', () => {
     fireEvent.input(prompt, { target: { value: 'Keep writing' } });
     expect(screen.getByRole('status').textContent).toContain('Loading models');
     const trigger = openPicker();
-    fireEvent.keyDown(screen.getByRole('menuitem', { name: /Researcher/ }), {
-      key: 'Enter',
-    });
-    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    fireEvent.click(screen.getByRole('menuitem', { name: /Researcher/ }));
     await expectClosed(trigger);
     setCatalogs({
       'in-memory': {

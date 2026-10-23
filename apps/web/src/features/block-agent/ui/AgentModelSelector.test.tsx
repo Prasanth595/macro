@@ -58,46 +58,6 @@ const providerOf = (element: Element | null) =>
     ?.getAttribute('data-ai-provider');
 
 describe('agent model selector', () => {
-  it('reveals secondary choices in place even for a small desktop catalog', () => {
-    const select = vi.fn();
-    render(() => (
-      <AgentModelSelector
-        model="anthropic/claude-sonnet-5-5"
-        options={[
-          {
-            id: 'anthropic/claude-sonnet-5-5',
-            name: 'Sonnet 5.5',
-            description: null,
-            group: null,
-          },
-          {
-            id: 'anthropic/claude-haiku-4-5',
-            name: 'Haiku 4.5',
-            description: null,
-            group: null,
-          },
-        ]}
-        onSelect={select}
-      />
-    ));
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Agent model' }), {
-      key: 'Enter',
-    });
-    expect(screen.queryByRole('menuitem', { name: 'Haiku 4.5' })).toBeNull();
-    fireEvent.keyDown(
-      screen.getByRole('menuitem', { name: 'Show all models' }),
-      {
-        key: 'Enter',
-      }
-    );
-    expect(screen.getAllByRole('menu')).toHaveLength(1);
-    expect(select).not.toHaveBeenCalled();
-    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Haiku 4.5' }), {
-      key: 'Enter',
-    });
-    expect(select).toHaveBeenCalledWith('anthropic/claude-haiku-4-5');
-  });
-
   it('names and badges a slug-named catalog on desktop', () => {
     const select = vi.fn();
     render(() => (
@@ -197,13 +157,13 @@ it('uses the searchable touch sheet with custom desktop model rows', async () =>
   fireEvent.click(screen.getByRole('button', { name: 'Agent model' }));
   const search = await screen.findByRole('textbox', { name: 'Search models' });
   await waitFor(() => expect(document.activeElement).toBe(search));
-  expect(screen.getByRole('radiogroup', { name: 'Models' })).toBeTruthy();
+  expect(screen.getByRole('radiogroup', { name: 'Suggested' })).toBeTruthy();
   expect(screen.queryByText('Desktop custom row')).toBeNull();
   expect(screen.queryByRole('radio', { name: 'Haiku 4.5' })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Show all models' }));
-  expect(select).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'More models' }));
   expect(screen.getByRole('radio', { name: 'Opus 5.5' })).toBeTruthy();
   expect(screen.getByRole('radio', { name: 'Haiku 4.5' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Back to Suggested' }));
   fireEvent.input(search, { target: { value: 'haiku' } });
   fireEvent.click(screen.getByRole('radio', { name: 'Haiku 4.5' }));
   expect(select).toHaveBeenCalledExactlyOnceWith('anthropic/claude-haiku-4-5');

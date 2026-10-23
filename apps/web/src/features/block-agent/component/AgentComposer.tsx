@@ -1,11 +1,9 @@
+import { SpeedToggle } from '@core/component/AI/component/input/SpeedToggle';
 import {
   acceleratedSpeed,
   speedForModel,
 } from '@core/component/AI/constant/speed';
-import {
-  fastModeEnabled,
-  setFastModeEnabled,
-} from '@core/component/AI/signal/speed';
+import { fastModeEnabled } from '@core/component/AI/signal/speed';
 import ArrowUp from '@phosphor/arrow-up.svg';
 import { Button } from '@ui';
 /**
@@ -50,6 +48,7 @@ import {
   QueuedPrompts,
 } from '../ui';
 import type { AgentModelSelectorProps } from '../ui/AgentModelSelector';
+import { AgentModelMenuItem } from './AgentModelMenuItem';
 import { EffortSelector } from './EffortSelector';
 import { PermissionRequest } from './PermissionRequest';
 import { promptActionOf } from './prompt-action';
@@ -123,14 +122,6 @@ export function AgentComposer(props: {
   };
 
   const effort = () => effortConfigOption(metadata()?.configOptions ?? []);
-  const speed = () => {
-    if (!metadata()?.configOptions.some((option) => option.id === 'speed'))
-      return;
-    const tier = acceleratedSpeed(metadata()?.model ?? '');
-    return tier
-      ? { tier, enabled: fastModeEnabled(), onChange: setFastModeEnabled }
-      : undefined;
-  };
   const changingEffort = () => {
     const option = effort();
     return option ? changingConfig(messages(), option.id) : undefined;
@@ -409,11 +400,30 @@ export function AgentComposer(props: {
               onSelect={(model) =>
                 fireAndForget(chooseModel(model), 'agent-composer')
               }
+              modelRow={(row) => (
+                <AgentModelMenuItem
+                  {...row}
+                  harness={session()?.harness}
+                  effort={
+                    row.option.id === metadata()?.model ? effort() : undefined
+                  }
+                  effortValue={
+                    row.option.id === metadata()?.model
+                      ? changingEffort()
+                      : undefined
+                  }
+                  onSelectEffort={(selection) =>
+                    fireAndForget(
+                      chooseModel(row.option.id, selection),
+                      'agent-composer'
+                    )
+                  }
+                />
+              )}
             />
             <EffortSelector
               onCloseAutoFocus={restoreInputFocus}
               config={effort()}
-              speed={speed()}
               value={changingEffort()}
               disabled={
                 loadFailed() ||
@@ -430,6 +440,14 @@ export function AgentComposer(props: {
                   fireAndForget(chooseModel(model, choice), 'agent-composer');
               }}
             />
+
+            <Show
+              when={metadata()?.configOptions.some(
+                (option) => option.id === 'speed'
+              )}
+            >
+              <SpeedToggle model={metadata()?.model ?? ''} />
+            </Show>
           </div>
         }
       />
