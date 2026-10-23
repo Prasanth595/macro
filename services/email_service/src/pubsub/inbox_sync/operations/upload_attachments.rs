@@ -5,10 +5,11 @@ use crate::pubsub::inbox_sync::operations::upsert_message::{
 use models_email::email::service::link;
 use models_email::gmail::inbox_sync::UploadAttachmentsPayload;
 use models_email::service::pubsub::{DetailedError, FailureReason, ProcessingError};
+use tracing::Level;
 
 /// Retries the attachment uploads of a message that a rate limit deferred. It is only enqueued
 /// on the retry queue, so a further rate limit leaves it for SQS redelivery.
-#[tracing::instrument(skip(ctx, link), fields(link_id = %link.id))]
+#[tracing::instrument(skip(ctx, link), fields(link_id = %link.id), err(Debug, level = Level::WARN))]
 pub async fn upload_attachments(
     ctx: &PubSubContext,
     link: &link::Link,
