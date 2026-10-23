@@ -311,7 +311,7 @@ function VariableRow(props: {
         <Show
           when={!props.loading}
           fallback={
-            <span class="inline-block h-3.5 w-3/5 animate-pulse rounded-sm bg-hover" />
+            <span class="skeleton-shimmer inline-block h-3.5 w-3/5 rounded-sm bg-skeleton" />
           }
         >
           <Chip key={props.variable.key} chipFor={props.chipFor} />

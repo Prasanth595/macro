@@ -17,7 +17,7 @@ export function RoutineTemplateAttachment(props: { id: string }) {
   return (
     <Switch
       fallback={
-        <div class="h-40 w-full max-w-120 animate-pulse rounded-xl border border-edge-muted bg-panel" />
+        <div class="skeleton-shimmer h-40 w-full max-w-120 rounded-xl bg-skeleton" />
       }
     >
       <Match when={template()}>

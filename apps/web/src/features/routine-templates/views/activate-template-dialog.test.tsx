@@ -99,7 +99,9 @@ describe('ActivateTemplateDialog', () => {
       name: 'My digest',
     }));
 
-    expect(await screen.findByText('Nothing in your workspace fit this.')).toBeTruthy();
+    expect(
+      await screen.findByText('Nothing in your workspace fit this.')
+    ).toBeTruthy();
     const activate = screen.getByRole('button', { name: 'Activate' });
     expect(activate.hasAttribute('disabled')).toBe(true);
 

@@ -3,6 +3,7 @@ use std::{future::Future, sync::Arc, time::Duration};
 use anyhow::{Context, Result};
 use axum::Router;
 use bots::outbound::pg_bots_repo::PgBotsRepo;
+use cognition::outbound::CognitionClient;
 use connection_gateway_client::client::ConnectionGatewayClient;
 use entity_access::{domain::service::EntityAccessServiceImpl, outbound::PgAccessRepository};
 use entity_registry::OwnerGrantPolicy;
@@ -13,7 +14,6 @@ use macro_authorization::{
     InternalAuthConfig, MacroAuthJwtValidator, MacroAuthorizationServiceImpl,
     MacroAuthorizationState, PgUserApiKeyAuthorizationRepo, PgUserApiKeyAuthorizer,
 };
-use cognition::outbound::CognitionClient;
 use macro_service_urls::{ConnectionGatewayUrl, DocumentCognitionServiceUrl, LexicalServiceUrl};
 use rootcause::compat::anyhow1::IntoAnyhow;
 use scheduled_action::domain::templates::ports::{RoutineTemplateService, TemplatedRoutines};

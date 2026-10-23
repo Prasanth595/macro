@@ -38,7 +38,9 @@ describe('resolveBindings', () => {
 
 describe('scheduleLabel', () => {
   it('describes presets and keeps unusual expressions as written', () => {
-    expect(scheduleLabel('0 0 9 * * 2', 'UTC')).toBe('Every Mon at 09:00 (UTC)');
+    expect(scheduleLabel('0 0 9 * * 2', 'UTC')).toBe(
+      'Every Mon at 09:00 (UTC)'
+    );
     expect(scheduleLabel('0 30 8 * * *', 'Europe/Paris')).toBe(
       'Every day at 08:30 (Europe/Paris)'
     );

@@ -4,8 +4,8 @@ import {
   Dialog,
   Input,
   type ManagedDialogProps,
-  SegmentedControl,
   Surface,
+  Tabs,
 } from '@ui';
 import {
   type Component,
@@ -319,7 +319,7 @@ function ShareVariableRow(props: {
             <span class="text-xs text-ink-muted">Each person chooses</span>
           }
         >
-          <SegmentedControl
+          <Tabs
             size="sm"
             aria-label={`${props.variable.label}: variable or fixed`}
             value={props.variable.fixed ? 'fixed' : 'variable'}
