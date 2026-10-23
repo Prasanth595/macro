@@ -143,13 +143,7 @@ export function createFileDownload(
           toast.success(
             isPlatform('android') || nativeIos
               ? 'File saved'
-              : 'Download started',
-            {
-              subtext:
-                isPlatform('android') || nativeIos
-                  ? ready.name
-                  : `${ready.name} — check your browser or device downloads.`,
-            }
+              : 'Download started'
           );
         }
         finishTrace('handed_off');
