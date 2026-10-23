@@ -130,12 +130,12 @@ export function buildHomeSearchRequest(
     }
 
     filters.channel_filters = channelFilters;
-  }
 
-  if (types.has('channels') && context.userId) {
-    filters.channel_thread_filters = {
-      participant_ids: [context.userId],
-    };
+    if (context.userId) {
+      filters.channel_thread_filters = {
+        participant_ids: [context.userId],
+      };
+    }
   }
 
   if (documentTypes.length > 0) {
