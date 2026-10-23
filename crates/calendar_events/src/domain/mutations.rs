@@ -337,8 +337,14 @@ where
         let capabilities = invite::copy_capabilities(&target, &stored);
         // Checked before any guest is invited, so a refused change leaves
         // the event untouched.
-        self.require_detail_rights(event_id, &scope, capabilities, &mut patch)
-            .await?;
+        self.require_detail_rights(
+            event_id,
+            &scope,
+            capabilities,
+            target.is_snapshot,
+            &mut patch,
+        )
+        .await?;
         if patch.is_empty() {
             return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
         }

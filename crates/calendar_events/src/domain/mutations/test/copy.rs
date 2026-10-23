@@ -291,3 +291,68 @@ async fn a_snapshot_can_still_be_deleted() {
 
     assert_eq!(calls.lock().unwrap().len(), 1);
 }
+
+#[tokio::test]
+async fn a_snapshot_keeps_its_details_but_takes_its_owners_reminders() {
+    let details = crate::domain::models::EventDetails {
+        title: "Shared meeting".to_string(),
+        description: None,
+        location: None,
+        visibility: crate::domain::models::EventVisibility::Default,
+        time: Some(timed_time()),
+        recurrence_lines: Vec::new(),
+        has_conference: false,
+    };
+    let reminders = EventReminders {
+        use_default: false,
+        overrides: vec![crate::domain::models::EventReminderOverride {
+            method: crate::domain::models::REMINDER_METHOD_POPUP.to_string(),
+            minutes: 15,
+        }],
+    };
+    let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+    let calls = provider.calls.clone();
+    let service = service(
+        FakeRepo {
+            event_details: Some(details),
+            ..snapshot_repo()
+        },
+        provider,
+        FakeTokens::ok(),
+    );
+
+    let renamed = service
+        .update_event(
+            "macro|user",
+            Uuid::now_v7(),
+            None,
+            CalendarEventPatch {
+                title: Some("Renamed".to_string()),
+                ..CalendarEventPatch::default()
+            },
+            CalendarUpdateScope::All,
+        )
+        .await;
+    assert!(matches!(
+        renamed,
+        Err(CalendarMutationError::GuestsCannotModify)
+    ));
+    assert!(calls.lock().unwrap().is_empty());
+
+    // The editor resends the unchanged title with the owner's reminders.
+    service
+        .update_event(
+            "macro|user",
+            Uuid::now_v7(),
+            None,
+            CalendarEventPatch {
+                title: Some("Shared meeting".to_string()),
+                reminders: Some(reminders),
+                ..CalendarEventPatch::default()
+            },
+            CalendarUpdateScope::All,
+        )
+        .await
+        .unwrap();
+    assert_eq!(calls.lock().unwrap().len(), 1);
+}
