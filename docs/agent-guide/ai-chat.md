@@ -820,31 +820,42 @@ ordinary HTTP failures and background queries do not. Document AI-edit refusals
 apply no edits and open this dialog instead of the generic `AI edit failed`
 toast. Legacy chat tool errors carrying a recognized quota code also open it.
 
-### Team API keys for AI chat
+### Your own and team API keys for AI chat
 
-Settings → Team → **AI chat API keys** holds the team's own Anthropic
-(`sk-ant-…`) and OpenAI (`sk-…`) keys. Every member sees which providers have
-one; only admins and the owner can save, replace, or remove a key, and a saved
-key is never shown again. The copy says it only applies to AI chat: AI editing,
-call transcription, and other AI features keep using Macro usage.
+Two settings sections hold Anthropic (`sk-ant-…`) and OpenAI (`sk-…`) keys,
+each with the same rows; a saved key is never shown again, and the copy says it
+only applies to AI chat (AI editing, call transcription, and other AI features
+keep using Macro usage):
 
-Only the in-memory agent (Macro's own chat, `macro-inmem`) uses team keys, and
+- Settings → **API Keys** → **AI chat API keys**: your own keys. Only you see
+  or change them.
+- Settings → Team → **AI chat API keys**: the team's. Every member sees which
+  providers have one; only admins and the owner can save, replace, or remove a
+  key.
+
+Only the in-memory agent (Macro's own chat, `macro-inmem`) uses these keys, and
 only for Anthropic and OpenAI models:
 
-- When the owner has a usable team key, the composer shows a key toggle next
-  to the speed toggle. On, it reads **Using team API usage** and turns run on
-  the team's key, never admitted against or counted toward Macro usage. Off
-  switches back to Macro usage.
+- When the owner has a usable key, the composer shows a key control next to the
+  speed toggle. With one source (yours or the team's) it toggles that key; with
+  both, it opens a menu of **Macro usage**, **Your API key**, and **Team API
+  key**. On a key it reads **Using your API key** or **Using team API usage**,
+  and turns run on that key, never admitted against or counted toward Macro
+  usage.
 - A conversation whose first turn finds the owner's Macro usage spent moves to
-  the team key on its own, and the toggle turns on.
+  a key on its own, their own before the team's, and the control shows it.
 - Mid-conversation, a spent allowance stops the turn with a
-  `You've used your AI usage for this month` card and a **Continue with team
-  API key** button, which turns the key on and re-sends the prompt.
-- On the team key with a model no key serves (Gemini, say), the turn fails with
-  `Your team's API key can't run this model`.
+  `You've used your AI usage for this month` card and a **Continue with your
+  API key** (or **Continue with team API key**) button, which turns that key on
+  and re-sends the prompt.
+- On a key with a model it doesn't serve (Gemini, say), the turn fails with
+  `Your API key can't run this model` or `Your team's API key can't run this
+  model`.
 
-Membership is checked on every turn: a member who leaves the team loses the
-key on their next message.
+Team membership is checked on every turn: a member who leaves the team loses
+the team's key on their next message. Until the follow-up migration drops
+`cursor_configs_user_id_key`, saving a personal key fails for someone who also
+has a Cursor key connected.
 
 ### Quota manual checks
 
