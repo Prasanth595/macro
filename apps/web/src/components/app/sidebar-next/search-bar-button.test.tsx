@@ -38,8 +38,8 @@ vi.mock('@app/signal/splitLayout', () => ({
 vi.mock('@components/app/app-sidebar/sidebar', () => ({
   navigateToSidebarView: mocks.navigate,
 }));
-vi.mock('../view-session/view-session-context', () => ({
-  useViewSession: () => ({ openView: vi.fn() }),
+vi.mock('../split-layout/layout', () => ({
+  useSplitLayout: () => ({ openWithSplit: vi.fn() }),
 }));
 vi.mock('@core/mobile/isMobile', () => ({ isMobile: () => false }));
 vi.mock('@ui/components/Hotkey', () => ({ Hotkey: () => null }));

@@ -127,7 +127,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Reserve the safe area plus the category row above mobile Search, and only the safe area above Channels; their hidden split headers must not add another blank strip.
 - Follow [mobile layout and chrome](../../.agents/rules/web/mobile.md#layout-and-chrome) for full-frame views and record tabs; verify their first controls below the navigation with a nonzero safe area on phones and tablets.
 - Keep split chrome portal targets reactive so cached views can mount before their header, and clear a retiring header's targets only while it still owns them.
-- Route ordinary app switches through `components/app/view-session` so the rail, Go To shortcuts, and mobile dock resume account-scoped session context. Keep explicit links and split creation fresh; preserve local view state with the existing split entry-state captors, not mounted hidden views.
+- Opt views into session restoration with `split-layout/view-restoration` and set `resume: true` on ordinary layout navigation; publish captured state only through the leave guard's `onCommit`, keep explicit links and new splits fresh, and reuse entry-state captors rather than hidden mounted views.
 - Let `ViewShell.TopBar` own split close and navigation controls; do not add a second split close button inside Agents headers or their preview `headerLeading`.
 - Show only the Recent conversation feed in mobile Channels, without view tabs or a persisted mobile tab selection.
 - Mount the mobile search input before focusing it inside the dock tap; keep navigation in that handler so focus does not trigger a second navigation or lose iOS keyboard activation.

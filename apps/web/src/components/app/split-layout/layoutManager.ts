@@ -25,6 +25,7 @@ import type {
 } from '@core/orchestrator';
 import { useFocusLock } from '@core/util/createControlledOpenSignal';
 import { fireAndForget } from '@core/util/fireAndForget';
+import { Telemetry } from '@macro-inc/observability';
 import {
   type Accessor,
   batch,
@@ -48,6 +49,7 @@ import {
   createContentInstanceRegistry,
 } from './contentInstanceRegistry';
 import { DEFAULT_SPLIT_MIN_WIDTH } from './splitContentSizing';
+import { createViewState, type ViewState } from './view-state';
 
 /** Checked on every route change in a pane, so entry state is captured before the pane moves. */
 const ENTRY_STATE_GUARD_DEPTH = Number.MAX_SAFE_INTEGER;
@@ -178,6 +180,8 @@ export type ReferredFrom =
   | null;
 
 export type ReplaceAllSplitsOptions = {
+  /** Resume a view that opted into layout-owned session state. */
+  resume?: boolean;
   referredFrom?: ReferredFrom;
   /** Router state validated by the destination route, separate from runtime EntryState. */
   routeState?: unknown;
@@ -201,6 +205,8 @@ export type CreateNewSplitOptions = {
 };
 
 export type OpenWithSplitOptions = {
+  /** Resume an opted-in view; explicit new-split actions stay fresh. */
+  resume?: boolean;
   /** Route-owned targets must pass through middleware and content claims before opening. */
   search?: Record<string, SplitSearchUpdate>;
   /** Schema-validated route state, separate from opaque runtime EntryState. */
@@ -309,9 +315,12 @@ export type SplitLayoutOptions = {
    * behind moves it to the front.
    */
   stacked?: () => boolean;
+  /** Changing the session retires retained snapshots and ownership of existing entries. */
+  sessionKey?: Accessor<string | undefined>;
 };
 
 export type SplitManager = {
+  readonly viewState: ViewState;
   /** Whether the router has loaded the URL, so route-owned opens can run. */
   readonly contentNavigationReady: Accessor<boolean>;
   /** Changes when route-owned navigation becomes available. */
@@ -603,6 +612,10 @@ export function createSplitLayout(
     popovers: new Map(),
   });
   const [lastEvent, setLastEvent] = createSignal<SplitEventWithType>();
+  const viewState = createViewState({
+    activeOwner: () => state.activeSplitId,
+    sessionKey: options.sessionKey,
+  });
 
   const contentInstances = createContentInstanceRegistry();
   const unregisterContentInstances = contentInstances.register(() => [
@@ -1051,6 +1064,7 @@ export function createSplitLayout(
 
   /** Mirrors a pane's new current entry onto its split, creating the split when the pane is new. */
   function applyEntry(id: SplitId, entry: Entry, arrival: PaneArrival) {
+    viewState.observe(entry);
     const deliversParams = arrival === 'fresh' || arrival === 'replace';
     const meta = metaOf(entry);
     if (meta.entryState && !entryStates.has(entry.id)) {
@@ -1112,6 +1126,7 @@ export function createSplitLayout(
       const front = state.splits.at(-1);
       if (stacked() && state.activeSplitId === id && front) {
         setState('activeSplitId', front.id);
+        viewState.activate(front.id);
       }
       dispatchEvent(SplitEvent.Remove, { splitId: id, splitIndex: index });
     });
@@ -1141,6 +1156,7 @@ export function createSplitLayout(
       setState('spotlightId', undefined);
     }
     setState('activeSplitId', id);
+    viewState.activate(id);
   }
 
   /** Stacked panes bring a pane behind the front forward; the panes that were in front of it stay, behind it. */
@@ -1420,7 +1436,10 @@ export function createSplitLayout(
         router.history(pane)?.entries.map((entry) => entry.id)
       );
       for (const entryId of entryIds) {
-        if (!retained.has(entryId)) entryStates.delete(entryId);
+        if (!retained.has(entryId)) {
+          entryStates.delete(entryId);
+          viewState.forget(entryId);
+        }
       }
       entryIds = retained;
     });
@@ -1444,7 +1463,10 @@ export function createSplitLayout(
 
     onCleanup(() => {
       unregisterGuard();
-      for (const entryId of entryIds) entryStates.delete(entryId);
+      for (const entryId of entryIds) {
+        entryStates.delete(entryId);
+        viewState.forget(entryId);
+      }
       untrack(() => dropSplit(id));
     });
 
@@ -1596,11 +1618,51 @@ export function createSplitLayout(
     });
   }
 
+  /** Resolve a retained entry before the destination mounts, never by redirecting after mount. */
+  function resumeView(
+    content: SplitContent
+  ): { content: SplitContent; routeState: unknown } | undefined {
+    const span = Telemetry.span('navigation.view.resume');
+    span.setAttr('view.id', content.id);
+    try {
+      const snapshot =
+        content.type === 'component' ? viewState.get(content.id) : undefined;
+      span.setAttr('view.restored', snapshot !== undefined);
+      if (!snapshot) return;
+      const restored = toContent(snapshot.location);
+      if (restored.type !== 'component') return;
+      return {
+        content: {
+          ...restored,
+          params: snapshot.params,
+          preserveParams: snapshot.preserveParams,
+          state: snapshot.entryState,
+          entryMetadata: snapshot.location,
+        },
+        routeState: snapshot.routeState,
+      };
+    } finally {
+      span.end();
+    }
+  }
+
   function openWithSplit(
     content: SplitContent,
     options: OpenWithSplitOptions = {}
   ): OpenSplitResult {
     const sourceOwner = options.handle?.id;
+    if (options.resume && !options.preferNewSplit) {
+      const restored = resumeView(content);
+      if (restored) {
+        content = restored.content;
+        options = {
+          ...options,
+          search: options.search ?? {},
+          allowDuplicate: false,
+          routeState: options.routeState ?? restored.routeState,
+        };
+      }
+    }
     if (options.search || options.routeState !== undefined) {
       openThroughRouter(content, options);
       return { status: 'navigating', sourceOwner };
@@ -1700,6 +1762,16 @@ export function createSplitLayout(
     content: SplitContent,
     options: ReplaceAllSplitsOptions = {}
   ): SplitHandle | undefined {
+    if (options.resume) {
+      const restored = resumeView(content);
+      if (restored) {
+        content = restored.content;
+        options = {
+          ...options,
+          routeState: options.routeState ?? restored.routeState,
+        };
+      }
+    }
     if (
       !canOpenContent(content, getSplitByContent(content.type, content.id)?.id)
     ) {
@@ -1743,6 +1815,7 @@ export function createSplitLayout(
   const getVisibleSplits = () => state.splits.filter(onScreen);
 
   return {
+    viewState,
     splits: () => state.splits,
     findOpenView,
     registerOpenViews: contentInstances.register,

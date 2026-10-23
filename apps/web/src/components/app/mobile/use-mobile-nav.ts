@@ -11,7 +11,6 @@ import { useSettingsState } from '@core/constant/SettingsState';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { type Accessor, createMemo } from 'solid-js';
 import { useSplitLayout } from '../split-layout/layout';
-import { useViewSession } from '../view-session/view-session-context';
 import { isMobileNavViewId, type MobileNavViewId } from './mobile-nav-views';
 
 /**
@@ -81,7 +80,6 @@ export function useForegroundMobileView(): Accessor<
 export function useMobileNavNavigate(): (id: MobileDockNavId) => void {
   const { openWithSplit, replaceAllSplits } = useSplitLayout();
   const { toggleSettings } = useSettingsState();
-  const { openView, replaceView } = useViewSession();
 
   return (id) => {
     if (id === 'settings') {
@@ -93,14 +91,13 @@ export function useMobileNavNavigate(): (id: MobileDockNavId) => void {
       const routeState: MobileSearchRouteState | undefined =
         id === 'search' ? { sessionId: crypto.randomUUID() } : undefined;
       // Search taps intentionally start a new search session.
-      const navigate = id === 'search' ? replaceAllSplits : replaceView;
-      navigate(content, { routeState });
+      replaceAllSplits(content, { routeState, resume: id !== 'search' });
       return;
     }
     const fgContent = globalSplitManager()?.activeSplit()?.content();
     const isOnNavView = fgContent?.type === 'component';
-    const navigate = id === 'search' ? openWithSplit : openView;
-    navigate(content, {
+    openWithSplit(content, {
+      resume: id !== 'search',
       mergeHistory: isOnNavView,
       // Route through the router so an existing pane receives the default tab.
       search: id === 'documents' || id === 'reviews' ? {} : undefined,

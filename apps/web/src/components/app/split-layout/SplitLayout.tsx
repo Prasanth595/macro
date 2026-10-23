@@ -3,6 +3,7 @@ import { useSplitRouter } from '@app/lib/split-router';
 import { setGlobalSplitManager } from '@app/signal/splitLayout';
 import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
 import { Resize } from '@core/component/Resize';
+import { useIsAuthenticated, useUserId } from '@core/context/user';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { tabTitleSignal } from '@core/signal/tabTitle';
@@ -18,7 +19,6 @@ import {
   Suspense,
   useContext,
 } from 'solid-js';
-import { ViewSessionProvider } from '../view-session/view-session-context';
 import { PopoverSplitRenderer } from './components/PopoverSplitRenderer';
 import { SplitPanel } from './components/SplitPanel';
 import { SplitLayoutContext } from './context';
@@ -36,23 +36,24 @@ import { createSplitFocusTracker } from './splitFocusTracker';
 export function SplitLayoutProvider(props: ParentProps) {
   const router = useSplitRouter();
   const blockOrchestrator = useGlobalBlockOrchestrator();
+  const userId = useUserId();
+  const authenticated = useIsAuthenticated();
 
   const splitManager = createSplitLayout(blockOrchestrator, {
     router,
     toLocation: (content) => resolveContentLocation(router.routes, content),
     toContent: splitContentFromLocation,
     stacked: isNativeMobilePlatform,
+    sessionKey: () => (authenticated() === false ? undefined : userId()),
   });
   createEffect(() => setGlobalSplitManager(splitManager));
   onCleanup(() => setGlobalSplitManager(undefined));
 
   return (
     <SplitLayoutContext.Provider value={{ manager: splitManager }}>
-      <ViewSessionProvider router={router} manager={splitManager}>
-        <CreateContextProvider focusedPaneId={splitManager.activeSplitId}>
-          {props.children}
-        </CreateContextProvider>
-      </ViewSessionProvider>
+      <CreateContextProvider focusedPaneId={splitManager.activeSplitId}>
+        {props.children}
+      </CreateContextProvider>
     </SplitLayoutContext.Provider>
   );
 }

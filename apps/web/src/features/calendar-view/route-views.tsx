@@ -1,5 +1,6 @@
 import { calendarSplitRoute } from '@app/routes/routes';
 import { withAuth } from '@components/app/split-layout/split-router/app-route-shell';
+import { useViewRestoration } from '@components/app/split-layout/view-restoration';
 import { lazy } from 'solid-js';
 import { CalendarViewSkeleton } from './calendar-view-skeleton';
 
@@ -8,6 +9,9 @@ const CalendarView = lazy(async () => ({
 }));
 
 export const CalendarRouteView = withAuth(
-  () => <CalendarView route={calendarSplitRoute} />,
+  () => {
+    useViewRestoration();
+    return <CalendarView route={calendarSplitRoute} />;
+  },
   CalendarViewSkeleton
 );

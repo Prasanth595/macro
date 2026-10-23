@@ -4,12 +4,12 @@ import { globalSplitManager } from '@app/signal/splitLayout';
 import { navigateToSidebarView } from '@components/app/app-sidebar/sidebar';
 import { TOKENS } from '@core/hotkey/tokens';
 import { SidebarSearchMenu } from '../app-sidebar/sidebar-search-menu';
-import { useViewSession } from '../view-session/view-session-context';
+import { useSplitLayout } from '../split-layout/layout';
 
 /** Search and command-menu discovery in the compact rail. */
 export const SearchRailButton = () => {
   const analytics = useAnalytics();
-  const { openView } = useViewSession();
+  const { openWithSplit } = useSplitLayout();
 
   const openSearch = (newSplit: boolean) => {
     analytics.track('sidebar_click', { view: 'search' });
@@ -31,7 +31,7 @@ export const SearchRailButton = () => {
     split = navigateToSidebarView({
       viewId: 'search',
       shiftKey: newSplit,
-      openWithSplit: openView,
+      openWithSplit,
       referredFrom: 'sidebar',
       onApplied: () => {
         const active = globalSplitManager()?.activeSplit();

@@ -14,7 +14,6 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import PhoneCallIcon from '@phosphor-fill/phone-call-fill.svg';
 import { Button, cn } from '@ui';
 import { Show } from 'solid-js';
-import { useViewSession } from '../view-session/view-session-context';
 import { NavGlyph } from './nav-glyph';
 import type { SidebarNextNavItem } from './nav-items';
 import { SidebarUnreadDot } from './unread-dot';
@@ -45,7 +44,6 @@ export const ListNav = (props: ListNavProps) => {
   const { hideSidebarItem } = useSidebarPrefs();
   const analytics = useAnalytics();
   const layout = useSplitLayout();
-  const { openView } = useViewSession();
   const router = useSplitRouter();
 
   const content = () => sidebarContent(props.item.id, props.item.params);
@@ -87,7 +85,7 @@ export const ListNav = (props: ListNavProps) => {
         viewId: props.item.id,
         params: props.item.params,
         shiftKey: event.shiftKey,
-        openWithSplit: openView,
+        openWithSplit: layout.openWithSplit,
         referredFrom: 'sidebar',
       });
     }

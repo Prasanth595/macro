@@ -1,19 +1,28 @@
 Split layout should support an arbitrary number of vertical splits.
 
-## Session view restoration
+## Opt-in view restoration
 
-`SplitLayoutProvider` owns `ViewSessionProvider` above the app chrome and pane
-content. Ordinary app navigation uses its `openView` / `replaceView` actions,
-which remember the last focused location and captured entry state per view.
-The record is memory-only and account-scoped; views still unmount normally.
-Explicit links and new-split actions do not consult this record. Native dock
-navigation still resets the pane stack, and dock Search starts a fresh session.
+`SplitLayoutProvider` owns a memory-only, account-scoped view-state store.
+A view opts in by calling `useViewRestoration()` in its stable route component.
+The default key is the component's view ID; pass a stable key when component IDs
+encode individual conversations, as Agents does with `useViewRestoration('agents')`.
 
-Views retain local context through `useEntryState` or
-`registerEntryStateCaptor`. The same slices now restore both through pane
-Back/Forward and through global app switches. Route/schema state stays separate
-from these opaque runtime slices. Restores run through the existing router so
-leave guards, middleware, URL updates, and single-owner content claims still apply.
+The hook captures its current location, route state, and entry-state slices in
+`useBeforeLeave`. It stages the snapshot with the navigation's `onCommit`
+callback, so a refused, cancelled, failed, or superseded navigation cannot replace
+the saved snapshot. Solid cleanup only unregisters the hook; it never saves state.
+
+Ordinary rail, Go To, and mobile dock navigation sets `resume: true` on the existing
+layout actions. Only opted-in views resume. A mounted view can supply its current
+state directly, and the last focused instance wins when several splits show a view.
+Explicit links and new-split actions stay fresh. Native dock navigation still
+resets the pane stack, and dock Search starts a fresh session. Reload, sign-out,
+and account changes retire the saved state. Views still unmount normally.
+
+Views retain local context through `useEntryState` or `registerEntryStateCaptor`.
+These slices restore through both pane Back/Forward and opted-in app switches;
+route/schema state stays separate. Restores use the existing router, including
+leave guards, middleware, URL updates, and single-owner content claims.
 
 The remaining notes below describe the original split layout.
 

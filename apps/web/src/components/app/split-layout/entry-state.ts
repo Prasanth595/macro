@@ -23,7 +23,7 @@ export type UseEntryStateOptions<T> = {
  * `state[key]` slot (if present) or from `options.default`. The signal value
  * is captured back into the entry just before any navigation away (back,
  * forward, replace, push). It restores on back/forward and when app navigation
- * resumes this view through the session view navigator.
+ * resumes a view that opted in with `useViewRestoration`.
  *
  * Slice keys are flat and shared across the split's entry state blob — use a
  * dotted namespace convention (e.g. `'search.text'`, `'soup.scroll'`).

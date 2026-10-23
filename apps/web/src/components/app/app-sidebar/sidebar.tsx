@@ -51,7 +51,6 @@ import {
   onCleanup,
   Show,
 } from 'solid-js';
-import { useViewSession } from '../view-session/view-session-context';
 
 // TODO(sidebar-next): move to app-sidebar/navigation.tsx once SidebarRail ships.
 export interface SidebarItem {
@@ -163,7 +162,7 @@ export function sidebarContent(
 }
 
 /**
- * Navigate to a sidebar view using the supplied view navigator.
+ * Navigate through the layout, resuming only views that opted into retention.
  * Holding shift opens a fresh view in a new split.
  */
 export function navigateToSidebarView(args: {
@@ -179,6 +178,7 @@ export function navigateToSidebarView(args: {
 
   return openWithSplit(sidebarContent(viewId, params), {
     preferNewSplit: shiftKey,
+    resume: !shiftKey,
     mergeHistory: false,
     allowDuplicate: viewId !== 'calendar',
     referredFrom,
@@ -205,7 +205,7 @@ const resetGoToHotkeysState = () => {
  * unmounts on those routes — so none of them go dead there.
  */
 export const GoToHotkeys = () => {
-  const { openView } = useViewSession();
+  const { openWithSplit } = useSplitLayout();
 
   const inviteHotkey = registerHotkey({
     scopeId: 'global',
@@ -325,7 +325,7 @@ export const GoToHotkeys = () => {
           viewId: link.id,
           params: link.params,
           shiftKey: !!e?.shiftKey,
-          openWithSplit: openView,
+          openWithSplit,
           onApplied:
             link.id === 'search'
               ? () => {

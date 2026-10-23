@@ -398,15 +398,18 @@ A later ordinary rail press also cancels a new split still preloading from the
 active split's earlier Shift-press. Already-open splits and pending work from
 other splits remain intact.
 
-Ordinary rail, More-menu, and Go To shortcut navigation resumes each app's last
-location during the current session, including nested details, tabs, filters,
-and local state registered with the split entry (such as scroll or selection).
-The mobile dock uses the same memory; Search taps still start a fresh search.
-Memory is account-scoped and clears on reload, sign-out, or account changes.
-Direct links and explicit Shift/open-in-split actions keep their requested
-destination rather than resuming a saved view. Closing a detail before switching
-apps remembers the list, not the closed detail. Views unmount normally; this is
-not a keep-alive cache for editors or other transient UI.
+Ordinary rail, More-menu, and Go To shortcut navigation resumes opted-in apps'
+last locations during the current session, including nested details, tabs,
+filters, and local state registered with the split entry (such as scroll or
+selection). Views opt in with `useViewRestoration()`; views without the hook keep
+ordinary navigation behavior. The mobile dock uses the same memory; Search taps
+still start a fresh search. Memory is account-scoped and clears on reload,
+sign-out, or account changes. A leave guard stages each snapshot, but only a
+committed navigation saves it; refusal, cancellation, failure, and supersession
+leave the saved snapshot unchanged. Direct links and explicit Shift/open-in-split
+actions keep their requested destination. Closing a detail before switching apps
+remembers the list, not the closed detail. Views unmount normally; this is not a
+keep-alive cache for editors or other transient UI.
 Verify Chat → open channel → Calendar → Chat restores the same channel, then
 repeat with a filtered list and a nested Drive item. Check mobile dock switching,
 split Back/Forward, refused leave guards, explicit links, and account changes.
