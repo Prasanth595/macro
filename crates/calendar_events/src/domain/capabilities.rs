@@ -53,6 +53,8 @@ pub struct EventAccess<'a> {
     pub attendees: &'a [CalendarAttendee],
     /// What the organizer lets guests do.
     pub guest_policy: GuestPolicy,
+    /// Whether the copy is a snapshot of a shared meeting.
+    pub is_snapshot: bool,
 }
 
 /// What the viewing requester may do with an event.
@@ -67,10 +69,13 @@ pub struct ViewerCapabilities {
     pub invite_guests: bool,
     /// Remove guests.
     pub remove_guests: bool,
-    /// Change the event's guest policy.
+    /// Change the event's guest policy, which only Google calendars have.
     pub set_guest_policy: bool,
     /// Answer the invitation.
     pub rsvp: bool,
+    /// Act as the event's organizer: replace its whole guest list and manage
+    /// its conferencing.
+    pub organize: bool,
 }
 
 impl ViewerCapabilities {
@@ -81,6 +86,7 @@ impl ViewerCapabilities {
         remove_guests: false,
         set_guest_policy: false,
         rsvp: false,
+        organize: false,
     };
 
     /// Whether the viewer may do nothing with the event.
@@ -91,9 +97,13 @@ impl ViewerCapabilities {
     /// Resolve what the owner of `inbox`, the inbox this copy of `event`
     /// syncs through, may do with it.
     ///
-    /// A read-only or cancelled event allows nothing. The organizer may do
+    /// A read-only or cancelled event allows nothing, and neither does a
+    /// snapshot of a shared meeting: its owner is listed as its only guest
+    /// so the provider accepts the copy, but an answer or a guest added to
+    /// it would never reach the meeting. The organizer may do
     /// everything, and so may anyone on a writable event without attendees,
-    /// which is treated as the actor's own. A guest of a Google copy follows
+    /// which is treated as the actor's own, except that only a Google copy
+    /// has a guest policy to set. A guest of a Google copy follows
     /// the event's [`GuestPolicy`]: modify allows everything except changing
     /// the policy, invite allows adding guests, and every guest may answer.
     /// A guest may change the guest list only while it is visible: Google
@@ -120,6 +130,7 @@ impl ViewerCapabilities {
                 organizer_email: event.organizer_email.as_deref(),
                 attendees: &event.attendees,
                 guest_policy: event.guest_policy,
+                is_snapshot: event.is_snapshot,
             },
             inbox,
         )
@@ -128,7 +139,7 @@ impl ViewerCapabilities {
     /// Resolve what the owner of `inbox` may do with a live copy of an
     /// event; see [`Self::for_event`].
     pub fn for_access(access: EventAccess<'_>, inbox: Option<&OwnedInbox>) -> Self {
-        if access.is_read_only {
+        if access.is_read_only || access.is_snapshot {
             return Self::NONE;
         }
         let is_guest = inbox.is_some_and(|inbox| {
@@ -151,8 +162,10 @@ impl ViewerCapabilities {
                 edit_details: true,
                 invite_guests: true,
                 remove_guests: true,
-                set_guest_policy: true,
+                set_guest_policy: inbox
+                    .is_some_and(|inbox| inbox.provider == CalendarProvider::Google),
                 rsvp: is_guest,
+                organize: true,
             };
         }
         match inbox {
@@ -170,6 +183,7 @@ impl ViewerCapabilities {
                 remove_guests: policy.can_see_other_guests && policy.can_modify,
                 set_guest_policy: false,
                 rsvp: true,
+                organize: false,
             },
             CalendarProvider::Outlook => Self {
                 rsvp: true,

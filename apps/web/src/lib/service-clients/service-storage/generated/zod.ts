@@ -1041,6 +1041,11 @@ export const listOccurrencesResponse = zod
                 .describe(
                   "Whether the canonical source's calendar prohibits editing it."
                 ),
+              isSnapshot: zod
+                .boolean()
+                .describe(
+                  "Whether this is a snapshot of a meeting shared with the owner, which\nMacro added to their calendar as a private copy: the meeting's changes\nnever reach it, and nothing done to it reaches the meeting."
+                ),
               location: zod
                 .string()
                 .nullish()
@@ -1250,11 +1255,18 @@ export const listOccurrencesResponse = zod
                       "Change the event's details (title, time, description, conference)."
                     ),
                   inviteGuests: zod.boolean().describe('Add guests.'),
+                  organize: zod
+                    .boolean()
+                    .describe(
+                      "Act as the event's organizer: replace its whole guest list and manage\nits conferencing."
+                    ),
                   removeGuests: zod.boolean().describe('Remove guests.'),
                   rsvp: zod.boolean().describe('Answer the invitation.'),
                   setGuestPolicy: zod
                     .boolean()
-                    .describe("Change the event's guest policy."),
+                    .describe(
+                      "Change the event's guest policy, which only Google calendars have."
+                    ),
                 })
                 .describe('What the viewing requester may do with an event.'),
               visibility: zod

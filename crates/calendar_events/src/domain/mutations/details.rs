@@ -17,14 +17,18 @@ where
     /// to its details. Details the patch repeats at their stored value are
     /// dropped first, so a client that resends unchanged fields still saves
     /// the guest's own ones and Google never sees a guest's copy of them.
+    /// The owner of a snapshot is such a guest too, although a snapshot
+    /// grants no capability at all.
     pub(super) async fn require_detail_rights(
         &self,
         event_id: Uuid,
         scope: &CalendarUpdateScope,
         capabilities: ViewerCapabilities,
+        is_snapshot: bool,
         patch: &mut CalendarEventPatch,
     ) -> Result<(), CalendarMutationError> {
-        if !is_guest_without_modify(capabilities) || !changes_details(patch) {
+        let guest_without_modify = is_snapshot || is_guest_without_modify(capabilities);
+        if !guest_without_modify || !changes_details(patch) {
             return Ok(());
         }
         let occurrence_key = match scope {
@@ -53,7 +57,7 @@ fn is_guest_without_modify(capabilities: ViewerCapabilities) -> bool {
 }
 
 /// Whether the patch changes a detail. Reminders and availability are each
-/// guest's own, and the guest list follows its own rules.
+/// guest's own, and the guest list and guest policy follow their own rules.
 fn changes_details(patch: &CalendarEventPatch) -> bool {
     let CalendarEventPatch {
         title,
@@ -67,6 +71,7 @@ fn changes_details(patch: &CalendarEventPatch) -> bool {
         reminders: _,
         conference,
         out_of_office,
+        guest_policy: _,
     } = patch;
     title.is_some()
         || description.is_some()

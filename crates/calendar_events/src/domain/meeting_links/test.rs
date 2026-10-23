@@ -41,6 +41,7 @@ fn sample_event() -> CalendarEvent {
         attendees: Vec::new(),
         reminders: EventReminders::default(),
         guest_policy: GuestPolicy::default(),
+        is_snapshot: false,
         viewer_can: ViewerCapabilities::NONE,
         created_at: Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap(),
         updated_at: Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap(),
@@ -69,6 +70,7 @@ fn draft() -> CalendarEventDraft {
         reminders: None,
         conference: None,
         out_of_office: None,
+        guest_policy: None,
     }
 }
 

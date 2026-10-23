@@ -9,6 +9,7 @@
 use std::collections::HashMap;
 mod copy;
 mod details;
+mod guest_policy;
 pub(crate) mod invite;
 mod join;
 mod replacement;
@@ -29,9 +30,9 @@ use super::{
         CalendarEventWrite, CalendarEventWriteOutcome, CalendarMutationError,
         CalendarMutationProvider, CalendarMutationService, CalendarProviderError,
         CalendarProviderErrorKind, CalendarRefreshNotifier, CalendarRepository, CalendarRsvpScope,
-        CalendarTokenError, CalendarUpdateScope, ProviderInstanceUpdateOutcome,
-        ProviderInviteOutcome, ProviderRsvpOutcome, ProviderSeriesMutationOutcome,
-        RetiredCalendarEvent,
+        CalendarTokenError, CalendarUpdateScope, ProviderImportOutcome,
+        ProviderInstanceUpdateOutcome, ProviderInviteOutcome, ProviderRsvpOutcome,
+        ProviderSeriesMutationOutcome, RetiredCalendarEvent,
     },
 };
 use crate::domain::events::{CalendarEventMetadata, CalendarMacroEvent, CalendarTopicEvent};
@@ -273,6 +274,7 @@ where
         }
         self.require_provider_writes(target.token_identity.provider)?;
         validate_conference(target.token_identity.provider, draft.conference)?;
+        guest_policy::validate_draft_guest_policy(target.token_identity.provider, &mut draft)?;
         // An out-of-office event carries no attendees and Google auto-declines
         // on the owner's behalf, so it must not gain an organizer guest.
         if draft.out_of_office.is_some() {
@@ -338,8 +340,15 @@ where
         let capabilities = invite::copy_capabilities(&target, &stored);
         // Checked before any guest is invited, so a refused change leaves
         // the event untouched.
-        self.require_detail_rights(event_id, &scope, capabilities, &mut patch)
-            .await?;
+        self.require_detail_rights(
+            event_id,
+            &scope,
+            capabilities,
+            target.is_snapshot,
+            &mut patch,
+        )
+        .await?;
+        guest_policy::require_guest_policy_rights(&target, &scope, capabilities, &mut patch)?;
         if patch.is_empty() {
             return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
         }
@@ -528,6 +537,11 @@ where
             .await?;
         if target.is_read_only {
             return Err(CalendarMutationError::ReadOnly);
+        }
+        // The owner is listed on a snapshot only so the provider accepts it;
+        // their answer would never reach the meeting.
+        if target.is_snapshot {
+            return Err(CalendarMutationError::Snapshot);
         }
         self.require_provider_writes(target.token_identity.provider)?;
         let Some(actor) = target.actor.as_ref() else {
@@ -784,7 +798,8 @@ fn validate_time(time: &EventTime) -> Result<(), CalendarMutationError> {
 
 /// Enforce Google's rules for creating an out-of-office event so the provider
 /// never rejects a write we already accepted: primary calendar only, a timed
-/// span rather than whole days, and no attendees, conference, or description.
+/// span rather than whole days, and no attendees, conference, description, or
+/// guest policy beyond Google's defaults.
 fn validate_out_of_office_create(
     draft: &CalendarEventDraft,
     target: &CalendarCreationTarget,
@@ -813,6 +828,11 @@ fn validate_out_of_office_create(
     if draft.description.as_deref().is_some_and(|d| !d.is_empty()) {
         return Err(CalendarMutationError::InvalidInput(
             "out-of-office events cannot have a description".to_string(),
+        ));
+    }
+    if draft.guest_policy.is_some() {
+        return Err(CalendarMutationError::InvalidInput(
+            "out-of-office events have no guests to set permissions for".to_string(),
         ));
     }
     Ok(())

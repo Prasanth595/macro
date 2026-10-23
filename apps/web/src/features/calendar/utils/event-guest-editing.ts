@@ -46,18 +46,12 @@ function emailListsEqual(first: readonly string[], second: readonly string[]) {
 export type EventGuestEditing = 'replace' | 'add' | 'none';
 
 /**
- * Whether the viewer may replace the event's guest list. Only the organizer,
- * the one viewer who may also set the guest policy, does: the editor's list
- * omits a guest's own entry, so a guest's replacement would drop them, and
- * guests add but never remove.
+ * Whether the viewer may replace the event's guest list. Only the organizer
+ * does: the editor's list omits a guest's own entry, so a guest's
+ * replacement would drop them, and guests add but never remove.
  */
 export function viewerReplacesGuests(event: CalendarEvent): boolean {
-  return (
-    !event.isReadOnly &&
-    !event.teamProjection &&
-    event.viewerCan.removeGuests &&
-    event.viewerCan.setGuestPolicy
-  );
+  return !event.isReadOnly && !event.teamProjection && event.viewerCan.organize;
 }
 
 /**
@@ -83,12 +77,15 @@ export function eventGuestEditing(
 
 /**
  * Whether the viewer is a guest on a writable event whose organizer does not
- * let guests invite others, so the guest list explains why it cannot grow.
+ * let guests invite others, so the guest list explains why it cannot grow. A
+ * snapshot lists the viewer only so Google would take it; the details
+ * already say it is a copy.
  */
 export function guestInvitesRestricted(event: CalendarEvent): boolean {
   return (
     !event.isReadOnly &&
     !event.teamProjection &&
+    !event.isSnapshot &&
     !event.viewerCan.inviteGuests &&
     event.attendees.some((attendee) => attendee.isSelf)
   );

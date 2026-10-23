@@ -133,6 +133,7 @@ export * from './initiativeDiscussionMetadata';
 export * from './initiativeDiscussionMetadataSenderDisplayName';
 export * from './initiativeDiscussionMetadataSenderProfilePictureUrl';
 export * from './initiativeDiscussionReason';
+export * from './inviteePlan';
 export * from './inviteToTeamMetadata';
 export * from './inviteToTeamMetadataRole';
 export * from './inviteToTeamMetadataSenderProfilePictureUrl';

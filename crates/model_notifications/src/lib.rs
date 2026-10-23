@@ -21,7 +21,7 @@ pub use metadata::{
     GithubPrEventAction, GithubPrEventStatus, GithubPrMention, GithubPrMentionLocation,
     GithubPrNotificationCommon, GithubPrReview, GithubPrReviewState, GithubPrStatusChanged,
     GithubReviewRequested, InboxReauthRequiredMetadata, InitiativeDiscussionMetadata,
-    InitiativeDiscussionReason, InviteToTeamMetadata, ItemSharedMetadata,
+    InitiativeDiscussionReason, InviteToTeamMetadata, InviteePlan, ItemSharedMetadata,
     MentionedInDocumentCommentMetadata, NewEmailMetadata, NotificationDocumentSubType,
     NotificationTitle, ReminderMetadata, RepliedToDocumentCommentThreadMetadata,
     RequestedAccessLevel, TaskAssignedMetadata,

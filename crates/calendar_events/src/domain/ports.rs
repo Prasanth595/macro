@@ -254,20 +254,23 @@ pub trait CalendarMutationProvider: Send + Sync + 'static {
         scope: &CalendarUpdateScope,
     ) -> impl Future<Output = Result<ProviderInviteOutcome, CalendarProviderError>> + Send;
 
-    /// Import a private copy of another calendar's event into the target
-    /// calendar under the source's iCalendar UID. Guests are not notified:
-    /// the copy carries no attendees and an import sends nothing.
+    /// Import a snapshot of another calendar's event into the target
+    /// calendar under the source's iCalendar UID: the meeting's organizer
+    /// and content, with the calendar's owner as its only guest, since
+    /// Google imports an event only for its organizer or an attendee. No one
+    /// is notified: the meeting's guests are left out and an import sends
+    /// nothing.
     ///
-    /// Returns `None`, importing nothing, when the calendar already holds a
-    /// live event with that UID. Google's import updates such an event in
-    /// place, which would strip the guests and join link of an invitation
-    /// Macro has not synced yet.
+    /// Imports nothing when the calendar already holds a live event with
+    /// that UID ([`ProviderImportOutcome::AlreadyHeld`]). Google's import
+    /// updates such an event in place, which would strip the guests and join
+    /// link of an invitation Macro has not synced yet.
     fn import_event(
         &self,
         access_token: &str,
         target: &ProviderCalendarTarget,
         source: &CalendarEventExport,
-    ) -> impl Future<Output = Result<Option<CalendarEventUpsert>, CalendarProviderError>> + Send;
+    ) -> impl Future<Output = Result<ProviderImportOutcome, CalendarProviderError>> + Send;
 
     /// Close a push notification channel. A channel Google no longer knows
     /// about is success, since the goal is only that it stops delivering.
@@ -390,6 +393,17 @@ pub enum ProviderInviteOutcome {
     GuestListHidden(GuestPolicy),
     /// The event no longer exists at the provider.
     Gone,
+}
+
+/// Result of importing a snapshot of a shared event.
+pub enum ProviderImportOutcome {
+    /// The snapshot was imported; the echo carries the new event.
+    Imported(Box<CalendarEventUpsert>),
+    /// The calendar already holds a live event under the meeting's UID;
+    /// nothing was imported.
+    AlreadyHeld,
+    /// The provider refused to import the snapshot into this calendar.
+    Refused(CalendarProviderError),
 }
 
 /// Inbound service port for querying calendar occurrence projections.
@@ -950,11 +964,11 @@ pub trait CalendarMutationService: Send + Sync + 'static {
         scope: CalendarUpdateScope,
     ) -> impl Future<Output = Result<CalendarEvent, CalendarMutationError>> + Send;
 
-    /// Add a private copy of an event shared with one of the requester's
+    /// Add a snapshot of an event shared with one of the requester's
     /// channels to one of their Google calendars — the selected one, or
     /// their primary inbox's primary calendar — and persist the provider
-    /// echo. The copy keeps the meeting's iCalendar UID, so it becomes the
-    /// requester's own projection of that meeting.
+    /// echo. The snapshot keeps the meeting's iCalendar UID, so it becomes
+    /// the requester's own projection of that meeting.
     fn copy_shared_event(
         &self,
         requester_id: &str,
@@ -1069,6 +1083,9 @@ pub enum CalendarMutationError {
     /// The connected account is not an attendee of the event.
     #[error("the connected account is not an attendee of this event")]
     NotAttendee,
+    /// Only the organizer may change the event's guest policy.
+    #[error("only the organizer can change guest permissions")]
+    NotOrganizer,
     /// Only the organizer may invite guests: the organizer does not let
     /// guests invite others, or the event is an Outlook meeting, which
     /// gives its attendees no way to change it.
@@ -1084,6 +1101,13 @@ pub enum CalendarMutationError {
     /// The meeting is already on one of the requester's calendars.
     #[error("the event is already on one of the requester's calendars")]
     AlreadyOnCalendar,
+    /// The provider refused to add a copy of the event to the calendar.
+    #[error("the calendar provider refused to add a copy of the event: {0}")]
+    CopyRefused(String),
+    /// The event is a snapshot of a shared meeting, so an answer or a new
+    /// guest would never reach the meeting.
+    #[error("the event is a snapshot of a shared meeting")]
+    Snapshot,
     /// The supplied fields were invalid.
     #[error("invalid calendar mutation: {0}")]
     InvalidInput(String),

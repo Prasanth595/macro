@@ -75,12 +75,32 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   (`get_event_details`, the series or the addressed occurrence) and refuses
   any other detail change with `GuestsCannotModify` before inviting anyone.
   Someone neither organizing nor invited is left to their calendar access.
-- A channel-shared event reaches a member's calendar as a copy, not a seat:
-  `copy_shared_event` (`src/domain/mutations/copy.rs`) imports it under the
-  meeting's iCalendar UID with no guests or join link, behind the same
-  `event_export` visibility query as the .ics route. Google only: never
-  import over a UID the calendar already holds, since an import updates that
-  event in place and would strip an unsynced invitation's guests.
+- Only the organizer of a Google copy sets the guest policy
+  (`src/domain/mutations/guest_policy.rs`): drafts and patches carry it as
+  Google's three switches, a policy equal to the stored one (or Google's
+  defaults on create) is dropped, a change from anyone else is `NotOrganizer`,
+  one on Outlook, which has no such switches, is `ProviderRejected`, and one
+  scoped to a single occurrence or on a new out-of-office event is
+  `InvalidInput`.
+  `ViewerCapabilities::set_guest_policy` is therefore Google-only, and
+  `organize` is the organizer signal clients read instead.
+- A channel-shared event reaches a member's calendar as a snapshot, not a
+  seat: `copy_shared_event` (`src/domain/mutations/copy.rs`) imports it under
+  the meeting's iCalendar UID with no join link, behind the same
+  `event_export` visibility query as the .ics route. Google imports only for
+  the organizer or an attendee (`participantIsNeitherOrganizerNorAttendee`,
+  mapped to `copy_refused`), so the body keeps the real organizer and lists
+  the target calendar, accepted, as the only guest, plus the private
+  `macroSnapshot` extended property. Sync stores it as `is_snapshot`, which
+  grants no capability and makes RSVPs and invites fail with `snapshot`,
+  since neither would reach the meeting. Its owner changes its details only
+  as a guest without modify rights would (reminders and availability), and
+  may delete it. The mutation target reads the flag from the addressed
+  copy's projection, since a snapshot can share its entity with the real
+  meeting on another calendar of the same inbox. Google
+  only: never import over a UID the calendar already holds, since an import
+  updates that event in place and would strip an unsynced invitation's
+  guests.
 - Asking to join a channel-shared event (`src/domain/join_requests.rs`) is a
   Macro-stored request, not an `entity_access` row: the grant is a provider guest
   write. Eligibility is the invite path's own `copy_capabilities` on the

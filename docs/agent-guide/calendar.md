@@ -472,9 +472,25 @@ calendar access allows. The update refuses a detail change from such a guest wit
 pass them); the editor then shows the line in a toast and locks its details, and a refused
 drag snaps back with the same toast. The refusal covers a stale `viewerCan`, an event the
 viewer still sees as editable after the organizer turned modifying off, so check it without a
-Google account by answering `PATCH /events/{id}` (or the GraphQL `updateCalendarEvent`
-mutation) with HTTP 403 and code `guests_cannot_modify` on an event whose
-`viewerCan.editDetails` is still true: only there does the editor send a detail change at all.
+Google account on an event whose `viewerCan.editDetails` is still true, the only case where
+the editor sends a detail change at all: answer `PATCH /events/{id}` with HTTP 403 and code
+`guests_cannot_modify`, or the GraphQL `updateCalendarEvent` mutation with an error whose
+`extensions.code` is `guests_cannot_modify`.
+With the `enable-calendar-guest-invites` flag on, the organizer sets what guests may do in the
+composer's `Guest permissions` row, under the pills on desktop and phones alike:
+`Modify event`, `Invite others` and `See guest list`, in Google Calendar's order, with Google's
+defaults (invite others and see the guest list) preselected on a new event and the stored
+`guestPolicy` on an edit. As in Google, checking `Modify event` also checks `Invite others` and
+locks it. The row shows on a new event and on an edit whose `viewerCan.setGuestPolicy` is true,
+on Google calendars only (the calendar's `capabilities.guestPolicy`); Outlook calendars and
+out-of-office events have none. Like the repeat rule, it is disabled while a recurring edit
+targets `This event`, since the policy belongs to the whole series, and choosing `This event`
+returns it to the stored values. Save sends `guestPolicy` only when it changed, and the guests'
+`viewerCan` follows once their copies sync: turning `Invite others` off replaces a guest's
+`Add guests` with `Only the organizer can invite guests.` The update refuses a policy change
+from anyone but the organizer with 403 `not_organizer`, and on an Outlook event with
+`provider_rejected`. `viewerCan.organize` marks the organizer of the displayed copy, including
+on Outlook, where `setGuestPolicy` is false.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description
@@ -517,24 +533,31 @@ mention, it is shared read-only with the channel's current members: a member wit
 their own sees the mention's title and time, and its hover card adds a `Shared with you · not on
 your calendar` line with no open action. Clicking such a mention shows that hover card
 instead of opening the calendar; on a touch device, tapping it opens the same card as a bottom
-sheet. That card also offers `Add to calendar`, which imports a private copy (no guests, no join
-link, nobody is notified) onto the viewer's only writable Google calendar, or onto one they pick
-from a menu when they have several; Outlook calendars are not offered, since Microsoft cannot
-keep the meeting's iCalendar UID. The mention then opens that copy. If Google already holds the
-meeting on that calendar (an invitation Macro has not synced yet), nothing is imported, a sync
-is scheduled and the card reports that it is already on their calendar. `Download .ics` saves
-the event as an iCalendar file. The copy is a snapshot: later changes by the organizer do not
-reach it. `Ask to join` asks the person who shared the event to add the viewer as a guest; it
+sheet. That card also offers `Add to calendar` (behind the `enable-calendar-add-shared-event`
+flag, on in dev only until a real Google import has passed there), which imports a snapshot of
+the meeting onto the viewer's only writable Google calendar, or onto one they pick from a menu
+when they have several; Outlook calendars are not offered, since Microsoft cannot keep the
+meeting's iCalendar UID. Google imports an event only for its organizer or an attendee, so the
+snapshot keeps the real organizer and lists the viewer, already accepted, as its only guest: the
+meeting's other guests and join link stay out and nobody is notified. If Google refuses anyway,
+the card says Google won't add the event to that calendar and points to `Download .ics`. The
+mention then opens the snapshot, whose details say `Your copy of a shared event. It doesn't
+update when the organizer changes it.` and offer no RSVP, `Add guests` or `Only the organizer
+can invite guests.` line, since none of it would reach the meeting; it can still be deleted and
+its reminders changed. If Google already holds the meeting on that calendar (an invitation Macro
+has not synced yet), nothing is imported, a sync is scheduled and the card reports that it is
+already on their calendar. `Download .ics` saves the event as an iCalendar file and is not
+flagged. `Ask to join` asks the person who shared the event to add the viewer as a guest; it
 shows only when that person's copy lets them add guests (they organize it, or it is a Google
 copy whose organizer lets guests invite others and shows the guest list), and otherwise the card
-reads `The person who
-shared this event can't add guests to it.` The card then shows `Requested`, and `Invited` once
-accepted. The sharer gets a `calendar_event_join_request` notification (Settings →
-Notifications → Calendar → Requests to join) that opens the event, whose details list each
-request with `Add as guest` and `Decline` on desktop and in the phone drawer. Adding writes the
-guest through the same invite path as `Add guests`, so Google or Outlook sends the invitation and the
-mention then opens the viewer's own copy; declining tells the requester nothing, and asking
-again reopens the request. A classic `@Macro` reply that mentions an event does not share
+reads `The person who shared this event can't add guests to it.` The card then shows
+`Requested`, and `Invited` once accepted. The sharer gets a `calendar_event_join_request`
+notification (Settings → Notifications → Calendar → Requests to join) that opens the event,
+whose details list each request with `Add as guest` and `Decline` on desktop and in the phone
+drawer. Adding writes the guest through the same invite path as `Add guests`, so Google or
+Outlook sends the invitation and the mention then opens the viewer's own copy; declining tells
+the requester nothing, and asking again reopens the request. A classic `@Macro` reply that
+mentions an event does not share
 it by posting the chip. It asks whether to share with the channel, and a yes in that thread
 writes the same channel grant. Private and confidential events are never shared this way.
 Every calendar mention's hover card shows the schedule, location, organizer and attendee
