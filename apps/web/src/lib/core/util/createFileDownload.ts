@@ -160,7 +160,7 @@ export function createFileDownload(
     if (busy()) return;
     const snapshot = source();
     if (!snapshot) return;
-    if (document.activeElement instanceof HTMLElement)
+    if (!open() && document.activeElement instanceof HTMLElement)
       opener = document.activeElement;
     const request = new AbortController();
     const mobile = isTouchDevice();

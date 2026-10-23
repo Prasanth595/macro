@@ -100,6 +100,12 @@ test('recovers from a failed transfer and never opens the viewer when downloadin
       .click();
   }
   expect((await saved).suggestedFilename()).toBe('Team demo.webm');
+  await expect(
+    page.getByRole('button', {
+      name: touch ? 'Save or share' : 'Download',
+      exact: true,
+    })
+  ).toBeFocused();
 });
 
 test('the shared Drive and standalone header downloads through its visible action', async ({

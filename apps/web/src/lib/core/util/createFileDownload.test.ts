@@ -44,7 +44,7 @@ afterEach(() => {
 describe('file download lifecycle', () => {
   it('deduplicates preparation and saves the original bytes and filename', async () => {
     const pending = Promise.withResolvers<DownloadResult>();
-    const load = vi.fn(() => pending.promise);
+    const load = vi.fn<DownloadSource['load']>(() => pending.promise);
     const download = createRoot((cleanup) => {
       dispose = cleanup;
       return createFileDownload(() => ({ id: 'video-1', name: 'Video', load }));
@@ -160,7 +160,7 @@ describe('file download lifecycle', () => {
     expect(mocks.failure).not.toHaveBeenCalled();
   });
 
-  it('allows retry after a network failure and cancels when disposed', async () => {
+  it('allows retry after a network failure', async () => {
     const load = vi
       .fn()
       .mockResolvedValueOnce(
@@ -179,7 +179,26 @@ describe('file download lifecycle', () => {
     expect(download.phase()).toBe('error');
     await download.start();
     expect(mocks.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('aborts a pending load on disposal and ignores its late result', async () => {
+    const pending = Promise.withResolvers<DownloadResult>();
+    const load = vi.fn<DownloadSource['load']>(() => pending.promise);
+    const download = createRoot((cleanup) => {
+      dispose = cleanup;
+      return createFileDownload(() => ({
+        id: 'video',
+        name: 'demo.mp4',
+        load,
+      }));
+    });
+    const started = download.start();
+    const signal = load.mock.calls[0][0].signal;
+    expect(signal.aborted).toBe(false);
     dispose();
-    expect(load.mock.calls[1][0].signal.aborted).toBe(true);
+    expect(signal.aborted).toBe(true);
+    pending.resolve(ok({ blob: new Blob(['video']) }));
+    await started;
+    expect(mocks.save).not.toHaveBeenCalled();
   });
 });
