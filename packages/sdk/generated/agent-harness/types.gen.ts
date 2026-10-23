@@ -660,17 +660,6 @@ export type AnswerToolApprovalResponse = {
     status: ToolApprovalStatusDto;
 };
 
-/**
- * Request body for reporting a connected app.
- */
-export type AppConnectedRequest = {
-    actionId?: null | AgentActionId;
-    /**
-     * The Pipedream app slug the owner connected, e.g. `notion`.
-     */
-    appSlug: string;
-};
-
 export type BotId = string;
 
 /**
@@ -824,20 +813,6 @@ export type CodingPreferencesBody = {
      * Whether new coding sessions deliver their work as a pull request.
      */
     openPullRequests: boolean;
-};
-
-/**
- * One-time manual code. Deliberately does not implement Debug.
- */
-export type CompleteRequest = {
-    /**
-     * Server-issued handle; never an owner selected by the caller.
-     */
-    attemptId: string;
-    /**
-     * Claude's complete code#state string, not an access token.
-     */
-    code: string;
 };
 
 /**
@@ -1001,8 +976,7 @@ export type CreateReview = {
      * time: {kind: "timed", startsAt: ISO datetime, endsAt: ISO datetime,
      * timeZone?: IANA zone} or {kind: "allDay", startDate: ISO date,
      * endDate: exclusive ISO date}, description?, location?, attendees?:
-     * [{email, isOptional?}]}. Import: exactly one draft {source: "notion"},
-     * presenting the plan ImportFromNotion staged.
+     * [{email, isOptional?}]}.
      * Creating any review only presents these drafts; the user acts separately.
      */
     drafts: Array<unknown>;
@@ -1137,13 +1111,6 @@ export type ElicitationContentValue = string | boolean | number | number | Array
  * so it is not representable here.
  */
 export type ElicitationRequestId = number | string;
-
-/**
- * A JSON body is required on writes, including start/disconnect (no form-based CSRF).
- */
-export type EmptyRequest = {
-    [key: string]: never;
-};
 
 /**
  * A bounded SDK operation observed during execution; not an authorization or write receipt.
@@ -1358,7 +1325,7 @@ export type MessageParent = {
 /**
  * Harness names accepted by the model discovery endpoint.
  */
-export type ModelHarnessDto = 'in-memory' | 'cursor' | 'claude-cloud' | 'macrod';
+export type ModelHarnessDto = 'in-memory' | 'cursor' | 'macrod';
 
 /**
  * The decision carried by an [`AgentPermissionAction`].
@@ -1710,7 +1677,7 @@ export type ReviewItemStatus = 'pending' | 'submitting' | 'completed' | 'dismiss
 /**
  * The component and action used to finish a review.
  */
-export type ReviewKind = 'email' | 'calendar' | 'import';
+export type ReviewKind = 'email' | 'calendar';
 
 /**
  * Full UI record, fetched outside the model context.
@@ -1880,42 +1847,6 @@ export type StartFreshAgentConversationRequest = {
      * Current session id shown in the conversation metadata.
      */
     sessionId: string;
-};
-
-/**
- * Public PKCE challenge and attempt handle; contains no verifier or provider tokens.
- */
-export type StartResponse = {
-    /**
-     * Opaque owner-bound attempt handle.
-     */
-    attemptId: string;
-    /**
-     * Claude-hosted consent page.
-     */
-    authorizationUrl: string;
-    /**
-     * Attempt lifetime in seconds.
-     */
-    expiresIn: number;
-};
-
-/**
- * Safe connection metadata.
- */
-export type StatusResponse = {
-    /**
-     * Whether the authenticated Macro user has connected.
-     */
-    connected: boolean;
-    /**
-     * Whether this deployment supports browser connection.
-     */
-    enabled: boolean;
-    /**
-     * Whether reconnecting after service restart is required.
-     */
-    ephemeral: boolean;
 };
 
 /**
@@ -2484,44 +2415,6 @@ export type GetAgentSessionResponses = {
 };
 
 export type GetAgentSessionResponse = GetAgentSessionResponses[keyof GetAgentSessionResponses];
-
-export type ReportAgentSessionAppConnectedData = {
-    body: AppConnectedRequest;
-    path: {
-        /**
-         * ID of the agent session
-         */
-        session_id: string;
-    };
-    query?: never;
-    url: '/agent-sessions/{session_id}/app-connections';
-};
-
-export type ReportAgentSessionAppConnectedErrors = {
-    401: string;
-    /**
-     * Not the session's owner, or no edit access
-     */
-    403: string;
-    /**
-     * The session is archived
-     */
-    409: string;
-    /**
-     * The owner has not connected that app
-     */
-    422: string;
-    500: string;
-};
-
-export type ReportAgentSessionAppConnectedError = ReportAgentSessionAppConnectedErrors[keyof ReportAgentSessionAppConnectedErrors];
-
-export type ReportAgentSessionAppConnectedResponses = {
-    /**
-     * The session continues once it is idle
-     */
-    202: unknown;
-};
 
 export type SetAgentSessionArchivedData = {
     body: SetAgentSessionArchivedRequest;
@@ -3200,101 +3093,3 @@ export type AnswerAgentSessionToolApprovalResponses = {
 };
 
 export type AnswerAgentSessionToolApprovalResponse = AnswerAgentSessionToolApprovalResponses[keyof AnswerAgentSessionToolApprovalResponses];
-
-export type DisconnectData = {
-    body: EmptyRequest;
-    path?: never;
-    query?: never;
-    url: '/claude-auth';
-};
-
-export type DisconnectErrors = {
-    /**
-     * Disabled
-     */
-    403: unknown;
-};
-
-export type DisconnectResponses = {
-    /**
-     * Disconnected
-     */
-    204: void;
-};
-
-export type DisconnectResponse = DisconnectResponses[keyof DisconnectResponses];
-
-export type StatusData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/claude-auth';
-};
-
-export type StatusErrors = {
-    /**
-     * Unauthenticated
-     */
-    401: unknown;
-};
-
-export type StatusResponses = {
-    200: StatusResponse;
-};
-
-export type StatusResponse2 = StatusResponses[keyof StatusResponses];
-
-export type CompleteData = {
-    body: CompleteRequest;
-    path?: never;
-    query?: never;
-    url: '/claude-auth/complete';
-};
-
-export type CompleteErrors = {
-    /**
-     * Invalid code
-     */
-    400: unknown;
-    /**
-     * Expired or replayed
-     */
-    409: unknown;
-    /**
-     * Provider failed
-     */
-    502: unknown;
-};
-
-export type CompleteResponses = {
-    /**
-     * Connected
-     */
-    204: void;
-};
-
-export type CompleteResponse = CompleteResponses[keyof CompleteResponses];
-
-export type StartData = {
-    body: EmptyRequest;
-    path?: never;
-    query?: never;
-    url: '/claude-auth/start';
-};
-
-export type StartErrors = {
-    /**
-     * Disabled
-     */
-    403: unknown;
-    /**
-     * Too many attempts
-     */
-    429: unknown;
-};
-
-export type StartResponses = {
-    200: StartResponse;
-};
-
-export type StartResponse2 = StartResponses[keyof StartResponses];

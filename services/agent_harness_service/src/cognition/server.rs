@@ -100,6 +100,7 @@ pub async fn build(
     event_broker_tracker: TaskTracker,
     import_jobs: ai_tools::ImportJobs,
 ) -> anyhow::Result<CognitionRuntime> {
+    let public_url = macro_service_urls::CognitionPublicUrl::new()?;
     let aws_config = macro_aws_config::get_macro_aws_config().await;
     let secretsmanager_client = secretsmanager_client::SecretsManager::new(
         aws_sdk_secretsmanager::Client::new(&aws_config),
@@ -673,7 +674,7 @@ pub async fn build(
                     ),
                     macro_event_broker.clone(),
                 )),
-                public_url: config.mcp_client_public_url.clone(),
+                public_url: public_url.to_string(),
             }) as Arc<dyn granola_sync::domain::service::SyncService>
         });
     let granola_worker = granola_sync
@@ -969,7 +970,7 @@ pub async fn build(
 
     tracing::info!("initialized onboarding service");
 
-    let mcp_client_public_url = &config.mcp_client_public_url;
+    let mcp_client_public_url = &public_url;
     let mcp_client_metadata = mcp_client::domain::models::OAuthClientMetadata::new(
         format!("{mcp_client_public_url}/mcp/servers/auth/client-metadata"),
         format!("{mcp_client_public_url}/mcp/servers/auth/callback"),

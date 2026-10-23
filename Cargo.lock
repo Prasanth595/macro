@@ -411,7 +411,6 @@ dependencies = [
  "channel_sender",
  "channels",
  "chrono",
- "claude_cloud_agents",
  "codex_cloud_agents",
  "codex_connection",
  "cursor_api_key",
@@ -517,10 +516,10 @@ dependencies = [
  "chat",
  "chrono",
  "chrono-tz",
- "claude_cloud_agents",
  "code_execution",
  "codex_cloud_agents",
  "codex_connection",
+ "cognition",
  "connection_gateway",
  "connection_gateway_client",
  "contacts",
@@ -557,7 +556,6 @@ dependencies = [
  "http 1.4.0",
  "http-body-util",
  "import",
- "import_notion",
  "initiative",
  "jev",
  "kafka_util",
@@ -1125,7 +1123,6 @@ dependencies = [
  "github_pull_requests",
  "image_generation",
  "import",
- "import_notion",
  "initiative",
  "initiative_description",
  "item_filters",
@@ -1150,7 +1147,6 @@ dependencies = [
  "model_notifications",
  "model_owner",
  "model_user",
- "models_databases",
  "models_dcs",
  "models_email",
  "models_pagination",
@@ -3647,7 +3643,7 @@ dependencies = [
 
 [[package]]
 name = "cache-wasm"
-version = "0.6.49"
+version = "0.6.52"
 dependencies = [
  "async-lock",
  "cache-core",
@@ -4186,6 +4182,7 @@ dependencies = [
  "share_permission_db_utils",
  "sqlx",
  "static_file_service_client",
+ "strum 0.27.2",
  "thiserror 2.0.18",
  "tokio",
  "tokio-retry",
@@ -4355,37 +4352,6 @@ name = "clap_lex"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
-
-[[package]]
-name = "claude_cloud_agents"
-version = "0.1.0"
-dependencies = [
- "agent-client-protocol",
- "agent_runtime_protocol",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "clap",
- "cursor_api_key",
- "futures",
- "macro_authorization",
- "macro_db_migrator",
- "rand 0.9.4",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "sqlx",
- "sse-core",
- "subtle",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "utoipa",
- "uuid",
- "workspace-hack",
- "zeroize",
-]
 
 [[package]]
 name = "claude_fold"
@@ -5557,9 +5523,9 @@ dependencies = [
 
 [[package]]
 name = "ctutils"
-version = "0.4.2"
+version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d5515a3834141de9eafb9717ad39eea8247b5674e6066c404e8c4b365d2a29e"
+checksum = "38d28fb6aa7dd680b3ffd1a3e64e115c177bdba63c0ae7f9cd48129ff05c4fa0"
 dependencies = [
  "cmov",
  "subtle",
@@ -5906,7 +5872,6 @@ dependencies = [
  "macro_uuid",
  "model-entity",
  "model-error-response",
- "model_owner",
  "models_databases",
  "models_permissions",
  "models_properties",
@@ -5916,7 +5881,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
- "share_permission_db_utils",
  "sqlx",
  "strum 0.27.2",
  "thiserror 2.0.18",
@@ -7277,6 +7241,8 @@ dependencies = [
  "aws-sdk-sqs",
  "aws_lambda_events",
  "chrono",
+ "email",
+ "futures",
  "lambda_runtime",
  "macro_aws_config",
  "macro_db_migrator",
@@ -7307,6 +7273,7 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "calendar_events",
+ "channels",
  "chrono",
  "cloudfront_sign",
  "connection_gateway_client",
@@ -7325,6 +7292,7 @@ dependencies = [
  "filter_ast",
  "frecency",
  "futures",
+ "generic_email_domains",
  "gmail_client",
  "google_token",
  "html-escape",
@@ -7733,7 +7701,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -8835,7 +8803,6 @@ dependencies = [
  "call",
  "chrono",
  "hmac 0.12.1",
- "http 1.4.0",
  "macro_db_migrator",
  "macro_user_id",
  "macro_uuid",
@@ -8989,6 +8956,8 @@ dependencies = [
  "model-entity",
  "models_permissions",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
  "workspace-hack",
 ]
@@ -10028,7 +9997,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.6.3",
+ "socket2 0.5.10",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -10412,8 +10381,6 @@ name = "import"
 version = "0.1.0"
 dependencies = [
  "agent",
- "agent_runtime_protocol",
- "agent_session",
  "ai_billing",
  "ai_toolset",
  "ai_usage",
@@ -10424,14 +10391,12 @@ dependencies = [
  "connection_gateway_client",
  "dateparser",
  "futures",
- "import_notion",
  "macro_authorization",
  "macro_db_migrator",
  "macro_user_id",
  "mcp_select",
  "model-entity",
  "model_user",
- "models_databases",
  "models_properties",
  "properties",
  "regex",
@@ -10443,33 +10408,10 @@ dependencies = [
  "strum 0.27.2",
  "thiserror 2.0.18",
  "tokio",
- "tokio-util",
  "tower 0.5.3",
  "tracing",
  "utoipa",
  "uuid",
- "workspace-hack",
-]
-
-[[package]]
-name = "import_notion"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "futures",
- "http 1.4.0",
- "indexmap 2.14.0",
- "lazy-regex",
- "macro_user_id",
- "pipedream_mcp",
- "rand 0.9.4",
- "rootcause",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
  "workspace-hack",
 ]
 
@@ -10775,7 +10717,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -11297,7 +11239,6 @@ version = "0.1.0"
 dependencies = [
  "agent_fold",
  "anyhow",
- "base64 0.22.1",
  "macro_tower_layers",
  "messages",
  "reqwest 0.13.4",
@@ -13629,7 +13570,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -14002,10 +13943,12 @@ dependencies = [
  "axum",
  "chrono",
  "generic_email_domains",
+ "import",
  "macro_authorization",
  "macro_db_migrator",
  "macro_user_id",
  "mcp_client",
+ "mcp_select",
  "rootcause",
  "serde",
  "serde_json",
@@ -14318,7 +14261,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.45.0",
 ]
 
 [[package]]
@@ -14876,7 +14819,6 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "futures",
- "http 1.4.0",
  "macro_authorization",
  "macro_user_id",
  "mcp_toolset",
@@ -14893,7 +14835,6 @@ dependencies = [
  "tracing",
  "url",
  "utoipa",
- "wiremock",
  "workspace-hack",
 ]
 
@@ -15617,7 +15558,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.2",
  "rustls",
- "socket2 0.6.3",
+ "socket2 0.5.10",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -15655,7 +15596,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.6.3",
+ "socket2 0.5.10",
  "tracing",
  "windows-sys 0.59.0",
 ]
@@ -16778,7 +16719,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -16837,7 +16778,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -17012,6 +16953,7 @@ dependencies = [
  "serde_json",
  "share_permission_db_utils",
  "sqlx",
+ "strum 0.27.2",
  "system_properties",
  "teams",
  "thiserror 2.0.18",
@@ -19514,7 +19456,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -19713,9 +19655,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.52.3"
+version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fc7f01b389ac15039e4dc9531aa973a135d7a4135281b12d7c1bc79fd57fffe"
+checksum = "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3"
 dependencies = [
  "bytes",
  "libc",
@@ -21419,7 +21361,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

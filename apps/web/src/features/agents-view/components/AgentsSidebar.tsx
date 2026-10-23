@@ -5,6 +5,7 @@ import {
   useViewControlHotkeys,
   ViewSidebar,
 } from '@app/components/view-shell';
+import { SidebarCreateButton } from '@app/components/view-shell/SidebarCreateButton';
 import { changeSessionArchiveState } from '@app/features/block-agent/queries/change-session-archive-state';
 import {
   type EntityActionListState,
@@ -80,6 +81,9 @@ export type AgentsSidebarProps = Omit<
   hasNextPage: boolean;
   loadingNextPage: boolean;
   onSearchChange: (search: string) => void;
+  /** Whether the list includes unlisted sessions: routine runs it hides by default. */
+  showUnlistedRuns: boolean;
+  onShowUnlistedRunsChange: (show: boolean) => void;
   onOpenConversation: (
     conversation: AgentConversationEntity,
     event?: MouseEvent
@@ -266,12 +270,37 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
     <MaybeSoupEntityActionDrawerManager>
       <ViewSidebar.Root aria-label="Agents navigation">
         <Show when={!isTouchDevice()}>
-          <ViewSidebar.Header>
+          <ViewSidebar.Header
+            searchLabel="Search conversations"
+            searchOpen={searchOpen()}
+            onSearchOpenChange={(open) => (open ? openSearch() : closeSearch())}
+            search={() => (
+              <SearchBar
+                ref={searchInput}
+                placeholder="Search conversations"
+                label="Search conversations"
+                value={props.search}
+                onValueChange={props.onSearchChange}
+                onEscape={() => {
+                  if (!props.search) closeSearch();
+                }}
+              />
+            )}
+          >
             <div class="flex min-w-0 items-center gap-1">
               <ViewSidebar.CloseButton />
               <ViewSidebar.Title>Agents</ViewSidebar.Title>
             </div>
           </ViewSidebar.Header>
+        </Show>
+
+        <Show when={!isTouchDevice()}>
+          <ViewSidebar.Primary>
+            <SidebarCreateButton
+              label="New conversation"
+              onCreate={() => props.onOpenPage('new')}
+            />
+          </ViewSidebar.Primary>
         </Show>
 
         <ViewSidebar.Content class="gap-2 overflow-hidden pt-2">
@@ -327,17 +356,29 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
                 onClearFilters={props.onClearFilters}
                 onGroupingChange={props.onGroupingChange}
               />
+              <Show when={isTouchDevice()}>
+                <CollapsibleSection.Action
+                  label="Search conversations"
+                  aria-pressed={searchOpen()}
+                  class={cn(searchOpen() && 'bg-active text-ink')}
+                  onClick={() => (searchOpen() ? closeSearch() : openSearch())}
+                >
+                  <MagnifyingGlassIcon class="size-3.5" />
+                </CollapsibleSection.Action>
+              </Show>
               <CollapsibleSection.Action
-                label="Search conversations"
-                aria-pressed={searchOpen()}
-                class={cn(searchOpen() && 'bg-active text-ink')}
-                onClick={() => (searchOpen() ? closeSearch() : openSearch())}
+                label="Show hidden routine runs"
+                aria-pressed={props.showUnlistedRuns}
+                class={cn(props.showUnlistedRuns && 'bg-active text-ink')}
+                onClick={() =>
+                  props.onShowUnlistedRunsChange(!props.showUnlistedRuns)
+                }
               >
-                <MagnifyingGlassIcon class="size-3.5" />
+                <RoutineIcon class="size-3.5" />
               </CollapsibleSection.Action>
             </CollapsibleSection.Header>
             <CollapsibleSection.Content class="flex min-h-0 flex-1 flex-col gap-1">
-              <Show when={searchOpen()}>
+              <Show when={isTouchDevice() && searchOpen()}>
                 <SearchBar
                   ref={searchInput}
                   placeholder="Search conversations"

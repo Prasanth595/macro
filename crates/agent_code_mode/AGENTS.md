@@ -5,8 +5,9 @@
 Execution credentials carry the authenticated session bot for SDK message
 attribution while retaining the owner's API permissions.
 
-Owns session-authorized code executions, SDK documentation selection, saved
-execution records, and durable review stacks. Process isolation belongs to
+Owns session-authorized code executions, user-scoped executions for the public
+MCP, SDK documentation selection, saved execution records, and durable review
+stacks. Process isolation belongs to
 `crates/code_execution`; session presentation belongs to `crates/agent_session`.
 
 ## Start here
@@ -14,6 +15,8 @@ execution records, and durable review stacks. Process isolation belongs to
 - `SKILL.md`: the agent-facing JavaScript contract and examples.
 - `src/domain/service.rs`: execution admission, identity and persistence; tool
   receipts include observed SDK activity for inline conversation snapshots.
+- `src/domain/user.rs`: `UserCodeMode`, runs as an authenticated user with no
+  session, journal or reviews; shares outcome validation with the session path.
 - `src/domain/reviews.rs`: review validation, revisions, claims and outcomes.
   `approve_for_session` (the `ApproveReview` tool, `inbound/reviews.rs`) is the
   agent approving on its owner's word in chat: it runs the card's Submit on the
@@ -23,7 +26,13 @@ execution records, and durable review stacks. Process isolation belongs to
   An import review only starts its write: its `review.decided` is quiet, and
   its `review.settled` comes from the import when the write ends; only an
   import that could not start settles here.
-- `src/domain/documentation.rs`: bounded selection of generated SDK docs.
+- `src/domain/documentation.rs`: Jev selection of generated SDK docs, rendered
+  into the per-turn prompt (top four, 48 KiB) or returned for a
+  `DescribeCodeTools` `task` (every relevant entity, 32 KiB).
+- `src/inbound/toolset.rs`: `toolset()` for sessions, `user_toolset()` for the
+  public MCP. Tool texts are composed: host-specific parts in `toolset/session/`
+  and `toolset/user/`, guidance both share in `toolset/shared/`. Edit shared
+  guidance once, there.
 
 ## Boundaries
 

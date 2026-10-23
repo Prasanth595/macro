@@ -7,7 +7,11 @@
 //! no-ops on the idempotency short-circuit.
 
 use std::collections::HashMap;
-mod invite;
+mod copy;
+mod details;
+mod guest_policy;
+pub(crate) mod invite;
+mod join;
 mod replacement;
 
 use chrono::Utc;
@@ -26,13 +30,15 @@ use super::{
         CalendarEventWrite, CalendarEventWriteOutcome, CalendarMutationError,
         CalendarMutationProvider, CalendarMutationService, CalendarProviderError,
         CalendarProviderErrorKind, CalendarRefreshNotifier, CalendarRepository, CalendarRsvpScope,
-        CalendarTokenError, CalendarUpdateScope, ProviderInstanceUpdateOutcome,
-        ProviderInviteOutcome, ProviderRsvpOutcome, ProviderSeriesMutationOutcome,
-        RetiredCalendarEvent,
+        CalendarTokenError, CalendarUpdateScope, ProviderImportOutcome,
+        ProviderInstanceUpdateOutcome, ProviderInviteOutcome, ProviderRsvpOutcome,
+        ProviderSeriesMutationOutcome, RetiredCalendarEvent,
     },
 };
 use crate::domain::events::{CalendarEventMetadata, CalendarMacroEvent, CalendarTopicEvent};
 use macro_event_broker::MacroEventBroker;
+
+const EMPTY_PATCH: &str = "the patch changes nothing";
 
 /// Calendar mutation use cases with provider, token, and persistence
 /// details behind ports.
@@ -230,7 +236,7 @@ where
                 .await;
         }
         if let Some(viewer) = viewer {
-            viewer.mark_event(&mut event);
+            viewer.mark_event(&mut event, email_link_id);
         }
         Ok(event)
     }
@@ -268,6 +274,7 @@ where
         }
         self.require_provider_writes(target.token_identity.provider)?;
         validate_conference(target.token_identity.provider, draft.conference)?;
+        guest_policy::validate_draft_guest_policy(target.token_identity.provider, &mut draft)?;
         // An out-of-office event carries no attendees and Google auto-declines
         // on the owner's behalf, so it must not gain an organizer guest.
         if draft.out_of_office.is_some() {
@@ -298,9 +305,7 @@ where
         scope: CalendarUpdateScope,
     ) -> Result<CalendarEvent, CalendarMutationError> {
         if patch.is_empty() {
-            return Err(CalendarMutationError::InvalidInput(
-                "the patch changes nothing".to_string(),
-            ));
+            return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
         }
         if let Some(time) = &patch.time {
             validate_time(time)?;
@@ -328,19 +333,34 @@ where
         }
         self.require_provider_writes(target.token_identity.provider)?;
         validate_conference(target.token_identity.provider, patch.conference)?;
+        // The stored list is the baseline — an occurrence's own list when
+        // an occurrence-scoped patch addresses one — so a retained guest's
+        // per-instance RSVP wins over their series status.
+        let stored = self.stored_attendees(event_id, &scope).await?;
+        let capabilities = invite::copy_capabilities(&target, &stored);
+        // Checked before any guest is invited, so a refused change leaves
+        // the event untouched.
+        self.require_detail_rights(
+            event_id,
+            &scope,
+            capabilities,
+            target.is_snapshot,
+            &mut patch,
+        )
+        .await?;
+        guest_policy::require_guest_policy_rights(&target, &scope, capabilities, &mut patch)?;
+        if patch.is_empty() {
+            return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
+        }
         if let Some(mut attendees) = patch.attendees.take() {
-            // The stored list is the baseline — an occurrence's own list when
-            // an occurrence-scoped patch addresses one — so a retained guest's
-            // per-instance RSVP wins over their series status.
-            let stored = self.stored_attendees(event_id, &scope).await?;
-            if invite::copy_capabilities(&target, &stored).remove_guests {
+            if capabilities.remove_guests {
                 preserve_retained_attendee_state(&mut attendees, &stored);
                 patch.attendees = Some(attendees);
             } else {
                 // A guest who may not remove guests only adds, through the
-                // invite path, which keeps every guest Google already holds.
+                // invite path, which keeps every guest the provider holds.
                 let additions =
-                    invite::guest_list_additions(attendees, &stored, target.actor.as_ref())?;
+                    invite::guest_list_additions(attendees, &stored, target.copy_inbox())?;
                 if !additions.is_empty() {
                     let invited = self
                         .invite_guests(
@@ -355,9 +375,7 @@ where
                         return Ok(invited);
                     }
                 } else if patch.is_empty() {
-                    return Err(CalendarMutationError::InvalidInput(
-                        "the patch changes nothing".to_string(),
-                    ));
+                    return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
                 }
             }
         }
@@ -520,18 +538,26 @@ where
         if target.is_read_only {
             return Err(CalendarMutationError::ReadOnly);
         }
+        // The owner is listed on a snapshot only so the provider accepts it;
+        // their answer would never reach the meeting.
+        if target.is_snapshot {
+            return Err(CalendarMutationError::Snapshot);
+        }
         self.require_provider_writes(target.token_identity.provider)?;
         let Some(actor) = target.actor.as_ref() else {
             return Err(CalendarMutationError::NotAttendee);
         };
-        let selected_actor = responding_email
-            .as_deref()
-            .map(|email| {
+        // Without an address, answer as the copy's own inbox, as the web does by
+        // sending the copy's `is_self` row. A delegate owns no copy inbox and
+        // keeps answering as their own inboxes.
+        let selected_actor = match responding_email.as_deref() {
+            Some(email) => Some(
                 actor
                     .select(email)
-                    .ok_or(CalendarMutationError::NotAttendee)
-            })
-            .transpose()?;
+                    .ok_or(CalendarMutationError::NotAttendee)?,
+            ),
+            None => actor.through(target.email_link_id),
+        };
         let access_token = self.fetch_token(&target.token_identity).await?;
         let outcome = self
             .provider
@@ -557,7 +583,7 @@ where
                 self.retire_gone_source(&target).await;
                 event.id = target.event_id;
                 if let Some(actor) = &target.actor {
-                    actor.mark_event(&mut event);
+                    actor.mark_event(&mut event, target.email_link_id);
                 }
                 Ok(*event)
             }
@@ -579,6 +605,7 @@ where
                 CalendarUpdateScope::All => "all",
                 CalendarUpdateScope::ThisEvent { .. } => "this_event",
             },
+            provider = tracing::field::Empty,
             outcome = tracing::field::Empty,
         ),
         err
@@ -595,6 +622,52 @@ where
             .add_guests(requester_id, event_id, calendar_id, guests, scope)
             .await;
         tracing::Span::current().record("outcome", invite::invite_outcome(&result));
+        result
+    }
+
+    #[tracing::instrument(
+        name = "calendar.copy_shared_event",
+        skip(self, requester_id),
+        fields(
+            event_id = %event_id,
+            copied_event_id = tracing::field::Empty,
+            outcome = tracing::field::Empty,
+        ),
+        err
+    )]
+    async fn copy_shared_event(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+        calendar_id: Option<Uuid>,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
+        let result = self
+            .copy_into_calendar(requester_id, event_id, calendar_id)
+            .await;
+        let span = tracing::Span::current();
+        if let Ok(copied) = &result {
+            span.record("copied_event_id", tracing::field::display(copied.id));
+        }
+        span.record("outcome", copy::copy_outcome(&result));
+        result
+    }
+
+    #[tracing::instrument(
+        name = "calendar.respond_to_join_request",
+        skip(self, requester_id),
+        fields(request_id = %request_id, outcome = tracing::field::Empty),
+        err
+    )]
+    async fn respond_to_join_request(
+        &self,
+        requester_id: &str,
+        request_id: Uuid,
+        accept: bool,
+    ) -> Result<crate::domain::join_requests::CalendarJoinRequest, CalendarMutationError> {
+        let result = self
+            .answer_join_request(requester_id, request_id, accept)
+            .await;
+        tracing::Span::current().record("outcome", join::answer_outcome(accept, &result));
         result
     }
 
@@ -725,7 +798,8 @@ fn validate_time(time: &EventTime) -> Result<(), CalendarMutationError> {
 
 /// Enforce Google's rules for creating an out-of-office event so the provider
 /// never rejects a write we already accepted: primary calendar only, a timed
-/// span rather than whole days, and no attendees, conference, or description.
+/// span rather than whole days, and no attendees, conference, description, or
+/// guest policy beyond Google's defaults.
 fn validate_out_of_office_create(
     draft: &CalendarEventDraft,
     target: &CalendarCreationTarget,
@@ -754,6 +828,11 @@ fn validate_out_of_office_create(
     if draft.description.as_deref().is_some_and(|d| !d.is_empty()) {
         return Err(CalendarMutationError::InvalidInput(
             "out-of-office events cannot have a description".to_string(),
+        ));
+    }
+    if draft.guest_policy.is_some() {
+        return Err(CalendarMutationError::InvalidInput(
+            "out-of-office events have no guests to set permissions for".to_string(),
         ));
     }
     Ok(())

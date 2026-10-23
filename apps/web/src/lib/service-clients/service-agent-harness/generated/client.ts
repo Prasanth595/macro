@@ -17,9 +17,7 @@ import type {
   AiAdmissionErrorBody,
   AnswerToolApprovalRequest,
   AnswerToolApprovalResponse,
-  AppConnectedRequest,
   CodingPreferencesBody,
-  CompleteRequest,
   ControlRequest,
   ControlResponse,
   CreateAgentSessionRequest,
@@ -28,7 +26,6 @@ import type {
   DiscoverAgentCapabilitiesRequest,
   DiscoverAgentCapabilitiesResponse,
   EditQueuedActionRequest,
-  EmptyRequest,
   ExecutionRecord,
   ListAgentRepositoryBranchesParams,
   LoadAgentModelsRequest,
@@ -48,8 +45,6 @@ import type {
   SetAgentSessionArchivedRequest,
   SharePermissionV2,
   StartFreshAgentConversationRequest,
-  StartResponse,
-  StatusResponse,
   UnlinkAgentSessionPullRequestParams,
   UpdateSharePermissionRequestV2,
   WarmAgentSessionRequest,
@@ -1268,87 +1263,6 @@ export const deleteAgentSession = async (
     status: res.status,
     headers: res.headers,
   } as deleteAgentSessionResponse;
-};
-
-/**
- * The harness produces an `app.connected` system event, which the transcript
-shows as no prompt; it starts a turn once the session is idle.
- * @summary Continue the session now that its owner connected an app it asked for.
- */
-export type reportAgentSessionAppConnectedResponse202 = {
-  data: void;
-  status: 202;
-};
-
-export type reportAgentSessionAppConnectedResponse401 = {
-  data: string;
-  status: 401;
-};
-
-export type reportAgentSessionAppConnectedResponse403 = {
-  data: string;
-  status: 403;
-};
-
-export type reportAgentSessionAppConnectedResponse409 = {
-  data: string;
-  status: 409;
-};
-
-export type reportAgentSessionAppConnectedResponse422 = {
-  data: string;
-  status: 422;
-};
-
-export type reportAgentSessionAppConnectedResponse500 = {
-  data: string;
-  status: 500;
-};
-
-export type reportAgentSessionAppConnectedResponseSuccess =
-  reportAgentSessionAppConnectedResponse202 & {
-    headers: Headers;
-  };
-export type reportAgentSessionAppConnectedResponseError = (
-  | reportAgentSessionAppConnectedResponse401
-  | reportAgentSessionAppConnectedResponse403
-  | reportAgentSessionAppConnectedResponse409
-  | reportAgentSessionAppConnectedResponse422
-  | reportAgentSessionAppConnectedResponse500
-) & {
-  headers: Headers;
-};
-
-export type reportAgentSessionAppConnectedResponse =
-  | reportAgentSessionAppConnectedResponseSuccess
-  | reportAgentSessionAppConnectedResponseError;
-
-export const getReportAgentSessionAppConnectedUrl = (sessionId: string) => {
-  return `/agent-sessions/${sessionId}/app-connections`;
-};
-
-export const reportAgentSessionAppConnected = async (
-  sessionId: string,
-  appConnectedRequest: AppConnectedRequest,
-  options?: RequestInit
-): Promise<reportAgentSessionAppConnectedResponse> => {
-  const res = await fetch(getReportAgentSessionAppConnectedUrl(sessionId), {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(appConnectedRequest),
-  });
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: reportAgentSessionAppConnectedResponse['data'] = body
-    ? JSON.parse(body)
-    : {};
-  return {
-    data,
-    status: res.status,
-    headers: res.headers,
-  } as reportAgentSessionAppConnectedResponse;
 };
 
 /**
@@ -3044,198 +2958,4 @@ export const answerAgentSessionToolApproval = async (
     status: res.status,
     headers: res.headers,
   } as answerAgentSessionToolApprovalResponse;
-};
-
-/**
- * @summary Read connection status for the authenticated user only.
- */
-export type statusResponse200 = {
-  data: StatusResponse;
-  status: 200;
-};
-
-export type statusResponse401 = {
-  data: void;
-  status: 401;
-};
-
-export type statusResponseSuccess = statusResponse200 & {
-  headers: Headers;
-};
-export type statusResponseError = statusResponse401 & {
-  headers: Headers;
-};
-
-export type statusResponse = statusResponseSuccess | statusResponseError;
-
-export const getStatusUrl = () => {
-  return `/claude-auth`;
-};
-
-export const status = async (
-  options?: RequestInit
-): Promise<statusResponse> => {
-  const res = await fetch(getStatusUrl(), {
-    ...options,
-    method: 'GET',
-  });
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: statusResponse['data'] = body ? JSON.parse(body) : {};
-  return { data, status: res.status, headers: res.headers } as statusResponse;
-};
-
-/**
- * @summary Forget only the authenticated user's grant and cancel pending consent.
- */
-export type disconnectResponse204 = {
-  data: void;
-  status: 204;
-};
-
-export type disconnectResponse403 = {
-  data: void;
-  status: 403;
-};
-
-export type disconnectResponseSuccess = disconnectResponse204 & {
-  headers: Headers;
-};
-export type disconnectResponseError = disconnectResponse403 & {
-  headers: Headers;
-};
-
-export type disconnectResponse =
-  | disconnectResponseSuccess
-  | disconnectResponseError;
-
-export const getDisconnectUrl = () => {
-  return `/claude-auth`;
-};
-
-export const disconnect = async (
-  emptyRequest: EmptyRequest,
-  options?: RequestInit
-): Promise<disconnectResponse> => {
-  const res = await fetch(getDisconnectUrl(), {
-    ...options,
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(emptyRequest),
-  });
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: disconnectResponse['data'] = body ? JSON.parse(body) : {};
-  return {
-    data,
-    status: res.status,
-    headers: res.headers,
-  } as disconnectResponse;
-};
-
-/**
- * @summary Exchange one code; never return access or refresh tokens.
- */
-export type completeResponse204 = {
-  data: void;
-  status: 204;
-};
-
-export type completeResponse400 = {
-  data: void;
-  status: 400;
-};
-
-export type completeResponse409 = {
-  data: void;
-  status: 409;
-};
-
-export type completeResponse502 = {
-  data: void;
-  status: 502;
-};
-
-export type completeResponseSuccess = completeResponse204 & {
-  headers: Headers;
-};
-export type completeResponseError = (
-  | completeResponse400
-  | completeResponse409
-  | completeResponse502
-) & {
-  headers: Headers;
-};
-
-export type completeResponse = completeResponseSuccess | completeResponseError;
-
-export const getCompleteUrl = () => {
-  return `/claude-auth/complete`;
-};
-
-export const complete = async (
-  completeRequest: CompleteRequest,
-  options?: RequestInit
-): Promise<completeResponse> => {
-  const res = await fetch(getCompleteUrl(), {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(completeRequest),
-  });
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: completeResponse['data'] = body ? JSON.parse(body) : {};
-  return { data, status: res.status, headers: res.headers } as completeResponse;
-};
-
-/**
- * @summary Create an expiring PKCE challenge for the authenticated user.
- */
-export type startResponse200 = {
-  data: StartResponse;
-  status: 200;
-};
-
-export type startResponse403 = {
-  data: void;
-  status: 403;
-};
-
-export type startResponse429 = {
-  data: void;
-  status: 429;
-};
-
-export type startResponseSuccess = startResponse200 & {
-  headers: Headers;
-};
-export type startResponseError = (startResponse403 | startResponse429) & {
-  headers: Headers;
-};
-
-export type startResponse = startResponseSuccess | startResponseError;
-
-export const getStartUrl = () => {
-  return `/claude-auth/start`;
-};
-
-export const start = async (
-  emptyRequest: EmptyRequest,
-  options?: RequestInit
-): Promise<startResponse> => {
-  const res = await fetch(getStartUrl(), {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(emptyRequest),
-  });
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: startResponse['data'] = body ? JSON.parse(body) : {};
-  return { data, status: res.status, headers: res.headers } as startResponse;
 };

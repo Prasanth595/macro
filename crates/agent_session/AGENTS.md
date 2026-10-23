@@ -81,12 +81,23 @@ persisted prompter, never from an old wire actor or a newer user turn.
 
 ## Gotchas
 
+- Where a session is shown is `agent_session.visibility` (`listed`,
+  `unlisted`, `hidden`); `hidden` replaces `list_hidden`. Never read or write
+  `list_hidden`: until a later migration drops it, the
+  `agent_session_hidden_sync` trigger keeps it in step for replicas on older
+  code, and it must keep sorting before `agent_session_legacy_warm_write`
+  (triggers fire in name order).
+
 - `ReadAgentSession` bounds its response, not storage work: it folds the full
   effective history like the app. Raw log limits break replay and turn numbering;
   bounded reads need a persisted conversation projection or a fold-aware port.
 - The row's fenced log writer and the Cursor projection both lock the
   session row `FOR UPDATE`; never add a second `NOWAIT` locker without
   checking both paths (see git history on `src/domain/control.rs`).
+- `modified_at` is Agents/Home list recency. Bump it for user-visible work
+  (`moves_session_list`: starting/running/stopping/blocked) and metadata
+  the viewer asked to change. Do not bump it for claim, release, recovery,
+  ACP session id, or system events (`acp_ready`, `disconnected`).
 
 ## Related
 

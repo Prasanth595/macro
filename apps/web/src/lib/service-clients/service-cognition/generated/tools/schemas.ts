@@ -991,7 +991,6 @@ export const ConfigureAgent = z.object({
         const schemas = [
           z.literal('in-memory'),
           z.literal('cursor'),
-          z.literal('claude-cloud'),
           z.literal('macrod'),
         ];
         const errors = schemas.reduce<z.ZodError[]>(
@@ -2229,6 +2228,16 @@ export const CreateCalendarEvent = z.object({
       z.null(),
     ])
     .optional(),
+  guestPolicy: z
+    .union([
+      z.object({
+        canModify: z.boolean(),
+        canInviteOthers: z.boolean(),
+        canSeeOtherGuests: z.boolean(),
+      }),
+      z.null(),
+    ])
+    .optional(),
 });
 
 export const UserToolResponseForToolCalendarEvent = z
@@ -2449,6 +2458,16 @@ export const CreateConfirmedCalendarEvent = z.object({
           ])
           .optional(),
         declineMessage: z.union([z.string(), z.null()]).optional(),
+      }),
+      z.null(),
+    ])
+    .optional(),
+  guestPolicy: z
+    .union([
+      z.object({
+        canModify: z.boolean(),
+        canInviteOthers: z.boolean(),
+        canSeeOtherGuests: z.boolean(),
       }),
       z.null(),
     ])
@@ -9026,203 +9045,6 @@ export const ImportCompaniesCsvResponse = z.object({
   summary: z.string(),
 });
 
-export const ImportFromNotion = z.object({
-  action: z.any().superRefine((x, ctx) => {
-    const schemas = [
-      z.literal('plan'),
-      z.literal('status'),
-      z.literal('cancel'),
-    ];
-    const errors = schemas.reduce<z.ZodError[]>(
-      (errors, schema) =>
-        ((result) => (result.error ? [...errors, result.error] : errors))(
-          schema.safeParse(x)
-        ),
-      []
-    );
-    if (schemas.length - errors.length !== 1) {
-      ctx.addIssue({
-        path: ctx.path,
-        code: 'invalid_union',
-        unionErrors: errors,
-        message: 'Invalid input: Should pass single schema',
-      });
-    }
-  }),
-  roots: z.array(z.string()).optional(),
-  sharing: z
-    .union([
-      z.any().superRefine((x, ctx) => {
-        const schemas = [
-          z.literal('team'),
-          z.literal('personal'),
-          z.literal('ai'),
-        ];
-        const errors = schemas.reduce<z.ZodError[]>(
-          (errors, schema) =>
-            ((result) => (result.error ? [...errors, result.error] : errors))(
-              schema.safeParse(x)
-            ),
-          []
-        );
-        if (schemas.length - errors.length !== 1) {
-          ctx.addIssue({
-            path: ctx.path,
-            code: 'invalid_union',
-            unionErrors: errors,
-            message: 'Invalid input: Should pass single schema',
-          });
-        }
-      }),
-      z.null(),
-    ])
-    .optional(),
-});
-
-export const ImportFromNotionResponse = z.object({
-  report: z.object({
-    status: z
-      .union([
-        z.any().superRefine((x, ctx) => {
-          const schemas = [
-            z.literal('running'),
-            z.literal('ready'),
-            z.literal('importing'),
-            z.literal('completed'),
-            z.literal('failed'),
-            z.literal('dismissed'),
-          ];
-          const errors = schemas.reduce<z.ZodError[]>(
-            (errors, schema) =>
-              ((result) => (result.error ? [...errors, result.error] : errors))(
-                schema.safeParse(x)
-              ),
-            []
-          );
-          if (schemas.length - errors.length !== 1) {
-            ctx.addIssue({
-              path: ctx.path,
-              code: 'invalid_union',
-              unionErrors: errors,
-              message: 'Invalid input: Should pass single schema',
-            });
-          }
-        }),
-        z.null(),
-      ])
-      .optional(),
-    error: z.union([z.string(), z.null()]).optional(),
-    scanned: z
-      .union([
-        z.object({
-          pages: z.number().int().gte(0),
-          dataSources: z.number().int().gte(0),
-        }),
-        z.null(),
-      ])
-      .optional(),
-    pages: z.number().int().gte(0),
-    dataSources: z.number().int().gte(0),
-    deciding: z.number().int().gte(0).optional(),
-    onTeam: z.boolean().optional(),
-    copy: z.number().int().gte(0),
-    tasks: z.number().int().gte(0),
-    skip: z.number().int().gte(0),
-    hand: z.number().int().gte(0),
-    documents: z.number().int().gte(0),
-    databases: z.number().int().gte(0),
-    databaseRows: z.number().int().gte(0),
-    taskRows: z.number().int().gte(0),
-    imported: z.number().int().gte(0),
-    waiting: z.number().int().gte(0),
-    writing: z.number().int().gte(0),
-    waitingOnTeammates: z.number().int().gte(0).optional(),
-    sharedWithTeam: z.number().int().gte(0).optional(),
-    alreadyInMacro: z.number().int().gte(0).optional(),
-    alreadyImportedBy: z
-      .array(z.object({ by: z.string(), count: z.number().int().gte(0) }))
-      .optional(),
-    reviewId: z.union([z.string().uuid(), z.null()]).optional(),
-    handItems: z
-      .array(
-        z.object({
-          importId: z.string().uuid(),
-          title: z.string(),
-          kind: z.any().superRefine((x, ctx) => {
-            const schemas = [
-              z.literal('issue'),
-              z.literal('project'),
-              z.literal('document'),
-              z.literal('page'),
-              z.literal('database'),
-              z.literal('data_source'),
-              z.literal('row'),
-              z.literal('channel'),
-            ];
-            const errors = schemas.reduce<z.ZodError[]>(
-              (errors, schema) =>
-                ((result) =>
-                  result.error ? [...errors, result.error] : errors)(
-                  schema.safeParse(x)
-                ),
-              []
-            );
-            if (schemas.length - errors.length !== 1) {
-              ctx.addIssue({
-                path: ctx.path,
-                code: 'invalid_union',
-                unionErrors: errors,
-                message: 'Invalid input: Should pass single schema',
-              });
-            }
-          }),
-          url: z.union([z.string(), z.null()]).optional(),
-          reason: z.union([z.string(), z.null()]).optional(),
-        })
-      )
-      .optional(),
-    failures: z
-      .array(
-        z.object({
-          importId: z.string().uuid(),
-          title: z.string(),
-          kind: z.any().superRefine((x, ctx) => {
-            const schemas = [
-              z.literal('issue'),
-              z.literal('project'),
-              z.literal('document'),
-              z.literal('page'),
-              z.literal('database'),
-              z.literal('data_source'),
-              z.literal('row'),
-              z.literal('channel'),
-            ];
-            const errors = schemas.reduce<z.ZodError[]>(
-              (errors, schema) =>
-                ((result) =>
-                  result.error ? [...errors, result.error] : errors)(
-                  schema.safeParse(x)
-                ),
-              []
-            );
-            if (schemas.length - errors.length !== 1) {
-              ctx.addIssue({
-                path: ctx.path,
-                code: 'invalid_union',
-                unionErrors: errors,
-                message: 'Invalid input: Should pass single schema',
-              });
-            }
-          }),
-          url: z.union([z.string(), z.null()]).optional(),
-          reason: z.union([z.string(), z.null()]).optional(),
-        })
-      )
-      .optional(),
-  }),
-  message: z.string(),
-});
-
 export const ImportNotionPage = z.object({ pageUrl: z.string() });
 
 export const ImportNotionPageResponse = z.object({
@@ -9689,6 +9511,7 @@ export const ListCalendarEventsResponse = z.object({
         removeGuests: z.boolean(),
         setGuestPolicy: z.boolean(),
         rsvp: z.boolean(),
+        organize: z.boolean(),
       }),
       calendarId: z.union([z.string().uuid(), z.null()]).optional(),
       copies: z
@@ -9764,6 +9587,7 @@ export const ListCalendarsToolResponse = z.object({
         emailReminders: z.boolean(),
         customRecurrence: z.boolean(),
         resetRsvp: z.boolean(),
+        guestPolicy: z.boolean(),
       }),
       calendarId: z.string().uuid(),
       name: z.string(),
@@ -15953,6 +15777,16 @@ export const UpdateCalendarEvent = z.object({
       z.null(),
     ])
     .optional(),
+  guestPolicy: z
+    .union([
+      z.object({
+        canModify: z.boolean(),
+        canInviteOthers: z.boolean(),
+        canSeeOtherGuests: z.boolean(),
+      }),
+      z.null(),
+    ])
+    .optional(),
 });
 
 export const UpdateCallRecord = z.object({
@@ -16529,6 +16363,7 @@ export const WebSearchResponse = z.object({
 
 export const DescribeCodeTools = z
   .object({
+    task: z.union([z.string(), z.null()]).optional(),
     names: z.array(z.string()).optional(),
     topics: z
       .array(
@@ -16561,6 +16396,45 @@ export const DescribeCodeTools = z
   .strict();
 
 export const CodeToolsDescription = z.object({
+  task_documentation: z
+    .union([
+      z.object({
+        status: z.any().superRefine((x, ctx) => {
+          const schemas = [
+            z.literal('selected'),
+            z.literal('unconfigured'),
+            z.literal('cancelled'),
+            z.literal('provider_error'),
+            z.literal('timeout'),
+          ];
+          const errors = schemas.reduce<z.ZodError[]>(
+            (errors, schema) =>
+              ((result) => (result.error ? [...errors, result.error] : errors))(
+                schema.safeParse(x)
+              ),
+            []
+          );
+          if (schemas.length - errors.length !== 1) {
+            ctx.addIssue({
+              path: ctx.path,
+              code: 'invalid_union',
+              unionErrors: errors,
+              message: 'Invalid input: Should pass single schema',
+            });
+          }
+        }),
+        entities: z.array(
+          z.object({
+            name: z.string(),
+            description: z.string(),
+            documentation: z.union([z.string(), z.null()]).optional(),
+          })
+        ),
+        omitted: z.array(z.string()),
+      }),
+      z.null(),
+    ])
+    .optional(),
   sdk_guide: z.union([z.string(), z.null()]).optional(),
   guides: z.array(
     z.object({

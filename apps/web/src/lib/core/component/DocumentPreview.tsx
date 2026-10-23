@@ -3,6 +3,7 @@ import {
   parseMacroAppLink,
   sanitizeCalendarDescription,
 } from '@app/features/calendar/utils/calendar-description';
+import { SharedEventActions } from '@app/features/calendar-view/components/SharedEventActions';
 import {
   type CalendarMentionTarget,
   copyCalendarEventMentionTarget,
@@ -82,6 +83,7 @@ import { Dynamic } from 'solid-js/web';
 import { formatDate } from '../util/date';
 import NotFound from './AccessErrorViews/NotFound';
 import Unauthorized from './AccessErrorViews/Unauthorized';
+import { DocumentDownloadButton } from './DocumentDownloadButton';
 import {
   DocumentPreviewIconSkeleton,
   DocumentPreviewSkeleton,
@@ -346,6 +348,9 @@ export function calendarPreviewSchedule(
 /** Meeting-level rows of the calendar mention hover card. */
 function CalendarEventPreviewDetails(props: {
   event: PreviewCalendarEventAccess['event'];
+  /** The mentioned event, which a read-only share copies from. */
+  mentionedEventId: string;
+  onAddedToCalendar?: () => void;
 }) {
   const organizer = () =>
     props.event.organizerName ?? props.event.organizerEmail;
@@ -418,6 +423,15 @@ function CalendarEventPreviewDetails(props: {
           </span>
         </MetadataInfo>
       </Show>
+      <Show when={!props.event.viewerEventId}>
+        <SharedEventActions
+          eventId={props.mentionedEventId}
+          title={props.event.title}
+          canRequestToJoin={props.event.canRequestToJoin ?? false}
+          joinRequestStatus={props.event.joinRequestStatus ?? undefined}
+          onAdded={props.onAddedToCalendar}
+        />
+      </Show>
     </div>
   );
 }
@@ -452,6 +466,8 @@ export type DocumentPreviewContentProps = {
     characterCount?: number;
   };
   useFallbackData?: boolean;
+  /** Called once a channel-shared event is added to the viewer's calendar. */
+  onAddedToCalendar?: () => void;
 };
 
 /**
@@ -734,12 +750,15 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
 
   const renderActionButtons = () => (
     <Item.Actions
-      class="col-start-3 row-start-1 h-5"
+      class="col-start-3 row-start-1"
       onClick={(event) => event.stopPropagation()}
     >
+      <Show when={targetBlockType() === 'video'}>
+        <DocumentDownloadButton documentId={props.documentInfo.id} />
+      </Show>
       <Dropdown open={menuOpen()} onOpenChange={setMenuOpen}>
         <Dropdown.Trigger
-          size="icon-sm"
+          size="icon-md"
           variant="ghost"
           aria-label="Reference actions"
         >
@@ -938,7 +957,11 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
                 {/* Calendar event schedule, location, and people */}
                 <Show when={matches(item(), isCalendarEventPreviewItem)}>
                   {(calendarItem) => (
-                    <CalendarEventPreviewDetails event={calendarItem().event} />
+                    <CalendarEventPreviewDetails
+                      event={calendarItem().event}
+                      mentionedEventId={props.documentInfo.id}
+                      onAddedToCalendar={props.onAddedToCalendar}
+                    />
                   )}
                 </Show>
 

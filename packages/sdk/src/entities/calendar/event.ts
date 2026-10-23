@@ -11,6 +11,7 @@ import type {
   EventTime,
   EventTransparency,
   EventVisibility,
+  GuestPolicy,
   OutOfOfficeProperties,
   UpdateCalendarEventRequest,
 } from '../../../generated/calendar/types.gen';
@@ -46,6 +47,11 @@ export interface UpdateEventOptions {
   /** Replacement out-of-office properties, applied only to an event that is
    * already out-of-office. */
   outOfOffice?: OutOfOfficeProperties;
+  /** Replacement guest policy; only the organizer of a Google event may change
+   * it (`viewerCan.setGuestPolicy`). It applies to the whole series, so an
+   * update scoped to one occurrence (`scope: 'this_event'`, or a `recurrenceId`)
+   * that changes it is rejected; use scope `'all'`. */
+  guestPolicy?: GuestPolicy;
   /** How much of a recurring series the update covers. Omit to let
    * `recurrenceId` decide. */
   scope?: CalendarUpdateScopeParam;
@@ -252,6 +258,25 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
     return CalendarEvent.fromRecord(this.client, record);
   }
 
+  /** Add a snapshot of an event shared with one of the requester's
+   * channels to one of their Google calendars, and return a handle to the
+   * synced snapshot. The snapshot keeps the meeting's iCalendar UID and
+   * organizer, lists only the requester as a guest, and carries no join link;
+   * nobody is notified, and answers or guests on it never reach the meeting.
+   * Refused with `already_on_calendar` when the meeting is already on one of
+   * their calendars, and with `copy_refused` when Google will not import it. */
+  async addToCalendar(
+    options: { calendar?: Calendar } = {},
+  ): Promise<CalendarEvent> {
+    const record = await this.mutate((client) =>
+      client.calendar.copyCalendarEvent({
+        path: { event_id: this.id },
+        body: { calendarId: options.calendar?.id },
+      }),
+    );
+    return CalendarEvent.fromRecord(this.client, record);
+  }
+
   /** The event as an iCalendar (`.ics`) document: its series, title,
    * description, location and organizer, never its guests or join link.
    * Available for the requester's own events and ones shared with a channel
@@ -292,6 +317,7 @@ function toUpdateBody(options: UpdateEventOptions): UpdateCalendarEventRequest {
     reminders: options.reminders,
     conference: options.conference,
     outOfOffice: options.outOfOffice,
+    guestPolicy: options.guestPolicy,
     scope: options.scope,
     recurrenceId: options.recurrenceId,
     calendarId: options.calendar?.id,
