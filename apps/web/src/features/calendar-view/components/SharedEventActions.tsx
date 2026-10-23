@@ -60,6 +60,13 @@ export function SharedEventActions(props: {
     const sent = askedFrom();
     return sent !== undefined && sent.status === props.joinRequestStatus;
   };
+  // The sharer's answer is an invitation to the meeting itself. A snapshot
+  // added meanwhile would take that invitation in under its own UID and stay
+  // a snapshot, so adding one waits until the request is declined.
+  const requestOutstanding = () =>
+    props.joinRequestStatus === 'pending' ||
+    props.joinRequestStatus === 'accepted' ||
+    asked();
   const requestToJoin = useRequestToJoinCalendarEventMutation({
     onSuccess: () => {
       setAskedFrom({ status: props.joinRequestStatus });
@@ -103,7 +110,7 @@ export function SharedEventActions(props: {
           </Button>
         </Match>
       </Switch>
-      <Show when={addSharedEvent()}>
+      <Show when={addSharedEvent() && !requestOutstanding()}>
         <AddToCalendarButton
           size="xs"
           pending={copy.isPending}
@@ -129,14 +136,7 @@ export function SharedEventActions(props: {
         <DownloadSimpleIcon />
         Download .ics
       </Button>
-      <Show
-        when={
-          !props.canRequestToJoin &&
-          props.joinRequestStatus !== 'pending' &&
-          props.joinRequestStatus !== 'accepted' &&
-          !asked()
-        }
-      >
+      <Show when={!props.canRequestToJoin && !requestOutstanding()}>
         <p class="w-full text-xs text-ink-muted">
           The person who shared this event can't add guests to it.
         </p>
