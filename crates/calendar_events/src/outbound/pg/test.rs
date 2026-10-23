@@ -1652,6 +1652,91 @@ async fn a_snapshot_stays_marked_on_reads_and_mutation_targets(pool: PgPool) {
     );
 }
 
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_snapshot_beside_the_real_meeting_stays_a_snapshot_when_addressed(pool: PgPool) {
+    let owner_id = "macro|calendar-snapshot-beside@example.com";
+    let link_id = insert_link(&pool, owner_id).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    let (account_id, primary_id) = grant_and_provider_ids(&repo, link_id).await;
+    let team_id = repo
+        .upsert_calendar_fixture(
+            account_id,
+            ProviderCalendar {
+                provider_calendar_id: "team".to_string(),
+                name: "Team".to_string(),
+                description: None,
+                time_zone: Some("UTC".to_string()),
+                color: None,
+                access_role: Some("writer".to_string()),
+                is_primary: false,
+                is_selected: true,
+                default_reminders: Vec::new(),
+            },
+        )
+        .await
+        .unwrap();
+    // The real invitation on the primary calendar is the canonical copy.
+    let event_id = repo
+        .upsert_event(CalendarEventWrite::UserMutation(timed_upsert(
+            owner_id,
+            link_id,
+            (account_id, primary_id),
+            "beside@example.com",
+            "Shared meeting",
+            2,
+        )))
+        .await
+        .unwrap()
+        .event_id;
+    // A snapshot of the same meeting imported into another calendar shares
+    // the entity.
+    let mut snapshot = timed_upsert(
+        owner_id,
+        link_id,
+        (account_id, team_id),
+        "beside@example.com",
+        "Shared meeting",
+        1,
+    );
+    snapshot.event.is_snapshot = true;
+    snapshot.source = CalendarEventSource::Google(ProviderEventSource {
+        automatic_decline: None,
+        binding: None,
+        observed_access_role: Some("writer".to_owned()),
+        email_link_id: link_id,
+        account_id,
+        calendar_id: team_id,
+        provider_event_id: "snapshot-id".to_string(),
+        provider_recurring_event_id: None,
+        provider_etag: None,
+        raw_payload: serde_json::json!({}),
+    });
+    repo.upsert_event(CalendarEventWrite::UserMutation(snapshot))
+        .await
+        .unwrap();
+
+    let canonical = repo
+        .get_event_mutation_target(owner_id, event_id, None)
+        .await
+        .unwrap()
+        .expect("the owner may address the meeting");
+    let addressed = repo
+        .get_event_mutation_target(owner_id, event_id, Some(team_id))
+        .await
+        .unwrap()
+        .expect("the owner may address their snapshot");
+
+    assert!(
+        !canonical.is_snapshot,
+        "the real invitation stays answerable"
+    );
+    assert_eq!(addressed.provider_event_id, "snapshot-id");
+    assert!(
+        addressed.is_snapshot,
+        "an answer addressed to the snapshot's calendar must not slip through"
+    );
+}
+
 /// A Google out-of-office auto-decline records the decline on the exception
 /// instance and never on the series master, so the occurrence carrying that
 /// exception must project the exception's attendees while its siblings keep

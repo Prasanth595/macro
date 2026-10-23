@@ -2067,7 +2067,13 @@ impl CalendarRepository for PgCalendarRepository {
                 event.guests_can_modify,
                 event.guests_can_invite_others,
                 event.guests_can_see_other_guests,
-                event.is_snapshot,
+                -- A snapshot imported into one calendar can share its entity
+                -- with the real meeting on another, so the addressed copy's
+                -- own projection says whether it is a snapshot.
+                COALESCE(
+                    source.normalized_payload->'event'->>'isSnapshot' = 'true',
+                    false
+                ) AS "is_snapshot!",
                 source.is_read_only,
                 source.provider_event_id AS "provider_event_id!",
                 source.provider_recurring_event_id,
