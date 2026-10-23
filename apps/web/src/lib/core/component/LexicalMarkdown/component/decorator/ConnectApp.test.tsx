@@ -29,6 +29,9 @@ vi.mock('@app/features/agents-view/primitives/open-page', () => ({
 vi.mock('@components/app/split-layout/layout', () => ({
   useSplitLayout: () => ({}),
 }));
+vi.mock('@core/context/user', () => ({
+  useUserId: () => () => 'macro|reader@example.com',
+}));
 vi.mock('@queries/auth/codex', () => ({
   useCodexStatusQuery: vi.fn(() => mocks.codex),
 }));
