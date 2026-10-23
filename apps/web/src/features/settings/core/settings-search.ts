@@ -228,6 +228,12 @@ const SETTINGS: Setting[] = [
     keywords: 'slack export channels messages history team',
   },
   {
+    tab: 'Team Connections',
+    title: "Team's AI chat API keys",
+    target: 'AI chat API keys',
+    keywords: 'anthropic openai claude gpt byok bring your own key usage',
+  },
+  {
     tab: 'Tags',
     title: 'Personal tags',
     target: 'Personal',
@@ -259,6 +265,12 @@ const SETTINGS: Setting[] = [
     tab: 'API Keys',
     title: 'Create and revoke API keys',
     keywords: 'token secret developer authentication',
+  },
+  {
+    tab: 'API Keys',
+    title: 'Your AI chat API keys',
+    target: 'AI chat API keys',
+    keywords: 'anthropic openai claude gpt byok bring your own key usage',
   },
   {
     tab: 'Desktop App',
