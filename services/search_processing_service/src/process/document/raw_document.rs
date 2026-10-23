@@ -4,6 +4,7 @@ use anyhow::Context;
 use chrono::Utc;
 use document_sub_type::DocumentSubType;
 use lexical_client::types::MarkdownParseResult;
+use macro_db_client::document::get_document_version_id;
 use model::document::{DocumentMetadata, FileType};
 use model_owner::Owner;
 use models_properties::EntityType;
@@ -238,9 +239,39 @@ async fn update_search_with_unreadable_file(
     update_search_with_parent_only_document(opensearch_client, db, search_extractor_message).await
 }
 
+/// The version whose stored content search indexes. A PDF is served from its
+/// first version, and a save adds a version without rewriting that file, so
+/// text read from any other version (a message delivered out of order, or the
+/// bytes of an API save) is not what the document shows. A DOCX is indexed
+/// from its converted PDF, which each conversion overwrites in place. Every
+/// other file is indexed at its latest version.
+async fn indexed_version_id(
+    db: &sqlx::Pool<sqlx::Postgres>,
+    search_extractor_message: &SearchExtractorMessage,
+    latest_version_id: i64,
+) -> anyhow::Result<String> {
+    if !matches!(
+        search_extractor_message.file_type,
+        FileType::Pdf | FileType::Docx
+    ) {
+        return Ok(latest_version_id.to_string());
+    }
+    let message_version_id = search_extractor_message
+        .document_version_id
+        .as_deref()
+        .context("expected document version id to be provided for pdf/docx")?;
+    if message_version_id == CONVERTED_DOCUMENT_FILE_NAME {
+        return Ok(CONVERTED_DOCUMENT_FILE_NAME.to_string());
+    }
+    let (served_version_id, _) = get_document_version_id(db, &search_extractor_message.document_id)
+        .await
+        .context("failed to get the served document version")?;
+    Ok(served_version_id.to_string())
+}
+
 /// The S3 key of the content to index, or `None` when the message names a
-/// superseded version. Content is stored under the document's owner; sync
-/// messages carry no `user_id`.
+/// version other than the indexed one. Content is stored under the
+/// document's owner; sync messages carry no `user_id`.
 fn raw_document_key(
     owner: &Owner,
     search_extractor_message: &SearchExtractorMessage,
@@ -308,17 +339,12 @@ pub async fn update_search_with_raw_document(
 
     // TODO: this is hacky, update the search event message to use the correctly serialized
     // document key parts from the s3_key crate
-    let document_version_id = match search_extractor_message.file_type {
-        // For static/converted files, we want to use the version from the search extractor message since
-        // that is what is in s3 and document saves don't change the actual file in s3.
-        FileType::Pdf | FileType::Docx => search_extractor_message
-            .document_version_id
-            .clone()
-            .context("expected document version id to be provided for pdf/docx")?,
-        // For all other files we want to ensure we are only updating search if this message
-        // contains the latest document version id
-        _ => document_info.document_version_id.to_string(),
-    };
+    let document_version_id = indexed_version_id(
+        db,
+        search_extractor_message,
+        document_info.document_version_id,
+    )
+    .await?;
 
     if document_info.file_type.is_none() {
         tracing::debug!("file type is none");
@@ -340,7 +366,7 @@ pub async fn update_search_with_raw_document(
         tracing::debug!(
             msg_version_id = ?search_extractor_message.document_version_id,
             document_version_id,
-            "document version is not latest, skipping"
+            "message names a version search does not index, skipping"
         );
         return Ok(());
     };
