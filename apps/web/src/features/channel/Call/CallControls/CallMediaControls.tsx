@@ -189,6 +189,7 @@ export function CallMediaControls(props: {
                   <BackgroundTile
                     value="light"
                     label="Light blur"
+                    caption="Light"
                     disabled={backgroundDisabled()}
                   >
                     <BlurIcon />
@@ -196,12 +197,17 @@ export function CallMediaControls(props: {
                   <BackgroundTile
                     value="heavy"
                     label="Strong blur"
+                    caption="Strong"
                     disabled={backgroundDisabled()}
                   >
                     <BlurIcon strong />
                   </BackgroundTile>
                   <Show when={call.backgroundEffect().type === 'image'}>
-                    <BackgroundTile value="image" label="Custom image">
+                    <BackgroundTile
+                      value="image"
+                      label="Custom image"
+                      caption="Custom"
+                    >
                       <Image class="size-4" />
                     </BackgroundTile>
                   </Show>
@@ -236,10 +242,11 @@ export function CallMediaControls(props: {
   );
 }
 
-/** One background choice as a small tile; the label names it for screen readers. */
+/** One background choice as a small tile; `caption` shortens the visible name. */
 function BackgroundTile(props: {
   value: BackgroundChoice;
   label: string;
+  caption?: string;
   disabled?: boolean;
   children: JSX.Element;
 }) {
@@ -250,9 +257,8 @@ function BackgroundTile(props: {
       class="aspect-[4/3] flex-col justify-center gap-1 border border-edge-muted p-1 text-center text-xs text-ink-muted data-checked:overlay-active data-checked:text-ink"
     >
       {props.children}
-      <Dropdown.ItemLabel class="leading-tight">
-        {props.label}
-      </Dropdown.ItemLabel>
+      <Dropdown.ItemLabel class="sr-only">{props.label}</Dropdown.ItemLabel>
+      <span aria-hidden="true">{props.caption ?? props.label}</span>
     </Dropdown.RadioItem>
   );
 }
