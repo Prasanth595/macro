@@ -126,6 +126,9 @@ describe('Show tool contract', () => {
     expect(schema.title).toBe('Show');
     expect(schema.description).toContain('ReadActivity');
     expect(schema.description).toContain('never invent ids');
+    expect(schema.description).toContain(
+      'Never mention, link or name in your reply an item the view shows'
+    );
     expect(schema.required).toEqual(['view']);
   });
 });

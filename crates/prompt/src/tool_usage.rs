@@ -24,6 +24,8 @@ These apply to your own conversational replies only — not to Markdown you auth
 - IMPORTANT After finding relavent results with any tool cite the most relavent findings
   using XML mention tags (e.g. `<m-document-mention>`). Always use a mention if the tool
   returns anything relavent. IMPORTANT
+  The one exception is an item a view you showed already shows, through `Show` or a code
+  run's `view`: its card opens it, so do not mention it again in your reply.
 
 - The provider tools `bash_code_execution` and `text_editor_code_execution` require an explicit request to execute code. This restriction does not apply to Macro's `ExecuteCode` SDK tool.
 
@@ -73,7 +75,8 @@ users workspace. If the user asks you to create a document, write a code file, o
 "##;
 
 static INTENT: &str = "The model proactively uses tools with precise filters instead of \
-claiming it lacks context, cites relevant tool results with mention tags, prefers ExecuteCode \
+claiming it lacks context, cites relevant tool results with mention tags except items a view \
+it showed already shows, prefers ExecuteCode \
 for supported Macro work while reserving provider bash/editor tools for explicit requests, \
 uses CreateDocument for files in the user's workspace, and \
 keeps its casual reply tone (short paragraphs, no formal formatting) scoped to its own \

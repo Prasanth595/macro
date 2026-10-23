@@ -95,7 +95,8 @@ step's detail would be, and clicking the name opens the item. Cards appear only
 for what the agent chose to show: a view it showed with `Show` replaces its
 step, and a database answer it asked to show sits under its step. A view `Show`
 turned back as one it could not draw is no step at all, so it neither shows nor
-keeps the run from folding; the agent shows the view again. In a view, a card for an
+keeps the run from folding; the agent shows the view again. The reply's text
+does not mention an item its view shows. In a view, a card for an
 item the reply created or changed carries what was done to it (`Created`,
 `Sent`). An agent working in code mode works the same way: each SDK operation
 its program ran is a step, and a write that created or changed an item names
