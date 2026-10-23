@@ -357,6 +357,10 @@ fn an_invitation_reaching_a_snapshot_makes_it_the_owners_seat() {
         true
     )));
     assert!(!is_snapshot(&copy_on_calendar(
+        serde_json::json!([{ "email": "member@example.com", "self": true }]),
+        true
+    )));
+    assert!(!is_snapshot(&copy_on_calendar(
         serde_json::json!([calendar("accepted")]),
         false
     )));

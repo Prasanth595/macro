@@ -906,6 +906,7 @@ impl CalendarRepository for PgCalendarRepository {
                         })
                     })
             });
+        let mut became_seat = false;
         if let Some(row) = &existing {
             // A snapshot an invitation has reached is its owner's seat at the
             // meeting. Answering can leave Google's copy looking like the
@@ -915,12 +916,7 @@ impl CalendarRepository for PgCalendarRepository {
                 .normalized_payload
                 .pointer("/event/isSnapshot")
                 .is_some_and(|value| value == true);
-            if stored_snapshot && !upsert.event.is_snapshot {
-                tracing::info!(
-                    event_id = %row.event_id,
-                    "an invitation reached a snapshot, which is now its owner's seat"
-                );
-            }
+            became_seat = stored_snapshot && !upsert.event.is_snapshot;
             upsert.event.is_snapshot &= stored_snapshot;
             let incoming =
                 serde_json::to_value(StoredSourceProjection::from(&upsert)).map_err(report)?;
@@ -1090,6 +1086,12 @@ impl CalendarRepository for PgCalendarRepository {
         let mut log = ChangeLogBatch::default();
         log.record(source_link_id, CalendarChangeOp::UpsertEvent(event_id));
         log.commit(tx).await?;
+        if became_seat {
+            tracing::info!(
+                %event_id,
+                "an invitation reached a snapshot, which is now its owner's seat"
+            );
+        }
         Ok(CalendarEventWriteOutcome {
             event_id,
             owner_id: upsert.event.owner_id.clone(),

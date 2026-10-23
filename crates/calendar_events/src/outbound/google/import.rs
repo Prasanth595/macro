@@ -148,6 +148,12 @@ pub(super) fn is_snapshot(event: &GoogleEvent, provider_calendar_id: &str) -> bo
                     .email
                     .as_deref()
                     .is_some_and(|email| email.eq_ignore_ascii_case(provider_calendar_id));
-            is_calendar && attendee.response_status.as_deref() != Some("needsAction")
+            // Only an explicit answer, as the import wrote one: sync reads a
+            // missing one as awaiting a reply, like `needsAction`.
+            is_calendar
+                && matches!(
+                    attendee.response_status.as_deref(),
+                    Some("accepted" | "declined" | "tentative")
+                )
         })
 }
