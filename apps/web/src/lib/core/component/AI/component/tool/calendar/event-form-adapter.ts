@@ -150,13 +150,13 @@ function attendees(
 
 /**
  * Merge editable EventForm values back into the deferred tool arguments.
- * `guestPolicySupported` is whether the chosen calendar has guest
- * permissions; Outlook calendars do not.
+ * `sendGuestPolicy` is whether guest permissions may be sent: the rollout
+ * is on and the chosen calendar has them (Outlook calendars do not).
  */
 export function editorSubmitValuesToCreateCalendarEvent(
   values: EventEditorSubmitValues,
   original: CompatibleCalendarEvent,
-  guestPolicySupported: boolean
+  sendGuestPolicy: boolean
 ): CreateCalendarEvent {
   // A create's submit values carry `outOfOffice` exactly while the editor kind
   // is out of office, so its presence decides the tool's event type.
@@ -197,7 +197,7 @@ export function editorSubmitValuesToCreateCalendarEvent(
         }
       : undefined,
     guestPolicy:
-      outOfOffice || !guestPolicySupported
+      outOfOffice || !sendGuestPolicy
         ? undefined
         : (values.guestPolicy ?? original.guestPolicy),
   };

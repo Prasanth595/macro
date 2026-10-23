@@ -213,8 +213,9 @@ function CalendarDraftComposerContent(props: CalendarDraftComposerProps) {
       ? editorSubmitValuesToCreateCalendarEvent(
           values,
           props.initialData,
-          controller.selectedCalendarOption()?.capabilities?.guestPolicy !==
-            false
+          guestInvitesEnabled() &&
+            controller.selectedCalendarOption()?.capabilities?.guestPolicy !==
+              false
         )
       : undefined;
   }
