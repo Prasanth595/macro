@@ -58,12 +58,11 @@ function rangesFromTextOffsets(
 }
 
 /**
- * Some chips render a leading `@` or `/` that is not in getTextContent().
- * Shift the match when the remaining label is long enough to hold it.
+ * Skill chips render a leading `/` that is not in getTextContent(). User and
+ * group mentions already include `@` in searchable text, so do not shift those.
  */
 function mentionMatchShift(text: string, offset: SplitOffset): number {
-  const prefix = text[0];
-  if ((prefix === '@' || prefix === '/') && text.length - 1 >= offset.end) {
+  if (text.startsWith('/') && text.length - 1 >= offset.end) {
     return 1;
   }
   return 0;

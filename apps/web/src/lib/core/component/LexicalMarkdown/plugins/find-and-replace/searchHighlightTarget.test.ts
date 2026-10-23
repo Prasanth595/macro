@@ -38,20 +38,36 @@ describe('resolveSearchHighlightRanges', () => {
     expect(ranges[0]?.endOffset).toBe(9);
   });
 
-  it('highlights a user mention title after a leading @', () => {
+  it('highlights a user mention using searchable offsets that include @', () => {
     const chip = mentionChip('data-user-mention', 'Wolf UniqueHandle', {
       prefix: '@',
     });
     const ranges = resolveSearchHighlightRanges(chip, {
-      start: 5,
-      end: 17,
+      start: 1,
+      end: 5,
       isReplace: true,
     });
 
     expect(ranges).toHaveLength(1);
     expect(ranges[0]?.startContainer.textContent).toBe('@Wolf UniqueHandle');
-    expect(ranges[0]?.startOffset).toBe(6);
-    expect(ranges[0]?.endOffset).toBe(18);
+    expect(ranges[0]?.startOffset).toBe(1);
+    expect(ranges[0]?.endOffset).toBe(5);
+  });
+
+  it('shifts a skill slash that is not in searchable text', () => {
+    const chip = mentionChip('data-document-mention', 'draft-skill', {
+      prefix: '/',
+    });
+    const ranges = resolveSearchHighlightRanges(chip, {
+      start: 0,
+      end: 5,
+      isReplace: true,
+    });
+
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0]?.startContainer.textContent).toBe('/draft-skill');
+    expect(ranges[0]?.startOffset).toBe(1);
+    expect(ranges[0]?.endOffset).toBe(6);
   });
 
   it('does not shift a group mention whose text already includes @', () => {

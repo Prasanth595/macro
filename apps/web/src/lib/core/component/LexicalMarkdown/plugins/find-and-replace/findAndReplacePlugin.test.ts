@@ -21,6 +21,7 @@ import {
 } from 'lexical';
 import { describe, expect, it } from 'vitest';
 import {
+  DO_REPLACE_COMMAND,
   DO_SEARCH_COMMAND,
   findAndReplacePlugin,
   type NodekeyOffset,
@@ -179,6 +180,45 @@ describe('findAndReplacePlugin mention chips', () => {
     expect(offsets.some((offset) => offset.key === mentionKey)).toBe(true);
     expect(offsets[0]?.offset.start).toBe(4);
     expect(offsets[0]?.offset.end).toBe(12);
+  });
+
+  it('does not delete text beside a mention when replace spans both', () => {
+    const { editor, getListOffset } = createSearchEditor();
+
+    editor.update(
+      () => {
+        const paragraph = $createParagraphNode();
+        paragraph.append(
+          $createUserMentionNode({
+            userId: 'user-1',
+            email: 'wolf@macro.com',
+            displayName: 'refs',
+          }),
+          $createTextNode(' today')
+        );
+        $getRoot().clear().append(paragraph);
+      },
+      { discrete: true }
+    );
+
+    editor.getEditorState().read(() => {
+      editor.dispatchCommand(DO_SEARCH_COMMAND, '@refs to');
+    });
+    expect(getListOffset().length).toBeGreaterThan(1);
+
+    editor.update(
+      () => {
+        editor.dispatchCommand(DO_REPLACE_COMMAND, {
+          replaceString: 'x',
+          nodeKeyOffsetList: getListOffset(),
+        });
+      },
+      { discrete: true }
+    );
+
+    expect(
+      editor.getEditorState().read(() => $getRoot().getTextContent())
+    ).toBe('@refs today');
   });
 });
 
