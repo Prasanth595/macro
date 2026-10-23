@@ -707,7 +707,9 @@ event they added or were invited to, or a meeting someone else mentioned), the c
 viewer's copy is a guest's, and `On your calendar` otherwise (the viewer organizes it, or it sits
 in a delegated inbox), with an `Open` button that opens the viewer's copy. A mention of the
 viewer's own copy shows neither. A shared-event sheet open on a phone stays up when the viewer
-adds the event or is invited, and switches to that line and `Open` in place.
+adds the event or is invited, and switches to that line and `Open` in place. Opening from the
+sheet (`Open`, the title, or Open in New Split) closes it, since the native apps keep the
+pane behind the opened one mounted.
 
 ## Scheduling — `/app/scheduling`
 

@@ -1,7 +1,13 @@
 import type { PreviewItem } from '@queries/preview/types';
 import type { CalendarMentionEvent } from '@service-storage/generated/schemas/calendarMentionEvent';
-import { fireEvent, render, screen } from '@solidjs/testing-library';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@solidjs/testing-library';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   item: undefined as unknown,
@@ -57,6 +63,7 @@ vi.mock('@app/features/calendar-view/components/SharedEventActions', () => ({
 }));
 
 import { DocumentPreviewContent } from './DocumentPreview';
+import { DocumentPreviewSheet } from './DocumentPreviewSheet';
 
 function calendarItem(event: Partial<CalendarMentionEvent>): PreviewItem {
   return {
@@ -102,6 +109,19 @@ function renderCard() {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.item = calendarItem({});
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  );
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe('calendar mention preview card', () => {
@@ -200,6 +220,35 @@ describe('calendar mention card for a meeting the viewer holds', () => {
         openInNewSplit: false,
       })
     );
+  });
+
+  // Native apps keep the pane behind a stacked pane mounted, so the sheet
+  // would otherwise stay over the event Open just showed.
+  it.each([
+    ['Open', 'Open'],
+    ['the title', 'Pilates'],
+  ])('closes the phone sheet once %s opens the copy', async (_, name) => {
+    mocks.item = calendarItem({ viewerCopy: 'snapshot' });
+    const onOpenChange = vi.fn();
+    render(() => (
+      <DocumentPreviewSheet
+        open
+        onOpenChange={onOpenChange}
+        documentInfo={{
+          id: 'mentioned-event',
+          type: 'calendar',
+          params: {},
+          isOpenable: true,
+        }}
+      />
+    ));
+
+    fireEvent.click(await screen.findByRole('button', { name }));
+
+    expect(mocks.openCalendarEventSplit).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: 'viewer-copy' })
+    );
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
 
   it('adds nothing to a mention of the viewer’s own copy', () => {

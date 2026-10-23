@@ -506,6 +506,12 @@ export type DocumentPreviewContentProps = {
     characterCount?: number;
   };
   useFallbackData?: boolean;
+  /**
+   * Runs once an open action has handed the target to a split. Native apps
+   * keep the pane behind a stacked pane mounted, so a sheet left up would
+   * stay over what was just opened.
+   */
+  onOpened?: () => void;
 };
 
 /**
@@ -596,7 +602,7 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
   const isOpenable = () =>
     !!props.documentInfo.isOpenable && !isReadOnlyCalendarShare();
 
-  const openDocument = createCallback(async (event: MouseEvent) => {
+  const openTarget = async (event: MouseEvent) => {
     const calendarTarget = calendarOpenTarget();
     if (calendarTarget) {
       await openCalendarEventSplit({
@@ -633,6 +639,11 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
       id: props.documentInfo.id,
       params: props.documentInfo.params,
     });
+  };
+
+  const openDocument = createCallback(async (event: MouseEvent) => {
+    await openTarget(event);
+    props.onOpened?.();
   });
 
   const handleOpenInChat = () => {
@@ -728,7 +739,7 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
     );
   };
 
-  const openInNewSplit = createCallback(async () => {
+  const openTargetInNewSplit = async () => {
     const calendarTarget = calendarOpenTarget();
     if (calendarTarget) {
       await openCalendarEventSplit({ ...calendarTarget, openInNewSplit: true });
@@ -764,6 +775,11 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
     );
 
     await handle?.goToLocationFromParams(props.documentInfo.params);
+  };
+
+  const openInNewSplit = createCallback(async () => {
+    await openTargetInNewSplit();
+    props.onOpened?.();
   });
 
   const PreviewTitle = (local: { name: string }) => (
