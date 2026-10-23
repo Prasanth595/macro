@@ -685,22 +685,10 @@ async fn run() -> anyhow::Result<()> {
         Arc::new(McpToolCatalog::new(Arc::clone(&mcp_connector)));
     let sessions = sessions.with_tool_catalog(Arc::clone(&tool_catalog));
 
-    let mut inmem_engine =
+    // Conversations use code mode whenever code execution is configured: the
+    // internal MCP server offers the code tools only then.
+    let inmem_engine =
         RigTurnEngine::new(pool.clone(), tool_context.clone()).with_gate(owner_tool_gate);
-    if code_mode_enabled && let Some(key) = config.posthog_api_key.value() {
-        let flags = feature_flags::outbound::posthog::PostHogFeatureFlags::new(
-            config
-                .posthog_host
-                .value()
-                .unwrap_or("https://us.i.posthog.com"),
-            key.to_owned(),
-            std::time::Duration::from_secs(3),
-        )
-        .map_err(|error| anyhow::anyhow!("invalid feature flag configuration: {error}"))?;
-        inmem_engine = inmem_engine.with_tool_mode(Arc::new(
-            agent_inmem::domain::tool_mode::FlaggedToolMode::new(flags),
-        ));
-    }
     let inmem_model_engine: Arc<dyn TurnEngine> = Arc::new(inmem_engine);
     // Normalize uploaded images before any provider sees them. In addition to
     // making local URLs reachable, this supplies the MIME type Gemini requires

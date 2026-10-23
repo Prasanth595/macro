@@ -27,7 +27,6 @@ chat = { path = "../chat", default-features = false }
 cognition = { path = "../cognition" }
 dashmap = { workspace = true }
 futures = { workspace = true }
-feature_flags = { path = "../feature_flags" }
 genai_telemetry = { path = "../genai_telemetry" }
 macro_user_id = { path = "../macro_user_id" }
 model_owner = { path = "../model_owner" }
