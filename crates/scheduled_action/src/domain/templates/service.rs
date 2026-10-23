@@ -590,6 +590,7 @@ where
             .await?;
         let input = ActionConfiguration {
             enabled: action.enabled,
+            run_visibility: action.run_visibility,
             ..render(&template.draft, action.name.clone(), &bindings)
                 .map_err(TemplatePolicyError::from)?
         };

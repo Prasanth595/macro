@@ -29,6 +29,7 @@ fn action(task: Value, trigger: Value) -> ScheduledAction {
         claimed: None,
         next_run_at: None,
         enabled: true,
+        run_visibility: Default::default(),
     }
 }
 

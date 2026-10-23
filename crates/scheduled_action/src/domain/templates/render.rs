@@ -19,7 +19,9 @@ use super::models::{
 use crate::domain::event_trigger::{
     ActionTrigger, EventFilter, EventFilters, RoutineTrigger, RoutineTriggers,
 };
-use crate::domain::models::{ActionConfiguration, ActionKind, AgentTask, AgentTaskAgent, Schedule};
+use crate::domain::models::{
+    ActionConfiguration, ActionKind, AgentTask, AgentTaskAgent, RunVisibility, Schedule,
+};
 
 #[cfg(test)]
 mod test;
@@ -97,6 +99,7 @@ pub fn render(
         kind: ActionKind::Agent,
         task: serde_json::to_value(task).expect("agent tasks serialize"),
         enabled: true,
+        run_visibility: RunVisibility::default(),
     })
 }
 

@@ -290,6 +290,7 @@ impl Harness {
                         "user_prompt": format!("Summarize Initech news into {mention}.")
                     }),
                     enabled: true,
+                    run_visibility: Default::default(),
                 }),
             )
             .await
@@ -685,6 +686,7 @@ async fn bindings_change_only_while_the_routine_reads_as_rendered() {
                 kind: rebound.kind.clone(),
                 task,
                 enabled: None,
+                run_visibility: None,
             },
         ),
     )
