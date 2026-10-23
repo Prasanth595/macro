@@ -4,12 +4,15 @@
 
 import type { CalendarEvent } from '@app/features/calendar/types';
 import { cleanup, render, screen } from '@solidjs/testing-library';
+import userEvent from '@testing-library/user-event';
+import { ImperativeDialogHost } from '@ui';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SelectedEventDetails } from './SelectedEventDetails';
 
 const mocks = vi.hoisted(() => ({
   mobile: false,
   openComposer: vi.fn(),
+  deleteEvent: vi.fn(),
 }));
 
 vi.mock('@core/mobile/isMobile', () => ({ isMobile: () => mocks.mobile }));
@@ -18,7 +21,7 @@ vi.mock('@queries/calendar/calendars', () => ({
 }));
 vi.mock('@queries/calendar/mutations', () => ({
   useDeleteCalendarEventMutation: () => ({
-    mutate: vi.fn(),
+    mutate: mocks.deleteEvent,
     isPending: false,
   }),
 }));
@@ -54,6 +57,15 @@ vi.mock('@app/features/calendar-view/components/EventJoinRequests', () => ({
 vi.mock('@app/features/calendar-view/components/EventRsvpSection', () => ({
   EventRsvpSection: () => null,
 }));
+
+// jsdom has no CSS.escape. Closing the confirmation restores focus through a
+// selector built from class names, from a timer that can outlive the test.
+Object.defineProperty(globalThis, 'CSS', {
+  value: {
+    escape: (value: string) => value.replace(/[^\w-]/g, (char) => `\\${char}`),
+  },
+  configurable: true,
+});
 
 class ObserverStub {
   observe() {}
@@ -111,18 +123,24 @@ function showDetails(selected: CalendarEvent) {
   const anchor = document.createElement('div');
   document.body.append(boundary, anchor);
   render(() => (
-    <SelectedEventDetails
-      boundary={boundary}
-      anchor={() => anchor}
-      event={() => selected}
-      timeFormat={() => '12-hour'}
-      onClose={vi.fn()}
-    />
+    <>
+      <SelectedEventDetails
+        boundary={boundary}
+        anchor={() => anchor}
+        event={() => selected}
+        timeFormat={() => '12-hour'}
+        onClose={vi.fn()}
+      />
+      <ImperativeDialogHost />
+    </>
   ));
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   vi.stubGlobal('ResizeObserver', ObserverStub);
+  vi.stubGlobal('PointerEvent', MouseEvent);
+  vi.stubGlobal('scrollTo', vi.fn());
 });
 afterEach(() => {
   cleanup();
@@ -139,13 +157,29 @@ describe.each([
   });
 
   it('offers no Edit on a snapshot, and deletes it as the viewer’s copy', async () => {
+    const user = userEvent.setup();
     showDetails(event({ isSnapshot: true }));
 
-    expect(
-      await screen.findByRole('button', { name: 'Delete your copy' })
-    ).toBeTruthy();
+    const deleteCopy = await screen.findByRole('button', {
+      name: 'Delete your copy',
+    });
     expect(screen.queryByRole('button', { name: 'Edit event' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Delete event' })).toBeNull();
+
+    await user.click(deleteCopy);
+    expect(
+      await screen.findByText(
+        'Delete your copy of “Projects discussion”? The shared event stays as it is.'
+      )
+    ).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(mocks.deleteEvent).toHaveBeenCalledWith({
+      eventId: 'event-1',
+      calendarId: 'calendar-1',
+      scope: 'all',
+      recurrenceId: undefined,
+      occurrenceKey: undefined,
+    });
   });
 
   it('keeps Edit for a guest the organizer does not let modify', async () => {
