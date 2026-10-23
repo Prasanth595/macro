@@ -156,3 +156,41 @@ switch via the header pills; on narrow desktop layouts the header keeps a plain
 title and navigation goes through the hamburger overlay. Location, search,
 filters, expanded folders, list focus, and scroll position are restored when
 returning from an opened file.
+
+## Downloading files
+
+Open a video, image, code file, canvas, or other uploaded file in Drive. Its
+header exposes **Download** on desktop, phone, and tablet. The file menu uses
+the same action. Video routes also expose it in their header; channel videos
+expose it over the player on hover or keyboard focus (always visible on touch)
+and in the expanded viewer. Linked video cards also offer Download in their
+preview header without opening the file.
+
+- Click Download once. The control shows preparation progress when the server
+  provides a length, disables repeat clicks, and offers Cancel. Browser users
+  proceed directly to browser downloads. Android and iOS binaries with the
+  file-export bridge proceed directly to the system save picker.
+- **Download started** means the browser accepted the file; check its downloads
+  UI for the location and final completion. **File saved** is reserved for a
+  completed native save. Retry download remains available after a fetch failure.
+- On phones and tablets that support system sharing, **Download** opens a menu
+  with **Download** and **Share**. Share opens the system share sheet; desktop
+  headers keep only Macro's existing Share control for access and links. If a browser's
+  user gesture expires during loading, a ready notice asks for another tap on
+  Share in the open menu; that tap uses the prepared bytes without another network request.
+  No Macro download dialog appears. Cancelling a chooser keeps the file ready
+  for another attempt and does not report success.
+- Installed iOS binaries without the optional file-export bridge use the system
+  share sheet for saving too. After a slow preparation, tap **Save file** to open
+  it, then choose Save to Files or another available system action. The dedicated
+  save picker becomes available when the new native binary ships.
+- Change files or close the viewer during preparation: the old request must stop
+  and must not save a late response. Close the expanded viewer with Escape and
+  confirm focus returns to its opener.
+
+Verification: use an existing video in a channel and Drive. Check both message
+and expanded-viewer download actions; compare downloaded bytes, filename, and
+extension with the original. Repeat at 390px with touch enabled and at tablet
+width. Exercise a failed request, retry, cancellation, and changing selection.
+Native save/share dialogs require physical iOS/Android verification in addition
+to browser emulation.

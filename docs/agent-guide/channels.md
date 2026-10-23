@@ -467,8 +467,8 @@ A late webhook does not require reloading the page.
 When the agent requests permission or input, the Magic Chip displays the waiting
 status for its anchored turn. Open the session to answer; editors and owners can
 respond there. The chip follows the agent's next activity after the answer.
-A tool call held for the owner's approval (a turn somebody other than the owner
-prompted) reads `Waiting for approval`; only the owner approves it, in the session.
+A tool call explicitly acting as the session owner in a turn somebody else
+prompted, held for that owner’s approval reads `Waiting for approval`; only the owner approves it, in the session.
 
 Coding agents use `macro_internal.set_pull_request` to register an existing or
 new GitHub PR with their session. Macro Internal MCP is hosted by the harness
@@ -1310,6 +1310,11 @@ the caret after send does not pan the page while the keyboard resizes. Repeat wi
 and check that sent text does not return. Scroll into history before an incoming
 message or acknowledgement and verify that it does not pull you to latest.
 
+For composer cleanup, repeatedly open and leave channels and threads, then
+switch between touch and keyboard/mouse input. Retired composers must not keep
+reacting to input-modality changes. Memory-pressure crashes still require an
+iPhone run with the app's native memory diagnostics.
+
 
 ## Channel pictures
 
@@ -1335,3 +1340,14 @@ Markdown options before Query and Database. Typing `/query` filters to the Query
 action; `/database` creates a new database and inserts its editable card.
 
 When Databases is enabled, type `/query` in a channel message or thread reply and choose **Query** to insert a live question. Ask with Enter or the Ask button, then accept the answer before sending the message. Enter in the question box belongs to the question and must not send the channel draft. Recipients can read the live answer subject to their database access. Database @ mentions in message composers remain compact; **Expand** turns one into an editable database card.
+
+## Downloading channel videos
+
+Video messages show **Download** over the player on hover or keyboard focus;
+the control stays visible on touch devices. There is no footer below the video.
+The expanded viewer has the same action. These retrieve the original bytes and
+filename from static-file metadata; they do not record or transcode playback.
+If the metadata is unavailable, the fallback extension comes from the response
+MIME type. Linked video preview cards also offer Download, using the document's
+current version, name, and file type. See [Downloading files](files.md#downloading-files)
+for progress, cancellation, retries, and mobile save/share verification.
