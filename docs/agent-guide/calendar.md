@@ -477,8 +477,10 @@ invitation). That guest cannot drag or resize the event on the grid either. Some
 neither organizing nor invited, such as a delegate on a shared calendar, keeps what their
 calendar access allows. The update refuses a detail change from such a guest with 403
 `guests_cannot_modify` (fields resent at their stored value are ignored, so the agent can
-pass them); the editor then shows the line in a toast and locks its details, and a refused
-drag snaps back with the same toast. The refusal covers a stale `viewerCan`, an event the
+pass them); the editor then shows the line in a toast, locks its details and returns them to
+the event's own (title, time, repeat, location and description, keeping notification and guest
+changes), so it never holds a change it cannot save, and a refused drag snaps back with the same
+toast. A locked description refuses typing, like the other locked fields. The refusal covers a stale `viewerCan`, an event the
 viewer still sees as editable after the organizer turned modifying off, so check it without a
 Google account on an event whose `viewerCan.editDetails` is still true, the only case where
 the editor sends a detail change at all: answer `PATCH /events/{id}` with HTTP 403 and code
