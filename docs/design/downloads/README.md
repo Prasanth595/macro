@@ -17,6 +17,9 @@ then distinguish preparation, handoff, and confirmed saving.
 Review copies in Macro: [journey map](https://macro.com/app/md/01a16974-f25b-78dd-bc61-1155b2a817a4)
 and [interaction specification](https://macro.com/app/md/01a16974-87d4-7304-8c11-96b0e4d439df).
 
+Preview screenshots: [Channel](assets/channel-preview.png),
+[Drive](assets/drive-preview.png), and [mobile save and share](assets/mobile-preview.png).
+
 The concept uses Macro's dark split workspace, narrow navigation rails, file
 headers, channel messages, composer, and existing Phosphor icons. Its visual
 reference is the supplied Macro screenshot and the app's `index.css`, sidebar,
