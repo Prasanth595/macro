@@ -357,6 +357,8 @@ const mocks = vi.hoisted(() => {
     platformFetch,
     toastFailure,
     telemetryError: vi.fn(),
+    telemetryWarn: vi.fn(),
+    traceparent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
     normalizedCacheExchange: vi.fn(
       (host: unknown, _options?: NormalizedCacheExchangeOptions) => ({
         kind: 'cache',
@@ -440,10 +442,14 @@ vi.mock('@graphql-cache/exchange/normalized-cache-exchange', () => ({
 vi.mock('@macro-inc/observability', () => ({
   Telemetry: {
     error: mocks.telemetryError,
+    warn: mocks.telemetryWarn,
     span: (_name: string, work: (span: unknown) => Promise<unknown>) =>
       work({
         event: vi.fn(),
         setAttr: vi.fn(),
+        injectTraceHeaders: (headers: Record<string, string>) => {
+          headers.traceparent = mocks.traceparent;
+        },
       }),
   },
 }));
@@ -808,6 +814,30 @@ describe('GraphQL Soup browser cache session gate', () => {
     expect(payload.query).toContain('cacheProjection');
     expect(payload.query).toContain('@include');
     expect(payload.variables).toEqual({ includeId: true });
+    expect(new Headers(transport.headers).get('traceparent')).toBe(
+      mocks.traceparent
+    );
+  });
+
+  it('reports the queued mutations a sign-out deletes', async () => {
+    mocks.host.inspectMutations.mockResolvedValueOnce([
+      { operationName: 'SaveEmailDraft', variables: { body: 'secret' } },
+      { operationName: 'SaveEmailDraft', variables: { body: 'secret' } },
+      { operationName: 'SetEntityProperty', variables: {} },
+    ] as never);
+    const soup = await import('./graphql-soup');
+    soup.getGraphqlSoupClient();
+
+    await soup.recordGraphqlMutationQueueCleared('session-expired');
+
+    expect(mocks.telemetryWarn).toHaveBeenCalledWith(
+      'graphql.mutation_queue.cleared',
+      {
+        'mutation_queue.clear_cause': 'session-expired',
+        'mutation_queue.depth': 3,
+        'mutation_queue.operation_names': 'SaveEmailDraft,SetEntityProperty',
+      }
+    );
   });
 
   it.each([
