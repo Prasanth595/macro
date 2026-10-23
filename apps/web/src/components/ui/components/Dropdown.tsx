@@ -15,7 +15,7 @@ import {
   addCtrlJKMenuNavigation,
   highlightFirstMenuItemOnOpen,
 } from '../utils/menuKeyboardNavigation';
-import { createMultiSelectSelection } from '../utils/multiSelectSelection';
+import { createMultiSelectIntent } from '../utils/multiSelectSelection';
 import {
   createSelectionDismissal,
   type SelectionDismissal,
@@ -387,7 +387,7 @@ function DropdownCheckboxItem(props: DropdownCheckboxItemProps) {
  * @do Replace only this item's group in `onOnly`, preserving other filters.
  */
 function DropdownMultiSelectItem(props: DropdownMultiSelectItemProps) {
-  const selection = createMultiSelectSelection();
+  const selectionIntent = createMultiSelectIntent();
   const [local, rest] = splitProps(props, [
     'checked',
     'label',
@@ -407,13 +407,14 @@ function DropdownMultiSelectItem(props: DropdownMultiSelectItemProps) {
       aria-keyshortcuts="Space Enter Shift+Enter"
       class={cn(ROW_CLASS, 'relative pr-14 touch:min-h-11', local.class)}
       ref={(element) => {
-        selection.track(element);
+        selectionIntent.track(element);
         callRef(local.ref, element);
       }}
-      closeOnSelect={selection.shouldClose()}
+      closeOnSelect={selectionIntent.shouldClose()}
       onSelect={() => {
-        if (selection.intent() === 'only') local.onOnly();
-        else local.onChange(selection.intent() === 'add' || !local.checked);
+        if (selectionIntent.intent() === 'only') local.onOnly();
+        else
+          local.onChange(selectionIntent.intent() === 'add' || !local.checked);
       }}
     >
       <MultiSelectItemContent

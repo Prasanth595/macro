@@ -7,7 +7,7 @@ import { cn, Layer } from '@ui';
 import { MultiSelectItemContent } from '@ui/components/MultiSelectItemContent';
 import {
   applyMultiSelectSelection,
-  createMultiSelectSelection,
+  createMultiSelectIntent,
 } from '@ui/utils/multiSelectSelection';
 import {
   type Accessor,
@@ -74,7 +74,7 @@ const SearchableMultiSelectItem = (itemProps: {
   item: CollectionNode<SearchableOption>;
   onOnly?: (id: string) => void;
   isSoleActive?: (id: string) => boolean;
-  selection: ReturnType<typeof createMultiSelectSelection>;
+  selectionIntent: ReturnType<typeof createMultiSelectIntent>;
 }) => {
   const combobox = useComboboxContext();
   let selectedOnPointerUp = false;
@@ -84,7 +84,7 @@ const SearchableMultiSelectItem = (itemProps: {
     <Combobox.Item
       item={itemProps.item}
       ref={(element) => {
-        itemProps.selection.track(element);
+        itemProps.selectionIntent.track(element);
         // Intercept Shift activation before Kobalte selects a range. The change
         // handler turns the resulting single-item toggle into exclusive selection.
         const intercept = (event: Event) => {
@@ -204,7 +204,7 @@ const VirtualizedListbox = (props: {
   class?: string;
   onOnly?: (id: string) => void;
   isSoleActive?: (id: string) => boolean;
-  selection: ReturnType<typeof createMultiSelectSelection>;
+  selectionIntent: ReturnType<typeof createMultiSelectIntent>;
 }) => {
   let handle: VirtualizerHandle | undefined;
   // Kobalte supplies the collection after applying the combobox search
@@ -238,7 +238,7 @@ const VirtualizedListbox = (props: {
                 item={item}
                 onOnly={props.onOnly}
                 isSoleActive={props.isSoleActive}
-                selection={props.selection}
+                selectionIntent={props.selectionIntent}
               />
             )}
           </Virtualizer>
@@ -281,7 +281,7 @@ const useActiveOptions = (
 const getOptionId = (opt: SearchableOption) => opt.id;
 
 export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
-  const selection = createMultiSelectSelection();
+  const selectionIntent = createMultiSelectIntent();
   const [internalOpen, setInternalOpen] = createSignal(false);
   const [searchQuery, setSearchQuery] = createSignal('');
 
@@ -329,13 +329,18 @@ export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
       )?.id;
     if (id !== undefined)
       props.onChange(
-        applyMultiSelectSelection(props.activeIds(), id, selection.intent())
+        applyMultiSelectSelection(
+          props.activeIds(),
+          id,
+          selectionIntent.intent()
+        )
       );
     dismissAfterSelection();
   };
 
   const dismissAfterSelection = () => {
-    if (selection.shouldClose()) queueMicrotask(() => handleOpenChange(false));
+    if (selectionIntent.shouldClose())
+      queueMicrotask(() => handleOpenChange(false));
   };
   const handleOnly = (id: string) => {
     if (props.onOnly) props.onOnly(id);
@@ -370,13 +375,13 @@ export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
     >
       <Combobox.Control class="flex items-center h-full">
         {props.children}
-        <Combobox.Input ref={selection.track} class="sr-only" />
+        <Combobox.Input ref={selectionIntent.track} class="sr-only" />
       </Combobox.Control>
 
       <Combobox.Portal>
         <Layer depth={2}>
           <Combobox.Content
-            ref={selection.track}
+            ref={selectionIntent.track}
             class={cn(
               'menu-surface z-action-menu w-65 max-w-[90vw] overflow-hidden',
               props.contentClass
@@ -404,7 +409,7 @@ export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
                   class={props.listboxClass}
                   onOnly={handleOnly}
                   isSoleActive={isSoleActive}
-                  selection={selection}
+                  selectionIntent={selectionIntent}
                 />
               </Show>
             </div>
@@ -437,7 +442,7 @@ type SearchableMultiSelectInlineProps = {
 export const SearchableMultiSelectInline = (
   props: SearchableMultiSelectInlineProps
 ) => {
-  const selection = createMultiSelectSelection();
+  const selectionIntent = createMultiSelectIntent();
   const [searchQuery, setSearchQuery] = createSignal('');
 
   const activeOptions = useActiveOptions(props.options, props.activeIds);
@@ -462,9 +467,13 @@ export const SearchableMultiSelectInline = (
       )?.id;
     if (id !== undefined)
       props.onChange(
-        applyMultiSelectSelection(props.activeIds(), id, selection.intent())
+        applyMultiSelectSelection(
+          props.activeIds(),
+          id,
+          selectionIntent.intent()
+        )
       );
-    if (selection.shouldClose())
+    if (selectionIntent.shouldClose())
       queueMicrotask(() => props.onSelectionComplete?.());
   };
 
@@ -519,7 +528,7 @@ export const SearchableMultiSelectInline = (
       removeOnBackspace={false}
     >
       <div
-        ref={selection.track}
+        ref={selectionIntent.track}
         class="flex items-center gap-2 px-3 py-2 border-b border-edge-muted"
       >
         <SearchIcon class="size-3.5 text-ink-muted shrink-0" />
@@ -530,7 +539,7 @@ export const SearchableMultiSelectInline = (
           placeholder={props.placeholder ?? 'Search...'}
         />
       </div>
-      <div ref={selection.track} class="p-1">
+      <div ref={selectionIntent.track} class="p-1">
         <Show
           when={hasMatches()}
           fallback={
@@ -541,7 +550,7 @@ export const SearchableMultiSelectInline = (
         >
           <VirtualizedListbox
             class={props.listboxClass}
-            selection={selection}
+            selectionIntent={selectionIntent}
             onOnly={(id) => props.onChange([id])}
           />
         </Show>

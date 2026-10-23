@@ -3,22 +3,18 @@ import { createSignal, onCleanup } from 'solid-js';
 export type MultiSelectIntent = 'add' | 'toggle' | 'only';
 
 /** Capture selection intent before Kobalte handles a row or search input. */
-export function createMultiSelectSelection() {
+export function createMultiSelectIntent() {
   const [intent, setIntent] = createSignal<MultiSelectIntent>('add');
   const track = (element: HTMLElement) => {
     const capture = (event: MouseEvent | KeyboardEvent) => {
       const checkbox =
         event.target instanceof Element &&
         event.target.closest('[data-multiselect-checkbox]');
-      setIntent(
-        checkbox
-          ? 'toggle'
-          : event.shiftKey
-            ? 'only'
-            : event instanceof KeyboardEvent && event.key === ' '
-              ? 'toggle'
-              : 'add'
-      );
+      if (checkbox) setIntent('toggle');
+      else if (event.shiftKey) setIntent('only');
+      else if (event instanceof KeyboardEvent && event.key === ' ')
+        setIntent('toggle');
+      else setIntent('add');
     };
     element.addEventListener('pointerdown', capture, true);
     element.addEventListener('pointerup', capture, true);
