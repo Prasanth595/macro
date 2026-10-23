@@ -310,12 +310,10 @@ export function EventForm(props: EventFormProps) {
                 options={controller.recurrenceOptions()}
                 value={controller.selectedRecurrenceOption()}
                 onChange={controller.changeRecurrenceChoice}
-                disabled={formIsDisabled()}
+                disabled={fieldIsDisabled('recurrence')}
                 // A single occurrence has no recurrence rule of its own, so the
                 // recurrence cannot be edited while the scope is one event.
-                readOnly={
-                  fieldIsReadOnly('recurrence') || editScope() === 'this_event'
-                }
+                readOnly={editScope() === 'this_event'}
               />
             </LockedField>
             <Show when={!isOutOfOffice()}>
