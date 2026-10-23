@@ -85,6 +85,7 @@ import { match } from 'ts-pattern';
 import { formatDate } from '../util/date';
 import NotFound from './AccessErrorViews/NotFound';
 import Unauthorized from './AccessErrorViews/Unauthorized';
+import { DocumentDownloadButton } from './DocumentDownloadButton';
 import {
   DocumentPreviewIconSkeleton,
   DocumentPreviewSkeleton,
@@ -787,12 +788,15 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
 
   const renderActionButtons = () => (
     <Item.Actions
-      class="col-start-3 row-start-1 h-5"
+      class="col-start-3 row-start-1"
       onClick={(event) => event.stopPropagation()}
     >
+      <Show when={targetBlockType() === 'video'}>
+        <DocumentDownloadButton documentId={props.documentInfo.id} />
+      </Show>
       <Dropdown open={menuOpen()} onOpenChange={setMenuOpen}>
         <Dropdown.Trigger
-          size="icon-sm"
+          size="icon-md"
           variant="ghost"
           aria-label="Reference actions"
         >

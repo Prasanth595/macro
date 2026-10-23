@@ -25,6 +25,17 @@ It exercises the real resize solver, scroll container, and Lexical layout primit
 Discussion link scrolling has a backend-free browser regression:
 `bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.
 
+Meeting-note creation, linking, optional team access, retry, and unlinking have desktop and
+phone browser coverage in `features/calendar-notes`:
+`bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.
+The browser fixture uses the real event details popover and mobile drawer over
+sample data; keep notes aligned with those existing surfaces and preserve their
+dialog open guards. Optional note sharing uses existing team memberships.
+Gate event notes and document Share meeting-link controls with
+`enable-calendar-meeting-notes` before mounting their query sources; it defaults
+on in dev and uses PostHog in production.
+See `docs/agent-guide/calendar.md` at the repo root.
+
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 
 ```sh
@@ -104,6 +115,7 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+- Enable persisted email/calendar review controls only for the review’s saved acting account; historical reviews fall back to the session owner. Require session edit access on desktop and mobile.
 - Email draft reads compare server generations before choosing cached delivery state over a restored working copy; only a definitive first-submission rejection permits local send recovery without server cancellation.
 - Compose settings pages with `features/settings/primitives.tsx` so section headings,
   raised composer cards (`SettingsSurface`), row spacing, and control shapes stay
@@ -163,6 +175,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Diagnose native full reloads with `native_webview_started`, `native_diagnostic_recovered`, and the shared `frontend_instance_id`; use `reloadApp(reason)` for frontend reloads and keep breadcrumbs content-free. Treat `previous_document_*` checkpoints as last-observed lifecycle evidence, never a crash verdict; clear them on logout. `previous_document_last_*` comes from the native navigation breadcrumb (route and entity type, never ids). See [frontend checkpoints](docs/native-reload-diagnostics.md) and `tauri/src-tauri/README.md`.
 - Inline agent steps reuse the session code-execution query for live SDK operation
   names; completed step snapshots come from the shared fold of the tool receipt.
+  Session `ExecuteCode` activity uses the same Calling N tools peek window as
+  ordinary consecutive tool calls.
 - All API/network calls live in service-clients.
 - Open projects through `openProject` (`features/projects/open-project.ts`): it
   retargets an already-open project split to the section or comment in place.
@@ -259,6 +273,29 @@ changing this editor.
 Follow [`docs/ios-releases.md`](docs/ios-releases.md) for App Store signing and
 provisioning, including both extensions. The release script temporarily selects
 manual export when a distribution certificate path is supplied.
+
+## Native notification navigation
+
+Read iOS's durable pending tap before mounting the router, then choose its
+destination only after the authenticated account matches `recipientId`. Keep
+the native receipt pending until the destination route is applied; release the
+resume cover for auth/retry UI without consuming the receipt. Use the existing
+pending-notification intent for bootstrap and live taps so newer taps supersede
+older work. Older native builds and pushes retain authenticated notification
+lookup. The local bridge and native release requirement are documented in
+[`docs/ios-releases.md`](docs/ios-releases.md).
+
+Bound the pre-router bridge handoff to 1.5 seconds and release the native cover
+on failure or timeout without consuming the pending tap. Late responses must
+use normal account-checked navigation, never reset the mounted router's hash.
+`notification.launch` records whether startup continued ready, failed, or timed out.
+
+Generate APNs validators with `scripts/generate-api-schema.ts`; its compact
+`generated/push.ts` entry avoids importing every notification-service schema
+on the startup path. Carry known channel root IDs in push navigation (a null
+`threadId` means the message itself is the root), prefetch the target window
+alongside channel metadata, and keep the channel loading shell stable until
+that target can be positioned.
 
 ## macOS notification activation
 
@@ -414,15 +451,19 @@ Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
 ### Agent backend hosting
 
 Cognition, routines, preview control, and MCP share `agent_harness_service`.
+Agent replies can use the existing `m-document-mention` format with
+`blockName: "routine"`; routines do not appear in the mention menu.
 Direct local hosts use port 8101 with the existing feature prefixes; the
 instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.
 
 ## File downloads
 
-Channel videos and Drive video/image/code/canvas/unknown previews share
+Channel videos, linked video previews, and Drive video/image/code/canvas/unknown previews share
 `createFileDownload` and `FileDownloadButton`. Keep menu and visible controls
 bound to the same controller. Download hands off directly to browser downloads
-or the native save picker; keep Share separate and do not add a custom
+or the native save picker. Show channel Download on hover or keyboard focus,
+always on touch, without a footer. Keep system Share inside the touch Download
+menu; desktop Share belongs to Macro permissions. Do not add a custom
 confirmation sheet. Snapshot file/version before loading, cancel on disposal or
 selection change, and preserve original filenames from static-file metadata.
 Native Android and iOS use bounded byte exports. Older iOS binaries use Web
@@ -430,6 +471,7 @@ Share until the optional file-export bridge ships. If browser activation expires
 while preparing a share, retain the bytes and let the same action's next tap
 open the system sheet synchronously. Browser success means handoff, not confirmed
 disk completion. See the native bridge's `tauri/file_export_plugin/AGENTS.md`.
+Keep download confirmations title-only and lightbox Download controls icon-only.
 
 The backend-free browser regression downloads real fixture bytes from channel
 cards, the expanded viewer, and the shared Drive/standalone header on desktop,

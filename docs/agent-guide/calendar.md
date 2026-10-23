@@ -1,5 +1,78 @@
 # Calendar
 
+## Meeting notes
+
+Meeting notes require `enable-calendar-meeting-notes`. It is on automatically in
+dev; production uses PostHog, with an initial rollout intended for `@macro.com`
+users. `VITE_ENABLE_CALENDAR_MEETING_NOTES=true` or `false` overrides it locally.
+With the flag off, event notes and document Share meeting-link controls do not
+mount or request note data, on desktop or phone. The flag does not revoke saved
+meeting/team grants or change API permissions.
+
+Open a live meeting's details and choose **Create** beside **Meeting notes**.
+This creates a Markdown document named after the meeting, links it with meeting
+viewer access, and opens it immediately. Team access starts off. A meeting can
+have multiple notes; **Create** and **Link** remain on the section title row
+so you can keep creating notes or linking existing documents.
+
+Choose **Link** to search your markdown documents, select one, review
+the sharing explanation, and optionally include your existing team before
+**Link note**. Team access starts off for each note. Recurring meetings link only
+the displayed occurrence. Notes on a
+one-time meeting follow it when its date or time changes.
+Existing document editors and other sharing keep their access.
+Notes use the event details' existing row layout and controls. Team choices come
+from current Macro team memberships; they do not introduce departments or subteams.
+
+Open the linked title to read the original document. On desktop it opens in a
+new split; on mobile it replaces the calendar pane and closes event details.
+Opening a note leaves focus available to the document as it mounts; dismissing
+desktop details normally returns focus to the calendar event.
+Meeting access and occurrence scope are explained in the linking/access dialog;
+each note shows any additional team audience. Document owners use **Options →
+Manage access** to change that team, or **Options → Unlink from meeting** to remove
+this meeting's grants without deleting the document. Keep access explanations as
+plain text and actions labeled.
+In the linking dialog, only the document results scroll. The meeting context,
+sharing controls, and action buttons stay visible, including in a short viewport.
+If the owner has since left the selected team, **Remove team access** still works.
+Failed saves retain the selection and audience for retry; dismissing starts fresh.
+If creation succeeds but linking fails, **Retry linking** reuses the saved document;
+**Open saved note** lets you continue editing before the link is confirmed. Closing
+details never deletes that document; it remains in Drive. Changing the selected
+meeting or account prevents a late creation result from navigating away from the
+new selection.
+
+Owners can also open the markdown document's **Share** panel and find **Meeting
+links** (inside **Link** on mobile). Every saved link remains removable here even
+if the meeting was cancelled, fell outside the sync window, or stopped being
+shared with the owner. **Unlink** asks before removing its meeting/team grants.
+Unavailable meetings use a safe label rather than revealing private details.
+
+Full-detail team events expose the same note controls; provider actions such as
+editing the event or RSVPing stay unavailable. Busy-only team entries and
+imported snapshots have no meeting-note controls.
+Inherited access follows current meeting details and requires a synced live
+occurrence. If the provider hides its guest list, some guests need a direct
+document share. Independent team sharing lasts until the link is removed or the
+viewer leaves that team; it does not make the calendar event visible to that team.
+
+Verify on desktop and phone: create and open notes, add a second note, retry a failed
+link without duplicating the new document, link an existing note with team unchecked,
+add/remove a team, and unlink while keeping the document. On desktop, hover a note
+title and select a neighboring note while its tooltip is visible. The
+backend-free browser suite mounts the real event popover and mobile drawer with
+sample data and preview service adapters. It is
+`apps/web/src/features/calendar-notes/browser-test/playwright.config.ts`.
+API permission cases are covered in `crates/calendar_events/src/outbound/pg/test/notes.rs`.
+The fixture accepts `?notes=off` to check the event details without notes.
+Use `?team=details` or `?team=busy` to check team visibility boundaries.
+
+Browser fixture screenshots: [desktop](media/calendar-notes/desktop.png) ·
+[phone](media/calendar-notes/phone.png) ·
+[desktop picker](media/calendar-notes/link-desktop.png) ·
+[phone picker](media/calendar-notes/link-phone.png).
+
 ## Calendar — `/app/calendar/<month-or-week-or-day>`
 
 Microsoft calendars use the same editor and calendar views after calendar consent.
@@ -124,7 +197,10 @@ new session from the same meeting link must start a separate chat thread.
 
 
 Calendar event creation and editing open in a bottom sheet on touch devices,
-with scrollable content above the keyboard. Desktop retains the centered dialog.
+with scrollable content above the keyboard. When the form outgrows the sheet, as
+it does with the custom repeat builder open, the sheet scrolls down to the
+footer: Cancel and `Create event` or `Save`, plus `This event`/`All events` when
+editing a recurring event. Desktop retains the centered dialog.
 Dismissing a changed event still asks before discarding the draft.
 
 On phones, event details use inset round action buttons and a transparent RSVP
@@ -151,6 +227,11 @@ Connect calendar for accounts missing calendar permission, and Disconnect with
 confirmation. When the only linked account lacks calendar permission, the Google
 Calendar row shows just a filled Connect button for it, with no account list or
 visibility note. Disconnect removes calendar access/data, not the Gmail connection.
+Settings → Calendar lists only the viewer's own inboxes. The **Enable calendar**
+toast (behind `enable-calendar-prompt-web` and `enable-calendar-prompt-mobile`)
+follows the same rule: it asks once per own inbox missing calendar permission,
+never for an inbox another Macro user delegated to the viewer (a **Shared** row
+in Settings → Email, whose per-inbox Enable calendar button stays available).
 Account checkboxes show/hide all child calendars; partial selection is shown as
 mixed. Individual calendars can also be shown/hidden. The account color is the
 default for its calendars; a child color overrides it. Click a color dot to open
@@ -455,15 +536,16 @@ start to another weekday keeps a custom rule on the day the editor shows.
 As in Google Calendar, the guests row of the details popover (a bottom sheet on phones)
 carries `Copy guest emails` and `Email guests` icon buttons, both hidden when you are the
 only guest (always so on a snapshot). Copying puts every guest's address on the clipboard,
-comma-separated. Emailing opens a new email addressed to every guest but you, with the event
+comma-separated; it is hidden too while the organizer hides the guest list, which your copy
+does not hold. Emailing opens a new email addressed to every guest but you, with the event
 title as its subject (as `Forward by email` fills it in) — in a split
 beside the calendar on desktop, as the full-screen composer on touch devices, in its own
 composer even when another one is open. Deleting an event asks first, and says guests will be
 notified only when someone besides you is on it.
 With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
 whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
-organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
-phones): the current guests are listed under `Invited` without a remove control, the picker
+organizer lets guests invite. It opens an editor anchored to the button (on phones, a bottom
+sheet stacked over the dimmed event details, showing one bright handle): the current guests are listed under `Invited` without a remove control, the picker
 adds people, each new guest has an `Optional` checkbox, a recurring event offers `This
 event` / `All events` (`All events` by default, like the editor's recurring edits), and
 `Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape closes. The new guests appear at
@@ -564,6 +646,12 @@ in the background without returning to its skeleton. OOO changes, sharing change
 and notifications without that guarantee still clear cached rows and close open
 OOO details immediately before refetching.
 
+To mention an event, press `Copy event` in its details and paste, or type `@` and at least
+three characters of its title in a composer that offers event mentions (message, comment and
+document composers; spreadsheet and database cells and typed reference fields do not): where calendar search is on
+(`enable-calendar-search-ui`), the menu lists matches under `Calendar events` (all of them in
+one list on phones), one row per event with when it starts, and picking one inserts the same
+chip a paste does, pinned to the found instance of a repeating event.
 A calendar event mentioned in a channel message opens the calendar focused on the viewer's
 own copy of the meeting. When a person holds the event on their own calendar and posts the
 mention, it is shared read-only with the channel's current members: a member without a copy of
