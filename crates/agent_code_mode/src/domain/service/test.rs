@@ -136,7 +136,14 @@ async fn run_uses_session_owner_and_records_source_and_result_without_credential
     session.bot_id = bot_id::BotId::new_from_uuid(uuid::Uuid::from_u128(0xcafe));
     let id = ExecutionId::mint();
     let result = service
-        .execute(&session, id, request(), CancellationToken::new())
+        .execute(
+            &session,
+            id,
+            ai_toolset::actor::ToolActor::Owner,
+            macro_uuid::Uuid::from_u128(1),
+            request(),
+            CancellationToken::new(),
+        )
         .await
         .unwrap();
     assert_eq!(result.status, ExecutionStatus::Succeeded);
@@ -153,7 +160,14 @@ async fn run_uses_session_owner_and_records_source_and_result_without_credential
             .contains("run-only-secret")
     );
     service
-        .execute(&session, id, request(), CancellationToken::new())
+        .execute(
+            &session,
+            id,
+            ai_toolset::actor::ToolActor::Owner,
+            macro_uuid::Uuid::from_u128(1),
+            request(),
+            CancellationToken::new(),
+        )
         .await
         .unwrap();
     assert_eq!(credentials.0.lock().unwrap().len(), 1);
@@ -161,7 +175,14 @@ async fn run_uses_session_owner_and_records_source_and_result_without_credential
     changed.source.push(' ');
     assert!(matches!(
         service
-            .execute(&session, id, changed, CancellationToken::new())
+            .execute(
+                &session,
+                id,
+                ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
+                changed,
+                CancellationToken::new()
+            )
             .await,
         Err(CodeModeError::Duplicate)
     ));
@@ -177,6 +198,8 @@ async fn archived_or_inactive_sessions_never_receive_credentials() {
             .execute(
                 &session,
                 ExecutionId::mint(),
+                ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
                 request(),
                 CancellationToken::new()
             )
@@ -190,6 +213,8 @@ async fn archived_or_inactive_sessions_never_receive_credentials() {
             .execute(
                 &session,
                 ExecutionId::mint(),
+                ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
                 request(),
                 CancellationToken::new()
             )
@@ -204,14 +229,28 @@ async fn collision_does_not_lookup_another_session_or_issue_a_credential() {
     let session = test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
     let id = ExecutionId::mint();
     service
-        .execute(&session, id, request(), CancellationToken::new())
+        .execute(
+            &session,
+            id,
+            ai_toolset::actor::ToolActor::Owner,
+            macro_uuid::Uuid::from_u128(1),
+            request(),
+            CancellationToken::new(),
+        )
         .await
         .unwrap();
     let mut other = session.clone();
     other.id = AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7());
     assert!(matches!(
         service
-            .execute(&other, id, request(), CancellationToken::new())
+            .execute(
+                &other,
+                id,
+                ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
+                request(),
+                CancellationToken::new()
+            )
             .await,
         Err(CodeModeError::Invalid(_))
     ));
@@ -225,6 +264,8 @@ async fn unfinished_journal_reads_and_retries_report_uncertainty_without_replayi
     let session = test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
     let id = ExecutionId::mint();
     let mut record = ExecutionRecord {
+        acting_as: Some(ai_toolset::actor::ToolActor::Owner),
+        turn_id: Some(macro_uuid::Uuid::from_u128(1)),
         execution_id: id,
         source: request().source,
         status: ExecutionStatus::Running,
@@ -242,7 +283,14 @@ async fn unfinished_journal_reads_and_retries_report_uncertainty_without_replayi
     );
     let read = service.read(&access, id).await.unwrap();
     let retry = service
-        .execute(&session, id, request(), CancellationToken::new())
+        .execute(
+            &session,
+            id,
+            ai_toolset::actor::ToolActor::Owner,
+            macro_uuid::Uuid::from_u128(1),
+            request(),
+            CancellationToken::new(),
+        )
         .await
         .unwrap();
     assert!(read.error.as_ref().unwrap().contains("unconfirmed"));
@@ -316,7 +364,14 @@ async fn optional_reviews_default_to_empty_without_accepting_malformed_results()
             test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
         let id = ExecutionId::mint();
         let result = service
-            .execute(&session, id, request(), CancellationToken::new())
+            .execute(
+                &session,
+                id,
+                ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
+                request(),
+                CancellationToken::new(),
+            )
             .await
             .unwrap();
         assert_eq!(
@@ -349,6 +404,8 @@ async fn a_view_the_renderer_would_not_draw_fails_the_run_and_says_why() {
         .execute(
             &session,
             ExecutionId::mint(),
+            ai_toolset::actor::ToolActor::Owner,
+            macro_uuid::Uuid::from_u128(1),
             request(),
             CancellationToken::new(),
         )
@@ -417,7 +474,14 @@ async fn persists_live_activity_and_marks_unfinished_requests_unknown() {
     let session_id = session.id;
     let running = tokio::spawn(async move {
         service
-            .execute(&session, id, request(), CancellationToken::new())
+            .execute(
+                &session,
+                id,
+                ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
+                request(),
+                CancellationToken::new(),
+            )
             .await
             .unwrap()
     });
@@ -450,6 +514,8 @@ async fn persists_live_activity_and_marks_unfinished_requests_unknown() {
 #[test]
 fn activity_rejects_unknown_operations_and_is_bounded() {
     let mut record = ExecutionRecord {
+        acting_as: Some(ai_toolset::actor::ToolActor::Owner),
+        turn_id: Some(macro_uuid::Uuid::from_u128(1)),
         execution_id: ExecutionId::mint(),
         source: String::new(),
         status: ExecutionStatus::Running,
@@ -552,7 +618,14 @@ async fn cancellation_is_not_blocked_by_a_stalled_activity_save() {
     let token = cancel.clone();
     let run = tokio::spawn(async move {
         service
-            .execute(&session, ExecutionId::mint(), request(), token)
+            .execute(
+                &session,
+                ExecutionId::mint(),
+                ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(1),
+                request(),
+                token,
+            )
             .await
             .unwrap()
     });
@@ -570,6 +643,8 @@ async fn cancellation_is_not_blocked_by_a_stalled_activity_save() {
 fn running_record() -> ExecutionRecord {
     ExecutionRecord {
         execution_id: ExecutionId::mint(),
+        acting_as: None,
+        turn_id: None,
         source: String::new(),
         status: ExecutionStatus::Running,
         result: None,
@@ -734,7 +809,14 @@ async fn a_runs_receipt_carries_the_items_it_changed() {
     let session = test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
     let id = ExecutionId::mint();
     let receipt = service
-        .execute(&session, id, request(), CancellationToken::new())
+        .execute(
+            &session,
+            id,
+            ai_toolset::actor::ToolActor::Owner,
+            macro_uuid::Uuid::from_u128(1),
+            request(),
+            CancellationToken::new(),
+        )
         .await
         .unwrap();
     assert_eq!(receipt.status, ExecutionStatus::Succeeded);
@@ -745,4 +827,70 @@ async fn a_runs_receipt_carries_the_items_it_changed() {
     );
     let record = store.get(session.id, id).await.unwrap();
     assert_eq!(record.activity[0].item.as_ref(), Some(item));
+}
+
+#[tokio::test]
+async fn execution_retries_cannot_change_accounts_or_move_between_turns() {
+    let (service, credentials, _, turns) = service();
+    let session = test_agent_session(AgentSessionId::new());
+    let id = ExecutionId::mint();
+    service
+        .execute(
+            &session,
+            id,
+            ai_toolset::actor::ToolActor::Owner,
+            macro_uuid::Uuid::from_u128(1),
+            request(),
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+    assert!(matches!(
+        service
+            .execute(
+                &session,
+                id,
+                ai_toolset::actor::ToolActor::Requester,
+                macro_uuid::Uuid::from_u128(1),
+                request(),
+                CancellationToken::new()
+            )
+            .await,
+        Err(CodeModeError::Duplicate)
+    ));
+    *turns.0.lock().unwrap() = Some(macro_uuid::Uuid::from_u128(2));
+    assert!(matches!(
+        service
+            .execute(
+                &session,
+                id,
+                ai_toolset::actor::ToolActor::Owner,
+                macro_uuid::Uuid::from_u128(2),
+                request(),
+                CancellationToken::new()
+            )
+            .await,
+        Err(CodeModeError::Duplicate)
+    ));
+    assert_eq!(credentials.0.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_delayed_call_cannot_adopt_a_new_turn_or_receive_credentials() {
+    let (service, credentials, store, turns) = service();
+    let session = test_agent_session(AgentSessionId::new());
+    *turns.0.lock().unwrap() = Some(macro_uuid::Uuid::from_u128(2));
+    let result = service
+        .execute(
+            &session,
+            ExecutionId::mint(),
+            ai_toolset::actor::ToolActor::Requester,
+            macro_uuid::Uuid::from_u128(1),
+            request(),
+            CancellationToken::new(),
+        )
+        .await;
+    assert!(matches!(result, Err(CodeModeError::Forbidden)));
+    assert!(credentials.0.lock().unwrap().is_empty());
+    assert!(store.0.lock().unwrap().is_empty());
 }

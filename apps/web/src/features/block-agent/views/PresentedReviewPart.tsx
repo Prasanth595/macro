@@ -15,7 +15,6 @@ export function PresentedReviewPart(props: {
     Boolean(
       session?.sessionId() === props.sessionId &&
         session.userId() &&
-        session.userId() === session.session()?.ownerId &&
         session.session()?.canEdit &&
         !session.session()?.isArchived
     );
@@ -25,6 +24,7 @@ export function PresentedReviewPart(props: {
         sessionId={props.sessionId}
         reviewId={props.reviewId}
         canAct={canAct()}
+        ownerId={session?.session()?.ownerId}
         eventId={response.eventId()}
         onDecision={response.onDecision}
         onDecisionFailed={response.onDecisionFailed}

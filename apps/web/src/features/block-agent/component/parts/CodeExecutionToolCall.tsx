@@ -1,24 +1,23 @@
 import { ItemChip } from '@app/features/agent-cards/components/item-chip';
-import {
-  type ItemFact,
-  itemKey,
-} from '@app/features/agent-cards/core/run-cards';
+import type { ItemFact } from '@app/features/agent-cards/core/run-cards';
 import { isShowTool } from '@app/features/dynamic-ui/core/show-tool';
 import CodeIcon from '@phosphor/code.svg';
 import type {
+  ExecutionActivity,
   ExecutionRecord,
   RecordedToolCall,
 } from '@service-agent-harness/generated/schemas';
-import { createMemo, For, Show } from 'solid-js';
+import { For, Show } from 'solid-js';
 import { isToolActive, ToolCard, type ToolStatus } from '../../ui';
+import { LiveToolGroup } from '../../views/LiveToolGroup';
 import { MacroToolCall } from './MacroToolCall';
 import { ShowToolCall } from './ShowToolCall';
 import type { ToolCallCommon, ToolCallContext } from './shared';
 
 /**
- * A code run's SDK operations, grouped by what they did, each group naming
- * the items its writes created or changed. Observed inner calls keep their
- * registered Macro result components. The view the run returned shows under
+ * A code run's SDK operations, one row each, a completed write naming the
+ * item it created or changed. Observed inner calls keep their registered
+ * Macro result components. The view the run returned shows under
  * its steps, the way the view of a `Show` call after the run would.
  */
 export function CodeExecutionToolCall(props: {
@@ -31,53 +30,19 @@ export function CodeExecutionToolCall(props: {
   unavailable: boolean;
 }) {
   const calls = () => props.record?.calls ?? [];
+  const activity = () => props.record?.activity ?? [];
   const errorVisible = () =>
     Boolean(
       props.error &&
         (props.record?.status !== 'running' ||
           !isToolActive(props.common.status))
     );
-  const activity = createMemo(() => {
-    const groups = new Map<
-      string,
-      {
-        label: string;
-        completed: number;
-        running: number;
-        failed: number;
-        unknown: number;
-        items: ItemFact[];
-      }
-    >();
-    for (const item of props.record?.activity ?? []) {
-      const group = groups.get(item.label) ?? {
-        label: item.label,
-        completed: 0,
-        running: 0,
-        failed: 0,
-        unknown: 0,
-        items: [],
-      };
-      const changed = item.status === 'completed' ? item.item : undefined;
-      if (
-        changed &&
-        !group.items.some((fact) => itemKey(fact.item) === itemKey(changed))
-      ) {
-        group.items.push({
-          item: { type: changed.type, id: changed.id },
-          action: changed.action,
-          title: changed.title,
-        });
-      }
-      const status =
-        item.status === 'running' && !isToolActive(props.common.status)
-          ? 'unknown'
-          : item.status;
-      group[status] += 1;
-      groups.set(item.label, group);
-    }
-    return [...groups.values()];
-  });
+  const activeIndex = () =>
+    isToolActive(props.common.status)
+      ? activity().findIndex((item) => item.status === 'running')
+      : -1;
+  const active = () => activeIndex() !== -1;
+
   return (
     <div class="min-w-0" data-code-execution={props.record?.executionId}>
       <Show when={activity().length === 0 || errorVisible()}>
@@ -101,37 +66,24 @@ export function CodeExecutionToolCall(props: {
           </Show>
         </ToolCard>
       </Show>
-      <For each={activity()}>
-        {(group) => (
-          <>
-            <ToolCard
-              title={group.label}
-              status={
-                group.running > 0
-                  ? 'running'
-                  : group.failed > 0
-                    ? 'failed'
-                    : 'completed'
-              }
-              trailing={[
-                group.completed && `${group.completed} completed`,
-                group.running && `${group.running} running`,
-                group.failed && `${group.failed} failed`,
-                group.unknown && `${group.unknown} outcome unknown`,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            />
-            <Show when={group.items.length > 0}>
-              <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pl-6 text-sm">
-                <For each={group.items}>
-                  {(fact) => <ItemChip fact={fact} />}
-                </For>
+      <Show when={activity().length > 0}>
+        <LiveToolGroup
+          count={activity().length}
+          active={active()}
+          activeIndex={active() ? activeIndex() : undefined}
+        >
+          <For each={activity()}>
+            {(item) => (
+              <div class="min-h-8 shrink-0">
+                <ActivityRow
+                  item={item}
+                  turnActive={isToolActive(props.common.status)}
+                />
               </div>
-            </Show>
-          </>
-        )}
-      </For>
+            )}
+          </For>
+        </LiveToolGroup>
+      </Show>
       <Show when={props.record?.activityTruncated}>
         <p class="text-xs text-ink-extra-muted">
           Activity list limited to the first 128 requests.
@@ -175,6 +127,49 @@ export function CodeExecutionToolCall(props: {
         )}
       </Show>
     </div>
+  );
+}
+
+function ActivityRow(props: { item: ExecutionActivity; turnActive: boolean }) {
+  const status = (): ToolStatus => {
+    if (props.item.status === 'failed') return 'failed';
+    if (props.item.status === 'running' && props.turnActive) return 'running';
+    if (props.item.status === 'completed') return 'completed';
+    // Unfinished ops after the turn ends, or an unknown outcome.
+    return 'completed';
+  };
+  const uncertain = () =>
+    props.item.status === 'unknown' ||
+    (props.item.status === 'running' && !props.turnActive);
+  const changed = (): ItemFact | undefined => {
+    const item =
+      props.item.status === 'completed' ? props.item.item : undefined;
+    return item
+      ? {
+          item: { type: item.type, id: item.id },
+          action: item.action,
+          title: item.title,
+        }
+      : undefined;
+  };
+  const title = () => {
+    const fact = changed();
+    return fact ? (
+      <span class="flex min-w-0 items-center gap-2">
+        <span class="shrink-0">{props.item.label}</span>
+        <ItemChip fact={fact} />
+      </span>
+    ) : (
+      props.item.label
+    );
+  };
+  return (
+    <ToolCard
+      title={title()}
+      status={status()}
+      muted={uncertain()}
+      trailing={uncertain() ? 'Outcome unknown' : undefined}
+    />
   );
 }
 
