@@ -451,7 +451,8 @@ an untouched rule must not be reformatted and included in a reminder-only PATCH.
 As in Google Calendar, the guests row of the details popover (a bottom sheet on phones)
 carries `Copy guest emails` and `Email guests` icon buttons, both hidden when you are the
 only guest (always so on a snapshot). Copying puts every guest's address on the clipboard,
-comma-separated. Emailing opens a new email addressed to every guest but you — in a split
+comma-separated. Emailing opens a new email addressed to every guest but you, with the event
+title as its subject (as `Forward by email` fills it in) — in a split
 beside the calendar on desktop, as the full-screen composer on touch devices, in its own
 composer even when another one is open. Deleting an event asks first, and says guests will be
 notified only when someone besides you is on it.
@@ -460,10 +461,11 @@ whenever the event's `viewerCan.inviteGuests` allows it, including for a guest w
 organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
 phones): the current guests are listed under `Invited` without a remove control, the picker
 adds people, each new guest has an `Optional` checkbox, a recurring event offers `This
-event` / `All events`, and `Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape
-closes. The new guests appear at once as unanswered and a toast confirms the invitation
-once the provider accepts it. A guest who may not invite gets no button; instead the guest
-list opens with `Only the organizer can invite guests.`, and the same happens after the
+event` / `All events` (`All events` by default, like the editor's recurring edits), and
+`Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape closes. The new guests appear at
+once as unanswered and a toast confirms the invitation once the provider accepts it. A
+guest who may not invite gets no button; instead the guest list opens with `Only the
+organizer can invite guests.`, and the same happens after the
 provider refuses an invitation. In the event editor, the organizer edits guests as before,
 while a guest who may invite gets an add-only guests pill whose additions are sent as an
 invitation on save (other edits are saved first); a guest who may not invite keeps a
@@ -505,11 +507,13 @@ defaults (invite others and see the guest list) preselected on a new event and t
 locks it. The row shows on a new event and on an edit whose `viewerCan.setGuestPolicy` is true,
 on Google calendars only (the calendar's `capabilities.guestPolicy`); Outlook calendars and
 out-of-office events have none. Like the repeat rule, it is disabled while a recurring edit
-targets `This event`, since the policy belongs to the whole series, and choosing `This event`
-returns it to the stored values. Save sends `guestPolicy` only when it changed, and the guests'
-`viewerCan` follows once their copies sync: turning `Invite others` off replaces a guest's
-`Add guests` with `Only the organizer can invite guests.` The update refuses a policy change
-from anyone but the organizer with 403 `not_organizer`, and on an Outlook event with
+targets `This event`, since the policy belongs to the whole series, and says so after the
+switches (`Guest permissions apply to all events. Choose All events to change them.`);
+choosing `This event` returns it to the stored values. Save sends `guestPolicy` only when it
+changed, and the guests' `viewerCan` follows once their copies sync: turning `Invite others`
+off replaces a guest's `Add guests` with `Only the organizer can invite guests.` The update
+refuses a policy change from anyone but the organizer with 403 `not_organizer`, and on an
+Outlook event with
 `provider_rejected`. `viewerCan.organize` marks the organizer of the displayed copy, including
 on Outlook, where `setGuestPolicy` is false.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
@@ -1119,9 +1123,10 @@ is an accessible disclosure that starts closed and stays open across unchanged
 permission refreshes and window refocus on desktop and mobile; attachments remain below it.
 ICS attachments show a calendar icon in the attachment pill and file headers on
 desktop and mobile, including when the email uses `application/ics` or a
-parameterized `text/calendar` MIME type. Opening the attachment still shows the
-generic file viewer with download and share actions; the invitation card above
-is the event preview.
+parameterized `text/calendar` MIME type. Opening the attachment of a message that shows a
+card opens a dialog (a drawer on phones) with the same card, so its RSVP or `Add to calendar`
+works there, and `Download .ics`, which saves the file without adding it to Drive. A calendar
+file with no card (nothing Macro could read) downloads directly.
 Related recurring components are grouped behind their own disclosure. Only mail synced
 after the feature shipped gets a card; older invitations render as plain email.
 A newly arrived scheduling update shows RSVP and Join only once its calendar state has
