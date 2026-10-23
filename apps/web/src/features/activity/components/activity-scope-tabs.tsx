@@ -1,5 +1,5 @@
 import { PillTabs } from '@components/app/mobile/PillTabs';
-import { TabsInset } from '@core/component/TabsInset';
+import { Tabs } from '@ui';
 import type { ActivityScope } from '../core/event';
 
 const SCOPE_TABS: { value: ActivityScope; label: string }[] = [
@@ -7,20 +7,17 @@ const SCOPE_TABS: { value: ActivityScope; label: string }[] = [
   { value: 'team', label: 'Team' },
 ];
 
-/** The You / Team switch, as inset tabs beside the split header title. */
+/** The You / Team switch, as view tabs after the split header title. */
 export function ActivityScopeTabs(props: {
   value: ActivityScope;
   onChange: (scope: ActivityScope) => void;
 }) {
   return (
-    <TabsInset
+    <Tabs
       aria-label="Whose activity"
-      list={SCOPE_TABS}
+      options={SCOPE_TABS}
       value={props.value}
-      onChange={(value) => {
-        const tab = SCOPE_TABS.find((item) => item.value === value);
-        if (tab) props.onChange(tab.value);
-      }}
+      onChange={props.onChange}
     />
   );
 }
