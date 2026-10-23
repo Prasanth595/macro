@@ -466,6 +466,7 @@ function DeleteEventDialog(
  */
 function EventDetailsPopover(props: EventDetailsPopoverProps) {
   const [notesOpen, setNotesOpen] = createSignal(false);
+  let openingDocument = false;
   const { openWithSplit } = useSplitLayout();
   const openEventComposer = useOpenEventComposer();
   const deleteDialog = useDeleteEventDialog({
@@ -533,7 +534,8 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
               event.preventDefault();
             }}
             onCloseAutoFocus={(event) => {
-              const shouldRestoreFocus = !event.defaultPrevented;
+              const shouldRestoreFocus =
+                !openingDocument && !event.defaultPrevented;
               event.preventDefault();
               if (shouldRestoreFocus && props.anchor.isConnected) {
                 props.anchor.focus();
@@ -651,6 +653,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                       event={props.event}
                       onDialogChange={setNotesOpen}
                       onOpenDocument={(id) => {
+                        openingDocument = true;
                         openWithSplit(
                           { type: 'md', id },
                           { preferNewSplit: true }

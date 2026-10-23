@@ -11,6 +11,8 @@ Existing document editors and other sharing keep their access.
 
 Open the linked title to read the original document. On desktop it opens in a
 new split; on mobile it replaces the calendar pane and closes event details.
+Opening a note leaves focus available to the document as it mounts; dismissing
+desktop details normally returns focus to the calendar event.
 Document owners can select the audience label to change the optional team, or
 use **Unlink** to remove the meeting's grants without deleting the document.
 If the owner has since left the selected team, **Remove team access** still works.
