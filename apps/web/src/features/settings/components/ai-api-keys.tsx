@@ -16,13 +16,13 @@ import {
   useSaveAiApiKey,
 } from '@queries/auth/ai-api-keys';
 import type { AiProvider } from '@service-auth/generated/schemas/aiProvider';
-import { Button, confirmDialog } from '@ui';
+import { ApiKeyInput, Button, confirmDialog } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import { SettingsCard, SettingsRow, SettingsSection } from '../primitives';
 
-const PROVIDERS: { id: AiProvider; name: string; placeholder: string }[] = [
-  { id: 'anthropic', name: 'Anthropic', placeholder: 'sk-ant-…' },
-  { id: 'openai', name: 'OpenAI', placeholder: 'sk-…' },
+const PROVIDERS: { id: AiProvider; name: string; prefix: string }[] = [
+  { id: 'anthropic', name: 'Anthropic', prefix: 'sk-ant-' },
+  { id: 'openai', name: 'OpenAI', prefix: 'sk-' },
 ];
 
 export const TEAM_AI_API_KEYS_DESCRIPTION =
@@ -137,28 +137,22 @@ export function AiApiKeys(props: { owner: AiApiKeyOwner; canManage: boolean }) {
                   </span>
                 }
               >
-                <div class="flex min-w-0 items-center gap-2">
-                  <input
-                    type="password"
-                    autocomplete="off"
-                    spellcheck={false}
+                <div class="flex min-w-0 items-center gap-2 mobile:w-full">
+                  <ApiKeyInput
                     aria-label={`${provider.name} API key`}
-                    class="settings-input ph-no-capture w-44 min-w-0"
+                    class="w-52 mobile:w-auto mobile:flex-1"
+                    size="sm"
+                    prefix={provider.prefix}
+                    saved={stored(provider.id) !== undefined}
                     disabled={locked()}
-                    placeholder={
-                      stored(provider.id) ? 'Replace key' : provider.placeholder
-                    }
                     value={draft(provider.id)}
-                    onInput={(event) =>
-                      setDraft(provider.id, event.currentTarget.value)
+                    onValueChange={(value) => setDraft(provider.id, value)}
+                    onSubmit={() =>
+                      fireAndForget(
+                        handleSave(provider.id, provider.name),
+                        'ai-api-keys'
+                      )
                     }
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter')
-                        fireAndForget(
-                          handleSave(provider.id, provider.name),
-                          'ai-api-keys'
-                        );
-                    }}
                   />
                   <Button
                     type="button"
