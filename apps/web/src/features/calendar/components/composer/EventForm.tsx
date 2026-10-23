@@ -129,11 +129,14 @@ export function EventForm(props: EventFormProps) {
     formIsDisabled() || fieldIsReadOnly(field);
   const detailsLocked = () => props.detailsReadOnlyReason !== undefined;
   // A single occurrence has no repeat rule of its own; like the guest
-  // permissions, the rule belongs to the whole series.
+  // permissions, the rule belongs to the whole series. A lock already says
+  // why the rule cannot change.
   const recurrenceScopeReason = () =>
-    editScope() === 'this_event'
+    editScope() === 'this_event' && !detailsLocked()
       ? 'The repeat rule applies to all events. Choose All events to change it.'
       : undefined;
+  const recurrenceReadOnlyReason = () =>
+    props.detailsReadOnlyReason ?? recurrenceScopeReason();
 
   const capabilities = () => controller.selectedCalendarOption()?.capabilities;
   const conferenceLocked = () =>
@@ -320,9 +323,7 @@ export function EventForm(props: EventFormProps) {
                 readOnly={fieldIsReadOnly('calendar')}
               />
             </LockedField>
-            <LockedField
-              reason={props.detailsReadOnlyReason ?? recurrenceScopeReason()}
-            >
+            <LockedField reason={recurrenceReadOnlyReason()}>
               <EventComposerRecurrencePill
                 options={controller.recurrenceOptions()}
                 value={controller.selectedRecurrenceOption()}
@@ -441,12 +442,7 @@ export function EventForm(props: EventFormProps) {
           <Show when={props.detailsReadOnlyReason}>
             {(reason) => <p class="text-xs text-ink-muted">{reason()}</p>}
           </Show>
-          <Show
-            when={
-              props.detailsReadOnlyReason === undefined &&
-              recurrenceScopeReason()
-            }
-          >
+          <Show when={recurrenceScopeReason()}>
             {(reason) => <p class="text-xs text-ink-muted">{reason()}</p>}
           </Show>
           <Show when={conferenceLocked()}>
