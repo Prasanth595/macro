@@ -13,9 +13,10 @@ and macOS. Keep credentials out of `$APPCACHE`: iOS may purge that directory
 under storage pressure. The same native jar supplies HTTP and WebSocket cookies;
 this is separate from the WebView's browser storage.
 
-The plugin fork's `init_with_cookie_store_path` accepts the path at registration.
-Its default `init()` still uses the cache directory. Macro deliberately does not
-migrate the old cache file, so the first launch after this native update requires
+Macro passes `$APPLOCALDATA` to the plugin fork's `init_with_cookie_store_dir`;
+the plugin owns the `.cookies` filename within that directory. Its default
+`init()` still uses the cache directory. Macro deliberately does not migrate
+the old cache file, so the first launch after this native update requires
 sign-in again. Cookie expiry, refresh, and write behavior are unchanged. This
 requires a native app release; an OTA frontend bundle cannot relocate the jar.
 

@@ -285,8 +285,8 @@ pub fn run_with(builder: tauri::Builder<AppRuntime>) {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_device_info::init())
-        .plugin(tauri_plugin_http::init_with_cookie_store_path(
-            "$APPLOCALDATA/.cookies",
+        .plugin(tauri_plugin_http::init_with_cookie_store_dir(
+            "$APPLOCALDATA",
         ))
         .plugin(
             tauri_plugin_websocket::Builder::new()
