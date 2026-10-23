@@ -116,10 +116,13 @@ A requesting host presents the authentication service's own internal key,
 configured as `AUTHENTICATION_SERVICE_SECRET_KEY`. In dev and prod that value is
 the Secrets Manager secret name `authentication-service-internal-api-key-<env>`,
 which the host resolves at startup, so its task role needs read access to that
-secret; locally it is the key itself. The key is mandatory for document
-cognition. It is optional in the other hosts' configuration while
-`ENABLE_AI_USAGE_BILLING` is false and mandatory once it is true: a host
-enabling billing without the key fails startup rather than quietly recording
+secret; locally it is the key itself. Document cognition, public MCP, and
+scheduling run inside the agent harness process and read the same value from its
+`agent-harness-service` Doppler config. Cognition requires the key, so the
+harness does not start without it, and in dev and prod it also does not start
+when the value is not a secret name it can read, including an empty value. The
+harness's own and scheduling's settlement routes additionally refuse to start
+with `ENABLE_AI_USAGE_BILLING` true and no key, rather than quietly recording
 chargeable usage that only the sweep settles. Hosts without the recorder
 (document storage, the standalone trigger service, memory) are covered by the
 sweep alone; memory's usage is exempt and never chargeable.
@@ -380,12 +383,13 @@ procedure. Operators must approve and record each release gate.
    `AI_USAGE_INCLUDED_ALLOWANCE_CENTS`, `AI_USAGE_MAX_INCLUDED_ALLOWANCE_CENTS`,
    and `AI_USAGE_OVERAGE_MARKUP_PERCENT` are mandatory for these same hosts
    whatever the flags say; see [Settlement](#settlement-enable_ai_usage_billing).
-   Before `ENABLE_AI_USAGE_BILLING` is turned on for the agent harness, MCP, or
-   scheduled action service, register `AUTHENTICATION_SERVICE_SECRET_KEY` as the
-   secret name `authentication-service-internal-api-key-<env>` (see
-   [Settlement](#settlement-enable_ai_usage_billing)) in that service's Doppler
-   config and confirm its task role can read that secret; those hosts refuse to
-   start with billing on and the key absent, or with a name they cannot read.
+   Before `ENABLE_AI_USAGE_BILLING` is turned on for the agent harness (which
+   hosts cognition, public MCP, and scheduling), confirm
+   `AUTHENTICATION_SERVICE_SECRET_KEY` in its `agent-harness-service` Doppler
+   config is exactly the secret name `authentication-service-internal-api-key-<env>`
+   (see [Settlement](#settlement-enable_ai_usage_billing)) and that its task role
+   can read that secret; the harness refuses to start with the key absent, empty,
+   or a name it cannot read.
    Verify the effective startup value for every replica/worker. Registration and
    hosted access require operator approval; code defaults are not proof of it.
 4. **Validate locally, then in an approved staging environment.** Use the checklist
