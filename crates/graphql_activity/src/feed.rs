@@ -2,15 +2,12 @@ use std::num::NonZeroU32;
 
 use async_graphql::{Context, Enum, InputObject, SimpleObject};
 use chrono::{DateTime, Utc};
-use entity_access::domain::ports::EntityAccessService;
 use macro_user_id::user_id::MacroUserIdStr;
 use models_pagination::{Base64Str, CursorVal, CursorWithVal, Sortable};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{
-    loaders::ActivityFeedReader, objects::GraphqlActivityEvent, team_feed::read_team_feed,
-};
+use crate::{loaders::ActivityFeedReader, objects::GraphqlActivityEvent};
 
 #[cfg(test)]
 mod test;
@@ -39,8 +36,9 @@ pub enum ActivityFeedScope {
     #[default]
     Mine,
     /// Activity by the authenticated user's teammates, on entities shared
-    /// with the user (link sharing alone does not count; forms only when the
-    /// user can edit them).
+    /// with the user (link sharing alone does not count; forms never). A
+    /// page may hold fewer items than its limit, or none, while
+    /// `nextCursor` is set: keep paging until it is absent.
     Team,
 }
 
@@ -99,19 +97,18 @@ fn encode_cursor(occurred_at: DateTime<Utc>, id: Uuid, limit: u32) -> String {
 ///
 /// In the `MINE` scope the subject is the viewer's principal string, so
 /// delegated actions a bot performed on the user's behalf appear in the
-/// user's own feed. The `TEAM` scope reads the user's teammates and drops
-/// rows on entities not shared with the viewer. Pagination follows the
-/// page's `next` position, which storage derives from raw rows — a corrupt
-/// or hidden row shrinks a page (possibly to empty) but never ends the feed.
-pub async fn resolve_activity_feed<R, A>(
+/// user's own feed. In the `TEAM` scope storage keeps only teammates' rows on
+/// entities shared with the viewer. Pagination follows the page's `next`
+/// position, which storage derives from raw rows — a corrupt row, or a team
+/// page's bounded scan, shrinks a page (possibly to empty) but never ends the
+/// feed.
+pub async fn resolve_activity_feed<R>(
     ctx: &Context<'_>,
-    access: &A,
     user_id: &MacroUserIdStr<'static>,
     input: ActivityFeedInput,
 ) -> async_graphql::Result<GraphqlActivityPage>
 where
     R: ActivityFeedReader,
-    A: EntityAccessService,
 {
     let reader = ctx.data::<R>()?;
     let limit = parse_feed_limit(input.limit)?;
@@ -119,7 +116,7 @@ where
 
     let page = match input.scope {
         ActivityFeedScope::Mine => reader.subject_feed(user_id.as_ref(), cursor, limit).await,
-        ActivityFeedScope::Team => read_team_feed(reader, access, user_id, cursor, limit).await,
+        ActivityFeedScope::Team => reader.teammate_feed(user_id.as_ref(), cursor, limit).await,
     }
     .map_err(|_| async_graphql::Error::new("activity feed is unavailable"))?;
 

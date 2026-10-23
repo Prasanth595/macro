@@ -116,8 +116,8 @@ impl<R: ActivityReads + Send + Sync, A: EntityAccessService> ActivityReads
         cursor: Option<(DateTime<Utc>, Uuid)>,
         limit: NonZeroU32,
     ) -> Result<ActivityFeedPage, Self::Err> {
-        // Teammate rows reach no feed until the caller checks every entity,
-        // initiatives included, against the viewer's current access.
+        // Storage keeps only rows on entities shared with the viewer,
+        // initiatives included, so there is nothing to filter here.
         self.reads
             .teammate_feed(viewer_id, cursor, limit)
             .await

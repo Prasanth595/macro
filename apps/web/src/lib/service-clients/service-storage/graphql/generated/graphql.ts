@@ -22,8 +22,9 @@ export type ActivityFeedScope =
   | 'MINE'
   /**
    * Activity by the authenticated user's teammates, on entities shared
-   * with the user (link sharing alone does not count; forms only when the
-   * user can edit them).
+   * with the user (link sharing alone does not count; forms never). A
+   * page may hold fewer items than its limit, or none, while
+   * `nextCursor` is set: keep paging until it is absent.
    */
   | 'TEAM';
 

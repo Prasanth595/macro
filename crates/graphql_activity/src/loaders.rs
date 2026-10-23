@@ -78,9 +78,10 @@ pub trait ActivityFeedReader: Send + Sync + 'static {
         limit: NonZeroU32,
     ) -> impl Future<Output = Result<ActivityFeedPage, ActivityReadFailed>> + Send + 'a;
 
-    /// One page of the activity of the viewer's teammates, paginated like
-    /// [`subject_feed`](Self::subject_feed). Rows are not access-checked;
-    /// the caller filters them to entities the viewer can see.
+    /// One page of the activity of the viewer's teammates on entities
+    /// shared with the viewer, paginated like
+    /// [`subject_feed`](Self::subject_feed). A page may come up short, or
+    /// empty, while `next` is set.
     fn teammate_feed<'a>(
         &'a self,
         viewer_id: &'a str,

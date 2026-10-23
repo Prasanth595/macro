@@ -1025,15 +1025,11 @@ impl EntityAccessService for CountingEntityAccessService {
         entity_type: EntityType,
     ) -> Result<EntityAccessReceipt<T>, AccessError> {
         // The viewer views exactly one database, responds to one form (View),
-        // edits another, views one document through its link, and reaches
-        // nothing else. A level the grant does not satisfy is refused as the
-        // real service refuses it.
+        // edits another, and reaches nothing else. A level the grant does not
+        // satisfy is refused as the real service refuses it.
         let grant = match (entity_type, entity_id) {
             (EntityType::Database, database_activity::VIEWABLE_DATABASE_ID)
-            | (EntityType::Form, form_activity::RESPONDED_FORM_ID)
-            | (EntityType::Document, team_activity::LINK_SHARED_DOCUMENT_ID) => {
-                Some(AccessLevel::View)
-            }
+            | (EntityType::Form, form_activity::RESPONDED_FORM_ID) => Some(AccessLevel::View),
             (EntityType::Form, form_activity::EDITABLE_FORM_ID) => Some(AccessLevel::Edit),
             (EntityType::Database | EntityType::Form, _) => None,
             (EntityType::EmailThread, _) => {
@@ -1125,31 +1121,10 @@ impl EntityAccessService for CountingEntityAccessService {
 
     async fn get_users_by_entity(
         &self,
-        entity_id: &str,
-        entity_type: EntityType,
+        _entity_id: &str,
+        _entity_type: EntityType,
     ) -> Result<Vec<MacroUserIdStr<'static>>, AccessError> {
-        // The viewer is in the audience of what it was granted, and of one
-        // joined channel; a link share grants View without joining it.
-        let in_audience = match (entity_type, entity_id) {
-            (EntityType::Database, database_activity::VIEWABLE_DATABASE_ID)
-            | (
-                EntityType::Form,
-                form_activity::RESPONDED_FORM_ID | form_activity::EDITABLE_FORM_ID,
-            )
-            | (EntityType::Channel, team_activity::JOINED_CHANNEL_ID) => true,
-            (EntityType::Database | EntityType::Form | EntityType::Channel, _)
-            | (EntityType::Document, team_activity::LINK_SHARED_DOCUMENT_ID) => false,
-            (EntityType::EmailThread, _) => self
-                .viewable_email_threads
-                .lock()
-                .unwrap()
-                .contains(&Uuid::parse_str(entity_id).unwrap()),
-            _ => return Err(AccessError::internal("test access failure")),
-        };
-        Ok(in_audience
-            .then(|| MacroUserIdStr::parse_from_str(VALID_USER_ID).unwrap())
-            .into_iter()
-            .collect())
+        Err(AccessError::internal("test access failure"))
     }
 
     async fn get_call_channel(

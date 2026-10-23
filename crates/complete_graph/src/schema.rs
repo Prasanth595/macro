@@ -781,8 +781,7 @@ where
         ctx: &Context<'_>,
         input: ActivityFeedInput,
     ) -> async_graphql::Result<GraphqlActivityPage> {
-        let access = Arc::<EAS>::from_ref(ctx.data::<St>()?);
-        resolve_activity_feed::<AcR, EAS>(ctx, &*access, &self.user_id, input).await
+        resolve_activity_feed::<AcR>(ctx, &self.user_id, input).await
     }
 
     /// The newest activity on a database the authenticated user can view,

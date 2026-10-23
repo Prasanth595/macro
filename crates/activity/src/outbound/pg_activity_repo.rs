@@ -1,5 +1,6 @@
 //! Postgres adapter for the `activity_events` table (MacroDB).
 
+mod team_feed;
 #[cfg(test)]
 mod test;
 mod timeline;
@@ -244,87 +245,7 @@ impl ActivityReads for PgActivityRepo {
         cursor: Option<(DateTime<Utc>, Uuid)>,
         limit: NonZeroU32,
     ) -> Result<ActivityFeedPage, Self::Err> {
-        // Same raw-row probe and cursor as `subject_feed`. Each teammate's
-        // newest rows come from one lateral seek of the subject index, so
-        // the merge sorts at most teammates × (limit + 1) rows instead of
-        // the team's whole history.
-        let limit = limit.get();
-        let fetch = i64::from(limit) + 1;
-        let mut rows = match cursor {
-            None => {
-                sqlx::query_as!(
-                    StoredRow,
-                    r#"
-                    SELECT a.id AS "id!", a.actor_id AS "actor_id!",
-                           a.action AS "action!", a.action_payload,
-                           a.subject_id AS "subject_id!",
-                           a.entity_type AS "entity_type!", a.entity_id AS "entity_id!",
-                           a.occurred_at AS "occurred_at!"
-                    FROM (
-                        SELECT DISTINCT member.user_id
-                        FROM team_user viewer
-                        JOIN team_user member ON member.team_id = viewer.team_id
-                        WHERE viewer.user_id = $1 AND member.user_id <> $1
-                    ) teammate
-                    CROSS JOIN LATERAL (
-                        SELECT * FROM activity_events e
-                        WHERE e.subject_id = teammate.user_id
-                        ORDER BY e.occurred_at DESC, e.id DESC
-                        LIMIT $2
-                    ) a
-                    ORDER BY a.occurred_at DESC, a.id DESC
-                    LIMIT $2
-                    "#,
-                    viewer_id,
-                    fetch,
-                )
-                .fetch_all(&self.pool)
-                .await?
-            }
-            Some((cursor_at, cursor_id)) => {
-                sqlx::query_as!(
-                    StoredRow,
-                    r#"
-                    SELECT a.id AS "id!", a.actor_id AS "actor_id!",
-                           a.action AS "action!", a.action_payload,
-                           a.subject_id AS "subject_id!",
-                           a.entity_type AS "entity_type!", a.entity_id AS "entity_id!",
-                           a.occurred_at AS "occurred_at!"
-                    FROM (
-                        SELECT DISTINCT member.user_id
-                        FROM team_user viewer
-                        JOIN team_user member ON member.team_id = viewer.team_id
-                        WHERE viewer.user_id = $1 AND member.user_id <> $1
-                    ) teammate
-                    CROSS JOIN LATERAL (
-                        SELECT * FROM activity_events e
-                        WHERE e.subject_id = teammate.user_id
-                          AND (e.occurred_at, e.id) < ($2, $3)
-                        ORDER BY e.occurred_at DESC, e.id DESC
-                        LIMIT $4
-                    ) a
-                    ORDER BY a.occurred_at DESC, a.id DESC
-                    LIMIT $4
-                    "#,
-                    viewer_id,
-                    cursor_at,
-                    cursor_id,
-                    fetch,
-                )
-                .fetch_all(&self.pool)
-                .await?
-            }
-        };
-
-        let has_more = rows.len() > limit as usize;
-        rows.truncate(limit as usize);
-        let next = has_more
-            .then(|| rows.last().map(|row| (row.occurred_at, row.id)))
-            .flatten();
-        Ok(ActivityFeedPage {
-            records: rows.into_iter().filter_map(StoredRow::decode).collect(),
-            next,
-        })
+        team_feed::teammate_feed(&self.pool, viewer_id, cursor, limit, team_feed::TEAM_SCAN).await
     }
 
     async fn entity_activity(
