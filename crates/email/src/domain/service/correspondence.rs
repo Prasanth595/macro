@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     correspondence::{
-        Correspondent, CorrespondenceWindow, EmailCorrespondence, EmailCorrespondenceRepo,
+        CorrespondenceWindow, Correspondent, EmailCorrespondence, EmailCorrespondenceRepo,
         OpenThread,
     },
     models::EmailErr,

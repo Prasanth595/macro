@@ -1,6 +1,6 @@
 use super::*;
 use crate::domain::correspondence::{
-    Correspondent, CorrespondenceWindow, EmailCorrespondenceRepo, OpenThread, WaitingOn,
+    CorrespondenceWindow, Correspondent, EmailCorrespondenceRepo, OpenThread, WaitingOn,
 };
 
 const LINK_ID: Uuid = uuid::uuid!("00000000-0000-0000-0000-00000000c001");

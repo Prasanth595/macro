@@ -1,0 +1,1 @@
+Each weekday morning, list the email threads where someone I work with wrote last and I haven't replied, oldest first. Give one line per thread on what they need from me. Leave out newsletters, notifications and cold email. Write only to me; draft nothing and send nothing.

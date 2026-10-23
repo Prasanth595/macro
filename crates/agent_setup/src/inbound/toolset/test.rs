@@ -26,6 +26,7 @@ fn the_toolset_builds_with_valid_schemas() {
         [
             "SetupConnect",
             "SetupDiscover",
+            "SetupFirstLook",
             "SetupGetState",
             "SetupGetStatus",
             "SetupImport",
@@ -43,6 +44,7 @@ fn reads_are_read_only_and_writes_are_idempotent_and_never_destructive() {
         SetupDiscover::ANNOTATIONS.kind,
         SetupProposePlan::ANNOTATIONS.kind,
         SetupGetStatus::ANNOTATIONS.kind,
+        SetupFirstLook::ANNOTATIONS.kind,
     ] {
         assert_eq!(kind, ToolKind::ReadOnly);
     }
@@ -122,6 +124,7 @@ async fn internal_failures_tell_the_agent_to_retry_once_then_move_on() {
             imports: Arc::new(FakeImports::new(Vec::new(), Vec::new(), Vec::new())),
             connections: Arc::new(BrokenConnections),
             inbox: Arc::new(FakeInbox::default()),
+            activity: Arc::new(crate::test_support::FakeActivity::default()),
             accounts: Arc::new(FakeAccounts::default()),
         },
         SetupConfig::new("https://macro.com"),

@@ -641,6 +641,12 @@ pub async fn build_tool_service_context_from_env(
             inbox: Arc::new(agent_setup::outbound::email::EmailSetupInbox::new(
                 user_email_service.clone(),
             )),
+            activity: Arc::new(agent_setup::outbound::activity::MailAndCalendar::new(
+                user_email_service.clone(),
+                Arc::new(calendar_events::domain::service::CalendarService::new(
+                    calendar_events::outbound::pg::PgCalendarRepository::new(pool.clone()),
+                )),
+            )),
         };
         (
             ToolImportToolContext::wired(import_service),

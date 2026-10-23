@@ -391,3 +391,102 @@ pub struct PlanRequest {
     /// keeps the planner's choice per item.
     pub notion_sharing: Option<NotionSharing>,
 }
+
+/// Someone the person works with, from their mail and calendar.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct Person {
+    /// Their address.
+    pub email: String,
+    /// Their name, when mail or the calendar has one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// Emails the person sent them in the last 180 days.
+    pub emails_sent: u32,
+    /// Emails they sent the person in the last 180 days.
+    pub emails_received: u32,
+    /// Meetings together in the last 30 days and the next 7.
+    pub meetings: u32,
+    /// Their latest email or meeting.
+    pub last_contact: DateTime<Utc>,
+}
+
+/// An outside organization the person works with, by email domain.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct Company {
+    /// Its email domain, e.g. "acme.com".
+    pub domain: String,
+    /// A name guessed from the domain; check it against a thread.
+    pub name_guess: String,
+    /// The people there the person works with most.
+    pub people: Vec<Person>,
+    /// Emails either way with everyone there.
+    pub emails: u32,
+    /// Meetings with anyone there.
+    pub meetings: u32,
+    /// The latest email or meeting with anyone there.
+    pub last_contact: DateTime<Utc>,
+}
+
+/// A recent email thread waiting on a reply.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct WaitingThread {
+    /// Read it with GetThread.
+    pub thread_id: String,
+    /// Its subject.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject: Option<String>,
+    /// Who is on the other side.
+    pub with: Vec<String>,
+    /// When the latest message was sent.
+    pub since: DateTime<Utc>,
+}
+
+/// A meeting this week with people outside the person's company.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct UpcomingMeeting {
+    /// Its title.
+    pub title: String,
+    /// When it starts.
+    pub starts_at: DateTime<Utc>,
+    /// The outside attendees.
+    pub outside: Vec<String>,
+    /// Open threads with any of them, from `waiting_on_you` or
+    /// `waiting_on_them`.
+    pub open_threads: Vec<String>,
+}
+
+/// A routine Macro could run for the person, with the evidence for it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct RoutineIdea {
+    /// The routine's name, for CreateRoutine.
+    pub name: String,
+    /// What in their mail or calendar suggests it, to tell the person.
+    pub why: String,
+    /// When it runs: a cron expression in the person's time zone.
+    pub cron: String,
+    /// What it does, for CreateRoutine.
+    pub instructions: String,
+}
+
+/// What Macro found in the person's mail and calendar.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct FirstLook {
+    /// This setup's handle.
+    pub setup_id: SetupId,
+    /// People at the person's own company (same work domain).
+    pub teammates: Vec<Person>,
+    /// Outside organizations, most contact first.
+    pub companies: Vec<Company>,
+    /// Threads where the other side wrote last.
+    pub waiting_on_you: Vec<WaitingThread>,
+    /// Threads where the person's email has gone unanswered for 3 days.
+    pub waiting_on_them: Vec<WaitingThread>,
+    /// This week's meetings with outside attendees.
+    pub meetings: Vec<UpcomingMeeting>,
+    /// Routines worth offering, one at a time.
+    pub routine_ideas: Vec<RoutineIdea>,
+    /// What was left out and why.
+    pub left_out: String,
+    /// What to do next.
+    pub next_step: String,
+}

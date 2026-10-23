@@ -4,7 +4,7 @@ use uuid::Uuid;
 use super::EmailPgRepo;
 use crate::domain::{
     correspondence::{
-        Correspondent, CorrespondenceWindow, EmailCorrespondenceRepo, OpenThread, WaitingOn,
+        CorrespondenceWindow, Correspondent, EmailCorrespondenceRepo, OpenThread, WaitingOn,
     },
     models::EmailErr,
 };

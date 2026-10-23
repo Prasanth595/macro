@@ -9,8 +9,11 @@ ai_toolset = { path = "../ai_toolset" }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
+calendar_events = { path = "../calendar_events" }
 chrono = { workspace = true }
 email = { path = "../email", features = ["ports"] }
+email_utils = { path = "../email_utils" }
+generic_email_domains = { path = "../generic_email_domains" }
 import = { path = "../import" }
 import_notion = { path = "../import_notion" }
 macro_user_id = { path = "../macro_user_id" }

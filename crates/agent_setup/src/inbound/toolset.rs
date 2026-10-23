@@ -21,8 +21,8 @@ use serde::Deserialize;
 
 use crate::domain::{
     models::{
-        ConnectResult, DiscoverResult, ImportStarted, PlanRequest, ProposedPlan, Selection,
-        SetupReport, SetupState,
+        ConnectResult, DiscoverResult, FirstLook, ImportStarted, PlanRequest, ProposedPlan,
+        Selection, SetupReport, SetupState,
     },
     ports::SetupError,
     service::{AgentSetupService, DISCOVERY_WAIT, IMPORT_WAIT, MAX_WAIT},
@@ -66,6 +66,7 @@ pub fn setup_toolset() -> AsyncToolCollection<SetupToolContext> {
         .add_tool::<SetupProposePlan, SetupToolContext>()
         .add_tool::<SetupImport, SetupToolContext>()
         .add_tool::<SetupGetStatus, SetupToolContext>()
+        .add_tool::<SetupFirstLook, SetupToolContext>()
 }
 
 fn tool_error(step: &str, error: SetupError) -> ToolCallError {
@@ -462,5 +463,47 @@ impl AsyncTool<SetupToolContext> for SetupGetStatus {
             )
             .await
             .map_err(|error| tool_error("reading import progress", error))
+    }
+}
+
+/// Who the person works with, from their mail and calendar.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[schemars(
+    title = "SetupFirstLook",
+    description = "What the person's connected inbox and calendar show about their work: \
+                   teammates, the outside companies they work with most, threads waiting on \
+                   them or on others, this week's outside meetings, and routine ideas with the \
+                   evidence for each. Worked out from counts, subjects and attendees; reads no \
+                   message bodies. Call it once setup's imports are done, or whenever the person \
+                   asks what Macro can do for them. Read-only."
+)]
+pub struct SetupFirstLook {
+    /// The setup handle.
+    #[schemars(description = "setup_id from an earlier result, if you have one.")]
+    #[serde(default)]
+    pub setup_id: Option<String>,
+}
+
+impl ToolAnnotated for SetupFirstLook {
+    const ANNOTATIONS: ToolAnnotations =
+        ToolAnnotations::read_only("See who the person works with");
+}
+
+#[async_trait]
+impl AsyncTool<SetupToolContext> for SetupFirstLook {
+    type Output = FirstLook;
+
+    #[tracing::instrument(skip_all, fields(user_id = %request_context.user_id), err)]
+    async fn call(
+        &self,
+        service_context: ServiceContext<SetupToolContext>,
+        request_context: RequestContext,
+    ) -> ToolResult<Self::Output> {
+        check_setup_id(&request_context, self.setup_id.as_deref())?;
+        service_context
+            .service()?
+            .first_look(&request_context.user_id)
+            .await
+            .map_err(|error| tool_error("reading the inbox and calendar", error))
     }
 }

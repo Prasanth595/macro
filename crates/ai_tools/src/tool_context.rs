@@ -1922,6 +1922,8 @@ pub struct ToolAgentSetupParts {
     pub connections: Arc<dyn agent_setup::domain::ports::SetupConnections>,
     /// The person's inboxes.
     pub inbox: Arc<dyn agent_setup::domain::ports::SetupInbox>,
+    /// What the person's mail and calendar show about their work.
+    pub activity: Arc<dyn agent_setup::domain::ports::SetupActivity>,
 }
 
 /// Type alias for the import tool context, wired by hosts with connector access.

@@ -94,6 +94,7 @@ fn build_agent_setup(
             imports: parts.imports,
             connections: parts.connections,
             inbox: parts.inbox,
+            activity: parts.activity,
             accounts: Arc::new(HandoverSetupAccounts::new(onboarding, handover.clone())),
         },
         agent_setup::domain::service::SetupConfig::new(app_base_url),

@@ -7,6 +7,8 @@
 //! approved.
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use email::domain::correspondence::{CorrespondenceWindow, Correspondent, OpenThread};
 use import::domain::{
     models::{ImportSource, ImportState, NotionImportReport, NotionSharing, NotionWriteChoices},
     service::RunImportOutcome,
@@ -118,6 +120,55 @@ pub struct Inbox {
 pub trait SetupInbox: Send + Sync + 'static {
     /// The inboxes connected to the account.
     async fn inboxes(&self, user: &MacroUserIdStr<'static>) -> Result<Vec<Inbox>>;
+}
+
+/// Someone at a meeting other than the person.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MeetingAttendee {
+    /// Lowercased address.
+    pub email: String,
+    /// Display name, when the calendar has one.
+    pub name: Option<String>,
+}
+
+/// One timed meeting on the person's calendar that they haven't declined.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Meeting {
+    /// Its title.
+    pub title: String,
+    /// When it starts.
+    pub starts_at: DateTime<Utc>,
+    /// Everyone invited except the person.
+    pub attendees: Vec<MeetingAttendee>,
+}
+
+/// What the person's own mail and calendar show about their work: counts,
+/// subjects and attendees, never message bodies.
+// `async_trait`: held as `Arc<dyn SetupActivity>`.
+#[async_trait]
+pub trait SetupActivity: Send + Sync + 'static {
+    /// The people the person has written to, most mail first.
+    async fn correspondents(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        window: CorrespondenceWindow,
+    ) -> Result<Vec<Correspondent>>;
+
+    /// Recent threads waiting on a reply, newest first.
+    async fn open_threads(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        window: CorrespondenceWindow,
+        stale_before: DateTime<Utc>,
+    ) -> Result<Vec<OpenThread>>;
+
+    /// Meetings starting in `[from, to)`, earliest first.
+    async fn meetings(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> Result<Vec<Meeting>>;
 }
 
 /// How the account is being set up.

@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use chrono::{DateTime, TimeZone, Utc};
+use email::domain::correspondence::{CorrespondenceWindow, Correspondent, OpenThread};
 use import::domain::{
     models::{
         ImportEntity, ImportRun, ImportSource, ImportState, ImportStatus, Initiator,
@@ -18,8 +19,8 @@ use uuid::Uuid;
 use crate::domain::{
     catalog::{App, MailProvider},
     ports::{
-        AccountStatus, Inbox, Result, SetupAccounts, SetupConnections, SetupError, SetupImports,
-        SetupInbox,
+        AccountStatus, Inbox, Meeting, Result, SetupAccounts, SetupActivity, SetupConnections,
+        SetupError, SetupImports, SetupInbox,
     },
     service::{AgentSetupService, SetupConfig, SetupPorts},
 };
@@ -422,6 +423,46 @@ impl SetupConnections for BrokenConnections {
     }
 }
 
+/// The person's mail and calendar activity, as the activity port returns it.
+#[derive(Default)]
+pub struct FakeActivity {
+    /// People the person wrote to.
+    pub correspondents: Mutex<Vec<Correspondent>>,
+    /// Threads waiting on a reply.
+    pub open_threads: Mutex<Vec<OpenThread>>,
+    /// Meetings.
+    pub meetings: Mutex<Vec<Meeting>>,
+}
+
+#[async_trait]
+impl SetupActivity for FakeActivity {
+    async fn correspondents(
+        &self,
+        _user: &MacroUserIdStr<'static>,
+        _window: CorrespondenceWindow,
+    ) -> Result<Vec<Correspondent>> {
+        Ok(self.correspondents.lock().unwrap().clone())
+    }
+
+    async fn open_threads(
+        &self,
+        _user: &MacroUserIdStr<'static>,
+        _window: CorrespondenceWindow,
+        _stale_before: DateTime<Utc>,
+    ) -> Result<Vec<OpenThread>> {
+        Ok(self.open_threads.lock().unwrap().clone())
+    }
+
+    async fn meetings(
+        &self,
+        _user: &MacroUserIdStr<'static>,
+        _from: DateTime<Utc>,
+        _to: DateTime<Utc>,
+    ) -> Result<Vec<Meeting>> {
+        Ok(self.meetings.lock().unwrap().clone())
+    }
+}
+
 /// A service over the fakes, with handles to inspect them.
 pub struct Fixture {
     /// The service.
@@ -432,6 +473,8 @@ pub struct Fixture {
     pub connections: Arc<FakeConnections>,
     /// The accounts fake.
     pub accounts: Arc<FakeAccounts>,
+    /// The mail and calendar fake.
+    pub activity: Arc<FakeActivity>,
 }
 
 /// Builds a service over the fakes.
@@ -444,6 +487,7 @@ pub fn fixture(
     let imports = Arc::new(imports);
     let connections = Arc::new(connections);
     let accounts = Arc::new(accounts);
+    let activity = Arc::new(FakeActivity::default());
     let mut config = SetupConfig::new("https://macro.com/");
     config.poll_interval = std::time::Duration::from_millis(5);
     let service = AgentSetupService::new(
@@ -451,6 +495,7 @@ pub fn fixture(
             imports: imports.clone(),
             connections: connections.clone(),
             inbox: Arc::new(inbox),
+            activity: activity.clone(),
             accounts: accounts.clone(),
         },
         config,
@@ -461,5 +506,6 @@ pub fn fixture(
         imports,
         connections,
         accounts,
+        activity,
     }
 }

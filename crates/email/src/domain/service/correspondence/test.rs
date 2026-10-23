@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     correspondence::{
-        Correspondent, CorrespondenceWindow, EmailCorrespondence, EmailCorrespondenceRepo,
+        CorrespondenceWindow, Correspondent, EmailCorrespondence, EmailCorrespondenceRepo,
         OpenThread,
     },
     models::{EmailErr, EmailFilter, EmailInboxDetails, Link, LinkLabel, UserProvider},
@@ -112,7 +112,10 @@ async fn reads_only_the_persons_own_inboxes() {
     let user = MacroUserIdStr::try_from_email("viewer@example.com").unwrap();
     let service = service(repo);
 
-    service.correspondents(user.clone(), window()).await.unwrap();
+    service
+        .correspondents(user.clone(), window())
+        .await
+        .unwrap();
     service
         .open_threads(user, window(), Utc::now())
         .await

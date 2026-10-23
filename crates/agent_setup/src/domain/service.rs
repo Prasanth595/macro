@@ -1,4 +1,4 @@
-//! Agent-led setup: the six steps an agent walks through to set up a person's
+//! Agent-led setup: the steps an agent walks through to set up a person's
 //! Macro workspace, each a thin layer over services Macro already has.
 //!
 //! The service decides nothing on the import service's behalf — what a
@@ -7,6 +7,7 @@
 //! one `next_step` an agent can follow without reading anything else.
 
 mod discover;
+mod first_look;
 mod next_step;
 mod report;
 #[cfg(test)]
@@ -30,8 +31,8 @@ use super::{
     },
     plan::{self, NotCoveredLine, PlanText, ResolvedApp},
     ports::{
-        AccountStatus, Inbox, Result, SetupAccounts, SetupConnections, SetupError, SetupImports,
-        SetupInbox,
+        AccountStatus, Inbox, Result, SetupAccounts, SetupActivity, SetupConnections, SetupError,
+        SetupImports, SetupInbox,
     },
     view::{self, Counts, SourceView},
 };
@@ -74,6 +75,7 @@ pub struct AgentSetupService {
     imports: Arc<dyn SetupImports>,
     connections: Arc<dyn SetupConnections>,
     inbox: Arc<dyn SetupInbox>,
+    activity: Arc<dyn SetupActivity>,
     accounts: Arc<dyn SetupAccounts>,
     config: SetupConfig,
     clock: fn() -> DateTime<Utc>,
@@ -87,6 +89,8 @@ pub struct SetupPorts {
     pub connections: Arc<dyn SetupConnections>,
     /// Email inboxes.
     pub inbox: Arc<dyn SetupInbox>,
+    /// What the person's mail and calendar show about their work.
+    pub activity: Arc<dyn SetupActivity>,
     /// The account's onboarding.
     pub accounts: Arc<dyn SetupAccounts>,
 }
@@ -146,6 +150,7 @@ impl AgentSetupService {
             imports: ports.imports,
             connections: ports.connections,
             inbox: ports.inbox,
+            activity: ports.activity,
             accounts: ports.accounts,
             config,
             clock: Utc::now,

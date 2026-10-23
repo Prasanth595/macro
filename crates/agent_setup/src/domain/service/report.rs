@@ -147,19 +147,27 @@ impl AgentSetupService {
                 .to_owned(),
             ReportStatus::Done => {
                 self.accounts.finish(user).await?;
+                let then = if self.inbox.inboxes(user).await?.is_empty() {
+                    format!(
+                        "Then, in one message, offer: one routine that writes only to them, \
+                         such as a Monday summary of what changed (check ListRoutines, then \
+                         CreateRoutine with their time zone, only if they say yes); and the \
+                         people from their tools they work with, to invite themselves at {}.",
+                        self.link("/app/settings/team-members")
+                    )
+                } else {
+                    "Then call SetupFirstLook: it shows who they work with, what's waiting and \
+                     this week's meetings from their inbox and calendar, and what to offer."
+                        .to_owned()
+                };
                 format!(
                     "Report to the person: a table of what came in with links (or, if nothing \
                      did, what's connected), what didn't and why, stays_connected, and \
-                     not_covered with its alternatives. Don't copy \
-                     anything in yourself; running setup again looks through Notion, Linear and \
-                     Slack for anything new. Name one thing to open first and end with their workspace: {}. Setup is done. \
-                     Then, in one message, offer: this week's meetings (ListCalendarEvents); one \
-                     routine that writes only to them, such as a Monday summary of what changed \
-                     (check ListRoutines, then CreateRoutine with their time zone, only if they \
-                     say yes); and the people from their tools they work with, to invite \
-                     themselves at {}.",
+                     not_covered with its alternatives. Don't copy anything in yourself; running \
+                     setup again looks through Notion, Linear and Slack for anything new. Name \
+                     one thing to open first and end with their workspace: {}. Setup is done. \
+                     {then}",
                     self.link("/app"),
-                    self.link("/app/settings/team-members")
                 )
             }
         };
