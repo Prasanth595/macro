@@ -371,21 +371,23 @@ export function HomeList(props: HomeListProps) {
 
   const onRowClick = (rowId: string, event: MouseEvent) => {
     // Rows cancel their press, so the browser never moves focus into Home.
-    // Take it here, as the channel rail does, so Home becomes the active split.
-    listRoot()?.focus({ preventScroll: true });
+    // Activate Home before opening: an item that opens in another split
+    // activates that split afterwards, and Home takes focus only if it stays
+    // active, so a late focus change can't take activation back.
+    panel.handle.activate();
     if (
       event.metaKey ||
       event.ctrlKey ||
       (isTouchDevice() && list.selection.count() > 0)
     ) {
       listInteractions.selection.toggle(rowId);
-      return;
+    } else {
+      list.activate.key(rowId, {
+        reason: 'pointer',
+        metadata: { event },
+      });
     }
-
-    list.activate.key(rowId, {
-      reason: 'pointer',
-      metadata: { event },
-    });
+    if (panel.isPanelActive()) listRoot()?.focus({ preventScroll: true });
   };
 
   useEntityActionHotkeys({
