@@ -49,6 +49,8 @@ the existing gateway prefixes.
   bun run generate`; do not copy deployed schemas over a local API change.
 - Regenerate `../sdk-docs/reference` after SDK source or generated type changes;
   run that package's checks because web CI verifies the reference is current.
+- Run `bun run generate` and the checks in `../code-mode-sdk` after SDK changes
+  to keep the embedded Deno bundle, agent documentation, and operation catalog current.
 - `generated/agent-fold/` is not from OpenAPI: `cargo run -p agent_fold --bin
   export_types` writes it, and `foldedLog()` casts the opaque wire schema to it.
 - System events project separately in fold metadata and never appear as user
