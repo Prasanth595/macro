@@ -14,13 +14,13 @@ import type {
   SchemaType,
 } from '../schema/types';
 import {
+  assertTree,
   isContainerSchema,
   isListLikeSchema,
   isLoroTreeSchema,
   isRootSchemaType,
 } from '../schema/validators';
 import { longestIncreasingSubsequence } from './diff';
-import { assertTree } from './tree-validation';
 import { deepEqual, getRootContainerByType } from './utils';
 
 type TreeSchema = LoroTreeSchema<LoroMapSchema<Record<string, SchemaType>>>;

@@ -16,8 +16,8 @@ import {
   isLoroTextSchema,
   isRootSchemaType,
 } from '../schema';
+import { assertTree } from '../schema/validators';
 import type { Change, InferContainerOptions } from './mirror';
-import { assertTree } from './tree-validation';
 
 import {
   type ArrayLike,

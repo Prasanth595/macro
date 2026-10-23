@@ -15,6 +15,7 @@ import {
   LoroTree,
 } from 'loro-crdt';
 import {
+  assertTree,
   type ContainerSchemaType,
   getDefaultValue,
   type InferType,
@@ -30,7 +31,7 @@ import {
 import { diffContainer } from './diff';
 import { ContainerRegistry } from './registry';
 import { readContainer, readDocument, updateTree } from './tree';
-import { assertTree, validateProposedTrees } from './tree-validation';
+import { validateProposedTrees } from './tree-validation';
 import {
   getRootContainerByType,
   inferContainerTypeFromValue,

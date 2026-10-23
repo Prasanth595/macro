@@ -1,5 +1,5 @@
-import { isJsonValue, validateTree } from '../core/tree-validation';
 import { isObject } from '../core/utils';
+import { isJsonValue } from './json';
 /**
  * Validators for schema definitions
  */
@@ -14,6 +14,7 @@ import type {
   LoroTreeSchema,
   RootSchemaType,
   SchemaType,
+  TreeNode,
 } from './types';
 
 /**
@@ -367,4 +368,61 @@ export function createValueFromSchema<S extends SchemaType>(
 
   // For complex types, pass through as is
   return value as InferType<S>;
+}
+
+export function validateTree<
+  T extends LoroMapSchema<Record<string, SchemaType>>,
+>(schema: LoroTreeSchema<T>, value: unknown): string[] {
+  const ids = new Set<string>();
+  const seen = new Set<object>();
+  const errors: string[] = [];
+  function visit(nodes: unknown) {
+    if (!Array.isArray(nodes)) {
+      errors.push('Tree children must be an array');
+      return;
+    }
+    if (seen.has(nodes)) {
+      errors.push('Tree contains a cycle or shared children');
+      return;
+    }
+    seen.add(nodes);
+    for (const node of nodes) {
+      if (
+        !node ||
+        typeof node !== 'object' ||
+        !('data' in node) ||
+        !('children' in node)
+      ) {
+        errors.push('Tree nodes need data and children');
+        continue;
+      }
+      if (seen.has(node)) {
+        errors.push('Tree contains a cycle or duplicate node');
+        continue;
+      }
+      seen.add(node);
+      const data = node.data;
+      const result = validateSchema(schema.nodeSchema, data);
+      if (!data || !result.valid || !isJsonValue(data))
+        errors.push(...(result.errors ?? ['Invalid tree node data']));
+      else {
+        assertSchemaValue(schema.nodeSchema, data);
+        const id = schema.idSelector(data);
+        if (typeof id !== 'string' || !id || ids.has(id))
+          errors.push('Tree IDs must be nonempty and unique');
+        ids.add(id);
+      }
+      visit(node.children);
+    }
+  }
+  visit(value);
+  return errors;
+}
+
+export function assertTree<T extends LoroMapSchema<Record<string, SchemaType>>>(
+  schema: LoroTreeSchema<T>,
+  value: unknown
+): asserts value is TreeNode<InferType<T>>[] {
+  const errors = validateTree(schema, value);
+  if (errors.length) throw new Error(`Invalid tree: ${errors.join(', ')}`);
 }
