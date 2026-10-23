@@ -7,6 +7,10 @@ const mocks = vi.hoisted(() => ({
   item: undefined as unknown,
   openDocument: vi.fn(),
   openExternalUrl: vi.fn(),
+  openCalendarEventSplit: vi.fn(),
+}));
+vi.mock('@app/features/calendar-view/open-calendar-event', () => ({
+  openCalendarEventSplit: mocks.openCalendarEventSplit,
 }));
 vi.mock(
   '@core/component/LexicalMarkdown/component/core/BlockLink',
@@ -166,5 +170,47 @@ describe('calendar mention preview card', () => {
 
     fireEvent.click(screen.getByText('Zoom'));
     expect(mocks.openExternalUrl).toHaveBeenCalledWith('https://zoom.us/j/1');
+  });
+});
+
+describe('calendar mention card for a meeting the viewer holds', () => {
+  it.each([
+    ['snapshot', 'Your copy is on your calendar'],
+    ['invitation', 'You’re invited · on your calendar'],
+    ['event', 'On your calendar'],
+    [undefined, 'On your calendar'],
+  ] as const)('says a %s copy is on their calendar', (viewerCopy, label) => {
+    mocks.item = calendarItem({ viewerCopy });
+    renderCard();
+
+    expect(screen.getByText(label)).toBeTruthy();
+    expect(screen.queryByText(/Shared event actions/)).toBeNull();
+  });
+
+  it('opens the viewer’s own copy from Open', () => {
+    mocks.item = calendarItem({ viewerCopy: 'invitation' });
+    renderCard();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+
+    expect(mocks.openCalendarEventSplit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'viewer-copy',
+        occurrenceKey: '2026-09-23T23:00:00+00:00',
+        openInNewSplit: false,
+      })
+    );
+  });
+
+  it('adds nothing to a mention of the viewer’s own copy', () => {
+    mocks.item = calendarItem({
+      viewerEventId: 'mentioned-event',
+      viewerCopy: 'event',
+    });
+    renderCard();
+
+    expect(screen.queryByText('On your calendar')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pilates' })).toBeTruthy();
   });
 });
