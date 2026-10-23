@@ -3,7 +3,6 @@ import {
   type TurnOffCalendarTarget,
 } from '@app/features/calendar/components/TurnOffCalendarDialog';
 import { useCalendarUiFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
-import { openAddInboxDialog } from '@app/features/inbox/AddInboxDialog';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { toast } from '@core/component/Toast/Toast';
 import {
@@ -126,7 +125,7 @@ export function EmailCard(
     if (isEmailActionPending()) return;
     setIsEmailActionPending(true);
     try {
-      openAddInboxDialog();
+      await startAddInbox();
     } finally {
       setIsEmailActionPending(false);
     }
@@ -302,7 +301,8 @@ export function EmailCard(
                   size="md"
                   depth={3}
                   aria-label="Add inbox"
-                  onClick={openAddInboxDialog}
+                  disabled={isEmailActionPending()}
+                  onClick={onConnectEmail}
                 >
                   <PlusIcon class="size-3.5" />
                   Add account
