@@ -5,6 +5,7 @@ import {
 import { fireAndForget } from '@core/util/fireAndForget';
 import type { EntityData } from '@entity/types/entity';
 import { notificationIsRead } from '@entity/utils/notification';
+import { Telemetry } from '@macro-inc/observability';
 import type { NotificationSource } from '@notifications/notification-source';
 
 /**
@@ -23,7 +24,16 @@ export function markAgentSessionNotificationsSeenOnOpen(
   ).filter((notification) => !notificationIsRead(notification));
   if (notifications.length === 0) return;
   fireAndForget(
-    notificationSource.bulkMarkAsRead(notifications),
+    Telemetry.span('agent_session.notifications.mark_read', async (span) => {
+      span.setAttr('agent_session.id', entity.id);
+      span.setAttr('notification.count', notifications.length);
+      try {
+        await notificationSource.bulkMarkAsRead(notifications);
+      } catch (error) {
+        span.error(error);
+        throw error;
+      }
+    }),
     'agent-session-notification-read'
   );
 }
