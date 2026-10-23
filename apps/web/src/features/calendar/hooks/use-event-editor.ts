@@ -14,7 +14,13 @@ import {
   useUpdateMeetingMutation,
 } from '@queries/call/meetings';
 import type { CalendarUpdateScope } from '@service-email/client';
-import { type Accessor, createMemo, createSignal } from 'solid-js';
+import {
+  type Accessor,
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+} from 'solid-js';
 import { match } from 'ts-pattern';
 import {
   buildEventTime,
@@ -37,10 +43,10 @@ import {
   type EventGuestEditing,
   eventGuestEditing,
   GUEST_EDITS_RESTRICTED,
-  GUEST_INVITES_RESTRICTED,
   guestEditsRestricted,
-  guestInvitesRestricted,
+  guestInvitesRestrictedReason,
   guestListChanged,
+  guestListHidden,
   viewerReplacesGuests,
 } from '../utils/event-guest-editing';
 import {
@@ -110,6 +116,20 @@ interface UseEventEditorProps {
    * when omitted.
    */
   guestInvitesEnabled?: Accessor<boolean>;
+  /**
+   * The edited event as the calendar now holds it. The lock on its details
+   * follows this copy, so a guest whose organizer stops letting guests
+   * modify the event loses the details while the editor is open. The edit
+   * itself still compares against `event`, the version it opened with.
+   */
+  syncedEvent?: Accessor<CalendarEvent | undefined>;
+  /**
+   * Called when the details lock while the editor is open, because the
+   * server refused a detail change or the synced event no longer lets the
+   * viewer change them, so the form can return them to the event's own
+   * instead of holding changes it can no longer save.
+   */
+  onDetailsLocked?: () => void;
 }
 
 /** Shared create/edit query and mutation orchestration for any editor shell. */
@@ -182,20 +202,30 @@ export function useEventEditor(props: UseEventEditorProps) {
   });
   const guestsReadOnlyReason = () => {
     const event = props.event();
-    return event && guestInvitesRestricted(event)
-      ? GUEST_INVITES_RESTRICTED
-      : undefined;
+    return event && guestInvitesRestrictedReason(event);
   };
   // A refusal means the stored guest policy was newer than the event shown,
   // so the details lock without waiting for the refetch.
   const [detailEditsRefused, setDetailEditsRefused] = createSignal(false);
   const detailsLocked = () => {
     const event = props.event();
+    if (!event) return false;
     return (
-      event !== undefined &&
-      (detailEditsRefused() || guestEditsRestricted(event))
+      detailEditsRefused() ||
+      guestEditsRestricted(props.syncedEvent?.() ?? event)
     );
   };
+  // The lock can arrive from outside the form, with the synced event, so the
+  // form is told rather than asked. The first run has no earlier state and
+  // only records the lock the editor opened with.
+  createEffect(
+    on(detailsLocked, (locked, wasLocked) => {
+      if (!locked || wasLocked !== false) return;
+      props.onDetailsLocked?.();
+      // A refused save already says why.
+      if (!detailEditsRefused()) toast.alert(GUEST_EDITS_RESTRICTED);
+    })
+  );
 
   const updateMeeting = useUpdateMeetingMutation();
   const create = useCreateCalendarEventMutation();
@@ -480,6 +510,10 @@ export function useEventEditor(props: UseEventEditorProps) {
     disabledFields,
     addOnlyGuests: () => guestEditing() === 'add',
     guestsReadOnlyReason,
+    guestListHidden: () => {
+      const event = props.event();
+      return event !== undefined && guestListHidden(event);
+    },
     /** The organizer sets what guests may do; a new event is the viewer's own. */
     guestPolicyEditable: () =>
       (props.guestInvitesEnabled?.() ?? false) &&

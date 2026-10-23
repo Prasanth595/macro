@@ -460,13 +460,15 @@ fn activity_rejects_unknown_operations_and_is_bounded() {
         activity_truncated: false,
     };
     super::super::activity::observe(
-        &mut record,
+        &mut record.activity,
+        &mut record.activity_truncated,
         json!({"id":1,"service":"secret","operation":"user supplied text","status":"started"}),
     );
     assert!(record.activity.is_empty());
     for id in 0..130 {
         super::super::activity::observe(
-            &mut record,
+            &mut record.activity,
+            &mut record.activity_truncated,
             json!({"id":id,"service":"cognition","operation":"decisions","status":"started"}),
         );
     }
@@ -584,13 +586,17 @@ fn markdown(id: u64, status: &str, item: serde_json::Value) -> serde_json::Value
 
 const DOCUMENT: &str = "0199f3a2-1b2c-7d4e-8f90-a1b2c3d4e5f6";
 
+/// One activity event into a run's record, as `execute` hands it on.
+fn observe(record: &mut ExecutionRecord, value: serde_json::Value) {
+    super::super::activity::observe(&mut record.activity, &mut record.activity_truncated, value);
+}
+
 fn created_document(title: &str) -> serde_json::Value {
     json!({"type": "document", "id": DOCUMENT, "action": "created", "title": title})
 }
 
 #[test]
 fn an_operation_keeps_the_item_it_reported_on_completing() {
-    let observe = super::super::activity::observe;
     let mut record = running_record();
     observe(&mut record, markdown(1, "started", created_document("x")));
     assert_eq!(record.activity[0].item, None);
@@ -625,7 +631,6 @@ fn an_operation_keeps_the_item_it_reported_on_completing() {
 
 #[test]
 fn an_unreadable_item_still_lets_its_operation_finish() {
-    let observe = super::super::activity::observe;
     let cases = [
         json!({"type": "task", "id": DOCUMENT, "action": "created"}),
         json!({"type": "document", "id": "../../etc", "action": "created"}),
@@ -665,7 +670,6 @@ fn an_unreadable_item_still_lets_its_operation_finish() {
 
 #[test]
 fn a_run_keeps_at_most_thirty_two_items() {
-    let observe = super::super::activity::observe;
     let mut record = running_record();
     for id in 0..40 {
         observe(&mut record, markdown(id, "started", json!(null)));

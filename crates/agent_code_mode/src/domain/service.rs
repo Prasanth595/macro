@@ -149,7 +149,7 @@ impl CodeModeService {
                 () = &mut watch_turn => break execution.await,
                 update = updates.recv(), if progress_open => {
                     if let Some(value) = update {
-                        super::activity::observe(&mut record, value);
+                        super::activity::observe(&mut record.activity, &mut record.activity_truncated, value);
                         dirty = true;
                     } else {
                         progress_open = false;
@@ -173,27 +173,17 @@ impl CodeModeService {
             }
         };
         while let Ok(value) = updates.try_recv() {
-            super::activity::observe(&mut record, value);
+            super::activity::observe(&mut record.activity, &mut record.activity_truncated, value);
         }
-        super::activity::finish(&mut record);
-        let (status, result, error) = match outcome {
-            Outcome::Succeeded { mut value } => {
-                match check_returned(&mut value, self.0.views.as_ref()) {
+        super::activity::finish(&mut record.activity);
+        let (status, result, error) = match settle(outcome, Reviews::Allowed) {
+            (ExecutionStatus::Succeeded, Some(value), None) => {
+                match check_view(&value, self.0.views.as_ref()) {
                     Ok(()) => (ExecutionStatus::Succeeded, Some(value), None),
                     Err(error) => (ExecutionStatus::Failed, Some(value), Some(error)),
                 }
             }
-            Outcome::Failed { error } => (ExecutionStatus::Failed, None, Some(error.message)),
-            Outcome::Cancelled => (
-                ExecutionStatus::Cancelled,
-                None,
-                Some("Execution cancelled. Unfinished calls may have taken effect.".into()),
-            ),
-            Outcome::TimedOut => (
-                ExecutionStatus::TimedOut,
-                None,
-                Some("Execution timed out. Unfinished calls may have taken effect.".into()),
-            ),
+            settled => settled,
         };
         record.status = status;
         record.result = result;
@@ -283,14 +273,7 @@ impl SessionCodeMode for CodeModeService {
             .owner_user()
             .map_err(|_| CodeModeError::Forbidden)?
             .clone();
-        let limits = Limits::default();
-        if request.source.trim().is_empty()
-            || request.source.len() > limits.max_source_bytes
-            || request.timeout_ms == 0
-            || request.timeout_ms > 30_000
-        {
-            return Err(CodeModeError::Invalid("Provide a nonempty JavaScript module exporting main() of at most 64 KiB and timeout_ms between 1 and 30000.".into()));
-        }
+        validate_request(&request)?;
         let permit = Arc::clone(&self.0.admission)
             .try_acquire_owned()
             .map_err(|_| CodeModeError::Busy)?;
@@ -348,32 +331,90 @@ impl SessionCodeMode for CodeModeService {
     }
 }
 
+/// Whether a program may return review references.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Reviews {
+    /// Session programs can persist review stacks and return their references.
+    Allowed,
+    /// Programs outside a session have nowhere to present a review.
+    Rejected,
+}
+
+/// Interpret a finished program against the `{data, reviews?, view?}` contract.
+pub(super) fn settle(
+    outcome: Outcome,
+    reviews: Reviews,
+) -> (ExecutionStatus, Option<serde_json::Value>, Option<String>) {
+    match outcome {
+        Outcome::Succeeded { mut value } => {
+            if reviews == Reviews::Rejected {
+                // Shared guides end with `reviews: []`; an empty list asks for nothing.
+                if let Some(object) = value.as_object_mut()
+                    && object.get("reviews") == Some(&serde_json::json!([]))
+                {
+                    object.remove("reviews");
+                }
+                let valid = value
+                    .as_object()
+                    .is_some_and(|object| object.len() == 1 && object.contains_key("data"));
+                return if valid {
+                    (ExecutionStatus::Succeeded, Some(value), None)
+                } else {
+                    (
+                        ExecutionStatus::Failed,
+                        Some(value),
+                        Some(
+                            "main must return exactly {data: JSON}; views and reviews are unavailable here."
+                                .into(),
+                        ),
+                    )
+                };
+            }
+            if let Some(object) = value.as_object_mut()
+                && object.contains_key("data")
+            {
+                object
+                    .entry("reviews")
+                    .or_insert_with(|| serde_json::json!([]));
+            }
+            let valid = value.as_object().is_some_and(|object| {
+                object.contains_key("data")
+                    && object
+                        .keys()
+                        .all(|key| matches!(key.as_str(), "data" | "reviews" | "view"))
+                    && object.get("reviews").is_some_and(|references| {
+                        serde_json::from_value::<Vec<reviews::ReviewReference>>(references.clone())
+                            .is_ok()
+                    })
+            });
+            if valid {
+                (ExecutionStatus::Succeeded, Some(value), None)
+            } else {
+                (ExecutionStatus::Failed, Some(value), Some("main must return {data: JSON}; optional reviews must be an array of {kind, id} references, and an optional view a Show view.".into()))
+            }
+        }
+        Outcome::Failed { error } => (ExecutionStatus::Failed, None, Some(error.message)),
+        Outcome::Cancelled => (
+            ExecutionStatus::Cancelled,
+            None,
+            Some("Execution cancelled. Unfinished calls may have taken effect.".into()),
+        ),
+        Outcome::TimedOut => (
+            ExecutionStatus::TimedOut,
+            None,
+            Some("Execution timed out. Unfinished calls may have taken effect.".into()),
+        ),
+    }
+}
+
 /// How many of a returned view's problems the model is told at once.
 const VIEW_PROBLEMS_LISTED: usize = 10;
 
-/// Check what `main` returned, filling in the reviews it left out. The error
-/// says what to change: a program's writes have already happened, so a view
-/// the renderer would not draw is fixed through `Show`, not by
-/// running the program again.
-fn check_returned(value: &mut serde_json::Value, views: &dyn ViewCheck) -> Result<(), String> {
-    const SHAPE: &str = "main must return {data: JSON}; optional reviews must be an array of {kind, id} references, and an optional view a Show view.";
-    let Some(object) = value.as_object_mut() else {
-        return Err(SHAPE.into());
-    };
-    if !object.contains_key("data")
-        || object
-            .keys()
-            .any(|key| !matches!(key.as_str(), "data" | "reviews" | "view"))
-    {
-        return Err(SHAPE.into());
-    }
-    let references = object
-        .entry("reviews")
-        .or_insert_with(|| serde_json::json!([]));
-    if serde_json::from_value::<Vec<reviews::ReviewReference>>(references.clone()).is_err() {
-        return Err(SHAPE.into());
-    }
-    let Some(view) = object.get("view").filter(|view| !view.is_null()) else {
+/// A returned view the renderer would not draw fails the run. The error says
+/// what to change: a program's writes have already happened, so the view is
+/// fixed through `Show`, not by running the program again.
+fn check_view(value: &serde_json::Value, views: &dyn ViewCheck) -> Result<(), String> {
+    let Some(view) = value.get("view").filter(|view| !view.is_null()) else {
         return Ok(());
     };
     let problems = views.problems(view);
@@ -395,6 +436,18 @@ fn check_returned(value: &mut serde_json::Value, views: &dyn ViewCheck) -> Resul
         "The view was not shown: it does not match the Show schema.\n{}\nEverything else the program did stands, so do not run it again: call Show with the corrected view.",
         lines.join("\n")
     ))
+}
+
+/// Reject requests the runner would refuse, before minting a credential.
+pub(super) fn validate_request(request: &ExecuteRequest) -> Result<(), CodeModeError> {
+    if request.source.trim().is_empty()
+        || request.source.len() > Limits::default().max_source_bytes
+        || request.timeout_ms == 0
+        || request.timeout_ms > 30_000
+    {
+        return Err(CodeModeError::Invalid("Provide a nonempty JavaScript module exporting main() of at most 64 KiB and timeout_ms between 1 and 30000.".into()));
+    }
+    Ok(())
 }
 
 fn receipt(record: &ExecutionRecord) -> ExecutionReceipt {

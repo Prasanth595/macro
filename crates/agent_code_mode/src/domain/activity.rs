@@ -1,5 +1,5 @@
 //! Bounded, advisory activity derived from the generated SDK operation catalog.
-use super::{ActivityItem, ExecutionActivity, ExecutionRecord, RecordedCallStatus};
+use super::{ActivityItem, ExecutionActivity, RecordedCallStatus};
 use serde::Deserialize;
 use std::{collections::BTreeMap, sync::LazyLock};
 
@@ -27,9 +27,13 @@ struct Activity {
     item: Option<serde_json::Value>,
 }
 
-pub(super) fn observe(record: &mut ExecutionRecord, value: serde_json::Value) {
+pub(super) fn observe(
+    activity: &mut Vec<ExecutionActivity>,
+    truncated: &mut bool,
+    value: serde_json::Value,
+) {
     if value == serde_json::json!({"truncated": true}) {
-        record.activity_truncated = true;
+        *truncated = true;
         return;
     }
     let Ok(event) = serde_json::from_value::<Activity>(value) else {
@@ -44,12 +48,8 @@ pub(super) fn observe(record: &mut ExecutionRecord, value: serde_json::Value) {
         "failed" => RecordedCallStatus::Failed,
         _ => return,
     };
-    let items = record
-        .activity
-        .iter()
-        .filter(|activity| activity.item.is_some())
-        .count();
-    if let Some(existing) = record.activity.iter_mut().find(|item| item.id == event.id) {
+    let items = activity.iter().filter(|entry| entry.item.is_some()).count();
+    if let Some(existing) = activity.iter_mut().find(|item| item.id == event.id) {
         if existing.label == *label && existing.status == RecordedCallStatus::Running {
             existing.status = status;
             if status == RecordedCallStatus::Completed && items < MAX_ITEMS {
@@ -57,15 +57,15 @@ pub(super) fn observe(record: &mut ExecutionRecord, value: serde_json::Value) {
             }
         }
     } else if status == RecordedCallStatus::Running {
-        if record.activity.len() < 128 {
-            record.activity.push(ExecutionActivity {
+        if activity.len() < 128 {
+            activity.push(ExecutionActivity {
                 id: event.id,
                 label: label.clone(),
                 status,
                 item: None,
             });
         } else {
-            record.activity_truncated = true;
+            *truncated = true;
         }
     }
 }
@@ -85,8 +85,8 @@ fn item(value: serde_json::Value) -> Option<ActivityItem> {
     Some(item)
 }
 
-pub(super) fn finish(record: &mut ExecutionRecord) {
-    for activity in &mut record.activity {
+pub(super) fn finish(activity: &mut [ExecutionActivity]) {
+    for activity in activity {
         if activity.status == RecordedCallStatus::Running {
             activity.status = RecordedCallStatus::Unknown;
         }

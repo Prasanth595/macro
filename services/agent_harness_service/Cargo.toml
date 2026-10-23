@@ -25,6 +25,7 @@ name = "scheduled_action_openapi"
 path = "src/scheduling_openapi.rs"
 
 [dependencies]
+feature_flags = { path = "../../crates/feature_flags" }
 models_ai_projection = { path = "../../crates/models_ai_projection" }
 activity = { path = "../../crates/activity", default-features = false }
 agent = { path = "../../crates/agent", features = ["debug-messages"] }
@@ -69,6 +70,7 @@ chrono-tz = { workspace = true }
 code_execution = { path = "../../crates/code_execution" }
 codex_cloud_agents = { path = "../../crates/codex_cloud_agents" }
 codex_connection = { path = "../../crates/codex_connection" }
+cognition = { path = "../../crates/cognition" }
 connection_gateway = { path = "../connection_gateway" }
 connection_gateway_client = { path = "../../crates/connection_gateway_client" }
 contacts = { path = "../../crates/contacts" }

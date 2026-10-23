@@ -23,7 +23,9 @@ Pulumi stacks; they do not host extra agent processes.
 - `src/trigger.rs`: turns channel/webhook triggers into sessions.
 - `src/internal_mcp.rs`: the internal MCP server exposed to running sessions.
 - `src/public_mcp.rs` + `src/public_mcp/`: public workspace MCP and OAuth;
-  reuses the harness tool context and retains bearer authentication.
+  reuses the harness tool context and retains bearer authentication. Users with
+  `ai-code-mode` get `ExecuteCode`/`DescribeCodeTools` in place of SDK-covered
+  tools (`tool_service.rs`); the flag is cached per user (`tool_mode_cache.rs`).
 - `src/cognition/`: existing chat, completions, integrations, and projection
   workers; the library also exports their OpenAPI document.
 - `src/scheduling.rs`: routine HTTP routes and background scheduling;
@@ -91,9 +93,9 @@ hostnames and internally rewrites cognition paths. `PREVIEW_DOMAIN` and
 `PREVIEW_SSH_HOST` remain infrastructure-generated Doppler settings. Legacy
 `MCP_PUBLIC_URL`, `MCP_CLIENT_PUBLIC_URL`, `PREVIEW_APP_ORIGIN`, and
 `PREVIEW_CONTROL_HOSTS` values are retained only for old-image rollback; new
-code does not read them. `POSTHOG_API_KEY` and `POSTHOG_HOST` remain
-available for future feature flags and analytics; the harness reads neither
-today, and MCP emits no analytics events.
+code does not read them. `POSTHOG_API_KEY` and `POSTHOG_HOST` gate
+code mode on the public MCP (`ai-code-mode`); agent sessions do not read them,
+and MCP emits no analytics events.
 In deployed configs, `DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY`
 is cognition's Secrets Manager reference; AI tools resolve the separate
 `DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY_SECRET_NAME` reference.

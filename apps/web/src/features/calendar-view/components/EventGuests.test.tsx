@@ -49,6 +49,8 @@ vi.mock('@queries/calendar/mutations', () => ({
   useInviteCalendarEventGuestsMutation: () => ({ mutateAsync: mocks.invite }),
   isGuestInviteRefused: (error: unknown) =>
     (error as { code?: string }).code === 'guests_cannot_invite',
+  isGuestListHiddenRefusal: (error: unknown) =>
+    (error as { code?: string }).code === 'guest_list_hidden',
 }));
 // The picker itself is the composer's and is tested there; this stand-in
 // offers every pool member it is not told to exclude.
@@ -179,7 +181,7 @@ afterEach(() => {
 });
 
 describe('adding guests from event details', () => {
-  it('lists the current guests as fixed and invites an optional guest to the whole series', async () => {
+  it('lists the current guests as fixed and invites an optional guest to the whole series by default', async () => {
     const user = userEvent.setup();
     renderGuests(event({ recurrenceLines: ['RRULE:FREQ=WEEKLY'] }));
 
@@ -196,7 +198,6 @@ describe('adding guests from event details', () => {
       screen.queryByRole('button', { name: 'Suggest Ada Lovelace' })
     ).toBeNull();
     await user.click(screen.getByRole('checkbox', { name: 'Optional' }));
-    await user.click(screen.getByRole('radio', { name: 'All events' }));
     await user.click(screen.getByRole('button', { name: 'Send invitations' }));
 
     expect(mocks.invite).toHaveBeenCalledWith({
@@ -241,6 +242,7 @@ describe('adding guests from event details', () => {
     await user.click(
       screen.getByRole('button', { name: 'Suggest Ada Lovelace' })
     );
+    await user.click(screen.getByRole('radio', { name: 'This event' }));
     screen.getByRole('textbox', { name: 'Search for guests' }).focus();
     await user.keyboard('{Meta>}{Enter}{/Meta}');
 
@@ -362,6 +364,65 @@ describe('adding guests from event details', () => {
       screen.getByText('Only the organizer can invite guests.')
     ).toBeTruthy();
     expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  it('says the organizer hid the guest list instead of counting the guests the viewer can see', () => {
+    renderGuests(
+      event({
+        guestPolicy: {
+          canModify: false,
+          canInviteOthers: true,
+          canSeeOtherGuests: false,
+        },
+        viewerCan: { ...MAY_INVITE, inviteGuests: false },
+        attendees: [attendee({ email: 'me@example.com', isSelf: true })],
+      })
+    );
+
+    expect(screen.getByText('Guest list hidden')).toBeTruthy();
+    expect(screen.queryByText('1 attendee')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add guests' })).toBeNull();
+    expect(
+      screen.getByText(
+        'Guests cannot be added while the organizer hides the guest list.'
+      )
+    ).toBeTruthy();
+    expect(
+      screen.queryByText('Only the organizer can invite guests.')
+    ).toBeNull();
+  });
+
+  it('switches to the hidden-list explanation when the server finds the list hidden', async () => {
+    mocks.invite.mockRejectedValue({ code: 'guest_list_hidden' });
+    const user = userEvent.setup();
+    renderGuests(event());
+
+    await user.click(screen.getByRole('button', { name: 'Add guests' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Suggest Ada Lovelace' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Send invitations' }));
+
+    const reason =
+      'Guests cannot be added while the organizer hides the guest list.';
+    await waitFor(() => expect(mocks.failure).toHaveBeenCalledWith(reason));
+    expect(screen.queryByRole('button', { name: 'Add guests' })).toBeNull();
+    expect(screen.getByText(reason)).toBeTruthy();
+  });
+
+  it('offers no guest addresses to copy or email when the viewer is the only guest', () => {
+    renderGuests(
+      event({
+        isSnapshot: true,
+        viewerCan: { ...MAY_INVITE, inviteGuests: false, rsvp: false },
+        attendees: [attendee({ email: 'me@example.com', isSelf: true })],
+      })
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Copy guest emails' })
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Email guests' })).toBeNull();
   });
 
   it('keeps today’s guest actions while guest invites are off', () => {
