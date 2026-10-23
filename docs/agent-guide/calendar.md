@@ -124,7 +124,10 @@ new session from the same meeting link must start a separate chat thread.
 
 
 Calendar event creation and editing open in a bottom sheet on touch devices,
-with scrollable content above the keyboard. Desktop retains the centered dialog.
+with scrollable content above the keyboard. When the form outgrows the sheet, as
+it does with the custom repeat builder open, the sheet scrolls down to the
+footer: Cancel and `Create event` or `Save`, plus `This event`/`All events` when
+editing a recurring event. Desktop retains the centered dialog.
 Dismissing a changed event still asks before discarding the draft.
 
 On phones, event details use inset round action buttons and a transparent RSVP
@@ -448,10 +451,15 @@ by the organizer or a guest the organizer lets modify the event.
 Test reminder removal as well as changing its time, including a series whose stored
 rule contains `INTERVAL=1`, `WKST`, differently ordered weekdays, or a precise `UNTIL`:
 an untouched rule must not be reformatted and included in a reminder-only PATCH.
+A weekly rule without `BYDAY` repeats on the start's weekday: plain `FREQ=WEEKLY` opens on the
+`Weekly on <day>` preset, and one with an end (such as `COUNT=3`) opens `Custom` with that day
+selected, since the presets never end. Either is saved as written while untouched; moving the
+start to another weekday keeps a custom rule on the day the editor shows.
 As in Google Calendar, the guests row of the details popover (a bottom sheet on phones)
 carries `Copy guest emails` and `Email guests` icon buttons, both hidden when you are the
 only guest (always so on a snapshot). Copying puts every guest's address on the clipboard,
-comma-separated. Emailing opens a new email addressed to every guest but you, with the event
+comma-separated; it is hidden too while the organizer hides the guest list, which your copy
+does not hold. Emailing opens a new email addressed to every guest but you, with the event
 title as its subject (as `Forward by email` fills it in) — in a split
 beside the calendar on desktop, as the full-screen composer on touch devices, in its own
 composer even when another one is open. Deleting an event asks first, and says guests will be
@@ -599,8 +607,11 @@ notification (Settings → Notifications → Calendar → Requests to join), whi
 `<requester> asked to join <event>` with a person-plus glyph, like a comment row. It opens the event,
 whose details list each request with `Add as guest` and `Decline` on desktop and in the phone
 drawer. Adding writes the guest through the same invite path as `Add guests`, so Google or
-Outlook sends the invitation and the mention then opens the viewer's own copy; declining tells
-the requester nothing, and asking again reopens the request. A classic `@Macro` reply that
+Outlook sends the invitation and the mention then opens the viewer's own copy. Declining sends
+the requester nothing, but their card then reads `Declined` and `The person who shared this event
+declined your request to join.` with no `Ask to join`, and offers `Add to calendar` again. A
+declined request stands: the server refuses another ask with 409 `request_declined`, so the
+sharer is asked only once. A classic `@Macro` reply that
 mentions an event does not share
 it by posting the chip. It asks whether to share with the channel, and a yes in that thread
 writes the same channel grant. Private and confidential events are never shared this way.

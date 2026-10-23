@@ -359,6 +359,11 @@ the shimmer.
   Right-click (or long-press on mobile) opens the same entity menu as Home:
   Rename, Favorite, Copy link, Share, Archive, Delete, and the other session
   actions. Archived sessions are grouped at the bottom under **Archived**.
+  Runs of routines set to **Hide runs** (the default) are left out until the
+  clock button beside the search control (**Show hidden routine runs**) is
+  pressed; runs of routines set to **Show runs** are always listed. Every
+  routine run carries the same clock icon after its age. The list starts
+  without hidden runs each time the Agents view opens.
 - The agent composer's **+ (Add)** menu offers **Add photos & files**,
   **Add from library** (`@` references), and **Use a skill** (`/`; sessions show
   **Skills & commands**). Desktop uses a scrollable menu; phones use a bottom
@@ -385,7 +390,12 @@ the shimmer.
   from the 28px-radius input; Chat / Code share one track with equal 8px insets
   in the 52px footer. The dark track is lighter than the footer lip and the selected segment lighter again;
   a faint gradient gives the dark toggle depth without borders or shadows.
-  Light mode uses an off-white selected segment with a subtle border and shadow.
+  Light mode uses a panel-colored selected segment with a subtle border and shadow.
+  The footer, track, and selected segment follow the active theme's color tokens.
+  The footer mixes a little ink into the panel color so its rounded lower lip
+  remains distinct from the page, including behind the input's bottom corners.
+  Verify them with a colored dark theme (such as Moon) and a colored light theme,
+  including switching Chat / Code; none should retain fixed neutral grays.
   The selected segment glides for 250ms with
   an ease-out curve. The greeting text flips vertically into place on each mode change
   with the same duration; both animations respect reduced motion.
