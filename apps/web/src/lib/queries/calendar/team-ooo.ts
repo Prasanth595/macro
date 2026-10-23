@@ -2,6 +2,7 @@ import { throwOnErr } from '@core/util/result';
 import { storageServiceClient } from '@service-storage/client';
 import type { TeamOutOfOfficeItem } from '@service-storage/generated/schemas/teamOutOfOfficeItem';
 import { focusManager, queryOptions, useQueries } from '@tanstack/solid-query';
+import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import type { Accessor } from 'solid-js';
 import { queryClient } from '../client';
 import { type CalendarOccurrenceQueryRange, calendarKeys } from './keys';
@@ -20,7 +21,27 @@ export interface TeamOutOfOfficeQueryOptions {
   refetchOnWindowFocus?: boolean;
 }
 
-/** Fetches teammates' out-of-office occurrences for one viewport. */
+/** The viewport's two halves by local date, or none for a single day. */
+function splitRange(
+  range: CalendarOccurrenceQueryRange
+): [CalendarOccurrenceQueryRange, CalendarOccurrenceQueryRange] | undefined {
+  const start = parseISO(range.startDate);
+  const days = differenceInCalendarDays(parseISO(range.endDate), start);
+  if (days < 2) return undefined;
+  const middle = addDays(start, Math.floor(days / 2));
+  const at = middle.toISOString();
+  const date = format(middle, 'yyyy-MM-dd');
+  return [
+    { ...range, end: at, endDate: date },
+    { ...range, start: at, startDate: date },
+  ];
+}
+
+/**
+ * Fetches teammates' out-of-office occurrences for one viewport. A viewport
+ * with more than one page of them splits in half until each part fits, so a
+ * busy team's later occurrences are not cut off.
+ */
 export async function fetchTeamOutOfOffice(
   range: CalendarOccurrenceQueryRange,
   signal?: AbortSignal
@@ -32,7 +53,18 @@ export async function fetchTeamOutOfOffice(
       signal,
     })
   );
-  return response.items;
+  const halves = response.hasMore ? splitRange(range) : undefined;
+  if (!halves) return response.items;
+  const parts = await Promise.all(
+    halves.map((half) => fetchTeamOutOfOffice(half, signal))
+  );
+  // An occurrence that spans the split comes back from both halves.
+  const byOccurrence = new Map(
+    parts
+      .flat()
+      .map((item) => [JSON.stringify([item.eventId, item.occurrenceKey]), item])
+  );
+  return [...byOccurrence.values()];
 }
 
 // Cached callbacks close over the resolved range and flags only.

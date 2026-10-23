@@ -7,7 +7,7 @@ import { ok } from 'neverthrow';
 import type { JSX } from 'solid-js';
 import { render } from 'solid-js/web';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useTeamOutOfOfficeQueries } from '../team-ooo';
+import { fetchTeamOutOfOffice, useTeamOutOfOfficeQueries } from '../team-ooo';
 
 const listTeamOutOfOffice = vi.hoisted(() => vi.fn());
 
@@ -93,5 +93,55 @@ describe('useTeamOutOfOfficeQueries', () => {
     focusManager.setFocused(false);
     await vi.advanceTimersByTimeAsync(30_000);
     expect(listTeamOutOfOffice).toHaveBeenCalledTimes(mounted + 2);
+  });
+});
+
+describe('fetchTeamOutOfOffice', () => {
+  it('splits a window with more than one page until each part fits', async () => {
+    const item = (eventId: string, startDate: string, endDate: string) => ({
+      eventId,
+      occurrenceKey: startDate,
+      ownerId: 'bob',
+      time: { kind: 'allDay' as const, startDate, endDate },
+    });
+    listTeamOutOfOffice.mockImplementationOnce(async () =>
+      ok({ hasMore: true, items: [] })
+    );
+    listTeamOutOfOffice.mockImplementationOnce(async () =>
+      ok({
+        hasMore: false,
+        items: [
+          item('early', '2026-10-01', '2026-10-02'),
+          item('spanning', '2026-11-10', '2026-11-14'),
+        ],
+      })
+    );
+    listTeamOutOfOffice.mockImplementationOnce(async () =>
+      ok({
+        hasMore: false,
+        items: [
+          item('spanning', '2026-11-10', '2026-11-14'),
+          item('late', '2026-12-20', '2026-12-21'),
+        ],
+      })
+    );
+
+    const items = await fetchTeamOutOfOffice(window);
+
+    expect(
+      listTeamOutOfOffice.mock.calls.map(([args]) => [
+        args.startDate,
+        args.endDate,
+      ])
+    ).toEqual([
+      ['2026-09-28', '2026-12-28'],
+      ['2026-09-28', '2026-11-12'],
+      ['2026-11-12', '2026-12-28'],
+    ]);
+    expect(items.map((found) => found.eventId)).toEqual([
+      'early',
+      'spanning',
+      'late',
+    ]);
   });
 });
