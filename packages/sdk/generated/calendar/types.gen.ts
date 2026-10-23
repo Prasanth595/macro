@@ -117,6 +117,10 @@ export type CalendarCapabilities = {
      */
     emailReminders: boolean;
     /**
+     * Whether the organizer can set what guests may do.
+     */
+    guestPolicy: boolean;
+    /**
      * Whether an existing conference can be detached.
      */
     removeConference: boolean;
@@ -194,6 +198,12 @@ export type CalendarEvent = {
      * Whether the canonical source's calendar prohibits editing it.
      */
     isReadOnly: boolean;
+    /**
+     * Whether this is a snapshot of a meeting shared with the owner, which
+     * Macro added to their calendar as a private copy: the meeting's changes
+     * never reach it, and nothing done to it reaches the meeting.
+     */
+    isSnapshot: boolean;
     /**
      * Optional physical or virtual location label.
      */
@@ -344,6 +354,47 @@ export type CalendarGuestInputBody = {
 };
 
 /**
+ * A channel member's request to be added as a guest of an event they see
+ * only through a channel share.
+ */
+export type CalendarJoinRequest = {
+    /**
+     * When the request was made, or last reopened.
+     */
+    createdAt: string;
+    /**
+     * The sharer's event entity that was shared with the channel.
+     */
+    eventId: string;
+    /**
+     * Request identifier.
+     */
+    id: string;
+    /**
+     * Address the sharer invites when accepting.
+     */
+    requesterEmail: string;
+    /**
+     * Macro user asking to join.
+     */
+    requesterId: string;
+    /**
+     * Where the request stands.
+     */
+    status: CalendarJoinRequestStatus;
+};
+
+/**
+ * How a sharer answers a request to join their event.
+ */
+export type CalendarJoinRequestDecision = 'accept' | 'decline';
+
+/**
+ * Lifecycle of a request to be added as a guest of a shared event.
+ */
+export type CalendarJoinRequestStatus = 'pending' | 'accepted' | 'declined';
+
+/**
  * HTTP error body returned by calendar mutation endpoints.
  */
 export type CalendarMutationApiError = {
@@ -360,7 +411,7 @@ export type CalendarMutationApiError = {
 /**
  * Machine-readable failure category for calendar mutations.
  */
-export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'guests_cannot_invite' | 'guest_list_hidden' | 'already_on_calendar' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
+export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'not_organizer' | 'guests_cannot_invite' | 'guest_list_hidden' | 'guests_cannot_modify' | 'already_on_calendar' | 'copy_refused' | 'snapshot' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
 
 /**
  * Provider selected from the persisted calendar account and email binding.
@@ -488,6 +539,7 @@ export type CreateCalendarEventRequest = {
      * to the requester's primary inbox.
      */
     emailLinkId?: string | null;
+    guestPolicy?: null | GuestPolicy;
     /**
      * Stable retry identity, scoped to the authenticated organizer.
      */
@@ -724,6 +776,16 @@ export type RefreshCalendarEvent = {
 export type ReplacementStatus = 'needs_confirmation' | 'in_progress' | 'complete';
 
 /**
+ * Request body answering a join request.
+ */
+export type RespondToJoinRequestRequest = {
+    /**
+     * The sharer's answer.
+     */
+    decision: CalendarJoinRequestDecision;
+};
+
+/**
  * Request body setting the requester's RSVP on an event.
  */
 export type RsvpCalendarEventRequest = {
@@ -781,6 +843,7 @@ export type UpdateCalendarEventRequest = {
      * Replacement description; an empty string clears it.
      */
     description?: string | null;
+    guestPolicy?: null | GuestPolicy;
     /**
      * Replacement location; an empty string clears it.
      */
@@ -818,6 +881,11 @@ export type ViewerCapabilities = {
      */
     inviteGuests: boolean;
     /**
+     * Act as the event's organizer: replace its whole guest list and manage
+     * its conferencing.
+     */
+    organize: boolean;
+    /**
      * Remove guests.
      */
     removeGuests: boolean;
@@ -826,7 +894,7 @@ export type ViewerCapabilities = {
      */
     rsvp: boolean;
     /**
-     * Change the event's guest policy.
+     * Change the event's guest policy, which only Google calendars have.
      */
     setGuestPolicy: boolean;
 };
@@ -1068,7 +1136,7 @@ export type UpdateCalendarEventErrors = {
      */
     401: unknown;
     /**
-     * Calendar is read-only or needs reauthorization
+     * Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting
      */
     403: CalendarMutationApiError;
     /**
@@ -1126,7 +1194,7 @@ export type CopyCalendarEventErrors = {
      */
     404: CalendarMutationApiError;
     /**
-     * Already on the requester's calendar, no writable calendar, or the provider rejected the copy
+     * Already on the requester's calendar, no writable calendar, or the provider refused the copy
      */
     409: CalendarMutationApiError;
     /**
@@ -1168,7 +1236,7 @@ export type InviteCalendarEventGuestsErrors = {
      */
     401: unknown;
     /**
-     * Calendar is read-only, only the organizer can invite guests, or the calendar needs reauthorization
+     * Calendar is read-only, only the organizer can invite guests, the event is a snapshot of a shared meeting, or the calendar needs reauthorization
      */
     403: CalendarMutationApiError;
     /**
@@ -1265,7 +1333,7 @@ export type RsvpCalendarEventErrors = {
      */
     401: unknown;
     /**
-     * Calendar is read-only or needs reauthorization
+     * Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting
      */
     403: CalendarMutationApiError;
     /**
@@ -1308,6 +1376,52 @@ export type HealthHandlerResponses = {
 };
 
 export type HealthHandlerResponse = HealthHandlerResponses[keyof HealthHandlerResponses];
+
+export type RespondToJoinRequestData = {
+    body: RespondToJoinRequestRequest;
+    path: {
+        /**
+         * Join request id
+         */
+        request_id: string;
+    };
+    query?: never;
+    url: '/join-requests/{request_id}';
+};
+
+export type RespondToJoinRequestErrors = {
+    /**
+     * Authentication required
+     */
+    401: unknown;
+    /**
+     * Calendar is read-only, the organizer doesn't let guests invite others, or the calendar needs reauthorization
+     */
+    403: CalendarMutationApiError;
+    /**
+     * Request not found or its event cannot be changed by the requester
+     */
+    404: CalendarMutationApiError;
+    /**
+     * The provider rejected the new guest
+     */
+    409: CalendarMutationApiError;
+    /**
+     * Transient provider failure
+     */
+    503: CalendarMutationApiError;
+};
+
+export type RespondToJoinRequestError = RespondToJoinRequestErrors[keyof RespondToJoinRequestErrors];
+
+export type RespondToJoinRequestResponses = {
+    /**
+     * The answered join request
+     */
+    200: CalendarJoinRequest;
+};
+
+export type RespondToJoinRequestResponse = RespondToJoinRequestResponses[keyof RespondToJoinRequestResponses];
 
 export type DiscardCalendarReplacementData = {
     body?: never;

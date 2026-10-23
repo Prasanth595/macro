@@ -4,13 +4,34 @@ Page request for the authenticated user's activity feed.
 input ActivityFeedInput {
 	"""
 	Opaque cursor from the previous page's `nextCursor`; absent for the
-	first page.
+	first page. Pass it back with the same `scope`.
 	"""
 	cursor: String
 	"""
 	Page size; defaults to 25, capped at 100.
 	"""
 	limit: Int
+	"""
+	Whose activity to read; defaults to the user's own.
+	"""
+	scope: ActivityFeedScope! = MINE
+}
+
+"""
+Whose activity an activity feed page reads.
+"""
+enum ActivityFeedScope {
+	"""
+	The authenticated user's own activity, delegated actions included.
+	"""
+	MINE
+	"""
+	Activity by the authenticated user's teammates, on entities shared
+	with the user (link sharing alone does not count; forms never). A
+	page may hold fewer items than its limit, or none, while
+	`nextCursor` is set: keep paging until it is absent.
+	"""
+	TEAM
 }
 
 """
@@ -88,6 +109,24 @@ input CalendarGuestInput {
 	Whether attendance is optional.
 	"""
 	optional: Boolean! = false
+}
+
+"""
+What guests may do with an event; Google calendars only.
+"""
+input CalendarGuestPolicyInput {
+	"""
+	Whether guests may change the event; implies inviting others.
+	"""
+	canModify: Boolean!
+	"""
+	Whether guests may invite others.
+	"""
+	canInviteOthers: Boolean!
+	"""
+	Whether guests may see the guest list.
+	"""
+	canSeeOtherGuests: Boolean!
 }
 
 """
@@ -492,6 +531,10 @@ input CreateCalendarEventInput {
 	only, timed, no attendees).
 	"""
 	outOfOffice: CalendarOutOfOfficeInput
+	"""
+	What guests may do; omit for Google's defaults.
+	"""
+	guestPolicy: CalendarGuestPolicyInput
 }
 
 """
@@ -1129,7 +1172,7 @@ type GraphqlActivityOverview {
 }
 
 """
-One page of the authenticated user's activity, newest first.
+One page of activity, newest first.
 """
 type GraphqlActivityPage {
 	"""
@@ -1670,6 +1713,10 @@ type GraphqlCalendarCapabilities {
 	Whether an attendee can reset their RSVP to unanswered.
 	"""
 	resetRsvp: Boolean!
+	"""
+	Whether the organizer can set what guests may do.
+	"""
+	guestPolicy: Boolean!
 }
 
 """
@@ -1872,6 +1919,11 @@ type GraphqlCalendarEvent {
 	"""
 	guestPolicy: GraphqlCalendarGuestPolicy!
 	"""
+	Whether this is a snapshot of a meeting shared with the owner: a
+	private copy the meeting's changes never reach.
+	"""
+	isSnapshot: Boolean!
+	"""
 	What the viewer may do with the event.
 	"""
 	viewerCan: GraphqlCalendarViewerCapabilities!
@@ -1934,6 +1986,24 @@ input GraphqlCalendarEventExpr @oneOf {
 	Match a literal.
 	"""
 	literal: GraphqlCalendarEventLiteral
+}
+
+"""
+Metadata for a request to be added as a guest of a shared calendar event.
+"""
+type GraphqlCalendarEventJoinRequestMetadata {
+	"""
+	Join request identifier.
+	"""
+	requestId: ID!
+	"""
+	The shared calendar event identifier.
+	"""
+	eventId: ID!
+	"""
+	Event display title when the request was made.
+	"""
+	title: String!
 }
 
 """
@@ -2406,13 +2476,18 @@ type GraphqlCalendarViewerCapabilities {
 	"""
 	removeGuests: Boolean!
 	"""
-	Change the event's guest policy.
+	Change the event's guest policy, which only Google calendars have.
 	"""
 	setGuestPolicy: Boolean!
 	"""
 	Answer the invitation.
 	"""
 	rsvp: Boolean!
+	"""
+	Act as the event's organizer: replace its whole guest list and manage
+	its conferencing.
+	"""
+	organize: Boolean!
 }
 
 """
@@ -5631,7 +5706,7 @@ type GraphqlNewNotification {
 """
 Typed GraphQL union containing every supported notification event payload.
 """
-union GraphqlNotifEvent = GraphqlEntityAccessGrantedMetadata | GraphqlEntityAccessRequestedMetadata | GraphqlChannelMentionMetadata | GraphqlDocumentMentionMetadata | GraphqlMentionedInDocumentCommentMetadata | GraphqlRepliedToDocumentCommentThreadMetadata | GraphqlCommentedOnDocumentMetadata | GraphqlInitiativeDiscussionMetadata | GraphqlCrmDiscussionMetadata | GraphqlChannelInviteMetadata | GraphqlChannelMessageSendMetadata | GraphqlChannelMessageReactionMetadata | GraphqlChannelReplyMetadata | GraphqlCallStartedMetadata | GraphqlNewEmailMetadata | GraphqlInboxReauthRequiredMetadata | GraphqlInviteToTeamMetadata | GraphqlTaskAssignedMetadata | GraphqlReminderMetadata | GraphqlCalendarEventReminderMetadata | GraphqlAiResponseMetadata | GraphqlGithubPrStatusChangedMetadata | GraphqlGithubPrCheckRunMetadata | GraphqlGithubReviewRequestedMetadata | GraphqlGithubPrCommentMetadata | GraphqlGithubPrMentionMetadata | GraphqlGithubPrReviewMetadata | GraphqlAgentSessionSettledMetadata | GraphqlAgentSessionWaitingForInputMetadata | GraphqlAgentSessionMentionedMetadata
+union GraphqlNotifEvent = GraphqlEntityAccessGrantedMetadata | GraphqlEntityAccessRequestedMetadata | GraphqlChannelMentionMetadata | GraphqlDocumentMentionMetadata | GraphqlMentionedInDocumentCommentMetadata | GraphqlRepliedToDocumentCommentThreadMetadata | GraphqlCommentedOnDocumentMetadata | GraphqlInitiativeDiscussionMetadata | GraphqlCrmDiscussionMetadata | GraphqlChannelInviteMetadata | GraphqlChannelMessageSendMetadata | GraphqlChannelMessageReactionMetadata | GraphqlChannelReplyMetadata | GraphqlCallStartedMetadata | GraphqlNewEmailMetadata | GraphqlInboxReauthRequiredMetadata | GraphqlInviteToTeamMetadata | GraphqlTaskAssignedMetadata | GraphqlReminderMetadata | GraphqlCalendarEventReminderMetadata | GraphqlAiResponseMetadata | GraphqlGithubPrStatusChangedMetadata | GraphqlGithubPrCheckRunMetadata | GraphqlGithubReviewRequestedMetadata | GraphqlGithubPrCommentMetadata | GraphqlGithubPrMentionMetadata | GraphqlGithubPrReviewMetadata | GraphqlAgentSessionSettledMetadata | GraphqlAgentSessionWaitingForInputMetadata | GraphqlAgentSessionMentionedMetadata | GraphqlCalendarEventJoinRequestMetadata
 
 """
 A notification associated with a Soup entity.
@@ -9148,8 +9223,9 @@ type GraphqlUser {
 	"""
 	folders: [GraphqlSoupProject!]!
 	"""
-	A page of the authenticated user's own activity, newest first.
-	Delegated actions performed on the user's behalf are included.
+	A page of activity, newest first: by default the authenticated
+	user's own, delegated actions included; in the `TEAM` scope, their
+	teammates' activity on entities shared with the user.
 	"""
 	activity(input: ActivityFeedInput!): GraphqlActivityPage!
 	"""
@@ -10241,6 +10317,11 @@ input UpdateCalendarEventInput {
 	already out-of-office.
 	"""
 	outOfOffice: CalendarOutOfOfficeInput
+	"""
+	Replacement guest policy; only the organizer of a Google event may
+	change it, for the whole event or series.
+	"""
+	guestPolicy: CalendarGuestPolicyInput
 	"""
 	How much of a recurring series the update covers. Omit to let
 	`recurrenceId` decide: the identified occurrence alone when one is

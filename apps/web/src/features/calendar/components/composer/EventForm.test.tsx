@@ -2,9 +2,9 @@
  * @vitest-environment jsdom
  */
 
-import { cleanup, render, screen } from '@solidjs/testing-library';
+import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import userEvent from '@testing-library/user-event';
-import { createMemo } from 'solid-js';
+import { type ComponentProps, createMemo } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 vi.mock('@components/app/split-layout/split-router/mention-links', () => ({
@@ -41,6 +41,7 @@ const WORK_CALENDAR: EventEditorCalendarOption = {
     customRecurrence: false,
     removeConference: false,
     resetRsvp: false,
+    guestPolicy: true,
     conferenceProvider: 'google_meet',
   },
   label: 'Work',
@@ -50,7 +51,7 @@ const WORK_CALENDAR: EventEditorCalendarOption = {
 };
 
 /** Renders the form and counts the edits it reports back to its host. */
-function showForm() {
+function showForm(props: Partial<ComponentProps<typeof EventForm>> = {}) {
   const edits = { count: 0 };
   render(() => {
     const calendarOptions = createMemo(() => [WORK_CALENDAR]);
@@ -83,6 +84,7 @@ function showForm() {
         pending={false}
         onCancel={vi.fn()}
         onSubmit={vi.fn()}
+        {...props}
       />
     );
   });
@@ -119,4 +121,120 @@ it('settles after a Macro call is picked', async () => {
   await user.click(screen.getByRole('option', { name: 'Macro call' }));
   expect(trigger.textContent).toContain('Macro call');
   expect(edits.count).toBeLessThan(10);
+});
+
+it('keeps a guest the organizer does not let modify to their own reminders', async () => {
+  const user = userEvent.setup();
+  showForm({
+    isEdit: true,
+    disabledFields: {
+      calendar: true,
+      title: true,
+      allDay: true,
+      start: true,
+      end: true,
+      recurrence: true,
+      location: true,
+      description: true,
+      conference: true,
+    },
+    detailsReadOnlyReason: 'Only the organizer can change this event.',
+  });
+
+  await user.type(screen.getByLabelText('Title'), 'ab');
+  expect(screen.getByLabelText('Title')).toHaveProperty(
+    'value',
+    'Customer demo'
+  );
+  expect(screen.getByRole('button', { name: 'Location' })).toHaveProperty(
+    'disabled',
+    true
+  );
+  expect(screen.getByLabelText('Repeats')).toHaveProperty('disabled', true);
+  expect(
+    screen.getByRole('button', { name: /Video conferencing/ })
+  ).toHaveProperty('disabled', true);
+  expect(
+    screen.getByText('Only the organizer can change this event.')
+  ).toBeTruthy();
+
+  await user.click(screen.getByRole('button', { name: /Notifications/ }));
+  expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
+});
+
+it('lets the organizer set guest permissions, with modifying implying inviting', async () => {
+  const user = userEvent.setup();
+  showForm({ guestPolicyEditable: true });
+
+  const permissions = screen.getByRole('group', { name: 'Guest permissions' });
+  const modify = screen.getByRole('checkbox', { name: 'Modify event' });
+  const invite = screen.getByRole('checkbox', { name: 'Invite others' });
+  const seeGuests = screen.getByRole('checkbox', { name: 'See guest list' });
+  expect(permissions).toBeTruthy();
+  expect([
+    (modify as HTMLInputElement).checked,
+    (invite as HTMLInputElement).checked,
+    (seeGuests as HTMLInputElement).checked,
+  ]).toEqual([false, true, true]);
+
+  await user.click(invite);
+  expect((invite as HTMLInputElement).checked).toBe(false);
+  await user.click(modify);
+  expect((modify as HTMLInputElement).checked).toBe(true);
+  expect((invite as HTMLInputElement).checked).toBe(true);
+  expect((invite as HTMLInputElement).disabled).toBe(true);
+});
+
+it('offers no guest permissions without the organizer’s rights', () => {
+  showForm();
+
+  expect(screen.queryByRole('group', { name: 'Guest permissions' })).toBeNull();
+});
+
+it('returns guest permissions to the stored ones when an edit targets one occurrence', async () => {
+  const user = userEvent.setup();
+  showForm({
+    isEdit: true,
+    guestPolicyEditable: true,
+    showRecurringEditNotice: true,
+  });
+  const seeGuests = screen.getByRole('checkbox', { name: 'See guest list' });
+
+  await user.click(seeGuests);
+  expect((seeGuests as HTMLInputElement).checked).toBe(false);
+  await user.click(screen.getByRole('radio', { name: 'This event' }));
+
+  expect((seeGuests as HTMLInputElement).checked).toBe(true);
+  expect((seeGuests as HTMLInputElement).disabled).toBe(true);
+});
+
+it('moves the end with the start until the end is picked', async () => {
+  const user = userEvent.setup();
+  showForm();
+  const start = screen.getByRole('button', {
+    name: 'Edit event start date and time',
+  });
+  const end = screen.getByRole('button', {
+    name: 'Edit event end date and time',
+  });
+  const pickTime = async (
+    trigger: HTMLElement,
+    label: string,
+    value: string
+  ) => {
+    await user.click(trigger);
+    fireEvent.input(screen.getByLabelText(label), { target: { value } });
+    await user.keyboard('{Escape}');
+  };
+
+  await pickTime(start, 'Start time', '14:00');
+  expect(start.textContent).toContain('2:00');
+  expect(end.textContent).toContain('3:00');
+
+  await pickTime(end, 'End time', '17:00');
+  await pickTime(start, 'Start time', '15:00');
+  expect(end.textContent).toContain('5:00');
+  expect(
+    screen.queryByText('End time must be after the start time.')
+  ).toBeNull();
 });
