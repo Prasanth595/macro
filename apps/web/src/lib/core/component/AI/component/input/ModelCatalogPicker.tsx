@@ -32,6 +32,7 @@ type ModelCatalogPickerProps = {
   disabled?: boolean;
   pending?: boolean;
   fullCatalog?: boolean;
+  flat?: boolean;
   triggerLabel?: JSX.Element;
   children?: JSX.Element;
   /** Optional overview that can reveal the complete catalog. */
@@ -193,6 +194,7 @@ export function ModelCatalogPicker(props: ModelCatalogPickerProps) {
   const catalog = () => (
     <ModelCatalogMenu
       fullCatalog={props.fullCatalog}
+      flat={props.flat}
       value={props.value}
       options={props.options}
       disabled={props.disabled || props.pending}
@@ -274,6 +276,7 @@ export function ModelCatalogMenu(
     | 'emptyMessage'
     | 'searchPlaceholder'
     | 'children'
+    | 'flat'
   > & {
     searchRef?: (element: HTMLInputElement) => void;
     /**
@@ -298,7 +301,7 @@ export function ModelCatalogMenu(
   const normalizedQuery = () => query().trim().toLowerCase();
   const filtered = createMemo(() => {
     const currentQuery = normalizedQuery();
-    if (!currentQuery) return [];
+    if (!currentQuery) return props.options;
     return props.options.filter((option) =>
       matchesModelQuery(option, currentQuery)
     );
@@ -344,7 +347,7 @@ export function ModelCatalogMenu(
         </div>
       </Show>
       <Show
-        when={normalizedQuery().length > 0}
+        when={props.flat || normalizedQuery().length > 0}
         fallback={
           <div class="space-y-1">
             <Show
@@ -455,24 +458,26 @@ export function ModelCatalogMenu(
         }
       >
         <Dropdown.Group class="max-h-72 overflow-y-auto overscroll-contain">
-          <Dropdown.GroupLabel>
-            {filtered().length === 1
-              ? '1 matching model'
-              : `${filtered().length} matching models`}
-          </Dropdown.GroupLabel>
+          <Show when={!props.flat}>
+            <Dropdown.GroupLabel>
+              {filtered().length === 1
+                ? '1 matching model'
+                : `${filtered().length} matching models`}
+            </Dropdown.GroupLabel>
+          </Show>
           <For each={filtered()}>
             {(option) => (
               <Row
                 option={option}
                 onClose={props.onClose}
-                hint={modelProviderLabel(option)}
+                hint={props.flat ? undefined : modelProviderLabel(option)}
                 selected={option.id === props.value}
                 disabled={props.disabled}
                 onSelect={() => props.onSelect(option.id)}
               />
             )}
           </For>
-          <Show when={filtered().length === 0}>
+          <Show when={normalizedQuery() && filtered().length === 0}>
             <div class="px-3 py-4 text-sm text-ink-muted">
               No models match that search.
             </div>

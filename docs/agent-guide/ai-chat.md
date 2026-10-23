@@ -141,15 +141,12 @@ a conversation. Returning to the list and reopening the composer preserves the
 draft, attachments, agent, model, repository, and branch. Tap the
 agent/model control once to open a bottom sheet with its search field focused,
 without first focusing or expanding the message input. **Default agent** appears
-first, then **Built-in**, **Your agents**, and **Needs connection** groups, with
-runtime/model details below their names. Tap an agent to update the model list
-in the same sheet; tap a model to select it and close. The active agent's models
-follow the agent choices, starting with **Suggested** and then the remaining
-provider groups. Search accepts model names, IDs, and providers. There are no
-model arrows, drill-in screens, or More models step in this chooser.
-**Create agent** opens the roster and uses the shared rounded button at the
-bottom right. The picker uses one continuous surface, with labels and spacing
-separating groups. The separate effort button opens its own flat list of levels.
+first, followed by saved agents in a single list. Each row shows its name and
+icon; agents that need a connection also show their setup action. Tap an agent
+to update the model list in the same sheet; tap a model to select it and close.
+The active agent's models appear once each beneath **Models**. Search accepts
+model names, IDs, and providers. **Create agent** is a quiet action at the bottom.
+The separate effort button opens its own flat list of levels.
 
 The floating mobile composer appears only on **Agents**; Home and other views
 keep their New action or their own reply/comment composer.
@@ -164,8 +161,8 @@ appear alongside it in Code mode.
 Tapping outside collapses the composer and restores New.
 The editor and model picker stay mounted so collapsing preserves the draft.
 Dismissing the model or effort selector on mobile returns focus to the message input.
-Active sessions use the same compact mobile model drawer: focused search, Suggested
-with Gemini last, and More models for the complete provider catalog.
+Active sessions use the same compact mobile model drawer: focused search and one
+flat list containing every available model.
 Repository and branch pickers keep the composer expanded while their search
 fields are focused, so their anchor stays in place.
 
@@ -411,17 +408,15 @@ the shimmer.
   in place and uses that agent's default, while keeping the picker open.
   Selecting the current agent preserves its model choice. Picking a model
   closes the picker. Neither agents nor models open nested menus.
-  The model column starts with suggested choices, followed by the complete
-  catalog grouped by provider. Custom/coding agents retain model search;
-  both columns scroll independently. Phones keep a searchable bottom sheet
-  with agent choices first and the active agent's models below, without drill-in
-  menus or a More models step. Changing agents updates that list in place.
-  The separate speedometer controls effort. The catalog's opaque header
-  meets the top of the scroll area so rows cannot show through above it.
-  **Built-in**, **Your agents**, and **Needs connection** groups follow when
-  they have entries. Each agent row shows its runtime and model, or its setup
-  action/availability reason. **Create agent** uses the shared rounded pill
-  button at the bottom right with a subtle background. Models have readable
+  The model column is a single searchable list, with each model appearing once
+  and no provider headings. Both columns scroll independently. Phones keep a
+  searchable bottom sheet with agent choices first and the active agent's models
+  below. Changing agents updates that list in place. Agent rows show a small
+  icon and name; only unavailable agents add their setup action or reason.
+  **Create agent** is a quiet action below the agents. The separate brain control
+  displays the current effort on desktop and opens a flat list of choices.
+  The catalog's opaque search header meets the top of the scroll area so rows
+  cannot show through above it. Models have readable
   names (for example, **Sonnet 5.5**) and provider or model icons aligned with the
   agent icons. The in-memory catalog leads with **Auto**, where Jev sorts each
   turn's prompt: hard prompts run on **Opus 5.5**, simple ones on **Gemini 3.8
@@ -513,7 +508,7 @@ the shimmer.
   Its trigger, model options, and session metadata use the same readable model names
   as the new-conversation picker. Desktop sessions show the complete searchable
   catalog in one menu. Phone sessions retain a searchable bottom sheet.
-- The separate speedometer opens a flat **Reasoning effort** list using the
+- The separate brain control opens a flat **Reasoning effort** list using the
   current model's advertised choices. Click a level, or select it with the
   keyboard, to apply it and close the menu. On phones the same choices appear
   in their own bottom sheet. Models with fewer than two effort choices omit
@@ -587,7 +582,7 @@ the shimmer.
   changes the model of an idle native session after native confirmation and
   displays the model identified by the session (Codex's live footer, or native
   transcript metadata). Unexpected native dialogs must be completed in Herdr.
-  For Codex, use the separate speedometer to select **Reasoning effort**.
+  For Codex, use the separate brain control to select **Reasoning effort**.
   Choices come from the installed Codex catalog; the selected effort is confirmed
   from the native session and shown beside the model. Local Herdr changes and
   `/effort` also update this menu. The effort menu appears once the native
@@ -1767,13 +1762,13 @@ There is no periodic PR lookup polling.
 
 ### Agent reasoning effort
 
-Open the speedometer beside the model selector to choose from a flat list of
+Open the brain control beside the model selector to choose from a flat list of
 **Reasoning effort** levels. The current level has a checkmark. Choosing a level
 applies it immediately and closes the menu; Escape closes it without a change.
 Phones show the same choices in a bottom sheet. Select a model first, then use
 its advertised effort choices. Cursor and Macro's in-memory agent discover
 capabilities for the selected model. The model trigger shows the model name;
-the speedometer announces the effort. Models without effort support remain
+the brain control displays the current effort on desktop and announces it on mobile. Models without effort support remain
 selectable, and omit the effort control. Default retains the runtime's default
 behavior when it is advertised.
 

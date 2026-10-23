@@ -378,8 +378,8 @@ describe('agent-led new conversation', () => {
         within(sheet).getByRole('textbox', { name: 'Search agents and models' })
       ).toBeTruthy();
       expect(screen.queryByRole('menu')).toBeNull();
-      expect(screen.queryByRole('group', { name: 'Agents' })).toBeNull();
-      expect(screen.queryByRole('group', { name: 'Models' })).toBeNull();
+      expect(screen.getByRole('group', { name: 'Agents' })).toBeTruthy();
+      expect(screen.getByRole('group', { name: 'Models' })).toBeTruthy();
       fireEvent.click(
         within(sheet).getByRole('button', { name: 'Sonnet 5.5' })
       );
@@ -410,19 +410,11 @@ describe('agent-led new conversation', () => {
     const send = page();
     fireEvent.click(screen.getByRole('button', { name: 'Agent' }));
     await screen.findByRole('textbox', { name: 'Search agents and models' });
-    const frontier = within(screen.getByRole('group', { name: 'Suggested' }));
-    expect(
-      frontier.getAllByRole('button').map((item) => item.textContent?.trim())
-    ).toEqual([
-      'Opus 5.5',
-      'Sonnet 5.5',
-      'GPT-5.6',
-      'GPT-6 Astra',
-      'Gemini 3.8 Flash',
-    ]);
-    expect(screen.getByRole('group', { name: 'Z.ai' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'More models' })).toBeNull();
-    expect(screen.queryByText('Recommended')).toBeNull();
+    const models = within(screen.getByRole('group', { name: 'Models' }));
+    expect(models.getAllByRole('button', { name: 'Sonnet 5.5' })).toHaveLength(
+      1
+    );
+    expect(models.getByRole('button', { name: 'GLM 5.3 Flash' })).toBeTruthy();
     fireEvent.input(
       screen.getByRole('textbox', { name: 'Search agents and models' }),
       {
@@ -456,18 +448,17 @@ describe('agent-led new conversation', () => {
     });
     await waitFor(() => expect(document.activeElement).toBe(search));
   });
-  it('opens the full desktop catalog without search or a More step', async () => {
+  it('opens the complete desktop catalog and focuses search on reopening', async () => {
     page();
     for (let attempt = 0; attempt < 2; attempt++) {
       openAgents();
-      expect(
-        screen.queryByRole('textbox', { name: 'Search models' })
-      ).toBeNull();
+      const search = screen.getByRole('textbox', { name: 'Search models' });
+      await waitFor(() => expect(document.activeElement).toBe(search));
       expect(
         screen.queryByRole('menuitem', { name: 'More models' })
       ).toBeNull();
       expect(
-        within(screen.getByRole('group', { name: 'Suggested' })).getByTitle(
+        within(screen.getByRole('group', { name: 'Models' })).getByTitle(
           'Sonnet 5.5'
         )
       ).toBeTruthy();
@@ -486,23 +477,14 @@ describe('agent-led new conversation', () => {
     );
     expect(screen.queryByText('Your agents')).toBeNull();
     expect(screen.queryByText('Suggested')).toBeNull();
-    const suggested = within(models).getByRole('group', { name: 'Suggested' });
-    const anthropic = within(models).getByRole('group', { name: 'Anthropic' });
-    expect(
-      suggested.compareDocumentPosition(anthropic) &
-        Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-
     expect(
       within(agents).getByRole('menuitem', { name: 'Create agent' })
     ).toBeTruthy();
     expect(
-      within(models).queryByRole('textbox', { name: 'Search models' })
-    ).toBeNull();
+      within(models).getByRole('textbox', { name: 'Search models' })
+    ).toBeTruthy();
     expect(
-      within(
-        within(models).getByRole('group', { name: 'Suggested' })
-      ).getByRole('menuitem', { name: 'Opus 5.5' })
+      within(models).getByRole('menuitem', { name: 'Opus 5.5' })
     ).toBeTruthy();
   });
   it('starts in Chat and switches to Code from the composer', async () => {
@@ -824,7 +806,7 @@ describe('agent-led new conversation', () => {
   });
 
   it.each([false, true])(
-    'clusters coding agents by availability without an empty model catalog (touch: %s)',
+    'keeps unavailable agents reconnectable in the flat picker (touch: %s)',
     async (touch) => {
       mocks.touch = touch;
       const roster = buildAgentRoster({
@@ -862,25 +844,20 @@ describe('agent-led new conversation', () => {
       if (touch) fireEvent.click(screen.getByRole('button', { name: 'Agent' }));
       else openAgents();
       const picker = await screen.findByRole(touch ? 'dialog' : 'menu');
-      const builtIn = within(picker).getByRole('group', { name: 'Built-in' });
-      const saved = within(picker).getByRole('group', { name: 'Your agents' });
-      const offline = within(picker).getByRole('group', {
-        name: 'Needs connection',
-      });
-      expect(builtIn.textContent).toContain('Cursor');
-      expect(saved.textContent).toContain('Reviewer');
-      expect(saved.textContent).toContain('Laptop · Sonnet 5.5');
-      expect(offline.textContent).toContain('Offline agent');
-      // The disconnected row stays clickable: it offers to reconnect the
-      // runtime (opens Settings → Runtimes) and keeps the reason as a tooltip.
-      expect(offline.textContent).toContain('Reconnect runtime');
+      const agents = within(picker).getByRole('group', { name: 'Agents' });
+      expect(agents.textContent).toContain('Cursor');
+      expect(agents.textContent).toContain('Reviewer');
+      const unavailable = within(agents).getByRole(
+        touch ? 'button' : 'menuitem',
+        { name: /Offline agent/ }
+      );
+      expect(unavailable.textContent).toContain('Reconnect runtime');
       expect(
         within(picker).queryByText('Connect the runtime to load models.')
       ).toBeNull();
-      expect(within(picker).getByText('Models')).toBeTruthy();
-      const unavailable = within(offline).getByRole(
-        touch ? 'button' : 'menuitem'
-      );
+      expect(
+        within(picker).getByRole('group', { name: 'Models' })
+      ).toBeTruthy();
       // The desktop row keeps the reason as a tooltip; the drawer row has no
       // title attribute.
       if (!touch) {
@@ -992,7 +969,7 @@ describe('agent-led new conversation', () => {
     page();
     openAgents();
     const model = within(
-      screen.getByRole('group', { name: 'Suggested' })
+      screen.getByRole('group', { name: 'Models' })
     ).getByTitle('Sonnet 5.5');
     model.focus();
     fireEvent.keyDown(model, { key: 'Enter' });
@@ -1005,7 +982,7 @@ describe('agent-led new conversation', () => {
       'Cursor default'
     );
   });
-  it('groups the Macro catalog and selects direct models with readable names and icons', async () => {
+  it('selects from the flat Macro catalog with readable names and icons', async () => {
     const send = page(true, [
       {
         bot: { id: 'saved-agent', name: 'Reviewer', handle: 'reviewer' },
@@ -1015,18 +992,16 @@ describe('agent-led new conversation', () => {
     ]);
     openAgents();
     const models = within(screen.getByRole('group', { name: 'Models' }));
-    expect(screen.getByRole('group', { name: 'Your agents' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Agents' })).toBeTruthy();
     expect(screen.queryByRole('group', { name: 'Coding agents' })).toBeNull();
-    expect(screen.queryByRole('textbox', { name: 'Search models' })).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Search models' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: /More models/ })).toBeNull();
-    expect(models.getByRole('group', { name: 'Z.ai' })).toBeTruthy();
     expect(models.getByTitle('GLM 5.3')).toBeTruthy();
     expect(models.getByTitle('GLM 5.3 Flash')).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: /Cursor/ })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /^Macro/ })).toBeNull();
-    const sonnet = within(
-      models.getByRole('group', { name: 'Suggested' })
-    ).getByTitle('Sonnet 5.5');
+    const sonnet = models.getByTitle('Sonnet 5.5');
+    expect(models.getAllByTitle('Sonnet 5.5')).toHaveLength(1);
     expect(
       sonnet.querySelector('[data-ai-provider="anthropic"] svg')
     ).toBeTruthy();
@@ -1087,7 +1062,7 @@ describe('agent-led new conversation', () => {
     ));
     openAgents();
     const sonnet = within(
-      screen.getByRole('group', { name: 'Suggested' })
+      screen.getByRole('group', { name: 'Models' })
     ).getByTitle('Sonnet 5.5');
     expect(sonnet.getAttribute('aria-disabled')).toBe('true');
     fireEvent.click(sonnet);
@@ -1117,7 +1092,7 @@ describe('agent-led new conversation', () => {
     await waitFor(() => expect(screen.getByRole('menu')).toBeTruthy());
     expect(screen.queryByTitle('Sonnet 5.5')).toBeNull();
     expect(
-      within(screen.getByRole('group', { name: 'Suggested' })).getByTitle(
+      within(screen.getByRole('group', { name: 'Models' })).getByTitle(
         'Gemini 3.8 Flash'
       )
     ).toBeTruthy();

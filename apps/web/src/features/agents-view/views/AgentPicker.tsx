@@ -5,7 +5,7 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { composerMenuAnchorRect } from '@core/util/composerMenuAnchor';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import PlusIcon from '@phosphor/plus.svg';
-import { buttonClasses, cn, Dropdown } from '@ui';
+import { cn, Dropdown } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createSignal, For, Show } from 'solid-js';
 import { AgentIcon } from '../components/AgentGlyph';
@@ -48,7 +48,8 @@ function DesktopAgentPicker(props: AgentPickerProps) {
   const selectedCatalog = createComposerModels(() => props.selected);
   const macro = () =>
     props.agents.find((agent) => agent.id === MACRO_PERSONA_ID);
-  const groups = () => agentPickerGroups(props.agents);
+  const agents = () =>
+    agentPickerGroups(props.agents).flatMap((group) => group.agents);
   const rawModel = () => props.selected?.id === MACRO_PERSONA_ID;
   const model = () =>
     props.modelOverride ??
@@ -84,7 +85,7 @@ function DesktopAgentPicker(props: AgentPickerProps) {
   const agentRow = (agent: RosterAgent, name?: string) => (
     <Dropdown.Item
       closeOnSelect={false}
-      class="min-w-0 flex-1 gap-3 py-2"
+      class="min-h-9 min-w-0 gap-2"
       disabled={Boolean(agent.unavailableReason && !agent.connectLabel)}
       title={agent.unavailableReason}
       onSelect={() => browse(agent)}
@@ -93,9 +94,6 @@ function DesktopAgentPicker(props: AgentPickerProps) {
         agent={agent}
         name={name}
         selected={agent.id === browsing()?.id}
-        model={
-          agent.id === props.selected?.id ? props.modelOverride : undefined
-        }
       />
     </Dropdown.Item>
   );
@@ -147,26 +145,21 @@ function DesktopAgentPicker(props: AgentPickerProps) {
         <CaretDownIcon class="size-4 shrink-0 text-ink-muted" />
       </Dropdown.Trigger>
       <Dropdown.Content
-        class="w-[min(42rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border-0"
+        class="w-[min(36rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border-0"
         onCloseAutoFocus={props.onCloseAutoFocus}
         onPointerDown={(event: PointerEvent) => event.stopPropagation()}
         onMouseDown={(event: MouseEvent) => event.stopPropagation()}
       >
-        <div class="grid max-h-[min(24rem,var(--kb-popper-content-available-height))] min-h-0 grid-cols-1 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div class="grid max-h-[min(24rem,var(--kb-popper-content-available-height))] min-h-0 grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
           <div
             role="group"
             aria-label="Models"
             class="order-2 min-h-0 max-h-[min(24rem,var(--kb-popper-content-available-height))] min-w-0 overflow-y-auto overscroll-contain px-2 pb-2 sm:border-l sm:border-edge-divider"
           >
-            <div class="px-3 pt-3 pb-1 text-xs font-medium text-ink-extra-muted">
-              Models
-            </div>
             <Show when={browsing()} keyed>
               {(agent) => (
                 <ModelCatalogMenu
-                  fullCatalog
-                  suggestedFirst
-                  searchable={agent.id !== MACRO_PERSONA_ID}
+                  flat
                   autoFocusSearch
                   value={browsingModel() ?? null}
                   disabled={Boolean(agent.unavailableReason)}
@@ -188,55 +181,34 @@ function DesktopAgentPicker(props: AgentPickerProps) {
           <div
             role="group"
             aria-label="Agents"
-            class="order-1 min-h-0 max-h-[min(24rem,var(--kb-popper-content-available-height))] min-w-0 space-y-1 overflow-y-auto overscroll-contain px-2 pb-2 pt-3"
+            class="order-1 flex min-h-0 max-h-[min(24rem,var(--kb-popper-content-available-height))] min-w-0 flex-col px-2 pb-2 pt-3"
           >
             <div class="px-3 pb-1 text-xs font-medium text-ink-extra-muted">
               Agents
             </div>
-            <Show when={macro()}>
-              {(agent) => agentRow(agent(), 'Default agent')}
-            </Show>
-            <For each={groups()}>
-              {(group) => (
-                <Dropdown.Group
-                  class="bg-transparent py-0"
-                  aria-label={
-                    macro() && group.label === 'Your agents'
-                      ? group.label
-                      : undefined
-                  }
+            <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <Show when={macro()}>
+                {(agent) => agentRow(agent(), 'Default agent')}
+              </Show>
+              <For each={agents()}>{(agent) => agentRow(agent)}</For>
+              <Show when={!props.loading && !macro() && agents().length === 0}>
+                <p role="status" class="px-3 py-2 text-sm text-ink-muted">
+                  No agents available
+                </p>
+              </Show>
+              <Show when={props.loading}>
+                <div
+                  role="status"
+                  class="bg-menu px-3 py-2 text-xs text-ink-muted"
                 >
-                  <Show when={!macro() || group.label !== 'Your agents'}>
-                    <Dropdown.GroupLabel class="h-6 font-medium text-ink-muted">
-                      {group.label}
-                    </Dropdown.GroupLabel>
-                  </Show>
-                  <For each={group.agents}>{(agent) => agentRow(agent)}</For>
-                </Dropdown.Group>
-              )}
-            </For>
-            <Show when={!props.loading && !macro() && groups().length === 0}>
-              <p role="status" class="px-3 py-2 text-sm text-ink-muted">
-                No agents available
-              </p>
-            </Show>
-            <Show when={props.loading}>
-              <div
-                role="status"
-                class="bg-menu px-3 py-2 text-xs text-ink-muted"
-              >
-                Loading agents…
-              </div>
-            </Show>
-            <Dropdown.Group class="items-end bg-transparent px-1.5 pt-1 pb-0">
+                  Loading agents…
+                </div>
+              </Show>
+            </div>
+            <Dropdown.Group class="shrink-0 border-t border-edge-divider bg-transparent pt-1 pb-0">
               <Dropdown.Item
                 closeOnSelect
-                class={buttonClasses({
-                  variant: 'strong',
-                  size: 'sm',
-                  glass: false,
-                  class: 'w-auto gap-1.5 data-highlighted:overlay-hover',
-                })}
+                class="min-h-9 gap-2 text-ink-muted"
                 onSelect={() => {
                   setOpen(false);
                   props.onCreate();

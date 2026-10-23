@@ -1,4 +1,3 @@
-import { modelLabel } from '@core/component/AI/constant/model-label';
 import Check from '@phosphor/check.svg';
 import { Show } from 'solid-js';
 import type { RosterAgent } from '../core/roster';
@@ -9,39 +8,22 @@ export function AgentPickerIdentity(props: {
   agent: RosterAgent;
   selected: boolean;
   name?: string;
-  model?: string;
 }) {
-  const detail = () => {
-    if (props.agent.unavailableReason)
-      return props.agent.connectLabel ?? props.agent.unavailableReason;
-    const model = props.model ?? props.agent.defaultModel;
-    return [
-      props.agent.share === 'system' && model
-        ? undefined
-        : props.agent.runtime.label,
-      model && modelLabel(model),
-    ]
-      .filter(Boolean)
-      .join(' · ');
-  };
   return (
     <>
-      <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-ink/5">
-        <AgentIcon agent={props.agent} class="size-[18px]" />
-      </span>
+      <AgentIcon agent={props.agent} class="size-4 shrink-0" />
       <span class="min-w-0 flex-1 text-left">
         <span
-          class="block truncate text-sm font-medium leading-5"
-          title={props.name ?? props.agent.name}
+          class="block truncate text-sm leading-5"
+          title={`${props.name ?? props.agent.name} · ${props.agent.runtime.label}`}
         >
           {props.name ?? props.agent.name}
         </span>
-        <span
-          class="block truncate text-xs leading-4 text-ink-muted"
-          title={`${props.agent.name} · ${detail()}`}
-        >
-          {detail()}
-        </span>
+        <Show when={props.agent.unavailableReason}>
+          <span class="block truncate text-xs leading-4 text-ink-muted">
+            {props.agent.connectLabel ?? props.agent.unavailableReason}
+          </span>
+        </Show>
       </span>
       <Show when={props.selected}>
         <Check class="size-4 shrink-0 text-accent" />

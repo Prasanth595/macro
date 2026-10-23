@@ -1,5 +1,7 @@
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import Brain from '@phosphor/brain.svg';
+import CaretDown from '@phosphor/caret-down.svg';
 import Check from '@phosphor/check.svg';
 import { Button, Dropdown, Tooltip } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
@@ -30,29 +32,6 @@ export function EffortSelector(props: {
       choices().findIndex((choice) => choice.value === value())
     );
   const label = () => choices()[index()]?.name ?? 'Default';
-  const angle = () => {
-    return -70 + (index() / Math.max(1, choices().length - 1)) * 140;
-  };
-  const contents = () => (
-    <svg viewBox="0 0 24 24" class="size-[22px]" fill="none" aria-hidden="true">
-      <path
-        d="M4.5 18a9 9 0 1 1 15 0"
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-linecap="round"
-        opacity="0.45"
-      />
-      <g transform={`rotate(${angle()} 12 14)`}>
-        <path
-          d="M12 14V8"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-        />
-      </g>
-      <circle cx="12" cy="14" r="2" fill="currentColor" />
-    </svg>
-  );
   const choose = (choice: SelectSessionConfigOption['options'][number]) => {
     if (!props.config || props.disabled) return;
     props.onChange({
@@ -82,20 +61,21 @@ export function EffortSelector(props: {
               <Dropdown.Trigger
                 variant="ghost"
                 size="sm"
-                class="size-8 rounded-full p-0"
+                class="h-[33.75px] gap-1.5 rounded-full px-2 text-ink-muted"
                 disabled={props.disabled}
                 aria-label={`Effort: ${label()}`}
               >
-                {contents()}
+                <Brain class="size-4" />
+                <span>{label()}</span>
+                <CaretDown class="size-3.5" />
               </Dropdown.Trigger>
             </Tooltip>
             <Dropdown.Content
-              class="w-64 rounded-2xl"
+              class="w-44 rounded-2xl"
               aria-label="Reasoning effort"
               onCloseAutoFocus={props.onCloseAutoFocus}
             >
               <Dropdown.Group>
-                <Dropdown.GroupLabel>Reasoning effort</Dropdown.GroupLabel>
                 <For each={choices()}>
                   {(choice) => (
                     <Dropdown.Item
@@ -131,7 +111,7 @@ export function EffortSelector(props: {
             onPointerDown={(event: PointerEvent) => event.preventDefault()}
             onMouseDown={(event: MouseEvent) => event.preventDefault()}
           >
-            {contents()}
+            <Brain class="size-[18px]" />
           </MobileDrawer.Trigger>
           <MobileDrawer.Portal>
             <MobileDrawer.Overlay />

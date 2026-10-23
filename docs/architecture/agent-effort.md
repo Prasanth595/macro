@@ -94,9 +94,10 @@ an external harness result.
 
 Desktop new-chat selectors keep agent choices and the selected agent's full
 model catalog in one popup. Choosing an agent updates the model column without
-opening a submenu. Running sessions use one complete model menu.
+opening a submenu. Model lists are searchable, with one row per model and no
+provider headings. Running sessions use the same flat model list.
 
-The adjacent speedometer opens a flat **Reasoning effort** list. Entries come
+The adjacent brain control shows the current effort on desktop and opens a flat **Reasoning effort** list. Entries come
 from the selected model's advertised choices and retain their opaque values,
 including Default when advertised. Selecting a level applies it immediately and
 closes the menu; Escape discards no staged value because selection is immediate.

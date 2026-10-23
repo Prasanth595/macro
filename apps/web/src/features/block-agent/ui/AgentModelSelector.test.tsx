@@ -157,13 +157,10 @@ it('uses the searchable touch sheet with custom desktop model rows', async () =>
   fireEvent.click(screen.getByRole('button', { name: 'Agent model' }));
   const search = await screen.findByRole('textbox', { name: 'Search models' });
   await waitFor(() => expect(document.activeElement).toBe(search));
-  expect(screen.getByRole('radiogroup', { name: 'Suggested' })).toBeTruthy();
+  expect(screen.getByRole('radiogroup', { name: 'Models' })).toBeTruthy();
   expect(screen.queryByText('Desktop custom row')).toBeNull();
-  expect(screen.queryByRole('radio', { name: 'Haiku 4.5' })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'More models' }));
   expect(screen.getByRole('radio', { name: 'Opus 5.5' })).toBeTruthy();
   expect(screen.getByRole('radio', { name: 'Haiku 4.5' })).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Back to Suggested' }));
   fireEvent.input(search, { target: { value: 'haiku' } });
   fireEvent.click(screen.getByRole('radio', { name: 'Haiku 4.5' }));
   expect(select).toHaveBeenCalledExactlyOnceWith('anthropic/claude-haiku-4-5');

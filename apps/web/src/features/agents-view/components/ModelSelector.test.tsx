@@ -142,7 +142,7 @@ describe('shared model selector', () => {
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
   });
 
-  it('groups a large catalog by provider and searches every model with provider icons', async () => {
+  it('searches the complete flat catalog and retains model ids and provider icons', async () => {
     const select = vi.fn();
     render(() => (
       <ModelSelector
@@ -161,7 +161,6 @@ describe('shared model selector', () => {
     });
     expect(screen.getAllByRole('menuitem')).toHaveLength(60);
     expect(screen.queryByRole('menuitem', { name: /More models/ })).toBeNull();
-    expect(screen.getByRole('group', { name: 'OpenAI' })).toBeTruthy();
     expect(screen.queryByRole('group', { name: 'Suggested' })).toBeNull();
     fireEvent.input(screen.getByRole('textbox', { name: 'Search models' }), {
       target: { value: 'variant 59' },
