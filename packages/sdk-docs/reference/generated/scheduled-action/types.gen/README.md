@@ -116,6 +116,7 @@
 - [RebindTemplateRequest](type-aliases/RebindTemplateRequest.md)
 - [RoutineModelId](type-aliases/RoutineModelId.md)
 - [RoutineProvenance](type-aliases/RoutineProvenance.md)
+- [RoutineProvenanceResponse](type-aliases/RoutineProvenanceResponse.md)
 - [RoutineTemplate](type-aliases/RoutineTemplate.md)
 - [RoutineTrigger](type-aliases/RoutineTrigger.md)
 - [RoutineTriggers](type-aliases/RoutineTriggers.md)

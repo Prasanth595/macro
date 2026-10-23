@@ -16,10 +16,10 @@ import type {
   ExtractTemplateRequest,
   FillTemplateRequest,
   FillTemplateResponse,
-  GetRoutineTemplateProvenance200,
   InProgressExecution,
   ListScheduledActionsParams,
   RebindTemplateRequest,
+  RoutineProvenanceResponse,
   RoutineTemplate,
   ScheduledActionResponse,
   SetScheduledActionEnabled,
@@ -1230,7 +1230,7 @@ export const listScheduledActionHistory = async (
 };
 
 export type getRoutineTemplateProvenanceResponse200 = {
-  data: GetRoutineTemplateProvenance200;
+  data: RoutineProvenanceResponse;
   status: 200;
 };
 

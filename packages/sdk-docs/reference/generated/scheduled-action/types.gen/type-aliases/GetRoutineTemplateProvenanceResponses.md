@@ -1,9 +1,9 @@
 # Type Alias: GetRoutineTemplateProvenanceResponses
 
-> **GetRoutineTemplateProvenanceResponses** = \{ `200`: `null` \| [`RoutineProvenance`](RoutineProvenance.md); \}
+> **GetRoutineTemplateProvenanceResponses** = \{ `200`: [`RoutineProvenanceResponse`](RoutineProvenanceResponse.md); \}
 
 ## Properties
 
 | Property | Type |
 | ------ | ------ |
-| <a id="property-200"></a> `200` | `null` \| [`RoutineProvenance`](RoutineProvenance.md) |
+| <a id="property-200"></a> `200` | [`RoutineProvenanceResponse`](RoutineProvenanceResponse.md) |

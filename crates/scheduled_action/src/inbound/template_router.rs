@@ -366,7 +366,7 @@ where
     operation_id = "get_routine_template_provenance",
     params(("id" = String, Path, description = "ID of the scheduled action")),
     responses(
-        (status = 200, body = Option<RoutineProvenance>),
+        (status = 200, body = RoutineProvenanceResponse),
         (status = 401, body = String),
         (status = 404, body = String),
         (status = 500, body = String),
@@ -376,12 +376,20 @@ pub async fn get_routine_provenance<S, Auth>(
     State(state): State<TemplateRouterState<S, Auth>>,
     user: Caller<Auth>,
     Path(id): Path<Uuid>,
-) -> Result<Json<Option<RoutineProvenance>>, TemplateApiError>
+) -> Result<Json<RoutineProvenanceResponse>, TemplateApiError>
 where
     S: RoutineTemplateService,
     Auth: MacroAuthorizationService,
 {
-    Ok(Json(state.service.provenance(caller(&user), id).await?))
+    Ok(Json(RoutineProvenanceResponse {
+        provenance: state.service.provenance(caller(&user), id).await?,
+    }))
+}
+
+/// The template a routine came from; absent for a routine made by hand.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct RoutineProvenanceResponse {
+    pub provenance: Option<RoutineProvenance>,
 }
 
 #[utoipa::path(

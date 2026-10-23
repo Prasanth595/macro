@@ -363,6 +363,13 @@ export type RoutineProvenance = {
 };
 
 /**
+ * The template a routine came from; absent for a routine made by hand.
+ */
+export type RoutineProvenanceResponse = {
+    provenance?: null | RoutineProvenance;
+};
+
+/**
  * A stored template.
  */
 export type RoutineTemplate = TemplateDraft & {
@@ -1187,7 +1194,7 @@ export type GetRoutineTemplateProvenanceErrors = {
 export type GetRoutineTemplateProvenanceError = GetRoutineTemplateProvenanceErrors[keyof GetRoutineTemplateProvenanceErrors];
 
 export type GetRoutineTemplateProvenanceResponses = {
-    200: null | RoutineProvenance;
+    200: RoutineProvenanceResponse;
 };
 
 export type GetRoutineTemplateProvenanceResponse = GetRoutineTemplateProvenanceResponses[keyof GetRoutineTemplateProvenanceResponses];

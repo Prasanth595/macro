@@ -181,13 +181,12 @@ export class Routine extends MacroEntity<ScheduledActionResponse> {
    * or `undefined` for a routine made by hand.
    */
   async template(): Promise<RoutineProvenance | undefined> {
-    return (
-      unwrap(
-        await this.client.scheduledAction.getRoutineTemplateProvenance({
-          path: { id: this.id },
-        }),
-      ) ?? undefined
+    const { provenance } = unwrap(
+      await this.client.scheduledAction.getRoutineTemplateProvenance({
+        path: { id: this.id },
+      }),
     );
+    return provenance ?? undefined;
   }
 
   /**

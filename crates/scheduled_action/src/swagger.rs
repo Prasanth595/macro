@@ -18,7 +18,8 @@ use crate::inbound::template_router::{
     __path_activate_template, __path_create_template, __path_delete_template,
     __path_extract_template, __path_fill_template, __path_get_routine_provenance,
     __path_get_template, __path_get_template_permissions, __path_rebind_routine,
-    __path_update_template, __path_update_template_permissions, TemplateBindingErrors,
+    __path_update_template, __path_update_template_permissions, RoutineProvenanceResponse,
+    TemplateBindingErrors,
 };
 
 use crate::domain::event_trigger::{ActionTrigger, EventFilter, EventFilters, EventName};
@@ -90,6 +91,7 @@ use model::response::EmptyResponse;
             ScheduledActionUpdate,
             EmptyResponse,
             TemplateBindingErrors,
+            RoutineProvenanceResponse,
             crate::domain::templates::models::RoutineTemplate,
             crate::domain::templates::models::TemplateDraft,
             crate::domain::templates::models::TemplateTask,

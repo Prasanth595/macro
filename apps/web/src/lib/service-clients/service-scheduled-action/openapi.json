@@ -1240,14 +1240,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
-                    {
-                      "type": "null"
-                    },
-                    {
-                      "$ref": "#/components/schemas/RoutineProvenance"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/RoutineProvenanceResponse"
                 }
               }
             }
@@ -2143,6 +2136,22 @@
               "$ref": "#/components/schemas/TemplateVariable"
             },
             "description": "The template's variables, for labelling the bindings."
+          }
+        }
+      },
+      "RoutineProvenanceResponse": {
+        "type": "object",
+        "description": "The template a routine came from; absent for a routine made by hand.",
+        "properties": {
+          "provenance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RoutineProvenance"
+              }
+            ]
           }
         }
       },

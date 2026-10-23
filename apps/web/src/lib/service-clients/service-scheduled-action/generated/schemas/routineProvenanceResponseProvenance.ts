@@ -7,4 +7,4 @@
  */
 import type { RoutineProvenance } from './routineProvenance';
 
-export type GetRoutineTemplateProvenance200 = null | RoutineProvenance;
+export type RoutineProvenanceResponseProvenance = null | RoutineProvenance;
