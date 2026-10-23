@@ -21,6 +21,7 @@ mod attachment_access;
 mod attachment_cleanup;
 mod client_id_mapping;
 mod contact;
+mod correspondence;
 mod db_types;
 mod draft;
 mod draft_attachments;

@@ -1,4 +1,5 @@
 pub mod attachments;
+mod correspondence;
 mod draft;
 mod followup;
 mod previews;
