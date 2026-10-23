@@ -51,10 +51,10 @@ type FindAndReplaceProps = {
 };
 
 function shouldIgnoreNodeType(type: string) {
-  // Document mentions (task chips, doc/channel refs, …) stay searchable via
-  // getTextContent() so Ctrl+F matches their visible titles. Replace still
-  // no-ops on them because they are not TextNodes.
-  const ignoredTypes = ['user-mention', 'horizontalrule', 'equation'];
+  // Mention chips stay searchable via getTextContent() so Ctrl+F matches
+  // their visible titles. Replace still no-ops on them because they are
+  // not TextNodes.
+  const ignoredTypes = ['horizontalrule', 'equation'];
   return ignoredTypes.includes(type);
 }
 

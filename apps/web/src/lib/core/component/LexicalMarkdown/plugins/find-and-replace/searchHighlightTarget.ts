@@ -9,11 +9,24 @@ function getDeepestFirstChild(
   return htmlEl;
 }
 
-export function isDocumentMentionElement(element: HTMLElement): boolean {
-  return (
-    element.hasAttribute('data-document-mention') ||
-    element.querySelector('[data-document-mention]') !== null
-  );
+function isMentionAttr(name: string): boolean {
+  return name.endsWith('-mention');
+}
+
+function mentionRoot(element: HTMLElement): HTMLElement | null {
+  if ([...element.attributes].some((attr) => isMentionAttr(attr.name))) {
+    return element;
+  }
+  for (const child of element.querySelectorAll<HTMLElement>('*')) {
+    if ([...child.attributes].some((attr) => isMentionAttr(attr.name))) {
+      return child;
+    }
+  }
+  return null;
+}
+
+export function isMentionElement(element: HTMLElement): boolean {
+  return mentionRoot(element) !== null;
 }
 
 function rangesFromTextOffsets(
@@ -45,6 +58,18 @@ function rangesFromTextOffsets(
 }
 
 /**
+ * Some chips render a leading `@` or `/` that is not in getTextContent().
+ * Shift the match when the remaining label is long enough to hold it.
+ */
+function mentionMatchShift(text: string, offset: SplitOffset): number {
+  const prefix = text[0];
+  if ((prefix === '@' || prefix === '/') && text.length - 1 >= offset.end) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * Map a find-match offset onto DOM ranges. Mention chips are decorator nodes,
  * so character offsets must be applied to the title text inside the pill
  * rather than the first descendant (often an icon).
@@ -53,17 +78,19 @@ export function resolveSearchHighlightRanges(
   element: HTMLElement,
   offset: SplitOffset
 ): Range[] {
-  if (isDocumentMentionElement(element)) {
-    const nameEl =
-      (element.hasAttribute('data-document-name')
-        ? element
-        : element.querySelector('[data-document-name]')) ?? element;
-    const ranges = rangesFromTextOffsets(nameEl, offset.start, offset.end);
+  const mention = mentionRoot(element);
+  if (mention) {
+    const shift = mentionMatchShift(mention.textContent ?? '', offset);
+    const ranges = rangesFromTextOffsets(
+      mention,
+      offset.start + shift,
+      offset.end + shift
+    );
     if (ranges.length > 0) {
       return ranges;
     }
     const range = document.createRange();
-    range.selectNode(element);
+    range.selectNode(mention);
     return [range];
   }
 
@@ -85,7 +112,7 @@ export function getSearchHighlightClientRects(
 ): DOMRect[] {
   const ranges = resolveSearchHighlightRanges(element, offset);
   const rects = ranges.flatMap((range) => [...range.getClientRects()]);
-  if (rects.length === 0 && isDocumentMentionElement(element)) {
+  if (rects.length === 0 && isMentionElement(element)) {
     const box = element.getBoundingClientRect();
     if (box.width > 0 || box.height > 0) {
       return [box];
