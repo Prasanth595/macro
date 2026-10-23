@@ -173,6 +173,8 @@ export function HomeList(props: HomeListProps) {
       markEntitySeen(sourceRow.entity);
       showPreview(sourceRow.entity, { activate: true });
       props.onPreviewActivate?.();
+      // Home keeps the keyboard only when the item opened in Home itself.
+      if (panel.isPanelActive()) listRoot()?.focus({ preventScroll: true });
       return;
     }
 
@@ -372,8 +374,8 @@ export function HomeList(props: HomeListProps) {
   const onRowClick = (rowId: string, event: MouseEvent) => {
     // Rows cancel their press, so the browser never moves focus into Home.
     // Activate Home before opening: an item that opens in another split
-    // activates that split afterwards, and Home takes focus only if it stays
-    // active, so a late focus change can't take activation back.
+    // activates that split afterwards, without a focus change in Home that
+    // the split focus tracker could later use to take activation back.
     panel.handle.activate();
     if (
       event.metaKey ||
@@ -381,13 +383,14 @@ export function HomeList(props: HomeListProps) {
       (isTouchDevice() && list.selection.count() > 0)
     ) {
       listInteractions.selection.toggle(rowId);
-    } else {
-      list.activate.key(rowId, {
-        reason: 'pointer',
-        metadata: { event },
-      });
+      listRoot()?.focus({ preventScroll: true });
+      return;
     }
-    if (panel.isPanelActive()) listRoot()?.focus({ preventScroll: true });
+
+    list.activate.key(rowId, {
+      reason: 'pointer',
+      metadata: { event },
+    });
   };
 
   useEntityActionHotkeys({
