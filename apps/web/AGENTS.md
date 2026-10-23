@@ -274,6 +274,29 @@ Follow [`docs/ios-releases.md`](docs/ios-releases.md) for App Store signing and
 provisioning, including both extensions. The release script temporarily selects
 manual export when a distribution certificate path is supplied.
 
+## Native notification navigation
+
+Read iOS's durable pending tap before mounting the router, then choose its
+destination only after the authenticated account matches `recipientId`. Keep
+the native receipt pending until the destination route is applied; release the
+resume cover for auth/retry UI without consuming the receipt. Use the existing
+pending-notification intent for bootstrap and live taps so newer taps supersede
+older work. Older native builds and pushes retain authenticated notification
+lookup. The local bridge and native release requirement are documented in
+[`docs/ios-releases.md`](docs/ios-releases.md).
+
+Bound the pre-router bridge handoff to 1.5 seconds and release the native cover
+on failure or timeout without consuming the pending tap. Late responses must
+use normal account-checked navigation, never reset the mounted router's hash.
+`notification.launch` records whether startup continued ready, failed, or timed out.
+
+Generate APNs validators with `scripts/generate-api-schema.ts`; its compact
+`generated/push.ts` entry avoids importing every notification-service schema
+on the startup path. Carry known channel root IDs in push navigation (a null
+`threadId` means the message itself is the root), prefetch the target window
+alongside channel metadata, and keep the channel loading shell stable until
+that target can be positioned.
+
 ## macOS notification activation
 
 Carry the notification ID through native delivery and the buffered `navigate`
@@ -428,6 +451,8 @@ Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
 ### Agent backend hosting
 
 Cognition, routines, preview control, and MCP share `agent_harness_service`.
+Agent replies can use the existing `m-document-mention` format with
+`blockName: "routine"`; routines do not appear in the mention menu.
 Direct local hosts use port 8101 with the existing feature prefixes; the
 instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.
 
@@ -446,7 +471,7 @@ Share until the optional file-export bridge ships. If browser activation expires
 while preparing a share, retain the bytes and let the same action's next tap
 open the system sheet synchronously. Browser success means handoff, not confirmed
 disk completion. See the native bridge's `tauri/file_export_plugin/AGENTS.md`.
-Keep download confirmations title-only.
+Keep download confirmations title-only and lightbox Download controls icon-only.
 
 The backend-free browser regression downloads real fixture bytes from channel
 cards, the expanded viewer, and the shared Drive/standalone header on desktop,
