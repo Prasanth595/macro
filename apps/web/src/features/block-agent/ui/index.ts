@@ -72,6 +72,7 @@ export {
   PERSONAL_USAGE_LABEL,
   TEAM_USAGE_LABEL,
   UsageSourceControl,
+  UsageSourceLabel,
   usageLabel,
 } from './UsageSourceControl';
 export { WorkingLine } from './WorkingLine';

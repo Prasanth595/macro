@@ -842,12 +842,16 @@ the composer offers no key and the out-of-usage card offers none.
 Only the in-memory agent (Macro's own chat, `macro-inmem`) uses these keys, and
 only for Anthropic and OpenAI models:
 
-- When the owner has a usable key, the composer shows a key control next to the
+- When the owner has a usable key, the composer shows a key icon next to the
   speed toggle. With one source (yours or the team's) it toggles that key; with
-  both, it opens a menu of **Macro usage**, **Your API key**, and **Team API
-  key**. On a key it reads **Using your API key** or **Using team API usage**,
-  and turns run on that key, never admitted against or counted toward Macro
-  usage.
+  both, it opens a menu (a bottom sheet on touch devices) of **Macro usage**,
+  **Your API key**, and **Team API key**. On a key the icon turns green and a
+  small **Using your API key** or **Using team API usage** label sits above the
+  composer's top-right corner; turns run on that key, never admitted against or
+  counted toward Macro usage. Each switch leaves a `Switched to …` line in the
+  transcript.
+- Key fields (these sections and the Cursor key) are the shared `ApiKeyInput`
+  (`@ui`): a stored key shows only as `sk-ant-••••`.
 - A conversation whose first turn finds the owner's Macro usage spent moves to
   a key on its own, their own before the team's, and the control shows it.
 - Mid-conversation, a spent allowance stops the turn with a

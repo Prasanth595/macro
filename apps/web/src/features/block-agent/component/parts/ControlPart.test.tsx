@@ -92,3 +92,30 @@ describe('the other controls', () => {
     expect(lineOf(stop({ kind: 'accepted' }))).toBe('Stopped');
   });
 });
+
+describe('ControlPart usage switches', () => {
+  it('names the usage source the way the composer does', () => {
+    expect(
+      lineOf({
+        kind: 'control',
+        control: {
+          kind: 'set_config_option',
+          config_id: 'funding',
+          value: 'personal_api_key',
+        },
+        outcome: { kind: 'accepted' },
+      })
+    ).toBe('Switched to your API key');
+    expect(
+      lineOf({
+        kind: 'control',
+        control: {
+          kind: 'set_config_option',
+          config_id: 'funding',
+          value: 'team_api_key',
+        },
+        outcome: { kind: 'rejected', message: 'your team has no API key' },
+      })
+    ).toBe("Couldn't switch to team API usage");
+  });
+});

@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render } from '@solidjs/testing-library';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { UsageSourceControl } from './UsageSourceControl';
+import { UsageSourceControl, UsageSourceLabel } from './UsageSourceControl';
 
 afterEach(cleanup);
 
@@ -44,9 +44,9 @@ describe('UsageSourceControl', () => {
     expect(onChoose).toHaveBeenCalledWith('personal_api_key');
   });
 
-  it('reads as the key in use and switches back to Macro usage', () => {
+  it('names the key in use and switches back to Macro usage', () => {
     const onChoose = vi.fn();
-    const { getByRole, getByText } = render(() => (
+    const { getByRole } = render(() => (
       <UsageSourceControl
         option={{
           id: 'funding',
@@ -74,7 +74,6 @@ describe('UsageSourceControl', () => {
       />
     ));
 
-    expect(getByText('Using team API usage')).toBeTruthy();
     fireEvent.click(
       getByRole('button', { name: 'Using team API usage · change usage' })
     );
@@ -124,5 +123,13 @@ describe('UsageSourceControl', () => {
     expect(trigger.getAttribute('aria-haspopup')).toBe('true');
     fireEvent.click(trigger);
     expect(onChoose).not.toHaveBeenCalled();
+  });
+
+  it('labels the key in use above the composer', () => {
+    const { getByText } = render(() => (
+      <UsageSourceLabel funding="personal_api_key" />
+    ));
+
+    expect(getByText('Using your API key')).toBeTruthy();
   });
 });

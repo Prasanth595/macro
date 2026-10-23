@@ -12,6 +12,11 @@
 import { modelLabel } from '@core/component/AI/constant/model-label';
 import type { MessagePart } from '@service-agent-fold/generated/types';
 import { match, P } from 'ts-pattern';
+import {
+  FUNDING_CONFIG_ID,
+  fundingName,
+  isKeyFunding,
+} from '../../state/session-config';
 import { ActionLine } from '../../ui';
 
 type ControlPartData = Extract<MessagePart, { kind: 'control' }>;
@@ -29,6 +34,20 @@ function label(part: ControlPartData): string {
       .with(
         [{ kind: 'set_model' }, { kind: 'rejected' }],
         ([control]) => `Couldn't switch to ${modelLabel(control.model)}`
+      )
+      .with(
+        [
+          { kind: 'set_config_option', config_id: FUNDING_CONFIG_ID },
+          { kind: P.union('pending', 'accepted') },
+        ],
+        ([control]) => `Switched to ${fundingLabel(control.value)}`
+      )
+      .with(
+        [
+          { kind: 'set_config_option', config_id: FUNDING_CONFIG_ID },
+          { kind: 'rejected' },
+        ],
+        ([control]) => `Couldn't switch to ${fundingLabel(control.value)}`
       )
       .with(
         [{ kind: 'set_config_option' }, { kind: 'pending' }],
@@ -67,6 +86,11 @@ function label(part: ControlPartData): string {
       .with([{ kind: 'stop' }, { kind: 'accepted' }], () => 'Stopped')
       .exhaustive()
   );
+}
+
+/** What a usage switch moved the session to, as the composer names it. */
+function fundingLabel(value: string): string {
+  return value === 'macro' || isKeyFunding(value) ? fundingName(value) : value;
 }
 
 function configLabel(configId: string): string {

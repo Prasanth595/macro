@@ -1,4 +1,5 @@
 import type { SessionConfigOption } from '@service-agent-fold/generated/types';
+import { match } from 'ts-pattern';
 
 export type SelectSessionConfigOption = Extract<
   SessionConfigOption,
@@ -50,6 +51,15 @@ export function fundingConfigOption(
 
 export function isKeyFunding(value: string | undefined): value is KeyFunding {
   return value === 'personal_api_key' || value === 'team_api_key';
+}
+
+/** How the composer names what turns run on. */
+export function fundingName(funding: SessionFunding): string {
+  return match(funding)
+    .with('macro', () => 'Macro usage')
+    .with('personal_api_key', () => 'your API key')
+    .with('team_api_key', () => 'team API usage')
+    .exhaustive();
 }
 
 /** The key the session's turns run on, or `undefined` on Macro usage. */

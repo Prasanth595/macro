@@ -40,6 +40,7 @@ import {
   effortLabel,
   fundingConfigOption,
   type SessionFunding,
+  sessionKeyFunding,
 } from '../state/session-config';
 import {
   AgentInput,
@@ -49,6 +50,7 @@ import {
   type QueuedPromptItem,
   QueuedPrompts,
   UsageSourceControl,
+  UsageSourceLabel,
 } from '../ui';
 import type { AgentModelSelectorProps } from '../ui/AgentModelSelector';
 import { AgentModelMenuItem } from './AgentModelMenuItem';
@@ -342,6 +344,9 @@ export function AgentComposer(props: {
           </div>
         )}
       </For>
+      <Show when={sessionKeyFunding(metadata()?.configOptions ?? [])}>
+        {(on) => <UsageSourceLabel funding={on()} />}
+      </Show>
       <Input
         initialInput={initialInput}
         draft={persistedDraft.draft()}
