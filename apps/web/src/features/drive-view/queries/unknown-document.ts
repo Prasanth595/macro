@@ -1,4 +1,7 @@
-import { type FileDocumentData, loadFileDocumentData } from './file-document';
+import {
+  type FileDocumentData,
+  loadFileDocumentData,
+} from '@service-storage/util/fileDocument';
 
 export type UnknownDocumentData = FileDocumentData;
 

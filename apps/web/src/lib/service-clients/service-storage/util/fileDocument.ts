@@ -20,10 +20,11 @@ export type GetFileBlobOptions = {
 };
 
 export async function loadFileDocumentData(
-  documentId: string
+  documentId: string,
+  signal?: AbortSignal
 ): Promise<FileDocumentData> {
   return throwOnErr(() =>
-    storageServiceClient.getDocumentMetadata({ documentId })
+    storageServiceClient.getDocumentMetadata({ documentId, init: { signal } })
   );
 }
 
