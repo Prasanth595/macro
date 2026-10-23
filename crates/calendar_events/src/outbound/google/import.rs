@@ -1,6 +1,6 @@
 //! Importing a snapshot of another calendar's event under its iCalendar UID.
 use super::*;
-use crate::domain::ics::CalendarEventExport;
+use crate::domain::ics::EventSnapshot;
 
 /// Private extended property marking an event as Macro's snapshot of a
 /// shared meeting. Private properties stay on the calendar copy they were
@@ -12,7 +12,7 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
         &self,
         access_token: &str,
         target: &ProviderCalendarTarget,
-        source: &CalendarEventExport,
+        source: &EventSnapshot,
     ) -> Result<ProviderImportOutcome, CalendarProviderError> {
         if self
             .holds_ical_uid(access_token, target, &source.ical_uid)
@@ -90,7 +90,7 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
 /// meeting's guests and conference, so importing it invites no one and
 /// exposes no guest list or join link the share did not.
 pub(super) fn import_body(
-    source: &CalendarEventExport,
+    source: &EventSnapshot,
     provider_calendar_id: &str,
 ) -> serde_json::Value {
     let (start, end) = google_time_body(&source.time);
