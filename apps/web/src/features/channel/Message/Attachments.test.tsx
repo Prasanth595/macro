@@ -2,6 +2,10 @@ import { cleanup, render, screen } from '@solidjs/testing-library';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Attachments } from './Attachments';
 
+// Routine templates are off here; their own tests cover them.
+vi.mock('@app/lib/analytics/posthog', () => ({
+  useFeatureFlag: () => () => ({ enabled: false, loading: false }),
+}));
 vi.mock('@app/features/projects/project-attachment', () => ({
   ProjectAttachment: (props: { id: string }) => (
     <span>Native project {props.id}</span>
