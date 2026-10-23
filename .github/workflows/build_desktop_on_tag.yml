@@ -1091,6 +1091,41 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
         RELEASE_REPOSITORY: ${{ github.repository }}
+  check-release-secrets:
+    needs:
+    - resolve-ref
+    name: Check release secrets
+    runs-on: namespace-profile-linux-tiny-no-cache
+    timeout-minutes: 5
+    steps:
+    - name: Check release secrets are configured
+      run: |
+        set -euo pipefail
+
+        # RELEASE_SECRETS is generated from every secret the desktop jobs read, so a
+        # change that starts reading a new secret fails here until it is configured.
+        missing=()
+        for name in $RELEASE_SECRETS; do
+          if [ -z "${!name:-}" ]; then
+            missing+=("$name")
+          fi
+        done
+
+        if [ "${#missing[@]}" -ne 0 ]; then
+          for name in "${missing[@]}"; do
+            echo "::error::Repository secret $name is not configured. Desktop releases read it, so add it before merging the change that needs it."
+          done
+          exit 1
+        fi
+        echo "Desktop release secrets are configured: $RELEASE_SECRETS"
+      shell: bash
+      env:
+        RELEASE_SECRETS: MACOS_DEVELOPER_ID_CERTIFICATE_BASE64 MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD MACOS_DEVELOPER_ID_PROVISIONING_PROFILE_BASE64 MACOS_RELEASE_DOPPLER_TOKEN POSTHOG_API_KEY
+        MACOS_DEVELOPER_ID_CERTIFICATE_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+        MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+        MACOS_DEVELOPER_ID_PROVISIONING_PROFILE_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_PROVISIONING_PROFILE_BASE64 }}
+        MACOS_RELEASE_DOPPLER_TOKEN: ${{ secrets.MACOS_RELEASE_DOPPLER_TOKEN }}
+        POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 concurrency:
   group: desktop-${{ inputs.ref || (github.event.ref_type == 'tag' && github.event.ref || github.ref_name) }}
   cancel-in-progress: true

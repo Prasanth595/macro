@@ -342,6 +342,81 @@ fn pull_request_builds_never_sign_notarize_cache_or_upload() {
     );
 }
 
+#[test]
+fn release_secret_check_covers_every_secret_the_other_jobs_read() {
+    let jobs = rendered_jobs();
+    let mut read = BTreeSet::new();
+    for (id, job) in &jobs {
+        if id.as_str() == Some("check-release-secrets") {
+            continue;
+        }
+        let rendered = serde_yaml::to_string(job).expect("job YAML");
+        read.extend(secrets_read_by(&rendered).into_iter().map(str::to_owned));
+    }
+    // The secret whose absence failed v2026.10.22.3 after its PR merged green.
+    assert!(read.contains("MACOS_DEVELOPER_ID_PROVISIONING_PROFILE_BASE64"));
+
+    let env = job(&jobs, "check-release-secrets")["steps"][0]["env"].clone();
+    let checked: BTreeSet<String> = env["RELEASE_SECRETS"]
+        .as_str()
+        .expect("RELEASE_SECRETS")
+        .split(' ')
+        .map(str::to_owned)
+        .collect();
+    assert_eq!(checked, read);
+    for name in &checked {
+        assert_eq!(
+            env[name.as_str()].as_str(),
+            Some(format!("${{{{ secrets.{name} }}}}").as_str()),
+            "{name} must reach the check"
+        );
+    }
+}
+
+fn run_secret_check(configured: &[(&str, &str)]) -> Output {
+    let mut command = Command::new("bash");
+    command
+        .arg(script_path("check_release_secrets.sh"))
+        .env_clear()
+        .env("PATH", std::env::var("PATH").expect("PATH"))
+        .env(
+            "RELEASE_SECRETS",
+            "POSTHOG_API_KEY MACOS_RELEASE_DOPPLER_TOKEN",
+        );
+    for (name, value) in configured {
+        command.env(name, value);
+    }
+    command.output().expect("run release secret check")
+}
+
+#[test]
+fn secret_check_names_each_unconfigured_secret() {
+    let output = run_secret_check(&[
+        ("POSTHOG_API_KEY", "phc_test"),
+        ("MACOS_RELEASE_DOPPLER_TOKEN", ""),
+    ]);
+    assert!(!output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("::error::Repository secret MACOS_RELEASE_DOPPLER_TOKEN is not configured"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("secret POSTHOG_API_KEY"), "{stdout}");
+}
+
+#[test]
+fn secret_check_passes_when_every_secret_is_configured() {
+    let output = run_secret_check(&[
+        ("POSTHOG_API_KEY", "phc_test"),
+        ("MACOS_RELEASE_DOPPLER_TOKEN", "dp.st.test"),
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
 fn resolve_ref(event: &str, selected_ref: &str, input_ref: &str) -> (Output, String) {
     let temp = tempfile::tempdir().expect("resolve fixture directory");
     let github_output = temp.path().join("github-output");

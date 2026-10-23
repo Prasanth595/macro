@@ -43,7 +43,7 @@ jobs:
                 | select(.conclusion == "failure" or .conclusion == "timed_out")
                 | select(
                     if $workflow == "Build Desktop on Tag" then
-                      .name == "Build AppImage" or .name == "Build macOS DMG"
+                      .name == "Build AppImage" or .name == "Build macOS DMG" or .name == "Check release secrets"
                     elif $workflow == "iOS Preview" then
                       .name == "Build iOS simulator app and publish to Appetize"
                     elif $workflow == "Release Android App Bundle" then

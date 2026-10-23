@@ -8,7 +8,7 @@
 //! The reusable job definitions live in [`super::build_appimage_on_tag`] and
 //! [`super::build_dmg_on_tag`].
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use gh_workflow::{
     Concurrency, Event, Expression, Job, Level, Permissions, PullRequest, Push, Run, Step,
@@ -16,7 +16,7 @@ use gh_workflow::{
 };
 
 use crate::workflows::build_appimage_on_tag::{self, NOT_PULL_REQUEST};
-use crate::workflows::{build_dmg_on_tag, steps, vars};
+use crate::workflows::{build_dmg_on_tag, runners, steps, vars};
 
 #[cfg(test)]
 mod test;
@@ -26,9 +26,15 @@ const RESOLVED_REF: &str = "${{ needs.resolve-ref.outputs.ref }}";
 /// 09:17 UTC, ahead of the US workday's first release.
 const NIGHTLY_CRON: &str = "17 9 * * *";
 
-/// Render the workflow.
+/// Render the workflow plus a job that checks every secret its jobs read.
 pub fn render() -> anyhow::Result<String> {
-    build_desktop_on_tag()
+    let workflow = build_desktop_on_tag();
+    let yaml = workflow.to_string().map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    workflow
+        .add_job(
+            "check-release-secrets",
+            check_release_secrets(&secrets_read_by(&yaml)),
+        )
         .to_string()
         .map_err(|e| anyhow::anyhow!("{e:?}"))
 }
@@ -70,6 +76,42 @@ fn build_desktop_on_tag() -> Workflow {
                 .add_needs("resolve-ref")
                 .add_needs("publish-installers"),
         )
+}
+
+/// Every `secrets.NAME` the rendered jobs read.
+fn secrets_read_by(yaml: &str) -> BTreeSet<&str> {
+    yaml.split("secrets.")
+        .skip(1)
+        .map(|rest| {
+            let end = rest
+                .find(|c: char| !(c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_'))
+                .unwrap_or(rest.len());
+            &rest[..end]
+        })
+        .filter(|name| !name.is_empty())
+        .collect()
+}
+
+/// A secret is configured in the repository settings, outside any diff, so a
+/// change that starts reading a new one can merge green and fail the next
+/// release. Running this on pull requests fails that change instead.
+fn check_release_secrets(names: &BTreeSet<&str>) -> Job {
+    let step = names.iter().fold(
+        Step::new("Check release secrets are configured")
+            .run(include_str!("scripts/check_release_secrets.sh"))
+            .shell("bash")
+            .add_env((
+                "RELEASE_SECRETS",
+                names.iter().copied().collect::<Vec<_>>().join(" "),
+            )),
+        |step, name| step.add_env((*name, format!("${{{{ secrets.{name} }}}}"))),
+    );
+    Job::default()
+        .name("Check release secrets")
+        .runs_on(runners::Runner::TinyNoCache.to_string())
+        .timeout_minutes(5u32)
+        .add_needs("resolve-ref")
+        .add_step(step)
 }
 
 fn publish_desktop_job() -> Job {
