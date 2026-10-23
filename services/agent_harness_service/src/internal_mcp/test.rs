@@ -157,17 +157,19 @@ async fn each_harness_gets_only_internal_tools_and_writes_only_its_session() {
         let tasks = FixedTasks::default();
         let app = router(
             Arc::new(repo.clone()),
-            Arc::new(SessionPullRequestService::new(
-                repo.clone(),
-                RecordingRealtime::new(),
-                Arc::new(tasks.clone()),
-            )),
-            Arc::new(tasks.clone()),
             "localhost".into(),
-            None,
-            None,
-            Arc::new(OnceLock::new()),
-            Arc::new(agent_inmem::domain::tool_gate::UngatedNativeTools),
+            InternalTools {
+                service: Arc::new(SessionPullRequestService::new(
+                    repo.clone(),
+                    RecordingRealtime::new(),
+                    Arc::new(tasks.clone()),
+                )),
+                tasks: Arc::new(tasks.clone()),
+                code_mode: None,
+                cognition: None,
+                reviews: Arc::new(OnceLock::new()),
+                gate: Arc::new(agent_inmem::domain::tool_gate::UngatedNativeTools),
+            },
         );
         assert_eq!(
             rpc(app.clone(), None, "tools/list", serde_json::json!({}))

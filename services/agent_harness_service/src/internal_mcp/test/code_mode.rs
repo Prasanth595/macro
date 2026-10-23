@@ -89,17 +89,19 @@ async fn authenticated_mcp_runs_javascript_and_persists_source_and_result(pool: 
         .unwrap();
     let app = router(
         Arc::new(repo.clone()),
-        Arc::new(SessionPullRequestService::new(
-            repo.clone(),
-            RecordingRealtime::new(),
-            Arc::new(FixedTasks::default()),
-        )),
-        Arc::new(FixedTasks::default()),
         "localhost".into(),
-        Some(code_mode.clone()),
-        None,
-        Arc::new(std::sync::OnceLock::new()),
-        Arc::new(agent_inmem::domain::tool_gate::UngatedNativeTools),
+        InternalTools {
+            service: Arc::new(SessionPullRequestService::new(
+                repo.clone(),
+                RecordingRealtime::new(),
+                Arc::new(FixedTasks::default()),
+            )),
+            tasks: Arc::new(FixedTasks::default()),
+            code_mode: Some(code_mode.clone()),
+            cognition: None,
+            reviews: Arc::new(std::sync::OnceLock::new()),
+            gate: Arc::new(agent_inmem::domain::tool_gate::UngatedNativeTools),
+        },
     );
     assert_eq!(
         rpc(app.clone(), Some("wrong-session"), "tools/list", json!({}))

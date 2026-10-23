@@ -42,15 +42,10 @@ fn toolset() -> AsyncToolCollection<SessionToolContext> {
 }
 
 /// Build the internal endpoint with per-request session authentication.
-pub fn router<A: AgentSessionRepo + 'static>(
+pub(super) fn router<A: AgentSessionRepo + 'static>(
     authority: Arc<A>,
-    service: Arc<dyn SessionPullRequests>,
-    tasks: Arc<dyn SessionTasks>,
     host: String,
-    code_mode: Option<Arc<dyn SessionCodeMode>>,
-    cognition: Option<Arc<dyn Cognition>>,
-    reviews: Arc<OnceLock<ReviewService>>,
-    gate: Arc<dyn agent_inmem::domain::tool_gate::NativeToolGate>,
+    tools: InternalTools,
 ) -> Router {
     let mut config = StreamableHttpServerConfig::default().with_allowed_hosts([
         host,
@@ -62,16 +57,7 @@ pub fn router<A: AgentSessionRepo + 'static>(
     config.stateful_mode = false;
     config.json_response = true;
     let server = StreamableHttpService::new(
-        move || {
-            Ok(InternalTools {
-                service: service.clone(),
-                tasks: tasks.clone(),
-                code_mode: code_mode.clone(),
-                cognition: cognition.clone(),
-                reviews: reviews.clone(),
-                gate: gate.clone(),
-            })
-        },
+        move || Ok(tools.clone()),
         Arc::new(LocalSessionManager::default()),
         config,
     );
@@ -85,13 +71,14 @@ async fn authenticate(session: AuthenticatedSession, mut request: Request, next:
     next.run(request).await
 }
 
-struct InternalTools {
-    service: Arc<dyn SessionPullRequests>,
-    tasks: Arc<dyn SessionTasks>,
-    code_mode: Option<Arc<dyn SessionCodeMode>>,
-    cognition: Option<Arc<dyn Cognition>>,
-    reviews: Arc<OnceLock<ReviewService>>,
-    gate: Arc<dyn agent_inmem::domain::tool_gate::NativeToolGate>,
+#[derive(Clone)]
+pub(super) struct InternalTools {
+    pub(super) service: Arc<dyn SessionPullRequests>,
+    pub(super) tasks: Arc<dyn SessionTasks>,
+    pub(super) code_mode: Option<Arc<dyn SessionCodeMode>>,
+    pub(super) cognition: Option<Arc<dyn Cognition>>,
+    pub(super) reviews: Arc<OnceLock<ReviewService>>,
+    pub(super) gate: Arc<dyn agent_inmem::domain::tool_gate::NativeToolGate>,
 }
 
 impl ServerHandler for InternalTools {
