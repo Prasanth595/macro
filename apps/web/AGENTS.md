@@ -400,3 +400,20 @@ Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
 Cognition, routines, preview control, and MCP share `agent_harness_service`.
 Direct local hosts use port 8101 with the existing feature prefixes; the
 instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.
+
+## File downloads
+
+Channel videos and Drive video/image/code/canvas/unknown previews share
+`createFileDownload` and `FileDownloadButton`/`FileDownloadDialog`. Keep menu and
+visible controls bound to the same controller. Snapshot file/version before
+loading, cancel on disposal or selection change, and preserve original filenames
+from static-file metadata. Touch prepares bytes before a second tap opens the
+platform save/share chooser; never await a network fetch inside that tap. Android
+uses its native export bridge; other devices offer Web Share only for supported
+files. Browser success means handoff, not confirmed disk completion.
+
+The backend-free browser regression downloads real fixture bytes from channel
+cards, the expanded viewer, and the shared Drive/standalone header on desktop,
+phone, and tablet:
+`bunx playwright test --config src/lib/core/component/FileDownload/browser-test/playwright.config.ts`.
+See the [download walkthrough](../../docs/agent-guide/files.md#downloading-files).

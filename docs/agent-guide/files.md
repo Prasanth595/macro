@@ -156,3 +156,33 @@ switch via the header pills; on narrow desktop layouts the header keeps a plain
 title and navigation goes through the hamburger overlay. Location, search,
 filters, expanded folders, list focus, and scroll position are restored when
 returning from an opened file.
+
+## Downloading files
+
+Open a video, image, code file, canvas, or other uploaded file in Drive. Its
+header exposes **Download** beside Share on desktop, and **Save or share** on
+touch devices. The file menu uses the same action. Video routes also expose the
+action in their header; channel videos expose it below the player and in the
+expanded viewer. Playing a video and downloading it are separate actions.
+
+- Desktop: click Download once. During preparation the control shows progress
+  when the server provides a length, disables repeat clicks, and offers Cancel.
+  **Download started** means the browser/device accepted the file; check its
+  downloads UI for the location and final completion. Macro does not know the
+  selected folder. Retry download remains available after a fetch failure.
+- Phone/tablet: tap Save or share and wait for preparation. Android offers
+  **Save file** (system file picker) and **Share file** (native chooser). Other
+  devices offer **Save or share…** only when Web Share supports the prepared
+  file; browser users can also choose **Download file**. The share sheet may
+  offer Save to Files or Save Video depending on the device and file. Cancelling
+  the system chooser leaves the prepared file available without a success toast.
+- Change files or close the download sheet during preparation: the old request
+  must stop and must not save a late response. Close the expanded viewer with
+  Escape and confirm focus returns to its opener.
+
+Verification: use an existing video in a channel and Drive. Check both message
+and expanded-viewer download actions; compare downloaded bytes, filename, and
+extension with the original. Repeat at 390px with touch enabled and at tablet
+width. Exercise a failed request, retry, cancellation, and changing selection.
+Native save/share dialogs require physical iOS/Android verification in addition
+to browser emulation.

@@ -10,7 +10,3 @@
 | [`agent-guide/`](agent-guide/) | How browser agents operate the app, not how to develop it. |
 
 Docs that belong to one app, service, or crate live next to its code.
-
-Design artifacts: [Download discoverability proposal](design/downloads/README.md)
-includes desktop and mobile journeys, an interactive concept, and the proposed
-interaction contract.
