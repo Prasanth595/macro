@@ -1,5 +1,5 @@
 use crate::api::search::simple::{SearchError, simple_channel};
-use crate::api::search::terms::split_search_terms;
+use crate::api::search::terms::{drop_wordless_terms, split_search_terms};
 use chrono::{DateTime, Utc};
 use indexmap::IndexMap;
 use std::collections::HashMap;
@@ -420,6 +420,7 @@ pub async fn handler(
     } else {
         split_search_terms(&raw_terms)
     };
+    let terms = drop_wordless_terms(terms, req.match_type);
     if terms.is_empty() {
         return Err(SearchError::NoQueryOrTermsProvided);
     }

@@ -129,7 +129,7 @@ fn compute_next_cursor(
     }
 }
 
-use crate::api::search::terms::split_search_terms;
+use crate::api::search::terms::{drop_wordless_terms, split_search_terms};
 
 /// Per-request cap on whitespace-delimited search terms. Each term expands
 /// into its own `has_child` clause and is embedded in every clause's highlight
@@ -235,9 +235,9 @@ pub(in crate::api::search) async fn perform_unified_search(
         return Err(SearchError::InvalidQuerySize);
     }
     let terms: Vec<String> = vec![query];
-    let search_terms = enforce_term_limits(split_search_terms(&terms))?;
-
     let match_type = req.match_type;
+    let search_terms =
+        enforce_term_limits(drop_wordless_terms(split_search_terms(&terms), match_type))?;
 
     // Property filters live at the top level of the request and only apply to
     // the OpenSearch documents index, so capture them before the conversion
