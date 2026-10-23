@@ -154,6 +154,12 @@ pub(crate) type AuthorizationService = MacroAuthorizationServiceImpl<MacroAuthJw
 pub(crate) type ProviderKeysType = model_provider_keys::domain::ProviderKeyService<
     model_provider_keys::outbound::PgProviderKeyRepo,
     model_provider_keys::outbound::KmsProviderKeyCipher<cursor_api_key::cipher::AwsKmsCiphertexts>,
+    model_provider_keys::outbound::EntitlementKeyPlans<
+        ai_billing::outbound::RolesTeamsEntitlementSource<
+            UserRolesAndPermissionsServiceImpl<MacroDB, MacroDB>,
+            teams::outbound::team_repo::TeamRepositoryImpl,
+        >,
+    >,
 >;
 
 #[derive(Clone, FromRef)]

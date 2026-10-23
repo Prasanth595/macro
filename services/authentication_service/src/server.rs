@@ -671,6 +671,12 @@ pub async fn run() -> anyhow::Result<()> {
     let model_provider_keys = Arc::new(model_provider_keys::domain::ProviderKeyService::new(
         model_provider_keys::outbound::PgProviderKeyRepo::new(db.clone()),
         model_provider_keys_cipher,
+        model_provider_keys::outbound::EntitlementKeyPlans::new(
+            ai_billing::outbound::RolesTeamsEntitlementSource::new(
+                user_roles_and_permissions_service.clone(),
+                teams_repo_impl.clone(),
+            ),
+        ),
     ));
 
     let server_result = api::setup_and_serve(

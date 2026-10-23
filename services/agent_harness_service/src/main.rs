@@ -327,12 +327,15 @@ async fn run() -> anyhow::Result<()> {
     // People's and teams' own Anthropic and OpenAI keys for in-memory AI
     // chat, under the Cursor key's CMK this role already decrypts with.
     // Decrypt-only for the same reason as Cursor keys: registering them is
-    // the authentication service's job.
+    // the authentication service's job. Only paid plans run turns on them.
     let model_keys: Arc<dyn model_provider_keys::domain::ModelKeys> =
         Arc::new(model_provider_keys::domain::ProviderKeyService::new(
             model_provider_keys::outbound::PgProviderKeyRepo::new(pool.clone()),
             model_provider_keys::outbound::KmsProviderKeyCipher::new(
                 AwsKmsCiphertexts::decrypting(aws_sdk_kms::Client::new(&aws_config)),
+            ),
+            model_provider_keys::outbound::EntitlementKeyPlans::new(
+                ai_billing::composition::pg_entitlement_source(pool.clone()),
             ),
         ));
     // One recorder for everything this process meters: in-memory agent

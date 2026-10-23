@@ -10,7 +10,9 @@ use axum::{
     routing::{get, put},
 };
 use macro_authorization::{MacroAuthorizationExtractor, UserOnly};
-use model_provider_keys::domain::{ModelProvider, ProviderKeyError, ProviderKeyStatus};
+use model_provider_keys::domain::{
+    ModelProvider, ProviderKeyError, ProviderKeyList, ProviderKeyStatus,
+};
 use utoipa::ToSchema;
 
 use crate::api::context::{ApiContext, AuthorizationService};
@@ -77,12 +79,16 @@ impl From<ProviderKeyStatus> for AiApiKey {
 pub struct AiApiKeys {
     /// One entry per provider with a key.
     pub keys: Vec<AiApiKey>,
+    /// Whether the caller's plan lets them save keys and run AI chat on
+    /// them. Keys saved before a downgrade are still listed when it doesn't.
+    pub usable: bool,
 }
 
-impl From<Vec<ProviderKeyStatus>> for AiApiKeys {
-    fn from(keys: Vec<ProviderKeyStatus>) -> Self {
+impl From<ProviderKeyList> for AiApiKeys {
+    fn from(list: ProviderKeyList) -> Self {
         Self {
-            keys: keys.into_iter().map(Into::into).collect(),
+            keys: list.keys.into_iter().map(Into::into).collect(),
+            usable: list.usable,
         }
     }
 }
@@ -101,6 +107,9 @@ pub enum AiApiKeyError {
     /// The value is not a key for the provider.
     #[error("value does not look like an API key for this provider")]
     MalformedKey,
+    /// The caller's plan does not include their own AI API keys.
+    #[error("AI API keys are part of the Premium and Max plans")]
+    PlanRequired,
     /// Encryption or storage failed.
     #[error("internal error")]
     Internal,
@@ -110,6 +119,7 @@ impl From<ProviderKeyError> for AiApiKeyError {
     fn from(error: ProviderKeyError) -> Self {
         match error {
             ProviderKeyError::MalformedKey => Self::MalformedKey,
+            ProviderKeyError::PlanRequired => Self::PlanRequired,
             other => {
                 tracing::error!(error = ?other, "ai api key operation failed");
                 Self::Internal
@@ -123,6 +133,7 @@ impl axum::response::IntoResponse for AiApiKeyError {
         use axum::http::StatusCode;
         let status = match self {
             Self::MalformedKey => StatusCode::BAD_REQUEST,
+            Self::PlanRequired => StatusCode::FORBIDDEN,
             Self::Internal => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (
@@ -157,7 +168,8 @@ pub async fn list_handler(
     Ok(Json(AiApiKeys::from(keys)))
 }
 
-/// Registers or replaces the caller's own key for a provider.
+/// Registers or replaces the caller's own key for a provider. Needs a paid
+/// plan.
 #[utoipa::path(
     put,
     path = "/ai-api-keys/{provider}",
@@ -168,6 +180,7 @@ pub async fn list_handler(
         (status = 200, body = AiApiKeys),
         (status = 400, body = model::response::ErrorResponse),
         (status = 401, body = String),
+        (status = 403, body = model::response::ErrorResponse),
     )
 )]
 // The body is skipped: it is the key itself.

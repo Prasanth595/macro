@@ -27,6 +27,13 @@ pub trait ProviderKeyCipher: Send + Sync + 'static {
     ) -> Result<ProviderApiKey>;
 }
 
+/// Whether a person's plan includes their own provider keys.
+#[async_trait::async_trait]
+pub trait KeyPlans: Send + Sync + 'static {
+    /// Whether `user` may save keys and run turns on them.
+    async fn allows_keys(&self, user: &MacroUserIdStr<'_>) -> Result<bool>;
+}
+
 /// Where provider keys are stored. Never decrypts.
 #[async_trait::async_trait]
 pub trait ProviderKeyRepo: Send + Sync + 'static {

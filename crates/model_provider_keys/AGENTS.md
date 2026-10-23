@@ -16,6 +16,8 @@ crate doc in `src/lib.rs`.
   `KeyOwner` (user or team), `KeySource` (personal or team).
 - `src/outbound/pg.rs`: rows in `cursor_configs` with a `user_id` or a
   `team_id` and a provider other than `cursor`.
+- `src/outbound/plans.rs`: `KeyPlans` over ai_billing's entitlements; keys
+  need Premium, Max, or an enterprise team.
 
 ## Scope
 
@@ -27,7 +29,7 @@ crate doc in `src/lib.rs`.
 ## Boundaries
 
 - Depends on: `cursor_api_key` (the `KmsCiphertexts` seam and its CMK),
-  `entity_access` (team receipts).
+  `entity_access` (team receipts), `ai_billing` (plans).
 - Used by: `authentication_service` (settings routes),
   `agent_harness_service` (decrypt-only, for turns).
 
@@ -46,6 +48,9 @@ crate doc in `src/lib.rs`.
   stored keys undecryptable.
 - Until `cursor_configs_user_id_key` (`UNIQUE (user_id)`) is dropped, a user
   with a Cursor key cannot also store a personal key: the insert violates it.
+- Keys are a paid-plan feature, checked on save and on every turn. A
+  downgrade keeps the row: it stays listed and removable, but `ModelKeys`
+  answers as if it did not exist.
 - Deleting a row does not revoke the key at the provider.
 
 ## Related

@@ -4,7 +4,7 @@ use entity_access::domain::models::{Entity, EntityPermission, TeamRole};
 use macro_uuid::Uuid;
 
 use super::*;
-use crate::domain::models::{EncryptedProviderApiKey, StoredProviderKey};
+use crate::domain::models::{EncryptedProviderApiKey, ProviderKeyStatus, StoredProviderKey};
 
 const TEAM: &str = "00000000-0000-0000-0000-0000000000aa";
 
@@ -127,9 +127,19 @@ impl ProviderKeyCipher for FakeCipher {
     }
 }
 
+/// A plan that includes provider keys, or one that does not.
+struct Paid(bool);
+
+#[async_trait::async_trait]
+impl KeyPlans for Paid {
+    async fn allows_keys(&self, _user: &MacroUserIdStr<'_>) -> Result<bool> {
+        Ok(self.0)
+    }
+}
+
 #[tokio::test]
 async fn an_admin_registers_a_key_for_the_receipts_team_with_its_prefix() {
-    let service = ProviderKeyService::new(FakeRepo::default(), FakeCipher::default());
+    let service = ProviderKeyService::new(FakeRepo::default(), FakeCipher::default(), Paid(true));
 
     service
         .register_team(
@@ -152,7 +162,7 @@ async fn an_admin_registers_a_key_for_the_receipts_team_with_its_prefix() {
 
 #[tokio::test]
 async fn a_person_registers_their_own_key_under_themselves() {
-    let service = ProviderKeyService::new(FakeRepo::default(), FakeCipher::default());
+    let service = ProviderKeyService::new(FakeRepo::default(), FakeCipher::default(), Paid(true));
 
     service
         .register_personal(&user(), ModelProvider::OpenAi, "sk-proj-abc")
@@ -171,7 +181,7 @@ async fn a_person_registers_their_own_key_under_themselves() {
 
 #[tokio::test]
 async fn a_usable_key_is_decrypted_under_its_owners_context() {
-    let service = ProviderKeyService::new(FakeRepo::default(), FakeCipher::default());
+    let service = ProviderKeyService::new(FakeRepo::default(), FakeCipher::default(), Paid(true));
     service
         .register_personal(&user(), ModelProvider::Anthropic, "sk-ant-api03-abc")
         .await
@@ -200,7 +210,7 @@ async fn a_usable_key_is_decrypted_under_its_owners_context() {
 
 #[tokio::test]
 async fn a_malformed_key_never_reaches_kms_or_the_table() {
-    let service = ProviderKeyService::new(FakeRepo::default(), FakeCipher::default());
+    let service = ProviderKeyService::new(FakeRepo::default(), FakeCipher::default(), Paid(true));
 
     let error = service
         .register_team(
@@ -239,7 +249,7 @@ fn a_member_cannot_hold_the_receipt_registering_needs() {
 
 #[tokio::test]
 async fn a_receipt_for_anything_but_a_team_is_refused() {
-    let service = ProviderKeyService::new(FakeRepo::default(), FakeCipher::default());
+    let service = ProviderKeyService::new(FakeRepo::default(), FakeCipher::default(), Paid(true));
     let document = EntityAccessReceipt::<MemberTeamRole>::try_new_authenticated_user(
         user(),
         Entity {
@@ -256,4 +266,57 @@ async fn a_receipt_for_anything_but_a_team_is_refused() {
         service.list_team(&document).await,
         Err(ProviderKeyError::Forbidden)
     ));
+}
+
+#[tokio::test]
+async fn a_free_plan_cannot_save_a_key() {
+    let service = ProviderKeyService::new(FakeRepo::default(), FakeCipher::default(), Paid(false));
+
+    let personal = service
+        .register_personal(&user(), ModelProvider::Anthropic, "sk-ant-api03-abc")
+        .await;
+    let team = service
+        .register_team(
+            &receipt(TeamRole::Owner),
+            ModelProvider::Anthropic,
+            "sk-ant-api03-abc",
+        )
+        .await;
+
+    assert!(matches!(personal, Err(ProviderKeyError::PlanRequired)));
+    assert!(matches!(team, Err(ProviderKeyError::PlanRequired)));
+    assert_eq!(*service.cipher.encrypted.lock().expect("lock"), 0);
+    assert!(service.repo.stored.lock().expect("lock").is_empty());
+}
+
+#[tokio::test]
+async fn a_key_saved_before_a_downgrade_is_kept_but_unusable() {
+    let service = ProviderKeyService::new(
+        FakeRepo {
+            stored: Mutex::new(vec![(
+                KeyOwner::User(user()),
+                ModelProvider::Anthropic,
+                "sk-ant-".to_owned(),
+            )]),
+        },
+        FakeCipher::default(),
+        Paid(false),
+    );
+
+    assert!(
+        service
+            .usable_key(&user(), ModelProvider::Anthropic, KeySource::Personal)
+            .await
+            .expect("looked up")
+            .is_none()
+    );
+    assert_eq!(
+        service.available(&user()).await.expect("listed"),
+        AvailableKeys::default()
+    );
+    assert!(!service.list_personal(&user()).await.expect("listed").usable);
+    service
+        .remove_personal(&user(), ModelProvider::Anthropic)
+        .await
+        .expect("a downgraded person can still remove their key");
 }

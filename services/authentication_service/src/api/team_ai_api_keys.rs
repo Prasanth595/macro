@@ -53,7 +53,8 @@ pub async fn list_handler(
     Ok(Json(AiApiKeys::from(keys)))
 }
 
-/// Registers or replaces the team's key for a provider. Team admins only.
+/// Registers or replaces the team's key for a provider. Team admins on a
+/// paid plan only.
 #[utoipa::path(
     put,
     path = "/team-ai-api-keys/{provider}",

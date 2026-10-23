@@ -12850,6 +12850,7 @@ dependencies = [
 name = "model_provider_keys"
 version = "0.1.0"
 dependencies = [
+ "ai_billing",
  "anyhow",
  "async-trait",
  "chrono",

@@ -177,6 +177,16 @@ pub struct ProviderKeyStatus {
     pub updated_at: DateTime<Utc>,
 }
 
+/// The keys an owner has, and whether the person asking may use them.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProviderKeyList {
+    /// One entry per provider with a key.
+    pub keys: Vec<ProviderKeyStatus>,
+    /// Whether the person's plan lets them save and run turns on keys. A key
+    /// saved before a downgrade stays listed (and removable) but unusable.
+    pub usable: bool,
+}
+
 /// A stored key, still encrypted.
 #[derive(Clone, Debug)]
 pub struct StoredProviderKey {
@@ -240,6 +250,12 @@ pub enum ProviderKeyError {
     /// The receipt does not name a team.
     #[error("team access is required")]
     Forbidden,
+    /// The person's plan does not include their own provider keys.
+    #[error("a paid plan is required to use your own AI API keys")]
+    PlanRequired,
+    /// The person's plan could not be read.
+    #[error("the plan could not be read")]
+    Plan(#[source] anyhow::Error),
     /// Encryption or decryption failed. Opaque: KMS's reason can tell a
     /// prober whether the encryption context matched.
     #[error("the key could not be encrypted or decrypted")]
