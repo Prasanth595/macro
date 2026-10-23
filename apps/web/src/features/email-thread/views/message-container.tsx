@@ -26,7 +26,8 @@ interface MessageContainerProps {
 }
 
 export function MessageContainer(props: MessageContainerProps) {
-  const { thread: threadContext, rendering } = useEmailThreadViewContext();
+  const viewContext = useEmailThreadViewContext();
+  const { thread: threadContext, rendering } = viewContext;
   const isTouchDevice = threadContext.isTouch;
   const context = useEmailThreadState();
   const draftChild = createMemo(() => {
@@ -141,6 +142,7 @@ export function MessageContainer(props: MessageContainerProps) {
                 isLastMessage: props.isLastMessage,
                 setShowReply,
                 isTouch: threadContext.isTouch(),
+                openReplyComposer: viewContext.openReplyComposer,
               })
           : undefined
       }
