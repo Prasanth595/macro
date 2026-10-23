@@ -124,7 +124,9 @@ describe('Show tool contract', () => {
   it('advertises rendering guidance on the tool itself', () => {
     const schema = showToolSchema();
     expect(schema.title).toBe('Show');
-    expect(schema.description).toContain('ReadActivity');
+    expect(schema.description).toContain(
+      'What ReadActivity returns is not shown to the user by itself'
+    );
     expect(schema.description).toContain('never invent ids');
     expect(schema.description).toContain(
       'Never mention, link or name in your reply an item the view shows'
