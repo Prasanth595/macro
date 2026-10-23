@@ -31,7 +31,8 @@ export function isCopyRefused(error: unknown): boolean {
   );
 }
 
-function copyFailureOutcome(error: unknown) {
+/** Span outcome of a failed Add to calendar. */
+export function copyFailureOutcome(error: unknown) {
   if (isAlreadyOnCalendar(error)) return 'already_on_calendar';
   if (isCopyRefused(error)) return 'copy_refused';
   return 'failed';
