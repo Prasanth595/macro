@@ -747,8 +747,11 @@ with the same full sidebar contents. With no conversation selected, the
 slide-over opens on its own and closes once a conversation is picked; the
 backdrop or `Escape` still dismisses it. There is no separate skinny sidebar mode.
 
-On desktop, the Chat rail has `All` and `Recent` tabs. All contains an
-optional `Favorites` section and the
+On desktop, the Chat rail has `All` and `Recent` tabs in a flat, shared track
+aligned with New. Choices use equal widths, a transparent outlined track with
+1px padding, and fully rounded pill shapes. The 32px selected state matches
+New's fill and border without an extra shadow. All contains an optional
+`Favorites` section and the
 independently paginated `Channels` and `DMs` sections. Favorites appears when
 the user has channel favorites and only lists channels. Channel favorites open
 in the shared channel detail. Shift-clicking a favorite, channel, or DM opens that
@@ -968,7 +971,11 @@ to the next section. `[` and `]` jump between the visible Favorites,
 Channels, and DMs section headers.
 
 On touch layouts, Channels shows only the Recent conversation feed, with channel
-and DM message previews. There are no view tabs or reserved tab-header space;
+and DM message previews. Rows use Home's touch row: the unread dot in the left
+rail, a 44px avatar, and a divider inset to the text column. The first six
+favorited channels (favorite order) are pinned in a three-across grid above the
+feed, iMessage style, and leave the feed below; tapping a pin opens it and a
+hold opens its action menu, where Unfavorite unpins it. There are no view tabs or reserved tab-header space;
 older saved tab selections and mobile-tab links cannot change the list. It loads
 more as the list approaches the end and supports pull to refresh.
 Rows use the same touch highlight as Home and Email: taps retain feedback while

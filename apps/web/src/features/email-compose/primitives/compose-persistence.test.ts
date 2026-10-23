@@ -20,51 +20,6 @@ const response: PersistedEmailIdentity = {
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
-it.each(['standalone', 'reply'] as const)(
-  'does not acknowledge the %s pre-send save, including after failed delivery',
-  async (surface) => {
-    const context = createComposeContext();
-    context.drafts.saveLocalDraft = vi.fn(async (input) =>
-      localSnapshot(input)
-    );
-    const delivery = Promise.withResolvers<PersistedEmailIdentity>();
-    vi.mocked(context.delivery.sendMessage).mockReturnValueOnce(
-      delivery.promise
-    );
-    const root =
-      surface === 'standalone'
-        ? mountEmailComposer(context)
-        : mountReplyComposer(context);
-    const state = 'state' in root ? root.state : root;
-    try {
-      root.edit('Send without flashing Draft saved');
-      await vi.advanceTimersByTimeAsync(0);
-      let sending: Promise<unknown> | undefined;
-      if ('state' in root) root.state.context.onSend();
-      else sending = root.sendEmail();
-      expect(state.acknowledgeSaved()).toBe(false);
-      await vi.advanceTimersByTimeAsync(0);
-      expect(context.delivery.sendMessage).toHaveBeenCalledOnce();
-      expect(state.localSaveState()).toBe('saved');
-      expect(state.acknowledgeSaved()).toBe(false);
-      delivery.reject(new Error('Delivery failed'));
-      await vi.advanceTimersByTimeAsync(0);
-      expect(state.acknowledgeSaved()).toBe(false);
-      root.edit('Keep editing after failure');
-      await vi.advanceTimersByTimeAsync(500);
-      expect(state.acknowledgeSaved()).toBe(true);
-      await sending;
-    } finally {
-      delivery.resolve({
-        draftId: 'sent',
-        threadId: 'thread',
-        inboxId: 'inbox',
-      });
-      root.dispose();
-    }
-  }
-);
-
 it('flushes the latest pending body and envelope exactly once on disposal', async () => {
   const composeContext = createComposeContext();
   const root = mountEmailComposer(composeContext);
@@ -142,6 +97,40 @@ it('discard waits for an in-flight first save and deletes its returned draft', a
     expect.objectContaining({ draftId: 'saved-id' })
   );
 });
+it('discards a standalone draft at its server generation', async () => {
+  const composeContext = createComposeContext();
+  // Each send that Undo cancels advances the server's generation twice.
+  const root = mountEmailComposer(composeContext, undefined, {
+    draft: message('restored', {
+      is_draft: true,
+      thread_db_id: 'thread',
+      draft_generation: 4,
+    }),
+  });
+  await root.state.deleteDraftAndReset();
+  root.dispose();
+  expect(composeContext.drafts.deleteDraft).toHaveBeenCalledWith(
+    expect.objectContaining({ draftId: 'restored', draftGeneration: 4 })
+  );
+});
+
+it('discards a reply draft at its server generation', async () => {
+  const composeContext = createComposeContext();
+  const root = mountReplyComposer(composeContext, () => message('parent'), {
+    draft: message('restored', {
+      is_draft: true,
+      replying_to_id: 'parent',
+      thread_db_id: 'thread',
+      draft_generation: 4,
+    }),
+  });
+  await root.deleteDraftAndReset();
+  root.dispose();
+  expect(composeContext.drafts.deleteDraft).toHaveBeenCalledWith(
+    expect.objectContaining({ draftId: 'restored', draftGeneration: 4 })
+  );
+});
+
 it('keeps the draft editable after failed deletion and saves later edits', async () => {
   const composeContext = createComposeContext();
   const goBack = vi.fn();

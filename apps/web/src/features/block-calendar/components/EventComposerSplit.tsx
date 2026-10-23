@@ -59,6 +59,7 @@ function EventComposerContent(
     event: () => props.event,
     macroCallsEnabled,
     guestInvitesEnabled: useCalendarGuestInvitesFlag(),
+    onDetailEditsRefused: () => controller.resetDetails(),
     onSaved: () => {
       props.onSaveSuccess?.();
       close();
@@ -94,6 +95,8 @@ function EventComposerContent(
         disabledFields={editor.disabledFields()}
         addOnlyGuests={editor.addOnlyGuests()}
         guestsReadOnlyReason={editor.guestsReadOnlyReason()}
+        guestPolicyEditable={editor.guestPolicyEditable()}
+        detailsReadOnlyReason={editor.detailsReadOnlyReason()}
         showRecurringEditNotice={editor.showRecurringEditNotice()}
         pending={editor.pending()}
         onCalendarChange={props.onCalendarChange}
