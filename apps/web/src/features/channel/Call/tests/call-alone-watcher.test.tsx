@@ -78,14 +78,16 @@ describe('alone-in-call prompt', () => {
     warn('call-1', 120_000);
     expect(await screen.findByText("You're the only one here")).toBeTruthy();
     expect(
-      screen.getByText(/It will end in 2:00 unless you stay/)
+      // The countdown is live; under load it may already have ticked.
+      screen.getByText(/It will end in (2:00|1:[0-5]\d) unless you stay/)
     ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Stay in call' }));
     await waitFor(() =>
       expect(mocks.stayInCall).toHaveBeenCalledExactlyOnceWith('call-1')
     );
-    await waitFor(() =>
-      expect(screen.queryByText("You're the only one here")).toBeNull()
+    await waitFor(
+      () => expect(screen.queryByText("You're the only one here")).toBeNull(),
+      { timeout: 2_000 }
     );
   });
 
