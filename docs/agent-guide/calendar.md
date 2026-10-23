@@ -520,7 +520,9 @@ where `Email guests` does, with no recipients, the title as subject, a plain-tex
 the body (title, when in the viewer's zone, the repeat rule in words, location, organizer and
 description, never guests or a join link) and the `.ics` attached as a picked file would be.
 Nothing is saved as a draft until you edit something. The file is `METHOD:PUBLISH`, so
-recipients get a copy to add to their calendar, not an invitation they can answer. If the file
+recipients get a copy to add to their calendar, not an invitation they can answer; in Macro the
+received email shows it as a shared event (see [Calendar invitations in
+email](#calendar-invitations-in-email)). If the file
 cannot be fetched, no composer opens and a `Failed to forward event` toast shows; to check it,
 answer the `.ics` route with an error.
 On desktop, every icon button in the details header (`Copy event`, `Download .ics`, `Forward
@@ -1116,6 +1118,19 @@ Descriptions render sanitized rich text, including emphasis, links, and lists.
 Plain-text line breaks and literal angle brackets (such as `<bob@example.com>`)
 remain readable. Use `Show more` / `Show less` to expand or collapse the description;
 description links use the host's normal link-opening behavior.
+
+A published event file (`METHOD:PUBLISH`, what `Forward by email` attaches) is a shared
+event, not an invitation: the card reads `Shared event organized by <organizer>` and never
+shows Yes / Maybe / No, a last response, or a waiting-for-sync line. When the viewer already
+holds the meeting it says `On your calendar.` with `Open in calendar` and `View your day`;
+otherwise it says `Not on your calendar.` and, behind the `enable-calendar-add-shared-event`
+flag, offers `Add to calendar`, which imports the same snapshot as the channel-share card
+(the viewer's only writable Google calendar, or one picked from a menu; the real organizer
+kept, the viewer as the only guest, nobody notified) through email service's
+`POST /email/threads/{thread_id}/messages/{message_id}/calendar-invitations/{invitation_id}/copy`.
+The server reads the event from the saved email, never from the request. The card then
+resolves to the snapshot. A single occurrence, a cancelled event, a time that cannot be read,
+and mail saved before recurrence was recorded on the snapshot get no `Add to calendar`.
 
 A connected, resolved invitation shows the responding address and Yes / Maybe / No.
 Calendars connected through a linked inbox also resolve here, using that inbox's

@@ -100,7 +100,9 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   meeting on another calendar of the same inbox. Google
   only: never import over a UID the calendar already holds, since an import
   updates that event in place and would strip an unsynced invitation's
-  guests.
+  guests. An event file forwarded by email takes the same import through
+  `CalendarSnapshotImporter::import_snapshot`, fed an `EventSnapshot` that
+  `crates/email`'s `invitation_import` builds from the email's saved snapshot.
 - Asking to join a channel-shared event (`src/domain/join_requests.rs`) is a
   Macro-stored request, not an `entity_access` row: the grant is a provider guest
   write. Eligibility is the invite path's own `copy_capabilities` on the
