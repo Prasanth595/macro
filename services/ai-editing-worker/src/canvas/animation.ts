@@ -3,6 +3,7 @@ import {
   isShape,
   resolveConnector,
   shapeDefinition,
+  worldBounds,
   worldMatrix,
 } from '@macro-inc/graphics';
 import {
@@ -57,7 +58,16 @@ export function canvasAnimation(
           ];
           affected = !!target && deps.writes.has(target.id);
         }
-        return isShape(item) && (affected || item.type === 'connector');
+        if (!affected && item?.type === 'connector') {
+          const previous = before.items[id];
+          const next = after.items[id];
+          affected =
+            previous?.type === 'connector' &&
+            next?.type === 'connector' &&
+            JSON.stringify(resolveConnector(before, previous).geometry) !==
+              JSON.stringify(resolveConnector(after, next).geometry);
+        }
+        return isShape(item) && affected;
       })
     ),
   ].slice(0, 100);
@@ -68,6 +78,24 @@ export function canvasAnimation(
   for (const id of ids) {
     const document = after.items[id] ? after : before;
     let root = document.items[id];
+    if (root?.type === 'connector') {
+      for (const binding of [
+        root.geometry.start.binding,
+        root.geometry.end.binding,
+      ]) {
+        let target = binding ? document.items[binding.targetId] : undefined;
+        while (
+          target &&
+          target.type !== 'surface' &&
+          !deps.writes.has(target.id)
+        )
+          target = document.items[target.placement.parentId];
+        if (target && target.type !== 'surface') {
+          root = target;
+          break;
+        }
+      }
+    }
     while (root && root.type !== 'surface') {
       const parent = document.items[root.placement.parentId];
       if (!parent || parent.type === 'surface') break;
@@ -79,9 +107,9 @@ export function canvasAnimation(
     groups.set(key, group);
   }
   const ordered = [...groups.values()].sort((a, b) => {
-    const left = worldMatrix(after.items[a[0]] ? after : before, a[0]);
-    const right = worldMatrix(after.items[b[0]] ? after : before, b[0]);
-    return left[4] - right[4] || left[5] - right[5] || a[0].localeCompare(b[0]);
+    const left = worldBounds(after.items[a[0]] ? after : before, a[0]);
+    const right = worldBounds(after.items[b[0]] ? after : before, b[0]);
+    return left.x - right.x || left.y - right.y || a[0].localeCompare(b[0]);
   });
   const lanes: string[][] = [];
   const perLane = Math.max(1, Math.ceil(ordered.length / 3));
@@ -214,20 +242,39 @@ export function canvasAnimation(
           : {}),
       });
     }
-    const first = shapes[0];
+    const cursor = (itemIds: string[]) => {
+      const first =
+        shapes.find(
+          (shape) =>
+            itemIds.includes(shape.id) && shape.item?.type !== 'connector'
+        ) ?? shapes.find((shape) => itemIds.includes(shape.id));
+      if (!first) return null;
+      if (first.item?.type !== 'connector')
+        return { x: first.world[4], y: first.world[5] };
+      const target = worldBounds(
+        after.items[first.id] ? after : before,
+        first.id
+      );
+      const start = before.items[first.id]
+        ? worldBounds(before, first.id)
+        : target;
+      return {
+        x: start.x + (target.x - start.x) * progress,
+        y: start.y + (target.y - start.y) * progress,
+      };
+    };
     const value: CanvasPresentation = {
       selectedIds: ids,
-      cursor: first ? { x: first.world[4], y: first.world[5] } : null,
+      cursor: cursor(ids),
       ...(lanes.length > 1
         ? {
             lanes: lanes.map((itemIds, index) => {
-              const first = shapes.find((shape) => itemIds.includes(shape.id));
               return {
                 id: `lane-${index + 1}`,
                 name: `Region ${index + 1}`,
                 color: ['#0891b2', '#8b5cf6', '#d97706'][index],
                 itemIds,
-                cursor: first ? { x: first.world[4], y: first.world[5] } : null,
+                cursor: cursor(itemIds),
               };
             }),
           }
