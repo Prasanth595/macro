@@ -279,7 +279,7 @@ describe('EventComposerGuestsPill for a guest who may only add guests', () => {
       />
     ));
 
-    const pill = screen.getByRole('button', { name: 'Guests' });
+    const pill = screen.getByRole('button', { name: 'Guest list hidden' });
     expect(pill.textContent).toContain('Guest list hidden');
     await user.click(pill);
     expect(

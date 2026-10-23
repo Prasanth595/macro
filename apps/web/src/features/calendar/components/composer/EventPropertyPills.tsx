@@ -122,7 +122,7 @@ function ReadOnlyEventComposerGuestsPill(props: EventComposerGuestsPillProps) {
       >
         <Popover.Trigger
           disabled={props.disabled}
-          aria-label="Guests"
+          aria-label={props.guestListHidden ? 'Guest list hidden' : 'Guests'}
           aria-readonly="true"
           aria-description={props.readOnlyReason}
           class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48 overflow-hidden')}
