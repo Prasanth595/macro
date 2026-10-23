@@ -17,6 +17,19 @@ then distinguish preparation, handoff, and confirmed saving.
 Review copies in Macro: [journey map](https://macro.com/app/md/01a16974-f25b-78dd-bc61-1155b2a817a4)
 and [interaction specification](https://macro.com/app/md/01a16974-87d4-7304-8c11-96b0e4d439df).
 
+The concept uses Macro's dark split workspace, narrow navigation rails, file
+headers, channel messages, composer, and existing Phosphor icons. Its visual
+reference is the supplied Macro screenshot and the app's `index.css`, sidebar,
+split-header, channel-header, and Drive-header code. Prototype controls sit outside
+the app at the bottom; **Next state** advances a simulated transfer. Mobile saving
+and sharing sheets are proposed flows, not verified native implementations.
+
+`concept.css` and `concept.js` accompany the HTML. The bundled Inter Latin font
+comes from the existing `@fontsource-variable/inter` dependency; its license is in
+`assets/Inter-LICENSE.txt`. Icon symbols come from the app's existing Phosphor
+dependency (license in `assets/Phosphor-LICENSE.txt`) and Macro logo. The sample
+screen recording is rendered as HTML.
+
 ## What prompted this
 
 In the [15 October channel thread](https://macro.com/app/channel/0195d2dd-5de9-71f2-9d59-5d9734f1adb7?channel_message_id=01a14017-c430-7555-9fbb-dde07b2d25b7),
