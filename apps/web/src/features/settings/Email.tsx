@@ -123,14 +123,17 @@ export function EmailCard(
     return { primary, others };
   });
 
-  const onConnectEmail = async () => {
-    if (addingInbox) return;
-    addingInbox = true;
+  const connectEmail = async () => {
     try {
       await startAddInbox();
     } finally {
       addingInbox = false;
     }
+  };
+  const onConnectEmail = () => {
+    if (addingInbox) return;
+    addingInbox = true;
+    fireAndForget(connectEmail(), 'add-inbox');
   };
 
   const handleResyncInbox = async (linkId: string) => {
