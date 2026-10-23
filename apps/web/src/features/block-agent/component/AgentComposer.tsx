@@ -39,7 +39,7 @@ import {
   effortConfigOption,
   effortLabel,
   fundingConfigOption,
-  usesTeamApiKey,
+  type SessionFunding,
 } from '../state/session-config';
 import {
   AgentInput,
@@ -48,7 +48,7 @@ import {
   ComposerNotice,
   type QueuedPromptItem,
   QueuedPrompts,
-  TeamUsageToggle,
+  UsageSourceControl,
 } from '../ui';
 import type { AgentModelSelectorProps } from '../ui/AgentModelSelector';
 import { AgentModelMenuItem } from './AgentModelMenuItem';
@@ -126,14 +126,13 @@ export function AgentComposer(props: {
   };
 
   const effort = () => effortConfigOption(metadata()?.configOptions ?? []);
-  const offersTeamKey = () =>
-    fundingConfigOption(metadata()?.configOptions ?? []) !== undefined;
-  const onTeamKey = () => usesTeamApiKey(metadata()?.configOptions ?? []);
-  const chooseFunding = async (teamKey: boolean) => {
-    if (readOnly() || configuring()) return;
+  const funding = () => fundingConfigOption(metadata()?.configOptions ?? []);
+  const chooseFunding = async (choice: SessionFunding) => {
+    if (readOnly() || configuring() || choice === funding()?.currentValue)
+      return;
     setConfiguring(true);
     try {
-      await setFunding(teamKey ? 'team_api_key' : 'macro');
+      await setFunding(choice);
     } catch (error) {
       toast.failure(
         error instanceof Error
@@ -470,14 +469,16 @@ export function AgentComposer(props: {
             >
               <SpeedToggle model={metadata()?.model ?? ''} />
             </Show>
-            <Show when={offersTeamKey()}>
-              <TeamUsageToggle
-                on={onTeamKey()}
-                disabled={readOnly() || pending() || configuring()}
-                onToggle={(on) =>
-                  fireAndForget(chooseFunding(on), 'agent-composer')
-                }
-              />
+            <Show when={funding()}>
+              {(option) => (
+                <UsageSourceControl
+                  option={option()}
+                  disabled={readOnly() || pending() || configuring()}
+                  onChoose={(choice) =>
+                    fireAndForget(chooseFunding(choice), 'agent-composer')
+                  }
+                />
+              )}
             </Show>
           </div>
         }

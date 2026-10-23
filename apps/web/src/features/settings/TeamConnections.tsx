@@ -6,7 +6,7 @@ import ArrowUpRightIcon from '@phosphor/arrow-up-right.svg';
 import { useGithubLinkStatusQuery } from '@queries/auth';
 import type { Team as TeamSummary } from '@service-auth/generated/schemas/team';
 import { Show } from 'solid-js';
-import { TeamAiApiKeys } from './components/team-ai-api-keys';
+import { AiApiKeys } from './components/ai-api-keys';
 import { ConnectAction } from './integration-ui';
 import {
   IntegrationRow,
@@ -65,7 +65,7 @@ export function TeamConnections(props: { team: TeamSummary }) {
         </SettingsCard>
       </SettingsSection>
 
-      <TeamAiApiKeys canManage={isAdminOrOwner()} />
+      <AiApiKeys owner="team" canManage={isAdminOrOwner()} />
     </SettingsPage>
   );
 }

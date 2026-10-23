@@ -38,6 +38,7 @@ import { isControlMessage } from '../state/control-message';
 import { isNotificationMessage } from '../state/notification-message';
 import { agentContextText, promptOrigin } from '../state/prompt-origin';
 import { refusedPromptAction } from '../state/refused-prompt';
+import type { KeyFunding } from '../state/session-config';
 import { thoughtIsStreaming } from '../state/thought-streaming';
 import { segmentParts } from '../state/tool-groups';
 import {
@@ -343,13 +344,13 @@ export function Message(props: {
     props.message.stop?.kind === 'failed' ? props.message.stop : undefined;
   const agentSession = useOptionalAgentSession();
   const [continuing, setContinuing] = createSignal(false);
-  // Out of Macro usage with a team key to fall back on: agreeing moves the
+  // Out of Macro usage with a key to fall back on: agreeing moves the
   // session to the key and sends the refused prompt again.
-  const continueOnTeamKey = async () => {
+  const continueOnKey = async (funding: KeyFunding) => {
     if (!agentSession || continuing()) return;
     setContinuing(true);
     try {
-      await agentSession.setFunding('team_api_key');
+      await agentSession.setFunding(funding);
       const retry = refusedPromptAction(
         agentSession.messages(),
         props.message.turn
@@ -359,22 +360,32 @@ export function Message(props: {
       toast.failure(
         error instanceof Error
           ? error.message
-          : "Your team's API key could not be turned on"
+          : 'The API key could not be turned on'
       );
     } finally {
       setContinuing(false);
     }
   };
-  const noticeAction = (notice: FailureNotice) =>
-    notice.kind === 'team_api_key_available' &&
-    agentSession &&
-    agentSession.session()?.canEdit !== false
-      ? {
-          label: 'Continue with team API key',
-          onClick: () => fireAndForget(continueOnTeamKey(), 'agent-message'),
-          disabled: continuing(),
-        }
-      : undefined;
+  const noticeAction = (notice: FailureNotice) => {
+    if (!agentSession || agentSession.session()?.canEdit === false) return;
+    const offer = match(notice.kind)
+      .with('personal_api_key_available', () => ({
+        label: 'Continue with your API key',
+        funding: 'personal_api_key' as const,
+      }))
+      .with('team_api_key_available', () => ({
+        label: 'Continue with team API key',
+        funding: 'team_api_key' as const,
+      }))
+      .otherwise(() => undefined);
+    if (!offer) return;
+    return {
+      label: offer.label,
+      onClick: () =>
+        fireAndForget(continueOnKey(offer.funding), 'agent-message'),
+      disabled: continuing(),
+    };
+  };
 
   return (
     // A control and an event notification are both user-authored by the

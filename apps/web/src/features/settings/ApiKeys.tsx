@@ -21,6 +21,7 @@ import type { CreatedUserApiKey } from '@service-storage/generated/schemas/creat
 import type { UserApiKeyInfo } from '@service-storage/generated/schemas/userApiKeyInfo';
 import { Button, Dialog, Panel, Tooltip } from '@ui';
 import { createSignal, For, type JSX, Show } from 'solid-js';
+import { AiApiKeys } from './components/ai-api-keys';
 import { SettingsCard, SettingsPage, SettingsSection } from './primitives';
 
 const USER_API_KEY_HEADER = 'x-macro-user-api-key';
@@ -133,6 +134,8 @@ export function ApiKeys() {
           </Show>
         </SettingsCard>
       </SettingsSection>
+
+      <AiApiKeys owner="personal" canManage />
 
       <CreateApiKeyDialog
         open={createOpen()}

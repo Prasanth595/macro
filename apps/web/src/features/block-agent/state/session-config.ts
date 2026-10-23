@@ -33,10 +33,14 @@ export function effortConfigOption(
 /** The in-memory agent's option for what its turns run on. */
 export const FUNDING_CONFIG_ID = 'funding';
 
-/** Macro's AI allowance, or the team's own provider API key. */
-export type SessionFunding = 'macro' | 'team_api_key';
+/** What a session's turns can run on besides Macro's AI allowance: the
+ * owner's own provider API key, or their team's. */
+export type KeyFunding = 'personal_api_key' | 'team_api_key';
 
-/** The funding option, present only when the owner's team has a usable key. */
+/** Macro's AI allowance, or a provider API key. */
+export type SessionFunding = 'macro' | KeyFunding;
+
+/** The funding option, present only when the owner has a usable key. */
 export function fundingConfigOption(
   options: readonly SessionConfigOption[]
 ): SelectSessionConfigOption | undefined {
@@ -44,11 +48,16 @@ export function fundingConfigOption(
   return candidate?.type === 'select' ? candidate : undefined;
 }
 
-/** Whether the session's turns run on the team's own API key. */
-export function usesTeamApiKey(
+export function isKeyFunding(value: string | undefined): value is KeyFunding {
+  return value === 'personal_api_key' || value === 'team_api_key';
+}
+
+/** The key the session's turns run on, or `undefined` on Macro usage. */
+export function sessionKeyFunding(
   options: readonly SessionConfigOption[]
-): boolean {
-  return fundingConfigOption(options)?.currentValue === 'team_api_key';
+): KeyFunding | undefined {
+  const current = fundingConfigOption(options)?.currentValue;
+  return isKeyFunding(current) ? current : undefined;
 }
 
 /** Opaque harness setting selected alongside a model. */

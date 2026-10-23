@@ -50,7 +50,6 @@ export {
   type SessionStatusLike,
   SessionStatusPill,
 } from './SessionStatusPill';
-export { TEAM_USAGE_LABEL, TeamUsageToggle } from './TeamUsageToggle';
 export { TextShimmer, type TextShimmerProps } from './TextShimmer';
 export { Thought, type ThoughtProps } from './Thought';
 export { TodoList } from './TodoList';
@@ -69,4 +68,10 @@ export {
   type TodoItem,
   type ToolStatus,
 } from './types';
+export {
+  PERSONAL_USAGE_LABEL,
+  TEAM_USAGE_LABEL,
+  UsageSourceControl,
+  usageLabel,
+} from './UsageSourceControl';
 export { WorkingLine } from './WorkingLine';

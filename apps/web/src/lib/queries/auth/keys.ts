@@ -10,6 +10,7 @@ export const authKeys = createQueryKeys('auth', {
   codexLogin: (attemptId: string) => ({ queryKey: [attemptId] }),
   cursorApiKeyStatus: null,
   cursorModels: null,
+  aiApiKeys: null,
   teamAiApiKeys: null,
   githubLinkStatus: null,
   emailConnectionProviders: null,

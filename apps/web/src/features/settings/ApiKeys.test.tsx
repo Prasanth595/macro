@@ -22,6 +22,11 @@ vi.mock('@queries/user-api-keys/user-api-keys', () => ({
     mutateAsync: vi.fn(),
   }),
 }));
+vi.mock('@queries/auth/ai-api-keys', () => ({
+  useAiApiKeysQuery: () => ({ isLoading: false, data: { keys: [] } }),
+  useSaveAiApiKey: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useRemoveAiApiKey: () => ({ isPending: false, mutateAsync: vi.fn() }),
+}));
 
 let motionStyles: HTMLStyleElement;
 beforeEach(() => {
