@@ -120,7 +120,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   uncertain enqueues. See `docs/graphql-normalized-cache-plan.md`.
 - Mobile dock customization shares the navigation island’s measured capacity; persist ordering per user with `mobile-dock-order.ts`, preserve gated destinations, and keep Search and More fixed. Reorder handles drag without a hold delay; the rest of each row scrolls.
 - Share sidebar and mobile dock unread presence through `components/app/use-navigation-unread.ts`; keep badges reactive to read/done changes, guard all query data with `queryReadyGate` so pending preferences or paused queries cannot suspend the shell, and avoid fetching extra pages for counts.
-- Name Home thread rows from their latest scoped notification, including document mentions and reactions; use the thread author only when no notification exists.
+- Name Home thread rows from their latest scoped notification, including document mentions and reactions; use the thread author only when no notification exists. Document rows whose newest outstanding notification is a comment, and calendar event rows whose newest is a join request, say who did it (`row-notification.ts`).
 - Mobile dock search owns transient category/mode state in `features/command/mobile`; reuse the shared entity source and explicit full-text adapter rather than overlaying the dock query on view tabs or saved facets. See `docs/agent-guide/search.md` at the repository root.
 - Include known Macro users in typed All/People name searches without requiring a DM or CRM contact; resolve a matching person to their existing one-to-one DM while preserving name/email matching.
 - Key mobile name-result history ordering and scroll anchors by the other participant for one-to-one DMs, preserving a person's position when their conversation is created; keep group DMs keyed by channel.
@@ -402,3 +402,23 @@ Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
 Cognition, routines, preview control, and MCP share `agent_harness_service`.
 Direct local hosts use port 8101 with the existing feature prefixes; the
 instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.
+
+## File downloads
+
+Channel videos and Drive video/image/code/canvas/unknown previews share
+`createFileDownload` and `FileDownloadButton`. Keep menu and visible controls
+bound to the same controller. Download hands off directly to browser downloads
+or the native save picker; keep Share separate and do not add a custom
+confirmation sheet. Snapshot file/version before loading, cancel on disposal or
+selection change, and preserve original filenames from static-file metadata.
+Native Android and iOS use bounded byte exports. Older iOS binaries use Web
+Share until the optional file-export bridge ships. If browser activation expires
+while preparing a share, retain the bytes and let the same action's next tap
+open the system sheet synchronously. Browser success means handoff, not confirmed
+disk completion. See the native bridge's `tauri/file_export_plugin/AGENTS.md`.
+
+The backend-free browser regression downloads real fixture bytes from channel
+cards, the expanded viewer, and the shared Drive/standalone header on desktop,
+phone, and tablet:
+`bunx playwright test --config src/lib/core/component/FileDownload/browser-test/playwright.config.ts`.
+See the [download walkthrough](../../docs/agent-guide/files.md#downloading-files).
