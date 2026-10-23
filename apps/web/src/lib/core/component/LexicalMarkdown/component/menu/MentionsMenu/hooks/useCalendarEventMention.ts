@@ -18,7 +18,7 @@ type UseCalendarEventMentionOptions = {
 };
 
 /** When the row's instance starts: its occurrence when search resolved one. */
-export function calendarEventMentionWhen(
+function calendarEventMentionWhen(
   event: Pick<CalendarEventEntity, 'time' | 'occurrenceKey'>
 ): string | undefined {
   const time = event.time;
