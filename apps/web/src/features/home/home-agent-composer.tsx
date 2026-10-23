@@ -9,6 +9,7 @@ import { TOKENS } from '@core/hotkey/tokens';
 import { useWarmAgentSessionQuery } from '@queries/agent-session/warm';
 import { createEffect, onCleanup } from 'solid-js';
 import '../agents-view/agents-view.css';
+import { buildAgentPrompt } from '@app/features/agents-view/queries/composer-prompt';
 import { modeForKind } from '../agents-view/core/agent-kind';
 import { kindForBot } from '../agents-view/core/roster';
 import { agentsRouteId } from '../agents-view/core/route';
@@ -21,7 +22,6 @@ import {
   NewChatPage,
   type StartConversation,
 } from '../agents-view/views/NewChatPage';
-import { buildHomeAgentPrompt } from './queries/home-agent-prompt';
 
 /** Home supplies suggestions and navigation to the same composer used by Agents. */
 export function HomeAgentComposer(props: { autoFocus?: boolean }) {
@@ -44,7 +44,7 @@ export function HomeAgentComposer(props: { autoFocus?: boolean }) {
   const applySuggestion = async (content: string) => {
     const version = ++draftVersion;
     try {
-      const prompt = await buildHomeAgentPrompt({
+      const prompt = await buildAgentPrompt({
         content,
         attachments: input.attachments.attached(),
       });

@@ -153,6 +153,53 @@ async fn preserves_inferred_end_for_unsupported_or_partially_parsed_durations() 
 }
 
 #[tokio::test]
+async fn calendar_week_words_do_not_disable_the_default_one_hour_duration() {
+    for day in ["thursday", "thrusday"] {
+        let mut input = request();
+        input.reference_time = "2026-10-23T22:00:00Z".parse().unwrap();
+        input.text = format!("invite julia to dinner next week {day} 9pm\n\nLocation: cava");
+        let response = service(InputSuggestions {
+            start: Some("2026-10-24T21:00".into()),
+            end: Some("2026-10-24T21:00".into()),
+            location: Some("cava".into()),
+            ..Default::default()
+        })
+        .extract(user(), input)
+        .await
+        .unwrap();
+        assert_eq!(
+            response.suggestions.start.as_deref(),
+            Some("2026-10-29T21:00")
+        );
+        assert_eq!(
+            response.suggestions.end.as_deref(),
+            Some("2026-10-29T22:00")
+        );
+        assert_eq!(response.suggestions.location.as_deref(), Some("cava"));
+    }
+}
+
+#[tokio::test]
+async fn inferred_explicit_or_unsupported_ends_must_be_after_the_start() {
+    for text in [
+        "Call tomorrow 9pm to 9pm",
+        "Call tomorrow at 9pm for half an hour",
+    ] {
+        let mut input = request();
+        input.text = text.into();
+        let response = service(InputSuggestions {
+            start: Some("2026-10-10T21:00".into()),
+            end: Some("2026-10-10T21:00".into()),
+            ..Default::default()
+        })
+        .extract(user(), input)
+        .await
+        .unwrap();
+        assert!(response.suggestions.end.is_none());
+    }
+}
+
+#[tokio::test]
 async fn removes_only_exact_extracted_task_metadata_and_keeps_problem_prose() {
     let mut input = request();
     input.intent = InputIntent::Task;
@@ -353,5 +400,78 @@ async fn normalizes_seconds_and_offsets_to_the_users_local_event_time() {
             response.suggestions.end.as_deref(),
             Some("2026-10-10T20:00")
         );
+    }
+}
+
+#[tokio::test]
+async fn revalidates_end_times_computed_across_daylight_saving_transitions() {
+    for (start, expected_end) in [
+        ("2026-11-01T00:30", None),
+        ("2026-03-08T00:30", Some("2026-03-08T03:30")),
+    ] {
+        let mut input = request();
+        input.text = "Call Julia at 00:30 for 2 hours".into();
+        let response = service(InputSuggestions {
+            start: Some(start.into()),
+            ..Default::default()
+        })
+        .extract(user(), input)
+        .await
+        .unwrap();
+
+        assert_eq!(response.suggestions.start.as_deref(), Some(start));
+        // The fall-back result is 01:30 EST. Returning it without its offset
+        // would let the browser select 01:30 EDT and shorten the event by an hour.
+        assert_eq!(response.suggestions.end.as_deref(), expected_end);
+    }
+}
+
+#[tokio::test]
+async fn revalidates_wall_times_after_correcting_a_next_weekday() {
+    for (reference, start, end, expected_start, expected_end) in [
+        (
+            "2026-02-27T18:00:00Z",
+            "2026-03-01T02:30",
+            "2026-03-01T03:30",
+            None,
+            Some("2026-03-08T03:30"),
+        ),
+        (
+            "2026-10-23T18:00:00Z",
+            "2026-10-25T01:30",
+            "2026-10-25T02:30",
+            None,
+            Some("2026-11-01T02:30"),
+        ),
+        (
+            "2026-10-23T18:00:00Z",
+            "2026-10-25T00:30",
+            "2026-10-25T01:30",
+            Some("2026-11-01T00:30"),
+            None,
+        ),
+    ] {
+        let mut input = request();
+        input.reference_time = reference.parse().unwrap();
+        input.text = format!(
+            "Call Julia next week Sunday from {} to {}",
+            NaiveDateTime::parse_from_str(start, "%Y-%m-%dT%H:%M")
+                .unwrap()
+                .format("%I:%M%P"),
+            NaiveDateTime::parse_from_str(end, "%Y-%m-%dT%H:%M")
+                .unwrap()
+                .format("%I:%M%P")
+        );
+        let response = service(InputSuggestions {
+            start: Some(start.into()),
+            end: Some(end.into()),
+            ..Default::default()
+        })
+        .extract(user(), input)
+        .await
+        .unwrap();
+
+        assert_eq!(response.suggestions.start.as_deref(), expected_start);
+        assert_eq!(response.suggestions.end.as_deref(), expected_end);
     }
 }

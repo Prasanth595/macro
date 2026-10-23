@@ -745,10 +745,17 @@ export const enableChatV3Agents = defineFlag({
   default: onInDev,
 });
 
-/** Offers the Home switch by default in dev/local; production follows PostHog. */
+/** Makes Universal Input available to the God Mode preference in Command K. */
 export const enableUniversalInput = defineFlag({
   key: 'enable-universal-input',
   env: 'ENABLE_UNIVERSAL_INPUT',
+  default: DEV_MODE_ENV || import.meta.env.DEV || undefined,
+});
+
+/** Settings also checks the signed-in email belongs to macro.com. */
+export const enableExperimentalFeatures = defineFlag({
+  key: 'enable-experimental-features',
+  env: 'ENABLE_EXPERIMENTAL_FEATURES',
   default: DEV_MODE_ENV || import.meta.env.DEV || undefined,
 });
 

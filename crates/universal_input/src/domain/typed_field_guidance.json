@@ -1,0 +1,32 @@
+{
+  "search": {
+    "query": "The content to search for, excluding a leading find or search command."
+  },
+  "email": {
+    "subject": "A short phrase from the outgoing message suitable for its subject. It need not be labeled Subject; use the message's main topic or requested action.",
+    "body": "The entire outgoing email message, including every sentence and line. Exclude only the leading instruction that addresses the email. Preserve the author's words.",
+    "recipients": "Names or email addresses explicitly addressed after email or email to at the beginning of the draft. Do not include people mentioned only in the message body."
+  },
+  "note": {
+    "title": "The document heading or a short title phrase from the note.",
+    "body": "The entire input text including its heading, all paragraphs, whitespace and Markdown punctuation."
+  },
+  "task": {
+    "title": "The first line of the task draft, without an instruction to create a task.",
+    "body": "All problem-description text after the first line. Exclude labeled priority, status, assignee, project or due-date metadata. Null if there is no description.",
+    "due_date": "The task deadline as a date. Null unless a deadline was explicitly supplied. Urgency is not a deadline. Resolve relative days using the reference local calendar.",
+    "properties": "Only explicitly stated values for this task property. Empty when this property was not supplied; do not infer defaults or return other task prose."
+  },
+  "calendar": {
+    "title": "The event name, excluding its date, time and location or an instruction to create an event.",
+    "body": "Additional event description beyond its name, date, time and location. Null if no additional description was provided.",
+    "start": "The event's local start date and time. Resolve relative dates using the reference local calendar. For hours without AM/PM prefer PM for 1 through 7, AM for 8 through 11 and noon for 12. Explicit AM/PM or morning/evening takes precedence. Null when day or time is missing.",
+    "end": "The explicitly supplied event end date and time, or start plus an explicitly supplied duration. Null when neither was supplied; the application provides a one-hour duration.",
+    "location": "Physical venue, street address or video meeting platform explicitly named for the event. Null if no location was supplied.",
+    "guests": "Names or email addresses of people explicitly requested to be invited. People merely mentioned in an event name are not guests."
+  },
+  "message": {
+    "body": "The entire outgoing chat message, excluding only the leading recipient or channel instruction.",
+    "recipients": "Names of people or channels explicitly addressed by the leading DM or chat instruction."
+  }
+}

@@ -1,28 +1,37 @@
+import { useSplitLayout } from '@components/app/split-layout/layout';
+import type { SplitContent } from '@components/app/split-layout/layoutManager';
 import { useMacroMentionLinkResolver } from '@components/app/split-layout/split-router/mention-links';
 import { buildChatEditor } from '@core/component/AI/component/input/buildChatEditor';
-import { useChatInputContext } from '@core/component/AI/context';
+import {
+  ChatInputProvider,
+  useChatInputContext,
+} from '@core/component/AI/context';
 import { useGetChatAttachmentInfo } from '@core/component/AI/signal/attachment';
 import { createMentionAttachmentCallbacks } from '@core/component/AI/signal/mention-attachment-callbacks';
 import { useUserId } from '@core/context/user';
-import { createEffect, createSignal, Show, Suspense } from 'solid-js';
-import { createCommandSearch } from '../command/command-search';
-import { createCommandResultOpener } from '../command/open-command-result';
-import { InlineSearchResults } from '../command/views/inline-search-results';
+import { createSignal, Show } from 'solid-js';
+import { openEntityInSplitFromUnifiedList } from '../next-soup/utils';
 import { createInputActions } from './actions';
 import { DraftEditor } from './components/draft-editor';
-import { fieldsSchema } from './core/input';
+import type { CommandInputSession } from './context/command-input';
+import { emptyDraft, fieldsSchema } from './core/input';
 import { createInferenceSource } from './inference';
 import {
   createUniversalInput,
   type UniversalInputController,
 } from './primitives/universal-input';
 import { TaskFields } from './task-fields';
+import { SearchDraft } from './views/search-draft';
 import { UniversalComposer } from './views/universal-composer';
 
-function InputContent(props: { userId: string }) {
+function InputContent(props: {
+  userId: string;
+  navigate: (content: SplitContent) => void;
+  command: CommandInputSession;
+}) {
+  const command = props.command;
   const chat = useChatInputContext();
   const [state, setState] = createSignal<UniversalInputController>();
-  let focus: (() => void) | undefined;
   const { getAttachmentFromMention } = useGetChatAttachmentInfo();
   const resolveAppLink = useMacroMentionLinkResolver();
   const editor = buildChatEditor()
@@ -38,42 +47,42 @@ function InputContent(props: { userId: string }) {
   const actions = createInputActions(
     () => state()?.fields() ?? fieldsSchema.parse({}),
     props.userId,
-    (value) => state()?.edit('noteTags', value)
+    {
+      navigate: props.navigate,
+      onNoteTagsChange: (value) => state()?.edit('noteTags', value),
+      submitSurface: 'other',
+    }
   );
   const controller = createUniversalInput({
-    ...createInferenceSource(props.userId, actions.taskDefinitions),
+    ...createInferenceSource(actions.taskDefinitions),
+    initialDraft: { ...emptyDraft(), text: command.text },
     ...actions,
-    onSubmitted: () => focus?.(),
+    onSubmitted: () => {
+      state()?.result()?.open?.();
+      command.onComplete();
+    },
   });
   setState(controller);
-  const search = createCommandSearch(
-    () => controller.fields().query,
-    () =>
-      controller.draft().intent === 'search' &&
-      !!controller.fields().query.trim()
-  );
-  const openResult = createCommandResultOpener('home');
-  // Bridge the existing Home suggestion bus into this editor; this is an external input source.
-  createEffect(() => {
-    const text = chat.pendingDraft();
-    if (text == null) return;
-    chat.setPendingDraft(null);
-    controller.setText(text);
-    controller.choose('ai');
-    focus?.();
-  });
   return (
     <UniversalComposer
       state={controller}
+      layout={command.layout}
       actions={{ ...actions, resolveAppLink }}
       noteTags={actions.noteTags.composerTags}
-      searchResults={(scopeId) => (
-        <InlineSearchResults
+      search={(scopeId) => (
+        <SearchDraft
+          state={controller}
+          actions={actions}
           scopeId={scopeId}
-          query={controller.fields().query}
-          source={search}
-          onOpen={openResult}
           canHandleKeyboard={() => !editor.controls.isInlineMenuOpen()}
+          onOpen={(entity, newSplit, location) => {
+            void openEntityInSplitFromUnifiedList(entity, {
+              openInNewSplit: newSplit,
+              location,
+              referredFrom: 'kommand-menu',
+            });
+            command.onNavigate();
+          }}
         />
       )}
       editor={
@@ -81,16 +90,13 @@ function InputContent(props: { userId: string }) {
           config={editor}
           text={controller.draft().text}
           disabled={controller.sending()}
-          onChange={controller.setText}
+          onChange={(text) => {
+            if (controller.sending()) return;
+            controller.setText(text);
+            command.onTextChange(text);
+          }}
+          initialSelection={command.selection}
           onSubmit={() => void controller.submit()}
-          onReset={() => {
-            controller.setText('');
-            chat.setPendingDraft(null);
-            actions.clearAttachments();
-          }}
-          registerFocus={(callback) => {
-            focus = callback;
-          }}
         />
       }
       taskFields={
@@ -107,15 +113,24 @@ function InputContent(props: { userId: string }) {
   );
 }
 
-export function UniversalInput() {
+/** A transient Command K session with host-owned navigation. */
+export function CommandUniversalInput(props: CommandInputSession) {
   const userId = useUserId();
+  const { openWithSplit } = useSplitLayout();
   return (
-    <Suspense
-      fallback={<div class="min-h-24 rounded-xl border border-edge-muted" />}
-    >
+    <ChatInputProvider>
       <Show when={userId()} keyed>
-        {(id) => <InputContent userId={id} />}
+        {(id) => (
+          <InputContent
+            userId={id}
+            command={props}
+            navigate={(content) => {
+              props.onNavigate();
+              openWithSplit(content, { referredFrom: 'kommand-menu' });
+            }}
+          />
+        )}
       </Show>
-    </Suspense>
+    </ChatInputProvider>
   );
 }

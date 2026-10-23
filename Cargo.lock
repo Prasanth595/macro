@@ -20167,14 +20167,17 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "jev",
+ "macro_env_var",
  "macro_user_id",
  "regex",
+ "reqwest 0.13.4",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
  "utoipa",
+ "wiremock",
 ]
 
 [[package]]

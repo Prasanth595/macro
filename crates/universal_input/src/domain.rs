@@ -16,6 +16,11 @@ use utoipa::ToSchema;
 #[cfg(test)]
 mod test;
 
+mod fallback;
+pub use fallback::FallbackFieldExtractor;
+mod source_fields;
+mod typed_guidance;
+
 /// Domain-owned guidance for how the inference port interprets a draft.
 pub const FIELD_EXTRACTION_GUIDANCE: &str = include_str!("domain/extract_fields_prompt.txt");
 
@@ -283,14 +288,15 @@ impl<C: YesNoClassifier, E: FieldExtractor> UniversalInputService<C, E> {
                 UsageContext::new(AiFeature::DynamicCompletionsApi, user),
             )
             .await?;
+        source_fields::preserve(&input, &mut suggestions);
         // Reject nonexistent/ambiguous wall times rather than silently shifting an event at DST.
-        for value in [&mut suggestions.start, &mut suggestions.end] {
-            *value = value
-                .as_deref()
-                .and_then(|text| normalize_event_time(text, zone));
-        }
+        normalize_event_times(&mut suggestions, zone);
         if input.intent == InputIntent::Calendar {
+            source_fields::resolve_next_weekday(&input, &mut suggestions, zone);
+            source_fields::assume_clock(&input, &mut suggestions);
             suggestions.end = event_end(&input.text, &suggestions, zone);
+            // Date corrections and elapsed durations can cross a DST transition.
+            normalize_event_times(&mut suggestions, zone);
         }
         if input.intent == InputIntent::Task {
             suggestions.body = task_body(&suggestions);
@@ -351,12 +357,18 @@ fn event_end(text: &str, fields: &InputSuggestions, zone: chrono_tz::Tz) -> Opti
     static START_OFFSET: OnceLock<Regex> = OnceLock::new();
     static EXPLICIT_END: OnceLock<Regex> = OnceLock::new();
     static OTHER_DURATION: OnceLock<Regex> = OnceLock::new();
+    static CALENDAR_WEEK: OnceLock<Regex> = OnceLock::new();
+    let start = NaiveDateTime::parse_from_str(fields.start.as_deref()?, "%Y-%m-%dT%H:%M").ok()?;
+    let inferred_end = || {
+        let end = NaiveDateTime::parse_from_str(fields.end.as_deref()?, "%Y-%m-%dT%H:%M").ok()?;
+        (end > start).then(|| end.format("%Y-%m-%dT%H:%M").to_string())
+    };
     let explicit_end = EXPLICIT_END.get_or_init(|| {
         Regex::new(r"(?i)(?:\b(?:until|ends?(?:\s+at)?|to)\s+(?:\d{4}-\d{2}-\d{2}[T\s])?\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b|(?:^|[\s(])\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*[-–]\s*\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b)")
             .expect("fixed end-time expression")
     });
     if explicit_end.is_match(text) {
-        return fields.end.clone();
+        return inferred_end();
     }
     let start_offset = START_OFFSET.get_or_init(|| {
         Regex::new(
@@ -372,6 +384,23 @@ fn event_end(text: &str, fields: &InputSuggestions, zone: chrono_tz::Tz) -> Opti
     });
     // Relative starts are interpreted by the extractor, never added to the duration.
     let duration_text = start_offset.replace_all(text, " ");
+    // A calendar anchor such as "next week Thursday" is not an event duration.
+    let calendar_week = CALENDAR_WEEK.get_or_init(|| {
+        Regex::new(r"(?i)\b(?:next|this|coming|following)\s+weeks?\b")
+            .expect("fixed calendar-week expression")
+    });
+    let duration_text =
+        calendar_week.replace_all(&duration_text, |capture: &regex::Captures<'_>| {
+            let matched = capture.get(0).expect("calendar week matched");
+            let prefix = duration_text[..matched.start()]
+                .trim_end()
+                .to_ascii_lowercase();
+            if prefix.ends_with("for") || prefix.ends_with("for the") {
+                matched.as_str().to_owned()
+            } else {
+                " ".to_owned()
+            }
+        });
     let duration = DURATION.get_or_init(|| {
         Regex::new(r"(?i)\b(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?)\b")
             .expect("fixed duration expression")
@@ -384,7 +413,7 @@ fn event_end(text: &str, fields: &InputSuggestions, zone: chrono_tz::Tz) -> Opti
     let unparsed_duration = duration.replace_all(&duration_text, " ");
     if other_duration.is_match(&unparsed_duration) {
         // Preserve the inferred end when duration wording is only partially understood.
-        return fields.end.clone();
+        return inferred_end();
     }
     let minutes = captures.iter().try_fold(0.0, |total, capture| {
         let amount = capture[1].parse::<f64>().ok()?;
@@ -395,12 +424,19 @@ fn event_end(text: &str, fields: &InputSuggestions, zone: chrono_tz::Tz) -> Opti
     if !minutes.is_finite() || minutes <= 0.0 || minutes > i32::MAX as f64 {
         return None;
     }
-    let start = NaiveDateTime::parse_from_str(fields.start.as_deref()?, "%Y-%m-%dT%H:%M").ok()?;
     let end = zone
         .from_local_datetime(&start)
         .single()?
         .checked_add_signed(chrono::Duration::seconds((minutes * 60.0).round() as i64))?;
     Some(end.format("%Y-%m-%dT%H:%M").to_string())
+}
+
+fn normalize_event_times(fields: &mut InputSuggestions, zone: chrono_tz::Tz) {
+    for value in [&mut fields.start, &mut fields.end] {
+        *value = value
+            .as_deref()
+            .and_then(|text| normalize_event_time(text, zone));
+    }
 }
 
 fn normalize_event_time(text: &str, zone: chrono_tz::Tz) -> Option<String> {

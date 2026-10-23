@@ -294,15 +294,6 @@
         letter-spacing: normal;
         line-height: 42px;
       }
-      .bs-newchat[data-universal] {
-        padding: 24px 24px 64px;
-      }
-      .bs-newchat[data-universal] .bs-composer {
-        height: 48.75px;
-        min-height: 48.75px;
-        border-radius: 26.25px;
-        background: var(--bs-input, var(--bs-panel));
-      }
       .bs-col {
         display: flex;
         width: 100%;
@@ -327,8 +318,8 @@
         gap: 12px;
         padding: 0 8px 0 18px;
         border: 1px solid var(--bs-edge);
-        border-radius: 12px;
-        background: var(--bs-panel);
+        border-radius: 999px;
+        background: var(--bs-input);
         color: var(--bs-muted);
       }
       .bs-composer svg {
@@ -513,19 +504,16 @@
           for (const width of widths) rows += row(width);
           const aside = `<div class="bs-aside">
             <div class="bs-head">${view === "home" ? `<span>Home</span><span class="bs-control bs-filter">${icon("filter")}</span>` : bar("72px", "height:12px")}<span class="bs-control">${icon("sidebar")}</span></div>
-            ${view === "home" ? `<div class="bs-row bs-primary">${icon("plus")}<span>New</span></div>` : `<div class="bs-row bs-primary">${square}${bar("38%")}</div>`}
+            ${view === "home" ? `<div class="bs-row bs-primary">${icon("plus")}<span>New chat</span></div>` : `<div class="bs-row bs-primary">${square}${bar("38%")}</div>`}
             <div class="bs-list">${rows}</div>
           </div>`;
 
           const legacyComposer = hint.homeComposer === "legacy";
-          const universalComposer = hint.homeComposer === "universal";
           const main = isHomeStart
-            ? universalComposer
-              ? `<div style="height:48px;flex-shrink:0"></div><div class="bs-newchat" data-universal><div class="bs-col"><div class="bs-composer"></div></div></div>`
-              : `<div class="bs-newchat"${legacyComposer ? " data-legacy" : ""}><div class="bs-col">
-                  <h2 class="bs-greeting">${legacyComposer ? "What should we get done in Macro?" : "What should we work on?"}</h2>
-                  <div class="bs-composer">${icon("plus")}${bar("38%")}<div style="flex:1"></div>${bar("72px")}${icon("mic")}<div class="bs-send">${icon("send")}</div></div>
-                </div></div>`
+            ? `<div class="bs-newchat"${legacyComposer ? " data-legacy" : ""}><div class="bs-col">
+                <h2 class="bs-greeting">${legacyComposer ? "What should we get done in Macro?" : "What should we work on?"}</h2>
+                <div class="bs-composer">${icon("plus")}${bar("38%")}<div style="flex:1"></div>${bar("72px")}${icon("mic")}<div class="bs-send">${icon("send")}</div></div>
+              </div></div>`
             : `<div class="bs-page">${bar("160px")}${["92%", "86%", "95%", "70%", "88%", "80%", "60%"].map((w) => bar(w)).join("")}</div>`;
 
           const content = `${showAside ? aside : ""}<div class="bs-main">${main}</div>`;

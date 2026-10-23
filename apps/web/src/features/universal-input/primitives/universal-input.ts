@@ -19,7 +19,7 @@ import { localFields, localIntent } from '../core/local-fields';
 import { createInferenceQueue } from './inference-queue';
 
 export function createUniversalInput(source: InputCapabilities) {
-  const [draft, setDraft] = createSignal(source.readDraft() ?? emptyDraft());
+  const [draft, setDraft] = createSignal(source.initialDraft ?? emptyDraft());
   const [scores, setScores] = createSignal<Scores>([]);
   const [revision, setRevision] = createSignal(0);
   const [classifiedRevision, setClassifiedRevision] = createSignal(-1);
@@ -43,7 +43,6 @@ export function createUniversalInput(source: InputCapabilities) {
   let submissionId = draft().submissionId ?? uuidv7();
   const fields = () =>
     fieldsSchema.parse(draft().intent ? draft().fields[draft().intent!] : {});
-  const persist = () => source.saveDraft(draft());
   const pending = () => {
     const current = draft();
     if (!current.text.trim() || current.intent === 'search') return false;
@@ -111,7 +110,6 @@ export function createUniversalInput(source: InputCapabilities) {
         });
         // A newly recognized type extracts the newest text on its own queue.
         extractionQueue.enqueue(intent !== previousIntent);
-        persist();
       } catch (failure) {
         if (!usable(input.decision) || revision() !== input.revision) return;
         setDraft((current) => ({
@@ -124,7 +122,6 @@ export function createUniversalInput(source: InputCapabilities) {
             ? failure.message
             : 'Detection unavailable. Choose a type to continue.'
         );
-        persist();
       }
     },
   });
@@ -179,7 +176,6 @@ export function createUniversalInput(source: InputCapabilities) {
         }));
         setExtractionError('');
         setExtracted({ revision: input.revision, intent: input.intent });
-        persist();
       } catch (failure) {
         if (
           !usable(input.decision) ||
@@ -195,7 +191,6 @@ export function createUniversalInput(source: InputCapabilities) {
             : 'Could not extract fields. Fill them in to continue.'
         );
         setExtracted({ revision: input.revision, intent: input.intent });
-        persist();
       }
     },
   });
@@ -215,7 +210,6 @@ export function createUniversalInput(source: InputCapabilities) {
       classificationQueue.clear();
       extractionQueue.clear();
     }
-    persist();
   };
   const setText = (text: string) => {
     if (sending()) return;
@@ -294,7 +288,6 @@ export function createUniversalInput(source: InputCapabilities) {
     extractionQueue.clear();
     try {
       const saved = await perform(input);
-      source.saveDraft(emptyDraft());
       if (disposed) return;
       batch(() => {
         setDraft(emptyDraft());
@@ -303,7 +296,6 @@ export function createUniversalInput(source: InputCapabilities) {
         setResult(saved);
       });
       submissionId = uuidv7();
-      persist();
       completed = true;
     } catch (failure) {
       if (!disposed)

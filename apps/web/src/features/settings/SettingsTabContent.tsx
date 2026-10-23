@@ -1,5 +1,6 @@
 import type { SettingsTab } from '@core/constant/SettingsState';
 import { useSettingsTabAvailable } from '@core/constant/settingsTabsConfig';
+import { lazyNamed } from '@core/util/lazyNamed';
 import { Show, Suspense } from 'solid-js';
 import { CalendarSettings } from '../calendar/calendar-settings';
 import { CrmSettings as Crm } from '../crm/crm-settings';
@@ -23,6 +24,11 @@ import { Shortcuts } from './Shortcuts';
 import { Tags } from './Tags';
 import { Team } from './Team';
 
+const ExperimentalFeatures = lazyNamed(
+  () => import('./ExperimentalFeatures'),
+  'ExperimentalFeatures'
+);
+
 /** Shared forms for desktop panels and mobile sheet detail pages. */
 export function SettingsTabContent(props: { tab: SettingsTab }) {
   const isAvailable = useSettingsTabAvailable();
@@ -36,6 +42,9 @@ export function SettingsTabContent(props: { tab: SettingsTab }) {
         </div>
       }
     >
+      <Show when={isCurrentTab('Experimental Features')}>
+        <ExperimentalFeatures />
+      </Show>
       <Show when={isCurrentTab('Account')}>
         <Account />
       </Show>

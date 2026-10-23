@@ -1,18 +1,49 @@
-# Home input inference
+# Command K input inference
 
-Desktop Home classifies draft snapshots with the same Jev classifier used by
-Routines, then extracts editable fields with Nemotron Lightning 3.5 through
-Fireworks. Reasoning is disabled, and native JSON-schema enforcement limits responses to
-the selected intent’s fields. Domain-owned extraction instructions are specific
-to that intent. Inference is read-only; submission uses the existing destination services and their permission
+The web client exposes this composer only through Command K. God Mode defaults on
+when `enable-universal-input` is enabled and can be turned off in Settings > Experimental Features. The page requires the
+`enable-experimental-features` PostHog flag and a `@macro.com` account; the
+composer also requires `enable-universal-input`. Home always uses its normal
+composer. Menu drafts are transient and are discarded when the menu closes.
+
+Command K classifies draft snapshots with the same Jev classifier used by
+Routines. When configured, Cloudflare Clairic extracts editable fields through
+Workers AI. Clairic uses typed text, list, date and datetime fields for the selected
+intent. Task properties are separate lists keyed back to the supplied catalog;
+property names and entity IDs are never invented by the model. Domain-owned
+typed field definitions are specific to the intent and avoid chat/JSON instructions. Inference is read-only;
+submission uses the existing destination services and their permission
 checks. The domain service validates input and checks AI admission before calling
 either provider. Usage is recorded through the shared recorder.
 
 The document-cognition service hosts authenticated `POST /universal-input/classify`
 and `POST /universal-input/extract` endpoints. Configure its existing
 `TYPESAFE_API_KEY` through the document-cognition Doppler configuration to enable
-automatic classification, alongside `FIREWORK_API_KEY` from the existing
-shared-AI configuration.
+automatic classification. To try Clairic, set `CLOUDFLARE_ACCOUNT_ID` and
+`CLOUDFLARE_API_TOKEN` together in the document-cognition configuration (and in
+the local stack's `local/lcl_personal` configuration or its integration env file).
+The token needs Workers AI access for that account. These stay on the backend.
+An incomplete pair fails at startup; absent/blank pairs retain Nemotron.
+
+The domain's fallback extractor calls Nemotron Lightning 3.5 through Fireworks
+when Clairic is unconfigured, fails, times out after five seconds, or returns
+malformed/truncated answers. Nemotron still requires `FIREWORK_API_KEY` from
+the existing shared-AI configuration, with reasoning disabled and native
+JSON-schema enforcement. Rate limits fall back immediately instead of retrying
+the preview endpoint. Usage is recorded separately for each provider that reports
+tokens, including unusable Clairic answers. The pricing seed is $0.10 per million
+Clairic input tokens and zero output cost, as documented by Cloudflare.
+
+Clairic text is extractive: titles and subjects select an existing phrase instead
+of rewriting it. The domain copies complete notes and explicitly addressed email/chat
+bodies directly from the source. An absent email subject uses a bounded source
+excerpt. The domain also enforces bare-hour AM/PM defaults and clears calendar
+guests unless an invitation was explicitly requested. Text/list answers must occur
+in the draft; nulls and low-confidence answers remain unset, never replaced with
+the provider's `guess`. This is not a generative subject-writing model. Dates
+receive the user's local reference date, time and timezone. The existing domain
+normalization, duration rules, metadata cleanup, manual edit precedence and
+submission behavior apply to both providers.
 Without Jev configuration, the composer supports manual type selection. Running
 only the frontend against a backend without these routes also requires manual
 field entry.

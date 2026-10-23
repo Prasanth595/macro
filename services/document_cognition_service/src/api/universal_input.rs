@@ -1,4 +1,4 @@
-//! Transport adapter for the read-only Home inference use case.
+//! Transport adapter for the read-only Command K inference use case.
 use super::context::{ApiContext, DcsAuthorizationService};
 use axum::{
     Json,

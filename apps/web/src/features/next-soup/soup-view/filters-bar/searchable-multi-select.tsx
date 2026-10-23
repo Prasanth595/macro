@@ -52,6 +52,7 @@ type SearchableMultiSelectProps = {
     | 'left-start';
   gutter?: number;
   contentClass?: string;
+  portalScope?: 'local';
   listboxClass?: string;
   /** Keep `options` in their given order instead of pinning selected first. */
   preserveOrder?: boolean;
@@ -68,6 +69,10 @@ type SearchableMultiSelectProps = {
   children: JSX.Element;
 };
 
+// Options use virtual focus. A native pointer focus would land on the enclosing
+// dialog, dismissing the combobox before its pointer-up selection handler runs.
+const keepComboboxFocus = (event: Event) => event.preventDefault();
+
 const SearchableMultiSelectItem = (itemProps: {
   item: CollectionNode<SearchableOption>;
   onOnly?: (id: string) => void;
@@ -75,6 +80,9 @@ const SearchableMultiSelectItem = (itemProps: {
 }) => (
   <Combobox.Item
     item={itemProps.item}
+    aria-label={itemProps.item.rawValue.label}
+    onPointerDown={keepComboboxFocus}
+    onMouseDown={keepComboboxFocus}
     class="group rounded-lg w-full flex items-center gap-1.5 p-1.5 px-2 text-left text-sm font-normal data-highlighted:bg-ink/5 cursor-default"
   >
     <Show when={itemProps.item.rawValue.id !== ACTION_ID}>
@@ -207,6 +215,7 @@ const useActiveOptions = (
 const getOptionId = (opt: SearchableOption) => opt.id;
 
 export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
+  const [portalAnchor, setPortalAnchor] = createSignal<HTMLDivElement>();
   const [internalOpen, setInternalOpen] = createSignal(false);
   const [searchQuery, setSearchQuery] = createSignal('');
 
@@ -280,7 +289,15 @@ export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
         <Combobox.Input class="sr-only" />
       </Combobox.Control>
 
-      <Combobox.Portal>
+      <div class="hidden" ref={setPortalAnchor} />
+      <Combobox.Portal
+        mount={
+          props.portalScope === 'local'
+            ? (portalAnchor()?.closest<HTMLElement>('.portal-scope') ??
+              undefined)
+            : undefined
+        }
+      >
         <Layer depth={2}>
           <Combobox.Content
             class={cn(

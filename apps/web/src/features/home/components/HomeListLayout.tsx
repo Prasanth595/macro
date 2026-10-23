@@ -33,7 +33,7 @@ export function HomeListLayout(
         fallback={
           <SidebarCreateHeader
             title="Home"
-            label="New"
+            label="New chat"
             onCreate={props.onNewChat}
             titleActions={<HomeFilterDropdown />}
           />

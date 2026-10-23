@@ -1,3 +1,4 @@
+import { useExperimentalFeatures } from '@app/features/experimental-features/experimental-features';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import BellIcon from '@phosphor/bell-simple.svg';
 import BugIcon from '@phosphor/bug.svg';
@@ -8,6 +9,7 @@ import CreditCardIcon from '@phosphor/credit-card.svg';
 import DesktopIcon from '@phosphor/desktop.svg';
 import DeviceMobileIcon from '@phosphor/device-mobile-speaker.svg';
 import EmailIcon from '@phosphor/envelope-simple.svg';
+import FlaskIcon from '@phosphor/flask.svg';
 import GaugeIcon from '@phosphor/gauge.svg';
 import HardDrivesIcon from '@phosphor/hard-drives.svg';
 import KeyIcon from '@phosphor/key.svg';
@@ -185,6 +187,12 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
     label: 'Developer',
     items: [
       {
+        tab: 'Experimental Features',
+        label: 'Experimental Features',
+        icon: FlaskIcon,
+        keywords: ['experiments', 'god mode', 'universal input', 'command k'],
+      },
+      {
         tab: 'Connections',
         label: 'Agent connections',
         icon: PlugsConnectedIcon,
@@ -229,6 +237,7 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
  * existing/bookmarked URLs.
  */
 const SETTINGS_TAB_SLUGS: Record<SettingsTab, string> = {
+  'Experimental Features': 'experimental-features',
   Account: 'account',
   'API Keys': 'api-keys',
   Notifications: 'notifications',
@@ -286,6 +295,7 @@ export const settingsSlugToTab = (
  * surface a tab the panel won't render.
  */
 export const useSettingsTabAvailable = () => {
+  const experiments = useExperimentalFeatures();
   const calendarSchedulingFlag = useFeatureFlag(enableCalendarScheduling);
   const botManagementFlag = useFeatureFlag(botManagement);
   const chatV3AgentsFlag = useFeatureFlag(enableChatV3Agents);
@@ -296,6 +306,8 @@ export const useSettingsTabAvailable = () => {
 
   return (tab: SettingsTab): boolean => {
     switch (tab) {
+      case 'Experimental Features':
+        return experiments.available();
       case 'Appearance':
       case 'Account':
       case 'Usage':

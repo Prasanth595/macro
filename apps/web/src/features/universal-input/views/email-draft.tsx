@@ -12,7 +12,7 @@ import {
   recipientAddresses,
 } from '../queries/composer-recipients';
 
-/** Email's actual controls, with draft ownership and inference supplied by Home. */
+/** Email's actual controls, with draft ownership and inference supplied by the session. */
 export function EmailDraft(props: {
   state: UniversalInputController;
   actions: InputDisplay;

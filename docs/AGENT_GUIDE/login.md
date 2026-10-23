@@ -222,4 +222,4 @@ in addition to the app tunnel. A callback request without parameters should
 return HTTP 400 with `missing field state`; connection refusal indicates a
 missing forward. For a completed consent that returns HTTP 400, inspect auth
 logs for `original_url_rejected` before changing tunnels. After a fix, restart
-Connect Google from Home to obtain fresh state and an authorization code.
+Connect Google from Command K to obtain fresh state and an authorization code.

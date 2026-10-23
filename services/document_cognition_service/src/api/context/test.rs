@@ -670,8 +670,11 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         authorization_state: authorization_state.clone(),
         universal_input: Arc::new(universal_input::domain::UniversalInputService::new(
             None,
-            universal_input::outbound::AgentFieldExtractor::new(
-                tool_service_context.recorder.clone(),
+            universal_input::domain::FallbackFieldExtractor::new(
+                None,
+                universal_input::outbound::AgentFieldExtractor::new(
+                    tool_service_context.recorder.clone(),
+                ),
             ),
             admission.clone(),
         )),

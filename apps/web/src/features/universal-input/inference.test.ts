@@ -14,7 +14,7 @@ it('waits for the task field catalog before invoking extraction', async () => {
     new Promise<typeof catalog>((resolve) => {
       ready = resolve;
     });
-  const source = createInferenceSource('me', properties);
+  const source = createInferenceSource(properties);
   const result = source.extract('Fix clicks\npriority urgent', 'task', 7);
   expect(extract).not.toHaveBeenCalled();
   ready(catalog);
@@ -31,11 +31,7 @@ it('extracts email immediately without waiting for unrelated task metadata', asy
   const properties = vi.fn(
     () => new Promise<{ name: string; options: string[] }[]>(() => {})
   );
-  await createInferenceSource('me', properties).extract(
-    'Email Julia',
-    'email',
-    2
-  );
+  await createInferenceSource(properties).extract('Email Julia', 'email', 2);
   expect(properties).not.toHaveBeenCalled();
   expect(extract).toHaveBeenCalledWith('Email Julia', 'email', 2, []);
 });

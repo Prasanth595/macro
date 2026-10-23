@@ -6,7 +6,7 @@ import { getItemPreview, isAccessiblePreviewItem } from '@queries/preview';
 import { stringToItemType } from '@service-storage/itemType';
 
 /** Agent prompts carry context as markdown mentions instead of a separate attachment list. */
-export async function buildHomeAgentPrompt(
+export async function buildAgentPrompt(
   request: Pick<ChatSendInput, 'content' | 'attachments'>
 ): Promise<string> {
   const { images, items } = getVisibleUserMessageAttachments(

@@ -4,7 +4,6 @@ import { useActivityFeedFlag } from '@app/features/activity/use-activity-feed-fl
 import { useCalendarUiFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import { calendarPath } from '@app/features/calendar-view/calendar-url';
 import { CALENDAR_VIEW_ID } from '@app/features/calendar-view/types';
-import { resetHomeComposer } from '@app/features/home/primitives/focus-composer';
 import { requestSearchFocus } from '@app/features/next-soup/soup-view/search-controllers';
 import { useRecentViewFlag } from '@app/features/next-soup/use-recent-view-flag';
 import {
@@ -318,19 +317,6 @@ export const GoToHotkeys = () => {
           }
         }
 
-        if (link.id === 'home' && !e?.shiftKey) {
-          const activeSplit = globalSplitManager()?.activeSplit();
-          const content = activeSplit?.content();
-          if (
-            activeSplit &&
-            content?.type === 'component' &&
-            content.id === 'home'
-          ) {
-            resetHomeComposer(activeSplit.id);
-            return true;
-          }
-        }
-
         const handle = navigateToSidebarView({
           viewId: link.id,
           params: link.params,
@@ -340,7 +326,6 @@ export const GoToHotkeys = () => {
         if (link.id === 'search' && handle) {
           requestSearchFocus(handle.id);
         }
-        if (link.id === 'home') resetHomeComposer(handle?.id);
         return true;
       };
 

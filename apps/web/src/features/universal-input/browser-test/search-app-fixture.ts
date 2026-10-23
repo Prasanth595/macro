@@ -20,6 +20,9 @@ export function useCrmContactDiscovery() {
   };
 }
 export function useDatabaseDiscoverySync() {}
+export async function createDatabase(): Promise<never> {
+  throw new Error('Database creation is outside this fixture');
+}
 
 export function useAnalytics() {
   return { track: () => {} };

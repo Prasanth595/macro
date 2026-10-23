@@ -35,10 +35,29 @@ const mocks = vi.hoisted(() => ({
   group: vi.fn(),
   message: vi.fn(),
 }));
+vi.mock('@service-storage/websocket', () => ({
+  storageWS: { reconnectIfDisconnected: vi.fn() },
+  createWebSocketJob: vi.fn(),
+}));
+vi.mock('@service-connection/websocket', () => ({
+  ws: { addEventListener: vi.fn(), send: vi.fn() },
+  state: () => 'closed',
+  createConnectionBlockWebsocketEffect: vi.fn(),
+  createConnectionWebsocketEffect: vi.fn(),
+}));
+vi.mock('@app/signal/splitLayout', () => ({
+  globalSplitManager: () => undefined,
+}));
+vi.mock('@components/app/split-layout/layout', () => ({
+  useSplitLayout: () => ({
+    openWithSplit: (content: unknown) => mocks.replace({ next: content }),
+  }),
+}));
 vi.mock('@app/lib/analytics/posthog', () => ({
   useFeatureFlag: () => () => ({ enabled: mocks.agents }),
 }));
-vi.mock('@core/constant/featureFlags', () => ({
+vi.mock('@core/constant/featureFlags', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@core/constant/featureFlags')>()),
   enableChatV3Agents: {},
   enableProjects: {},
 }));
@@ -77,9 +96,6 @@ vi.mock('@app/features/agents-view/queries/composer-models', () => ({
     pending: () => false,
   }),
 }));
-vi.mock('@components/app/split-layout/layoutUtils', () => ({
-  useSplitPanelOrThrow: () => ({ handle: { replace: mocks.replace } }),
-}));
 vi.mock('@core/component/AI/context', () => ({
   useChatInputContext: () => ({
     attachments: {
@@ -93,8 +109,18 @@ vi.mock('@core/component/AI/context', () => ({
 vi.mock('@core/component/AI/signal/pendingSend', () => ({
   setPendingSendData: mocks.pending,
 }));
-vi.mock('@app/features/home/queries/home-agent-prompt', () => ({
-  buildHomeAgentPrompt: async ({ content }: { content: string }) => content,
+vi.mock('@app/features/agents-view/queries/composer-prompt', () => ({
+  buildAgentPrompt: async ({ content }: { content: string }) => content,
+}));
+vi.mock('@core/context/quickAccess', () => ({
+  useQuickAccess: () => ({
+    useList: () => ({
+      items: () => [
+        { id: 'team-channel', data: { name: 'engineering' } },
+        { id: 'julia-dm', data: { name: 'Julia direct message' } },
+      ],
+    }),
+  }),
 }));
 vi.mock('@core/signal/useCombinedRecipient', () => ({
   useCombinedRecipients: () => ({
@@ -196,7 +222,8 @@ async function execute(snapshot: Submission) {
     try {
       return await createInputActions(
         () => snapshot.fields,
-        'macro|me@example.com'
+        'macro|me@example.com',
+        { navigate: (next) => mocks.replace({ next }) }
       ).submit(snapshot);
     } finally {
       dispose();
@@ -231,7 +258,8 @@ describe('destination adapters', () => {
       try {
         await createInputActions(
           () => input('email').fields,
-          'macro|me@example.com'
+          'macro|me@example.com',
+          { navigate: (next) => mocks.replace({ next }) }
         ).connectGoogle();
         expect(mocks.connectGoogle).toHaveBeenCalledWith({
           scopes: 'gmail_and_calendar',
@@ -257,7 +285,7 @@ describe('destination adapters', () => {
     expect(mocks.session).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: 'Original **Markdown**',
-        submitSurface: 'home',
+        submitSurface: 'other',
       })
     );
     expect(mocks.chat).not.toHaveBeenCalled();
@@ -268,9 +296,50 @@ describe('destination adapters', () => {
       next: expect.objectContaining({
         id: 'search',
         preserveParams: true,
-        params: { initialQuery: 'quarterly budget' },
+        params: expect.objectContaining({ initialQuery: 'quarterly budget' }),
       }),
     });
+  });
+  it('opens global search with resolved sender and DM filters rather than dropping them', async () => {
+    const searchFilters = JSON.stringify({
+      type: 'channels',
+      channels: { in: ['julia-dm'], from: ['John'] },
+    });
+    await execute(input('search', { query: 'budget', searchFilters }));
+    expect(mocks.replace).toHaveBeenCalledWith({
+      next: expect.objectContaining({
+        id: 'search',
+        params: expect.objectContaining({
+          initialQuery: 'budget',
+          initialFilters: expect.objectContaining({
+            include: expect.objectContaining({
+              channelSenderId: ['macro|john@example.com'],
+              channelId: ['julia-dm'],
+            }),
+          }),
+        }),
+      }),
+    });
+  });
+  it('requires keywords for sender-only message search instead of falling back to unfiltered channels', async () => {
+    await expect(
+      execute(
+        input('search', {
+          query: '',
+          searchFilters: JSON.stringify({
+            type: 'channels',
+            channels: { in: [], from: ['John'] },
+          }),
+        })
+      )
+    ).rejects.toThrow('Add at least 3 search characters');
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+  it('saves the visible event description through the existing calendar API', async () => {
+    await execute(input('calendar', { body: 'Discuss the launch plan' }));
+    expect(mocks.event).toHaveBeenCalledWith(
+      expect.objectContaining({ description: '<p>Discuss the launch plan</p>' })
+    );
   });
   it('preserves complete Markdown in notes', async () => {
     const result = await execute(
@@ -378,7 +447,8 @@ describe('destination adapters', () => {
         });
         const actions = createInputActions(
           () => submission.fields,
-          'macro|me@example.com'
+          'macro|me@example.com',
+          { navigate: (next) => mocks.replace({ next }) }
         );
         expect(mocks.saveEmail).not.toHaveBeenCalled();
         expect(actions.validateEmailDraft(submission)).toBeUndefined();
@@ -435,7 +505,8 @@ describe('destination adapters', () => {
         const submission = input('email', { body: '**Hello José**' });
         const actions = createInputActions(
           () => submission.fields,
-          'macro|me@example.com'
+          'macro|me@example.com',
+          { navigate: (next) => mocks.replace({ next }) }
         );
         actions.captureEmailEditor(editor);
         await actions.submit(submission);
@@ -487,7 +558,8 @@ describe('destination adapters', () => {
       try {
         const actions = createInputActions(
           () => snapshot.fields,
-          'macro|me@example.com'
+          'macro|me@example.com',
+          { navigate: (next) => mocks.replace({ next }) }
         );
         actions.captureMessageMentions(() => [
           { itemType: 'user', itemId: 'macro|john@example.com' },

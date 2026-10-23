@@ -1,4 +1,6 @@
+import { searchFiltersSchema } from '../../next-soup/core/search-filters';
 import type { Intent, Suggestions } from './input';
+import { searchPlan } from './search';
 
 function addressing(text: string) {
   const [first, ...lines] = text.trimStart().split('\n');
@@ -38,8 +40,13 @@ export function localFields(
   text: string,
   intent: Intent
 ): Partial<Suggestions> {
-  if (intent === 'search')
-    return { query: text.trim().replace(searchPrefix, '').trim() };
+  if (intent === 'search') {
+    const plan = searchPlan(text);
+    return {
+      query: plan.query,
+      searchFilters: plan.filters ?? searchFiltersSchema.parse({}),
+    };
+  }
   const address = addressing(text);
   if (address?.intent === intent)
     return { recipients: address.recipients, body: address.body };

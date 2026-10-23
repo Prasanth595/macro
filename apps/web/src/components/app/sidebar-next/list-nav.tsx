@@ -1,5 +1,4 @@
 import { parseAgentsRoute } from '@app/features/agents-view/core/route';
-import { resetHomeComposer } from '@app/features/home/primitives/focus-composer';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import {
@@ -142,7 +141,7 @@ export const ListNav = (props: ListNavProps) => {
       });
       const { shiftKey } = event;
       afterNextPaint(() => {
-        const split = navigateToSidebarView({
+        navigateToSidebarView({
           viewId: props.item.id,
           params: props.item.params,
           shiftKey,
@@ -157,13 +156,11 @@ export const ListNav = (props: ListNavProps) => {
           pending?.itemId === props.item.id ? undefined : pending
         );
         globalSplitManager()?.returnFocus();
-        if (props.item.id === 'home') resetHomeComposer(split?.id);
       });
       return;
     }
 
     globalSplitManager()?.returnFocus();
-    if (props.item.id === 'home') resetHomeComposer(activeSplit?.id);
   };
 
   // A primary press navigates on mousedown. The click that follows is a no-op,

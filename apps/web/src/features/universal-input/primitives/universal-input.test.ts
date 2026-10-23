@@ -40,8 +40,6 @@ function source(overrides: Partial<InputCapabilities> = {}): InputCapabilities {
     saveEmailDraft: vi.fn(async () => ({ message: 'Email draft saved' })),
     validate: () => undefined,
     validateEmailDraft: () => undefined,
-    readDraft: () => undefined,
-    saveDraft: vi.fn(),
     ...overrides,
   };
 }
@@ -577,9 +575,8 @@ describe('universal draft lifecycle', () => {
     expect(state.fields().title).toBe('My call');
     expect(state.fields().start).toBe('');
     expect(state.validation()).toBe('Choose a valid start and end time');
-    expect(capabilities.saveDraft).toHaveBeenLastCalledWith(state.draft());
   });
-  it('restores the retry identity after reloading a failed submission', async () => {
+  it('preserves an explicitly supplied retry identity', async () => {
     const capabilities = source({
       submit: vi.fn(async () => {
         throw new Error('Offline');
@@ -591,7 +588,7 @@ describe('universal draft lifecycle', () => {
     await tick();
     await first.submit();
     const reloaded = mount(
-      source({ readDraft: () => first.draft(), submit: capabilities.submit })
+      source({ initialDraft: first.draft(), submit: capabilities.submit })
     );
     await tick();
     await reloaded.submit();
@@ -638,21 +635,7 @@ describe('universal draft lifecycle', () => {
     await first;
     expect(state.draft().text).toBe('');
   });
-  it('clears storage even when navigation unmounts the composer during submission', async () => {
-    const capabilities = source({
-      submit: async () => {
-        cleanups.splice(0).forEach((fn) => fn());
-        return { message: 'Opened' };
-      },
-    });
-    const state = mount(capabilities);
-    state.setText('hello');
-    state.choose('ai');
-    await tick();
-    await state.submit();
-    expect(capabilities.saveDraft).toHaveBeenLastCalledWith(emptyDraft());
-  });
-  it('restores locked drafts and clears all metadata when emptied', async () => {
+  it('accepts an initial locked draft and clears metadata when emptied', async () => {
     const saved = {
       ...emptyDraft(),
       text: 'hello',
@@ -661,7 +644,7 @@ describe('universal draft lifecycle', () => {
     };
     saved.fields.email.subject = 'Saved subject';
     saved.edited.email = ['subject'];
-    const capabilities = source({ readDraft: () => saved });
+    const capabilities = source({ initialDraft: saved });
     const state = mount(capabilities);
     await tick();
     expect(state.fields().subject).toBe('Saved subject');

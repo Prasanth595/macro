@@ -18,6 +18,8 @@ const HOTKEY_TYPE = [
 type HotkeyPriority = (typeof HOTKEY_TYPE)[number];
 
 export interface HotkeyCommand {
+  /** Claim the shortcut in this scope while letting native/editor DOM handling run. */
+  allowBrowserDefault?: boolean;
   // Used to identify the hotkey in UI elements. Needs to be unique to a particular scope.
   hotkeyToken?: HotkeyToken;
   // How this command was registered. An 'override' command eclipses every
@@ -80,6 +82,8 @@ export interface HotkeyCommand {
 }
 
 export interface HotkeyRegistrationOptions {
+  /** A handled shortcut stops parent command lookup but preserves native/editor DOM behavior. */
+  allowBrowserDefault?: boolean;
   /**
    * Unique identifier for this hotkey within its scope.
    * Used to look up the hotkey for UI elements.

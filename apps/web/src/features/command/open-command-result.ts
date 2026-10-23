@@ -1,8 +1,7 @@
 import { openChatWithMessage } from '@app/features/chat/ChatWithAgentButton';
+import { createGlobalSearchOpener } from '@app/features/next-soup/open-search';
 import { getViewPreset } from '@app/features/next-soup/sidebar/soup-filter-presets';
-import { getSearchSplit } from '@app/features/next-soup/soup-view/search-controllers';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { globalSplitManager } from '@app/signal/splitLayout';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import type { ReferredFrom } from '@components/app/split-layout/layoutManager';
 import { toast } from '@core/component/Toast/Toast';
@@ -29,6 +28,7 @@ export function createCommandResultOpener(
   referredFrom: ReferredFrom = 'kommand-menu'
 ) {
   const { openWithSplit } = useSplitLayout();
+  const navigateSearch = createGlobalSearchOpener(referredFrom);
   const projectsFlag = useFeatureFlag(enableProjects);
   const getOrCreateDirectMessage = useGetOrCreateDirectMessageMutation();
   // A person without a conversation yet: open one, as the user card does.
@@ -105,43 +105,9 @@ export function createCommandResultOpener(
     const filters = overrides?.filters ?? preset?.filters ?? {};
     const clientFilters =
       overrides?.clientFilters ?? preset?.clientFilters ?? {};
-    const splitManager = globalSplitManager();
-    const active = splitManager?.activeSplit();
-    const activeContent = active?.content();
-    const activeIsSearch =
-      activeContent?.type === 'component' && activeContent.id === 'search';
-
-    if (!openInNewSplit && activeIsSearch && active) {
-      const controller = getSearchSplit(active.id);
-      if (controller) {
-        controller.applyOverrides({
-          query: item.query,
-          filters,
-          clientFilters,
-        });
-        active.activate();
-        return true;
-      }
-    }
-
-    openWithSplit(
-      {
-        type: 'component',
-        id: 'search',
-        // Opening search into an existing split otherwise drops these params
-        // and the field mounts empty. Entry state still wins on back/forward.
-        preserveParams: true,
-        params: {
-          initialQuery: item.query,
-          initialFilters: filters,
-          initialClientFilters: clientFilters,
-        },
-      },
-      {
-        referredFrom,
-        preferNewSplit: openInNewSplit,
-        allowDuplicate: true,
-      }
+    navigateSearch(
+      { query: item.query, filters, clientFilters },
+      openInNewSplit
     );
     return true;
   };

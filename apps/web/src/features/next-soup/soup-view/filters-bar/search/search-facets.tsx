@@ -16,6 +16,7 @@ import { type Accessor, createEffect, createMemo, type JSX } from 'solid-js';
 import { useInboxPicker } from '../inbox-picker';
 import type { SearchableOption } from '../searchable-multi-select';
 import { useTagOptions } from '../tag-filter';
+import type { TagFilter } from '../tag-filter-state';
 import type {
   SearchFiltersController,
   SearchIndexId,
@@ -302,7 +303,8 @@ function multiFacet(args: {
  * one definition here + its compile line in `compileSearchQuery`.
  */
 export function useSearchFacets(
-  controller: SearchFiltersController
+  controller: SearchFiltersController,
+  tagOptions?: Pick<TagFilter, 'hasTags' | 'options' | 'defByOption'>
 ): Accessor<SearchFacetVM[]> {
   const channelOptions = useChannelPicker();
   const personOptions = usePersonPicker();
@@ -311,7 +313,7 @@ export function useSearchFacets(
     setSelectedIds: controller.setEmailInbox,
   });
 
-  const tagSource = useTagOptions();
+  const tagSource = tagOptions ?? useTagOptions();
   const calendarSearchEnabled = useCalendarSearchUiFlag();
   const posthog = usePosthog();
 

@@ -138,10 +138,13 @@ pub type DcsPipedreamRouterState = pipedream_mcp::inbound::PipedreamRouterState<
     DcsAuthorizationService,
 >;
 
-/// Read-only Home inference service, composed at startup.
+/// Read-only Command K inference service, composed at startup.
 pub type DcsUniversalInputService = universal_input::domain::UniversalInputService<
     jev::domain::JevClassifier<jev::outbound::TypesafeJev>,
-    universal_input::outbound::AgentFieldExtractor,
+    universal_input::domain::FallbackFieldExtractor<
+        universal_input::outbound::clairic::ClairicFieldExtractor,
+        universal_input::outbound::AgentFieldExtractor,
+    >,
 >;
 
 #[derive(Clone, FromRef)]

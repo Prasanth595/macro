@@ -21,8 +21,8 @@ export type BootShellHint = {
   rail?: string[];
   /** Whether the rail shows the Get-the-mobile-app button. */
   mobileApp?: boolean;
-  /** Home's selected composer: agent chat, classic chat, or Universal Input. */
-  homeComposer?: 'agents' | 'legacy' | 'universal';
+  /** Home's selected composer: agent chat or classic chat. */
+  homeComposer?: 'agents' | 'legacy';
 };
 
 /** Records part of the current layout for the next load's boot shell. */

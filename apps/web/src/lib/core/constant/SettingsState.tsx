@@ -12,6 +12,7 @@ import { createMemo, onCleanup } from 'solid-js';
 import { settingsTabToSlug } from './settingsTabsConfig';
 
 export type SettingsTab =
+  | 'Experimental Features'
   | 'Calendar'
   | 'Booking links'
   | 'Account'

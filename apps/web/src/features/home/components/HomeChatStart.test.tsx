@@ -28,15 +28,9 @@ vi.mock('@app/components/view-shell', () => ({
   },
 }));
 vi.mock('@app/lib/analytics/posthog', () => ({
-  useFeatureFlag: (flag: { key: string }) => () => ({
-    enabled: flag.key === 'agents' && mocks.agentsEnabled,
-  }),
+  useFeatureFlag: () => () => ({ enabled: mocks.agentsEnabled }),
 }));
-vi.mock('@core/constant/featureFlags', () => ({
-  enableChatV3Agents: { key: 'agents' },
-  enableUniversalInput: { key: 'universal' },
-}));
-vi.mock('@core/context/user', () => ({ useUserId: () => () => 'alice' }));
+vi.mock('@core/constant/featureFlags', () => ({ enableChatV3Agents: {} }));
 vi.mock('@core/component/AI/component/DragDrop', () => ({
   DragDropWrapper: (props: ChildrenProps & { class?: string }) => (
     <div data-testid="home-composer-frame" class={props.class}>
@@ -48,10 +42,7 @@ vi.mock('@core/component/AI/context', () => ({
   ChatInputProvider: (props: ChildrenProps) => props.children,
 }));
 vi.mock('../home-chat-input', () => ({
-  HomeChatInput: () => <div data-testid="usual-input" />,
-}));
-vi.mock('../../universal-input/universal-input', () => ({
-  UniversalInput: () => <div data-testid="universal-input" />,
+  HomeChatInput: () => <div data-testid="home-chat-input" />,
 }));
 vi.mock('./home-recommended-actions', () => ({
   HomeRecommendedActions: () => <div data-testid="home-suggestions" />,
@@ -68,23 +59,41 @@ function renderHome() {
   return render(() => <HomeChatStart />);
 }
 
-describe('Home composer', () => {
-  it('starts without an AI greeting', () => {
+describe('Home agent composer alignment', () => {
+  it('matches the Agents new-conversation topbar and padding when the list is open', () => {
     renderHome();
-    expect(screen.getByTestId('usual-input')).toBeTruthy();
-    expect(document.querySelector('h1')).toBeNull();
+    const grid = document.querySelector('[data-home-composer-align="agents"]');
+    expect(grid).toBeTruthy();
+    expect(grid?.className).toContain('pt-6');
+    expect(grid?.className).toContain('pb-16');
+    expect(
+      document.querySelector('[data-home-composer-topbar-align]')
+    ).toBeTruthy();
     expect(document.querySelector('[data-testid="home-topbar"]')).toBeNull();
   });
-  it('shows the Home topbar when the list is collapsed', () => {
+
+  it('uses the real Home topbar instead of a spacer when the list is collapsed', () => {
     mocks.asideCollapsed = true;
     renderHome();
-    expect(screen.getByTestId('home-topbar')).toBeTruthy();
-    expect(screen.getByTestId('usual-input')).toBeTruthy();
+    expect(document.querySelector('[data-testid="home-topbar"]')).toBeTruthy();
+    expect(
+      document.querySelector('[data-home-composer-topbar-align]')
+    ).toBeNull();
+    expect(
+      document.querySelector('[data-home-composer-align="agents"]')
+    ).toBeTruthy();
   });
-  it('keeps the legacy composer when agents are disabled', () => {
+
+  it('keeps the legacy 32px-above-center composer when agents are disabled', () => {
     mocks.agentsEnabled = false;
     renderHome();
-    expect(screen.getByTestId('usual-input')).toBeTruthy();
+    const grid = document.querySelector('[data-home-composer-align="legacy"]');
+    expect(grid).toBeTruthy();
+    expect(grid?.className).toContain('pb-16');
+    expect(grid?.className).not.toContain('pt-6');
+    expect(
+      document.querySelector('[data-home-composer-topbar-align]')
+    ).toBeNull();
     expect(screen.getByText('What should we get done in Macro?')).toBeTruthy();
   });
 });

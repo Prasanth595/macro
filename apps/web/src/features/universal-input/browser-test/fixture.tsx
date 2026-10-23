@@ -1,3 +1,4 @@
+import type { EditorControls } from '@core/component/LexicalMarkdown/builder/types';
 import type {
   Bucket,
   ItemForBucket,
@@ -7,23 +8,33 @@ import type {
   QuickAccessListOptions,
 } from '@core/context/quickAccess/types';
 import { attachGlobalDOMScope, useHotKeyRoot } from '@core/hotkey/hotkeys';
+import { $createUserMentionNode } from '@macro-inc/lexical-core';
 import { propertiesKeys } from '@queries/properties/keys';
 import type { TagSetResponse } from '@service-properties/generated/schemas/tagSetResponse';
+import { ComposerSurface } from '@ui';
+import { $createParagraphNode, $createTextNode, $getRoot } from 'lexical';
 import type { ComponentProps } from 'solid-js';
 import { createEffect } from 'solid-js';
 import { buildAgentRoster } from '../../agents-view/core/roster';
 import { createDocumentComposerTags } from '../../block-md/util/documentComposerProperties';
 import { CommandMenu } from '../../command/CommandMenu';
-import { createCommandSearch } from '../../command/command-search';
-import { createCommandResultOpener } from '../../command/open-command-result';
 import { CommandState } from '../../command/state';
-import { InlineSearchResults } from '../../command/views/inline-search-results';
+import { useExperimentalFeatures } from '../../experimental-features/experimental-features';
+import { searchNeedsKeywords } from '../../next-soup/core/search-filters';
+import { SearchbarInput } from '../../next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { parsePropertyDraft } from '../../property/utils/parse-property-draft';
+import { ExperimentalFeatures } from '../../settings/ExperimentalFeatures';
+import type { InputLayoutParts } from '../context/capabilities';
+import { resolveSearchFilters } from '../core/search';
 import { composerRecipientOptions } from '../queries/composer-recipients';
-import { openedSearchResult } from './search-app-fixture';
+import { SearchDraft } from '../views/search-draft';
+import { globalSearchRequests } from './global-search-service-fixture';
+import {
+  openedSearchResult,
+  setOpenedSearchResult,
+} from './search-app-fixture';
 import '@fontsource-variable/inter';
 import '../../../index.css';
-import { resetHomeComposer } from '@app/features/home/primitives/focus-composer';
 import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
 import { ChannelsContextProvider } from '@core/context/channels';
 import { EmailLinksContextProvider } from '@core/context/emailLinks';
@@ -32,11 +43,11 @@ import type { QuickAccessContextValue } from '@core/context/quickAccess/types';
 import { UserContextProvider } from '@core/context/user';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { createSignal, Show } from 'solid-js';
-import { render } from 'solid-js/web';
 import { DraftEditor } from '../components/draft-editor';
 import type { InputDisplay } from '../context/capabilities';
+import type { CommandInputSession } from '../context/command-input';
 import {
-  draftSchema,
+  emptyDraft,
   type Intent,
   intents,
   type Submission,
@@ -45,14 +56,81 @@ import { resolveRecipients } from '../core/recipients';
 import { createUniversalInput } from '../primitives/universal-input';
 import { UniversalComposer } from '../views/universal-composer';
 
-function FixtureComposer(props: ComponentProps<typeof UniversalComposer>) {
-  const search = createCommandSearch(
-    () => props.state.fields().query,
-    () =>
-      props.state.draft().intent === 'search' &&
-      !!props.state.fields().query.trim()
+const [commandSubmissions, setCommandSubmissions] = createSignal<Submission[]>(
+  []
+);
+
+function FixtureLayout(parts: InputLayoutParts) {
+  return (
+    <>
+      <div class="space-y-3">
+        <ComposerSurface as="div" data-testid="universal-input-surface">
+          {parts.editor}
+        </ComposerSurface>
+        {parts.fields}
+      </div>
+      {parts.result}
+    </>
   );
-  const openResult = createCommandResultOpener('home');
+}
+
+function SearchbarFixture() {
+  const [query, setQuery] = createSignal('');
+  const [changes, setChanges] = createSignal(0);
+  let controls: EditorControls | undefined;
+  return (
+    <div>
+      <SearchbarInput
+        label="Standalone search"
+        value={query()}
+        onChange={(value) => {
+          setChanges((count) => count + 1);
+          setQuery(value);
+        }}
+        onConnect={(value) => {
+          controls = value;
+        }}
+      />
+      <button
+        onClick={() => {
+          const editor = controls?.getLexical();
+          editor?.update(
+            () => {
+              $getRoot()
+                .clear()
+                .append(
+                  $createParagraphNode().append(
+                    $createUserMentionNode({
+                      userId: 'macro|julia@macro.com',
+                      email: 'julia@macro.com',
+                      displayName: 'Julia',
+                    }),
+                    $createTextNode(' budget')
+                  )
+                );
+              $getRoot().selectEnd();
+            },
+            { discrete: true }
+          );
+          controls?.focus();
+        }}
+      >
+        Insert search mention
+      </button>
+      <button onClick={() => setQuery('externally changed query')}>
+        Set external search
+      </button>
+      <output data-testid="standalone-query">{query()}</output>
+      <output data-testid="standalone-query-changes">{changes()}</output>
+    </div>
+  );
+}
+
+function FixtureComposer(
+  props: Omit<ComponentProps<typeof UniversalComposer>, 'layout'> & {
+    command?: CommandInputSession;
+  }
+) {
   const tags = createDocumentComposerTags(
     {},
     {
@@ -64,13 +142,28 @@ function FixtureComposer(props: ComponentProps<typeof UniversalComposer>) {
   return (
     <UniversalComposer
       {...props}
+      layout={props.command?.layout ?? FixtureLayout}
       noteTags={tags.composerTags}
-      searchResults={(scopeId) => (
-        <InlineSearchResults
+      search={(scopeId) => (
+        <SearchDraft
+          state={props.state}
+          actions={props.actions}
           scopeId={scopeId}
-          query={props.state.fields().query}
-          source={search}
-          onOpen={openResult}
+          onOpen={(entity, newSplit, location) => {
+            setOpenedSearchResult({
+              content: {
+                type:
+                  entity.type === 'document' ? entity.fileType : entity.type,
+                id: entity.id,
+              },
+              options: {
+                referredFrom: 'kommand-menu',
+                preferNewSplit: newSplit,
+                location,
+              },
+            });
+            props.command?.onNavigate();
+          }}
         />
       )}
     />
@@ -78,7 +171,9 @@ function FixtureComposer(props: ComponentProps<typeof UniversalComposer>) {
 }
 
 /** Real view and controller with deterministic inference and recording-only writes. */
-export function UniversalInputFixture(props: { embedded?: boolean } = {}) {
+export function UniversalInputFixture(
+  props: { embedded?: boolean; command?: CommandInputSession } = {}
+) {
   const [searchQueries, setSearchQueries] = createSignal<string[]>([]);
   const records: QuickAccessItem[] = ['Investor update', 'Hiring plan'].map(
     (name, index) => ({
@@ -113,6 +208,58 @@ export function UniversalInputFixture(props: { embedded?: boolean } = {}) {
       status: 'idle',
     },
   });
+
+  for (const person of [
+    {
+      id: 'macro|john@example.com',
+      name: 'John Adams',
+      email: 'john@example.com',
+    },
+    {
+      id: 'macro|julia@macro.com',
+      name: 'Julia Jones',
+      email: 'julia@macro.com',
+    },
+  ])
+    records.push({
+      id: person.id,
+      kind: 'user',
+      bucket: 'person',
+      data: person,
+      searchText: person.name,
+      sortTimestamp: 0,
+      timestamps: {},
+    });
+  records.push({
+    id: 'sales-channel',
+    kind: 'entity',
+    bucket: 'channel',
+    searchText: 'sales',
+    sortTimestamp: 0,
+    timestamps: {},
+    data: {
+      id: 'sales-channel',
+      type: 'channel',
+      name: 'sales',
+      ownerId: 'fixture',
+      channelType: 'public',
+    },
+  });
+  records.push({
+    id: 'julia-dm',
+    kind: 'entity',
+    bucket: 'dm',
+    searchText: 'Julia direct message',
+    sortTimestamp: 0,
+    timestamps: {},
+    data: {
+      id: 'julia-dm',
+      type: 'channel',
+      name: 'Julia direct message',
+      ownerId: 'fixture',
+      channelType: 'direct_message',
+    },
+  });
   function useList(): QuickAccessList;
   function useList<B extends Bucket>(
     bucket: B
@@ -129,7 +276,7 @@ export function UniversalInputFixture(props: { embedded?: boolean } = {}) {
     const first = args[0];
     const options = typeof first === 'object' ? first : undefined;
     const buckets = options?.buckets ?? args;
-    const enabled = () => options?.enabled?.() ?? false;
+    const enabled = () => options?.enabled?.() ?? true;
     createEffect(() => {
       const query = options?.searchTerm?.() ?? '';
       if (enabled() && query)
@@ -187,7 +334,11 @@ export function UniversalInputFixture(props: { embedded?: boolean } = {}) {
     },
   ]);
   const params = new URLSearchParams(window.location.search);
-  useHotKeyRoot();
+  const experiments = useExperimentalFeatures();
+  if (!props.embedded) {
+    useHotKeyRoot();
+    attachGlobalDOMScope(document.body);
+  }
   const classifyDelay = Number(params.get('classify-delay') ?? 80);
   const extractDelay = Number(params.get('extract-delay') ?? 80);
   const [classifications, setClassifications] = createSignal(0);
@@ -209,10 +360,23 @@ export function UniversalInputFixture(props: { embedded?: boolean } = {}) {
       label: 'John Adams',
       email: 'john@example.com',
     },
+    {
+      id: 'macro|julia@macro.com',
+      kind: 'user' as const,
+      label: 'Julia Jones',
+      email: 'julia@macro.com',
+    },
   ];
   const actions: InputDisplay = {
     people: () => people,
-    destinations: () => people,
+    searchChannels: () => [
+      { id: 'sales-channel', kind: 'channel', label: 'sales' },
+      { id: 'julia-dm', kind: 'channel', label: 'Julia direct message' },
+    ],
+    destinations: () => [
+      ...people,
+      { id: 'sales-channel', kind: 'channel', label: 'sales' },
+    ],
     messageRecipients: () =>
       composerRecipientOptions(people).filter(
         (option) => option.kind === 'user'
@@ -274,7 +438,7 @@ export function UniversalInputFixture(props: { embedded?: boolean } = {}) {
               ? 'task'
               : text.includes('3pm') || text.includes('at 7')
                 ? 'calendar'
-                : text.includes('find')
+                : /^(?:find|search|look for)\b/i.test(text)
                   ? 'search'
                   : 'note');
       return {
@@ -316,6 +480,7 @@ export function UniversalInputFixture(props: { embedded?: boolean } = {}) {
     },
     async submit(input) {
       setSent((s) => [...s, input]);
+      if (props.command) setCommandSubmissions((s) => [...s, input]);
       return { message: `${input.intent} completed` };
     },
     async saveEmailDraft(input) {
@@ -324,18 +489,27 @@ export function UniversalInputFixture(props: { embedded?: boolean } = {}) {
     },
     validateEmailDraft: () =>
       !googleConnected() ? 'Connect Google to continue' : undefined,
-    validate: (input) =>
-      !googleConnected() &&
-      (input.intent === 'email' || input.intent === 'calendar')
+    validate: (input) => {
+      if (input.intent === 'search') {
+        const filters = resolveSearchFilters(
+          input.fields.searchFilters,
+          actions.people(),
+          actions.searchChannels()
+        );
+        if (filters.unresolved.length)
+          return `Choose a specific person or channel for ${filters.unresolved.join(', ')}`;
+        if (searchNeedsKeywords(filters.state, input.fields.query))
+          return 'Add at least 3 search characters to search by sender or speaker.';
+      }
+      return !googleConnected() &&
+        (input.intent === 'email' || input.intent === 'calendar')
         ? 'Connect Google to continue'
-        : undefined,
-    onSubmitted: () => focus?.(),
-    readDraft: () => {
-      const value = localStorage.getItem('fixture-draft');
-      return value ? draftSchema.parse(JSON.parse(value)) : undefined;
+        : undefined;
     },
-    saveDraft: (draft) =>
-      localStorage.setItem('fixture-draft', JSON.stringify(draft)),
+    onSubmitted: () => (props.command ? props.command.onComplete() : focus?.()),
+    initialDraft: props.command
+      ? { ...emptyDraft(), text: props.command.text }
+      : undefined,
   });
   return (
     <QueryClientProvider client={queryClient}>
@@ -344,27 +518,44 @@ export function UniversalInputFixture(props: { embedded?: boolean } = {}) {
           <EmailLinksContextProvider>
             <ChannelsContextProvider>
               <main
-                ref={attachGlobalDOMScope}
                 class={
-                  props.embedded
-                    ? 'min-w-0'
-                    : 'min-h-screen bg-page p-12 text-ink'
+                  props.command
+                    ? 'contents'
+                    : props.embedded
+                      ? 'min-w-0'
+                      : 'min-h-screen bg-page p-12 text-ink'
                 }
               >
-                <Show when={params.has('command-menu')}>
+                <Show when={!props.embedded && params.has('searchbar')}>
+                  <SearchbarFixture />
+                </Show>
+                <Show
+                  when={
+                    !props.embedded &&
+                    params.has('settings') &&
+                    experiments.available()
+                  }
+                >
+                  <div class="h-[500px]" data-testid="experimental-settings">
+                    <ExperimentalFeatures />
+                  </div>
+                </Show>
+                <Show when={!props.embedded && params.has('command-menu')}>
                   <button onClick={CommandState.open}>Open Command K</button>
                   <CommandMenu />
+                  <output data-testid="command-submission-count">
+                    {commandSubmissions().length}
+                  </output>
+                  <output data-testid="last-command-submission">
+                    {JSON.stringify(commandSubmissions().at(-1))}
+                  </output>
                 </Show>
-                <Show when={!props.embedded}>
-                  <button
-                    type="button"
-                    onClick={() => resetHomeComposer('fixture')}
-                  >
-                    Home
-                  </button>
-                </Show>
-                <div class="mx-auto max-w-180" data-split-id="fixture">
+                <div
+                  class={props.command ? 'contents' : 'mx-auto max-w-180'}
+                  data-split-id="fixture"
+                >
                   <FixtureComposer
+                    command={props.command}
                     state={state}
                     actions={actions}
                     editor={
@@ -374,9 +565,13 @@ export function UniversalInputFixture(props: { embedded?: boolean } = {}) {
                           .withFloatingFormatMenu()}
                         text={state.draft().text}
                         disabled={state.sending()}
-                        onChange={state.setText}
+                        initialSelection={props.command?.selection}
+                        onChange={(text) => {
+                          if (state.sending()) return;
+                          state.setText(text);
+                          props.command?.onTextChange(text);
+                        }}
                         onSubmit={() => void state.submit()}
-                        onReset={() => state.setText('')}
                         registerFocus={(callback) => {
                           focus = callback;
                         }}
@@ -385,6 +580,9 @@ export function UniversalInputFixture(props: { embedded?: boolean } = {}) {
                     taskFields={<span>Task properties</span>}
                   />
                   <Show when={!props.embedded}>
+                    <output data-testid="global-search-requests">
+                      {JSON.stringify(globalSearchRequests())}
+                    </output>
                     <output data-testid="search-queries">
                       {JSON.stringify(searchQueries())}
                     </output>
@@ -423,5 +621,3 @@ export function UniversalInputFixture(props: { embedded?: boolean } = {}) {
     </QueryClientProvider>
   );
 }
-if (!new URLSearchParams(window.location.search).has('home'))
-  render(() => <UniversalInputFixture />, document.getElementById('root')!);

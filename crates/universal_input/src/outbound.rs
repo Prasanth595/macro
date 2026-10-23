@@ -1,4 +1,5 @@
-//! Tool-free Nemotron extraction through the shared metered model router.
+//! Tool-free extraction adapters for Clairic and the shared model router.
+pub mod clairic;
 use crate::domain::{
     ExtractInputRequest, FIELD_EXTRACTION_GUIDANCE, FieldExtractor, InputError, InputSuggestions,
 };

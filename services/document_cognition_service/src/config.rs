@@ -70,8 +70,12 @@ maybe_env_vars!(
 #[derive(macro_config::MacroConfig)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct Config {
-    /// Optional existing TypeSafe credential for Home intent classification.
+    /// Optional existing TypeSafe credential for Command K intent classification.
     pub typesafe_api_key: jev::outbound::TypesafeApiKey,
+    /// Optional account for Clairic field extraction through Workers AI.
+    pub cloudflare_account_id: universal_input::outbound::clairic::CloudflareAccountId,
+    /// Paired Workers AI token. When both are unset, extraction uses Nemotron.
+    pub cloudflare_api_token: universal_input::outbound::clairic::CloudflareApiToken,
     /// Default-off quota admission and prospective usage counting.
     #[macro_config_default(ai_usage::AiUsageEnforcement::Disabled)]
     pub enable_ai_usage_enforcement: ai_usage::AiUsageEnforcement,
@@ -203,6 +207,8 @@ impl Config {
     pub fn new_empty_for_test() -> Self {
         Config {
             typesafe_api_key: jev::outbound::TypesafeApiKey::Unset,
+            cloudflare_account_id: universal_input::outbound::clairic::CloudflareAccountId::Unset,
+            cloudflare_api_token: universal_input::outbound::clairic::CloudflareApiToken::Unset,
             enable_ai_usage_enforcement: ai_usage::AiUsageEnforcement::Disabled,
             enable_ai_usage_billing: ai_billing::AiUsageBilling::Disabled,
             ai_usage_free_included_allowance_cents: ai_billing::IncludedAllowanceCents::new(500)

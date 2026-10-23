@@ -1,5 +1,6 @@
 import { isListViewID } from '@app/constants/list-views';
 import { useCrmContactDiscovery } from '@app/features/crm/record-adapter';
+import { useExperimentalFeatures } from '@app/features/experimental-features/experimental-features';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { globalSplitManager } from '@app/signal/splitLayout';
@@ -16,6 +17,7 @@ import { TOKENS } from '@core/hotkey/tokens';
 import type { HotkeyCommand, RegisterHotkeyReturn } from '@core/hotkey/types';
 import { runCommand } from '@core/hotkey/utils';
 import { debouncedDependent } from '@core/util/debounce';
+import { lazyNamed } from '@core/util/lazyNamed';
 import type { EntityData } from '@entity';
 import { EntitySelectionBadge } from '@entity/components/EntitySelectionBadge';
 import Macro from '@icon/macro-logo.svg';
@@ -37,14 +39,18 @@ import {
   createMemo,
   createSignal,
   For,
+  type JSX,
   Match,
   on,
   onCleanup,
   onMount,
   Show,
+  Suspense,
   Switch,
 } from 'solid-js';
+import type { InputLayoutParts } from '../universal-input/context/capabilities';
 import { defaultCommandResultIndex } from './core/default-result-index';
+import { shouldUseUniversalInput } from './core/universal-input-mode';
 import { createCommandResultOpener } from './open-command-result';
 import { trackCommandUsage } from './recency';
 import { CommandState } from './state';
@@ -70,6 +76,11 @@ const CATEGORIES: { id: CategoryFilter; label: string }[] = [
   { id: 'channels', label: 'Channels' },
   { id: 'dms', label: 'People' },
 ];
+
+const CommandUniversalInput = lazyNamed(
+  () => import('../universal-input/universal-input'),
+  'CommandUniversalInput'
+);
 
 export function CommandMenu() {
   const splitManager = globalSplitManager();
@@ -105,6 +116,7 @@ export function CommandMenu() {
 
   return (
     <Dialog
+      class="[&>[data-command-menu]>[data-layer]>[data-surface]]:border-0! [&>[data-command-menu]>[data-layer]>[data-surface]]:bg-transparent [&>[data-command-menu]>[data-layer]>[data-surface]]:rounded-[24px]"
       onOpenChange={CommandState.setIsOpen}
       onCloseAutoFocus={(e) => {
         if (suppressCloseAutoFocus) {
@@ -125,7 +137,7 @@ export function CommandMenu() {
   );
 }
 
-export function CommandMenuInner(props: {
+type CommandMenuInnerProps = {
   /** Override items source with custom data (e.g. sandbox entities for tutorial) */
   items?: () => CommandMenuItem[];
   /** Called when the user selects an item from the menu */
@@ -142,8 +154,221 @@ export function CommandMenuInner(props: {
   class?: string;
   /** Optional depth for the Panel wrapper. */
   depth?: 0 | 1 | 2 | 3 | 4;
-}) {
+};
+
+export function CommandMenuInner(props: CommandMenuInnerProps) {
+  const experiments = useExperimentalFeatures();
+  const [expanded, setExpanded] = createSignal(false);
+  let selection = { start: 0, end: 0 };
+  let typing = false;
+  let composing = false;
+  let input: HTMLTextAreaElement | undefined;
+  let ready = false;
+  let disposed = false;
+  let loading: Promise<unknown> | undefined;
+  const eligible = () =>
+    experiments.godMode() &&
+    !props.items &&
+    !props.disableDefaultAction &&
+    !CommandState.isInCommandScope() &&
+    !CommandState.isEntityActionMode();
+  const promote = () => {
+    if (
+      !disposed &&
+      ready &&
+      !typing &&
+      !composing &&
+      input?.isConnected &&
+      eligible() &&
+      shouldUseUniversalInput(input.value, expanded())
+    )
+      setExpanded(true);
+  };
+  const prepareComposer = async () => {
+    try {
+      loading ??= CommandUniversalInput.preload();
+      await loading;
+      ready = true;
+      promote();
+    } catch {
+      loading = undefined;
+    }
+  };
+  const updateQuery = (element: HTMLTextAreaElement, isComposing: boolean) => {
+    input = element;
+    composing = isComposing;
+    selection = {
+      start: element.selectionStart ?? element.value.length,
+      end: element.selectionEnd ?? element.value.length,
+    };
+    CommandState.setQuery(element.value);
+    if (
+      !composing &&
+      eligible() &&
+      shouldUseUniversalInput(element.value, expanded())
+    ) {
+      if (ready) promote();
+      else void prepareComposer();
+    }
+  };
+  createEffect(
+    on(CommandState.isOpen, (open) => {
+      if (!open) setExpanded(false);
+    })
+  );
+  onMount(() => {
+    if (eligible()) void prepareComposer();
+  });
+  onCleanup(() => {
+    disposed = true;
+  });
+  const finish = () => {
+    props.onHint?.();
+    CommandState.close();
+  };
+  const searchMenu = () => (
+    <CommandSearchMenu
+      {...props}
+      onQueryInput={updateQuery}
+      onQueryKeyDown={() => {
+        typing = true;
+      }}
+      onQueryKeyUp={(element, isComposing) => {
+        typing = false;
+        updateQuery(element, isComposing);
+      }}
+    />
+  );
+  return (
+    <div class="contents" data-command-menu>
+      <Show when={expanded() && eligible()} fallback={searchMenu()}>
+        <CommandComposerMenu {...props}>
+          <Suspense
+            fallback={<p class="text-sm text-ink-muted">Opening composer…</p>}
+          >
+            <CommandUniversalInput
+              text={CommandState.query()}
+              selection={selection}
+              layout={CommandComposerLayout}
+              onTextChange={(text) => {
+                CommandState.setQuery(text.trim() ? text : '');
+                if (!text.trim()) setExpanded(false);
+              }}
+              onComplete={finish}
+              onNavigate={finish}
+            />
+          </Suspense>
+        </CommandComposerMenu>
+      </Show>
+    </div>
+  );
+}
+
+function CommandComposerMenu(
+  props: CommandMenuInnerProps & { children: JSX.Element }
+) {
+  const [attachHotkeys, scopeId] = useHotkeyDOMScope('command-composer');
+  registerHotkey({
+    scopeId,
+    hotkey: 'escape',
+    description: 'Close command menu',
+    runWithInputFocused: true,
+    hide: true,
+    keyDownHandler: (event) => {
+      if (event?.isComposing) return false;
+      CommandState.close();
+      return true;
+    },
+  });
+  return (
+    <CommandMenuShell
+      ref={attachHotkeys}
+      depth={props.depth}
+      class={props.class}
+    >
+      {props.children}
+    </CommandMenuShell>
+  );
+}
+
+function CommandMenuLogo() {
+  const [multiline, setMultiline] = createSignal(false);
+  let logo: HTMLSpanElement | undefined;
+  onMount(() => {
+    const icon = logo;
+    const header = icon?.parentElement;
+    const input = header?.querySelector<HTMLElement>(
+      '[data-universal-input], textarea'
+    );
+    if (!input || !icon || !header) return;
+    const measure = () => {
+      // Measure at the width of the single-line layout even while the logo is
+      // hidden, so revealing it cannot wrap the text and toggle it off again.
+      const maxWidth = input.style.maxWidth;
+      if (multiline()) {
+        const gap = Number.parseFloat(getComputedStyle(header).columnGap);
+        const logoWidth = Number.parseFloat(getComputedStyle(icon).width);
+        input.style.maxWidth = `${input.getBoundingClientRect().width - logoWidth - gap}px`;
+      }
+      const style = getComputedStyle(input.firstElementChild ?? input);
+      const lineHeight =
+        Number.parseFloat(style.lineHeight) ||
+        Number.parseFloat(style.fontSize) * 1.5;
+      const padding = getComputedStyle(input);
+      const textHeight =
+        input.scrollHeight -
+        Number.parseFloat(padding.paddingTop) -
+        Number.parseFloat(padding.paddingBottom);
+      const next = input.childElementCount > 1 || textHeight > lineHeight * 1.5;
+      input.style.maxWidth = maxWidth;
+      setMultiline(next);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(input);
+    input.addEventListener('input', measure);
+    measure();
+    onCleanup(() => {
+      observer.disconnect();
+      input.removeEventListener('input', measure);
+    });
+  });
+  return (
+    <span
+      ref={logo}
+      data-testid="command-input-logo"
+      aria-hidden="true"
+      class="flex size-5 shrink-0 items-center justify-center text-accent"
+      classList={{ hidden: multiline() }}
+    >
+      <Macro class="size-3" />
+    </span>
+  );
+}
+
+function CommandComposerLayout(props: InputLayoutParts) {
+  return (
+    <>
+      <CommandMenuShell.Header>
+        <CommandMenuLogo />
+        {props.editor}
+      </CommandMenuShell.Header>
+      <CommandMenuShell.Body class="space-y-3 p-4" scroll>
+        {props.fields}
+        {props.result}
+      </CommandMenuShell.Body>
+    </>
+  );
+}
+
+function CommandSearchMenu(
+  props: CommandMenuInnerProps & {
+    onQueryInput: (input: HTMLTextAreaElement, composing: boolean) => void;
+    onQueryKeyDown: () => void;
+    onQueryKeyUp: (input: HTMLTextAreaElement, composing: boolean) => void;
+  }
+) {
   const [commandMenuRef, setCommandMenuRef] = createSignal<HTMLDivElement>();
+  let searchInput: HTMLTextAreaElement | undefined;
 
   const analytics = useAnalytics();
   const projectsFlag = useFeatureFlag(enableProjects);
@@ -157,9 +382,6 @@ export function CommandMenuInner(props: {
       : CommandState.categoryFilter();
 
   const { popoverSplit } = useSplitLayout();
-
-  const canOpenInNewSplit = () =>
-    globalSplitManager()?.canAppendSplit() ?? false;
 
   const [attachHotkeys, hotkeyScope] = useHotkeyDOMScope('command-menu');
 
@@ -375,6 +597,17 @@ export function CommandMenuInner(props: {
     hide: true,
   });
 
+  registerHotkey({
+    hotkey: 'shift+enter',
+    scopeId: hotkeyScope,
+    description: 'New line',
+    runWithInputFocused: true,
+    allowBrowserDefault: true,
+    hide: true,
+    keyDownHandler: (event) =>
+      !!event && !event.isComposing && event.target === searchInput,
+  });
+
   const confirmHotkey = registerHotkey({
     hotkey: 'enter',
     scopeId: hotkeyScope,
@@ -383,21 +616,6 @@ export function CommandMenuInner(props: {
       const item = selectedItem();
       if (item) {
         handleItemAction(item, false);
-        return true;
-      }
-      return false;
-    },
-    runWithInputFocused: true,
-  });
-
-  const confirmSplitHotkey = registerHotkey({
-    hotkey: 'shift+enter',
-    scopeId: hotkeyScope,
-    description: 'Open in new split',
-    keyDownHandler: () => {
-      const item = selectedItem();
-      if (item) {
-        handleItemAction(item, true);
         return true;
       }
       return false;
@@ -487,6 +705,8 @@ export function CommandMenuInner(props: {
     if (element) {
       attachHotkeys(element);
     }
+    // Returning from the composer mounts a new input in an already-open dialog.
+    searchInput?.focus();
   });
 
   const runHint = () => {
@@ -542,14 +762,7 @@ export function CommandMenuInner(props: {
       depth={props.depth}
     >
       <CommandMenuShell.Header>
-        <Show
-          when={isInCommandScope()}
-          fallback={
-            <span class="flex size-5 shrink-0 items-center justify-center text-accent">
-              <Macro class="size-3" />
-            </span>
-          }
-        >
+        <Show when={isInCommandScope()} fallback={<CommandMenuLogo />}>
           <button
             class="flex size-5 shrink-0 items-center justify-center text-ink-muted hover:text-ink transition-colors"
             onClick={handleBack}
@@ -559,13 +772,19 @@ export function CommandMenuInner(props: {
           </button>
         </Show>
         <CommandMenuSearchInput
-          type="text"
+          ref={(element) => {
+            searchInput = element;
+          }}
+          as="textarea"
           placeholder={
             CommandState.commandScopePlaceholder() ??
             (isEntityActionMode() ? 'Search actions...' : 'Search...')
           }
           value={CommandState.query()}
-          onInput={(e) => CommandState.setQuery(e.currentTarget.value)}
+          onInput={(e) => props.onQueryInput(e.currentTarget, e.isComposing)}
+          onCompositionEnd={(e) => props.onQueryInput(e.currentTarget, false)}
+          onKeyDown={props.onQueryKeyDown}
+          onKeyUp={(e) => props.onQueryKeyUp(e.currentTarget, e.isComposing)}
           autofocus
         />
       </CommandMenuShell.Header>
@@ -653,24 +872,12 @@ export function CommandMenuInner(props: {
           </Match>
           <Match when={selectedIsSearch()}>
             <HotkeyHint command={confirmHotkey} label="Search" />
-            <Show when={canOpenInNewSplit()}>
-              <HotkeyHint
-                command={confirmSplitHotkey}
-                label="Search in new split"
-              />
-            </Show>
           </Match>
           <Match when={selectedIsAskAi()}>
             <HotkeyHint command={confirmHotkey} label="Ask AI" />
           </Match>
           <Match when={selectedIsEntity()}>
             <HotkeyHint command={confirmHotkey} label="Open" />
-            <Show when={canOpenInNewSplit()}>
-              <HotkeyHint
-                command={confirmSplitHotkey}
-                label="Open in new split"
-              />
-            </Show>
           </Match>
         </Switch>
 

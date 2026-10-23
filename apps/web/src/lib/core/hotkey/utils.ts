@@ -522,8 +522,10 @@ export function runCommand(
             : [...prev, command.hotkeyToken]
           : prev
       );
-      e?.preventDefault();
-      e?.stopPropagation();
+      if (!command.allowBrowserDefault) {
+        e?.preventDefault();
+        e?.stopPropagation();
+      }
     }
 
     if (
@@ -664,6 +666,7 @@ export function registerScopeSignalHotkey(
       keywords: args.keywords,
       surfaceNestedCommands: args.surfaceNestedCommands,
       proxiedHotkey: args.proxiedHotkey,
+      allowBrowserDefault: args.allowBrowserDefault,
     });
 
     disposer = result.dispose;

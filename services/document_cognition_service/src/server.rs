@@ -934,7 +934,16 @@ pub async fn run() -> anyhow::Result<()> {
             .map(|provider| {
                 jev::domain::JevClassifier::new(provider, tool_service_context.recorder.clone())
             }),
-        universal_input::outbound::AgentFieldExtractor::new(tool_service_context.recorder.clone()),
+        universal_input::domain::FallbackFieldExtractor::new(
+            universal_input::outbound::clairic::ClairicFieldExtractor::from_config(
+                &config.cloudflare_account_id,
+                &config.cloudflare_api_token,
+                tool_service_context.recorder.clone(),
+            )?,
+            universal_input::outbound::AgentFieldExtractor::new(
+                tool_service_context.recorder.clone(),
+            ),
+        ),
         tool_service_context.admission.clone(),
     ));
 

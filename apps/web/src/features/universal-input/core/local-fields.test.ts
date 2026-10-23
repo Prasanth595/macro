@@ -32,12 +32,14 @@ describe('immediate field suggestions', () => {
       'look for investor update',
     ]) {
       expect(localIntent(text)).toBe('search');
-      expect(localFields(text, 'search')).toEqual({ query: 'investor update' });
+      expect(localFields(text, 'search')).toMatchObject({
+        query: 'investor update',
+      });
     }
-    expect(localFields('investor update', 'search')).toEqual({
+    expect(localFields('investor update', 'search')).toMatchObject({
       query: 'investor update',
     });
-    expect(localFields('find', 'search')).toEqual({ query: '' });
+    expect(localFields('find', 'search')).toMatchObject({ query: '' });
     expect(localIntent('Help me find a time to meet')).toBeUndefined();
   });
   it('leaves reminders, AI requests and quoted prose to classification', () => {

@@ -367,13 +367,12 @@ Its **New conversation** button opens the composer for the current mode with one
 chat agents, and the composer stays on one line. In Code it lists coding agents
 only, the composer opens expanded with the repository drawer below it, and the
 greeting reads "What should we build?". New sessions use the selected agent's
-default model and the URL for its kind. Home's universal input reveals the agent
-and model selectors only after AI is selected. Opening an existing row restores
-its own kind and URL.
+default model and the URL for its kind. Home keeps its usual agent composer.
+Opening an existing row restores its own kind and URL.
 Right-click a conversation for Rename, Favorite, Copy link, Share, Delete, and
 the other entity actions used on Home.
 
-Home's inner rail starts with a full-width **New** plus button that returns
+Home's inner rail starts with a full-width **New chat** plus button that returns
 to Home's starting pane without creating anything. Email and Tasks use the same
 pill styling and top placement for **New email** and **New task**, replacing
 the sidebar title bars. When multiple desktop splits are open, a **Close** (X)
@@ -406,29 +405,22 @@ uses an open envelope, calendar invitations use a calendar, and pull requests
 retain their open/merged/closed glyphs and status colors. Direct messages may
 show the other participant's avatar instead of a glyph.
 
-### Experimental universal input on desktop Home
+### Universal Input in Command K (God Mode)
 
-Universal Input is enabled by default in development and local builds. In
-production, availability follows the PostHog flag **enable-universal-input**.
-Without the flag (including while it is loading), Home keeps its usual agent or
-classic chat composer and suggestions. Flagged users see a **God Mode**
-switch in the Home header. The usual mode is the default; the switch takes effect
-immediately and its choice is remembered locally per signed-in user. Switching
-back preserves the Universal Input draft. Revoking the flag hides the switch and
-returns to the usual composer regardless of the stored preference. Universal
-Input and its inference requests mount only while that mode is selected.
-`VITE_ENABLE_UNIVERSAL_INPUT=true` or `false` overrides these defaults and the
-remote flag.
+Home always uses its usual agent or classic chat composer and suggestions.
+Universal Input is available only inside Command K. **God Mode** is on by default
+for users with **enable-universal-input**, unless they have explicitly turned it off
+in **Settings → Experimental Features**. The Settings page and its search result
+require a signed-in `@macro.com` account plus PostHog **enable-experimental-features**.
+God Mode also requires **enable-universal-input**. Development/local builds enable
+both rollout gates by default; the email restriction still applies. The God Mode
+preference applies immediately and is remembered locally per account. The God Mode
+row is hidden when **enable-universal-input** is off, and that flag always disables
+the composer regardless of preference. The Experimental Features flag and email
+restriction control only the Settings page; direct links obey the same page gate.
+Use `VITE_ENABLE_EXPERIMENTAL_FEATURES` and `VITE_ENABLE_UNIVERSAL_INPUT` for local
+overrides. In deployed builds, both gates follow PostHog.
 
-The starting pane contains a single-line input with accessible name **Your input**.
-Its empty box matches the usual Home input's compact height (48.75px), including
-at narrow desktop widths, and grows as text wraps or adds newlines.
-It shares the usual Home composer's vertical placement when God Mode is toggled.
-It uses the same fixed corner radius as channel composers as it grows for
-explicit newlines or wrapped text.
-A placeholder demonstrates events, email, tasks, notes, and search by quickly
-deleting and typing each example after a fixed “try:” prefix. It pauses during
-typing, respects reduced motion, and disappears when typing starts. The editor grows for multiline input.
 The Lexical input supports rich text and **@** mentions; there are no formatting
 or mention instruction cues and no Suggestions list beneath it.
 Type directly; predictions refresh while typing, at most once every 200 ms with
@@ -439,8 +431,11 @@ recipient suggestions and the outgoing body, before inference completes. It reco
 Markdown note, task, calendar event, or message/DM. The main editor keeps focus
 while editable fields appear below it. **Content type** defaults to **Auto**;
 the strongest candidate starts a draft even when the scores are close. Field
-extraction uses Nemotron with reasoning disabled and a schema specific to the
-selected type; only complete, valid suggestions enter the editable form.
+extraction uses Cloudflare Clairic when its Workers AI account/token are configured,
+with Nemotron as the fallback for missing configuration, provider errors, timeouts,
+or unusable results. Clairic selects text from the draft and computes typed dates;
+it does not rewrite prose. Only complete, valid suggestions enter the editable form.
+Null or low-confidence Clairic values remain empty, and manual edits retain precedence.
 Bug reports and prioritized problems count as tasks. **Cmd/Ctrl+Shift+Right** cycles through
 types in likelihood order; **Cmd/Ctrl+Shift+Left** cycles backward. The icon and
 type pill opens **Content type**; there is no Next type button. Choosing a type, cycling, or editing a field locks the type.
@@ -452,31 +447,43 @@ in its body. For example, “email julia” followed by “can we reschedule the
 tomorrow? let the investors know” prepares an email to Julia with that outgoing
 body. “Remind me to email Julia tomorrow” prepares a task instead.
 Email mode offers **Save as draft** beside **Send email**. Typing and prediction
-only retain the Universal Input locally; they do not create email-service drafts.
+only update the open menu’s transient draft; they do not create email-service drafts.
 **Save as draft** explicitly saves the visible email without sending it, including
 unfinished emails with no subject, body, or recipients. Any supplied recipient
 must resolve to an email address, and a connected inbox is required. A successful
-save clears and refocuses the input and offers **Open** for the saved draft; a
+save closes the menu and opens the saved draft when available; a
 failed save preserves the input. **Cmd/Ctrl+Enter** continues to send the email.
-Search results appear live below **Search for**, using Command K's search sources,
-ranking, result rows, and pagination. The same **Search for “…”** row appears
-above matching items and opens full Search. With no matches, the shared **Ask AI
-about “…”** fallback starts an agent session. The first **Down** selects the
-first actual match, as in Command K; **Up** can reach the full-search row.
-Explicit “find …”, “search for …”, and “look
-for …” inputs start searching immediately; search queries do not wait for model
-field extraction. Editing **Search for** overrides the query derived from typing.
-Click a result to open it, or use **Up/Down** and then **Enter**. **Shift+Enter**
-opens the selected result in another split. **Escape** exits result navigation;
-ordinary Enter inserts a newline before browsing results. **Cmd/Ctrl+Enter** or
-**Search Macro** opens the full Search view. Embedded search has its own query
-and selection; it does not change the Command K menu's state.
-Search navigation and type cycling use the app's scoped hotkey manager. Search
-arrows and confirmation apply to the text inputs; the type selector and buttons
-keep their native keyboard behavior. Inline editor menus take precedence.
+Search mode embeds Global Search's editor, Type/In/From filter chips, and
+result rows with highlighted message snippets. Explicit “find …”, “search for …”,
+and “look for …” instructions start searching immediately, without model field
+extraction. For example, “search messages from Julia in #sales about budget”
+selects **Type: Channels**, resolves Julia through the people directory, selects
+**In: sales**, and searches for “budget”. Names must resolve uniquely; unresolved
+people or channels pause search until corrected in the filter pickers. The
+pickers include the full channel and DM directory. Quoted keyword phrases keep
+“from” and “in” as search text rather than becoming filters.
+
+Editing **Search for** or changing the filter chips overrides subsequent
+predictions for those values. Sender-only message scopes and speaker-only call
+scopes keep their filters visible and request at least three search characters:
+channel/call browsing cannot enforce those message-level filters. No unfiltered
+browse results appear while keywords are required. **Search Macro** or
+**Cmd/Ctrl+Enter** opens Global Search with the same query and complete filters,
+including when the Search view is already open.
+
+Click a result or message snippet to open its actual location, or use **Up/Down**
+and then **Enter**. Keyboard selection scrolls into view while the editor keeps
+focus. **Shift+Enter** always inserts a newline in the Command K main input,
+including before Universal Input activates. Multiline input hides the Macro logo
+and removes its reserved spacing so text uses the full width. **Escape** exits
+result navigation; a second Escape closes the menu. The content type selector
+uses the shared styled dropdown with a selection checkmark and platform-specific
+shortcut tooltip. Search navigation and type cycling use the app's scoped
+hotkey manager; inline editor menus take precedence.
+
 Notes use the document composer's rich title, **Note body**, slash commands,
 and tag picker below the main input. Note creation saves the visible body and
-selected tags; manual edits, formatting, and tags survive later predictions and reload.
+selected tags; manual edits, formatting, and tags survive later predictions within the open menu.
 Messages use the channel composer's rich editor and recipient chips. There is
 no formatting button or toolbar row; keyboard formatting remains available. Choose existing people or one channel; external email addresses are for
 email mode. Authored mentions are included when sending a message.
@@ -514,23 +521,17 @@ Relative starts such as “in 30 minutes” do not set the event's duration;
 “in 30 minutes for 15 minutes” creates a 15-minute event. An ISO date such as
 “2026-10-10 at 7pm” still uses the default one-hour duration.
 
-Drafts persist locally per signed-in user. Failed inference allows manual type
-selection and field entry; failed submission keeps the draft. Successful writes
-show **Open**, while AI and search navigate immediately. Attached AI context
-must be removed before submitting another type. Dedicated Agents and mobile Home
-keep their existing layouts. Browser fixture tests use recording-only writes;
-real email/message buttons send to the displayed recipients.
+Drafts are transient for the lifetime of the open Command K menu. Failed
+inference allows manual type selection and field entry; failed submission keeps
+the open draft. Closing the menu discards it. Successful actions close the menu;
+reopening starts with a blank query. AI and search navigate immediately. Attached
+AI context must be removed before submitting another type. Home, Agents, and
+mobile Home retain their usual composers and navigation behavior. Browser
+fixtures use recording-only writes; real email/message buttons send to the
+displayed recipients.
 If email has no connected account or Event has no writable calendar, **Connect
 Google** opens Google's consent flow for Gmail and calendar access together.
-The draft survives the redirect and is restored on return. Complete consent in
-the Google browser page, then review the outgoing email or event before submitting.
-After a successful action that keeps Home open, the cleared input regains focus,
-including sending a message with the action button.
-Clicking **Home** in the outer sidebar clears the draft, edited fields, attached
-context, and previous result, then focuses a blank universal input in the
-selected split, including when Home is already open or opened with Shift-click.
-The **g h** shortcut also clears and focuses the input, whether returning from
-another view or already on Home.
+Complete consent in the Google browser page, then reopen Command K to compose.
 
 ## List-row dragging
 
@@ -801,6 +802,24 @@ Opens a dialog with a focused `Search...` textbox and bubble-style category radi
 the top hit. Also exposes commands: `Create`, `Change theme`, `MCP setup`. Keys: Tab cycles
 category, Esc closes. The category strip and footer have transparent backgrounds.
 
+With **God Mode** enabled in **Settings → Experimental Features**, typing at least **3 words or 24
+characters** turns the menu into the shared Universal Input composer. The current
+text and insertion point transfer to its rich input in the same header row, with
+the same type size and padding. There is no additional title. The Macro logo hides
+when the rich input wraps or contains multiple lines, then returns on one line;
+its reserved space is removed so text uses the full input width. Classification and field
+extraction run while typing continues. For example, “dinner with julia tomorrow
+at 9pm” reveals an event; users can change the type and edit fields before acting.
+Shorter edits keep the composer open; clearing the input returns to ordinary
+Command K search. IME composition finishes before the transition. This applies to
+ordinary search, including a selected category; nested command scopes, entity
+actions, and the onboarding sandbox retain their existing behavior.
+In composer mode, Enter inserts a newline and Cmd/Ctrl+Enter performs the displayed
+action; Tab moves through form controls. Escape closes the menu (or first leaves
+active inline search navigation). Successful actions close the menu and open their
+result when available; errors keep the form available for correction. Command K
+drafts last for the open menu only; closing or reloading discards an unsent draft.
+
 In `Change theme`, Up/Down previews the highlighted palette across the open app,
 including channels and spreadsheets. Moving between rows preserves the original
 palette for cancellation without briefly restoring it between previews. Esc
@@ -851,7 +870,7 @@ usual recency lists without contacts. A contact whose email belongs to a Macro u
 appears as that person instead, even when only the CRM name matched: their existing
 direct message when you have one, otherwise the person, and selecting them opens a
 direct message. Other contacts show their email and open the contact page; Enter and
-click open in place, Shift+Enter in a new split. A server match that arrives after
+click open in place; Shift+Enter inserts a newline in the query. A server match that arrives after
 typing takes the default selection from the Search for… row. Global Search does not
 list CRM contacts; Search for… from People still opens the Channels search. Verify
 a contact outside the cached rows, an email-only query, rapid query changes (rows

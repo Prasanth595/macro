@@ -2,6 +2,7 @@ import { modeForKind } from '@app/features/agents-view/core/agent-kind';
 import { agentsRouteId } from '@app/features/agents-view/core/route';
 import { createAgentRosterSource } from '@app/features/agents-view/queries/agent-roster-source';
 import { createComposerModels } from '@app/features/agents-view/queries/composer-models';
+import { buildAgentPrompt } from '@app/features/agents-view/queries/composer-prompt';
 import { startPendingSession } from '@app/features/block-agent/context/pending-session';
 import { createDocumentWithTags } from '@app/features/block-md/queries/create-document-with-tags';
 import { createDocumentComposerTags } from '@app/features/block-md/util/documentComposerProperties';
@@ -10,10 +11,10 @@ import { calendarViewContent } from '@app/features/calendar-view/calendar-naviga
 import { createEmailComposeContext } from '@app/features/email-compose/compose-adapter';
 import { plainTextToHtml } from '@app/features/email-compose/core/plain-text-to-html';
 import { prepareEmailBody } from '@app/features/email-compose/primitives/prepare-email-body';
-import { buildHomeAgentPrompt } from '@app/features/home/queries/home-agent-prompt';
 import { parsePropertyDraft } from '@app/features/property/utils/parse-property-draft';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
+import type { SplitContent } from '@components/app/split-layout/layoutManager';
+import type { PromptSubmitSurface } from '@core/agent-session/prompt-telemetry';
 import { useHasPaidAccess } from '@core/auth';
 import {
   DEFAULT_MODEL,
@@ -27,6 +28,7 @@ import type { ItemMention } from '@core/component/LexicalMarkdown/plugins';
 import { toast } from '@core/component/Toast/Toast';
 import { enableChatV3Agents } from '@core/constant/featureFlags';
 import { useSettingsState } from '@core/constant/SettingsState';
+import { useQuickAccess } from '@core/context/quickAccess';
 import { useAddInboxFlow } from '@core/email-link';
 import { useCombinedRecipients } from '@core/signal/useCombinedRecipient';
 import { encodeBase64UrlUtf8 } from '@core/util/base64';
@@ -42,10 +44,18 @@ import type { LexicalEditor } from 'lexical';
 import { type Accessor, createSignal } from 'solid-js';
 import { match } from 'ts-pattern';
 import type { RosterAgent } from '../agents-view/core/roster';
+import {
+  exportCalendarDescription,
+  sanitizeCalendarDescription,
+} from '../calendar/utils/calendar-description';
 import { authoredMentions } from '../channel/Input/message-payload';
+import { searchNeedsKeywords } from '../next-soup/core/search-filters';
+import { compileSearchQuery } from '../next-soup/core/search-query';
+import { createGlobalSearchOpener } from '../next-soup/open-search';
 import type { InputCapabilities } from './context/capabilities';
 import type { InputFields, Submission } from './core/input';
 import { type Recipient, resolveRecipients } from './core/recipients';
+import { resolveSearchFilters } from './core/search';
 import { createInputChat } from './queries/create-chat';
 import { createTaskFieldSource } from './queries/task-field-source';
 
@@ -53,10 +63,14 @@ import { createTaskFieldSource } from './queries/task-field-source';
 export function createInputActions(
   fields: Accessor<InputFields>,
   userId: string,
-  onNoteTagsChange: (value: string) => void = () => {}
+  host: {
+    navigate: (content: SplitContent) => void;
+    onNoteTagsChange?: (value: string) => void;
+    submitSurface?: PromptSubmitSurface;
+  }
 ) {
-  const panel = useSplitPanelOrThrow();
   const { openSettings } = useSettingsState();
+  const openSearch = createGlobalSearchOpener('kommand-menu');
   const chat = useChatInputContext();
   const agents = useFeatureFlag(enableChatV3Agents);
   const paid = useHasPaidAccess();
@@ -74,12 +88,19 @@ export function createInputActions(
   const sendMessage = useSendMessageMutation();
   const history = useUpsertToHistoryMutation();
   const combined = useCombinedRecipients();
+  const searchableChannels = useQuickAccess().useList('channel', 'dm');
+  const searchChannels = (): Recipient[] =>
+    searchableChannels.items().map((channel) => ({
+      id: channel.id,
+      label: channel.data.name,
+      kind: 'channel',
+    }));
   const taskFields = createTaskFieldSource(userId);
   const noteTags = createDocumentComposerTags(
     {},
     {
       values: () => parsePropertyDraft(fields().noteTags),
-      onChange: (values) => onNoteTagsChange(JSON.stringify(values)),
+      onChange: (values) => host.onNoteTagsChange?.(JSON.stringify(values)),
     }
   );
   const people = (): Recipient[] =>
@@ -163,6 +184,17 @@ export function createInputActions(
       return `Choose a specific recipient for ${unresolved.join(', ')}`;
   };
   const validate: InputCapabilities['validate'] = (input) => {
+    if (input.intent === 'search') {
+      const filters = resolveSearchFilters(
+        input.fields.searchFilters,
+        people(),
+        searchChannels()
+      );
+      if (filters.unresolved.length)
+        return `Choose a specific person or channel for ${filters.unresolved.join(', ')}`;
+      if (searchNeedsKeywords(filters.state, input.fields.query))
+        return 'Add at least 3 search characters to search by sender or speaker.';
+    }
     if (input.intent === 'task') {
       const unresolved = taskFields.values(input.fields).unresolved;
       if (unresolved.length)
@@ -202,6 +234,7 @@ export function createInputActions(
     { draftId?: string; threadId?: string }
   >();
   let emailEditor: LexicalEditor | undefined;
+  let calendarEditor: LexicalEditor | undefined;
   let messageMentions: (() => ItemMention[]) | undefined;
   const emailMessage = (input: Submission) => {
     const body = prepareEmailBody(emailEditor);
@@ -233,15 +266,11 @@ export function createInputActions(
     return {
       message: 'Email draft saved',
       open: saved.threadId
-        ? () =>
-            panel.handle.replace({
-              next: { type: 'email', id: saved.threadId! },
-            })
+        ? () => host.navigate({ type: 'email', id: saved.threadId! })
         : undefined,
     };
   };
-  const openDocument = (id: string) => () =>
-    panel.handle.replace({ next: { type: 'md', id } });
+  const openDocument = (id: string) => () => host.navigate({ type: 'md', id });
   const submit: InputCapabilities['submit'] = async (input) => {
     const problem = validate(input);
     if (problem) throw new Error(problem);
@@ -249,7 +278,7 @@ export function createInputActions(
     return await match(input.intent)
       .with('ai', async () => {
         if (agents().enabled) {
-          const prompt = await buildHomeAgentPrompt({
+          const prompt = await buildAgentPrompt({
             content: input.text,
             attachments: chat.attachments.attached(),
           });
@@ -260,17 +289,15 @@ export function createInputActions(
             modelOverride: model() || undefined,
             modelFallback: catalog.pending(),
             userId: userId,
-            submitSurface: 'home',
+            submitSurface: host.submitSurface ?? 'other',
           });
           chat.attachments.setAttached([]);
-          panel.handle.replace({
-            next: {
-              type: 'component',
-              id: agentsRouteId({
-                mode: modeForKind(agent?.kind ?? 'agent'),
-                conversation: { type: 'agent_session', id },
-              }),
-            },
+          host.navigate({
+            type: 'component',
+            id: agentsRouteId({
+              mode: modeForKind(agent?.kind ?? 'agent'),
+              conversation: { type: 'agent_session', id },
+            }),
           });
         } else {
           const id = await createInputChat();
@@ -283,19 +310,22 @@ export function createInputActions(
             model: selectedModel,
           });
           chat.attachments.setAttached([]);
-          panel.handle.replace({
-            next: { type: 'chat', id },
-          });
+          host.navigate({ type: 'chat', id });
         }
         return { message: 'Started conversation' };
       })
       .with('search', async () => {
-        panel.handle.replace({
-          next: {
-            type: 'component',
-            id: 'search',
-            preserveParams: true,
-            params: { initialQuery: f.query.trim() || input.text },
+        const { state } = resolveSearchFilters(
+          f.searchFilters,
+          people(),
+          searchChannels()
+        );
+        openSearch({
+          query: f.query.trim(),
+          filters: compileSearchQuery(state),
+          clientFilters: {
+            and: ['search-supported'],
+            or: state.type === 'all' ? [] : [state.type],
           },
         });
         return { message: 'Search opened' };
@@ -347,10 +377,7 @@ export function createInputActions(
         return {
           message: 'Email sent',
           open: sent.threadId
-            ? () =>
-                panel.handle.replace({
-                  next: { type: 'email', id: sent.threadId! },
-                })
+            ? () => host.navigate({ type: 'email', id: sent.threadId! })
             : undefined,
         };
       })
@@ -358,6 +385,9 @@ export function createInputActions(
         const calendar = selectedCalendar(f)!;
         const event = await createEvent.mutateAsync({
           title: f.title,
+          description: calendarEditor
+            ? exportCalendarDescription(calendarEditor)
+            : sanitizeCalendarDescription(f.body),
           calendarId: calendar.id,
           emailLinkId: calendar.emailLinkId,
           idempotencyKey: input.id,
@@ -374,10 +404,7 @@ export function createInputActions(
         });
         return {
           message: 'Event created',
-          open: () =>
-            panel.handle.replace({
-              next: calendarViewContent({ eventId: event.id }),
-            }),
+          open: () => host.navigate(calendarViewContent({ eventId: event.id })),
         };
       })
       .with('message', async () => {
@@ -405,18 +432,21 @@ export function createInputActions(
         });
         return {
           message: 'Message sent',
-          open: () =>
-            panel.handle.replace({ next: { type: 'channel', id: channelId } }),
+          open: () => host.navigate({ type: 'channel', id: channelId }),
         };
       })
       .exhaustive();
   };
   return {
     noteTags,
+    searchChannels,
     captureMessageMentions: (read: (() => ItemMention[]) | undefined) => {
       messageMentions = read;
     },
     messageRecipients,
+    captureCalendarEditor: (editor: LexicalEditor | undefined) => {
+      calendarEditor = editor;
+    },
     captureEmailEditor: (editor: LexicalEditor | undefined) => {
       emailEditor = editor;
     },
@@ -444,14 +474,12 @@ export function createInputActions(
       if (agent.harness === 'cursor') openSettings('Harness');
     },
     createAgent: () =>
-      panel.handle.replace({
-        next: {
-          type: 'component',
-          id: 'agents',
-          params: {
-            agentPage: 'agents',
-            agentPageRequest: crypto.randomUUID(),
-          },
+      host.navigate({
+        type: 'component',
+        id: 'agents',
+        params: {
+          agentPage: 'agents',
+          agentPageRequest: crypto.randomUUID(),
         },
       }),
     agentsEnabled: () => agents().enabled,

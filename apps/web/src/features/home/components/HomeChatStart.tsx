@@ -7,79 +7,74 @@ import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { rememberBootShell } from '@components/app/boot-shell';
 import { DragDropWrapper } from '@core/component/AI/component/DragDrop';
 import { ChatInputProvider } from '@core/component/AI/context';
-import {
-  enableChatV3Agents,
-  enableUniversalInput,
-} from '@core/constant/featureFlags';
-import { useUserId } from '@core/context/user';
-import { lazyNamed } from '@core/util/lazyNamed';
-import { ToggleSwitch } from '@ui';
-import { createEffect, Show, Suspense } from 'solid-js';
-import { createHomeComposerMode } from '../primitives/composer-mode';
-import { StandardHomeComposer } from '../views/standard-home-composer';
-import { HomeComposerLayout } from './home-composer-layout';
+import { enableChatV3Agents } from '@core/constant/featureFlags';
+import { createEffect, Show } from 'solid-js';
+import { HomeChatInput } from '../home-chat-input';
+import { HomeRecommendedActions } from './home-recommended-actions';
 
-const UniversalInput = lazyNamed(
-  () => import('../../universal-input/universal-input'),
-  'UniversalInput'
-);
-
-/** Desktop Home keeps its usual composer unless an eligible user opts in. */
+/** Desktop Home's idle pane uses the single-line chat composer and send flow. */
 export function HomeChatStart() {
   const shell = useViewShell();
-  const access = useFeatureFlag(enableUniversalInput);
   const agents = useFeatureFlag(enableChatV3Agents);
-  const available = () => !access().loading && access().enabled;
-  const mode = createHomeComposerMode(available, useUserId());
-  const showHomeTitle = () =>
+  const showHomeTopBar = () =>
     shell.aside.isCollapsed() || shell.aside.isOverlay();
-  const hasTopBar = () => showHomeTitle() || available();
-  // Remember the actual layout for the next load's HTML boot shell.
+  // The next load's boot shell draws this greeting and composer layout.
   createEffect(() => {
-    if (access().loading || agents().loading) return;
-    rememberBootShell({
-      homeComposer: mode.universal()
-        ? 'universal'
-        : agents().enabled
-          ? 'agents'
-          : 'legacy',
-    });
+    if (agents().loading) return;
+    rememberBootShell({ homeComposer: agents().enabled ? 'agents' : 'legacy' });
   });
   return (
     <ChatInputProvider>
-      <Show when={hasTopBar()}>
+      <Show when={showHomeTopBar()}>
         <ViewShell.TopBar>
-          <Show when={showHomeTitle()}>
-            <ViewSidebar.Title>Home</ViewSidebar.Title>
-          </Show>
-          <Show when={available()}>
-            <div class="ml-auto pr-2">
-              <ToggleSwitch
-                label="God Mode"
-                labelClass="text-xs text-ink-muted"
-                checked={mode.universal()}
-                onChange={mode.setUniversal}
-              />
-            </div>
-          </Show>
+          <ViewSidebar.Title>Home</ViewSidebar.Title>
         </ViewShell.TopBar>
       </Show>
       <DragDropWrapper class="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-6">
-        <Show
-          when={mode.universal()}
-          fallback={
-            <StandardHomeComposer
-              agents={agents().enabled}
-              hasTopBar={hasTopBar()}
-            />
+        <div
+          class={
+            agents().enabled
+              ? 'flex h-full min-h-0 min-w-0 flex-col'
+              : 'h-full min-h-0 min-w-0'
           }
         >
-          <HomeComposerLayout agents={agents().enabled} hasTopBar={hasTopBar()}>
-            <Suspense fallback={<div class="h-16" />}>
-              <UniversalInput />
-            </Suspense>
-          </HomeComposerLayout>
-        </Show>
+          {/*
+            Agents new conversation sits under ViewShell.TopBar (h-12) and
+            anchors the greeting above center with .newchat padding 24/64. Home only renders that bar
+            when the list is collapsed, so reserve the same offset here.
+          */}
+          <Show when={agents().enabled && !showHomeTopBar()}>
+            <div
+              class="h-12 shrink-0"
+              aria-hidden="true"
+              data-home-composer-topbar-align=""
+            />
+          </Show>
+          <div
+            class={
+              agents().enabled
+                ? 'mx-auto grid min-h-64 min-w-0 w-full max-w-180 flex-1 grid-cols-1 grid-rows-[max(0px,calc(40%-60px))_auto_1fr] pt-6 pb-16'
+                : 'mx-auto grid h-full min-h-64 min-w-0 w-full max-w-180 grid-cols-1 grid-rows-[1fr_auto_1fr] pb-16'
+            }
+            data-home-composer-align={agents().enabled ? 'agents' : 'legacy'}
+          >
+            <div class="self-end">
+              <Show when={!agents().enabled}>
+                <h1 class="mb-6 min-h-0 min-w-0 self-end text-center text-2xl font-normal leading-[42px] text-ink">
+                  What should we get done in Macro?
+                </h1>
+              </Show>
+            </div>
+            <HomeChatInput
+              variant="default"
+              placeholder="Type @ to reference / for skills"
+              autoFocusOnMount={false}
+            />
+            <div class="min-h-0 min-w-0 pb-8">
+              <HomeRecommendedActions />
+            </div>
+          </div>
+        </div>
       </DragDropWrapper>
     </ChatInputProvider>
   );

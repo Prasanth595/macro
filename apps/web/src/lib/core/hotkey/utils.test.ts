@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import type { HotkeyToken } from './tokens';
 import type { HotkeyCommand } from './types';
 import {
@@ -6,6 +6,7 @@ import {
   normalizeEventKeyPress,
   prettyPrintHotkeyString,
   removeCommandsFromTokenMap,
+  runCommand,
 } from './utils';
 
 const makeCommand = (token: HotkeyToken | undefined): HotkeyCommand =>
@@ -92,4 +93,32 @@ describe('shift punctuation round trip', () => {
   test("'shift+3' displays as '#'", () => {
     expect(prettyPrintHotkeyString('shift+3')).toBe('#');
   });
+});
+
+describe('claiming a shortcut with native editor handling', () => {
+  test.each([false, true])(
+    'captures the command with allowBrowserDefault=%s',
+    (allowBrowserDefault) => {
+      const keyDownHandler = vi.fn(() => true);
+      const command = {
+        ...makeCommand(undefined),
+        allowBrowserDefault,
+        keyDownHandler,
+      };
+      const event = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        shiftKey: true,
+        cancelable: true,
+      });
+      const stopPropagation = vi.spyOn(event, 'stopPropagation');
+      const result = runCommand(command, event);
+      expect(keyDownHandler).toHaveBeenCalledWith(event);
+      expect(result.commandCaptured).toBe(command);
+      expect(result.stopPropagation).toBe(true);
+      expect(event.defaultPrevented).toBe(!allowBrowserDefault);
+      expect(stopPropagation).toHaveBeenCalledTimes(
+        allowBrowserDefault ? 0 : 1
+      );
+    }
+  );
 });

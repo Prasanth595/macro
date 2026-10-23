@@ -1,11 +1,17 @@
 import { IS_MAC } from '@core/constant/isMac';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
-import CaretDown from '@phosphor/caret-down.svg';
-import { Button, ComposerSurface } from '@ui';
-import { createUniqueId, For, type JSX, Show, Suspense } from 'solid-js';
-import { FieldInput } from '../components/fields';
+import { isEditableInput } from '@core/util/isEditableInput';
+import { Button, Select, Tooltip } from '@ui';
+import {
+  createSignal,
+  createUniqueId,
+  For,
+  type JSX,
+  Show,
+  Suspense,
+} from 'solid-js';
 import { TypeIcon } from '../components/type-icon';
-import type { InputDisplay } from '../context/capabilities';
+import type { InputDisplay, InputLayout } from '../context/capabilities';
 import { AiDraft } from './ai-draft';
 import { CalendarDraft } from './calendar-draft';
 import { EmailDraft } from './email-draft';
@@ -15,13 +21,18 @@ import { TaskDraft } from './task-draft';
 import '../universal-input.css';
 import {
   actionLabels,
-  type Field,
+  type Intent,
   intentLabels,
-  intentSchema,
   intents,
   rankIntents,
 } from '../core/input';
 import type { UniversalInputController } from '../primitives/universal-input';
+
+type TypeOption = { value: Intent | 'auto'; label: string };
+const TYPE_OPTIONS: TypeOption[] = [
+  { value: 'auto', label: 'Auto' },
+  ...intents.map((value) => ({ value, label: intentLabels[value] })),
+];
 
 function ComposerFooter(props: {
   state: UniversalInputController;
@@ -74,16 +85,31 @@ function ComposerFooter(props: {
 export function UniversalComposer(props: {
   state: UniversalInputController;
   actions: InputDisplay;
+  layout: InputLayout;
   taskFields: JSX.Element;
   editor: JSX.Element;
   noteTags?: DocumentTags;
-  searchResults?: (scopeId: string) => JSX.Element;
+  search?: (scopeId: string) => JSX.Element;
 }) {
   const s = props.state;
   const a = props.actions;
   const type = () => s.draft().intent;
+  const [typeMenuOpen, setTypeMenuOpen] = createSignal(false);
   const listId = createUniqueId();
   const [attachHotkeys, hotkeyScope] = useHotkeyDOMScope('universal-input');
+  registerHotkey({
+    scopeId: hotkeyScope,
+    hotkey: 'shift+enter',
+    description: 'New line',
+    runWithInputFocused: true,
+    allowBrowserDefault: true,
+    hide: true,
+    keyDownHandler: (event) =>
+      !!event &&
+      !event.isComposing &&
+      event.target instanceof Element &&
+      !!isEditableInput(event.target),
+  });
   const cycleType = (direction: 1 | -1, event?: KeyboardEvent) => {
     if (event?.isComposing) return false;
     s.cycle(direction);
@@ -107,185 +133,174 @@ export function UniversalComposer(props: {
     description: 'Previous content type',
     keyDownHandler: (event) => cycleType(-1, event),
   });
-  const field = (
-    key: Field,
-    label: string,
-    options?: {
-      multiline?: boolean;
-      type?: string;
-      list?: string;
-      hint?: string;
-      prominent?: boolean;
-    }
-  ) => (
-    <FieldInput
-      label={label}
-      value={s.fields()[key]}
-      disabled={s.sending()}
-      onChange={(value) => s.edit(key, value)}
-      {...options}
-    />
+  const fields = () => (
+    <Show when={s.draft().text.trim() || a.attachmentCount()}>
+      <fieldset
+        disabled={s.sending()}
+        class="universal-input-fields min-w-0 space-y-4 rounded-2xl border border-edge-muted bg-panel px-5 py-4 shadow-sm sm:px-6 sm:py-5"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <Select<TypeOption>
+            options={TYPE_OPTIONS}
+            optionValue="value"
+            optionTextValue="label"
+            value={TYPE_OPTIONS.find(
+              (option) =>
+                option.value ===
+                (s.draft().locked ? (type() ?? 'auto') : 'auto')
+            )}
+            onChange={(option) => {
+              if (option)
+                s.choose(option.value === 'auto' ? undefined : option.value);
+            }}
+            onOpenChange={setTypeMenuOpen}
+            disabled={s.sending()}
+            disallowEmptySelection
+          >
+            <Select.Label class="sr-only">Content type</Select.Label>
+            <Tooltip
+              as="span"
+              label={`Change type · ${IS_MAC ? '⌘' : 'Ctrl'} + Shift + ←/→`}
+              disabled={typeMenuOpen()}
+            >
+              <Select.Trigger class="h-9 w-auto max-w-full px-3 text-sm font-medium">
+                <TypeIcon intent={type()} class="size-4 shrink-0" />
+                <Select.Value<TypeOption>>
+                  {(selection) => {
+                    const selected = selection.selectedOption();
+                    return selected.value === 'auto'
+                      ? `Auto${type() ? ` · ${intentLabels[type()!]}` : ''}`
+                      : selected.label;
+                  }}
+                </Select.Value>
+                <Select.Icon />
+              </Select.Trigger>
+            </Tooltip>
+            <Select.Content portalScope="local">
+              <Select.Listbox />
+            </Select.Content>
+          </Select>
+          <div class="flex flex-wrap items-center gap-2">
+            <Show when={!type()}>
+              <For each={rankIntents(s.scores()).slice(0, 2)}>
+                {(candidate) => (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => s.choose(candidate.intent)}
+                  >
+                    {intentLabels[candidate.intent]}
+                  </Button>
+                )}
+              </For>
+            </Show>
+            <Show when={s.pending() && type() !== 'search'}>
+              <span role="status" class="text-xs text-ink-muted">
+                {type() ? 'Updating fields…' : 'Finding the shape…'}
+              </span>
+            </Show>
+          </div>
+        </div>
+        <Show when={a.attachmentCount()}>
+          <div class="flex items-center gap-2 text-xs text-ink-muted">
+            <span>{a.attachmentCount()} attached item(s) · AI context</span>
+            <Button size="sm" variant="ghost" onClick={a.clearAttachments}>
+              Remove
+            </Button>
+          </div>
+        </Show>
+        <Show
+          when={
+            (type() === 'email' && !a.inboxes().length) ||
+            (type() === 'calendar' && !a.calendars().length)
+          }
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-panel px-3 py-2.5">
+            <p class="text-xs text-ink-muted">
+              Connect Google to send email and create calendar events. Then
+              reopen Command K to compose.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={s.sending() || a.connectingGoogle()}
+              onClick={() => void a.connectGoogle()}
+            >
+              Connect Google
+            </Button>
+          </div>
+        </Show>
+        <Show when={type() === 'ai'}>
+          <AiDraft state={s} actions={a} />
+        </Show>
+        <Show when={type() === 'search'}>{props.search?.(hotkeyScope)}</Show>
+        <Show when={type() === 'note'}>
+          <NoteDraft state={s} actions={a} tags={props.noteTags} />
+        </Show>
+        <Show when={type() === 'task'}>
+          <TaskDraft
+            state={s}
+            properties={
+              <Suspense
+                fallback={
+                  <span class="text-xs text-ink-muted">
+                    Loading task properties…
+                  </span>
+                }
+              >
+                {props.taskFields}
+              </Suspense>
+            }
+          />
+        </Show>
+        <Show when={type() === 'email'}>
+          <EmailDraft state={s} actions={a} />
+        </Show>
+        <Show when={type() === 'message'}>
+          <MessageDraft state={s} actions={a} />
+        </Show>
+        <Show when={type() === 'calendar'}>
+          <CalendarDraft state={s} actions={a} />
+        </Show>
+        <div class="border-t border-edge-muted pt-4">
+          <ComposerFooter state={s} statusId={`${listId}-status`} />
+        </div>
+        <Show when={s.error()}>
+          <p role="alert" class="text-sm text-failure">
+            {s.error()}
+          </p>
+        </Show>
+      </fieldset>
+    </Show>
+  );
+  const result = () => (
+    <Show when={s.result()}>
+      {(result) => (
+        <div
+          role="status"
+          class="mt-3 flex items-center gap-3 text-sm text-ink-muted"
+        >
+          {result().message}
+          <Show when={result().open}>
+            <Button size="sm" variant="ghost" onClick={() => result().open?.()}>
+              Open
+            </Button>
+          </Show>
+        </div>
+      )}
+    </Show>
   );
   return (
     <section
-      class="min-w-0"
+      class="contents"
       aria-label="Create or find something"
       ref={attachHotkeys}
     >
-      <div class="space-y-3">
-        <ComposerSurface as="div" data-testid="universal-input-surface">
-          {props.editor}
-        </ComposerSurface>
-        <Show when={s.draft().text.trim() || a.attachmentCount()}>
-          <fieldset
-            disabled={s.sending()}
-            class="universal-input-fields min-w-0 space-y-4 rounded-2xl border border-edge-muted bg-panel px-5 py-4 shadow-sm sm:px-6 sm:py-5"
-          >
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <label class="relative inline-flex items-center rounded-full bg-hover text-sm font-medium text-ink transition-colors focus-within:ring-2 focus-within:ring-edge-focus">
-                <TypeIcon
-                  intent={type()}
-                  class="pointer-events-none absolute left-3 size-4"
-                />
-                <select
-                  aria-label="Content type"
-                  title="Change type · Ctrl/⌘ + Shift + ←/→"
-                  class="h-9 max-w-full appearance-none rounded-full bg-transparent pl-9 pr-9 outline-none"
-                  disabled={s.sending()}
-                  value={s.draft().locked ? (type() ?? '') : ''}
-                  onChange={(e) => {
-                    const selected = intentSchema.safeParse(
-                      e.currentTarget.value
-                    );
-                    s.choose(selected.success ? selected.data : undefined);
-                  }}
-                >
-                  <option value="">
-                    Auto{type() ? ` · ${intentLabels[type()!]}` : ''}
-                  </option>
-                  <For each={intents}>
-                    {(intent) => (
-                      <option value={intent}>{intentLabels[intent]}</option>
-                    )}
-                  </For>
-                </select>
-                <CaretDown class="pointer-events-none absolute right-3 size-3.5 text-ink-muted" />
-              </label>
-              <div class="flex flex-wrap items-center gap-2">
-                <Show when={!type()}>
-                  <For each={rankIntents(s.scores()).slice(0, 2)}>
-                    {(candidate) => (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => s.choose(candidate.intent)}
-                      >
-                        {intentLabels[candidate.intent]}
-                      </Button>
-                    )}
-                  </For>
-                </Show>
-                <Show when={s.pending() && type() !== 'search'}>
-                  <span role="status" class="text-xs text-ink-muted">
-                    {type() ? 'Updating fields…' : 'Finding the shape…'}
-                  </span>
-                </Show>
-              </div>
-            </div>
-            <Show when={a.attachmentCount()}>
-              <div class="flex items-center gap-2 text-xs text-ink-muted">
-                <span>{a.attachmentCount()} attached item(s) · AI context</span>
-                <Button size="sm" variant="ghost" onClick={a.clearAttachments}>
-                  Remove
-                </Button>
-              </div>
-            </Show>
-            <Show
-              when={
-                (type() === 'email' && !a.inboxes().length) ||
-                (type() === 'calendar' && !a.calendars().length)
-              }
-            >
-              <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-panel px-3 py-2.5">
-                <p class="text-xs text-ink-muted">
-                  Connect Google to send email and create calendar events. Your
-                  draft will be here when you return.
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={s.sending() || a.connectingGoogle()}
-                  onClick={() => void a.connectGoogle()}
-                >
-                  Connect Google
-                </Button>
-              </div>
-            </Show>
-            <Show when={type() === 'ai'}>
-              <AiDraft state={s} actions={a} />
-            </Show>
-            <Show when={type() === 'search'}>
-              {field('query', 'Search for')}
-              {props.searchResults?.(hotkeyScope)}
-            </Show>
-            <Show when={type() === 'note'}>
-              <NoteDraft state={s} actions={a} tags={props.noteTags} />
-            </Show>
-            <Show when={type() === 'task'}>
-              <TaskDraft
-                state={s}
-                properties={
-                  <Suspense
-                    fallback={
-                      <span class="text-xs text-ink-muted">
-                        Loading task properties…
-                      </span>
-                    }
-                  >
-                    {props.taskFields}
-                  </Suspense>
-                }
-              />
-            </Show>
-            <Show when={type() === 'email'}>
-              <EmailDraft state={s} actions={a} />
-            </Show>
-            <Show when={type() === 'message'}>
-              <MessageDraft state={s} actions={a} />
-            </Show>
-            <Show when={type() === 'calendar'}>
-              <CalendarDraft state={s} actions={a} />
-            </Show>
-            <div class="border-t border-edge-muted pt-4">
-              <ComposerFooter state={s} statusId={`${listId}-status`} />
-            </div>
-            <Show when={s.error()}>
-              <p role="alert" class="text-sm text-failure">
-                {s.error()}
-              </p>
-            </Show>
-          </fieldset>
-        </Show>
-      </div>
-      <Show when={s.result()}>
-        {(result) => (
-          <div
-            role="status"
-            class="mt-3 flex items-center gap-3 text-sm text-ink-muted"
-          >
-            {result().message}
-            <Show when={result().open}>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => result().open?.()}
-              >
-                Open
-              </Button>
-            </Show>
-          </div>
-        )}
-      </Show>
+      {props.layout({
+        editor: props.editor,
+        fields: fields(),
+        result: result(),
+      })}
     </section>
   );
 }

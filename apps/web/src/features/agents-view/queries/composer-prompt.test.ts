@@ -1,6 +1,6 @@
 import { buildMentionMarkdownString } from '@macro-inc/lexical-core/utils/mentions';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildHomeAgentPrompt } from './home-agent-prompt';
+import { buildAgentPrompt } from './composer-prompt';
 
 const mocks = vi.hoisted(() => ({ preview: vi.fn() }));
 vi.mock('@core/constant/allBlocks', () => ({
@@ -27,7 +27,7 @@ beforeEach(() => {
 it('preserves prompts with existing mentions without another lookup or duplicate chip', async () => {
   const content = `Read ${buildMentionMarkdownString({ type: 'document', blockParams: {}, documentId: 'doc', documentName: 'Plan', blockName: 'md' })}`;
   expect(
-    await buildHomeAgentPrompt({
+    await buildAgentPrompt({
       content,
       attachments: [{ entity_id: 'doc', entity_type: 'document' }],
     })
@@ -36,7 +36,7 @@ it('preserves prompts with existing mentions without another lookup or duplicate
 });
 
 it('adds context chips for attachment-only submissions and preserves file types', async () => {
-  const prompt = await buildHomeAgentPrompt({
+  const prompt = await buildAgentPrompt({
     content: '',
     attachments: [
       { entity_id: 'doc', entity_type: 'document' },
@@ -74,7 +74,7 @@ it('adds context chips for attachment-only submissions and preserves file types'
 describe('attachment failures', () => {
   it('does not silently drop image uploads', async () => {
     await expect(
-      buildHomeAgentPrompt({
+      buildAgentPrompt({
         content: 'Describe this',
         attachments: [{ entity_id: 'image', entity_type: 'static_file' }],
       })
@@ -83,7 +83,7 @@ describe('attachment failures', () => {
   it('rejects unavailable context', async () => {
     mocks.preview.mockResolvedValue({ access: 'no_access' });
     await expect(
-      buildHomeAgentPrompt({
+      buildAgentPrompt({
         content: 'Read this',
         attachments: [{ entity_id: 'doc', entity_type: 'document' }],
       })

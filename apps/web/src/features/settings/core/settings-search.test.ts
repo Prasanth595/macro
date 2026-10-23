@@ -4,6 +4,17 @@ import { searchSettings } from './settings-search';
 
 const search = (query: string) => searchSettings(SETTINGS_TAB_GROUPS, query);
 describe('individual settings search', () => {
+  it('finds God Mode only when Experimental Features is an available page', () => {
+    expect(search('god mode')[0]).toMatchObject({
+      tab: 'Experimental Features',
+      target: 'god-mode',
+    });
+    const groups = SETTINGS_TAB_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.tab !== 'Experimental Features'),
+    }));
+    expect(searchSettings(groups, 'god mode')).toEqual([]);
+  });
   it('routes calendar connections and scheduling controls to separate pages', () => {
     expect(
       search('calendar color').find(

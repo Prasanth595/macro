@@ -1,4 +1,5 @@
-import { createMemo, createUniqueId, Show } from 'solid-js';
+import { MarkdownTextarea } from '@core/component/LexicalMarkdown/component/core/MarkdownTextarea';
+import { createMemo, createUniqueId, onCleanup, Show } from 'solid-js';
 import { EventDateTimeRangeFields } from '../../calendar/components/composer/EventDateTimeRangeFields';
 import {
   EventComposerCalendarPill,
@@ -23,6 +24,7 @@ export function CalendarDraft(props: {
   const s = props.state;
   const a = props.actions;
   const hintId = createUniqueId();
+  onCleanup(() => a.captureCalendarEditor?.(undefined));
   const calendars = createMemo(() =>
     a.calendars().map((calendar) => ({
       id: calendar.id,
@@ -84,6 +86,21 @@ export function CalendarDraft(props: {
         value={s.fields().title}
         onChange={(title) => s.edit('title', title)}
         disabled={s.sending()}
+      />
+      <MarkdownTextarea
+        type="calendar"
+        value={s.fields().body}
+        editable={() => !s.sending()}
+        onChange={(value) => {
+          if (value !== s.fields().body) s.edit('body', value);
+        }}
+        captureEditor={(editor) => a.captureCalendarEditor?.(editor)}
+        resolveAppLink={a.resolveAppLink}
+        placeholder="Add description..."
+        portalScope="local"
+        floatingFormatMenu
+        domRef={(element) => element.setAttribute('aria-label', 'Description')}
+        class="h-auto min-h-12 [&>[contenteditable]]:min-h-12"
       />
       <div class="flex flex-wrap items-center gap-2">
         <EventComposerCalendarPill

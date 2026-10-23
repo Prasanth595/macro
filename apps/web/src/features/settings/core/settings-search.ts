@@ -21,6 +21,13 @@ export type SettingsSearchResult = Setting & {
 // Keep individual controls here so finding a setting doesn't require its page name.
 const SETTINGS: Setting[] = [
   {
+    tab: 'Experimental Features',
+    title: 'God Mode',
+    target: 'God Mode',
+    keywords:
+      'universal input command k composer tasks events emails notes experiments',
+  },
+  {
     tab: 'CRM',
     title: 'Deal stages',
     target: 'Deal stages',

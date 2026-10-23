@@ -16,6 +16,7 @@ import {
   createSignal,
   on,
   onCleanup,
+  onMount,
   Show,
   untrack,
 } from 'solid-js';
@@ -246,10 +247,16 @@ export const MarkdownShell: Component<MarkdownShellProps> = (props) => {
       >
         <MarkdownShellContent
           connectRoot={(element) => {
-            onElementConnect(element, () => {
+            const connect = () => {
+              if (editor.getRootElement() === element) return;
               editor.setRootElement(element);
               onConnect();
+            };
+            // Mounted editors must accept typing before the next resize/paint.
+            onMount(() => {
+              if (element.isConnected) connect();
             });
+            onElementConnect(element, connect);
             props.refFn?.(element);
           }}
           disabled={!!props.disabled}

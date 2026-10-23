@@ -1,4 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
+
+async function chooseType(page: Page, name: string) {
+  await page.getByLabel('Content type').click();
+  await page.getByRole('option', { name, exact: true }).click();
+}
 
 test('saves an email only after Save as draft is clicked and refocuses without sending', async ({
   page,
@@ -93,7 +98,6 @@ test('edits a task through its rich title and description while later prediction
   await input.fill('notification clicks are broken, urgent');
   await expect(title).toHaveText('Route notification clicks');
   await expect(body.locator('strong, b')).toHaveText('Reproduce on mobile');
-  await page.reload();
   await expect(title).toHaveText('Route notification clicks');
   await expect(body.locator('strong, b')).toHaveText('Reproduce on mobile');
   await expect(
@@ -105,7 +109,7 @@ test('edits a task through its rich title and description while later prediction
   );
 });
 
-test('shows the note body, preserves manual formatting through predictions and reload, and submits it', async ({
+test('shows the note body, preserves manual formatting through predictions and submits it', async ({
   page,
 }) => {
   await page.goto('/');
@@ -124,7 +128,6 @@ test('shows the note body, preserves manual formatting through predictions and r
   await input.fill('Research notes\nNew observations');
   await expect(create).toBeEnabled();
   await expect(body).toHaveText('Reviewed notes');
-  await page.reload();
   await expect(create).toBeEnabled();
   await expect(body.locator('strong, b')).toContainText('Reviewed notes');
   await page.screenshot({ path: '/tmp/universal-note-body.png' });
@@ -137,93 +140,15 @@ test('shows the note body, preserves manual formatting through predictions and r
   await expect(input).toBeFocused();
 });
 
-test('starts on one line, rotates examples without remounting, and places the form and shortcut below', async ({
-  page,
-}) => {
-  await page.goto('/');
-  const input = page.getByRole('textbox', { name: 'Your input', exact: true });
-  const example = page.getByTestId('input-example');
-  await expect(example).toHaveText('try: dinner with julia tomorrow at 9pm');
-  expect((await input.boundingBox())!.height).toBeLessThan(32);
-  const surface = page.getByTestId('universal-input-surface');
-  expect((await surface.boundingBox())!.height).toBeCloseTo(48.75, 1);
-  await page.setViewportSize({ width: 600, height: 1000 });
-  expect((await surface.boundingBox())!.height).toBeCloseTo(48.75, 1);
-  await page.setViewportSize({ width: 1000, height: 1000 });
-  const radius = await surface.evaluate((node) =>
-    parseFloat(getComputedStyle(node).borderTopLeftRadius)
-  );
-  expect(radius).toBe(26.25);
-  await input.evaluate((node) => node.setAttribute('data-original', 'true'));
-  await expect
-    .poll(
-      async () => {
-        const text = await example.textContent();
-        return (
-          text?.startsWith('try: ') &&
-          text.length < 'try: dinner with julia tomorrow at 9pm'.length
-        );
-      },
-      { timeout: 7000, intervals: [50] }
-    )
-    .toBe(true);
-  await expect(example).toHaveText('try: email julia that I’ll be late', {
-    timeout: 8000,
-  });
-  await expect(input).toHaveAttribute('data-original', 'true');
-  await input.fill(
-    'This is a long draft that wraps without an explicit newline. '.repeat(6)
-  );
-  await expect
-    .poll(async () => (await input.boundingBox())!.height)
-    .toBeGreaterThan(40);
-  expect(
-    await surface.evaluate((node) =>
-      parseFloat(getComputedStyle(node).borderTopLeftRadius)
-    )
-  ).toBe(radius);
-  await page.screenshot({ path: '/tmp/universal-channel-rounding.png' });
-  await input.fill('Email John\nCan we reschedule tomorrow?');
-  await expect(example).not.toBeVisible();
-  const body = page.getByRole('textbox', {
-    name: 'Outgoing message',
-    exact: true,
-  });
-  await expect(body).toHaveText('I’ll be late');
-  expect((await input.boundingBox())!.height).toBeGreaterThan(40);
-  expect(
-    await surface.evaluate((node) =>
-      parseFloat(getComputedStyle(node).borderTopLeftRadius)
-    )
-  ).toBe(radius);
-  expect((await body.boundingBox())!.y).toBeGreaterThan(
-    (await input.boundingBox())!.y
-  );
-  await expect(
-    page.getByRole('button', { name: 'Next likely type' })
-  ).toHaveCount(0);
-  const send = page.getByRole('button', { name: 'Send email', exact: true });
-  await expect(send.getByTestId('submit-shortcut')).toHaveText(/(⌘|Ctrl) ↵/);
-  await body.click();
-  await body.fill('A formatted message');
-  await body.press('ControlOrMeta+a');
-  await body.press('ControlOrMeta+b');
-  await expect(body.locator('strong, b')).toContainText('A formatted message');
-  await expect(send).toBeEnabled();
-  await body.press('ControlOrMeta+Enter');
-  await expect(page.getByTestId('submission-count')).toHaveText('1');
-  await expect(input).toBeFocused();
-});
-
 test('reveals email addressing and body before providers finish and preserves a manual body edit', async ({
   page,
 }) => {
   await page.goto('/?classify-delay=1200&extract-delay=1200');
   const input = page.getByRole('textbox', { name: 'Your input', exact: true });
   await input.fill('Email John\nCan we reschedule tomorrow?');
-  await expect(
-    page.getByLabel('Content type').locator('option:checked')
-  ).toHaveText('Auto · Email', { timeout: 800 });
+  await expect(page.getByLabel('Content type')).toHaveText('Auto · Email', {
+    timeout: 800,
+  });
   const body = page.getByLabel('Outgoing message');
   await expect(body).toHaveText('Can we reschedule tomorrow?', {
     timeout: 800,
@@ -254,9 +179,9 @@ test('predicts a new type while the previous extraction is still running', async
   await input.fill('notification clicks are broken');
   await expect(page.getByTestId('extraction-count')).toHaveText('1');
   await input.fill('Research notes about launch dates');
-  await expect(
-    page.getByLabel('Content type').locator('option:checked')
-  ).toHaveText('Auto · Note', { timeout: 1200 });
+  await expect(page.getByLabel('Content type')).toHaveText('Auto · Note', {
+    timeout: 1200,
+  });
   await expect(page.getByTestId('classification-count')).toHaveText('2');
   await expect(page.getByTestId('extraction-count')).toHaveText('1');
   await expect(page.getByLabel('Title', { exact: true })).toHaveText(
@@ -309,7 +234,7 @@ test('starts blank and preserves the editor, focus, caret and undo as calendar f
   });
 });
 
-test('locks edited fields, recovers the draft, and submits the visible event once', async ({
+test('locks edited fields and submits the visible event once', async ({
   page,
 }) => {
   await page.goto('/');
@@ -321,13 +246,12 @@ test('locks edited fields, recovers the draft, and submits the visible event onc
   });
   await expect(submit).toBeEnabled();
   await page.getByLabel('Title', { exact: true }).fill('Call Jane');
-  await expect(page.getByLabel('Content type')).toHaveValue('calendar');
+  await expect(page.getByLabel('Content type')).toHaveText('Event');
   await input.fill('Email John instead');
   await expect(submit).toBeEnabled();
   await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
     'Call Jane'
   );
-  await page.reload();
   await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
     'Call Jane'
   );
@@ -401,7 +325,7 @@ test('refines an optimistic email into the classified task without a manual type
   await page.goto('/?classification=task&classify-delay=1500');
   const input = page.getByRole('textbox', { name: 'Your input', exact: true });
   await input.fill('Email notifications not working\npriority urgent');
-  const type = page.getByLabel('Content type').locator('option:checked');
+  const type = page.getByLabel('Content type');
   await expect(type).toHaveText('Auto · Email');
   await expect(type).toHaveText('Auto · Task');
   await expect(
@@ -420,18 +344,16 @@ test('chooses a close-scoring task during typing and cycles alternatives without
     'notification click not going to target',
     { delay: 60 }
   );
-  await expect(
-    page.getByLabel('Content type').locator('option:checked')
-  ).toHaveText('Auto · Task');
+  await expect(page.getByLabel('Content type')).toHaveText('Auto · Task');
   expect((await input.textContent())?.length).toBeLessThan(
     'notification click not going to target'.length
   );
   await typing;
   await input.press('ControlOrMeta+Shift+ArrowRight');
-  await expect(page.getByLabel('Content type')).toHaveValue('note');
+  await expect(page.getByLabel('Content type')).toHaveText('Note');
   await expect(input).toBeFocused();
   await input.press('ControlOrMeta+Shift+ArrowLeft');
-  await expect(page.getByLabel('Content type')).toHaveValue('task');
+  await expect(page.getByLabel('Content type')).toHaveText('Task');
 });
 
 test('shows the AM/PM assumption and lets a manual start edit override it', async ({
@@ -459,63 +381,7 @@ test('shows the AM/PM assumption and lets a manual start edit override it', asyn
   await expect(start).toContainText('7:00 AM');
 });
 
-test('refocuses after the message action button and when Home is clicked again', async ({
-  page,
-}) => {
-  await page.goto('/');
-  const input = page.getByRole('textbox', { name: 'Your input', exact: true });
-  await input.fill('DM John that I’ll be late');
-  const send = page.getByRole('button', { name: 'Send message', exact: true });
-  await expect(send).toBeEnabled();
-  await send.click();
-  await expect(page.getByTestId('submission-count')).toHaveText('1');
-  await expect(input).toHaveText('');
-  await expect(input).toBeFocused();
-  await page.getByRole('button', { name: 'Home', exact: true }).click();
-  await expect(input).toBeFocused();
-});
-
-test('Home starts a blank focused draft and discards saved fields and undo history', async ({
-  page,
-}) => {
-  await page.goto('/');
-  const input = page.getByRole('textbox', { name: 'Your input', exact: true });
-  await input.fill('Call John at 3pm tomorrow');
-  await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
-    'Call John'
-  );
-  await page.getByLabel('Title', { exact: true }).fill('Edited event');
-  await page.getByRole('button', { name: 'Home', exact: true }).click();
-  await expect(input).toHaveText('');
-  await expect(input).toBeFocused();
-  await expect(page.getByLabel('Title', { exact: true })).not.toBeVisible();
-  await input.press('ControlOrMeta+z');
-  await expect(input).toHaveText('');
-  await page.reload();
-  await expect(input).toHaveText('');
-  await input.fill('Email John that I’ll be late');
-  await expect(
-    page.getByRole('button', { name: 'Send email', exact: true })
-  ).toBeEnabled();
-  await expect(page.getByLabel('Content type')).toHaveValue('');
-});
-
-test('Home keeps the input blank after pending inference finishes', async ({
-  page,
-}) => {
-  await page.goto('/');
-  const input = page.getByRole('textbox', { name: 'Your input', exact: true });
-  await input.fill('Call John at 3pm tomorrow');
-  await page.getByRole('button', { name: 'Home', exact: true }).click();
-  await expect(input).toHaveText('');
-  await page.waitForTimeout(600);
-  await expect(input).toHaveText('');
-  await expect(input).toBeFocused();
-  await expect(page.getByLabel('Title', { exact: true })).not.toBeVisible();
-  await expect(page.getByTestId('submission-count')).toHaveText('0');
-});
-
-test('keeps note tags with the draft through inference, switching modes, and reload', async ({
+test('keeps note tags with the draft through inference, switching types', async ({
   page,
 }) => {
   await page.goto('/');
@@ -530,12 +396,11 @@ test('keeps note tags with the draft through inference, switching modes, and rel
   await expect(
     page.getByRole('button', { name: 'Change or select tags', exact: true })
   ).toContainText('Launch');
-  await page.getByLabel('Content type').selectOption('task');
-  await page.getByLabel('Content type').selectOption('note');
+  await chooseType(page, 'Task');
+  await chooseType(page, 'Note');
   await expect(
     page.getByRole('button', { name: 'Change or select tags', exact: true })
   ).toContainText('Launch');
-  await page.reload();
   await expect(
     page.getByRole('button', { name: 'Change or select tags', exact: true })
   ).toContainText('Launch');
@@ -552,7 +417,7 @@ test('uses the shared AI picker and exposes its real connection and creation act
   await page
     .getByRole('textbox', { name: 'Your input', exact: true })
     .fill('Help me plan the launch');
-  await page.getByLabel('Content type').selectOption('ai');
+  await chooseType(page, 'AI');
   const picker = page.getByRole('button', { name: 'Agent', exact: true });
   await picker.click();
   await page.getByRole('menuitem', { name: /Cursor/ }).click();
@@ -570,175 +435,45 @@ test('uses the shared legacy model picker and submits the chosen model', async (
   await page.goto('/?legacy');
   const input = page.getByRole('textbox', { name: 'Your input', exact: true });
   await input.fill('Help me plan the launch');
-  await page.getByLabel('Content type').selectOption('ai');
+  await chooseType(page, 'AI');
   await page.getByRole('button', { name: 'Model', exact: true }).click();
   await page.getByRole('menuitem', { name: /GPT-5/ }).click();
   await input.press('ControlOrMeta+Enter');
   await expect(page.getByTestId('last-submission')).toContainText('gpt-5');
 });
 
-test('searches while typing through Command K and opens the current keyboard result', async ({
-  page,
-}) => {
-  await page.goto('/?classify-delay=3000&extract-delay=3000');
-  const input = page.getByRole('textbox', { name: 'Your input', exact: true });
-  await input.fill('find investor');
-  const results = page.getByRole('listbox', {
-    name: 'Search results',
-    exact: true,
-  });
-  await expect(results.getByRole('option')).toHaveText([
-    'Search for “investor”',
-    'Investor update',
-  ]);
-  await expect(input).toBeFocused();
-  await expect(page.getByTestId('extraction-count')).toHaveText('0');
-  await input.press('ArrowDown');
-  await expect(results.getByRole('option', { selected: true })).toHaveText(
-    'Investor update'
-  );
-  await input.fill('find hiring');
-  await expect(results.getByRole('option')).toHaveText([
-    'Search for “hiring”',
-    'Hiring plan',
-  ]);
-  await expect(results.getByRole('option', { selected: true })).toHaveCount(0);
-  await expect(page.getByTestId('search-queries')).toContainText('"hiring"');
-  await input.press('ArrowDown');
-  await expect(results.getByRole('option', { selected: true })).toHaveText(
-    'Hiring plan'
-  );
-  await expect(input).toBeFocused();
-  await input.press('Shift+Enter');
-  await expect(page.getByTestId('opened-search-result')).toHaveText(
-    JSON.stringify({
-      content: { type: 'md', id: 'search-document-1' },
-      options: { referredFrom: 'home', preferNewSplit: true },
-    })
-  );
-  await expect(page.getByTestId('submission-count')).toHaveText('0');
-});
-
-test('search hotkeys leave the type selector and action button native keys intact', async ({
-  page,
-}) => {
-  await page.goto('/');
-  const input = page.getByRole('textbox', { name: 'Your input', exact: true });
-  const type = page.getByLabel('Content type');
-  await input.fill('find investor');
-  await type.selectOption('search');
-  const results = page.getByRole('listbox', {
-    name: 'Search results',
-    exact: true,
-  });
-  await expect(
-    results.getByRole('option', { name: 'Investor update', exact: true })
-  ).toBeVisible();
-  await type.focus();
-  await type.press('ArrowUp');
-  await expect(type).toHaveValue('ai');
-  await type.selectOption('search');
-  await expect(
-    results.getByRole('option', { name: 'Investor update', exact: true })
-  ).toBeVisible();
-  await input.focus();
-  await input.press('ArrowDown');
-  await expect(results.getByRole('option', { selected: true })).toHaveText(
-    'Investor update'
-  );
-  const action = page.getByRole('button', {
-    name: 'Search Macro',
-    exact: true,
-  });
-  await action.focus();
-  await action.press('Enter');
-  await expect(page.getByTestId('submission-count')).toHaveText('1');
-  await expect(page.getByTestId('opened-search-result')).toHaveText('');
-});
-
-test('manual search queries override continued typing and results open directly', async ({
+test('global Search uses its own rows and keeps manual queries while the draft changes', async ({
   page,
 }) => {
   await page.goto('/');
   const input = page.getByRole('textbox', { name: 'Your input', exact: true });
   await input.fill('find hiring');
-  await page
-    .getByRole('textbox', { name: 'Search for', exact: true })
-    .fill('investor');
+  const query = page.getByRole('textbox', { name: 'Search for', exact: true });
+  await query.fill('investor');
   await input.fill('find hiring plan');
   const results = page.getByRole('listbox', {
     name: 'Search results',
     exact: true,
   });
-  await expect(results.getByRole('option')).toHaveText([
-    'Search for “investor”',
-    'Investor update',
-  ]);
-  const query = page.getByRole('textbox', { name: 'Search for', exact: true });
-  await query.focus();
-  await query.press('ArrowDown');
-  await expect(results.getByRole('option', { selected: true })).toHaveText(
-    'Investor update'
-  );
-  await expect(query).toBeFocused();
-  await results
-    .getByRole('option', { name: 'Investor update', exact: true })
-    .click();
-  await expect(page.getByTestId('opened-search-result')).toHaveText(
-    JSON.stringify({
-      content: { type: 'md', id: 'search-document-0' },
-      options: { referredFrom: 'home', preferNewSplit: false },
-    })
-  );
-});
-
-test('offers full search above the matching agent session using Command K rows', async ({
-  page,
-}) => {
-  await page.goto('/');
-  const input = page.getByRole('textbox', { name: 'Your input', exact: true });
-  await input.fill('how blowholes work');
-  await page.getByLabel('Content type').selectOption('search');
-  const results = page.getByRole('listbox', {
-    name: 'Search results',
+  const match = results.getByRole('option', {
+    name: 'Investor update',
     exact: true,
   });
-  await expect(results.getByRole('option')).toHaveText([
-    'Search for “how blowholes work”',
-    'How Blowholes Work',
-  ]);
-  await results
-    .getByRole('option', { name: 'How Blowholes Work', exact: true })
-    .click();
-  await expect(page.getByTestId('opened-search-result')).toHaveText(
-    JSON.stringify({
-      content: { type: 'agent', id: 'search-agent-session' },
-      options: { referredFrom: 'home', preferNewSplit: false },
-    })
+  await expect(match).toBeVisible();
+  await expect(match.locator('.soup-list-entity')).toHaveCount(1);
+  await expect(results.getByRole('option')).toHaveCount(1);
+  await query.press('ArrowDown');
+  await expect(match).toHaveAttribute('aria-selected', 'true');
+  await query.press('Enter');
+  await expect(page.getByTestId('opened-search-result')).toContainText(
+    'search-document-0'
   );
-  await results
-    .getByRole('option', {
-      name: 'Search for “how blowholes work”',
-      exact: true,
-    })
-    .click();
-  await expect
-    .poll(async () =>
-      JSON.parse(await page.getByTestId('opened-search-result').innerText())
-    )
-    .toMatchObject({
-      content: {
-        type: 'component',
-        id: 'search',
-        params: { initialQuery: 'how blowholes work' },
-      },
-    });
 });
 
 test('Command K still searches, opens its selected result, and closes the modal', async ({
   page,
 }) => {
-  await page.goto('/?command-menu');
+  await page.goto('/?command-menu&eligible');
   await page
     .getByRole('button', { name: 'Open Command K', exact: true })
     .click();

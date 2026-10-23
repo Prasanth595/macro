@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { searchFiltersSchema } from '../../next-soup/core/search-filters';
 
 export const intentSchema = z.enum([
   'ai',
@@ -35,6 +36,7 @@ export const fieldsSchema = z.object({
   subject: z.string().default(''),
   recipients: z.string().default(''),
   query: z.string().default(''),
+  searchFilters: z.string().default(''),
   start: z.string().default(''),
   end: z.string().default(''),
   due_date: z.string().default(''),
@@ -60,6 +62,7 @@ export const suggestionsSchema = z.object({
   subject: z.string().nullish(),
   recipients: z.array(z.string()).default([]),
   query: z.string().nullish(),
+  searchFilters: searchFiltersSchema.nullish(),
   start: z.string().nullish(),
   end: z.string().nullish(),
   due_date: z.string().nullish(),
@@ -80,7 +83,6 @@ export function inferIntent(scores: Scores): Intent | undefined {
 }
 
 export const draftSchema = z.object({
-  version: z.literal(1),
   submissionId: z.string().uuid().optional(),
   text: z.string(),
   intent: intentSchema.optional(),
@@ -108,7 +110,7 @@ export const draftSchema = z.object({
 });
 export type Draft = z.infer<typeof draftSchema>;
 export function emptyDraft(): Draft {
-  return draftSchema.parse({ version: 1, text: '', locked: false });
+  return draftSchema.parse({ text: '', locked: false });
 }
 
 export function applySuggestions(
@@ -121,11 +123,13 @@ export function applySuggestions(
     if (edited.includes(key)) continue;
     const value = suggestions[key];
     next[key] =
-      key === 'properties'
+      key === 'properties' || key === 'searchFilters'
         ? JSON.stringify(value ?? [])
         : Array.isArray(value)
           ? value.join(', ')
-          : (value ?? '');
+          : typeof value === 'string'
+            ? value
+            : '';
   }
   return next;
 }

@@ -16,9 +16,36 @@ export default defineConfig({
   cacheDir: `${directory}/.vite`,
   plugins: [
     {
-      name: 'home-mode-test-adapters',
+      name: 'composer-test-adapters',
       enforce: 'pre',
       resolveId(source, importer) {
+        if (
+          source === '@components/app/split-layout/layout' &&
+          importer?.endsWith('/next-soup/open-search.ts')
+        )
+          return `${directory}/search-app-fixture.ts`;
+
+        if (source === '@app/lib/analytics/posthog')
+          return `${directory}/feature-flags-fixture.ts`;
+        if (
+          (importer?.endsWith('/queries/soup/search.ts') &&
+            source === '@service-search/client') ||
+          (importer?.endsWith('/queries/soup/items.ts') &&
+            source === '@service-storage/client')
+        )
+          return `${directory}/global-search-service-fixture.ts`;
+
+        if (
+          importer?.endsWith('/command/CommandMenu.tsx') &&
+          source === '../universal-input/universal-input'
+        )
+          return `${directory}/command-input-fixture.tsx`;
+        if (
+          importer?.endsWith('/experimental-features/experimental-features.ts')
+        ) {
+          if (source === '@core/context/user')
+            return `${directory}/experimental-user-fixture.ts`;
+        }
         // Keep the app-wide entity-search menu outside this composer fixture.
         // The real shared editors, formatting tools and recipient controls run here.
         if (
@@ -34,29 +61,8 @@ export default defineConfig({
         )
           return `${directory}/mention-menu-fixture.tsx`;
         if (
-          source === '@app/lib/analytics/posthog' &&
-          importer?.endsWith('/component/menu/ActionsMenu.tsx')
-        )
-          return `${directory}/feature-flags-fixture.ts`;
-        if (
-          source === '@app/lib/analytics/posthog' &&
-          [
-            '/command/useCommandItems.ts',
-            '/command/project-items.ts',
-            '/command/CommandItem.tsx',
-            '/command/CommandMenu.tsx',
-            '/command/open-command-result.ts',
-          ].some((path) => importer?.endsWith(path))
-        )
-          return `${directory}/feature-flags-fixture.ts`;
-        if (
-          (importer?.endsWith('/command/command-search.ts') &&
-            [
-              '@app/features/crm/record-adapter',
-              '@queries/storage/databases',
-            ].includes(source)) ||
-          (importer?.endsWith('/command/open-command-result.ts') &&
-            source === '@components/app/split-layout/layout')
+          source === '@components/app/split-layout/layout' &&
+          importer?.endsWith('/command/open-command-result.ts')
         )
           return `${directory}/search-app-fixture.ts`;
         if (
@@ -69,29 +75,6 @@ export default defineConfig({
           ].includes(source)
         )
           return `${directory}/search-app-fixture.ts`;
-        const homeEntry = importer?.endsWith(
-          '/home/components/HomeChatStart.tsx'
-        );
-        const standardView = importer?.endsWith(
-          '/home/views/standard-home-composer.tsx'
-        );
-        if (
-          (homeEntry &&
-            [
-              '@app/components/view-shell',
-              '@app/lib/analytics/posthog',
-              '@core/component/AI/component/DragDrop',
-              '@core/component/AI/context',
-              '@core/context/user',
-              '../../universal-input/universal-input',
-            ].includes(source)) ||
-          (standardView &&
-            [
-              '../home-chat-input',
-              '../components/home-recommended-actions',
-            ].includes(source))
-        )
-          return `${directory}/home-mode-wiring.tsx`;
       },
     },
     solidPlugin(),

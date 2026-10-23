@@ -141,6 +141,7 @@ export function registerHotkey(
     surfaceNestedCommands,
     shouldReturnFocusOnClose,
     proxiedHotkey,
+    allowBrowserDefault,
     disposeWithOwner,
   } = args;
 
@@ -249,6 +250,7 @@ export function registerHotkey(
     surfaceNestedCommands,
     shouldReturnFocusOnClose,
     proxiedHotkey,
+    allowBrowserDefault,
   };
 
   // An override re-registration of the same logical command — same token in

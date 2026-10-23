@@ -2,6 +2,7 @@ import type { ItemMention } from '@core/component/LexicalMarkdown/plugins';
 import type { MentionLinkResolver } from '@core/component/LexicalMarkdown/plugins/text-paste/textPastePlugin';
 import type { RecipientSelectorProps } from '@core/component/RecipientSelector';
 import type { LexicalEditor } from 'lexical';
+import type { JSX } from 'solid-js';
 import type { RosterAgent } from '../../agents-view/core/roster';
 
 import type {
@@ -26,8 +27,10 @@ export interface InputDisplay {
   messageRecipients(): ReturnType<
     RecipientSelectorProps<'user' | 'channel'>['options']
   >;
+  captureCalendarEditor?(editor: LexicalEditor | undefined): void;
   captureEmailEditor?(editor: LexicalEditor | undefined): void;
   people(): Recipient[];
+  searchChannels(): Recipient[];
   destinations(): Recipient[];
   recipients(
     fields: InputFields,
@@ -64,7 +67,14 @@ export interface InputCapabilities {
   saveEmailDraft(input: Submission): Promise<SubmissionResult>;
   validate(input: Submission): string | undefined;
   validateEmailDraft(input: Submission): string | undefined;
-  readDraft(): Draft | undefined;
-  saveDraft(draft: Draft): void;
+  initialDraft?: Draft;
   onSubmitted?(): void;
 }
+
+/** Hosts place the shared input and form without changing composer behavior. */
+export type InputLayoutParts = {
+  editor: JSX.Element;
+  fields: JSX.Element;
+  result: JSX.Element;
+};
+export type InputLayout = (parts: InputLayoutParts) => JSX.Element;
