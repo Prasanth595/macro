@@ -14,6 +14,7 @@ import {
   canDeleteCalendarEvent,
   canEditCalendarEvent,
 } from '@app/features/calendar/utils/event-interaction';
+import { eventEmailRecipients } from '@app/features/calendar/utils/guest-emails';
 import { handleOpenEventOutsidePress } from '@app/features/calendar/utils/open-event-outside-press';
 import { CalendarMeetingNotes } from '@app/features/calendar-notes/calendar-meeting-notes';
 import { TeamEventDetails } from '@app/features/calendar-team/components/team-event-details';
@@ -439,10 +440,15 @@ function DeleteEventDialog(
   };
 
   const title = () => props.event.title || 'Untitled event';
-  const prompt = () =>
-    props.event.isSnapshot
-      ? `Delete your copy of “${title()}”? The shared event stays as it is.`
-      : `${isRecurring() ? 'Remove' : 'Delete'} “${title()}”? Guests will be notified.`;
+  const prompt = () => {
+    if (props.event.isSnapshot) {
+      return `Delete your copy of “${title()}”? The shared event stays as it is.`;
+    }
+    const question = `${isRecurring() ? 'Remove' : 'Delete'} “${title()}”?`;
+    return eventEmailRecipients(props.event).length > 0
+      ? `${question} Guests will be notified.`
+      : question;
+  };
 
   return (
     <DeleteDialog

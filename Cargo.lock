@@ -519,6 +519,7 @@ dependencies = [
  "code_execution",
  "codex_cloud_agents",
  "codex_connection",
+ "cognition",
  "connection_gateway",
  "connection_gateway_client",
  "contacts",
@@ -5524,9 +5525,9 @@ dependencies = [
 
 [[package]]
 name = "ctutils"
-version = "0.4.4"
+version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12218662ccac37d9714f2191252553d67585b97df8c839cbe49e0bde278dc865"
+checksum = "38d28fb6aa7dd680b3ffd1a3e64e115c177bdba63c0ae7f9cd48129ff05c4fa0"
 dependencies = [
  "cmov",
  "subtle",
@@ -8957,6 +8958,8 @@ dependencies = [
  "model-entity",
  "models_permissions",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
  "workspace-hack",
 ]
@@ -16952,6 +16955,7 @@ dependencies = [
  "serde_json",
  "share_permission_db_utils",
  "sqlx",
+ "strum 0.27.2",
  "system_properties",
  "teams",
  "thiserror 2.0.18",
@@ -19653,9 +19657,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.53.3"
+version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce3335fa71841cda333a58d7615b03901380ecf09d59b3296d21f8bbac0dde4e"
+checksum = "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3"
 dependencies = [
  "bytes",
  "libc",
