@@ -75,7 +75,10 @@ fn a_published_series_keeps_its_zone_recurrence_and_organizer() {
     assert_eq!(snapshot.sequence, 2);
     assert_eq!(snapshot.title, "Planning");
     assert_eq!(snapshot.recurrence_lines, ["RRULE:FREQ=WEEKLY;BYDAY=MO"]);
-    assert_eq!(snapshot.organizer_email.as_deref(), Some("alex@example.com"));
+    assert_eq!(
+        snapshot.organizer_email.as_deref(),
+        Some("alex@example.com")
+    );
     assert_eq!(snapshot.organizer_name.as_deref(), Some("Alex"));
     assert_eq!(
         snapshot.time,
@@ -138,7 +141,10 @@ fn only_a_whole_published_event_with_a_readable_time_can_be_added() {
 async fn adds_the_saved_event_of_the_named_message_as_the_viewer() {
     let thread_id = Uuid::now_v7();
     let message_id = Uuid::now_v7();
-    let invite = parse("PUBLISH", "DTSTART:20261026T130000Z\r\nDTEND:20261026T140000Z");
+    let invite = parse(
+        "PUBLISH",
+        "DTSTART:20261026T130000Z\r\nDTEND:20261026T140000Z",
+    );
     let invitation_id = invite.id.clone();
     let snapshots = Snapshots(vec![
         ThreadInvitation {
@@ -165,7 +171,10 @@ async fn adds_the_saved_event_of_the_named_message_as_the_viewer() {
     )
     .await;
 
-    assert!(matches!(result, Err(CalendarMutationError::AlreadyOnCalendar)));
+    assert!(matches!(
+        result,
+        Err(CalendarMutationError::AlreadyOnCalendar)
+    ));
     let imported = importer.imported.lock().unwrap();
     assert_eq!(imported.len(), 1);
     assert_eq!(imported[0].0, "macro|reader@example.com");
@@ -177,7 +186,10 @@ async fn adds_the_saved_event_of_the_named_message_as_the_viewer() {
 async fn refuses_an_unknown_event_and_an_invitation_before_the_calendar() {
     let thread_id = Uuid::now_v7();
     let message_id = Uuid::now_v7();
-    let invite = parse("REQUEST", "DTSTART:20261026T130000Z\r\nDTEND:20261026T140000Z");
+    let invite = parse(
+        "REQUEST",
+        "DTSTART:20261026T130000Z\r\nDTEND:20261026T140000Z",
+    );
     let invitation_id = invite.id.clone();
     let snapshots = Snapshots(vec![ThreadInvitation {
         message_id,

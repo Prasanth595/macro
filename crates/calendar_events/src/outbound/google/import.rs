@@ -89,10 +89,7 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
 /// calendar, already accepted, lets the import through while leaving out the
 /// meeting's guests and conference, so importing it invites no one and
 /// exposes no guest list or join link the share did not.
-pub(super) fn import_body(
-    source: &EventSnapshot,
-    provider_calendar_id: &str,
-) -> serde_json::Value {
+pub(super) fn import_body(source: &EventSnapshot, provider_calendar_id: &str) -> serde_json::Value {
     let (start, end) = google_time_body(&source.time);
     let mut body = serde_json::json!({
         "iCalUID": source.ical_uid,

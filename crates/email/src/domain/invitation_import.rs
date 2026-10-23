@@ -48,7 +48,9 @@ pub async fn add_to_calendar<C: CalendarSnapshotImporter, S: InvitationSnapshotR
         .ok_or(CalendarMutationError::NotFound)?;
     let snapshot = event_snapshot(&saved.invitation)
         .map_err(|reason| CalendarMutationError::InvalidInput(reason.to_string()))?;
-    calendar.import_snapshot(&viewer, snapshot, calendar_id).await
+    calendar
+        .import_snapshot(&viewer, snapshot, calendar_id)
+        .await
 }
 
 /// The meeting a saved shared event describes, or why it cannot be added.
