@@ -17,10 +17,13 @@ The header has **You** and **Team** tabs (inset tabs beside the title on desktop
 a pill strip above the list on touch); the choice is stored in the split's URL as
 `sN.activity.scope=team` and survives reloads. You is the user's own feed. Team
 lists teammates' activity, newest first, on items shared with the user directly
-or through a project, team, or channel (a link share alone does not count; forms
-only when the user can edit them), with each row naming the teammate. Team has no
-heatmap or Most active section, and reads `No activity from your team yet.` when
-empty or when the user is not on a team. Switching tabs opens the other feed at
+or through a project, team, or channel, on channels the user is in, and on
+threads in the user's own inbox (a link share alone does not count; forms never
+appear), with each row naming the teammate. Team has no heatmap or Most active
+section. Each server page reads a bounded slice of the team's history, so a page
+can add few rows or none; the list keeps showing `Loading…` and paging on its own
+until rows arrive or the history ends, and only then reads `No activity from your
+team yet.` (also when the user is not on a team). Switching tabs opens the other feed at
 the top; switching back shows the pages already loaded. Team needs a backend that
 accepts `scope: TEAM` on `user.activity`; against an older one only that tab
 fails, with the feed's unavailable copy.

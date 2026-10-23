@@ -93,7 +93,9 @@ export function createMyActivityState(
 
   const feed = createMemo<FeedView>(() => {
     const query = feedQuery();
-    if (groups().length > 0) {
+    // A team page can arrive empty while older pages remain (the server
+    // bounds each page's scan), so only the last page decides "empty".
+    if (groups().length > 0 || query.hasNextPage) {
       return {
         t: 'ready',
         groups: groups(),

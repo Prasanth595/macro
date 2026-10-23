@@ -283,6 +283,21 @@ describe('createMyActivityState', () => {
       expect(state.rows().map((row) => row.kind)).toEqual(['day', 'entry']);
     });
 
+    it('keeps paging through empty pages before calling the feed empty', () => {
+      const { state, graphql } = setupScoped('team');
+      graphql.latest('MyActivity').resolve(feedPage([], 'c2'));
+
+      // Nothing visible yet, but more pages remain: the tail, not the empty copy.
+      expect(state.rows().map((row) => row.kind)).toEqual(['tail']);
+      state.loadMore();
+      expect(graphql.latest('MyActivity').variables).toEqual({
+        input: { limit: 50, cursor: 'c2', scope: 'TEAM' },
+      });
+      graphql.latest('MyActivity').resolve(feedPage([], null));
+
+      expect(state.feed().t).toBe('empty');
+    });
+
     it("never shows one tab the other tab's rows, and keeps both feeds", () => {
       const { state, setScope, graphql } = setupScoped('mine');
       graphql.latest('MyActivity').resolve(feedPage([createdEvent]));
