@@ -6,7 +6,7 @@ test('an owner can revoke a missing meeting’s team grant from document sharing
   await page.goto('/?document=1');
   const links = page.getByRole('region', { name: 'Meeting links' });
   await expect(links).toContainText('Unavailable meeting');
-  await expect(links).toContainText('Design team');
+  await expect(links).toContainText('Macro');
   await links.getByRole('button', { name: 'Unlink', exact: true }).click();
   await links.getByRole('button', { name: 'Keep link' }).click();
   await expect(links).toBeVisible();
@@ -23,7 +23,9 @@ test('link a note, optionally share with a team, open it, and unlink it', async 
 }, testInfo) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Link a note', exact: true }).click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog', {
+    name: /Link meeting notes|Note access|Unlink meeting notes/,
+  });
   await expect(
     dialog.getByRole('button', { name: 'Link note', exact: true })
   ).toBeDisabled();
@@ -31,10 +33,10 @@ test('link a note, optionally share with a team, open it, and unlink it', async 
     .getByRole('textbox', { name: 'Find a markdown document' })
     .fill('weekly');
   await dialog
-    .getByRole('button', { name: 'Weekly design sync', exact: true })
+    .getByRole('button', { name: 'Weekly product sync', exact: true })
     .click();
   await expect(
-    dialog.getByRole('checkbox', { name: 'Design team' })
+    dialog.getByRole('checkbox', { name: /Also share with Macro/ })
   ).not.toBeChecked();
   await expect(
     dialog.getByRole('button', { name: 'Link note', exact: true })
@@ -43,20 +45,26 @@ test('link a note, optionally share with a team, open it, and unlink it', async 
   await dialog.getByRole('button', { name: 'Link note', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await page.getByRole('button', { name: 'Manage note access' }).click();
-  await dialog.getByText('Design team', { exact: true }).click();
+  await dialog.getByText('Also share with Macro').click();
   await dialog.getByRole('button', { name: 'Save access' }).click();
   await expect(dialog).not.toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Manage note access' })
-  ).toContainText('Design team');
+  ).toContainText('Macro');
   await page.screenshot({ path: testInfo.outputPath('linked-note.png') });
   await page
-    .getByRole('button', { name: 'Weekly design sync', exact: true })
+    .getByRole('region', { name: 'Meeting notes' })
+    .getByRole('button', { name: 'Weekly product sync', exact: true })
     .click();
-  await expect(page.getByRole('status')).toHaveText(
-    'Opened Weekly design sync'
+  await expect(page.getByRole('status', { name: 'Preview action' })).toHaveText(
+    'Opened Weekly product sync'
   );
-  await page.getByRole('button', { name: 'Unlink Weekly design sync' }).click();
+  await page
+    .getByRole('button', { name: 'Weekly product sync', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Unlink Weekly product sync' })
+    .click();
   await dialog
     .getByRole('button', { name: 'Unlink note', exact: true })
     .click();
@@ -65,7 +73,7 @@ test('link a note, optionally share with a team, open it, and unlink it', async 
   ).toBeVisible();
   await page.getByRole('button', { name: 'Link a note', exact: true }).click();
   await expect(
-    dialog.getByRole('button', { name: 'Weekly design sync', exact: true })
+    dialog.getByRole('button', { name: 'Weekly product sync', exact: true })
   ).toBeEnabled();
 });
 
@@ -74,24 +82,26 @@ test('a failed link preserves the selected document and sharing choice for retry
 }) => {
   await page.goto('/?fail=1');
   await page.getByRole('button', { name: 'Link a note', exact: true }).click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog', {
+    name: /Link meeting notes|Note access|Unlink meeting notes/,
+  });
   await dialog
-    .getByRole('button', { name: 'Weekly design sync', exact: true })
+    .getByRole('button', { name: 'Weekly product sync', exact: true })
     .click();
-  await dialog.getByText('Design team', { exact: true }).click();
+  await dialog.getByText('Also share with Macro').click();
   await dialog.getByRole('button', { name: 'Link note', exact: true }).click();
   await expect(dialog.getByRole('alert')).toBeVisible();
   await expect(
-    dialog.getByRole('button', { name: 'Weekly design sync', exact: true })
+    dialog.getByRole('button', { name: 'Weekly product sync', exact: true })
   ).toHaveAttribute('aria-pressed', 'true');
   await expect(
-    dialog.getByRole('checkbox', { name: 'Design team' })
+    dialog.getByRole('checkbox', { name: /Also share with Macro/ })
   ).toBeChecked();
   await dialog.getByRole('button', { name: 'Link note', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Manage note access' })
-  ).toContainText('Design team');
+  ).toContainText('Macro');
 });
 
 test('search, dismiss, and reopen reset the unfinished choice', async ({
@@ -103,7 +113,9 @@ test('search, dismiss, and reopen reset the unfinished choice', async ({
     exact: true,
   });
   await trigger.click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog', {
+    name: /Link meeting notes|Note access|Unlink meeting notes/,
+  });
   await dialog.getByRole('textbox').fill('no matching note');
   await expect(dialog.getByText('No notes match this name.')).toBeVisible();
   await dialog.getByRole('button', { name: 'Cancel' }).click();

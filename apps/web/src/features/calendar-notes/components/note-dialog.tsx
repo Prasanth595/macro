@@ -47,22 +47,17 @@ export function NoteDialog(props: {
         if (!open) props.onClose();
       }}
       position="center"
-      class="w-[480px]"
+      class="w-[400px]"
       animate
     >
-      <div class="relative flex max-h-[85dvh] flex-col p-5 sm:p-6">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <div class="mb-3 flex size-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
-              <FileTextIcon class="size-5" />
-            </div>
-            <Dialog.Title class="text-lg font-semibold text-ink">
-              {title()}
-            </Dialog.Title>
-          </div>
+      <div class="relative flex max-h-[85dvh] flex-col p-4">
+        <div class="flex min-h-8 items-center justify-between gap-3 pr-8">
+          <Dialog.Title class="text-base font-medium text-ink sm:text-sm">
+            {title()}
+          </Dialog.Title>
         </div>
         <div class="min-h-0 overflow-y-auto">
-          <Dialog.Description class="mt-1 text-sm leading-relaxed text-ink-muted">
+          <Dialog.Description class="mt-1 text-sm leading-relaxed text-ink-muted sm:text-xs">
             <Show
               when={props.kind !== 'unlink'}
               fallback="The document stays in your files. Access granted by this meeting link will be removed; other sharing stays the same."
@@ -79,8 +74,8 @@ export function NoteDialog(props: {
           </Dialog.Description>
 
           <Show when={props.kind === 'link'}>
-            <div class="mt-5">
-              <InputGroup size="lg">
+            <div class="mt-4">
+              <InputGroup size="md">
                 <InputGroup.Addon>
                   <MagnifyingGlassIcon class="size-4 text-ink-muted" />
                 </InputGroup.Addon>
@@ -115,7 +110,7 @@ export function NoteDialog(props: {
                   return (
                     <Button
                       variant="ghost"
-                      size="lg"
+                      size="md"
                       fullWidth
                       label={document.name}
                       aria-pressed={
@@ -173,15 +168,11 @@ export function NoteDialog(props: {
 
           <Show when={props.kind !== 'unlink'}>
             <div class="mt-5 border-t border-edge-muted pt-4">
-              <h4 class="mb-3 text-xs font-medium text-ink-muted">
-                Access added by this link
-              </h4>
+              <h4 class="mb-3 text-xs font-medium text-ink">Who can view</h4>
               <div class="flex items-center gap-3">
-                <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink/5 text-ink-muted">
-                  <UsersIcon class="size-4" />
-                </div>
+                <UsersIcon class="size-4 shrink-0 text-ink-extra-muted" />
                 <div class="min-w-0 flex-1">
-                  <p class="text-sm font-medium text-ink">Meeting viewers</p>
+                  <p class="text-sm text-ink sm:text-xs">Meeting viewers</p>
                   <p class="mt-0.5 text-xs leading-relaxed text-ink-extra-muted">
                     Anyone who can see this meeting’s details
                   </p>
@@ -192,10 +183,7 @@ export function NoteDialog(props: {
                 </span>
               </div>
               <Show when={props.picker.data?.teams.length}>
-                <div class="mt-3 flex flex-col gap-2 rounded-lg border border-edge-muted p-3">
-                  <span class="text-xs text-ink-extra-muted">
-                    Also share with a team · Optional
-                  </span>
+                <div class="mt-4 flex flex-col gap-2">
                   <For each={props.picker.data?.teams}>
                     {(team) => (
                       <Checkbox
@@ -206,13 +194,16 @@ export function NoteDialog(props: {
                         disabled={props.saving}
                         class="min-h-9 justify-between gap-3"
                       >
-                        <Checkbox.Label class="flex-1 text-sm text-ink">
-                          {team.name}
+                        <Checkbox.Control />
+                        <Checkbox.Label class="flex-1 text-sm text-ink sm:text-xs">
+                          Also share with {team.name}
+                          <span class="mt-0.5 block text-xs font-normal text-ink-extra-muted">
+                            Optional · Everyone in your team
+                          </span>
                         </Checkbox.Label>
                         <span class="text-xs text-ink-extra-muted">
                           Can view
                         </span>
-                        <Checkbox.Control />
                       </Checkbox>
                     )}
                   </For>
@@ -245,8 +236,8 @@ export function NoteDialog(props: {
                 </div>
               </Show>
               <p class="mt-3 text-xs leading-relaxed text-ink-extra-muted">
-                Editing and other document sharing stay the same. Linking won’t
-                make notes public.
+                Meeting access is view-only. Existing document permissions stay
+                the same.
               </p>
               <Show when={props.guestListHidden}>
                 <p class="mt-2 text-xs leading-relaxed text-ink-extra-muted">
@@ -273,7 +264,7 @@ export function NoteDialog(props: {
             Cancel
           </Button>
           <Button
-            variant={props.kind === 'unlink' ? 'danger' : 'cta'}
+            variant={props.kind === 'unlink' ? 'danger' : 'strong'}
             size="md"
             onClick={props.onSave}
             disabled={!props.selected || props.saving}
@@ -296,7 +287,7 @@ export function NoteDialog(props: {
           size="icon-sm"
           label="Close"
           disabled={props.saving}
-          class="absolute right-5 top-5"
+          class="absolute right-4 top-4"
         >
           <XIcon />
         </Dialog.CloseButton>

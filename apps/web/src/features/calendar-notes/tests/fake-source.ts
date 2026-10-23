@@ -5,12 +5,12 @@ import type { MeetingNote, NoteDocument } from '../core/types';
 
 export function createFakeNotesSource(options: { fail?: boolean } = {}) {
   const documents: NoteDocument[] = [
-    { documentId: 'weekly', name: 'Weekly design sync' },
+    { documentId: 'weekly', name: 'Weekly product sync' },
     { documentId: 'roadmap', name: 'Q4 product roadmap' },
     { documentId: 'research', name: 'Customer research · October' },
     { documentId: 'retro', name: 'Team retrospective' },
   ];
-  const team = { id: 'design', name: 'Design team' };
+  const team = { id: 'macro', name: 'Macro' };
   const [notes, setNotes] = createSignal<MeetingNote[]>([]);
   const [fail, setFail] = createSignal(options.fail ?? false);
   const source: NotesSource = {

@@ -28,8 +28,10 @@ Discussion link scrolling has a backend-free browser regression:
 Meeting-note linking, optional team access, retry, and unlinking have desktop and
 phone browser coverage in `features/calendar-notes`:
 `bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.
-The feature mounts in event details; keep its dialog open guard on both the
-desktop popover and mobile drawer. See `docs/agent-guide/calendar.md` at the repo root.
+The browser fixture uses the real event details popover and mobile drawer over
+sample data; keep notes aligned with those existing surfaces and preserve their
+dialog open guards. Optional note sharing uses existing team memberships.
+See `docs/agent-guide/calendar.md` at the repo root.
 
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 

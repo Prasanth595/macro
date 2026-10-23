@@ -4,10 +4,12 @@
 
 Open a live meeting's details and choose **Link a note** in **Meeting notes**.
 Search your markdown documents, select one, review **Meeting viewers · Can view**,
-and optionally select one team before **Link note**. Team access starts off for
+and optionally include your existing team before **Link note**. Team access starts off for
 each note. Recurring meetings link only the displayed occurrence. Notes on a
 one-time meeting follow it when its date or time changes.
 Existing document editors and other sharing keep their access.
+Notes use the event details' existing row layout and controls. Team choices come
+from current Macro team memberships; they do not introduce departments or subteams.
 
 Open the linked title to read the original document. On desktop it opens in a
 new split; on mobile it replaces the calendar pane and closes event details.
@@ -32,7 +34,8 @@ viewer leaves that team; it does not make the calendar event visible to that tea
 
 Verify on desktop and phone: link with team unchecked, add/remove a team, open the
 document, retry a rejected save, and unlink while keeping the document. The
-backend-free browser suite is
+backend-free browser suite mounts the real event popover and mobile drawer with
+sample data and preview service adapters. It is
 `apps/web/src/features/calendar-notes/browser-test/playwright.config.ts`.
 API permission cases are covered in `crates/calendar_events/src/outbound/pg/test/notes.rs`.
 
