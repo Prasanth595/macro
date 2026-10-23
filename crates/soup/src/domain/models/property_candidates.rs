@@ -13,13 +13,11 @@ use thiserror::Error;
 
 /// A source-owned DATE-query request after the service resolves ordinary filters.
 #[derive(Debug)]
-pub struct PropertyCandidateRequest<'a> {
-    /// Authenticated viewer whose existing access rules apply to every candidate.
-    pub user_id: macro_user_id::user_id::MacroUserIdStr<'a>,
+pub struct PropertyCandidateRequest {
     /// Full source filters, applied before counts and keysets.
     pub filter: item_filters::ast::EntityFilterAst,
-    /// Frozen sorting, grouping, page size, and optional continuation position.
-    pub selection: CandidateQuery,
+    /// Viewer-bound, immutable selection validated by the properties service.
+    pub selection: properties::AuthorizedPropertyQuery,
 }
 /// A source returned a page that cannot form an exact, bounded merged result.
 #[derive(Debug, Error, PartialEq, Eq)]

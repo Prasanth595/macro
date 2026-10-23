@@ -88,10 +88,15 @@ This is the narrow adapter-utility exception recorded in the
 [Rust guardrails](../../.agents/rules/rust/guardrails.md), not a general exception
 for cross-domain adapter imports. Keep property-table SQL with its owner.
 
-Validate selected definitions through the properties service before source
-fanout; do not repeat the same definition lookup in every source. Each source
-service retains its entity authorization. Its repository supplies a fully
-filtered candidate CTE, executes the query, and hydrates its own results. The helper only
+Authorize selected definitions through the properties service before source
+fanout. `AuthorizedPropertyQuery` binds the immutable query to its viewer;
+source requests derive the viewer from that capability. Check visibility before
+revealing a definition's type, require scalar DATE definitions for date
+operations, and return NotFound for inaccessible definitions. Mint a fresh
+capability for every continuation request. Do not repeat the same definition
+lookup in every source. Each source retains its entity authorization. Its
+repository supplies a fully filtered candidate CTE, executes the query, and
+hydrates its own results. The helper only
 composes bound property lookups, bucket membership, exact counts, and bounded
 keyset selection; it does not query source tables or execute database calls.
 Shared candidate DTOs live in `models_grouping` and contain no SQL.

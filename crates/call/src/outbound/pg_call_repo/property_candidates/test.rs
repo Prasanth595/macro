@@ -10,14 +10,32 @@ use models_grouping::{
     CandidateCursor, CandidateDirection, CandidateQuery, GroupByField, GroupingConfig,
     PropertyBucketing, PropertyDateRange, PropertyDateRanges,
 };
+use properties::PropertiesService;
 use std::{ops::Deref, sync::Arc};
 use uuid::Uuid;
+
+type Definitions = properties::PropertiesServiceImpl<
+    properties::PropertiesPgRepo,
+    properties::PermissionServiceImpl<entity_access::domain::ports::NoOpEntityAccessService>,
+    UnusedNotifications,
+>;
+struct UnusedNotifications;
+impl properties::NotificationService for UnusedNotifications {
+    type Err = anyhow::Error;
+    async fn send_task_assigned<'a>(
+        &self,
+        _: properties::domain::model::TaskAssignedNotification<'a>,
+    ) -> Result<(), Self::Err> {
+        unreachable!("query authorization never sends notifications")
+    }
+}
 
 struct Fixture {
     repo: PgCallRepo,
     imported: Uuid,
     sort_property: Uuid,
     group_property: Uuid,
+    definitions: Definitions,
 }
 
 async fn fixture(pool: &PgPool) -> anyhow::Result<Fixture> {
@@ -66,10 +84,23 @@ async fn fixture(pool: &PgPool) -> anyhow::Result<Fixture> {
     }
     Ok(Fixture {
         repo: PgCallRepo::new(pool.clone()),
+        definitions: Definitions::new(properties::PropertiesPgRepo::new(pool.clone()), None, None),
         imported,
         sort_property,
         group_property,
     })
+}
+
+impl Fixture {
+    async fn authorize(
+        &self,
+        query: CandidateQuery,
+    ) -> anyhow::Result<properties::AuthorizedPropertyQuery> {
+        Ok(self
+            .definitions
+            .authorize_property_query(USER_A.deref().clone(), None, query)
+            .await?)
+    }
 }
 
 #[sqlx::test(
@@ -103,9 +134,8 @@ async fn native_and_imported_calls_share_null_safe_date_pages(pool: PgPool) -> a
             let page = data
                 .repo
                 .get_call_candidates(CallCandidateRequest {
-                    user_id: USER_A.deref().clone(),
                     filter: None,
-                    selection: selection.clone(),
+                    selection: data.authorize(selection.clone()).await?,
                 })
                 .await?;
             assert_eq!(page.entity_types, ["CALL_RECORD"]);
@@ -121,9 +151,8 @@ async fn native_and_imported_calls_share_null_safe_date_pages(pool: PgPool) -> a
         let final_page = data
             .repo
             .get_call_candidates(CallCandidateRequest {
-                user_id: USER_A.deref().clone(),
                 filter: None,
-                selection,
+                selection: data.authorize(selection).await?,
             })
             .await?;
         assert!(final_page.candidates.is_empty());
@@ -141,12 +170,11 @@ async fn native_and_imported_calls_share_null_safe_date_pages(pool: PgPool) -> a
     let mixed = data
         .repo
         .get_call_candidates(CallCandidateRequest {
-            user_id: USER_A.deref().clone(),
             filter: Some(Arc::new(Expr::or(
                 Expr::val(CallLiteral::CallId(data.imported)),
                 Expr::val(CallLiteral::Status(CallStatus::Missed)),
             ))),
-            selection: selection.clone(),
+            selection: data.authorize(selection.clone()).await?,
         })
         .await?;
     assert_eq!(
@@ -160,11 +188,10 @@ async fn native_and_imported_calls_share_null_safe_date_pages(pool: PgPool) -> a
     let null_channel = data
         .repo
         .get_call_candidates(CallCandidateRequest {
-            user_id: USER_A.deref().clone(),
             filter: Some(Arc::new(Expr::is_not(Expr::val(CallLiteral::ChannelId(
                 CH1,
             ))))),
-            selection: selection.clone(),
+            selection: data.authorize(selection.clone()).await?,
         })
         .await?;
     assert_eq!(null_channel.candidates.len(), 1);
@@ -172,6 +199,12 @@ async fn native_and_imported_calls_share_null_safe_date_pages(pool: PgPool) -> a
         null_channel.candidates[0].identity.id,
         data.imported.to_string()
     );
+    assert!(matches!(
+        data.definitions
+            .authorize_property_query(USER_B.deref().clone(), None, selection.clone())
+            .await,
+        Err(properties::PropertiesErr::NotFound)
+    ));
     for viewer in [
         USER_B.deref().clone(),
         MacroUserIdStr::parse_from_str("macro|stranger@test.com")?,
@@ -179,9 +212,19 @@ async fn native_and_imported_calls_share_null_safe_date_pages(pool: PgPool) -> a
         let denied = data
             .repo
             .get_call_candidates(CallCandidateRequest {
-                user_id: viewer,
                 filter: Some(Arc::new(Expr::val(CallLiteral::CallId(data.imported)))),
-                selection: selection.clone(),
+                selection: data
+                    .definitions
+                    .authorize_property_query(
+                        viewer,
+                        None,
+                        CandidateQuery {
+                            date_property_id: None,
+                            timestamp_sort: Some(SimpleSortMethod::UpdatedAt),
+                            ..selection.clone()
+                        },
+                    )
+                    .await?,
             })
             .await?;
         assert!(denied.candidates.is_empty());
@@ -231,9 +274,8 @@ async fn date_groups_preserve_counts_filters_and_an_independent_sort_property(
     let page = data
         .repo
         .get_call_candidates(CallCandidateRequest {
-            user_id: USER_A.deref().clone(),
             filter: None,
-            selection: selection.clone(),
+            selection: data.authorize(selection.clone()).await?,
         })
         .await?;
     assert_eq!(
@@ -254,9 +296,8 @@ async fn date_groups_preserve_counts_filters_and_an_independent_sort_property(
     let continued = data
         .repo
         .get_call_candidates(CallCandidateRequest {
-            user_id: USER_A.deref().clone(),
             filter: None,
-            selection: selection.clone(),
+            selection: data.authorize(selection.clone()).await?,
         })
         .await?;
     assert_eq!(continued.candidates.len(), 1);
@@ -277,9 +318,8 @@ async fn date_groups_preserve_counts_filters_and_an_independent_sort_property(
     let missing = data
         .repo
         .get_call_candidates(CallCandidateRequest {
-            user_id: USER_A.deref().clone(),
             filter: Some(Arc::new(Expr::is_not(property_filter))),
-            selection,
+            selection: data.authorize(selection).await?,
         })
         .await?;
     assert_eq!(missing.candidates.len(), 1);
@@ -330,10 +370,10 @@ async fn boolean_filters_use_rendered_speakers_and_guard_date_values(
         cursor: None,
         limit: 10,
     };
+    let authorized = data.authorize(selection.clone()).await?;
     let request = |filter| CallCandidateRequest {
-        user_id: USER_A.deref().clone(),
         filter: Some(Arc::new(filter)),
-        selection: selection.clone(),
+        selection: authorized.clone(),
     };
     let speakers = data
         .repo
@@ -396,12 +436,22 @@ async fn boolean_filters_use_rendered_speakers_and_guard_date_values(
     let missed = data
         .repo
         .get_call_candidates(CallCandidateRequest {
-            user_id: MacroUserIdStr::parse_from_str("macro|user-c@test.com")?,
             filter: Some(Arc::new(Expr::and(
                 Expr::val(CallLiteral::Attended(false)),
                 Expr::val(CallLiteral::Status(CallStatus::Missed)),
             ))),
-            selection,
+            selection: data
+                .definitions
+                .authorize_property_query(
+                    MacroUserIdStr::parse_from_str("macro|user-c@test.com")?,
+                    None,
+                    CandidateQuery {
+                        date_property_id: None,
+                        timestamp_sort: Some(SimpleSortMethod::UpdatedAt),
+                        ..selection
+                    },
+                )
+                .await?,
         })
         .await?;
     assert_eq!(missed.candidates.len(), 2);

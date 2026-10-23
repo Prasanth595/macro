@@ -29,6 +29,7 @@ pub use domain::model::{
 pub use domain::ports::{
     InitiativeAssigneeService, NotificationService, PermissionService, PropertiesRepo,
 };
+pub use domain::query::AuthorizedPropertyQuery;
 pub use domain::service::{PropertiesService, TeamReceipt};
 pub use domain::service_impl::PropertiesServiceImpl;
 #[cfg(feature = "outbound")]

@@ -11,10 +11,11 @@ use properties::query_support::{
 /// Select before hydration, preserving the ordinary source gates and full filters.
 pub(in crate::outbound::pg_soup_repo) async fn select(
     db: &PgPool,
-    request: PropertyCandidateRequest<'_>,
+    request: PropertyCandidateRequest,
 ) -> Result<CandidatePage, sqlx::Error> {
     let sort = request
         .selection
+        .query()
         .timestamp_sort
         .unwrap_or(SimpleSortMethod::UpdatedAt);
     let mut document_ids = DocumentIdArrays::starting_at(9);
@@ -24,9 +25,9 @@ pub(in crate::outbound::pg_soup_repo) async fn select(
         // Register them before the property helper adds its own bound values.
         query.push(PREFIX);
         query.push("request_context AS (SELECT ");
-        query.push_bind(request.user_id.as_ref().to_owned()).push("::text AS user_id, ");
+        query.push_bind(request.selection.viewer().as_ref().to_owned()).push("::text AS user_id, ");
         query.push_bind(sort.to_string()).push("::text AS sort_method, ");
-        query.push_bind(i64::from(request.selection.limit)).push("::bigint AS page_limit, ");
+        query.push_bind(i64::from(request.selection.query().limit)).push("::bigint AS page_limit, ");
         query.push_bind(None::<DateTime<Utc>>).push("::timestamptz AS after_time, ");
         query.push_bind(None::<String>).push("::text AS after_id, ");
         query.push_bind(StatusOption::COMPLETED_UUID.to_string()).push("::text AS completed_option, ");
@@ -51,7 +52,7 @@ pub(in crate::outbound::pg_soup_repo) async fn select(
         .persistent(false)
         .fetch_all(db)
         .await?;
-    Ok(decode_candidate_page(rows, &request.selection))
+    Ok(decode_candidate_page(rows, request.selection.query()))
 }
 
 fn source_sql(

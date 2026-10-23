@@ -2454,10 +2454,6 @@ impl<R: CallRepository> CallRecordQueryService for CallRecordQueryServiceImpl<R>
         &self,
         request: super::models::CallCandidateRequest,
     ) -> Result<models_grouping::CandidatePage, CallError> {
-        request
-            .selection
-            .validate()
-            .map_err(|error| CallError::InvalidRequest(error.to_string()))?;
         self.repo
             .get_call_candidates(request)
             .await

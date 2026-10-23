@@ -2,7 +2,24 @@ use super::*;
 use item_filters::ast::{chat::ChatLiteral, document::DocumentLiteral, project::ProjectLiteral};
 use macro_db_migrator::MACRO_DB_MIGRATIONS;
 use models_grouping::{CandidateCursor, CandidateDirection, CandidateQuery};
+use properties::PropertiesService;
 use std::sync::Arc;
+
+type Definitions = properties::PropertiesServiceImpl<
+    properties::PropertiesPgRepo,
+    properties::PermissionServiceImpl<entity_access::domain::ports::NoOpEntityAccessService>,
+    UnusedNotifications,
+>;
+struct UnusedNotifications;
+impl properties::NotificationService for UnusedNotifications {
+    type Err = anyhow::Error;
+    async fn send_task_assigned<'a>(
+        &self,
+        _: properties::domain::model::TaskAssignedNotification<'a>,
+    ) -> Result<(), Self::Err> {
+        unreachable!("query authorization never sends notifications")
+    }
+}
 
 #[sqlx::test(
     fixtures(
@@ -81,6 +98,8 @@ async fn custom_date_sort_preserves_filters_access_and_null_continuations(
         )))),
         ..Default::default()
     };
+    let definitions = Definitions::new(properties::PropertiesPgRepo::new(db.clone()), None, None);
+    let viewer = MacroUserIdStr::parse_from_str("macro|user-1@test.com")?;
     for (direction, expected) in [
         (
             CandidateDirection::Ascending,
@@ -103,9 +122,10 @@ async fn custom_date_sort_preserves_filters_access_and_null_continuations(
             let page = select(
                 &db,
                 PropertyCandidateRequest {
-                    user_id: MacroUserIdStr::parse_from_str("macro|user-1@test.com")?,
                     filter: filters.clone(),
-                    selection: selection.clone(),
+                    selection: definitions
+                        .authorize_property_query(viewer.clone(), None, selection.clone())
+                        .await?,
                 },
             )
             .await?;
@@ -125,9 +145,10 @@ async fn custom_date_sort_preserves_filters_access_and_null_continuations(
         let page = select(
             &db,
             PropertyCandidateRequest {
-                user_id: MacroUserIdStr::parse_from_str("macro|user-1@test.com")?,
                 filter: filters.clone(),
-                selection: selection.clone(),
+                selection: definitions
+                    .authorize_property_query(viewer.clone(), None, selection.clone())
+                    .await?,
             },
         )
         .await?;
@@ -135,12 +156,33 @@ async fn custom_date_sort_preserves_filters_access_and_null_continuations(
         assert_eq!(page.groups[0].total_count, 4);
         assert_eq!(page.groups[0].before_or_at_cursor_count, 4);
         selection.cursor = None;
+        assert!(matches!(
+            definitions
+                .authorize_property_query(
+                    MacroUserIdStr::parse_from_str("macro|no-access@test.com")?,
+                    None,
+                    selection.clone()
+                )
+                .await,
+            Err(properties::PropertiesErr::NotFound)
+        ));
+        let denied_filter = EntityFilterAst {
+            document_filter: Some(Arc::new(Expr::val(DocumentLiteral::Id(
+                INACCESSIBLE.parse()?,
+            )))),
+            chat_filter: Some(Arc::new(Expr::val(ChatLiteral::ChatId(Uuid::nil())))),
+            project_filter: Some(Arc::new(Expr::val(ProjectLiteral::ProjectIdSelf(
+                Uuid::nil(),
+            )))),
+            ..Default::default()
+        };
         let denied = select(
             &db,
             PropertyCandidateRequest {
-                user_id: MacroUserIdStr::parse_from_str("macro|no-access@test.com")?,
-                filter: filters.clone(),
-                selection,
+                filter: denied_filter,
+                selection: definitions
+                    .authorize_property_query(viewer.clone(), None, selection)
+                    .await?,
             },
         )
         .await?;

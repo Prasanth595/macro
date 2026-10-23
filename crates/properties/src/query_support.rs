@@ -19,10 +19,7 @@ use uuid::Uuid;
 ///
 /// Only a stored Date variant is cast. Definition visibility and type checks
 /// belong to the source service, not this SQL fragment.
-pub fn push_date_property_value(
-    query: &mut QueryBuilder<'_, Postgres>,
-    property_definition_id: Uuid,
-) {
+fn push_date_property_value(query: &mut QueryBuilder<'_, Postgres>, property_definition_id: Uuid) {
     query.push("(SELECT CASE WHEN ep.values->>'type' = 'Date' THEN (ep.values->>'value')::timestamptz END FROM entity_properties ep WHERE ep.property_definition_id = ");
     query.push_bind(property_definition_id);
     query
@@ -60,6 +57,13 @@ pub fn push_date_range_bucket(
 /// and nullable `project_id`. Property lookup, membership, counts, and limits all
 /// run in SQL before source repositories hydrate the bounded selected IDs.
 pub fn build_property_candidate_query<'a>(
+    authorized: &crate::AuthorizedPropertyQuery,
+    source: impl FnOnce(&mut QueryBuilder<'a, Postgres>) -> anyhow::Result<()>,
+) -> anyhow::Result<QueryBuilder<'a, Postgres>> {
+    build_property_candidate_query_impl(authorized.query(), source)
+}
+
+fn build_property_candidate_query_impl<'a>(
     descriptor: &CandidateQuery,
     source: impl FnOnce(&mut QueryBuilder<'a, Postgres>) -> anyhow::Result<()>,
 ) -> anyhow::Result<QueryBuilder<'a, Postgres>> {
@@ -100,7 +104,7 @@ pub fn build_property_candidate_query<'a>(
                 query.push(date_bucket_sql_key("candidate.activity_at"));
             }
             Some(GroupByField::EntityType) => {
-                query.push("CASE candidate.entity_type WHEN 'TASK' THEN 'document' WHEN 'THREAD' THEN 'email' WHEN 'CALL_RECORD' THEN 'call' WHEN 'COMPANY' THEN 'crm_company' WHEN 'USER' THEN 'crm_contact' ELSE lower(candidate.entity_type) END");
+                query.push("CASE candidate.entity_type WHEN 'TASK' THEN 'document' WHEN 'THREAD' THEN 'email' WHEN 'CALL_RECORD' THEN 'call' WHEN 'COMPANY' THEN 'crm_company' WHEN 'CONTACT' THEN 'crm_contact' ELSE lower(candidate.entity_type) END");
             }
             Some(GroupByField::Project) => {
                 query.push("COALESCE(candidate.project_id, '')");

@@ -50,9 +50,9 @@ impl SoupRepo for PgSoupRepo {
     type Err = sqlx::Error;
     type GroupedItems = std::vec::IntoIter<ItemGroupingInfo>;
 
-    async fn property_candidate_page<'a>(
+    async fn property_candidate_page(
         &self,
-        request: crate::domain::models::property_candidates::PropertyCandidateRequest<'a>,
+        request: crate::domain::models::property_candidates::PropertyCandidateRequest,
     ) -> Result<models_grouping::CandidatePage, Self::Err> {
         expanded::dynamic::property_candidates::select(&self.pool.0, request).await
     }

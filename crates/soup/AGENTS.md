@@ -73,6 +73,8 @@ rows, initiatives, ...) and get back a single unified, paginated result.
 - Freeze deadline grouping boundaries and group keys in timestamp and due-date
   cursors through `domain/models/grouping/query.rs`; reject conflicting continuations.
 - Preserve deployed non-deadline timestamp cursor encodings.
+- Mint `AuthorizedPropertyQuery` through the properties service before candidate
+  fanout; sources derive the viewer from the capability, not a second user ID.
 - `candidate_gates.rs` encodes access-gate SQL shared across repo queries;
   changing it changes what every entity kind can return.
 - Queries over a known id list (`*/by_ids.rs`, hydration) check access per id

@@ -35,9 +35,9 @@ pub trait SoupRepo: Send + Sync + 'static {
     type GroupedItems: Iterator<Item = ItemGroupingInfo> + Send;
 
     /// Select authorized candidates before DATE ordering, grouping, or pagination.
-    fn property_candidate_page<'a>(
+    fn property_candidate_page(
         &self,
-        request: super::models::property_candidates::PropertyCandidateRequest<'a>,
+        request: super::models::property_candidates::PropertyCandidateRequest,
     ) -> impl Future<Output = Result<models_grouping::CandidatePage, Self::Err>> + Send;
     /// Select authorized task candidates with canonical deadlines before hydration.
     fn due_date_soup_page<'a>(

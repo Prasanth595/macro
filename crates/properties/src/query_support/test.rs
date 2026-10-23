@@ -229,7 +229,7 @@ async fn grouping_date_is_independent_of_sorting_date(pool: Pool<Postgres>) -> a
             descriptor.date_property_id = None;
             descriptor.timestamp_sort = Some(SimpleSortMethod::UpdatedAt);
         }
-        let mut query = build_property_candidate_query(&descriptor, |query| {
+        let mut query = build_property_candidate_query_impl(&descriptor, |query| {
             query.push("SELECT id, entity_type, '2020-01-01'::timestamptz AS activity_at, NULL::text AS project_id FROM (VALUES ('a', 'TASK'), ('b', 'DOCUMENT'), ('c', 'TASK')) AS ids(id, entity_type)");
             Ok(())
         })?;

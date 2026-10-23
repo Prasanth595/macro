@@ -23,11 +23,11 @@ pub(super) async fn select(
 ) -> Result<CandidatePage, sqlx::Error> {
     let mut query = build_property_candidate_query(&request.selection, |query| {
         query.push("WITH viewer AS (SELECT ");
-        query.push_bind(request.user_id.as_ref().to_owned());
+        query.push_bind(request.selection.viewer().as_ref().to_owned());
         query.push(include_str!("property_candidates/source.sql"));
         query.push("SELECT candidate.call_id::text AS id, 'CALL_RECORD'::text AS entity_type, ");
         if matches!(
-            request.selection.timestamp_sort,
+            request.selection.query().timestamp_sort,
             Some(SimpleSortMethod::CreatedAt)
         ) {
             query.push("candidate.started_at");
@@ -48,7 +48,7 @@ pub(super) async fn select(
         .persistent(false)
         .fetch_all(pool)
         .await?;
-    Ok(decode_candidate_page(rows, &request.selection))
+    Ok(decode_candidate_page(rows, request.selection.query()))
 }
 
 fn push_filter(query: &mut QueryBuilder<'_, Postgres>, filter: &Expr<CallLiteral>) {

@@ -33,7 +33,6 @@ outbound = [
   "dep:share_permission_db_utils",
   "dep:sqlx",
   "dep:urlencoding",
-  "dep:properties",
   "properties/outbound",
   "ports",
 ]
@@ -86,7 +85,7 @@ models_permissions = { path = "../models_permissions" }
 notification = { path = "../notification" }
 rootcause = { workspace = true }
 pgvector = { workspace = true, optional = true }
-properties = { path = "../properties", default-features = false, optional = true }
+properties = { path = "../properties", default-features = false }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true }
 share_permission_db_utils = { path = "../share_permission_db_utils", optional = true }

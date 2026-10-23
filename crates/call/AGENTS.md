@@ -58,6 +58,8 @@ in-call chat.
 - Keep CALL_RECORD property clauses exact across active, archived, and imported records; bind nullable UTC bounds for DATE terms, guard timestamp casts with CASE, and preserve the entity-access gates and CNF negation semantics.
 - Evaluate the complete `CallLiteral` tree before candidate counts or limits;
   separate ID, status, and property extraction loses mixed-OR semantics.
+- Accept only viewer-bound `AuthorizedPropertyQuery` for date candidate queries;
+  keep call access and full boolean-filter checks in the source query.
 
 ## Related
 
