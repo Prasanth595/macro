@@ -1175,7 +1175,7 @@ where
     /// subscription, is a free team rather than an error, and its size does
     /// not require an upgrade. Returns whether the team now pays through the
     /// owner's subscription.
-    #[tracing::instrument(skip(self), err)]
+    #[tracing::instrument(skip(self), fields(outcome = tracing::field::Empty), err)]
     async fn backfill_legacy_team_subscription(
         &self,
         team_id: &uuid::Uuid,
@@ -1194,6 +1194,7 @@ where
             .await
             .map_err(GetTeamSubscriptionError::Team)?
         else {
+            tracing::Span::current().record("outcome", "no_customer");
             return Ok(false);
         };
 
@@ -1203,6 +1204,7 @@ where
             .await
             .map_err(GetTeamSubscriptionError::Customer)?
         else {
+            tracing::Span::current().record("outcome", "no_subscription");
             return Ok(false);
         };
 
@@ -1221,6 +1223,7 @@ where
             .await
             .map_err(GetTeamSubscriptionError::Team)?;
 
+        tracing::Span::current().record("outcome", "linked");
         Ok(true)
     }
 
