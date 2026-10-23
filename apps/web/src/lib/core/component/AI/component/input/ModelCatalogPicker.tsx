@@ -19,6 +19,7 @@ import { ModelIcon } from '../ProviderIcon';
 import {
   buildModelCatalog,
   type CatalogModelOption,
+  featuredModelOptions,
   matchesModelQuery,
   modelProviderLabel,
 } from './modelCatalog';
@@ -301,7 +302,10 @@ export function ModelCatalogMenu(
   const normalizedQuery = () => query().trim().toLowerCase();
   const filtered = createMemo(() => {
     const currentQuery = normalizedQuery();
-    if (!currentQuery) return props.options;
+    if (!currentQuery)
+      return props.flat && !showAll()
+        ? featuredModelOptions(props.options, props.value)
+        : props.options;
     return props.options.filter((option) =>
       matchesModelQuery(option, currentQuery)
     );
@@ -483,6 +487,25 @@ export function ModelCatalogMenu(
             </div>
           </Show>
         </Dropdown.Group>
+        <Show
+          when={
+            props.flat &&
+            !showAll() &&
+            !normalizedQuery() &&
+            filtered().length < props.options.length
+          }
+        >
+          <Dropdown.Item
+            closeOnSelect={false}
+            class="h-8 text-ink-muted"
+            onSelect={() => {
+              setShowAll(true);
+              searchEl?.focus();
+            }}
+          >
+            Show all models
+          </Dropdown.Item>
+        </Show>
       </Show>
     </>
   );

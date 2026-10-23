@@ -170,6 +170,19 @@ export function buildModelCatalog(
   return { frontier, providers };
 }
 
+/** Keep the main choices and current model visible without trimming custom catalogs. */
+export function featuredModelOptions(
+  options: readonly CatalogModelOption[],
+  selectedId?: string | null
+) {
+  const { frontier } = buildModelCatalog(options);
+  if (frontier.length === 0) return [...options];
+  const ids = new Set(frontier.map((option) => option.id));
+  return options.filter(
+    (option) => ids.has(option.id) || option.id === selectedId
+  );
+}
+
 /**
  * Whether a search query hits this model by name, by its heading, or by its
  * id — a name displayed as "Sonnet 5.5" should still be findable by typing the

@@ -102,6 +102,17 @@ describe('shared model selector', () => {
     fireEvent.keyDown(trigger, { key: 'Enter' });
     expect(screen.queryByRole('menuitem', { name: 'More models' })).toBeNull();
     expect(
+      screen.queryByRole('menuitem', { name: /GPT-5.6 mini/i })
+    ).toBeNull();
+    fireEvent.keyDown(
+      screen.getByRole('menuitem', { name: 'Show all models' }),
+      {
+        key: 'Enter',
+      }
+    );
+    expect(select).not.toHaveBeenCalled();
+    expect(screen.getAllByRole('menu')).toHaveLength(1);
+    expect(
       screen.getByRole('menuitem', { name: /GPT-5.6 mini/i })
     ).toBeTruthy();
     expect(screen.queryByText(ids[0])).toBeNull();

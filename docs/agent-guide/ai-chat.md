@@ -144,8 +144,9 @@ without first focusing or expanding the message input. **Default agent** appears
 first, followed by saved agents in a single list. Each row shows its name and
 icon; agents that need a connection also show their setup action. Tap an agent
 to update the model list in the same sheet; tap a model to select it and close.
-The active agent's models appear once each beneath **Models**. Search accepts
-model names, IDs, and providers. **Create agent** is a quiet action at the bottom.
+The active agent's main models and current selection appear beneath **Models**.
+**Show all models** expands the list in place; search always includes every model
+and accepts model names, IDs, and providers. **Create agent** is a quiet action at the bottom.
 The separate effort button opens its own flat list of levels.
 
 The floating mobile composer appears only on **Agents**; Home and other views
@@ -162,7 +163,8 @@ Tapping outside collapses the composer and restores New.
 The editor and model picker stay mounted so collapsing preserves the draft.
 Dismissing the model or effort selector on mobile returns focus to the message input.
 Active sessions use the same compact mobile model drawer: focused search and one
-flat list containing every available model.
+flat shortlist that keeps the current selection visible. Search and **Show all
+models** reach the complete catalog without opening another menu.
 Repository and branch pickers keep the composer expanded while their search
 fields are focused, so their anchor stays in place.
 
@@ -408,12 +410,14 @@ the shimmer.
   in place and uses that agent's default, while keeping the picker open.
   Selecting the current agent preserves its model choice. Picking a model
   closes the picker. Neither agents nor models open nested menus.
-  The model column is a single searchable list, with each model appearing once
-  and no provider headings. Both columns scroll independently. Phones keep a
+  The model column starts with Auto and the main model choices, always retaining
+  the current selection. **Show all models** expands the list in place; search
+  always includes the complete catalog. Each model appears once, without provider
+  headings. Custom catalogs without main choices remain fully visible. Both columns scroll independently. Phones keep a
   searchable bottom sheet with agent choices first and the active agent's models
   below. Changing agents updates that list in place. Agent rows show a small
   icon and name; only unavailable agents add their setup action or reason.
-  **Create agent** is a quiet action below the agents. The separate brain control
+  **Create agent** is a quiet action below the agents. The separate gauge control
   displays the current effort on desktop and opens a flat list of choices.
   The catalog's opaque search header meets the top of the scroll area so rows
   cannot show through above it. Models have readable
@@ -507,8 +511,9 @@ the shimmer.
   Within an existing session, the model picker remains available on the right.
   Its trigger, model options, and session metadata use the same readable model names
   as the new-conversation picker. Desktop sessions show the complete searchable
-  catalog in one menu. Phone sessions retain a searchable bottom sheet.
-- The separate brain control opens a flat **Reasoning effort** list using the
+  shortlist in one menu, with **Show all models** and search reaching the full
+  catalog. Phone sessions use the same approach in a bottom sheet.
+- The separate gauge control opens a flat **Reasoning effort** list using the
   current model's advertised choices. Click a level, or select it with the
   keyboard, to apply it and close the menu. On phones the same choices appear
   in their own bottom sheet. Models with fewer than two effort choices omit
@@ -582,7 +587,7 @@ the shimmer.
   changes the model of an idle native session after native confirmation and
   displays the model identified by the session (Codex's live footer, or native
   transcript metadata). Unexpected native dialogs must be completed in Herdr.
-  For Codex, use the separate brain control to select **Reasoning effort**.
+  For Codex, use the separate gauge control to select **Reasoning effort**.
   Choices come from the installed Codex catalog; the selected effort is confirmed
   from the native session and shown beside the model. Local Herdr changes and
   `/effort` also update this menu. The effort menu appears once the native
@@ -1282,8 +1287,8 @@ virtual keyboard inserts a newline and never sends; only **Send** submits, the
 same as channel composers. This also applies to the Agents workspace session
 and new-conversation inputs and to the mobile **Ask AI** composer. On desktop
 Enter still sends and Shift+Enter inserts a newline. Tapping the model opens a
-bottom sheet listing every model the same way, with a check on the current one
-— pick a row to switch. Models read as names even when the runtime reports
+bottom sheet with the main models and a check on the current one. Pick a row to
+switch, or use search or **Show all models** to find the remaining choices. Models read as names even when the runtime reports
 only ids: Macro Agent's `anthropic/claude-sonnet-5-5` shows as **Sonnet 5.5**. On desktop the
 transcript and composer use the shared channel message width so expanding **Context** only
 grows vertically; your messages are right-aligned bubbles and the model pill
@@ -1762,13 +1767,13 @@ There is no periodic PR lookup polling.
 
 ### Agent reasoning effort
 
-Open the brain control beside the model selector to choose from a flat list of
+Open the gauge control beside the model selector to choose from a flat list of
 **Reasoning effort** levels. The current level has a checkmark. Choosing a level
 applies it immediately and closes the menu; Escape closes it without a change.
 Phones show the same choices in a bottom sheet. Select a model first, then use
 its advertised effort choices. Cursor and Macro's in-memory agent discover
 capabilities for the selected model. The model trigger shows the model name;
-the brain control displays the current effort on desktop and announces it on mobile. Models without effort support remain
+the gauge control displays the current effort on desktop and announces it on mobile. Models without effort support remain
 selectable, and omit the effort control. Default retains the runtime's default
 behavior when it is advertised.
 

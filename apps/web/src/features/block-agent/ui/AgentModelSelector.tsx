@@ -9,8 +9,8 @@
  * its name. Renders nothing until the harness has advertised its models.
  *
  * Touch devices get a bottom sheet (`MobileDrawer`, the same chrome as the
- * split title menu) listing every model with a check on the current one, and
- * a single searchable list. Desktop keeps
+ * split title menu) with a searchable shortlist and a check on the current
+ * model. Show all models reveals the complete list in place. Desktop keeps
  * a popover: a compact scrolling list for short catalogs, the searchable
  * `ModelCatalogPicker` for long ones.
  *
@@ -28,6 +28,7 @@ import {
 } from '@core/component/AI/component/input/ModelCatalogPicker';
 import {
   type CatalogModelOption,
+  featuredModelOptions,
   isLargeModelCatalog,
   matchesModelQuery,
 } from '@core/component/AI/component/input/modelCatalog';
@@ -86,6 +87,7 @@ export function AgentModelSelector(props: AgentModelSelectorProps) {
   const [listRef, setListRef] = createSignal<HTMLElement>();
   const [sheetOpen, setSheetOpen] = createSignal(false);
   const [query, setQuery] = createSignal('');
+  const [showAll, setShowAll] = createSignal(false);
   let searchInput: HTMLInputElement | undefined;
   const shown = () => props.changingTo ?? props.model;
   const baseLabel = () =>
@@ -105,16 +107,23 @@ export function AgentModelSelector(props: AgentModelSelectorProps) {
     group: option.group ?? undefined,
   });
   const catalogOptions = () => options().map(toCatalogOption);
-  const useCatalog = () => isLargeModelCatalog(catalogOptions());
-  const filtered = () =>
-    catalogOptions().filter((option) =>
-      matchesModelQuery(option, query().trim().toLowerCase())
+  const featured = () => featuredModelOptions(catalogOptions(), shown());
+  const useCatalog = () =>
+    isLargeModelCatalog(catalogOptions()) ||
+    featured().length < catalogOptions().length;
+  const filtered = () => {
+    const search = query().trim().toLowerCase();
+    if (!search && !showAll()) return featured();
+    return catalogOptions().filter((option) =>
+      matchesModelQuery(option, search)
     );
+  };
 
   const openSheet = (open: boolean) => {
     setSheetOpen(open);
     if (!open) {
       setQuery('');
+      setShowAll(false);
     }
   };
 
@@ -204,6 +213,23 @@ export function AgentModelSelector(props: AgentModelSelectorProps) {
                 )}
               </For>
             </MobileDrawer.Section>
+            <Show
+              when={
+                !showAll() &&
+                !query().trim() &&
+                featured().length < catalogOptions().length
+              }
+            >
+              <MobileDrawer.Item
+                class="text-ink-muted"
+                onClick={() => {
+                  setShowAll(true);
+                  searchInput?.focus();
+                }}
+              >
+                Show all models
+              </MobileDrawer.Item>
+            </Show>
           </MobileDrawer.ScrollBody>
         </MobileDrawer.Content>
       </MobileDrawer.Portal>

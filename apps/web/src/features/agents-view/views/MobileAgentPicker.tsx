@@ -1,5 +1,8 @@
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
-import { matchesModelQuery } from '@core/component/AI/component/input/modelCatalog';
+import {
+  featuredModelOptions,
+  matchesModelQuery,
+} from '@core/component/AI/component/input/modelCatalog';
 import { ModelIcon } from '@core/component/AI/component/ProviderIcon';
 import { modelLabel } from '@core/component/AI/constant/model-label';
 import Check from '@phosphor/check.svg';
@@ -18,7 +21,9 @@ import type { AgentPickerProps } from './AgentPicker';
 export function MobileAgentPicker(props: AgentPickerProps) {
   const [open, setOpen] = createSignal(false);
   const [query, setQuery] = createSignal('');
+  const [showAll, setShowAll] = createSignal(false);
   const [browsingId, setBrowsingId] = createSignal<string>();
+  let searchInput: HTMLInputElement | undefined;
   const macro = () =>
     props.agents.find((agent) => agent.id === MACRO_PERSONA_ID);
   const browsing = () =>
@@ -39,14 +44,18 @@ export function MobileAgentPicker(props: AgentPickerProps) {
       : (props.selected?.name ?? 'Choose agent');
   const matches = (text: string) =>
     text.toLocaleLowerCase().includes(query().trim().toLocaleLowerCase());
-  const models = createMemo(() => {
-    const options = catalog.models().map((option) => ({
+  const options = createMemo(() =>
+    catalog.models().map((option) => ({
       id: option.id,
       label: modelLabel(option.id, option.name),
       group: option.group ?? undefined,
-    }));
+    }))
+  );
+  const featured = () => featuredModelOptions(options(), browsingModel());
+  const models = createMemo(() => {
     const search = query().trim().toLowerCase();
-    return options.filter((option) => matchesModelQuery(option, search));
+    if (!search && !showAll()) return featured();
+    return options().filter((option) => matchesModelQuery(option, search));
   });
   const agents = () =>
     agentPickerGroups(
@@ -57,7 +66,10 @@ export function MobileAgentPicker(props: AgentPickerProps) {
   const changeOpen = (next: boolean) => {
     if (next) setBrowsingId(props.selected?.id ?? macro()?.id);
     setOpen(next);
-    if (!next) setQuery('');
+    if (!next) {
+      setQuery('');
+      setShowAll(false);
+    }
   };
   const browse = (agent: RosterAgent) => {
     if (agent.unavailableReason) {
@@ -68,6 +80,7 @@ export function MobileAgentPicker(props: AgentPickerProps) {
       return;
     }
     setQuery('');
+    setShowAll(false);
     setBrowsingId(agent.id);
     if (agent.id !== props.selected?.id) props.onSelect(agent);
   };
@@ -128,6 +141,7 @@ export function MobileAgentPicker(props: AgentPickerProps) {
               class="size-4 shrink-0 text-ink-extra-muted"
             />
             <input
+              ref={searchInput}
               aria-label="Search agents and models"
               placeholder="Search agents and models"
               value={query()}
@@ -183,6 +197,23 @@ export function MobileAgentPicker(props: AgentPickerProps) {
                   )}
                 </For>
               </MobileDrawer.Section>
+              <Show
+                when={
+                  !showAll() &&
+                  !query().trim() &&
+                  featured().length < options().length
+                }
+              >
+                <MobileDrawer.Item
+                  class="text-ink-muted"
+                  onClick={() => {
+                    setShowAll(true);
+                    searchInput?.focus();
+                  }}
+                >
+                  Show all models
+                </MobileDrawer.Item>
+              </Show>
               <Show when={models().length === 0}>
                 <p role="status" class="px-4 py-3 text-sm text-ink-muted">
                   {query() ? 'No matching models' : catalog.message()}

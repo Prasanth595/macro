@@ -1,8 +1,8 @@
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import Brain from '@phosphor/brain.svg';
 import CaretDown from '@phosphor/caret-down.svg';
 import Check from '@phosphor/check.svg';
+import Gauge from '@phosphor/gauge.svg';
 import { Button, Dropdown, Tooltip } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import type {
@@ -65,7 +65,7 @@ export function EffortSelector(props: {
                 disabled={props.disabled}
                 aria-label={`Effort: ${label()}`}
               >
-                <Brain class="size-4" />
+                <Gauge class="size-4" />
                 <span>{label()}</span>
                 <CaretDown class="size-3.5" />
               </Dropdown.Trigger>
@@ -111,7 +111,7 @@ export function EffortSelector(props: {
             onPointerDown={(event: PointerEvent) => event.preventDefault()}
             onMouseDown={(event: MouseEvent) => event.preventDefault()}
           >
-            <Brain class="size-[18px]" />
+            <Gauge class="size-[18px]" />
           </MobileDrawer.Trigger>
           <MobileDrawer.Portal>
             <MobileDrawer.Overlay />
