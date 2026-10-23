@@ -259,7 +259,8 @@ code files, images, canvases, spreadsheets, email, channels, calls, and projects
 also open agent sessions. Like command-menu Ask AI, they open the bare session in
 a new split, without the Agents workspace's conversation sidebar. Their entity mention stays
 in the composer as an unsent draft. Spreadsheet mentions retain the current sheet
-and selected range; channel-message actions retain the referenced message.
+and selected range; channel-message actions retain the referenced message. On
+phones, the channel message long-press drawer offers the same action as **Ask Macro**.
 Add a question and press Send to submit that context. These actions do not create
 legacy cognition chats, regardless of the Agents workspace feature flag.
 
@@ -292,18 +293,23 @@ the shimmer.
   Macro that covers that repository; connecting only Cursor does not grant Macro
   GitHub access. Cloud agents also need a public agent gateway: Docker-only hostnames
   cannot receive their MCP callbacks. Check the runtime error before retrying, and
-  start a new Claude session after correcting its gateway network configuration.
+  start a new session after correcting its gateway network configuration.
 
 - Open **Go to Agents** → `/app/component/agents`. With AI agents enabled
   (`enable-chat-v3-agents`), the workspace uses one sidebar for Chat and Code.
   **Agents** in the sidebar opens the same roster as the composer’s
   **Create agent** action. **Connections** manages MCP integrations (including
-  app authentication and disconnection); this section has moved out of Settings.
+  app authentication and disconnection), also available under Settings → Integrations.
   Home’s **Connect your tools** and agent replies’ **Connect app** chips open this
-  Connections page. Personal Gmail/GitHub account links remain under Settings →
-  Integrations.
+  Integrations page. It shows installed tools above the app catalog, with personal Gmail/GitHub account links in a separate section above.
 
-  To recreate Slack channels, open **Settings → Connections → Slack → Import
+  In a secondary desktop split, the new-conversation page and existing chats show
+  one close button beside **Show navigation** while the sidebar is collapsed.
+  Verify this below 720px pane width, then expand and collapse navigation and
+  check that closing the split works. Mobile **Back to conversations** still
+  returns to the conversation list.
+
+  To recreate Slack channels, open **Settings → Integrations → Slack → Import
   channels** (or **Connections → Slack** from the Agents workspace). The card
   appears only for a connected, enabled Pipedream Slack account. Click **Find
   channels** (or **Refresh** on subsequent visits), then wait for discovery and
@@ -326,8 +332,8 @@ the shimmer.
   first; `slack_v2` remains a separate row in Connections where it can be disabled
   or disconnected.
 
-  Start a conversation with **Create → Agent**. The sidebar has no New conversation
-  button, and the empty composer has no New conversation heading.
+  Start a conversation with the desktop sidebar's **New** button or **Create → Agent**.
+  The empty composer has no New conversation heading.
   **Conversations** is a mixed list
   of chats and coding sessions, with one search across both. **Group conversations**
   switches between Status (the default), Type, and None, preserving newest-first
@@ -429,7 +435,7 @@ the shimmer.
   Unavailable paired agents stay visible with a reason.
   If Macro is unavailable, its catalog stays visible but
   model choices are disabled in every list. Model discovery uses the
-  selected runtime, including Claude Cloud. Every coding agent shows repository
+  selected runtime. Every coding agent shows repository
   controls; chat agents hide those controls but keep the mode bar. Repository/branch overrides are currently applied
   only to Cursor sessions by the create-session API.
   The most recently used supported,
@@ -512,7 +518,8 @@ the shimmer.
   the catalog in place with a Back action. Search includes every model.
 - Desktop keeps the model selector and speedometer as separate controls. The
   speedometer opens a slider with a stop for each advertised effort level. Arrow keys
-  adjust the level; pointer drags commit on release. The popover stays open, and
+  and drags preview the level; it is applied once, when the popover closes, and
+  only if it differs from the current level. The popover stays open, and
   the model selector opens the full catalog independently. On mobile, the **speedometer-style
   effort** button opens its own sheet after the input expands. Choosing a level
   applies it and closes the sheet. Models with fewer than two effort choices
@@ -543,8 +550,7 @@ the shimmer.
   **Add agent**, the setup strips, and Edit replace the list with full pages,
   not dialogs; Back/Cancel returns to the list. Use **Create → Agent** to open a new composer.
   The agent editor has Profile, Instructions, **Where it runs** (In Macro, In
-  Cursor, In your harness; In Claude Code too with the `claude-cloud` flag once
-  Claude lists models) and **Who can use it** (Private / Team). The selected
+  Cursor, In your harness) and **Who can use it** (Private / Team). The selected
   place opens its Model picker inside its card; In your harness adds a Harness
   picker beside it. An unconnected Cursor or unpaired harness is disabled with
   **Connect** / **Set up**, which open the setup guide in place and return to the
@@ -938,13 +944,18 @@ per harness process. Network hosts, process lifetime, output and memory are
 bounded; filesystem writes, arbitrary imports and subprocesses are denied.
 The token expires after issuance; process exit does not revoke it early.
 
-The transcript shows **Run code** while execution is in flight. Expand it to
-inspect the submitted source and final returned JSON or error. Code that creates
-a saved review immediately emits a separate completed **PresentReview** ACP call.
+Inline channel and discussion steps show the observed SDK operation names while
+code runs, using the same execution journal as the full session view. The final
+tool receipt carries those operations into the shared fold, so posted step
+snapshots retain the names and outcomes without exposing source or returned JSON.
+A code run without observed SDK requests keeps its generic execution step.
+Unfinished requests are shown as interrupted, never as confirmed successes. Code
+that creates a saved review immediately emits a separate completed **PresentReview**
+ACP call.
 Its card can appear before the program finishes and stays editable afterwards.
-Presentation means “Presented to the user,” not approved or sent. There is no
-individual live progress stream or saved response journal for arbitrary SDK HTTP
-calls. The execution journal retains source, status and final JSON/error;
+Presentation means “Presented to the user,” not approved or sent. SDK operation
+activity reports request outcomes, without storing request arguments or response
+bodies. The execution journal retains source, status and final JSON/error;
 completed API writes are not rolled back after failure or cancellation.
 If a reused execution ID refers to different source, the card reports that tool
 results are unavailable and does not display the other program's saved results.
@@ -1091,14 +1102,17 @@ list, create, and update projects (initiatives in the API) and move tasks in or 
 render `displayResults` views). Requests go to `POST /cognition/stream/chat/message`; results
 stream over the app's websocket, not the HTTP response.
 
-When explicitly asked, the agent uses `CommentOnDocument` to reply with `threadId`,
-start an inline markdown comment with `quote`, or start a Discussion comment with
-neither. `threadId` and `quote` cannot be combined; `occurrence` only applies with
-`quote`. Thread ids come from the comments returned by `ReadContent`. A reply row reads
-**Replied to a comment on** (or **Commented on** for a new Discussion comment) followed
-by the document, and expands to the posted text; a resolve row reads **Resolved** or
-**Reopened a comment on** the document. Asked to comment on part of a markdown
-document, the agent starts an inline comment on the quoted passage: the row reads
+When explicitly asked, the agent uses `Comment` to start a Discussion comment on an
+item, addressed by `entityType` and `entityId` (a `document`, which includes tasks and
+PDFs, an `initiative`, which is a Tasks project, a `crm_company` or a `crm_contact`),
+or to reply with `threadId` alone: a thread id is enough to find its item. It reads any
+item's threads with `ReadDiscussion`, and edits, deletes and resolves comments by their
+ids with `EditComment`, `DeleteComment` and `ResolveComment`. For a document,
+`ReadContent` returns the same threads with the content. A reply row reads **Replied to
+a comment on** (or **Commented on** for a new Discussion comment) followed by the item,
+and expands to the posted text; a resolve row reads **Resolved** or **Reopened a comment
+on** the item. Asked to comment on part of a markdown document, the agent uses
+`CommentOnText` with `quote` (`occurrence` picks a repeated passage): the row reads
 **Commented on text in** the document and expands to the quoted text and the comment,
 and the passage is highlighted in the document with the comment floating beside it.
 A passage that is missing, spans blocks, or repeats with no occurrence chosen is
@@ -1163,7 +1177,7 @@ reads `Waiting for approval`. The agent's hidden context names the owner and the
 ## Forms authoring and sharing
 
 With Forms enabled, ask the agent to create a complete form, including ordered
-sections and qualification screeners. Creation starts closed and members-only.
+sections and qualification gates. Creation starts closed and members-only.
 The expandable tool result shows the saved questions, builder link, respondent
 link, and actual response availability. Edits use granular CRDT updates
 to preserve unrelated human changes. Partial outcomes have recovery guidance;
@@ -1173,7 +1187,7 @@ a link by itself is not a completed or open form.
 and channel-sharing services as the browser. There is no custom review card.
 Channel Edit also grants access to the entire response database. Settings and
 channel grants are separate writes; inspect any partial outcome before retrying.
-See [Forms](forms.md#forms-through-the-ai-tools) for screeners, booking link reveal,
+See [Forms](forms.md#forms-through-the-ai-tools) for gates, booking link reveal,
 supported edits and retry behavior.
 
 ## In channels
@@ -1375,9 +1389,12 @@ Details lists Status, Agent, Model, and dates for every session; the Runtime
 row appears only for coding runtimes, never for in-memory chat agents.
 `References` is the same section documents show: one row per channel message that
 `@`-mentioned or shared the session (sender, channel chip, time, and a two-line
-message excerpt) and per document that mentions it (author and document chip).
-Click a row to open that message or document in a split. The section is hidden
-until at least one reference exists, and only lists channels you belong to.
+message excerpt), per comment on a document, project, CRM record, or call that
+mentions it (sender, parent chip, time, excerpt), and per document that mentions
+it (author and document chip). Click a row to open that message, comment, or
+document in a split; a comment row opens its parent at the comment. The section
+is hidden until at least one reference exists, lists channels you belong to, and
+lists comments only on parents you can view.
 New conversation pages have no disabled session action buttons. Older chats
 also have one header row, and empty chats show a simple conversation prompt
 instead of the standalone recent-sessions and tips surface.
@@ -1571,7 +1588,10 @@ The owner can click **Stop sharing** in the banner; open preview connections
 close. Disconnection and expiry leave a banner asking the agent to share again.
 Leases last up to one hour and expire after 15 minutes without browser requests.
 Continue prompting in the agent session while the preview tab stays open; page
-edits should arrive through the app's own HMR connection.
+edits should arrive through the app's own HMR connection. Control requests, SSH,
+and preview navigation can reach different replicas without requiring sticky
+sessions. A rolling restart of the tunnel owner may disconnect its previews;
+the banner becomes offline within 45 seconds. Ask the agent to share again.
 
 ### Transcript navigation
 
@@ -1699,7 +1719,7 @@ must stay hidden; subsequent live messages must still appear.
 - **Agent permission policy.** Settings → Agents → Runtime shows `Always prompt`
   and `Always bypass` only for local macrod harnesses. Macrod defaults to prompts;
   bypass requires both harness consent and the agent's explicit choice. Built-in
-  Macro, in-memory, Cursor, Codex, and Claude runtimes always bypass and have no
+  Macro, in-memory, Cursor, and Codex runtimes always bypass and have no
   permission policy selector. The backend enforces these policies.
 
 Locally sent user messages in both AI implementations enter with a short upward
@@ -1756,7 +1776,7 @@ There is no periodic PR lookup polling.
 On desktop, open the speedometer beside the model selector to adjust the
 current model with the **Reasoning effort** slider. The header and accessible value announce the
 selected level. Arrow keys move between supported levels; the menu stays open
-until dismissed. The model selector opens the full catalog independently; other
+until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
 models still offer their own effort submenu with Right Arrow. On mobile, tap a model
 to select it, then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
@@ -1843,7 +1863,7 @@ picker. New and resumed sessions replace an inaccessible saved model with Gemini
 A direct request to select a paid model is rejected, and each prompt rechecks
 permissions before inference, including after a plan downgrade. Permission
 lookup failures prevent inference. Paid users retain the full supported catalog.
-Cursor, Claude Cloud, and paired external runtimes keep their own model rules.
+Cursor and paired external runtimes keep their own model rules.
 
 To verify, start a Macro conversation as a free user with a previously saved
 paid-model preference: the composer should show Gemini and send that model.
@@ -1984,11 +2004,14 @@ Invalid drafts remain editable; navigation opens the first draft needing attenti
 A revision conflict or uncertain request shows **Reload saved review**. Reload
 reads the saved version and discards the local edit; it never retries an external
 send automatically. If the outcome is unknown, check the inbox/calendar before
-attempting another send elsewhere. A completed review queues bounded outcome
-context for the agent through the normal session queue, without interrupting its
-current turn. The existing context
-control exposes this metadata on demand; individual outcomes remain on the review
-card instead of appearing as a long user message. Questions and their answers use
+attempting another send elsewhere. Owner decisions produce durable system events
+for the same review ID. The card refreshes in place, with **Responding** below it
+until the agent starts its reply. This behaves the same on mobile. These events
+create no user bubble; events without an existing card use a quiet timeline row.
+The agent can read final drafts and confirmed outcomes through **GetReview**.
+An exact silent response produces no assistant message or unread notification.
+An owner decision in chat uses the same saved-revision claim as the card;
+a system event cannot approve a review. Ordinary questions still use
 the existing ACP question tool; they are not saved reviews.
 
 For browser verification, inspect email stacks without clicking Send, or dismiss
@@ -2002,7 +2025,7 @@ creating an event is a real action, including from a local app connected to dev.
 On desktop, open the speedometer beside the model selector to adjust the
 current model with the **Reasoning effort** slider. The header and accessible value announce the
 selected level. Arrow keys move between supported levels; the menu stays open
-until dismissed. The model selector opens the full catalog independently; other
+until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
 models still offer their own effort submenu with Right Arrow. On mobile, tap a model
 to select it, then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
@@ -2049,3 +2072,9 @@ can share a session into a channel. These tools cannot approve permission
 requests on a user's behalf.
 
 ![Expanded session read with a terminal failure visible after truncated text](media/ai-chat/read-agent-session.png)
+
+Agent-session system events appear as a single quiet row with a kind-specific
+icon, an outcome summary, and relative time (hover for the exact timestamp).
+Failures and unconfirmed outcomes use the error tone. Review events refresh
+the existing card without adding a second timeline row when that card is
+already in the thread. The row stays on one line and truncates on phones.

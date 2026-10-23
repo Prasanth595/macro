@@ -556,10 +556,51 @@ export type ApiAttachmentChannelReference = {
 };
 
 /**
+ * A reference to an attachment entity from a comment on a non-channel entity.
+ */
+export type ApiAttachmentCommentReference = {
+    /**
+     * When the mention or attachment row was created.
+     */
+    attachment_created_at: string;
+    /**
+     * Full message content (might be used for preview/snippet).
+     */
+    message_content: string;
+    /**
+     * When the message itself was created.
+     */
+    message_created_at: string;
+    /**
+     * Message that contains the reference.
+     */
+    message_id: string;
+    /**
+     * Id of the entity the comment belongs to.
+     */
+    parent_entity_id: string;
+    /**
+     * Stored type of the entity the comment belongs to
+     * (`document`, `initiative`, `crm_company`, `crm_contact`, or `call`).
+     */
+    parent_entity_type: string;
+    /**
+     * Sender of the message.
+     */
+    sender_id: string;
+    /**
+     * If the message belongs to a thread this is the parent id.
+     */
+    thread_id?: string | null;
+};
+
+/**
  * An attachment reference, tagged by source kind.
  */
 export type ApiAttachmentEntityReference = (ApiAttachmentChannelReference & {
     reference_type: 'channel';
+}) | (ApiAttachmentCommentReference & {
+    reference_type: 'comment';
 }) | (ApiAttachmentGenericReference & {
     reference_type: 'generic';
 });
@@ -1573,6 +1614,11 @@ export type CalendarEvent = {
      */
     eventType?: EventType;
     /**
+     * What the organizer lets guests do: the canonical copy's values, or
+     * Google's defaults for an event synced before the policy was modeled.
+     */
+    guestPolicy: GuestPolicy;
+    /**
      * RFC 5545 UID used to reconcile provider and email sources.
      */
     icalUid: string;
@@ -1584,6 +1630,12 @@ export type CalendarEvent = {
      * Whether the canonical source's calendar prohibits editing it.
      */
     isReadOnly: boolean;
+    /**
+     * Whether this is a snapshot of a meeting shared with the owner, which
+     * Macro added to their calendar as a private copy: the meeting's changes
+     * never reach it, and nothing done to it reaches the meeting.
+     */
+    isSnapshot: boolean;
     /**
      * Optional physical or virtual location label.
      */
@@ -1641,6 +1693,12 @@ export type CalendarEvent = {
      * Entity update time.
      */
     updatedAt: string;
+    /**
+     * What the viewing requester may do with the event. Resolved only on
+     * the read path, alongside each attendee's `is_self`; nothing when no
+     * viewer is known. Source projections never store it.
+     */
+    viewerCan: ViewerCapabilities;
     /**
      * Event visibility.
      */
@@ -1734,6 +1792,71 @@ export type CalendarEventSourceContent = {
 };
 
 /**
+ * A channel member's request to be added as a guest of an event they see
+ * only through a channel share.
+ */
+export type CalendarJoinRequest = {
+    /**
+     * When the request was made, or last reopened.
+     */
+    createdAt: string;
+    /**
+     * The sharer's event entity that was shared with the channel.
+     */
+    eventId: string;
+    /**
+     * Request identifier.
+     */
+    id: string;
+    /**
+     * Address the sharer invites when accepting.
+     */
+    requesterEmail: string;
+    /**
+     * Macro user asking to join.
+     */
+    requesterId: string;
+    /**
+     * Where the request stands.
+     */
+    status: CalendarJoinRequestStatus;
+};
+
+/**
+ * HTTP error body returned by join-request endpoints.
+ */
+export type CalendarJoinRequestApiError = {
+    /**
+     * Machine-readable failure category.
+     */
+    code: CalendarJoinRequestErrorCode;
+    /**
+     * Human-readable failure description.
+     */
+    message: string;
+};
+
+/**
+ * Machine-readable join-request failure category.
+ */
+export type CalendarJoinRequestErrorCode = 'not_found' | 'already_on_calendar' | 'sharer_cannot_invite' | 'internal';
+
+/**
+ * Lifecycle of a request to be added as a guest of a shared event.
+ */
+export type CalendarJoinRequestStatus = 'pending' | 'accepted' | 'declined';
+
+/**
+ * Pending requests to join one event.
+ */
+export type CalendarJoinRequestsResponse = {
+    /**
+     * Oldest first.
+     */
+    requests: Array<CalendarJoinRequest>;
+};
+
+/**
  * Meeting-level fields shown in a calendar event mention preview, taken from
  * the requester's own projection of the meeting, or — when the requester has
  * none — from the mentioned projection a channel they belong to was given.
@@ -1744,6 +1867,12 @@ export type CalendarMentionEvent = {
      */
     attendeeCount: number;
     /**
+     * For a channel-shared preview, whether the person who shared it can
+     * add the requester as a guest. Always false for the requester's own
+     * copy.
+     */
+    canRequestToJoin?: boolean;
+    /**
      * Provider description, plain text or HTML, truncated for the preview.
      * Clients must sanitize it before rendering.
      */
@@ -1752,6 +1881,7 @@ export type CalendarMentionEvent = {
      * Whether the event repeats.
      */
     isRecurring: boolean;
+    joinRequestStatus?: null | CalendarJoinRequestStatus;
     /**
      * Location label, when set.
      */
@@ -8040,6 +8170,25 @@ export type GuestJoinRequest = {
      * Guest's name, displayed to everyone in the room.
      */
     displayName: string;
+};
+
+/**
+ * The switches an organizer sets on an event to bound what its guests may
+ * do. Google omits a switch from the payload while it holds its default.
+ */
+export type GuestPolicy = {
+    /**
+     * Whether guests may invite others.
+     */
+    canInviteOthers: boolean;
+    /**
+     * Whether guests may change the event, including its guest list.
+     */
+    canModify: boolean;
+    /**
+     * Whether guests may see the guest list.
+     */
+    canSeeOtherGuests: boolean;
 };
 
 /**
@@ -15090,6 +15239,37 @@ export type ViewResult = {
     positions: Array<CardPosition>;
 };
 
+/**
+ * What the viewing requester may do with an event.
+ */
+export type ViewerCapabilities = {
+    /**
+     * Change the event's details (title, time, description, conference).
+     */
+    editDetails: boolean;
+    /**
+     * Add guests.
+     */
+    inviteGuests: boolean;
+    /**
+     * Act as the event's organizer: replace its whole guest list and manage
+     * its conferencing.
+     */
+    organize: boolean;
+    /**
+     * Remove guests.
+     */
+    removeGuests: boolean;
+    /**
+     * Answer the invitation.
+     */
+    rsvp: boolean;
+    /**
+     * Change the event's guest policy, which only Google calendars have.
+     */
+    setGuestPolicy: boolean;
+};
+
 export type ViewsResponse = {
     excludedDefaultViews: Array<ExcludedDefaultView>;
     views: Array<View>;
@@ -15708,6 +15888,122 @@ export type ListTeamOutOfOfficeResponses = {
 };
 
 export type ListTeamOutOfOfficeResponse = ListTeamOutOfOfficeResponses[keyof ListTeamOutOfOfficeResponses];
+
+export type EventIcsData = {
+    body?: never;
+    path: {
+        /**
+         * Calendar event entity id
+         */
+        event_id: string;
+    };
+    query?: never;
+    url: '/calendar-events/{event_id}/ics';
+};
+
+export type EventIcsErrors = {
+    /**
+     * Authentication required
+     */
+    401: unknown;
+    /**
+     * Event not found or not visible to the requester
+     */
+    404: unknown;
+    /**
+     * Calendar query failed
+     */
+    500: unknown;
+};
+
+export type EventIcsResponses = {
+    /**
+     * The event as an iCalendar document
+     */
+    200: string;
+};
+
+export type EventIcsResponse = EventIcsResponses[keyof EventIcsResponses];
+
+export type ListJoinRequestsData = {
+    body?: never;
+    path: {
+        /**
+         * Calendar event entity id
+         */
+        event_id: string;
+    };
+    query?: never;
+    url: '/calendar-events/{event_id}/join-requests';
+};
+
+export type ListJoinRequestsErrors = {
+    /**
+     * Authentication required
+     */
+    401: unknown;
+    /**
+     * Event not found or not editable by the requester
+     */
+    404: CalendarJoinRequestApiError;
+    /**
+     * Listing failed
+     */
+    500: CalendarJoinRequestApiError;
+};
+
+export type ListJoinRequestsError = ListJoinRequestsErrors[keyof ListJoinRequestsErrors];
+
+export type ListJoinRequestsResponses = {
+    /**
+     * Pending join requests, oldest first
+     */
+    200: CalendarJoinRequestsResponse;
+};
+
+export type ListJoinRequestsResponse = ListJoinRequestsResponses[keyof ListJoinRequestsResponses];
+
+export type RequestToJoinData = {
+    body?: never;
+    path: {
+        /**
+         * Shared calendar event entity id
+         */
+        event_id: string;
+    };
+    query?: never;
+    url: '/calendar-events/{event_id}/join-requests';
+};
+
+export type RequestToJoinErrors = {
+    /**
+     * Authentication required
+     */
+    401: unknown;
+    /**
+     * Event not found or not shared with the requester
+     */
+    404: CalendarJoinRequestApiError;
+    /**
+     * Already on the requester's calendar, or the sharer cannot add guests
+     */
+    409: CalendarJoinRequestApiError;
+    /**
+     * Join request failed
+     */
+    500: CalendarJoinRequestApiError;
+};
+
+export type RequestToJoinError = RequestToJoinErrors[keyof RequestToJoinErrors];
+
+export type RequestToJoinResponses = {
+    /**
+     * The requester's join request
+     */
+    200: CalendarJoinRequest;
+};
+
+export type RequestToJoinResponse = RequestToJoinResponses[keyof RequestToJoinResponses];
 
 export type GetActiveCallsData = {
     body?: never;

@@ -13,6 +13,9 @@ Requires authentication and the `enable-activity-feed` flag. Direct navigation a
 restored splits wait for flags to load; when disabled, they redirect to Home
 (`/app/home`) without loading the activity feed.
 
+Open it from **More → Activity** in the sidebar rail (or `g y`); Customize sidebar
+can pin it to the rail.
+
 The header has **You** and **Team** tabs (inset tabs beside the title on desktop,
 a pill strip above the list on touch); the choice is stored in the split's URL as
 `sN.activity.scope=team` and survives reloads. You is the user's own feed. Team

@@ -3,7 +3,11 @@
 ## Surface
 
 `Go to Tasks` → `/app/component/tasks`. Tabs: `My tasks`, `Created by me`, `Team tasks`, and `Projects`.
-The desktop toolbar contains search (`Ctrl+F`), an icon-only `Task layout` dropdown, `Sort`, `Group`, and `Filter`;
+The single-row desktop header contains the title, `Filter`, a separate
+`Task layout` single-select icon group for `List`, `Board`, and enabled `Gantt`,
+`Sort`, `Group`, `New`, and an expandable Search icon
+(`Ctrl+F` opens it). The active-filter count sits beside the filter icon inside
+its button, without overlapping the icon or the group border;
 the filter uses the legacy compact option rows and searchable Assignee, Created by,
 and Tags submenus. Multi-select choices keep the menu open; Escape dismisses it.
 The top of the `Filter` menu is a `Filter with AI…` textbox, focused when the menu opens: type a plain-English
@@ -17,8 +21,14 @@ off-topic text) keep the typed text and show a red error there instead. The box 
 focus while you type even if the pointer drifts over the rows; ArrowDown moves into
 the rows and hovering a submenu hands focus to it as usual. The mobile drawer has no
 AI box.
-Task creation is available from the `New` button in the Tasks sidebar. With Projects
-enabled, `My projects` appears below the tabs and favorites. It lists
+The desktop sidebar's Search icon, immediately left of collapse, opens the
+search field above New. It shares the current Tasks or Projects list query.
+The desktop sidebar and toolbar `New` menus offer `Task`, `Project` (when
+Projects is enabled), and `Tag`. Task and Project open their existing composers;
+Tag opens the tag editor, with personal scope selected and team sharing available
+when the user has a team. The Projects list uses the same menu. Mobile creation
+controls are unchanged. With Projects enabled, `My projects` appears below the
+tabs and favorites. It lists
 accessible projects by most recently updated, with a capped height and its own scroll
 area. Click a project to open its overview within the current Tasks view, keeping
 the sidebar mounted, or Shift-click to open it in a new split.
@@ -99,7 +109,7 @@ the optimistic tag. Repeat with an existing assignment and with removal.
 
 ## Gantt layout
 
-Choose **Gantt** from the **Task layout** dropdown to see task timelines.
+Choose **Gantt** in the **Task layout** group to see task timelines.
 The same option is available in a project's Tasks section. The timeline uses
 Created at as the start and Due date as the end; no separate Start date is
 created or saved. Bars without a due date fade to transparent at the right edge.
@@ -237,12 +247,22 @@ Gantt persists in `tasks.layout` or `projectTasks.layout`, just like List and Bo
 
 ## Board layout
 
-Open the icon-only **Task layout** dropdown in the toolbar and choose **Board**
-(or **List** to switch back). Its icon reflects the current layout. **Group by**
+Choose **Board** in the **Task layout** group in the toolbar
+(or **List** to switch back). One icon is selected at a time; hover or focus shows
+its label. **Group by**
 offers Status, Priority, Assignee, and (when Projects is enabled) Project.
 Both layouts share one grouping, which restores with the Tasks navigation entry.
 List-only None and Date groupings display Status columns in Board; switching
 back to List retains those selections and collapsed groups until grouping changes.
+
+Each column header has an icon-only **Add task** plus button. It opens the task
+composer with that column's Status, Priority, Assignee, or Project preselected,
+while preserving the originating pane's other creation presets. **Unassigned**
+and **No priority** start with that property empty. **No project** starts empty
+outside project boards; project boards always retain the current project.
+**No status** starts with **Not started**, because new tasks require a status.
+Each pane or project scope and column keeps a separate composer draft. Project
+boards hide creation actions when the project is read-only.
 
 Click a card's body or title to open the task. Move at least 10 pixels with the
 mouse button held to start dragging to another column; holding still does not
@@ -353,14 +373,17 @@ review requests.
 `Authored by me`, `Assigned to me`, and `Review requests` match the linked
 GitHub user ID. If the link-status endpoint has no identity, the list explains
 why the tab is unavailable.
-The sidebar starts with a **Search reviews** field (styled like Settings' search)
-and, on pointer devices, a **Board**/**List** toggle (`aria-label="Pull request
-layout"`); List is the default and the choice is remembered. When the sidebar is
-collapsed or narrow, the search moves above the list under the scope heading.
-Filter and sort controls appear above the list. Below the layout toggle, an
+The sidebar offers **Search reviews** above its navigation. On desktop the
+**List**/**Board** icon group lives in the header; List is the default and the
+choice is remembered. The desktop header always offers an expandable Search icon; Command-F expands and
+focuses it. The single row contains the selected scope, status tabs, grouped
+filter and sort controls, New, and Search. Active-filter counts sit beside the
+filter icon inside its button. A separate
 **Open** / **Closed** / **All** toggle with icons (`aria-label="Pull request
-status"`) picks the status; it moves above the list on touch devices or when the
-sidebar is hidden, and the board hides it. Open is the default; Closed includes
+status"`) picks the status in the desktop header and above the list on touch
+devices, and the board hides it. The desktop sidebar has no layout or status
+switches. Status tabs size to their labels with even horizontal padding and use
+the shared fully rounded segmented style. Open is the default; Closed includes
 both closed and merged PRs, and All shows every status. The filter dropdown and mobile drawer also
 offer independent Open, Closed, and Merged selections. Custom multi-status
 selections hide the toggle, except the combined Closed preset keeps it visible.
@@ -369,9 +392,8 @@ Status combines with other filters, counts toward filter badges, and applies
 before pagination. Clearing filters resets to Open. Other filters cover
 priority, linked work, started from, repository, author, assignee, label, and,
 when a GitHub identity is linked, reviews (Reviewed by you, Not reviewed by you,
-and Awaiting review from you). The list topbar says
-Reviews when narrow or when the sidebar is collapsed; the selected scope stays
-visible as a heading above search.
+and Awaiting review from you). The selected scope remains in the desktop header
+when the sidebar is collapsed; there is no separate title or search row.
 Saved review selections stay inactive, including their filter badge and empty-state
 copy, while the GitHub identity is unavailable; they resume when it returns.
 Sort offers Priority, Recently updated, Least recently updated, Newest, and Oldest;
@@ -523,8 +545,36 @@ filter sheets. Desktop uses the centered composer dialog.
    enables once there is a title). Dialog also offers `Continue editing in split` to open the
    task as a full document.
 
+The property row adapts when the launching pane supplies a task-composer preset.
+The app shell's creation-context provider snapshots the focused pane's preset
+before the composer opens. It reads the layout's existing focus accessor, not a
+global context registry; no detail fetch or navigation-state capture is needed.
+Without a preset, the standard property row and draft are used. The shared
+composer is not feature-flagged. Create-menu actions, shortcuts, and pane buttons
+capture the provider during setup and read the preset when invoked.
+
+Customers supplies its preset when PostHog `enable-crm-activity` is enabled:
+**Companies** and **Contacts** replace Status in the initial row; Status still
+starts as Not Started on the saved task. Record-level task creation prefills the
+company or contact, including the contact's company when already loaded. With the
+CRM flag off or loading, CRM supplies no preset; record-level creation still
+associates the task with its record. **Add property** opens the same property
+editor as the document/task side panel: search by name or type, select a property
+and enter its value, or create a property from an unmatched search. Assignments
+and values stay in the task draft until creation; opening or closing the editor
+preserves other draft values. Tag selection continues through its separate Tags
+picker. CRM drafts are isolated from the ordinary task draft and from other CRM
+records; reopening restores added properties as well as their values. **Clear Draft**
+restores that view's preset.
+Later flag, focus or record changes leave the open draft and associations intact,
+even between launch and mount. The next opening uses the current context.
+
 Tasks are documents under the hood (creation hits `POST /dss/documents/create_task`), so they
 also show up in Files/`All` and in AI-chat document listings.
+
+To bring tasks over from Linear, Jira, Asana, and other apps, use the **Import
+tasks** card at the bottom of the Tasks sidebar; see
+[Import from connected apps](setup-cards.md#import-from-connected-apps).
 
 ## Projects
 
@@ -673,7 +723,7 @@ tasks whose Project property names the project.
 
 The project's Tasks tab starts with task search, controls, and the selected List or
 Board layout; the project title and property pills appear only on Overview.
-Use the same icon-only **Task layout** dropdown to choose a layout. Both layouts
+Use the same **Task layout** group to choose a layout. Both layouts
 show only tasks linked to the current project and use the same filters and editors.
 Layout, sort direction, and grouping use `projectTasks.layout`, `projectTasks.sort`,
 `projectTasks.sortReversed`, and `projectTasks.groupBy` URL parameters, independent
@@ -713,6 +763,9 @@ at the top. Comments, replies, and reactions stay attached to the project identi
 Notification links open Overview at the relevant discussion. Existing `activity`
 URLs also open Overview and preserve the target discussion. Project history is
 not included in this discussion section.
+Click or tap the linked comment to clear its highlight; the loaded discussion
+and expanded replies stay in place. Following another comment link highlights
+its target again.
 
 ## Bulk delete
 
@@ -758,6 +811,11 @@ mentions and document references also show the same three pills in their hover-c
 including properties that do not have a value yet. Click a preview pill to edit it without
 opening the task; the property picker keeps the preview open while you make a selection.
 Users with view or comment access see the same pills read-only.
+
+Each GitHub pull request linked to an open task shows a pill beside its property pills
+with the PR's status, title, `owner/repo#N`, and line changes. Clicking it opens the PR in
+Macro in a new split (in place on touch devices); a PR Macro has not synced yet opens on
+GitHub instead.
 
 The Assignees picker offers people and available agents together. Agent rows show
 their name and an `Agent` label; saved agents also show their `@handle`. Search by
@@ -846,7 +904,7 @@ tags start expanded. Filter-menu options continue to show full tag names.
 ## Tasks — `/app/component/tasks`
 
 Task navigation uses `My Tasks`, `All Tasks`, and `Created by me`. The desktop
-sidebar has a full-width `New task` action and a collapsible list of task favorites;
+sidebar has the full-width `New` menu and a collapsible list of task favorites;
 tag filtering lives in the `Filter` menu. Favorite rows open their tasks.
 Normal row and favorite activation replaces the list with the editable task
 document; its originating-tab breadcrumb returns to the list and its

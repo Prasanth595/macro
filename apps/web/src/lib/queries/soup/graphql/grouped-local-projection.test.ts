@@ -88,6 +88,36 @@ describe('loaded grouped pages', () => {
 });
 
 describe('local grouped Soup projection', () => {
+  it('retains server membership for an unfamiliar grouping while refreshing rows', () => {
+    const before = groupedDocument('a');
+    const next = { ...groupedDocument('a', ['done']), displayName: 'Updated' };
+    const fromNewerServer = JSON.parse('"ASSIGNEE"');
+
+    expect(
+      projectLocalGroupedSoup(
+        [
+          {
+            key: 'server-group',
+            items: [before],
+            totalCount: 30,
+            nextCursor: 'more',
+          },
+        ],
+        new Map(),
+        snapshot([next]),
+        { ...input, groupBy: { field: fromNewerServer } },
+        now
+      )
+    ).toEqual([
+      {
+        key: 'server-group',
+        items: [next],
+        totalCount: 30,
+        nextCursor: 'more',
+      },
+    ]);
+  });
+
   it('moves normalized rows and removes filter nonmatches without losing unknown rows', () => {
     const a = groupedDocument('a');
     const b = groupedDocument('b');
