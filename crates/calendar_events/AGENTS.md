@@ -113,7 +113,10 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   write. Eligibility is the invite path's own `copy_capabilities` on the
   sharer's copy, so a request that can be made is one the sharer can accept,
   and accepting calls `invite_guests` as the sharer
-  (`src/domain/mutations/join.rs`).
+  (`src/domain/mutations/join.rs`). While the requester's request is pending
+  or accepted, `copy_shared_event` refuses with `JoinRequestOpen`: the
+  answer is an invitation under the meeting's UID, which a snapshot imported
+  meanwhile would take in.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` and the copy's source link wherever a read path
   marks the viewer, and never store it. Each connected inbox gets its own copy
