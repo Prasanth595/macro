@@ -29,9 +29,9 @@ use super::{
         CalendarEventWrite, CalendarEventWriteOutcome, CalendarMutationError,
         CalendarMutationProvider, CalendarMutationService, CalendarProviderError,
         CalendarProviderErrorKind, CalendarRefreshNotifier, CalendarRepository, CalendarRsvpScope,
-        CalendarTokenError, CalendarUpdateScope, ProviderInstanceUpdateOutcome,
-        ProviderInviteOutcome, ProviderRsvpOutcome, ProviderSeriesMutationOutcome,
-        RetiredCalendarEvent,
+        CalendarTokenError, CalendarUpdateScope, ProviderImportOutcome,
+        ProviderInstanceUpdateOutcome, ProviderInviteOutcome, ProviderRsvpOutcome,
+        ProviderSeriesMutationOutcome, RetiredCalendarEvent,
     },
 };
 use crate::domain::events::{CalendarEventMetadata, CalendarMacroEvent, CalendarTopicEvent};
@@ -339,8 +339,14 @@ where
         let capabilities = invite::copy_capabilities(&target, &stored);
         // Checked before any guest is invited, so a refused change leaves
         // the event untouched.
-        self.require_detail_rights(event_id, &scope, capabilities, &mut patch)
-            .await?;
+        self.require_detail_rights(
+            event_id,
+            &scope,
+            capabilities,
+            target.is_snapshot,
+            &mut patch,
+        )
+        .await?;
         guest_policy::require_guest_policy_rights(&target, &scope, capabilities, &mut patch)?;
         if patch.is_empty() {
             return Err(CalendarMutationError::InvalidInput(EMPTY_PATCH.to_string()));
@@ -530,6 +536,11 @@ where
             .await?;
         if target.is_read_only {
             return Err(CalendarMutationError::ReadOnly);
+        }
+        // The owner is listed on a snapshot only so the provider accepts it;
+        // their answer would never reach the meeting.
+        if target.is_snapshot {
+            return Err(CalendarMutationError::Snapshot);
         }
         self.require_provider_writes(target.token_identity.provider)?;
         let Some(actor) = target.actor.as_ref() else {
