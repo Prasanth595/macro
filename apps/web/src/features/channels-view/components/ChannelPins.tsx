@@ -27,7 +27,7 @@ export function ChannelPin(props: {
   return (
     <button
       type="button"
-      class="flex w-full min-w-0 flex-col items-center gap-1.5 outline-none"
+      class="flex w-full min-w-0 flex-col items-center gap-1.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-accent"
       onClick={(event) => props.onActivate(event)}
     >
       <span class="grid size-18 shrink-0 place-items-center overflow-hidden rounded-full border border-edge bg-surface-2 text-ink-muted [&_img]:size-full [&_img]:object-cover [&_svg]:size-8">
