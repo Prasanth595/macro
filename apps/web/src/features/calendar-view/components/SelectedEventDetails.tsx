@@ -8,6 +8,7 @@ import {
   reminderCalendarIdOf,
 } from '@app/features/calendar/types';
 import { handleOpenEventOutsidePress } from '@app/features/calendar/utils/open-event-outside-press';
+import { CalendarMeetingNotes } from '@app/features/calendar-notes/calendar-meeting-notes';
 import { TeamEventDetails } from '@app/features/calendar-team/components/team-event-details';
 import { EventGuests } from '@app/features/calendar-view/components/EventGuests';
 import { EventJoinRequests } from '@app/features/calendar-view/components/EventJoinRequests';
@@ -17,6 +18,7 @@ import { useOpenEventComposer } from '@app/features/calendar-view/components/use
 import { copyCalendarEventMention } from '@app/features/calendar-view/copy-event-mention';
 import { downloadCalendarEventIcs } from '@app/features/calendar-view/download-event-ics';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
+import { useSplitLayout } from '@components/app/split-layout/layout';
 import { toast } from '@core/component/Toast/Toast';
 import { isMobile } from '@core/mobile/isMobile';
 import { openExternalUrl } from '@core/util/url';
@@ -172,6 +174,8 @@ function EveryoneElseDeclinedNotice(props: {
 }
 
 function EventDetailsDrawer(props: EventDetailsOverlayProps) {
+  const [notesOpen, setNotesOpen] = createSignal(false);
+  const { openWithSplit } = useSplitLayout();
   const openEventComposer = useOpenEventComposer();
   const deleteDialog = useDeleteEventDialog({
     event: () => props.event,
@@ -201,7 +205,11 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
       side="bottom"
       open
       onOpenChange={(open) => {
-        if (!open && (deleteDialog.isOpen() || invites.editorOpen())) return;
+        if (
+          !open &&
+          (deleteDialog.isOpen() || invites.editorOpen() || notesOpen())
+        )
+          return;
         props.onOpenChange(open);
       }}
       preventScroll={false}
@@ -312,6 +320,19 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
               </Show>
             </div>
             <Show when={!props.event.teamProjection}>
+              <Show when={!props.event.isCancelled && !props.event.isSnapshot}>
+                <CalendarMeetingNotes
+                  event={props.event}
+                  onDialogChange={setNotesOpen}
+                  onOpenDocument={(id) => {
+                    openWithSplit(
+                      { type: 'md', id },
+                      { preferNewSplit: false }
+                    );
+                    props.onOpenChange(false);
+                  }}
+                />
+              </Show>
               <EventGuests
                 event={props.event}
                 invites={invites}
@@ -440,6 +461,8 @@ function DeleteEventDialog(
  * scroll within 32rem or the available height; the RSVP row stays pinned.
  */
 function EventDetailsPopover(props: EventDetailsPopoverProps) {
+  const [notesOpen, setNotesOpen] = createSignal(false);
+  const { openWithSplit } = useSplitLayout();
   const openEventComposer = useOpenEventComposer();
   const deleteDialog = useDeleteEventDialog({
     event: () => props.event,
@@ -472,7 +495,11 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
       onOpenChange={(open) => {
         // Keep the popover mounted while its delete dialog or guest editor
         // is open.
-        if (!open && (deleteDialog.isOpen() || invites.editorOpen())) return;
+        if (
+          !open &&
+          (deleteDialog.isOpen() || invites.editorOpen() || notesOpen())
+        )
+          return;
         props.onOpenChange(open);
       }}
       placement="right-start"
@@ -613,6 +640,21 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                   </Show>
                 </div>
                 <Show when={!props.event.teamProjection}>
+                  <Show
+                    when={!props.event.isCancelled && !props.event.isSnapshot}
+                  >
+                    <CalendarMeetingNotes
+                      event={props.event}
+                      onDialogChange={setNotesOpen}
+                      onOpenDocument={(id) => {
+                        openWithSplit(
+                          { type: 'md', id },
+                          { preferNewSplit: true }
+                        );
+                        props.onOpenChange(false);
+                      }}
+                    />
+                  </Show>
                   <EventGuests
                     event={props.event}
                     invites={invites}

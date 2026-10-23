@@ -1,5 +1,42 @@
 # Calendar
 
+## Meeting notes
+
+Open a live meeting's details and choose **Link a note** in **Meeting notes**.
+Search your markdown documents, select one, review **Meeting viewers · Can view**,
+and optionally select one team before **Link note**. Team access starts off for
+each note. Recurring meetings link only the displayed occurrence. Notes on a
+one-time meeting follow it when its date or time changes.
+Existing document editors and other sharing keep their access.
+
+Open the linked title to read the original document. On desktop it opens in a
+new split; on mobile it replaces the calendar pane and closes event details.
+Document owners can select the audience label to change the optional team, or
+use **Unlink** to remove the meeting's grants without deleting the document.
+If the owner has since left the selected team, **Remove team access** still works.
+Failed saves retain the selection and audience for retry; dismissing starts fresh.
+
+Owners can also open the markdown document's **Share** panel and find **Meeting
+links** (inside **Link** on mobile). Every saved link remains removable here even
+if the meeting was cancelled, fell outside the sync window, or stopped being
+shared with the owner. **Unlink** asks before removing its meeting/team grants.
+Unavailable meetings use a safe label rather than revealing private details.
+
+Busy-only team entries and imported snapshots have no meeting-note controls.
+Inherited access follows current meeting details and requires a synced live
+occurrence. If the provider hides its guest list, some guests need a direct
+document share. Independent team sharing lasts until the link is removed or the
+viewer leaves that team; it does not make the calendar event visible to that team.
+
+Verify on desktop and phone: link with team unchecked, add/remove a team, open the
+document, retry a rejected save, and unlink while keeping the document. The
+backend-free browser suite is
+`apps/web/src/features/calendar-notes/browser-test/playwright.config.ts`.
+API permission cases are covered in `crates/calendar_events/src/outbound/pg/test/notes.rs`.
+
+Browser fixture screenshots: [desktop](media/calendar-notes/desktop.png) ·
+[phone](media/calendar-notes/phone.png).
+
 ## Calendar — `/app/calendar/<month-or-week-or-day>`
 
 Microsoft calendars use the same editor and calendar views after calendar consent.

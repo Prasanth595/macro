@@ -11,6 +11,8 @@ import {
   ShareRequestIcon,
   useShareRequestTrigger,
 } from '@app/features/access-requests/share-request-trigger';
+import type { MeetingAccessState } from '@app/features/calendar-notes/core/types';
+import { DocumentMeetingNotes } from '@app/features/calendar-notes/document-meeting-notes';
 import {
   fetchPipelineSharePermissions,
   updatePipelineSharePermissions,
@@ -414,6 +416,7 @@ interface LinkSharingControlsProps {
   linkShare: LinkShare | null | undefined;
   linkShareAccessLevel: AccessLevel | null | undefined;
   hasExplicitShares: boolean;
+  meetingAccess?: MeetingAccessState;
   setLinkShareScope: (scope: LinkShareScope) => void;
   setLinkShareAccessLevel: (accessLevel: AccessLevel | null) => void;
   copyLink: () => void;
@@ -487,11 +490,20 @@ function LinkSharingControls(props: LinkSharingControlsProps) {
   const scope = () => getLinkShareScope(props.linkShare);
   const scopeCopy = () => getLinkShareScopeCopy(scope());
   const shareStatus = () =>
-    getShareStatus(
-      props.linkShare,
-      props.hasExplicitShares,
-      props.teamShare?.accessLevel
-    );
+    props.meetingAccess === 'loading' || props.meetingAccess === 'error'
+      ? {
+          label:
+            props.meetingAccess === 'loading'
+              ? 'Checking access…'
+              : 'Check meeting access',
+          tooltip:
+            'Meeting links may grant additional access. See Meeting links below.',
+        }
+      : getShareStatus(
+          props.linkShare,
+          props.hasExplicitShares || props.meetingAccess === 'shared',
+          props.teamShare?.accessLevel
+        );
 
   return (
     <div class="flex flex-col gap-3 p-4 text-sm text-ink">
@@ -552,6 +564,8 @@ function LinkSharingControls(props: LinkSharingControlsProps) {
 }
 
 interface MobileShareDrawerProps {
+  meetingAccess?: MeetingAccessState;
+  onMeetingAccessState: (state: MeetingAccessState) => void;
   requests: SharingSource;
   requestLevels: readonly AccessLevel[];
   editPermissionEnabled?: boolean;
@@ -585,6 +599,7 @@ interface MobileShareDrawerProps {
 }
 
 function MobileShareDrawer(props: MobileShareDrawerProps) {
+  const userId = useUserId();
   const [activeTab, setActiveTab] = createSignal<string>();
 
   const wrappedSetOpen = (open: boolean) => {
@@ -821,6 +836,7 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
               when={props.linkSharing}
               fallback={
                 <LinkSharingControls
+                  meetingAccess={props.meetingAccess}
                   editPermissionEnabled={props.editPermissionEnabled}
                   linkShare={props.linkShare}
                   linkShareAccessLevel={props.linkShareAccessLevel}
@@ -838,6 +854,19 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
               <div class="p-4">
                 <Dynamic component={props.linkSharing} />
               </div>
+            </Show>
+            <Show
+              when={
+                props.blockAlias === 'md' &&
+                props.itemType === 'document' &&
+                !!userId() &&
+                props.owner === userId()
+              }
+            >
+              <DocumentMeetingNotes
+                documentId={props.id}
+                onAccessState={props.onMeetingAccessState}
+              />
             </Show>
           </Show>
           <Show
@@ -906,6 +935,13 @@ export function ShareModal(props: ShareModalProps) {
     ? permissionsBlockResource[1].refetch
     : refetchFallback;
   const userId = useUserId();
+  const [meetingAccess, setMeetingAccess] =
+    createSignal<MeetingAccessState>('loading');
+  const canManageMeetingLinks = () =>
+    props.blockAlias === 'md' &&
+    props.itemType === 'document' &&
+    !!userId() &&
+    (props.owner ?? requests.state()?.owner) === userId();
   // Like a document, a pipeline is shared by anyone who can edit it. Only its
   // owner changes team access, which `teamShareControls` still requires.
   const canSharePipeline = () =>
@@ -1526,6 +1562,8 @@ export function ShareModal(props: ShareModalProps) {
       when={!isMobile()}
       fallback={
         <MobileShareDrawer
+          meetingAccess={canManageMeetingLinks() ? meetingAccess() : undefined}
+          onMeetingAccessState={setMeetingAccess}
           requests={requests}
           requestLevels={requestLevels()}
           directPeopleIds={props.directPeopleIds}
@@ -1814,6 +1852,20 @@ export function ShareModal(props: ShareModalProps) {
               {/* Card 3: Link sharing — plain border */}
               <Show
                 when={
+                  props.open &&
+                  props.blockAlias === 'md' &&
+                  props.itemType === 'document' &&
+                  !!userId() &&
+                  (props.owner ?? requests.state()?.owner) === userId()
+                }
+              >
+                <DocumentMeetingNotes
+                  documentId={props.id}
+                  onAccessState={setMeetingAccess}
+                />
+              </Show>
+              <Show
+                when={
                   props.linkSharing ||
                   (userPermissions() === Permissions.OWNER &&
                     !isLinkSharingDisabledForItem(props.itemType))
@@ -1829,6 +1881,11 @@ export function ShareModal(props: ShareModalProps) {
                       when={props.linkSharing}
                       fallback={
                         <LinkSharingControls
+                          meetingAccess={
+                            canManageMeetingLinks()
+                              ? meetingAccess()
+                              : undefined
+                          }
                           editPermissionEnabled={editPermissionEnabled()}
                           linkShare={linkShare()}
                           linkShareAccessLevel={linkShareAccessLevel()}

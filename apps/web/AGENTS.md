@@ -25,6 +25,12 @@ It exercises the real resize solver, scroll container, and Lexical layout primit
 Discussion link scrolling has a backend-free browser regression:
 `bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.
 
+Meeting-note linking, optional team access, retry, and unlinking have desktop and
+phone browser coverage in `features/calendar-notes`:
+`bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.
+The feature mounts in event details; keep its dialog open guard on both the
+desktop popover and mobile drawer. See `docs/agent-guide/calendar.md` at the repo root.
+
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 
 ```sh
