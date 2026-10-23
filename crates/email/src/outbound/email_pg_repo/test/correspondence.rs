@@ -30,8 +30,8 @@ async fn correspondents_are_people_the_owner_wrote_to(pool: Pool<Postgres>) -> a
                 email: "ana@client.example".to_owned(),
                 name: Some("Ana Ruiz".to_owned()),
                 sent: 3,
-                received: 2,
-                threads: 2,
+                received: 3,
+                threads: 3,
                 last_at: Utc.with_ymd_and_hms(2025, 1, 19, 10, 0, 0).unwrap(),
             },
             Correspondent {
@@ -49,7 +49,8 @@ async fn correspondents_are_people_the_owner_wrote_to(pool: Pool<Postgres>) -> a
 
 // A thread is open when the other side wrote last, or when the owner's own
 // message has gone unanswered since before `stale_before`. A draft is not
-// a reply.
+// a reply, and a thread the owner never wrote in counts only when it's
+// signal: a new thread from a client does, a newsletter doesn't.
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../../fixtures", scripts("email_correspondence"))
@@ -71,6 +72,13 @@ async fn open_threads_wait_on_someone(pool: Pool<Postgres>) -> anyhow::Result<()
                 waiting_on: WaitingOn::Owner,
                 with: vec!["ana@client.example".to_owned()],
                 last_at: Utc.with_ymd_and_hms(2025, 1, 18, 10, 0, 0).unwrap(),
+            },
+            OpenThread {
+                thread_id: uuid::uuid!("00000000-0000-0000-0000-00000000c106"),
+                subject: Some("Contract".to_owned()),
+                waiting_on: WaitingOn::Owner,
+                with: vec!["ana@client.example".to_owned()],
+                last_at: Utc.with_ymd_and_hms(2025, 1, 16, 10, 0, 0).unwrap(),
             },
             OpenThread {
                 thread_id: uuid::uuid!("00000000-0000-0000-0000-00000000c103"),

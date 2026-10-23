@@ -71,9 +71,10 @@ pub trait EmailCorrespondence: Send + Sync + 'static {
         window: CorrespondenceWindow,
     ) -> impl Future<Output = Result<Vec<Correspondent>, EmailErr>> + Send;
 
-    /// Threads in the window the person took part in whose latest message
-    /// is waiting on a reply: from the other side, or the person's own sent
-    /// before `stale_before`. Newest first.
+    /// Threads in the window, that the person took part in or that are
+    /// signal (important or primary), whose latest message is waiting on a
+    /// reply: from the other side, or the person's own sent before
+    /// `stale_before`. Newest first.
     fn open_threads(
         &self,
         user: MacroUserIdStr<'static>,

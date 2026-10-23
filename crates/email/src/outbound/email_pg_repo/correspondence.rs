@@ -92,7 +92,9 @@ impl EmailCorrespondenceRepo for EmailPgRepo {
                 LIMIT 1
             ) last ON true
             WHERE t.link_id = ANY($1)
-              AND t.latest_outbound_message_ts IS NOT NULL
+              -- The person wrote in the thread, or the provider marks it
+              -- important or primary (a new thread from someone they know).
+              AND (t.latest_outbound_message_ts IS NOT NULL OR t.is_signal)
               -- Narrows threads before the per-thread lookup.
               AND GREATEST(t.latest_inbound_message_ts, t.latest_outbound_message_ts) >= $2
               AND last.internal_date_ts >= $2
