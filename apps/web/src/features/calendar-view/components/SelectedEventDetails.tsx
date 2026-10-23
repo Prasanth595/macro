@@ -10,6 +10,7 @@ import {
 import { handleOpenEventOutsidePress } from '@app/features/calendar/utils/open-event-outside-press';
 import { TeamEventDetails } from '@app/features/calendar-team/components/team-event-details';
 import { EventGuests } from '@app/features/calendar-view/components/EventGuests';
+import { EventJoinRequests } from '@app/features/calendar-view/components/EventJoinRequests';
 import { EventRsvpSection } from '@app/features/calendar-view/components/EventRsvpSection';
 import { useForwardEventEmail } from '@app/features/calendar-view/components/use-forward-event-email';
 import { useOpenEventComposer } from '@app/features/calendar-view/components/use-open-event-composer';
@@ -227,7 +228,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
             <div class="flex items-center gap-1">
               <Show when={!props.event.teamProjection}>
                 <Button
-                  aria-label="Copy event"
+                  label="Copy event"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -237,7 +238,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                   <LinkIcon />
                 </Button>
                 <Button
-                  aria-label="Download .ics"
+                  label="Download .ics"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -247,7 +248,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                   <DownloadSimpleIcon />
                 </Button>
                 <Button
-                  aria-label="Forward by email"
+                  label="Forward by email"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -259,7 +260,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
               </Show>
               <Show when={canModify()}>
                 <Button
-                  aria-label="Edit event"
+                  label="Edit event"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -269,7 +270,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                   <PencilSimpleIcon />
                 </Button>
                 <Button
-                  aria-label="Delete event"
+                  label="Delete event"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -287,6 +288,10 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
               canModify={canModify()}
               onDelete={deleteDialog.open}
               onReschedule={openEditor}
+            />
+            <EventJoinRequests
+              eventId={props.event.eventId}
+              canModify={canModify()}
             />
             <div class="px-3">
               <Show
@@ -507,12 +512,12 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
             }}
           >
             <Popover.Arrow class="fill-surface" />
-            <div class="flex max-h-[min(32rem,var(--kb-popper-content-available-height,32rem))] w-fit min-w-[min(20rem,var(--kb-popper-content-available-width,20rem))] max-w-[min(24rem,var(--kb-popper-content-available-width,24rem))] flex-col overflow-hidden rounded-xl glass bg-menu-glass text-ink">
+            <div class="flex max-h-[min(32rem,var(--kb-popper-content-available-height,32rem))] w-fit min-w-[min(20rem,var(--kb-popper-content-available-width,20rem))] max-w-[min(24rem,var(--kb-popper-content-available-width,24rem))] flex-col overflow-hidden menu-surface">
               <Popover.Title class="sr-only">{props.event.title}</Popover.Title>
               <div class="flex shrink-0 items-center justify-end gap-1 px-2 pt-2">
                 <Show when={!props.event.teamProjection}>
                   <Button
-                    aria-label="Copy event"
+                    label="Copy event"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -522,7 +527,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <LinkIcon />
                   </Button>
                   <Button
-                    aria-label="Download .ics"
+                    label="Download .ics"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -532,7 +537,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <DownloadSimpleIcon />
                   </Button>
                   <Button
-                    aria-label="Forward by email"
+                    label="Forward by email"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -544,7 +549,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                 </Show>
                 <Show when={canModify()}>
                   <Button
-                    aria-label="Edit event"
+                    label="Edit event"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -554,7 +559,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <PencilSimpleIcon />
                   </Button>
                   <Button
-                    aria-label="Delete event"
+                    label="Delete event"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -564,9 +569,12 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <TrashIcon />
                   </Button>
                 </Show>
+                {/* Kobalte names the button "Dismiss" unless it gets an
+                    aria-label, which Button prefers over `label`. */}
                 <Popover.CloseButton
                   as={Button}
                   aria-label="Close event details"
+                  tooltip="Close event details"
                   variant="ghost"
                   size="icon-sm"
                   depth={3}
@@ -581,6 +589,10 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                   canModify={canModify()}
                   onDelete={deleteDialog.open}
                   onReschedule={openEditor}
+                />
+                <EventJoinRequests
+                  eventId={props.event.eventId}
+                  canModify={canModify()}
                 />
                 <div class="px-3 pb-3">
                   <Show
