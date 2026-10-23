@@ -209,26 +209,32 @@ fn load_without_loader_still_reports() {
 }
 
 #[test]
-fn a_code_mode_search_for_an_sdk_operation_finds_execute_code() {
-    // Code mode hides the direct tools the SDK covers. A search for one must
-    // lead to ExecuteCode, which the internal MCP server offers, rather than
-    // to nothing or to a direct tool that points at the hidden one.
-    let execute_code = agent_code_mode::inbound::toolset::toolset()
-        .tools
-        .get("ExecuteCode")
-        .map(|tool| tool.description.clone())
-        .expect("ExecuteCode");
-    let mut catalog = crate::tools_for_agent_code_mode().deferred.to_vec();
-    catalog.push(tool("mcp__macro_internal__ExecuteCode", &execute_code));
-    for query in ["rename document", "RenameDocument", "move to project"] {
-        let names: Vec<_> = search(&catalog, query)
-            .into_iter()
-            .take(MAX_AUTO_LOADED_MATCHES)
-            .map(|tool| tool.name.as_str())
-            .collect();
+fn a_code_mode_search_says_sdk_operations_are_done_with_execute_code() {
+    // Code mode hides the direct tools the SDK covers, and ExecuteCode is
+    // sent with every request rather than searched for. A search for an
+    // operation like a rename must still lead the agent to ExecuteCode.
+    let code_mode = crate::tools_for_agent_code_mode().deferred.to_vec();
+    for query in ["rename document", "RenameDocument", "ExecuteCode"] {
+        let note = search_and_stage(&code_mode, query, None).note;
         assert!(
-            names.contains(&"mcp__macro_internal__ExecuteCode"),
-            "{query}: {names:?}"
+            note.as_deref()
+                .is_some_and(|note| note.contains("ExecuteCode")),
+            "{query}"
         );
     }
+    // Every other mode still lists the tools the SDK covers.
+    let standard = crate::tools_for(crate::AiHost::AgentSession)
+        .deferred
+        .to_vec();
+    assert_eq!(
+        search_and_stage(&standard, "rename document", None).note,
+        None
+    );
+    let channel_bot = crate::tools_for(crate::AiHost::ChannelBot)
+        .deferred
+        .to_vec();
+    assert_eq!(
+        search_and_stage(&channel_bot, "rename document", None).note,
+        None
+    );
 }

@@ -14296,6 +14296,10 @@ export interface SearchToolsResponse {
    * to `LoadTools` if one of these is the tool you need.
    */
   additional_matches: ToolMatch[];
+  /**
+   * In code mode, where operations the SDK supports have no tool to find.
+   */
+  note?: string | null;
 }
 /**
  * Learn what Macro is and how it works. Call this whenever the user asks an open-ended question about Macro itself — what it is, what it's for, what it can do, or how to do something in Macro — instead of answering from memory (your training data may be stale). Takes no arguments. Returns an overview of Macro and a map of links into the official docs at docs.macro.com; every docs page is readable as Markdown (append `.md` to its URL), so follow up with WebFetch on the relevant page for details and cite it.

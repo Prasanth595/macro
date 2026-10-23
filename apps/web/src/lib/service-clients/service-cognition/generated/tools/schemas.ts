@@ -14699,6 +14699,7 @@ export const SearchToolsResponse = z.object({
   additional_matches: z.array(
     z.object({ name: z.string(), description: z.string() })
   ),
+  note: z.union([z.string(), z.null()]).optional(),
 });
 
 export const SelfKnowledge = z.record(z.any());
