@@ -16,7 +16,6 @@ import {
   updatePipelineSharePermissions,
   updatePipelineTeamShare,
 } from '@app/features/crm/sharing-adapter';
-import { projectRouteId } from '@app/features/projects/core/route';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useChannelParticipants } from '@channel/use-channel-participants';
 import { HeaderActionButton } from '@components/app/HeaderActionButton';
@@ -171,14 +170,6 @@ const isLinkSharingDisabledForItem = (itemType: ShareItemType): boolean =>
 
 /** Blocks, plus native entities that are shared without one. */
 type ShareBlockType = BlockName | BlockAlias | 'initiative';
-
-function shareUrl(type: ShareBlockType, id: string): string {
-  if (type !== 'initiative') return buildSimpleEntityUrl({ type, id });
-  return buildSimpleEntityUrl({
-    type: 'component',
-    id: projectRouteId({ id, section: 'overview' }),
-  });
-}
 
 /** The levels a recipient can hold on an item; forms have no comments. */
 export function shareLevelsFor(
@@ -936,11 +927,14 @@ export function ShareModal(props: ShareModalProps) {
   const copyLink = createCallback(() => {
     if (props.copyLink) return props.copyLink();
     fireAndForget(
-      copyEntityLink(shareUrl(props.blockAlias, props.id), {
-        subtext: RESTRICTED_SHARE_DESCRIPTIONS[props.itemType]
-          ? undefined
-          : SHARE_LINK_SUBTEXT,
-      }),
+      copyEntityLink(
+        buildSimpleEntityUrl({ type: props.blockAlias, id: props.id }),
+        {
+          subtext: RESTRICTED_SHARE_DESCRIPTIONS[props.itemType]
+            ? undefined
+            : SHARE_LINK_SUBTEXT,
+        }
+      ),
       'share-modal'
     );
   });
@@ -1951,12 +1945,15 @@ export function ShareTrigger(props: {
 
   const copyLink = createCallback(() => {
     if (props.copyLink) return props.copyLink();
-    const result = copyEntityLink(shareUrl(blockType(), blockId()), {
-      subtext:
-        blockType() === 'agent' || blockType() === 'initiative'
-          ? undefined
-          : SHARE_LINK_SUBTEXT,
-    });
+    const result = copyEntityLink(
+      buildSimpleEntityUrl({ type: blockType(), id: blockId() }),
+      {
+        subtext:
+          blockType() === 'agent' || blockType() === 'initiative'
+            ? undefined
+            : SHARE_LINK_SUBTEXT,
+      }
+    );
     analytics.track('copy_share_link', { blockType: blockType() });
     return result;
   });
