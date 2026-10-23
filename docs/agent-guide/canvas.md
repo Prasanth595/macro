@@ -92,3 +92,15 @@ one durable commit should appear. Moving a group keeps its descendants together.
 A human target edit during any lane cancels the pending whole batch; unrelated
 changes survive. Repeat with reduced motion, a phone viewport, cancellation and
 reload. Cursor lanes represent operation groups, not extra model calls.
+
+## Mirror-backed tree compatibility
+
+Reopen a native Canvas created before Mirror tree support. Opening it must not
+replace its nodes or write a conversion snapshot. In two editor windows, group
+and ungroup shapes, move a group, reorder siblings and move children between
+groups. Both windows should retain the same IDs, geometry and ordering after
+reload. Move a group locally, restyle one child remotely, then undo the local
+move: the remote style must remain. Check labels and ellipses after these edits.
+Host metadata updates must not cancel a pending scene gesture or add undo steps.
+The graphics backend owns the scene Mirror on the existing host sync document;
+there is no second scene or separate transport to initialize.

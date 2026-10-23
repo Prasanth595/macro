@@ -173,6 +173,7 @@ export function createCanvasSession(options: CanvasSessionOptions) {
   }
   const manager = new CanvasManager(schema({}), {
     documentId: options.documentId,
+    // The graphics backend owns the typed scene Mirror on this same document.
     mirror: false,
   });
   const [state, setState] = createSignal<CanvasSessionState>({ t: 'loading' });

@@ -79,6 +79,7 @@ export async function withCanvasSession<T>(
 ): Promise<T> {
   const manager = new LoroManager(schema({}), {
     documentId: source.documentId,
+    // The graphics backend owns the typed scene Mirror on this same document.
     mirror: false,
   });
   let lastAppend = Promise.resolve();

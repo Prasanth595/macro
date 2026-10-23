@@ -25,9 +25,10 @@ Existing embedded assets can move/resize/style, but new assets and reference
 deletion stay in Canvas's authorized upload/mention lifecycle. Label content
 remains one LWW string encoded by the shared Lexical codec, independent of pose
 and appearance. Headless labels and text use the actual browser TextMeasurer with persistent
-grow/contain/error fitting; no guessed line count determines committed height. Initialization remains first-editor-wins in the web host;
-tools ask users to open uninitialized legacy canvases rather than minting a
-second seed. The scene overview is bounded to 300 items, with stable-ID filters
+grow/contain/error fitting; no guessed line count determines committed height. Fresh canvases are initialized
+in SyncService before creation returns. Legacy JSON canvases still use the
+server-selected migration seed; tools report legacy migration requirements
+separately from transport and authorization failures. The scene overview is bounded to 300 items, with stable-ID filters
 for inspecting items beyond that overview.
 
 Canvas Next is the Macro host for a reusable graphics engine. The host owns
@@ -42,7 +43,7 @@ model.
 | Graphics core | Immutable document tree, affine geometry, queries, commands, selection, and local history |
 | Browser adapter | Pointer, keyboard, clipboard, drag/drop, and capture behavior |
 | Solid adapter | Read-only rendering and editor overlays with stable component identity |
-| Loro adapter | Optional CRDT mapping, collaborative undo, and ephemeral presence |
+| Loro adapter | Typed Mirror tree projection, coordinate conflict policy, collaborative undo, and ephemeral presence |
 
 ## State boundaries
 
@@ -316,3 +317,18 @@ A further real-model relative-move test forced the fallback correction path.
 Without the acknowledged tool history it moved the same boxes twice. With the
 continuation context, the same test applied one move batch, retained the requested
 20-unit deltas and performed its correction review without repeating them.
+
+
+## Mirror tree integration
+
+The graphics Loro backend owns a `@loro-mirror/core` Mirror with a typed
+`schema.LoroTree` under the existing `scene` root. JavaScript nodes are
+`{ data, children }`; an ID selector maps stable graphics IDs to native Loro tree
+nodes. Mirror handles generic create, move, reorder, delete and map-field diffing.
+The graphics adapter retains scene validation, coherent pose capture and
+world-coordinate interpretation when concurrent parent and pose winners differ.
+Atomic pose and label-style values use `schema.Value`; text stays a separate LWW
+string. No persisted tree conversion is needed, and opening a scene emits no
+operations. Host metadata roots coexist with the scene schema and remain outside
+scene undo and notifications. The host's sync manager disables its generic Mirror
+because the graphics backend owns this typed Mirror on the same durable LoroDoc.

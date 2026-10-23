@@ -290,6 +290,7 @@
       "name": "@macro-inc/graphics",
       "version": "0.1.0",
       "dependencies": {
+        "@loro-mirror/core": "workspace:*",
         "fractional-indexing": "4.0.0",
         "loro-crdt": "catalog:",
         "perfect-freehand": "1.2.3",
