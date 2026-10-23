@@ -1,11 +1,11 @@
 use super::event_runs::{AuthorizedEventRun, ClaimToken, ConfigurationRevision};
 use super::event_trigger::EventReference;
 use super::execution::ExecutionHandle;
-use super::templates::models::TemplateProvenance;
 use super::models::{
     ActionExecutionRecord, CreateScheduledAction, DispatchEvent, InProgressExecution,
     ScheduledAction, ScheduledActionUpdate, UpdateScheduledAction,
 };
+use super::templates::models::TemplateProvenance;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use entity_access::domain::models::{

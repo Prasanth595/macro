@@ -32,8 +32,14 @@ impl<Access, Targets> TemplateBindingAccess<Access, Targets> {
     }
 }
 
-impl<Access: EntityAccessService, Targets: TaskTargetValidator> TemplateBindingAccess<Access, Targets> {
-    async fn agent(&self, user: &MacroUserIdStr<'static>, target: &TaskTarget) -> Result<Option<String>> {
+impl<Access: EntityAccessService, Targets: TaskTargetValidator>
+    TemplateBindingAccess<Access, Targets>
+{
+    async fn agent(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        target: &TaskTarget,
+    ) -> Result<Option<String>> {
         let (model, agent) = match target {
             TaskTarget::Model { model } => (Some(model.clone()), None),
             TaskTarget::Agent { bot_id, model } => {
@@ -50,15 +56,17 @@ impl<Access: EntityAccessService, Targets: TaskTargetValidator> TemplateBindingA
             Ok(()) => Ok(None),
             Err(error)
                 if error.downcast_ref::<TargetValidationError>().is_some()
-                    || error.downcast_ref::<RoutineSessionError>().is_some_and(|error| {
-                        matches!(
-                            error,
-                            RoutineSessionError::Forbidden
-                                | RoutineSessionError::PersonaUnavailable
-                                | RoutineSessionError::ModelMismatch
-                                | RoutineSessionError::InvalidCommand
-                        )
-                    }) =>
+                    || error
+                        .downcast_ref::<RoutineSessionError>()
+                        .is_some_and(|error| {
+                            matches!(
+                                error,
+                                RoutineSessionError::Forbidden
+                                    | RoutineSessionError::PersonaUnavailable
+                                    | RoutineSessionError::ModelMismatch
+                                    | RoutineSessionError::InvalidCommand
+                            )
+                        }) =>
             {
                 Ok(Some("You can't run routines with this agent.".to_owned()))
             }
@@ -79,7 +87,12 @@ impl<Access: EntityAccessService, Targets: TaskTargetValidator> TemplateBindingA
                 entity_type: EventEntityType::Channel,
             } => (
                 self.access
-                    .generate_entity_access_receipt::<ViewOnly>(user, None, &id, EntityType::Channel)
+                    .generate_entity_access_receipt::<ViewOnly>(
+                        user,
+                        None,
+                        &id,
+                        EntityType::Channel,
+                    )
                     .await
                     .map(drop),
                 "channel",
@@ -97,7 +110,10 @@ impl<Access: EntityAccessService, Targets: TaskTargetValidator> TemplateBindingA
             VariableKind::EventEntity {
                 entity_type: EventEntityType::Call,
             } => (self.view(user, &id, EntityType::Call).await, "call"),
-            VariableKind::Agent | VariableKind::Schedule | VariableKind::Text | VariableKind::User => {
+            VariableKind::Agent
+            | VariableKind::Schedule
+            | VariableKind::Text
+            | VariableKind::User => {
                 return Ok(Some("This value doesn't fit this variable.".to_owned()));
             }
         };

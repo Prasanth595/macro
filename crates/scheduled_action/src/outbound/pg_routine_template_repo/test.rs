@@ -110,10 +110,12 @@ async fn deleting_a_template_removes_its_grants_but_not_activated_routines(pool:
     assert!(
         repo.update_channel_grants(
             created.id,
-            &[serde_json::from_value::<UpdateChannelSharePermission>(json!({
-                "channelId": CHANNEL, "operation": "replace", "accessLevel": "view"
-            }))
-            .unwrap()],
+            &[
+                serde_json::from_value::<UpdateChannelSharePermission>(json!({
+                    "channelId": CHANNEL, "operation": "replace", "accessLevel": "view"
+                }))
+                .unwrap()
+            ],
         )
         .await
         .unwrap()
@@ -141,28 +143,39 @@ async fn deleting_a_template_removes_its_grants_but_not_activated_routines(pool:
         .unwrap();
     let activated_id = activated.id.unwrap();
     assert_eq!(
-        repo.activations_by(created.id, &user(VIEWER)).await.unwrap(),
+        repo.activations_by(created.id, &user(VIEWER))
+            .await
+            .unwrap(),
         [activated_id]
     );
-    assert!(repo.activations_by(created.id, &user(CREATOR)).await.unwrap().is_empty());
+    assert!(
+        repo.activations_by(created.id, &user(CREATOR))
+            .await
+            .unwrap()
+            .is_empty()
+    );
     assert_eq!(repo.activation_count(created.id).await.unwrap(), 1);
     let provenance = repo.provenance(activated_id).await.unwrap().unwrap();
     assert_eq!(provenance.template_id, created.id);
     assert_eq!(provenance.bindings, bindings);
 
-    repo.set_bindings(activated_id, &Bindings::new()).await.unwrap();
-    assert!(repo.provenance(activated_id).await.unwrap().unwrap().bindings.is_empty());
+    repo.set_bindings(activated_id, &Bindings::new())
+        .await
+        .unwrap();
+    assert!(
+        repo.provenance(activated_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .bindings
+            .is_empty()
+    );
 
     repo.delete_template(created.id).await.unwrap();
     assert!(repo.get_template(created.id).await.unwrap().is_none());
     assert!(grants(&pool, created.id).await.is_empty());
     assert!(actions.get_action(&activated_id).await.unwrap().is_some());
-    assert!(
-        !repo
-            .update_channel_grants(created.id, &[])
-            .await
-            .unwrap()
-    );
+    assert!(!repo.update_channel_grants(created.id, &[]).await.unwrap());
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
@@ -178,7 +191,10 @@ async fn account_cleanup_deletes_only_that_owners_templates(pool: PgPool) {
     repo.create_template(&mine).await.unwrap();
     repo.create_template(&theirs).await.unwrap();
 
-    actions.delete_owned_templates(&user(CREATOR)).await.unwrap();
+    actions
+        .delete_owned_templates(&user(CREATOR))
+        .await
+        .unwrap();
 
     assert!(repo.get_template(mine.id).await.unwrap().is_none());
     assert!(repo.get_template(theirs.id).await.unwrap().is_some());

@@ -98,7 +98,9 @@ pub enum VariableKind {
     Channel,
     Document,
     /// An email thread or call watched by an event trigger.
-    EventEntity { entity_type: EventEntityType },
+    EventEntity {
+        entity_type: EventEntityType,
+    },
 }
 
 impl VariableKind {
@@ -175,7 +177,9 @@ impl BoundValue {
                 | (Self::User { .. }, VariableKind::User)
                 | (
                     Self::Entity { .. },
-                    VariableKind::Channel | VariableKind::Document | VariableKind::EventEntity { .. }
+                    VariableKind::Channel
+                        | VariableKind::Document
+                        | VariableKind::EventEntity { .. }
                 )
         )
     }

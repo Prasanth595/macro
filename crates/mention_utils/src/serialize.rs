@@ -41,7 +41,9 @@ struct TemplateVariable<'a> {
 /// Serialize a routine template's variable slot.
 pub fn template_variable(key: &str) -> Result<String, serde_json::Error> {
     let payload = tag_json(&TemplateVariable { key })?;
-    Ok(format!("<m-template-variable>{payload}</m-template-variable>"))
+    Ok(format!(
+        "<m-template-variable>{payload}</m-template-variable>"
+    ))
 }
 
 /// Serialize JSON without literal tag delimiters. JSON decoding restores the

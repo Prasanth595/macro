@@ -127,7 +127,10 @@ fn renders_every_variable_kind_into_the_create_body() {
 fn renders_single_cron_and_event_triggers() {
     let mut variables = every_kind();
     variables.retain(|variable| variable.key.as_str() != "call");
-    let cron = draft(json!({"type": "cron", "schedule": {"$var": "schedule"}}), variables.clone());
+    let cron = draft(
+        json!({"type": "cron", "schedule": {"$var": "schedule"}}),
+        variables.clone(),
+    );
     assert_eq!(
         render(&cron, "x".to_owned(), &bindings()).unwrap().trigger,
         ActionTrigger::Cron {
@@ -145,7 +148,12 @@ fn renders_single_cron_and_event_triggers() {
         {"events": ["channel.mentioned"], "ids": [CHANNEL]}
     ]}))
     .unwrap();
-    assert_eq!(render(&events, "x".to_owned(), &bindings()).unwrap().trigger, expected);
+    assert_eq!(
+        render(&events, "x".to_owned(), &bindings())
+            .unwrap()
+            .trigger,
+        expected
+    );
 }
 
 #[test]
@@ -153,7 +161,11 @@ fn renders_agent_targets_with_and_without_a_model_override() {
     let draft = draft(multiple(), every_kind());
     for (target, model, agent) in [
         (json!({"kind": "agent", "bot_id": CALL}), None, true),
-        (json!({"kind": "agent", "bot_id": CALL, "model": "openai/gpt-6"}), Some("openai/gpt-6"), true),
+        (
+            json!({"kind": "agent", "bot_id": CALL, "model": "openai/gpt-6"}),
+            Some("openai/gpt-6"),
+            true,
+        ),
     ] {
         let mut bindings = bindings();
         bindings.insert(
@@ -161,7 +173,8 @@ fn renders_agent_targets_with_and_without_a_model_override() {
             serde_json::from_value(json!({"type": "agent", "target": target})).unwrap(),
         );
         let task: AgentTask =
-            serde_json::from_value(render(&draft, "x".to_owned(), &bindings).unwrap().task).unwrap();
+            serde_json::from_value(render(&draft, "x".to_owned(), &bindings).unwrap().task)
+                .unwrap();
         assert_eq!(task.model.as_ref().map(RoutineModelIdStr::as_str), model);
         assert_eq!(task.agent.is_some(), agent);
     }
@@ -207,7 +220,10 @@ fn rejects_missing_misshapen_and_unsafe_values() {
     for (name, value, expected) in cases {
         let mut bindings = bindings();
         bindings.insert(key(name), serde_json::from_value(value).unwrap());
-        assert_eq!(render(&draft, "x".to_owned(), &bindings).unwrap_err(), expected);
+        assert_eq!(
+            render(&draft, "x".to_owned(), &bindings).unwrap_err(),
+            expected
+        );
     }
 
     let mut bindings = bindings();

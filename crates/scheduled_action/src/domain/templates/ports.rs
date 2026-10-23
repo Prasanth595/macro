@@ -12,7 +12,7 @@ use utoipa::ToSchema;
 pub use models_permissions::share_permission::access_level::AccessLevel;
 
 use super::models::{
-    BoundValue, Bindings, RoutineTemplate, TemplateDraft, TemplateProvenance, VariableKey,
+    Bindings, BoundValue, RoutineTemplate, TemplateDraft, TemplateProvenance, VariableKey,
     VariableKind,
 };
 use crate::domain::models::{ActionConfiguration, ScheduledAction};
@@ -25,7 +25,10 @@ pub trait RoutineTemplateRepo: Send + Sync + 'static {
         template: &RoutineTemplate,
     ) -> impl Future<Output = Result<()>> + Send;
 
-    fn get_template(&self, id: Uuid) -> impl Future<Output = Result<Option<RoutineTemplate>>> + Send;
+    fn get_template(
+        &self,
+        id: Uuid,
+    ) -> impl Future<Output = Result<Option<RoutineTemplate>>> + Send;
 
     /// Overwrite the snapshot. `None` when the template is gone.
     fn update_template(
@@ -363,7 +366,11 @@ pub trait RoutineTemplateService: Send + Sync + 'static {
         draft: TemplateDraft,
     ) -> impl Future<Output = Result<RoutineTemplate>> + Send;
 
-    fn delete(&self, user: &MacroUserIdStr<'static>, id: Uuid) -> impl Future<Output = Result<()>> + Send;
+    fn delete(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        id: Uuid,
+    ) -> impl Future<Output = Result<()>> + Send;
 
     fn get(
         &self,

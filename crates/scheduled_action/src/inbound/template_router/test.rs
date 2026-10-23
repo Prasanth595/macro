@@ -16,7 +16,10 @@ async fn template_errors_map_to_their_statuses() {
         (TemplatePolicyError::NotFound, StatusCode::NOT_FOUND),
         (TemplatePolicyError::RoutineNotFound, StatusCode::NOT_FOUND),
         (TemplatePolicyError::NotRebindable, StatusCode::CONFLICT),
-        (TemplatePolicyError::UnsupportedSharing, StatusCode::BAD_REQUEST),
+        (
+            TemplatePolicyError::UnsupportedSharing,
+            StatusCode::BAD_REQUEST,
+        ),
     ] {
         assert_eq!(respond(error.into()).await.0, status);
     }
@@ -39,10 +42,8 @@ async fn binding_problems_name_each_variable() {
 
 #[tokio::test]
 async fn routine_errors_keep_the_routine_mapping() {
-    let (status, _) = respond(
-        crate::domain::models::ActionPolicyError::NoFutureFirings.into(),
-    )
-    .await;
+    let (status, _) =
+        respond(crate::domain::models::ActionPolicyError::NoFutureFirings.into()).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     let (status, body) = respond(anyhow::anyhow!("database exploded")).await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);

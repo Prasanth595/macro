@@ -68,7 +68,8 @@ fn inconsistent_drafts_are_rejected() {
         (
             "fixed value of the wrong kind",
             Box::new(|value| {
-                value["variables"][1]["mode"] = json!({"type": "fixed", "value": {"type": "text", "text": "general"}});
+                value["variables"][1]["mode"] =
+                    json!({"type": "fixed", "value": {"type": "text", "text": "general"}});
             }),
             TemplateError::FixedValueMismatch(key("channel")),
         ),

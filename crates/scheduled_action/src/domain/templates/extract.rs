@@ -12,13 +12,13 @@ use mention_utils::serialize::template_variable;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use super::ports::{DraftCandidate, DraftRequest, DraftSuggestions};
-use super::render::validate_text;
 use super::models::{
-    BoundValue, Bindings, TaskTarget, TemplateDraft, TemplateEventFilter, TemplateRoutineTrigger,
+    Bindings, BoundValue, TaskTarget, TemplateDraft, TemplateEventFilter, TemplateRoutineTrigger,
     TemplateTask, TemplateTrigger, TemplateVariable, VariableKey, VariableKind, VariableMode,
     VariableRef,
 };
+use super::ports::{DraftCandidate, DraftRequest, DraftSuggestions};
+use super::render::validate_text;
 use crate::domain::event_trigger::{ActionTrigger, EventEntityType, EventFilter, RoutineTrigger};
 use crate::domain::models::{AgentTask, ResolvedTaskTarget, ScheduledAction};
 
@@ -47,7 +47,10 @@ pub enum ExtractError {
 pub fn extract(action: &ScheduledAction) -> Result<Extraction, ExtractError> {
     let task: AgentTask =
         serde_json::from_value(action.task.clone()).map_err(|_| ExtractError::InvalidTask)?;
-    let target = match task.resolve_target().map_err(|_| ExtractError::InvalidTask)? {
+    let target = match task
+        .resolve_target()
+        .map_err(|_| ExtractError::InvalidTask)?
+    {
         ResolvedTaskTarget::Model { model } => TaskTarget::Model {
             model: model.clone(),
         },
@@ -248,7 +251,11 @@ impl Candidates {
 /// Key base, label and description for a fresh variable of `kind`.
 fn defaults(kind: VariableKind) -> (&'static str, &'static str, &'static str) {
     match kind {
-        VariableKind::Agent => ("agent", "Agent", "The agent or model that runs this routine."),
+        VariableKind::Agent => (
+            "agent",
+            "Agent",
+            "The agent or model that runs this routine.",
+        ),
         VariableKind::Schedule => ("schedule", "Schedule", "When this routine runs."),
         VariableKind::Text => ("text", "Text", "Text this routine uses."),
         VariableKind::User => ("person", "Person", "A person this routine mentions."),

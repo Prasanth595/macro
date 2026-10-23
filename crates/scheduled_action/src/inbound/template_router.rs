@@ -9,8 +9,7 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use macro_authorization::{
-    MacroAuthorizationExtractor, MacroAuthorizationService, MacroAuthorizationState,
-    UserOrInternal,
+    MacroAuthorizationExtractor, MacroAuthorizationService, MacroAuthorizationState, UserOrInternal,
 };
 use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
@@ -63,7 +62,10 @@ where
     St: Send + Sync,
 {
     Router::new()
-        .route("/routine-templates/extract", post(extract_template::<S, Auth>))
+        .route(
+            "/routine-templates/extract",
+            post(extract_template::<S, Auth>),
+        )
         .route("/routine-templates", post(create_template::<S, Auth>))
         .route(
             "/routine-templates/{id}",
@@ -71,7 +73,10 @@ where
                 .put(update_template::<S, Auth>)
                 .delete(delete_template::<S, Auth>),
         )
-        .route("/routine-templates/{id}/fill", post(fill_template::<S, Auth>))
+        .route(
+            "/routine-templates/{id}/fill",
+            post(fill_template::<S, Auth>),
+        )
         .route(
             "/routine-templates/{id}/activate",
             post(activate_template::<S, Auth>),
@@ -208,7 +213,10 @@ where
 {
     let request = body(request)?;
     Ok(Json(
-        state.service.update(caller(&user), id, request.draft).await?,
+        state
+            .service
+            .update(caller(&user), id, request.draft)
+            .await?,
     ))
 }
 
@@ -322,7 +330,9 @@ where
     S: RoutineTemplateService,
     Auth: MacroAuthorizationService,
 {
-    Ok(Json(state.service.share_permissions(caller(&user), id).await?))
+    Ok(Json(
+        state.service.share_permissions(caller(&user), id).await?,
+    ))
 }
 
 #[utoipa::path(

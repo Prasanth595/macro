@@ -20,11 +20,11 @@ use super::models::{
     TemplateProvenance, TemplateVariable, VariableKind, VariableMode,
 };
 use super::ports::{
-    ActivateTemplateRequest, BindingAccess, BindingProblem, Confidence, CreateTemplateRequest,
-    ExtractedTemplate, FillProposals, FillRequest, FillTemplateRequest, FillTemplateResponse,
-    FillVariable, FilledVariable, ProvenanceTemplate, RebindTemplateRequest, RoutineProvenance,
-    RoutineTemplateRepo, RoutineTemplateService, TemplateDrafter, TemplateGrants, AccessLevel, TemplateFiller, TemplateView,
-    TemplatedRoutines,
+    AccessLevel, ActivateTemplateRequest, BindingAccess, BindingProblem, Confidence,
+    CreateTemplateRequest, ExtractedTemplate, FillProposals, FillRequest, FillTemplateRequest,
+    FillTemplateResponse, FillVariable, FilledVariable, ProvenanceTemplate, RebindTemplateRequest,
+    RoutineProvenance, RoutineTemplateRepo, RoutineTemplateService, TemplateDrafter,
+    TemplateFiller, TemplateGrants, TemplateView, TemplatedRoutines,
 };
 use super::render::{RenderError, render};
 use crate::domain::models::{ActionConfiguration, ScheduledAction};
@@ -181,7 +181,11 @@ where
     }
 
     /// Whether `action` still reads exactly as `draft` rendered `bindings`.
-    fn still_rendered(action: &ScheduledAction, draft: &TemplateDraft, bindings: &Bindings) -> bool {
+    fn still_rendered(
+        action: &ScheduledAction,
+        draft: &TemplateDraft,
+        bindings: &Bindings,
+    ) -> bool {
         render(draft, action.name.clone(), bindings).is_ok_and(|rendered| {
             rendered.task == action.task && rendered.trigger == action.trigger
         })
@@ -211,7 +215,6 @@ where
                 problem: None,
             }))
     }
-
 }
 
 impl<Templates, Actions, Routines, Access, Drafter, Filler> RoutineTemplateService
@@ -280,7 +283,10 @@ where
         request: CreateTemplateRequest,
     ) -> Result<RoutineTemplate> {
         self.owned_action(user, request.source_action_id).await?;
-        request.draft.validate().map_err(TemplatePolicyError::from)?;
+        request
+            .draft
+            .validate()
+            .map_err(TemplatePolicyError::from)?;
         let now = Utc::now();
         let template = RoutineTemplate {
             id: Uuid::now_v7(),
@@ -469,7 +475,8 @@ where
                 variables.push(result.clone());
             }
         }
-        let count = |test: fn(&FilledVariable) -> bool| variables.iter().filter(|v| test(v)).count();
+        let count =
+            |test: fn(&FilledVariable) -> bool| variables.iter().filter(|v| test(v)).count();
         Span::current().record("filled_count", count(|v| v.value.is_some()));
         Span::current().record(
             "check_count",

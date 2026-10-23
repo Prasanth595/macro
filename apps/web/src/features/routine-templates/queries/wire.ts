@@ -43,30 +43,33 @@ function targetToWire(target: RoutineTarget): TaskTarget {
 }
 
 export function valueFromWire(value: BoundValue): TemplateValue {
-  return match(value)
-    .with({ type: 'agent' }, (value) => ({
-      kind: 'agent' as const,
-      target: targetFromWire(value.target),
-    }))
-    .with({ type: 'schedule' }, (value) => ({
-      kind: 'schedule' as const,
-      cron: value.cron,
-      timezone: value.timezone,
-    }))
-    .with({ type: 'text' }, (value) => ({
-      kind: 'text' as const,
-      text: value.text,
-    }))
-    .with({ type: 'user' }, (value) => ({
-      kind: 'user' as const,
-      userId: value.user_id,
-    }))
-    .with({ type: 'entity' }, (value) => ({
-      kind: 'entity' as const,
-      id: value.id,
-      name: value.name ?? '',
-    }))
-    .exhaustive();
+  return (
+    match(value)
+      .with({ type: 'agent' }, (value) => ({
+        kind: 'agent' as const,
+        target: targetFromWire(value.target),
+      }))
+      .with({ type: 'schedule' }, (value) => ({
+        kind: 'schedule' as const,
+        cron: value.cron,
+        timezone: value.timezone,
+      }))
+      .with({ type: 'text' }, (value) => ({
+        kind: 'text' as const,
+        text: value.text,
+      }))
+      .with({ type: 'user' }, (value) => ({
+        kind: 'user' as const,
+        userId: value.user_id,
+      }))
+      .with({ type: 'entity' }, (value) => ({
+        kind: 'entity' as const,
+        id: value.id,
+        name: value.name ?? '',
+      }))
+      // A value shape this build doesn't know; it fails validation later.
+      .exhaustive(() => ({ kind: 'text' as const, text: '' }))
+  );
 }
 
 export function valueToWire(value: TemplateValue): BoundValue {
@@ -93,7 +96,9 @@ export function valueToWire(value: TemplateValue): BoundValue {
       id: value.id,
       name: value.name,
     }))
-    .exhaustive();
+    .exhaustive((unknown) => {
+      throw new Error(`Unsupported template value: ${JSON.stringify(unknown)}`);
+    });
 }
 
 export function bindingsFromWire(
@@ -118,7 +123,7 @@ function kindFromWire(kind: VariableKind): TemplateVariableKind {
         .with('call', () => 'call' as const)
         .with('channel', () => 'channel' as const)
         .with('document', () => 'document' as const)
-        .exhaustive()
+        .exhaustive(() => 'text' as const)
     )
     .with({ type: 'agent' }, () => 'agent' as const)
     .with({ type: 'schedule' }, () => 'schedule' as const)
@@ -126,7 +131,7 @@ function kindFromWire(kind: VariableKind): TemplateVariableKind {
     .with({ type: 'user' }, () => 'user' as const)
     .with({ type: 'channel' }, () => 'channel' as const)
     .with({ type: 'document' }, () => 'document' as const)
-    .exhaustive();
+    .exhaustive(() => 'text' as const);
 }
 
 function variableFromWire(variable: WireVariable): TemplateVariable {
@@ -163,7 +168,7 @@ function triggerLines(trigger: TemplateTrigger): TemplateTriggerLine[] {
           : entry.filters.map(filterLine)
       )
     )
-    .exhaustive();
+    .exhaustive((): TemplateTriggerLine[] => []);
 }
 
 export function draftToModel(

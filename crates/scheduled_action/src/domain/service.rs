@@ -241,7 +241,11 @@ where
             claimed: None,
         };
         let created = match provenance {
-            Some(provenance) => self.repo.create_templated_action(action, provenance).await?,
+            Some(provenance) => {
+                self.repo
+                    .create_templated_action(action, provenance)
+                    .await?
+            }
             None => self.repo.create_action(action).await?,
         };
         self.dispatcher_tx

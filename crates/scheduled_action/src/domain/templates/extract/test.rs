@@ -64,7 +64,12 @@ fn multiple_trigger() -> Value {
 fn rendered_back(action: &ScheduledAction) -> ActionConfiguration {
     let extraction = extract(action).unwrap();
     extraction.draft.validate().unwrap();
-    render(&extraction.draft, action.name.clone(), &extraction.creator_values).unwrap()
+    render(
+        &extraction.draft,
+        action.name.clone(),
+        &extraction.creator_values,
+    )
+    .unwrap()
 }
 
 #[test]
@@ -144,7 +149,12 @@ fn only_schedules_start_fixed_and_variable_slots_keep_no_value() {
     let extraction = extract(&action).unwrap();
     for variable in &extraction.draft.variables {
         let fixed = matches!(variable.mode, VariableMode::Fixed { .. });
-        assert_eq!(fixed, variable.kind == VariableKind::Schedule, "{}", variable.key);
+        assert_eq!(
+            fixed,
+            variable.kind == VariableKind::Schedule,
+            "{}",
+            variable.key
+        );
     }
     let stored = serde_json::to_string(&extraction.draft).unwrap();
     assert!(!stored.contains(AGENT));
@@ -204,7 +214,9 @@ fn suggestions_rename_fix_and_pull_out_text() {
     );
     let draft = &refined.draft;
     assert_eq!(draft.name, "Customer email triage");
-    let channel = draft.variable(&VariableKey::try_from("channel".to_owned()).unwrap()).unwrap();
+    let channel = draft
+        .variable(&VariableKey::try_from("channel".to_owned()).unwrap())
+        .unwrap();
     assert_eq!(channel.label, "Urgent channel");
     assert!(matches!(channel.mode, VariableMode::Fixed { .. }));
     let agent = draft.variable(&VariableKey::agent()).unwrap();
@@ -212,7 +224,11 @@ fn suggestions_rename_fix_and_pull_out_text() {
     let domain = VariableKey::try_from("customer_domain".to_owned()).unwrap();
     assert_eq!(draft.variable(&domain).unwrap().kind, VariableKind::Text);
     assert!(!draft.task.user_prompt.contains("globex.com"));
-    assert!(draft.variable(&VariableKey::try_from("ghost".to_owned()).unwrap()).is_none());
+    assert!(
+        draft
+            .variable(&VariableKey::try_from("ghost".to_owned()).unwrap())
+            .is_none()
+    );
 
     // The creator's own values still render the original routine.
     let rendered = render(draft, action.name.clone(), &refined.creator_values).unwrap();

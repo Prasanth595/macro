@@ -50,7 +50,12 @@ fn proposals_keep_only_requested_well_shaped_values() {
     let values: Vec<_> = proposals
         .proposals
         .iter()
-        .map(|proposal| (proposal.key.to_string(), serde_json::to_value(&proposal.value).unwrap()))
+        .map(|proposal| {
+            (
+                proposal.key.to_string(),
+                serde_json::to_value(&proposal.value).unwrap(),
+            )
+        })
         .collect();
     assert_eq!(
         values,
@@ -67,7 +72,10 @@ fn proposals_keep_only_requested_well_shaped_values() {
                 "person".to_owned(),
                 json!({"type": "user", "user_id": "macro|bo@macro.com"})
             ),
-            ("customer".to_owned(), json!({"type": "text", "text": "Initech"})),
+            (
+                "customer".to_owned(),
+                json!({"type": "text", "text": "Initech"})
+            ),
             (
                 "thread".to_owned(),
                 json!({"type": "entity", "id": "0199f000-0000-7000-8000-000000000003", "name": "Renewal"})

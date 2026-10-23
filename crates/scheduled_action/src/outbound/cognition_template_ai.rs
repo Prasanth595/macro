@@ -40,7 +40,11 @@ impl CognitionTemplateAi {
     }
 }
 
-fn request(system: &str, prompt: &impl serde::Serialize, schema: Value) -> Result<GenerateObjectRequest> {
+fn request(
+    system: &str,
+    prompt: &impl serde::Serialize,
+    schema: Value,
+) -> Result<GenerateObjectRequest> {
     Ok(GenerateObjectRequest {
         prompt: serde_json::to_string_pretty(prompt)?,
         system: Some(system.to_owned()),

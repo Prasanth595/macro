@@ -18,7 +18,9 @@ fn user(id: &str) -> MacroUserIdStr<'static> {
     MacroUserIdStr::try_from(id.to_owned()).unwrap()
 }
 
-fn access(pool: PgPool) -> TemplateBindingAccess<EntityAccessServiceImpl<PgAccessRepository>, ModelOnlyTargets> {
+fn access(
+    pool: PgPool,
+) -> TemplateBindingAccess<EntityAccessServiceImpl<PgAccessRepository>, ModelOnlyTargets> {
     TemplateBindingAccess::new(
         EntityAccessServiceImpl::new(PgAccessRepository::new(pool)),
         ModelOnlyTargets,
@@ -54,10 +56,19 @@ async fn template_grants_come_from_entity_access(pool: PgPool) {
     let access = access(pool);
 
     assert_eq!(
-        access.access_level(&user(CREATOR), template.id).await.unwrap(),
+        access
+            .access_level(&user(CREATOR), template.id)
+            .await
+            .unwrap(),
         Some(AccessLevel::Owner)
     );
-    assert_eq!(access.access_level(&user(VIEWER), template.id).await.unwrap(), None);
+    assert_eq!(
+        access
+            .access_level(&user(VIEWER), template.id)
+            .await
+            .unwrap(),
+        None
+    );
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
@@ -103,14 +114,20 @@ async fn values_are_checked_against_the_activators_access(pool: PgPool) {
         .is_some()
     );
     assert!(
-        check(VariableKind::Text, value(json!({"type": "text", "text": "a <b>"})))
-            .await
-            .is_some()
+        check(
+            VariableKind::Text,
+            value(json!({"type": "text", "text": "a <b>"}))
+        )
+        .await
+        .is_some()
     );
     assert!(
-        check(VariableKind::User, value(json!({"type": "user", "user_id": "nobody"})))
-            .await
-            .is_some()
+        check(
+            VariableKind::User,
+            value(json!({"type": "user", "user_id": "nobody"}))
+        )
+        .await
+        .is_some()
     );
     assert_eq!(
         check(
@@ -121,8 +138,11 @@ async fn values_are_checked_against_the_activators_access(pool: PgPool) {
         Some("You don't have access to this document.".to_owned())
     );
     assert!(
-        check(VariableKind::Channel, value(json!({"type": "text", "text": "general"})))
-            .await
-            .is_some()
+        check(
+            VariableKind::Channel,
+            value(json!({"type": "text", "text": "general"}))
+        )
+        .await
+        .is_some()
     );
 }

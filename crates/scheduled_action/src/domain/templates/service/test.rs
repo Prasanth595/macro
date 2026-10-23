@@ -175,7 +175,11 @@ struct FakeAi {
 }
 
 impl TemplateDrafter for Arc<FakeAi> {
-    async fn suggest(&self, _: &MacroUserIdStr<'static>, _: DraftRequest) -> Result<DraftSuggestions> {
+    async fn suggest(
+        &self,
+        _: &MacroUserIdStr<'static>,
+        _: DraftRequest,
+    ) -> Result<DraftSuggestions> {
         self.suggestions
             .lock()
             .unwrap()
@@ -185,7 +189,11 @@ impl TemplateDrafter for Arc<FakeAi> {
 }
 
 impl TemplateFiller for Arc<FakeAi> {
-    async fn fill(&self, _: &MacroUserIdStr<'static>, request: FillRequest) -> Result<FillProposals> {
+    async fn fill(
+        &self,
+        _: &MacroUserIdStr<'static>,
+        request: FillRequest,
+    ) -> Result<FillProposals> {
         self.requests
             .lock()
             .unwrap()
@@ -361,7 +369,10 @@ async fn sharing_drafts_from_the_creators_routine_even_when_the_model_fails() {
         .extract(&user(VIEWER), action.id.unwrap())
         .await
         .unwrap_err();
-    assert!(matches!(policy(error), TemplatePolicyError::RoutineNotFound));
+    assert!(matches!(
+        policy(error),
+        TemplatePolicyError::RoutineNotFound
+    ));
 }
 
 #[tokio::test]
@@ -394,9 +405,17 @@ async fn templates_are_invisible_without_a_grant_and_editable_only_by_their_owne
     let template = harness.shared_template().await;
     let stranger = user("macro|stranger@macro.com");
 
-    let error = harness.service.get(&stranger, template.id).await.unwrap_err();
+    let error = harness
+        .service
+        .get(&stranger, template.id)
+        .await
+        .unwrap_err();
     assert!(matches!(policy(error), TemplatePolicyError::NotFound));
-    harness.service.get(&user(VIEWER), template.id).await.unwrap();
+    harness
+        .service
+        .get(&user(VIEWER), template.id)
+        .await
+        .unwrap();
 
     let update = UpdateTemplateRequest {
         draft: template.draft.clone(),
@@ -426,7 +445,10 @@ async fn activation_creates_the_viewers_own_routine_with_provenance() {
     let template = harness.shared_template().await;
     let bindings = Bindings::from([
         (key("agent"), model()),
-        (key("channel"), channel("0199f000-0000-7000-8000-000000000005")),
+        (
+            key("channel"),
+            channel("0199f000-0000-7000-8000-000000000005"),
+        ),
     ]);
 
     let action = harness
@@ -489,7 +511,10 @@ async fn activation_refuses_values_the_activator_cannot_use_and_creates_nothing(
     let TemplatePolicyError::InvalidBindings(problems) = policy(error) else {
         panic!("expected binding problems");
     };
-    let keys: Vec<_> = problems.iter().map(|problem| problem.key.to_string()).collect();
+    let keys: Vec<_> = problems
+        .iter()
+        .map(|problem| problem.key.to_string())
+        .collect();
     assert_eq!(keys, ["agent", "channel"]);
     assert_eq!(harness.actions.provenances.lock().unwrap().len(), before);
 }
@@ -587,7 +612,10 @@ async fn bindings_change_only_while_the_routine_reads_as_rendered() {
             ActivateTemplateRequest {
                 bindings: Bindings::from([
                     (key("agent"), model()),
-                    (key("channel"), channel("0199f000-0000-7000-8000-000000000005")),
+                    (
+                        key("channel"),
+                        channel("0199f000-0000-7000-8000-000000000005"),
+                    ),
                 ]),
                 name: None,
             },
@@ -596,7 +624,12 @@ async fn bindings_change_only_while_the_routine_reads_as_rendered() {
         .unwrap();
     let id = action.id.unwrap();
 
-    let provenance = harness.service.provenance(&viewer, id).await.unwrap().unwrap();
+    let provenance = harness
+        .service
+        .provenance(&viewer, id)
+        .await
+        .unwrap()
+        .unwrap();
     assert!(provenance.rebindable);
     assert_eq!(provenance.template.unwrap().name, template.draft.name);
 
@@ -608,7 +641,10 @@ async fn bindings_change_only_while_the_routine_reads_as_rendered() {
             RebindTemplateRequest {
                 bindings: Bindings::from([
                     (key("agent"), model()),
-                    (key("channel"), channel("0199f000-0000-7000-8000-000000000006")),
+                    (
+                        key("channel"),
+                        channel("0199f000-0000-7000-8000-000000000006"),
+                    ),
                 ]),
             },
         )
@@ -620,14 +656,23 @@ async fn bindings_change_only_while_the_routine_reads_as_rendered() {
             .unwrap()
             .contains("0199f000-0000-7000-8000-000000000006")
     );
-    assert!(harness.service.provenance(&viewer, id).await.unwrap().unwrap().rebindable);
+    assert!(
+        harness
+            .service
+            .provenance(&viewer, id)
+            .await
+            .unwrap()
+            .unwrap()
+            .rebindable
+    );
 
     // Hand-edit the instructions: the variables can no longer be changed.
-    let receipt = entity_access::domain::models::EntityAccessReceipt::dangerously_assert_authenticated_user(
-        viewer.clone(),
-        &id.to_string(),
-        entity_access::domain::models::EntityType::ScheduledAction,
-    );
+    let receipt =
+        entity_access::domain::models::EntityAccessReceipt::dangerously_assert_authenticated_user(
+            viewer.clone(),
+            &id.to_string(),
+            entity_access::domain::models::EntityType::ScheduledAction,
+        );
     let mut task = rebound.task.clone();
     task["user_prompt"] = json!("Something else entirely.");
     crate::domain::ports::ScheduledActionService::update_action(
@@ -645,7 +690,15 @@ async fn bindings_change_only_while_the_routine_reads_as_rendered() {
     )
     .await
     .unwrap();
-    assert!(!harness.service.provenance(&viewer, id).await.unwrap().unwrap().rebindable);
+    assert!(
+        !harness
+            .service
+            .provenance(&viewer, id)
+            .await
+            .unwrap()
+            .unwrap()
+            .rebindable
+    );
     let error = harness
         .service
         .rebind(
@@ -679,7 +732,10 @@ async fn templates_are_shared_for_viewing_only() {
         .update_share_permissions(&user(CREATOR), template.id, grant("edit"))
         .await
         .unwrap_err();
-    assert!(matches!(policy(error), TemplatePolicyError::UnsupportedSharing));
+    assert!(matches!(
+        policy(error),
+        TemplatePolicyError::UnsupportedSharing
+    ));
     let error = harness
         .service
         .update_share_permissions(&user(VIEWER), template.id, grant("view"))

@@ -8,18 +8,18 @@ use chrono_tz::Tz;
 use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
 use mention_utils::parse::{RawSegment, XmlTag, raw_segments};
-use mention_utils::serialize::{ChannelMentionParams, channel_mention, document_mention, user_mention};
+use mention_utils::serialize::{
+    ChannelMentionParams, channel_mention, document_mention, user_mention,
+};
 
 use super::models::{
-    BoundValue, Bindings, MAX_TEXT_VALUE_LEN, TaskTarget, TemplateDraft, TemplateEventFilter,
+    Bindings, BoundValue, MAX_TEXT_VALUE_LEN, TaskTarget, TemplateDraft, TemplateEventFilter,
     TemplateRoutineTrigger, TemplateTrigger, VariableKey, VariableKind, VariableRef,
 };
 use crate::domain::event_trigger::{
     ActionTrigger, EventFilter, EventFilters, RoutineTrigger, RoutineTriggers,
 };
-use crate::domain::models::{
-    ActionConfiguration, ActionKind, AgentTask, AgentTaskAgent, Schedule,
-};
+use crate::domain::models::{ActionConfiguration, ActionKind, AgentTask, AgentTaskAgent, Schedule};
 
 #[cfg(test)]
 mod test;
@@ -192,7 +192,9 @@ impl Renderer<'_> {
 
     fn schedule(&self, schedule: &VariableRef) -> Result<(Schedule, Tz), RenderError> {
         match self.value(&schedule.key)? {
-            BoundValue::Schedule { cron, timezone } => parse_schedule(&schedule.key, cron, timezone),
+            BoundValue::Schedule { cron, timezone } => {
+                parse_schedule(&schedule.key, cron, timezone)
+            }
             _ => Err(RenderError::WrongKind(schedule.key.clone())),
         }
     }
@@ -215,7 +217,8 @@ impl Renderer<'_> {
                     .map_err(|error| RenderError::InvalidTrigger(error.to_string()))
             })
             .collect::<Result<Vec<_>, RenderError>>()?;
-        EventFilters::try_from(filters).map_err(|error| RenderError::InvalidTrigger(error.to_string()))
+        EventFilters::try_from(filters)
+            .map_err(|error| RenderError::InvalidTrigger(error.to_string()))
     }
 
     fn entity_id(&self, id: &VariableRef) -> Result<Uuid, RenderError> {
