@@ -27,9 +27,13 @@ Pulumi stacks; they do not host extra agent processes.
   `ai-code-mode` get `ExecuteCode`/`DescribeCodeTools` in place of SDK-covered
   tools (`tool_service.rs`); the flag is cached per user (`tool_mode_cache.rs`).
 - `src/cognition/`: existing chat, completions, integrations, and projection
-  workers; the library also exports their OpenAPI document.
+  workers; the library also exports their OpenAPI document. A structured
+  completion picks its tools by `toolset`: `none`, `databases`,
+  `databases_read_only`, `workspace_read_only` (search, list and read as the
+  caller; routine template filling uses it) or `all`.
 - `src/scheduling.rs`: routine HTTP routes and background scheduling;
-  domain/adapters live in `crates/scheduled_action`.
+  domain/adapters live in `crates/scheduled_action`. Routine template routes mount
+  only while `ROUTINE_TEMPLATES_ENABLED` is on.
 - `src/preview.rs` + `src/preview/`: preview control routes, public HTTP and SSH listeners;
   lease/ticket and authorization logic lives in `crates/agent_preview`. The shared
   pool stores replica ownership and credential hashes; startup and ten-second
