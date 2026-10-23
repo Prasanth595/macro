@@ -166,7 +166,7 @@ thread anchored to it, removing the mark again if the post fails.
 ## Canvas
 
 `POST /canvas` reads an initialized Canvas room or performs a natural-language
-edit. Documents' `ReadCanvas`, `RenderCanvas` and `EditCanvas` tools authorize native canvas
+edit. Documents' `ReadCanvas`, `RenderCanvas`, `ApplyCanvasEdits` and `EditCanvas` tools authorize native canvas
 documents, mint view/edit tokens naming the actor, and apply existing AI
 admission and usage metering. The app's **Ask Macro** action in the standalone toolbar and Drive detail header attaches
 the canvas to that tool-enabled conversation on desktop and mobile.
@@ -220,7 +220,8 @@ authorized asset/reference flow. Existing references can move/resize/style.
 `ReadCanvas` returns a bounded live overview with stable IDs, geometry,
 containment/order, world bounds and plain text. It reports truncation and
 supports stable-ID filtering. Unsupported/uninitialized room formats are
-refused; opening the canvas in Macro establishes its single winning seed.
+refused. Native creation initializes its winning seed server-side before return;
+only legacy imported Canvas JSON requires an initial browser migration.
 
 
 `RenderCanvas` returns native PNG image content to both the chat agent and the
@@ -264,3 +265,13 @@ columns, booking policy and sharing remain with their owning domain services.
 No authoring snapshots or execution records are retained separately. Each tool
 invocation is independent; after a timeout, inspect the current form before
 issuing another mutation.
+
+### Canvas direct path and performance
+
+For exact known edits the main agent calls ApplyCanvasEdits with the immutable
+revision from ReadCanvas, code using CanvasEditor and optional plain-text snippets.
+No editor model is invoked. The direct and design paths share actual browser text
+measurement, validated operation dependencies, transient lane presentation, fresh
+server revalidation and one atomic acknowledged commit. See
+`docs/architecture/canvas.md` for the SDK, review-evidence and bounded cache/page
+lease contracts. Never retain Puppeteer objects or sockets across Worker requests.

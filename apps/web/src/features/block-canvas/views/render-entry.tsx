@@ -31,8 +31,12 @@ const fontsReady = Promise.all(
   )
 );
 let dispose = () => {};
+let leaseTimer: ReturnType<typeof setTimeout> | undefined;
 declare global {
   interface Window {
+    resetCanvasSnapshot: () => void;
+    prepareCanvasRender: () => Promise<void>;
+    canvasRenderIdle: boolean;
     renderCanvasSnapshot: (snapshot: {
       document: GraphicsDocument;
       crop: Bounds;
@@ -50,6 +54,30 @@ declare global {
     }[];
   }
 }
+
+/** Browser-owned deadlines survive a lost Worker connection, including local CDP. */
+window.canvasRenderIdle = true;
+window.prepareCanvasRender = async () => {
+  window.canvasRenderIdle = false;
+  clearTimeout(leaseTimer);
+  leaseTimer = setTimeout(() => {
+    window.resetCanvasSnapshot();
+    window.close();
+  }, 150_000);
+  await fontsReady;
+  await document.fonts.ready;
+};
+
+/** Release all scene roots/closures before another authorized request leases this page. */
+window.resetCanvasSnapshot = () => {
+  window.canvasRenderIdle = true;
+  dispose();
+  dispose = () => {};
+  document.getElementById('root')?.replaceChildren();
+  window.readCanvasTextLayout = () => [];
+  clearTimeout(leaseTimer);
+  leaseTimer = setTimeout(() => window.close(), 60_000);
+};
 
 /** Uses the same StaticLexical/CSS/font measurer as live Canvas text editing. */
 window.measureCanvasSnapshot = async (snapshot) => {

@@ -57,6 +57,7 @@ const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
   DisplayResults: (whose) => `show results from ${whose} workspace`,
   DuplicateItem: (whose) => `duplicate items in ${whose} workspace`,
   EditBookingLink: (whose) => `edit ${whose} booking links`,
+  ApplyCanvasEdits: (whose) => `edit ${whose} canvases`,
   EditCanvas: (whose) => `edit ${whose} canvases`,
   EditChannelMessage: (whose) => `edit messages from ${whose} account`,
   EditDocument: (whose) => `edit ${whose} documents`,

@@ -16,7 +16,10 @@ before touching the edit flow.
   drives the agents, flushes commits back.
 - `src/canvas/`: bounded CanvasEditor SDK, real QuickJS runner, live graphics/Loro
   session, supervised writers, renderer-based text fitting, vision reads and
-  concurrency/acknowledgement tests. `render.ts` uses the configured browser and
+  concurrency/acknowledgement tests. `direct.ts` runs main-agent SDK batches through
+  the same guarded apply path without another model. `browser.ts` leases reset
+  remote pages using fresh request-owned CDP connections; `cache.ts` stores only
+  bounded cloned values, never cross-request sockets or promises. `render.ts` uses the configured browser and
   the read-only web `canvas-render.html` bundle; `text-layout.ts` revalidates
   asynchronous measurements before the atomic commit. `POST /canvas`
   joins an already initialized scene; it never creates a competing seed.
@@ -83,3 +86,9 @@ The isolated render context loads no user cookies and never joins live sync.
 Without browser configuration, Canvas rendering and measured edits fail clearly;
 other document editing endpoints do not require this browser. Do not deploy the
 worker or reset an existing preview to configure it.
+
+Local performance scripts in `scripts/benchmark-canvas.mjs` and
+`collect-canvas-benchmark-traces.mjs` benchmark disposable source copies and export
+only safe timing/usage projections. Commands, fixture assumptions, actual results
+and cold/warm limitations live in `docs/architecture/canvas.md`; never print raw
+agent session logs or commit a browser storage-state file.

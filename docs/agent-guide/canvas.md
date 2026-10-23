@@ -77,3 +77,18 @@ opens it. Open it as its owner and another editor, reload, and verify the same
 items persist. Reopen a legacy S3 Canvas and verify its scene migrates without
 replacement. Native sync-backed Canvas loading must never request a presigned
 blob URL. A missing native snapshot is an error, never an empty reseed.
+
+For precise changes, ask to move the fixed-pivot boxes down 20 units or restyle
+specific labels. The main agent should use **ApplyCanvasEdits** with the fresh
+ReadCanvas revision and one batch, without screenshots or a second model.
+Check the returned geometry and text-layout effects. A stale revision must cause
+no mutation; reread before reconsidering the batch. For design tasks, EditCanvas
+receives an initial image and reviews its final layout; avoid extra outer renders
+of the same revision. A crop cannot verify changed objects outside its bounds.
+
+Watch a single batch affecting three separate regions from a second browser:
+up to three named region cursors should animate real operations together, then
+one durable commit should appear. Moving a group keeps its descendants together.
+A human target edit during any lane cancels the pending whole batch; unrelated
+changes survive. Repeat with reduced motion, a phone viewport, cancellation and
+reload. Cursor lanes represent operation groups, not extra model calls.

@@ -29,8 +29,11 @@ async function qjs() {
   return _qjs;
 }
 
-export async function runCanvasInSandbox(code: string) {
-  return runCanvasCode(await qjs(), code);
+export async function runCanvasInSandbox(
+  code: string,
+  snippets?: Record<string, string>
+) {
+  return runCanvasCode(await qjs(), code, snippets);
 }
 
 export async function runInSandbox(

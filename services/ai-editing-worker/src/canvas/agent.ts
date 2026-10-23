@@ -1,8 +1,10 @@
+import { type Bounds, worldBounds } from '@macro-inc/graphics';
 import { Telemetry } from '@macro-inc/observability';
 import {
   generateText,
   hasToolCall,
   type LanguageModel,
+  type LanguageModelUsage,
   stepCountIs,
   tool,
 } from 'ai';
@@ -11,6 +13,7 @@ import { z } from 'zod';
 import { TokenTracker } from '../ai-editing/token-tracker';
 import { runCanvasInSandbox } from '../sandbox';
 import type { CanvasPresentation } from './animation';
+import { dependencies } from './dependencies';
 import { canvasOverview } from './overview';
 import SYSTEM from './prompt.md';
 import {
@@ -19,6 +22,7 @@ import {
   type CanvasRenderer,
   canvasRenderOptions,
 } from './render';
+import { canvasRevision } from './revision';
 import {
   type CanvasSource,
   CanvasWriteError,
@@ -48,8 +52,21 @@ export function canvasModelOutput(output: CanvasRender) {
   };
 }
 
+async function canvasImageIdentity(image: string): Promise<string> {
+  const data = image.startsWith('data:image/')
+    ? image.slice(image.indexOf(',') + 1)
+    : image;
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(data)
+  );
+  return Array.from(new Uint8Array(digest), (value) =>
+    value.toString(16).padStart(2, '0')
+  ).join('');
+}
+
 /** Only counts/hashes reach telemetry; never provider prompts, credentials or pixels. */
-async function recordNativeImages(body: unknown): Promise<void> {
+async function recordNativeImages(body: unknown): Promise<Set<string>> {
   const images: string[] = [];
   const walk = (value: unknown) => {
     if (typeof value === 'string') {
@@ -76,26 +93,24 @@ async function recordNativeImages(body: unknown): Promise<void> {
     try {
       parsed = JSON.parse(body);
     } catch {
-      return;
+      return new Set();
     }
   }
   walk(parsed);
-  await Telemetry.span('canvas.ai.model_images', async (span) => {
+  return Telemetry.span('canvas.ai.model_images', async (span) => {
     span.setAttr('canvas.model.native_images', images.length);
-    if (images.length) {
-      const hashes = await Promise.all(
-        images.map(async (image) => {
-          const digest = await crypto.subtle.digest(
-            'SHA-256',
-            new TextEncoder().encode(image)
-          );
-          return Array.from(new Uint8Array(digest), (value) =>
-            value.toString(16).padStart(2, '0')
-          ).join('');
-        })
-      );
+    const hashes = await Promise.all(images.map(canvasImageIdentity));
+    if (hashes.length)
       span.setAttr('canvas.model.image_sha256', hashes.join(','));
-    }
+    return new Set(hashes);
+  });
+}
+
+async function recordCanvasUsage(model: string, usage: LanguageModelUsage) {
+  await Telemetry.span('canvas.ai.model_usage', async (span) => {
+    span.setAttr('gen_ai.response.model', model);
+    span.setAttr('gen_ai.usage.input_tokens', usage.inputTokens ?? 0);
+    span.setAttr('gen_ai.usage.output_tokens', usage.outputTokens ?? 0);
   });
 }
 
@@ -113,15 +128,24 @@ export async function editCanvas(
   let operationReservations = 0;
   let renders = 0;
   let dispatches = 0;
-  let visionUsed = false;
+  const imagesForReview: (Pick<CanvasRender, 'revision' | 'crop'> & {
+    evidenceId: string;
+    imageHash: string;
+  })[] = [];
+  const consumedReviews: { revision: string; crop: Bounds }[] = [];
+  const reviewBounds = new Map<string, Bounds>();
+  const consumeImages = async (body: unknown) => {
+    const hashes = await recordNativeImages(body);
+    if (!hashes.size) return;
+    const serialized = typeof body === 'string' ? body : JSON.stringify(body);
+    for (const image of imagesForReview)
+      if (serialized?.includes(image.evidenceId) && hashes.has(image.imageHash))
+        consumedReviews.push({ revision: image.revision, crop: image.crop });
+  };
   let clarification: string | undefined;
   const writerGate = new PQueue({ concurrency: 2 });
   const pendingOperations = new Set<Promise<unknown>>();
   const tracker = new TokenTracker();
-  const visualRequest =
-    /layout|diagram|flowchart|design|spacing|align|organize|visual|arrange|photo|image|screenshot/i.test(
-      instructions
-    );
   try {
     return await withCanvasSession(
       source,
@@ -134,8 +158,19 @@ export async function editCanvas(
             throw new Error('Canvas image rendering is not configured.');
           if (++renders > 6)
             throw new Error('Canvas visual read budget reached (6 images).');
-          visionUsed = true;
-          return options.render(session.snapshot(), renderOptions, editSignal);
+          const image = await options.render(
+            session.snapshot(),
+            renderOptions,
+            editSignal
+          );
+          const evidenceId = crypto.randomUUID();
+          imagesForReview.push({
+            revision: image.revision,
+            crop: image.crop,
+            evidenceId,
+            imageHash: await canvasImageIdentity(image.modelMedia[0].data),
+          });
+          return { ...image, evidenceId };
         };
         const writerTools = (
           present: (value: CanvasPresentation | undefined) => void
@@ -162,14 +197,7 @@ export async function editCanvas(
               inputSchema: canvasRenderOptions,
               execute: async (input) => {
                 context = session.snapshot();
-                if (!options.render)
-                  throw new Error('Canvas image rendering is not configured.');
-                if (++renders > 6)
-                  throw new Error(
-                    'Canvas visual read budget reached (6 images).'
-                  );
-                visionUsed = true;
-                return options.render(context, input, editSignal);
+                return render(input);
               },
               toModelOutput: ({ output }) => canvasModelOutput(output),
             }),
@@ -181,7 +209,10 @@ export async function editCanvas(
                 const work = (async () => {
                   editSignal.throwIfAborted();
                   const baseline = context.document;
-                  const ops = await runCanvasInSandbox(code);
+                  const ops = await Telemetry.span(
+                    'canvas.ai.sandbox',
+                    async () => runCanvasInSandbox(code)
+                  );
                   if (operationReservations + ops.length > 200)
                     throw new Error(
                       'Canvas request operation budget reached (200).'
@@ -195,6 +226,13 @@ export async function editCanvas(
                     });
                     operationsApplied += outcome.operationsApplied;
                     context = session.snapshot();
+                    const deps = dependencies(baseline, context.document, ops);
+                    for (const id of new Set([...deps.reads, ...deps.writes])) {
+                      const item = context.document.items[id];
+                      if (item && item.type !== 'surface')
+                        reviewBounds.set(id, worldBounds(context.document, id));
+                      else reviewBounds.delete(id);
+                    }
                     return outcome;
                   } catch (error) {
                     if (error instanceof CanvasWriteError)
@@ -244,6 +282,10 @@ export async function editCanvas(
                           step.usage
                         );
                         await recordNativeImages(step.request.body);
+                        await recordCanvasUsage(
+                          step.response.modelId,
+                          step.usage
+                        );
                       },
                     })
                 );
@@ -295,8 +337,8 @@ export async function editCanvas(
           }),
         };
         try {
-          const initialImage =
-            visualRequest && options.render ? await render({}) : undefined;
+          const initialScene = session.read();
+          const initialImage = options.render ? await render({}) : undefined;
           const result = await Telemetry.span('canvas.ai.model', async () =>
             generateText({
               model,
@@ -307,7 +349,7 @@ export async function editCanvas(
                   content: [
                     {
                       type: 'text',
-                      text: `Request: ${instructions}\n\n<canvas-data>${session.read()}</canvas-data>${initialImage ? `\nImage metadata: ${JSON.stringify({ ...initialImage, modelMedia: undefined })}` : ''}`,
+                      text: `Request: ${instructions}\n\n<canvas-data>${initialScene}</canvas-data>${initialImage ? `\nCurrent image already supplied; do not render it again before editing. Image metadata: ${JSON.stringify({ ...initialImage, modelMedia: undefined })}` : ''}`,
                     },
                     ...(initialImage?.modelMedia ?? []).map((image) => ({
                       type: 'image' as const,
@@ -323,47 +365,63 @@ export async function editCanvas(
               stopWhen: [stepCountIs(6), hasToolCall('reportBlocked')],
               onStepFinish: async (step) => {
                 tracker.add({ modelId: step.response.modelId }, step.usage);
-                await recordNativeImages(step.request.body);
+                await consumeImages(step.request.body);
+                await recordCanvasUsage(step.response.modelId, step.usage);
               },
             })
           );
           let summary = result.text;
-          if (
-            operationsApplied &&
-            options.render &&
-            (visualRequest || visionUsed)
-          ) {
+          const finalRevision = await canvasRevision(session.snapshot());
+          const reviewed = [...reviewBounds.values()].every((bounds) =>
+            consumedReviews.some(
+              ({ revision, crop }) =>
+                revision === finalRevision &&
+                bounds.x >= crop.x &&
+                bounds.y >= crop.y &&
+                bounds.x + bounds.width <= crop.x + crop.width &&
+                bounds.y + bounds.height <= crop.y + crop.height
+            )
+          );
+          if (operationsApplied && options.render && !reviewed) {
             const image = await render({});
             const { modelMedia, ...metadata } = image;
-            const review = await Telemetry.span('canvas.ai.model', async () =>
-              generateText({
-                model,
-                system: `${SYSTEM}\nReview the resulting image. Correct only concrete mistakes in the requested layout. Do not recreate successful items. If it already meets the request, report success without editing. This is the final bounded correction pass.`,
-                messages: [
-                  {
-                    role: 'user',
-                    content: [
-                      {
-                        type: 'text',
-                        text: `Original request: ${instructions}\nCurrent scene: ${session.read()}\nImage metadata: ${JSON.stringify(metadata)}`,
-                      },
-                      ...modelMedia.map((image) => ({
-                        type: 'image' as const,
-                        image: image.data,
-                        mediaType: image.mediaType,
-                      })),
-                    ],
+            const review = await Telemetry.span(
+              'canvas.ai.correction',
+              async () =>
+                generateText({
+                  model,
+                  system: `${SYSTEM}\nReview the resulting image. Correct only concrete mistakes in the requested layout. Do not recreate successful items. If it already meets the request, report success without editing. This is the final bounded correction pass.`,
+                  messages: [
+                    {
+                      role: 'user',
+                      content: `Original request: ${instructions}\nStarting scene before acknowledged edits: <canvas-data>${initialScene}</canvas-data>`,
+                    },
+                    ...result.response.messages,
+                    {
+                      role: 'user',
+                      content: [
+                        {
+                          type: 'text',
+                          text: `Continue reviewing the ALREADY COMMITTED tool history above. Successful calls must not be repeated, including relative moves. Compare against the starting scene and repair only a concrete remaining mismatch. Original request: ${instructions}\nCurrent scene: ${session.read()}\nImage metadata: ${JSON.stringify(metadata)}`,
+                        },
+                        ...modelMedia.map((image) => ({
+                          type: 'image' as const,
+                          image: image.data,
+                          mediaType: image.mediaType,
+                        })),
+                      ],
+                    },
+                  ],
+                  tools: writerTools(session.present),
+                  abortSignal: editSignal,
+                  maxOutputTokens: 2000,
+                  stopWhen: [stepCountIs(3), hasToolCall('reportBlocked')],
+                  onStepFinish: async (step) => {
+                    tracker.add({ modelId: step.response.modelId }, step.usage);
+                    await consumeImages(step.request.body);
+                    await recordCanvasUsage(step.response.modelId, step.usage);
                   },
-                ],
-                tools: writerTools(session.present),
-                abortSignal: editSignal,
-                maxOutputTokens: 2000,
-                stopWhen: [stepCountIs(3), hasToolCall('reportBlocked')],
-                onStepFinish: async (step) => {
-                  tracker.add({ modelId: step.response.modelId }, step.usage);
-                  await recordNativeImages(step.request.body);
-                },
-              })
+                })
             );
             summary = `${summary || `Applied ${operationsApplied} acknowledged Canvas operations.`}\n\nVisual review: ${review.text || 'Complete.'}`;
           }

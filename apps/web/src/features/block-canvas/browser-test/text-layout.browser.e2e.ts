@@ -280,3 +280,46 @@ test('snapshot rendering stays read-only and never fetches referenced images', a
     )
   ).toHaveCount(0);
 });
+
+test('a reused render page releases one scene before measuring and drawing another', async ({
+  page,
+}) => {
+  const first = prepareCanvasEdit(createScene(), [
+    {
+      kind: 'create',
+      id: 'private-first-label',
+      type: 'rectangle',
+      x: 20,
+      y: 20,
+      text: 'First authorized scene',
+      fontSize: 22,
+    },
+  ]);
+  const measured = await fit(page, first, [{ id: 'private-first-label' }]);
+  await draw(page, measured.document);
+  await expect(page.locator('[data-graphics-item]')).toHaveCount(1);
+  await page.evaluate(() => window.resetCanvasSnapshot());
+  await expect(page.locator('#root')).toBeEmpty();
+  expect(await page.evaluate(() => window.readCanvasTextLayout())).toEqual([]);
+  await page.evaluate(() => window.prepareCanvasRender());
+  const second = prepareCanvasEdit(createScene(), [
+    {
+      kind: 'create',
+      id: 'second-label',
+      type: 'ellipse',
+      x: 20,
+      y: 20,
+      width: 200,
+      text: 'Second scene has independent wrapped text at readable font size.',
+      fontSize: 26,
+    },
+  ]);
+  const next = await fit(page, second, [{ id: 'second-label' }]);
+  await draw(page, next.document);
+  await expect(page.locator('[data-graphics-item]')).toHaveCount(1);
+  await expect(page.locator('body')).not.toContainText(
+    'First authorized scene'
+  );
+  await expectInside(page, 'second-label', Math.SQRT1_2);
+  await page.evaluate(() => window.resetCanvasSnapshot());
+});

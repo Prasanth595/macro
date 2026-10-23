@@ -43,6 +43,18 @@ const presenceSchema = z.object({
   selectedIds: z.array(z.string().max(200)).max(1000),
   clock: z.record(z.string(), z.number().int().nonnegative()),
   reducedMotion: z.boolean().optional(),
+  lanes: z
+    .array(
+      z.object({
+        id: z.string().max(40),
+        name: z.string().max(80),
+        color: z.string().max(100),
+        itemIds: z.array(z.string().max(200)).min(1).max(100),
+        cursor: point.nullable(),
+      })
+    )
+    .max(3)
+    .optional(),
   preview: z
     .object({
       kind: z.enum([
@@ -100,7 +112,19 @@ export function decodeCanvasPresence(value: string): PeerPresence | null {
   if (typeof value !== 'string' || value.length > 128_000) return null;
   try {
     const parsed = presenceSchema.safeParse(JSON.parse(value));
-    return parsed.success ? parsed.data : null;
+    if (!parsed.success) return null;
+    const laneIds = new Set<string>();
+    const targets = new Set<string>();
+    for (const lane of parsed.data.lanes ?? []) {
+      if (laneIds.has(lane.id)) return null;
+      laneIds.add(lane.id);
+      for (const id of lane.itemIds) {
+        if (targets.has(id) || !parsed.data.selectedIds.includes(id))
+          return null;
+        targets.add(id);
+      }
+    }
+    return parsed.data;
   } catch {
     return null;
   }

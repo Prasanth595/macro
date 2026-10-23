@@ -42,6 +42,19 @@ pub enum CanvasRequest {
         #[serde(skip_serializing_if = "Option::is_none")]
         crop: Option<CanvasBounds>,
     },
+    /// Apply a bounded SDK batch without invoking a second model.
+    Apply {
+        /// Exact immutable revision from ReadCanvas or RenderCanvas.
+        expected_revision: String,
+        /// Bounded JavaScript using the CanvasEditor SDK.
+        code: String,
+        /// Plain text separated from executable code.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        snippets: Option<std::collections::BTreeMap<String, String>>,
+        /// Ephemeral presentation identity.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        editor_name: Option<String>,
+    },
     /// Ask the sandboxed editor to change the live scene.
     Edit {
         /// User-requested changes; bounded before admission.
@@ -344,6 +357,64 @@ impl<D: CanvasDocumentLookup, W: EditingWorkerService> CanvasService<D, W> {
         if let Some(error) = result.failure {
             anyhow::bail!(
                 "Canvas editing stopped after {} acknowledged operations: {error}. Further partial edits may have applied. ReadCanvas before retrying.",
+                result.response.operations_applied
+            );
+        }
+        Ok(result.response)
+    }
+
+    /// Apply an already planned batch using edit capability; no nested model or model billing.
+    #[tracing::instrument(skip_all, fields(document_id = %receipt.entity().entity_id), err)]
+    pub async fn apply(
+        &self,
+        receipt: EntityAccessReceipt<EditAccessLevel>,
+        user: &MacroUserIdStr<'static>,
+        actor: &str,
+        request: CanvasRequest,
+    ) -> anyhow::Result<CanvasResponse> {
+        let CanvasRequest::Apply {
+            expected_revision,
+            code,
+            snippets,
+            ..
+        } = &request
+        else {
+            anyhow::bail!("Expected a direct Canvas SDK batch.");
+        };
+        anyhow::ensure!(
+            expected_revision.len() == 64
+                && expected_revision.bytes().all(|b| b.is_ascii_hexdigit()),
+            "Use the immutable revision from a fresh ReadCanvas."
+        );
+        anyhow::ensure!(
+            !code.trim().is_empty() && code.len() <= 50000,
+            "Canvas code must contain 1–50000 bytes."
+        );
+        anyhow::ensure!(
+            snippets.as_ref().is_none_or(|values| values.len() <= 100
+                && values
+                    .iter()
+                    .all(|(key, value)| key.len() <= 200 && value.len() <= 20000)
+                && values.values().map(String::len).sum::<usize>() <= 50000),
+            "Canvas snippets exceed the bounded text budget."
+        );
+        self.ensure_canvas(&receipt.entity().entity_id).await?;
+        let result = self
+            .run(
+                &receipt.entity().entity_id,
+                user,
+                actor,
+                AccessLevel::Edit,
+                request,
+            )
+            .await?;
+        anyhow::ensure!(
+            result.usage.is_empty(),
+            "Direct Canvas edits must not invoke a model."
+        );
+        if let Some(error) = result.failure {
+            anyhow::bail!(
+                "Canvas batch stopped after {} acknowledged operations: {error}. ReadCanvas before retrying; a lost acknowledgement is uncertain.",
                 result.response.operations_applied
             );
         }

@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   session: vi.fn(),
   source: vi.fn(),
 }));
+vi.mock('../canvas/direct', () => ({ applyCanvasCode: vi.fn() }));
 vi.mock('../canvas/agent', () => ({ editCanvas: state.edit }));
 vi.mock('../canvas/session', () => ({ withCanvasSession: state.session }));
 vi.mock('../sources', () => ({ createWorkerSyncSource: state.source }));
@@ -34,7 +35,11 @@ describe('POST /canvas request admission', () => {
       const response = await post({
         documentId: '019fd3b9-3c6c-7c05-89c2-a27f0121813b',
         documentToken,
-        request: { action: 'edit', instructions: 'Delete everything' },
+        request: {
+          action: 'apply',
+          expectedRevision: 'a'.repeat(64),
+          code: 'editor.delete(["box"])',
+        },
       });
       expect(response.status).toBe(403);
     }

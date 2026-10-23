@@ -4928,6 +4928,169 @@ export interface ToolRecord {
   detail?: string | null;
 }
 /**
+ * Apply one precise CanvasEditor SDK batch directly, without a second AI model. Prefer this for known moves, relabels, styles, resize or explicitly planned shapes; use EditCanvas for design/planning. ReadCanvas first for stable IDs and revision. JavaScript has editor and snippets only: no network/files/timers. Up to 100 operations/new IDs; the whole batch validates, measures real text, animates meaningful lanes, revalidates human changes and commits once with storage ACK. New IDs come only from editor.create/connect/group. Never repeat an uncertain write. SDK: editor.move([ids],dx,dy) uses WORLD deltas; editor.text(id,text,fitText?); editor.style([ids],{fill?,stroke?,strokeWidth?,opacity?}); editor.resize(id,width,height,fitText?); editor.textStyle(id,{fontSize?,fontFamily?:'sans'|'serif'|'mono',fitText?}); editor.fitText(id,mode?,width?); editor.create({type:'rectangle'|'ellipse'|'text',x,y,width?,height?,text?,fontSize?,fitText?,style?}) returns ID; editor.connect({start:{point:{x,y},binding?:{targetId,anchor:'center'|'top'|'right'|'bottom'|'left'}},end:{point:{x,y},binding?:{targetId,anchor}},route?:'straight'|'stepped'|'smooth',text?}) returns ID; editor.delete([ids]); editor.group([ids]) returns ID; editor.ungroup(id); editor.reparent(id,parentId); editor.order([ids],'front'|'back'|'forward'|'backward'). Text fit defaults grow: preserve readable fonts and grow height at bounded width. Explicit contain shrinks to fixed geometry; error rejects overflow. No media creation/deletion or scene replacement. Keep long prose in snippets and reference snippets.key in code. Returns measured geometry/overflow and current scene, so deterministic changes need no screenshots; visual design should still use actual image review.
+ */
+export interface ApplyCanvasEdits {
+  /**
+   * Authorized Canvas document ID.
+   */
+  document_id: string;
+  /**
+   * Exact revision from a fresh ReadCanvas or RenderCanvas.
+   */
+  expected_revision: string;
+  /**
+   * Bounded JavaScript using editor; submit related work in one batch.
+   */
+  code: string;
+  /**
+   * Optional plain text values exposed as snippets inside the sandbox.
+   */
+  snippets?: {
+    [k: string]: string;
+  } | null;
+}
+/**
+ * High-signal outcome shared by agent tools and caller integrations.
+ */
+export interface CanvasResponse {
+  /**
+   * Immutable visual read, when requested.
+   */
+  render?: CanvasRender | null;
+  /**
+   * Bounded scene JSON with stable item IDs, transforms, bounds and labels.
+   */
+  canvas?: string | null;
+  /**
+   * Number of validated operations acknowledged by live storage.
+   */
+  operationsApplied: number;
+  /**
+   * Human-readable outcome; may report partial changes.
+   */
+  summary: string;
+  /**
+   * Missing information or unsupported operation, if any.
+   */
+  clarification?: string | null;
+}
+/**
+ * Image and metadata captured from the same immutable revision.
+ */
+export interface CanvasRender {
+  /**
+   * SHA-256 of the immutable scene snapshot and clock.
+   */
+  revision: string;
+  /**
+   * Source CRDT version vector.
+   */
+  clock: {
+    [k: string]: number;
+  };
+  crop: CanvasBounds;
+  /**
+   * PNG width in pixels.
+   */
+  width: number;
+  /**
+   * PNG height in pixels.
+   */
+  height: number;
+  /**
+   * Objects intersecting the world crop.
+   */
+  objects: CanvasRenderObject[];
+  /**
+   * Referenced content omitted without widening access.
+   */
+  unavailable: CanvasUnavailable[];
+  /**
+   * Actual DOM measurement from the same scene and render surface.
+   */
+  textLayout?: CanvasTextLayout[];
+  /**
+   * Native media for the model and UI.
+   */
+  modelMedia: CanvasImage[];
+}
+/**
+ * World-space crop or object bounds.
+ */
+export interface CanvasBounds {
+  /**
+   * World x coordinate.
+   */
+  x: number;
+  /**
+   * World y coordinate.
+   */
+  y: number;
+  /**
+   * Positive world width.
+   */
+  width: number;
+  /**
+   * Positive world height.
+   */
+  height: number;
+}
+/**
+ * Stable object-to-image mapping.
+ */
+export interface CanvasRenderObject {
+  /**
+   * Canvas item ID.
+   */
+  id: string;
+  bounds: CanvasBounds;
+}
+/**
+ * Explicitly unavailable referenced content.
+ */
+export interface CanvasUnavailable {
+  /**
+   * Canvas item ID.
+   */
+  id: string;
+  /**
+   * Why no referenced resource was loaded.
+   */
+  reason: string;
+}
+/**
+ * Actual browser text bounds and overflow for a read-only render.
+ */
+export interface CanvasTextLayout {
+  /**
+   * Stable item ID.
+   */
+  id: string;
+  bounds: CanvasBounds;
+  /**
+   * Whether the DOM text exceeds its intended text frame.
+   */
+  overflow: boolean;
+}
+/**
+ * Native PNG media recognized explicitly by the agent adapter.
+ */
+export interface CanvasImage {
+  /**
+   * Always image.
+   */
+  type: string;
+  /**
+   * Always image/png.
+   */
+  mediaType: string;
+  /**
+   * Bounded base64 image bytes, never a remote URL.
+   */
+  data: string;
+}
+/**
  * Execute a bash command in a sandboxed environment using Claude's built-in code execution tool.
  */
 export interface BashCodeExecution {
@@ -8567,7 +8730,7 @@ export interface EditBookingLink {
   userConfirmation: string;
 }
 /**
- * Edit a Macro canvas live using natural-language instructions. Can create shapes, text and bound connectors; move, resize, style, relabel, group, reparent, reorder and delete ordinary items. Preserves unrelated concurrent edits through the live CRDT. Existing assets/references can move or be styled but cannot be created or deleted by this tool. Labels are whole-string last-write-wins. ReadCanvas first for IDs and context. Returns acknowledged operation count and outcome; cancellation or network failure may leave partial edits, so reread before retrying. Never send the same edit blindly twice.
+ * Edit a Macro canvas live using natural-language instructions. Can create shapes, text and bound connectors; move, resize, style, relabel, group, reparent, reorder and delete ordinary items. Preserves unrelated concurrent edits through the live CRDT. Existing assets/references can move or be styled but cannot be created or deleted by this tool. Labels are whole-string last-write-wins. For precise known edits prefer ApplyCanvasEdits, which avoids a nested model. Use this tool for genuine design work. ReadCanvas first for IDs and context. Returns acknowledged operation count and outcome; cancellation or network failure may leave partial edits, so reread before retrying. Never send the same edit blindly twice.
  */
 export interface EditCanvas {
   /**
@@ -8578,146 +8741,6 @@ export interface EditCanvas {
    * Specific desired changes. Include stable item IDs when referring to existing items.
    */
   instructions: string;
-}
-/**
- * High-signal outcome shared by agent tools and caller integrations.
- */
-export interface CanvasResponse {
-  /**
-   * Immutable visual read, when requested.
-   */
-  render?: CanvasRender | null;
-  /**
-   * Bounded scene JSON with stable item IDs, transforms, bounds and labels.
-   */
-  canvas?: string | null;
-  /**
-   * Number of validated operations acknowledged by live storage.
-   */
-  operationsApplied: number;
-  /**
-   * Human-readable outcome; may report partial changes.
-   */
-  summary: string;
-  /**
-   * Missing information or unsupported operation, if any.
-   */
-  clarification?: string | null;
-}
-/**
- * Image and metadata captured from the same immutable revision.
- */
-export interface CanvasRender {
-  /**
-   * SHA-256 of the immutable scene snapshot and clock.
-   */
-  revision: string;
-  /**
-   * Source CRDT version vector.
-   */
-  clock: {
-    [k: string]: number;
-  };
-  crop: CanvasBounds;
-  /**
-   * PNG width in pixels.
-   */
-  width: number;
-  /**
-   * PNG height in pixels.
-   */
-  height: number;
-  /**
-   * Objects intersecting the world crop.
-   */
-  objects: CanvasRenderObject[];
-  /**
-   * Referenced content omitted without widening access.
-   */
-  unavailable: CanvasUnavailable[];
-  /**
-   * Actual DOM measurement from the same scene and render surface.
-   */
-  textLayout?: CanvasTextLayout[];
-  /**
-   * Native media for the model and UI.
-   */
-  modelMedia: CanvasImage[];
-}
-/**
- * World-space crop or object bounds.
- */
-export interface CanvasBounds {
-  /**
-   * World x coordinate.
-   */
-  x: number;
-  /**
-   * World y coordinate.
-   */
-  y: number;
-  /**
-   * Positive world width.
-   */
-  width: number;
-  /**
-   * Positive world height.
-   */
-  height: number;
-}
-/**
- * Stable object-to-image mapping.
- */
-export interface CanvasRenderObject {
-  /**
-   * Canvas item ID.
-   */
-  id: string;
-  bounds: CanvasBounds;
-}
-/**
- * Explicitly unavailable referenced content.
- */
-export interface CanvasUnavailable {
-  /**
-   * Canvas item ID.
-   */
-  id: string;
-  /**
-   * Why no referenced resource was loaded.
-   */
-  reason: string;
-}
-/**
- * Actual browser text bounds and overflow for a read-only render.
- */
-export interface CanvasTextLayout {
-  /**
-   * Stable item ID.
-   */
-  id: string;
-  bounds: CanvasBounds;
-  /**
-   * Whether the DOM text exceeds its intended text frame.
-   */
-  overflow: boolean;
-}
-/**
- * Native PNG media recognized explicitly by the agent adapter.
- */
-export interface CanvasImage {
-  /**
-   * Always image.
-   */
-  type: string;
-  /**
-   * Always image/png.
-   */
-  mediaType: string;
-  /**
-   * Bounded base64 image bytes, never a remote URL.
-   */
-  data: string;
 }
 /**
  * Replace the content of an existing channel message or thread reply. Only the message's author can edit it, so this edits messages the user sent and messages this assistant sent for them; channel admins and owners may also edit others' messages. Find message ids with ReadChannelMessages or ReadChannelThread. Use only when the user asks to edit or correct a message.

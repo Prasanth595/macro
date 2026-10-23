@@ -1,7 +1,9 @@
 //! Canvas AI tool adapters use typed receipts and the Documents domain workflow.
 use super::DocumentToolContext;
 use crate::domain::{
-    canvas::{CanvasBounds, CanvasReadFormat, CanvasRender, CanvasResponse, CanvasService},
+    canvas::{
+        CanvasBounds, CanvasReadFormat, CanvasRender, CanvasRequest, CanvasResponse, CanvasService,
+    },
     ports::{DocumentService, create::DocumentCreationService, editing::EditingWorkerService},
 };
 use ai_toolset::{
@@ -34,7 +36,7 @@ pub struct ReadCanvas {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(
     title = "EditCanvas",
-    description = "Edit a Macro canvas live using natural-language instructions. Can create shapes, text and bound connectors; move, resize, style, relabel, group, reparent, reorder and delete ordinary items. Preserves unrelated concurrent edits through the live CRDT. Existing assets/references can move or be styled but cannot be created or deleted by this tool. Labels are whole-string last-write-wins. ReadCanvas first for IDs and context. Returns acknowledged operation count and outcome; cancellation or network failure may leave partial edits, so reread before retrying. Never send the same edit blindly twice."
+    description = "Edit a Macro canvas live using natural-language instructions. Can create shapes, text and bound connectors; move, resize, style, relabel, group, reparent, reorder and delete ordinary items. Preserves unrelated concurrent edits through the live CRDT. Existing assets/references can move or be styled but cannot be created or deleted by this tool. Labels are whole-string last-write-wins. For precise known edits prefer ApplyCanvasEdits, which avoids a nested model. Use this tool for genuine design work. ReadCanvas first for IDs and context. Returns acknowledged operation count and outcome; cancellation or network failure may leave partial edits, so reread before retrying. Never send the same edit blindly twice."
 )]
 pub struct EditCanvas {
     /// Canvas document ID from an attachment or search.
@@ -191,6 +193,75 @@ where
             biased;
             _ = req.cancel.cancelled() => Err(failure(anyhow::anyhow!("Canvas edit cancelled. ReadCanvas before retrying; earlier edits may have applied."))),
             result = service.edit(receipt, &req.user_id, actor.as_ref(), self.instructions.clone(), ctx.actor_editor_name()) => result.map_err(failure),
+        }
+    }
+}
+
+/// Direct operation path for precise main-agent edits, without a nested editor model.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(
+    title = "ApplyCanvasEdits",
+    description = "Apply one precise CanvasEditor SDK batch directly, without a second AI model. Prefer this for known moves, relabels, styles, resize or explicitly planned shapes; use EditCanvas for design/planning. ReadCanvas first for stable IDs and revision. JavaScript has editor and snippets only: no network/files/timers. Up to 100 operations/new IDs; the whole batch validates, measures real text, animates meaningful lanes, revalidates human changes and commits once with storage ACK. New IDs come only from editor.create/connect/group. Never repeat an uncertain write. SDK: editor.move([ids],dx,dy) uses WORLD deltas; editor.text(id,text,fitText?); editor.style([ids],{fill?,stroke?,strokeWidth?,opacity?}); editor.resize(id,width,height,fitText?); editor.textStyle(id,{fontSize?,fontFamily?:'sans'|'serif'|'mono',fitText?}); editor.fitText(id,mode?,width?); editor.create({type:'rectangle'|'ellipse'|'text',x,y,width?,height?,text?,fontSize?,fitText?,style?}) returns ID; editor.connect({start:{point:{x,y},binding?:{targetId,anchor:'center'|'top'|'right'|'bottom'|'left'}},end:{point:{x,y},binding?:{targetId,anchor}},route?:'straight'|'stepped'|'smooth',text?}) returns ID; editor.delete([ids]); editor.group([ids]) returns ID; editor.ungroup(id); editor.reparent(id,parentId); editor.order([ids],'front'|'back'|'forward'|'backward'). Text fit defaults grow: preserve readable fonts and grow height at bounded width. Explicit contain shrinks to fixed geometry; error rejects overflow. No media creation/deletion or scene replacement. Keep long prose in snippets and reference snippets.key in code. Returns measured geometry/overflow and current scene, so deterministic changes need no screenshots; visual design should still use actual image review."
+)]
+pub struct ApplyCanvasEdits {
+    /// Authorized Canvas document ID.
+    pub document_id: String,
+    /// Exact revision from a fresh ReadCanvas or RenderCanvas.
+    pub expected_revision: String,
+    /// Bounded JavaScript using editor; submit related work in one batch.
+    pub code: String,
+    /// Optional plain text values exposed as snippets inside the sandbox.
+    pub snippets: Option<std::collections::BTreeMap<String, String>>,
+}
+
+impl ToolAnnotated for ApplyCanvasEdits {
+    const ANNOTATIONS: ToolAnnotations = ToolAnnotations::destructive("Edit canvas");
+}
+
+#[async_trait]
+impl<D, A, W> AsyncTool<DocumentToolContext<D, A, W>> for ApplyCanvasEdits
+where
+    D: DocumentService + DocumentCreationService,
+    A: EntityAccessService,
+    W: EditingWorkerService,
+{
+    type Output = CanvasResponse;
+    #[tracing::instrument(skip_all, fields(document_id = %self.document_id), err)]
+    async fn call(
+        &self,
+        ctx: ServiceContext<DocumentToolContext<D, A, W>>,
+        req: RequestContext,
+    ) -> ToolResult<Self::Output> {
+        let receipt = ctx
+            .entity_access_service
+            .generate_entity_access_receipt::<EditAccessLevel>(
+                &req.user_id,
+                None,
+                &self.document_id,
+                EntityType::Document,
+            )
+            .await
+            .map_err(failure)?;
+        let service = CanvasService::new(
+            ctx.service.clone(),
+            ctx.editing.clone(),
+            ctx.document_permission_jwt_secret.clone(),
+            ctx.admission.clone(),
+            ctx.recorder.clone(),
+        );
+        let actor = ctx.actor.into_storage_id();
+        let request = CanvasRequest::Apply {
+            expected_revision: self.expected_revision.clone(),
+            code: self.code.clone(),
+            snippets: self.snippets.clone(),
+            editor_name: ctx
+                .actor_editor_name()
+                .map(|name| name.as_str().chars().take(64).collect()),
+        };
+        tokio::select! {
+            biased;
+            _ = req.cancel.cancelled() => Err(failure(anyhow::anyhow!("Canvas batch cancelled. ReadCanvas before retrying; an already committed edit may have applied."))),
+            result = service.apply(receipt, &req.user_id, actor.as_ref(), request) => result.map_err(failure),
         }
     }
 }

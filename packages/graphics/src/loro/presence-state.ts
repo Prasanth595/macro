@@ -65,6 +65,14 @@ export type PeerPresence = {
   clock: PresenceClock;
   preview: ActionPreview | null;
   reducedMotion?: boolean;
+  /** Real operation groups in one atomic AI batch; never additional CRDT writers. */
+  lanes?: {
+    id: string;
+    name: string;
+    color: string;
+    itemIds: string[];
+    cursor: Point | null;
+  }[];
 };
 export type PresenceIdentity = Pick<PeerPresence, 'id' | 'name' | 'color'>;
 const wireMatrix = (matrix: Matrix): WireMatrix => [...matrix];

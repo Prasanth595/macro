@@ -135,3 +135,26 @@ export const editCanvasHandler = createToolRenderer({
     />
   ),
 });
+
+export const applyCanvasEditsHandler = createToolRenderer({
+  name: 'ApplyCanvasEdits',
+  render: (ctx) => (
+    <CanvasToolRow
+      verb="Edit"
+      documentId={ctx.tool.data.document_id}
+      summary={
+        ctx.response
+          ? `${ctx.response.data.operationsApplied} operation${ctx.response.data.operationsApplied === 1 ? '' : 's'}`
+          : undefined
+      }
+      details={
+        ctx.response
+          ? [ctx.response.data.summary, ctx.response.data.clarification]
+              .filter(Boolean)
+              .join('\n\n')
+          : undefined
+      }
+      renderContext={ctx.renderContext}
+    />
+  ),
+});

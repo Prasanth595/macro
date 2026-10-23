@@ -50,6 +50,70 @@ export const AddToPipelineResponse = z.object({
   summary: z.string(),
 });
 
+export const ApplyCanvasEdits = z.object({
+  document_id: z.string(),
+  expected_revision: z.string(),
+  code: z.string(),
+  snippets: z.union([z.record(z.string()), z.null()]).optional(),
+});
+
+export const CanvasResponse = z.object({
+  render: z
+    .union([
+      z.object({
+        revision: z.string(),
+        clock: z.record(z.number().int().gte(0)),
+        crop: z.object({
+          x: z.number(),
+          y: z.number(),
+          width: z.number(),
+          height: z.number(),
+        }),
+        width: z.number().int().gte(0),
+        height: z.number().int().gte(0),
+        objects: z.array(
+          z.object({
+            id: z.string(),
+            bounds: z.object({
+              x: z.number(),
+              y: z.number(),
+              width: z.number(),
+              height: z.number(),
+            }),
+          })
+        ),
+        unavailable: z.array(z.object({ id: z.string(), reason: z.string() })),
+        textLayout: z
+          .array(
+            z.object({
+              id: z.string(),
+              bounds: z.object({
+                x: z.number(),
+                y: z.number(),
+                width: z.number(),
+                height: z.number(),
+              }),
+              overflow: z.boolean(),
+            })
+          )
+          .optional(),
+        modelMedia: z.array(
+          z.object({
+            type: z.string(),
+            mediaType: z.string(),
+            data: z.string(),
+          })
+        ),
+      }),
+      z.null(),
+    ])
+    .optional(),
+  canvas: z.union([z.string(), z.null()]).optional(),
+  operationsApplied: z.number().int().gte(0),
+  summary: z.string(),
+  clarification: z.union([z.string(), z.null()]).optional(),
+});
+
 export const BashCodeExecution = z.object({ input: z.string() });
 
 export const BashCodeExecutionResponse = z.object({
@@ -4729,63 +4793,6 @@ export const EditBookingLink = z
 export const EditCanvas = z.object({
   document_id: z.string(),
   instructions: z.string(),
-});
-
-export const CanvasResponse = z.object({
-  render: z
-    .union([
-      z.object({
-        revision: z.string(),
-        clock: z.record(z.number().int().gte(0)),
-        crop: z.object({
-          x: z.number(),
-          y: z.number(),
-          width: z.number(),
-          height: z.number(),
-        }),
-        width: z.number().int().gte(0),
-        height: z.number().int().gte(0),
-        objects: z.array(
-          z.object({
-            id: z.string(),
-            bounds: z.object({
-              x: z.number(),
-              y: z.number(),
-              width: z.number(),
-              height: z.number(),
-            }),
-          })
-        ),
-        unavailable: z.array(z.object({ id: z.string(), reason: z.string() })),
-        textLayout: z
-          .array(
-            z.object({
-              id: z.string(),
-              bounds: z.object({
-                x: z.number(),
-                y: z.number(),
-                width: z.number(),
-                height: z.number(),
-              }),
-              overflow: z.boolean(),
-            })
-          )
-          .optional(),
-        modelMedia: z.array(
-          z.object({
-            type: z.string(),
-            mediaType: z.string(),
-            data: z.string(),
-          })
-        ),
-      }),
-      z.null(),
-    ])
-    .optional(),
-  canvas: z.union([z.string(), z.null()]).optional(),
-  operationsApplied: z.number().int().gte(0),
-  summary: z.string(),
-  clarification: z.union([z.string(), z.null()]).optional(),
 });
 
 export const EditChannelMessage = z.object({

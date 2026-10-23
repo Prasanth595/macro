@@ -618,6 +618,7 @@ fn code_mode_retains_direct_lifecycles_and_hides_sdk_methods_from_lazy_discovery
         "EditSpreadsheet",
         "ReadCanvas",
         "RenderCanvas",
+        "ApplyCanvasEdits",
         "EditCanvas",
         "EditPresentation",
         "EditDocument",

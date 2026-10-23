@@ -331,3 +331,68 @@ async fn failed_later_step_still_records_completed_provider_usage() {
         }
     );
 }
+
+#[tokio::test]
+async fn direct_batch_has_edit_capability_without_a_second_model_or_admission() {
+    let mut worker = MockEditingWorkerService::new();
+    worker.expect_canvas().times(1).returning(|_, token, request| {
+        let claims: serde_json::Value = macro_sync_service_jwt::decode(token.as_str(), SECRET).unwrap();
+        assert_eq!(claims["access_level"], "edit");
+        assert_eq!(claims["actor"], "macro|ai@macro.com");
+        assert!(matches!(request, CanvasRequest::Apply { code, .. } if code == "editor.move(['a'],0,20)"));
+        Box::pin(async { Ok(CanvasResult { failure: None, usage: vec![], response: CanvasResponse {
+            render: None, canvas: Some("verified scene".into()), operations_applied: 1, summary: "Applied".into(), clarification: None,
+        } }) })
+    });
+    let recorder = Arc::new(Recorder::default());
+    let service = CanvasService::new(
+        Arc::new(documents("canvas")),
+        Arc::new(worker),
+        SECRET.into(),
+        Arc::new(Admission(Err(AiAdmissionError::Unavailable))),
+        recorder.clone(),
+    );
+    let result = service
+        .apply(
+            receipt(AccessLevel::Edit),
+            &user(),
+            "macro|ai@macro.com",
+            CanvasRequest::Apply {
+                expected_revision: "a".repeat(64),
+                code: "editor.move(['a'],0,20)".into(),
+                snippets: None,
+                editor_name: None,
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(result.operations_applied, 1);
+    assert!(recorder.0.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn invalid_direct_revision_never_reads_storage_or_calls_worker() {
+    let service = CanvasService::new(
+        Arc::new(MockCanvasDocumentLookup::new()),
+        Arc::new(MockEditingWorkerService::new()),
+        SECRET.into(),
+        Arc::new(Admission(Ok(()))),
+        Arc::new(Recorder::default()),
+    );
+    assert!(
+        service
+            .apply(
+                receipt(AccessLevel::Edit),
+                &user(),
+                "macro|ai@macro.com",
+                CanvasRequest::Apply {
+                    expected_revision: "stale".into(),
+                    code: "editor.move(['a'],0,20)".into(),
+                    snippets: None,
+                    editor_name: None,
+                }
+            )
+            .await
+            .is_err()
+    );
+}

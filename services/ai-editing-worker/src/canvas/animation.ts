@@ -22,7 +22,7 @@ import type { CanvasDependencies } from './dependencies';
 
 export type CanvasPresentation = Pick<
   PeerPresence,
-  'selectedIds' | 'cursor' | 'preview'
+  'selectedIds' | 'cursor' | 'preview' | 'lanes'
 >;
 export type CanvasAnimationStep =
   | { kind: 'awareness'; value: CanvasPresentation }
@@ -49,12 +49,44 @@ export function canvasAnimation(
     ...new Set(
       [...deps.writes, ...deps.reads].filter((id) => {
         const item = after.items[id] ?? before.items[id];
-        return (
-          isShape(item) && (deps.writes.has(id) || item.type === 'connector')
-        );
+        let target = item;
+        let affected = deps.writes.has(id);
+        while (target && target.type !== 'surface' && !affected) {
+          target = (after.items[id] ? after : before).items[
+            target.placement.parentId
+          ];
+          affected = !!target && deps.writes.has(target.id);
+        }
+        return isShape(item) && (affected || item.type === 'connector');
       })
     ),
   ].slice(0, 100);
+  // Keep a group's descendants together, then divide spatially ordered groups
+  // into at most three real lanes. All lanes share the same dependency guard
+  // and final commit; they are presentation, never independent durable writes.
+  const groups = new Map<string, string[]>();
+  for (const id of ids) {
+    const document = after.items[id] ? after : before;
+    let root = document.items[id];
+    while (root && root.type !== 'surface') {
+      const parent = document.items[root.placement.parentId];
+      if (!parent || parent.type === 'surface') break;
+      root = parent;
+    }
+    const key = root?.id ?? id;
+    const group = groups.get(key) ?? [];
+    group.push(id);
+    groups.set(key, group);
+  }
+  const ordered = [...groups.values()].sort((a, b) => {
+    const left = worldMatrix(after.items[a[0]] ? after : before, a[0]);
+    const right = worldMatrix(after.items[b[0]] ? after : before, b[0]);
+    return left[4] - right[4] || left[5] - right[5] || a[0].localeCompare(b[0]);
+  });
+  const lanes: string[][] = [];
+  const perLane = Math.max(1, Math.ceil(ordered.length / 3));
+  for (let index = 0; index < ordered.length; index += perLane)
+    lanes.push(ordered.slice(index, index + perLane).flat());
   const steps: CanvasAnimationStep[] = [];
   for (let frame = 0; frame <= 8; frame++) {
     const progress = frame / 8;
@@ -186,6 +218,20 @@ export function canvasAnimation(
     const value: CanvasPresentation = {
       selectedIds: ids,
       cursor: first ? { x: first.world[4], y: first.world[5] } : null,
+      ...(lanes.length > 1
+        ? {
+            lanes: lanes.map((itemIds, index) => {
+              const first = shapes.find((shape) => itemIds.includes(shape.id));
+              return {
+                id: `lane-${index + 1}`,
+                name: `Region ${index + 1}`,
+                color: ['#0891b2', '#8b5cf6', '#d97706'][index],
+                itemIds,
+                cursor: first ? { x: first.world[4], y: first.world[5] } : null,
+              };
+            }),
+          }
+        : {}),
       preview: { kind: 'ai', shapes, box: null, guard },
     };
     if (JSON.stringify(value).length > 100_000)

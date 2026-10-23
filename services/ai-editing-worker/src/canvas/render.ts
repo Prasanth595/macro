@@ -1,10 +1,4 @@
-import puppeteer, {
-  type Browser,
-  type BrowserContext,
-  type BrowserWorker,
-  type Page,
-} from '@cloudflare/puppeteer';
-import { BrowserWebSocketTransport } from '@cloudflare/puppeteer/internal/common/BrowserWebSocketTransport.js';
+import type { BrowserWorker } from '@cloudflare/puppeteer';
 import {
   type Bounds,
   type GraphicsDocument,
@@ -15,10 +9,15 @@ import {
 import { Telemetry } from '@macro-inc/observability';
 import PQueue from 'p-queue';
 import { z } from 'zod';
+import { withRenderPage } from './browser';
+import { CanvasCache } from './cache';
 import { overlaps } from './dependencies';
+import { canonicalCanvasJson, canvasRevision } from './revision';
 
 declare global {
   interface Window {
+    resetCanvasSnapshot: () => void;
+    prepareCanvasRender: () => Promise<void>;
     renderCanvasSnapshot: (snapshot: {
       document: GraphicsDocument;
       crop: Bounds;
@@ -54,6 +53,7 @@ export const canvasRenderOptions = z
   .strict();
 export type CanvasRenderOptions = z.infer<typeof canvasRenderOptions>;
 export type CanvasSnapshot = {
+  documentId?: string;
   document: GraphicsDocument;
   clock: Record<string, number>;
 };
@@ -84,125 +84,10 @@ export type CanvasBrowserConfig = {
   CANVAS_RENDER_URL: string;
 };
 
-/** Late startup completion must release its browser/socket even after cancellation. */
-async function startResource<T>(
-  pending: Promise<T>,
-  signal: AbortSignal,
-  release: (resource: T) => void
-): Promise<T> {
-  void pending.then(
-    (resource) => {
-      if (signal.aborted) release(resource);
-    },
-    () => {}
-  );
-  signal.throwIfAborted();
-  let abort = () => {};
-  const cancelled = new Promise<never>((_, reject) => {
-    abort = () => reject(signal.reason);
-    signal.addEventListener('abort', abort, { once: true });
-  });
-  try {
-    return await Promise.race([pending, cancelled]);
-  } finally {
-    signal.removeEventListener('abort', abort);
-  }
-}
-
-async function withRenderPage<T>(
-  config: CanvasBrowserConfig,
-  width: number,
-  height: number,
-  signal: AbortSignal | undefined,
-  run: (page: Page) => Promise<T>
-): Promise<T> {
-  const startupSignal = signal
-    ? AbortSignal.any([signal, AbortSignal.timeout(25_000)])
-    : AbortSignal.timeout(25_000);
-  const renderUrl = new URL(config.CANVAS_RENDER_URL);
-  const origin = renderUrl.origin;
-  let browserWSEndpoint: string | undefined;
-  if (config.CANVAS_BROWSER_URL) {
-    const endpoint = new URL(config.CANVAS_BROWSER_URL);
-    const version = z.object({ webSocketDebuggerUrl: z.string().url() }).parse(
-      await (
-        await fetch(new URL('/json/version', endpoint), {
-          signal: startupSignal,
-        })
-      ).json()
-    );
-    const socket = new URL(version.webSocketDebuggerUrl);
-    socket.host = endpoint.host;
-    socket.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
-    browserWSEndpoint = socket.toString();
-  }
-  const transport = browserWSEndpoint
-    ? await startResource(
-        BrowserWebSocketTransport.create(browserWSEndpoint),
-        startupSignal,
-        (value) => value.close()
-      )
-    : undefined;
-  let browser: Browser | undefined;
-  try {
-    const pending = transport
-      ? puppeteer.connect({
-          transport,
-          ignoreHTTPSErrors: true,
-          protocolTimeout: 20_000,
-        })
-      : config.BROWSER
-        ? puppeteer.launch(config.BROWSER)
-        : undefined;
-    if (pending)
-      browser = await startResource(pending, startupSignal, (value) => {
-        if (config.CANVAS_BROWSER_URL) value.disconnect();
-        else void value.close();
-      });
-  } catch (error) {
-    transport?.close();
-    throw error;
-  }
-  if (!browser) throw new Error('Canvas browser rendering is not configured.');
-  let context: BrowserContext | undefined;
-  const abort = () => {
-    void context?.close().catch(() => {});
-  };
-  signal?.addEventListener('abort', abort, { once: true });
-  try {
-    signal?.throwIfAborted();
-    context = await browser.createBrowserContext();
-    signal?.throwIfAborted();
-    const page = await context.newPage();
-    page.setDefaultTimeout(20_000);
-    await page.setViewport({ width, height, deviceScaleFactor: 1 });
-    await page.setRequestInterception(true);
-    page.on('request', (request) => {
-      const url = new URL(request.url());
-      // Only the application's render bundle/fonts may load. No API, referenced
-      // assets, arbitrary URLs, live sync or navigation from serialized text.
-      const allowed =
-        url.origin === origin &&
-        (url.pathname === renderUrl.pathname ||
-          ['script', 'stylesheet', 'font'].includes(request.resourceType()));
-      void (allowed ? request.continue() : request.abort()).catch(() => {});
-    });
-    await page.goto(renderUrl.toString(), {
-      waitUntil: 'networkidle0',
-      timeout: 25_000,
-    });
-    await page.waitForFunction(
-      'typeof window.renderCanvasSnapshot === "function" && typeof window.measureCanvasSnapshot === "function"'
-    );
-    signal?.throwIfAborted();
-    return await run(page);
-  } finally {
-    signal?.removeEventListener('abort', abort);
-    await context?.close().catch(() => {});
-    if (config.CANVAS_BROWSER_URL) await browser.disconnect();
-    else await browser.close();
-  }
-}
+// Exact scene/crop/options/version keys; authorization always precedes lookup.
+const RENDER_VERSION = 'canvas-dom-v2';
+const renderCache = new CanvasCache<CanvasRender>(8, 16_000_000, 30_000);
+const measurementCache = new CanvasCache<TextFitResult>(32, 8_000_000, 60_000);
 
 /** Trusted configuration selects the single render surface. Models never supply URLs. */
 export function createCanvasRenderer(
@@ -215,13 +100,19 @@ export function createCanvasRenderer(
       const serialized = JSON.stringify(snapshot);
       if (serialized.length > 2_000_000)
         throw new Error('Canvas snapshot exceeds the 2 MB render limit.');
-      const bytes = await crypto.subtle.digest(
-        'SHA-256',
-        new TextEncoder().encode(serialized)
-      );
-      const revision = Array.from(new Uint8Array(bytes), (value) =>
-        value.toString(16).padStart(2, '0')
-      ).join('');
+      const revision = await canvasRevision(snapshot);
+      const key = snapshot.documentId
+        ? canonicalCanvasJson([
+            RENDER_VERSION,
+            config.CANVAS_RENDER_URL,
+            snapshot.documentId,
+            revision,
+            options,
+          ])
+        : undefined;
+      const cached = key ? renderCache.get(key) : undefined;
+      span.setAttr('canvas.cache.hit', !!cached);
+      if (cached) return cached;
       const { document } = snapshot;
       const shapes = Object.values(document.items).filter(
         (item) => item.type !== 'surface' && item.type !== 'group'
@@ -275,7 +166,7 @@ export function createCanvasRenderer(
           reason:
             'Embedded content is unavailable to this scoped render; no referenced resource or external URL was fetched.',
         }));
-      return browsers.add(
+      const result = await browsers.add(
         () =>
           withRenderPage(config, width, height, signal, async (page) => {
             await page.evaluate(
@@ -321,11 +212,19 @@ export function createCanvasRenderer(
               textLayout: textLayout.filter((item) =>
                 objects.some((object) => object.id === item.id)
               ),
-              modelMedia: [{ type: 'image', mediaType: 'image/png', data }],
+              modelMedia: [
+                {
+                  type: 'image' as const,
+                  mediaType: 'image/png' as const,
+                  data,
+                },
+              ],
             };
           }),
         { signal }
       );
+      if (key) renderCache.set(key, result);
+      return result;
     });
   const measure: CanvasMeasurer = async (snapshot, requests, signal) =>
     Telemetry.span('canvas.ai.measure_text', async (span) => {
@@ -334,8 +233,21 @@ export function createCanvasRenderer(
         throw new Error(
           'Canvas text measurement exceeds its bounded batch size.'
         );
+      signal?.throwIfAborted();
       span.setAttr('canvas.text.targets', requests.length);
-      return browsers.add(
+      const key = snapshot.documentId
+        ? canonicalCanvasJson([
+            RENDER_VERSION,
+            config.CANVAS_RENDER_URL,
+            snapshot.documentId,
+            snapshot.document,
+            requests,
+          ])
+        : undefined;
+      const cached = key ? measurementCache.get(key) : undefined;
+      span.setAttr('canvas.cache.hit', !!cached);
+      if (cached) return cached;
+      const result = await browsers.add(
         () =>
           withRenderPage(config, 1024, 768, signal, async (page) =>
             page.evaluate(
@@ -347,6 +259,8 @@ export function createCanvasRenderer(
           ),
         { signal }
       );
+      if (key) measurementCache.set(key, result);
+      return result;
     });
   return Object.assign(render, { measure });
 }

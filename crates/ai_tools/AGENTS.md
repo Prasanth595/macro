@@ -48,7 +48,8 @@ execution, display) that don't belong to a single domain.
   `src/lib.rs`'s toolset assembly → regenerate schemas (see Checks).
 
 Canvas tools come from the Documents subtoolset and inherit its worker client,
-admission and usage recorder in every host; no new context or env vars are needed.
+admission and usage recorder in every host. ApplyCanvasEdits uses the same
+edit capability but calls no nested model and emits no additional model charge; no new context or env vars are needed.
 
 ## Tool contracts
 

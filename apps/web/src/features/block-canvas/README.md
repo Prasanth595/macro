@@ -467,3 +467,11 @@ unavailable placeholders. `browser-test/render.playwright.config.ts` runs actual
 DOM fitting regressions on desktop and phone viewports.
 AI presence renders bounded validated geometry/text with per-target guards;
 reduced-motion receivers suppress AI action previews even with other observers.
+
+Precise AI changes use ApplyCanvasEdits: revision-checked CanvasEditor batches
+without a nested model. One batch can animate up to three spatial/group lanes;
+all lane previews share one dependency guard and one final atomic commit. The
+receiver expands validated lane metadata into ordinary smoothed named cursors.
+Reduced motion hides transient geometry and avoids presentation delays. The
+read-only render surface exposes resetCanvasSnapshot to dispose scene roots and
+closures before an isolated warm page is leased to another authorized request.

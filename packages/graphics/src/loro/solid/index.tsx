@@ -115,17 +115,40 @@ export function GraphicsPresenceOverlay(props: {
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const receive = () =>
     motion.update(
-      props.presence.getRemote().map((peer) => ({
-        ...peer,
-        preview:
-          reducedMotion?.matches && peer.name.endsWith('(AI)')
-            ? null
-            : currentPresencePreview(
-                peer,
-                props.presence.getClock(),
-                props.editor.document
-              ),
-      }))
+      props.presence
+        .getRemote()
+        .map((peer) => ({
+          ...peer,
+          preview:
+            reducedMotion?.matches && peer.name.endsWith('(AI)')
+              ? null
+              : currentPresencePreview(
+                  peer,
+                  props.presence.getClock(),
+                  props.editor.document
+                ),
+        }))
+        .flatMap((peer) => {
+          if (!peer.name.endsWith('(AI)') || !peer.lanes?.length) return [peer];
+          return peer.lanes.map((lane) => ({
+            ...peer,
+            id: `${peer.id}:${lane.id}`,
+            name: `${peer.name.replace(/\s*\(AI\)$/, '')} · ${lane.name} (AI)`,
+            color: lane.color,
+            cursor: lane.cursor,
+            selectedIds: peer.selectedIds.filter((id) =>
+              lane.itemIds.includes(id)
+            ),
+            preview: peer.preview
+              ? {
+                  ...peer.preview,
+                  shapes: peer.preview.shapes.filter((shape) =>
+                    lane.itemIds.includes(shape.id)
+                  ),
+                }
+              : null,
+          }));
+        })
     );
   reducedMotion?.addEventListener('change', receive);
   onCleanup(() => reducedMotion?.removeEventListener('change', receive));

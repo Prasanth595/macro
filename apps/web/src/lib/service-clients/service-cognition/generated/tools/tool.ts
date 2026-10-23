@@ -13,6 +13,10 @@ type ToolParserMap = {
     call: types.AddToPipeline;
     response: types.AddToPipelineResponse;
   };
+  ApplyCanvasEdits: {
+    call: types.ApplyCanvasEdits;
+    response: types.CanvasResponse;
+  };
   BashCodeExecution: {
     call: types.BashCodeExecution;
     response: types.BashCodeExecutionResponse;
@@ -529,6 +533,10 @@ const toolParserMap = {
   AddToPipeline: {
     call: schemas.AddToPipeline,
     response: schemas.AddToPipelineResponse,
+  },
+  ApplyCanvasEdits: {
+    call: schemas.ApplyCanvasEdits,
+    response: schemas.CanvasResponse,
   },
   BashCodeExecution: {
     call: schemas.BashCodeExecution,
@@ -1114,6 +1122,10 @@ type ToolDataMap = {
   AddToPipeline: {
     call: types.AddToPipeline;
     response: types.AddToPipelineResponse;
+  };
+  ApplyCanvasEdits: {
+    call: types.ApplyCanvasEdits;
+    response: types.CanvasResponse;
   };
   BashCodeExecution: {
     call: types.BashCodeExecution;

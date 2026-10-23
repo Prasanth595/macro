@@ -4,7 +4,9 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
 import { editCanvas } from '../canvas/agent';
+import { applyCanvasCode } from '../canvas/direct';
 import { canvasRenderOptions, createCanvasRenderer } from '../canvas/render';
+import { canvasRevision } from '../canvas/revision';
 import { withCanvasSession } from '../canvas/session';
 import { tokenAccessLevel } from '../document-token';
 import { type Bindings, getEnv } from '../env';
@@ -26,6 +28,31 @@ const body = z
       canvasRenderOptions.extend({ action: z.literal('render') }).strict(),
       z
         .object({
+          action: z.literal('apply'),
+          expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
+          code: z.string().min(1).max(50_000),
+          snippets: z
+            .record(z.string().max(200), z.string().max(20000))
+            .refine(
+              (values) =>
+                Object.keys(values).length <= 100 &&
+                Object.entries(values).every(
+                  ([key, value]) =>
+                    new TextEncoder().encode(key).length <= 200 &&
+                    new TextEncoder().encode(value).length <= 20000
+                ) &&
+                Object.values(values).reduce(
+                  (sum, value) => sum + new TextEncoder().encode(value).length,
+                  0
+                ) <= 50000,
+              'Canvas snippets exceed the bounded text budget.'
+            )
+            .optional(),
+          editorName: z.string().trim().min(1).max(200).optional(),
+        })
+        .strict(),
+      z
+        .object({
           action: z.literal('edit'),
           instructions: z.string().min(1).max(20000),
           editorName: z.string().trim().min(1).max(200).optional(),
@@ -35,13 +62,13 @@ const body = z
   })
   .strict();
 const app = new Hono<{ Bindings: Bindings }>();
-app.use('*', bodyLimit({ maxSize: 64 * 1024 }));
+app.use('*', bodyLimit({ maxSize: 1024 * 1024 }));
 app.post('/', zValidator('json', body), async (c) => {
   const { documentId, documentToken, request } = c.req.valid('json');
   // Comment tokens can connect and send some updates. Do not let them edit a scene.
   // A forged edit claim still fails signature verification on initial sync, before the model starts.
   if (
-    request.action === 'edit' &&
+    ['edit', 'apply'].includes(request.action) &&
     !['edit', 'owner'].includes(tokenAccessLevel(documentToken) ?? '')
   )
     return c.json({ error: 'Editing a canvas requires edit access.' }, 403);
@@ -87,7 +114,10 @@ app.post('/', zValidator('json', body), async (c) => {
             createWorkerSyncSource(url.toString(), documentId, signal),
             signal,
             async (session) => ({
-              canvas: session.read(request.itemIds, request.format),
+              canvas: JSON.stringify({
+                ...JSON.parse(session.read(request.itemIds, request.format)),
+                revision: await canvasRevision(session.snapshot()),
+              }),
               operationsApplied: 0,
               summary: 'Read the current canvas.',
               usage: [],
@@ -108,6 +138,14 @@ app.post('/', zValidator('json', body), async (c) => {
               summary: 'Rendered an immutable Canvas snapshot.',
               usage: [],
             })
+          );
+        if (request.action === 'apply')
+          return withCanvasSession(
+            createWorkerSyncSource(url.toString(), documentId, signal),
+            signal,
+            (session) =>
+              applyCanvasCode(session, request, renderer.measure, signal),
+            request.editorName
           );
         const model = buildModels(
           getEnv(c.env),

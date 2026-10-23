@@ -21,7 +21,9 @@ word docs, Illustrator/Photoshop files).
   CreateDocument with empty Canvas content need no browser initialization.
 - `src/domain/canvas.rs`: permission-scoped Canvas read/render/edit workflows, native
   type checks, actor-bearing tokens, AI admission and per-model metering.
-  `ReadCanvas`/`RenderCanvas` are view-scoped; `EditCanvas` uses live scene
+  `ReadCanvas`/`RenderCanvas` are view-scoped; `ApplyCanvasEdits` applies
+  precise revision-checked SDK batches without a nested model, while `EditCanvas`
+  delegates design work. Both use edit receipts and live scene
   deltas, never whole-file saves. Render output includes native media plus an
   immutable revision, crop/object mapping and actual DOM text bounds.
 - `src/inbound/toolset.rs`: one submodule per AI document tool (`create_document`,

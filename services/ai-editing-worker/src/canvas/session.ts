@@ -227,6 +227,7 @@ export async function withCanvasSession<T>(
       snapshot: () => {
         check();
         return {
+          documentId: source.documentId,
           document: structuredClone(backend.getDocument()),
           clock: { ...backend.getClock() },
         };
@@ -234,12 +235,22 @@ export async function withCanvasSession<T>(
       async apply(ops, options = {}) {
         check();
         const baseline = options.baseline ?? backend.getDocument();
-        let planned = prepareCanvasEdit(baseline, ops);
+        let planned = await Telemetry.span(
+          'canvas.ai.validate',
+          async (span) => {
+            span.setAttr('edit.ops_total', ops.length);
+            return prepareCanvasEdit(baseline, ops);
+          }
+        );
         const requests = textFitRequests(baseline, planned, ops);
         let measured: TextFitResult | undefined;
         if (options.measure && requests.length) {
           measured = await options.measure(
-            { document: planned, clock: { ...backend.getClock() } },
+            {
+              documentId: source.documentId,
+              document: planned,
+              clock: { ...backend.getClock() },
+            },
             requests,
             signal
           );
@@ -254,7 +265,12 @@ export async function withCanvasSession<T>(
               'Canvas targets or reserved space changed. ReadCanvas and replan this batch; nothing from this batch was committed.'
             );
         };
+        const queued = performance.now();
         return scheduler.run(deps, async () => {
+          await Telemetry.span('canvas.ai.schedule', async (span) => {
+            span.setAttr('canvas.schedule.wait_ms', performance.now() - queued);
+            span.setAttr('canvas.schedule.targets', deps.writes.size);
+          });
           validate();
           const show = options.present ?? present;
           try {
