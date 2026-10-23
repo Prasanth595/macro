@@ -1350,6 +1350,7 @@
           "not_attendee",
           "guests_cannot_invite",
           "guest_list_hidden",
+          "guests_cannot_modify",
           "already_on_calendar",
           "copy_refused",
           "snapshot",
