@@ -305,3 +305,31 @@ async fn deadline_bounds_a_stalled_response_body() {
     assert!(error.to_string().contains("timed out"));
     server.abort();
 }
+
+#[tokio::test]
+async fn exploration_uses_only_the_read_only_workspace_tools_and_counts_them() {
+    let server = MockServer::start().await;
+    let request = generation();
+    Mock::given(path("/structured-completion"))
+        .and(header(INTERNAL_MACRO_USER_ID_HEADER, user().as_ref()))
+        .and(body_json(json!({
+            "prompt": request.prompt,
+            "model": DEFAULT_MODEL,
+            "additional_instructions": null,
+            "output_schema": { "name": "result", "schema": request.schema },
+            "toolset": { "type": "workspace_read_only" },
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "outcome": { "status": "completed", "result": { "total": 42 } },
+            "toolActivity": [{ "name": "NameSearch" }, { "name": "ListInboxes" }],
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let explored = client(&server.uri())
+        .explore_object(&user(), request)
+        .await
+        .unwrap();
+    assert_eq!(explored.object, json!({ "total": 42 }));
+    assert_eq!(explored.tool_calls, 2);
+}

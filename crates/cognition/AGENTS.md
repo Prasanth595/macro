@@ -34,7 +34,9 @@ HTTP endpoints directly; this crate does not register tools into a runtime.
 - No redirects or automatic retries: repeated requests can incur provider usage.
 - Cancellation can stop waiting after provider work has begun; the remote
   service retains its metering responsibility.
-- AI operations consume supplied text only; they do not read or edit documents.
+- `generate_object` and `decide` consume supplied text only. `explore_object`
+  may first search and read the caller's workspace through the cognition
+  service's read-only workspace toolset; nothing in it writes.
 
 ## Related
 
