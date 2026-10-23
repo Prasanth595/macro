@@ -117,6 +117,7 @@ fn event_routines_default_off_and_reuse_existing_brokers() {
     let config: Config = serde_json::from_value(config_values()).unwrap();
     assert!(!config.event_routines_enabled);
     assert!(!config.routine_agents_enabled);
+    assert!(!config.routine_templates_enabled);
     assert_eq!(config.kafka_brokers.to_string(), "existing-broker:9092");
 }
 

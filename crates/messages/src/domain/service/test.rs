@@ -778,6 +778,7 @@ impl MessageReferenceAccess for ReferenceAccess {
 async fn editor_reference_tags_are_authorized_for_posts_and_edits() {
     for (tag, entity_type) in [
         ("form", EntityType::Form),
+        ("routine_template", EntityType::RoutineTemplate),
         ("thread", EntityType::EmailThread),
         ("email", EntityType::EmailThread),
         ("email_thread", EntityType::EmailThread),

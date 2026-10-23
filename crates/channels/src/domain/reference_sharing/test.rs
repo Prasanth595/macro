@@ -121,3 +121,25 @@ fn form_references_round_trip_without_becoming_documents() {
     );
     assert_eq!(ReferencedShareItemType::Form.as_str(), "form");
 }
+
+#[test]
+fn posting_a_routine_template_grants_the_channel_view_and_never_more() {
+    for (access, expected) in [
+        (None, None),
+        (Some(AccessLevel::View), Some(AccessLevel::View)),
+        (Some(AccessLevel::Owner), Some(AccessLevel::View)),
+    ] {
+        assert_eq!(
+            grant_level(ReferencedShareItemType::RoutineTemplate, None, access),
+            expected
+        );
+    }
+    assert_eq!(
+        ReferencedShareItemType::from_raw("routine_template"),
+        Some(ReferencedShareItemType::RoutineTemplate)
+    );
+    assert_eq!(
+        ReferencedShareItemType::RoutineTemplate.as_str(),
+        "routine_template"
+    );
+}

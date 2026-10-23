@@ -70,6 +70,8 @@ pub enum MessageReferenceKind {
     CrmCompany,
     /// A CRM contact.
     CrmContact,
+    /// A routine template; the sender must be able to view it.
+    RoutineTemplate,
     /// An automation reference; recognized separately from message authorization support.
     Automation,
 }
@@ -93,6 +95,7 @@ impl MessageReferenceKind {
             "group" => Self::Group,
             "crm_company" => Self::CrmCompany,
             "crm_contact" => Self::CrmContact,
+            "routine_template" => Self::RoutineTemplate,
             "automation" => Self::Automation,
             _ => return None,
         })

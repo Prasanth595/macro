@@ -34,7 +34,9 @@ pub(crate) fn grant_level(
         (ReferencedShareItemType::CalendarEvent, Some(level)) if level >= AccessLevel::Edit => {
             Some(AccessLevel::View)
         }
-        (ReferencedShareItemType::Form, Some(_)) => Some(AccessLevel::View),
+        (ReferencedShareItemType::Form | ReferencedShareItemType::RoutineTemplate, Some(_)) => {
+            Some(AccessLevel::View)
+        }
         (ReferencedShareItemType::AgentSession | ReferencedShareItemType::CalendarEvent, _)
         | (_, None) => None,
         (ReferencedShareItemType::Document, Some(level)) if file_type == Some(FileType::Pdf) => {

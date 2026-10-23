@@ -355,6 +355,8 @@ fn soup_entity_type_from_channel_reference(entity_type: &str) -> Option<EntityTy
         ReferencedShareItemType::CalendarEvent => None,
         // Forms are not soup entities; a posted form renders as its card.
         ReferencedShareItemType::Form => None,
+        // Nor are routine templates; a posted template renders as its card.
+        ReferencedShareItemType::RoutineTemplate => None,
     }
 }
 
