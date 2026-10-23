@@ -48,6 +48,7 @@ const FAVORITE_ENTITY_TYPE_TO_GRAPHQL = {
   database: 'DATABASE',
   database_row: 'DATABASE_ROW',
   form: 'FORM',
+  routine_template: 'ROUTINE_TEMPLATE',
 } satisfies Record<FavoriteEntityType, GraphqlEntityType>;
 
 const GRAPHQL_ENTITY_TYPE_TO_FAVORITE = {
@@ -66,6 +67,7 @@ const GRAPHQL_ENTITY_TYPE_TO_FAVORITE = {
   EMAIL_THREAD: 'email_thread',
   FOREIGN_ENTITY: 'foreign_entity',
   FORM: 'form',
+  ROUTINE_TEMPLATE: 'routine_template',
   INITIATIVE: 'initiative',
   PROJECT: 'project',
   REMINDER: 'reminder',
@@ -153,6 +155,7 @@ function favoriteSoupEffects(
     database_row: undefined,
     // Forms are not favoritable; the service refuses them.
     form: undefined,
+    routine_template: undefined,
   } as const satisfies Record<FavoriteEntityType, string | undefined>;
   const typename = typenames[args.entityType];
   return typename

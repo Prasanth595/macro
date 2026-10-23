@@ -14,6 +14,7 @@ import { toSubType } from '@entity/types/entity';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import { emailClient } from '@service-email/client';
 import type { ApiThread } from '@service-email/generated/schemas';
+import { scheduledActionClient } from '@service-scheduled-action/client';
 import { storageServiceClient } from '@service-storage/client';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import { entityMessagesClient } from '@service-storage/messages';
@@ -483,6 +484,32 @@ async function fetchFormPreviews(ids: string[]): Promise<PreviewItem[]> {
   );
 }
 
+/** A routine template previews from its own detail, which viewers can read. */
+async function fetchRoutineTemplatePreviews(
+  ids: string[]
+): Promise<PreviewItem[]> {
+  return Promise.all(
+    ids.map(async (id): Promise<PreviewItem> => {
+      const base = { id, type: 'routine_template', loading: false } as const;
+      const template = await scheduledActionClient.getTemplate({ id });
+      if (template.isErr())
+        return {
+          ...base,
+          access: template.error.some((error) => error.code === 'NOT_FOUND')
+            ? 'does_not_exist'
+            : 'no_access',
+        };
+      return {
+        ...base,
+        access: 'access',
+        rawName: template.value.name,
+        name: template.value.name,
+        owner: template.value.owner,
+      };
+    })
+  );
+}
+
 function filterMapToId(items: Array<ItemEntity>, type: ItemEntity['type']) {
   return items.filter((i) => i.type === type).map(({ id }) => id);
 }
@@ -513,6 +540,10 @@ export async function fetchRestPreviewBatch(
     doFetch(fetchCalendarEventPreviews, filterMapToId(items, 'calendar_event')),
     doFetch(fetchDatabasePreviews, filterMapToId(items, 'database')),
     doFetch(fetchFormPreviews, filterMapToId(items, 'form')),
+    doFetch(
+      fetchRoutineTemplatePreviews,
+      filterMapToId(items, 'routine_template')
+    ),
   ]);
   const resultMap = new Map<string, PreviewItem>();
   results.flat().forEach((result) => {

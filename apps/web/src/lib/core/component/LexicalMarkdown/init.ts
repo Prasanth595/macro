@@ -24,6 +24,7 @@ import {
   ReplyTargetNode,
   SnapshotNode,
   TagMentionNode,
+  TemplateVariableNode,
   ThemeMentionNode,
   UnknownMentionNode,
   UserMentionNode,
@@ -60,6 +61,7 @@ import { PullRequestMention } from './component/decorator/PullRequestMention';
 import { ReplyTarget } from './component/decorator/ReplyTarget';
 import { Snapshot } from './component/decorator/Snapshot';
 import { TagMention } from './component/decorator/TagMention';
+import { TemplateVariable } from './component/decorator/TemplateVariable';
 import { ThemeMention } from './component/decorator/ThemeMention';
 import { UnknownMention } from './component/decorator/UnknownMention';
 import { UserMention } from './component/decorator/UserMention';
@@ -108,6 +110,7 @@ export function initializeLexical() {
   setDecorator(ThemeMentionNode, ThemeMention);
   setDecorator(ConnectAppNode, ConnectApp);
   setDecorator(TagMentionNode, TagMention);
+  setDecorator(TemplateVariableNode, TemplateVariable);
   setDecorator(UnknownMentionNode, UnknownMention);
   setDecorator(WatermarkNode, Watermark);
   setDecorator(AwaitNode, Await);

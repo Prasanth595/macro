@@ -161,6 +161,7 @@ export type ItemMention = {
     | 'foreign'
     | 'group'
     | 'routine'
+    | 'routine_template'
     | 'crm_company'
     | 'crm_contact'
     | 'crm_pipeline'
@@ -366,6 +367,7 @@ const blockItemType = (blockName: string): ItemMention['itemType'] => {
     .with('channel_message', () => 'channel')
     .with('channel_thread', () => 'channel')
     .with('routine', () => 'routine')
+    .with('routine_template', () => 'routine_template')
     .with('call', () => 'call')
     .with('calendar_event', () => 'calendar_event')
     .with('foreign', () => {

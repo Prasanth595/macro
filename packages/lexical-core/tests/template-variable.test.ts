@@ -10,7 +10,8 @@ import { ALL_TRANSFORMERS } from '../transformers';
 import { markdownToPlainText } from '../utils/parsers';
 
 // The exact form `crates/mention_utils` serializes.
-const SLOT = '<m-template-variable>{"key":"urgent_channel"}</m-template-variable>';
+const SLOT =
+  '<m-template-variable>{"key":"urgent_channel"}</m-template-variable>';
 
 function editorWith(markdown: string) {
   const editor = createEditor({

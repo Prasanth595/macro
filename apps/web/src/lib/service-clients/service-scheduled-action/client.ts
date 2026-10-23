@@ -12,11 +12,21 @@ import {
 } from '../ai-usage-limit';
 import type {
   ActionExecutionRecord,
+  ActivateTemplateRequest,
   CreateScheduledAction,
+  CreateTemplateRequest,
+  ExtractedTemplate,
+  FillTemplateRequest,
+  FillTemplateResponse,
   InProgressExecution,
+  RebindTemplateRequest,
+  RoutineProvenanceResponse,
+  RoutineTemplate,
   ScheduledAction,
   SetScheduledActionEnabled,
+  TemplateView,
   UpdateScheduledAction,
+  UpdateTemplateRequest,
 } from './generated/schemas';
 
 const scheduledActionHost: string = SERVER_HOSTS['scheduled-action'];
@@ -99,5 +109,68 @@ export const scheduledActionClient = {
     scheduledActionFetch<ActionExecutionRecord[]>(
       `/scheduled-actions/${args.scheduleId}/history`,
       { method: 'GET' }
+    ),
+
+  extractTemplate: async (args: { sourceActionId: string }) =>
+    scheduledActionFetch<ExtractedTemplate>('/routine-templates/extract', {
+      method: 'POST',
+      body: JSON.stringify({ source_action_id: args.sourceActionId }),
+    }),
+
+  createTemplate: async (body: CreateTemplateRequest) =>
+    scheduledActionFetch<RoutineTemplate>('/routine-templates', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateTemplate: async (args: { id: string; body: UpdateTemplateRequest }) =>
+    scheduledActionFetch<RoutineTemplate>(`/routine-templates/${args.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(args.body),
+    }),
+
+  deleteTemplate: async (args: { id: string }) =>
+    scheduledActionFetch(`/routine-templates/${args.id}`, {
+      method: 'DELETE',
+    }),
+
+  getTemplate: async (args: { id: string }) =>
+    scheduledActionFetch<TemplateView>(`/routine-templates/${args.id}`, {
+      method: 'GET',
+    }),
+
+  // Filling runs a model on the caller's account, so usage limits apply.
+  fillTemplate: async (args: { id: string; body: FillTemplateRequest }) =>
+    fetchWithToken<FillTemplateResponse, typeof AI_USAGE_LIMIT_ERROR>(
+      `${scheduledActionHost}/routine-templates/${args.id}/fill`,
+      {
+        method: 'POST',
+        body: JSON.stringify(args.body),
+        errorResponseHandler: aiUsageErrorResponseHandler,
+      }
+    ),
+
+  activateTemplate: async (args: {
+    id: string;
+    body: ActivateTemplateRequest;
+  }) =>
+    scheduledActionFetch<ScheduledAction>(
+      `/routine-templates/${args.id}/activate`,
+      { method: 'POST', body: JSON.stringify(args.body) }
+    ),
+
+  getRoutineProvenance: async (args: { scheduleId: string }) =>
+    scheduledActionFetch<RoutineProvenanceResponse>(
+      `/scheduled-actions/${args.scheduleId}/template`,
+      { method: 'GET' }
+    ),
+
+  rebindRoutine: async (args: {
+    scheduleId: string;
+    body: RebindTemplateRequest;
+  }) =>
+    scheduledActionFetch<ScheduledAction>(
+      `/scheduled-actions/${args.scheduleId}/template/bindings`,
+      { method: 'PUT', body: JSON.stringify(args.body) }
     ),
 };

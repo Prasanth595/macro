@@ -354,6 +354,7 @@ function flattenMarkdown(
  * format's `<m-*>` JSON tags. Each tag uses a small subset of these.
  */
 type MentionTagPayload = {
+  key?: string;
   prompt?: string;
   title?: string;
   documentId?: string;

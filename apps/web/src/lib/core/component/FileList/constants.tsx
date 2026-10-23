@@ -86,6 +86,7 @@ const _fileTypeColors: Record<BlockName | BlockAlias | 'default', string> = {
   snippet: 'bg-snippet/20 group/item',
   skill: 'bg-chat/20 group/item',
   routine: 'bg-chat/20 group/item',
+  'routine-template': 'bg-chat/20 group/item',
   pr: defaultFileColor,
   agent: defaultFileColor,
   initiative: defaultFileColor,

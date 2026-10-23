@@ -29,6 +29,8 @@ export const BlockRegistry = [
   'contact',
   'company',
   'routine',
+  // A shareable snapshot of a routine, activated as the viewer's own.
+  'routine-template',
   'pr',
   'agent',
   // A task project (`project` is a folder).

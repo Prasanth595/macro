@@ -196,6 +196,7 @@ export function buildEntityData(
         'company',
         'contact',
         'initiative',
+        'routine-template',
         (): undefined => undefined
       )
       // PRs are virtual blocks backed by GitHub, not Macro entities.

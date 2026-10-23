@@ -38,6 +38,7 @@ import {
   type SnapshotNode,
   SupportedNodeTypes,
   type TagMentionNode,
+  type TemplateVariableNode,
   type ThemeMentionNode,
   type UnknownMentionNode,
   type UserMentionNode,
@@ -111,6 +112,7 @@ import { PullRequestMention as PullRequestMentionDecorator } from '../decorator/
 import { ReplyTarget as ReplyTargetDecorator } from '../decorator/ReplyTarget';
 import { Snapshot as SnapshotDecorator } from '../decorator/Snapshot';
 import { TagMention as TagMentionDecorator } from '../decorator/TagMention';
+import { TemplateVariable as TemplateVariableDecorator } from '../decorator/TemplateVariable';
 import { ThemeMention as ThemeMentionDecorator } from '../decorator/ThemeMention';
 import { UnknownMention as UnknownMentionDecorator } from '../decorator/UnknownMention';
 import { UserMention as UserMentionDecorator } from '../decorator/UserMention';
@@ -453,6 +455,20 @@ const BookingLinkMention: TypedRenderableEntity<BookingLinkMentionNode> = {
         key={props.node.getKey()}
         theme={props.theme}
       />
+    </span>
+  ),
+};
+
+const TemplateVariable: TypedRenderableEntity<TemplateVariableNode> = {
+  guard: (node: LexicalNode): node is TemplateVariableNode =>
+    node.__type === 'template-variable',
+  render: (props) => (
+    <span>
+      {TemplateVariableDecorator({
+        ...props.node.exportComponentProps(),
+        nodeKey: props.node.getKey(),
+        theme: props.theme,
+      })}
     </span>
   ),
 };
@@ -1041,6 +1057,7 @@ const InlineEntities: RenderableEntity[] = [
   eraseRenderableEntity(HorizontalRule),
   eraseRenderableEntity(Equation),
   eraseRenderableEntity(ThemeMention),
+  eraseRenderableEntity(TemplateVariable),
   eraseRenderableEntity(TagMention),
   eraseRenderableEntity(ConnectApp),
   eraseRenderableEntity(DatabaseQuery),

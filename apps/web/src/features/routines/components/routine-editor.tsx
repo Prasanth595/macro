@@ -25,6 +25,8 @@ export function RoutineEditor(props: {
   history: JSX.Element;
   actions?: JSX.Element;
   feedback?: JSX.Element;
+  /** Shown above the title, such as where the routine came from. */
+  banner?: JSX.Element;
 }) {
   return (
     <ViewBreadcrumbs.Root
@@ -109,6 +111,9 @@ export function RoutineEditor(props: {
           class="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-12 outline-none touch:pt-6"
         >
           <div class="mx-auto max-w-3xl">
+            <Show when={props.banner}>
+              <div class="mb-7">{props.banner}</div>
+            </Show>
             <div class="min-w-0">
               <Show
                 when={!props.disabled}

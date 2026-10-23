@@ -39,6 +39,7 @@ function notificationEntityTypeToSoupTag(
         'database_row',
         'form',
         'scheduled_action',
+        'routine_template',
         'initiative'
       ),
       () => null

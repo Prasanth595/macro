@@ -1,9 +1,17 @@
 import { fireAndForget } from '@core/util/fireAndForget';
 import CopyIcon from '@phosphor/copy.svg';
 import DotsIcon from '@phosphor/dots-three.svg';
+import ShareIcon from '@phosphor/share-network.svg';
 import TrashIcon from '@phosphor/trash-simple.svg';
 import { Dropdown } from '@ui';
-import { type Accessor, createSignal, Match, Show, Switch } from 'solid-js';
+import {
+  type Accessor,
+  createSignal,
+  type JSX,
+  Match,
+  Show,
+  Switch,
+} from 'solid-js';
 import { RoutineEditor } from '../components/routine-editor';
 import { RoutineRunButton } from '../components/routine-run-button';
 import type { RoutineDetailSlots } from '../context/routine-slots';
@@ -27,6 +35,10 @@ export function RoutineDetailView(props: {
   onDelete(): void;
   onCopyPrompt(prompt: string): Promise<void>;
   onOpenRun(resource: HistoryResource, newSplit: boolean): void;
+  /** Share the routine as a template; absent when sharing is unavailable. */
+  onShare?: () => void;
+  /** Shown above the routine's title. */
+  banner?: JSX.Element;
 }) {
   const {
     schedule,
@@ -106,6 +118,14 @@ export function RoutineDetailView(props: {
                   <CopyIcon class="size-4" />
                   Duplicate
                 </Dropdown.Item>
+                <Show when={isOwned() && props.onShare}>
+                  {(share) => (
+                    <Dropdown.Item onSelect={() => share()()}>
+                      <ShareIcon class="size-4" />
+                      Share as template
+                    </Dropdown.Item>
+                  )}
+                </Show>
                 <Show when={isOwned()}>
                   <Dropdown.Item onSelect={props.onDelete}>
                     <TrashIcon class="size-4" />
@@ -115,6 +135,7 @@ export function RoutineDetailView(props: {
               </Dropdown.Content>
             </Dropdown>
           }
+          banner={props.banner}
           nextRun={nextRun()}
           instructions={
             <Show when={state()}>

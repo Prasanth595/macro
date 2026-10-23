@@ -1,14 +1,18 @@
 import { openAgentsPage } from '@app/features/agents-view/primitives/open-page';
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useHasPaidAccess } from '@core/auth/license';
 import { useBlockId } from '@core/block';
 import { defaultModelForPlan } from '@core/component/AI/constant';
 import { toast } from '@core/component/Toast/Toast';
+import { enableRoutineTemplates } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
 import { writeClipboardData } from '@core/util/dataTransfer';
-import { onMount, Show } from 'solid-js';
+import { fireAndForget } from '@core/util/fireAndForget';
+import { lazyNamed } from '@core/util/lazyNamed';
+import { onMount, Show, Suspense } from 'solid-js';
 import { getErrorMessage } from './core/routine-draft';
 import {
   createAgentHistoryMetadata,
@@ -19,6 +23,11 @@ import { RoutineExecutionPicker } from './routine-execution-picker';
 import { RoutinePromptEditor } from './routine-prompt-editor';
 import { RoutineTriggers } from './routine-triggers';
 import { RoutineDetailView } from './views/routine-detail';
+
+const RoutineProvenance = lazyNamed(
+  () => import('@app/features/routine-templates/routine-provenance'),
+  'RoutineProvenance'
+);
 
 export function Routine() {
   const scheduleId = useBlockId();
@@ -46,6 +55,7 @@ export function RoutineDetail(props: {
   const panel = useSplitPanelOrThrow();
   const userId = useUserId();
   const hasPaidAccess = useHasPaidAccess();
+  const templates = useFeatureFlag(enableRoutineTemplates);
   const back = () =>
     props.onBack ? props.onBack() : openAgentsPage(layout, 'routines');
   const open = (id: string) =>
@@ -81,6 +91,25 @@ export function RoutineDetail(props: {
       initialTab={props.initialTab}
       onBack={back}
       onDelete={remove}
+      onShare={
+        templates().enabled
+          ? () => {
+              const entity = source.entity();
+              if (!entity) return;
+              fireAndForget(
+                shareAsTemplate(props.scheduleId, entity.name),
+                'routine-templates'
+              );
+            }
+          : undefined
+      }
+      banner={
+        <Show when={templates().enabled}>
+          <Suspense>
+            <RoutineProvenance scheduleId={props.scheduleId} />
+          </Suspense>
+        </Show>
+      }
       onRename={(name) => {
         if (!props.onBack) panel.handle.setDisplayName(name);
       }}
@@ -104,4 +133,11 @@ export function RoutineDetail(props: {
       }}
     />
   );
+}
+
+async function shareAsTemplate(routineId: string, routineName: string) {
+  const { openShareTemplateDialog } = await import(
+    '@app/features/routine-templates/share-template'
+  );
+  openShareTemplateDialog({ routineId, routineName });
 }

@@ -478,6 +478,13 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     background: 'bg-chat/20',
     prettyName: 'Routine',
   },
+  'routine-template': {
+    icon: ClockClockwise,
+    boldIcon: ClockClockwiseBold,
+    foreground: 'text-chat',
+    background: 'bg-chat/20',
+    prettyName: 'Routine template',
+  },
   crm_company: {
     icon: BuildingOffice,
     boldIcon: BuildingOfficeBold,
@@ -731,6 +738,7 @@ export function getPreviewItemIconType(item: PreviewItem): EntityWithValidIcon {
   // A pipeline previews like an entity but is not one.
   const { type } = item;
   if (type === 'crm_pipeline') return 'pipeline';
+  if (type === 'routine_template') return 'routine-template';
 
   return getEntityIconType({ ...item, type });
 }

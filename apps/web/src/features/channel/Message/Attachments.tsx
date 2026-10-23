@@ -1,15 +1,23 @@
 import { ProjectAttachment } from '@app/features/projects/project-attachment';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   type MediaItem,
   mapMediaItems,
   partitionAttachments,
 } from '@channel/Media/media-items';
 import { ItemPreview } from '@core/component/ItemPreview';
+import { enableRoutineTemplates } from '@core/constant/featureFlags';
+import { lazyNamed } from '@core/util/lazyNamed';
 import { stringToItemType } from '@service-storage/client';
 import { cn } from '@ui';
-import { createMemo, For, Show } from 'solid-js';
+import { createMemo, For, Match, Show, Suspense, Switch } from 'solid-js';
 import { useMessage } from './context';
 import { MediaPreview } from './MediaPreview';
+
+const RoutineTemplateAttachment = lazyNamed(
+  () => import('@app/features/routine-templates/template-attachment'),
+  'RoutineTemplateAttachment'
+);
 
 type AttachmentsProps = {
   class?: string;
@@ -17,6 +25,7 @@ type AttachmentsProps = {
 
 export function Attachments(props: AttachmentsProps) {
   const message = useMessage();
+  const templates = useFeatureFlag(enableRoutineTemplates);
   const buckets = createMemo(() =>
     partitionAttachments(message().attachments ?? [])
   );
@@ -43,8 +52,7 @@ export function Attachments(props: AttachmentsProps) {
           <div class="flex flex-row mt-2 gap-2 flex-wrap max-w-full">
             <For each={buckets().documentAttachments}>
               {(attachment) => (
-                <Show
-                  when={attachment.entity_type === 'initiative'}
+                <Switch
                   fallback={
                     <ItemPreview
                       id={attachment.entity_id}
@@ -52,8 +60,24 @@ export function Attachments(props: AttachmentsProps) {
                     />
                   }
                 >
-                  <ProjectAttachment id={attachment.entity_id} />
-                </Show>
+                  <Match when={attachment.entity_type === 'initiative'}>
+                    <ProjectAttachment id={attachment.entity_id} />
+                  </Match>
+                  <Match
+                    when={
+                      attachment.entity_type === 'routine_template' &&
+                      templates().enabled
+                    }
+                  >
+                    <Suspense
+                      fallback={
+                        <div class="h-40 w-full max-w-120 rounded-xl border border-edge-muted" />
+                      }
+                    >
+                      <RoutineTemplateAttachment id={attachment.entity_id} />
+                    </Suspense>
+                  </Match>
+                </Switch>
               )}
             </For>
           </div>

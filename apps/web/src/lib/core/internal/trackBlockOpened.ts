@@ -27,6 +27,7 @@ function isSoupEntityTag(
       'channel_message',
       'channel_thread',
       'routine',
+      'routine_template',
       'agent_session',
       'database',
       'form',

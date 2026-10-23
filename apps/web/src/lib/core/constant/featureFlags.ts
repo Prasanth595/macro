@@ -780,6 +780,15 @@ export const enableCodexAgents = defineFlag({
   env: 'ENABLE_CODEX_AGENTS',
 });
 
+// Share a routine as a template others activate as their own routine. The
+// scheduled-action service also gates every template route with
+// ROUTINE_TEMPLATES_ENABLED. Override with VITE_ENABLE_ROUTINE_TEMPLATES.
+export const enableRoutineTemplates = defineFlag({
+  key: 'enable-routine-templates',
+  env: 'ENABLE_ROUTINE_TEMPLATES',
+  default: onInDev,
+});
+
 // Yes/no conditions on routine event triggers, checked by the Jev classifier
 // before a run starts. The scheduled-action service rejects conditions until
 // its TYPESAFE_API_KEY is set. Override with VITE_ENABLE_ROUTINE_CONDITIONS.

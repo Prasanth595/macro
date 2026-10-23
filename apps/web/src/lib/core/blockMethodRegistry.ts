@@ -45,6 +45,7 @@ export interface BlockMethodRegistry {
   component: EmptySpec;
   task: EmptySpec;
   routine: EmptySpec;
+  'routine-template': EmptySpec;
   pr: EmptySpec;
   agent: EmptySpec;
   initiative: EmptySpec;
