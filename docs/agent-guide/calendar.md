@@ -1,5 +1,78 @@
 # Calendar
 
+## Meeting notes
+
+Meeting notes require `enable-calendar-meeting-notes`. It is on automatically in
+dev; production uses PostHog, with an initial rollout intended for `@macro.com`
+users. `VITE_ENABLE_CALENDAR_MEETING_NOTES=true` or `false` overrides it locally.
+With the flag off, event notes and document Share meeting-link controls do not
+mount or request note data, on desktop or phone. The flag does not revoke saved
+meeting/team grants or change API permissions.
+
+Open a live meeting's details and choose **Create** beside **Meeting notes**.
+This creates a Markdown document named after the meeting, links it with meeting
+viewer access, and opens it immediately. Team access starts off. A meeting can
+have multiple notes; **Create** and **Link** remain on the section title row
+so you can keep creating notes or linking existing documents.
+
+Choose **Link** to search your markdown documents, select one, review
+the sharing explanation, and optionally include your existing team before
+**Link note**. Team access starts off for each note. Recurring meetings link only
+the displayed occurrence. Notes on a
+one-time meeting follow it when its date or time changes.
+Existing document editors and other sharing keep their access.
+Notes use the event details' existing row layout and controls. Team choices come
+from current Macro team memberships; they do not introduce departments or subteams.
+
+Open the linked title to read the original document. On desktop it opens in a
+new split; on mobile it replaces the calendar pane and closes event details.
+Opening a note leaves focus available to the document as it mounts; dismissing
+desktop details normally returns focus to the calendar event.
+Meeting access and occurrence scope are explained in the linking/access dialog;
+each note shows any additional team audience. Document owners use **Options →
+Manage access** to change that team, or **Options → Unlink from meeting** to remove
+this meeting's grants without deleting the document. Keep access explanations as
+plain text and actions labeled.
+In the linking dialog, only the document results scroll. The meeting context,
+sharing controls, and action buttons stay visible, including in a short viewport.
+If the owner has since left the selected team, **Remove team access** still works.
+Failed saves retain the selection and audience for retry; dismissing starts fresh.
+If creation succeeds but linking fails, **Retry linking** reuses the saved document;
+**Open saved note** lets you continue editing before the link is confirmed. Closing
+details never deletes that document; it remains in Drive. Changing the selected
+meeting or account prevents a late creation result from navigating away from the
+new selection.
+
+Owners can also open the markdown document's **Share** panel and find **Meeting
+links** (inside **Link** on mobile). Every saved link remains removable here even
+if the meeting was cancelled, fell outside the sync window, or stopped being
+shared with the owner. **Unlink** asks before removing its meeting/team grants.
+Unavailable meetings use a safe label rather than revealing private details.
+
+Full-detail team events expose the same note controls; provider actions such as
+editing the event or RSVPing stay unavailable. Busy-only team entries and
+imported snapshots have no meeting-note controls.
+Inherited access follows current meeting details and requires a synced live
+occurrence. If the provider hides its guest list, some guests need a direct
+document share. Independent team sharing lasts until the link is removed or the
+viewer leaves that team; it does not make the calendar event visible to that team.
+
+Verify on desktop and phone: create and open notes, add a second note, retry a failed
+link without duplicating the new document, link an existing note with team unchecked,
+add/remove a team, and unlink while keeping the document. On desktop, hover a note
+title and select a neighboring note while its tooltip is visible. The
+backend-free browser suite mounts the real event popover and mobile drawer with
+sample data and preview service adapters. It is
+`apps/web/src/features/calendar-notes/browser-test/playwright.config.ts`.
+API permission cases are covered in `crates/calendar_events/src/outbound/pg/test/notes.rs`.
+The fixture accepts `?notes=off` to check the event details without notes.
+Use `?team=details` or `?team=busy` to check team visibility boundaries.
+
+Browser fixture screenshots: [desktop](media/calendar-notes/desktop.png) ·
+[phone](media/calendar-notes/phone.png) ·
+[desktop picker](media/calendar-notes/link-desktop.png) ·
+[phone picker](media/calendar-notes/link-phone.png).
+
 ## Calendar — `/app/calendar/<month-or-week-or-day>`
 
 Microsoft calendars use the same editor and calendar views after calendar consent.
@@ -154,6 +227,11 @@ Connect calendar for accounts missing calendar permission, and Disconnect with
 confirmation. When the only linked account lacks calendar permission, the Google
 Calendar row shows just a filled Connect button for it, with no account list or
 visibility note. Disconnect removes calendar access/data, not the Gmail connection.
+Settings → Calendar lists only the viewer's own inboxes. The **Enable calendar**
+toast (behind `enable-calendar-prompt-web` and `enable-calendar-prompt-mobile`)
+follows the same rule: it asks once per own inbox missing calendar permission,
+never for an inbox another Macro user delegated to the viewer (a **Shared** row
+in Settings → Email, whose per-inbox Enable calendar button stays available).
 Account checkboxes show/hide all child calendars; partial selection is shown as
 mixed. Individual calendars can also be shown/hidden. The account color is the
 default for its calendars; a child color overrides it. Click a color dot to open
@@ -454,7 +532,9 @@ an untouched rule must not be reformatted and included in a reminder-only PATCH.
 A weekly rule without `BYDAY` repeats on the start's weekday: plain `FREQ=WEEKLY` opens on the
 `Weekly on <day>` preset, and one with an end (such as `COUNT=3`) opens `Custom` with that day
 selected, since the presets never end. Either is saved as written while untouched; moving the
-start to another weekday keeps a custom rule on the day the editor shows.
+start to another weekday keeps a custom rule on the day the editor shows. Event details (desktop
+popover and phone drawer) and Forward by email's summary name the day too (`Weekly on Saturday ·
+3 occurrences`), read from the occurrence's original slot in the event's own time zone.
 As in Google Calendar, the guests row of the details popover (a bottom sheet on phones)
 carries `Copy guest emails` and `Email guests` icon buttons, both hidden when you are the
 only guest (always so on a snapshot). Copying puts every guest's address on the clipboard,
@@ -571,6 +651,12 @@ in the background without returning to its skeleton. OOO changes, sharing change
 and notifications without that guarantee still clear cached rows and close open
 OOO details immediately before refetching.
 
+To mention an event, press `Copy event` in its details and paste, or type `@` and at least
+three characters of its title in a composer that offers event mentions (message, comment and
+document composers; spreadsheet and database cells and typed reference fields do not): where calendar search is on
+(`enable-calendar-search-ui`), the menu lists matches under `Calendar events` (all of them in
+one list on phones), one row per event with when it starts, and picking one inserts the same
+chip a paste does, pinned to the found instance of a repeating event.
 A calendar event mentioned in a channel message opens the calendar focused on the viewer's
 own copy of the meeting. When a person holds the event on their own calendar and posts the
 mention, it is shared read-only with the channel's current members: a member without a copy of
@@ -605,7 +691,9 @@ copy whose organizer lets guests invite others and shows the guest list), and ot
 reads `The person who shared this event can't add guests to it.` The card then shows
 `Requested`, and `Invited` once accepted, and stops offering `Add to calendar` until the request
 is declined: the sharer's answer is an invitation to the meeting, and a snapshot added meanwhile
-would take that invitation in and stay a snapshot. The sharer gets a `calendar_event_join_request`
+would take that invitation in and stay a snapshot. The server refuses the copy in the same cases
+(`join_request_open`, from the API, the SDK and the agent alike); a card that had not caught up
+says `You've asked to join this event` and refreshes to `Requested` or `Invited`. The sharer gets a `calendar_event_join_request`
 notification (Settings → Notifications → Calendar → Requests to join), which Home lists as
 `<requester> asked to join <event>` with a person-plus glyph, like a comment row. It opens the event,
 whose details list each request with `Add as guest` and `Decline` on desktop and in the phone

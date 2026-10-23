@@ -226,8 +226,9 @@ export class Sdk extends HeyApiClient {
     
     /**
      * Ask the person who shared an event with one of the requester's channels
-     * to add them as a guest. Asking again while the request is pending changes
-     * nothing; asking after a decline reopens it.
+     * to add them as a guest. Asking again while the request is pending or
+     * accepted changes nothing; a declined request stands, so asking after a
+     * decline is refused with `request_declined`.
      */
     public requestToJoin<ThrowOnError extends boolean = false>(options: Options<RequestToJoinData, ThrowOnError>): RequestResult<RequestToJoinResponses, RequestToJoinErrors, ThrowOnError> {
         return (options.client ?? this.client).post<RequestToJoinResponses, RequestToJoinErrors, ThrowOnError>({ url: '/calendar-events/{event_id}/join-requests', ...options });
@@ -1477,16 +1478,18 @@ export class Sdk extends HeyApiClient {
     }
     
     /**
-     * Read recipients for a database owned by the caller. Link and team
-     * sharing are always `null`: databases do not support them yet.
+     * Read recipients and the team share for a database owned by the caller.
+     * Link sharing is always `null`: databases do not support it.
      */
     public getDatabasePermissions<ThrowOnError extends boolean = false>(options: Options<GetDatabasePermissionsData, ThrowOnError>): RequestResult<GetDatabasePermissionsResponses, GetDatabasePermissionsErrors, ThrowOnError> {
         return (options.client ?? this.client).get<GetDatabasePermissionsResponses, GetDatabasePermissionsErrors, ThrowOnError>({ url: '/databases/{id}/permissions', ...options });
     }
     
     /**
-     * Update channel recipients after proving database ownership. Turning on
-     * link or team sharing is refused; ownership cannot be changed here.
+     * Update channel recipients and the team share after proving database
+     * ownership. Turning on link sharing is refused; ownership cannot be
+     * changed here. Only the actual owner may change the team share, and a 409
+     * means sharing changed since the request was authorized.
      */
     public updateDatabasePermissions<ThrowOnError extends boolean = false>(options: Options<UpdateDatabasePermissionsData, ThrowOnError>): RequestResult<UpdateDatabasePermissionsResponses, UpdateDatabasePermissionsErrors, ThrowOnError> {
         return (options.client ?? this.client).patch<UpdateDatabasePermissionsResponses, UpdateDatabasePermissionsErrors, ThrowOnError>({

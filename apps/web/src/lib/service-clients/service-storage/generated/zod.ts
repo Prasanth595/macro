@@ -1825,8 +1825,9 @@ export const listJoinRequestsResponse = zod
 
 /**
  * @summary Ask the person who shared an event with one of the requester's channels
-to add them as a guest. Asking again while the request is pending changes
-nothing; asking after a decline reopens it.
+to add them as a guest. Asking again while the request is pending or
+accepted changes nothing; a declined request stands, so asking after a
+decline is refused with `request_declined`.
  */
 export const requestToJoinParams = zod.object({
   event_id: zod.uuid().describe('Shared calendar event entity id'),
@@ -14261,8 +14262,8 @@ export const applyDatabaseOpsResponse = zod
   .describe('What each op of a batch did.');
 
 /**
- * @summary Read recipients for a database owned by the caller. Link and team
-sharing are always `null`: databases do not support them yet.
+ * @summary Read recipients and the team share for a database owned by the caller.
+Link sharing is always `null`: databases do not support it.
  */
 export const getDatabasePermissionsParams = zod.object({
   id: zod.uuid(),
@@ -14311,8 +14312,10 @@ export const getDatabasePermissionsResponse = zod.object({
 });
 
 /**
- * @summary Update channel recipients after proving database ownership. Turning on
-link or team sharing is refused; ownership cannot be changed here.
+ * @summary Update channel recipients and the team share after proving database
+ownership. Turning on link sharing is refused; ownership cannot be
+changed here. Only the actual owner may change the team share, and a 409
+means sharing changed since the request was authorized.
  */
 export const updateDatabasePermissionsParams = zod.object({
   id: zod.uuid(),
