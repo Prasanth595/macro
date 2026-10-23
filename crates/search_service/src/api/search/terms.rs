@@ -57,5 +57,16 @@ pub(in crate::api::search) fn drop_wordless_terms(
     terms.into_iter().filter(has_word).collect()
 }
 
+/// Records on `span` how many terms a search kept and how many
+/// [`drop_wordless_terms`] removed. The span declares both fields.
+pub(in crate::api::search) fn record_term_counts(
+    span: &tracing::Span,
+    kept: usize,
+    dropped: usize,
+) {
+    span.record("search.terms", kept);
+    span.record("search.dropped_terms", dropped);
+}
+
 #[cfg(test)]
 mod test;
