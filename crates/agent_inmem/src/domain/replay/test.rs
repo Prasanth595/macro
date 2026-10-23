@@ -577,7 +577,8 @@ fn only_confirmed_effort_replays_and_removal_resets_it() {
         &["anthropic/claude-sonnet-5-5"],
         ReasoningEffort::Low,
         agent::ModelSpeed::Standard,
-        None,
+        &[],
+        crate::domain::funding::Funding::Macro,
     );
     frames.push(config_response(
         serde_json::json!({ "configOptions": options }),
@@ -605,7 +606,8 @@ fn speed_replays_only_from_confirmed_configuration() {
         &["openai/gpt-6-astra"],
         ReasoningEffort::Default,
         ModelSpeed::Ultrafast,
-        None,
+        &[],
+        crate::domain::funding::Funding::Macro,
     );
     frames.push(config_response(
         serde_json::json!({"configOptions":options}),
@@ -626,7 +628,8 @@ fn funding_replays_from_the_last_confirmed_configuration() {
         &["anthropic/claude-sonnet-5-5"],
         ReasoningEffort::Default,
         agent::ModelSpeed::Standard,
-        Some(Funding::TeamApiKey),
+        &Funding::ALL,
+        Funding::TeamApiKey,
     );
     frames.push(config_response(
         serde_json::json!({ "configOptions": options }),

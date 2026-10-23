@@ -60,8 +60,9 @@ where
     }
 
     /// Admit macro-funded work for `owner`. An in-memory session also passes
-    /// when the allowance is spent but the owner's team has its own key: the
-    /// runtime then decides each turn whether to run on it or to ask first.
+    /// when the allowance is spent but the owner has their own or a team's
+    /// key: the runtime then decides each turn whether to run on it or to ask
+    /// first.
     async fn admit_kind(&self, kind: AgentKind, owner: &MacroUserIdStr<'_>) -> Result<()> {
         if !macro_funded(kind) {
             return Ok(());
@@ -72,11 +73,11 @@ where
             Err(error) => return Err(error.into()),
         };
         if kind == AgentKind::InMemory {
-            match self.team_keys.usable_providers(owner).await {
-                Ok(providers) if !providers.is_empty() => return Ok(()),
+            match self.model_keys.available(owner).await {
+                Ok(keys) if !keys.is_empty() => return Ok(()),
                 Ok(_) => {}
                 Err(error) => {
-                    tracing::error!(error = ?error, "could not read the team's provider keys");
+                    tracing::error!(error = ?error, "could not read the provider keys");
                 }
             }
         }

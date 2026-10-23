@@ -52,6 +52,12 @@ pub enum FailureNoticeKind {
     /// The session runs on the team's API key, but no key the owner may use
     /// serves the selected model.
     TeamApiKeyUnavailable,
+    /// The session owner has used their Macro AI allowance, and they have
+    /// their own API key the conversation can continue on if they agree.
+    PersonalApiKeyAvailable,
+    /// The session runs on the owner's own API key, but none of theirs serves
+    /// the selected model.
+    PersonalApiKeyUnavailable,
 }
 
 /// An external page where the person can act on a [`FailureNotice`].

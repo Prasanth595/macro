@@ -324,16 +324,16 @@ async fn run() -> anyhow::Result<()> {
         config.enable_ai_usage_enforcement,
         config.ai_pricing(),
     );
-    // Teams' own Anthropic and OpenAI keys for in-memory AI chat, under the
-    // Cursor key's CMK this role already decrypts with. Decrypt-only for the
-    // same reason as Cursor keys: registering them is the authentication
-    // service's job.
-    let team_keys: Arc<dyn team_provider_keys::domain::TeamModelKeys> =
-        Arc::new(team_provider_keys::domain::TeamProviderKeyService::new(
-            team_provider_keys::outbound::PgProviderKeyRepo::new(pool.clone()),
-            team_provider_keys::outbound::KmsProviderKeyCipher::new(AwsKmsCiphertexts::decrypting(
-                aws_sdk_kms::Client::new(&aws_config),
-            )),
+    // People's and teams' own Anthropic and OpenAI keys for in-memory AI
+    // chat, under the Cursor key's CMK this role already decrypts with.
+    // Decrypt-only for the same reason as Cursor keys: registering them is
+    // the authentication service's job.
+    let model_keys: Arc<dyn model_provider_keys::domain::ModelKeys> =
+        Arc::new(model_provider_keys::domain::ProviderKeyService::new(
+            model_provider_keys::outbound::PgProviderKeyRepo::new(pool.clone()),
+            model_provider_keys::outbound::KmsProviderKeyCipher::new(
+                AwsKmsCiphertexts::decrypting(aws_sdk_kms::Client::new(&aws_config)),
+            ),
         ));
     // One recorder for everything this process meters: in-memory agent
     // turns, session naming, trigger inference, and repository selection.
@@ -752,7 +752,7 @@ async fn run() -> anyhow::Result<()> {
             Arc::clone(&inmem_model_access),
         )
         .with_admission(admission.clone())
-        .with_team_keys(Arc::clone(&team_keys))
+        .with_model_keys(Arc::clone(&model_keys))
         .with_dev_commands(enable_dev_commands),
     };
     // The sandbox provider serves every bot but the in-memory one, which the
@@ -1164,7 +1164,7 @@ async fn run() -> anyhow::Result<()> {
         ))
         .with_conversation_turns(conversation_turns)
         .with_admission(admission.clone())
-        .with_team_keys(team_keys)
+        .with_model_keys(model_keys)
         .with_repositories(open_repositories)
         .with_warm_sessions(Arc::new(session_repo.clone()), tool_catalog),
     );

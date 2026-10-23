@@ -16,7 +16,7 @@ use agent_session::domain::model::AgentSessionId;
 use ai_billing::domain::{AiAdmissionService, DisabledAiAdmissionService};
 use dashmap::DashMap;
 use model_owner::Owner;
-use team_provider_keys::domain::{NoTeamModelKeys, TeamModelKeys};
+use model_provider_keys::domain::{ModelKeys, NoModelKeys};
 
 use crate::domain::agent::{AgentState, serve};
 use crate::domain::engine::{AgentIdentity, TurnEngine};
@@ -72,7 +72,7 @@ impl Drop for LiveAgent {
 pub struct InMemAgentManager {
     engine: Arc<dyn TurnEngine>,
     admission: Arc<dyn AiAdmissionService>,
-    team_keys: Arc<dyn TeamModelKeys>,
+    model_keys: Arc<dyn ModelKeys>,
     model_access: Arc<dyn crate::domain::model_access::InMemModelAccess>,
     frames: Arc<dyn FrameSource>,
     mcp: Arc<dyn DynMcpToolConnector>,
@@ -100,7 +100,7 @@ impl InMemAgentManager {
             engine,
             model_access,
             admission: Arc::new(DisabledAiAdmissionService),
-            team_keys: Arc::new(NoTeamModelKeys),
+            model_keys: Arc::new(NoModelKeys),
             frames,
             mcp,
             enable_dev_commands: false,
@@ -118,11 +118,11 @@ impl InMemAgentManager {
         self
     }
 
-    /// Let owners' turns run on their team's own provider keys. Without
-    /// this, every turn runs on Macro's allowance.
+    /// Let owners' turns run on their own or their team's provider keys.
+    /// Without this, every turn runs on Macro's allowance.
     #[must_use]
-    pub fn with_team_keys(mut self, team_keys: Arc<dyn TeamModelKeys>) -> Self {
-        self.team_keys = team_keys;
+    pub fn with_model_keys(mut self, model_keys: Arc<dyn ModelKeys>) -> Self {
+        self.model_keys = model_keys;
         self
     }
 
@@ -205,7 +205,7 @@ impl InMemAgentManager {
             owner: facts.owner,
             engine: Arc::clone(&self.engine),
             admission: Arc::clone(&self.admission),
-            team_keys: Arc::clone(&self.team_keys),
+            model_keys: Arc::clone(&self.model_keys),
             model_access: Arc::clone(&self.model_access),
             store: Arc::clone(&self.store),
             active_cancel: std::sync::Mutex::new(Vec::new()),

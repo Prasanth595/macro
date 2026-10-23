@@ -436,10 +436,10 @@ async fn drive_turn(
     // no opening line races it.
     let summarizing = purpose == crate::domain::engine::TurnPurpose::Summary;
     if let Some(key) = &provider_key
-        && team_provider_keys::domain::ModelProvider::of_model(&model) != Some(key.key.provider())
+        && model_provider_keys::domain::ModelProvider::of_model(&model) != Some(key.key.provider())
     {
         return Err(AgentError::Other(anyhow::anyhow!(
-            "your team's API key does not serve {model}"
+            "the selected API key does not serve {model}"
         )));
     }
 
@@ -468,7 +468,7 @@ async fn drive_turn(
         )
     };
     // A closed receiver has no verdict, and the turn's own stream follows.
-    // The opening line runs on Macro's own fast model, so a turn the team's
+    // The opening line runs on Macro's own fast model, so a turn a provider
     // key pays for goes without one.
     let mut opening_line = if summarizing || provider_key.is_some() {
         mpsc::channel(1).1
@@ -556,7 +556,7 @@ async fn drive_turn(
         .with_reasoning_effort(reasoning_effort)
         .with_speed(speed)?
         .with_genai_telemetry(false);
-    // Only the loop's own model calls run on the team's key, so only they are
+    // Only the loop's own model calls run on the provider key, so only they are
     // recorded against it; tools keep `usage_ctx`, since they call models on
     // Macro's keys.
     let loop_usage = match provider_key {

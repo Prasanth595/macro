@@ -58,8 +58,14 @@ fn speed_is_advertised_only_for_supported_models_with_current_value() {
         ("openai/gpt-6-astra", ModelSpeed::Ultrafast),
         ("openai/gpt-6.1-sol", ModelSpeed::Ultrafast),
     ] {
-        let options =
-            super::session_config_options(model, &[model], ReasoningEffort::Default, speed, None);
+        let options = super::session_config_options(
+            model,
+            &[model],
+            ReasoningEffort::Default,
+            speed,
+            &[],
+            crate::domain::funding::Funding::Macro,
+        );
         let option = options
             .iter()
             .find(|option| option.id.to_string() == "speed")
@@ -72,5 +78,34 @@ fn speed_is_advertised_only_for_supported_models_with_current_value() {
     assert!(super::speed_config_option("anthropic/claude-opus-5-5", ModelSpeed::Fast).is_none());
     assert!(
         super::speed_config_option("anthropic/claude-sonnet-5-5", ModelSpeed::Standard).is_none()
+    );
+}
+
+#[test]
+fn the_usage_option_lists_only_the_offered_sources() {
+    use agent_client_protocol::schema::v1::{SessionConfigKind, SessionConfigSelectOptions};
+
+    use crate::domain::funding::Funding;
+
+    let option = super::funding_config_option(
+        Funding::PersonalApiKey,
+        &[Funding::Macro, Funding::PersonalApiKey],
+    );
+    let SessionConfigKind::Select(select) = &option.kind else {
+        panic!("usage must be selectable")
+    };
+    assert_eq!(select.current_value.to_string(), "personal_api_key");
+    let SessionConfigSelectOptions::Ungrouped(choices) = &select.options else {
+        panic!("usage choices are not grouped")
+    };
+    assert_eq!(
+        choices
+            .iter()
+            .map(|choice| (choice.value.to_string(), choice.name.clone()))
+            .collect::<Vec<_>>(),
+        vec![
+            ("macro".to_owned(), "Macro usage".to_owned()),
+            ("personal_api_key".to_owned(), "Your API key".to_owned()),
+        ]
     );
 }

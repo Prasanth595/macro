@@ -484,7 +484,7 @@ impl<H: HttpClientExt + Clone + 'static> ModelRouter<H> {
 
 impl ModelRouter<MeteredHttpClient> {
     /// This router with `provider`'s client authenticating with `api_key`
-    /// instead of the deployment's key, for a turn a team's own key pays for.
+    /// instead of the deployment's key, for a turn a person's or team's own key pays for.
     ///
     /// Only the native Anthropic and OpenAI clients can be rekeyed; any other
     /// provider is [`AgentError::UnknownModel`].

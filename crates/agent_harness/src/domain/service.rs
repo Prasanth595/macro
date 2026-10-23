@@ -137,7 +137,7 @@ struct AgentHarnessInner<
     /// Owners' teams' own provider keys. An in-memory session whose owner
     /// has spent their allowance still opens and dispatches when one exists;
     /// the runtime decides per turn whether it runs on the key.
-    team_keys: Arc<dyn team_provider_keys::domain::TeamModelKeys>,
+    model_keys: Arc<dyn model_provider_keys::domain::ModelKeys>,
     containers: Containers,
     announcer: Announcer,
     runtimes: Runtimes,
@@ -370,7 +370,7 @@ where
             inner: Arc::new(AgentHarnessInner {
                 sessions,
                 admission: Arc::new(ai_billing::DisabledAiAdmissionService),
-                team_keys: Arc::new(team_provider_keys::domain::NoTeamModelKeys),
+                model_keys: Arc::new(model_provider_keys::domain::NoModelKeys),
                 containers,
                 announcer,
                 runtimes,
@@ -635,15 +635,16 @@ where
         self
     }
 
-    /// Let in-memory sessions of owners whose teams have their own provider
-    /// keys past the allowance gate. Configure before sharing the harness.
-    pub fn with_team_keys(
+    /// Let in-memory sessions of owners who have their own or a team's
+    /// provider keys past the allowance gate. Configure before sharing the
+    /// harness.
+    pub fn with_model_keys(
         mut self,
-        team_keys: Arc<dyn team_provider_keys::domain::TeamModelKeys>,
+        model_keys: Arc<dyn model_provider_keys::domain::ModelKeys>,
     ) -> Self {
         Arc::get_mut(&mut self.inner)
-            .expect("configure team keys before sharing the harness")
-            .team_keys = team_keys;
+            .expect("configure provider keys before sharing the harness")
+            .model_keys = model_keys;
         self
     }
 

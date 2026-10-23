@@ -11,15 +11,16 @@ use super::funding::{FUNDING_CONFIG_ID, Funding};
 
 /// Build session configuration from the actual turn engine catalog and state.
 ///
-/// `funding` is offered only when the owner's team has a key they may use
-/// (or the session already runs on one); `None` leaves it out.
+/// `funding` lists the usage sources on offer (see [`Funding::offered`]); an
+/// empty list leaves the option out.
 #[must_use]
 pub fn session_config_options(
     current_model: &str,
     models: &[&str],
     current_effort: ReasoningEffort,
     current_speed: ModelSpeed,
-    funding: Option<Funding>,
+    funding: &[Funding],
+    current_funding: Funding,
 ) -> Vec<SessionConfigOption> {
     let options: Vec<_> = models
         .iter()
@@ -58,25 +59,31 @@ pub fn session_config_options(
     if let Some(speed) = speed_config_option(current_model, current_speed) {
         config.push(speed);
     }
-    if let Some(funding) = funding {
-        config.push(funding_config_option(funding));
+    if !funding.is_empty() {
+        config.push(funding_config_option(current_funding, funding));
     }
     config
 }
 
-/// ACP option for what the session's turns run on. Only in-memory AI chat
-/// offers it: the key is a team's own, and nothing else routes through it.
+/// ACP option for what the session's turns run on, offering `offered`. Only
+/// in-memory AI chat offers it: the keys are the owner's or their team's own,
+/// and nothing else routes through them.
 #[must_use]
-pub fn funding_config_option(current: Funding) -> SessionConfigOption {
+pub fn funding_config_option(current: Funding, offered: &[Funding]) -> SessionConfigOption {
     SessionConfigOption::select(
         FUNDING_CONFIG_ID,
         "Usage",
         SessionConfigValueId::new(current.as_str()),
-        vec![
-            SessionConfigSelectOption::new(Funding::Macro.as_str(), "Macro usage"),
-            SessionConfigSelectOption::new(Funding::TeamApiKey.as_str(), "Team API key")
-                .description("Billed to your team's own Anthropic or OpenAI key; not counted against your Macro usage".to_owned()),
-        ],
+        offered
+            .iter()
+            .map(|funding| match funding {
+                Funding::Macro => SessionConfigSelectOption::new(funding.as_str(), "Macro usage"),
+                Funding::PersonalApiKey => SessionConfigSelectOption::new(funding.as_str(), "Your API key")
+                    .description("Billed to your own Anthropic or OpenAI key; not counted against your Macro usage".to_owned()),
+                Funding::TeamApiKey => SessionConfigSelectOption::new(funding.as_str(), "Team API key")
+                    .description("Billed to your team's own Anthropic or OpenAI key; not counted against your Macro usage".to_owned()),
+            })
+            .collect::<Vec<_>>(),
     )
 }
 
@@ -137,7 +144,8 @@ pub fn model_config_options(current: &str, models: &[&str]) -> Vec<SessionConfig
         models,
         ReasoningEffort::default(),
         ModelSpeed::Standard,
-        None,
+        &[],
+        Funding::Macro,
     )
 }
 

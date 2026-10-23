@@ -149,21 +149,25 @@ async fn denied_or_unavailable_trigger_open_has_no_side_effects() {
 struct TeamWithKey;
 
 #[async_trait::async_trait]
-impl team_provider_keys::domain::TeamModelKeys for TeamWithKey {
+impl model_provider_keys::domain::ModelKeys for TeamWithKey {
     async fn usable_key(
         &self,
         _user: &MacroUserIdStr<'_>,
-        _provider: team_provider_keys::domain::ModelProvider,
-    ) -> team_provider_keys::domain::Result<Option<team_provider_keys::domain::UsableProviderKey>>
+        _provider: model_provider_keys::domain::ModelProvider,
+        _source: model_provider_keys::domain::KeySource,
+    ) -> model_provider_keys::domain::Result<Option<model_provider_keys::domain::UsableProviderKey>>
     {
         Ok(None)
     }
 
-    async fn usable_providers(
+    async fn available(
         &self,
         _user: &MacroUserIdStr<'_>,
-    ) -> team_provider_keys::domain::Result<Vec<team_provider_keys::domain::ModelProvider>> {
-        Ok(vec![team_provider_keys::domain::ModelProvider::Anthropic])
+    ) -> model_provider_keys::domain::Result<model_provider_keys::domain::AvailableKeys> {
+        Ok(model_provider_keys::domain::AvailableKeys {
+            personal: Vec::new(),
+            team: vec![model_provider_keys::domain::ModelProvider::Anthropic],
+        })
     }
 }
 
@@ -181,7 +185,7 @@ async fn a_spent_allowance_admits_only_in_memory_sessions_whose_team_has_a_key()
         });
         let mut service = harness_sharing_repo(repo).with_admission(admission);
         if team_key {
-            service = service.with_team_keys(Arc::new(TeamWithKey));
+            service = service.with_model_keys(Arc::new(TeamWithKey));
         }
         let result = service.inner.admit_open(bot, harness, &sender()).await;
         assert_eq!(

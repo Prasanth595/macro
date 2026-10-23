@@ -266,7 +266,7 @@ pub struct SessionState {
     pub reasoning_effort: ReasoningEffort,
     /// Inference speed applied to subsequent turns.
     pub speed: agent::ModelSpeed,
-    /// What subsequent turns run on: Macro's allowance or the team's key.
+    /// What subsequent turns run on: Macro's allowance or a provider key.
     pub funding: crate::domain::funding::Funding,
     /// Who this agent is, snapshotted from the session's bot at attach.
     pub identity: Option<AgentIdentity>,

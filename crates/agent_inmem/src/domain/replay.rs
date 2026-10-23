@@ -181,7 +181,8 @@ pub fn replay_speed(frames: &[Message]) -> agent::ModelSpeed {
     })
 }
 
-/// Restore whether the session last ran on Macro usage or the team's key.
+/// Restore whether the session last ran on Macro usage, the owner's own key,
+/// or their team's.
 pub fn replay_funding(frames: &[Message]) -> crate::domain::funding::Funding {
     replay_config(frames, |options| {
         options
