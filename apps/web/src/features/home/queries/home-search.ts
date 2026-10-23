@@ -132,9 +132,9 @@ export function buildHomeSearchRequest(
     filters.channel_filters = channelFilters;
   }
 
-  if (types.has('channels')) {
+  if (types.has('channels') && context.userId) {
     filters.channel_thread_filters = {
-      participant_ids: [context.userId ?? NIL_UUID],
+      participant_ids: [context.userId],
     };
   }
 
