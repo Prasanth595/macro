@@ -15,7 +15,7 @@ import type {
   GuestInviteController,
 } from '@app/features/calendar/hooks/create-guest-invite-controller';
 import type { CalendarEvent } from '@app/features/calendar/types';
-import { GUEST_INVITES_RESTRICTED } from '@app/features/calendar/utils/event-guest-editing';
+import { guestListHidden } from '@app/features/calendar/utils/event-guest-editing';
 import {
   eventEmailRecipients,
   guestEmails,
@@ -280,7 +280,8 @@ export function EventGuests(props: {
   return (
     <EventAttendeesSection
       attendees={props.event.attendees}
-      notice={props.invites.restricted() ? GUEST_INVITES_RESTRICTED : undefined}
+      guestListHidden={guestListHidden(props.event)}
+      notice={props.invites.restrictedReason()}
       actions={
         <EventGuestActions
           event={props.event}
