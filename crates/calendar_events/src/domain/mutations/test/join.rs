@@ -166,6 +166,13 @@ async fn asking_is_refused_when_the_sharer_could_not_accept() {
         mutation_target: Some(mutation_target(true)),
         ..sharer_organizes()
     };
+    let snapshot = FakeRepo {
+        mutation_target: Some(CalendarEventMutationTarget {
+            is_snapshot: true,
+            ..mutation_target(false)
+        }),
+        ..sharer_organizes()
+    };
     for (repo, case) in [
         (sharer_as_guest(no_invites), "organizer disallows inviting"),
         (
@@ -173,6 +180,7 @@ async fn asking_is_refused_when_the_sharer_could_not_accept() {
             "organizer hides the guest list",
         ),
         (read_only, "the sharer's calendar is read-only"),
+        (snapshot, "the sharer holds only a snapshot"),
     ] {
         let requests = repo.join_requests.clone();
         let (service, notifier) = asking(repo);
