@@ -9,7 +9,10 @@
  * transcript that let each message decide showed every one of them working.
  */
 
-import { ItemFacts } from '@app/features/agent-cards/core/item-facts';
+import {
+  ItemFacts,
+  refreshChangedItems,
+} from '@app/features/agent-cards/core/item-facts';
 import { itemFacts } from '@app/features/agent-cards/core/run-cards';
 import { useUserId } from '@core/context/user';
 import { idToDisplayName } from '@core/user/util';
@@ -341,9 +344,11 @@ export function Message(props: {
     props.message.stop?.kind === 'failed' ? props.message.stop : undefined;
   // What the reply did to each item it touched: a view it composed says so
   // on the cards for those items.
-  const facts = createMemo(() =>
-    itemFacts(props.message.segments.flatMap((segment) => segment.rows))
+  const rows = createMemo(() =>
+    props.message.segments.flatMap((segment) => segment.rows)
   );
+  const facts = createMemo(() => itemFacts(rows()));
+  refreshChangedItems(rows);
 
   return (
     // A control and an event notification are both user-authored by the

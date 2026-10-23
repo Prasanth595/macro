@@ -1,4 +1,7 @@
-import { ItemFacts } from '@app/features/agent-cards/core/item-facts';
+import {
+  ItemFacts,
+  refreshChangedItems,
+} from '@app/features/agent-cards/core/item-facts';
 import {
   itemFacts,
   type RunCard,
@@ -88,6 +91,7 @@ function Run(props: {
   const message = useOptionalMessage();
   const cards = createMemo(() => runCards(props.rows));
   const facts = createMemo(() => itemFacts(props.rows));
+  refreshChangedItems(() => props.rows);
   const steps = () => props.rows.filter((row) => !replacesStep(row.card));
   const failed = () =>
     steps().some(
