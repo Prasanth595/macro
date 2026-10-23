@@ -34,6 +34,31 @@ mutations, but reading a field on it throws.
 
 ## Methods
 
+### addToCalendar()
+
+> **addToCalendar**(`options?`): `Promise`\<`CalendarEvent`\>
+
+Add a snapshot of an event shared with one of the requester's
+channels to one of their Google calendars, and return a handle to the
+synced snapshot. The snapshot keeps the meeting's iCalendar UID and
+organizer, lists only the requester as a guest, and carries no join link;
+nobody is notified, and answers or guests on it never reach the meeting.
+Refused with `already_on_calendar` when the meeting is already on one of
+their calendars, and with `copy_refused` when Google will not import it.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | \{ `calendar?`: [`Calendar`](../../calendar/classes/Calendar.md); \} |
+| `options.calendar?` | [`Calendar`](../../calendar/classes/Calendar.md) |
+
+#### Returns
+
+`Promise`\<`CalendarEvent`\>
+
+***
+
 ### delete()
 
 > **delete**(`options?`): `Promise`\<`void`\>

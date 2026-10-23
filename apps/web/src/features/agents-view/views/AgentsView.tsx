@@ -308,7 +308,11 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
       onGroupingChange={listView.setGrouping}
       activePage={selected() ? undefined : page()}
       onOpenPage={(next) =>
-        next === 'agents' ? openRoster('agent') : openPage(next)
+        next === 'new'
+          ? showComposer()
+          : next === 'agents'
+            ? openRoster('agent')
+            : openPage(next)
       }
       modeForConversation={modeForConversation}
       activeConversationId={selected()?.activeConversationId}
@@ -446,9 +450,6 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                                   target={previewBlockTarget(conversation)}
                                   orchestrator={orchestrator}
                                   splitPanelContext={panel}
-                                  headerLeading={
-                                    <SplitPanel.CloseButton class="hidden shrink-0 @max-[720px]/view-shell:flex" />
-                                  }
                                 />
                               </ChatEmptyStateContext.Provider>
                             </Suspense>

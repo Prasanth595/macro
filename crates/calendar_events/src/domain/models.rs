@@ -6,7 +6,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub use super::acting::ActorInboxes;
+pub use super::acting::{ActorInboxes, OwnedInbox};
 pub use super::capabilities::{GuestPolicy, ViewerCapabilities};
 
 /// Read and write events on every calendar the user can access. Covers the
@@ -674,6 +674,12 @@ pub struct CalendarEvent {
     #[serde(default)]
     #[cfg_attr(feature = "schema", schema(required = true))]
     pub guest_policy: GuestPolicy,
+    /// Whether this is a snapshot of a meeting shared with the owner, which
+    /// Macro added to their calendar as a private copy: the meeting's changes
+    /// never reach it, and nothing done to it reaches the meeting.
+    #[serde(default)]
+    #[cfg_attr(feature = "schema", schema(required = true))]
+    pub is_snapshot: bool,
     /// What the viewing requester may do with the event. Resolved only on
     /// the read path, alongside each attendee's `is_self`; nothing when no
     /// viewer is known. Source projections never store it.
@@ -1020,6 +1026,14 @@ pub struct CalendarMentionEvent {
     pub attendee_count: usize,
     /// Entity update time of the previewed copy.
     pub updated_at: DateTime<Utc>,
+    /// For a channel-shared preview, whether the person who shared it can
+    /// add the requester as a guest. Always false for the requester's own
+    /// copy.
+    #[serde(default)]
+    pub can_request_to_join: bool,
+    /// For a channel-shared preview, the requester's request to join, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub join_request_status: Option<super::join_requests::CalendarJoinRequestStatus>,
 }
 
 /// Inclusive/exclusive viewport range for occurrence queries.
@@ -1289,6 +1303,8 @@ pub struct CalendarEventDraft {
     /// out-of-office status event (primary calendar only, timed, no
     /// attendees); `None` creates a regular event.
     pub out_of_office: Option<OutOfOfficeProperties>,
+    /// What guests may do. `None` keeps Google's defaults.
+    pub guest_policy: Option<GuestPolicy>,
 }
 
 /// User-supplied changes to an existing provider event. `None` fields are
@@ -1319,6 +1335,9 @@ pub struct CalendarEventPatch {
     /// already out-of-office — the provider event type is immutable. `None`
     /// leaves them untouched.
     pub out_of_office: Option<OutOfOfficeProperties>,
+    /// Replacement guest policy; only the organizer of a Google event may
+    /// change it.
+    pub guest_policy: Option<GuestPolicy>,
 }
 
 impl CalendarEventPatch {
@@ -1326,6 +1345,27 @@ impl CalendarEventPatch {
     pub fn is_empty(&self) -> bool {
         self == &Self::default()
     }
+}
+
+/// The stored details of an event or one of its occurrences: what every
+/// guest shares and only those who may modify the event change.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EventDetails {
+    /// Display title.
+    pub title: String,
+    /// Event body.
+    pub description: Option<String>,
+    /// Location label.
+    pub location: Option<String>,
+    /// Event visibility.
+    pub visibility: EventVisibility,
+    /// Timed or all-day shape. `None` for an occurrence whose time is not
+    /// stored, outside the materialized window.
+    pub time: Option<EventTime>,
+    /// Raw RFC 5545 recurrence properties of the series.
+    pub recurrence_lines: Vec<String>,
+    /// Whether a conference is attached.
+    pub has_conference: bool,
 }
 
 /// OAuth identity used to mint an access token for a connected inbox.
@@ -1384,9 +1424,19 @@ pub struct CalendarEventMutationTarget {
     pub organizer_email: Option<String>,
     /// What the organizer lets guests do, as stored on the entity.
     pub guest_policy: GuestPolicy,
+    /// Whether the entity is a snapshot of a shared meeting.
+    pub is_snapshot: bool,
 }
 
 impl CalendarEventMutationTarget {
+    /// The actor's inbox the addressed copy syncs through: every write to the
+    /// copy goes out through its grant, so the actor organizes or attends the
+    /// copy only as this inbox. `None` when the actor does not own it, as for
+    /// a delegate.
+    pub fn copy_inbox(&self) -> Option<&OwnedInbox> {
+        self.actor.as_ref()?.inbox(self.email_link_id)
+    }
+
     /// Provider identifier the mutation must address: the recurring master
     /// when the stored source is an expanded instance acting as canonical.
     pub fn master_provider_event_id(&self) -> &str {
@@ -1479,6 +1529,8 @@ pub struct CalendarCapabilities {
     pub custom_recurrence: bool,
     /// Whether an attendee can reset their RSVP to unanswered.
     pub reset_rsvp: bool,
+    /// Whether the organizer can set what guests may do.
+    pub guest_policy: bool,
 }
 impl CalendarCapabilities {
     /// Google Calendar's established editor capabilities.
@@ -1490,6 +1542,7 @@ impl CalendarCapabilities {
             email_reminders: true,
             custom_recurrence: true,
             reset_rsvp: true,
+            guest_policy: true,
         }
     }
     /// Outlook capabilities depend on the calendar's conferencing entitlement.
@@ -1501,6 +1554,7 @@ impl CalendarCapabilities {
             email_reminders: true,
             custom_recurrence: false,
             reset_rsvp: false,
+            guest_policy: false,
         }
     }
 }

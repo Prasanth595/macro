@@ -259,7 +259,8 @@ code files, images, canvases, spreadsheets, email, channels, calls, and projects
 also open agent sessions. Like command-menu Ask AI, they open the bare session in
 a new split, without the Agents workspace's conversation sidebar. Their entity mention stays
 in the composer as an unsent draft. Spreadsheet mentions retain the current sheet
-and selected range; channel-message actions retain the referenced message.
+and selected range; channel-message actions retain the referenced message. On
+phones, the channel message long-press drawer offers the same action as **Ask Macro**.
 Add a question and press Send to submit that context. These actions do not create
 legacy cognition chats, regardless of the Agents workspace feature flag.
 
@@ -292,7 +293,7 @@ the shimmer.
   Macro that covers that repository; connecting only Cursor does not grant Macro
   GitHub access. Cloud agents also need a public agent gateway: Docker-only hostnames
   cannot receive their MCP callbacks. Check the runtime error before retrying, and
-  start a new Claude session after correcting its gateway network configuration.
+  start a new session after correcting its gateway network configuration.
 
 - Open **Go to Agents** → `/app/component/agents`. With AI agents enabled
   (`enable-chat-v3-agents`), the workspace uses one sidebar for Chat and Code.
@@ -301,6 +302,12 @@ the shimmer.
   app authentication and disconnection), also available under Settings → Integrations.
   Home’s **Connect your tools** and agent replies’ **Connect app** chips open this
   Integrations page. It shows installed tools above the app catalog, with personal Gmail/GitHub account links in a separate section above.
+
+  In a secondary desktop split, the new-conversation page and existing chats show
+  one close button beside **Show navigation** while the sidebar is collapsed.
+  Verify this below 720px pane width, then expand and collapse navigation and
+  check that closing the split works. Mobile **Back to conversations** still
+  returns to the conversation list.
 
   To recreate Slack channels, open **Settings → Integrations → Slack → Import
   channels** (or **Connections → Slack** from the Agents workspace). The card
@@ -325,8 +332,8 @@ the shimmer.
   first; `slack_v2` remains a separate row in Connections where it can be disabled
   or disconnected.
 
-  Start a conversation with **Create → Agent**. The sidebar has no New conversation
-  button, and the empty composer has no New conversation heading.
+  Start a conversation with the desktop sidebar's **New** button or **Create → Agent**.
+  The empty composer has no New conversation heading.
   **Conversations** is a mixed list
   of chats and coding sessions, with one search across both. **Group conversations**
   switches between Status (the default), Type, and None, preserving newest-first
@@ -428,7 +435,7 @@ the shimmer.
   Unavailable paired agents stay visible with a reason.
   If Macro is unavailable, its catalog stays visible but
   model choices are disabled in every list. Model discovery uses the
-  selected runtime, including Claude Cloud. Every coding agent shows repository
+  selected runtime. Every coding agent shows repository
   controls; chat agents hide those controls but keep the mode bar. Repository/branch overrides are currently applied
   only to Cursor sessions by the create-session API.
   The most recently used supported,
@@ -543,8 +550,7 @@ the shimmer.
   **Add agent**, the setup strips, and Edit replace the list with full pages,
   not dialogs; Back/Cancel returns to the list. Use **Create → Agent** to open a new composer.
   The agent editor has Profile, Instructions, **Where it runs** (In Macro, In
-  Cursor, In your harness; In Claude Code too with the `claude-cloud` flag once
-  Claude lists models) and **Who can use it** (Private / Team). The selected
+  Cursor, In your harness) and **Who can use it** (Private / Team). The selected
   place opens its Model picker inside its card; In your harness adds a Harness
   picker beside it. An unconnected Cursor or unpaired harness is disabled with
   **Connect** / **Set up**, which open the setup guide in place and return to the
@@ -1713,7 +1719,7 @@ must stay hidden; subsequent live messages must still appear.
 - **Agent permission policy.** Settings → Agents → Runtime shows `Always prompt`
   and `Always bypass` only for local macrod harnesses. Macrod defaults to prompts;
   bypass requires both harness consent and the agent's explicit choice. Built-in
-  Macro, in-memory, Cursor, Codex, and Claude runtimes always bypass and have no
+  Macro, in-memory, Cursor, and Codex runtimes always bypass and have no
   permission policy selector. The backend enforces these policies.
 
 Locally sent user messages in both AI implementations enter with a short upward
@@ -1857,7 +1863,7 @@ picker. New and resumed sessions replace an inaccessible saved model with Gemini
 A direct request to select a paid model is rejected, and each prompt rechecks
 permissions before inference, including after a plan downgrade. Permission
 lookup failures prevent inference. Paid users retain the full supported catalog.
-Cursor, Claude Cloud, and paired external runtimes keep their own model rules.
+Cursor and paired external runtimes keep their own model rules.
 
 To verify, start a Macro conversation as a free user with a previously saved
 paid-model preference: the composer should show Gemini and send that model.
@@ -1998,11 +2004,14 @@ Invalid drafts remain editable; navigation opens the first draft needing attenti
 A revision conflict or uncertain request shows **Reload saved review**. Reload
 reads the saved version and discards the local edit; it never retries an external
 send automatically. If the outcome is unknown, check the inbox/calendar before
-attempting another send elsewhere. A completed review queues bounded outcome
-context for the agent through the normal session queue, without interrupting its
-current turn. The existing context
-control exposes this metadata on demand; individual outcomes remain on the review
-card instead of appearing as a long user message. Questions and their answers use
+attempting another send elsewhere. Owner decisions produce durable system events
+for the same review ID. The card refreshes in place, with **Responding** below it
+until the agent starts its reply. This behaves the same on mobile. These events
+create no user bubble; events without an existing card use a quiet timeline row.
+The agent can read final drafts and confirmed outcomes through **GetReview**.
+An exact silent response produces no assistant message or unread notification.
+An owner decision in chat uses the same saved-revision claim as the card;
+a system event cannot approve a review. Ordinary questions still use
 the existing ACP question tool; they are not saved reviews.
 
 For browser verification, inspect email stacks without clicking Send, or dismiss
@@ -2063,3 +2072,9 @@ can share a session into a channel. These tools cannot approve permission
 requests on a user's behalf.
 
 ![Expanded session read with a terminal failure visible after truncated text](media/ai-chat/read-agent-session.png)
+
+Agent-session system events appear as a single quiet row with a kind-specific
+icon, an outcome summary, and relative time (hover for the exact timestamp).
+Failures and unconfirmed outcomes use the error tone. Review events refresh
+the existing card without adding a second timeline row when that card is
+already in the thread. The row stays on one line and truncates on phones.
