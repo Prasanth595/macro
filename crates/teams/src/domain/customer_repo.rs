@@ -53,8 +53,8 @@ pub trait CustomerRepository: Clone + Send + Sync + 'static {
         team_owner_id: &MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<(), CustomerError>> + Send;
 
-    /// Get the customer's active subscription id, `None` when the customer has
-    /// no active subscription.
+    /// The customer's active subscription, or their trialing one when none is
+    /// active. `None` when they have neither.
     fn get_subscription_id_for_customer(
         &self,
         customer_id: &stripe::CustomerId,

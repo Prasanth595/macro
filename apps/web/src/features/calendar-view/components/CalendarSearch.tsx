@@ -8,7 +8,10 @@ import {
 } from '@app/features/calendar/types';
 import { parseLocalDate } from '@app/features/calendar/utils/calendar-date';
 import { isCalendarRangeSupported } from '@app/features/calendar/utils/calendar-supported-range';
-import { safeConferenceUrl } from '@app/features/calendar/utils/conference-link';
+import {
+  conferenceJoinUrl,
+  safeConferenceUrl,
+} from '@app/features/calendar/utils/conference-link';
 import {
   calendarMacroCallUrl,
   macroCallUrl,
@@ -92,6 +95,7 @@ type CalendarMeetingLink = {
 
 type CalendarSearchEventDetails = {
   conferenceUrl?: string;
+  accountEmail?: string;
   description?: string;
   location?: string;
 };
@@ -478,6 +482,7 @@ function CalendarSearchControl(props: {
       });
       byOccurrence.set(searchEventKey(event.eventId, event.occurrenceKey), {
         conferenceUrl: event.conferenceUrl,
+        accountEmail: event.calendar.emailAddress,
         description: event.description,
         location: event.location,
       });
@@ -685,21 +690,24 @@ function CalendarSearchControl(props: {
           </Popover.Trigger>
         }
       >
-        <div class="relative h-10 min-w-0 w-full flex-1">
-          <Popover.Anchor as="div" class="h-10 w-full">
+        <div class="relative h-[var(--view-search-height,2.5rem)] min-w-0 w-full flex-1">
+          <Popover.Anchor
+            as="div"
+            class="h-[var(--view-search-height,2.5rem)] w-full"
+          >
             <Show when={props.expanded === false}>
               <Button
                 ref={searchButton}
                 type="button"
-                variant="ghost"
-                size="icon-lg"
+                variant="outline"
+                size="icon-md"
                 label="Search events"
                 hotkey={TOKENS.calendar.search}
                 aria-expanded="false"
                 aria-haspopup="dialog"
                 onClick={props.onExpand}
               >
-                <SearchIcon class="size-5" />
+                <SearchIcon class="size-4" />
               </Button>
             </Show>
             {/* Keep the input mounted while its width animates; inert removes collapsed controls from keyboard navigation. */}
@@ -782,7 +790,7 @@ function CalendarSearchControl(props: {
           >
             <div
               class={cn(
-                'max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl glass bg-menu-glass text-ink transition-[translate] duration-200 ease-out motion-reduce:transition-none',
+                'menu-surface max-w-[calc(100vw-2rem)] overflow-hidden transition-[translate] duration-200 ease-out motion-reduce:transition-none',
                 props.inline ? 'w-[var(--kb-popper-anchor-width)]' : 'w-80'
               )}
               classList={{
@@ -922,7 +930,13 @@ function CalendarSearchControl(props: {
                                             : 'bg-hover text-ink not-touch:not-disabled:hover:bg-active not-touch:not-disabled:hover:text-ink'
                                         )}
                                         onClick={() =>
-                                          openExternalUrl(link().url)
+                                          openExternalUrl(
+                                            conferenceJoinUrl(
+                                              link().url,
+                                              detailsForEvent(event)
+                                                ?.accountEmail
+                                            )
+                                          )
                                         }
                                       >
                                         <VideoCameraIcon class="size-3.5" />

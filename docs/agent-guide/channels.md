@@ -122,17 +122,25 @@ internal rollout. Model usage continues through the existing session metering.
 
 ## Imported Slack history
 
-Import starts from the **Import from Slack** chip below the Chat sidebar tabs,
-or **Settings → Team → Connections → Import from Slack**. The chip is visible
-to team admins and owners when Slack archive import is enabled, and opens the
-same dialog without leaving Chat. Its **Dismiss Slack import** button hides the
-card and remembers the choice in this browser for that user and Macro team.
-Successful archive imports (including partial imports with a completed channel)
-and server-confirmed channel-only imports also hide it. Failed or cancelled
-imports do not. Dismissing or completing an import keeps the Settings entry
-available; completion does not close an open progress dialog. Check persistence
-after reload and confirm dismissal does not affect another user or team.
-Closing the dialog returns focus to the chip when it is still visible.
+Import starts from the **Create or import channels** card's **Import Slack**
+button at the bottom of the Chat sidebar, or **Settings → Team → Connections →
+Import from Slack**. The card's **New channel** button beside it opens the new
+channel dialog instead. The card is
+the shared connector-import card (see
+[Import from connected apps](setup-cards.md#import-from-connected-apps)) and is
+visible to team admins and owners when Slack archive import is enabled. It
+opens the shared import dialog: a **Slack** row connects through Pipedream,
+then **Import from Slack** hands channel picking to an agent chat in a split,
+and **Import with history** closes it and opens the archive upload below. Without
+an available Slack connector (Slack's Pipedream app is dev-only), the card opens
+the archive upload directly. **Dismiss import from slack** hides the card for
+that user on every device (see
+[Dismissing cards](setup-cards.md#dismissing-cards)); successful archive imports (including partial
+imports with a completed channel) and Settings channel imports also hide
+it. Failed or cancelled imports do not. Dismissing or completing an import
+keeps the Settings entry available; completion does not close an open progress
+dialog. Closing the archive dialog returns focus to the card's button when it
+is still visible.
 The dialog offers **Import with history** (recommended) and **Import channels
 without history**. The first needs a ZIP export provided by a Slack workspace
 owner or admin; its upload screen links to Slack's export instructions. Files
@@ -299,6 +307,12 @@ only the send control, with no format or discard button; Escape cancels the edit
 The iOS share sheet keeps its editor above the attachment and formatting controls.
 Check this arrangement at both phone and tablet widths.
 
+With a wrapping draft present, repeatedly narrow and widen the desktop split
+and window, then scroll the message history. The composer should settle into
+the matching layout without `ResizeObserver loop completed with undelivered
+notifications` errors. Resize-triggered wrapping measurements run in the next
+animation frame; draft edits still measure before their first paint.
+
 On Android, tap `@` on the software keyboard in an empty channel composer or
 after a space: the mentions menu should open above the keyboard. Type a name to
 filter, then tap a result to insert one mention without sending the draft.
@@ -367,7 +381,7 @@ someone who holds it on their own calendar. The bot's prompt carries the current
 own time zone (their primary calendar's), so it resolves relative times ("tomorrow at 4",
 "EOD") without asking; when no calendar is connected the prompt falls back to UTC and the
 bot asks before scheduling a specific clock time. Within the rollout, `@Macro` — plus
-`@cursor` / `@codex` / `@claude` when available — opens
+`@cursor` / `@codex` when available — opens
 an agent session; follow-up
 `@` mentions of that bot in the same thread route to it.
 Macro Coding Agent (`@coder`) is unavailable in mention suggestions, including
@@ -414,15 +428,14 @@ collapse control. The card never expands in place.
 
 Built-in provider agents are offered before account setup, each within its own
 rollout: `@cursor` requires the `enable-cursor-agents` flag (local override:
-`VITE_ENABLE_CURSOR_AGENTS`), `@claude` requires the `claude-cloud` flag
-(local override: `VITE_CLAUDE_CLOUD`), and `@codex` requires both
+`VITE_ENABLE_CURSOR_AGENTS`), and `@codex` requires both
 `enable-chat-v3-agents` and `enable-codex-agents` (local override:
 `VITE_ENABLE_CODEX_AGENTS`). Outside a rollout the entry is absent from
 the mention menu and from task agent assignees, even when that bot is already a
 channel participant. Custom agents keep their channel visibility rules
 regardless of which harness they use.
 A mention without a connected account creates no session and replies in the thread
-with a **Connect Cursor**, **Connect Codex**, or **Connect Claude** chip. Each chip
+with a **Connect Cursor** or **Connect Codex** chip. Each chip
 opens Settings → Agents → Runtimes, where the connection cards in the reader's rollout are visible. The same
 chip reads **connected** after setup; mention the bot again to start a session.
 Codex also prompts for a cloud environment when ChatGPT is connected but no
@@ -734,8 +747,11 @@ with the same full sidebar contents. With no conversation selected, the
 slide-over opens on its own and closes once a conversation is picked; the
 backdrop or `Escape` still dismisses it. There is no separate skinny sidebar mode.
 
-On desktop, the Chat rail has `All` and `Recent` tabs. All contains an
-optional `Favorites` section and the
+On desktop, the Chat rail has `All` and `Recent` tabs in a flat, shared track
+aligned with New. Choices use equal widths, a transparent outlined track with
+1px padding, and fully rounded pill shapes. The 32px selected state matches
+New's fill and border without an extra shadow. All contains an optional
+`Favorites` section and the
 independently paginated `Channels` and `DMs` sections. Favorites appears when
 the user has channel favorites and only lists channels. Channel favorites open
 in the shared channel detail. Shift-clicking a favorite, channel, or DM opens that
@@ -955,7 +971,11 @@ to the next section. `[` and `]` jump between the visible Favorites,
 Channels, and DMs section headers.
 
 On touch layouts, Channels shows only the Recent conversation feed, with channel
-and DM message previews. There are no view tabs or reserved tab-header space;
+and DM message previews. Rows use Home's touch row: the unread dot in the left
+rail, a 44px avatar, and a divider inset to the text column. The first six
+favorited channels (favorite order) are pinned in a three-across grid above the
+feed, iMessage style, and leave the feed below; tapping a pin opens it and a
+hold opens its action menu, where Unfavorite unpins it. There are no view tabs or reserved tab-header space;
 older saved tab selections and mobile-tab links cannot change the list. It loads
 more as the list approaches the end and supports pull to refresh.
 Rows use the same touch highlight as Home and Email: taps retain feedback while
@@ -1203,6 +1223,14 @@ Shorter queries: `Keep typing to search`.
 Leaving from the channel's call controls switches to `Messages` immediately.
 Disconnect and server cleanup continue after that switch; slow or failed RTC
 teardown must not leave the channel showing the join screen.
+
+In a live call, controls stay centered beneath the participant area when chat
+opens beside it. Microphone, camera, and background controls each have an icon
+button on the left and a settings caret on the right, separated by a divider.
+The icon toggles the feature; hover previews settings and the caret pins them.
+Check both chat states and narrow layouts, including Escape and keyboard focus
+in settings. Camera-off tiles use a subtle gradient from the profile picture's
+average color; missing or unreadable pictures keep the neutral panel background.
 
 `Participants` tab keeps people and bots within the available page height, with
 separate scrolling lists and fixed search/invite controls. Team access appears
