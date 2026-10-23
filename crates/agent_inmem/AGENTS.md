@@ -50,8 +50,8 @@ account differs from the turn's requester. System invocations have no requester.
 Reviewed user tools retain the selection through confirmation and execute with
 that account. Billing, memory, and session lifecycle remain owner-scoped. Model-context replay
 retains notification ACP inputs and their replies; the transcript fold separately
-omits system input from its message projection. PresentReview, GetReview,
-DecideReview and ApproveReview are eager internal tools in both standard and code modes.
+omits system input from its message projection. PresentReview, GetReview and
+DecideReview are eager internal tools in both standard and code modes.
 
 ## Checks
 

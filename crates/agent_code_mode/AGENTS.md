@@ -48,11 +48,9 @@ submit; historical reviews without an acting account use the session owner.
 ACP presentation uses the session owner's transcript capability, independently
 of the account that later sends the email or creates the event. Cards require
 direct user authentication; `DecideReview` requires a real turn prompted by the
-review's acting account. `ApproveReview` (`ReviewService::approve_for_session`)
-is the agent approving on that account holder's word in chat: it runs the card's
-Submit on the saved draft, recorded as a `chat` decision, under the same guard as
-`DecideReview` (never a System turn), and only once `ReviewActions::approvable`
-(default: always) allows it. `GetReview` reads final
+review's acting account, and its Submit waits for `ReviewActions::approvable`
+(default: always), the hook a kind uses to refuse until it is ready. `GetReview`
+reads final
 drafts and outcomes. Legacy notificationId/notificationAttemptAt fields are no
 longer delivery state.
 

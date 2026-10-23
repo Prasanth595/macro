@@ -57,7 +57,6 @@ Pulumi stacks; they do not host extra agent processes.
 ## Tool contracts
 
 - Internal session tools require explicit `acting_as`, resolved by the shared gate, plus existing owner/edit authorization. SDK executions choose one account for the whole program; review decisions use the saved acting account. Keep their restricted prompt/stop route separate from human approval controls.
-- `ApproveReview` lets the agent approve a presented review after its account holder says yes in chat; `Actions::session` reports the turn's prompter from `agent_session.turn_prompter`, so a System turn or one anyone else prompted is refused.
 
 The composition root wires `PgExternalReplyStore` into the harness and recovers
 unfinished external chat replies alongside conversation recovery every ten seconds.
