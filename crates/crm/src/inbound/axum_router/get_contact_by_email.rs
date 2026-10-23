@@ -58,7 +58,8 @@ pub async fn handler<
     State(state): State<CrmRouterState<C, St, Eas, Auth>>,
     Query(params): Query<GetContactByEmailParams>,
 ) -> Result<Json<GetContactByEmailResponse>, CrmError> {
-    let receipt = CrmTeamReceipt::from_team_receipt(access.entity_access_receipt)?;
+    let receipt = CrmTeamReceipt::from_team_receipt(access.entity_access_receipt)
+        .inspect_err(|error| tracing::error!(error = ?error, "invalid crm team receipt"))?;
     let contact = state
         .service
         .get_contact_by_email(&receipt, &params.email)
