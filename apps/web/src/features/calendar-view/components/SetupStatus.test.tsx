@@ -45,6 +45,11 @@ vi.mock('@queries/email/link', () => ({
 
 import { SetupStatus } from './SetupStatus';
 
+// Only the overlay over an empty grid explains itself; the pill is title and
+// action alone.
+const CONNECT_DESCRIPTION =
+  'Connect a Google or Microsoft account to show your calendar events.';
+
 const link = (id: string, overrides: Partial<EmailLink> = {}): EmailLink =>
   ({
     id,
@@ -79,6 +84,7 @@ describe('SetupStatus', () => {
     render(() => <SetupStatus />);
 
     expect(screen.getByText('Connect your calendar')).toBeTruthy();
+    expect(screen.getByText(CONNECT_DESCRIPTION)).toBeTruthy();
     expect(screen.queryByText('Enable calendar')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Connect calendar' }));
 
@@ -90,11 +96,34 @@ describe('SetupStatus', () => {
     });
   });
 
-  it('does not count a delegated inbox’s working calendar as the viewer’s', () => {
+  it('offers a delegate whose shared calendar works their own without covering the grid', async () => {
+    const user = userEvent.setup();
     setLinks([delegated('shared')]);
     render(() => <SetupStatus />);
 
     expect(screen.getByText('Connect your calendar')).toBeTruthy();
+    expect(screen.queryByText(CONNECT_DESCRIPTION)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Connect calendar' }));
+
+    expect(mocks.startAddInbox).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reconnectLinkId: undefined,
+        scopes: 'gmail_and_calendar',
+      })
+    );
+  });
+
+  it('keeps an own inbox’s fix out of the way while a shared calendar works', () => {
+    setLinks([
+      delegated('shared'),
+      link('own', { needs_calendar_permission: true }),
+    ]);
+    render(() => <SetupStatus />);
+
+    expect(screen.getByRole('button', { name: 'Grant access' })).toBeTruthy();
+    expect(
+      screen.queryByText('Grant calendar access to show your events in Macro.')
+    ).toBeNull();
   });
 
   it('grants access for the viewer’s own inbox, not a delegated one needing reconnect', async () => {
