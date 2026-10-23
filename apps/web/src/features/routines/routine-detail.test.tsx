@@ -284,6 +284,14 @@ let setStatus: Setter<string>;
 let setActivationPending: Setter<boolean>;
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  );
   mocks.update.mockReset().mockResolvedValue(cron);
   mocks.writeClipboardData.mockReset().mockResolvedValue(true);
   vi.useFakeTimers();
@@ -306,6 +314,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 const agentTarget: RoutineTarget = {

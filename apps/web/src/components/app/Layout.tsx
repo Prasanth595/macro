@@ -50,6 +50,7 @@ import { virtualKeyboardVisible } from '@core/mobile/virtualKeyboard';
 import { hasLoginCookie, updateCookie } from '@core/util/cookies';
 import { lazyNamed } from '@core/util/lazyNamed';
 import { isPlatform } from '@core/util/platform';
+import { useDesktopZoom } from '@macro/tauri/zoom';
 import { useUserInfoQuery } from '@queries/auth/user-info';
 import { queryClient } from '@queries/client';
 import { useLocation, useNavigate } from '@solidjs/router';
@@ -128,6 +129,9 @@ export function RootFrame(props: ParentProps) {
   onCleanup(observeAiUsageLimitMutations(queryClient));
 
   useAppSquishHandlers();
+  // Here rather than in GlobalShortcuts so zoom also works on the pages that
+  // render without app chrome (login, booking, meetings).
+  useDesktopZoom();
 
   // save last_path to cookie
   createEffect(() => {
@@ -161,7 +165,7 @@ export function RootFrame(props: ParentProps) {
     <MobileSettingsProvider>
       <div
         class={cn(
-          'relative flex flex-col justify-between not-touch:bg-panel w-dvw h-[calc(var(--dvh,1dvh)*100)] pl-(--safe-left) pr-(--safe-right)',
+          'relative flex flex-col justify-between not-touch:bg-page w-dvw h-[calc(var(--dvh,1dvh)*100)] pl-(--safe-left) pr-(--safe-right)',
           hasOverlayTitleBar && 'pt-[40px]'
         )}
       >

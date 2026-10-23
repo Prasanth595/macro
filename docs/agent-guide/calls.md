@@ -1,21 +1,28 @@
 # Calls
 
-## Calls — `/app/component/calls`
+## Calls — `/app/calls`
 
-On desktop a collapsible sidebar holds the search field (`Search calls`, `⌘F`),
+On desktop a collapsible sidebar starts with the shared outlined `New` button,
+with `Search calls` immediately left of collapse. Search reveals its field above
+New. The sidebar also holds
 the views `All` / `Missed` / `Unattended`, a `Type` section (`Internal` /
 `External`; External means at least one guest without a Macro account joined),
 a `Channels` section listing channels seen in loaded calls, and `Tags`. Choosing
 a type, channel, or tag shows only that one; choosing it again clears it. These
-refinements carry across the three views. Sort, group, filter, and `New call`
-sit in the list's top bar. Phones keep pill tabs and the header search.
+refinements carry across the three views. The desktop header uses one row:
+title, an outlined filter group, a view-options group, `New`, and an expandable
+Search icon. Command-F expands and focuses search; Close or Escape clears it
+and restores the icon. Phones keep pill tabs and the header search.
 With `enable-quick-calls` enabled, `New call` opens a menu with `Start an instant
 call`, `Call a channel or contact`, and `Manage call links`; without the flag it
 opens the recipient picker directly. `Start an instant call` opens `/app/meet/new`
 without creating a meeting, the same setup reached from `New Call` beside
 Calendar's `New event` or `Create` → `Call` (`C C`). Scheduled calls are created
 through Calendar and can be shared with people who do not have a Macro account.
-The channel/contact option opens the recipient picker.
+The channel/contact option opens the recipient picker. Starting a channel call
+connects the creator without waiting for recording, transcription, or recipient
+notification delivery. Verify that a second participant still receives the ring
+and can join, and that leaving immediately does not leave a recording running.
 Recordings, transcriptions
 and summaries appear here; empty state notes "Calls are available to agents."
 
@@ -48,7 +55,7 @@ Soup lists without a refresh; history is not backfilled. Imported calls appear
 in `All` and `Attended`, never in a channel's `Calls` tab, and open in the
 normal call detail with title, summary, attendees
 (shown as guests), and transcript but no recording. Rename and delete do not
-apply to imported calls yet. Webhooks require a public HTTPS `MCP_PUBLIC_URL`;
+apply to imported calls yet. Webhooks require a public HTTPS cognition callback origin (`CognitionPublicUrl`);
 on a laptop stack, expose the webhook path with a tunnel such as Tailscale Funnel.
 
 A channel's `Calls` tab lists that channel's recordings with the same rows, filtered

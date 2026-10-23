@@ -17,8 +17,8 @@ export function recordNativeWebviewStart(
     .querySelector('meta[name="macro-bundle-build"]')
     ?.getAttribute('content');
   const navigation = performance.getEntriesByType('navigation')[0];
-  // Native snapshots include this field on every platform, but only Apple's
-  // WebKit termination callback records it. Other platforms remain unknown.
+  // Native snapshots include this field on every platform, but only the iOS
+  // and macOS termination callbacks record it. Other platforms remain unknown.
   const webContent =
     snapshot?.identity.os === 'ios' || snapshot?.identity.os === 'macos'
       ? snapshot.webContent
@@ -56,6 +56,7 @@ export function recordNativeWebviewStart(
     ...attributes,
     ...documentLifecycle,
     ...consumeReloadIntent(),
+    ...previousDocumentAttributes(snapshot, recoverableNativeFrontend()),
   };
   analytics.track('native_webview_started', startupAttributes);
   const span = Telemetry.span('native.webview.start');
@@ -65,6 +66,34 @@ export function recordNativeWebviewStart(
   span.end();
   if (snapshot && !nativeDiagnosticsRetired())
     reportRecoveredEvents(snapshot, recoverableNativeFrontend());
+}
+
+/** What the document this one replaced last opened, and its last memory warning. */
+export function previousDocumentAttributes(
+  snapshot: DesktopSnapshot | undefined,
+  previousFrontend: string | undefined
+) {
+  const events =
+    snapshot?.recentEvents?.events.filter(
+      (entry) =>
+        previousFrontend !== undefined &&
+        entry.frontendInstanceId === previousFrontend
+    ) ?? [];
+  // Events are in sequence order; findLast is missing before iOS 15.4.
+  const latest = (kind: string) =>
+    [...events].reverse().find((entry) => entry.event.kind === kind);
+  const navigation = latest('navigated');
+  const breadcrumb =
+    navigation?.event.kind === 'navigated' ? navigation.event : undefined;
+  return {
+    previous_document_last_route: breadcrumb?.route,
+    previous_document_last_from_route: breadcrumb?.from_route ?? undefined,
+    previous_document_last_entity_type: breadcrumb?.entity_type ?? undefined,
+    previous_document_last_navigation_cause: breadcrumb?.cause,
+    previous_document_last_navigation_at_ms: navigation?.timestampMs,
+    previous_document_last_memory_warning_at_ms:
+      latest('memory_warning')?.timestampMs,
+  };
 }
 
 /** Recovered entries retain source identity/time; current signals identify their uploader. */

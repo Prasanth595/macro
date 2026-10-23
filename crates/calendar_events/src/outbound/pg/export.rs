@@ -1,9 +1,13 @@
-//! Series content of one event the requester can see, for iCalendar export.
+//! Series content of one event the requester can see, for iCalendar export
+//! and for copying onto their own calendar.
 
 use super::*;
-use crate::domain::ics::CalendarEventExport;
+use crate::domain::ics::{CalendarEventExport, CalendarEventExportAccess};
 
 struct ExportRow {
+    is_channel_shared: bool,
+    owner_id: String,
+    event_type: String,
     ical_uid: String,
     sequence: i32,
     title: String,
@@ -32,6 +36,9 @@ pub(super) async fn event_export(
         ExportRow,
         r#"
         SELECT
+            resolved.is_channel_shared AS "is_channel_shared!",
+            resolved.owner_id AS "owner_id!",
+            resolved.event_type AS "event_type!",
             resolved.ical_uid AS "ical_uid!",
             resolved.sequence AS "sequence!",
             resolved.title AS "title!",
@@ -53,6 +60,8 @@ pub(super) async fn event_export(
                 (candidate.owner_id = $1) AS is_owned,
                 (candidate.id = requested.id) AS is_requested,
                 candidate.id,
+                candidate.owner_id,
+                candidate.event_type,
                 candidate.ical_uid,
                 candidate.sequence,
                 candidate.title,
@@ -85,6 +94,8 @@ pub(super) async fn event_export(
                 false,
                 true,
                 requested.id,
+                requested.owner_id,
+                requested.event_type,
                 requested.ical_uid,
                 requested.sequence,
                 requested.title,
@@ -130,6 +141,13 @@ pub(super) async fn event_export(
     .map_err(report)?;
     row.map(|row| {
         Ok(CalendarEventExport {
+            access: if row.is_channel_shared {
+                CalendarEventExportAccess::ChannelShared
+            } else {
+                CalendarEventExportAccess::OwnCopy
+            },
+            owner_id: row.owner_id,
+            event_type: event_type(&row.event_type),
             time: row_time(
                 row.starts_at,
                 row.ends_at,
