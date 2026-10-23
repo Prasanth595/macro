@@ -1,6 +1,8 @@
 pub(crate) mod contact_listing;
 pub mod due_date;
 pub mod grouping;
+/// Bounded cross-source DATE-query candidate merging.
+pub mod property_candidates;
 
 mod exclusions;
 pub(crate) use exclusions::non_task_filters_are_exclusions;

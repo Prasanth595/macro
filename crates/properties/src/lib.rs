@@ -15,6 +15,9 @@ pub mod domain;
 pub mod inbound;
 #[cfg(feature = "outbound")]
 pub mod outbound;
+/// Shared PostgreSQL DATE-query fragments; callers retain execution and authorization.
+#[cfg(feature = "outbound")]
+pub mod query_support;
 pub mod tag_color;
 
 pub use domain::error::PropertiesErr;

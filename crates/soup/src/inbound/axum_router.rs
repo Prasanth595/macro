@@ -351,9 +351,11 @@ impl From<ApiGroupByField> for GroupByField {
             ApiGroupByField::Property {
                 property_definition_id,
                 entity_type,
+                ..
             } => GroupByField::Property {
                 property_definition_id,
                 entity_type: entity_type.map(|et| PropertyEntityType::from(et).to_string()),
+                bucketing: None,
             },
         }
     }

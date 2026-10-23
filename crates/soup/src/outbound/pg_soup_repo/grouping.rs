@@ -91,6 +91,7 @@ pub fn group_join_clause(field: &GroupByField) -> Option<GroupJoinClause> {
         GroupByField::Property {
             property_definition_id,
             entity_type,
+            ..
         } => {
             let (entity_type_filter, entity_type_bind) = match entity_type {
                 Some(et) => (

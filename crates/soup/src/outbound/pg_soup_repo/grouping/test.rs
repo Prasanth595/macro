@@ -77,6 +77,7 @@ fn property_join_includes_definition_id() {
     let field = GroupByField::Property {
         property_definition_id: uuid::Uuid::nil(),
         entity_type: None,
+        bucketing: None,
     };
     let join = group_join_clause(&field).unwrap();
     assert!(join.sql.contains("ep_group"));
@@ -147,6 +148,7 @@ async fn property_grouping_uses_canonical_task_entity_type(
                 field: GroupByField::Property {
                     property_definition_id: STATUS_PROPERTY_ID,
                     entity_type: None,
+                    bucketing: None,
                 },
                 group_key: None,
                 per_group_limit: None,
@@ -406,6 +408,7 @@ async fn tagged_calendar_event_participates_in_grouped_property_soup(
                 field: GroupByField::Property {
                     property_definition_id: STATUS_PROPERTY_ID,
                     entity_type: None,
+                    bucketing: None,
                 },
                 group_key: None,
                 per_group_limit: None,

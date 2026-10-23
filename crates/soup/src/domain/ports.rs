@@ -33,6 +33,12 @@ pub trait SoupRepo: Send + Sync + 'static {
     type Err;
     /// Iterator returned by grouped Soup queries.
     type GroupedItems: Iterator<Item = ItemGroupingInfo> + Send;
+
+    /// Select authorized candidates before DATE ordering, grouping, or pagination.
+    fn property_candidate_page<'a>(
+        &self,
+        request: super::models::property_candidates::PropertyCandidateRequest<'a>,
+    ) -> impl Future<Output = Result<models_grouping::CandidatePage, Self::Err>> + Send;
     /// Select authorized task candidates with canonical deadlines before hydration.
     fn due_date_soup_page<'a>(
         &self,

@@ -263,6 +263,7 @@ impl GraphqlGroupByInput {
                 Ok(GroupByField::Property {
                     property_definition_id,
                     entity_type,
+                    bucketing: None,
                 })
             }
         }

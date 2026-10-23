@@ -7,6 +7,7 @@ mod test;
 mod database_row;
 mod document_ids;
 mod initiative;
+pub(in crate::outbound::pg_soup_repo) mod property_candidates;
 mod property_filter;
 
 use database_row::{build_database_row_filter, database_row_opted_in, database_row_top_clause};

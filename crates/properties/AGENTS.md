@@ -19,6 +19,8 @@ events to the `macro.properties` Kafka topic.
 - `src/outbound/properties_pg_repo.rs` +
   `src/outbound/*_queries.rs`: the Postgres adapters, one file per concern
   (definitions, options, entity values, metadata, tag promotion).
+- `src/query_support.rs`: shared DATE-query composition over source-owned,
+  fully filtered CTEs; source repositories retain execution and hydration.
 
 ## Scope
 

@@ -13128,6 +13128,7 @@ name = "models_grouping"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "models_pagination",
  "serde",
  "uuid",
  "workspace-hack",
@@ -15574,6 +15575,8 @@ dependencies = [
  "model-entity",
  "model_notifications",
  "model_owner",
+ "models_grouping",
+ "models_pagination",
  "models_permissions",
  "models_properties",
  "notification",
