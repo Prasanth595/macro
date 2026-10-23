@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{Instant, MissedTickBehavior, interval_at};
 use tokio_util::sync::CancellationToken;
+use tracing::Instrument;
 
 #[cfg(test)]
 mod test;
@@ -158,6 +159,10 @@ pub async fn run_worker_with_cancellation(
                                 .then(|message| {
                                     let ctx = ctx.clone();
                                     let worker = &worker;
+                                    let span = tracing::info_span!(
+                                        "email.link_manager.message",
+                                        message_id = message.message_id.as_deref(),
+                                    );
                                     async move {
                                         let result = while_renewing_visibility(
                                             || {
@@ -168,6 +173,7 @@ pub async fn run_worker_with_cancellation(
                                             },
                                             process::process_message(ctx, message),
                                         )
+                                        .instrument(span)
                                         .await;
 
                                         match result {
