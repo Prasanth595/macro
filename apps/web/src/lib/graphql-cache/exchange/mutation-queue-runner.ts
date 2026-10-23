@@ -1112,7 +1112,7 @@ export function createMutationQueueRunner(
     admit,
     settle,
     start: () => {
-      telemetry.loaded(async () => (await host.inspectMutations?.())?.length);
+      telemetry.loaded(async () => host.inspectMutations?.());
       scheduleDrain();
     },
     wake: wakeDrain,

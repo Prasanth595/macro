@@ -91,7 +91,10 @@ emits `invoke_agent` and `execute_tool` and propagates into the ACP agent.
 `graphql.mutation_queue.attempt` span per claimed attempt that actually sends
 (`mutation_queue.item_id`, operation name, attempt count, queue depth, oldest
 item age, auth/online/websocket state, `mutation_queue.outcome`,
-`mutation_queue.failure`, `graphql.error.code`). The runner sends inside it, so
+`mutation_queue.failure`, `graphql.error.code`). Ages come from the durable
+enqueue time (`enqueuedAtMs`), so they survive reloads; when it is missing or
+skewed, `mutation_queue.age_known` is false and the age is omitted rather than
+zero. The runner sends inside it, so
 `dssGraphqlFetch` injects `traceparent` and the DSS `graphql.execute` span and
 the instrumented resolvers (`crates/graphql_entity_mutation`,
 `graphql_properties`, `graphql_notification`) join the same trace. A loop that

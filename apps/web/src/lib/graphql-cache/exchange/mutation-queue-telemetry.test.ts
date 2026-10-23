@@ -7,7 +7,9 @@ import {
   errorCodeAttribute,
   MUTATION_QUEUE_SUMMARY_INTERVAL_MS,
   type MutationQueueEnvironment,
+  queueItemAge,
   recoverySkipReason,
+  reportMutationQueueCleared,
 } from './mutation-queue-telemetry';
 
 const telemetry = vi.hoisted(() => {
@@ -194,7 +196,7 @@ describe('createMutationQueueTelemetry', () => {
         linkPatchesDegraded: false,
       });
     now = 1_200;
-    const attempt = queue.attempt(claimed());
+    const attempt = queue.attempt(claimed({ enqueuedAtMs: 1_000 }));
     attempt.sent('live');
     now = 1_500;
     attempt.finish('committed');
@@ -218,6 +220,8 @@ describe('createMutationQueueTelemetry', () => {
       'mutation_queue.outcome': 'committed',
       'mutation_queue.attempt_ms': 300,
       'mutation_queue.end_to_end_ms': 500,
+      'mutation_queue.item_age_ms': 500,
+      'mutation_queue.age_known': true,
     });
     const exported = JSON.stringify(telemetry.spans);
     expect(exported).not.toContain('private draft body');
@@ -340,13 +344,138 @@ describe('createMutationQueueTelemetry', () => {
     queue.attempt(claimed()).finish('deferred');
     now += MUTATION_QUEUE_SUMMARY_INTERVAL_MS;
     await vi.advanceTimersByTimeAsync(MUTATION_QUEUE_SUMMARY_INTERVAL_MS);
+    const [, summary] = telemetry.warn.mock.calls[0] ?? [];
+    expect(summary).toMatchObject({
+      'mutation_queue.count.attempt.deferred': 1,
+      'mutation_queue.oldest_observed_wait_ms':
+        MUTATION_QUEUE_SUMMARY_INTERVAL_MS,
+      'mutation_queue.age_unknown_items': 1,
+    });
+    expect(summary).not.toHaveProperty('mutation_queue.oldest_item_age_ms');
+  });
+
+  it('measures age from the durable enqueue time across a reload', async () => {
+    const queue = create();
+    now = 600_000;
+    const attempt = queue.attempt(
+      claimed({ enqueuedAtMs: 100_000, attemptCount: 4 })
+    );
+    attempt.finish('deferred');
+    expect(telemetry.spans).toHaveLength(0);
+    queue
+      .attempt(claimed({ enqueuedAtMs: 100_000, attemptCount: 5 }))
+      .finish('committed');
+    expect(telemetry.spans[0]?.attributes).toMatchObject({
+      'mutation_queue.recovered': true,
+      'mutation_queue.observed_wait_ms': 0,
+      'mutation_queue.item_age_ms': 500_000,
+      'mutation_queue.end_to_end_ms': 500_000,
+      'mutation_queue.age_known': true,
+    });
+  });
+
+  it('summarizes an old recovered item even without an observed wait', async () => {
+    const queue = create();
+    now = 600_000;
+    queue.attempt(claimed({ enqueuedAtMs: 100_000 })).finish('deferred');
+    await vi.advanceTimersByTimeAsync(MUTATION_QUEUE_SUMMARY_INTERVAL_MS);
     expect(telemetry.warn).toHaveBeenCalledWith(
       'graphql.mutation_queue.summary',
       expect.objectContaining({
-        'mutation_queue.count.attempt.deferred': 1,
-        'mutation_queue.oldest_item_age_ms': MUTATION_QUEUE_SUMMARY_INTERVAL_MS,
+        'mutation_queue.oldest_item_age_ms': 500_000,
+        'mutation_queue.oldest_observed_wait_ms': 0,
+        'mutation_queue.age_unknown_items': 0,
       })
     );
+  });
+
+  it('prefers the stored queue sample in a summary', async () => {
+    const queue = create();
+    now = 600_000;
+    queue.loaded(async () => [
+      { enqueuedAtMs: 200_000 },
+      { enqueuedAtMs: 590_000 },
+      {},
+    ]);
+    queue
+      .attempt(claimed({ enqueuedAtMs: 590_000 }))
+      .finish('retry-scheduled', { failure: 'network' });
+    telemetry.warn.mockClear();
+    await vi.advanceTimersByTimeAsync(MUTATION_QUEUE_SUMMARY_INTERVAL_MS);
+    expect(telemetry.warn).toHaveBeenCalledWith(
+      'graphql.mutation_queue.summary',
+      expect.objectContaining({
+        'mutation_queue.depth': 3,
+        'mutation_queue.pending_items': 1,
+        'mutation_queue.oldest_item_age_ms': 400_000,
+        'mutation_queue.age_unknown_items': 1,
+      })
+    );
+  });
+
+  it.each([
+    ['missing', undefined, 'missing'],
+    ['zero', 0, 'invalid'],
+    ['fractional', 1.5, 'invalid'],
+    ['in the future', 2_000, 'clock-skew'],
+    ['negative', -400 * 24 * 60 * 60_000, 'invalid'],
+  ] as const)(
+    'reports a %s enqueue time as an unknown age',
+    (_label, enqueuedAtMs, reason) => {
+      create()
+        .attempt(claimed({ enqueuedAtMs }))
+        .finish('retry-exhausted', { failure: 'server', httpStatus: 503 });
+      const attributes = telemetry.spans[0]?.attributes;
+      expect(attributes).toMatchObject({
+        'mutation_queue.age_known': false,
+        'mutation_queue.age_unknown_reason': reason,
+      });
+      expect(attributes).not.toHaveProperty('mutation_queue.item_age_ms');
+      expect(attributes).not.toHaveProperty('mutation_queue.end_to_end_ms');
+    }
+  );
+
+  it('flags an age past a year as clock skew', () => {
+    now = 400 * 24 * 60 * 60_000;
+    create()
+      .attempt(claimed({ enqueuedAtMs: 1 }))
+      .finish('committed');
+    expect(telemetry.spans[0]?.attributes).toMatchObject({
+      'mutation_queue.age_known': false,
+      'mutation_queue.age_unknown_reason': 'clock-skew',
+    });
+  });
+
+  it('logs how long an item waited before the queue gave up', () => {
+    now = 90_000;
+    create()
+      .attempt(claimed({ enqueuedAtMs: 10_000, serverFailureCount: 5 }))
+      .finish('retry-exhausted', { failure: 'server', httpStatus: 503 });
+    expect(telemetry.warn).toHaveBeenCalledWith(
+      'graphql.mutation_queue.retry_exhausted',
+      expect.objectContaining({
+        'mutation_queue.item_age_ms': 80_000,
+        'mutation_queue.end_to_end_ms': 80_000,
+        'mutation_queue.age_known': true,
+      })
+    );
+  });
+
+  it('tracks a replacement as unknown until a claim reports its time', () => {
+    const queue = create();
+    queue
+      .enqueue({ uuid: 'item-1', operationName: 'SaveEmailDraft' })
+      .persisted({
+        transactionId: '8',
+        replaced: true,
+        claimed: false,
+        linkPatchesDegraded: false,
+      });
+    expect(
+      telemetry.spans.find(
+        (span) => span.name === 'graphql.mutation_queue.enqueue'
+      )?.attributes
+    ).toMatchObject({ 'mutation_queue.age_unknown_items': 1 });
   });
 
   it('logs an enqueue failure once per reason', () => {
@@ -364,16 +493,98 @@ describe('createMutationQueueTelemetry', () => {
   });
 
   it('samples the persisted queue on load', async () => {
-    create().loaded(async () => 4);
+    now = 50_000;
+    create().loaded(async () => [
+      { enqueuedAtMs: 20_000 },
+      { enqueuedAtMs: 45_000 },
+      {},
+      { enqueuedAtMs: 60_000 },
+    ]);
     await vi.advanceTimersByTimeAsync(0);
+    const loaded = {
+      'mutation_queue.depth': 4,
+      'mutation_queue.oldest_item_age_ms': 30_000,
+      'mutation_queue.age_unknown_items': 2,
+    };
     expect(telemetry.spans[0]).toMatchObject({
       name: 'graphql.mutation_queue.loaded',
-      attributes: { 'mutation_queue.depth': 4 },
+      attributes: loaded,
       ended: true,
     });
     expect(telemetry.info).toHaveBeenCalledWith(
       'graphql.mutation_queue.loaded',
-      expect.objectContaining({ 'mutation_queue.depth': 4 })
+      expect.objectContaining(loaded)
     );
+  });
+
+  it('omits the oldest age on load when no age is known', async () => {
+    create().loaded(async () => [{}]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(telemetry.spans[0]?.attributes).toMatchObject({
+      'mutation_queue.depth': 1,
+      'mutation_queue.age_unknown_items': 1,
+    });
+    expect(telemetry.spans[0]?.attributes).not.toHaveProperty(
+      'mutation_queue.oldest_item_age_ms'
+    );
+  });
+});
+
+describe('queueItemAge', () => {
+  it.each([
+    [undefined, { known: false, reason: 'missing' }],
+    [null, { known: false, reason: 'missing' }],
+    ['100', { known: false, reason: 'invalid' }],
+    [-5, { known: false, reason: 'invalid' }],
+    [Number.MAX_SAFE_INTEGER + 2, { known: false, reason: 'invalid' }],
+    [1_001, { known: false, reason: 'clock-skew' }],
+    [1_000, { known: true, ageMs: 0 }],
+    [400, { known: true, ageMs: 600 }],
+  ] as const)('%s', (enqueuedAtMs, expected) => {
+    expect(queueItemAge(enqueuedAtMs, 1_000)).toEqual(expected);
+  });
+});
+
+describe('reportMutationQueueCleared', () => {
+  it('lists each lost item with its wait, oldest first', () => {
+    reportMutationQueueCleared(
+      [
+        { operationName: 'SaveEmailDraft', enqueuedAtMs: 9_000 },
+        { operationName: 'mutation { secret }' },
+        { operationName: 'SetEntityProperty', enqueuedAtMs: 1_000 },
+        { operationName: 'SaveEmailDraft', enqueuedAtMs: 20_000 },
+      ],
+      'logout',
+      10_000
+    );
+    expect(telemetry.warn).toHaveBeenCalledWith(
+      'graphql.mutation_queue.cleared',
+      {
+        'mutation_queue.clear_cause': 'logout',
+        'mutation_queue.depth': 4,
+        'mutation_queue.operation_names':
+          'SaveEmailDraft,SetEntityProperty,unknown',
+        'mutation_queue.items':
+          'SetEntityProperty:9000,SaveEmailDraft:1000,unknown:unknown,SaveEmailDraft:unknown',
+        'mutation_queue.oldest_item_age_ms': 9_000,
+        'mutation_queue.age_unknown_items': 2,
+      }
+    );
+  });
+
+  it('caps the item list', () => {
+    reportMutationQueueCleared(
+      Array.from({ length: 30 }, (_, index) => ({
+        operationName: 'SaveEmailDraft',
+        enqueuedAtMs: 1_000 + index,
+      })),
+      'session-expired',
+      10_000
+    );
+    const [, attributes] = telemetry.warn.mock.calls[0] ?? [];
+    expect(
+      String(attributes?.['mutation_queue.items']).split(',')
+    ).toHaveLength(20);
+    expect(attributes?.['mutation_queue.depth']).toBe(30);
   });
 });

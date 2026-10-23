@@ -820,10 +820,19 @@ describe('GraphQL Soup browser cache session gate', () => {
   });
 
   it('reports the queued mutations a sign-out deletes', async () => {
+    const now = Date.now();
     mocks.host.inspectMutations.mockResolvedValueOnce([
+      {
+        operationName: 'SaveEmailDraft',
+        variables: { body: 'secret' },
+        enqueuedAtMs: now - 5_000,
+      },
       { operationName: 'SaveEmailDraft', variables: { body: 'secret' } },
-      { operationName: 'SaveEmailDraft', variables: { body: 'secret' } },
-      { operationName: 'SetEntityProperty', variables: {} },
+      {
+        operationName: 'SetEntityProperty',
+        variables: {},
+        enqueuedAtMs: now - 90_000,
+      },
     ] as never);
     const soup = await import('./graphql-soup');
     soup.getGraphqlSoupClient();
@@ -836,8 +845,15 @@ describe('GraphQL Soup browser cache session gate', () => {
         'mutation_queue.clear_cause': 'session-expired',
         'mutation_queue.depth': 3,
         'mutation_queue.operation_names': 'SaveEmailDraft,SetEntityProperty',
+        'mutation_queue.items': expect.stringMatching(
+          /^SetEntityProperty:9\d{4},SaveEmailDraft:\d+,SaveEmailDraft:unknown$/
+        ),
+        'mutation_queue.oldest_item_age_ms': expect.any(Number),
+        'mutation_queue.age_unknown_items': 1,
       }
     );
+    const exported = JSON.stringify(mocks.telemetryWarn.mock.calls);
+    expect(exported).not.toContain('secret');
   });
 
   it('never rejects or stalls sign-out when queue inspection fails', async () => {

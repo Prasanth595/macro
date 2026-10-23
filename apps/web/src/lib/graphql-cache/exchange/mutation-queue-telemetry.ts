@@ -12,6 +12,10 @@
  *
  * Attributes are opaque ids, counts, durations, and fixed classes. Variables,
  * responses, and error messages never leave this module.
+ *
+ * Item ages come from the durable enqueue time, so they survive reloads. When
+ * that time is missing or implausible, `mutation_queue.age_known` is false
+ * and the age is omitted rather than reported as zero.
  */
 
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -108,9 +112,16 @@ export interface MutationEnqueueTelemetry {
   failed(reason: MutationEnqueueFailure): void;
 }
 
+export type QueuedItemTiming = { enqueuedAtMs?: number };
+
 export interface MutationQueueTelemetry {
-  /** Samples the persisted queue once when the runner starts. */
-  loaded(queueDepth: () => Promise<number | undefined>): void;
+  /**
+   * Samples the persisted queue once when the runner starts; summaries
+   * sample it again through the same callback.
+   */
+  loaded(
+    inspect: () => Promise<ReadonlyArray<QueuedItemTiming> | undefined>
+  ): void;
   enqueue(item: {
     uuid?: string;
     operationName?: string;
@@ -146,6 +157,68 @@ const MAX_SUMMARY_INTERVAL_MS = 60 * 60_000;
 const STUCK_ITEM_AGE_MS = 60_000;
 /** Bounds per-item log keys for a tab that never settles its items. */
 const MAX_LOGGED_KEYS = 1_000;
+/** A longer wait means the clock was wrong at enqueue, not a real wait. */
+const MAX_PLAUSIBLE_AGE_MS = 365 * 24 * 60 * 60_000;
+const MAX_CLEARED_ITEMS = 20;
+
+export type QueueItemAge =
+  | { known: true; ageMs: number }
+  | { known: false; reason: 'missing' | 'invalid' | 'clock-skew' };
+
+/**
+ * Age of a durable enqueue time. Older hosts omit the time and a wall clock
+ * can move backwards, so an age is either trustworthy or unknown, never a
+ * stand-in zero.
+ */
+export function queueItemAge(
+  enqueuedAtMs: unknown,
+  nowMs: number
+): QueueItemAge {
+  if (enqueuedAtMs === undefined || enqueuedAtMs === null)
+    return { known: false, reason: 'missing' };
+  if (
+    typeof enqueuedAtMs !== 'number' ||
+    !Number.isSafeInteger(enqueuedAtMs) ||
+    enqueuedAtMs <= 0
+  )
+    return { known: false, reason: 'invalid' };
+  const ageMs = nowMs - enqueuedAtMs;
+  if (ageMs < 0 || ageMs > MAX_PLAUSIBLE_AGE_MS)
+    return { known: false, reason: 'clock-skew' };
+  return { known: true, ageMs };
+}
+
+function ageAttributes(
+  age: QueueItemAge,
+  key: string
+): Record<string, string | number | boolean> {
+  return age.known
+    ? { [key]: age.ageMs, 'mutation_queue.age_known': true }
+    : {
+        'mutation_queue.age_known': false,
+        'mutation_queue.age_unknown_reason': age.reason,
+      };
+}
+
+/** Oldest known age and the count of items whose age is unknown. */
+function oldestAge(
+  enqueueTimes: Iterable<unknown>,
+  nowMs: number
+): Record<string, number> {
+  let oldest: number | undefined;
+  let unknown = 0;
+  for (const enqueuedAtMs of enqueueTimes) {
+    const age = queueItemAge(enqueuedAtMs, nowMs);
+    if (age.known) oldest = Math.max(oldest ?? 0, age.ageMs);
+    else unknown += 1;
+  }
+  const attributes: Record<string, number> = {
+    'mutation_queue.age_unknown_items': unknown,
+  };
+  if (oldest !== undefined)
+    attributes['mutation_queue.oldest_item_age_ms'] = oldest;
+  return attributes;
+}
 
 const TERMINAL_OUTCOMES: ReadonlySet<MutationAttemptOutcome> = new Set([
   'committed',
@@ -192,6 +265,20 @@ export function errorCodeAttribute(code: unknown): string | undefined {
 
 function graphQLErrorCode(error: CombinedError | undefined): unknown {
   return error?.graphQLErrors[0]?.extensions.code;
+}
+
+function detailAttributes(
+  details: MutationAttemptDetails,
+  errorCode: string | undefined
+): Record<string, string | number> {
+  const attributes: Record<string, string | number> = {};
+  if (details.failure) attributes['mutation_queue.failure'] = details.failure;
+  if (errorCode) attributes['graphql.error.code'] = errorCode;
+  if (details.httpStatus)
+    attributes['http.response.status_code'] = details.httpStatus;
+  if (details.retryDelayMs !== undefined)
+    attributes['mutation_queue.retry_delay_ms'] = details.retryDelayMs;
+  return attributes;
 }
 
 /** Classifies a failed attempt without retaining its message. */
@@ -262,19 +349,46 @@ export function recoverySkipReason(error: unknown): MutationQueueSkipReason {
 
 export type MutationQueueClearCause = 'logout' | 'session-expired';
 
-/** Reports queued mutations a local sign-out is about to delete. */
+/**
+ * Reports queued mutations a local sign-out is about to delete, with how long
+ * each waited: `mutation_queue.items` lists `operation:age_ms`, oldest first,
+ * with `unknown` for an item whose age is unknown.
+ */
 export function reportMutationQueueCleared(
-  queue: ReadonlyArray<{ operationName?: string }>,
-  cause: MutationQueueClearCause
+  queue: ReadonlyArray<{ operationName?: string } & QueuedItemTiming>,
+  cause: MutationQueueClearCause,
+  nowMs = Date.now()
 ): void {
   if (queue.length === 0) return;
   const operationNames = [
     ...new Set(queue.map((item) => operationNameAttribute(item.operationName))),
   ].sort();
+  const items = queue
+    .map((item) => ({
+      operationName: operationNameAttribute(item.operationName),
+      age: queueItemAge(item.enqueuedAtMs, nowMs),
+    }))
+    .sort(
+      (left, right) =>
+        (right.age.known ? right.age.ageMs : -1) -
+        (left.age.known ? left.age.ageMs : -1)
+    )
+    .slice(0, MAX_CLEARED_ITEMS)
+    .map(
+      ({ operationName, age }) =>
+        `${operationName}:${age.known ? age.ageMs : 'unknown'}`
+    );
   Telemetry.warn('graphql.mutation_queue.cleared', {
     'mutation_queue.clear_cause': cause,
     'mutation_queue.depth': queue.length,
-    'mutation_queue.operation_names': operationNames.slice(0, 20).join(','),
+    'mutation_queue.operation_names': operationNames
+      .slice(0, MAX_CLEARED_ITEMS)
+      .join(','),
+    'mutation_queue.items': items.join(','),
+    ...oldestAge(
+      queue.map((item) => item.enqueuedAtMs),
+      nowMs
+    ),
   });
 }
 
@@ -282,6 +396,8 @@ type TrackedItem = {
   firstSeenAt: number;
   /** Claimed from storage written before this runner started. */
   recovered: boolean;
+  /** Durable enqueue time from the host, or this tab's enqueue time. */
+  enqueuedAtMs?: number;
 };
 
 export function createMutationQueueTelemetry({
@@ -299,7 +415,9 @@ export function createMutationQueueTelemetry({
   let maxAttemptCount = 0;
   let summaryScheduled = false;
   let nextSummaryIntervalMs = summaryIntervalMs;
-  let queueDepth: (() => Promise<number | undefined>) | undefined;
+  let inspectQueue:
+    | (() => Promise<ReadonlyArray<QueuedItemTiming> | undefined>)
+    | undefined;
 
   function environmentAttributes(): Record<string, string | boolean> {
     const current = environment();
@@ -310,14 +428,23 @@ export function createMutationQueueTelemetry({
     };
   }
 
+  /**
+   * Items this tab enqueued or claimed. `oldest_item_age_ms` comes from
+   * durable enqueue times; `oldest_observed_wait_ms` only covers this tab.
+   */
   function queueAttributes(): Record<string, number> {
-    let oldest: number | undefined;
+    const at = now();
+    let firstSeen: number | undefined;
     for (const item of items.values())
-      oldest = Math.min(oldest ?? item.firstSeenAt, item.firstSeenAt);
+      firstSeen = Math.min(firstSeen ?? item.firstSeenAt, item.firstSeenAt);
     return {
       'mutation_queue.pending_items': items.size,
-      'mutation_queue.oldest_item_age_ms':
-        oldest === undefined ? 0 : Math.max(0, now() - oldest),
+      'mutation_queue.oldest_observed_wait_ms':
+        firstSeen === undefined ? 0 : Math.max(0, at - firstSeen),
+      ...oldestAge(
+        [...items.values()].map((item) => item.enqueuedAtMs),
+        at
+      ),
     };
   }
 
@@ -345,9 +472,18 @@ export function createMutationQueueTelemetry({
       if (key.startsWith(`${uuid}|`)) loggedKeys.delete(key);
   }
 
-  async function sampleDepth(): Promise<number | undefined> {
+  /** Depth and ages across every persisted item, from storage. */
+  async function sampleQueue(): Promise<Record<string, number> | undefined> {
     try {
-      return await queueDepth?.();
+      const queue = await inspectQueue?.();
+      if (!queue) return undefined;
+      return {
+        'mutation_queue.depth': queue.length,
+        ...oldestAge(
+          queue.map((item) => item.enqueuedAtMs),
+          now()
+        ),
+      };
     } catch {
       return undefined;
     }
@@ -356,7 +492,10 @@ export function createMutationQueueTelemetry({
   async function reportSummary(): Promise<void> {
     const queue = queueAttributes();
     const stuck =
-      queue['mutation_queue.oldest_item_age_ms'] >= STUCK_ITEM_AGE_MS;
+      Math.max(
+        queue['mutation_queue.oldest_item_age_ms'] ?? 0,
+        queue['mutation_queue.oldest_observed_wait_ms'] ?? 0
+      ) >= STUCK_ITEM_AGE_MS;
     const notable = [...counters.keys()].some(
       (key) => !ROUTINE_COUNTERS.has(key)
     );
@@ -371,14 +510,19 @@ export function createMutationQueueTelemetry({
       ? Math.min(intervalMs * 2, MAX_SUMMARY_INTERVAL_MS)
       : summaryIntervalMs;
     if (!notable && !stuck) return;
-    const depth = await sampleDepth();
+    const stored = await sampleQueue();
+    // Storage covers items this tab never saw, so its ages replace the tab's.
+    const {
+      'mutation_queue.oldest_item_age_ms': _trackedOldest,
+      'mutation_queue.age_unknown_items': _trackedUnknown,
+      ...observed
+    } = queue;
     const attributes: Record<string, string | number | boolean> = {
       ...environmentAttributes(),
-      ...queue,
+      ...(stored ? { ...observed, ...stored } : queue),
       'mutation_queue.max_attempt_count': maxAttemptCount,
       'mutation_queue.summary_interval_ms': intervalMs,
     };
-    if (depth !== undefined) attributes['mutation_queue.depth'] = depth;
     for (const [key, value] of snapshot)
       attributes[`mutation_queue.count.${key}`] = value;
     Telemetry.warn('graphql.mutation_queue.summary', attributes);
@@ -391,7 +535,16 @@ export function createMutationQueueTelemetry({
       item = { firstSeenAt: startedAt, recovered: true };
       items.set(mutation.uuid, item);
     }
+    if (mutation.enqueuedAtMs !== undefined)
+      item.enqueuedAtMs = mutation.enqueuedAtMs;
     const tracked = item;
+    const waited = (at: number) => ({
+      'mutation_queue.observed_wait_ms': at - tracked.firstSeenAt,
+      ...ageAttributes(
+        queueItemAge(tracked.enqueuedAtMs, at),
+        'mutation_queue.item_age_ms'
+      ),
+    });
     maxAttemptCount = Math.max(maxAttemptCount, mutation.attemptCount);
     const operationName = operationNameAttribute(mutation.operationName);
     const identity = {
@@ -407,7 +560,7 @@ export function createMutationQueueTelemetry({
       ...queueAttributes(),
       'mutation_queue.superseded': mutation.superseded,
       'mutation_queue.recovered': tracked.recovered,
-      'mutation_queue.item_age_ms': startedAt - tracked.firstSeenAt,
+      ...waited(startedAt),
     };
     // Opened on first use: a head whose admission keeps deferring is claimed
     // every second and should only count, not emit a span per claim.
@@ -437,21 +590,16 @@ export function createMutationQueueTelemetry({
         }
         const finishedAt = now();
         const errorCode = errorCodeAttribute(details.errorCode);
+        const age = queueItemAge(tracked.enqueuedAtMs, finishedAt);
         const attributes: Record<string, string | number | boolean> = {
           ...identity,
           'mutation_queue.outcome': outcome,
           'mutation_queue.attempt_ms': finishedAt - startedAt,
+          ...waited(finishedAt),
+          ...detailAttributes(details, errorCode),
         };
-        if (details.failure)
-          attributes['mutation_queue.failure'] = details.failure;
-        if (errorCode) attributes['graphql.error.code'] = errorCode;
-        if (details.httpStatus)
-          attributes['http.response.status_code'] = details.httpStatus;
-        if (details.retryDelayMs !== undefined)
-          attributes['mutation_queue.retry_delay_ms'] = details.retryDelayMs;
-        if (TERMINAL_OUTCOMES.has(outcome))
-          attributes['mutation_queue.end_to_end_ms'] =
-            finishedAt - tracked.firstSeenAt;
+        if (TERMINAL_OUTCOMES.has(outcome) && age.known)
+          attributes['mutation_queue.end_to_end_ms'] = age.ageMs;
         const attemptSpan = span();
         for (const [key, value] of Object.entries(attributes))
           attemptSpan.setAttr(key, value);
@@ -493,18 +641,19 @@ export function createMutationQueueTelemetry({
   }
 
   return {
-    loaded(depth) {
-      queueDepth = depth;
+    loaded(inspect) {
+      inspectQueue = inspect;
       fireAndForget(
         Telemetry.span('graphql.mutation_queue.loaded', async (span) => {
-          const sampled = await sampleDepth();
+          const sampled = await sampleQueue();
           span.setAttr('mutation_queue.depth_available', sampled !== undefined);
           if (sampled === undefined) return;
-          span.setAttr('mutation_queue.depth', sampled);
-          if (sampled > 0)
+          for (const [key, value] of Object.entries(sampled))
+            span.setAttr(key, value);
+          if ((sampled['mutation_queue.depth'] ?? 0) > 0)
             Telemetry.info('graphql.mutation_queue.loaded', {
               ...environmentAttributes(),
-              'mutation_queue.depth': sampled,
+              ...sampled,
             });
         }),
         'graphql-cache-mutation-queue'
@@ -520,8 +669,13 @@ export function createMutationQueueTelemetry({
       if (uuid) span.setAttr('mutation_queue.item_id', uuid);
       return {
         persisted({ transactionId, replaced, claimed, linkPatchesDegraded }) {
+          // A replacement inherits a durable time this tab learns at claim.
           if (uuid && !items.has(uuid))
-            items.set(uuid, { firstSeenAt: startedAt, recovered: false });
+            items.set(uuid, {
+              firstSeenAt: startedAt,
+              recovered: false,
+              enqueuedAtMs: replaced ? undefined : startedAt,
+            });
           span.setAttr('mutation_queue.transaction_id', transactionId);
           span.setAttr('mutation_queue.replaced_pending', replaced);
           span.setAttr('mutation_queue.claimed_on_enqueue', claimed);
