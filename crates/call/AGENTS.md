@@ -17,6 +17,8 @@ in-call chat.
   and the sweeper that ends abandoned calls.
 - `src/outbound/livekit_rtc_client.rs`: LiveKit adapter.
 - `src/outbound/pg_call_repo.rs`, `src/outbound/pg_voice_repo.rs`: Postgres.
+- `src/outbound/pg_call_repo/property_candidates.rs`: bounded DATE candidate
+  queries over active, archived, and imported calls.
 - `src/outbound/ai_call_summarizer.rs`, `src/outbound/s3_recording_storage.rs`:
   call recording/summarization.
 
@@ -54,6 +56,8 @@ in-call chat.
 - The team-memory helper only compiles with the `ports` feature (#7912) — don't
   reintroduce an unconditional dependency on it.
 - Keep CALL_RECORD property clauses exact across active, archived, and imported records; bind nullable UTC bounds for DATE terms, guard timestamp casts with CASE, and preserve the entity-access gates and CNF negation semantics.
+- Evaluate the complete `CallLiteral` tree before candidate counts or limits;
+  separate ID, status, and property extraction loses mixed-OR semantics.
 
 ## Related
 

@@ -645,6 +645,17 @@ pub struct GetCallRecordsRequest {
     pub query: Query<Uuid, SimpleSortMethod, LiteralTree<CallLiteral>>,
 }
 
+/// Bounded candidates for a selected DATE property, before call hydration.
+#[derive(Debug)]
+pub struct CallCandidateRequest {
+    /// Viewer whose ordinary call-access rules apply.
+    pub user_id: MacroUserIdStr<'static>,
+    /// Complete boolean filter evaluated before counts and pagination.
+    pub filter: LiteralTree<CallLiteral>,
+    /// Selected ordering, grouping, and frozen cursor position.
+    pub selection: models_grouping::CandidateQuery,
+}
+
 /// The order and keyset position of one page of a user's call records.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CallRecordPage {

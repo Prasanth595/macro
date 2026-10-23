@@ -190,6 +190,12 @@ impl ChannelListService for RecordingCommsService {
 struct NoopCallRecordQueryService;
 
 impl CallRecordQueryService for NoopCallRecordQueryService {
+    async fn get_user_call_candidates(
+        &self,
+        _request: call::domain::models::CallCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, call::domain::models::CallError> {
+        Ok(models_grouping::CandidatePage::default())
+    }
     async fn get_user_call_records(
         &self,
         _req: call::domain::models::GetCallRecordsRequest,
@@ -225,6 +231,12 @@ impl RecordingCallRecordQueryService {
 }
 
 impl CallRecordQueryService for RecordingCallRecordQueryService {
+    async fn get_user_call_candidates(
+        &self,
+        _request: call::domain::models::CallCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, call::domain::models::CallError> {
+        unreachable!("this test records ordinary call list requests")
+    }
     async fn get_user_call_records(
         &self,
         _req: call::domain::models::GetCallRecordsRequest,

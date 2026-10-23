@@ -5,6 +5,7 @@ mod imported;
 mod lifecycle;
 mod meetings;
 mod preparations;
+mod property_candidates;
 mod property_clauses;
 mod team_share;
 
@@ -254,6 +255,13 @@ impl PgCallRepo {
 }
 
 impl CallRepository for PgCallRepo {
+    #[tracing::instrument(err, skip_all)]
+    async fn get_call_candidates(
+        &self,
+        request: crate::domain::models::CallCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, Self::Err> {
+        property_candidates::select(&self.pool, request).await
+    }
     type Err = sqlx::Error;
 
     async fn insert_meeting_preparation(

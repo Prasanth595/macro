@@ -2449,6 +2449,20 @@ impl<R: CallRepository> CallRecordQueryServiceImpl<R> {
 }
 
 impl<R: CallRepository> CallRecordQueryService for CallRecordQueryServiceImpl<R> {
+    #[tracing::instrument(err, skip_all)]
+    async fn get_user_call_candidates(
+        &self,
+        request: super::models::CallCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, CallError> {
+        request
+            .selection
+            .validate()
+            .map_err(|error| CallError::InvalidRequest(error.to_string()))?;
+        self.repo
+            .get_call_candidates(request)
+            .await
+            .map_err(|error| CallError::Internal(error.into()))
+    }
     #[tracing::instrument(err, skip(self))]
     async fn get_user_call_records(
         &self,
