@@ -10,8 +10,8 @@ import {
   notFoundRoute,
 } from '@app/routes/routes';
 import { describe, expect, it, vi } from 'vitest';
-import { resolveContentLocation, upgradeLegacyPath } from './legacy-route';
 import { createAppSplitRouterMiddleware } from './app-middleware';
+import { resolveContentLocation, upgradeLegacyPath } from './legacy-route';
 import { createMacroMentionLinkResolver } from './mention-links';
 
 vi.mock('@components/app/split-layout/componentRegistry', () => ({
@@ -65,8 +65,8 @@ describe('legacy link mentions', () => {
     const middleware = createAppSplitRouterMiddleware({
       isTouchDevice: () => false,
     });
-    const results = middleware.map((handler) =>
-      handler({
+    const results = middleware.map((handler) => {
+      const result = handler({
         routes,
         from: undefined,
         to: {
@@ -78,8 +78,10 @@ describe('legacy link mentions', () => {
         signal: new AbortController().signal,
         redirect: (path) => ({ type: 'redirect', to: path }),
         cancel: () => ({ type: 'cancel' }),
-      })
-    );
+      });
+      if (result instanceof Promise) throw new Error('Unexpected async');
+      return result;
+    });
     const redirect = results.find((result) => result !== undefined);
     if (redirect?.type !== 'redirect') throw new Error('Expected a redirect');
     expect(new URL(redirect.to, window.location.origin).pathname).toBe(
