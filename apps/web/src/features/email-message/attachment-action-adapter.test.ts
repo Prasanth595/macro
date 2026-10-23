@@ -44,7 +44,7 @@ afterEach(() => {
 
 const opener = () => createRoot(() => createEmailAttachmentOpener());
 
-it('saves a file Macro cannot preview without filing it into Drive', async () => {
+it('saves a calendar file without filing it into Drive', async () => {
   await opener()({
     db_id: 'ics',
     filename: 'Planning.ics',
@@ -70,6 +70,22 @@ it('opens a previewable file in its viewer', async () => {
   expect(mocks.getDocument).toHaveBeenCalledWith('pdf');
   expect(mocks.openWithSplit).toHaveBeenCalledWith(
     { type: 'pdf', id: 'document' },
+    { preferNewSplit: true }
+  );
+  expect(mocks.downloadFile).not.toHaveBeenCalled();
+});
+
+it('keeps opening other files from their Drive copy, which previews workbooks', async () => {
+  await opener()({
+    db_id: 'xlsx',
+    filename: 'Budget.xlsx',
+    mime_type:
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+
+  expect(mocks.getDocument).toHaveBeenCalledWith('xlsx');
+  expect(mocks.openWithSplit).toHaveBeenCalledWith(
+    { type: 'unknown', id: 'document' },
     { preferNewSplit: true }
   );
   expect(mocks.downloadFile).not.toHaveBeenCalled();

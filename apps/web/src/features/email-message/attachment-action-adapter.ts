@@ -12,7 +12,7 @@ import { refetchSoupEntity } from '@queries/soup/cache';
 import { FileTypeMap } from '@service-storage/fileTypeMap';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import { ResultAsync } from 'neverthrow';
-import type { EmailAttachment } from './core/email-message';
+import { type EmailAttachment, isCalendarFile } from './core/email-message';
 
 function attachmentBlockName(attachment: EmailAttachment) {
   const fileType = Object.values(FileTypeMap).findLast(
@@ -61,10 +61,10 @@ export function createEmailAttachmentOpener() {
     }
     const dbId = attachment.db_id;
     if (!dbId) return;
-    const blockName = attachmentBlockName(attachment);
-    // Macro has no viewer for this file, so a Drive copy would only say
-    // "No preview available"; save the file instead of filing it into Drive.
-    if (blockName === 'unknown') {
+    // Macro has no viewer for a calendar file (a message that shows its
+    // event opens that instead), so a Drive copy would only say "No preview
+    // available"; save the file instead of filing it into Drive.
+    if (isCalendarFile(attachment.filename, attachment.mime_type)) {
       await downloadEmailAttachment(attachment);
       return;
     }
@@ -95,7 +95,7 @@ export function createEmailAttachmentOpener() {
     );
 
     openWithSplit(
-      { type: blockName, id: document_id },
+      { type: attachmentBlockName(attachment), id: document_id },
       { preferNewSplit: true }
     );
   };
