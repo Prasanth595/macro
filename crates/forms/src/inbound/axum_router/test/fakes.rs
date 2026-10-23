@@ -246,6 +246,8 @@ pub(super) fn form() -> Form {
         created_at: at,
         updated_at: at,
         is_hidden_in_drive: false,
+        responses_visible: false,
+        respondent_hidden: false,
     }
 }
 
