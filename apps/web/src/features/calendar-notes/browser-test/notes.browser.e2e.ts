@@ -1,5 +1,31 @@
 import { expect, test } from '@playwright/test';
 
+test('a note tooltip does not block selecting a neighboring document', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'Touch devices do not show hover tooltips');
+  await page.goto('/');
+  await page
+    .getByRole('button', { name: 'Link existing', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Link meeting notes' });
+  await dialog
+    .getByRole('button', { name: 'Weekly product sync', exact: true })
+    .hover();
+  await expect(page.getByRole('tooltip', { includeHidden: true })).toHaveText(
+    'Weekly product sync'
+  );
+  await dialog
+    .getByRole('button', { name: 'Q4 product roadmap', exact: true })
+    .click();
+  await dialog.getByRole('button', { name: 'Link note', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Open Q4 product roadmap', exact: true })
+  ).toBeVisible();
+});
+
 test('create and open multiple notes with meeting access and no team sharing', async ({
   page,
 }) => {

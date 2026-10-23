@@ -1,15 +1,12 @@
 import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import FileTextIcon from '@phosphor/file-text.svg';
-import LinkIcon from '@phosphor/link.svg';
-import PlusIcon from '@phosphor/plus.svg';
 import { Button, Dropdown } from '@ui';
 import { For, onCleanup, Show } from 'solid-js';
 import type { MeetingNote, NoteRead } from '../core/types';
 
 export function NotesSection(props: {
   state: NoteRead<MeetingNote[]>;
-  recurring: boolean;
   creating: boolean;
   createdUnlinked: boolean;
   createError?: string;
@@ -23,28 +20,59 @@ export function NotesSection(props: {
   onUnlink: (note: MeetingNote) => void;
   onRetry: () => void;
 }) {
+  const createLabel = () =>
+    props.creating
+      ? props.createdUnlinked
+        ? 'Linking…'
+        : 'Creating…'
+      : props.createdUnlinked
+        ? 'Retry linking'
+        : 'Create notes';
+
   return (
     <section
       aria-label="Meeting notes"
       class="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-4 border-t border-edge-muted px-4 py-3 text-sm text-ink-muted sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-x-3 sm:text-xs"
     >
-      <FileTextIcon class="mt-1 size-5 text-ink-extra-muted sm:size-4" />
+      <FileTextIcon class="mt-2 size-5 text-ink-extra-muted sm:mt-1.5 sm:size-4" />
       <div class="min-w-0">
-        <div class="mb-1 flex min-h-7 items-center justify-between gap-3">
+        <div class="mb-1 flex min-h-7 items-center justify-between gap-2">
           <div class="flex min-w-0 items-center gap-2">
-            <h3 class="font-medium text-ink">Meeting notes</h3>
+            <h3 class="whitespace-nowrap font-medium text-ink">
+              Meeting notes
+            </h3>
             <Show when={props.state.data?.length}>
               <span class="text-xs text-ink-extra-muted">
                 {props.state.data?.length}
               </span>
             </Show>
           </div>
+          <Show when={props.state.data}>
+            <div class="flex shrink-0 items-center gap-1">
+              <Button
+                variant={props.state.data?.length ? 'ghost' : 'strong'}
+                size="xs"
+                label={createLabel()}
+                disabled={props.creating}
+                onClick={props.onCreate}
+              >
+                {props.creating || props.createdUnlinked
+                  ? createLabel()
+                  : 'Create'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="xs"
+                depth={3}
+                label="Link existing"
+                disabled={props.creating}
+                onClick={props.onLink}
+              >
+                Link
+              </Button>
+            </div>
+          </Show>
         </div>
-        <Show when={props.recurring}>
-          <p class="mb-2 text-xs text-ink-extra-muted sm:text-xxs">
-            For this occurrence
-          </p>
-        </Show>
         <Show when={props.state.pending && !props.state.data}>
           <div
             role="status"
@@ -65,11 +93,6 @@ export function NotesSection(props: {
               Retry
             </Button>
           </div>
-        </Show>
-        <Show when={props.state.data}>
-          <p class="mb-2 text-xs leading-relaxed text-ink-extra-muted sm:text-xxs">
-            People who can see this meeting’s details can read these notes.
-          </p>
         </Show>
         <div class="flex flex-col gap-1">
           <For each={props.state.data}>
@@ -142,35 +165,6 @@ export function NotesSection(props: {
             }}
           </For>
         </div>
-        <Show when={props.state.data}>
-          <div class="mt-2 flex flex-wrap items-center gap-2">
-            <Button
-              variant={props.state.data?.length ? 'ghost' : 'strong'}
-              size="sm"
-              disabled={props.creating}
-              onClick={props.onCreate}
-            >
-              <PlusIcon />
-              {props.creating
-                ? props.createdUnlinked
-                  ? 'Linking…'
-                  : 'Creating…'
-                : props.createdUnlinked
-                  ? 'Retry linking'
-                  : 'Create notes'}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              depth={3}
-              disabled={props.creating}
-              onClick={props.onLink}
-            >
-              <LinkIcon />
-              Link existing
-            </Button>
-          </div>
-        </Show>
         <Show when={props.createError}>
           <div role="alert" class="my-2 text-xs text-ink-muted">
             <p>{props.createError}</p>

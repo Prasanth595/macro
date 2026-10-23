@@ -65,11 +65,13 @@ desktop and mobile event details. Its shared dialog becomes a phone sheet with
 and actions stay visible. Choices survive failures. Note options use labeled menu
 actions; the host dialog guard follows both the menu and access dialog, and clears
 when a note disappears during a live refresh.
-**Create notes** uses the standard Markdown creation flow, links the resulting
-document with no team grant, then opens the editor. It captures the account and
-occurrence before creation starts, suppresses duplicate clicks, and retains the
-created document for retry if linking fails. A disposed view never navigates on a
-late result. There is no separate calendar-owned content store or create endpoint.
+**Create** and **Link** stay beside the section title so additional notes can be
+added without leaving the meeting. **Create** uses the standard Markdown creation
+flow, links the resulting document with no team grant, then opens the editor. It
+captures the account and occurrence before creation starts, suppresses duplicate
+clicks, and retains the created document for retry if linking fails. A disposed
+view never navigates on a late result. There is no separate calendar-owned content
+store or create endpoint.
 The document Share panel also lists owner-only durable links and offers inline
 unlink confirmation. That list does not require current meeting access. It uses
 generic labels for inaccessible or indirectly shared meetings, so it cannot reveal

@@ -25,7 +25,6 @@ export function MeetingNotesView(props: {
     <>
       <NotesSection
         state={props.source.notes()}
-        recurring={props.recurring}
         creating={creation.pending()}
         createdUnlinked={!!creation.saved()}
         createError={creation.error()}
