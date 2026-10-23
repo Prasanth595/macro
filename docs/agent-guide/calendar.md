@@ -124,7 +124,10 @@ new session from the same meeting link must start a separate chat thread.
 
 
 Calendar event creation and editing open in a bottom sheet on touch devices,
-with scrollable content above the keyboard. Desktop retains the centered dialog.
+with scrollable content above the keyboard. When the form outgrows the sheet, as
+it does with the custom repeat builder open, the sheet scrolls down to the
+footer: Cancel and `Create event` or `Save`, plus `This event`/`All events` when
+editing a recurring event. Desktop retains the centered dialog.
 Dismissing a changed event still asks before discarding the draft.
 
 On phones, event details use inset round action buttons and a transparent RSVP
@@ -448,6 +451,10 @@ by the organizer or a guest the organizer lets modify the event.
 Test reminder removal as well as changing its time, including a series whose stored
 rule contains `INTERVAL=1`, `WKST`, differently ordered weekdays, or a precise `UNTIL`:
 an untouched rule must not be reformatted and included in a reminder-only PATCH.
+A weekly rule without `BYDAY` repeats on the start's weekday: plain `FREQ=WEEKLY` opens on the
+`Weekly on <day>` preset, and one with an end (such as `COUNT=3`) opens `Custom` with that day
+selected, since the presets never end. Either is saved as written while untouched; moving the
+start to another weekday keeps a custom rule on the day the editor shows.
 As in Google Calendar, the guests row of the details popover (a bottom sheet on phones)
 carries `Copy guest emails` and `Email guests` icon buttons, both hidden when you are the
 only guest (always so on a snapshot). Copying puts every guest's address on the clipboard,
@@ -471,8 +478,13 @@ while a guest who may invite gets an add-only guests pill whose additions are se
 invitation on save (other edits are saved first); a guest who may not invite keeps a
 read-only pill that explains why. A guest on an event whose organizer hides the guest list
 may not invite either (`viewerCan.inviteGuests` is false; the route answers 403
-`guest_list_hidden`). To check the refusal state without a Google account, answer
-`POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
+`guest_list_hidden`), since that guest's copy lists only themselves and perhaps the organizer:
+the guests row reads `Guest list hidden` instead of a count (so does the editor's read-only
+guests pill), and when the organizer does let guests invite, the explanation reads `Guests
+cannot be added while the organizer hides the guest list.` instead. To check the refusal
+states without a Google account, answer `POST /events/{id}/guests` with HTTP 403 and code
+`guests_cannot_invite` or `guest_list_hidden`; each switches the guest list to its own
+explanation and toast.
 An event that reached several connected inboxes shows one chip per inbox (overlapping;
 tell them apart by calendar color), and each copy answers only for its own inbox: a
 guest copy stays a guest copy, marked `(you)` on that inbox's row alone, even when
@@ -483,7 +495,9 @@ A guest the organizer does not let modify the event (`viewerCan.editDetails` fal
 `viewerCan.rsvp` is true) opens an editor whose date/time, all-day, title, description,
 repeat, conferencing and location controls are disabled, each with the tooltip `Only the
 organizer can change this event.`; the same line shows under the pills, which is all a
-touch device shows. Notifications stay editable and Save sends only `reminders` (plus any
+touch device shows. The event kind and calendar pills, which on any other edit open their one
+value as a list, are disabled too. Disabled pills, the date and time pills included, are
+dimmed and show no hover. Notifications stay editable and Save sends only `reminders` (plus any
 invitation). An editor already open when the organizer turns modifying off follows the
 guest's copy once it syncs: the same fields lock, return to the event's own (keeping
 notification and guest changes) and a toast shows the line. That guest cannot drag or resize
@@ -592,8 +606,11 @@ notification (Settings → Notifications → Calendar → Requests to join), whi
 `<requester> asked to join <event>` with a person-plus glyph, like a comment row. It opens the event,
 whose details list each request with `Add as guest` and `Decline` on desktop and in the phone
 drawer. Adding writes the guest through the same invite path as `Add guests`, so Google or
-Outlook sends the invitation and the mention then opens the viewer's own copy; declining tells
-the requester nothing, and asking again reopens the request. A classic `@Macro` reply that
+Outlook sends the invitation and the mention then opens the viewer's own copy. Declining sends
+the requester nothing, but their card then reads `Declined` and `The person who shared this event
+declined your request to join.` with no `Ask to join`, and offers `Add to calendar` again. A
+declined request stands: the server refuses another ask with 409 `request_declined`, so the
+sharer is asked only once. A classic `@Macro` reply that
 mentions an event does not share
 it by posting the chip. It asks whether to share with the channel, and a yes in that thread
 writes the same channel grant. Private and confidential events are never shared this way.
