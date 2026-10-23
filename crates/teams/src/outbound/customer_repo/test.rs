@@ -786,3 +786,21 @@ async fn unpaid_or_incomplete_subscriptions_are_not_linked(pool: sqlx::PgPool) {
     .await;
     assert!(matches!(found, Ok(None)));
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_failed_subscription_listing_is_an_error_not_a_free_customer(pool: sqlx::PgPool) {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/subscriptions"))
+        .respond_with(ResponseTemplate::new(500).set_body_json(json!({
+            "error": { "type": "api_error", "message": "stripe is down" }
+        })))
+        .mount(&server)
+        .await;
+
+    let found = repo(&server, pool)
+        .get_subscription_id_for_customer(&"cus_test".parse().unwrap())
+        .await;
+
+    assert!(matches!(found, Err(CustomerError::StorageLayerError(_))));
+}
