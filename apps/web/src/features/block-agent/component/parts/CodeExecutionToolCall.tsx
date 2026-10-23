@@ -3,6 +3,7 @@ import {
   type ItemFact,
   itemKey,
 } from '@app/features/agent-cards/core/run-cards';
+import { isShowTool } from '@app/features/dynamic-ui/core/show-tool';
 import CodeIcon from '@phosphor/code.svg';
 import type {
   ExecutionRecord,
@@ -10,15 +11,15 @@ import type {
 } from '@service-agent-harness/generated/schemas';
 import { createMemo, For, Show } from 'solid-js';
 import { isToolActive, ToolCard, type ToolStatus } from '../../ui';
-import { DisplayResultsToolCall } from './DisplayResultsToolCall';
 import { MacroToolCall } from './MacroToolCall';
+import { ShowToolCall } from './ShowToolCall';
 import type { ToolCallCommon, ToolCallContext } from './shared';
 
 /**
  * A code run's SDK operations, grouped by what they did, each group naming
  * the items its writes created or changed. Observed inner calls keep their
  * registered Macro result components. The view the run returned shows under
- * its steps, the way the view of a `DisplayResults` call after the run would.
+ * its steps, the way the view of a `Show` call after the run would.
  */
 export function CodeExecutionToolCall(props: {
   common: ToolCallCommon;
@@ -170,10 +171,7 @@ export function CodeExecutionToolCall(props: {
       </For>
       <Show when={props.view}>
         {(view) => (
-          <DisplayResultsToolCall
-            input={{ view: view() }}
-            common={props.common}
-          />
+          <ShowToolCall input={{ view: view() }} common={props.common} />
         )}
       </Show>
     </div>
@@ -199,10 +197,7 @@ function RecordedCall(props: {
   });
   return (
     <Show
-      when={
-        props.call.name === 'DisplayResults' &&
-        props.call.status === 'completed'
-      }
+      when={isShowTool(props.call.name) && props.call.status === 'completed'}
       fallback={
         <MacroToolCall
           detail={{
@@ -217,7 +212,7 @@ function RecordedCall(props: {
         />
       }
     >
-      <DisplayResultsToolCall
+      <ShowToolCall
         input={props.call.input}
         error={props.call.error}
         common={common()}

@@ -8517,20 +8517,6 @@ export interface DispatchCodingAgent {
   prompt: string;
 }
 /**
- * Present results to the user as a rich view. The `view` argument is a dynamic-UI view object (a title plus an ordered list of widgets) following the dynamic-UI schema provided to you. The view is rendered immediately in the chat; this tool returns as soon as it is dispatched.
- */
-export interface DisplayResults {
-  /**
-   * The dynamic-UI view to render: an object with an optional `title` and a `widgets` array, per the provided dynamic-UI schema.
-   */
-  view: {
-    [k: string]: unknown;
-  };
-}
-export interface DisplayResultsResponse {
-  message: string;
-}
-/**
  * Make a copy of a document (including a task), owned by the user, as the Duplicate action in the app does. Requires view access to the original. Returns the copy's id.
  */
 export interface DuplicateItem {
@@ -14707,6 +14693,20 @@ export interface ShareWithChannelResponse {
   summary: string;
 }
 /**
+ * Show the user a rich view. The `view` argument is a dynamic-UI view object (a title plus an ordered list of widgets) following the dynamic-UI schema provided to you. The view is rendered immediately in the chat; this tool returns as soon as it is dispatched.
+ */
+export interface Show {
+  /**
+   * The dynamic-UI view to render: an object with an optional `title` and a `widgets` array, per the provided dynamic-UI schema.
+   */
+  view: {
+    [k: string]: unknown;
+  };
+}
+export interface ShowResponse {
+  message: string;
+}
+/**
  * Delegate a task to a subagent that can independently use tools to research and complete it. The subagent has access to search, documents, properties, calls, and channel tools. Use this for tasks that require multiple tool calls or independent research.
  */
 export interface Subagent {
@@ -15355,7 +15355,7 @@ export interface SdkDocumentation {
   documentation?: string | null;
 }
 /**
- * Run a JavaScript ES module in Deno. Export async function main({macro, session, execution}); return {data: <JSON>}. Optional reviews: [{kind: "email" | "calendar", id: "..."}] defaults to an empty list when omitted. Optional view: a DisplayResults view, the object DisplayResults takes as `view`, shown to the user under the run when it finishes. The host supplies real public Macro SDK handles authenticated as the session owner. Optional imports: import {Macro} from "@macro-inc/sdk"; import Handlebars from "handlebars". main also receives token, hosts, sessionId and executionId for explicit SDK construction. Never print, return or persist token. No TypeScript syntax or package installation.
+ * Run a JavaScript ES module in Deno. Export async function main({macro, session, execution}); return {data: <JSON>}. Optional reviews: [{kind: "email" | "calendar", id: "..."}] defaults to an empty list when omitted. Optional view: a Show view, the object Show takes as `view`, shown to the user under the run when it finishes. The host supplies real public Macro SDK handles authenticated as the session owner. Optional imports: import {Macro} from "@macro-inc/sdk"; import Handlebars from "handlebars". main also receives token, hosts, sessionId and executionId for explicit SDK construction. Never print, return or persist token. No TypeScript syntax or package installation.
  *
  * Prefer ExecuteCode for supported Macro work, including a single precise call. Use nested SDK entities, e.g. macro.documents.search(query) is an async iterator and document.content() is a promise. Use for await...of, break, conditions and ordinary JavaScript freely. Batch useful independent work with Promise.all or Promise.allSettled; inspect partial failures and await every started operation. Use bounded concurrency for large inputs. Preserve user source scope on every search and retry: macro.documents.search searches documents; macro.email.search searches emails. Return compact evidence with source IDs, explicit failures and coverage limits; do not return SDK objects, raw large batches, or claim a stopped iterator is exhaustive.
  *
@@ -15363,7 +15363,7 @@ export interface SdkDocumentation {
  *
  * SDK API reference sections expanded in context are already your documentation. Execute directly when they cover the task; do not call DescribeCodeTools merely to confirm them. The compact entity index alone is not a method reference. Use DescribeCodeTools only for missing methods, options, enum values or workflow guides, requesting the missing entities together rather than guessing. Request up to five entity names together (e.g. workspace, documents, email, ai, core). There is no sdk.ToolName proxy or runtime help function.
  *
- * To show results, return view instead of calling DisplayResults afterwards: build its widgets from what the program found, naming items by the IDs the SDK returned, so the results do not pass through you again. What the program creates or changes is not shown to the user as a card unless the view shows it; a card for such an item says what was done to it. data still needs what you will say about them. The view shows before you see the results, so return one only when the program got what the user asked for: when a read failed, leave view out, report the failure in data and decide what to show next. A view the renderer would not draw fails the run with its problems; everything else the program did stands, so fix the view with DisplayResults rather than running the program again.
+ * To show results, return view instead of calling Show afterwards: build its widgets from what the program found, naming items by the IDs the SDK returned, so the results do not pass through you again. What the program creates or changes is not shown to the user as a card unless the view shows it; a card for such an item says what was done to it. data still needs what you will say about them. The view shows before you see the results, so return one only when the program got what the user asked for: when a read failed, leave view out, report the failure in data and decide what to show next. A view the renderer would not draw fails the run with its problems; everything else the program did stands, so fix the view with Show rather than running the program again.
  *
  * For editable email/calendar drafts, persist them with execution.reviews.create({kind, title, drafts}), then return reviews: [await review.reference()]. This does not send emails or create calendar events. Creation immediately presents a completed PresentReview ACP tool call, even while main continues. "Presented to the user" means saved in the conversation, not approved or sent. The saved cards remain usable after this execution and chat continues. User submission queues its recorded outcome as private session context. Use the direct EditDocument tool for AI document edits. Direct human-interactive tools, subagents and unsupported SDK operations remain available.
  *
@@ -15373,7 +15373,7 @@ export interface SdkDocumentation {
 export interface ExecuteCode {
   execution_id: ExecutionId;
   /**
-   * JavaScript module, at most 64 KiB. Import { Macro } from '@macro-inc/sdk' and Handlebars from 'handlebars'. Export async function main({token, hosts}) { const macro = new Macro({token, hosts}); return {data: ...}; }. The optional reviews array defaults to empty; an optional view, a DisplayResults view, is shown to the user when the run finishes. Dependencies are preinstalled; no TypeScript syntax or package downloads. The token and hosts are supplied by the runner; never return or log the token.
+   * JavaScript module, at most 64 KiB. Import { Macro } from '@macro-inc/sdk' and Handlebars from 'handlebars'. Export async function main({token, hosts}) { const macro = new Macro({token, hosts}); return {data: ...}; }. The optional reviews array defaults to empty; an optional view, a Show view, is shown to the user when the run finishes. Dependencies are preinstalled; no TypeScript syntax or package downloads. The token and hosts are supplied by the runner; never return or log the token.
    */
   source: string;
   /**

@@ -16,7 +16,7 @@ export async function main({macro, session, execution}) {
 }
 ```
 
-Return an object with data; reviews is optional and defaults to []. Include review references when you prepare editable drafts. Return view, a DisplayResults view built from what the program found, to show the results to the user.
+Return an object with data; reviews is optional and defaults to []. Include review references when you prepare editable drafts. Return view, a Show view built from what the program found, to show the results to the user.
 
 macro, session and execution are real SDK handles. You can instead import {Macro} from '@macro-inc/sdk' and construct it with main's token and hosts. Do not log, return, persist or transmit that credential elsewhere. It is a short-lived normal user credential, with the user's API permissions. SDK operations make real HTTP calls. Messages are attributed to the session's agent, with the owner recorded as the requesting user; do not supply sender identities yourself. No custom sdk.ToolName dispatcher, TypeScript transpilation, runtime help or package installation is involved.
 

@@ -13,7 +13,7 @@ use serde_json::Value;
 /// The model-facing schema, as JSON.
 static SCHEMA: LazyLock<Value> = LazyLock::new(|| {
     serde_json::from_str(super::SCHEMA_JSON)
-        .expect("the generated DisplayResults tool schema must be valid JSON")
+        .expect("the generated Show tool schema must be valid JSON")
 });
 
 /// The schema keywords [`view_problems`] reads. The generated schema may use

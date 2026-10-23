@@ -3,8 +3,8 @@
 use serde::Deserialize;
 
 use super::{
-    ActivityCard, ActivityRow, ActivityStatus, CardAction, CardItemType, ItemFacts, ToolDetail,
-    ToolName, item_card,
+    ActivityCard, ActivityRow, ActivityStatus, CardAction, CardItemType, ItemFacts, SHOW,
+    ToolDetail, ToolName, item_card, text,
 };
 
 // Read only the presentation fields of agent_code_mode's ExecutionReceipt.
@@ -79,12 +79,12 @@ pub(super) fn rows(
             },
         })
         .collect();
-    // Showing the view is the run's last step, as calling DisplayResults
-    // after it would have been.
+    // Showing the view is the run's last step, as calling Show after it
+    // would have been.
     rows.extend(view.map(|view| ActivityRow {
         id: format!("{id}:view"),
-        label: "Show results".into(),
-        detail: None,
+        label: SHOW.done.into(),
+        detail: text(Some(&view), "title"),
         card: Some(ActivityCard::View { view }),
         status: ActivityStatus::Completed,
     }));
@@ -92,7 +92,7 @@ pub(super) fn rows(
 }
 
 /// The view a run returned for the user. Code mode checked it against the
-/// schema `DisplayResults` views follow, and failed a run whose view the
+/// schema `Show` views follow, and failed a run whose view the
 /// renderer would not draw, so only a run that succeeded shows one.
 fn shown_view(output: &serde_json::Value) -> Option<serde_json::Value> {
     if output.get("status")?.as_str()? != "succeeded" {

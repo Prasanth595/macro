@@ -692,16 +692,65 @@ fn an_edit_that_asked_for_clarification_changed_nothing() {
 fn a_shown_view_is_its_card() {
     let view =
         serde_json::json!({"title": "Your week", "widgets": [{"type": "md", "markdown": "Hi"}]});
+    // Replies saved before the tool's rename call it `DisplayResults`.
+    for tool in ["Show", "DisplayResults"] {
+        let parts = [macro_tool(
+            "a",
+            tool,
+            serde_json::json!({"view": view.clone()}),
+            ToolStatus::Completed,
+        )];
+        assert_eq!(
+            segments(&parts, true)[0].rows[0].card,
+            Some(ActivityCard::View { view: view.clone() }),
+            "{tool}"
+        );
+    }
+}
+
+#[test]
+fn a_view_being_shown_reads_as_its_title() {
     let parts = [macro_tool(
         "a",
-        "DisplayResults",
-        serde_json::json!({"view": view.clone()}),
-        ToolStatus::Completed,
+        "Show",
+        serde_json::json!({"view": {"title": "Your week", "widgets": []}}),
+        ToolStatus::Running,
     )];
-    assert_eq!(
-        segments(&parts, true)[0].rows[0].card,
-        Some(ActivityCard::View { view })
-    );
+    let row = &segments(&parts, false)[0].rows[0];
+    assert_eq!(row.label, "Showing");
+    assert_eq!(row.detail.as_deref(), Some("Your week"));
+}
+
+#[test]
+fn a_view_turned_back_is_no_step_and_splits_nothing() {
+    let view = serde_json::json!({"widgets": [{"type": "pipeline"}]});
+    let parts = [
+        macro_tool(
+            "a",
+            "ListEntities",
+            serde_json::json!({}),
+            ToolStatus::Completed,
+        ),
+        macro_tool(
+            "b",
+            "Show",
+            serde_json::json!({"view": view}),
+            ToolStatus::Failed,
+        ),
+        macro_tool(
+            "c",
+            "ReadContent",
+            serde_json::json!({}),
+            ToolStatus::Completed,
+        ),
+    ];
+    let run = segments(&parts, true);
+    assert_eq!(run.len(), 1);
+    let ids: Vec<_> = run[0].rows.iter().map(|row| row.id.as_str()).collect();
+    assert_eq!(ids, ["a", "c"]);
+
+    // Alone, it leaves no run at all.
+    assert!(segments(&parts[1..2], true).is_empty());
 }
 
 #[test]
@@ -1553,7 +1602,7 @@ fn a_code_run_shows_the_view_it_returned_as_its_last_step() {
         rows.last(),
         Some(&ActivityRow {
             id: "code-1:view".into(),
-            label: "Show results".into(),
+            label: "Showed".into(),
             detail: None,
             status: ActivityStatus::Completed,
             card: Some(ActivityCard::View { view: view.clone() }),

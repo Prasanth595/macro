@@ -1,5 +1,5 @@
 use super::view_check::{CHECKED_KEYWORDS, IGNORED_KEYWORDS, view_problems};
-use super::{DisplayResults, SCHEMA_JSON, check_view};
+use super::{SCHEMA_JSON, Show, check_view};
 use crate::{AiHost, tools_for};
 use ai_toolset::{
     ToolSet,
@@ -33,8 +33,8 @@ fn assert_local_refs_resolve(root: &Value, node: &Value) {
 
 #[test]
 fn provider_schema_contains_the_recursive_view_contract_at_the_tool_root() {
-    let validated = generate_validated_input_schema::<DisplayResults>().expect("valid schema");
-    assert_eq!(validated.name, "DisplayResults");
+    let validated = generate_validated_input_schema::<Show>().expect("valid schema");
+    assert_eq!(validated.name, "Show");
     assert!(validated.description.contains("ReadActivity"));
     let schema = serde_json::to_value(validated.schema).expect("serialize schema");
     assert_eq!(schema["required"], json!(["view"]));
@@ -76,14 +76,14 @@ fn provider_schema_contains_the_recursive_view_contract_at_the_tool_root() {
 fn agent_sessions_advertise_the_same_complete_contract_as_chat() {
     for host in [AiHost::Chat, AiHost::AgentSession] {
         let toolset = tools_for(host);
-        let display = toolset
+        let show = toolset
             .toolset
             .request_schemas()
             .expect("request schemas")
             .into_iter()
-            .find(|tool| tool.name == "DisplayResults")
-            .expect("DisplayResults available");
-        let schema = serde_json::to_value(display.schema).expect("serialize schema");
+            .find(|tool| tool.name == "Show")
+            .expect("Show available");
+        let schema = serde_json::to_value(show.schema).expect("serialize schema");
         assert!(schema["properties"]["view"]["properties"]["widgets"].is_object());
         assert!(schema["$defs"].is_object());
         assert_local_refs_resolve(&schema, &schema);
@@ -91,13 +91,10 @@ fn agent_sessions_advertise_the_same_complete_contract_as_chat() {
 }
 
 #[test]
-fn display_results_is_omitted_on_hosts_without_a_view_renderer() {
+fn show_is_omitted_on_hosts_without_a_view_renderer() {
     for host in [AiHost::ChannelBot, AiHost::Mcp] {
         let toolset = tools_for(host);
-        assert!(
-            !toolset.toolset.tools.contains_key("DisplayResults"),
-            "{host:?}"
-        );
+        assert!(!toolset.toolset.tools.contains_key("Show"), "{host:?}");
     }
 
     let channel_tools = tools_for(AiHost::ChannelBot);
@@ -113,8 +110,8 @@ fn frontend_wire_schema_leaves_view_validation_to_the_renderer() {
         .to_json_pretty()
         .expect("serialize frontend schemas");
     let schemas: Value = serde_json::from_str(&schemas).expect("frontend schemas JSON");
-    let json = &schemas["$defs"]["DisplayResults"];
-    assert_eq!(json["title"], "DisplayResults");
+    let json = &schemas["$defs"]["Show"];
+    assert_eq!(json["title"], "Show");
     assert_eq!(json["required"], json!(["view"]));
     assert!(json["properties"]["view"]["properties"].is_null());
     assert!(json["properties"]["view"]["type"].is_null());
@@ -277,7 +274,7 @@ fn a_view_with_problems_is_turned_back_with_what_to_fix() {
     assert_eq!(
         error.description,
         format!(
-            "The view was not shown: it does not match the DisplayResults schema.\n{listed}- and 2 more\nFix these and call DisplayResults again with the whole view."
+            "The view was not shown: it does not match the Show schema.\n{listed}- and 2 more\nFix these and call Show again with the whole view."
         )
     );
 }

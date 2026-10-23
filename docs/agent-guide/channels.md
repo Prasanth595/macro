@@ -92,13 +92,15 @@ as in any channel.
 
 A step that made, changed, or sent an item names it on its line, where the
 step's detail would be, and clicking the name opens the item. Cards appear only
-for what the agent chose to show: a view it composed replaces its step, and a
-database answer it asked to show sits under its step. In a view, a card for an
+for what the agent chose to show: a view it showed with `Show` replaces its
+step, and a database answer it asked to show sits under its step. A view `Show`
+turned back as one it could not draw is no step at all, so it neither shows nor
+keeps the run from folding; the agent shows the view again. In a view, a card for an
 item the reply created or changed carries what was done to it (`Created`,
 `Sent`). An agent working in code mode works the same way: each SDK operation
 its program ran is a step, and a write that created or changed an item names
 that item on its step. A view its program returned shows as the run's last
-step once the run finishes, as a `DisplayResults` view would. What the steps
+step once the run finishes, as a `Show` view would. What the steps
 folded behind `N earlier steps` showed appears above that control, and a
 finished run that folds into `Worked for … · N steps` keeps what the agent
 showed. A card's short summary (`3 changes`, `to Ana Ruiz`) shows only while

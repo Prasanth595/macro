@@ -357,7 +357,7 @@ All tools return structured JSON responses that include:
 - No UI widgets currently implemented (tool results only)
 - Some legacy tools from chat interface not exposed to MCP
 - Subagent tool not available to MCP clients (recursive agent creation restricted)
-- DisplayResults tool omitted for MCP (clients handle their own display)
+- Show tool omitted for MCP (clients handle their own display)
 
 ---
 

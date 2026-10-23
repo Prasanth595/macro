@@ -349,14 +349,14 @@ describe('Message tool grouping', () => {
     expect(group.nextElementSibling?.textContent).toBe('Made the plan.');
   });
 
-  it('keeps DisplayResults outside the tool groups before and after it', () => {
+  it('keeps Show outside the tool groups before and after it', () => {
     const [reply, setReply] = createSignal(
       message(
         [
           tool('a'),
           tool('b'),
           tool('display', {
-            name: { kind: 'mcp', server: 'macro', tool: 'DisplayResults' },
+            name: { kind: 'mcp', server: 'macro', tool: 'Show' },
             status: 'pending',
             detail: { kind: 'macro', input: null, output: null, error: null },
           }),

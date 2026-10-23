@@ -357,7 +357,7 @@ async fn a_view_the_renderer_would_not_draw_fails_the_run_and_says_why() {
     assert_eq!(receipt.status, ExecutionStatus::Failed);
     let error = receipt.error.unwrap();
     assert!(error.contains("view.widgets should be array"), "{error}");
-    // The program's writes already happened: the fix is DisplayResults, not
+    // The program's writes already happened: the fix is Show, not
     // another run.
     assert!(error.contains("do not run it again"), "{error}");
     assert_eq!(receipt.result.unwrap()["view"], value["view"]);

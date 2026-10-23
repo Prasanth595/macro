@@ -353,10 +353,10 @@ const VIEW_PROBLEMS_LISTED: usize = 10;
 
 /// Check what `main` returned, filling in the reviews it left out. The error
 /// says what to change: a program's writes have already happened, so a view
-/// the renderer would not draw is fixed through `DisplayResults`, not by
+/// the renderer would not draw is fixed through `Show`, not by
 /// running the program again.
 fn check_returned(value: &mut serde_json::Value, views: &dyn ViewCheck) -> Result<(), String> {
-    const SHAPE: &str = "main must return {data: JSON}; optional reviews must be an array of {kind, id} references, and an optional view a DisplayResults view.";
+    const SHAPE: &str = "main must return {data: JSON}; optional reviews must be an array of {kind, id} references, and an optional view a Show view.";
     let Some(object) = value.as_object_mut() else {
         return Err(SHAPE.into());
     };
@@ -392,7 +392,7 @@ fn check_returned(value: &mut serde_json::Value, views: &dyn ViewCheck) -> Resul
         ));
     }
     Err(format!(
-        "The view was not shown: it does not match the DisplayResults schema.\n{}\nEverything else the program did stands, so do not run it again: call DisplayResults with the corrected view.",
+        "The view was not shown: it does not match the Show schema.\n{}\nEverything else the program did stands, so do not run it again: call Show with the corrected view.",
         lines.join("\n")
     ))
 }

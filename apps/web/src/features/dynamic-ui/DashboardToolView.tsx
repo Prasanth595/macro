@@ -35,7 +35,7 @@ function drawableView(input: unknown): { view?: View; dropped: number } {
 }
 
 /**
- * Renders a `displayResults` tool call's `view` argument as a dashboard.
+ * Renders a `Show` tool call's `view` argument as a dashboard.
  *
  * The wire input remains unknown JSON so streamed or malformed arguments can
  * reach the renderer. Validate it against the Zod {@link ViewSchema}, which

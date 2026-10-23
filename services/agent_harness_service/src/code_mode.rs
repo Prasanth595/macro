@@ -7,11 +7,11 @@ use code_execution::domain::RunEnvironment;
 use std::{collections::BTreeMap, sync::Arc};
 use tokio_util::sync::CancellationToken;
 
-/// A program's view is checked the way `DisplayResults` checks its own, so
-/// the model is told about one the renderer would not draw.
-pub struct DisplayResultsViews;
+/// A program's view is checked the way `Show` checks its own, so the model
+/// is told about one the renderer would not draw.
+pub struct ShowViewCheck;
 
-impl ViewCheck for DisplayResultsViews {
+impl ViewCheck for ShowViewCheck {
     fn problems(&self, view: &serde_json::Value) -> Vec<String> {
         ai_tools::view_problems(view)
     }

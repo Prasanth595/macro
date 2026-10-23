@@ -861,7 +861,7 @@ For Macro's in-process agent, the backend evaluates the session owner's
 `ai-code-mode` flag once per conversational turn. Enabled users get a smaller
 direct toolset: SDK-supported searches, reads, listing, and data operations run
 through the SDK. Document editing keeps the direct `EditDocument` tool, and
-`DisplayResults` remains available for rendering results. Workspace feeds and
+`Show` remains available for showing the user a view. Workspace feeds and
 mixed-entity name searches keep the direct `ListEntities` and `NameSearch` tools,
 including agent sessions. `ContentSearch` supports session history. The legacy
 chat and workspace SDK namespaces are excluded from agent documentation. Methods
@@ -955,12 +955,12 @@ operation, at most 32 per run. The session names the item under its group of
 operations in **Run code**, and a channel reply names it on that operation's
 step as soon as the write completes; a card the agent shows for it says what
 was done to it. Document content edits and routines are not in the SDK, so code
-records no item for them. A program can return `view`, the object
-`DisplayResults` takes, built from what it found: once the run succeeds the
-session shows it under **Run code** and a channel reply shows it as the run's
-last step. Code mode checks it against the `DisplayResults` schema; a view the
-renderer would not draw fails the run with the problems, and the agent shows the
-corrected view through `DisplayResults` instead of running the program again.
+records no item for them. A program can return `view`, the object `Show`
+takes, built from what it found: once the run succeeds the session shows it
+under **Run code** and a channel reply shows it as the run's last step. Code
+mode checks it against the `Show` schema; a view the renderer would not draw
+fails the run with the problems, and the agent shows the corrected view through
+`Show` instead of running the program again.
 The execution journal retains source, status and final JSON/error;
 completed API writes are not rolled back after failure or cancellation.
 If a reused execution ID refers to different source, the card reports that tool
@@ -1105,7 +1105,7 @@ The chat auto-titles itself after the first exchange (route stays stable, title 
 
 The agent has workspace tools (it can list your documents, read channels, create tasks,
 list, create, and update projects (initiatives in the API) and move tasks in or out of them,
-render `displayResults` views). Requests go to `POST /cognition/stream/chat/message`; results
+show views with `Show`). Requests go to `POST /cognition/stream/chat/message`; results
 stream over the app's websocket, not the HTTP response.
 
 When explicitly asked, the agent uses `Comment` to start a Discussion comment on an
@@ -1354,7 +1354,7 @@ during other tool bursts. Nested agent activity has its own scrollable window.
 
 No cards sit under a run of tool calls. A call that created, changed or sent an
 item names it on its own row, and the agent shows what the reply is about with
-`DisplayResults`. In that view, a card for an item the reply created or changed
+`Show`. In that view, a card for an item the reply created or changed
 carries what was done to it (`Created`, `Sent`), the same as in a channel reply;
 its summary shows only to a reader who can open the item.
 
@@ -1364,9 +1364,11 @@ row opens; syntax highlighting may appear after the diff text. Opening a session
 or expanding a group should leave the app responsive, even when the session
 contains many file edits.
 
-`DisplayResults` renders its dynamic view directly in the reply and stays visible
-without opening a tool row. It breaks tool groups before and after itself,
-including while pending; later calls start a separate group.
+`Show` renders its dynamic view directly in the reply and stays visible without
+opening a tool row. It breaks tool groups before and after itself, including
+while pending; later calls start a separate group. A call whose view the tool
+turned back renders nothing; the agent shows the view again. Replies saved
+before the tool was renamed call it `DisplayResults` and render the same.
 Its dashboard supports markdown, timelines, entity lists, calendar agendas, item
 cards, tags, and channel messages, using the same full-width view as AI chat.
 Item cards cover documents, email threads, events, projects, channels, routines,
@@ -1389,7 +1391,7 @@ calls** and **Replay fast batch**, both using the message renderer. Check that
 ongoing rows accumulate in the five-row window, completed calls stop shimmering,
 fast batches stay compact, and the group collapses smoothly after completion.
 Its carets should still expand the results, and reduced motion disables animation.
-Check that rich result controls still work and `DisplayResults` stays visible
+Check that rich result controls still work and `Show` stays visible
 between surrounding groups. In **AgentMessage (end-to-end)**, expand the group
 and confirm unknown tools have no individual disclosure or JSON payload. Repeat
 at a narrow viewport width.

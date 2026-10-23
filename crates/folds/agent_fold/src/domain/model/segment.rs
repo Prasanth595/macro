@@ -124,9 +124,8 @@ pub enum ActivityCard {
         /// `3 changes`, `to Ana Ruiz`.
         summary: Option<String>,
     },
-    /// A view the agent composed for the user: the `DisplayResults` tool's
-    /// `view` argument, or the view a code run returned, as the model wrote
-    /// it. Its widgets name the items they show, and readers load those with
+    /// A view the agent composed for the user: the `Show` tool's `view`
+    /// argument, or the view a code run returned, as the model wrote it. Its widgets name the items they show, and readers load those with
     /// their own access.
     View {
         /// The dynamic-UI view.
@@ -384,6 +383,7 @@ fn is_blank_text(part: &MessagePart) -> bool {
 fn part_kind(part: &MessagePart) -> Option<SegmentKind> {
     match part {
         MessagePart::Text { text } if text.trim().is_empty() => None,
+        _ if is_turned_back_view(part) => None,
         MessagePart::Text { .. } => Some(SegmentKind::Prose),
         MessagePart::ToolUse { .. } | MessagePart::Plan { .. } => Some(SegmentKind::Activity),
         _ if is_pending_request(part) => Some(SegmentKind::Interaction),
@@ -409,6 +409,7 @@ fn activity_rows(parts: &[MessagePart], closed: bool) -> Vec<ActivityRow> {
     parts
         .iter()
         .flat_map(|part| match part {
+            _ if is_turned_back_view(part) => Vec::new(),
             MessagePart::ToolUse {
                 id,
                 name,
@@ -647,11 +648,38 @@ const DELEGATE: Verbs = Verbs {
     done: "Delegated",
     failed: "Delegation failed",
 };
+const SHOW: Verbs = Verbs {
+    running: "Showing",
+    done: "Showed",
+    failed: "Show failed",
+};
 const PRESENT_REVIEW: Verbs = Verbs {
     running: "Preparing drafts to review",
     done: "Prepared drafts to review",
     failed: "Couldn't prepare drafts to review",
 };
+
+/// Whether a call is to the tool the agent shows the user a view with,
+/// which replies saved before its rename call `DisplayResults`.
+fn is_show(name: &ToolName, detail: &ToolDetail) -> bool {
+    matches!(detail, ToolDetail::Macro { .. })
+        && matches!(tool_name(name), "Show" | "DisplayResults")
+}
+
+/// A view the renderer would not draw, turned back to the agent with what to
+/// fix. It showed nothing, so it is no step: the agent shows the view again,
+/// or answers without one.
+fn is_turned_back_view(part: &MessagePart) -> bool {
+    matches!(
+        part,
+        MessagePart::ToolUse {
+            name,
+            status: ToolStatus::Failed,
+            detail,
+            ..
+        } if is_show(name, detail)
+    )
+}
 
 /// Macro's internal server: the tools it serves every session itself.
 const MACRO_INTERNAL: &str = "macro_internal";
@@ -746,6 +774,10 @@ fn tool_row(
         ToolDetail::Other { input, .. } => (
             named_label(&named, status),
             input.as_ref().and_then(input_detail),
+        ),
+        ToolDetail::Macro { input, .. } if is_show(name, detail) => verbed(
+            &SHOW,
+            input.get("view").and_then(|view| text(Some(view), "title")),
         ),
         ToolDetail::Macro { input, .. } => (named_label(&named, status), input_detail(input)),
         ToolDetail::UserTool { input, outcome } => {
@@ -895,7 +927,7 @@ fn macro_card(
     let arg = |key: &str| text(Some(input), key);
     let result = |key: &str| text(output, key);
     match tool {
-        "DisplayResults" => input
+        "Show" | "DisplayResults" => input
             .get("view")
             .map(|view| ActivityCard::View { view: view.clone() }),
         "CreateDocument" => Some(item_card(

@@ -605,7 +605,7 @@ fn code_mode_retains_direct_lifecycles_and_hides_sdk_methods_from_lazy_discovery
         assert!(!direct.deferred.iter().any(|t| t.name == name), "{name}");
     }
     for name in [
-        "DisplayResults",
+        "Show",
         "NameSearch",
         "ListEntities",
         "ContentSearch",
