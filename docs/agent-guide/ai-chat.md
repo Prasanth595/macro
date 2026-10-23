@@ -887,11 +887,11 @@ tools, `AskUser`, connector discovery, tool loading for connected apps, subagent
 and explicit provider code execution retain their direct lifecycle. Connected
 third-party MCP tools remain available.
 
-Disabled/missing flags, failed flag evaluation, unconfigured PostHog, or missing
-code-mode MCP tools retain the standard toolset. Summary/compaction calls do not
-load flags or advertise tools. Flag changes apply on the next conversational
-turn, without changing an in-flight turn's tools. The flag controls presentation,
-not authorization; SDK requests retain normal user permissions, and issuing the run credential requires execution approval.
+Missing code-mode MCP tools, as on a harness without a Deno runner, and sessions
+no person owns retain the standard toolset. Summary/compaction calls do not
+advertise tools. Code mode controls presentation, not authorization; SDK
+requests retain normal user permissions, and issuing the run credential requires
+execution approval.
 External coding harnesses keep their own tool selection. A runner that fails
 after its tools were advertised still produces an execution failure, not an
 automatic retry through a direct tool.
