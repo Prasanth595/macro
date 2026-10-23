@@ -678,8 +678,8 @@ export type ClaimedMutation = {
   serverFailureCount: number;
   /**
    * Durable first-enqueue wall-clock time in epoch ms, kept when a write
-   * replaces an unsent one for the same UUID. Hosts built before this field
-   * omit it, so it is unknown rather than zero.
+   * replaces an unsent one for the same UUID. Native claims and hosts built
+   * before this field omit it, so it is unknown rather than zero.
    */
   enqueuedAtMs?: number;
 };

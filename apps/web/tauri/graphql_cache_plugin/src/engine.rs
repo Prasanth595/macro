@@ -214,9 +214,6 @@ pub struct ClaimedMutationWire {
     pub attempt_count: u32,
     /// Retryable server failures, excluding transport failures.
     pub server_failure_count: u32,
-    /// Wall-clock first-enqueue time in epoch milliseconds.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub enqueued_at_ms: Option<i64>,
 }
 
 /// Tagged result of deferring or discarding a failed queue attempt.
@@ -307,7 +304,6 @@ impl TryFrom<ClaimedMutation> for ClaimedMutationWire {
             &claimed.queued.optimistic.optimistic_data_json,
         )?
         .client_metadata;
-        let enqueued_at_ms = claimed.queued.mutation.enqueued_at_ms();
         let request = claimed.queued.mutation.request;
         Ok(Self {
             client_metadata,
@@ -322,7 +318,6 @@ impl TryFrom<ClaimedMutation> for ClaimedMutationWire {
             identity: request.identity,
             attempt_count: claimed.queued.mutation.attempt_count,
             server_failure_count: claimed.queued.mutation.server_failure_count,
-            enqueued_at_ms,
         })
     }
 }
