@@ -34,6 +34,7 @@ export function ModelSelector(props: {
 }) {
   return (
     <ModelCatalogPicker
+      fullCatalog
       onCloseAutoFocus={props.onCloseAutoFocus}
       value={props.model ?? null}
       options={props.options.map((option) => ({

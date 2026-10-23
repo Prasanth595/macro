@@ -31,6 +31,7 @@ type ModelCatalogPickerProps = {
   modelRow?: Component<ModelRowProps>;
   disabled?: boolean;
   pending?: boolean;
+  fullCatalog?: boolean;
   triggerLabel?: JSX.Element;
   children?: JSX.Element;
   /** Optional overview that can reveal the complete catalog. */
@@ -191,6 +192,7 @@ export function ModelCatalogPicker(props: ModelCatalogPickerProps) {
   const displayValue = () => selected()?.label ?? props.placeholder ?? 'Model';
   const catalog = () => (
     <ModelCatalogMenu
+      fullCatalog={props.fullCatalog}
       value={props.value}
       options={props.options}
       disabled={props.disabled || props.pending}

@@ -104,7 +104,8 @@ export function RoutineExecutionPickerView(props: Props): JSX.Element {
 
   function select(agent: RosterAgent, override?: string): void {
     if (agent.id === MACRO_PERSONA_ID) {
-      if (override) props.onChange({ kind: 'model', model: override });
+      const model = override ?? agent.defaultModel;
+      if (model) props.onChange({ kind: 'model', model });
       return;
     }
     if (!agent.botId) return;

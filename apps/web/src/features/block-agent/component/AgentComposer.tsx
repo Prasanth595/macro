@@ -48,7 +48,6 @@ import {
   QueuedPrompts,
 } from '../ui';
 import type { AgentModelSelectorProps } from '../ui/AgentModelSelector';
-import { AgentModelMenuItem } from './AgentModelMenuItem';
 import { EffortSelector } from './EffortSelector';
 import { PermissionRequest } from './PermissionRequest';
 import { promptActionOf } from './prompt-action';
@@ -400,26 +399,6 @@ export function AgentComposer(props: {
               onSelect={(model) =>
                 fireAndForget(chooseModel(model), 'agent-composer')
               }
-              modelRow={(row) => (
-                <AgentModelMenuItem
-                  {...row}
-                  harness={session()?.harness}
-                  effort={
-                    row.option.id === metadata()?.model ? effort() : undefined
-                  }
-                  effortValue={
-                    row.option.id === metadata()?.model
-                      ? changingEffort()
-                      : undefined
-                  }
-                  onSelectEffort={(selection) =>
-                    fireAndForget(
-                      chooseModel(row.option.id, selection),
-                      'agent-composer'
-                    )
-                  }
-                />
-              )}
             />
             <EffortSelector
               onCloseAutoFocus={restoreInputFocus}

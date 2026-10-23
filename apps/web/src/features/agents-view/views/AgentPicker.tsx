@@ -4,16 +4,10 @@ import { modelLabel } from '@core/component/AI/constant/model-label';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { composerMenuAnchorRect } from '@core/util/composerMenuAnchor';
 import CaretDownIcon from '@phosphor/caret-down.svg';
-import CaretRightIcon from '@phosphor/caret-right.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import { buttonClasses, cn, Dropdown } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createSignal, For, Show } from 'solid-js';
-import { AgentModelMenuItem } from '../../block-agent/component/AgentModelMenuItem';
-import type {
-  EffortChoice,
-  EffortSelection,
-} from '../../block-agent/state/session-config';
 import { AgentIcon } from '../components/AgentGlyph';
 import { AgentPickerIdentity } from '../components/AgentPickerIdentity';
 import { agentPickerGroups } from '../core/agent-picker-groups';
@@ -22,7 +16,7 @@ import { createComposerModels } from '../queries/composer-models';
 import { AGENTS_TOUR } from '../tour';
 import { MobileAgentPicker } from './MobileAgentPicker';
 
-/** Agent selection with a per-message model catalog in each submenu. */
+/** Agent selection alongside the selected agent's per-message model catalog. */
 export type AgentPickerProps = {
   agents: RosterAgent[];
   selected?: RosterAgent;
@@ -31,15 +25,7 @@ export type AgentPickerProps = {
   triggerClass?: string;
   /** Configuration forms also show the saved model name on mobile. */
   showModelLabel?: boolean;
-  effortLabel?: string;
-  effortSelection?: EffortSelection;
   onSelect: (agent: RosterAgent, model?: string) => void;
-  /** Supply only when the host can persist and apply effort selections. */
-  onSelectEffort?: (
-    agent: RosterAgent,
-    model: string,
-    effort: EffortChoice
-  ) => void;
   onConnect: (agent: RosterAgent) => void;
   onCreate: () => void;
   onCloseAutoFocus?: (event: Event) => void;
@@ -55,38 +41,68 @@ export function AgentPicker(props: AgentPickerProps) {
 
 function DesktopAgentPicker(props: AgentPickerProps) {
   const [open, setOpen] = createSignal(false);
-  const catalog = createComposerModels(() => props.selected);
+  const [browsingId, setBrowsingId] = createSignal<string>();
+  const browsing = () =>
+    props.agents.find((agent) => agent.id === browsingId()) ?? props.selected;
+  const catalog = createComposerModels(browsing);
+  const selectedCatalog = createComposerModels(() => props.selected);
   const macro = () =>
     props.agents.find((agent) => agent.id === MACRO_PERSONA_ID);
-  const macroCatalog = createComposerModels(macro);
   const groups = () => agentPickerGroups(props.agents);
   const rawModel = () => props.selected?.id === MACRO_PERSONA_ID;
   const model = () =>
     props.modelOverride ??
     props.selected?.defaultModel ??
-    catalog.currentModel();
+    selectedCatalog.currentModel();
   const baseLabel = () =>
     modelLabel(
       model(),
-      catalog.models().find((option) => option.id === model())?.name
+      selectedCatalog.models().find((option) => option.id === model())?.name
     );
   const label = baseLabel;
-  const choose = (agent: RosterAgent, model?: string) => {
-    props.onSelect(agent, model);
-    setOpen(false);
+  const changeOpen = (next: boolean) => {
+    if (next) setBrowsingId(props.selected?.id ?? macro()?.id);
+    setOpen(next);
   };
-  const chooseEffort = (
-    agent: RosterAgent,
-    model: string,
-    effort: EffortChoice
-  ) => {
-    props.onSelectEffort?.(agent, model, effort);
-    setOpen(false);
+  const browse = (agent: RosterAgent) => {
+    if (agent.unavailableReason) {
+      if (agent.connectLabel) {
+        setOpen(false);
+        props.onConnect(agent);
+      }
+      return;
+    }
+    setBrowsingId(agent.id);
+    if (agent.id !== props.selected?.id) props.onSelect(agent);
   };
+  const browsingModel = () =>
+    browsing()?.id === props.selected?.id
+      ? (props.modelOverride ??
+        browsing()?.defaultModel ??
+        catalog.currentModel())
+      : (browsing()?.defaultModel ?? catalog.currentModel());
+  const agentRow = (agent: RosterAgent, name?: string) => (
+    <Dropdown.Item
+      closeOnSelect={false}
+      class="min-w-0 flex-1 gap-3 py-2"
+      disabled={Boolean(agent.unavailableReason && !agent.connectLabel)}
+      title={agent.unavailableReason}
+      onSelect={() => browse(agent)}
+    >
+      <AgentPickerIdentity
+        agent={agent}
+        name={name}
+        selected={agent.id === browsing()?.id}
+        model={
+          agent.id === props.selected?.id ? props.modelOverride : undefined
+        }
+      />
+    </Dropdown.Item>
+  );
   return (
     <Dropdown
       open={open()}
-      onOpenChange={setOpen}
+      onOpenChange={changeOpen}
       placement={macro() ? 'bottom-start' : 'top-end'}
       gutter={macro() ? 8 : 4}
       getAnchorRect={macro() ? composerMenuAnchorRect : undefined}
@@ -131,79 +147,54 @@ function DesktopAgentPicker(props: AgentPickerProps) {
         <CaretDownIcon class="size-4 shrink-0 text-ink-muted" />
       </Dropdown.Trigger>
       <Dropdown.Content
-        class={cn(
-          macro()
-            ? 'w-[min(42rem,calc(100vw-2rem))]'
-            : 'w-70 max-w-[calc(100vw-1rem)]',
-          'overflow-hidden rounded-2xl border-0'
-        )}
+        class="w-[min(42rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border-0"
         onCloseAutoFocus={props.onCloseAutoFocus}
         onPointerDown={(event: PointerEvent) => event.stopPropagation()}
         onMouseDown={(event: MouseEvent) => event.stopPropagation()}
       >
         <div class="grid max-h-[min(24rem,var(--kb-popper-content-available-height))] min-h-0 grid-cols-1 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <Show when={macro()}>
-            <div
-              role="group"
-              aria-label="Models"
-              class="order-2 min-h-0 max-h-[min(24rem,var(--kb-popper-content-available-height))] min-w-0 overflow-y-auto overscroll-contain px-2 pb-2 sm:border-l sm:border-edge-divider"
-            >
-              <div class="px-3 pt-3 pb-1 text-xs font-medium text-ink-extra-muted">
-                Models
-              </div>
-              <Show when={macro()}>
-                {(agent) => (
-                  <ModelCatalogMenu
-                    fullCatalog
-                    suggestedFirst
-                    searchable={false}
-                    value={
-                      props.selected?.id === agent().id
-                        ? (model() ?? null)
-                        : null
-                    }
-                    disabled={Boolean(agent().unavailableReason)}
-                    options={macroCatalog.models().map((option) => ({
-                      id: option.id,
-                      label: modelLabel(option.id, option.name),
-                      description: option.description ?? undefined,
-                      group: option.group ?? undefined,
-                    }))}
-                    onSelect={(id) => choose(agent(), id)}
-                    modelRow={
-                      props.onSelectEffort
-                        ? (row) => (
-                            <AgentModelMenuItem
-                              {...row}
-                              harness={agent().harness}
-                              effortValue={
-                                row.selected
-                                  ? props.effortSelection?.value
-                                  : undefined
-                              }
-                              onSelectEffort={(effort) =>
-                                chooseEffort(agent(), row.option.id, effort)
-                              }
-                            />
-                          )
-                        : undefined
-                    }
-                    emptyMessage={macroCatalog.message()}
-                  />
-                )}
-              </Show>
+          <div
+            role="group"
+            aria-label="Models"
+            class="order-2 min-h-0 max-h-[min(24rem,var(--kb-popper-content-available-height))] min-w-0 overflow-y-auto overscroll-contain px-2 pb-2 sm:border-l sm:border-edge-divider"
+          >
+            <div class="px-3 pt-3 pb-1 text-xs font-medium text-ink-extra-muted">
+              Models
             </div>
-          </Show>
+            <Show when={browsing()} keyed>
+              {(agent) => (
+                <ModelCatalogMenu
+                  fullCatalog
+                  suggestedFirst
+                  searchable={agent.id !== MACRO_PERSONA_ID}
+                  autoFocusSearch
+                  value={browsingModel() ?? null}
+                  disabled={Boolean(agent.unavailableReason)}
+                  options={catalog.models().map((option) => ({
+                    id: option.id,
+                    label: modelLabel(option.id, option.name),
+                    description: option.description ?? undefined,
+                    group: option.group ?? undefined,
+                  }))}
+                  onSelect={(id) => {
+                    props.onSelect(agent, id);
+                    setOpen(false);
+                  }}
+                  emptyMessage={catalog.message()}
+                />
+              )}
+            </Show>
+          </div>
           <div
             role="group"
             aria-label="Agents"
             class="order-1 min-h-0 max-h-[min(24rem,var(--kb-popper-content-available-height))] min-w-0 space-y-1 overflow-y-auto overscroll-contain px-2 pb-2 pt-3"
-            classList={{ 'sm:col-span-2': !macro() }}
           >
+            <div class="px-3 pb-1 text-xs font-medium text-ink-extra-muted">
+              Agents
+            </div>
             <Show when={macro()}>
-              <div class="px-3 pb-1 text-xs font-medium text-ink-extra-muted">
-                Agents
-              </div>
+              {(agent) => agentRow(agent(), 'Default agent')}
             </Show>
             <For each={groups()}>
               {(group) => (
@@ -220,35 +211,7 @@ function DesktopAgentPicker(props: AgentPickerProps) {
                       {group.label}
                     </Dropdown.GroupLabel>
                   </Show>
-                  <For each={group.agents}>
-                    {(agent) => (
-                      <AgentPickerRow
-                        agent={agent}
-                        selected={agent.id === props.selected?.id}
-                        modelOverride={
-                          agent.id === props.selected?.id
-                            ? props.modelOverride
-                            : undefined
-                        }
-                        effortSelection={
-                          agent.id === props.selected?.id
-                            ? props.effortSelection
-                            : undefined
-                        }
-                        onSelect={(model) => choose(agent, model)}
-                        onSelectEffort={
-                          props.onSelectEffort
-                            ? (model, effort) =>
-                                chooseEffort(agent, model, effort)
-                            : undefined
-                        }
-                        onConnect={() => {
-                          setOpen(false);
-                          props.onConnect(agent);
-                        }}
-                      />
-                    )}
-                  </For>
+                  <For each={group.agents}>{(agent) => agentRow(agent)}</For>
                 </Dropdown.Group>
               )}
             </For>
@@ -287,119 +250,5 @@ function DesktopAgentPicker(props: AgentPickerProps) {
         </div>
       </Dropdown.Content>
     </Dropdown>
-  );
-}
-
-function AgentPickerRow(props: {
-  agent: RosterAgent;
-  selected: boolean;
-  modelOverride?: string;
-  effortSelection?: EffortSelection;
-  onSelect: (model?: string) => void;
-  onSelectEffort?: (model: string, effort: EffortChoice) => void;
-  onConnect: () => void;
-}) {
-  const [open, setOpen] = createSignal(false);
-  const identity = () => (
-    <AgentPickerIdentity
-      agent={props.agent}
-      selected={props.selected}
-      model={props.modelOverride}
-    />
-  );
-  return (
-    <div class="flex min-w-0 items-center gap-1">
-      <Show
-        when={!props.agent.unavailableReason}
-        fallback={
-          <Dropdown.Item
-            closeOnSelect
-            class="min-w-0 flex-1 gap-3 py-2"
-            disabled={!props.agent.connectLabel}
-            title={props.agent.unavailableReason}
-            onSelect={props.onConnect}
-          >
-            {identity()}
-          </Dropdown.Item>
-        }
-      >
-        <Dropdown.Sub open={open()} onOpenChange={setOpen} overlap>
-          <Dropdown.SubTrigger
-            class="min-w-0 flex-1 gap-3 py-2"
-            textValue={props.agent.name}
-            onClick={() => {
-              if (!isTouchDevice()) props.onSelect();
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== 'Enter' && event.key !== ' ') return;
-              event.preventDefault();
-              event.stopPropagation();
-              props.onSelect();
-            }}
-          >
-            {identity()}
-            <CaretRightIcon class="size-3 shrink-0 text-ink-muted" />
-          </Dropdown.SubTrigger>
-          <Dropdown.SubContent
-            aria-label={`Models for ${props.agent.name}`}
-            class="w-72 max-w-[calc(100vw-1rem)] max-h-[min(28rem,var(--kb-popper-content-available-height))] overflow-y-auto overscroll-contain"
-            onOpenAutoFocus={(event: Event) => event.preventDefault()}
-            onPointerDown={(event: PointerEvent) => event.stopPropagation()}
-            onMouseDown={(event: MouseEvent) => event.stopPropagation()}
-          >
-            <Show when={open()}>
-              <AgentModels
-                agent={props.agent}
-                modelOverride={props.modelOverride}
-                effortSelection={props.effortSelection}
-                onSelect={props.onSelect}
-                onSelectEffort={props.onSelectEffort}
-              />
-            </Show>
-          </Dropdown.SubContent>
-        </Dropdown.Sub>
-      </Show>
-    </div>
-  );
-}
-
-function AgentModels(props: {
-  agent: RosterAgent;
-  modelOverride?: string;
-  effortSelection?: EffortSelection;
-  onSelect: (model?: string) => void;
-  onSelectEffort?: (model: string, effort: EffortChoice) => void;
-}) {
-  const catalog = createComposerModels(() => props.agent);
-  const defaultModel = () => props.agent.defaultModel ?? catalog.currentModel();
-  return (
-    <ModelCatalogMenu
-      autoFocusSearch
-      value={props.modelOverride ?? defaultModel() ?? null}
-      options={catalog.models().map((option) => ({
-        id: option.id,
-        label: modelLabel(option.id, option.name),
-        description: option.description ?? undefined,
-        group: option.group ?? undefined,
-      }))}
-      onSelect={props.onSelect}
-      modelRow={
-        props.onSelectEffort
-          ? (row) => (
-              <AgentModelMenuItem
-                {...row}
-                harness={props.agent.harness}
-                effortValue={
-                  row.selected ? props.effortSelection?.value : undefined
-                }
-                onSelectEffort={(effort) =>
-                  props.onSelectEffort?.(row.option.id, effort)
-                }
-              />
-            )
-          : undefined
-      }
-      emptyMessage={catalog.message()}
-    />
   );
 }

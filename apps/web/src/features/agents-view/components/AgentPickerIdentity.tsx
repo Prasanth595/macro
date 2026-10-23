@@ -8,6 +8,7 @@ import { AgentIcon } from './AgentGlyph';
 export function AgentPickerIdentity(props: {
   agent: RosterAgent;
   selected: boolean;
+  name?: string;
   model?: string;
 }) {
   const detail = () => {
@@ -31,9 +32,9 @@ export function AgentPickerIdentity(props: {
       <span class="min-w-0 flex-1 text-left">
         <span
           class="block truncate text-sm font-medium leading-5"
-          title={props.agent.name}
+          title={props.name ?? props.agent.name}
         >
-          {props.agent.name}
+          {props.name ?? props.agent.name}
         </span>
         <span
           class="block truncate text-xs leading-4 text-ink-muted"

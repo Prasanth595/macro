@@ -92,20 +92,20 @@ an external harness result.
 
 ## Model menu interaction
 
-Desktop new-chat and running-session model selectors open the full model catalog.
-The adjacent speedometer opens a discrete **Reasoning effort** slider. Slider
-stops come directly from the runtime's advertised choices and retain their opaque
-values, including Default when advertised. Arrow keys change one level at a time;
-pointer drags commit on release. The menu stays open while its accessible value
-updates. Mobile retains the dedicated effort sheet.
+Desktop new-chat selectors keep agent choices and the selected agent's full
+model catalog in one popup. Choosing an agent updates the model column without
+opening a submenu. Running sessions use one complete model menu.
 
-On desktop, effort remains available in each model’s submenu.
-Discovery runs when the submenu opens, scoped to that model and harness;
-the current session's advertised options take precedence for its selected model.
-The model trigger displays the model; the adjacent speedometer shows effort. Keyboard Right Arrow
-opens the submenu. On mobile, tapping a model selects it directly; use the adjacent
-effort button to adjust its supported effort levels. Loading, discovery errors, and models with
-no effort options keep ordinary model selection available.
+The adjacent speedometer opens a flat **Reasoning effort** list. Entries come
+from the selected model's advertised choices and retain their opaque values,
+including Default when advertised. Selecting a level applies it immediately and
+closes the menu; Escape discards no staged value because selection is immediate.
+Mobile retains separate bottom sheets for agent/model selection and effort.
+
+Capability discovery is scoped to the selected model and harness. Current
+session metadata takes precedence for its active model. Loading, discovery
+errors, and models with no effort options keep ordinary model selection
+available. Choose a model first, then adjust effort from its separate control.
 
 A combined running-session selection waits for the model's correlated ACP
 confirmation, validates effort against the new snapshot, then confirms effort.

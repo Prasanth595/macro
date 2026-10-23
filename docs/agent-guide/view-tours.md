@@ -38,6 +38,8 @@ and highlights.
   agent and model picker (both use a Create → Agent entry when the composer is hidden), then the
   Your agents list and the Cursor / Bring your own agent strips (beacon on
   Agents), then Create for automations.
+  The picker step explains Default agent, the inline model column, and the
+  separate effort control.
 - **Channels:** channels and DMs, creation, then threads, @mentions, and calls,
   which wait on the channel list until a conversation is open. No Slack action.
 - **Email:** Signal/Noise tabs beside the Inbox title (beacon on Inbox when
