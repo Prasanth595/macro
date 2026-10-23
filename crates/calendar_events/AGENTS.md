@@ -84,7 +84,11 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   the target calendar, accepted, as the only guest, plus the private
   `macroSnapshot` extended property. Sync stores it as `is_snapshot`, which
   grants no capability and makes RSVPs and invites fail with `snapshot`,
-  since neither would reach the meeting; deleting it still works. Google
+  since neither would reach the meeting. Its owner changes its details only
+  as a guest without modify rights would (reminders and availability), and
+  may delete it. The mutation target reads the flag from the addressed
+  copy's projection, since a snapshot can share its entity with the real
+  meeting on another calendar of the same inbox. Google
   only: never import over a UID the calendar already holds, since an import
   updates that event in place and would strip an unsynced invitation's
   guests.
