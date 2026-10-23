@@ -3,6 +3,7 @@ import {
   createCalendarOccurrenceQueryRange,
   useCalendarOccurrencesQuery,
 } from '@queries/calendar/occurrences';
+import { queryReadyGate } from '@queries/gate';
 import { addDays, startOfDay } from 'date-fns';
 import { type Accessor, createMemo } from 'solid-js';
 import { type CalendarEvent, mapCalendarOccurrence } from '../types';
@@ -11,7 +12,8 @@ import { type CalendarEvent, mapCalendarOccurrence } from '../types';
  * An open event as the calendar's occurrence cache now holds it, read over
  * the occurrence's own day, so what syncs while an editor is open reaches
  * the editor: the organizer taking away the viewer's rights, for one.
- * Undefined until that day loads, and once the occurrence is gone.
+ * Undefined until that day loads, and once the occurrence is gone; a
+ * failed refetch keeps the last copy, so a lock it brought holds.
  */
 export function useSyncedCalendarEvent(
   event: Accessor<CalendarEvent | undefined>
@@ -34,7 +36,7 @@ export function useSyncedCalendarEvent(
 
   return createMemo(() => {
     const current = event();
-    if (!current || !query.isSuccess) return undefined;
+    if (!current || !queryReadyGate(query)) return undefined;
     const item = query.data.items.find(
       (candidate) =>
         candidate.occurrence.eventId === current.eventId &&
