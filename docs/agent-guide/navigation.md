@@ -47,17 +47,22 @@ queued mutations should resume promptly, without waiting for the old poll or
 local retry timer; durable leases and server-retry deadlines still apply.
 Switching tabs or navigating an in-app route is not a back/forward-cache restore.
 
-Browser cache ownership prefers a visible tab. Switching away from its hidden
-owner toward another app tab cooperatively drains and replaces the engine without
-reloading either page or retiring the old page's cache client. A visible owner is
-not moved just because another visible window gets focus. If handoff takes longer
-than one second, reads use their usual network fallback; cache-only reads never
-forward. Writes wait for safe recovery instead of being replayed or sent twice.
-Returning to an owner whose worker was suspended lets its drain finish. Verify
-with multiple surviving tabs and a synthetic blocked engine: no forced worker
-termination or overlapping storage owner, unchanged storage generation/queued
-mutations after recovery, and working reads in the old tab. Lifecycle telemetry
-uses the `visibility-handoff-*` owner events.
+Browser cache ownership prefers a visible tab. When the owner hides, its engine
+cooperatively drains and closes storage; if every app tab is hidden, storage parks
+without retiring their clients or reloading pages. Background cache work waits.
+Returning to any tab opens the same database in a visible owner. A visible owner
+is not moved just because another visible window gets focus. Reads can wait for
+normal warmup; if foreground handoff/resume exceeds one second, ordinary queries
+use network fallback while cache-only reads never forward. Writes and received
+mutation confirmations wait for storage instead of being sent twice.
+
+Verify the all-hidden case without activating the former owner: no held physical
+owner lock after parking, preserved generation/queue, and successful reads/writes
+from a returning tab. Also verify a pending HTTP response settling after parking
+and multiple surviving clients. A drain that Safari has already suspended still
+waits for that worker to resume; no deadline kills it or steals its lock. Lifecycle
+telemetry uses `park-started`, `parked`, `unpark-started`, `unpark-completed`, and
+`visibility-handoff-*` owner events.
 
 Safari can also restart the SharedWorker when its creating tab closes, leaving
 another tab's port alive but its coordinator registrations gone. The surviving

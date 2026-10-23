@@ -39,32 +39,45 @@ describe('visibility ownership', () => {
       coordinatorVersion: CACHE_COORDINATOR_PROTOCOL_VERSION,
       kind: 'cache-read-availability',
       ownerEpoch: 1,
-      available: false,
+      state: 'blocked',
     };
     expect(validateCoordinatorToTabEnvelope(blocked).ok).toBe(true);
     expect(
       validateCoordinatorToTabEnvelope({ ...blocked, ownerEpoch: 0 }).ok
     ).toBe(false);
     expect(
+      validateCoordinatorToTabEnvelope({
+        ...blocked,
+        ownerEpoch: 0,
+        state: 'waiting',
+      }).ok
+    ).toBe(true);
+    expect(
+      validateCoordinatorToTabEnvelope({ ...blocked, state: 'invalid' }).ok
+    ).toBe(false);
+    expect(
       validateCoordinatorToTabEnvelope({ ...blocked, visible: false }).ok
     ).toBe(false);
   });
-  it('keeps a hidden owner while all consumers are hidden and does not move a visible owner', () => {
+  it('keeps a visible owner but starts parking on the last visible tab exit', () => {
     const core = new CoordinatorCore('scope');
     core.registerTab('a', true);
     ready(core, 'a', 1);
     expect(core.registerTab('b', true)).toEqual([]);
     expect(core.setTabVisibility('b', false)).toEqual([]);
-    expect(core.setTabVisibility('a', false)).toEqual([]);
-    expect(core.state).toEqual({ kind: 'active', tabId: 'a', ownerEpoch: 1 });
+    expect(core.setTabVisibility('a', false)).toEqual([
+      { kind: 'drain-owner', tabId: 'a', ownerEpoch: 1, handoff: true },
+    ]);
+    expect(core.state).toEqual({ kind: 'draining', tabId: 'a', ownerEpoch: 1 });
     expect(core.setTabVisibility('a', true)).toEqual([]);
   });
 
   it('drains a hidden owner, keeps its client, and routes waiting work once to a visible survivor', () => {
     const core = new CoordinatorCore('scope');
-    core.registerTab('a', false);
+    core.registerTab('a', true);
     ready(core, 'a', 1);
-    expect(core.registerTab('b', true)).toEqual([
+    core.registerTab('b', true);
+    expect(core.setTabVisibility('a', false)).toEqual([
       { kind: 'drain-owner', tabId: 'a', ownerEpoch: 1, handoff: true },
     ]);
     expect(core.registerTab('c', true)).toEqual([]);
@@ -107,9 +120,10 @@ describe('visibility ownership', () => {
 
   it('chooses from the latest surviving visibility instead of pinning a departed candidate', () => {
     const core = new CoordinatorCore('scope');
-    core.registerTab('a', false);
+    core.registerTab('a', true);
     ready(core, 'a', 1);
     core.registerTab('b', true);
+    core.setTabVisibility('a', false);
     core.registerTab('c', true);
     core.tabLost('b');
     core.setTabVisibility('b', true);
@@ -142,9 +156,10 @@ describe('visibility ownership', () => {
 
   it('lets explicit disposal join a handoff without draining twice', () => {
     const core = new CoordinatorCore('scope');
-    core.registerTab('a', false);
+    core.registerTab('a', true);
     ready(core, 'a', 1);
     core.registerTab('b', true);
+    core.setTabVisibility('a', false);
     expect(core.beginGracefulDeparture('a', 1)).toEqual([]);
     expect(core.engineDrained('a', 1)).toContainEqual({
       kind: 'retire-tab',

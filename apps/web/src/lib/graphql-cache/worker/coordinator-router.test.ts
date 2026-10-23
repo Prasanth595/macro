@@ -1582,6 +1582,57 @@ describe('CoordinatorRouter', () => {
     });
   });
 
+  it('pauses a hidden storage-open watchdog without treating suspension as a failure', async () => {
+    vi.useFakeTimers();
+    const router = new CoordinatorRouter({
+      assetLoadTimeoutMs: 10,
+      activationTimeoutMs: 10,
+      verifyTabLockHeld: async () => true,
+      watchTabLock: () => () => undefined,
+    });
+    const owner = new FakePort();
+    const engine = new FakePort();
+    await register(router, owner, 'owner');
+    await attach(router, owner, 'owner', 1, engine);
+    engine.receive({
+      ...version,
+      kind: 'engine-assets-ready',
+      tabId: 'owner',
+      ownerEpoch: 1,
+    });
+    engine.receive({
+      ...version,
+      kind: 'owner-lock-acquired',
+      tabId: 'owner',
+      ownerEpoch: 1,
+    });
+    await router.handleTabMessage(owner, {
+      ...version,
+      kind: 'tab-visibility',
+      tabId: 'owner',
+      visible: false,
+    });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(router.snapshot()?.state).toMatchObject({
+      kind: 'activating',
+      phase: 'opening-database',
+    });
+    expect(messagesOfKind(owner, 'terminate-engine')).toEqual([]);
+    await router.handleTabMessage(owner, {
+      ...version,
+      kind: 'tab-visibility',
+      tabId: 'owner',
+      visible: true,
+    });
+    await vi.advanceTimersByTimeAsync(11);
+    expect(messagesOfKind(owner, 'terminate-engine')).toHaveLength(1);
+    expect(router.snapshot()?.state).toMatchObject({
+      kind: 'activating',
+      ownerEpoch: 2,
+      databaseAction: 'wipe-before-open',
+    });
+  });
+
   it('resumes bounded startup reads when the original owner becomes visible before readiness', async () => {
     vi.useFakeTimers();
     const router = new CoordinatorRouter({
@@ -1602,7 +1653,8 @@ describe('CoordinatorRouter', () => {
     });
     await vi.advanceTimersByTimeAsync(1000);
     expect(messagesOfKind(client, 'cache-read-availability')).toMatchObject([
-      { ownerEpoch: 1, available: false },
+      { ownerEpoch: 1, state: 'waiting' },
+      { ownerEpoch: 1, state: 'blocked' },
     ]);
     expect(messagesOfKind(owner, 'terminate-engine')).toEqual([]);
     expect(messagesOfKind(client, 'become-owner')).toEqual([]);
@@ -1615,8 +1667,9 @@ describe('CoordinatorRouter', () => {
     });
     ready(engine, 'owner', 1, 'opened-existing');
     expect(messagesOfKind(client, 'cache-read-availability')).toMatchObject([
-      { ownerEpoch: 1, available: false },
-      { ownerEpoch: 1, available: true },
+      { ownerEpoch: 1, state: 'waiting' },
+      { ownerEpoch: 1, state: 'blocked' },
+      { ownerEpoch: 1, state: 'ready' },
     ]);
     expect(messagesOfKind(client, 'engine-replaced')).toEqual([]);
     expect(router.snapshot()?.state).toMatchObject({

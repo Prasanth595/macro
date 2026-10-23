@@ -9,6 +9,7 @@ import {
 } from '../telemetry';
 import {
   CACHE_COORDINATOR_PROTOCOL_VERSION,
+  type CacheReadState,
   type CleanupToPageEnvelope,
   type CoordinatorToTabEnvelope,
   ENGINE_STARTUP_PHASES,
@@ -50,7 +51,7 @@ export interface CacheCoordinatorPageAdapterOptions {
   tabId?: string;
   visibility?: Pick<Document, 'visibilityState'> &
     Pick<EventTarget, 'addEventListener' | 'removeEventListener'>;
-  onCacheReadAvailabilityChanged?: (available: boolean) => void;
+  onCacheReadAvailabilityChanged?: (state: CacheReadState) => void;
   createSharedWorker?: (scope: string) => SharedWorkerLike;
   createDedicatedWorker?: (
     scope: string,
@@ -184,6 +185,7 @@ export class CacheCoordinatorPageAdapter {
   private readonly terminatedOwnerEpochs = new Set<number>();
   private highestOwnerEpochSeen = 0;
   private latestEngineReplacedEpoch = 0;
+  private latestReadStateEpoch = 0;
   private startupProgress:
     | Extract<CoordinatorToTabEnvelope, { kind: 'engine-startup' }>
     | undefined;
@@ -541,8 +543,12 @@ export class CacheCoordinatorPageAdapter {
     if (message.kind === 'cache-read-availability') {
       if (!this.registered) {
         this.failTerminal(new Error('owner handoff preceded registration'));
-      } else if (message.ownerEpoch >= this.latestEngineReplacedEpoch) {
-        this.options.onCacheReadAvailabilityChanged?.(message.available);
+      } else if (
+        message.ownerEpoch >=
+        Math.max(this.latestEngineReplacedEpoch, this.latestReadStateEpoch)
+      ) {
+        this.latestReadStateEpoch = message.ownerEpoch;
+        this.options.onCacheReadAvailabilityChanged?.(message.state);
       }
       return;
     }
@@ -651,7 +657,11 @@ export class CacheCoordinatorPageAdapter {
         break;
       }
       case 'engine-replaced':
-        if (message.ownerEpoch <= this.latestEngineReplacedEpoch) return;
+        if (
+          message.ownerEpoch <= this.latestEngineReplacedEpoch ||
+          message.ownerEpoch < this.latestReadStateEpoch
+        )
+          return;
         this.latestEngineReplacedEpoch = message.ownerEpoch;
         this.highestOwnerEpochSeen = Math.max(
           this.highestOwnerEpochSeen,

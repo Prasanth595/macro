@@ -7,6 +7,7 @@ import type { MutationInspection } from '../protocol';
  */
 
 import { fireAndForget } from '@core/util/fireAndForget';
+import { match } from 'ts-pattern';
 import { deleteLegacyNormalizedCacheIdb } from '../legacy-idb-cleanup';
 import {
   ADMITTED_ENQUEUE_UNCERTAIN_ERROR_CODE,
@@ -448,6 +449,25 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
     for (const [id, entry] of pending) {
       if (entry.kind === 'init')
         armRequestTimeout(id, entry, initializationTimeoutMs);
+      else if (isReadOnlyCacheRequest(entry.kind))
+        armRequestTimeout(id, entry, requestTimeoutMs);
+    }
+  }
+
+  function waitForCacheReads(): void {
+    if (state === 'failed' || state === 'suspended' || state === 'disposed')
+      return;
+    readAvailability.wait();
+    // Keep read/write/teardown admission ordered at the coordinator. Pausing
+    // their deadlines must not create a separate page-side read queue.
+    for (const entry of pending.values()) {
+      if (
+        (entry.kind === 'init' || isReadOnlyCacheRequest(entry.kind)) &&
+        entry.timer !== undefined
+      ) {
+        clearTimeout(entry.timer);
+        entry.timer = undefined;
+      }
     }
   }
 
@@ -522,10 +542,13 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
       onEngineReplaced: (epoch, outcome) => {
         if (adapter === created) onEngineReplaced(epoch, outcome);
       },
-      onCacheReadAvailabilityChanged: (available) => {
+      onCacheReadAvailabilityChanged: (availability) => {
         if (adapter !== created) return;
-        if (available) resumeCacheReads();
-        else onOwnerHandoffBlocked();
+        match(availability)
+          .with('ready', resumeCacheReads)
+          .with('waiting', waitForCacheReads)
+          .with('blocked', onOwnerHandoffBlocked)
+          .exhaustive();
       },
       onStartupProgress: (progress) => {
         if (adapter !== created) return;
@@ -533,7 +556,7 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
           options.initializationTimeoutMs ??
           progress.timeoutMs + STARTUP_RESPONSE_GRACE_MS;
         for (const [id, entry] of pending) {
-          if (entry.kind === 'init' && !readAvailability.error)
+          if (entry.kind === 'init' && !readAvailability.timeoutsPaused)
             armRequestTimeout(id, entry, initializationTimeoutMs);
         }
       },
@@ -1070,11 +1093,10 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
         admitted: false,
         startedAt: now(),
       };
-      const timeoutMs =
-        msg.kind === 'init'
-          ? readAvailability.error
-            ? undefined
-            : initializationTimeoutMs
+      const timeoutMs = readAvailability.timeoutsPaused
+        ? undefined
+        : msg.kind === 'init'
+          ? initializationTimeoutMs
           : isReadOnlyCacheRequest(msg.kind)
             ? requestTimeoutMs
             : undefined;
@@ -1566,6 +1588,10 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
         } catch {
           return;
         }
+      } else {
+        // Match ordinary RPC admission so a same-turn teardown cannot pass a
+        // read waiting for the parked coordinator and leave its deps alive.
+        await ensureInitialized();
       }
       // Disposal or owner loss can win while an initialization await yields.
       if (state !== 'ready') return;

@@ -19,19 +19,31 @@ export function isReadOnlyCacheRequest(kind: CacheRequest['kind']): boolean {
 /** Interrupts read-only startup waits without canceling initialization or writes. */
 export class CacheReadAvailability {
   private unavailable: Error | undefined;
+  private paused = false;
   private readonly waiting = new Set<(error: Error) => void>();
 
   get error(): Error | undefined {
     return this.unavailable;
   }
 
+  get timeoutsPaused(): boolean {
+    return this.paused;
+  }
+
+  wait(): void {
+    this.paused = true;
+    this.unavailable = undefined;
+  }
+
   block(error: Error): void {
+    this.paused = true;
     this.unavailable = error;
     for (const reject of this.waiting) reject(error);
     this.waiting.clear();
   }
 
   resume(): void {
+    this.paused = false;
     this.unavailable = undefined;
   }
 

@@ -1,12 +1,26 @@
 import type { CacheTelemetryRecorderLike } from '../telemetry';
+import type { CacheReadState } from './coordinator-protocol';
 
 export const OWNER_HANDOFF_READ_TIMEOUT_MS = 1_000;
 
-/** Bounds read availability, never engine lifetime or physical lock ownership. */
+export type CacheReadAvailability = Readonly<{
+  ownerEpoch: number;
+  state: CacheReadState;
+}>;
+
+/** Bounds foreground read availability, never engine lifetime or lock ownership. */
 export class CoordinatorHandoff {
-  private active: { ownerEpoch: number; startedAt: number } | undefined;
+  private active:
+    | {
+        ownerEpoch: number;
+        startedAt: number;
+        resumed: boolean;
+      }
+    | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
-  private blockedEpoch: number | undefined;
+  private budget: object | undefined;
+  private current: CacheReadAvailability | undefined;
+  private parked = false;
 
   constructor(
     private readonly options: {
@@ -15,59 +29,122 @@ export class CoordinatorHandoff {
       clearTimeout: typeof globalThis.clearTimeout;
       now: () => number;
       telemetry: CacheTelemetryRecorderLike;
-      onBlocked: (ownerEpoch: number) => void;
+      onChange: (availability: CacheReadAvailability) => void;
     }
   ) {}
 
-  get readBlockedEpoch(): number | undefined {
-    return this.blockedEpoch;
+  get readState(): CacheReadAvailability | undefined {
+    return this.current;
   }
 
-  start(ownerEpoch: number): void {
-    // Churn before a replacement is ready must not keep extending the deadline.
-    if (this.active) return;
-    const active = { ownerEpoch, startedAt: this.options.now() };
-    this.active = active;
-    this.options.telemetry.record({
-      name: 'graphql_cache.owner',
-      operationCategory: 'lifecycle',
-      outcome: 'graceful',
-      ownerEvent: 'visibility-handoff-started',
-    });
+  get transitioning(): boolean {
+    return (
+      this.active !== undefined ||
+      (this.current !== undefined && this.current.state !== 'ready')
+    );
+  }
+
+  start(ownerEpoch: number, visible = true): void {
+    if (!this.active) {
+      this.active = {
+        ownerEpoch,
+        startedAt: this.options.now(),
+        resumed: this.parked,
+      };
+      this.options.telemetry.record({
+        name: 'graphql_cache.owner',
+        operationCategory: 'lifecycle',
+        outcome: 'graceful',
+        ownerEvent: this.parked
+          ? 'unpark-started'
+          : visible
+            ? 'visibility-handoff-started'
+            : 'park-started',
+      });
+    }
+    this.parked = false;
+    const active = this.active;
+    active.ownerEpoch = ownerEpoch;
+    if (!visible) {
+      this.clearBudget();
+      this.update(ownerEpoch, 'waiting');
+      return;
+    }
+    // Changes of candidate must not reset an exhausted foreground budget.
+    if (this.current?.state === 'blocked') {
+      this.update(ownerEpoch, 'blocked');
+      return;
+    }
+    this.update(ownerEpoch, 'waiting');
+    if (this.timer !== undefined) return;
+    const budget = {};
+    this.budget = budget;
+    const startedAt = this.options.now();
     this.timer = this.options.setTimeout(() => {
+      if (this.active !== active || this.budget !== budget) return;
       this.timer = undefined;
-      if (this.active !== active) return;
-      this.blockedEpoch = active.ownerEpoch;
+      this.budget = undefined;
       this.options.telemetry.record({
         name: 'graphql_cache.owner',
         operationCategory: 'lifecycle',
         outcome: 'error',
         errorCode: 'timeout',
         ownerEvent: 'visibility-handoff-blocked',
-        durationMs: this.options.now() - active.startedAt,
+        durationMs: this.options.now() - startedAt,
       });
-      this.options.onBlocked(active.ownerEpoch);
+      this.update(active.ownerEpoch, 'blocked');
     }, this.options.timeoutMs);
   }
 
-  ready(): void {
+  park(ownerEpoch: number): void {
+    if (this.parked && this.current?.ownerEpoch === ownerEpoch) return;
+    const startedAt = this.active?.startedAt;
+    this.cancel();
+    this.parked = true;
+    this.update(ownerEpoch, 'waiting');
+    this.options.telemetry.record({
+      name: 'graphql_cache.owner',
+      operationCategory: 'lifecycle',
+      outcome: 'graceful',
+      ownerEvent: 'parked',
+      durationMs:
+        startedAt === undefined ? undefined : this.options.now() - startedAt,
+    });
+  }
+
+  ready(ownerEpoch: number): void {
     if (this.active) {
       this.options.telemetry.record({
         name: 'graphql_cache.owner',
         operationCategory: 'lifecycle',
         outcome: 'success',
-        ownerEvent: 'visibility-handoff-completed',
+        ownerEvent: this.active.resumed
+          ? 'unpark-completed'
+          : 'visibility-handoff-completed',
         durationMs: this.options.now() - this.active.startedAt,
       });
     }
     this.cancel();
-    this.blockedEpoch = undefined;
+    this.parked = false;
+    if (this.current) this.update(ownerEpoch, 'ready');
   }
 
   cancel(): void {
+    this.clearBudget();
+    this.active = undefined;
+    // Failure is not readiness. Keep waiting/bypass until an owner is usable.
+  }
+
+  private clearBudget(): void {
     if (this.timer !== undefined) this.options.clearTimeout(this.timer);
     this.timer = undefined;
-    this.active = undefined;
-    // Once reads bypass, only a ready replacement can make them usable again.
+    this.budget = undefined;
+  }
+
+  private update(ownerEpoch: number, state: CacheReadState): void {
+    if (this.current?.ownerEpoch === ownerEpoch && this.current.state === state)
+      return;
+    this.current = { ownerEpoch, state };
+    this.options.onChange(this.current);
   }
 }

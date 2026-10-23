@@ -18,6 +18,7 @@ import type {
 
 export type CoordinatorState =
   | { kind: 'waiting-for-tab'; nextDatabaseAction: DatabaseAction }
+  | { kind: 'parked'; nextDatabaseAction: DatabaseAction }
   | {
       kind: 'activating';
       tabId: string;
@@ -138,6 +139,15 @@ const STORAGE_BUSY_REASON =
 const SUPERSEDED_REASON =
   'a newer version of the app took over the local cache';
 
+/** Known outcomes must survive a caller leaving while storage is parked. */
+function isMutationSettlement(request: CacheRequest): boolean {
+  return (
+    request.kind === 'commit-optimistic-write' ||
+    request.kind === 'rollback-optimistic-write' ||
+    request.kind === 'defer-optimistic-write'
+  );
+}
+
 /** Pure election, epoch, routing, drain, and abrupt-loss state machine. */
 export class CoordinatorCore {
   private stateValue: CoordinatorState = {
@@ -181,6 +191,11 @@ export class CoordinatorCore {
     };
   }
 
+  /** Visibility of eligible consumers, not merely the page owning an engine. */
+  get hasVisibleTab(): boolean {
+    return this.chooseCandidate() !== undefined;
+  }
+
   /** Whether a newer app build took the database over. */
   get superseded(): boolean {
     return this.supersededReason !== undefined;
@@ -222,7 +237,10 @@ export class CoordinatorCore {
         },
       ];
     }
-    if (this.stateValue.kind !== 'waiting-for-tab')
+    if (
+      this.stateValue.kind !== 'waiting-for-tab' &&
+      this.stateValue.kind !== 'parked'
+    )
       return this.handoffIfNeeded();
     return this.activateNext(this.stateValue.nextDatabaseAction);
   }
@@ -231,6 +249,12 @@ export class CoordinatorCore {
     if (!this.tabs.includes(tabId)) return [];
     if (visible) this.visibleTabs.add(tabId);
     else this.visibleTabs.delete(tabId);
+    if (
+      this.stateValue.kind === 'parked' ||
+      this.stateValue.kind === 'waiting-for-tab'
+    ) {
+      return this.activateNext(this.stateValue.nextDatabaseAction);
+    }
     return this.handoffIfNeeded();
   }
 
@@ -389,7 +413,11 @@ export class CoordinatorCore {
     }
     while (this.queuedRequests.length > 0) {
       const queued = this.queuedRequests.shift();
-      if (queued && this.tabs.includes(queued.tabId)) {
+      if (
+        queued &&
+        (this.tabs.includes(queued.tabId) ||
+          isMutationSettlement(queued.request))
+      ) {
         actions.push(this.route(queued, this.stateValue));
       }
     }
@@ -411,6 +439,7 @@ export class CoordinatorCore {
     }
 
     this.inFlight.delete(routeId);
+    if (!this.tabs.includes(request.tabId)) return [];
     return [
       {
         kind: 'deliver-response',
@@ -502,7 +531,10 @@ export class CoordinatorCore {
     const { kind } = this.stateValue;
     if (
       this.supersededReason !== undefined ||
-      (kind !== 'active' && kind !== 'waiting-for-tab' && kind !== 'failed')
+      (kind !== 'active' &&
+        kind !== 'waiting-for-tab' &&
+        kind !== 'parked' &&
+        kind !== 'failed')
     ) {
       return [];
     }
@@ -613,7 +645,7 @@ export class CoordinatorCore {
     const candidate = this.chooseCandidate(state.previousTabId);
     if (!candidate) {
       this.stateValue = {
-        kind: 'waiting-for-tab',
+        kind: this.eligibleTabs().length > 0 ? 'parked' : 'waiting-for-tab',
         nextDatabaseAction: state.databaseAction,
       };
       return [];
@@ -711,7 +743,7 @@ export class CoordinatorCore {
     const candidate = this.chooseCandidate();
     if (!candidate) {
       this.stateValue = {
-        kind: 'waiting-for-tab',
+        kind: this.eligibleTabs().length > 0 ? 'parked' : 'waiting-for-tab',
         nextDatabaseAction: databaseAction,
       };
       return [];
@@ -741,10 +773,8 @@ export class CoordinatorCore {
       this.visibleTabs.has(state.tabId)
     )
       return [];
-    const candidate = this.chooseCandidate();
-    if (!candidate || !this.visibleTabs.has(candidate)) return [];
-    // Bound foreground reads even if a background engine is still loading or
-    // opening storage. Only a ready engine can perform the cooperative drain.
+    // Start draining on the last visible page's exit, not after a hidden
+    // worker has had time to suspend. Startup still finishes before draining.
     if (state.kind === 'activating')
       return [{ kind: 'handoff-pending', ownerEpoch: state.ownerEpoch }];
     this.stateValue = { ...state, kind: 'draining' };
@@ -758,14 +788,18 @@ export class CoordinatorCore {
     ];
   }
 
-  private chooseCandidate(avoid?: string): string | undefined {
-    const eligible = this.tabs.filter(
+  private eligibleTabs(): string[] {
+    return this.tabs.filter(
       (tabId) =>
         !this.retiringTabs.has(tabId) && !this.unavailableTabs.has(tabId)
     );
-    const visible = eligible.filter((tabId) => this.visibleTabs.has(tabId));
-    const preferred = visible.length > 0 ? visible : eligible;
-    return preferred.find((tabId) => tabId !== avoid) ?? preferred[0];
+  }
+
+  private chooseCandidate(avoid?: string): string | undefined {
+    const visible = this.eligibleTabs().filter((tabId) =>
+      this.visibleTabs.has(tabId)
+    );
+    return visible.find((tabId) => tabId !== avoid) ?? visible[0];
   }
 
   private route(
@@ -797,7 +831,8 @@ export class CoordinatorCore {
     this.unavailableTabs.delete(tabId);
     this.visibleTabs.delete(tabId);
     for (let index = this.queuedRequests.length - 1; index >= 0; index -= 1) {
-      if (this.queuedRequests[index]?.tabId === tabId) {
+      const queued = this.queuedRequests[index];
+      if (queued?.tabId === tabId && !isMutationSettlement(queued.request)) {
         this.queuedRequests.splice(index, 1);
       }
     }

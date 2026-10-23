@@ -221,7 +221,7 @@ describe('CacheCoordinatorPageAdapter', () => {
       ...version,
       kind: 'cache-read-availability',
       ownerEpoch: 1,
-      available: false,
+      state: 'blocked',
     });
     port.receive({
       ...version,
@@ -233,18 +233,18 @@ describe('CacheCoordinatorPageAdapter', () => {
       ...version,
       kind: 'cache-read-availability',
       ownerEpoch: 1,
-      available: false,
+      state: 'blocked',
     });
     expect(onCacheReadAvailabilityChanged).toHaveBeenCalledExactlyOnceWith(
-      false
+      'blocked'
     );
     port.receive({
       ...version,
       kind: 'cache-read-availability',
       ownerEpoch: 2,
-      available: true,
+      state: 'ready',
     });
-    expect(onCacheReadAvailabilityChanged).toHaveBeenLastCalledWith(true);
+    expect(onCacheReadAvailabilityChanged).toHaveBeenLastCalledWith('ready');
     await adapter.dispose({ graceful: false });
     expect(detached).toHaveBeenCalledWith(
       'visibilitychange',

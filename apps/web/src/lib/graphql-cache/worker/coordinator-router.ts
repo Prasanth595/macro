@@ -322,12 +322,11 @@ export class CoordinatorRouter {
       clearTimeout: this.clearTimeoutFn,
       now: this.now,
       telemetry: this.telemetry,
-      onBlocked: (ownerEpoch) =>
+      onChange: (availability) =>
         this.broadcast(
           envelope<CoordinatorToTabEnvelope>({
             kind: 'cache-read-availability',
-            ownerEpoch,
-            available: false,
+            ...availability,
           })
         ),
     });
@@ -555,15 +554,16 @@ export class CoordinatorRouter {
       this.resetRecoveryRetries();
     }
     const actions = this.coreValue.registerTab(message.tabId, message.visible);
+    const previousReadState = this.handoff.readState;
     this.applyActions(actions);
-    const blockedEpoch = this.handoff.readBlockedEpoch;
-    if (blockedEpoch !== undefined)
+    const readState = this.handoff.readState;
+    // A changed state was already broadcast to this registered connection.
+    if (readState !== undefined && readState === previousReadState)
       this.postToTab(
         message.tabId,
         envelope<CoordinatorToTabEnvelope>({
           kind: 'cache-read-availability',
-          ownerEpoch: blockedEpoch,
-          available: false,
+          ...readState,
         })
       );
     // Late joiners must use the same startup budget as the elected owner.
@@ -733,18 +733,6 @@ export class CoordinatorRouter {
           core.state.kind === 'active' &&
           core.state.ownerEpoch === message.ownerEpoch
         ) {
-          if (this.handoff.readBlockedEpoch !== undefined) {
-            // Startup may finish with its original owner if visibility changed
-            // back. Reads must resume even without an engine-replaced broadcast.
-            this.broadcast(
-              envelope<CoordinatorToTabEnvelope>({
-                kind: 'cache-read-availability',
-                ownerEpoch: message.ownerEpoch,
-                available: true,
-              })
-            );
-          }
-          this.handoff.ready();
           const recoveryResetReason = this.pendingRecoveryResetEpochs.get(
             message.ownerEpoch
           );
@@ -951,10 +939,11 @@ export class CoordinatorRouter {
           });
           break;
         case 'handoff-pending':
-          this.handoff.start(action.ownerEpoch);
+          this.handoff.start(action.ownerEpoch, core.hasVisibleTab);
           break;
         case 'drain-owner': {
-          if (action.handoff) this.handoff.start(action.ownerEpoch);
+          if (action.handoff)
+            this.handoff.start(action.ownerEpoch, core.hasVisibleTab);
           this.clearActivationTimer();
           this.activationStarted.delete(action.ownerEpoch);
           this.telemetry.record({
@@ -1103,6 +1092,41 @@ export class CoordinatorRouter {
           break;
       }
     }
+    this.syncReadAvailability();
+  }
+
+  private syncReadAvailability(): void {
+    const core = this.coreValue;
+    if (!core) return;
+    match(core.state)
+      .with({ kind: 'parked' }, () =>
+        this.handoff.park(core.snapshot().ownerEpoch)
+      )
+      .with({ kind: 'activating' }, ({ tabId, ownerEpoch }) => {
+        if (!core.hasVisibleTab) this.clearActivationTimer();
+        else if (this.activationTimer === undefined)
+          this.armStartupWatchdog(tabId, ownerEpoch);
+        if (this.handoff.transitioning)
+          this.handoff.start(ownerEpoch, core.hasVisibleTab);
+      })
+      .with({ kind: 'draining' }, ({ ownerEpoch }) => {
+        if (this.handoff.transitioning)
+          this.handoff.start(ownerEpoch, core.hasVisibleTab);
+      })
+      .with({ kind: 'active' }, ({ ownerEpoch }) =>
+        this.handoff.ready(ownerEpoch)
+      )
+      .with(
+        { kind: 'waiting-for-tab' },
+        { kind: 'resetting-after-loss' },
+        { kind: 'failed' },
+        () => this.handoff.cancel()
+      )
+      .exhaustive(() =>
+        this.applyActions(
+          core.terminalFailure('unrecognized coordinator ownership state')
+        )
+      );
   }
 
   private startupProgress():
@@ -1130,6 +1154,9 @@ export class CoordinatorRouter {
     const progress = this.startupProgress();
     if (!progress) return;
     this.broadcast(progress);
+    // A hidden startup may be suspended by the browser while we wait to park
+    // it. Resume the phase budget when there is a visible consumer again.
+    if (!this.coreValue?.hasVisibleTab) return;
     const { phase, timeoutMs } = progress;
     this.activationTimer = this.setTimeoutFn(() => {
       this.failOwner(
@@ -1369,6 +1396,7 @@ export class CoordinatorRouter {
     const state = core.state;
     const isCurrentOwner =
       state.kind !== 'waiting-for-tab' &&
+      state.kind !== 'parked' &&
       state.kind !== 'resetting-after-loss' &&
       state.kind !== 'failed' &&
       state.tabId === tabId &&
@@ -1415,6 +1443,7 @@ export class CoordinatorRouter {
     const state = core.state;
     if (
       state.kind !== 'waiting-for-tab' &&
+      state.kind !== 'parked' &&
       state.kind !== 'resetting-after-loss' &&
       state.kind !== 'failed' &&
       state.tabId === tabId
@@ -1534,6 +1563,7 @@ export class CoordinatorRouter {
     return Boolean(
       state &&
         state.kind !== 'waiting-for-tab' &&
+        state.kind !== 'parked' &&
         state.kind !== 'resetting-after-loss' &&
         state.kind !== 'failed' &&
         state.tabId === tabId &&

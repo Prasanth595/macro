@@ -23,7 +23,7 @@ import {
 export { isCachePush, isCacheResponse, isWorkerMessage };
 
 /** Version of the topology envelope and routed cache RPC surface. */
-export const CACHE_COORDINATOR_PROTOCOL_VERSION = 9 as const;
+export const CACHE_COORDINATOR_PROTOCOL_VERSION = 10 as const;
 /**
  * Startup phases in order. The engine may touch storage only in
  * `opening-database`, which begins once it holds the database owner lock. It
@@ -40,6 +40,9 @@ export const ENGINE_STARTUP_PHASES: readonly EngineStartupPhase[] = [
   'awaiting-owner-lock',
   'opening-database',
 ];
+
+/** Waiting queues reads without a deadline; blocked permits read-only fallback. */
+export type CacheReadState = 'ready' | 'waiting' | 'blocked';
 
 export type OwnerEpoch = number;
 export type RouteId = number;
@@ -123,8 +126,9 @@ export type CoordinatorToTabEnvelope =
   | {
       coordinatorVersion: typeof CACHE_COORDINATOR_PROTOCOL_VERSION;
       kind: 'cache-read-availability';
+      /** Zero is valid only for an initially parked scope with no engine yet. */
       ownerEpoch: OwnerEpoch;
-      available: boolean;
+      state: CacheReadState;
     }
   | {
       coordinatorVersion: typeof CACHE_COORDINATOR_PROTOCOL_VERSION;
@@ -983,15 +987,18 @@ export function validateCoordinatorToTabEnvelope(
       'coordinatorVersion',
       'kind',
       'ownerEpoch',
-      'available',
+      'state',
     ]) &&
-      isPositiveInteger(value.ownerEpoch) &&
-      typeof value.available === 'boolean'
+      isSafeNonNegativeInteger(value.ownerEpoch) &&
+      (value.state === 'waiting' ||
+        value.state === 'blocked' ||
+        value.state === 'ready') &&
+      (value.ownerEpoch > 0 || value.state === 'waiting')
       ? pass({
           coordinatorVersion: CACHE_COORDINATOR_PROTOCOL_VERSION,
           kind: 'cache-read-availability',
           ownerEpoch: value.ownerEpoch,
-          available: value.available,
+          state: value.state,
         })
       : fail('invalid cache-read-availability coordinator envelope');
   }
