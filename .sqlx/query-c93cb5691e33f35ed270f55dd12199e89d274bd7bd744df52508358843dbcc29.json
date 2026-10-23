@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE scheduled_action\n            SET template_bindings = $2\n            WHERE id = $1 AND source_template_id IS NOT NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c93cb5691e33f35ed270f55dd12199e89d274bd7bd744df52508358843dbcc29"
+}

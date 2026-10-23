@@ -17000,6 +17000,7 @@ dependencies = [
  "channels",
  "chrono",
  "chrono-tz",
+ "cognition",
  "connection_gateway_client",
  "crm",
  "cron",

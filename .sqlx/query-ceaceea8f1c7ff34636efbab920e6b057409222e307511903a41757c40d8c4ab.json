@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id\n            FROM scheduled_action\n            WHERE source_template_id = $1 AND owner = $2\n            ORDER BY created_at, id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ceaceea8f1c7ff34636efbab920e6b057409222e307511903a41757c40d8c4ab"
+}

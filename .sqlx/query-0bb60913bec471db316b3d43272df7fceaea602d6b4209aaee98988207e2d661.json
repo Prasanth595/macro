@@ -1,0 +1,77 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, owner, source_action_id, name, description, task, trigger_config,\n                   variables, created_at, updated_at\n            FROM routine_template\n            WHERE owner = $1 AND source_action_id = $2\n            ORDER BY created_at DESC\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "owner",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "source_action_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "task",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 6,
+        "name": "trigger_config",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 7,
+        "name": "variables",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0bb60913bec471db316b3d43272df7fceaea602d6b4209aaee98988207e2d661"
+}

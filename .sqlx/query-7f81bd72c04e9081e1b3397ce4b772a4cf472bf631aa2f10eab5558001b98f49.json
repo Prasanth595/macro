@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO routine_template\n                (id, owner, source_action_id, name, description, task, trigger_config,\n                 variables, created_at, updated_at)\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Jsonb",
+        "Jsonb",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7f81bd72c04e9081e1b3397ce4b772a4cf472bf631aa2f10eab5558001b98f49"
+}

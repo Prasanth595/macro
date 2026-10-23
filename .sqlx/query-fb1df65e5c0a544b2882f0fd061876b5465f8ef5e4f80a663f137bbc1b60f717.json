@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM routine_template WHERE owner = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fb1df65e5c0a544b2882f0fd061876b5465f8ef5e4f80a663f137bbc1b60f717"
+}
