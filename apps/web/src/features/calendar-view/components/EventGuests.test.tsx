@@ -179,7 +179,7 @@ afterEach(() => {
 });
 
 describe('adding guests from event details', () => {
-  it('lists the current guests as fixed and invites an optional guest to the whole series', async () => {
+  it('lists the current guests as fixed and invites an optional guest to the whole series by default', async () => {
     const user = userEvent.setup();
     renderGuests(event({ recurrenceLines: ['RRULE:FREQ=WEEKLY'] }));
 
@@ -196,7 +196,6 @@ describe('adding guests from event details', () => {
       screen.queryByRole('button', { name: 'Suggest Ada Lovelace' })
     ).toBeNull();
     await user.click(screen.getByRole('checkbox', { name: 'Optional' }));
-    await user.click(screen.getByRole('radio', { name: 'All events' }));
     await user.click(screen.getByRole('button', { name: 'Send invitations' }));
 
     expect(mocks.invite).toHaveBeenCalledWith({
@@ -241,6 +240,7 @@ describe('adding guests from event details', () => {
     await user.click(
       screen.getByRole('button', { name: 'Suggest Ada Lovelace' })
     );
+    await user.click(screen.getByRole('radio', { name: 'This event' }));
     screen.getByRole('textbox', { name: 'Search for guests' }).focus();
     await user.keyboard('{Meta>}{Enter}{/Meta}');
 
@@ -362,6 +362,21 @@ describe('adding guests from event details', () => {
       screen.getByText('Only the organizer can invite guests.')
     ).toBeTruthy();
     expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  it('offers no guest addresses to copy or email when the viewer is the only guest', () => {
+    renderGuests(
+      event({
+        isSnapshot: true,
+        viewerCan: { ...MAY_INVITE, inviteGuests: false, rsvp: false },
+        attendees: [attendee({ email: 'me@example.com', isSelf: true })],
+      })
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Copy guest emails' })
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Email guests' })).toBeNull();
   });
 
   it('keeps today’s guest actions while guest invites are off', () => {
