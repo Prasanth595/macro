@@ -20,6 +20,7 @@ import type { Team } from '@service-auth/generated/schemas/team';
 import { type CaptureOptions, PostHog } from 'posthog-js';
 import { match } from 'ts-pattern';
 import { isIgnorableException, rewriteNativeFrameUrls } from './exceptionList';
+import { restoreInitialReferrer } from './landingReferrer';
 import { getPlanAnalyticsProperties } from './planProperties';
 
 /**
@@ -161,6 +162,7 @@ const initializePosthog = (instance: PostHog) => {
           : PROD_MODE_ENV
             ? 'PROD'
             : 'LOCAL';
+        restoreInitialReferrer(cr);
       }
 
       if (cr?.event !== '$exception') return cr;

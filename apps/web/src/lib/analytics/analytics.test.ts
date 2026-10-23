@@ -141,6 +141,39 @@ describe('Meta pixel platform support', () => {
   );
 });
 
+describe('signup redirect attribution', () => {
+  it('restores the external referrer on the pageview that would record the hop', async () => {
+    vi.stubEnv('VITE_POSTHOG_API_KEY', 'phc_test');
+    sessionStorage.setItem('macro:landing-referrer', 'https://instagram.com/');
+    await import('./analytics');
+    const config = mocks.init.mock.calls[0]?.[1] as {
+      before_send: (event: {
+        event: string;
+        properties: Record<string, unknown>;
+        $set_once: Record<string, unknown>;
+      }) => unknown;
+    };
+    const hop = `${window.location.origin}/?utm_source=ig&utm_medium=cpc`;
+    const event = {
+      event: '$pageview',
+      properties: { $referrer: hop },
+      $set_once: {
+        $initial_referrer: hop,
+        $initial_referring_domain: window.location.hostname,
+        $initial_utm_source: 'ig',
+      },
+    };
+
+    expect(config.before_send(event)).toMatchObject({
+      $set_once: {
+        $initial_referrer: 'https://instagram.com/',
+        $initial_referring_domain: 'instagram.com',
+        $initial_utm_source: 'ig',
+      },
+    });
+  });
+});
+
 describe('PostHog exception frames', () => {
   it('overwrites persisted document identity on automatic events, including after reset', async () => {
     vi.stubEnv('VITE_POSTHOG_API_KEY', 'test-key');
