@@ -76,11 +76,11 @@ export function ConnectedCalendars(props: {
           >
             <Button
               size="sm"
-              variant="outline"
+              variant="cta"
               disabled={props.connecting}
               onClick={props.onEnable}
             >
-              {props.connecting ? 'Connecting…' : 'Connect calendar'}
+              {props.connecting ? 'Connecting…' : 'Connect'}
             </Button>
           </Show>
         </SettingsRow>

@@ -141,7 +141,7 @@ Calendar connections live in **Settings → Calendar** (`/app/settings/calendar`
 Connected calendars offers Connect account (the existing Google consent flow),
 Connect calendar for accounts missing calendar permission, and Disconnect with
 confirmation. When the only linked account lacks calendar permission, the Google
-Calendar row shows just Connect calendar for it, with no account list or
+Calendar row shows just a filled Connect button for it, with no account list or
 visibility note. Disconnect removes calendar access/data, not the Gmail connection.
 Account checkboxes show/hide all child calendars; partial selection is shown as
 mixed. Individual calendars can also be shown/hidden. The account color is the
