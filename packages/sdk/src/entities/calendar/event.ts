@@ -48,7 +48,9 @@ export interface UpdateEventOptions {
    * already out-of-office. */
   outOfOffice?: OutOfOfficeProperties;
   /** Replacement guest policy; only the organizer of a Google event may change
-   * it (`viewerCan.setGuestPolicy`). */
+   * it (`viewerCan.setGuestPolicy`). It applies to the whole series, so an
+   * update scoped to one occurrence (`scope: 'this_event'`, or a `recurrenceId`)
+   * that changes it is rejected; use scope `'all'`. */
   guestPolicy?: GuestPolicy;
   /** How much of a recurring series the update covers. Omit to let
    * `recurrenceId` decide. */
