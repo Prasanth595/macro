@@ -561,7 +561,10 @@ invite guests.` line, since none of it would reach the meeting. It offers no `Ed
 desktop or in the phone drawer, and the grid does not move or resize it: its details are the
 organizer's, and a composer that could change only its notifications would read as editing the
 meeting. Its delete button is `Delete your copy`, whose dialog says the shared event stays as it
-is. If Google already holds the meeting on that calendar (an invitation Macro has
+is. If the organizer later invites the viewer (for example by accepting their request to join),
+Google's invitation lands on the same calendar event, and once it syncs the copy is an ordinary
+guest seat again: the note goes away, and RSVP and `Edit event` follow the organizer's guest
+permissions. If Google already holds the meeting on that calendar (an invitation Macro has
 not synced yet), nothing is imported, a sync is scheduled and the card reports that it is
 already on their calendar. `Download .ics` saves the event as an iCalendar file and is not
 flagged. `Ask to join` asks the person who shared the event to add the viewer as a guest; it

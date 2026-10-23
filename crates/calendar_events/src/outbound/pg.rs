@@ -801,7 +801,7 @@ impl CalendarRepository for PgCalendarRepository {
         let mut tx = self.pool.begin().await.map_err(report)?;
         let user_mutation = matches!(write, CalendarEventWrite::UserMutation(_));
         let provider_sync = matches!(write, CalendarEventWrite::GoogleBackfill { .. });
-        let upsert = match write {
+        let mut upsert = match write {
             #[cfg(feature = "outlook")]
             CalendarEventWrite::OutlookSync { lease, upsert } => {
                 outlook::fence(&mut tx, &lease).await?;
@@ -907,6 +907,21 @@ impl CalendarRepository for PgCalendarRepository {
                     })
             });
         if let Some(row) = &existing {
+            // A snapshot an invitation has reached is its owner's seat at the
+            // meeting. Answering can leave Google's copy looking like the
+            // import again, as when the meeting lists only them, so a copy
+            // stored as a seat stays one.
+            let stored_snapshot = row
+                .normalized_payload
+                .pointer("/event/isSnapshot")
+                .is_some_and(|value| value == true);
+            if stored_snapshot && !upsert.event.is_snapshot {
+                tracing::info!(
+                    event_id = %row.event_id,
+                    "an invitation reached a snapshot, which is now its owner's seat"
+                );
+            }
+            upsert.event.is_snapshot &= stored_snapshot;
             let incoming =
                 serde_json::to_value(StoredSourceProjection::from(&upsert)).map_err(report)?;
             if canonical_projection(&row.normalized_payload) == canonical_projection(&incoming) {
