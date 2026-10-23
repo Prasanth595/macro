@@ -24,11 +24,17 @@ word docs, Illustrator/Photoshop files).
 
 ## Scope
 
+- Copying a canvas preserves its JSON seed and, when one exists, its live sync
+  room; failed copies compensate destination storage and sync artifacts before
+  removing the new document rows, logging cleanup failures independently.
 - Owns: document lifecycle (create/rename/purge/upgrade), content storage and
   markdown backfill, comments, AI-editing tools, and file-type domain services
   (spreadsheet, presentation, word, illustrator, photoshop).
 - Not here: realtime collaborative sync of document content → sync-service;
-  the lexical markdown node/editor implementation → `packages/lexical-core`.
+  the lexical markdown node/editor implementation → `packages/lexical-core`;
+  Discussion comments, replies and thread state on any entity → the `messages`
+  toolset (this crate keeps only `CommentOnText`, the inline comment that
+  places a mark).
 
 ## Boundaries
 

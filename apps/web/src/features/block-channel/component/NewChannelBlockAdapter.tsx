@@ -45,6 +45,7 @@ import {
   toChannelTargetRequest,
 } from '@channel/Channel/link';
 import {
+  CallTabLabel,
   canUseInlineCallTab,
   normalizeChannelTab,
   useChannelTabItems,
@@ -186,8 +187,8 @@ function NewTop(props: { channelId: string }) {
     title: 'View',
     options: tabs().map((tab) => ({
       value: tab.value,
-      label: tab.label,
-      icon: CHANNEL_TAB_ICONS[tab.value as ChannelTabId],
+      label: tab.value === 'call' ? <CallTabLabel /> : tab.label,
+      icon: CHANNEL_TAB_ICONS[tab.value],
     })),
     value: activeTab(),
     onSelect: (value: string) => setActiveTab(value as ChannelTabId),
