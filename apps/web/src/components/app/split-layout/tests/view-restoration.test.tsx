@@ -1,4 +1,3 @@
-import { parseAgentsRoute } from '@app/features/agents-view/core/route';
 import {
   createMemoryHistory,
   createMemoryPaneStore,
@@ -30,7 +29,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SplitLayoutContext } from '../context';
 import { useEntryState } from '../entry-state';
 import { createSplitLayout, type SplitManager } from '../layoutManager';
-import { useSplitPanelOrThrow } from '../layoutUtils';
 import { createAppPanePolicy } from '../split-router/app-pane-policy';
 import {
   resolveContentLocation,
@@ -43,7 +41,7 @@ const mocks = vi.hoisted(() => ({
   account: (): string | undefined => 'account-one',
   selection: (): string[] => [],
   setSelection: undefined as Setter<string[]> | undefined,
-  retaining: () => true,
+  retaining: (): boolean => true,
 }));
 
 vi.mock('../layoutUtils', async () => {
@@ -80,9 +78,7 @@ vi.mock('@service-connection/websocket', () => ({
 }));
 
 function RememberedView() {
-  const { handle } = useSplitPanelOrThrow();
-  const id = handle.content().id;
-  useViewRestoration(parseAgentsRoute(id) ? 'agents' : id);
+  useViewRestoration();
   const [selection, setSelection] = useEntryState<string[]>('view.selection', {
     default: [],
   });
@@ -198,7 +194,10 @@ describe('opt-in view restoration', () => {
     mocks.setSelection?.(['message-one']);
     manager.openWithSplit({ type: 'component', id: 'home' }, { resume: true });
     await router.settled();
-    manager.openWithSplit({ type: 'component', id: 'channels' }, { resume: true });
+    manager.openWithSplit(
+      { type: 'component', id: 'channels' },
+      { resume: true }
+    );
     await router.settled();
     expect(router.entry(pane)?.location.route.matches.at(-1)).toMatchObject({
       id: 'channels-channel',
@@ -217,7 +216,10 @@ describe('opt-in view restoration', () => {
     });
     const pane = router.panes()[0]!;
     await router.navigatePane(pane, '/home');
-    manager.openWithSplit({ type: 'component', id: 'channels' }, { resume: true });
+    manager.openWithSplit(
+      { type: 'component', id: 'channels' },
+      { resume: true }
+    );
     await router.settled();
     expect(router.entry(pane)?.location.route.matches.at(-1)?.id).toBe(
       'view-channels'
@@ -228,15 +230,18 @@ describe('opt-in view restoration', () => {
     const { router, manager } = setup();
     const pane = router.panes()[0]!;
     await router.navigatePane(pane, '/home');
-    manager.openWithSplit({ type: 'component', id: 'channels' }, { resume: true });
+    manager.openWithSplit(
+      { type: 'component', id: 'channels' },
+      { resume: true }
+    );
     await router.settled();
-    expect(router.entry(pane)?.location.route.matches.at(-1)?.params.channelId).toBe(
-      'channel-one'
-    );
+    expect(
+      router.entry(pane)?.location.route.matches.at(-1)?.params.channelId
+    ).toBe('channel-one');
     await router.navigatePane(pane, '/channels/channel-two');
-    expect(router.entry(pane)?.location.route.matches.at(-1)?.params.channelId).toBe(
-      'channel-two'
-    );
+    expect(
+      router.entry(pane)?.location.route.matches.at(-1)?.params.channelId
+    ).toBe('channel-two');
     await router.navigatePane(pane, '/home');
     manager.openWithSplit(
       { type: 'component', id: 'channels' },
@@ -253,7 +258,10 @@ describe('opt-in view restoration', () => {
     const pane = router.panes()[0]!;
     await router.navigatePane(pane, '/channels');
     await router.navigatePane(pane, '/home');
-    manager.openWithSplit({ type: 'component', id: 'channels' }, { resume: true });
+    manager.openWithSplit(
+      { type: 'component', id: 'channels' },
+      { resume: true }
+    );
     await router.settled();
     expect(router.entry(pane)?.location.route.matches.at(-1)?.id).toBe(
       'view-channels'
@@ -264,7 +272,10 @@ describe('opt-in view restoration', () => {
     const { router, manager } = setup('/drive/recent');
     const pane = router.panes()[0]!;
     await router.navigatePane(pane, '/home');
-    manager.openWithSplit({ type: 'component', id: 'documents' }, { resume: true });
+    manager.openWithSplit(
+      { type: 'component', id: 'documents' },
+      { resume: true }
+    );
     await router.settled();
     expect(router.entry(pane)?.location.route.matches.at(-1)?.params.tab).toBe(
       'recent'
@@ -273,7 +284,10 @@ describe('opt-in view restoration', () => {
       state: { sessionId: 'search-one' },
     });
     await router.navigatePane(pane, '/home');
-    manager.openWithSplit({ type: 'component', id: 'search' }, { resume: true });
+    manager.openWithSplit(
+      { type: 'component', id: 'search' },
+      { resume: true }
+    );
     await router.settled();
     expect(router.entry(pane)?.state).toEqual({ sessionId: 'search-one' });
   });
@@ -283,15 +297,21 @@ describe('opt-in view restoration', () => {
     const pane = router.panes()[0]!;
     await router.updateSearch(pane, 'calendar', { eventId: ['event-one'] });
     await router.navigatePane(pane, '/agents/session-one');
-    manager.openWithSplit({ type: 'component', id: 'calendar' }, { resume: true });
-    await router.settled();
-    expect(router.entry(pane)?.location.route.matches.at(-1)?.params.period).toBe(
-      'dayGridMonth'
+    manager.openWithSplit(
+      { type: 'component', id: 'calendar' },
+      { resume: true }
     );
+    await router.settled();
+    expect(
+      router.entry(pane)?.location.route.matches.at(-1)?.params.period
+    ).toBe('dayGridMonth');
     expect(router.entry(pane)?.location.search?.calendar?.eventId).toEqual([
       'event-one',
     ]);
-    manager.openWithSplit({ type: 'component', id: 'agents' }, { resume: true });
+    manager.openWithSplit(
+      { type: 'component', id: 'agents' },
+      { resume: true }
+    );
     await router.settled();
     expect(router.entry(pane)?.location.route.matches.at(-1)?.params.id).toBe(
       'session-one'
@@ -299,7 +319,9 @@ describe('opt-in view restoration', () => {
   });
 
   it('resumes a live native view before replacing its pane stack', async () => {
-    const { router, manager } = setup('/channels/channel-one', { stacked: true });
+    const { router, manager } = setup('/channels/channel-one', {
+      stacked: true,
+    });
     mocks.setSelection?.(['message-one']);
     manager.openWithSplit(
       { type: 'component', id: 'home' },
@@ -314,23 +336,28 @@ describe('opt-in view restoration', () => {
     await router.settled();
     expect(router.panes()).toHaveLength(1);
     const pane = router.panes()[0]!;
-    expect(router.entry(pane)?.location.route.matches.at(-1)?.params.channelId).toBe(
-      'channel-one'
-    );
+    expect(
+      router.entry(pane)?.location.route.matches.at(-1)?.params.channelId
+    ).toBe('channel-one');
     expect(mocks.selection()).toEqual(['message-one']);
-    expect(oldPanes.some((oldPane) => !router.panes().includes(oldPane))).toBe(true);
+    expect(oldPanes.some((oldPane) => !router.panes().includes(oldPane))).toBe(
+      true
+    );
   });
 
   it('prefers the last focused view over another live instance', async () => {
     const { router, manager } = setup();
     const firstPane = router.panes()[0]!;
     await router.open('/channels/channel-two', { newPane: true });
-    const firstSplit = manager.splits().find(
-      (split) => split.id.toString() === firstPane.toString()
-    )!;
+    const firstSplit = manager
+      .splits()
+      .find((split) => split.id.toString() === firstPane.toString())!;
     manager.activateSplit(firstSplit.id);
     await router.navigatePane(firstPane, '/home');
-    manager.openWithSplit({ type: 'component', id: 'channels' }, { resume: true });
+    manager.openWithSplit(
+      { type: 'component', id: 'channels' },
+      { resume: true }
+    );
     await router.settled();
     expect(
       router.entry(firstPane)?.location.route.matches.at(-1)?.params.channelId
@@ -342,7 +369,10 @@ describe('opt-in view restoration', () => {
     const pane = router.panes()[0]!;
     await router.open('/home', { newPane: true });
     await router.remove(pane);
-    manager.openWithSplit({ type: 'component', id: 'channels' }, { resume: true });
+    manager.openWithSplit(
+      { type: 'component', id: 'channels' },
+      { resume: true }
+    );
     await router.settled();
     expect(
       router.entry(router.panes()[0]!)?.location.route.matches.at(-1)?.params
@@ -363,10 +393,11 @@ describe('opt-in view restoration', () => {
 
   it('never publishes a snapshot when middleware cancels navigation', async () => {
     const { router, manager, setRetaining } = setup('/channels/channel-one', {
-      middleware: [({ to, cancel }) =>
-        to.location.route.matches.at(-1)?.id === 'view-home'
-          ? cancel()
-          : undefined,
+      middleware: [
+        ({ to, cancel }) =>
+          to.location.route.matches.at(-1)?.id === 'view-home'
+            ? cancel()
+            : undefined,
       ],
     });
     const pane = router.panes()[0]!;
@@ -381,11 +412,13 @@ describe('opt-in view restoration', () => {
     const entered = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
     const { router, manager, setAccount } = setup('/channels/channel-one', {
-      middleware: [({ to }) => {
-        if (to.location.route.matches.at(-1)?.id !== 'view-home') return;
-        entered.resolve();
-        return release.promise;
-      }],
+      middleware: [
+        ({ to }) => {
+          if (to.location.route.matches.at(-1)?.id !== 'view-home') return;
+          entered.resolve();
+          return release.promise;
+        },
+      ],
     });
     const pane = router.panes()[0]!;
     const pending = router.navigatePane(pane, '/home');
@@ -403,11 +436,14 @@ describe('opt-in view restoration', () => {
     const pane = router.panes()[0]!;
     setAccount('account-one');
     await router.navigatePane(pane, '/home');
-    manager.openWithSplit({ type: 'component', id: 'channels' }, { resume: true });
-    await router.settled();
-    expect(router.entry(pane)?.location.route.matches.at(-1)?.params.channelId).toBe(
-      'channel-one'
+    manager.openWithSplit(
+      { type: 'component', id: 'channels' },
+      { resume: true }
     );
+    await router.settled();
+    expect(
+      router.entry(pane)?.location.route.matches.at(-1)?.params.channelId
+    ).toBe('channel-one');
   });
 
   it('does not share retained or live entries across account changes', async () => {
@@ -415,7 +451,10 @@ describe('opt-in view restoration', () => {
     const pane = router.panes()[0]!;
     setAccount('account-two');
     await router.navigatePane(pane, '/home');
-    manager.openWithSplit({ type: 'component', id: 'channels' }, { resume: true });
+    manager.openWithSplit(
+      { type: 'component', id: 'channels' },
+      { resume: true }
+    );
     await router.settled();
     expect(router.entry(pane)?.location.route.matches.at(-1)?.id).toBe(
       'view-channels'
@@ -435,7 +474,10 @@ describe('opt-in view restoration', () => {
     );
     expect(router.entry(pane)?.id).toBe(entryId);
     await router.navigatePane(pane, '/home');
-    manager.openWithSplit({ type: 'component', id: 'channels' }, { resume: true });
+    manager.openWithSplit(
+      { type: 'component', id: 'channels' },
+      { resume: true }
+    );
     await router.settled();
     expect(router.entry(pane)?.location.route.matches.at(-1)?.id).toBe(
       'view-channels'
@@ -448,11 +490,14 @@ describe('opt-in view restoration', () => {
     setAccount('account-two');
     await router.navigatePane(pane, '/channels/channel-two');
     await router.navigatePane(pane, '/home');
-    manager.openWithSplit({ type: 'component', id: 'channels' }, { resume: true });
-    await router.settled();
-    expect(router.entry(pane)?.location.route.matches.at(-1)?.params.channelId).toBe(
-      'channel-two'
+    manager.openWithSplit(
+      { type: 'component', id: 'channels' },
+      { resume: true }
     );
+    await router.settled();
+    expect(
+      router.entry(pane)?.location.route.matches.at(-1)?.params.channelId
+    ).toBe('channel-two');
   });
 
   it('clears a saved snapshot on sign-out', async () => {
@@ -463,7 +508,10 @@ describe('opt-in view restoration', () => {
     setAccount(undefined);
     expect(manager.viewState.get('channels')).toBeUndefined();
     setAccount('account-one');
-    manager.openWithSplit({ type: 'component', id: 'channels' }, { resume: true });
+    manager.openWithSplit(
+      { type: 'component', id: 'channels' },
+      { resume: true }
+    );
     await router.settled();
     expect(router.entry(pane)?.location.route.matches.at(-1)?.id).toBe(
       'view-channels'

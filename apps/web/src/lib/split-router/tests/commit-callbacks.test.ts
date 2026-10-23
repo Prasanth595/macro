@@ -40,8 +40,8 @@ describe('leave guard commit callbacks', () => {
   it('publishes once after middleware and the destination and URL commit', async () => {
     const release = Promise.withResolvers<void>();
     const { router, history, pane } = setup('/home', {
-      middleware: [({ path }) =>
-        path === '/mail' ? release.promise : undefined,
+      middleware: [
+        ({ path }) => (path === '/mail' ? release.promise : undefined),
       ],
     });
     const published: { path: string; route: string | undefined }[] = [];
@@ -79,8 +79,8 @@ describe('leave guard commit callbacks', () => {
 
   it('discards staged callbacks when middleware cancels', async () => {
     const { router, pane } = setup('/home', {
-      middleware: [({ path, cancel }) =>
-        path === '/mail' ? cancel() : undefined,
+      middleware: [
+        ({ path, cancel }) => (path === '/mail' ? cancel() : undefined),
       ],
     });
     const publish = vi.fn();
@@ -97,9 +97,11 @@ describe('leave guard commit callbacks', () => {
   it('publishes when a middleware failure permits navigation to commit', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const { router, pane } = setup('/home', {
-      middleware: [({ path }) => {
-        if (path === '/mail') throw new Error('Middleware failed');
-      }],
+      middleware: [
+        ({ path }) => {
+          if (path === '/mail') throw new Error('Middleware failed');
+        },
+      ],
     });
     const publish = vi.fn();
     router.registerGuard(pane, 1, ({ onCommit }) => {
@@ -247,7 +249,7 @@ describe('leave guard commit callbacks', () => {
       onCommit(() => published.push(router.panes().includes(pane)));
       return true;
     });
-    expect(await router.remove(pane)).toMatchObject({ status: 'committed' });
+    expect(await router.remove(pane)).toBe(true);
     expect(destinations).toEqual([undefined]);
     expect(published).toEqual([false]);
   });

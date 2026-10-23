@@ -11,7 +11,7 @@ import { useViewRestoration } from '@components/app/split-layout/view-restoratio
 import { enableChatV3Agents } from '@core/constant/featureFlags';
 import { useUserContext } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { createRenderEffect, lazy, Show, untrack } from 'solid-js';
+import { createRenderEffect, lazy, Show } from 'solid-js';
 import { getViewPreset } from '../next-soup/sidebar/soup-filter-presets';
 import { routineContent } from '../routines/routine-navigation';
 import { AgentsViewSkeleton } from './agents-view-skeleton';
@@ -86,8 +86,7 @@ function LegacyAgentsView() {
 
 export const AgentsRouteView = withAuth(() => {
   const panel = useSplitPanelOrThrow();
-  const viewId = untrack(() => panel.handle.content().id);
-  useViewRestoration(parseAgentsRoute(viewId) ? 'agents' : viewId);
+  useViewRestoration();
   const route = () => {
     const content = panel.handle.content();
     if (content.type === 'component' && content.id === 'routines') return;

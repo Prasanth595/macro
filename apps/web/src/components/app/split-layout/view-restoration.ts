@@ -1,3 +1,4 @@
+import { parseAgentsRoute } from '@app/features/agents-view/core/route';
 import {
   type Entry,
   useBeforeLeave,
@@ -7,6 +8,7 @@ import {
 import { onCleanup, untrack, useContext } from 'solid-js';
 import { SplitLayoutContext } from './context';
 import { useSplitPanelOrThrow } from './layoutUtils';
+import { splitContentFromLocation } from './split-router/legacy-route';
 import type { RetainedViewState } from './view-state';
 
 /** Opt this view into resuming its last location and captured entry-state slices. */
@@ -17,7 +19,14 @@ export function useViewRestoration(key?: string): void {
   const pane = usePane();
   const router = useSplitRouter();
   const entry = () => router.entry(pane());
-  const viewId = key ?? untrack(() => handle.content().id);
+  const viewId =
+    key ??
+    untrack(() => {
+      const current = entry();
+      if (!current) throw new Error('View restoration requires a router entry');
+      const content = splitContentFromLocation(current.location);
+      return parseAgentsRoute(content.id) ? 'agents' : content.id;
+    });
 
   function capture(entry: Entry): RetainedViewState | undefined {
     const content = handle.content();

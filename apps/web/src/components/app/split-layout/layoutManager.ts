@@ -1311,12 +1311,10 @@ export function createSplitLayout(
         captureCurrentEntryState(live);
       },
       currentEntryState: () => {
-        const live = s();
-        if (!live) return undefined;
-        // Read through the store getter so callers see the latest captured
-        // state (mirrored from history into split.content on capture).
-        const c = live.content as { state?: EntryState };
-        return c.state;
+        const entry = router.entry(paneOf(currentSplit.id));
+        if (!entry) return;
+        // The outlet can mount before applyEntry mirrors the router entry.
+        return entryStates.get(entry.id) ?? metaOf(entry).entryState;
       },
       updateCurrentEntry: (updater) =>
         updateCurrentEntry(currentSplit.id, updater),

@@ -1,5 +1,11 @@
 import type { Entry, SplitLocation } from '@app/lib/split-router';
-import { type Accessor, createComputed, on, onCleanup, untrack } from 'solid-js';
+import {
+  type Accessor,
+  createComputed,
+  on,
+  onCleanup,
+  untrack,
+} from 'solid-js';
 import type { EntryState } from './layoutManager';
 
 export type RetainedViewState = {
@@ -23,7 +29,10 @@ export function createViewState(options: {
     entry: Accessor<Entry | undefined>;
   };
   const sources = new Set<Source>();
-  const saved = new Map<string, { snapshot: RetainedViewState; order: number }>();
+  const saved = new Map<
+    string,
+    { snapshot: RetainedViewState; order: number }
+  >();
   const entryOwners = new Map<
     string,
     { generation: number; sessionKey: string | undefined }

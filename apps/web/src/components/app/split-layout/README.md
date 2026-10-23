@@ -4,8 +4,8 @@ Split layout should support an arbitrary number of vertical splits.
 
 `SplitLayoutProvider` owns a memory-only, account-scoped view-state store.
 A view opts in by calling `useViewRestoration()` in its stable route component.
-The default key is the component's view ID; pass a stable key when component IDs
-encode individual conversations, as Agents does with `useViewRestoration('agents')`.
+The default key comes from the current router location, with Agents conversations
+normalized to `agents`; pass an explicit key to override that grouping.
 
 The hook captures its current location, route state, and entry-state slices in
 `useBeforeLeave`. It stages the snapshot with the navigation's `onCommit`
@@ -23,6 +23,9 @@ Views retain local context through `useEntryState` or `registerEntryStateCaptor`
 These slices restore through both pane Back/Forward and opted-in app switches;
 route/schema state stays separate. Restores use the existing router, including
 leave guards, middleware, URL updates, and single-owner content claims.
+
+Resolve restoration keys and initial entry-state slices from the current router
+entry, not the layout mirror: an outlet can mount before the mirror updates.
 
 The remaining notes below describe the original split layout.
 

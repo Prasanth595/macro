@@ -8,10 +8,7 @@ const CalendarView = lazy(async () => ({
   default: (await import('./calendar-view')).CalendarView,
 }));
 
-export const CalendarRouteView = withAuth(
-  () => {
-    useViewRestoration();
-    return <CalendarView route={calendarSplitRoute} />;
-  },
-  CalendarViewSkeleton
-);
+export const CalendarRouteView = withAuth(() => {
+  useViewRestoration();
+  return <CalendarView route={calendarSplitRoute} />;
+}, CalendarViewSkeleton);

@@ -5,7 +5,7 @@ import {
   type Setter,
   untrack,
 } from 'solid-js';
-import type { EntryState, NavigationCause } from './layoutManager';
+import type { NavigationCause } from './layoutManager';
 import { useSplitPanelOrThrow } from './layoutUtils';
 
 export type UseEntryStateOptions<T> = {
@@ -38,7 +38,7 @@ export function useEntryState<T>(
   const handle = panel.handle;
 
   const persisted = untrack(() => {
-    const blob = (handle.content() as { state?: EntryState }).state;
+    const blob = handle.currentEntryState();
     return blob && key in blob ? (blob[key] as T) : undefined;
   });
   const initial = persisted !== undefined ? persisted : options.default;
