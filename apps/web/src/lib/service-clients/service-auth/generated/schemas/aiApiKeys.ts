@@ -4,12 +4,12 @@
  * authentication_service
  * OpenAPI spec version: 0.1.0
  */
-import type { TeamAiApiKey } from './teamAiApiKey';
+import type { AiApiKey } from './aiApiKey';
 
 /**
- * The providers the caller's team has a key for.
+ * The providers there is a key for.
  */
-export interface TeamAiApiKeys {
+export interface AiApiKeys {
   /** One entry per provider with a key. */
-  keys: TeamAiApiKey[];
+  keys: AiApiKey[];
 }

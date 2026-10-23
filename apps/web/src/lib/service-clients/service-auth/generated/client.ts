@@ -5,7 +5,9 @@
  * OpenAPI spec version: 0.1.0
  */
 import type {
+  AiApiKeys,
   AiBillingErrorBody,
+  AiProvider,
   AppleLoginRequest,
   ChangePlanRequest,
   ChangePlanResponse,
@@ -76,10 +78,10 @@ import type {
   PostGetNamesRequestBody,
   ProfilePictures,
   PublicGtmInviteLink,
+  PutAiApiKeyRequest,
   PutCursorApiKeyRequest,
   PutCursorDefaultModelRequest,
   PutProfilePictureParams,
-  PutTeamAiApiKeyRequest,
   PutUserNameParams,
   RedeemGtmInviteLinkRequest,
   ResendFusionauthVerifyUserEmailRequest,
@@ -93,8 +95,6 @@ import type {
   StripeSessionResponse,
   SubscriptionStatus,
   Team,
-  TeamAiApiKeys,
-  TeamAiProvider,
   TeamInviteLinkResponse,
   TeamInviteLinkTeam,
   TeamInviteLinkTokenRequest,
@@ -114,6 +114,158 @@ import type {
   UserQuota,
   UserTokensResponse,
 } from './schemas';
+
+/**
+ * @summary The providers the caller has their own AI API key for.
+ */
+export type getAiApiKeysResponse200 = {
+  data: AiApiKeys;
+  status: 200;
+};
+
+export type getAiApiKeysResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type getAiApiKeysResponseSuccess = getAiApiKeysResponse200 & {
+  headers: Headers;
+};
+export type getAiApiKeysResponseError = getAiApiKeysResponse401 & {
+  headers: Headers;
+};
+
+export type getAiApiKeysResponse =
+  | getAiApiKeysResponseSuccess
+  | getAiApiKeysResponseError;
+
+export const getGetAiApiKeysUrl = () => {
+  return `/ai-api-keys`;
+};
+
+export const getAiApiKeys = async (
+  options?: RequestInit
+): Promise<getAiApiKeysResponse> => {
+  const res = await fetch(getGetAiApiKeysUrl(), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getAiApiKeysResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getAiApiKeysResponse;
+};
+
+/**
+ * @summary Registers or replaces the caller's own key for a provider.
+ */
+export type putAiApiKeyResponse200 = {
+  data: AiApiKeys;
+  status: 200;
+};
+
+export type putAiApiKeyResponse400 = {
+  data: ErrorResponse;
+  status: 400;
+};
+
+export type putAiApiKeyResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type putAiApiKeyResponseSuccess = putAiApiKeyResponse200 & {
+  headers: Headers;
+};
+export type putAiApiKeyResponseError = (
+  | putAiApiKeyResponse400
+  | putAiApiKeyResponse401
+) & {
+  headers: Headers;
+};
+
+export type putAiApiKeyResponse =
+  | putAiApiKeyResponseSuccess
+  | putAiApiKeyResponseError;
+
+export const getPutAiApiKeyUrl = (provider: AiProvider) => {
+  return `/ai-api-keys/${provider}`;
+};
+
+export const putAiApiKey = async (
+  provider: AiProvider,
+  putAiApiKeyRequest: PutAiApiKeyRequest,
+  options?: RequestInit
+): Promise<putAiApiKeyResponse> => {
+  const res = await fetch(getPutAiApiKeyUrl(provider), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(putAiApiKeyRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: putAiApiKeyResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as putAiApiKeyResponse;
+};
+
+/**
+ * Does not revoke the key at the provider; succeeds when there was none.
+ * @summary Forgets the caller's own key for a provider.
+ */
+export type deleteAiApiKeyResponse200 = {
+  data: AiApiKeys;
+  status: 200;
+};
+
+export type deleteAiApiKeyResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type deleteAiApiKeyResponseSuccess = deleteAiApiKeyResponse200 & {
+  headers: Headers;
+};
+export type deleteAiApiKeyResponseError = deleteAiApiKeyResponse401 & {
+  headers: Headers;
+};
+
+export type deleteAiApiKeyResponse =
+  | deleteAiApiKeyResponseSuccess
+  | deleteAiApiKeyResponseError;
+
+export const getDeleteAiApiKeyUrl = (provider: AiProvider) => {
+  return `/ai-api-keys/${provider}`;
+};
+
+export const deleteAiApiKey = async (
+  provider: AiProvider,
+  options?: RequestInit
+): Promise<deleteAiApiKeyResponse> => {
+  const res = await fetch(getDeleteAiApiKeyUrl(provider), {
+    ...options,
+    method: 'DELETE',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: deleteAiApiKeyResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as deleteAiApiKeyResponse;
+};
 
 /**
  * @summary Turn automatic credit reloads on with the given
@@ -4050,7 +4202,7 @@ export const patchTeam = async (
  * @summary The providers the caller's team has its own AI API key for.
  */
 export type getTeamAiApiKeysResponse200 = {
-  data: TeamAiApiKeys;
+  data: AiApiKeys;
   status: 200;
 };
 
@@ -4104,7 +4256,7 @@ export const getTeamAiApiKeys = async (
  * @summary Registers or replaces the team's key for a provider. Team admins only.
  */
 export type putTeamAiApiKeyResponse200 = {
-  data: TeamAiApiKeys;
+  data: AiApiKeys;
   status: 200;
 };
 
@@ -4138,20 +4290,20 @@ export type putTeamAiApiKeyResponse =
   | putTeamAiApiKeyResponseSuccess
   | putTeamAiApiKeyResponseError;
 
-export const getPutTeamAiApiKeyUrl = (provider: TeamAiProvider) => {
+export const getPutTeamAiApiKeyUrl = (provider: AiProvider) => {
   return `/team-ai-api-keys/${provider}`;
 };
 
 export const putTeamAiApiKey = async (
-  provider: TeamAiProvider,
-  putTeamAiApiKeyRequest: PutTeamAiApiKeyRequest,
+  provider: AiProvider,
+  putAiApiKeyRequest: PutAiApiKeyRequest,
   options?: RequestInit
 ): Promise<putTeamAiApiKeyResponse> => {
   const res = await fetch(getPutTeamAiApiKeyUrl(provider), {
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(putTeamAiApiKeyRequest),
+    body: JSON.stringify(putAiApiKeyRequest),
   });
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
@@ -4169,7 +4321,7 @@ export const putTeamAiApiKey = async (
  * @summary Forgets the team's key for a provider. Team admins only.
  */
 export type deleteTeamAiApiKeyResponse200 = {
-  data: TeamAiApiKeys;
+  data: AiApiKeys;
   status: 200;
 };
 
@@ -4198,12 +4350,12 @@ export type deleteTeamAiApiKeyResponse =
   | deleteTeamAiApiKeyResponseSuccess
   | deleteTeamAiApiKeyResponseError;
 
-export const getDeleteTeamAiApiKeyUrl = (provider: TeamAiProvider) => {
+export const getDeleteTeamAiApiKeyUrl = (provider: AiProvider) => {
   return `/team-ai-api-keys/${provider}`;
 };
 
 export const deleteTeamAiApiKey = async (
-  provider: TeamAiProvider,
+  provider: AiProvider,
   options?: RequestInit
 ): Promise<deleteTeamAiApiKeyResponse> => {
   const res = await fetch(getDeleteTeamAiApiKeyUrl(provider), {

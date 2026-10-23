@@ -4,14 +4,14 @@
  * authentication_service
  * OpenAPI spec version: 0.1.0
  */
-import type { TeamAiProvider } from './teamAiProvider';
+import type { AiProvider } from './aiProvider';
 
 /**
- * One provider the team has a key for. Never includes the key.
+ * One provider there is a key for. Never includes the key.
  */
-export interface TeamAiApiKey {
+export interface AiApiKey {
   /** The provider. */
-  provider: TeamAiProvider;
+  provider: AiProvider;
   /** When the key was last replaced. */
   updatedAt: string;
 }

@@ -6,9 +6,9 @@
  */
 
 /**
- * The key an admin pasted.
+ * The key someone pasted.
  */
-export interface PutTeamAiApiKeyRequest {
+export interface PutAiApiKeyRequest {
   /** An Anthropic (`sk-ant-…`) or OpenAI (`sk-…`) API key. */
   apiKey: string;
 }

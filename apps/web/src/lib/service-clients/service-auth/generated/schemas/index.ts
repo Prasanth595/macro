@@ -6,7 +6,10 @@
  */
 
 export * from './aBGroup';
+export * from './aiApiKey';
+export * from './aiApiKeys';
 export * from './aiBillingErrorBody';
+export * from './aiProvider';
 export * from './appleLoginRequest';
 export * from './autoReloadDefaults';
 export * from './autoReloadMonthlyBudget';
@@ -175,11 +178,11 @@ export * from './postGetNamesRequestBody';
 export * from './profilePictureQueryParams';
 export * from './profilePictures';
 export * from './publicGtmInviteLink';
+export * from './putAiApiKeyRequest';
 export * from './putCursorApiKeyRequest';
 export * from './putCursorDefaultModelRequest';
 export * from './putCursorDefaultModelRequestModelId';
 export * from './putProfilePictureParams';
-export * from './putTeamAiApiKeyRequest';
 export * from './putUserNameParams';
 export * from './putUserNameQueryParams';
 export * from './putUserNameQueryParamsFirstName';
@@ -201,9 +204,6 @@ export * from './subscriptionStatus';
 export * from './subscriptionStatusRenewalDate';
 export * from './subscriptionStatusScheduledChange';
 export * from './team';
-export * from './teamAiApiKey';
-export * from './teamAiApiKeys';
-export * from './teamAiProvider';
 export * from './teamAutoJoinDomain';
 export * from './teamDefaultLinkShare';
 export * from './teamInviteDetails';

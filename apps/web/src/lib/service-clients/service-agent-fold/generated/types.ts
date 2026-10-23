@@ -512,7 +512,17 @@ export type FailureNoticeKind =
    *  The session runs on the team's API key, but no key the owner may use
    *  serves the selected model.
    */
-  | 'team_api_key_unavailable';
+  | 'team_api_key_unavailable'
+  /**
+   *  The session owner has used their Macro AI allowance, and they have
+   *  their own API key the conversation can continue on if they agree.
+   */
+  | 'personal_api_key_available'
+  /**
+   *  The session runs on the owner's own API key, but none of theirs serves
+   *  the selected model.
+   */
+  | 'personal_api_key_unavailable';
 
 /**  A file modification a tool reported. */
 export type FileDiff = {

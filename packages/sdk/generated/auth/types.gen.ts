@@ -7,6 +7,30 @@ export type ClientOptions = {
 export type AbGroup = 'A' | 'B';
 
 /**
+ * One provider there is a key for. Never includes the key.
+ */
+export type AiApiKey = {
+    /**
+     * The provider.
+     */
+    provider: AiProvider;
+    /**
+     * When the key was last replaced.
+     */
+    updatedAt: string;
+};
+
+/**
+ * The providers there is a key for.
+ */
+export type AiApiKeys = {
+    /**
+     * One entry per provider with a key.
+     */
+    keys: Array<AiApiKey>;
+};
+
+/**
  * Error response body.
  */
 export type AiBillingErrorBody = {
@@ -15,6 +39,11 @@ export type AiBillingErrorBody = {
      */
     error: string;
 };
+
+/**
+ * A provider a person or team can bring its own key for.
+ */
+export type AiProvider = 'anthropic' | 'openai';
 
 export type AppleLoginRequest = {
     code: string;
@@ -1425,6 +1454,16 @@ export type PublicGtmInviteLink = {
 };
 
 /**
+ * The key someone pasted.
+ */
+export type PutAiApiKeyRequest = {
+    /**
+     * An Anthropic (`sk-ant-…`) or OpenAI (`sk-…`) API key.
+     */
+    apiKey: string;
+};
+
+/**
  * The key the user pasted.
  */
 export type PutCursorApiKeyRequest = {
@@ -1443,16 +1482,6 @@ export type PutCursorDefaultModelRequest = {
      * fall back to the deployment default.
      */
     modelId?: string | null;
-};
-
-/**
- * The key an admin pasted.
- */
-export type PutTeamAiApiKeyRequest = {
-    /**
-     * An Anthropic (`sk-ant-…`) or OpenAI (`sk-…`) API key.
-     */
-    apiKey: string;
 };
 
 export type PutUserNameQueryParams = {
@@ -1621,35 +1650,6 @@ export type Team = {
     owner_id: string;
     slug: string;
 };
-
-/**
- * One provider the team has a key for. Never includes the key.
- */
-export type TeamAiApiKey = {
-    /**
-     * The provider.
-     */
-    provider: TeamAiProvider;
-    /**
-     * When the key was last replaced.
-     */
-    updatedAt: string;
-};
-
-/**
- * The providers the caller's team has a key for.
- */
-export type TeamAiApiKeys = {
-    /**
-     * One entry per provider with a key.
-     */
-    keys: Array<TeamAiApiKey>;
-};
-
-/**
- * A provider a team can bring its own key for.
- */
-export type TeamAiProvider = 'anthropic' | 'openai';
 
 /**
  * Detailed information about a team invite
@@ -2019,6 +2019,68 @@ export type UserTokensResponse = {
      */
     refresh_token: string;
 };
+
+export type GetAiApiKeysData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/ai-api-keys';
+};
+
+export type GetAiApiKeysErrors = {
+    401: string;
+};
+
+export type GetAiApiKeysError = GetAiApiKeysErrors[keyof GetAiApiKeysErrors];
+
+export type GetAiApiKeysResponses = {
+    200: AiApiKeys;
+};
+
+export type GetAiApiKeysResponse = GetAiApiKeysResponses[keyof GetAiApiKeysResponses];
+
+export type DeleteAiApiKeyData = {
+    body?: never;
+    path: {
+        provider: AiProvider;
+    };
+    query?: never;
+    url: '/ai-api-keys/{provider}';
+};
+
+export type DeleteAiApiKeyErrors = {
+    401: string;
+};
+
+export type DeleteAiApiKeyError = DeleteAiApiKeyErrors[keyof DeleteAiApiKeyErrors];
+
+export type DeleteAiApiKeyResponses = {
+    200: AiApiKeys;
+};
+
+export type DeleteAiApiKeyResponse = DeleteAiApiKeyResponses[keyof DeleteAiApiKeyResponses];
+
+export type PutAiApiKeyData = {
+    body: PutAiApiKeyRequest;
+    path: {
+        provider: AiProvider;
+    };
+    query?: never;
+    url: '/ai-api-keys/{provider}';
+};
+
+export type PutAiApiKeyErrors = {
+    400: ErrorResponse;
+    401: string;
+};
+
+export type PutAiApiKeyError = PutAiApiKeyErrors[keyof PutAiApiKeyErrors];
+
+export type PutAiApiKeyResponses = {
+    200: AiApiKeys;
+};
+
+export type PutAiApiKeyResponse = PutAiApiKeyResponses[keyof PutAiApiKeyResponses];
 
 export type UpdateAiBillingAutoReloadData = {
     body: UpdateAutoReloadRequest;
@@ -3502,7 +3564,7 @@ export type GetTeamAiApiKeysErrors = {
 export type GetTeamAiApiKeysError = GetTeamAiApiKeysErrors[keyof GetTeamAiApiKeysErrors];
 
 export type GetTeamAiApiKeysResponses = {
-    200: TeamAiApiKeys;
+    200: AiApiKeys;
 };
 
 export type GetTeamAiApiKeysResponse = GetTeamAiApiKeysResponses[keyof GetTeamAiApiKeysResponses];
@@ -3510,7 +3572,7 @@ export type GetTeamAiApiKeysResponse = GetTeamAiApiKeysResponses[keyof GetTeamAi
 export type DeleteTeamAiApiKeyData = {
     body?: never;
     path: {
-        provider: TeamAiProvider;
+        provider: AiProvider;
     };
     query?: never;
     url: '/team-ai-api-keys/{provider}';
@@ -3524,15 +3586,15 @@ export type DeleteTeamAiApiKeyErrors = {
 export type DeleteTeamAiApiKeyError = DeleteTeamAiApiKeyErrors[keyof DeleteTeamAiApiKeyErrors];
 
 export type DeleteTeamAiApiKeyResponses = {
-    200: TeamAiApiKeys;
+    200: AiApiKeys;
 };
 
 export type DeleteTeamAiApiKeyResponse = DeleteTeamAiApiKeyResponses[keyof DeleteTeamAiApiKeyResponses];
 
 export type PutTeamAiApiKeyData = {
-    body: PutTeamAiApiKeyRequest;
+    body: PutAiApiKeyRequest;
     path: {
-        provider: TeamAiProvider;
+        provider: AiProvider;
     };
     query?: never;
     url: '/team-ai-api-keys/{provider}';
@@ -3547,7 +3609,7 @@ export type PutTeamAiApiKeyErrors = {
 export type PutTeamAiApiKeyError = PutTeamAiApiKeyErrors[keyof PutTeamAiApiKeyErrors];
 
 export type PutTeamAiApiKeyResponses = {
-    200: TeamAiApiKeys;
+    200: AiApiKeys;
 };
 
 export type PutTeamAiApiKeyResponse = PutTeamAiApiKeyResponses[keyof PutTeamAiApiKeyResponses];

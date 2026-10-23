@@ -52,10 +52,12 @@ export const authExcluded = [
   'createPortalSession',
   'createTeam',
   'createTeamInviteLink',
+  // AI chat API keys (a person's and a team's) are credentials managed in
+  // the app's settings.
+  'deleteAiApiKey',
   'deleteCursorApiKey',
   'deleteGithubLink',
   'deleteTeam',
-  // Team AI chat API keys are a credential managed in the app's team settings.
   'deleteTeamAiApiKey',
   'deleteTeamInviteHandler',
   'deleteTeamInviteLink',
@@ -63,6 +65,7 @@ export const authExcluded = [
   'disconnectCodex',
   'enrichGithubPullRequests',
   'generateEmailLink',
+  'getAiApiKeys',
   'getAiBillingPlans',
   'getAiBillingSummary',
   'getCodexConnection',
@@ -112,6 +115,7 @@ export const authExcluded = [
   'patchUserTutorial',
   'pollCodexLogin',
   'postProfilePictures',
+  'putAiApiKey',
   'putCursorApiKey',
   'putCursorDefaultModel',
   'putProfilePicture',

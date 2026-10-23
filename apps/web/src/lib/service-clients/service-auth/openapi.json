@@ -10,6 +10,132 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/ai-api-keys": {
+      "get": {
+        "tags": ["crate::api::ai_api_keys"],
+        "summary": "The providers the caller has their own AI API key for.",
+        "operationId": "get_ai_api_keys",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiApiKeys"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai-api-keys/{provider}": {
+      "put": {
+        "tags": ["crate::api::ai_api_keys"],
+        "summary": "Registers or replaces the caller's own key for a provider.",
+        "operationId": "put_ai_api_key",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AiProvider"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutAiApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiApiKeys"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["crate::api::ai_api_keys"],
+        "summary": "Forgets the caller's own key for a provider.",
+        "description": "Does not revoke the key at the provider; succeeds when there was none.",
+        "operationId": "delete_ai_api_key",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AiProvider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiApiKeys"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai-billing/auto-reload": {
       "patch": {
         "tags": ["ai_billing"],
@@ -3398,7 +3524,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TeamAiApiKeys"
+                  "$ref": "#/components/schemas/AiApiKeys"
                 }
               }
             }
@@ -3437,7 +3563,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/TeamAiProvider"
+              "$ref": "#/components/schemas/AiProvider"
             }
           }
         ],
@@ -3445,7 +3571,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PutTeamAiApiKeyRequest"
+                "$ref": "#/components/schemas/PutAiApiKeyRequest"
               }
             }
           },
@@ -3457,7 +3583,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TeamAiApiKeys"
+                  "$ref": "#/components/schemas/AiApiKeys"
                 }
               }
             }
@@ -3505,7 +3631,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/TeamAiProvider"
+              "$ref": "#/components/schemas/AiProvider"
             }
           }
         ],
@@ -3515,7 +3641,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TeamAiApiKeys"
+                  "$ref": "#/components/schemas/AiApiKeys"
                 }
               }
             }
@@ -5598,6 +5724,36 @@
         "type": "string",
         "enum": ["A", "B"]
       },
+      "AiApiKey": {
+        "type": "object",
+        "description": "One provider there is a key for. Never includes the key.",
+        "required": ["provider", "updatedAt"],
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/AiProvider",
+            "description": "The provider."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the key was last replaced."
+          }
+        }
+      },
+      "AiApiKeys": {
+        "type": "object",
+        "description": "The providers there is a key for.",
+        "required": ["keys"],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiApiKey"
+            },
+            "description": "One entry per provider with a key."
+          }
+        }
+      },
       "AiBillingErrorBody": {
         "type": "object",
         "description": "Error response body.",
@@ -5608,6 +5764,11 @@
             "description": "Human-readable error description."
           }
         }
+      },
+      "AiProvider": {
+        "type": "string",
+        "description": "A provider a person or team can bring its own key for.",
+        "enum": ["anthropic", "openai"]
       },
       "AppleLoginRequest": {
         "type": "object",
@@ -7425,6 +7586,17 @@
           }
         }
       },
+      "PutAiApiKeyRequest": {
+        "type": "object",
+        "description": "The key someone pasted.",
+        "required": ["apiKey"],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "description": "An Anthropic (`sk-ant-…`) or OpenAI (`sk-…`) API key."
+          }
+        }
+      },
       "PutCursorApiKeyRequest": {
         "type": "object",
         "description": "The key the user pasted.",
@@ -7443,17 +7615,6 @@
           "modelId": {
             "type": ["string", "null"],
             "description": "A Cursor model id (e.g. `grok-4.6`), or `null` to clear the choice and\nfall back to the deployment default."
-          }
-        }
-      },
-      "PutTeamAiApiKeyRequest": {
-        "type": "object",
-        "description": "The key an admin pasted.",
-        "required": ["apiKey"],
-        "properties": {
-          "apiKey": {
-            "type": "string",
-            "description": "An Anthropic (`sk-ant-…`) or OpenAI (`sk-…`) API key."
           }
         }
       },
@@ -7687,41 +7848,6 @@
             "type": "string"
           }
         }
-      },
-      "TeamAiApiKey": {
-        "type": "object",
-        "description": "One provider the team has a key for. Never includes the key.",
-        "required": ["provider", "updatedAt"],
-        "properties": {
-          "provider": {
-            "$ref": "#/components/schemas/TeamAiProvider",
-            "description": "The provider."
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the key was last replaced."
-          }
-        }
-      },
-      "TeamAiApiKeys": {
-        "type": "object",
-        "description": "The providers the caller's team has a key for.",
-        "required": ["keys"],
-        "properties": {
-          "keys": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TeamAiApiKey"
-            },
-            "description": "One entry per provider with a key."
-          }
-        }
-      },
-      "TeamAiProvider": {
-        "type": "string",
-        "description": "A provider a team can bring its own key for.",
-        "enum": ["anthropic", "openai"]
       },
       "TeamInviteDetails": {
         "type": "object",

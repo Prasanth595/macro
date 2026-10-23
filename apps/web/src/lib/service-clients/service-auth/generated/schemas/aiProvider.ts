@@ -6,13 +6,12 @@
  */
 
 /**
- * A provider a team can bring its own key for.
+ * A provider a person or team can bring its own key for.
  */
-export type TeamAiProvider =
-  (typeof TeamAiProvider)[keyof typeof TeamAiProvider];
+export type AiProvider = (typeof AiProvider)[keyof typeof AiProvider];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
-export const TeamAiProvider = {
+export const AiProvider = {
   anthropic: 'anthropic',
   openai: 'openai',
 } as const;

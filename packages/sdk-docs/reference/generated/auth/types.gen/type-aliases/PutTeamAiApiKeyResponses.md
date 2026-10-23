@@ -1,9 +1,9 @@
 # Type Alias: PutTeamAiApiKeyResponses
 
-> **PutTeamAiApiKeyResponses** = \{ `200`: [`TeamAiApiKeys`](TeamAiApiKeys.md); \}
+> **PutTeamAiApiKeyResponses** = \{ `200`: [`AiApiKeys`](AiApiKeys.md); \}
 
 ## Properties
 
 | Property | Type |
 | ------ | ------ |
-| <a id="property-200"></a> `200` | [`TeamAiApiKeys`](TeamAiApiKeys.md) |
+| <a id="property-200"></a> `200` | [`AiApiKeys`](AiApiKeys.md) |

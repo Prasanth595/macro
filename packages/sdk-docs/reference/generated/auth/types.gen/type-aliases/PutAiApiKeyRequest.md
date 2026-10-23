@@ -1,8 +1,8 @@
-# Type Alias: PutTeamAiApiKeyRequest
+# Type Alias: PutAiApiKeyRequest
 
-> **PutTeamAiApiKeyRequest** = \{ `apiKey`: `string`; \}
+> **PutAiApiKeyRequest** = \{ `apiKey`: `string`; \}
 
-The key an admin pasted.
+The key someone pasted.
 
 ## Properties
 
