@@ -2228,6 +2228,16 @@ export const CreateCalendarEvent = z.object({
       z.null(),
     ])
     .optional(),
+  guestPolicy: z
+    .union([
+      z.object({
+        canModify: z.boolean(),
+        canInviteOthers: z.boolean(),
+        canSeeOtherGuests: z.boolean(),
+      }),
+      z.null(),
+    ])
+    .optional(),
 });
 
 export const UserToolResponseForToolCalendarEvent = z
@@ -2448,6 +2458,16 @@ export const CreateConfirmedCalendarEvent = z.object({
           ])
           .optional(),
         declineMessage: z.union([z.string(), z.null()]).optional(),
+      }),
+      z.null(),
+    ])
+    .optional(),
+  guestPolicy: z
+    .union([
+      z.object({
+        canModify: z.boolean(),
+        canInviteOthers: z.boolean(),
+        canSeeOtherGuests: z.boolean(),
       }),
       z.null(),
     ])
@@ -9491,6 +9511,7 @@ export const ListCalendarEventsResponse = z.object({
         removeGuests: z.boolean(),
         setGuestPolicy: z.boolean(),
         rsvp: z.boolean(),
+        organize: z.boolean(),
       }),
       calendarId: z.union([z.string().uuid(), z.null()]).optional(),
       copies: z
@@ -9566,6 +9587,7 @@ export const ListCalendarsToolResponse = z.object({
         emailReminders: z.boolean(),
         customRecurrence: z.boolean(),
         resetRsvp: z.boolean(),
+        guestPolicy: z.boolean(),
       }),
       calendarId: z.string().uuid(),
       name: z.string(),
@@ -15755,6 +15777,16 @@ export const UpdateCalendarEvent = z.object({
       z.null(),
     ])
     .optional(),
+  guestPolicy: z
+    .union([
+      z.object({
+        canModify: z.boolean(),
+        canInviteOthers: z.boolean(),
+        canSeeOtherGuests: z.boolean(),
+      }),
+      z.null(),
+    ])
+    .optional(),
 });
 
 export const UpdateCallRecord = z.object({
@@ -16331,6 +16363,7 @@ export const WebSearchResponse = z.object({
 
 export const DescribeCodeTools = z
   .object({
+    task: z.union([z.string(), z.null()]).optional(),
     names: z.array(z.string()).optional(),
     topics: z
       .array(
@@ -16363,6 +16396,45 @@ export const DescribeCodeTools = z
   .strict();
 
 export const CodeToolsDescription = z.object({
+  task_documentation: z
+    .union([
+      z.object({
+        status: z.any().superRefine((x, ctx) => {
+          const schemas = [
+            z.literal('selected'),
+            z.literal('unconfigured'),
+            z.literal('cancelled'),
+            z.literal('provider_error'),
+            z.literal('timeout'),
+          ];
+          const errors = schemas.reduce<z.ZodError[]>(
+            (errors, schema) =>
+              ((result) => (result.error ? [...errors, result.error] : errors))(
+                schema.safeParse(x)
+              ),
+            []
+          );
+          if (schemas.length - errors.length !== 1) {
+            ctx.addIssue({
+              path: ctx.path,
+              code: 'invalid_union',
+              unionErrors: errors,
+              message: 'Invalid input: Should pass single schema',
+            });
+          }
+        }),
+        entities: z.array(
+          z.object({
+            name: z.string(),
+            description: z.string(),
+            documentation: z.union([z.string(), z.null()]).optional(),
+          })
+        ),
+        omitted: z.array(z.string()),
+      }),
+      z.null(),
+    ])
+    .optional(),
   sdk_guide: z.union([z.string(), z.null()]).optional(),
   guides: z.array(
     z.object({

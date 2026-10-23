@@ -14,7 +14,7 @@ use super::{
     ToolCalendarEvent, mutation_tool_error,
 };
 use crate::domain::{
-    models::{AttendeeResponseStatus, CalendarEventPatch, ConferenceChange},
+    models::{AttendeeResponseStatus, CalendarEventPatch, ConferenceChange, GuestPolicy},
     ports::{
         CalendarMutationService, CalendarOccurrenceService, CalendarRsvpScope, CalendarUpdateScope,
         MeetingLinkProvider,
@@ -106,6 +106,12 @@ needs `viewerCan.inviteGuests`; otherwise the organizer doesn't let guests invit
 or hides the guest list, or the event is an Outlook meeting the user doesn't organize. \
 An empty string for `description` or `location` clears it. Fails on events from calendars \
 the user cannot edit.\n\
+\n\
+A guest without modify rights (`viewerCan.editDetails` false while `viewerCan.rsvp` is \
+true) may only change their own `reminders`, add guests where `viewerCan.inviteGuests` \
+allows it, and answer with `rsvp`; changing the title, time, description, location, \
+recurrence or conference fails because the organizer doesn't let guests change the \
+event.\n\
 \n\
 `rsvp` sets the user's own response to an invitation and is independent of the field \
 edits — it can be the only thing this call changes. It applies at the same `scope` as \
@@ -230,6 +236,17 @@ pub struct UpdateCalendarEvent {
     )]
     #[serde(default)]
     pub out_of_office: Option<OutOfOfficeInput>,
+
+    /// Replacement guest policy.
+    #[schemars(
+        description = "Replace what guests may do: `canModify` (change the event; implies \
+                       `canInviteOthers`), `canInviteOthers` and `canSeeOtherGuests`, all three \
+                       required. Only the organizer of a Google event may set it \
+                       (`viewerCan.setGuestPolicy`), and only with scope \"all\": it belongs to \
+                       the whole series. Outlook events have none. Omit to leave it untouched."
+    )]
+    #[serde(default)]
+    pub guest_policy: Option<GuestPolicy>,
 }
 
 impl ToolAnnotated for UpdateCalendarEvent {
@@ -305,6 +322,7 @@ where
             reminders: self.reminders.clone().map(Into::into),
             conference: self.conference.map(Into::into),
             out_of_office: self.out_of_office.clone().map(Into::into),
+            guest_policy: self.guest_policy,
         };
 
         // An RSVP is its own provider call, so a call carrying only one runs

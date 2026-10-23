@@ -26,6 +26,10 @@ recurrence, Guests, conferencing, Location, and Notifications open on the first
 click from the title field and accept changes without closing the composer.
 Open the start/end date picker and its nested time list; selecting a time keeps
 the date picker open. Escape dismisses the active menu before the composer.
+Moving the start date or time moves the end with it, keeping the event's length
+(all-day dates keep their day count), until the end is picked in the same edit;
+after that the end stays put, and a start past it shows the end-before-start
+error.
 
 The path selects the Month, Week, or Day period, and choosing another period updates
 that path. Calendar navigation defaults to Day on phones and Week on desktop; the most
@@ -80,8 +84,12 @@ Calendar reads come from the local GraphQL cache when both `enable-graphql-soup`
 and `enable-graphql-calendar` are on (PostHog in production, on by default in dev
 for the calendar flag; set `VITE_ENABLE_GRAPHQL_CALENDAR=false` to test the REST
 path). A range the cache has covered renders with no occurrence request, and a far
-jump fetches only the uncovered weeks. A `refresh_calendar` poke, reconnecting,
-coming online, or returning to the tab runs one `CalendarChanges` delta that
+jump fetches only the uncovered weeks. Cached records survive deploys, so an
+occurrence cached by an older build can lack a field the current one selects;
+a covered range with such occurrences refetches once instead of rendering
+without them (span `calendar.refetch_unreadable_occurrences`). A
+`refresh_calendar` poke, reconnecting, coming online, or returning to the tab
+runs one `CalendarChanges` delta that
 applies edits made elsewhere. RSVPs, edits, deletions, and creates show at once
 through the durable mutation queue: a rejected write rolls back with the usual
 error, and a write made offline stays visible and replays on reconnect. Native
@@ -116,7 +124,10 @@ new session from the same meeting link must start a separate chat thread.
 
 
 Calendar event creation and editing open in a bottom sheet on touch devices,
-with scrollable content above the keyboard. Desktop retains the centered dialog.
+with scrollable content above the keyboard. When the form outgrows the sheet, as
+it does with the custom repeat builder open, the sheet scrolls down to the
+footer: Cancel and `Create event` or `Save`, plus `This event`/`All events` when
+editing a recurring event. Desktop retains the centered dialog.
 Dismissing a changed event still asks before discarding the draft.
 
 On phones, event details use inset round action buttons and a transparent RSVP
@@ -140,7 +151,9 @@ the flag request gets no answer, for example when a browser blocks it.
 Calendar connections live in **Settings → Calendar** (`/app/settings/calendar`).
 Connected calendars offers Connect account (the existing Google consent flow),
 Connect calendar for accounts missing calendar permission, and Disconnect with
-confirmation. Disconnect removes calendar access/data, not the Gmail connection.
+confirmation. When the only linked account lacks calendar permission, the Google
+Calendar row shows just a filled Connect button for it, with no account list or
+visibility note. Disconnect removes calendar access/data, not the Gmail connection.
 Account checkboxes show/hide all child calendars; partial selection is shown as
 mixed. Individual calendars can also be shown/hidden. The account color is the
 default for its calendars; a child color overrides it. Click a color dot to open
@@ -238,7 +251,8 @@ all of its calendars at once. These choices decide which calendars represent the
 user's personal schedule. Primary calendars count by default; other calendars
 require explicit inclusion. Meetings the user attends also contribute, except
 declined meetings. Following a coworker's calendar does not automatically make
-that coworker's events occupy the user's time.
+that coworker's events occupy the user's time. The section is hidden when the
+user has no calendars to list.
 
 Teammates' shared events do not render on the grid; `Team out of office` is the
 only teammate overlay. Replacing a login session clears team data and open
@@ -253,9 +267,12 @@ titles or private event metadata.
 
 The in-view desktop Calendar header uses one responsive top bar. The viewed
 month and year stay on the left in a heading that scales from 16px in narrow
-splits to a maximum of 24px, with a compact `New` menu when the sidebar is closed.
-An icon-only ghost `Search events` button sits on the right, before a slightly
-larger gap and the `Today`, period selector, and previous/next controls.
+splits to a maximum of 24px, with a compact `New` menu at the right end of the controls.
+An outlined `Search events` icon button sits before the other controls. All
+desktop controls are 32px tall and use the shared button surface: Today and the
+previous/next arrows share a navigation group, the period selector has its own
+view group, and Booking links and New have separate outlined buttons. Adjacent
+controls and groups have a uniform 8px gap, with matching text-button padding.
 Click Search or press Cmd/Ctrl+F to expand and focus the wider inline search field.
 The field slides out with a short width transition and focuses immediately.
 The results popup stays hidden until the field contains non-whitespace text,
@@ -288,19 +305,21 @@ occurrence details before showing Join. Selecting a result preserves the search
 text. Availability lives in the desktop sidebar's Upcoming events section and
 in the mobile header.
 
-The period controls move into a separate row below 600px of calendar-pane width,
-with `New` on the left and navigation on the right. With a docked sidebar, the
-header needs fewer controls and stays inline down to 480px. This avoids wrapping
+The period controls move into a separate row below 600px of calendar-pane width.
+The shared outlined `New` menu remains at the right end, even with the sidebar
+open; the sidebar places its full-width version below the title. With a docked
+sidebar, the header stays inline down to 580px. This avoids wrapping
 and immediately unwrapping when the sidebar hides. Expanded search does not
 force early wrapping; its results popup stays directly below the search field.
 Below 1040px, search slides over the month title without moving any controls or
 changing the header height. `New` stays outside the search overlay. Resizing the
 pane keeps the search field mounted and preserves its query and focus. Today
-and New retain their text labels until the controls row runs out of room, then
-become icon buttons.
+retains its text label until the controls row runs out of room, then becomes an
+icon button. Desktop `New` keeps its label.
 Touch devices keep the month selector and header controls without separate
 create or call buttons in the right island. Mobile header islands omit Search.
-The desktop sidebar's mini calendar remains navigable by date and month.
+The desktop sidebar's Search icon sits left of collapse and reveals event search
+above New. Its mini calendar remains navigable by date and month.
 
 Active Quick Calls you created, participated in, or were invited to appear above your
 next five events (including ones in progress), whether or not they have call links.
@@ -427,38 +446,92 @@ existing dates, time zone, title, location, description, and repeat rule unless 
 changed. To verify, open a later occurrence of an event you were invited to,
 change the reminder, and inspect the PATCH: it should include only `reminders`
 plus the calendar and scope identifiers. Also verify that intentional edits to
-the start, end, all-day setting, title, location, description, or repeat rule are still sent.
+the start, end, all-day setting, title, location, description, or repeat rule are still sent
+by the organizer or a guest the organizer lets modify the event.
 Test reminder removal as well as changing its time, including a series whose stored
 rule contains `INTERVAL=1`, `WKST`, differently ordered weekdays, or a precise `UNTIL`:
 an untouched rule must not be reformatted and included in a reminder-only PATCH.
+A weekly rule without `BYDAY` repeats on the start's weekday: plain `FREQ=WEEKLY` opens on the
+`Weekly on <day>` preset, and one with an end (such as `COUNT=3`) opens `Custom` with that day
+selected, since the presets never end. Either is saved as written while untouched; moving the
+start to another weekday keeps a custom rule on the day the editor shows.
 As in Google Calendar, the guests row of the details popover (a bottom sheet on phones)
-carries `Copy guest emails` and `Email guests` icon buttons. Copying puts every guest's
-address on the clipboard, comma-separated. Emailing opens a new email addressed to every
-guest but you — in a split beside the calendar on desktop, as the full-screen composer on
-touch devices, in its own composer even when another one is open — and is hidden when you
-are the only guest.
+carries `Copy guest emails` and `Email guests` icon buttons, both hidden when you are the
+only guest (always so on a snapshot). Copying puts every guest's address on the clipboard,
+comma-separated; it is hidden too while the organizer hides the guest list, which your copy
+does not hold. Emailing opens a new email addressed to every guest but you, with the event
+title as its subject (as `Forward by email` fills it in) — in a split
+beside the calendar on desktop, as the full-screen composer on touch devices, in its own
+composer even when another one is open. Deleting an event asks first, and says guests will be
+notified only when someone besides you is on it.
 With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
 whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
 organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
 phones): the current guests are listed under `Invited` without a remove control, the picker
 adds people, each new guest has an `Optional` checkbox, a recurring event offers `This
-event` / `All events`, and `Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape
-closes. The new guests appear at once as unanswered and a toast confirms the invitation
-once the provider accepts it. A guest who may not invite gets no button; instead the guest
-list opens with `Only the organizer can invite guests.`, and the same happens after the
+event` / `All events` (`All events` by default, like the editor's recurring edits), and
+`Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape closes. The new guests appear at
+once as unanswered and a toast confirms the invitation once the provider accepts it. A
+guest who may not invite gets no button; instead the guest list opens with `Only the
+organizer can invite guests.`, and the same happens after the
 provider refuses an invitation. In the event editor, the organizer edits guests as before,
 while a guest who may invite gets an add-only guests pill whose additions are sent as an
 invitation on save (other edits are saved first); a guest who may not invite keeps a
 read-only pill that explains why. A guest on an event whose organizer hides the guest list
 may not invite either (`viewerCan.inviteGuests` is false; the route answers 403
-`guest_list_hidden`). To check the refusal state without a Google account, answer
-`POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
+`guest_list_hidden`), since that guest's copy lists only themselves and perhaps the organizer:
+the guests row reads `Guest list hidden` instead of a count (so does the editor's read-only
+guests pill), and when the organizer does let guests invite, the explanation reads `Guests
+cannot be added while the organizer hides the guest list.` instead. To check the refusal
+states without a Google account, answer `POST /events/{id}/guests` with HTTP 403 and code
+`guests_cannot_invite` or `guest_list_hidden`; each switches the guest list to its own
+explanation and toast.
 An event that reached several connected inboxes shows one chip per inbox (overlapping;
 tell them apart by calendar color), and each copy answers only for its own inbox: a
 guest copy stays a guest copy, marked `(you)` on that inbox's row alone, even when
 another connected inbox organizes the event. An Outlook guest copy never offers `Add
 guests` (Outlook lets only the organizer change a meeting) and shows the same
 explanation; an Outlook organizer adds guests like a Google one.
+A guest the organizer does not let modify the event (`viewerCan.editDetails` false while
+`viewerCan.rsvp` is true) opens an editor whose date/time, all-day, title, description,
+repeat, conferencing and location controls are disabled, each with the tooltip `Only the
+organizer can change this event.`; the same line shows under the pills, which is all a
+touch device shows. The event kind and calendar pills, which on any other edit open their one
+value as a list, are disabled too. Disabled pills, the date and time pills included, are
+dimmed and show no hover. Notifications stay editable and Save sends only `reminders` (plus any
+invitation). An editor already open when the organizer turns modifying off follows the
+guest's copy once it syncs: the same fields lock, return to the event's own (keeping
+notification and guest changes) and a toast shows the line. That guest cannot drag or resize
+the event on the grid either. Someone
+neither organizing nor invited, such as a delegate on a shared calendar, keeps what their
+calendar access allows. The update refuses a detail change from such a guest with 403
+`guests_cannot_modify` (fields resent at their stored value are ignored, so the agent can
+pass them); the editor then shows the line in a toast, locks its details and returns them to
+the event's own (title, time, repeat, location and description, keeping notification and guest
+changes), so it never holds a change it cannot save, and a refused drag snaps back with the same
+toast. A locked description refuses typing, like the other locked fields. The refusal covers a stale `viewerCan`, an event the
+viewer still sees as editable after the organizer turned modifying off, so check it without a
+Google account on an event whose `viewerCan.editDetails` is still true, the only case where
+the editor sends a detail change at all: answer `PATCH /events/{id}` with HTTP 403 and code
+`guests_cannot_modify`, or the GraphQL `updateCalendarEvent` mutation with an error whose
+`extensions.code` is `guests_cannot_modify`.
+With the `enable-calendar-guest-invites` flag on, the organizer sets what guests may do in the
+composer's `Guest permissions` row, under the pills on desktop and phones alike:
+`Modify event`, `Invite others` and `See guest list`, in Google Calendar's order, with Google's
+defaults (invite others and see the guest list) preselected on a new event and the stored
+`guestPolicy` on an edit. As in Google, checking `Modify event` also checks `Invite others` and
+locks it. The row shows on a new event and on an edit whose `viewerCan.setGuestPolicy` is true,
+on Google calendars only (the calendar's `capabilities.guestPolicy`); Outlook calendars and
+out-of-office events have none. Like the repeat rule, it is disabled while a recurring edit
+targets `This event`, since the policy belongs to the whole series, and says so after the
+switches (`Guest permissions apply to all events. Choose All events to change them.`);
+choosing `This event` returns it to the stored values. Save sends `guestPolicy` only when it
+changed, and the guests' `viewerCan` follows once their copies sync: turning `Invite others`
+off replaces a guest's `Add guests` with `Only the organizer can invite guests.` The update
+refuses a policy change from anyone but the organizer with 403 `not_organizer`, and on an
+Outlook event with
+`provider_rejected`. `viewerCan.organize` marks the organizer of the displayed copy, including
+on Outlook, where `setGuestPolicy` is false.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description
@@ -501,14 +574,45 @@ mention, it is shared read-only with the channel's current members: a member wit
 their own sees the mention's title and time, and its hover card adds a `Shared with you · not on
 your calendar` line with no open action. Clicking such a mention shows that hover card
 instead of opening the calendar; on a touch device, tapping it opens the same card as a bottom
-sheet. That card also offers `Add to calendar`, which imports a private copy (no guests, no join
-link, nobody is notified) onto the viewer's only writable Google calendar, or onto one they pick
-from a menu when they have several; Outlook calendars are not offered, since Microsoft cannot
-keep the meeting's iCalendar UID. The mention then opens that copy. If Google already holds the
-meeting on that calendar (an invitation Macro has not synced yet), nothing is imported, a sync
-is scheduled and the card reports that it is already on their calendar. `Download .ics` saves
-the event as an iCalendar file. The copy is a snapshot: later changes by the organizer do not
-reach it. A classic `@Macro` reply that mentions an event does not share
+sheet. That card also offers `Add to calendar` (behind the `enable-calendar-add-shared-event`
+flag, on in dev only until a real Google import has passed there), which imports a snapshot of
+the meeting onto the viewer's only writable Google calendar, or onto one they pick from a menu
+when they have several; Outlook calendars are not offered, since Microsoft cannot keep the
+meeting's iCalendar UID. Google imports an event only for its organizer or an attendee, so the
+snapshot keeps the real organizer and lists the viewer, already accepted, as its only guest: the
+meeting's other guests and join link stay out and nobody is notified. If Google refuses anyway,
+the card says Google won't add the event to that calendar and points to `Download .ics`. The
+mention then opens the snapshot, whose details say `Your copy of a shared event. It doesn't
+update when the organizer changes it.` and offer no RSVP, `Add guests` or `Only the organizer can
+invite guests.` line, since none of it would reach the meeting. It offers no `Edit event` on
+desktop or in the phone drawer, and the grid does not move or resize it: its details are the
+organizer's, and a composer that could change only its notifications would read as editing the
+meeting. Its delete button is `Delete your copy`, whose dialog says the shared event stays as it
+is. If the organizer later invites the viewer (for example by accepting their request to join),
+Google's invitation lands on the same calendar event. Once Google's copy shows it (another guest,
+which every Google meeting with guests has in its organizer, or a request for the viewer's
+answer) the copy becomes an ordinary guest seat: the note goes away, and RSVP and `Edit event`
+follow the organizer's guest permissions. A meeting that lists only the viewer, answered in
+Google before Macro synced the invitation, still reads as a snapshot. If Google already holds the meeting on that calendar (an invitation Macro has
+not synced yet), nothing is imported, a sync is scheduled and the card reports that it is
+already on their calendar. `Download .ics` saves the event as an iCalendar file and is not
+flagged. `Ask to join` asks the person who shared the event to add the viewer as a guest; it
+shows only when that person's copy lets them add guests (they organize it, or it is a Google
+copy whose organizer lets guests invite others and shows the guest list), and otherwise the card
+reads `The person who shared this event can't add guests to it.` The card then shows
+`Requested`, and `Invited` once accepted, and stops offering `Add to calendar` until the request
+is declined: the sharer's answer is an invitation to the meeting, and a snapshot added meanwhile
+would take that invitation in and stay a snapshot. The sharer gets a `calendar_event_join_request`
+notification (Settings → Notifications → Calendar → Requests to join), which Home lists as
+`<requester> asked to join <event>` with a person-plus glyph, like a comment row. It opens the event,
+whose details list each request with `Add as guest` and `Decline` on desktop and in the phone
+drawer. Adding writes the guest through the same invite path as `Add guests`, so Google or
+Outlook sends the invitation and the mention then opens the viewer's own copy. Declining sends
+the requester nothing, but their card then reads `Declined` and `The person who shared this event
+declined your request to join.` with no `Ask to join`, and offers `Add to calendar` again. A
+declined request stands: the server refuses another ask with 409 `request_declined`, so the
+sharer is asked only once. A classic `@Macro` reply that
+mentions an event does not share
 it by posting the chip. It asks whether to share with the channel, and a yes in that thread
 writes the same channel grant. Private and confidential events are never shared this way.
 Every calendar mention's hover card shows the schedule, location, organizer and attendee
@@ -526,10 +630,11 @@ row has a checkmark; the list scrolls when more teams are present. Selecting
 a row switches the owner for the entire workspace; ownership badges appear only
 in the top header, not on cards or tab content. Owner changes discard link/schedule drafts and stay disabled during saves.
 Each tab's heading appears in the main topbar, with its description available
-through an info tooltip rather than a separate large header. Booking links uses the
-shared ViewShell search bar below the topbar, with **New** on the same
-row at the far right. New opens the manual editor; a separate **Create with
-agent** button sits beside it. On touch devices, the header has separate
+through an info tooltip rather than a separate large header. Desktop Booking links
+uses one header row: title and owner, a grouped **Create with agent** icon,
+outlined **New**, and expandable Search. Command-F expands and focuses the
+search field; Close or Escape clears it and returns to the icon. New opens the
+manual editor. On touch devices, the header has separate
 sparkle and plus buttons for agent and manual creation. Create with agent opens an editable,
 unsent request in an agent conversation and carries the selected Personal/team
 owner privately. The agent reads current settings and asks for approval before
@@ -627,10 +732,11 @@ updates only the selected owner, and failed saves retain edits for retry. There
 is no separate Booking settings shortcut or Settings → Booking links page.
 Public booking URLs remain unchanged. Calendar connections and integration
 shortcuts continue to open Settings → Calendar.
-Booking status filters use the same segmented control as the CRM sidebar.
+On desktop, Bookings puts its title, filter island, status tabs, and expandable Search in one top row. Booking-page Edit/Preview tabs and Save/Revert actions use the same rounded control surfaces. Touch layouts retain their existing controls.
 In Availability, the topbar reads **Availability** and shows the selected owner.
-The shared toolbar contains **Search schedules** (name or time zone) and **New**
-(**New schedule**); on touch devices, New moves into the header island.
+The same desktop header row contains **New** (**New schedule**) and an expandable
+**Search schedules** icon (name or time zone); on touch devices, New moves into
+the header island and search keeps its existing full field.
 Schedule cards show the default badge, time zone, a Monday-first
 week preview, grouped hours, and booking-link/date-exception counts. **Preview**
 uses an eye icon and opens all weekly hours and date exceptions without editing,
@@ -1036,9 +1142,10 @@ is an accessible disclosure that starts closed and stays open across unchanged
 permission refreshes and window refocus on desktop and mobile; attachments remain below it.
 ICS attachments show a calendar icon in the attachment pill and file headers on
 desktop and mobile, including when the email uses `application/ics` or a
-parameterized `text/calendar` MIME type. Opening the attachment still shows the
-generic file viewer with download and share actions; the invitation card above
-is the event preview.
+parameterized `text/calendar` MIME type. Opening the attachment of a message that shows a
+card opens a dialog (a drawer on phones) with the same card, so its RSVP or `Add to calendar`
+works there, and `Download .ics`, which saves the file without adding it to Drive. A calendar
+file with no card (nothing Macro could read) downloads directly.
 Related recurring components are grouped behind their own disclosure. Only mail synced
 after the feature shipped gets a card; older invitations render as plain email.
 A newly arrived scheduling update shows RSVP and Join only once its calendar state has

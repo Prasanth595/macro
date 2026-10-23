@@ -1041,6 +1041,11 @@ export const listOccurrencesResponse = zod
                 .describe(
                   "Whether the canonical source's calendar prohibits editing it."
                 ),
+              isSnapshot: zod
+                .boolean()
+                .describe(
+                  "Whether this is a snapshot of a meeting shared with the owner, which\nMacro added to their calendar as a private copy: the meeting's changes\nnever reach it, and nothing done to it reaches the meeting."
+                ),
               location: zod
                 .string()
                 .nullish()
@@ -1250,11 +1255,18 @@ export const listOccurrencesResponse = zod
                       "Change the event's details (title, time, description, conference)."
                     ),
                   inviteGuests: zod.boolean().describe('Add guests.'),
+                  organize: zod
+                    .boolean()
+                    .describe(
+                      "Act as the event's organizer: replace its whole guest list and manage\nits conferencing."
+                    ),
                   removeGuests: zod.boolean().describe('Remove guests.'),
                   rsvp: zod.boolean().describe('Answer the invitation.'),
                   setGuestPolicy: zod
                     .boolean()
-                    .describe("Change the event's guest policy."),
+                    .describe(
+                      "Change the event's guest policy, which only Google calendars have."
+                    ),
                 })
                 .describe('What the viewing requester may do with an event.'),
               visibility: zod
@@ -1372,6 +1384,12 @@ export const mentionPreviewsResponse = zod
                     .number()
                     .min(mentionPreviewsResponseItemsItemEventAttendeeCountMin)
                     .describe('Number of attendees on the previewed copy.'),
+                  canRequestToJoin: zod
+                    .boolean()
+                    .optional()
+                    .describe(
+                      "For a channel-shared preview, whether the person who shared it can\nadd the requester as a guest. Always false for the requester's own\ncopy."
+                    ),
                   description: zod
                     .string()
                     .nullish()
@@ -1381,6 +1399,16 @@ export const mentionPreviewsResponse = zod
                   isRecurring: zod
                     .boolean()
                     .describe('Whether the event repeats.'),
+                  joinRequestStatus: zod
+                    .union([
+                      zod.null(),
+                      zod
+                        .enum(['pending', 'accepted', 'declined'])
+                        .describe(
+                          'Lifecycle of a request to be added as a guest of a shared event.'
+                        ),
+                    ])
+                    .optional(),
                   location: zod
                     .string()
                     .nullish()
@@ -1754,6 +1782,76 @@ channel they belong to — as an iCalendar file named after its title.
 export const eventIcsParams = zod.object({
   event_id: zod.uuid().describe('Calendar event entity id'),
 });
+
+/**
+ * @summary List pending requests to join an event the requester can change.
+ */
+export const listJoinRequestsParams = zod.object({
+  event_id: zod.uuid().describe('Calendar event entity id'),
+});
+
+export const listJoinRequestsResponse = zod
+  .object({
+    requests: zod
+      .array(
+        zod
+          .object({
+            createdAt: zod.iso
+              .datetime({})
+              .describe('When the request was made.'),
+            eventId: zod
+              .uuid()
+              .describe(
+                "The sharer's event entity that was shared with the channel."
+              ),
+            id: zod.uuid().describe('Request identifier.'),
+            requesterEmail: zod
+              .string()
+              .describe('Address the sharer invites when accepting.'),
+            requesterId: zod.string().describe('Macro user asking to join.'),
+            status: zod
+              .enum(['pending', 'accepted', 'declined'])
+              .describe(
+                'Lifecycle of a request to be added as a guest of a shared event.'
+              ),
+          })
+          .describe(
+            "A channel member's request to be added as a guest of an event they see\nonly through a channel share."
+          )
+      )
+      .describe('Oldest first.'),
+  })
+  .describe('Pending requests to join one event.');
+
+/**
+ * @summary Ask the person who shared an event with one of the requester's channels
+to add them as a guest. Asking again while the request is pending changes
+nothing; asking after a decline reopens it.
+ */
+export const requestToJoinParams = zod.object({
+  event_id: zod.uuid().describe('Shared calendar event entity id'),
+});
+
+export const requestToJoinResponse = zod
+  .object({
+    createdAt: zod.iso.datetime({}).describe('When the request was made.'),
+    eventId: zod
+      .uuid()
+      .describe("The sharer's event entity that was shared with the channel."),
+    id: zod.uuid().describe('Request identifier.'),
+    requesterEmail: zod
+      .string()
+      .describe('Address the sharer invites when accepting.'),
+    requesterId: zod.string().describe('Macro user asking to join.'),
+    status: zod
+      .enum(['pending', 'accepted', 'declined'])
+      .describe(
+        'Lifecycle of a request to be added as a guest of a shared event.'
+      ),
+  })
+  .describe(
+    "A channel member's request to be added as a guest of an event they see\nonly through a channel share."
+  );
 
 /**
  * Lists all active calls in channels the caller is an active member of,
@@ -27856,6 +27954,12 @@ export const getItemsSoupResponse = zod
                       .describe(
                         'The repository the session works with, when one was selected.'
                       ),
+                    source: zod
+                      .enum(['user', 'agent', 'routine'])
+                      .optional()
+                      .describe(
+                        "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                      ),
                     status: zod
                       .string()
                       .describe(
@@ -27881,6 +27985,12 @@ export const getItemsSoupResponse = zod
                       .nullish()
                       .describe(
                         'The time the session was last viewed by the requesting user'
+                      ),
+                    visibility: zod
+                      .enum(['listed', 'unlisted', 'hidden'])
+                      .optional()
+                      .describe(
+                        "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -32499,6 +32609,12 @@ export const postItemsSoupResponse = zod
                       .describe(
                         'The repository the session works with, when one was selected.'
                       ),
+                    source: zod
+                      .enum(['user', 'agent', 'routine'])
+                      .optional()
+                      .describe(
+                        "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                      ),
                     status: zod
                       .string()
                       .describe(
@@ -32524,6 +32640,12 @@ export const postItemsSoupResponse = zod
                       .nullish()
                       .describe(
                         'The time the session was last viewed by the requesting user'
+                      ),
+                    visibility: zod
+                      .enum(['listed', 'unlisted', 'hidden'])
+                      .optional()
+                      .describe(
+                        "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -36618,6 +36740,12 @@ export const postItemsSoupAstResponse = zod
                       .describe(
                         'The repository the session works with, when one was selected.'
                       ),
+                    source: zod
+                      .enum(['user', 'agent', 'routine'])
+                      .optional()
+                      .describe(
+                        "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                      ),
                     status: zod
                       .string()
                       .describe(
@@ -36643,6 +36771,12 @@ export const postItemsSoupAstResponse = zod
                       .nullish()
                       .describe(
                         'The time the session was last viewed by the requesting user'
+                      ),
+                    visibility: zod
+                      .enum(['listed', 'unlisted', 'hidden'])
+                      .optional()
+                      .describe(
+                        "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -41154,6 +41288,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .describe(
                               'The repository the session works with, when one was selected.'
                             ),
+                          source: zod
+                            .enum(['user', 'agent', 'routine'])
+                            .optional()
+                            .describe(
+                              "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                            ),
                           status: zod
                             .string()
                             .describe(
@@ -41179,6 +41319,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .nullish()
                             .describe(
                               'The time the session was last viewed by the requesting user'
+                            ),
+                          visibility: zod
+                            .enum(['listed', 'unlisted', 'hidden'])
+                            .optional()
+                            .describe(
+                              "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                             ),
                           workingBranch: zod
                             .string()
@@ -45252,6 +45398,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .describe(
                               'The repository the session works with, when one was selected.'
                             ),
+                          source: zod
+                            .enum(['user', 'agent', 'routine'])
+                            .optional()
+                            .describe(
+                              "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                            ),
                           status: zod
                             .string()
                             .describe(
@@ -45277,6 +45429,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .nullish()
                             .describe(
                               'The time the session was last viewed by the requesting user'
+                            ),
+                          visibility: zod
+                            .enum(['listed', 'unlisted', 'hidden'])
+                            .optional()
+                            .describe(
+                              "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                             ),
                           workingBranch: zod
                             .string()
