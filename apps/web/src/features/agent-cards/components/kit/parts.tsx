@@ -227,7 +227,7 @@ export function CardGroupHeader(props: ParentProps) {
 export function Skeleton(props: { width: string; height?: string }) {
   return (
     <span
-      class="block animate-pulse rounded bg-active"
+      class="skeleton-shimmer block rounded bg-skeleton"
       style={{ width: props.width, height: props.height ?? '10px' }}
     />
   );
@@ -237,7 +237,7 @@ export function Skeleton(props: { width: string; height?: string }) {
 export function SkeletonSingle() {
   return (
     <div class="flex items-center gap-3 px-3 py-2.5" aria-busy="true">
-      <span class="size-10 flex-none animate-pulse rounded-lg bg-hover" />
+      <span class="skeleton-shimmer size-10 flex-none rounded-lg bg-skeleton" />
       <span class="flex flex-1 flex-col gap-2">
         <Skeleton width="62%" />
         <Skeleton width="38%" height="8px" />

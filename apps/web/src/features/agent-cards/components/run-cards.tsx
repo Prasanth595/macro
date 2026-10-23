@@ -53,7 +53,7 @@ export default function RunCards(props: {
                   {(sessionId) => (
                     <Suspense
                       fallback={
-                        <div class="h-16 w-full max-w-xl animate-pulse rounded-xl bg-hover" />
+                        <div class="skeleton-shimmer h-16 w-full max-w-xl rounded-xl bg-skeleton" />
                       }
                     >
                       <ReviewCard
@@ -85,7 +85,7 @@ function AgentView(props: { view: unknown }) {
       data-agent-view
     >
       <Suspense
-        fallback={<div class="h-16 animate-pulse rounded-xl bg-hover" />}
+        fallback={<div class="skeleton-shimmer h-16 rounded-xl bg-skeleton" />}
       >
         <DashboardToolView view={props.view} pending={false} />
       </Suspense>

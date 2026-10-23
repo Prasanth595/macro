@@ -68,7 +68,7 @@ export function ReviewCard(props: {
     <Switch
       fallback={
         <div
-          class="h-14 w-full max-w-md animate-pulse rounded-xl bg-hover"
+          class="skeleton-shimmer h-14 w-full max-w-md rounded-xl bg-skeleton"
           role="status"
           aria-label="Loading drafts to review"
         />
