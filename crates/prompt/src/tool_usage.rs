@@ -85,11 +85,11 @@ conversational replies rather than to Markdown it authors via tools.";
 /// The tool-use prompt.
 pub static PROMPT: StaticPrompt<'static> = StaticPrompt::borrowed(TITLE, INSTRUCTIONS, INTENT);
 
-/// Routing overrides for sessions that selected the code-mode feature flag.
+/// Routing overrides for an agent turn in code mode.
 pub static CODE_MODE_ROUTING: StaticPrompt<'static> = StaticPrompt::borrowed(
     "Code Mode Routing",
-    r#"Use ExecuteCode for SDK-supported listing, search, and retrieval, including a single precise call. This takes precedence over general references to direct tools elsewhere in these instructions. Consult DescribeCodeTools for the relevant SDK entity before falling back.
+    r#"Use ExecuteCode for everything the SDK supports: listing, search and retrieval, and changes such as creating, renaming, moving, updating and deleting items, including a single precise call. This takes precedence over general references to direct tools elsewhere in these instructions. Consult DescribeCodeTools for the relevant SDK entity before falling back. SearchTools and LoadTools never list SDK operations: when no direct tool does what you need, do it with ExecuteCode instead of searching for a tool again.
 
 For workspace activity, unified inbox, tasks, and mixed-entity feeds, use the direct ListEntities tool with the requested type, time, tag, property, and mailbox filters. Use NameSearch for mixed-entity name searches. These tools include agent sessions. ContentSearch remains available for session-history search or query scopes the SDK does not support. Preserve the user's source scope in either path. Keep EditDocument and other interactive or unsupported operations as direct tools."#,
-    "SDK-supported retrieval uses code by default while unsupported scopes retain direct fallbacks.",
+    "SDK-supported reads and changes use code by default, and a missing direct tool sends the model to code rather than to tool search, while unsupported scopes retain direct fallbacks.",
 );

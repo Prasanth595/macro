@@ -672,6 +672,9 @@ fn code_mode_retains_direct_lifecycles_and_hides_sdk_methods_from_lazy_discovery
     assert!(!prompt.contains("- ReadMetadata:"));
     let routing = prompt::tool_usage::CODE_MODE_ROUTING.to_string();
     assert!(prompt.contains(&routing));
+    // Changes the SDK covers go to code too, not to tool search.
+    assert!(routing.contains("renaming"));
+    assert!(routing.contains("instead of searching for a tool again"));
     assert!(!standard.prompt.to_string().contains(&routing));
     for host in [AiHost::Chat, AiHost::ChannelBot, AiHost::Mcp] {
         assert!(!tools_for(host).prompt.to_string().contains(&routing));
