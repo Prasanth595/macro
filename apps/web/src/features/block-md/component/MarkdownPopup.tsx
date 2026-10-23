@@ -66,17 +66,11 @@ import LinkIcon from '@phosphor-icons/core/regular/link.svg?component-solid';
 import { makeResizeObserver } from '@solid-primitives/resize-observer';
 import { Button, SendButton, Toolbar } from '@ui';
 import {
-  $createRangeSelection,
   $createTextNode,
-  $getNodeByKey,
   $getSelection,
-  $isElementNode,
   $isRangeSelection,
-  $isTextNode,
   $setSelection,
   COMMAND_PRIORITY_HIGH,
-  type LexicalNode,
-  type PointType,
   type RangeSelection,
 } from 'lexical';
 import {
@@ -98,33 +92,15 @@ import {
   hasActiveAiEdit,
   requestAiEditWithToast,
 } from '../queries/ai-edit';
+import {
+  $insertAtSavedPoint,
+  type SavedPoint,
+} from '../util/insertAtSavedPoint';
 import type { ComposeTaskSuccess } from './ComposeTask';
 import { FormatTools } from './FormatTools';
 import { TouchSelectionToolbar } from './TouchSelectionToolbar';
 
 const MENU_ID = 'markdown-popup';
-
-type SavedPoint = Pick<PointType, 'key' | 'offset' | 'type'>;
-
-/** Inserts nodes at a point saved earlier; false when its node is gone. */
-function $insertAtSavedPoint(point: SavedPoint, nodes: LexicalNode[]) {
-  const node = $getNodeByKey(point.key);
-  let size: number;
-  if (point.type === 'text' && $isTextNode(node)) {
-    size = node.getTextContentSize();
-  } else if (point.type === 'element' && $isElementNode(node)) {
-    size = node.getChildrenSize();
-  } else {
-    return false;
-  }
-  const offset = Math.min(point.offset, size);
-  const target = $createRangeSelection();
-  target.anchor.set(point.key, offset, point.type);
-  target.focus.set(point.key, offset, point.type);
-  target.insertNodes(nodes);
-  return true;
-}
-
 export function MarkdownPopup(props: {
   highlightLayerRef: HTMLDivElement;
   lexicalMapping: NodeIdMappings;
