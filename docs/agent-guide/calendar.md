@@ -481,7 +481,9 @@ A guest the organizer does not let modify the event (`viewerCan.editDetails` fal
 `viewerCan.rsvp` is true) opens an editor whose date/time, all-day, title, description,
 repeat, conferencing and location controls are disabled, each with the tooltip `Only the
 organizer can change this event.`; the same line shows under the pills, which is all a
-touch device shows. Notifications stay editable and Save sends only `reminders` (plus any
+touch device shows. The event kind and calendar pills, which on any other edit open their one
+value as a list, are disabled too. Disabled pills are dimmed and show no hover, like the
+locked date and time fields. Notifications stay editable and Save sends only `reminders` (plus any
 invitation). That guest cannot drag or resize the event on the grid either. Someone
 neither organizing nor invited, such as a delegate on a shared calendar, keeps what their
 calendar access allows. The update refuses a detail change from such a guest with 403
