@@ -587,4 +587,21 @@ describe('Home work feed', () => {
     expect(source.isLoading()).toBe(false);
     expect(ids(source)).toEqual(['from-soup']);
   });
+
+  it('holds desktop recents back until the viewer is known', () => {
+    flags.graphqlSoup = false;
+    const [userId, setUserId] = createSignal<string>();
+    viewer.id = userId;
+    const notifications = makeQuery([email('notified', 9)], false);
+    const activity = makeQuery([email('recent', 10)], false);
+    const { source } = mount(notifications, activity);
+
+    expect(workFeedSource.enabled?.()).toBe(false);
+    expect(source.isLoading()).toBe(true);
+    expect(ids(source)).toEqual([]);
+
+    setUserId('macro|alice@example.com');
+    expect(source.isLoading()).toBe(false);
+    expect(ids(source)).toEqual(['recent', 'notified']);
+  });
 });
