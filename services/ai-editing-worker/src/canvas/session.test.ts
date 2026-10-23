@@ -197,67 +197,86 @@ describe('live Canvas editing sessions', () => {
     }
   });
 
-  it('rejects stale text measurements after a concurrent human relabel', async () => {
-    const scene = liveScene();
-    const human = createLoroGraphicsBackendFromDoc(scene.server, 'scene-root');
-    human.commit(
-      prepareCanvasEdit(human.getDocument(), [
-        {
-          kind: 'create',
-          id: 'box',
-          type: 'rectangle',
-          x: 0,
-          y: 0,
-          width: 120,
-          height: 80,
-          text: 'Before',
-        },
-      ])
-    );
-    try {
-      await expect(
-        withCanvasSession(
-          scene.source,
-          new AbortController().signal,
-          async (session) =>
-            session.apply(
-              [
-                {
-                  kind: 'text',
-                  id: 'box',
-                  text: 'AI replacement that needs measurement',
-                },
-              ],
-              {
-                measure: async (snapshot) => {
-                  const update = Promise.withResolvers<Uint8Array>();
-                  const unsubscribe = human.subscribeUpdates(update.resolve);
-                  human.commit(
-                    prepareCanvasEdit(human.getDocument(), [
-                      {
-                        kind: 'text',
-                        id: 'box',
-                        text: 'Human wins during measurement',
-                      },
-                    ])
-                  );
-                  scene.send({ type: 'update', update: await update.promise });
-                  unsubscribe();
-                  return { document: snapshot.document, effects: [] };
-                },
-              }
-            )
-        )
-      ).rejects.toThrow('nothing from this batch was committed');
-      expect(scene.writes()).toBe(0);
-      expect(describeCanvas(human.getDocument())).toContain(
-        'Human wins during measurement'
+  it.each(['text', 'mentionUser'] as const)(
+    'rejects stale %s measurements after a concurrent human relabel',
+    async (kind) => {
+      const scene = liveScene();
+      const human = createLoroGraphicsBackendFromDoc(
+        scene.server,
+        'scene-root'
       );
-    } finally {
-      human.dispose();
-      scene.server.free();
+      human.commit(
+        prepareCanvasEdit(human.getDocument(), [
+          {
+            kind: 'create',
+            id: 'box',
+            type: 'rectangle',
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+            text: 'Before',
+          },
+        ])
+      );
+      try {
+        await expect(
+          withCanvasSession(
+            scene.source,
+            new AbortController().signal,
+            async (session) =>
+              session.apply(
+                [
+                  kind === 'text'
+                    ? {
+                        kind,
+                        id: 'box',
+                        text: 'AI replacement that needs measurement',
+                      }
+                    : {
+                        kind,
+                        id: 'box',
+                        at: 0,
+                        person: {
+                          userId: 'macro|alice@example.com',
+                          email: 'alice@example.com',
+                        },
+                      },
+                ],
+                {
+                  measure: async (snapshot) => {
+                    const update = Promise.withResolvers<Uint8Array>();
+                    const unsubscribe = human.subscribeUpdates(update.resolve);
+                    human.commit(
+                      prepareCanvasEdit(human.getDocument(), [
+                        {
+                          kind: 'text',
+                          id: 'box',
+                          text: 'Human wins during measurement',
+                        },
+                      ])
+                    );
+                    scene.send({
+                      type: 'update',
+                      update: await update.promise,
+                    });
+                    unsubscribe();
+                    return { document: snapshot.document, effects: [] };
+                  },
+                }
+              )
+          )
+        ).rejects.toThrow('nothing from this batch was committed');
+        expect(scene.writes()).toBe(0);
+        expect(describeCanvas(human.getDocument())).toContain(
+          'Human wins during measurement'
+        );
+      } finally {
+        human.dispose();
+        scene.server.free();
+      }
     }
-  });
+  );
 
   it('retains an explicit fixed-text policy through CRDT reload and a later relabel', async () => {
     const scene = liveScene();

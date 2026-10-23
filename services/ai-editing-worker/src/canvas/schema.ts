@@ -12,6 +12,13 @@ const ids = z
     'Item IDs must be unique.'
   );
 const text = z.string().max(10_000);
+export const canvasUserMentionSchema = z
+  .object({
+    userId: z.string().min(1).max(512),
+    email: z.string().email().max(320),
+    displayName: z.string().min(1).max(200).optional(),
+  })
+  .strict();
 export const textFitMode = z.enum(['grow', 'contain', 'error']);
 export type TextFitMode = z.infer<typeof textFitMode>;
 const color = z
@@ -82,6 +89,15 @@ export const canvasOpSchema = z.discriminatedUnion('kind', [
     })
     .strict(),
   z.object({ kind: z.literal('style'), ids, style }).strict(),
+  z
+    .object({
+      kind: z.literal('mentionUser'),
+      id,
+      at: z.number().int().min(0).max(100_000),
+      person: canvasUserMentionSchema,
+      fitText: textFitMode.optional(),
+    })
+    .strict(),
   z
     .object({
       kind: z.literal('text'),

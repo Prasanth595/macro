@@ -59,6 +59,16 @@ mapping, then edit and visually review the result. Embedded content is explicitl
 unavailable in scoped renders. A viewer can read/render but cannot edit.
 **ReadCanvas** also offers a compact approximate semantic overview with stable IDs.
 
+For a person mention, type `@` inside a text box or label and select the person.
+Ask Macro to insert that same person into another text box: it must resolve the
+user ID/email and call `mentionUser`, rather than type literal `@Name`. Inspect
+`[data-user-mention]` and its `data-user-id`/`data-email`, reopen the Canvas, and
+check a second editor sees the same chip. Existing rich text and other chips
+remain intact. Test wrapped text and an ellipse after resizing; chips must fit.
+ReadCanvas returns `userMentions` offsets/identities (bounded with an explicit
+truncation flag). A concurrent human relabel during measurement rejects the
+whole AI batch. Canvas chips do not send notifications or change access.
+
 Watch from a second editor: named AI writers show transient create/move/resize,
 connector and label previews, and independent tasks can progress together. These
 previews never save partial text. Unrelated edits retain valid previews; changing

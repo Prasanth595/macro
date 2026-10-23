@@ -35,6 +35,7 @@ import {
   runCanvasAnimation,
 } from './animation';
 import { CanvasScheduler, dependencies, dependencyState } from './dependencies';
+import { canvasUserMentions } from './mentions';
 import { prepareCanvasEdit } from './operations';
 import { canvasOverview } from './overview';
 import type { CanvasMeasurer, CanvasSnapshot } from './render';
@@ -326,6 +327,10 @@ export async function withCanvasSession<T>(
               });
               await Telemetry.span('canvas.ai.apply', async (span) => {
                 span.setAttr('edit.ops_total', ops.length);
+                span.setAttr(
+                  'edit.user_mentions',
+                  ops.filter((op) => op.kind === 'mentionUser').length
+                );
                 backend.commit(next);
                 try {
                   await lastAppend;
@@ -399,9 +404,15 @@ export function describeCanvas(
       content && validCanvasText(content)
         ? richTextPlainText(content)
         : undefined;
+    const userMentions =
+      content && plainText !== undefined
+        ? canvasUserMentions(content)
+        : { mentions: [], incomplete: false };
     return {
       ...item,
       text: plainText?.slice(0, 2000),
+      userMentions: userMentions.mentions,
+      userMentionsTruncated: userMentions.incomplete,
       textTruncated: (plainText?.length ?? 0) > 2000,
       pointsTruncated:
         item.type === 'pencil' && item.geometry.points.length > 64,
@@ -416,7 +427,12 @@ export function describeCanvas(
       matchedItems: selected.length,
       truncated:
         selected.length > 300 ||
-        items.some((item) => item.textTruncated || item.pointsTruncated),
+        items.some(
+          (item) =>
+            item.textTruncated ||
+            item.pointsTruncated ||
+            item.userMentionsTruncated
+        ),
       items,
     },
     (key, value: unknown) =>

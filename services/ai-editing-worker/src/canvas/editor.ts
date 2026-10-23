@@ -1,3 +1,4 @@
+import type { CanvasUserMention } from './mentions';
 import type { CanvasOp, TextFitMode } from './schema';
 
 /** Sandboxed command builder. Only the host can validate and commit commands. */
@@ -47,6 +48,14 @@ export class CanvasEditor {
   }
   text(id: string, text: string, fitText?: TextFitMode) {
     this.add({ kind: 'text', id, text, fitText });
+  }
+  mentionUser(
+    id: string,
+    at: number,
+    person: CanvasUserMention,
+    fitText?: TextFitMode
+  ) {
+    this.add({ kind: 'mentionUser', id, at, person, fitText });
   }
   /** Grow measured text at a sensible width unless an explicit fixed policy is requested. */
   fitText(id: string, mode: TextFitMode = 'grow', width?: number) {

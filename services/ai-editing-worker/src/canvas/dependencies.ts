@@ -118,7 +118,9 @@ export function dependencies(
   });
   if (
     boundsChanged ||
-    ops.some((op) => !['text', 'style', 'order'].includes(op.kind))
+    ops.some(
+      (op) => !['text', 'mentionUser', 'style', 'order'].includes(op.kind)
+    )
   ) {
     for (const id of writes) {
       for (const document of [before, after]) {

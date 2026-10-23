@@ -42,7 +42,7 @@ async function expectInside(
       if (!content) throw new Error('No rendered Canvas text');
       const ink = content.getBoundingClientRect();
       const padding = options.standalone ? 0 : 12;
-      return {
+      const margins = (ink: DOMRect) => ({
         left:
           ink.left -
           (box.left + (box.width * (1 - options.ratio)) / 2 + padding),
@@ -60,13 +60,21 @@ async function expectInside(
           padding -
           ink.bottom,
         height: ink.height,
+      });
+      return {
+        ...margins(ink),
+        chips: Array.from(
+          content.querySelectorAll('[data-user-mention]'),
+          (chip) => margins(chip.getBoundingClientRect())
+        ),
       };
     },
     { ratio, standalone }
   );
   expect(boxes.height).toBeGreaterThan(0);
-  for (const margin of [boxes.left, boxes.right, boxes.top, boxes.bottom])
-    expect(margin).toBeGreaterThanOrEqual(-1);
+  for (const ink of [boxes, ...boxes.chips])
+    for (const margin of [ink.left, ink.right, ink.top, ink.bottom])
+      expect(margin).toBeGreaterThanOrEqual(-1);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -74,6 +82,80 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(
     () => typeof window.measureCanvasSnapshot === 'function'
   );
+});
+
+test('real person chips render and fit text boxes and ellipse labels after edits and resize', async ({
+  page,
+}) => {
+  const person = {
+    userId: 'macro|alice@example.com',
+    email: 'alice@example.com',
+    displayName: 'Alice',
+  };
+  const initial = prepareCanvasEdit(createScene(), [
+    {
+      kind: 'create',
+      id: 'person-text',
+      type: 'text',
+      x: 20,
+      y: 20,
+      width: 180,
+      text: 'Please review this with  today',
+      fontSize: 24,
+    },
+    { kind: 'mentionUser', id: 'person-text', at: 24, person },
+    {
+      kind: 'create',
+      id: 'person-ellipse',
+      type: 'ellipse',
+      x: 300,
+      y: 20,
+      width: 200,
+      height: 80,
+      text: 'Owner: ',
+      fontSize: 24,
+    },
+    { kind: 'mentionUser', id: 'person-ellipse', at: 7, person },
+  ]);
+  const measured = await fit(page, initial, [
+    { id: 'person-text', mode: 'grow' },
+    { id: 'person-ellipse', mode: 'grow' },
+  ]);
+  await draw(page, measured.document);
+  for (const id of ['person-text', 'person-ellipse']) {
+    const chip = page.locator(
+      `[data-graphics-item="${id}"] [data-user-mention]`
+    );
+    await expect(chip).toHaveText('@Alice');
+    await expect(chip).toHaveAttribute('data-user-id', person.userId);
+    await expect(chip).toHaveAttribute('data-email', person.email);
+  }
+  await expectInside(page, 'person-text', 1, true);
+  await expectInside(page, 'person-ellipse', Math.SQRT1_2);
+  const edited = prepareCanvasEdit(measured.document, [
+    {
+      kind: 'mentionUser',
+      id: 'person-text',
+      at: 0,
+      person: {
+        userId: 'macro|bob@example.com',
+        email: 'bob@example.com',
+        displayName: 'Bob',
+      },
+    },
+    { kind: 'resize', id: 'person-text', width: 120, height: 40 },
+    { kind: 'resize', id: 'person-ellipse', width: 150, height: 50 },
+  ]);
+  const fitted = await fit(page, edited, [
+    { id: 'person-text', mode: 'grow' },
+    { id: 'person-ellipse', mode: 'grow' },
+  ]);
+  await draw(page, fitted.document);
+  await expect(
+    page.locator('[data-graphics-item="person-text"] [data-user-mention]')
+  ).toHaveText(['@Bob', '@Alice']);
+  await expectInside(page, 'person-text', 1, true);
+  await expectInside(page, 'person-ellipse', Math.SQRT1_2);
 });
 
 test('actual wrapped labels, unbroken strings, ellipses and standalone text fit at readable fonts', async ({

@@ -13,6 +13,7 @@ SDK:
 - editor.resize(id,width,height,fitText?): box/text/media only; explicit text layout dimensions, preserves font size.
 - editor.style([ids],{fill?,stroke?,strokeWidth?,strokeStyle?:'solid'|'dashed'|'dotted',opacity?,cornerRadius?}); groups style their leaves. Colors: hex, transparent or none.
 - editor.text(id,plainText,fitText?): replace text or box/connector label. Empty clears a label; a text item remains.
+- editor.mentionUser(id,at,{userId,email,displayName?},fitText?): insert a real person @-mention chip into text or a shape/connector label, preserving all other rich content. Resolve the actual identity before this session; never invent IDs or substitute literal @Name text. `at` is a UTF-16 offset in ReadCanvas.text; each existing chip is one U+FFFC character and paragraph breaks are newlines. Read `userMentions` for each chip's identity and offset. No notification or access grant is sent. To create a box with a mention, create its surrounding text then call mentionUser on its returned ID in the same batch.
 - editor.fitText(id,mode='grow',width?): remeasure and fit existing text/label at a bounded wrapping width for boxes/text. Connector labels use grow at their natural width; contain/error are unsupported and supplying width for a connector is an error.
 - editor.textStyle(id,{fontSize?,fontFamily?,fitText?}): update font and remeasure wrapping before commit.
 - editor.delete([ids]): embedded assets and groups containing them must be deleted in the UI for reference cleanup.
@@ -20,4 +21,4 @@ SDK:
 - editor.reparent(id,parentId): root or group parent.
 - editor.order([ids],'front'|'back'|'forward'|'backward')
 
-No new media/document references, uploads, rich-text markup, arbitrary serialized scene replacement, or character edits. Keep existing references intact; use reportBlocked for requests requiring unsupported capabilities. Plain text may be read from the `text` field; the opaque `content` is host encoding, never raw display text. Read output can be truncated; do not assume omitted items do not exist.
+Person mentions are supported through mentionUser; no new media/document references, uploads, arbitrary rich-text markup, serialized scene replacement, or character edits. Keep existing references intact; use reportBlocked for requests requiring unsupported capabilities. Plain text may be read from the `text` field; the opaque `content` is host encoding, never raw display text. Read output can be truncated; do not assume omitted items do not exist.

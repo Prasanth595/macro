@@ -10,6 +10,7 @@ import {
 } from '@macro-inc/graphics';
 import { plainRichText } from '@macro-inc/lexical-core/canvas-text';
 import { match } from 'ts-pattern';
+import { insertCanvasUserMention } from './mentions';
 import type { CanvasOp } from './schema';
 
 function label(
@@ -155,6 +156,38 @@ export function prepareCanvasEdit(
           } else
             throw new Error(
               'Only text items, rectangles, ellipses and connectors accept text.'
+            );
+        })
+        .with({ kind: 'mentionUser' }, (op) => {
+          const item = current.items[op.id];
+          if (item.type === 'text')
+            editor.execute(setTextCommand, {
+              ...item,
+              geometry: {
+                ...item.geometry,
+                content: insertCanvasUserMention(
+                  item.geometry.content,
+                  op.at,
+                  op.person
+                ),
+              },
+            });
+          else if (canLabel(item)) {
+            const existing = item.geometry.label ?? label('');
+            editor.execute(setShapeLabelCommand, {
+              id: op.id,
+              label: {
+                ...existing,
+                content: insertCanvasUserMention(
+                  existing.content,
+                  op.at,
+                  op.person
+                ),
+              },
+            });
+          } else
+            throw new Error(
+              'Only text items and shape labels accept person mentions.'
             );
         })
         .with({ kind: 'textStyle' }, (op) => {

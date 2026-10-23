@@ -140,6 +140,19 @@ editor.text('existing-title', snippets.title); // grow fitting by default
 editor.textStyle('existing-title', {fontSize: 22});
 ```
 
+Person mentions use `editor.mentionUser(itemId, at, {userId, email, displayName?})`,
+following the document editing SDK. The host inserts the shared UserMentionNode
+wire shape into the existing Lexical tree, retaining unrelated formatting and
+chips. ReadCanvas exposes bounded `userMentions` with identity and UTF-16 offsets;
+newlines and each U+FFFC decorator placeholder count as one character. Invalid
+offsets or identities reject the proposal before any write. Mention edits go
+through the same DOM measurement, target revalidation, and single commit as
+other text edits; a human edit during async measurement invalidates the batch.
+The main agent can resolve contacts with `macro.users.search(nameOrEmail)`,
+which batches names from the existing contacts/auth APIs and returns seeded User
+handles. It must disambiguate matches and never infer an identity from a name.
+This adds no notifications or access grants.
+
 Each ordinary batch can present up to three spatially ordered groups of actual
 changed shapes. Descendants stay with their containing group. Bound arrows
 whose resolved geometry changes stay with an affected node; cursors anchor at

@@ -288,6 +288,12 @@ before ending editing. Mentions retain their typed
 Lexical nodes through reopening, copy/paste, and undo, and render with the shared
 mention decorators. Canvas Next currently disables backend mention tracking and
 notifications; mentions remain part of the same whole-content LWW string.
+AI editing uses `editor.mentionUser(itemId, at, {userId, email, displayName?})`
+to insert the same chip into text or a label while preserving its rich content.
+ReadCanvas returns bounded `userMentions` identities and offsets; offsets count
+UTF-16 text, newlines, and one U+FFFC per chip. The agent resolves real people
+through supplied identities or `macro.users.search` and disambiguates matches.
+The host remeasures and revalidates the complete batch before committing.
 
 Canvas Next stores a stringified Lexical editor tree in `TextGeometry.content`,
 including shape labels. `core/text-codec.ts` owns bounded tree validation, seed

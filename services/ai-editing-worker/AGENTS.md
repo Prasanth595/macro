@@ -51,7 +51,9 @@ before touching the edit flow.
 - Change the Canvas SDK: `src/canvas/editor.ts` and `schema.ts` →
   `scripts/generate-sandbox.ts` (regenerates `src/canvas/sandbox-code.ts`).
   Commands validate on a disposable editor and commit once through the live
-  backend. Keep asset-reference bookkeeping in its authorized host flow.
+  backend. `mentionUser` inserts the shared person-chip format without flattening
+  other text; ReadCanvas exposes bounded identities/offsets, with one U+FFFC per
+  existing chip in text offsets. It uses the same measured/revalidated commit. Keep asset-reference bookkeeping in its authorized host flow.
 
 ## Checks
 
