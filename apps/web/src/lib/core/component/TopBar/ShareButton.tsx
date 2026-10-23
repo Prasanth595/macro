@@ -20,6 +20,7 @@ import {
 } from '@app/features/crm/sharing-adapter';
 import { projectRouteId } from '@app/features/projects/core/route';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useChannelParticipants } from '@channel/use-channel-participants';
 import { HeaderActionButton } from '@components/app/HeaderActionButton';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
@@ -47,6 +48,7 @@ import { UserIcon } from '@core/component/UserIcon';
 import {
   ENABLE_MARKDOWN_COMMENTS,
   ENABLE_MARKDOWN_LIVE_COLLABORATION,
+  enableCalendarMeetingNotes,
 } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
 import clickOutside from '@core/directive/clickOutside';
@@ -416,7 +418,7 @@ interface LinkSharingControlsProps {
   linkShare: LinkShare | null | undefined;
   linkShareAccessLevel: AccessLevel | null | undefined;
   hasExplicitShares: boolean;
-  meetingAccess?: MeetingAccessState;
+  meetingAccess?: MeetingAccessState | 'unknown';
   setLinkShareScope: (scope: LinkShareScope) => void;
   setLinkShareAccessLevel: (accessLevel: AccessLevel | null) => void;
   copyLink: () => void;
@@ -503,19 +505,27 @@ function LinkSharingControls(props: LinkSharingControlsProps) {
           : 'Shared through meeting links with meeting viewers and any teams selected there.',
       };
     }
-    if (
-      status.label !== 'Just me' ||
-      (props.meetingAccess !== 'loading' && props.meetingAccess !== 'error')
-    ) {
-      return status;
+    if (status.label !== 'Just me') return status;
+    if (props.meetingAccess === 'unknown') {
+      return {
+        label: 'Restricted',
+        tooltip: 'Only people with access can open this link.',
+      };
     }
-    return {
-      label:
-        props.meetingAccess === 'loading'
-          ? 'Checking access…'
-          : 'Check meeting access',
-      tooltip: 'Meeting links may grant additional access. See Meeting links.',
-    };
+    if (props.meetingAccess === 'loading') {
+      return {
+        label: 'Checking access…',
+        tooltip: 'Meeting links may grant additional access.',
+      };
+    }
+    if (props.meetingAccess === 'error') {
+      return {
+        label: 'Check meeting access',
+        tooltip:
+          'Meeting links may grant additional access. See Meeting links.',
+      };
+    }
+    return status;
   };
 
   return (
@@ -577,7 +587,8 @@ function LinkSharingControls(props: LinkSharingControlsProps) {
 }
 
 interface MobileShareDrawerProps {
-  meetingAccess?: MeetingAccessState;
+  meetingNotesEnabled: boolean;
+  meetingAccess?: MeetingAccessState | 'unknown';
   onMeetingAccessState: (state: MeetingAccessState) => void;
   requests: SharingSource;
   requestLevels: readonly AccessLevel[];
@@ -870,6 +881,7 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
             </Show>
             <Show
               when={
+                props.meetingNotesEnabled &&
                 props.blockAlias === 'md' &&
                 props.itemType === 'document' &&
                 !!userId() &&
@@ -902,6 +914,7 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
 }
 
 export function ShareModal(props: ShareModalProps) {
+  const meetingNotesFlag = useFeatureFlag(enableCalendarMeetingNotes);
   const requests = useShareRequests(
     () => shareEntity(props.itemType, props.id),
     () => props.open
@@ -955,6 +968,18 @@ export function ShareModal(props: ShareModalProps) {
     props.itemType === 'document' &&
     !!userId() &&
     (props.owner ?? requests.state()?.owner) === userId();
+  const meetingAccessForSharing = ():
+    | MeetingAccessState
+    | 'unknown'
+    | undefined => {
+    if (!canManageMeetingLinks()) return undefined;
+    // Turning off the UI does not revoke grants. Keep known sharing visible and
+    // avoid claiming privacy when the gated source cannot check saved links.
+    if (meetingAccess() === 'shared') return 'shared';
+    const flag = meetingNotesFlag();
+    if (flag.loading) return 'loading';
+    return flag.enabled ? meetingAccess() : 'unknown';
+  };
   // Like a document, a pipeline is shared by anyone who can edit it. Only its
   // owner changes team access, which `teamShareControls` still requires.
   const canSharePipeline = () =>
@@ -1575,7 +1600,8 @@ export function ShareModal(props: ShareModalProps) {
       when={!isMobile()}
       fallback={
         <MobileShareDrawer
-          meetingAccess={canManageMeetingLinks() ? meetingAccess() : undefined}
+          meetingNotesEnabled={meetingNotesFlag().enabled}
+          meetingAccess={meetingAccessForSharing()}
           onMeetingAccessState={setMeetingAccess}
           requests={requests}
           requestLevels={requestLevels()}
@@ -1866,6 +1892,7 @@ export function ShareModal(props: ShareModalProps) {
               <Show
                 when={
                   props.open &&
+                  meetingNotesFlag().enabled &&
                   props.blockAlias === 'md' &&
                   props.itemType === 'document' &&
                   !!userId() &&
@@ -1894,11 +1921,7 @@ export function ShareModal(props: ShareModalProps) {
                       when={props.linkSharing}
                       fallback={
                         <LinkSharingControls
-                          meetingAccess={
-                            canManageMeetingLinks()
-                              ? meetingAccess()
-                              : undefined
-                          }
+                          meetingAccess={meetingAccessForSharing()}
                           editPermissionEnabled={editPermissionEnabled()}
                           linkShare={linkShare()}
                           linkShareAccessLevel={linkShareAccessLevel()}

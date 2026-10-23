@@ -2,6 +2,13 @@
 
 ## Meeting notes
 
+Meeting notes require `enable-calendar-meeting-notes`. It is on automatically in
+dev; production uses PostHog, with an initial rollout intended for `@macro.com`
+users. `VITE_ENABLE_CALENDAR_MEETING_NOTES=true` or `false` overrides it locally.
+With the flag off, event notes and document Share meeting-link controls do not
+mount or request note data, on desktop or phone. The flag does not revoke saved
+meeting/team grants or change API permissions.
+
 Open a live meeting's details and choose **Create** beside **Meeting notes**.
 This creates a Markdown document named after the meeting, links it with meeting
 viewer access, and opens it immediately. Team access starts off. A meeting can
@@ -56,6 +63,7 @@ backend-free browser suite mounts the real event popover and mobile drawer with
 sample data and preview service adapters. It is
 `apps/web/src/features/calendar-notes/browser-test/playwright.config.ts`.
 API permission cases are covered in `crates/calendar_events/src/outbound/pg/test/notes.rs`.
+The fixture accepts `?notes=off` to check the event details without notes.
 
 Browser fixture screenshots: [desktop](media/calendar-notes/desktop.png) ·
 [phone](media/calendar-notes/phone.png) ·

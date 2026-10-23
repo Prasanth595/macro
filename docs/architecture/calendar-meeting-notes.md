@@ -58,6 +58,16 @@ updates the existing grant and removes duplicates across those copies.
 
 ## Surface and API
 
+The remote web flag `enable-calendar-meeting-notes` gates both event-details
+surfaces and document Share meeting-link management before their query sources
+mount. It defaults on in development; production falls through to PostHog, with
+the initial rollout intended for `@macro.com` users. The local override is
+`VITE_ENABLE_CALENDAR_MEETING_NOTES`. This is a UI rollout, not an authorization
+boundary: backend/SDK operations and persisted grants retain the access contract
+above when the web flag is off.
+The Share panel retains known shared status and otherwise uses a neutral
+restricted-link label while meeting access cannot be checked with the flag off.
+
 The web feature lives in `apps/web/src/features/calendar-notes`, with an injected
 data source, query adapter, controller, and presentational view. It mounts within
 desktop and mobile event details. Its shared dialog becomes a phone sheet with

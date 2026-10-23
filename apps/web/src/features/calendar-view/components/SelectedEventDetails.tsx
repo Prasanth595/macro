@@ -1,7 +1,10 @@
 import { hasEveryoneElseDeclined } from '@app/features/calendar/components/EventContent';
 import { EventDetails } from '@app/features/calendar/components/EventDetails';
 import { createGuestInviteController } from '@app/features/calendar/hooks/create-guest-invite-controller';
-import { useCalendarGuestInvitesFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
+import {
+  useCalendarGuestInvitesFlag,
+  useCalendarMeetingNotesFlag,
+} from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import {
   type CalendarEvent,
   type CalendarTimeFormat,
@@ -178,6 +181,7 @@ function EveryoneElseDeclinedNotice(props: {
 }
 
 function EventDetailsDrawer(props: EventDetailsOverlayProps) {
+  const meetingNotesEnabled = useCalendarMeetingNotesFlag();
   const [notesOpen, setNotesOpen] = createSignal(false);
   let content: HTMLDivElement | undefined;
   const { openWithSplit } = useSplitLayout();
@@ -331,7 +335,13 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
               </Show>
             </div>
             <Show when={!props.event.teamProjection}>
-              <Show when={!props.event.isCancelled && !props.event.isSnapshot}>
+              <Show
+                when={
+                  meetingNotesEnabled() &&
+                  !props.event.isCancelled &&
+                  !props.event.isSnapshot
+                }
+              >
                 <CalendarMeetingNotes
                   event={props.event}
                   onDialogChange={setNotesOpen}
@@ -472,6 +482,7 @@ function DeleteEventDialog(
  * scroll within 32rem or the available height; the RSVP row stays pinned.
  */
 function EventDetailsPopover(props: EventDetailsPopoverProps) {
+  const meetingNotesEnabled = useCalendarMeetingNotesFlag();
   const [notesOpen, setNotesOpen] = createSignal(false);
   let openingDocument = false;
   const { openWithSplit } = useSplitLayout();
@@ -654,7 +665,11 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                 </div>
                 <Show when={!props.event.teamProjection}>
                   <Show
-                    when={!props.event.isCancelled && !props.event.isSnapshot}
+                    when={
+                      meetingNotesEnabled() &&
+                      !props.event.isCancelled &&
+                      !props.event.isSnapshot
+                    }
                   >
                     <CalendarMeetingNotes
                       event={props.event}
