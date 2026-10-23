@@ -5,7 +5,7 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, tag_no_case, take_till1, take_while1},
     character::complete::anychar,
-    combinator::{eof, peek, recognize, verify},
+    combinator::{consumed, eof, peek, recognize, verify},
     multi::{many_till, many0},
     sequence::{delimited, preceded},
 };
@@ -115,6 +115,11 @@ impl<'de> XmlTaggedParsed<'de> for ParsedDateMention<'de> {
 pub struct ParsedDocumentMention<'a> {
     #[serde(borrow)]
     pub document_name: Cow<'a, str>,
+    #[serde(borrow, default)]
+    pub document_id: Option<Cow<'a, str>>,
+    /// `md`, `channel`, and so on: the kind of entity the mention opens.
+    #[serde(borrow, default)]
+    pub block_name: Option<Cow<'a, str>>,
 }
 
 impl<'de> XmlTaggedParsed<'de> for ParsedDocumentMention<'de> {
@@ -233,6 +238,19 @@ impl<'de> XmlTaggedParsed<'de> for ParsedBookingLinkMention<'de> {
     const TAG_NAME: &'static str = "m-booking-link-mention";
 }
 
+/// A named slot in a routine template, filled in when someone activates it.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub struct ParsedTemplateVariable<'a> {
+    #[serde(borrow)]
+    pub key: Cow<'a, str>,
+}
+
+impl<'de> XmlTaggedParsed<'de> for ParsedTemplateVariable<'de> {
+    const TAG_NAME: &'static str = "m-template-variable";
+}
+
 #[derive(Debug)]
 pub enum XmlTag<'de> {
     Link(ParsedLink<'de>),
@@ -244,6 +262,7 @@ pub enum XmlTag<'de> {
     AgentSession(ParsedAgentSessionMention<'de>),
     PullRequest(ParsedPullRequestMention<'de>),
     BookingLink(ParsedBookingLinkMention<'de>),
+    TemplateVariable(ParsedTemplateVariable<'de>),
 }
 
 fn parse_xml_tag(s: &str) -> IResult<&str, XmlTag<'_>> {
@@ -257,6 +276,7 @@ fn parse_xml_tag(s: &str) -> IResult<&str, XmlTag<'_>> {
         ParsedAgentSessionMention::parse.map(XmlTag::AgentSession),
         ParsedPullRequestMention::parse.map(XmlTag::PullRequest),
         ParsedBookingLinkMention::parse.map(XmlTag::BookingLink),
+        ParsedTemplateVariable::parse.map(XmlTag::TemplateVariable),
     ))
     .parse(s)
 }
@@ -272,6 +292,7 @@ fn is_recognized_tag_name(name: &str) -> bool {
         ParsedAgentSessionMention::TAG_NAME,
         ParsedPullRequestMention::TAG_NAME,
         ParsedBookingLinkMention::TAG_NAME,
+        ParsedTemplateVariable::TAG_NAME,
     ]
     .iter()
     .any(|recognized| recognized.eq_ignore_ascii_case(name))
@@ -335,6 +356,44 @@ impl<'de> ParsedXmlText<'de> {
     }
 }
 
+/// A piece of serialized text that keeps each recognized tag's source, so a
+/// caller can rewrite some tags and leave everything else byte for byte.
+#[derive(Debug)]
+pub enum RawSegment<'de> {
+    Tag { raw: &'de str, tag: XmlTag<'de> },
+    Text(&'de str),
+}
+
+/// Split `s` into recognized tags and verbatim text. Unlike
+/// [`ParsedXmlText::parse`] this never fails: unknown or malformed tags and
+/// stray `<` stay in the text.
+pub fn raw_segments(s: &str) -> Vec<RawSegment<'_>> {
+    let mut segments = Vec::new();
+    let mut text_start = s;
+    let mut rest = s;
+    while !rest.is_empty() {
+        if let Ok((after, (raw, tag))) = consumed(parse_xml_tag).parse(rest) {
+            let text = &text_start[..text_start.len() - rest.len()];
+            if !text.is_empty() {
+                segments.push(RawSegment::Text(text));
+            }
+            segments.push(RawSegment::Tag { raw, tag });
+            text_start = after;
+            rest = after;
+            continue;
+        }
+        let skip = match rest[1..].find('<') {
+            Some(at) => at + 1,
+            None => rest.len(),
+        };
+        rest = &rest[skip..];
+    }
+    if !text_start.is_empty() {
+        segments.push(RawSegment::Text(text_start));
+    }
+    segments
+}
+
 pub struct ReformattedXmlText<T>(pub String, PhantomData<T>);
 
 pub trait XmlFormatter: Sized {
@@ -358,6 +417,10 @@ pub trait XmlFormatter: Sized {
     ) -> std::fmt::Result;
     fn format_booking_link(
         link: &ParsedBookingLinkMention<'_>,
+        f: &mut Formatter<'_>,
+    ) -> std::fmt::Result;
+    fn format_template_variable(
+        variable: &ParsedTemplateVariable<'_>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result;
 
@@ -434,6 +497,13 @@ pub trait XmlFormatter: Sized {
                         acc,
                         "{}",
                         Adapter(|f: &mut Formatter<'_>| Self::format_booking_link(&b, f))
+                    )
+                }
+                TextSegment::Xml(XmlTag::TemplateVariable(v)) => {
+                    write!(
+                        acc,
+                        "{}",
+                        Adapter(|f: &mut Formatter<'_>| Self::format_template_variable(&v, f))
                     )
                 }
                 TextSegment::Plain(s) => {
@@ -526,6 +596,13 @@ impl XmlFormatter for PlainTextFormatter {
     ) -> std::fmt::Result {
         write!(f, "{}", link.display_label())
     }
+
+    fn format_template_variable(
+        variable: &ParsedTemplateVariable<'_>,
+        f: &mut Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(f, "{{{}}}", variable.key)
+    }
 }
 
 /// xml formatter which completely removes the inner text of all xml tags
@@ -579,6 +656,13 @@ impl XmlFormatter for NullXmlFormatter {
 
     fn format_booking_link(
         _link: &ParsedBookingLinkMention<'_>,
+        f: &mut Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(f, "")
+    }
+
+    fn format_template_variable(
+        _variable: &ParsedTemplateVariable<'_>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
         write!(f, "")

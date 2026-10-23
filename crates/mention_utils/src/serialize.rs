@@ -33,6 +33,17 @@ pub fn bot_mention(bot_id: BotId, display_name: &str) -> Result<String, serde_js
     Ok(format!("<m-user-mention>{payload}</m-user-mention>"))
 }
 
+#[derive(Serialize)]
+struct TemplateVariable<'a> {
+    key: &'a str,
+}
+
+/// Serialize a routine template's variable slot.
+pub fn template_variable(key: &str) -> Result<String, serde_json::Error> {
+    let payload = tag_json(&TemplateVariable { key })?;
+    Ok(format!("<m-template-variable>{payload}</m-template-variable>"))
+}
+
 /// Serialize JSON without literal tag delimiters. JSON decoding restores the
 /// original text; HTML/entity escaping here would change labels.
 fn tag_json(value: &impl Serialize) -> Result<String, serde_json::Error> {

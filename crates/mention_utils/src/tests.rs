@@ -33,7 +33,7 @@ fn parse_single_document_mention() {
     let input = r#"<m-document-mention>{"documentName":"My Doc"}</m-document-mention>"#;
     let out = ParsedXmlText::parse(input).unwrap();
     assert_matches!(out.0, [
-        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name }))
+        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name, .. }))
     ] => {
         assert_eq!(document_name.as_ref(), "My Doc");
     });
@@ -46,9 +46,9 @@ fn parse_document_mentions_with_text() {
 
     assert_matches!(out.0, [
         TextSegment::Plain("I'm testing sending a message with a document  "),
-        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name: name1 })),
+        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name: name1, .. })),
         TextSegment::Plain(" mention  "),
-        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name: name2 })),
+        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name: name2, .. })),
     ] => {
         assert_eq!(name1.as_ref(), "Document 1");
         assert_eq!(name2.as_ref(), "Document 2");
@@ -403,7 +403,7 @@ fn parse_mixed_mentions() {
         TextSegment::Plain("Hi "),
         TextSegment::Xml(XmlTag::User(ParsedUserMention { .. })),
         TextSegment::Plain(", let's discuss "),
-        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name })),
+        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name, .. })),
         TextSegment::Plain(" with "),
         TextSegment::Xml(XmlTag::Contact(ParsedContactMention { name })),
         TextSegment::Plain(" on "),
@@ -425,7 +425,7 @@ fn parse_mixed_mentions_with_links() {
         TextSegment::Plain(", check out "),
         TextSegment::Xml(XmlTag::Link(ParsedLink { text, url })),
         TextSegment::Plain(" and "),
-        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name })),
+        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name, .. })),
     ] => {
         assert_eq!(text.as_ref(), "Our Docs");
         assert_eq!(url.as_ref(), "https://docs.example.com");
@@ -440,9 +440,9 @@ fn parse_content_with_multiple_document_and_user_mentions() {
     assert_matches!(out.0, [
         TextSegment::Xml(XmlTag::User(ParsedUserMention {  .. })),
         TextSegment::Plain(" I'm testing sending a message with a document  "),
-        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name: name1 })),
+        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name: name1, .. })),
         TextSegment::Plain(" mention  "),
-        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name: name2 })),
+        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name: name2, .. })),
     ] => {
         assert_eq!(name1.as_ref(), "Document 1");
         assert_eq!(name2.as_ref(), "Document 2");
@@ -527,7 +527,7 @@ fn parse_document_mention_with_surrounding_text() {
     let out = ParsedXmlText::parse(input).unwrap();
     assert_matches!(out.0, [
         TextSegment::Plain("asdf "),
-        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name })),
+        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name, .. })),
         TextSegment::Plain(" asdf"),
     ] => {
         assert_eq!(document_name.as_ref(), "Test Doc 34");
@@ -625,7 +625,7 @@ fn parse_mixed_mentions_with_multiple_links() {
         TextSegment::Plain(", check out "),
         TextSegment::Xml(XmlTag::Link(ParsedLink { text: t1, .. })),
         TextSegment::Plain(" and "),
-        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name })),
+        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name, .. })),
         TextSegment::Plain(" on "),
         TextSegment::Xml(XmlTag::Date(ParsedDateMention { display_format })),
         TextSegment::Plain(" or visit "),
@@ -649,7 +649,7 @@ fn parse_link_user_document_mixed() {
         TextSegment::Plain(" and "),
         TextSegment::Xml(XmlTag::User(ParsedUserMention { .. })),
         TextSegment::Plain(" this doc "),
-        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name })),
+        TextSegment::Xml(XmlTag::Document(ParsedDocumentMention { document_name, .. })),
     ] => {
         assert_eq!(text.as_ref(), "Example");
         assert_eq!(url.as_ref(), "https://example.com");
@@ -934,4 +934,44 @@ fn parse_unknown_tag_mixed_with_recognized() {
             TextSegment::Xml(XmlTag::User(ParsedUserMention { .. })),
         ]
     );
+}
+
+// =============================================================================
+// Template variables and raw segments
+// =============================================================================
+
+#[test]
+fn template_variable_round_trips_through_the_parser() {
+    let tag = crate::serialize::template_variable("urgent_channel").unwrap();
+    let text = format!("Post to {tag} daily");
+    let out = ParsedXmlText::parse(&text).unwrap();
+    assert_matches!(out.0, [
+        TextSegment::Plain("Post to "),
+        TextSegment::Xml(XmlTag::TemplateVariable(variable)),
+        TextSegment::Plain(" daily"),
+    ] => {
+        assert_eq!(variable.key.as_ref(), "urgent_channel");
+    });
+}
+
+#[test]
+fn raw_segments_keep_unrecognized_text_verbatim() {
+    let input = r#"a < b <m-unknown>x</m-unknown> <m-document-mention>{"documentId":"d1","blockName":"channel","documentName":"Ops"}</m-document-mention> end<"#;
+    let segments = crate::parse::raw_segments(input);
+    let rebuilt: String = segments
+        .iter()
+        .map(|segment| match segment {
+            crate::parse::RawSegment::Tag { raw, .. } => *raw,
+            crate::parse::RawSegment::Text(text) => *text,
+        })
+        .collect();
+    assert_eq!(rebuilt, input);
+    assert_matches!(segments.as_slice(), [
+        crate::parse::RawSegment::Text("a < b <m-unknown>x</m-unknown> "),
+        crate::parse::RawSegment::Tag { tag: XmlTag::Document(mention), .. },
+        crate::parse::RawSegment::Text(" end<"),
+    ] => {
+        assert_eq!(mention.document_id.as_deref(), Some("d1"));
+        assert_eq!(mention.block_name.as_deref(), Some("channel"));
+    });
 }
