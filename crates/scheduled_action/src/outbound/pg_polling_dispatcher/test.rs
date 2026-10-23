@@ -63,6 +63,17 @@ impl ScheduledActionRepo for FakeRepository {
         Ok(action)
     }
 
+    async fn create_templated_action(
+        &self,
+        action: ScheduledAction,
+        _: &crate::domain::templates::models::TemplateProvenance,
+    ) -> Result<ScheduledAction> {
+        self.create_action(action).await
+    }
+    async fn delete_owned_templates(&self, _: &MacroUserIdStr<'static>) -> Result<()> {
+        Ok(())
+    }
+
     async fn get_owned_actions(
         &self,
         _owner: &MacroUserIdStr<'static>,

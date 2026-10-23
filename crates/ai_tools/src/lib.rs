@@ -135,6 +135,19 @@ pub fn database_read_only_tools() -> AiToolSet {
         .add_tool::<QueryDatabase, ToolViewOnlyDatabasesSqlToolContext>()
 }
 
+/// Read-only workspace discovery for agents that act on a user's behalf
+/// without changing anything: search, list, read channels, and list teammates
+/// and agents. Nothing here writes.
+pub fn workspace_read_only_tools() -> AiToolSet {
+    AsyncToolCollection::new()
+        .add_toolset(search_toolset())
+        .add_tool::<ListEntities, SoupToolContext<ToolSoupService, ToolEmailService>>()
+        .add_tool::<email::inbound::toolset::ListInboxes, ToolEmailToolContext>()
+        .add_tool::<channels::inbound::toolset::ReadChannelMessages, ToolChannelToolContext>()
+        .add_tool::<teams::inbound::toolset::ListTeamMembers, ToolTeamToolContext>()
+        .add_tool::<bots::inbound::toolset::ListAgents, ToolBotToolContext>()
+}
+
 pub struct ToolSetWithPrompt {
     pub toolset: Arc<AiToolSet>,
     pub prompt: Box<dyn std::fmt::Display + Send + Sync>,

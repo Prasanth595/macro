@@ -1,6 +1,7 @@
 use super::event_runs::{AuthorizedEventRun, ClaimToken, ConfigurationRevision};
 use super::event_trigger::EventReference;
 use super::execution::ExecutionHandle;
+use super::templates::models::TemplateProvenance;
 use super::models::{
     ActionExecutionRecord, CreateScheduledAction, DispatchEvent, InProgressExecution,
     ScheduledAction, ScheduledActionUpdate, UpdateScheduledAction,
@@ -32,6 +33,20 @@ pub trait ScheduledActionRepo: Send + Sync + 'static {
         &self,
         action: ScheduledAction,
     ) -> impl Future<Output = Result<ScheduledAction>> + Send;
+
+    /// Like `create_action`, recording in the same transaction the template
+    /// the routine was activated from and the bindings it used.
+    fn create_templated_action(
+        &self,
+        action: ScheduledAction,
+        provenance: &TemplateProvenance,
+    ) -> impl Future<Output = Result<ScheduledAction>> + Send;
+
+    /// Account cleanup: delete every routine template `owner` created.
+    fn delete_owned_templates(
+        &self,
+        owner: &MacroUserIdStr<'static>,
+    ) -> impl Future<Output = Result<()>> + Send;
 
     /// Account cleanup only: `WHERE owner = $1`. Never the HTTP list.
     fn get_owned_actions(

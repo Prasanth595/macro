@@ -26,7 +26,7 @@ use entity_access::domain::{
 };
 use get_bot_webhooks::GetBotWebhooks;
 use issue_bot_credential::IssueBotCredential;
-use list_agents::ListAgents;
+pub use list_agents::ListAgents;
 use list_bots::ListBots;
 use manage_bot_channel_access::ManageBotChannelAccess;
 use std::sync::Arc;

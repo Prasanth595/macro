@@ -64,6 +64,11 @@ pub struct Config {
     /// Register ROUTINE_AGENTS_ENABLED as a raw boolean in Doppler before rollout.
     #[macro_config_default(false)]
     pub routine_agents_enabled: bool,
+    /// Serves routine templates: sharing a routine as a template, filling one
+    /// in with AI and activating it. Register ROUTINE_TEMPLATES_ENABLED as a
+    /// raw boolean in Doppler before rollout.
+    #[macro_config_default(false)]
+    pub routine_templates_enabled: bool,
     /// The internal api key
     pub internal_api_key: InternalApiKey,
     /// TypeSafe credential for the Jev classifier behind trigger conditions.

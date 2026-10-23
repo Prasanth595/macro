@@ -13,7 +13,15 @@ use macro_authorization::{
     InternalAuthConfig, MacroAuthJwtValidator, MacroAuthorizationServiceImpl,
     MacroAuthorizationState, PgUserApiKeyAuthorizationRepo, PgUserApiKeyAuthorizer,
 };
-use macro_service_urls::{ConnectionGatewayUrl, LexicalServiceUrl};
+use cognition::outbound::CognitionClient;
+use macro_service_urls::{ConnectionGatewayUrl, DocumentCognitionServiceUrl, LexicalServiceUrl};
+use rootcause::compat::anyhow1::IntoAnyhow;
+use scheduled_action::domain::templates::ports::{RoutineTemplateService, TemplatedRoutines};
+use scheduled_action::domain::templates::service::RoutineTemplateServiceImpl;
+use scheduled_action::inbound::template_router::{TemplateRouterState, template_router};
+use scheduled_action::outbound::cognition_template_ai::{CognitionTemplateAi, TEMPLATE_MODEL};
+use scheduled_action::outbound::pg_routine_template_repo::PgRoutineTemplateRepo;
+use scheduled_action::outbound::template_binding_access::TemplateBindingAccess;
 pub mod config;
 use config::Config;
 use scheduled_action::domain::event_runs::{
@@ -54,6 +62,8 @@ const CONSUMER_RESTART_DELAY: Duration = Duration::from_secs(5);
 const EVENT_CONCURRENCY: u16 = 2;
 const ADMISSION_PAGE_SIZE: u16 = 100;
 const GATEWAY_PATH_PREFIX: &str = "/scheduled-action";
+// Filling a template runs a read-only agent over the caller's workspace.
+const TEMPLATE_FILL_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Scheduling routes and workers owned by the harness process.
 pub struct SchedulingRuntime {
@@ -247,16 +257,39 @@ pub async fn build(
         .with_event_management_enabled(config.event_routines_enabled)
         .with_conditions_enabled(conditions_enabled)
         .with_target_validation(TargetValidation::new(
-            sessions,
+            Arc::clone(&sessions),
             config.routine_agents_enabled,
         )),
     );
+    let templates = config
+        .routine_templates_enabled
+        .then(|| {
+            routine_templates(
+                &db,
+                &repo,
+                &service,
+                &access,
+                &sessions,
+                config.routine_agents_enabled,
+                &config.internal_api_key,
+            )
+        })
+        .transpose()?
+        .map(|service| {
+            template_router::<_, _, ()>(TemplateRouterState {
+                service: Arc::new(service),
+                authorization_state: authorization_state.clone(),
+            })
+        });
     let state = ScheduledActionRouterState {
         service,
         access_service: access,
         authorization_state,
     };
-    let authed_routes = scheduled_action_router::<_, _, _, ()>(state);
+    let mut authed_routes = scheduled_action_router::<_, _, _, ()>(state);
+    if let Some(templates) = templates {
+        authed_routes = authed_routes.merge(templates);
+    }
 
     let router = mount_router(authed_routes)
         .layer(macro_cors::cors_layer())
@@ -265,6 +298,40 @@ pub async fn build(
                 .into_inner(),
         );
     Ok(SchedulingRuntime { router, lifecycle })
+}
+
+/// Routine templates: storage, access checks as the caller, and AI drafting
+/// and filling through the cognition service, which meters both.
+fn routine_templates<Routines: TemplatedRoutines>(
+    db: &sqlx::PgPool,
+    repo: &Arc<PgScheduledActionRepo<PgBotsRepo>>,
+    routines: &Arc<Routines>,
+    access: &Arc<EntityAccessServiceImpl<PgAccessRepository>>,
+    sessions: &Arc<AgentSessionClient>,
+    agents_enabled: bool,
+    internal_api_key: &macro_auth::InternalApiKey,
+) -> Result<impl RoutineTemplateService + use<Routines>> {
+    let cognition = DocumentCognitionServiceUrl::new()?;
+    let drafter = CognitionClient::new(cognition.as_ref(), internal_api_key, TEMPLATE_MODEL)
+        .map_err(rootcause::Report::into_anyhow)?;
+    let filler = CognitionClient::with_timeout(
+        cognition.as_ref(),
+        internal_api_key,
+        TEMPLATE_MODEL,
+        TEMPLATE_FILL_TIMEOUT,
+    )
+    .map_err(rootcause::Report::into_anyhow)?;
+    Ok(RoutineTemplateServiceImpl::new(
+        Arc::new(PgRoutineTemplateRepo::new(db.clone())),
+        Arc::clone(repo),
+        Arc::clone(routines),
+        TemplateBindingAccess::new(
+            access.as_ref().clone(),
+            TargetValidation::new(Arc::clone(sessions), agents_enabled),
+        ),
+        CognitionTemplateAi::new(drafter),
+        CognitionTemplateAi::new(filler),
+    ))
 }
 
 fn mount_router(routes: Router) -> Router {

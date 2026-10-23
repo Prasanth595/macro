@@ -619,6 +619,16 @@ impl ScheduledActionRepo for UnusedRepo {
     async fn create_action(&self, _: ScheduledAction) -> Result<ScheduledAction> {
         unimplemented!()
     }
+    async fn create_templated_action(
+        &self,
+        action: ScheduledAction,
+        _: &crate::domain::templates::models::TemplateProvenance,
+    ) -> Result<ScheduledAction> {
+        self.create_action(action).await
+    }
+    async fn delete_owned_templates(&self, _: &MacroUserIdStr<'static>) -> Result<()> {
+        Ok(())
+    }
     async fn get_owned_actions(&self, _: &MacroUserIdStr<'static>) -> Result<Vec<ScheduledAction>> {
         unimplemented!()
     }

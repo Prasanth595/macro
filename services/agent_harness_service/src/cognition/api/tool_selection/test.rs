@@ -8,6 +8,7 @@ async fn none_does_not_load_or_dispatch_any_tools() {
         &ToolSet::None,
         async { panic!("must not build database tools") },
         async { panic!("must not build read-only database tools") },
+        async { panic!("must not build workspace tools") },
         async { panic!("must not discover connectors") },
     )
     .await;
@@ -34,6 +35,7 @@ async fn databases_never_polls_unrelated_discovery() {
         &ToolSet::Databases,
         async { expected.clone() },
         async { panic!("must not build read-only tools") },
+        async { panic!("must not build workspace tools") },
         async { panic!("database requests must not discover connectors") },
     )
     .await;
@@ -48,6 +50,7 @@ async fn all_retains_the_supplied_toolset() {
         &ToolSet::All,
         async { panic!("all already includes database tools") },
         async { panic!("must not build read-only tools") },
+        async { panic!("must not build workspace tools") },
         async { expected.clone() },
     )
     .await;
@@ -62,10 +65,49 @@ async fn read_only_never_loads_mutation_tools_or_connectors() {
         &ToolSet::DatabasesReadOnly,
         async { panic!("must not build mutation tools") },
         async { expected.clone() },
+        async { panic!("must not build workspace tools") },
         async { panic!("must not discover connectors") },
     )
     .await;
     assert!(Arc::ptr_eq(&actual, &expected));
+}
+
+#[tokio::test]
+async fn workspace_read_only_never_loads_mutation_tools_or_connectors() {
+    let expected: Arc<dyn ai_toolset::ToolSet<()> + Send + Sync> =
+        Arc::new(ai_toolset::AsyncToolCollection::new());
+    let actual = select_tools(
+        &ToolSet::WorkspaceReadOnly,
+        async { panic!("must not build database tools") },
+        async { panic!("must not build read-only database tools") },
+        async { expected.clone() },
+        async { panic!("must not discover connectors") },
+    )
+    .await;
+    assert!(Arc::ptr_eq(&actual, &expected));
+}
+
+#[test]
+fn workspace_read_only_tools_are_the_discovery_tools() {
+    let mut names: Vec<_> = ai_tools::workspace_read_only_tools()
+        .request_schemas()
+        .unwrap()
+        .into_iter()
+        .map(|schema| schema.name.to_string())
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        [
+            "ContentSearch",
+            "ListAgents",
+            "ListEntities",
+            "ListInboxes",
+            "ListTeamMembers",
+            "NameSearch",
+            "ReadChannelMessages",
+        ]
+    );
 }
 
 #[test]

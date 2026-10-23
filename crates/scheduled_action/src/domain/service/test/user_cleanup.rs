@@ -50,6 +50,16 @@ impl ScheduledActionRepo for FakeRepo {
     async fn create_action(&self, _: ScheduledAction) -> Result<ScheduledAction> {
         unreachable!()
     }
+    async fn create_templated_action(
+        &self,
+        action: ScheduledAction,
+        _: &crate::domain::templates::models::TemplateProvenance,
+    ) -> Result<ScheduledAction> {
+        self.create_action(action).await
+    }
+    async fn delete_owned_templates(&self, _: &MacroUserIdStr<'static>) -> Result<()> {
+        Ok(())
+    }
     async fn get_action(&self, _: &Uuid) -> Result<Option<ScheduledAction>> {
         unreachable!()
     }

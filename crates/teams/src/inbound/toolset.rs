@@ -8,7 +8,7 @@ mod test;
 use crate::domain::team_repo::TeamMembersService;
 use ai_toolset::AsyncToolCollection;
 use entity_access::domain::ports::EntityAccessService;
-use list_team_members::ListTeamMembers;
+pub use list_team_members::ListTeamMembers;
 use std::sync::Arc;
 
 /// Service context for team AI tools.

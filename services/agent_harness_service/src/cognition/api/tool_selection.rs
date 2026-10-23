@@ -19,6 +19,7 @@ pub(crate) fn choose_tools_prompt<'a>(
         ToolSet::All => all_tools_prompt,
         ToolSet::None => &prompt::BASE_PROMPT,
         ToolSet::DatabasesReadOnly => &prompt::DATABASE_READ_ONLY_TOOL_USE_PROMPT,
+        ToolSet::WorkspaceReadOnly => &prompt::DIRECT_TOOL_USE_PROMPT,
         ToolSet::Databases => &prompt::DATABASE_TOOL_USE_PROMPT,
     }
 }
@@ -70,6 +71,11 @@ pub(crate) async fn service_tools(
             tools
         },
         async {
+            let tools: SelectedTools<ToolServiceContext> =
+                Arc::new(ai_tools::workspace_read_only_tools());
+            tools
+        },
+        async {
             let mcp_tools = mcp_selector.user_toolset(user_id).await;
             let tools: SelectedTools<ToolServiceContext> =
                 Arc::new(mcp_select::CombinedToolSet::new(static_tools, mcp_tools));
@@ -85,12 +91,14 @@ pub(crate) async fn select_tools<Context: Send + Sync + 'static>(
     selection: &ToolSet,
     database_tools: impl Future<Output = SelectedTools<Context>>,
     database_read_only_tools: impl Future<Output = SelectedTools<Context>>,
+    workspace_read_only_tools: impl Future<Output = SelectedTools<Context>>,
     all_tools: impl Future<Output = SelectedTools<Context>>,
 ) -> SelectedTools<Context> {
     match selection {
         ToolSet::None => Arc::new(ai_toolset::AsyncToolCollection::new()),
         ToolSet::Databases => database_tools.await,
         ToolSet::DatabasesReadOnly => database_read_only_tools.await,
+        ToolSet::WorkspaceReadOnly => workspace_read_only_tools.await,
         ToolSet::All => all_tools.await,
     }
 }

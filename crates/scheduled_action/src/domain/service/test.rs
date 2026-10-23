@@ -38,6 +38,7 @@ const FOREIGN_USER: &str = "macro|other@macro.com";
 #[derive(Default)]
 pub(crate) struct FakeRepo {
     actions: Mutex<Vec<ScheduledAction>>,
+    pub(crate) provenances: Mutex<Vec<(Uuid, TemplateProvenance)>>,
 }
 
 impl ScheduledActionRepo for FakeRepo {
@@ -45,6 +46,22 @@ impl ScheduledActionRepo for FakeRepo {
         action.id = Some(generate_uuid_v7());
         self.actions.lock().unwrap().push(action.clone());
         Ok(action)
+    }
+
+    async fn create_templated_action(
+        &self,
+        action: ScheduledAction,
+        provenance: &TemplateProvenance,
+    ) -> Result<ScheduledAction> {
+        let created = self.create_action(action).await?;
+        self.provenances
+            .lock()
+            .unwrap()
+            .push((created.id.expect("created id"), provenance.clone()));
+        Ok(created)
+    }
+    async fn delete_owned_templates(&self, _: &MacroUserIdStr<'static>) -> Result<()> {
+        Ok(())
     }
 
     async fn get_owned_actions(
@@ -232,6 +249,11 @@ pub(crate) fn grant_to(service: &TestService, user_id: &str, id: Uuid) {
         .entry(user_id.to_owned())
         .or_default()
         .push(id);
+}
+
+/// The store behind `service`, for tests of services layered on it.
+pub(crate) fn repo(service: &TestService) -> Arc<FakeRepo> {
+    Arc::clone(&service.repo)
 }
 
 pub(crate) type TestService = ScheduledActionServiceImpl<FakeRepo, FakeExecutor, FakeGrants>;

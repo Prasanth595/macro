@@ -36,7 +36,9 @@ impl CognitionClient {
         Self::with_timeout(base, key, default_model, REQUEST_TIMEOUT)
     }
 
-    fn with_timeout(
+    /// Like [`Self::new`] with a caller-chosen deadline, for completions that
+    /// may use tools before answering.
+    pub fn with_timeout(
         base: &str,
         key: &str,
         default_model: &str,
@@ -129,6 +131,49 @@ impl CognitionClient {
         tokio::time::timeout(self.timeout, request)
             .await
             .map_err(|_| CognitionError::Timeout)?
+    }
+}
+
+/// An object produced after the model explored the caller's workspace.
+#[derive(Debug)]
+pub struct ExploredObject {
+    /// The schema-validated result.
+    pub object: Value,
+    /// How many tool calls the model made first.
+    pub tool_calls: usize,
+}
+
+impl CognitionClient {
+    /// Generate an object after the model may search and read `user`'s
+    /// workspace with read-only tools, running with only `user`'s access.
+    #[tracing::instrument(skip_all, err, fields(tool_calls))]
+    pub async fn explore_object(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        request: GenerateObjectRequest,
+    ) -> Result<ExploredObject, Report> {
+        request.validate()?;
+        let response: CompletionResponse = self
+            .request(
+                user,
+                "structured-completion",
+                json!({
+                    "prompt": request.prompt,
+                    "model": request.model.as_ref().unwrap_or(&self.default_model).as_str(),
+                    "additional_instructions": request.system,
+                    "output_schema": { "name": "result", "schema": request.schema },
+                    "toolset": { "type": "workspace_read_only" },
+                }),
+            )
+            .await?;
+        tracing::Span::current().record("tool_calls", response.tool_activity.len());
+        match response.outcome {
+            CompletionOutcome::Completed { result } if result.is_object() => Ok(ExploredObject {
+                object: result,
+                tool_calls: response.tool_activity.len(),
+            }),
+            _ => Err(CognitionError::InvalidResponse.into()),
+        }
     }
 }
 

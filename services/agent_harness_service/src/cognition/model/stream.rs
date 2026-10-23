@@ -22,6 +22,10 @@ pub enum ToolSet {
     Databases,
     /// Database discovery and queries that cannot modify records or views.
     DatabasesReadOnly,
+    /// Searching, listing and reading the caller's workspace: content and
+    /// name search, entity lists, inboxes, channel messages, teammates and
+    /// agents. Nothing in it writes.
+    WorkspaceReadOnly,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Debug, Clone)]

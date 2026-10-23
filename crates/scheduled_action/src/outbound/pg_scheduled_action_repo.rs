@@ -21,9 +21,10 @@ use crate::domain::models::{
     Schedule, ScheduledAction,
 };
 use crate::domain::ports::ScheduledActionRepo;
+use crate::domain::templates::models::TemplateProvenance;
 
 #[cfg(test)]
-mod test;
+pub(crate) mod test;
 
 /// PostgreSQL scheduled-action store.
 ///
@@ -165,8 +166,19 @@ impl TryFrom<&ActionTrigger> for TriggerColumns {
     }
 }
 
-impl<B: BotFacts + 'static> ScheduledActionRepo for PgScheduledActionRepo<B> {
-    async fn create_action(&self, action: ScheduledAction) -> Result<ScheduledAction> {
+impl<B: BotFacts + 'static> PgScheduledActionRepo<B> {
+    async fn insert_action(
+        &self,
+        action: ScheduledAction,
+        provenance: Option<&TemplateProvenance>,
+    ) -> Result<ScheduledAction> {
+        let (source_template_id, template_bindings) = match provenance {
+            Some(provenance) => (
+                Some(provenance.template_id),
+                Some(serde_json::to_value(&provenance.bindings)?),
+            ),
+            None => (None, None),
+        };
         let id = generate_uuid_v7();
         let owner = action.owner.principal_id();
         let trigger = TriggerColumns::try_from(&action.trigger)?;
@@ -179,8 +191,8 @@ impl<B: BotFacts + 'static> ScheduledActionRepo for PgScheduledActionRepo<B> {
             INSERT INTO scheduled_action
                 (id, owner, name, schedule, kind, timezone, task, next_run_at, enabled,
                  trigger_type, event_filters, configuration_revision, event_activated_at, trigger_config,
-                 run_visibility)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                 run_visibility, source_template_id, template_bindings)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
             RETURNING id, owner, name, schedule, kind, timezone, task, claimed, created_at,
                       updated_at, next_run_at, enabled, trigger_type, event_filters,
                       configuration_revision, event_activated_at, trigger_config, run_visibility
@@ -200,6 +212,8 @@ impl<B: BotFacts + 'static> ScheduledActionRepo for PgScheduledActionRepo<B> {
             action.event_activated_at,
             trigger.trigger_config,
             <&str>::from(action.run_visibility),
+            source_template_id,
+            template_bindings,
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -223,6 +237,30 @@ impl<B: BotFacts + 'static> ScheduledActionRepo for PgScheduledActionRepo<B> {
         }
         tx.commit().await?;
         Ok(created)
+    }
+}
+
+impl<B: BotFacts + 'static> ScheduledActionRepo for PgScheduledActionRepo<B> {
+    async fn create_action(&self, action: ScheduledAction) -> Result<ScheduledAction> {
+        self.insert_action(action, None).await
+    }
+
+    async fn create_templated_action(
+        &self,
+        action: ScheduledAction,
+        provenance: &TemplateProvenance,
+    ) -> Result<ScheduledAction> {
+        self.insert_action(action, Some(provenance)).await
+    }
+
+    async fn delete_owned_templates(&self, owner: &MacroUserIdStr<'static>) -> Result<()> {
+        sqlx::query!(
+            "DELETE FROM routine_template WHERE owner = $1",
+            owner.as_ref(),
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 
     async fn get_owned_actions(

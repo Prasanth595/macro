@@ -25,6 +25,8 @@ use super::ports::{
     ScheduledActionExecutor, ScheduledActionRepo, ScheduledActionService, TaskTargetValidator,
 };
 use super::target_validation::{ModelOnlyTargets, require_explicit_agent};
+use super::templates::models::TemplateProvenance;
+use super::templates::ports::TemplatedRoutines;
 
 #[cfg(test)]
 pub(crate) mod test;
@@ -200,6 +202,83 @@ impl<Rpo: ScheduledActionRepo, Exe, Grants, Targets>
     }
 }
 
+impl<Rpo, Exe, Grants, Targets> ScheduledActionServiceImpl<Rpo, Exe, Grants, Targets>
+where
+    Rpo: ScheduledActionRepo,
+    Targets: TaskTargetValidator,
+{
+    /// Every create path, including activation from a template, which also
+    /// records where the routine came from.
+    async fn create(
+        &self,
+        owner: Owner,
+        input: ActionConfiguration,
+        provenance: Option<&TemplateProvenance>,
+    ) -> Result<ScheduledAction> {
+        let owner_user = owner.as_user().ok_or(OwnerNotUserError {
+            owner_type: owner.owner_type(),
+        })?;
+        self.check_event_management(&input.trigger)?;
+        self.check_conditions(&input.trigger)?;
+        self.targets.validate_task(&input.task, owner_user).await?;
+        let now = Utc::now();
+        let next_run_at = next_run(&input.trigger)?;
+        let event_activated_at = input.trigger.event_filters().is_some().then_some(now);
+        let action = ScheduledAction {
+            id: None,
+            owner,
+            name: input.name,
+            trigger: input.trigger,
+            kind: input.kind,
+            task: input.task,
+            enabled: input.enabled,
+            run_visibility: input.run_visibility,
+            created_at: now,
+            updated_at: now,
+            configuration_revision: ConfigurationRevision::INITIAL,
+            event_activated_at,
+            next_run_at,
+            claimed: None,
+        };
+        let created = match provenance {
+            Some(provenance) => self.repo.create_templated_action(action, provenance).await?,
+            None => self.repo.create_action(action).await?,
+        };
+        self.dispatcher_tx
+            .send(DispatchEvent::Create(created.clone()))
+            .await
+            .map_err(|e| anyhow::anyhow!("failed to dispatch create event: {e}"))?;
+        Ok(created)
+    }
+}
+
+impl<Rpo, Exe, Grants, Targets> TemplatedRoutines
+    for ScheduledActionServiceImpl<Rpo, Exe, Grants, Targets>
+where
+    Rpo: ScheduledActionRepo,
+    Exe: Send + Sync + 'static,
+    Grants: Send + Sync + 'static,
+    Targets: TaskTargetValidator,
+{
+    async fn create_templated(
+        &self,
+        owner: &MacroUserIdStr<'static>,
+        input: ActionConfiguration,
+        provenance: TemplateProvenance,
+    ) -> Result<ScheduledAction> {
+        self.create(Owner::User(owner.clone()), input, Some(&provenance))
+            .await
+    }
+
+    async fn replace_templated(
+        &self,
+        action: ScheduledAction,
+        input: ActionConfiguration,
+    ) -> Result<ScheduledAction> {
+        self.replace_configuration(action, input).await
+    }
+}
+
 fn next_run(trigger: &ActionTrigger) -> Result<Option<DateTime<Utc>>> {
     let next = trigger.next_run_after(Utc::now());
     if trigger.has_schedule() && next.is_none() && trigger.event_filters().is_none() {
@@ -271,6 +350,7 @@ where
             };
             self.delete_and_dispatch(&id, action).await?;
         }
+        self.repo.delete_owned_templates(&user_id).await?;
         Ok(())
     }
 
@@ -299,41 +379,8 @@ where
         principal: &CreationPrincipal,
         input: CreateScheduledAction,
     ) -> Result<ScheduledAction> {
-        let owner = principal.owner();
-        let owner_user = owner.as_user().ok_or(OwnerNotUserError {
-            owner_type: owner.owner_type(),
-        })?;
-        let input = ActionConfiguration::from(input);
-        self.check_event_management(&input.trigger)?;
-        self.check_conditions(&input.trigger)?;
-        self.targets.validate_task(&input.task, owner_user).await?;
-        let now = Utc::now();
-        let next_run_at = next_run(&input.trigger)?;
-        let event_activated_at = input.trigger.event_filters().is_some().then_some(now);
-        let created = self
-            .repo
-            .create_action(ScheduledAction {
-                id: None,
-                owner,
-                name: input.name,
-                trigger: input.trigger,
-                kind: input.kind,
-                task: input.task,
-                enabled: input.enabled,
-                run_visibility: input.run_visibility,
-                created_at: now,
-                updated_at: now,
-                configuration_revision: ConfigurationRevision::INITIAL,
-                event_activated_at,
-                next_run_at,
-                claimed: None,
-            })
-            .await?;
-        self.dispatcher_tx
-            .send(DispatchEvent::Create(created.clone()))
+        self.create(principal.owner(), ActionConfiguration::from(input), None)
             .await
-            .map_err(|e| anyhow::anyhow!("failed to dispatch create event: {e}"))?;
-        Ok(created)
     }
 
     async fn get_actions(
