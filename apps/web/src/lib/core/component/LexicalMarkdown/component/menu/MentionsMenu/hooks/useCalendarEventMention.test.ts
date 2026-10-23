@@ -1,4 +1,6 @@
 import type { CalendarEventEntity } from '@entity';
+import { useSearchSoupQuery } from '@queries/soup/search';
+import { createRoot } from 'solid-js';
 import { expect, it, vi } from 'vitest';
 
 vi.mock('@app/features/calendar/hooks/use-calendar-ui-flag', () => ({
@@ -6,7 +8,10 @@ vi.mock('@app/features/calendar/hooks/use-calendar-ui-flag', () => ({
 }));
 vi.mock('@queries/soup/search', () => ({ useSearchSoupQuery: vi.fn() }));
 
-import { calendarEventMentionItems } from './useCalendarEventMention';
+import {
+  calendarEventMentionItems,
+  useCalendarEventMention,
+} from './useCalendarEventMention';
 
 function event(
   id: string,
@@ -51,4 +56,32 @@ it('offers each event once, pinned to its occurrence only when it repeats', () =
   expect(items[1].data.occurrenceKey).toBeUndefined();
   expect(items[2].data.title).toBe('Untitled event');
   expect(items[0].data.when).toBeTruthy();
+});
+
+function mentionTitles(search: {
+  isPending: boolean;
+  status: string;
+  data: CalendarEventEntity[] | undefined;
+}) {
+  vi.mocked(useSearchSoupQuery).mockReturnValue(
+    search as unknown as ReturnType<typeof useSearchSoupQuery>
+  );
+  return createRoot((dispose) => {
+    const { events } = useCalendarEventMention({
+      enabled: () => true,
+      searchTerm: () => 'Standup',
+    });
+    const titles = events().map((item) => item.data.title);
+    dispose();
+    return titles;
+  });
+}
+
+it('keeps the found events when a later search fails, and waits for the first one', () => {
+  expect(
+    mentionTitles({ isPending: false, status: 'error', data: [event('a')] })
+  ).toEqual(['Standup']);
+  expect(
+    mentionTitles({ isPending: true, status: 'pending', data: undefined })
+  ).toEqual([]);
 });

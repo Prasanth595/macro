@@ -565,7 +565,8 @@ and notifications without that guarantee still clear cached rows and close open
 OOO details immediately before refetching.
 
 To mention an event, press `Copy event` in its details and paste, or type `@` and at least
-three characters of its title in any composer: where calendar search is on
+three characters of its title in a composer that offers event mentions (message, comment and
+document composers; spreadsheet and database cells and typed reference fields do not): where calendar search is on
 (`enable-calendar-search-ui`), the menu lists matches under `Calendar events` (all of them in
 one list on phones), one row per event with when it starts, and picking one inserts the same
 chip a paste does, pinned to the found instance of a repeating event.

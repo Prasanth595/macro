@@ -1,6 +1,7 @@
 import { useCalendarSearchUiFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import { CALENDAR_ONLY_SEARCH_FILTERS } from '@app/features/calendar-view/calendar-only-search-filters';
 import type { CalendarEventEntity, EntityData, WithSearch } from '@entity';
+import { queryReadyGate } from '@queries/gate';
 import {
   type SearchSoupQueryArgs,
   useSearchSoupQuery,
@@ -95,7 +96,7 @@ export function useCalendarEventMention(
   const search = useSearchSoupQuery(args, () => ({ enabled: enabled() }));
 
   const events = createLazyMemo((): CalendarEventMentionItem[] => {
-    if (!enabled() || search.status !== 'success') return [];
+    if (!enabled() || !queryReadyGate(search)) return [];
     return calendarEventMentionItems(
       search.data.filter(
         (
