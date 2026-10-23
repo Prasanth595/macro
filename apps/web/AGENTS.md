@@ -25,6 +25,17 @@ It exercises the real resize solver, scroll container, and Lexical layout primit
 Discussion link scrolling has a backend-free browser regression:
 `bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.
 
+Meeting-note creation, linking, optional team access, retry, and unlinking have desktop and
+phone browser coverage in `features/calendar-notes`:
+`bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.
+The browser fixture uses the real event details popover and mobile drawer over
+sample data; keep notes aligned with those existing surfaces and preserve their
+dialog open guards. Optional note sharing uses existing team memberships.
+Gate event notes and document Share meeting-link controls with
+`enable-calendar-meeting-notes` before mounting their query sources; it defaults
+on in dev and uses PostHog in production.
+See `docs/agent-guide/calendar.md` at the repo root.
+
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 
 ```sh
@@ -164,6 +175,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Diagnose native full reloads with `native_webview_started`, `native_diagnostic_recovered`, and the shared `frontend_instance_id`; use `reloadApp(reason)` for frontend reloads and keep breadcrumbs content-free. Treat `previous_document_*` checkpoints as last-observed lifecycle evidence, never a crash verdict; clear them on logout. `previous_document_last_*` comes from the native navigation breadcrumb (route and entity type, never ids). See [frontend checkpoints](docs/native-reload-diagnostics.md) and `tauri/src-tauri/README.md`.
 - Inline agent steps reuse the session code-execution query for live SDK operation
   names; completed step snapshots come from the shared fold of the tool receipt.
+  Session `ExecuteCode` activity uses the same Calling N tools peek window as
+  ordinary consecutive tool calls.
 - All API/network calls live in service-clients.
 - Open projects through `openProject` (`features/projects/open-project.ts`): it
   retargets an already-open project split to the section or comment in place.
@@ -415,6 +428,8 @@ Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
 ### Agent backend hosting
 
 Cognition, routines, preview control, and MCP share `agent_harness_service`.
+Agent replies can use the existing `m-document-mention` format with
+`blockName: "routine"`; routines do not appear in the mention menu.
 Direct local hosts use port 8101 with the existing feature prefixes; the
 instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.
 
@@ -433,7 +448,7 @@ Share until the optional file-export bridge ships. If browser activation expires
 while preparing a share, retain the bytes and let the same action's next tap
 open the system sheet synchronously. Browser success means handoff, not confirmed
 disk completion. See the native bridge's `tauri/file_export_plugin/AGENTS.md`.
-Keep download confirmations title-only.
+Keep download confirmations title-only and lightbox Download controls icon-only.
 
 The backend-free browser regression downloads real fixture bytes from channel
 cards, the expanded viewer, and the shared Drive/standalone header on desktop,
