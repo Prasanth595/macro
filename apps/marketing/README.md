@@ -1073,3 +1073,11 @@ dynamic entries can have generated manifest keys, so resolve their unique entry
 names and fail on missing/ambiguous entries. Product logos carry intrinsic 20px
 dimensions. The production product checks hold scripts and verify styled heroes
 and correctly sized logos before releasing them.
+
+The homepage includes a silent dark orbit MP4 in its prerendered Open Graph tags.
+Keep it homepage-only, with `og:type=website`, the existing `og:image`, and an
+explicit `twitter:card=summary_large_image` plus `twitter:image`. Product and
+article pages retain their own image cards; remove video metadata when navigating
+away. The video is metadata-only, never preloaded or added to the page player.
+Social clients control playback and caching; verify Messages and X previews
+separately after publishing.
