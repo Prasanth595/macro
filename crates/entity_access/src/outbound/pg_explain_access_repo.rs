@@ -258,7 +258,8 @@ impl ExplainAccessRepository for PgExplainAccessRepository {
             EntityType::User
             | EntityType::ChannelMessage
             | EntityType::Skill
-            | EntityType::ScheduledAction => Ok(vec![]),
+            | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate => Ok(vec![]),
         }
     }
 }

@@ -83,6 +83,8 @@ pub enum GraphqlEntityType {
     DatabaseRow,
     /// Macro Form entity (a questionnaire answered into a database table).
     Form,
+    /// Routine template entity (a shareable snapshot of a routine).
+    RoutineTemplate,
 }
 
 impl GraphqlSoupEntityType {
@@ -119,7 +121,8 @@ impl GraphqlSoupEntityType {
             | EntityType::ScheduledAction
             | EntityType::CrmPipeline
             | EntityType::Database
-            | EntityType::Form => return None,
+            | EntityType::Form
+            | EntityType::RoutineTemplate => return None,
         })
     }
 
@@ -171,6 +174,7 @@ impl GraphqlEntityType {
             EntityType::Database => Self::Database,
             EntityType::DatabaseRow => Self::DatabaseRow,
             EntityType::Form => Self::Form,
+            EntityType::RoutineTemplate => Self::RoutineTemplate,
         }
     }
 
@@ -205,6 +209,7 @@ impl GraphqlEntityType {
             Self::Database => EntityType::Database,
             Self::DatabaseRow => EntityType::DatabaseRow,
             Self::Form => EntityType::Form,
+            Self::RoutineTemplate => EntityType::RoutineTemplate,
         }
     }
 }

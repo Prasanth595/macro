@@ -91,6 +91,15 @@ pub trait AccessRepository: Clone + Send + Sync + 'static {
         user_id: Option<&MacroUserId<Lowercase<'_>>>,
     ) -> impl Future<Output = Result<Option<AccessLevel>, AccessError>> + Send;
 
+    /// Highest grant the caller's sources hold on one routine template.
+    ///
+    /// A non-uuid id is not a template, so the lookup returns `None`.
+    fn get_routine_template_access(
+        &self,
+        routine_template_id: &str,
+        user_id: Option<&MacroUserId<Lowercase<'_>>>,
+    ) -> impl Future<Output = Result<Option<AccessLevel>, AccessError>> + Send;
+
     /// Live scheduled action ids the caller's sources can manage.
     fn accessible_scheduled_action_ids(
         &self,

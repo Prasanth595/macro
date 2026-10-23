@@ -465,6 +465,28 @@ impl AccessRepository for PgAccessRepository {
     }
 
     #[tracing::instrument(err, skip(self, user_id))]
+    async fn get_routine_template_access(
+        &self,
+        routine_template_id: &str,
+        user_id: Option<&MacroUserId<Lowercase<'_>>>,
+    ) -> Result<Option<AccessLevel>, AccessError> {
+        let Ok(template_uuid) = routine_template_id.parse::<Uuid>() else {
+            return Ok(None);
+        };
+        let source_ids = queries::get_user_source_ids(&self.pool, user_id)
+            .await
+            .map_err(anyhow_access_error)?;
+        Ok(
+            queries::routine_template_access::get_routine_template_access(
+                &self.pool,
+                &template_uuid,
+                &source_ids,
+            )
+            .await?,
+        )
+    }
+
+    #[tracing::instrument(err, skip(self, user_id))]
     async fn accessible_scheduled_action_ids(
         &self,
         user_id: &MacroUserId<Lowercase<'_>>,
@@ -608,7 +630,8 @@ impl AccessRepository for PgAccessRepository {
             // Reminders and scheduled actions are user-owned, never reachable
             // through a team scope.
             | EntityType::Reminder
-            | EntityType::ScheduledAction => {
+            | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate => {
                 return Err(AccessError::BadRequest(
                     "Unsupported entity type for team item access",
                 ));

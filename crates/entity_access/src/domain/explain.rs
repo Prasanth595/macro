@@ -65,5 +65,6 @@ fn supports_explain(entity_type: EntityType) -> bool {
             | EntityType::ChannelMessage
             | EntityType::Skill
             | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate
     )
 }

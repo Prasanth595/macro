@@ -84,6 +84,11 @@ where
                     .get_scheduled_action_access(entity_id, user_id)
                     .await
             }
+            EntityType::RoutineTemplate => {
+                self.repo
+                    .get_routine_template_access(entity_id, user_id)
+                    .await
+            }
             EntityType::CalendarEvent => {
                 self.repo
                     .get_calendar_event_access(entity_id, user_id)
@@ -296,7 +301,8 @@ where
             // A reminder belongs to a user, so a team-scoped bot never reaches one.
             | EntityType::Reminder
             | EntityType::Skill
-            | EntityType::ScheduledAction => {
+            | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate => {
                 Err(AccessError::BadRequest("Unsupported bot entity type"))
             }
         }
@@ -564,7 +570,8 @@ where
             | EntityType::Database
             | EntityType::DatabaseRow
             | EntityType::Form
-            | EntityType::ScheduledAction => {
+            | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate => {
                 self.get_optimized_access(entity_id, user_id, entity_type)
                     .await
             }
@@ -676,7 +683,8 @@ where
             | EntityType::Database
             | EntityType::DatabaseRow
             | EntityType::Form
-            | EntityType::ScheduledAction => {
+            | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate => {
                 let access = self
                     .get_optimized_access(entity_id, user_id, entity_type)
                     .await?;

@@ -517,6 +517,14 @@ impl AccessRepository for MockRepo {
         Ok(self.accessible_scheduled_action_ids.lock().await.clone())
     }
 
+    async fn get_routine_template_access(
+        &self,
+        _routine_template_id: &str,
+        _user_id: Option<&MacroUserId<Lowercase<'_>>>,
+    ) -> Result<Option<AccessLevel>, AccessError> {
+        Ok(None)
+    }
+
     async fn get_reminder_access(
         &self,
         _reminder_id: &str,

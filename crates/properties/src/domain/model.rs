@@ -64,7 +64,8 @@ pub fn storage_entity_type(entity_type: AccessEntityType) -> Option<EntityType> 
         | AccessEntityType::Reminder
         | AccessEntityType::Skill
         | AccessEntityType::AgentSession
-        | AccessEntityType::ScheduledAction => None,
+        | AccessEntityType::ScheduledAction
+        | AccessEntityType::RoutineTemplate => None,
     }
 }
 

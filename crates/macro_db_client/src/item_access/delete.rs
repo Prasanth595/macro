@@ -47,7 +47,10 @@ pub async fn delete_user_entity_access_bulk(
         // entity_access rows to delete.
         | EntityType::Reminder
         | EntityType::ScheduledAction
-        | EntityType::DatabaseRow => {
+        | EntityType::DatabaseRow
+        // Routine template grants are removed by a trigger when the
+        // template row is deleted.
+        | EntityType::RoutineTemplate => {
             anyhow::bail!("invalid entity type")
         }
         EntityType::Project => {

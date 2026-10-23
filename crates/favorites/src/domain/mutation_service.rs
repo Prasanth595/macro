@@ -112,6 +112,7 @@ fn validate_favoritable(entity_type: EntityType) -> Result<(), FavoritesError> {
         | EntityType::Database
         | EntityType::CrmPipeline
         | EntityType::DatabaseRow
-        | EntityType::Form => Err(FavoritesError::UnsupportedEntityType(entity_type)),
+        | EntityType::Form
+        | EntityType::RoutineTemplate => Err(FavoritesError::UnsupportedEntityType(entity_type)),
     }
 }

@@ -439,6 +439,7 @@ where
             | EntityType::Skill
             | EntityType::AgentSession
             | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate
             | EntityType::DatabaseRow
             | EntityType::Initiative => {
                 return unsupported(requested, "rename");
@@ -489,6 +490,7 @@ where
             | EntityType::Skill
             | EntityType::AgentSession
             | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate
             | EntityType::Initiative
             // A database is not filed into a project, so there is nowhere to
             // move it to (`EntityType::is_valid_entity_access_entity`).
@@ -545,6 +547,7 @@ where
             | EntityType::Skill
             | EntityType::AgentSession
             | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate
             | EntityType::Initiative
             // Databases are shared by granting access directly; they carry no
             // public/channel share policy.
@@ -606,6 +609,7 @@ where
             | EntityType::Skill
             | EntityType::AgentSession
             | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate
             | EntityType::DatabaseRow
             | EntityType::Initiative => {
                 return unsupported(requested, "trash");
@@ -642,6 +646,7 @@ where
             | EntityType::Skill
             | EntityType::AgentSession
             | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate
             | EntityType::DatabaseRow
             | EntityType::Initiative => {
                 return unsupported(requested, "restore");
@@ -698,6 +703,7 @@ where
             | EntityType::Skill
             | EntityType::AgentSession
             | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate
             | EntityType::DatabaseRow
             | EntityType::Initiative => {
                 return unsupported(requested, "permanent deletion");
@@ -762,6 +768,7 @@ where
             | EntityType::Skill
             | EntityType::AgentSession
             | EntityType::ScheduledAction
+            | EntityType::RoutineTemplate
             | EntityType::Initiative
             // Duplicating a database is unsupported.
             | EntityType::Database

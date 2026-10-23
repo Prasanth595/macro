@@ -38,6 +38,7 @@ pub mod form_access;
 pub mod initiative_access;
 pub mod pipeline_access;
 pub mod project_access;
+pub mod routine_template_access;
 pub mod scheduled_action_access;
 pub mod team_access;
 pub mod thread_access;

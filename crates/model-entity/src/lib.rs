@@ -82,6 +82,10 @@ pub enum EntityType {
     /// The entity is a Macro Form: a questionnaire whose answers land as rows
     /// of one database table (see the `forms` crate)
     Form,
+    /// The entity is a routine template: a shareable snapshot of a routine
+    /// with its person-specific values pulled out into variables (see the
+    /// `scheduled_action` service)
+    RoutineTemplate,
 }
 
 impl EntityType {
@@ -137,6 +141,9 @@ impl EntityType {
             // A form's grants are `entity_access` rows, but, like a
             // database, a form is not something you file into a project.
             EntityType::Form => false,
+            // A routine template holds `entity_access` rows (its creator as
+            // owner, viewers it was shared with) but is not filed into projects.
+            EntityType::RoutineTemplate => false,
         }
     }
     /// provide an entity string slice to upgrade this type into an [Entity]
