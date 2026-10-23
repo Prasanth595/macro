@@ -1,6 +1,7 @@
 //! PostgreSQL implementation of the calendar repository port.
 mod change_log;
 mod changes;
+mod details;
 mod export;
 mod invitations;
 #[cfg(feature = "outlook")]
@@ -32,11 +33,11 @@ use crate::domain::{
         CalendarLinkTokenIdentity, CalendarMentionEvent, CalendarMentionPreview,
         CalendarMentionRequestItem, CalendarOccurrence, CalendarOccurrenceCursor, CalendarProvider,
         CalendarReminderFiring, CalendarSyncStatus, CalendarWatchRelease, ConferenceProvider,
-        DisconnectedCalendar, DueCalendarReminder, EventReminderOverride, EventReminders,
-        EventStart, EventStatus, EventTime, EventTransparency, EventType, EventVisibility,
-        GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel,
-        GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange, OwnedInbox,
-        ProviderCalendar, StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities,
+        DisconnectedCalendar, DueCalendarReminder, EventDetails, EventReminderOverride,
+        EventReminders, EventStart, EventStatus, EventTime, EventTransparency, EventType,
+        EventVisibility, GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet,
+        GoogleWatchChannel, GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange,
+        OwnedInbox, ProviderCalendar, StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities,
         VisibleCalendar, is_system_calendar,
     },
     ports::{
@@ -399,6 +400,7 @@ struct OccurrenceJoinRow {
     guests_can_modify: bool,
     guests_can_invite_others: bool,
     guests_can_see_other_guests: bool,
+    is_snapshot: bool,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -466,9 +468,10 @@ struct StoredSourceProjection {
 }
 
 /// The entity as a source projection stores it: never the viewer's
-/// capabilities, and the guest policy only when it differs from Google's
-/// default, so projections stored before either was modeled still compare
-/// equal and an unchanged event is not rewritten.
+/// capabilities, the guest policy only when it differs from Google's default,
+/// and the snapshot flag only on a snapshot, so projections stored before
+/// these were modeled still compare equal and an unchanged event is not
+/// rewritten.
 fn serialize_stored_event<S: serde::Serializer>(
     event: &CalendarEvent,
     serializer: S,
@@ -478,6 +481,9 @@ fn serialize_stored_event<S: serde::Serializer>(
         fields.remove("viewerCan");
         if event.guest_policy.is_default() {
             fields.remove("guestPolicy");
+        }
+        if !event.is_snapshot {
+            fields.remove("isSnapshot");
         }
     }
     value.serialize(serializer)
@@ -936,6 +942,7 @@ impl CalendarRepository for PgCalendarRepository {
                 canonical_source_kind,
                 reminders_use_default, reminder_overrides,
                 guests_can_modify, guests_can_invite_others, guests_can_see_other_guests,
+                is_snapshot,
                 created_at, updated_at, schedule_updated_at
             )
             VALUES (
@@ -947,6 +954,7 @@ impl CalendarRepository for PgCalendarRepository {
                 $19, $27, $20, $21, $22,
                 $25, $26,
                 $31, $32, $33,
+                $34,
                 $23, $24, $24
             )
             ON CONFLICT (owner_id, source_link_id, ical_uid) DO NOTHING
@@ -988,6 +996,7 @@ impl CalendarRepository for PgCalendarRepository {
             upsert.event.guest_policy.can_modify,
             upsert.event.guest_policy.can_invite_others,
             upsert.event.guest_policy.can_see_other_guests,
+            upsert.event.is_snapshot,
         )
         .fetch_optional(&mut *tx)
         .await
@@ -1134,6 +1143,7 @@ impl CalendarRepository for PgCalendarRepository {
                 event.guests_can_modify,
                 event.guests_can_invite_others,
                 event.guests_can_see_other_guests,
+                event.is_snapshot,
                 event.created_at,
                 event.updated_at
             FROM calendar_event_occurrences occurrence
@@ -2058,6 +2068,13 @@ impl CalendarRepository for PgCalendarRepository {
                 event.guests_can_modify,
                 event.guests_can_invite_others,
                 event.guests_can_see_other_guests,
+                -- A snapshot imported into one calendar can share its entity
+                -- with the real meeting on another, so the addressed copy's
+                -- own projection says whether it is a snapshot.
+                COALESCE(
+                    source.normalized_payload->'event'->>'isSnapshot' = 'true',
+                    false
+                ) AS "is_snapshot!",
                 source.is_read_only,
                 source.provider_event_id AS "provider_event_id!",
                 source.provider_recurring_event_id,
@@ -2141,7 +2158,17 @@ impl CalendarRepository for PgCalendarRepository {
                 can_invite_others: row.guests_can_invite_others,
                 can_see_other_guests: row.guests_can_see_other_guests,
             },
+            is_snapshot: row.is_snapshot,
         }))
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_event_details(
+        &self,
+        event_id: Uuid,
+        occurrence_key: Option<&str>,
+    ) -> Result<Option<EventDetails>, Report> {
+        details::event_details(&self.pool, event_id, occurrence_key).await
     }
 
     #[tracing::instrument(skip(self), err)]
@@ -3491,6 +3518,7 @@ async fn apply_content_projection(
             guests_can_modify = $18,
             guests_can_invite_others = $19,
             guests_can_see_other_guests = $20,
+            is_snapshot = $21,
             created_at = $15,
             updated_at = GREATEST(calendar_events.updated_at, $16)
         WHERE id = $1
@@ -3515,6 +3543,7 @@ async fn apply_content_projection(
         projection.event.guest_policy.can_modify,
         projection.event.guest_policy.can_invite_others,
         projection.event.guest_policy.can_see_other_guests,
+        projection.event.is_snapshot,
     )
     .execute(&mut **tx)
     .await
@@ -4553,6 +4582,7 @@ fn series_event_from_join(
             can_invite_others: row.guests_can_invite_others,
             can_see_other_guests: row.guests_can_see_other_guests,
         },
+        is_snapshot: row.is_snapshot,
         viewer_can: ViewerCapabilities::NONE,
         created_at: row.created_at,
         updated_at: row.updated_at,

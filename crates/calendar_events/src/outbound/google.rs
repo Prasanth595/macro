@@ -8,7 +8,10 @@ use rootcause::Report;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use uuid::Uuid;
 
+mod import;
+
 use crate::domain::{
+    ics::CalendarEventExport,
     models::{
         ActorInboxes, AttendeeResponseStatus, CalendarAttendee, CalendarAttendeeInput,
         CalendarEvent, CalendarEventDraft, CalendarEventOverride, CalendarEventPatch,
@@ -22,8 +25,8 @@ use crate::domain::{
     ports::{
         CalendarMutationProvider, CalendarProviderError, CalendarProviderErrorKind,
         CalendarRsvpScope, CalendarUpdateScope, GoogleCalendarProvider, GoogleEventSyncContext,
-        ProviderInstanceUpdateOutcome, ProviderInviteOutcome, ProviderRsvpOutcome,
-        ProviderSeriesMutationOutcome,
+        ProviderImportOutcome, ProviderInstanceUpdateOutcome, ProviderInviteOutcome,
+        ProviderRsvpOutcome, ProviderSeriesMutationOutcome,
     },
 };
 
@@ -1501,6 +1504,20 @@ impl<G: GoogleRequestGate> CalendarMutationProvider for GoogleCalendarClient<G> 
         }
     }
 
+    #[tracing::instrument(
+        skip(self, access_token, target, source),
+        fields(calendar_id = %target.calendar_id),
+        err
+    )]
+    async fn import_event(
+        &self,
+        access_token: &str,
+        target: &ProviderCalendarTarget,
+        source: &CalendarEventExport,
+    ) -> Result<ProviderImportOutcome, CalendarProviderError> {
+        self.import_copy(access_token, target, source).await
+    }
+
     #[tracing::instrument(skip(self, access_token), err)]
     async fn stop_watch_channel(
         &self,
@@ -2310,6 +2327,7 @@ fn map_upsert(
             .collect(),
         reminders: map_reminders(master.reminders.as_ref()),
         guest_policy: guest_policy(&master),
+        is_snapshot: import::is_snapshot(&master),
         viewer_can: ViewerCapabilities::NONE,
         created_at,
         updated_at,
@@ -2702,8 +2720,20 @@ struct GoogleEvent {
     guests_can_invite_others: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     guests_can_see_other_guests: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    extended_properties: Option<GoogleExtendedProperties>,
     /// Every field Macro does not map, so the stored raw payload is Google's
     /// event as it arrived.
+    #[serde(flatten)]
+    extra: serde_json::Map<String, serde_json::Value>,
+}
+
+/// Key-value pairs an app stores on an event. `private` ones belong to the
+/// one calendar's copy they were written to; `shared` ones reach every copy.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct GoogleExtendedProperties {
+    #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+    private: serde_json::Map<String, serde_json::Value>,
     #[serde(flatten)]
     extra: serde_json::Map<String, serde_json::Value>,
 }

@@ -231,6 +231,22 @@ pub(crate) fn mutation_error(error: CalendarMutationError) -> async_graphql::Err
             "guest_list_hidden",
             "Guests cannot be added while the organizer hides the guest list.".into(),
         ),
+        CalendarMutationError::GuestsCannotModify => (
+            "guests_cannot_modify",
+            "The organizer doesn't let guests change this event.".into(),
+        ),
+        CalendarMutationError::AlreadyOnCalendar => (
+            "already_on_calendar",
+            "this event is already on one of your calendars".into(),
+        ),
+        CalendarMutationError::CopyRefused(_) => (
+            "copy_refused",
+            "Google Calendar won't add a copy of this event to that calendar.".into(),
+        ),
+        CalendarMutationError::Snapshot => (
+            "snapshot",
+            "This is your own copy of a shared event, so answers and guests won't reach its organizer.".into(),
+        ),
         CalendarMutationError::InvalidInput(message) => ("invalid_input", message.clone()),
         CalendarMutationError::ReauthRequired(_) => (
             "reauth_required",

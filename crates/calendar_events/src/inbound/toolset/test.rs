@@ -125,6 +125,7 @@ fn sample_event(recurrence_lines: Vec<String>) -> crate::domain::models::Calenda
         ],
         reminders: EventReminders::default(),
         guest_policy: GuestPolicy::default(),
+        is_snapshot: false,
         viewer_can: ViewerCapabilities::NONE,
         created_at: Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap(),
         updated_at: Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap(),
@@ -230,6 +231,15 @@ impl CalendarMutationService for MockMutations {
         _scope: CalendarUpdateScope,
     ) -> Result<CalendarEvent, CalendarMutationError> {
         unreachable!("the toolset adds guests through update_event")
+    }
+
+    async fn copy_shared_event(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+        _calendar_id: Option<Uuid>,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
+        unreachable!("no calendar tool copies shared events")
     }
 
     async fn disconnect_calendar(

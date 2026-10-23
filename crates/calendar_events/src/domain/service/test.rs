@@ -143,6 +143,14 @@ impl CalendarRepository for FakeRepo {
         unreachable!("mutation lookups are not exercised by sync tests")
     }
 
+    async fn get_event_details(
+        &self,
+        _event_id: Uuid,
+        _occurrence_key: Option<&str>,
+    ) -> Result<Option<crate::domain::models::EventDetails>, Report> {
+        unreachable!("mutation lookups are not exercised by sync tests")
+    }
+
     async fn record_guest_policy(
         &self,
         _event_id: Uuid,
@@ -348,6 +356,7 @@ fn valid_upsert() -> CalendarEventUpsert {
             }],
             reminders: EventReminders::default(),
             guest_policy: GuestPolicy::default(),
+            is_snapshot: false,
             viewer_can: ViewerCapabilities::NONE,
             created_at: starts_at,
             updated_at: starts_at,
