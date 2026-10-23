@@ -90,7 +90,7 @@ pub struct CalendarEventListItem {
     pub calendar_name: Option<String>,
     /// Connected inbox address holding this copy of the event. A meeting on
     /// several of the user's inboxes is listed once per inbox, each with its
-    /// own `event_id`.
+    /// own `eventId`.
     pub inbox: Option<String>,
     /// Whether the user organizes this event or is a guest on it, through
     /// `inbox`; absent when they are neither.
