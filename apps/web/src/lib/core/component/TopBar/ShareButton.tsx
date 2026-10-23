@@ -489,21 +489,26 @@ function TeamAccessSection(props: { teamShare: TeamShareControls }) {
 function LinkSharingControls(props: LinkSharingControlsProps) {
   const scope = () => getLinkShareScope(props.linkShare);
   const scopeCopy = () => getLinkShareScopeCopy(scope());
-  const shareStatus = () =>
-    props.meetingAccess === 'loading' || props.meetingAccess === 'error'
-      ? {
-          label:
-            props.meetingAccess === 'loading'
-              ? 'Checking access…'
-              : 'Check meeting access',
-          tooltip:
-            'Meeting links may grant additional access. See Meeting links below.',
-        }
-      : getShareStatus(
-          props.linkShare,
-          props.hasExplicitShares || props.meetingAccess === 'shared',
-          props.teamShare?.accessLevel
-        );
+  const shareStatus = () => {
+    const status = getShareStatus(
+      props.linkShare,
+      props.hasExplicitShares || props.meetingAccess === 'shared',
+      props.teamShare?.accessLevel
+    );
+    if (
+      status.label !== 'Just me' ||
+      (props.meetingAccess !== 'loading' && props.meetingAccess !== 'error')
+    ) {
+      return status;
+    }
+    return {
+      label:
+        props.meetingAccess === 'loading'
+          ? 'Checking access…'
+          : 'Check meeting access',
+      tooltip: 'Meeting links may grant additional access. See Meeting links.',
+    };
+  };
 
   return (
     <div class="flex flex-col gap-3 p-4 text-sm text-ink">
