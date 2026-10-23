@@ -495,6 +495,14 @@ function LinkSharingControls(props: LinkSharingControlsProps) {
       props.hasExplicitShares || props.meetingAccess === 'shared',
       props.teamShare?.accessLevel
     );
+    if (status.label === 'Shared' && props.meetingAccess === 'shared') {
+      return {
+        ...status,
+        tooltip: props.hasExplicitShares
+          ? 'Shared with specific people or channels and through meeting links.'
+          : 'Shared through meeting links with meeting viewers and any teams selected there.',
+      };
+    }
     if (
       status.label !== 'Just me' ||
       (props.meetingAccess !== 'loading' && props.meetingAccess !== 'error')
