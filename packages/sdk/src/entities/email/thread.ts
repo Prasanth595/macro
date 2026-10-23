@@ -39,6 +39,21 @@ export interface ReplyEmailOptions {
   replyingTo?: EmailMessage;
 }
 
+/** Open tracking for one of the caller's sent messages. */
+export interface EmailReadReceipt {
+  /** The tracked message. */
+  message: EmailMessage;
+
+  /** Counted pixel fetches; repeats within a few seconds count once. */
+  openCount: number;
+
+  /** When the first counted fetch happened, if any. */
+  firstOpenedAt?: string;
+
+  /** When the latest counted fetch happened, if any. */
+  lastOpenedAt?: string;
+}
+
 /**
  * An email thread. A free-to-construct handle: the detail record (including
  * up to the first 100 messages) loads lazily on first field access.
@@ -73,6 +88,25 @@ export class EmailThread extends PropertiedEntity<ThreadDetail> {
         path: { thread_id: this.id },
       }),
     );
+  }
+
+  /**
+   * Opens recorded for messages sent from the caller's own or delegated
+   * inboxes with read receipts on, newest message first. Counts are
+   * approximate: some mail apps prefetch images and others block them.
+   */
+  async readReceipts(): Promise<EmailReadReceipt[]> {
+    const { receipts } = unwrap(
+      await this.client.email.getThreadReadReceipts({
+        path: { thread_id: this.id },
+      }),
+    );
+    return receipts.map((receipt) => ({
+      message: EmailMessage.byId(this.client, receipt.message_id),
+      openCount: receipt.open_count,
+      firstOpenedAt: receipt.first_opened_at ?? undefined,
+      lastOpenedAt: receipt.last_opened_at ?? undefined,
+    }));
   }
 
   /** Change project membership or share permissions for this thread. */

@@ -19,6 +19,7 @@ import {
 } from '../core/calendar-invitation';
 import { type EmailAttachment, isCalendarFile } from '../core/email-message';
 import { inlineContentIds, normalizeContentId } from '../core/inline-images';
+import type { ReadReceipt } from '../core/read-receipt';
 export interface EmailMessageViewProps {
   message: EmailMessage;
   renderInvitation?: (
@@ -27,6 +28,8 @@ export interface EmailMessageViewProps {
   ) => JSX.Element;
   renderOperation?: (message: EmailMessage) => JSX.Element;
   renderAvatar?: (message: EmailMessage) => JSX.Element;
+  readReceipt?: ReadReceipt;
+  showReadReceiptPixel?: boolean;
   viewerEmail?: string;
   isTouch: boolean;
   isPersonal: boolean;
@@ -86,6 +89,7 @@ export function EmailMessageView(props: EmailMessageViewProps) {
         setFocusedMessageId={() => props.onSelect?.()}
         showFullContent={props.showFullContent}
         isFocused={props.isSelected}
+        showReadReceiptPixel={props.showReadReceiptPixel}
       />
     </div>
   );
@@ -161,6 +165,7 @@ export function EmailMessageView(props: EmailMessageViewProps) {
             onReply={props.onReply}
             isTouch={props.isTouch}
             viewerEmail={props.viewerEmail}
+            readReceipt={props.readReceipt}
             hiddenActions={
               props.onReply ? undefined : ['reply', 'reply-all', 'forward']
             }

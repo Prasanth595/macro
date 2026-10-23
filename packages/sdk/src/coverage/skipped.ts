@@ -216,6 +216,7 @@ export const emailExcluded = [
   'getBackfillGmail',
   'getBackfillGmailActive',
   'getMessagesBatch',
+  'getReadReceiptPixel',
   'healthCheckLinks',
   'healthHandler',
   'initUser',
