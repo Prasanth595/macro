@@ -80,6 +80,7 @@ export function FileDownloadButton(props: {
         </Dropdown.Trigger>
         <Dropdown.Content blockingBackdrop>
           <Dropdown.Item
+            class="touch:min-h-11"
             closeOnSelect={false}
             disabled={props.download.busy()}
             onSelect={save}
@@ -90,6 +91,7 @@ export function FileDownloadButton(props: {
               : saveLabel()}
           </Dropdown.Item>
           <Dropdown.Item
+            class="touch:min-h-11"
             closeOnSelect={false}
             disabled={props.download.busy()}
             onSelect={() => fireAndForget(start('share'), 'file-download')}
@@ -100,7 +102,10 @@ export function FileDownloadButton(props: {
               : 'Share'}
           </Dropdown.Item>
           <Show when={props.download.busy()}>
-            <Dropdown.Item onSelect={props.download.cancel}>
+            <Dropdown.Item
+              class="touch:min-h-11"
+              onSelect={props.download.cancel}
+            >
               Cancel
             </Dropdown.Item>
           </Show>
