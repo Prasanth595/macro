@@ -370,6 +370,9 @@ export function HomeList(props: HomeListProps) {
   });
 
   const onRowClick = (rowId: string, event: MouseEvent) => {
+    // Rows cancel their press, so the browser never moves focus into Home.
+    // Take it here, as the channel rail does, so Home becomes the active split.
+    listRoot()?.focus({ preventScroll: true });
     if (
       event.metaKey ||
       event.ctrlKey ||
