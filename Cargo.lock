@@ -442,6 +442,7 @@ dependencies = [
  "model-entity",
  "model_notifications",
  "model_owner",
+ "model_provider_keys",
  "model_user",
  "notification",
  "opentelemetry",
@@ -455,7 +456,6 @@ dependencies = [
  "serde_json",
  "shared_entity_registry",
  "sqlx",
- "team_provider_keys",
  "thiserror 2.0.18",
  "tokio",
  "tokio-tungstenite 0.28.0",
@@ -593,6 +593,7 @@ dependencies = [
  "model-error-response",
  "model_notifications",
  "model_owner",
+ "model_provider_keys",
  "models_ai_projection",
  "models_dcs",
  "models_opensearch",
@@ -629,7 +630,6 @@ dependencies = [
  "strum 0.27.2",
  "sync_service_client",
  "system_properties",
- "team_provider_keys",
  "teams",
  "tempfile",
  "thiserror 2.0.18",
@@ -685,6 +685,7 @@ dependencies = [
  "memory",
  "model-entity",
  "model_owner",
+ "model_provider_keys",
  "non_empty",
  "opentelemetry",
  "opentelemetry_sdk",
@@ -698,7 +699,6 @@ dependencies = [
  "serde_json",
  "sqlx",
  "sse-stream",
- "team_provider_keys",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
@@ -2159,6 +2159,7 @@ dependencies = [
  "model",
  "model-entity",
  "model_notifications",
+ "model_provider_keys",
  "models_permissions",
  "native_app_service",
  "non_empty",
@@ -2184,7 +2185,6 @@ dependencies = [
  "sqlx",
  "sqs_client",
  "strum 0.27.2",
- "team_provider_keys",
  "teams",
  "thiserror 2.0.18",
  "time",
@@ -12847,6 +12847,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "model_provider_keys"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "cursor_api_key",
+ "entity_access",
+ "macro_db_migrator",
+ "macro_user_id",
+ "macro_uuid",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "workspace-hack",
+ "zeroize",
+]
+
+[[package]]
 name = "model_user"
 version = "0.1.0"
 dependencies = [
@@ -19389,26 +19409,6 @@ dependencies = [
  "utoipa",
  "uuid",
  "workspace-hack",
-]
-
-[[package]]
-name = "team_provider_keys"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "cursor_api_key",
- "entity_access",
- "macro_db_migrator",
- "macro_user_id",
- "macro_uuid",
- "sqlx",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "workspace-hack",
- "zeroize",
 ]
 
 [[package]]

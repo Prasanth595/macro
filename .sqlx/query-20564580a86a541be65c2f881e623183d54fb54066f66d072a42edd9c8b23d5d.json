@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT provider, updated_at\n            FROM cursor_configs\n            WHERE team_id = $1\n            ORDER BY provider\n            ",
+  "query": "\n                SELECT provider, updated_at\n                FROM cursor_configs\n                WHERE team_id = $1\n                ORDER BY provider\n                ",
   "describe": {
     "columns": [
       {
@@ -24,5 +24,5 @@
       false
     ]
   },
-  "hash": "0443b1e3d0408fac3c3682c8de8c358f67fd33c1daffae25106e8115f92e0423"
+  "hash": "20564580a86a541be65c2f881e623183d54fb54066f66d072a42edd9c8b23d5d"
 }

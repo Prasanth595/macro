@@ -1,9 +1,9 @@
 //! Reading and writing a user's `cursor_configs` row.
 //!
 //! The row is a user's Cursor configuration: their encrypted API key, and the
-//! model their `@cursor` sessions start on. The table also holds teams' model
-//! provider keys (see the `team_provider_keys` crate); every query here is
-//! scoped to `provider = 'cursor'`. Only ciphertext passes through
+//! model their `@cursor` sessions start on. The table also holds people's and
+//! teams' model provider keys (see the `model_provider_keys` crate); every
+//! query here is scoped to `provider = 'cursor'`. Only ciphertext passes through
 //! here — this module cannot decrypt anything and does not hold a KMS client.
 //! That is deliberate: a caller that wants a usable key has to go through
 //! [`crate::cipher`], which means every read of a plaintext key is an
@@ -58,13 +58,14 @@ pub async fn upsert_cursor_api_key(
         r#"
         INSERT INTO cursor_configs (
             user_id,
+            provider,
             key_ciphertext,
             encryption_version,
             kms_key_id,
             key_prefix
         )
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (user_id) DO UPDATE SET
+        VALUES ($1, 'cursor', $2, $3, $4, $5)
+        ON CONFLICT (user_id, provider) DO UPDATE SET
             key_ciphertext       = EXCLUDED.key_ciphertext,
             encryption_version   = EXCLUDED.encryption_version,
             kms_key_id           = EXCLUDED.kms_key_id,

@@ -2,10 +2,11 @@
 mod test;
 
 use chrono::{DateTime, Utc};
+use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
 use zeroize::Zeroizing;
 
-/// A model provider a team can bring its own key for.
+/// A model provider a person or team can bring their own key for.
 ///
 /// The string form is both the `cursor_configs.provider` value and the
 /// provider segment of a routed model id (`anthropic/claude-opus-5-5`).
@@ -18,7 +19,7 @@ pub enum ModelProvider {
 }
 
 impl ModelProvider {
-    /// Every provider a team key can be registered for.
+    /// Every provider a key can be registered for.
     pub const ALL: [Self; 2] = [Self::Anthropic, Self::OpenAi];
 
     /// The stored and routed name.
@@ -38,8 +39,8 @@ impl ModelProvider {
             .find(|provider| provider.as_str() == value)
     }
 
-    /// The provider serving a routed `provider/model` id, if a team key can
-    /// pay for it.
+    /// The provider serving a routed `provider/model` id, if a provider key
+    /// can pay for it.
     #[must_use]
     pub fn of_model(model: &str) -> Option<Self> {
         model
@@ -149,40 +150,90 @@ pub struct EncryptedProviderApiKey {
     pub kms_key_id: String,
 }
 
-/// Whether a team has a key for one provider. Never carries the key.
+/// Who a provider key belongs to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum KeyOwner {
+    /// One person's own key; only their chats run on it.
+    User(MacroUserIdStr<'static>),
+    /// A team's key; any member's chats may run on it.
+    Team(Uuid),
+}
+
+/// Which of the keys a person may use a turn runs on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum KeySource {
+    /// The person's own key.
+    Personal,
+    /// A key of a team they are a member of.
+    Team,
+}
+
+/// Whether an owner has a key for one provider. Never carries the key.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TeamProviderKeyStatus {
+pub struct ProviderKeyStatus {
     /// The provider.
     pub provider: ModelProvider,
     /// When the key was last replaced.
     pub updated_at: DateTime<Utc>,
 }
 
-/// A team key stored for a member's team, still encrypted.
+/// A stored key, still encrypted.
 #[derive(Clone, Debug)]
-pub struct StoredMemberKey {
+pub struct StoredProviderKey {
     /// The row's id, which usage on the key references.
     pub id: Uuid,
-    /// The team that owns the key.
-    pub team_id: Uuid,
+    /// Who the key belongs to, which its encryption context names.
+    pub owner: KeyOwner,
     /// The ciphertext.
     pub encrypted: EncryptedProviderApiKey,
 }
 
-/// A team key a member may run a turn on, decrypted for that turn.
+/// A key a person may run a turn on, decrypted for that turn.
 #[derive(Debug)]
 pub struct UsableProviderKey {
     /// The row's id, which usage on the key references.
     pub id: Uuid,
-    /// The team that owns the key.
-    pub team_id: Uuid,
+    /// Whether it is the person's own key or their team's.
+    pub source: KeySource,
     /// The key.
     pub key: ProviderApiKey,
 }
 
-/// Why a team key operation failed.
+/// The providers a person can run turns on with a key, by source.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct AvailableKeys {
+    /// Providers the person has their own key for.
+    pub personal: Vec<ModelProvider>,
+    /// Providers a team they are a member of has a key for.
+    pub team: Vec<ModelProvider>,
+}
+
+impl AvailableKeys {
+    /// The providers `source` has a key for.
+    #[must_use]
+    pub fn providers(&self, source: KeySource) -> &[ModelProvider] {
+        match source {
+            KeySource::Personal => &self.personal,
+            KeySource::Team => &self.team,
+        }
+    }
+
+    /// Whether `source` has a key for any provider.
+    #[must_use]
+    pub fn has(&self, source: KeySource) -> bool {
+        !self.providers(source).is_empty()
+    }
+
+    /// Whether there is no key at all.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.personal.is_empty() && self.team.is_empty()
+    }
+}
+
+/// Why a provider key operation failed.
 #[derive(Debug, thiserror::Error)]
-pub enum TeamProviderKeyError {
+pub enum ProviderKeyError {
     /// The supplied value is not a key for the provider.
     #[error("value does not look like an API key for this provider")]
     MalformedKey,

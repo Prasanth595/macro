@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT provider, updated_at\n                FROM cursor_configs\n                WHERE user_id = $1 AND provider <> 'cursor'\n                ORDER BY provider\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "provider",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "d016b6820e61bb1906381e87bc652d010385093d1993b991858a0bb23f2d58ac"
+}

@@ -29,9 +29,10 @@ model.
   lifetime (see `src/lib.rs` threat model).
 - Deleting a row does not revoke anything at Cursor — any "disconnect" surface
   must say so explicitly.
-- `cursor_configs` also holds teams' Anthropic/OpenAI keys (`provider`,
-  `team_id`), owned by `crates/team_provider_keys`. Keep this crate's queries
-  scoped to `provider = 'cursor'`, and pass `CursorApiKey::prefix` to the
+- `cursor_configs` also holds people's and teams' Anthropic/OpenAI keys
+  (`provider`, `user_id` or `team_id`), owned by `crates/model_provider_keys`.
+  Keep this crate's queries scoped to `provider = 'cursor'` (the upsert
+  conflicts on `(user_id, provider)`), and pass `CursorApiKey::prefix` to the
   upsert: the `cursor_configs_key_prefix` check rejects other prefixes.
 
 ## Related
