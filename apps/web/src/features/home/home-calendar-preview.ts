@@ -44,9 +44,12 @@ export function useHomeCalendarPreview(withTab: WithTab) {
     const calendarTarget = previewCalendarTarget(entity);
     const navigation = homeCalendarNavigation(calendarTarget);
     if (!navigation) return false;
-    // A Calendar already open in another split takes the event, as it does
-    // from the notifications panel, instead of a second calendar in Home.
+    // Home's own calendar keeps the event while it is open, as Home's preview
+    // does for a document it already shows. Otherwise a Calendar already open
+    // in another split takes it, as it does from the notifications panel,
+    // instead of a second calendar in Home.
     if (
+      !calendarOpen() &&
       globalSplitManager()?.getSplitByContent('component', CALENDAR_VIEW_ID)
     ) {
       openCalendarView(calendarTarget, {
