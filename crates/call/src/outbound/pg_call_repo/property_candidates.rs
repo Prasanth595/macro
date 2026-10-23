@@ -83,9 +83,20 @@ fn push_filter(query: &mut QueryBuilder<'_, Postgres>, filter: &Expr<CallLiteral
             query.push_bind(speaker.as_ref().to_owned());
             query.push(")) OR (candidate.source_kind = 'archived' AND EXISTS (SELECT 1 FROM call_record_transcripts transcript WHERE transcript.call_record_id = candidate.call_id AND COALESCE(transcript.custom_speaker, transcript.speaker_id) = ");
             query.push_bind(speaker.as_ref().to_owned());
-            query.push(")) OR (candidate.source_kind = 'imported' AND EXISTS (SELECT 1 FROM call_entity_transcript_segments transcript JOIN call_entity_participants person ON person.call_id = transcript.call_id AND person.id = transcript.participant_id WHERE transcript.call_id = candidate.call_id AND person.user_id = ");
+            // Imported attendees render as guest IDs, not their linked accounts.
+            // Only a provider label left unmatched by hydration can be a Macro ID.
+            query.push(")) OR (candidate.source_kind = 'imported' AND EXISTS (SELECT 1 FROM call_entity_transcript_segments transcript WHERE transcript.call_id = candidate.call_id AND transcript.participant_id IS NULL AND transcript.speaker_label = ");
             query.push_bind(speaker.as_ref().to_owned());
-            query.push(")))");
+            query.push(
+                r#" AND NOT EXISTS (
+                SELECT 1 FROM call_entity_participants person
+                WHERE person.call_id = transcript.call_id
+                  AND translate(COALESCE(person.display_name, person.email, 'Participant'),
+                      'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')
+                      = translate(transcript.speaker_label,
+                          'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')
+            ))))"#,
+            );
         }
         Expr::Literal(CallLiteral::Status(status)) => {
             query.push("candidate.status = ").push_bind(match status {

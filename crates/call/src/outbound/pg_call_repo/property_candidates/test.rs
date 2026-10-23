@@ -361,6 +361,12 @@ async fn boolean_filters_use_rendered_speakers_and_guard_date_values(
     .execute(&pool)
     .await?;
     sqlx::query!("INSERT INTO call_entity_transcript_segments (call_id, transcript_id, sequence_num, participant_id, content) VALUES ($1, $2, 0, $3, 'imported words')", data.imported, transcript, speaker).execute(&pool).await?;
+    let imported = data
+        .repo
+        .get_call_record_by_call_id(&data.imported)
+        .await?
+        .unwrap();
+    assert_eq!(imported.transcript[0].speaker_id, speaker.to_string());
     sqlx::query!("INSERT INTO entity_properties (id, entity_id, entity_type, property_definition_id, values) VALUES ($1, $2, 'CALL_RECORD', $3, '{\"type\":\"String\",\"value\":\"not a timestamp\"}'::jsonb)", Uuid::now_v7(), data.imported.to_string(), data.sort_property).execute(&pool).await?;
     let selection = CandidateQuery {
         date_property_id: Some(data.sort_property),
@@ -391,9 +397,9 @@ async fn boolean_filters_use_rendered_speakers_and_guard_date_values(
             .iter()
             .map(|row| row.identity.id.clone())
             .collect::<Vec<_>>(),
-        [CALL1.to_string(), data.imported.to_string()]
+        [CALL1.to_string()]
     );
-    assert_eq!(speakers.groups[0].total_count, 2);
+    assert_eq!(speakers.groups[0].total_count, 1);
     let other_speaker = data
         .repo
         .get_call_candidates(request(Expr::is_not(Expr::val(CallLiteral::Speaker(
@@ -404,7 +410,11 @@ async fn boolean_filters_use_rendered_speakers_and_guard_date_values(
         other_speaker.candidates[0].identity.id,
         CALL_ARCHIVED.to_string()
     );
-    assert_eq!(other_speaker.groups[0].total_count, 1);
+    assert_eq!(other_speaker.groups[0].total_count, 2);
+    assert_eq!(
+        other_speaker.candidates[1].identity.id,
+        data.imported.to_string()
+    );
     let range = Expr::val(CallLiteral::Property(PropertiesLiteral {
         property_definition_id: data.sort_property,
         entity_type: None,
@@ -433,6 +443,55 @@ async fn boolean_filters_use_rendered_speakers_and_guard_date_values(
         ))))
         .await?;
     assert!(foreign_scope.candidates.is_empty());
+    // Provider labels that match an attendee render as guest IDs, including
+    // ASCII case differences. Unmatched labels remain the rendered identity.
+    for (display_name, label, rendered, matches) in [
+        (
+            Some(USER_A.as_ref().to_ascii_uppercase()),
+            Some(USER_A.to_string()),
+            speaker.to_string(),
+            0,
+        ),
+        (
+            Some("Another attendee".into()),
+            Some(USER_A.to_string()),
+            USER_A.to_string(),
+            1,
+        ),
+        (None, None, "Unknown speaker".into(), 0),
+    ] {
+        sqlx::query!(
+            "UPDATE call_entity_participants SET display_name = $1 WHERE call_id = $2 AND id = $3",
+            display_name,
+            data.imported,
+            speaker
+        )
+        .execute(&pool)
+        .await?;
+        sqlx::query!("UPDATE call_entity_transcript_segments SET participant_id = NULL, speaker_label = $1 WHERE call_id = $2", label, data.imported).execute(&pool).await?;
+        let imported = data
+            .repo
+            .get_call_record_by_call_id(&data.imported)
+            .await?
+            .unwrap();
+        assert_eq!(imported.transcript[0].speaker_id, rendered);
+        let matched = data
+            .repo
+            .get_call_candidates(request(Expr::and(
+                Expr::val(CallLiteral::CallId(data.imported)),
+                Expr::val(CallLiteral::Speaker(USER_A.deref().clone())),
+            )))
+            .await?;
+        assert_eq!(matched.candidates.len(), matches);
+        let negated = data
+            .repo
+            .get_call_candidates(request(Expr::and(
+                Expr::val(CallLiteral::CallId(data.imported)),
+                Expr::is_not(Expr::val(CallLiteral::Speaker(USER_A.deref().clone()))),
+            )))
+            .await?;
+        assert_eq!(negated.candidates.len(), 1 - matches);
+    }
     let missed = data
         .repo
         .get_call_candidates(CallCandidateRequest {
