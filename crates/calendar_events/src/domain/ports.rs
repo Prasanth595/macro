@@ -582,8 +582,9 @@ pub trait CalendarRepository: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Option<CalendarEventExport>, Report>> + Send;
 
     /// Record a pending request from the requester to join `event_id`,
-    /// reopening a declined one. Returns the request and whether it became
-    /// pending just now, so a repeated ask does not notify the sharer twice.
+    /// leaving an existing one, whatever its status, as it is. Returns the
+    /// request and whether this call created it, so a repeated ask does not
+    /// notify the sharer twice.
     fn open_join_request(
         &self,
         event_id: Uuid,
@@ -843,6 +844,9 @@ pub enum CalendarJoinRequestError {
     /// accept.
     #[error("the person who shared this event cannot add guests to it")]
     SharerCannotInvite,
+    /// The sharer declined the requester's earlier request, which stands.
+    #[error("the person who shared this event declined the request to join")]
+    Declined,
     /// Persistence failed.
     #[error("calendar join request failed: {0}")]
     Internal(Report),
@@ -854,7 +858,8 @@ pub trait CalendarJoinRequestService: Send + Sync + 'static {
     /// Ask the person who shared an event with one of the requester's
     /// channels to add them as a guest, notifying them when the request
     /// becomes pending. Asking again while pending changes nothing; asking
-    /// after a decline reopens the request.
+    /// after a decline is refused with `Declined`, so the sharer is asked
+    /// only once.
     fn request_to_join(
         &self,
         requester_id: &str,

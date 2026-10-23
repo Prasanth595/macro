@@ -177,6 +177,13 @@ reminder routes and the former Home reminder detail route are removed.
 When an event opens inline from Home, changing the Calendar period stays under
 `/app/home/calendar/`, updates the period segment, and re-focuses that event.
 Back/Forward restores the period and its event locator from `sN.calendar.*`.
+While Home's own calendar is open, a Home calendar row (a reminder, a join
+request, or any event) re-aims it in place, even when Calendar is also open in
+another split, as Home's preview does for a document it already shows. When
+Home shows its list or another item and Calendar is open in another split, the
+row retargets that split instead: a click or Enter also focuses it, and
+arrow-key browsing moves it without taking focus from the list. Shift-click
+keeps reusing that split, as the notifications panel does.
 
 Home uses the shared channel and file details for channel conversations and
 supported documents, with a **Home** breadcrumb that returns to the list. A
@@ -669,8 +676,9 @@ button and no search field. Desktop retains search and keyboard controls. Other 
 show **+ New** for that full menu. Only Agents has the floating AI composer,
 which fills the row with no duplicate create action. Other views keep their
 right-aligned New button without an AI input. The row
-hides during search, when a page supplies its own reply or compose controls, or
-when an editable field outside Ask AI is focused on a touch device. The AI draft
+hides during search, when a page supplies its own reply or compose controls
+(including the full-screen new-email composer, whose send actions sit in its
+header), or when an editable field outside Ask AI is focused on a touch device. The AI draft
 is preserved when the row returns.
 The New button also hides while the software keyboard is open.
 After closing mobile search with the keyboard open or leaving a focused editor,
@@ -742,12 +750,20 @@ columns. The search field sits below the top bar, as in Projects; search by name
 creator, or model/agent, or press **Cmd/Ctrl+F** to focus it. **Create Routine** sits
 to the right of search. Click a row to open its settings in the same pane. Toggle
 the **Enabled** checkbox property directly in the list to pause or resume it.
-Open the routine and use its **Run History** tab to see past runs.
+Open the routine and use its **Run History** tab to see past runs. Each run is its
+own agent session. The routine's **Runs hidden** / **Runs shown** chip decides
+where its runs appear. **Hide runs** (the default) keeps them off Home and out of
+the Agents sidebar until **Show hidden routine runs** is pressed. **Show runs**
+lists them on Home and in Agents like the owner's own sessions. The setting
+applies to runs that start after it changes. A run that finishes normally sends
+no notification; a failed or cut-short run, a question the agent asks, a held tool
+approval, and people the routine's prompt mentions still notify.
 
 **Create → Routine** (U) and **Create Routine** open the same popover host as task
 and project creation. Enter a name and instructions, then choose a model or agent
 with the first property chip below the prompt. **Add trigger** follows it; each
 saved trigger becomes a chip, with another **Add trigger** always at the end.
+The last chip, **Runs hidden**, opens **Hide runs** / **Show runs**.
 **Start enabled** controls whether the saved routine starts listening immediately. **Create routine** opens
 its details inside the Agents pane, retaining the sidebar. Creation has no history
 tab or templates. Unsaved drafts are retained for three minutes.
@@ -796,7 +812,8 @@ to remove it. The routine's top bar uses the task breadcrumb layout:
 **Routines → routine name**, followed by the three-dot menu for duplication and
 deletion. Tabs immediately beside that menu switch between **Overview** and
 **Run History**. Overview follows the project home layout: an editable title,
-a model property chip, and a plain prompt editor. A trigger card sits below the
+a model property chip and the **Runs hidden** / **Runs shown** chip, and a plain
+prompt editor. A trigger card sits below the
 model: trigger chips at the top left, **Run now** at the top right, and the
 **Enabled** / **Disabled** status with **Next run** along the bottom.
 The **Run options** dropdown contains
@@ -819,9 +836,12 @@ loads those settings before further edits. While running, configuration is locke
 but cannot resume until the run ends. Completed one-offs remain visible with
 their history and do not repeat.
 
-Routines are private to their owner. Other users cannot list or open the routine
-or its history, even if they belong to the same team. Run conversations keep
-their own permissions.
+An `m-document-mention` with `blockName: "routine"`, the returned routine ID,
+and the saved name renders as a clickable mention in an agent reply. Routines
+do not appear in the mention menu. Anyone signed in with the link can view its
+settings, instructions, and triggers. Only the owner can edit, enable, run,
+duplicate, delete, or view run history; other users do not see those controls.
+Run conversations keep their own permissions.
 
 **Run History** shows outcome, duration, and firing time. History loads fifty
 rows at a time; **Load more runs** reveals older records. Accessible run rows
@@ -968,6 +988,11 @@ restart rules still apply.
   Single-letter shortcuts only work when no editor has focus; press `Escape` first.
 - `/` — search everything (in Email it focuses email search). `j`/`k` — move in
   lists. `e` — mark done.
+  After opening a list item in the same split, `j`/`k` continue through the
+  originating list; native detail paging can still load its next page. Check
+  repeated list/detail transitions as well as group-header skipping. Returning
+  to the list restores scrolling to the focused row; the unmounted list's
+  virtualizer must not run while viewing details.
 - `#` — move email to Trash, with an Undo toast. Works on the selected or focused
   rows in a mail list and on the thread open in an email detail or block. Email
   only; other entity types keep Delete/Backspace and do not answer `#`.
