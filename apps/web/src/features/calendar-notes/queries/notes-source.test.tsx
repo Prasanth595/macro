@@ -3,8 +3,7 @@ import { queryClient } from '@queries/client';
 import { calendarNotesClient } from '@service-calendar/notes';
 import { QueryClientProvider } from '@tanstack/solid-query';
 import { err, ok } from 'neverthrow';
-import { createSignal } from 'solid-js';
-import { render } from 'solid-js/web';
+import { createComponent, createRoot, createSignal } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { NotesSource } from '../context/notes-source';
 import { createNotesSource } from './notes-source';
@@ -44,14 +43,15 @@ function mountSource() {
     source = createNotesSource(user, target);
     return null;
   }
-  dispose = render(
-    () => (
-      <QueryClientProvider client={queryClient}>
-        <Probe />
-      </QueryClientProvider>
-    ),
-    document.createElement('div')
-  );
+  createRoot((cleanup) => {
+    dispose = cleanup;
+    createComponent(QueryClientProvider, {
+      client: queryClient,
+      get children() {
+        return createComponent(Probe, {});
+      },
+    });
+  });
   if (!source) throw new Error('Notes source did not mount');
   return { source, setUser, setTarget };
 }
