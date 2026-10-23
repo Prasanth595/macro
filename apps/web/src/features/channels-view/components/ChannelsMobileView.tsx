@@ -188,7 +188,7 @@ export function ChannelsMobileView(props: {
                     list={actionList}
                     selectedEntities={() => []}
                     viewContext={CHANNEL_ACTION_VIEW_CONTEXT}
-                    class="block min-w-0"
+                    class="block w-1/3 min-w-0"
                     onOpenChange={(open) => {
                       if (!open) return;
                       actionController.focus.set(channel.id, {
