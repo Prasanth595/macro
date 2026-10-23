@@ -1,3 +1,4 @@
+pub mod action_history;
 pub mod agent_conversation;
 /// Current authorization for agent session streams.
 pub mod audience;
@@ -49,3 +50,6 @@ pub mod list_visibility;
 
 /// User-scoped AI session actions.
 pub mod tool_actions;
+
+/// Durable system notifications.
+pub mod notifications;

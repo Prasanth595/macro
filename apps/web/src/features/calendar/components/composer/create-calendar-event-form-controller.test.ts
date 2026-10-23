@@ -468,6 +468,121 @@ describe('out of office', () => {
   });
 });
 
+it('submits guest permissions only when they change', () => {
+  const controller = controllerFor(
+    {
+      ...timedRange(3),
+      title: 'Planning',
+      guestPolicy: {
+        canModify: false,
+        canInviteOthers: false,
+        canSeeOtherGuests: true,
+      },
+    },
+    { isEdit: true }
+  );
+  expect(controller.isDirty()).toBe(false);
+  expect(controller.submitValues()?.guestPolicy).toBeUndefined();
+
+  controller.setGuestPolicy({
+    canModify: false,
+    canInviteOthers: true,
+    canSeeOtherGuests: true,
+  });
+  expect(controller.isDirty()).toBe(true);
+  expect(controller.submitValues()?.guestPolicy).toEqual({
+    canModify: false,
+    canInviteOthers: true,
+    canSeeOtherGuests: true,
+  });
+
+  controller.setGuestPolicy({
+    canModify: false,
+    canInviteOthers: false,
+    canSeeOtherGuests: true,
+  });
+  expect(controller.isDirty()).toBe(false);
+  expect(controller.submitValues()?.guestPolicy).toBeUndefined();
+});
+
+it('returns locked details to the event’s own and keeps the viewer’s reminders', () => {
+  const controller = controllerFor(
+    {
+      start: '2030-01-01T12:00',
+      end: '2030-01-01T13:00',
+      title: 'Planning',
+      location: 'Room 1',
+      description: 'Agenda',
+      recurrenceLines: ['RRULE:FREQ=DAILY'],
+      reminders: { useDefault: false, overrides: [] },
+    },
+    { isEdit: true }
+  );
+  controller.setField('title', 'Planning review');
+  controller.setField('location', 'Room 4');
+  controller.setField('description', 'Agenda and notes');
+  controller.setStart('2030-01-01T15:00');
+  controller.changeRecurrenceChoice('none');
+  controller.setReminderMinutes([30]);
+
+  controller.resetDetails();
+
+  expect(controller.submitValues()).toMatchObject({
+    title: 'Planning',
+    location: 'Room 1',
+    description: 'Agenda',
+    time: { kind: 'timed' },
+    reminders: {
+      useDefault: false,
+      overrides: [{ method: 'popup', minutes: 30 }],
+    },
+  });
+  expect(controller.state().start).toBe('2030-01-01T12:00');
+  expect(controller.recurrenceLines()).toEqual(['RRULE:FREQ=DAILY']);
+  expect(controller.isDirty()).toBe(true);
+
+  controller.setReminderMinutes([]);
+  expect(controller.isDirty()).toBe(false);
+});
+
+it('drops guest permissions picked before switching to a calendar without them', () => {
+  const google = {
+    id: 'work',
+    label: 'Work',
+    color: '#123456',
+    provider: 'google' as const,
+    isPrimary: true,
+    capabilities: {
+      autoDecline: true,
+      emailReminders: true,
+      customRecurrence: true,
+      removeConference: true,
+      resetRsvp: true,
+      guestPolicy: true,
+    },
+  };
+  const outlook = {
+    ...google,
+    id: 'personal',
+    label: 'Personal Outlook',
+    provider: 'outlook' as const,
+    capabilities: { ...google.capabilities, guestPolicy: false },
+  };
+  const controller = controllerFor(
+    { ...timedRange(3), title: 'Planning', calendarId: 'work' },
+    { calendarOptions: () => [google, outlook] }
+  );
+  controller.setGuestPolicy({
+    canModify: true,
+    canInviteOthers: true,
+    canSeeOtherGuests: true,
+  });
+  expect(controller.submitValues()?.guestPolicy).toBeDefined();
+
+  controller.setField('calendarId', 'personal');
+  expect(controller.submitValues()?.guestPolicy).toBeUndefined();
+});
+
 it('preserves a requested conference on an unsupported calendar until the user resolves it', () => {
   const controller = controllerFor(
     { ...timedRange(3), title: 'Meeting', conference: 'google_meet' },
@@ -485,6 +600,7 @@ it('preserves a requested conference on an unsupported calendar until the user r
             customRecurrence: false,
             removeConference: false,
             resetRsvp: false,
+            guestPolicy: false,
           },
         },
       ],
@@ -523,6 +639,7 @@ it('allows unrelated edits to an existing Teams meeting on a calendar without co
             customRecurrence: false,
             removeConference: false,
             resetRsvp: false,
+            guestPolicy: false,
           },
         },
       ],
