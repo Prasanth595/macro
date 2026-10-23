@@ -173,3 +173,19 @@ fn user_toolset_exposes_execute_and_describe_without_session_fields() {
     assert!(schema["properties"].get("execution_id").is_none());
     assert!(schema["properties"].get("source").is_some());
 }
+
+#[test]
+fn both_execute_code_descriptions_share_one_runtime_contract() {
+    let session = toolset().tools["ExecuteCode"].description.clone();
+    let user = user_toolset().tools["ExecuteCode"].description.clone();
+    for shared in [
+        include_str!("shared/program.md"),
+        include_str!("shared/runtime.md"),
+    ] {
+        assert!(session.contains(shared.trim()));
+        assert!(user.contains(shared.trim()));
+    }
+    assert!(session.contains("execution.reviews.create"));
+    assert!(!user.contains("execution.reviews.create"));
+    assert!(user.contains("DescribeCodeTools with task"));
+}

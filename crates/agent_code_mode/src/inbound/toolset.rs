@@ -68,7 +68,13 @@ enum CodeHost {
 #[serde(deny_unknown_fields)]
 #[schemars(
     title = "ExecuteCode",
-    description = include_str!("toolset/execute_code.md")
+    description = concat!(
+        include_str!("toolset/session/execute_code.md"),
+        "\n",
+        include_str!("toolset/shared/program.md"),
+        "\n",
+        include_str!("toolset/shared/runtime.md")
+    )
 )]
 pub struct ExecuteCode {
     /// Fresh UUID for this execution, recorded in the tool input so results can
@@ -129,7 +135,13 @@ impl AsyncTool<CodeModeToolContext> for ExecuteCode {
 #[serde(deny_unknown_fields)]
 #[schemars(
     title = "ExecuteCode",
-    description = include_str!("toolset/user/execute_code.md")
+    description = concat!(
+        include_str!("toolset/user/execute_code.md"),
+        "\n",
+        include_str!("toolset/shared/program.md"),
+        "\n",
+        include_str!("toolset/shared/runtime.md")
+    )
 )]
 pub struct UserExecuteCode {
     /// A JavaScript ES module, with imports and an exported async main function.
@@ -363,11 +375,17 @@ impl DescribeCodeTools {
         };
         let (overview, instructions) = match host {
             CodeHost::Session => (
-                include_str!("toolset/guides/overview.md"),
-                include_str!("toolset/discovery.md"),
+                concat!(
+                    include_str!("toolset/session/overview.md"),
+                    include_str!("toolset/shared/entities.md")
+                ),
+                include_str!("toolset/session/discovery.md"),
             ),
             CodeHost::User => (
-                include_str!("toolset/user/overview.md"),
+                concat!(
+                    include_str!("toolset/user/overview.md"),
+                    include_str!("toolset/shared/entities.md")
+                ),
                 include_str!("toolset/user/discovery.md"),
             ),
         };

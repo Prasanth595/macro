@@ -22,7 +22,9 @@ stacks. Process isolation belongs to
   into the per-turn prompt (top four, 48 KiB) or returned for a
   `DescribeCodeTools` `task` (every relevant entity, 32 KiB).
 - `src/inbound/toolset.rs`: `toolset()` for sessions, `user_toolset()` for the
-  public MCP; the user variant's texts live in `toolset/user/`.
+  public MCP. Tool texts are composed: host-specific parts in `toolset/session/`
+  and `toolset/user/`, guidance both share in `toolset/shared/`. Edit shared
+  guidance once, there.
 
 ## Boundaries
 
