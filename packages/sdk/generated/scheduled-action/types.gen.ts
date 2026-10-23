@@ -5,6 +5,11 @@ export type ClientOptions = {
 };
 
 /**
+ * Ordered from least to most access top -> bottom
+ */
+export type AccessLevel = 'view' | 'comment' | 'edit' | 'owner';
+
+/**
  * Canonical client configuration. Ownership and execution state are server-owned.
  */
 export type ActionConfiguration = {
@@ -76,6 +81,13 @@ export type ActionTrigger = {
     type: 'multiple';
 };
 
+export type ActivateTemplateRequest = {
+    bindings: {
+        [key: string]: BoundValue;
+    };
+    name?: string | null;
+};
+
 export type AgentTask = {
     agent?: null | AgentTaskAgent;
     model?: null | RoutineModelId;
@@ -106,6 +118,50 @@ export type AiAdmissionErrorBody = {
 };
 
 /**
+ * One variable that can't be used as given.
+ */
+export type BindingProblem = {
+    key: VariableKey;
+    problem: string;
+};
+
+/**
+ * A value for one variable: fixed by the creator, or chosen at activation.
+ */
+export type BoundValue = {
+    target: TaskTarget;
+    type: 'agent';
+} | {
+    cron: string;
+    timezone: string;
+    type: 'schedule';
+} | {
+    text: string;
+    type: 'text';
+} | {
+    type: 'user';
+    user_id: string;
+} | {
+    id: string;
+    name?: string;
+    type: 'entity';
+};
+
+/**
+ * The channel share permission
+ */
+export type ChannelSharePermission = {
+    /**
+     * The access level for the channel
+     */
+    access_level: AccessLevel;
+    /**
+     * The channel id
+     */
+    channel_id: string;
+};
+
+/**
  * Why an event-triggered run was skipped before it started.
  */
 export type ConditionResult = {
@@ -118,10 +174,17 @@ export type ConditionResult = {
     status: 'unavailable';
 };
 
+export type Confidence = 'high' | 'check';
+
 /**
  * Exactly one representation is accepted, even if mixed fields agree or are null.
  */
 export type CreateScheduledAction = ActionConfiguration | LegacyActionConfiguration;
+
+export type CreateTemplateRequest = {
+    draft: TemplateDraft;
+    source_action_id: string;
+};
 
 /**
  * Empty response is required due to custom fetch forcing `response.json()`
@@ -129,6 +192,8 @@ export type CreateScheduledAction = ActionConfiguration | LegacyActionConfigurat
 export type EmptyResponse = {
     [key: string]: unknown;
 };
+
+export type EventEntityType = 'document' | 'channel' | 'email_thread' | 'call';
 
 /**
  * An event name AND an entity ID must match within the same filter. A
@@ -179,6 +244,63 @@ export type ExecutionResult = {
     version: number;
 };
 
+export type ExtractTemplateRequest = {
+    source_action_id: string;
+};
+
+/**
+ * A routine's draft template for its owner, plus the template they
+ * already made from it so the dialog can offer to update or reuse it.
+ */
+export type ExtractedTemplate = Extraction & {
+    existing_template_id?: string | null;
+};
+
+/**
+ * A proposed template plus the creator's own value for each variable. The
+ * values go back to the creator only, so the share dialog can switch a
+ * variable to fixed; they are never stored for variable slots.
+ */
+export type Extraction = {
+    creator_values: {
+        [key: string]: BoundValue;
+    };
+    draft: TemplateDraft;
+};
+
+export type FillTemplateRequest = {
+    /**
+     * The viewer's current choices, so related variables change together.
+     */
+    current?: {
+        [key: string]: BoundValue;
+    };
+    /**
+     * "Do this for Initech instead": re-fill with this instruction.
+     */
+    instruction?: string | null;
+};
+
+export type FillTemplateResponse = {
+    /**
+     * A routine name using the filled values, e.g. "Weekly Globex digest".
+     */
+    name?: string | null;
+    variables: Array<FilledVariable>;
+};
+
+/**
+ * One variable after fill and validation. `value` is absent when nothing
+ * usable was found; `problem` then says why.
+ */
+export type FilledVariable = {
+    confidence?: null | Confidence;
+    key: VariableKey;
+    problem?: string | null;
+    reason?: string | null;
+    value?: null | BoundValue;
+};
+
 export type InProgressExecution = {
     action_id: string;
     chat_id?: string | null;
@@ -200,9 +322,59 @@ export type LegacyActionConfiguration = {
 };
 
 /**
+ * Defines who can access an item through its share link.
+ */
+export type LinkShare = 'PUBLIC' | 'TEAM';
+
+export type ProvenanceTemplate = {
+    name: string;
+    owner: string;
+};
+
+export type RebindTemplateRequest = {
+    bindings: {
+        [key: string]: BoundValue;
+    };
+};
+
+/**
  * A nonblank model identifier. Runtime catalogs, not the scheduler, own availability.
  */
 export type RoutineModelId = string;
+
+/**
+ * The template a routine was activated from, for the routine's owner.
+ */
+export type RoutineProvenance = {
+    bindings: {
+        [key: string]: BoundValue;
+    };
+    /**
+     * Whether the routine still reads exactly as the template rendered it,
+     * so a single binding can be changed.
+     */
+    rebindable: boolean;
+    template?: null | ProvenanceTemplate;
+    template_id: string;
+    /**
+     * The template's variables, for labelling the bindings.
+     */
+    variables: Array<TemplateVariable>;
+};
+
+/**
+ * A stored template.
+ */
+export type RoutineTemplate = TemplateDraft & {
+    created_at: string;
+    id: string;
+    owner: string;
+    /**
+     * The routine it was made from. Absent once that routine is deleted.
+     */
+    source_action_id?: string | null;
+    updated_at: string;
+};
 
 /**
  * An individual trigger in a routine's trigger list.
@@ -319,10 +491,207 @@ export type SetScheduledActionEnabled = {
     enabled: boolean;
 };
 
+export type SharePermissionV2 = {
+    /**
+     * The channel share permissions for the item
+     */
+    channelSharePermissions?: Array<ChannelSharePermission> | null;
+    /**
+     * The share permission id
+     */
+    id: string;
+    linkShare?: null | LinkShare;
+    linkShareAccessLevel?: null | AccessLevel;
+    /**
+     * The owner of the item
+     */
+    owner: string;
+    teamShareAccessLevel?: null | AccessLevel;
+};
+
+/**
+ * The agent or model a routine runs on.
+ */
+export type TaskTarget = {
+    kind: 'model';
+    model: RoutineModelId;
+} | {
+    bot_id: string;
+    kind: 'agent';
+    model?: null | RoutineModelId;
+};
+
+/**
+ * Why the given bindings can't be used, per variable.
+ */
+export type TemplateBindingErrors = {
+    message: string;
+    problems: Array<BindingProblem>;
+};
+
+/**
+ * Everything a template holds except identity and bookkeeping. This is what
+ * extraction proposes, the creator edits, and activation renders.
+ */
+export type TemplateDraft = {
+    description?: string;
+    name: string;
+    task: TemplateTask;
+    trigger: TemplateTrigger;
+    variables: Array<TemplateVariable>;
+};
+
+/**
+ * An event filter whose ids may be variables. Filters without ids are
+ * already relative to whoever owns the routine.
+ */
+export type TemplateEventFilter = {
+    condition?: string | null;
+    events: Array<EventName>;
+    ids?: Array<VariableRef> | null;
+};
+
+/**
+ * One entry of a template's trigger list.
+ */
+export type TemplateRoutineTrigger = {
+    schedule: VariableRef;
+    type: 'cron';
+} | {
+    filters: Array<TemplateEventFilter>;
+    type: 'events';
+};
+
+/**
+ * The routine's task with its target replaced by the agent variable.
+ */
+export type TemplateTask = {
+    prompt?: string;
+    target: VariableRef;
+    /**
+     * Markdown instructions with `<m-template-variable>` nodes in place of
+     * person-specific values.
+     */
+    user_prompt: string;
+};
+
+/**
+ * A routine trigger with variables where values would appear. Mirrors
+ * `ActionTrigger`; a cron entry's schedule and timezone are one variable.
+ */
+export type TemplateTrigger = {
+    schedule: VariableRef;
+    type: 'cron';
+} | {
+    filters: Array<TemplateEventFilter>;
+    type: 'events';
+} | {
+    triggers: Array<TemplateRoutineTrigger>;
+    type: 'multiple';
+};
+
+/**
+ * A named slot in a template.
+ */
+export type TemplateVariable = {
+    /**
+     * One line, written for the person activating the template.
+     */
+    description: string;
+    key: VariableKey;
+    kind: VariableKind;
+    label: string;
+    mode: VariableMode;
+};
+
+/**
+ * A template as a viewer sees it. Never holds the creator's values for
+ * variable slots, because the template never stores them.
+ */
+export type TemplateView = RoutineTemplate & {
+    activation_count: number;
+    /**
+     * Routines the viewer activated from this template.
+     */
+    your_activations: Array<string>;
+};
+
+export type UpdateChannelSharePermission = {
+    accessLevel?: null | AccessLevel;
+    /**
+     * The channel id
+     */
+    channelId: string;
+    /**
+     * The type of operation to be performed on the chanel share permission
+     * You can add, remove or replace and existing permission
+     */
+    operation: UpdateOperation;
+};
+
+export type UpdateOperation = 'add' | 'remove' | 'replace';
+
 /**
  * Full replacement of client configuration, not of server-owned action state.
  */
 export type UpdateScheduledAction = ActionConfigurationUpdate | LegacyActionConfiguration;
+
+export type UpdateSharePermissionRequestV2 = {
+    /**
+     * Any channel share permissions to be created/updated/removed
+     */
+    channelSharePermissions?: Array<UpdateChannelSharePermission> | null;
+    linkShare?: null | LinkShare;
+    linkShareAccessLevel?: null | AccessLevel;
+    teamShareAccessLevel?: null | AccessLevel;
+};
+
+export type UpdateTemplateRequest = {
+    draft: TemplateDraft;
+};
+
+/**
+ * A stable slug naming a variable within one template: `urgent_channel`.
+ */
+export type VariableKey = string;
+
+/**
+ * What a variable stands for, and so which picker fills it.
+ */
+export type VariableKind = {
+    type: 'agent';
+} | {
+    type: 'schedule';
+} | {
+    type: 'text';
+} | {
+    type: 'user';
+} | {
+    type: 'channel';
+} | {
+    type: 'document';
+} | {
+    entity_type: EventEntityType;
+    type: 'event_entity';
+};
+
+/**
+ * Whether each activator fills a variable in, or everyone gets the
+ * creator's value.
+ */
+export type VariableMode = {
+    type: 'variable';
+} | {
+    type: 'fixed';
+    value: BoundValue;
+};
+
+/**
+ * `{"$var": "<key>"}`: where a template holds a variable instead of a value.
+ */
+export type VariableRef = {
+    $var: VariableKey;
+};
 
 export type ScheduledActionHealthData = {
     body?: never;
@@ -339,6 +708,236 @@ export type ScheduledActionHealthResponses = {
 };
 
 export type ScheduledActionHealthResponse = ScheduledActionHealthResponses[keyof ScheduledActionHealthResponses];
+
+export type CreateRoutineTemplateData = {
+    body: CreateTemplateRequest;
+    path?: never;
+    query?: never;
+    url: '/routine-templates';
+};
+
+export type CreateRoutineTemplateErrors = {
+    400: string;
+    401: string;
+    404: string;
+    500: string;
+};
+
+export type CreateRoutineTemplateError = CreateRoutineTemplateErrors[keyof CreateRoutineTemplateErrors];
+
+export type CreateRoutineTemplateResponses = {
+    201: RoutineTemplate;
+};
+
+export type CreateRoutineTemplateResponse = CreateRoutineTemplateResponses[keyof CreateRoutineTemplateResponses];
+
+export type ExtractRoutineTemplateData = {
+    body: ExtractTemplateRequest;
+    path?: never;
+    query?: never;
+    url: '/routine-templates/extract';
+};
+
+export type ExtractRoutineTemplateErrors = {
+    400: string;
+    401: string;
+    404: string;
+    500: string;
+};
+
+export type ExtractRoutineTemplateError = ExtractRoutineTemplateErrors[keyof ExtractRoutineTemplateErrors];
+
+export type ExtractRoutineTemplateResponses = {
+    200: ExtractedTemplate;
+};
+
+export type ExtractRoutineTemplateResponse = ExtractRoutineTemplateResponses[keyof ExtractRoutineTemplateResponses];
+
+export type DeleteRoutineTemplateData = {
+    body?: never;
+    path: {
+        /**
+         * Routine template id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/routine-templates/{id}';
+};
+
+export type DeleteRoutineTemplateErrors = {
+    401: string;
+    404: string;
+    500: string;
+};
+
+export type DeleteRoutineTemplateError = DeleteRoutineTemplateErrors[keyof DeleteRoutineTemplateErrors];
+
+export type DeleteRoutineTemplateResponses = {
+    204: void;
+};
+
+export type DeleteRoutineTemplateResponse = DeleteRoutineTemplateResponses[keyof DeleteRoutineTemplateResponses];
+
+export type GetRoutineTemplateData = {
+    body?: never;
+    path: {
+        /**
+         * Routine template id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/routine-templates/{id}';
+};
+
+export type GetRoutineTemplateErrors = {
+    401: string;
+    404: string;
+    500: string;
+};
+
+export type GetRoutineTemplateError = GetRoutineTemplateErrors[keyof GetRoutineTemplateErrors];
+
+export type GetRoutineTemplateResponses = {
+    200: TemplateView;
+};
+
+export type GetRoutineTemplateResponse = GetRoutineTemplateResponses[keyof GetRoutineTemplateResponses];
+
+export type UpdateRoutineTemplateData = {
+    body: UpdateTemplateRequest;
+    path: {
+        /**
+         * Routine template id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/routine-templates/{id}';
+};
+
+export type UpdateRoutineTemplateErrors = {
+    400: string;
+    401: string;
+    404: string;
+    500: string;
+};
+
+export type UpdateRoutineTemplateError = UpdateRoutineTemplateErrors[keyof UpdateRoutineTemplateErrors];
+
+export type UpdateRoutineTemplateResponses = {
+    200: RoutineTemplate;
+};
+
+export type UpdateRoutineTemplateResponse = UpdateRoutineTemplateResponses[keyof UpdateRoutineTemplateResponses];
+
+export type ActivateRoutineTemplateData = {
+    body: ActivateTemplateRequest;
+    path: {
+        /**
+         * Routine template id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/routine-templates/{id}/activate';
+};
+
+export type ActivateRoutineTemplateErrors = {
+    400: TemplateBindingErrors;
+    401: string;
+    404: string;
+    500: string;
+};
+
+export type ActivateRoutineTemplateError = ActivateRoutineTemplateErrors[keyof ActivateRoutineTemplateErrors];
+
+export type ActivateRoutineTemplateResponses = {
+    201: ScheduledActionResponse;
+};
+
+export type ActivateRoutineTemplateResponse = ActivateRoutineTemplateResponses[keyof ActivateRoutineTemplateResponses];
+
+export type FillRoutineTemplateData = {
+    body: FillTemplateRequest;
+    path: {
+        /**
+         * Routine template id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/routine-templates/{id}/fill';
+};
+
+export type FillRoutineTemplateErrors = {
+    400: string;
+    401: string;
+    404: string;
+    500: string;
+};
+
+export type FillRoutineTemplateError = FillRoutineTemplateErrors[keyof FillRoutineTemplateErrors];
+
+export type FillRoutineTemplateResponses = {
+    200: FillTemplateResponse;
+};
+
+export type FillRoutineTemplateResponse = FillRoutineTemplateResponses[keyof FillRoutineTemplateResponses];
+
+export type GetRoutineTemplatePermissionsData = {
+    body?: never;
+    path: {
+        /**
+         * Routine template id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/routine-templates/{id}/permissions';
+};
+
+export type GetRoutineTemplatePermissionsErrors = {
+    401: string;
+    404: string;
+    500: string;
+};
+
+export type GetRoutineTemplatePermissionsError = GetRoutineTemplatePermissionsErrors[keyof GetRoutineTemplatePermissionsErrors];
+
+export type GetRoutineTemplatePermissionsResponses = {
+    200: SharePermissionV2;
+};
+
+export type GetRoutineTemplatePermissionsResponse = GetRoutineTemplatePermissionsResponses[keyof GetRoutineTemplatePermissionsResponses];
+
+export type UpdateRoutineTemplatePermissionsData = {
+    body: UpdateSharePermissionRequestV2;
+    path: {
+        /**
+         * Routine template id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/routine-templates/{id}/permissions';
+};
+
+export type UpdateRoutineTemplatePermissionsErrors = {
+    400: string;
+    401: string;
+    404: string;
+    500: string;
+};
+
+export type UpdateRoutineTemplatePermissionsError = UpdateRoutineTemplatePermissionsErrors[keyof UpdateRoutineTemplatePermissionsErrors];
+
+export type UpdateRoutineTemplatePermissionsResponses = {
+    200: SharePermissionV2;
+};
+
+export type UpdateRoutineTemplatePermissionsResponse = UpdateRoutineTemplatePermissionsResponses[keyof UpdateRoutineTemplatePermissionsResponses];
 
 export type ListScheduledActionsData = {
     body?: never;
@@ -566,3 +1165,60 @@ export type ListScheduledActionHistoryResponses = {
 };
 
 export type ListScheduledActionHistoryResponse = ListScheduledActionHistoryResponses[keyof ListScheduledActionHistoryResponses];
+
+export type GetRoutineTemplateProvenanceData = {
+    body?: never;
+    path: {
+        /**
+         * ID of the scheduled action
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/scheduled-actions/{id}/template';
+};
+
+export type GetRoutineTemplateProvenanceErrors = {
+    401: string;
+    404: string;
+    500: string;
+};
+
+export type GetRoutineTemplateProvenanceError = GetRoutineTemplateProvenanceErrors[keyof GetRoutineTemplateProvenanceErrors];
+
+export type GetRoutineTemplateProvenanceResponses = {
+    200: null | RoutineProvenance;
+};
+
+export type GetRoutineTemplateProvenanceResponse = GetRoutineTemplateProvenanceResponses[keyof GetRoutineTemplateProvenanceResponses];
+
+export type RebindRoutineTemplateData = {
+    body: RebindTemplateRequest;
+    path: {
+        /**
+         * ID of the scheduled action
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/scheduled-actions/{id}/template/bindings';
+};
+
+export type RebindRoutineTemplateErrors = {
+    400: TemplateBindingErrors;
+    401: string;
+    404: string;
+    /**
+     * The routine was edited after activation
+     */
+    409: string;
+    500: string;
+};
+
+export type RebindRoutineTemplateError = RebindRoutineTemplateErrors[keyof RebindRoutineTemplateErrors];
+
+export type RebindRoutineTemplateResponses = {
+    200: ScheduledActionResponse;
+};
+
+export type RebindRoutineTemplateResponse = RebindRoutineTemplateResponses[keyof RebindRoutineTemplateResponses];

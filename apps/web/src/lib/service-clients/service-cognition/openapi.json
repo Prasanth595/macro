@@ -3383,7 +3383,8 @@
           "initiative",
           "database",
           "database_row",
-          "form"
+          "form",
+          "routine_template"
         ]
       },
       "ErrorBody": {
@@ -5186,6 +5187,16 @@
               "type": {
                 "type": "string",
                 "enum": ["databases_read_only"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["workspace_read_only"]
               }
             }
           }

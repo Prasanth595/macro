@@ -28,6 +28,622 @@
         }
       }
     },
+    "/routine-templates": {
+      "post": {
+        "tags": ["routine templates"],
+        "operationId": "create_routine_template",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutineTemplate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routine-templates/extract": {
+      "post": {
+        "tags": ["routine templates"],
+        "operationId": "extract_routine_template",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractedTemplate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routine-templates/{id}": {
+      "get": {
+        "tags": ["routine templates"],
+        "operationId": "get_routine_template",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Routine template id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["routine templates"],
+        "operationId": "update_routine_template",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Routine template id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutineTemplate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["routine templates"],
+        "operationId": "delete_routine_template",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Routine template id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routine-templates/{id}/activate": {
+      "post": {
+        "tags": ["routine templates"],
+        "operationId": "activate_routine_template",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Routine template id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivateTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledActionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateBindingErrors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routine-templates/{id}/fill": {
+      "post": {
+        "tags": ["routine templates"],
+        "operationId": "fill_routine_template",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Routine template id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FillTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FillTemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routine-templates/{id}/permissions": {
+      "get": {
+        "tags": ["routine templates"],
+        "operationId": "get_routine_template_permissions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Routine template id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharePermissionV2"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["routine templates"],
+        "operationId": "update_routine_template_permissions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Routine template id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSharePermissionRequestV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharePermissionV2"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scheduled-actions": {
       "get": {
         "tags": ["scheduled actions"],
@@ -602,10 +1218,170 @@
           }
         }
       }
+    },
+    "/scheduled-actions/{id}/template": {
+      "get": {
+        "tags": ["routine templates"],
+        "operationId": "get_routine_template_provenance",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the scheduled action",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RoutineProvenance"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduled-actions/{id}/template/bindings": {
+      "put": {
+        "tags": ["routine templates"],
+        "operationId": "rebind_routine_template",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the scheduled action",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RebindTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledActionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateBindingErrors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The routine was edited after activation",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AccessLevel": {
+        "type": "string",
+        "description": "Ordered from least to most access top -> bottom",
+        "enum": ["view", "comment", "edit", "owner"]
+      },
       "ActionConfiguration": {
         "type": "object",
         "description": "Canonical client configuration. Ownership and execution state are server-owned.",
@@ -762,6 +1538,25 @@
         ],
         "description": "A routine may run on one trigger or any of several schedules and Macro events."
       },
+      "ActivateTemplateRequest": {
+        "type": "object",
+        "required": ["bindings"],
+        "properties": {
+          "bindings": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BoundValue"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": ["string", "null"]
+          }
+        },
+        "additionalProperties": false
+      },
       "AgentTask": {
         "type": "object",
         "required": ["prompt", "user_prompt"],
@@ -822,6 +1617,112 @@
           }
         }
       },
+      "BindingProblem": {
+        "type": "object",
+        "description": "One variable that can't be used as given.",
+        "required": ["key", "problem"],
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/VariableKey"
+          },
+          "problem": {
+            "type": "string"
+          }
+        }
+      },
+      "BoundValue": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["target", "type"],
+            "properties": {
+              "target": {
+                "$ref": "#/components/schemas/TaskTarget"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["agent"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["cron", "timezone", "type"],
+            "properties": {
+              "cron": {
+                "type": "string"
+              },
+              "timezone": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["schedule"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["text", "type"],
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["text"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["user_id", "type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["user"]
+              },
+              "user_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A channel, document, email thread or call. `name` is the label its\nmention shows; access is always checked by `id`.",
+            "required": ["id", "type"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["entity"]
+              }
+            }
+          }
+        ],
+        "description": "A value for one variable: fixed by the creator, or chosen at activation."
+      },
+      "ChannelSharePermission": {
+        "type": "object",
+        "description": "The channel share permission",
+        "required": ["channel_id", "access_level"],
+        "properties": {
+          "access_level": {
+            "$ref": "#/components/schemas/AccessLevel",
+            "description": "The access level for the channel"
+          },
+          "channel_id": {
+            "type": "string",
+            "description": "The channel id"
+          }
+        }
+      },
       "ConditionResult": {
         "oneOf": [
           {
@@ -854,6 +1755,10 @@
         ],
         "description": "Why an event-triggered run was skipped before it started."
       },
+      "Confidence": {
+        "type": "string",
+        "enum": ["high", "check"]
+      },
       "CreateScheduledAction": {
         "oneOf": [
           {
@@ -865,9 +1770,27 @@
         ],
         "description": "Exactly one representation is accepted, even if mixed fields agree or are null."
       },
+      "CreateTemplateRequest": {
+        "type": "object",
+        "required": ["source_action_id", "draft"],
+        "properties": {
+          "draft": {
+            "$ref": "#/components/schemas/TemplateDraft"
+          },
+          "source_action_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
       "EmptyResponse": {
         "type": "object",
         "description": "Empty response is required due to custom fetch forcing `response.json()`"
+      },
+      "EventEntityType": {
+        "type": "string",
+        "enum": ["document", "channel", "email_thread", "call"]
       },
       "EventFilter": {
         "type": "object",
@@ -975,6 +1898,125 @@
           }
         }
       },
+      "ExtractTemplateRequest": {
+        "type": "object",
+        "required": ["source_action_id"],
+        "properties": {
+          "source_action_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExtractedTemplate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Extraction"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "existing_template_id": {
+                "type": ["string", "null"],
+                "format": "uuid"
+              }
+            }
+          }
+        ],
+        "description": "A routine's draft template for its owner, plus the template they\nalready made from it so the dialog can offer to update or reuse it."
+      },
+      "Extraction": {
+        "type": "object",
+        "description": "A proposed template plus the creator's own value for each variable. The\nvalues go back to the creator only, so the share dialog can switch a\nvariable to fixed; they are never stored for variable slots.",
+        "required": ["draft", "creator_values"],
+        "properties": {
+          "creator_values": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BoundValue"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "draft": {
+            "$ref": "#/components/schemas/TemplateDraft"
+          }
+        }
+      },
+      "FillTemplateRequest": {
+        "type": "object",
+        "properties": {
+          "current": {
+            "type": "object",
+            "description": "The viewer's current choices, so related variables change together.",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BoundValue"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "instruction": {
+            "type": ["string", "null"],
+            "description": "\"Do this for Initech instead\": re-fill with this instruction."
+          }
+        },
+        "additionalProperties": false
+      },
+      "FillTemplateResponse": {
+        "type": "object",
+        "required": ["variables"],
+        "properties": {
+          "name": {
+            "type": ["string", "null"],
+            "description": "A routine name using the filled values, e.g. \"Weekly Globex digest\"."
+          },
+          "variables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilledVariable"
+            }
+          }
+        }
+      },
+      "FilledVariable": {
+        "type": "object",
+        "description": "One variable after fill and validation. `value` is absent when nothing\nusable was found; `problem` then says why.",
+        "required": ["key"],
+        "properties": {
+          "confidence": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Confidence"
+              }
+            ]
+          },
+          "key": {
+            "$ref": "#/components/schemas/VariableKey"
+          },
+          "problem": {
+            "type": ["string", "null"]
+          },
+          "reason": {
+            "type": ["string", "null"]
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BoundValue"
+              }
+            ]
+          }
+        }
+      },
       "InProgressExecution": {
         "type": "object",
         "required": ["action_id"],
@@ -1025,9 +2067,118 @@
         },
         "additionalProperties": false
       },
+      "LinkShare": {
+        "type": "string",
+        "description": "Defines who can access an item through its share link.",
+        "enum": ["PUBLIC", "TEAM"]
+      },
+      "ProvenanceTemplate": {
+        "type": "object",
+        "required": ["name", "owner"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          }
+        }
+      },
+      "RebindTemplateRequest": {
+        "type": "object",
+        "required": ["bindings"],
+        "properties": {
+          "bindings": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BoundValue"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "RoutineModelId": {
         "type": "string",
         "description": "A nonblank model identifier. Runtime catalogs, not the scheduler, own availability."
+      },
+      "RoutineProvenance": {
+        "type": "object",
+        "description": "The template a routine was activated from, for the routine's owner.",
+        "required": ["template_id", "bindings", "variables", "rebindable"],
+        "properties": {
+          "bindings": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BoundValue"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "rebindable": {
+            "type": "boolean",
+            "description": "Whether the routine still reads exactly as the template rendered it,\nso a single binding can be changed."
+          },
+          "template": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProvenanceTemplate",
+                "description": "Absent when the template is gone or no longer shared with the owner."
+              }
+            ]
+          },
+          "template_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "variables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateVariable"
+            },
+            "description": "The template's variables, for labelling the bindings."
+          }
+        }
+      },
+      "RoutineTemplate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TemplateDraft"
+          },
+          {
+            "type": "object",
+            "required": ["id", "owner", "created_at", "updated_at"],
+            "properties": {
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "owner": {
+                "type": "string"
+              },
+              "source_action_id": {
+                "type": ["string", "null"],
+                "format": "uuid",
+                "description": "The routine it was made from. Absent once that routine is deleted."
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        ],
+        "description": "A stored template."
       },
       "RoutineTrigger": {
         "oneOf": [
@@ -1251,6 +2402,349 @@
         },
         "additionalProperties": false
       },
+      "SharePermissionV2": {
+        "type": "object",
+        "required": ["id", "owner"],
+        "properties": {
+          "channelSharePermissions": {
+            "type": ["array", "null"],
+            "items": {
+              "$ref": "#/components/schemas/ChannelSharePermission"
+            },
+            "description": "The channel share permissions for the item"
+          },
+          "id": {
+            "type": "string",
+            "description": "The share permission id"
+          },
+          "linkShare": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkShare",
+                "description": "Who can access the item through its share link"
+              }
+            ]
+          },
+          "linkShareAccessLevel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AccessLevel",
+                "description": "The level of access granted through the share link"
+              }
+            ]
+          },
+          "owner": {
+            "type": "string",
+            "description": "The owner of the item"
+          },
+          "teamShareAccessLevel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AccessLevel",
+                "description": "The explicit access level granted to the owner's team, or `null` when disabled."
+              }
+            ]
+          }
+        }
+      },
+      "TaskTarget": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["model", "kind"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["model"]
+              },
+              "model": {
+                "$ref": "#/components/schemas/RoutineModelId"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["bot_id", "kind"],
+            "properties": {
+              "bot_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "type": "string",
+                "enum": ["agent"]
+              },
+              "model": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RoutineModelId",
+                    "description": "Overrides the agent's default model."
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "description": "The agent or model a routine runs on."
+      },
+      "TemplateBindingErrors": {
+        "type": "object",
+        "description": "Why the given bindings can't be used, per variable.",
+        "required": ["message", "problems"],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BindingProblem"
+            }
+          }
+        }
+      },
+      "TemplateDraft": {
+        "type": "object",
+        "description": "Everything a template holds except identity and bookkeeping. This is what\nextraction proposes, the creator edits, and activation renders.",
+        "required": ["name", "task", "trigger", "variables"],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "task": {
+            "$ref": "#/components/schemas/TemplateTask"
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/TemplateTrigger"
+          },
+          "variables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateVariable"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "TemplateEventFilter": {
+        "type": "object",
+        "description": "An event filter whose ids may be variables. Filters without ids are\nalready relative to whoever owns the routine.",
+        "required": ["events"],
+        "properties": {
+          "condition": {
+            "type": ["string", "null"]
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventName"
+            }
+          },
+          "ids": {
+            "type": ["array", "null"],
+            "items": {
+              "$ref": "#/components/schemas/VariableRef"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "TemplateRoutineTrigger": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["schedule", "type"],
+            "properties": {
+              "schedule": {
+                "$ref": "#/components/schemas/VariableRef"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["cron"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["filters", "type"],
+            "properties": {
+              "filters": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TemplateEventFilter"
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": ["events"]
+              }
+            }
+          }
+        ],
+        "description": "One entry of a template's trigger list."
+      },
+      "TemplateTask": {
+        "type": "object",
+        "description": "The routine's task with its target replaced by the agent variable.",
+        "required": ["target", "user_prompt"],
+        "properties": {
+          "prompt": {
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/components/schemas/VariableRef"
+          },
+          "user_prompt": {
+            "type": "string",
+            "description": "Markdown instructions with `<m-template-variable>` nodes in place of\nperson-specific values."
+          }
+        },
+        "additionalProperties": false
+      },
+      "TemplateTrigger": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["schedule", "type"],
+            "properties": {
+              "schedule": {
+                "$ref": "#/components/schemas/VariableRef"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["cron"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["filters", "type"],
+            "properties": {
+              "filters": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TemplateEventFilter"
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": ["events"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["triggers", "type"],
+            "properties": {
+              "triggers": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TemplateRoutineTrigger"
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": ["multiple"]
+              }
+            }
+          }
+        ],
+        "description": "A routine trigger with variables where values would appear. Mirrors\n`ActionTrigger`; a cron entry's schedule and timezone are one variable."
+      },
+      "TemplateVariable": {
+        "type": "object",
+        "description": "A named slot in a template.",
+        "required": ["key", "label", "description", "kind", "mode"],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "One line, written for the person activating the template."
+          },
+          "key": {
+            "$ref": "#/components/schemas/VariableKey"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/VariableKind"
+          },
+          "label": {
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/VariableMode"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TemplateView": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RoutineTemplate"
+          },
+          {
+            "type": "object",
+            "required": ["your_activations", "activation_count"],
+            "properties": {
+              "activation_count": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "your_activations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Routines the viewer activated from this template."
+              }
+            }
+          }
+        ],
+        "description": "A template as a viewer sees it. Never holds the creator's values for\nvariable slots, because the template never stores them."
+      },
+      "UpdateChannelSharePermission": {
+        "type": "object",
+        "required": ["operation", "channelId"],
+        "properties": {
+          "accessLevel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AccessLevel",
+                "description": "The access level for the channel\nThis is required if the operation is add or replace"
+              }
+            ]
+          },
+          "channelId": {
+            "type": "string",
+            "description": "The channel id"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/UpdateOperation",
+            "description": "The type of operation to be performed on the chanel share permission\nYou can add, remove or replace and existing permission"
+          }
+        }
+      },
+      "UpdateOperation": {
+        "type": "string",
+        "enum": ["add", "remove", "replace"]
+      },
       "UpdateScheduledAction": {
         "oneOf": [
           {
@@ -1261,6 +2755,186 @@
           }
         ],
         "description": "Full replacement of client configuration, not of server-owned action state."
+      },
+      "UpdateSharePermissionRequestV2": {
+        "type": "object",
+        "properties": {
+          "channelSharePermissions": {
+            "type": ["array", "null"],
+            "items": {
+              "$ref": "#/components/schemas/UpdateChannelSharePermission"
+            },
+            "description": "Any channel share permissions to be created/updated/removed"
+          },
+          "linkShare": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkShare",
+                "description": "Who can access the item through its share link. Omit to leave unchanged or pass `null` to\ndisable link sharing."
+              }
+            ]
+          },
+          "linkShareAccessLevel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AccessLevel",
+                "description": "The link access level. Omit to leave unchanged or pass `null` to reset it to the default\nlevel when a link share exists."
+              }
+            ]
+          },
+          "teamShareAccessLevel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AccessLevel",
+                "description": "The explicit team access level. Omit to leave unchanged or pass `null` to disable team\nsharing. Only the actual owner may change this setting; `owner` is not an allowed level."
+              }
+            ]
+          }
+        }
+      },
+      "UpdateTemplateRequest": {
+        "type": "object",
+        "required": ["draft"],
+        "properties": {
+          "draft": {
+            "$ref": "#/components/schemas/TemplateDraft"
+          }
+        },
+        "additionalProperties": false
+      },
+      "VariableKey": {
+        "type": "string",
+        "description": "A stable slug naming a variable within one template: `urgent_channel`."
+      },
+      "VariableKind": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "The routine's target: an agent, or a model on Macro's runtime.",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["agent"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A cron schedule and its timezone.",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["schedule"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Free text, such as a company or an email domain.",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["text"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["user"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["channel"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["document"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "An email thread or call watched by an event trigger.",
+            "required": ["entity_type", "type"],
+            "properties": {
+              "entity_type": {
+                "$ref": "#/components/schemas/EventEntityType"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["event_entity"]
+              }
+            }
+          }
+        ],
+        "description": "What a variable stands for, and so which picker fills it."
+      },
+      "VariableMode": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["variable"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["value", "type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["fixed"]
+              },
+              "value": {
+                "$ref": "#/components/schemas/BoundValue"
+              }
+            }
+          }
+        ],
+        "description": "Whether each activator fills a variable in, or everyone gets the\ncreator's value."
+      },
+      "VariableRef": {
+        "type": "object",
+        "description": "`{\"$var\": \"<key>\"}`: where a template holds a variable instead of a value.",
+        "required": ["$var"],
+        "properties": {
+          "$var": {
+            "$ref": "#/components/schemas/VariableKey"
+          }
+        },
+        "additionalProperties": false
       }
     }
   },
@@ -1268,6 +2942,10 @@
     {
       "name": "scheduled actions",
       "description": "Scheduled action service"
+    },
+    {
+      "name": "routine templates",
+      "description": "Shareable routine templates"
     }
   ]
 }

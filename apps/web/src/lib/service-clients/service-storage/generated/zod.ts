@@ -4061,6 +4061,7 @@ export const getCollabSurfaceResponse = zod
         'database',
         'database_row',
         'form',
+        'routine_template',
       ])
       .describe('The type of an entity in Macro')
       .describe('Type of the parent entity.'),
@@ -4117,6 +4118,7 @@ export const ensureCollabSurfaceBody = zod
         'database',
         'database_row',
         'form',
+        'routine_template',
       ])
       .describe('The type of an entity in Macro')
       .describe('Type of the parent entity access derives from.'),
@@ -4154,6 +4156,7 @@ export const ensureCollabSurfaceResponse = zod
         'database',
         'database_row',
         'form',
+        'routine_template',
       ])
       .describe('The type of an entity in Macro')
       .describe('Type of the parent entity.'),
@@ -19292,6 +19295,7 @@ export const listFavoritesQueryParams = zod.object({
           'database',
           'database_row',
           'form',
+          'routine_template',
         ])
         .describe('The type of an entity in Macro')
     )
@@ -19356,6 +19360,7 @@ export const listFavoritesResponse = zod
                 'database',
                 'database_row',
                 'form',
+                'routine_template',
               ])
               .describe('The type of an entity in Macro')
               .describe('The type of the favorited entity.'),
@@ -19408,6 +19413,7 @@ export const addFavoriteBody = zod
         'database',
         'database_row',
         'form',
+        'routine_template',
       ])
       .describe('The type of an entity in Macro')
       .describe('The type of the entity to favorite.'),
@@ -19461,6 +19467,7 @@ export const addFavoriteResponse = zod
         'database',
         'database_row',
         'form',
+        'routine_template',
       ])
       .describe('The type of an entity in Macro')
       .describe('The type of the favorited entity.'),
@@ -19511,6 +19518,7 @@ export const reorderFavoritesBody = zod
                 'database',
                 'database_row',
                 'form',
+                'routine_template',
               ])
               .describe('The type of an entity in Macro')
               .describe('The type of the favorited entity.'),
@@ -19554,6 +19562,7 @@ export const removeFavoriteByEntityParams = zod.object({
       'database',
       'database_row',
       'form',
+      'routine_template',
     ])
     .describe('The type of the favorited entity.'),
   entity_id: zod.string().describe('The id of the favorited entity.'),

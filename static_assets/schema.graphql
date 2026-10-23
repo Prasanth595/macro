@@ -4477,6 +4477,10 @@ enum GraphqlEntityType {
 	Macro Form entity (a questionnaire answered into a database table).
 	"""
 	FORM
+	"""
+	Routine template entity (a shareable snapshot of a routine).
+	"""
+	ROUTINE_TEMPLATE
 }
 
 """

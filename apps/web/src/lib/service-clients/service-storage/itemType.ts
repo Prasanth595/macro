@@ -14,6 +14,7 @@ export type ItemType =
   | 'form'
   | 'agent_session'
   | 'routine'
+  | 'routine_template'
   | 'calendar_event'
   | 'foreign'
   | 'crm_company'
@@ -62,6 +63,7 @@ export function stringToItemType(str: string): ItemType | undefined {
       'crm_contact',
       'crm_pipeline',
       'initiative',
+      'routine_template',
       (itemType) => itemType
     )
     .otherwise(() => undefined);
@@ -89,6 +91,7 @@ export function blockNameToItemType(
     .with('contact', () => 'crm_contact')
     .with('pipeline', () => 'crm_pipeline')
     .with('pr', () => 'foreign')
+    .with('routine-template', () => 'routine_template')
     .otherwise(() => DEFAULT_ITEM_TYPE);
 }
 

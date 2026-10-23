@@ -1224,6 +1224,8 @@ export type GraphqlEntityType =
   | 'PROJECT'
   /** Reminder entity. */
   | 'REMINDER'
+  /** Routine template entity (a shareable snapshot of a routine). */
+  | 'ROUTINE_TEMPLATE'
   /** Scheduled action entity. */
   | 'SCHEDULED_ACTION'
   /** AI skill entity (skill document or built-in system skill). */

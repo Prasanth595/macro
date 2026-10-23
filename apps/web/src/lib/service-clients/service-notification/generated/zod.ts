@@ -67,6 +67,7 @@ export const unsubscribeItemParams = zod.object({
     'database',
     'database_row',
     'form',
+    'routine_template',
   ]),
   item_id: zod.string(),
 });
@@ -112,6 +113,7 @@ export const removeUnsubscribeItemParams = zod.object({
     'database',
     'database_row',
     'form',
+    'routine_template',
   ]),
   item_id: zod.string(),
 });
@@ -222,6 +224,7 @@ export const listTypedNotificationsResponse = zod
                 'database',
                 'database_row',
                 'form',
+                'routine_template',
               ])
               .describe('The type of an entity in Macro'),
           })
@@ -2218,6 +2221,7 @@ export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
                 'database',
                 'database_row',
                 'form',
+                'routine_template',
               ])
               .describe('The type of an entity in Macro'),
           })
@@ -4208,6 +4212,7 @@ export const getTypedNotificationsByEventItemIdResponse = zod
                 'database',
                 'database_row',
                 'form',
+                'routine_template',
               ])
               .describe('The type of an entity in Macro'),
           })
@@ -6203,6 +6208,7 @@ export const getTypedNotificationByIdResponse = zod
         'database',
         'database_row',
         'form',
+        'routine_template',
       ])
       .describe('The type of an entity in Macro'),
   })

@@ -6,6 +6,7 @@
  */
 import type { ToolSetOneOf } from './toolSetOneOf';
 import type { ToolSetOneOfFive } from './toolSetOneOfFive';
+import type { ToolSetOneOfNine } from './toolSetOneOfNine';
 import type { ToolSetOneOfSeven } from './toolSetOneOfSeven';
 import type { ToolSetOneOfThree } from './toolSetOneOfThree';
 
@@ -13,4 +14,5 @@ export type ToolSet =
   | ToolSetOneOf
   | ToolSetOneOfThree
   | ToolSetOneOfFive
-  | ToolSetOneOfSeven;
+  | ToolSetOneOfSeven
+  | ToolSetOneOfNine;

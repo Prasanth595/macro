@@ -7,14 +7,28 @@
  */
 import type {
   ActionExecutionRecord,
+  ActivateTemplateRequest,
   AiAdmissionErrorBody,
   CreateScheduledAction,
+  CreateTemplateRequest,
   EmptyResponse,
+  ExtractedTemplate,
+  ExtractTemplateRequest,
+  FillTemplateRequest,
+  FillTemplateResponse,
+  GetRoutineTemplateProvenance200,
   InProgressExecution,
   ListScheduledActionsParams,
+  RebindTemplateRequest,
+  RoutineTemplate,
   ScheduledActionResponse,
   SetScheduledActionEnabled,
+  SharePermissionV2,
+  TemplateBindingErrors,
+  TemplateView,
   UpdateScheduledAction,
+  UpdateSharePermissionRequestV2,
+  UpdateTemplateRequest,
 } from './schemas';
 
 export type scheduledActionHealthResponse200 = {
@@ -52,6 +66,605 @@ export const scheduledActionHealth = async (
     status: res.status,
     headers: res.headers,
   } as scheduledActionHealthResponse;
+};
+
+export type createRoutineTemplateResponse201 = {
+  data: RoutineTemplate;
+  status: 201;
+};
+
+export type createRoutineTemplateResponse400 = {
+  data: string;
+  status: 400;
+};
+
+export type createRoutineTemplateResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type createRoutineTemplateResponse404 = {
+  data: string;
+  status: 404;
+};
+
+export type createRoutineTemplateResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type createRoutineTemplateResponseSuccess =
+  createRoutineTemplateResponse201 & {
+    headers: Headers;
+  };
+export type createRoutineTemplateResponseError = (
+  | createRoutineTemplateResponse400
+  | createRoutineTemplateResponse401
+  | createRoutineTemplateResponse404
+  | createRoutineTemplateResponse500
+) & {
+  headers: Headers;
+};
+
+export type createRoutineTemplateResponse =
+  | createRoutineTemplateResponseSuccess
+  | createRoutineTemplateResponseError;
+
+export const getCreateRoutineTemplateUrl = () => {
+  return `/routine-templates`;
+};
+
+export const createRoutineTemplate = async (
+  createTemplateRequest: CreateTemplateRequest,
+  options?: RequestInit
+): Promise<createRoutineTemplateResponse> => {
+  const res = await fetch(getCreateRoutineTemplateUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createTemplateRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: createRoutineTemplateResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createRoutineTemplateResponse;
+};
+
+export type extractRoutineTemplateResponse200 = {
+  data: ExtractedTemplate;
+  status: 200;
+};
+
+export type extractRoutineTemplateResponse400 = {
+  data: string;
+  status: 400;
+};
+
+export type extractRoutineTemplateResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type extractRoutineTemplateResponse404 = {
+  data: string;
+  status: 404;
+};
+
+export type extractRoutineTemplateResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type extractRoutineTemplateResponseSuccess =
+  extractRoutineTemplateResponse200 & {
+    headers: Headers;
+  };
+export type extractRoutineTemplateResponseError = (
+  | extractRoutineTemplateResponse400
+  | extractRoutineTemplateResponse401
+  | extractRoutineTemplateResponse404
+  | extractRoutineTemplateResponse500
+) & {
+  headers: Headers;
+};
+
+export type extractRoutineTemplateResponse =
+  | extractRoutineTemplateResponseSuccess
+  | extractRoutineTemplateResponseError;
+
+export const getExtractRoutineTemplateUrl = () => {
+  return `/routine-templates/extract`;
+};
+
+export const extractRoutineTemplate = async (
+  extractTemplateRequest: ExtractTemplateRequest,
+  options?: RequestInit
+): Promise<extractRoutineTemplateResponse> => {
+  const res = await fetch(getExtractRoutineTemplateUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(extractTemplateRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: extractRoutineTemplateResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as extractRoutineTemplateResponse;
+};
+
+export type getRoutineTemplateResponse200 = {
+  data: TemplateView;
+  status: 200;
+};
+
+export type getRoutineTemplateResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type getRoutineTemplateResponse404 = {
+  data: string;
+  status: 404;
+};
+
+export type getRoutineTemplateResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type getRoutineTemplateResponseSuccess =
+  getRoutineTemplateResponse200 & {
+    headers: Headers;
+  };
+export type getRoutineTemplateResponseError = (
+  | getRoutineTemplateResponse401
+  | getRoutineTemplateResponse404
+  | getRoutineTemplateResponse500
+) & {
+  headers: Headers;
+};
+
+export type getRoutineTemplateResponse =
+  | getRoutineTemplateResponseSuccess
+  | getRoutineTemplateResponseError;
+
+export const getGetRoutineTemplateUrl = (id: string) => {
+  return `/routine-templates/${id}`;
+};
+
+export const getRoutineTemplate = async (
+  id: string,
+  options?: RequestInit
+): Promise<getRoutineTemplateResponse> => {
+  const res = await fetch(getGetRoutineTemplateUrl(id), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getRoutineTemplateResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getRoutineTemplateResponse;
+};
+
+export type updateRoutineTemplateResponse200 = {
+  data: RoutineTemplate;
+  status: 200;
+};
+
+export type updateRoutineTemplateResponse400 = {
+  data: string;
+  status: 400;
+};
+
+export type updateRoutineTemplateResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type updateRoutineTemplateResponse404 = {
+  data: string;
+  status: 404;
+};
+
+export type updateRoutineTemplateResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type updateRoutineTemplateResponseSuccess =
+  updateRoutineTemplateResponse200 & {
+    headers: Headers;
+  };
+export type updateRoutineTemplateResponseError = (
+  | updateRoutineTemplateResponse400
+  | updateRoutineTemplateResponse401
+  | updateRoutineTemplateResponse404
+  | updateRoutineTemplateResponse500
+) & {
+  headers: Headers;
+};
+
+export type updateRoutineTemplateResponse =
+  | updateRoutineTemplateResponseSuccess
+  | updateRoutineTemplateResponseError;
+
+export const getUpdateRoutineTemplateUrl = (id: string) => {
+  return `/routine-templates/${id}`;
+};
+
+export const updateRoutineTemplate = async (
+  id: string,
+  updateTemplateRequest: UpdateTemplateRequest,
+  options?: RequestInit
+): Promise<updateRoutineTemplateResponse> => {
+  const res = await fetch(getUpdateRoutineTemplateUrl(id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateTemplateRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: updateRoutineTemplateResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as updateRoutineTemplateResponse;
+};
+
+export type deleteRoutineTemplateResponse204 = {
+  data: void;
+  status: 204;
+};
+
+export type deleteRoutineTemplateResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type deleteRoutineTemplateResponse404 = {
+  data: string;
+  status: 404;
+};
+
+export type deleteRoutineTemplateResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type deleteRoutineTemplateResponseSuccess =
+  deleteRoutineTemplateResponse204 & {
+    headers: Headers;
+  };
+export type deleteRoutineTemplateResponseError = (
+  | deleteRoutineTemplateResponse401
+  | deleteRoutineTemplateResponse404
+  | deleteRoutineTemplateResponse500
+) & {
+  headers: Headers;
+};
+
+export type deleteRoutineTemplateResponse =
+  | deleteRoutineTemplateResponseSuccess
+  | deleteRoutineTemplateResponseError;
+
+export const getDeleteRoutineTemplateUrl = (id: string) => {
+  return `/routine-templates/${id}`;
+};
+
+export const deleteRoutineTemplate = async (
+  id: string,
+  options?: RequestInit
+): Promise<deleteRoutineTemplateResponse> => {
+  const res = await fetch(getDeleteRoutineTemplateUrl(id), {
+    ...options,
+    method: 'DELETE',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: deleteRoutineTemplateResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as deleteRoutineTemplateResponse;
+};
+
+export type activateRoutineTemplateResponse201 = {
+  data: ScheduledActionResponse;
+  status: 201;
+};
+
+export type activateRoutineTemplateResponse400 = {
+  data: TemplateBindingErrors;
+  status: 400;
+};
+
+export type activateRoutineTemplateResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type activateRoutineTemplateResponse404 = {
+  data: string;
+  status: 404;
+};
+
+export type activateRoutineTemplateResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type activateRoutineTemplateResponseSuccess =
+  activateRoutineTemplateResponse201 & {
+    headers: Headers;
+  };
+export type activateRoutineTemplateResponseError = (
+  | activateRoutineTemplateResponse400
+  | activateRoutineTemplateResponse401
+  | activateRoutineTemplateResponse404
+  | activateRoutineTemplateResponse500
+) & {
+  headers: Headers;
+};
+
+export type activateRoutineTemplateResponse =
+  | activateRoutineTemplateResponseSuccess
+  | activateRoutineTemplateResponseError;
+
+export const getActivateRoutineTemplateUrl = (id: string) => {
+  return `/routine-templates/${id}/activate`;
+};
+
+export const activateRoutineTemplate = async (
+  id: string,
+  activateTemplateRequest: ActivateTemplateRequest,
+  options?: RequestInit
+): Promise<activateRoutineTemplateResponse> => {
+  const res = await fetch(getActivateRoutineTemplateUrl(id), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(activateTemplateRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: activateRoutineTemplateResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as activateRoutineTemplateResponse;
+};
+
+export type fillRoutineTemplateResponse200 = {
+  data: FillTemplateResponse;
+  status: 200;
+};
+
+export type fillRoutineTemplateResponse400 = {
+  data: string;
+  status: 400;
+};
+
+export type fillRoutineTemplateResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type fillRoutineTemplateResponse404 = {
+  data: string;
+  status: 404;
+};
+
+export type fillRoutineTemplateResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type fillRoutineTemplateResponseSuccess =
+  fillRoutineTemplateResponse200 & {
+    headers: Headers;
+  };
+export type fillRoutineTemplateResponseError = (
+  | fillRoutineTemplateResponse400
+  | fillRoutineTemplateResponse401
+  | fillRoutineTemplateResponse404
+  | fillRoutineTemplateResponse500
+) & {
+  headers: Headers;
+};
+
+export type fillRoutineTemplateResponse =
+  | fillRoutineTemplateResponseSuccess
+  | fillRoutineTemplateResponseError;
+
+export const getFillRoutineTemplateUrl = (id: string) => {
+  return `/routine-templates/${id}/fill`;
+};
+
+export const fillRoutineTemplate = async (
+  id: string,
+  fillTemplateRequest: FillTemplateRequest,
+  options?: RequestInit
+): Promise<fillRoutineTemplateResponse> => {
+  const res = await fetch(getFillRoutineTemplateUrl(id), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(fillTemplateRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: fillRoutineTemplateResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as fillRoutineTemplateResponse;
+};
+
+export type getRoutineTemplatePermissionsResponse200 = {
+  data: SharePermissionV2;
+  status: 200;
+};
+
+export type getRoutineTemplatePermissionsResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type getRoutineTemplatePermissionsResponse404 = {
+  data: string;
+  status: 404;
+};
+
+export type getRoutineTemplatePermissionsResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type getRoutineTemplatePermissionsResponseSuccess =
+  getRoutineTemplatePermissionsResponse200 & {
+    headers: Headers;
+  };
+export type getRoutineTemplatePermissionsResponseError = (
+  | getRoutineTemplatePermissionsResponse401
+  | getRoutineTemplatePermissionsResponse404
+  | getRoutineTemplatePermissionsResponse500
+) & {
+  headers: Headers;
+};
+
+export type getRoutineTemplatePermissionsResponse =
+  | getRoutineTemplatePermissionsResponseSuccess
+  | getRoutineTemplatePermissionsResponseError;
+
+export const getGetRoutineTemplatePermissionsUrl = (id: string) => {
+  return `/routine-templates/${id}/permissions`;
+};
+
+export const getRoutineTemplatePermissions = async (
+  id: string,
+  options?: RequestInit
+): Promise<getRoutineTemplatePermissionsResponse> => {
+  const res = await fetch(getGetRoutineTemplatePermissionsUrl(id), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getRoutineTemplatePermissionsResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getRoutineTemplatePermissionsResponse;
+};
+
+export type updateRoutineTemplatePermissionsResponse200 = {
+  data: SharePermissionV2;
+  status: 200;
+};
+
+export type updateRoutineTemplatePermissionsResponse400 = {
+  data: string;
+  status: 400;
+};
+
+export type updateRoutineTemplatePermissionsResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type updateRoutineTemplatePermissionsResponse404 = {
+  data: string;
+  status: 404;
+};
+
+export type updateRoutineTemplatePermissionsResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type updateRoutineTemplatePermissionsResponseSuccess =
+  updateRoutineTemplatePermissionsResponse200 & {
+    headers: Headers;
+  };
+export type updateRoutineTemplatePermissionsResponseError = (
+  | updateRoutineTemplatePermissionsResponse400
+  | updateRoutineTemplatePermissionsResponse401
+  | updateRoutineTemplatePermissionsResponse404
+  | updateRoutineTemplatePermissionsResponse500
+) & {
+  headers: Headers;
+};
+
+export type updateRoutineTemplatePermissionsResponse =
+  | updateRoutineTemplatePermissionsResponseSuccess
+  | updateRoutineTemplatePermissionsResponseError;
+
+export const getUpdateRoutineTemplatePermissionsUrl = (id: string) => {
+  return `/routine-templates/${id}/permissions`;
+};
+
+export const updateRoutineTemplatePermissions = async (
+  id: string,
+  updateSharePermissionRequestV2: UpdateSharePermissionRequestV2,
+  options?: RequestInit
+): Promise<updateRoutineTemplatePermissionsResponse> => {
+  const res = await fetch(getUpdateRoutineTemplatePermissionsUrl(id), {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateSharePermissionRequestV2),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: updateRoutineTemplatePermissionsResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as updateRoutineTemplatePermissionsResponse;
 };
 
 export type listScheduledActionsResponse200 = {
@@ -614,4 +1227,141 @@ export const listScheduledActionHistory = async (
     status: res.status,
     headers: res.headers,
   } as listScheduledActionHistoryResponse;
+};
+
+export type getRoutineTemplateProvenanceResponse200 = {
+  data: GetRoutineTemplateProvenance200;
+  status: 200;
+};
+
+export type getRoutineTemplateProvenanceResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type getRoutineTemplateProvenanceResponse404 = {
+  data: string;
+  status: 404;
+};
+
+export type getRoutineTemplateProvenanceResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type getRoutineTemplateProvenanceResponseSuccess =
+  getRoutineTemplateProvenanceResponse200 & {
+    headers: Headers;
+  };
+export type getRoutineTemplateProvenanceResponseError = (
+  | getRoutineTemplateProvenanceResponse401
+  | getRoutineTemplateProvenanceResponse404
+  | getRoutineTemplateProvenanceResponse500
+) & {
+  headers: Headers;
+};
+
+export type getRoutineTemplateProvenanceResponse =
+  | getRoutineTemplateProvenanceResponseSuccess
+  | getRoutineTemplateProvenanceResponseError;
+
+export const getGetRoutineTemplateProvenanceUrl = (id: string) => {
+  return `/scheduled-actions/${id}/template`;
+};
+
+export const getRoutineTemplateProvenance = async (
+  id: string,
+  options?: RequestInit
+): Promise<getRoutineTemplateProvenanceResponse> => {
+  const res = await fetch(getGetRoutineTemplateProvenanceUrl(id), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getRoutineTemplateProvenanceResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getRoutineTemplateProvenanceResponse;
+};
+
+export type rebindRoutineTemplateResponse200 = {
+  data: ScheduledActionResponse;
+  status: 200;
+};
+
+export type rebindRoutineTemplateResponse400 = {
+  data: TemplateBindingErrors;
+  status: 400;
+};
+
+export type rebindRoutineTemplateResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type rebindRoutineTemplateResponse404 = {
+  data: string;
+  status: 404;
+};
+
+export type rebindRoutineTemplateResponse409 = {
+  data: string;
+  status: 409;
+};
+
+export type rebindRoutineTemplateResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type rebindRoutineTemplateResponseSuccess =
+  rebindRoutineTemplateResponse200 & {
+    headers: Headers;
+  };
+export type rebindRoutineTemplateResponseError = (
+  | rebindRoutineTemplateResponse400
+  | rebindRoutineTemplateResponse401
+  | rebindRoutineTemplateResponse404
+  | rebindRoutineTemplateResponse409
+  | rebindRoutineTemplateResponse500
+) & {
+  headers: Headers;
+};
+
+export type rebindRoutineTemplateResponse =
+  | rebindRoutineTemplateResponseSuccess
+  | rebindRoutineTemplateResponseError;
+
+export const getRebindRoutineTemplateUrl = (id: string) => {
+  return `/scheduled-actions/${id}/template/bindings`;
+};
+
+export const rebindRoutineTemplate = async (
+  id: string,
+  rebindTemplateRequest: RebindTemplateRequest,
+  options?: RequestInit
+): Promise<rebindRoutineTemplateResponse> => {
+  const res = await fetch(getRebindRoutineTemplateUrl(id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(rebindTemplateRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: rebindRoutineTemplateResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as rebindRoutineTemplateResponse;
 };

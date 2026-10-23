@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateScheduledActionData, CreateScheduledActionErrors, CreateScheduledActionResponses, DeleteScheduledActionData, DeleteScheduledActionErrors, DeleteScheduledActionResponses, ExecuteScheduledActionNowData, ExecuteScheduledActionNowErrors, ExecuteScheduledActionNowResponses, GetScheduledActionData, GetScheduledActionErrors, GetScheduledActionResponses, ListScheduledActionHistoryData, ListScheduledActionHistoryErrors, ListScheduledActionHistoryResponses, ListScheduledActionsData, ListScheduledActionsErrors, ListScheduledActionsResponses, ScheduledActionHealthData, ScheduledActionHealthResponses, SetScheduledActionEnabledData, SetScheduledActionEnabledErrors, SetScheduledActionEnabledResponses, UpdateScheduledActionData, UpdateScheduledActionErrors, UpdateScheduledActionResponses } from './types.gen';
+import type { ActivateRoutineTemplateData, ActivateRoutineTemplateErrors, ActivateRoutineTemplateResponses, CreateRoutineTemplateData, CreateRoutineTemplateErrors, CreateRoutineTemplateResponses, CreateScheduledActionData, CreateScheduledActionErrors, CreateScheduledActionResponses, DeleteRoutineTemplateData, DeleteRoutineTemplateErrors, DeleteRoutineTemplateResponses, DeleteScheduledActionData, DeleteScheduledActionErrors, DeleteScheduledActionResponses, ExecuteScheduledActionNowData, ExecuteScheduledActionNowErrors, ExecuteScheduledActionNowResponses, ExtractRoutineTemplateData, ExtractRoutineTemplateErrors, ExtractRoutineTemplateResponses, FillRoutineTemplateData, FillRoutineTemplateErrors, FillRoutineTemplateResponses, GetRoutineTemplateData, GetRoutineTemplateErrors, GetRoutineTemplatePermissionsData, GetRoutineTemplatePermissionsErrors, GetRoutineTemplatePermissionsResponses, GetRoutineTemplateProvenanceData, GetRoutineTemplateProvenanceErrors, GetRoutineTemplateProvenanceResponses, GetRoutineTemplateResponses, GetScheduledActionData, GetScheduledActionErrors, GetScheduledActionResponses, ListScheduledActionHistoryData, ListScheduledActionHistoryErrors, ListScheduledActionHistoryResponses, ListScheduledActionsData, ListScheduledActionsErrors, ListScheduledActionsResponses, RebindRoutineTemplateData, RebindRoutineTemplateErrors, RebindRoutineTemplateResponses, ScheduledActionHealthData, ScheduledActionHealthResponses, SetScheduledActionEnabledData, SetScheduledActionEnabledErrors, SetScheduledActionEnabledResponses, UpdateRoutineTemplateData, UpdateRoutineTemplateErrors, UpdateRoutineTemplatePermissionsData, UpdateRoutineTemplatePermissionsErrors, UpdateRoutineTemplatePermissionsResponses, UpdateRoutineTemplateResponses, UpdateScheduledActionData, UpdateScheduledActionErrors, UpdateScheduledActionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -61,6 +61,84 @@ export class Sdk extends HeyApiClient {
         return (options?.client ?? this.client).get<ScheduledActionHealthResponses, unknown, ThrowOnError>({ url: '/health', ...options });
     }
     
+    public createRoutineTemplate<ThrowOnError extends boolean = false>(options: Options<CreateRoutineTemplateData, ThrowOnError>): RequestResult<CreateRoutineTemplateResponses, CreateRoutineTemplateErrors, ThrowOnError> {
+        return (options.client ?? this.client).post<CreateRoutineTemplateResponses, CreateRoutineTemplateErrors, ThrowOnError>({
+            url: '/routine-templates',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    public extractRoutineTemplate<ThrowOnError extends boolean = false>(options: Options<ExtractRoutineTemplateData, ThrowOnError>): RequestResult<ExtractRoutineTemplateResponses, ExtractRoutineTemplateErrors, ThrowOnError> {
+        return (options.client ?? this.client).post<ExtractRoutineTemplateResponses, ExtractRoutineTemplateErrors, ThrowOnError>({
+            url: '/routine-templates/extract',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    public deleteRoutineTemplate<ThrowOnError extends boolean = false>(options: Options<DeleteRoutineTemplateData, ThrowOnError>): RequestResult<DeleteRoutineTemplateResponses, DeleteRoutineTemplateErrors, ThrowOnError> {
+        return (options.client ?? this.client).delete<DeleteRoutineTemplateResponses, DeleteRoutineTemplateErrors, ThrowOnError>({ url: '/routine-templates/{id}', ...options });
+    }
+    
+    public getRoutineTemplate<ThrowOnError extends boolean = false>(options: Options<GetRoutineTemplateData, ThrowOnError>): RequestResult<GetRoutineTemplateResponses, GetRoutineTemplateErrors, ThrowOnError> {
+        return (options.client ?? this.client).get<GetRoutineTemplateResponses, GetRoutineTemplateErrors, ThrowOnError>({ url: '/routine-templates/{id}', ...options });
+    }
+    
+    public updateRoutineTemplate<ThrowOnError extends boolean = false>(options: Options<UpdateRoutineTemplateData, ThrowOnError>): RequestResult<UpdateRoutineTemplateResponses, UpdateRoutineTemplateErrors, ThrowOnError> {
+        return (options.client ?? this.client).put<UpdateRoutineTemplateResponses, UpdateRoutineTemplateErrors, ThrowOnError>({
+            url: '/routine-templates/{id}',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    public activateRoutineTemplate<ThrowOnError extends boolean = false>(options: Options<ActivateRoutineTemplateData, ThrowOnError>): RequestResult<ActivateRoutineTemplateResponses, ActivateRoutineTemplateErrors, ThrowOnError> {
+        return (options.client ?? this.client).post<ActivateRoutineTemplateResponses, ActivateRoutineTemplateErrors, ThrowOnError>({
+            url: '/routine-templates/{id}/activate',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    public fillRoutineTemplate<ThrowOnError extends boolean = false>(options: Options<FillRoutineTemplateData, ThrowOnError>): RequestResult<FillRoutineTemplateResponses, FillRoutineTemplateErrors, ThrowOnError> {
+        return (options.client ?? this.client).post<FillRoutineTemplateResponses, FillRoutineTemplateErrors, ThrowOnError>({
+            url: '/routine-templates/{id}/fill',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    public getRoutineTemplatePermissions<ThrowOnError extends boolean = false>(options: Options<GetRoutineTemplatePermissionsData, ThrowOnError>): RequestResult<GetRoutineTemplatePermissionsResponses, GetRoutineTemplatePermissionsErrors, ThrowOnError> {
+        return (options.client ?? this.client).get<GetRoutineTemplatePermissionsResponses, GetRoutineTemplatePermissionsErrors, ThrowOnError>({ url: '/routine-templates/{id}/permissions', ...options });
+    }
+    
+    public updateRoutineTemplatePermissions<ThrowOnError extends boolean = false>(options: Options<UpdateRoutineTemplatePermissionsData, ThrowOnError>): RequestResult<UpdateRoutineTemplatePermissionsResponses, UpdateRoutineTemplatePermissionsErrors, ThrowOnError> {
+        return (options.client ?? this.client).patch<UpdateRoutineTemplatePermissionsResponses, UpdateRoutineTemplatePermissionsErrors, ThrowOnError>({
+            url: '/routine-templates/{id}/permissions',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
     public listScheduledActions<ThrowOnError extends boolean = false>(options?: Options<ListScheduledActionsData, ThrowOnError>): RequestResult<ListScheduledActionsResponses, ListScheduledActionsErrors, ThrowOnError> {
         return (options?.client ?? this.client).get<ListScheduledActionsResponses, ListScheduledActionsErrors, ThrowOnError>({ url: '/scheduled-actions', ...options });
     }
@@ -112,5 +190,20 @@ export class Sdk extends HeyApiClient {
     
     public listScheduledActionHistory<ThrowOnError extends boolean = false>(options: Options<ListScheduledActionHistoryData, ThrowOnError>): RequestResult<ListScheduledActionHistoryResponses, ListScheduledActionHistoryErrors, ThrowOnError> {
         return (options.client ?? this.client).get<ListScheduledActionHistoryResponses, ListScheduledActionHistoryErrors, ThrowOnError>({ url: '/scheduled-actions/{id}/history', ...options });
+    }
+    
+    public getRoutineTemplateProvenance<ThrowOnError extends boolean = false>(options: Options<GetRoutineTemplateProvenanceData, ThrowOnError>): RequestResult<GetRoutineTemplateProvenanceResponses, GetRoutineTemplateProvenanceErrors, ThrowOnError> {
+        return (options.client ?? this.client).get<GetRoutineTemplateProvenanceResponses, GetRoutineTemplateProvenanceErrors, ThrowOnError>({ url: '/scheduled-actions/{id}/template', ...options });
+    }
+    
+    public rebindRoutineTemplate<ThrowOnError extends boolean = false>(options: Options<RebindRoutineTemplateData, ThrowOnError>): RequestResult<RebindRoutineTemplateResponses, RebindRoutineTemplateErrors, ThrowOnError> {
+        return (options.client ?? this.client).put<RebindRoutineTemplateResponses, RebindRoutineTemplateErrors, ThrowOnError>({
+            url: '/scheduled-actions/{id}/template/bindings',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
     }
 }

@@ -266,6 +266,8 @@ export * from './toolSet';
 export * from './toolSetOneOf';
 export * from './toolSetOneOfFive';
 export * from './toolSetOneOfFiveType';
+export * from './toolSetOneOfNine';
+export * from './toolSetOneOfNineType';
 export * from './toolSetOneOfSeven';
 export * from './toolSetOneOfSevenType';
 export * from './toolSetOneOfThree';
