@@ -370,12 +370,15 @@ pub(super) fn settle(
                     )
                 };
             }
+            // Reviews default to none on an otherwise valid result; a result
+            // that fails is kept as the program returned it.
             if let Some(object) = value.as_object_mut()
                 && object.contains_key("data")
+                && object
+                    .keys()
+                    .all(|key| matches!(key.as_str(), "data" | "view"))
             {
-                object
-                    .entry("reviews")
-                    .or_insert_with(|| serde_json::json!([]));
+                object.insert("reviews".into(), serde_json::json!([]));
             }
             let valid = value.as_object().is_some_and(|object| {
                 object.contains_key("data")

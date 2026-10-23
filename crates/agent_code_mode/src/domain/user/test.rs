@@ -120,7 +120,12 @@ async fn a_view_fails_outside_a_session() {
         .unwrap();
 
     assert_eq!(receipt.status, ExecutionStatus::Failed);
-    assert!(receipt.error.unwrap().contains("views and reviews are unavailable"));
+    assert!(
+        receipt
+            .error
+            .unwrap()
+            .contains("views and reviews are unavailable")
+    );
 }
 
 #[tokio::test]
