@@ -69,3 +69,24 @@ fn date_groups_reject_unknown_keys_and_invalid_partitions() {
         ))
     );
 }
+
+#[test]
+fn grouped_continuation_requires_its_own_group_key() {
+    let mut query = CandidateQuery {
+        date_property_id: None,
+        timestamp_sort: Some(SimpleSortMethod::UpdatedAt),
+        direction: CandidateDirection::Ascending,
+        grouping: Some(GroupingConfig::new(crate::GroupByField::Date)),
+        cursor: Some(CandidateCursor {
+            identity: CandidateIdentity {
+                id: "last".into(),
+                entity_type: "TASK".into(),
+            },
+            sort_value: CandidateSortValue(None),
+        }),
+        limit: 1,
+    };
+    assert_eq!(query.validate(), Err(CandidateQueryError::MissingGroupKey));
+    query.grouping.as_mut().unwrap().group_key = Some("first".into());
+    assert!(query.validate().is_ok());
+}

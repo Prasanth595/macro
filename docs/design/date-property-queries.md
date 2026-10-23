@@ -59,6 +59,12 @@ entity family's normal authorization, lifecycle, and query-filter rules.
 Compute membership, counts, and ordering before applying page limits. Bind
 client-supplied keys and bounds; never interpolate them as SQL fragments.
 
+Each source returns the entity families present in its full, filtered candidate
+set, not just the returned page. Reject overlapping family summaries before
+adding source counts, including exhausted sources. This relies on one source
+per entity family; disjoint subsets of one family need a different merge
+contract. Per-group totals count memberships, not globally distinct entities.
+
 Keep the existing grouped response shapes. GraphQL bins contain `key`,
 `totalCount`, `items`, and `nextCursor`; REST uses its normalized item pool
 and group metadata. Keys and range order come from the request. Display labels
@@ -68,6 +74,8 @@ Continuation context retains the selected sort property, direction, complete
 grouping configuration, group key, and filters. Reject conflicting continuation
 inputs. Do not recompute relative ranges while continuing a page. Preserve
 legacy cursor encodings for unrelated deployed timestamp queries.
+Grouped continuations must name one group. Never advance a single cursor over
+concatenated, independently limited groups; that can skip unread members.
 
 Date edits and assignment deletion must refresh property-dependent lists and
 search membership, including empty results and unloaded group counts. A local

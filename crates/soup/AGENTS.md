@@ -14,8 +14,8 @@ rows, initiatives, ...) and get back a single unified, paginated result.
 - `src/domain/models.rs` (+ `grouping.rs`, `exclusions.rs`, `contact_listing.rs`):
   the unified `SoupItem`/grouping/exclusion shapes.
 - `src/domain/models/property_candidates.rs`: bounded cross-source candidate
-  merging; retain independent totals and counts through the global cursor,
-  including statistics from exhausted sources.
+  merging; reject overlapping pre-pagination entity-family summaries before
+  summing totals, including statistics from exhausted sources.
 - `src/domain/service/favorites.rs`, `agent_metadata.rs`: entity-kind-specific
   query logic layered onto the core service.
 - `src/outbound/pg_soup_repo.rs`: the Postgres repo, split by entity kind

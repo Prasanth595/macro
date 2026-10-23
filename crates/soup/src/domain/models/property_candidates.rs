@@ -2,7 +2,7 @@
 
 use std::{
     cmp::Ordering,
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
 };
 
 use models_grouping::{
@@ -36,6 +36,15 @@ pub enum CandidateMergeError {
     /// Sources returned the same entity in the same group.
     #[error("candidate sources overlap in group {0:?}")]
     OverlappingSources(String),
+    /// Complete source summaries must partition entity families before counts are added.
+    #[error("candidate sources both contain entity type {0:?}")]
+    OverlappingEntityType(String),
+    /// A source with matches omitted its pre-pagination entity-family summary.
+    #[error("candidate source omitted its entity types")]
+    MissingEntityTypes,
+    /// A returned row has a type absent from its source's complete summary.
+    #[error("candidate type {0:?} is absent from source metadata")]
+    UnreportedEntityType(String),
     /// The exact count cannot fit the shared count representation.
     #[error("candidate group count overflow")]
     CountOverflow,
@@ -72,11 +81,11 @@ pub fn compare_candidates(
 
 /// Merge bounded source pages using their independent, pre-pagination counts.
 ///
-/// Source identity sets must be disjoint. Each source deduplicates memberships
-/// before counting and returns a bounded page for every requested group.
+/// Source SQL returns all matching entity families before pagination. Reject
+/// overlapping families before adding counts, including off-page matches.
+/// Each source deduplicates memberships and returns a complete bounded page.
 /// Empty pages still contribute totals and counts through the global cursor.
-/// The source SQL owns authorization and cursor filtering; this function never
-/// treats a page's local row number as a global group position.
+/// Local row numbers never determine a global group position.
 pub fn merge_candidate_pages(
     pages: impl IntoIterator<Item = CandidatePage>,
     query: &CandidateQuery,
@@ -86,7 +95,19 @@ pub fn merge_candidate_pages(
         .map_err(CandidateMergeError::InvalidQuery)?;
     let limit = i64::from(query.per_group_limit());
     let mut groups: BTreeMap<String, Group> = BTreeMap::new();
+    let mut entity_types = BTreeSet::new();
     for page in pages {
+        let source_types: BTreeSet<_> = page.entity_types.into_iter().collect();
+        if source_types.is_empty() && page.groups.iter().any(|group| group.total_count > 0) {
+            return Err(CandidateMergeError::MissingEntityTypes);
+        }
+        for entity_type in &source_types {
+            if !entity_types.insert(entity_type.clone()) {
+                return Err(CandidateMergeError::OverlappingEntityType(
+                    entity_type.clone(),
+                ));
+            }
+        }
         let mut source_groups = BTreeMap::new();
         for stats in page.groups {
             if stats.total_count < 0
@@ -113,12 +134,17 @@ pub fn merge_candidate_pages(
         }
         let mut source_sizes: BTreeMap<String, i64> = BTreeMap::new();
         for candidate in page.candidates {
+            if !source_types.contains(&candidate.identity.entity_type) {
+                return Err(CandidateMergeError::UnreportedEntityType(
+                    candidate.identity.entity_type,
+                ));
+            }
             let remaining = source_groups.get(&candidate.group_key).ok_or_else(|| {
                 CandidateMergeError::MissingStatistics(candidate.group_key.clone())
             })?;
             let size = source_sizes.entry(candidate.group_key.clone()).or_default();
             *size += 1;
-            if *size > *remaining || *size > limit + 1 {
+            if *size > *remaining || *size > limit {
                 return Err(CandidateMergeError::InvalidStatistics(candidate.group_key));
             }
             let group = groups.entry(candidate.group_key.clone()).or_default();
@@ -138,6 +164,7 @@ pub fn merge_candidate_pages(
     }
 
     let mut result = CandidatePage {
+        entity_types: entity_types.into_iter().collect(),
         candidates: Vec::new(),
         groups: Vec::with_capacity(groups.len()),
     };
@@ -156,6 +183,7 @@ pub fn merge_candidate_pages(
         });
         result.candidates.extend(group.candidates);
     }
+    query.order_page_groups(&mut result);
     Ok(result)
 }
 

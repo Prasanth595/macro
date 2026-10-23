@@ -12,6 +12,7 @@ use models_grouping::{
     date_bucket_sql_key,
 };
 use sqlx::{Postgres, QueryBuilder};
+use std::collections::BTreeSet;
 use uuid::Uuid;
 
 /// Append a correlated DATE value expression for the `candidate` source alias.
@@ -138,6 +139,7 @@ pub fn build_property_candidate_query<'a>(
 /// One row of the bounded candidate query, decoded by the source repository.
 #[derive(sqlx::FromRow)]
 pub struct CandidateRow {
+    entity_types: Vec<String>,
     group_key: String,
     total_count: i64,
     before_or_at_cursor_count: i64,
@@ -199,9 +201,9 @@ pub fn build_candidate_query<'a>(
     } else {
         query.push("TRUE AS after_cursor FROM dedup d), ");
     }
-    query.push("stats AS (SELECT group_key, count(*)::bigint AS total_count, count(*) FILTER (WHERE NOT after_cursor)::bigint AS before_or_at_cursor_count FROM positioned GROUP BY group_key), ranked AS (SELECT id, entity_type, sort_value, group_key, row_number() OVER (PARTITION BY group_key ORDER BY sort_value ");
+    query.push("stats AS (SELECT group_key, count(*)::bigint AS total_count, count(*) FILTER (WHERE NOT after_cursor)::bigint AS before_or_at_cursor_count, array_agg(DISTINCT entity_type) AS entity_types FROM positioned GROUP BY group_key), ranked AS (SELECT id, entity_type, sort_value, group_key, row_number() OVER (PARTITION BY group_key ORDER BY sort_value ");
     query.push(direction);
-    query.push(" NULLS LAST, id ASC, entity_type ASC) AS row_number FROM positioned WHERE after_cursor) SELECT stats.group_key, stats.total_count, stats.before_or_at_cursor_count, ranked.id, ranked.entity_type, ranked.sort_value, ranked.row_number FROM stats LEFT JOIN ranked ON ranked.group_key = stats.group_key AND ranked.row_number <= ");
+    query.push(" NULLS LAST, id ASC, entity_type ASC) AS row_number FROM positioned WHERE after_cursor) SELECT stats.group_key, stats.total_count, stats.before_or_at_cursor_count, stats.entity_types, ranked.id, ranked.entity_type, ranked.sort_value, ranked.row_number FROM stats LEFT JOIN ranked ON ranked.group_key = stats.group_key AND ranked.row_number <= ");
     let limit = i64::from(descriptor.per_group_limit());
     query.push_bind(limit + 1);
     query.push(" ORDER BY stats.group_key, ranked.row_number");
@@ -215,11 +217,10 @@ pub fn decode_candidate_page(
     descriptor: &CandidateQuery,
 ) -> CandidatePage {
     let limit = i64::from(descriptor.per_group_limit());
-    let mut page = CandidatePage {
-        candidates: Vec::new(),
-        groups: Vec::new(),
-    };
+    let mut page = CandidatePage::default();
+    let mut entity_types = BTreeSet::new();
     for row in rows {
+        entity_types.extend(row.entity_types);
         if page
             .groups
             .last()
@@ -244,6 +245,8 @@ pub fn decode_candidate_page(
             });
         }
     }
+    page.entity_types = entity_types.into_iter().collect();
+    descriptor.order_page_groups(&mut page);
     page
 }
 

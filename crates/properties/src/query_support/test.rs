@@ -34,6 +34,8 @@ async fn counts_ties_nulls_and_exhausted_groups(pool: Pool<Postgres>) -> anyhow:
         limit: 2,
     };
     let first = select_candidate_page(&pool, &query, source).await?;
+    // DOCUMENT rows fall beyond this first page but must still appear in metadata.
+    assert_eq!(first.entity_types, ["DOCUMENT", "TASK"]);
     assert_eq!(
         first
             .candidates
@@ -71,6 +73,7 @@ async fn counts_ties_nulls_and_exhausted_groups(pool: Pool<Postgres>) -> anyhow:
     });
     let exhausted = select_candidate_page(&pool, &query, source).await?;
     assert!(exhausted.candidates.is_empty());
+    assert_eq!(exhausted.entity_types, ["DOCUMENT", "TASK"]);
     assert_eq!(exhausted.groups.len(), 2);
     assert_eq!(exhausted.groups[0].before_or_at_cursor_count, 4);
     assert_eq!(exhausted.groups[1].before_or_at_cursor_count, 1);
@@ -240,14 +243,14 @@ async fn grouping_date_is_independent_of_sorting_date(pool: Pool<Postgres>) -> a
                 .iter()
                 .map(|row| (row.group_key.as_str(), row.identity.id.as_str()))
                 .collect::<Vec<_>>(),
-            [("after", "b"), ("before", "a"), ("before", "c")]
+            [("before", "a"), ("before", "c"), ("after", "b")]
         );
         assert_eq!(
             page.groups
                 .iter()
                 .map(|group| (group.group_key.as_str(), group.total_count))
                 .collect::<Vec<_>>(),
-            [("after", 1), ("before", 2)]
+            [("before", 2), ("after", 1)]
         );
     }
     Ok(())

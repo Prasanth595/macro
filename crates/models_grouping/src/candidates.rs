@@ -68,6 +68,8 @@ pub enum CandidateQueryError {
     InvalidRanges(crate::PropertyDateRangeError),
     /// A requested key does not belong to the frozen date partition.
     UnknownGroupKey,
+    /// Grouped continuation must target one group rather than skip other groups.
+    MissingGroupKey,
 }
 
 impl std::fmt::Display for CandidateQueryError {
@@ -80,6 +82,7 @@ impl std::fmt::Display for CandidateQueryError {
             Self::InvalidGroupLimit => f.write_str("per-group limit must be positive"),
             Self::InvalidRanges(error) => write!(f, "invalid date partition: {error:?}"),
             Self::UnknownGroupKey => f.write_str("group key is not in the date partition"),
+            Self::MissingGroupKey => f.write_str("grouped continuation requires a group key"),
         }
     }
 }
@@ -97,6 +100,9 @@ impl CandidateQuery {
         if let Some(grouping) = &self.grouping {
             if grouping.effective_limit() == 0 {
                 return Err(CandidateQueryError::InvalidGroupLimit);
+            }
+            if self.cursor.is_some() && grouping.group_key.is_none() {
+                return Err(CandidateQueryError::MissingGroupKey);
             }
             if let Some((_, ranges)) = grouping.field.date_ranges() {
                 ranges
@@ -118,6 +124,31 @@ impl CandidateQuery {
         self.grouping.as_ref().map_or(self.limit, |group| {
             self.limit.min(group.effective_limit().min(500) as u16)
         })
+    }
+
+    /// Restore caller-defined range order without changing ordering inside a group.
+    pub fn order_page_groups(&self, page: &mut CandidatePage) {
+        let Some((_, ranges)) = self
+            .grouping
+            .as_ref()
+            .and_then(|grouping| grouping.field.date_ranges())
+        else {
+            return;
+        };
+        let position = |key: &str| {
+            if key == ranges.missing_value_bucket_key {
+                ranges.ranges.len()
+            } else {
+                ranges
+                    .ranges
+                    .iter()
+                    .position(|range| range.key == key)
+                    .unwrap_or(usize::MAX)
+            }
+        };
+        page.groups.sort_by_key(|group| position(&group.group_key));
+        page.candidates
+            .sort_by_key(|candidate| position(&candidate.group_key));
     }
 }
 
@@ -146,8 +177,11 @@ pub struct CandidateGroupStats {
 }
 
 /// A bounded set of candidates with statistics for every matching group, including exhausted groups.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CandidatePage {
+    /// Entity families present before pagination, including exhausted groups.
+    /// Independent source pages must have disjoint families before counts can be added.
+    pub entity_types: Vec<String>,
     /// At most the requested limit per group.
     pub candidates: Vec<GroupedCandidate>,
     /// Exact statistics for every group, even if no candidates remain after the cursor.

@@ -27,6 +27,7 @@ fn merged_counts_include_exhausted_sources() {
     let result = merge_candidate_pages(
         [
             CandidatePage {
+                entity_types: vec!["TASK".into()],
                 candidates: vec![GroupedCandidate {
                     identity: CandidateIdentity {
                         id: "2".into(),
@@ -43,6 +44,7 @@ fn merged_counts_include_exhausted_sources() {
                 }],
             },
             CandidatePage {
+                entity_types: vec!["THREAD".into()],
                 candidates: vec![
                     GroupedCandidate {
                         identity: CandidateIdentity {
@@ -69,6 +71,7 @@ fn merged_counts_include_exhausted_sources() {
                 }],
             },
             CandidatePage {
+                entity_types: vec!["CHANNEL".into()],
                 candidates: vec![],
                 groups: vec![CandidateGroupStats {
                     group_key: "current".into(),
@@ -115,6 +118,7 @@ fn final_page_retains_totals_without_an_extra_cursor() {
     let result = merge_candidate_pages(
         [
             CandidatePage {
+                entity_types: vec!["TASK".into()],
                 candidates: vec![],
                 groups: vec![CandidateGroupStats {
                     group_key: "current".into(),
@@ -124,6 +128,7 @@ fn final_page_retains_totals_without_an_extra_cursor() {
                 }],
             },
             CandidatePage {
+                entity_types: vec!["THREAD".into()],
                 candidates: vec![GroupedCandidate {
                     identity: CandidateIdentity {
                         id: "3".into(),
@@ -158,6 +163,7 @@ fn final_page_retains_totals_without_an_extra_cursor() {
 #[test]
 fn missing_dates_stay_last_and_identity_ties_ascend_in_both_directions() {
     let page = CandidatePage {
+        entity_types: vec!["TASK".into(), "THREAD".into()],
         candidates: vec![
             GroupedCandidate {
                 identity: CandidateIdentity {
@@ -232,6 +238,7 @@ fn missing_dates_stay_last_and_identity_ties_ascend_in_both_directions() {
 #[test]
 fn overlapping_sources_are_rejected_even_if_their_date_values_differ() {
     let page = CandidatePage {
+        entity_types: vec!["TASK".into()],
         candidates: vec![GroupedCandidate {
             identity: CandidateIdentity {
                 id: "1".into(),
@@ -251,7 +258,7 @@ fn overlapping_sources_are_rejected_even_if_their_date_values_differ() {
     conflicting.candidates[0].sort_value = CandidateSortValue(None);
     assert_eq!(
         merge_candidate_pages([page, conflicting], &QUERY),
-        Err(CandidateMergeError::OverlappingSources("current".into()))
+        Err(CandidateMergeError::OverlappingEntityType("TASK".into()))
     );
 }
 
@@ -259,6 +266,7 @@ fn overlapping_sources_are_rejected_even_if_their_date_values_differ() {
 fn an_entity_can_belong_to_distinct_groups() {
     let result = merge_candidate_pages(
         [CandidatePage {
+            entity_types: vec!["TASK".into()],
             candidates: vec![
                 GroupedCandidate {
                     identity: CandidateIdentity {
@@ -304,6 +312,7 @@ fn missing_statistics_and_incomplete_source_pages_are_rejected() {
     assert_eq!(
         merge_candidate_pages(
             [CandidatePage {
+                entity_types: vec!["TASK".into()],
                 candidates: vec![],
                 groups: vec![CandidateGroupStats {
                     group_key: "current".into(),
@@ -319,6 +328,7 @@ fn missing_statistics_and_incomplete_source_pages_are_rejected() {
     assert_eq!(
         merge_candidate_pages(
             [CandidatePage {
+                entity_types: vec!["TASK".into()],
                 candidates: vec![GroupedCandidate {
                     identity: CandidateIdentity {
                         id: "1".into(),
@@ -341,6 +351,7 @@ fn invalid_statistics_fail_closed() {
         assert_eq!(
             merge_candidate_pages(
                 [CandidatePage {
+                    entity_types: vec!["TASK".into()],
                     candidates: vec![],
                     groups: vec![CandidateGroupStats {
                         group_key: "current".into(),
@@ -354,4 +365,219 @@ fn invalid_statistics_fail_closed() {
             Err(CandidateMergeError::InvalidStatistics("current".into()))
         );
     }
+}
+
+#[test]
+fn off_page_and_exhausted_family_overlaps_are_rejected() {
+    let first = CandidatePage {
+        entity_types: vec!["TASK".into(), "THREAD".into()],
+        candidates: vec![GroupedCandidate {
+            identity: CandidateIdentity {
+                id: "a".into(),
+                entity_type: "TASK".into(),
+            },
+            sort_value: CandidateSortValue(Some(DateTime::<Utc>::UNIX_EPOCH)),
+            group_key: "all".into(),
+        }],
+        groups: vec![CandidateGroupStats {
+            group_key: "all".into(),
+            total_count: 2,
+            before_or_at_cursor_count: 0,
+            has_more: true,
+        }],
+    };
+    let second = CandidatePage {
+        entity_types: vec!["THREAD".into()],
+        candidates: vec![GroupedCandidate {
+            identity: CandidateIdentity {
+                id: "b".into(),
+                entity_type: "THREAD".into(),
+            },
+            sort_value: CandidateSortValue(Some(DateTime::<Utc>::UNIX_EPOCH)),
+            group_key: "all".into(),
+        }],
+        groups: vec![CandidateGroupStats {
+            group_key: "all".into(),
+            total_count: 2,
+            before_or_at_cursor_count: 0,
+            has_more: true,
+        }],
+    };
+    let query = CandidateQuery { limit: 1, ..QUERY };
+    assert_eq!(
+        merge_candidate_pages([first, second], &query),
+        Err(CandidateMergeError::OverlappingEntityType("THREAD".into()))
+    );
+
+    let exhausted = CandidatePage {
+        entity_types: vec!["TASK".into()],
+        candidates: vec![],
+        groups: vec![CandidateGroupStats {
+            group_key: "all".into(),
+            total_count: 2,
+            before_or_at_cursor_count: 2,
+            has_more: false,
+        }],
+    };
+    assert_eq!(
+        merge_candidate_pages([exhausted.clone(), exhausted], &query),
+        Err(CandidateMergeError::OverlappingEntityType("TASK".into()))
+    );
+}
+
+#[test]
+fn empty_sources_and_nested_merges_preserve_family_metadata() {
+    let page = CandidatePage {
+        entity_types: vec!["TASK".into()],
+        candidates: vec![GroupedCandidate {
+            identity: CandidateIdentity {
+                id: "a".into(),
+                entity_type: "TASK".into(),
+            },
+            sort_value: CandidateSortValue(None),
+            group_key: "all".into(),
+        }],
+        groups: vec![CandidateGroupStats {
+            group_key: "all".into(),
+            total_count: 1,
+            before_or_at_cursor_count: 0,
+            has_more: false,
+        }],
+    };
+    let merged = merge_candidate_pages([CandidatePage::default(), page], &QUERY).unwrap();
+    assert_eq!(merged.entity_types, ["TASK"]);
+    let again = merge_candidate_pages([merged.clone(), CandidatePage::default()], &QUERY).unwrap();
+    assert_eq!(again, merged);
+    assert_eq!(
+        merge_candidate_pages([merged, again], &QUERY),
+        Err(CandidateMergeError::OverlappingEntityType("TASK".into()))
+    );
+}
+
+#[test]
+fn complete_family_metadata_is_required() {
+    let missing = CandidatePage {
+        entity_types: vec![],
+        candidates: vec![],
+        groups: vec![CandidateGroupStats {
+            group_key: "all".into(),
+            total_count: 1,
+            before_or_at_cursor_count: 1,
+            has_more: false,
+        }],
+    };
+    assert_eq!(
+        merge_candidate_pages([missing], &QUERY),
+        Err(CandidateMergeError::MissingEntityTypes)
+    );
+    let incorrect = CandidatePage {
+        entity_types: vec!["TASK".into()],
+        candidates: vec![GroupedCandidate {
+            identity: CandidateIdentity {
+                id: "a".into(),
+                entity_type: "THREAD".into(),
+            },
+            sort_value: CandidateSortValue(None),
+            group_key: "all".into(),
+        }],
+        groups: vec![CandidateGroupStats {
+            group_key: "all".into(),
+            total_count: 1,
+            before_or_at_cursor_count: 0,
+            has_more: false,
+        }],
+    };
+    assert_eq!(
+        merge_candidate_pages([incorrect], &QUERY),
+        Err(CandidateMergeError::UnreportedEntityType("THREAD".into()))
+    );
+}
+
+#[test]
+fn date_groups_follow_range_order_and_put_missing_last() {
+    use models_grouping::{
+        GroupByField, GroupingConfig, PropertyBucketing, PropertyDateRange, PropertyDateRanges,
+    };
+    let query = CandidateQuery {
+        grouping: Some(GroupingConfig::new(GroupByField::Property {
+            property_definition_id: Uuid::from_u128(17),
+            entity_type: None,
+            bucketing: Some(PropertyBucketing::DateRanges(PropertyDateRanges {
+                ranges: vec![
+                    PropertyDateRange {
+                        key: "later".into(),
+                        start: None,
+                        end: Some(DateTime::<Utc>::UNIX_EPOCH),
+                    },
+                    PropertyDateRange {
+                        key: "before".into(),
+                        start: Some(DateTime::<Utc>::UNIX_EPOCH),
+                        end: None,
+                    },
+                ],
+                missing_value_bucket_key: "no_due".into(),
+            })),
+        })),
+        ..QUERY
+    };
+    let page = CandidatePage {
+        entity_types: vec!["TASK".into()],
+        candidates: vec![
+            GroupedCandidate {
+                identity: CandidateIdentity {
+                    id: "b".into(),
+                    entity_type: "TASK".into(),
+                },
+                sort_value: CandidateSortValue(Some(DateTime::<Utc>::UNIX_EPOCH)),
+                group_key: "before".into(),
+            },
+            GroupedCandidate {
+                identity: CandidateIdentity {
+                    id: "a".into(),
+                    entity_type: "TASK".into(),
+                },
+                sort_value: CandidateSortValue(Some(
+                    DateTime::<Utc>::UNIX_EPOCH - Duration::days(1),
+                )),
+                group_key: "later".into(),
+            },
+        ],
+        groups: vec![
+            CandidateGroupStats {
+                group_key: "before".into(),
+                total_count: 1,
+                before_or_at_cursor_count: 0,
+                has_more: false,
+            },
+            CandidateGroupStats {
+                group_key: "later".into(),
+                total_count: 1,
+                before_or_at_cursor_count: 0,
+                has_more: false,
+            },
+            CandidateGroupStats {
+                group_key: "no_due".into(),
+                total_count: 0,
+                before_or_at_cursor_count: 0,
+                has_more: false,
+            },
+        ],
+    };
+    let merged = merge_candidate_pages([page], &query).unwrap();
+    assert_eq!(
+        merged
+            .groups
+            .iter()
+            .map(|group| group.group_key.as_str())
+            .collect::<Vec<_>>(),
+        ["later", "before", "no_due"]
+    );
+    assert_eq!(
+        merged
+            .candidates
+            .iter()
+            .map(|candidate| candidate.group_key.as_str())
+            .collect::<Vec<_>>(),
+        ["later", "before"]
+    );
 }
