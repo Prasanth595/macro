@@ -542,10 +542,10 @@ snapshot keeps the real organizer and lists the viewer, already accepted, as its
 meeting's other guests and join link stay out and nobody is notified. If Google refuses anyway,
 the card says Google won't add the event to that calendar and points to `Download .ics`. The
 mention then opens the snapshot, whose details say `Your copy of a shared event. It doesn't
-update when the organizer changes it.` and offer no RSVP, `Add guests` or `Only the organizer
-can invite guests.` line, since none of it would reach the meeting; it can still be deleted and
-its reminders changed. If Google already holds the meeting on that calendar (an invitation Macro
-has not synced yet), nothing is imported, a sync is scheduled and the card reports that it is
+update when the organizer changes it.` and offer no RSVP, `Add guests` or `Only the organizer can
+invite guests.` line, since none of it would reach the meeting; it can still be deleted and its
+reminders changed. If Google already holds the meeting on that calendar (an invitation Macro has
+not synced yet), nothing is imported, a sync is scheduled and the card reports that it is
 already on their calendar. `Download .ics` saves the event as an iCalendar file and is not
 flagged. `Ask to join` asks the person who shared the event to add the viewer as a guest; it
 shows only when that person's copy lets them add guests (they organize it, or it is a Google
