@@ -39,6 +39,7 @@ fn sample_draft() -> CalendarEventDraft {
         reminders: Some(EventReminders::default()),
         conference: Some(crate::domain::models::ConferenceChange::GoogleMeet),
         out_of_office: None,
+        guest_policy: None,
     }
 }
 
@@ -240,8 +241,10 @@ fn router_error_bodies_round_trip_to_their_domain_failures() {
         CalendarMutationError::ReadOnly,
         CalendarMutationError::NoWritableCalendar,
         CalendarMutationError::NotAttendee,
+        CalendarMutationError::NotOrganizer,
         CalendarMutationError::GuestsCannotInvite,
         CalendarMutationError::GuestListHidden,
+        CalendarMutationError::GuestsCannotModify,
         CalendarMutationError::AlreadyOnCalendar,
         CalendarMutationError::InvalidInput("bad".to_string()),
         CalendarMutationError::ReauthRequired("expired".to_string()),

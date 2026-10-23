@@ -83,6 +83,7 @@ import { Dynamic } from 'solid-js/web';
 import { formatDate } from '../util/date';
 import NotFound from './AccessErrorViews/NotFound';
 import Unauthorized from './AccessErrorViews/Unauthorized';
+import { DocumentDownloadButton } from './DocumentDownloadButton';
 import {
   DocumentPreviewIconSkeleton,
   DocumentPreviewSkeleton,
@@ -426,6 +427,8 @@ function CalendarEventPreviewDetails(props: {
         <SharedEventActions
           eventId={props.mentionedEventId}
           title={props.event.title}
+          canRequestToJoin={props.event.canRequestToJoin ?? false}
+          joinRequestStatus={props.event.joinRequestStatus ?? undefined}
           onAdded={props.onAddedToCalendar}
         />
       </Show>
@@ -747,12 +750,15 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
 
   const renderActionButtons = () => (
     <Item.Actions
-      class="col-start-3 row-start-1 h-5"
+      class="col-start-3 row-start-1"
       onClick={(event) => event.stopPropagation()}
     >
+      <Show when={targetBlockType() === 'video'}>
+        <DocumentDownloadButton documentId={props.documentInfo.id} />
+      </Show>
       <Dropdown open={menuOpen()} onOpenChange={setMenuOpen}>
         <Dropdown.Trigger
-          size="icon-sm"
+          size="icon-md"
           variant="ghost"
           aria-label="Reference actions"
         >

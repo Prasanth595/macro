@@ -119,6 +119,8 @@ fragment SoupItemPreviewFields on GraphqlSoupEntity {
 			avatarUrl
 		}
 		threadId
+		source
+		visibility
 		status
 		createdAt
 		updatedAt
@@ -618,6 +620,11 @@ fragment SoupNotificationNavigationMetadataFields on GraphqlNotifEvent {
 		calendarEventReminderStartDate: startDate
 		calendarEventReminderTimeZone: timeZone
 		calendarEventReminderMinutesBefore: minutesBefore
+	}
+	... on GraphqlCalendarEventJoinRequestMetadata {
+		calendarEventJoinRequestRequestId: requestId
+		calendarEventJoinRequestEventId: eventId
+		calendarEventJoinRequestTitle: title
 	}
 	... on GraphqlAiResponseMetadata {
 		aiResponseSummary: summary

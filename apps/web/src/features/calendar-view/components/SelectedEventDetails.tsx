@@ -7,9 +7,15 @@ import {
   type CalendarTimeFormat,
   reminderCalendarIdOf,
 } from '@app/features/calendar/types';
+import {
+  canDeleteCalendarEvent,
+  canEditCalendarEvent,
+} from '@app/features/calendar/utils/event-interaction';
+import { eventEmailRecipients } from '@app/features/calendar/utils/guest-emails';
 import { handleOpenEventOutsidePress } from '@app/features/calendar/utils/open-event-outside-press';
 import { TeamEventDetails } from '@app/features/calendar-team/components/team-event-details';
 import { EventGuests } from '@app/features/calendar-view/components/EventGuests';
+import { EventJoinRequests } from '@app/features/calendar-view/components/EventJoinRequests';
 import { EventRsvpSection } from '@app/features/calendar-view/components/EventRsvpSection';
 import { useForwardEventEmail } from '@app/features/calendar-view/components/use-forward-event-email';
 import { useOpenEventComposer } from '@app/features/calendar-view/components/use-open-event-composer';
@@ -135,7 +141,7 @@ interface EventDetailsOverlayProps {
 
 function EveryoneElseDeclinedNotice(props: {
   event: CalendarEvent;
-  canModify: boolean;
+  canEdit: boolean;
   onDelete: () => void;
   onReschedule: () => void;
 }) {
@@ -154,7 +160,7 @@ function EveryoneElseDeclinedNotice(props: {
           <div role="status" class="font-medium text-ink">
             Everyone else declined this event
           </div>
-          <Show when={props.canModify}>
+          <Show when={props.canEdit}>
             <div class="flex justify-end gap-1">
               <Button variant="ghost" size="sm" onClick={props.onDelete}>
                 Delete
@@ -180,10 +186,8 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
     () => props.event,
     useCalendarGuestInvitesFlag()
   );
-  const canModify = () =>
-    !props.event.teamProjection &&
-    !props.event.isReadOnly &&
-    !props.event.isCancelled;
+  const canEdit = () => canEditCalendarEvent(props.event);
+  const canDelete = () => canDeleteCalendarEvent(props.event);
   const openEditor = () => {
     openEventComposer({ event: props.event });
     props.onOpenChange(false);
@@ -257,7 +261,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                   <ArrowBendUpRightIcon />
                 </Button>
               </Show>
-              <Show when={canModify()}>
+              <Show when={canEdit()}>
                 <Button
                   label="Edit event"
                   variant="ghost"
@@ -268,8 +272,10 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                 >
                   <PencilSimpleIcon />
                 </Button>
+              </Show>
+              <Show when={canDelete()}>
                 <Button
-                  label="Delete event"
+                  label={deleteEventLabel(props.event)}
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -284,9 +290,13 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
           <MobileDrawer.ScrollBody>
             <EveryoneElseDeclinedNotice
               event={props.event}
-              canModify={canModify()}
+              canEdit={canEdit()}
               onDelete={deleteDialog.open}
               onReschedule={openEditor}
+            />
+            <EventJoinRequests
+              eventId={props.event.eventId}
+              canModify={canEdit()}
             />
             <div class="px-3">
               <Show
@@ -346,6 +356,11 @@ function useDeleteEventDialog(props: {
   return { open, isOpen: dialog.isOpen };
 }
 
+/** A snapshot is the viewer's own copy; deleting it leaves the meeting alone. */
+function deleteEventLabel(event: CalendarEvent) {
+  return event.isSnapshot ? 'Delete your copy' : 'Delete event';
+}
+
 const DELETE_SCOPE_OPTIONS = [
   { scope: 'this_event', label: 'This event' },
   { scope: 'this_and_following', label: 'This and following events' },
@@ -386,28 +401,28 @@ function DeleteEventDialog(
     });
   };
 
+  const title = () => props.event.title || 'Untitled event';
+  const prompt = () => {
+    if (props.event.isSnapshot) {
+      return `Delete your copy of “${title()}”? The shared event stays as it is.`;
+    }
+    const question = `${isRecurring() ? 'Remove' : 'Delete'} “${title()}”?`;
+    return eventEmailRecipients(props.event).length > 0
+      ? `${question} Guests will be notified.`
+      : question;
+  };
+
   return (
     <DeleteDialog
       open={props.open}
       onOpenChange={props.onOpenChange}
-      title="Delete event"
+      title={deleteEventLabel(props.event)}
       pending={deleteEvent.isPending}
       onDelete={confirm}
     >
-      <Show
-        when={isRecurring()}
-        fallback={
-          <p>
-            Delete “{props.event.title || 'Untitled event'}”? Guests will be
-            notified.
-          </p>
-        }
-      >
+      <Show when={isRecurring()} fallback={<p>{prompt()}</p>}>
         <div class="flex flex-col gap-3">
-          <p>
-            Remove “{props.event.title || 'Untitled event'}”? Guests will be
-            notified.
-          </p>
+          <p>{prompt()}</p>
           <RadioGroup
             value={scope()}
             onChange={(value) => setScope(value as CalendarDeletionScope)}
@@ -444,10 +459,8 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
     () => props.event,
     useCalendarGuestInvitesFlag()
   );
-  const canModify = () =>
-    !props.event.teamProjection &&
-    !props.event.isReadOnly &&
-    !props.event.isCancelled;
+  const canEdit = () => canEditCalendarEvent(props.event);
+  const canDelete = () => canDeleteCalendarEvent(props.event);
   const openEditor = () => {
     openEventComposer({ event: props.event });
     props.onOpenChange(false);
@@ -507,7 +520,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
             }}
           >
             <Popover.Arrow class="fill-surface" />
-            <div class="flex max-h-[min(32rem,var(--kb-popper-content-available-height,32rem))] w-fit min-w-[min(20rem,var(--kb-popper-content-available-width,20rem))] max-w-[min(24rem,var(--kb-popper-content-available-width,24rem))] flex-col overflow-hidden rounded-xl glass bg-menu-glass text-ink">
+            <div class="flex max-h-[min(32rem,var(--kb-popper-content-available-height,32rem))] w-fit min-w-[min(20rem,var(--kb-popper-content-available-width,20rem))] max-w-[min(24rem,var(--kb-popper-content-available-width,24rem))] flex-col overflow-hidden menu-surface">
               <Popover.Title class="sr-only">{props.event.title}</Popover.Title>
               <div class="flex shrink-0 items-center justify-end gap-1 px-2 pt-2">
                 <Show when={!props.event.teamProjection}>
@@ -542,7 +555,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <ArrowBendUpRightIcon />
                   </Button>
                 </Show>
-                <Show when={canModify()}>
+                <Show when={canEdit()}>
                   <Button
                     label="Edit event"
                     variant="ghost"
@@ -553,8 +566,10 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                   >
                     <PencilSimpleIcon />
                   </Button>
+                </Show>
+                <Show when={canDelete()}>
                   <Button
-                    label="Delete event"
+                    label={deleteEventLabel(props.event)}
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -581,9 +596,13 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
               <div class="min-h-0 flex-auto overflow-y-auto overscroll-contain">
                 <EveryoneElseDeclinedNotice
                   event={props.event}
-                  canModify={canModify()}
+                  canEdit={canEdit()}
                   onDelete={deleteDialog.open}
                   onReschedule={openEditor}
+                />
+                <EventJoinRequests
+                  eventId={props.event.eventId}
+                  canModify={canEdit()}
                 />
                 <div class="px-3 pb-3">
                   <Show
