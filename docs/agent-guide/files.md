@@ -172,9 +172,9 @@ and sharing a video are separate actions.
 - **Download started** means the browser accepted the file; check its downloads
   UI for the location and final completion. **File saved** is reserved for a
   completed native save. Retry download remains available after a fetch failure.
-- **Share file**, where supported, opens the system share sheet. If a browser's
+- **Share**, where supported, opens the system share sheet. If a browser's
   user gesture expires during loading, a ready notice asks for another tap on
-  Share file; that tap uses the prepared bytes without another network request.
+  Share; that tap uses the prepared bytes without another network request.
   No Macro download dialog appears. Cancelling a chooser keeps the file ready
   for another attempt and does not report success.
 - Installed iOS binaries without the optional file-export bridge use the system

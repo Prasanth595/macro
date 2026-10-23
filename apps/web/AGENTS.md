@@ -406,7 +406,7 @@ instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.
 Channel videos and Drive video/image/code/canvas/unknown previews share
 `createFileDownload` and `FileDownloadButton`. Keep menu and visible controls
 bound to the same controller. Download hands off directly to browser downloads
-or the native save picker; keep Share file separate and do not add a custom
+or the native save picker; keep Share separate and do not add a custom
 confirmation sheet. Snapshot file/version before loading, cancel on disposal or
 selection change, and preserve original filenames from static-file metadata.
 Native Android and iOS use bounded byte exports. Older iOS binaries use Web

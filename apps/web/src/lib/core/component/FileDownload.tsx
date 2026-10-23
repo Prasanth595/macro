@@ -59,7 +59,7 @@ export function FileDownloadButton(props: {
           <Show when={shareBusy()} fallback={<ShareIcon />}>
             <SpinnerIcon class="animate-spin" />
           </Show>
-          {shareBusy() ? preparing() : 'Share file'}
+          {shareBusy() ? preparing() : 'Share'}
         </Button>
       </Show>
       <Show when={props.download.busy()}>

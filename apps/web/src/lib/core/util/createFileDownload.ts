@@ -197,7 +197,7 @@ export function createFileDownload(
         toast.custom({
           title:
             nextAction === 'share'
-              ? 'File ready — tap Share file'
+              ? 'File ready — tap Share'
               : 'File ready — tap Save file',
         });
         return;

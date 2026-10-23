@@ -132,10 +132,10 @@ test('shares from a separate action after a transfer outlives browser activation
     });
   });
   await page.reload();
-  const share = page.getByRole('button', { name: 'Share file', exact: true });
+  const share = page.getByRole('button', { name: 'Share', exact: true });
   await share.click();
   await expect(
-    page.getByText('File ready — tap Share file', { exact: true })
+    page.getByText('File ready — tap Share', { exact: true })
   ).toBeVisible();
   expect(
     await page.evaluate(() => Reflect.get(window, 'sharedFileName'))
@@ -148,7 +148,7 @@ test('shares from a separate action after a transfer outlives browser activation
   await expect(download).toBeFocused();
   await share.click();
   await expect(
-    page.getByText('File ready — tap Share file', { exact: true })
+    page.getByText('File ready — tap Share', { exact: true })
   ).toBeVisible();
   await share.click();
   await expect
