@@ -4,6 +4,7 @@
 
 import type { VisibleCalendar } from '@service-calendar/generated/schemas/visibleCalendar';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SharedEventActions } from './SharedEventActions';
 
@@ -244,6 +245,34 @@ describe('shared event actions', () => {
     expect(mocks.ask).toHaveBeenCalledWith('shared-event');
     expect(screen.queryByRole('button', { name: 'Ask to join' })).toBeNull();
     expect(screen.getByText('Requested')).toBeTruthy();
+  });
+
+  it('lets the stored answer replace the sent state', () => {
+    const [status, setStatus] = createSignal<
+      'pending' | 'accepted' | 'declined' | undefined
+    >();
+    render(() => (
+      <SharedEventActions
+        eventId="shared-event"
+        title="Design review"
+        canRequestToJoin
+        joinRequestStatus={status()}
+        onAdded={vi.fn()}
+      />
+    ));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
+    expect(screen.getByText('Requested')).toBeTruthy();
+
+    setStatus('declined');
+    expect(screen.getByRole('button', { name: 'Ask to join' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
+    expect(screen.getByText('Requested')).toBeTruthy();
+
+    setStatus('accepted');
+    expect(screen.getByText('Invited')).toBeTruthy();
+    expect(screen.queryByText('Requested')).toBeNull();
   });
 
   it('lets a declined viewer ask again but not a pending or invited one', () => {

@@ -79,11 +79,18 @@ export function SharedEventActions(props: {
     copy.mutate({ eventId: props.eventId, calendarId });
 
   // Shown as sent from the moment the ask succeeds, ahead of the preview
-  // refetch that carries the stored status.
-  const [asked, setAsked] = createSignal(false);
+  // refetch that carries the stored status: it holds only while the status is
+  // still the one the ask was sent from, so a later answer replaces it.
+  const [askedFrom, setAskedFrom] = createSignal<{
+    status: CalendarJoinRequestStatus | undefined;
+  }>();
+  const asked = () => {
+    const sent = askedFrom();
+    return sent !== undefined && sent.status === props.joinRequestStatus;
+  };
   const requestToJoin = useRequestToJoinCalendarEventMutation({
     onSuccess: () => {
-      setAsked(true);
+      setAskedFrom({ status: props.joinRequestStatus });
       toast.success('Asked to be added as a guest');
     },
     onError: (error) =>
