@@ -123,7 +123,9 @@ of the step: the drafts in their composers, `1 of N` with a draft picker and
 **Send all** (**Create all** for events) for several, each sent or dismissed
 on its own. The drafts are the session owner's to decide; anyone else in the
 thread sees `Email drafts to review · Waiting for <owner>` and nothing of the
-drafts. When the agent needs an app, its reply ends with a
+drafts. As in the session, the owner's card refreshes in place when the review
+is decided anywhere or a send settles, with **Responding** below it until the
+agent answers the decision; a silent answer clears it. When the agent needs an app, its reply ends with a
 **Connect** card. Connecting from the agent's latest reply, while nothing else
 runs or waits once the sign-in finishes, tells the agent to continue; from an
 older reply, or while the agent works, it only connects, and a toast says so.

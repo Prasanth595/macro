@@ -17,6 +17,8 @@ const LEO = 'macro|leo@macro.com';
 const state = vi.hoisted(() => ({
   reader: undefined as string | undefined,
   session: undefined as unknown,
+  notifications: [] as unknown[],
+  turn: 'idle' as string,
 }));
 
 vi.mock('@app/features/agent-reviews/views/persisted-review', () => ({
@@ -24,14 +26,29 @@ vi.mock('@app/features/agent-reviews/views/persisted-review', () => ({
     sessionId: string;
     reviewId: string;
     canAct: boolean;
+    eventId?: string;
   }) => (
     <section
       aria-label="Saved review"
       data-session={props.sessionId}
       data-review={props.reviewId}
       data-can-act={String(props.canAct)}
+      data-event={props.eventId ?? ''}
     />
   ),
+}));
+vi.mock('@app/features/agent-activity/queries/live-session', () => ({
+  createLiveSession: () => ({
+    metadata: () => ({
+      notifications: state.notifications,
+      noopTurn: null,
+      turn: state.turn,
+    }),
+    messages: () => [],
+  }),
+}));
+vi.mock('@app/features/block-agent/ui/WorkingLine', () => ({
+  WorkingLine: (props: { label: string }) => <p role="status">{props.label}</p>,
 }));
 vi.mock('@core/context/user', () => ({
   useUserId: () => () => state.reader,
@@ -55,6 +72,8 @@ const ready = (data: NonNullable<SessionState['data']>): SessionState => ({
 });
 
 beforeEach(() => {
+  state.notifications = [];
+  state.turn = 'idle';
   state.reader = MAYA;
   state.session = ready({ ownerId: MAYA, canEdit: true, isArchived: false });
 });
@@ -71,6 +90,28 @@ it("is the saved review itself for the session's owner, who decides it", () => {
   expect(review.dataset.session).toBe('session-1');
   expect(review.dataset.review).toBe(REVIEW);
   expect(review.dataset.canAct).toBe('true');
+});
+
+it('follows what the session hears about the review, as the session view does', () => {
+  // A decision made elsewhere woke the agent: the card reloads on the event
+  // and shows the agent responding until it answers.
+  state.notifications = [
+    {
+      id: 'event-1',
+      subjectId: REVIEW,
+      turn: 4,
+      systemTurn: true,
+      createdAt: '2026-10-23T20:00:00Z',
+      actionId: 'action-1',
+    },
+    { id: 'event-0', subjectId: 'another-review', turn: 3, systemTurn: true },
+  ];
+  state.turn = 'running';
+  const view = card();
+  expect(view.getByRole('region', { name: 'Saved review' }).dataset.event).toBe(
+    'event-1'
+  );
+  expect(view.getByRole('status').textContent).toBe('Responding');
 });
 
 it('is read-only for an owner who may no longer act on the session', () => {

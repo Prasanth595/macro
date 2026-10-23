@@ -1,11 +1,14 @@
+import { createLiveSession } from '@app/features/agent-activity/queries/live-session';
+import { createReviewResponse } from '@app/features/agent-reviews/core/review-response';
 import { PersistedReview } from '@app/features/agent-reviews/views/persisted-review';
+import { WorkingLine } from '@app/features/block-agent/ui/WorkingLine';
 import { useUserId } from '@core/context/user';
 import { getDisplayName, tryMacroId } from '@core/user';
 import CalendarIcon from '@phosphor/calendar-blank.svg';
 import Envelope from '@phosphor/envelope-simple.svg';
 import { useAgentSessionQuery } from '@queries/agent-session/session';
 import { queryReadyGate } from '@queries/gate';
-import { Match, Switch } from 'solid-js';
+import { Match, Show, Switch } from 'solid-js';
 import { Card, CardSingle } from './kit/card';
 import { Tile } from './kit/parts';
 
@@ -78,13 +81,11 @@ export function ReviewCard(props: {
         <ReviewWaitingCard drafts={props.drafts} />
       </Match>
       <Match when={owner() && owner() === userId()}>
-        <div class="w-full max-w-xl min-w-0" data-agent-card="review">
-          <PersistedReview
-            sessionId={props.sessionId}
-            reviewId={props.reviewId}
-            canAct={!!session.data?.canEdit && !session.data?.isArchived}
-          />
-        </div>
+        <OwnerReview
+          sessionId={props.sessionId}
+          reviewId={props.reviewId}
+          canAct={!!session.data?.canEdit && !session.data?.isArchived}
+        />
       </Match>
       <Match when={owner()}>
         {(by) => (
@@ -95,5 +96,39 @@ export function ReviewCard(props: {
         )}
       </Match>
     </Switch>
+  );
+}
+
+/**
+ * The review as its owner decides it, following the session's notifications
+ * about it as the session view does: a decision made anywhere, or a send that
+ * settles later, reloads it, and the agent responding to a decision shows
+ * under it. The session's fold is the one every surface on it shares.
+ */
+function OwnerReview(props: {
+  sessionId: string;
+  reviewId: string;
+  canAct: boolean;
+}) {
+  const live = createLiveSession(() => props.sessionId);
+  const response = createReviewResponse(() => props.reviewId, {
+    metadata: live.metadata,
+    messages: live.messages,
+    turn: () => live.metadata()?.turn ?? 'idle',
+  });
+  return (
+    <div class="w-full max-w-xl min-w-0" data-agent-card="review">
+      <PersistedReview
+        sessionId={props.sessionId}
+        reviewId={props.reviewId}
+        canAct={props.canAct}
+        eventId={response.eventId()}
+        onDecision={response.onDecision}
+        onDecisionFailed={response.onDecisionFailed}
+      />
+      <Show when={response.responding()}>
+        <WorkingLine label="Responding" />
+      </Show>
+    </div>
   );
 }
