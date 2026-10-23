@@ -293,7 +293,7 @@ the shimmer.
   Macro that covers that repository; connecting only Cursor does not grant Macro
   GitHub access. Cloud agents also need a public agent gateway: Docker-only hostnames
   cannot receive their MCP callbacks. Check the runtime error before retrying, and
-  start a new Claude session after correcting its gateway network configuration.
+  start a new session after correcting its gateway network configuration.
 
 - Open **Go to Agents** → `/app/component/agents`. With AI agents enabled
   (`enable-chat-v3-agents`), the workspace uses one sidebar for Chat and Code.
@@ -332,8 +332,8 @@ the shimmer.
   first; `slack_v2` remains a separate row in Connections where it can be disabled
   or disconnected.
 
-  Start a conversation with **Create → Agent**. The sidebar has no New conversation
-  button, and the empty composer has no New conversation heading.
+  Start a conversation with the desktop sidebar's **New** button or **Create → Agent**.
+  The empty composer has no New conversation heading.
   **Conversations** is a mixed list
   of chats and coding sessions, with one search across both. **Group conversations**
   switches between Status (the default), Type, and None, preserving newest-first
@@ -435,7 +435,7 @@ the shimmer.
   Unavailable paired agents stay visible with a reason.
   If Macro is unavailable, its catalog stays visible but
   model choices are disabled in every list. Model discovery uses the
-  selected runtime, including Claude Cloud. Every coding agent shows repository
+  selected runtime. Every coding agent shows repository
   controls; chat agents hide those controls but keep the mode bar. Repository/branch overrides are currently applied
   only to Cursor sessions by the create-session API.
   The most recently used supported,
@@ -550,8 +550,7 @@ the shimmer.
   **Add agent**, the setup strips, and Edit replace the list with full pages,
   not dialogs; Back/Cancel returns to the list. Use **Create → Agent** to open a new composer.
   The agent editor has Profile, Instructions, **Where it runs** (In Macro, In
-  Cursor, In your harness; In Claude Code too with the `claude-cloud` flag once
-  Claude lists models) and **Who can use it** (Private / Team). The selected
+  Cursor, In your harness) and **Who can use it** (Private / Team). The selected
   place opens its Model picker inside its card; In your harness adds a Harness
   picker beside it. An unconnected Cursor or unpaired harness is disabled with
   **Connect** / **Set up**, which open the setup guide in place and return to the
@@ -924,6 +923,9 @@ enum types. For workspace overviews, the agent samples relevant categories in
 parallel; it reports sampled coverage rather than treating a mixed recent page
 as the whole workspace. `DescribeCodeTools` takes entity names (such as `documents`, `email`,
 `ai`, `agentSessions`) and guide topics (`examples`, `search`, `ai`, `templates`).
+It also takes a `task`: the same Jev selection runs over that text and returns
+every relevant entity reference within a 32 KiB budget, falling back to an
+entity's namespace overview and naming entities omitted for size.
 Expanded API references are already loaded: the agent should execute directly when
 they cover the task and request only missing details. The compact index alone
 is not a method reference. There is no runtime `sdk.help` or
@@ -941,7 +943,7 @@ agent identity: SDK messages show that agent as sender and the owner in the
 message bodies cannot choose it. Other SDK endpoints still authenticate the owner
 as a user. There is no runner service,
 WebSocket bridge, or per-API-call approval callback. Eight executions may run
-per harness process. Network hosts, process lifetime, output and memory are
+per harness process, with sixteen queued; public MCP runs have their own budget. Network hosts, process lifetime, output and memory are
 bounded; filesystem writes, arbitrary imports and subprocesses are denied.
 The token expires after issuance; process exit does not revoke it early.
 
@@ -986,6 +988,31 @@ text, bounded parallel Jev classifications and a local Handlebars import. Check
 probabilities and per-item errors rather than assuming every branch succeeded.
 Use the direct `EditDocument` card in a separate editing check. Already dispatched
 provider usage and completed writes may remain after cancellation.
+
+## Code mode on the public MCP
+
+The public workspace MCP (`mcp-server[-dev].macro.com`) evaluates the same
+`ai-code-mode` flag for the OAuth user on `initialize`, `tools/list` and
+`tools/call`, cached per user for a minute. Enabled users see `ExecuteCode` and
+`DescribeCodeTools` in place of the SDK-covered native tools, and the server
+instructions tell the client to call `DescribeCodeTools` with a `task` before
+writing a program. Programs export `async function main({macro})` and return
+exactly `{data}` (an empty `reviews: []` is dropped). There is no session,
+execution journal, review stack or `execution_id`; the receipt carries status,
+observed SDK activity, result and error. Runs act as the user with no agent
+attribution and no owner approval card: the MCP client asks before each tool
+call. SDK writes, including email sends, take effect immediately. Every native
+tool stays callable; MCP clients cache tool lists, so a flag change appears after
+reconnecting. Public runs use their own Deno budget (four running, eight queued
+per replica) so external traffic cannot take agent sessions' slots.
+
+To verify locally, run Claude Code against the stack's MCP with
+`tooling/scripts/claude-local-mcp.sh --instance <name> --email <email>`. It mints
+a local token for an existing user and passes only the Macro MCP. Local Doppler
+has no PostHog keys: add `POSTHOG_API_KEY` and `POSTHOG_HOST` to the instance's
+`local.generated.env` before services start, pointing at a stand-in `/flags/`
+server on the `macro-<name>_services` network, and compare a flagged and an
+unflagged user's `tools/list`.
 
 ## Start a doc-scoped chat
 
@@ -1720,7 +1747,7 @@ must stay hidden; subsequent live messages must still appear.
 - **Agent permission policy.** Settings → Agents → Runtime shows `Always prompt`
   and `Always bypass` only for local macrod harnesses. Macrod defaults to prompts;
   bypass requires both harness consent and the agent's explicit choice. Built-in
-  Macro, in-memory, Cursor, Codex, and Claude runtimes always bypass and have no
+  Macro, in-memory, Cursor, and Codex runtimes always bypass and have no
   permission policy selector. The backend enforces these policies.
 
 Locally sent user messages in both AI implementations enter with a short upward
@@ -1864,7 +1891,7 @@ picker. New and resumed sessions replace an inaccessible saved model with Gemini
 A direct request to select a paid model is rejected, and each prompt rechecks
 permissions before inference, including after a plan downgrade. Permission
 lookup failures prevent inference. Paid users retain the full supported catalog.
-Cursor, Claude Cloud, and paired external runtimes keep their own model rules.
+Cursor and paired external runtimes keep their own model rules.
 
 To verify, start a Macro conversation as a free user with a previously saved
 paid-model preference: the composer should show Gemini and send that model.

@@ -8,7 +8,10 @@ use rootcause::Report;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use uuid::Uuid;
 
+mod import;
+
 use crate::domain::{
+    ics::CalendarEventExport,
     models::{
         ActorInboxes, AttendeeResponseStatus, CalendarAttendee, CalendarAttendeeInput,
         CalendarEvent, CalendarEventDraft, CalendarEventOverride, CalendarEventPatch,
@@ -22,8 +25,8 @@ use crate::domain::{
     ports::{
         CalendarMutationProvider, CalendarProviderError, CalendarProviderErrorKind,
         CalendarRsvpScope, CalendarUpdateScope, GoogleCalendarProvider, GoogleEventSyncContext,
-        ProviderInstanceUpdateOutcome, ProviderInviteOutcome, ProviderRsvpOutcome,
-        ProviderSeriesMutationOutcome,
+        ProviderImportOutcome, ProviderInstanceUpdateOutcome, ProviderInviteOutcome,
+        ProviderRsvpOutcome, ProviderSeriesMutationOutcome,
     },
 };
 
@@ -1501,6 +1504,20 @@ impl<G: GoogleRequestGate> CalendarMutationProvider for GoogleCalendarClient<G> 
         }
     }
 
+    #[tracing::instrument(
+        skip(self, access_token, target, source),
+        fields(calendar_id = %target.calendar_id),
+        err
+    )]
+    async fn import_event(
+        &self,
+        access_token: &str,
+        target: &ProviderCalendarTarget,
+        source: &CalendarEventExport,
+    ) -> Result<ProviderImportOutcome, CalendarProviderError> {
+        self.import_copy(access_token, target, source).await
+    }
+
     #[tracing::instrument(skip(self, access_token), err)]
     async fn stop_watch_channel(
         &self,
@@ -1993,7 +2010,17 @@ fn draft_body(draft: &CalendarEventDraft) -> serde_json::Value {
             serde_json::Value::String(EventTransparency::Opaque.as_str().to_string());
         body["outOfOfficeProperties"] = google_out_of_office_body(out_of_office);
     }
+    if let Some(policy) = draft.guest_policy {
+        google_guest_policy_body(&mut body, policy);
+    }
     body
+}
+
+/// Write the three guest switches, so the stored copy reflects all of them.
+fn google_guest_policy_body(body: &mut serde_json::Value, policy: GuestPolicy) {
+    body["guestsCanModify"] = serde_json::Value::Bool(policy.can_modify);
+    body["guestsCanInviteOthers"] = serde_json::Value::Bool(policy.can_invite_others);
+    body["guestsCanSeeOtherGuests"] = serde_json::Value::Bool(policy.can_see_other_guests);
 }
 
 /// Serialize the `outOfOfficeProperties` block Google requires on an
@@ -2082,6 +2109,9 @@ fn patch_body(patch: &CalendarEventPatch) -> serde_json::Value {
     // already out-of-office event can change.
     if let Some(out_of_office) = &patch.out_of_office {
         body["outOfOfficeProperties"] = google_out_of_office_body(out_of_office);
+    }
+    if let Some(policy) = patch.guest_policy {
+        google_guest_policy_body(&mut body, policy);
     }
     body
 }
@@ -2310,6 +2340,7 @@ fn map_upsert(
             .collect(),
         reminders: map_reminders(master.reminders.as_ref()),
         guest_policy: guest_policy(&master),
+        is_snapshot: import::is_snapshot(&master, &target.provider_calendar_id),
         viewer_can: ViewerCapabilities::NONE,
         created_at,
         updated_at,
@@ -2702,8 +2733,20 @@ struct GoogleEvent {
     guests_can_invite_others: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     guests_can_see_other_guests: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    extended_properties: Option<GoogleExtendedProperties>,
     /// Every field Macro does not map, so the stored raw payload is Google's
     /// event as it arrived.
+    #[serde(flatten)]
+    extra: serde_json::Map<String, serde_json::Value>,
+}
+
+/// Key-value pairs an app stores on an event. `private` ones belong to the
+/// one calendar's copy they were written to; `shared` ones reach every copy.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct GoogleExtendedProperties {
+    #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+    private: serde_json::Map<String, serde_json::Value>,
     #[serde(flatten)]
     extra: serde_json::Map<String, serde_json::Value>,
 }

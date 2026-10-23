@@ -122,8 +122,10 @@ internal rollout. Model usage continues through the existing session metering.
 
 ## Imported Slack history
 
-Import starts from the **Import from Slack** card at the bottom of the Chat
-sidebar, or **Settings → Team → Connections → Import from Slack**. The card is
+Import starts from the **Create or import channels** card's **Import Slack**
+button at the bottom of the Chat sidebar, or **Settings → Team → Connections →
+Import from Slack**. The card's **New channel** button beside it opens the new
+channel dialog instead. The card is
 the shared connector-import card (see
 [Import from connected apps](setup-cards.md#import-from-connected-apps)) and is
 visible to team admins and owners when Slack archive import is enabled. It
@@ -379,7 +381,7 @@ someone who holds it on their own calendar. The bot's prompt carries the current
 own time zone (their primary calendar's), so it resolves relative times ("tomorrow at 4",
 "EOD") without asking; when no calendar is connected the prompt falls back to UTC and the
 bot asks before scheduling a specific clock time. Within the rollout, `@Macro` — plus
-`@cursor` / `@codex` / `@claude` when available — opens
+`@cursor` / `@codex` when available — opens
 an agent session; follow-up
 `@` mentions of that bot in the same thread route to it.
 Macro Coding Agent (`@coder`) is unavailable in mention suggestions, including
@@ -426,15 +428,14 @@ collapse control. The card never expands in place.
 
 Built-in provider agents are offered before account setup, each within its own
 rollout: `@cursor` requires the `enable-cursor-agents` flag (local override:
-`VITE_ENABLE_CURSOR_AGENTS`), `@claude` requires the `claude-cloud` flag
-(local override: `VITE_CLAUDE_CLOUD`), and `@codex` requires both
+`VITE_ENABLE_CURSOR_AGENTS`), and `@codex` requires both
 `enable-chat-v3-agents` and `enable-codex-agents` (local override:
 `VITE_ENABLE_CODEX_AGENTS`). Outside a rollout the entry is absent from
 the mention menu and from task agent assignees, even when that bot is already a
 channel participant. Custom agents keep their channel visibility rules
 regardless of which harness they use.
 A mention without a connected account creates no session and replies in the thread
-with a **Connect Cursor**, **Connect Codex**, or **Connect Claude** chip. Each chip
+with a **Connect Cursor** or **Connect Codex** chip. Each chip
 opens Settings → Agents → Runtimes, where the connection cards in the reader's rollout are visible. The same
 chip reads **connected** after setup; mention the bot again to start a session.
 Codex also prompts for a cloud environment when ChatGPT is connected but no
@@ -746,8 +747,11 @@ with the same full sidebar contents. With no conversation selected, the
 slide-over opens on its own and closes once a conversation is picked; the
 backdrop or `Escape` still dismisses it. There is no separate skinny sidebar mode.
 
-On desktop, the Chat rail has `All` and `Recent` tabs. All contains an
-optional `Favorites` section and the
+On desktop, the Chat rail has `All` and `Recent` tabs in a flat, shared track
+aligned with New. Choices use equal widths, a transparent outlined track with
+1px padding, and fully rounded pill shapes. The 32px selected state matches
+New's fill and border without an extra shadow. All contains an optional
+`Favorites` section and the
 independently paginated `Channels` and `DMs` sections. Favorites appears when
 the user has channel favorites and only lists channels. Channel favorites open
 in the shared channel detail. Shift-clicking a favorite, channel, or DM opens that
@@ -967,7 +971,11 @@ to the next section. `[` and `]` jump between the visible Favorites,
 Channels, and DMs section headers.
 
 On touch layouts, Channels shows only the Recent conversation feed, with channel
-and DM message previews. There are no view tabs or reserved tab-header space;
+and DM message previews. Rows use Home's touch row: the unread dot in the left
+rail, a 44px avatar, and a divider inset to the text column. The first six
+favorited channels (favorite order) are pinned in a three-across grid above the
+feed, iMessage style, and leave the feed below; tapping a pin opens it and a
+hold opens its action menu, where Unfavorite unpins it. There are no view tabs or reserved tab-header space;
 older saved tab selections and mobile-tab links cannot change the list. It loads
 more as the list approaches the end and supports pull to refresh.
 Rows use the same touch highlight as Home and Email: taps retain feedback while
@@ -1332,3 +1340,11 @@ Markdown options before Query and Database. Typing `/query` filters to the Query
 action; `/database` creates a new database and inserts its editable card.
 
 When Databases is enabled, type `/query` in a channel message or thread reply and choose **Query** to insert a live question. Ask with Enter or the Ask button, then accept the answer before sending the message. Enter in the question box belongs to the question and must not send the channel draft. Recipients can read the live answer subject to their database access. Database @ mentions in message composers remain compact; **Expand** turns one into an editable database card.
+
+## Downloading channel videos
+
+Video messages show **Download** below the player on desktop and touch devices. The expanded viewer has the same action. These retrieve the
+original bytes and filename from static-file metadata; they do not record or
+transcode playback. If the metadata is unavailable, the fallback extension comes
+from the response MIME type. See [Downloading files](files.md#downloading-files)
+for progress, cancellation, retries, and mobile save/share verification.

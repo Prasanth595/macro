@@ -7,6 +7,7 @@ import type { CalendarEvent } from '@app/features/calendar/types';
 import type { CalendarAttendee } from '@service-storage/generated/schemas/calendarAttendee';
 import { cleanup, render, screen, waitFor } from '@solidjs/testing-library';
 import userEvent from '@testing-library/user-event';
+import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventGuests } from './EventGuests';
 
@@ -120,6 +121,7 @@ const MAY_INVITE = {
   removeGuests: false,
   setGuestPolicy: false,
   rsvp: true,
+  organize: false,
 };
 
 function event(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
@@ -306,6 +308,39 @@ describe('adding guests from event details', () => {
     ).toBeTruthy();
   });
 
+  it('switches to the explanation once the organizer turns inviting off', () => {
+    const [current, setCurrent] = createSignal(event());
+    render(() => {
+      const invites = createGuestInviteController(current, () => true);
+      return (
+        <EventGuests
+          event={current()}
+          invites={invites}
+          closeDetails={vi.fn()}
+        />
+      );
+    });
+    expect(screen.getByRole('button', { name: 'Add guests' })).toBeTruthy();
+
+    // The refetched event after the organizer's save echoes the new policy,
+    // and the server resolves the guest's capabilities from it.
+    setCurrent(
+      event({
+        guestPolicy: {
+          canModify: false,
+          canInviteOthers: false,
+          canSeeOtherGuests: true,
+        },
+        viewerCan: { ...MAY_INVITE, inviteGuests: false },
+      })
+    );
+
+    expect(screen.queryByRole('button', { name: 'Add guests' })).toBeNull();
+    expect(
+      screen.getByText('Only the organizer can invite guests.')
+    ).toBeTruthy();
+  });
+
   it('switches to the explanation when the organizer refuses the invitation', async () => {
     mocks.invite.mockRejectedValue({ code: 'guests_cannot_invite' });
     const user = userEvent.setup();
@@ -327,6 +362,21 @@ describe('adding guests from event details', () => {
       screen.getByText('Only the organizer can invite guests.')
     ).toBeTruthy();
     expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  it('offers no guest addresses to copy or email when the viewer is the only guest', () => {
+    renderGuests(
+      event({
+        isSnapshot: true,
+        viewerCan: { ...MAY_INVITE, inviteGuests: false, rsvp: false },
+        attendees: [attendee({ email: 'me@example.com', isSelf: true })],
+      })
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Copy guest emails' })
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Email guests' })).toBeNull();
   });
 
   it('keeps today’s guest actions while guest invites are off', () => {

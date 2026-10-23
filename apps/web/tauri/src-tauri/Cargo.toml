@@ -94,8 +94,23 @@ objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = [
   "std",
   "NSBundle",
+  "NSData",
   "NSError",
   "NSString",
+] }
+objc2-intents = { version = "0.3", default-features = false, features = [
+  "std",
+  "block2",
+  "INImage",
+  "INIntent",
+  "INIntentResponse",
+  "INInteraction",
+  "INOutgoingMessageType",
+  "INPerson",
+  "INPersonHandle",
+  "INSendMessageAttachment",
+  "INSendMessageIntent",
+  "INSpeakableString",
 ] }
 objc2-user-notifications = { version = "0.3", default-features = false, features = [
   "std",
@@ -105,6 +120,7 @@ objc2-user-notifications = { version = "0.3", default-features = false, features
   "UNNotificationContent",
   "UNNotificationRequest",
   "UNNotificationSettings",
+  "UNNotificationSound",
   "UNNotificationTrigger",
   "UNUserNotificationCenter",
 ] }
@@ -127,6 +143,7 @@ tauri-plugin-virtual-keyboard = { git = "https://github.com/voxelbee/tauri-plugi
 tracing-oslog = { version = "0.3" }
 tauri-plugin-call-kit = { path = "../callkit_plugin" }
 tauri-plugin-edit-menu = { path = "../edit_menu_plugin" }
+tauri-plugin-file-export = { path = "../file_export_plugin" }
 tauri-plugin-input-accessory = { path = "../input_accessory_plugin" }
 tauri-plugin-network-status = { path = "../network_status_plugin" }
 tauri-plugin-pasteboard = { path = "../pasteboard_plugin" }

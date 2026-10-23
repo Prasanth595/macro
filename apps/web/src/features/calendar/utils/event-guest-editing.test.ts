@@ -25,6 +25,7 @@ const ORGANIZER = {
   removeGuests: true,
   setGuestPolicy: true,
   rsvp: true,
+  organize: true,
 };
 const MODIFYING_GUEST = {
   editDetails: true,
@@ -32,6 +33,7 @@ const MODIFYING_GUEST = {
   removeGuests: true,
   setGuestPolicy: false,
   rsvp: true,
+  organize: false,
 };
 const INVITING_GUEST = {
   editDetails: false,
@@ -39,6 +41,7 @@ const INVITING_GUEST = {
   removeGuests: false,
   setGuestPolicy: false,
   rsvp: true,
+  organize: false,
 };
 const GUEST = {
   editDetails: false,
@@ -46,6 +49,7 @@ const GUEST = {
   removeGuests: false,
   setGuestPolicy: false,
   rsvp: true,
+  organize: false,
 };
 
 function event(overrides: Partial<CalendarEvent>): CalendarEvent {
@@ -93,6 +97,15 @@ describe('eventGuestEditing', () => {
     );
   });
 
+  it('lets an Outlook organizer replace the guest list without a guest policy to set', () => {
+    expect(
+      eventGuestEditing(
+        event({ viewerCan: { ...ORGANIZER, setGuestPolicy: false } }),
+        true
+      )
+    ).toBe('replace');
+  });
+
   it('lets a guest who may invite add guests only while invites are enabled', () => {
     expect(eventGuestEditing(invited(INVITING_GUEST), true)).toBe('add');
     expect(eventGuestEditing(invited(INVITING_GUEST), false)).toBe('none');
@@ -138,6 +151,15 @@ describe('guestInvitesRestricted', () => {
     ).toBe(false);
     expect(
       guestInvitesRestricted({ ...invited(GUEST), isReadOnly: true })
+    ).toBe(false);
+  });
+
+  it('stays quiet on a snapshot, whose only guest is the viewer', () => {
+    expect(
+      guestInvitesRestricted({
+        ...invited({ ...GUEST, rsvp: false }),
+        isSnapshot: true,
+      })
     ).toBe(false);
   });
 });
