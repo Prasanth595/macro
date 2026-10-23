@@ -24,6 +24,7 @@ import { NotificationNamespace } from './entities/notifications/namespace';
 import { PinsNamespace } from './entities/pins/namespace';
 import { ProjectNamespace } from './entities/projects/namespace';
 import { PropertiesNamespace } from './entities/properties/namespace';
+import { RoutineTemplateNamespace } from './entities/routine-templates/routine-template';
 import { RoutineNamespace } from './entities/routines/namespace';
 import { TaskNamespace } from './entities/tasks/namespace';
 import { TeamNamespace } from './entities/teams/namespace';
@@ -90,6 +91,8 @@ export type { RequestActivity } from './utils/activity';
 export class Macro<T extends MacroOpts = MacroOpts> {
   /** routines resources and operations. */
   readonly routines: RoutineNamespace;
+  /** Routine templates: share a routine for others to activate as their own. */
+  readonly routineTemplates: RoutineTemplateNamespace;
 
   /** unfurls resources and operations. */
   readonly unfurls: UnfurlNamespace;
@@ -178,6 +181,7 @@ export class Macro<T extends MacroOpts = MacroOpts> {
     const client = new MacroClient(opts);
     this._client = client;
     this.routines = new RoutineNamespace(client);
+    this.routineTemplates = new RoutineTemplateNamespace(client);
     this.unfurls = new UnfurlNamespace(client);
     this.agents = new AgentNamespace(client);
     this.initiatives = new InitiativeNamespace(client);
@@ -284,6 +288,11 @@ export { Meeting } from './entities/meetings/meeting';
 export type { TimelineOptions } from './entities/messages/thread';
 export { type MessageParent, MessageThread } from './entities/messages/thread';
 export type { EntityReference } from './entities/reference';
+export {
+  RoutineTemplate,
+  RoutineTemplateNamespace,
+  type TemplateBindings,
+} from './entities/routine-templates/routine-template';
 export type {
   RoutineEventFilter,
   RoutineTriggerOptions,

@@ -38,6 +38,7 @@ field and mutate.
 - [`Meeting`](../../meetings/meeting/classes/Meeting.md)
 - [`MessageThread`](../../messages/thread/classes/MessageThread.md)
 - [`Notification`](../../notifications/notification/classes/Notification.md)
+- [`RoutineTemplate`](../../routine-templates/routine-template/classes/RoutineTemplate.md)
 - [`Routine`](../../routines/routine/classes/Routine.md)
 - [`AccessRequest`](../../sharing/access/classes/AccessRequest.md)
 - [`Team`](../../teams/team/classes/Team.md)

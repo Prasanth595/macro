@@ -2,8 +2,10 @@ import { match } from 'ts-pattern';
 import type {
   ActionTrigger,
   AgentTask,
+  BoundValue,
   EventFilter,
   RoutineModelId,
+  RoutineProvenance,
   RoutineTrigger,
   RunVisibility,
   ScheduledActionResponse,
@@ -172,6 +174,33 @@ export class Routine extends MacroEntity<ScheduledActionResponse> {
         path: { id: this.id },
       }),
     ).map((record) => new RoutineExecution(this, record));
+  }
+
+  /**
+   * The template this routine was activated from, with the values it used,
+   * or `undefined` for a routine made by hand.
+   */
+  async template(): Promise<RoutineProvenance | undefined> {
+    return (
+      unwrap(
+        await this.client.scheduledAction.getRoutineTemplateProvenance({
+          path: { id: this.id },
+        }),
+      ) ?? undefined
+    );
+  }
+
+  /**
+   * Re-render the routine from its template with new values. Fails once the
+   * routine has been edited by hand.
+   */
+  async rebindTemplate(bindings: Record<string, BoundValue>): Promise<void> {
+    await this.mutate((c) =>
+      c.scheduledAction.rebindRoutineTemplate({
+        path: { id: this.id },
+        body: { bindings },
+      }),
+    );
   }
 
   /** Delete the routine. */

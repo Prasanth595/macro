@@ -106,6 +106,7 @@
 - [src/entities/properties/property-definition](src/entities/properties/property-definition/README.md)
 - [src/entities/properties/property-option](src/entities/properties/property-option/README.md)
 - [src/entities/reference](src/entities/reference/README.md)
+- [src/entities/routine-templates/routine-template](src/entities/routine-templates/routine-template/README.md)
 - [src/entities/routines/namespace](src/entities/routines/namespace/README.md)
 - [src/entities/routines/routine](src/entities/routines/routine/README.md)
 - [src/entities/search](src/entities/search/README.md)

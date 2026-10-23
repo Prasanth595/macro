@@ -544,6 +544,18 @@ Re-exports [RoutineOptions](../entities/routines/routine/interfaces/RoutineOptio
 
 ***
 
+### RoutineTemplate
+
+Re-exports [RoutineTemplate](../entities/routine-templates/routine-template/classes/RoutineTemplate.md)
+
+***
+
+### RoutineTemplateNamespace
+
+Re-exports [RoutineTemplateNamespace](../entities/routine-templates/routine-template/classes/RoutineTemplateNamespace.md)
+
+***
+
 ### RoutineTriggerOptions
 
 Re-exports [RoutineTriggerOptions](../entities/routines/routine/type-aliases/RoutineTriggerOptions.md)
@@ -583,6 +595,12 @@ Re-exports [StructuredCompletionRequest](../../generated/cognition/types.gen/typ
 ### StructuredCompletionResponse
 
 Re-exports [StructuredCompletionResponse](../../generated/cognition/types.gen/type-aliases/StructuredCompletionResponse.md)
+
+***
+
+### TemplateBindings
+
+Re-exports [TemplateBindings](../entities/routine-templates/routine-template/type-aliases/TemplateBindings.md)
 
 ***
 

@@ -57,6 +57,25 @@ Completed executions, with their routine scoped identity.
 
 ***
 
+### rebindTemplate()
+
+> **rebindTemplate**(`bindings`): `Promise`\<`void`\>
+
+Re-render the routine from its template with new values. Fails once the
+routine has been edited by hand.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `bindings` | `Record`\<`string`, [`BoundValue`](../../../../../generated/scheduled-action/types.gen/type-aliases/BoundValue.md)\> |
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### setEnabled()
 
 > **setEnabled**(`enabled`): `Promise`\<`void`\>
@@ -72,6 +91,19 @@ Enable or disable triggering.
 #### Returns
 
 `Promise`\<`void`\>
+
+***
+
+### template()
+
+> **template**(): `Promise`\<[`RoutineProvenance`](../../../../../generated/scheduled-action/types.gen/type-aliases/RoutineProvenance.md) \| `undefined`\>
+
+The template this routine was activated from, with the values it used,
+or `undefined` for a routine made by hand.
+
+#### Returns
+
+`Promise`\<[`RoutineProvenance`](../../../../../generated/scheduled-action/types.gen/type-aliases/RoutineProvenance.md) \| `undefined`\>
 
 ***
 

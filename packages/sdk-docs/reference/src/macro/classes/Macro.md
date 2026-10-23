@@ -54,6 +54,7 @@
 | <a id="property-projects"></a> `projects` | `readonly` | [`ProjectNamespace`](../../entities/projects/namespace/classes/ProjectNamespace.md) | - |
 | <a id="property-properties"></a> `properties` | `readonly` | [`PropertiesNamespace`](../../entities/properties/namespace/classes/PropertiesNamespace.md) | - |
 | <a id="property-routines"></a> `routines` | `readonly` | [`RoutineNamespace`](../../entities/routines/namespace/classes/RoutineNamespace.md) | routines resources and operations. |
+| <a id="property-routinetemplates"></a> `routineTemplates` | `readonly` | [`RoutineTemplateNamespace`](../../entities/routine-templates/routine-template/classes/RoutineTemplateNamespace.md) | Routine templates: share a routine for others to activate as their own. |
 | <a id="property-tasks"></a> `tasks` | `readonly` | [`TaskNamespace`](../../entities/tasks/namespace/classes/TaskNamespace.md) | - |
 | <a id="property-teams"></a> `teams` | `readonly` | [`TeamNamespace`](../../entities/teams/namespace/classes/TeamNamespace.md) | - |
 | <a id="property-unfurls"></a> `unfurls` | `readonly` | [`UnfurlNamespace`](../../entities/unfurls/namespace/classes/UnfurlNamespace.md) | unfurls resources and operations. |
