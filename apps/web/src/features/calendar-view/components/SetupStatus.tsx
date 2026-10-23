@@ -1,5 +1,6 @@
 import { useCalendarPager } from '@app/features/calendar/components/CalendarPagerContext';
 import { isCalendarRangeSupported } from '@app/features/calendar/utils/calendar-supported-range';
+import { useUserId } from '@core/context/user';
 import { useAddInboxFlow } from '@core/email-link';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { useVisibleCalendarsQuery } from '@queries/calendar/calendars';
@@ -42,6 +43,17 @@ export function SetupStatus() {
       : []
   );
   const startAddInbox = useAddInboxFlow();
+  const userId = useUserId();
+
+  // The links list also carries inboxes another Macro user delegated to the
+  // viewer. Whether that user's calendar syncs is theirs to decide, as in the
+  // calendar settings, so setup counts and acts on the viewer's own alone.
+  const ownLinks = () =>
+    linksQuery.isSuccess
+      ? (linksQuery.data?.links ?? []).filter(
+          (link) => link.macro_id === userId()
+        )
+      : [];
 
   const hasEvents = () =>
     (calendarPager.activeData()?.events().length ?? 0) > 0 ||
@@ -57,11 +69,15 @@ export function SetupStatus() {
     const range = activeData?.range();
     if (range && !isCalendarRangeSupported(range)) return undefined;
 
-    if (!linksQuery.isSuccess || !activeData?.occurrencesQuery.isSuccess) {
+    if (
+      !linksQuery.isSuccess ||
+      !activeData?.occurrencesQuery.isSuccess ||
+      userId() === undefined
+    ) {
       return undefined;
     }
 
-    const links = linksQuery.data?.links ?? [];
+    const links = ownLinks();
     if (links.length === 0) return 'connect';
 
     const hasAvailableCalendar = links.some(
@@ -94,7 +110,7 @@ export function SetupStatus() {
   // alone. Connecting and reconnecting need the mailbox scopes alongside it.
   const startSetup = () => {
     const state = setupState();
-    const links = linksQuery.isSuccess ? linksQuery.data.links : [];
+    const links = ownLinks();
     const link =
       state === 'reauth'
         ? links.find((link) => link.needs_reauth)
