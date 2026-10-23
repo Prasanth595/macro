@@ -1,28 +1,66 @@
 # Customers (CRM)
 
-## Customers (CRM) — `/app/component/companies`
+## Customers (CRM) — `/app/companies`
 
 On desktop, the local sidebar uses the same navigation primitives as Email and Tasks.
 Its **New** menu creates a **Company**, a **Contact**, or a **Pipeline** (Pipeline
 only when pipelines are enabled; disabled until the team's CRM is enabled). The
-**Records** section lists **Companies** and **People**; Pipelines and Lists follow.
+**Records** section lists **Companies**, **People**, **Tasks**, **Email**, **Notes**,
+and **Calls**, in that order; Pipelines and Lists follow.
 There are no built-in company views or Board/List layout. Companies and People
 are plain soup lists with the shared pagination. Existing personal/team saved
 views stay in the toolbar's Views menu.
 
+**Rollout:** Tasks, Email, Notes and Calls require PostHog `enable-crm-activity`
+(off by default; local override: `VITE_ENABLE_CRM_ACTIVITY=true`). CRM also uses
+this flag to decide whether to supply its task-composer preset; the shared
+composer itself is not feature-flagged. With it off, only Companies and People
+appear in Records, activity queries do not run, and activity deep links return to
+Companies after flags finish loading. Global task creation uses the standard
+composer; record-level New task still associates the new task with that record.
+With it on, the activity and contextual composer behavior below applies.
+Task creation opens immediately from the focused pane's registered preset,
+without fetching record details. Contact company prefills use already-loaded
+details. If CRM's flag is still loading, CRM supplies no preset. Later flag,
+focus or record changes do not reset an open composer; reopen to use the new
+context. If an embedded record shows a loading error, global task creation still
+targets the selected record until you close its details.
+
 The selected Customers list is stored on the pane as `sN.crm.tab`. People uses
-`people`, a list uses `list:<uuid>`, and hidden companies use `hidden`.
-Companies is the default and omits the key. A pipeline has its own path,
-`/app/companies/pipeline/<uuid>`; older `sN.crm.tab=pipeline:<uuid>` URLs and
-shared `crmView` links that show a pipeline redirect there. Choosing Companies,
-People, a pipeline, or a list updates the URL, and browser Back and Forward
-restore it.
+`people`, activity tabs use `tasks`, `email`, `notes`, or `calls`, a list uses
+`list:<uuid>`, and hidden companies use `hidden`. Companies is the default and
+omits the key. A pipeline has its own path, `/app/companies/pipeline/<uuid>`;
+older `sN.crm.tab=pipeline:<uuid>` URLs and shared `crmView` links that show a
+pipeline redirect there. Choosing Companies, People, an activity tab, a pipeline,
+or a list updates the URL, and browser Back and Forward restore it.
+
+The four activity tabs show CRM-linked content, not the whole app: Tasks and
+Calls require a Companies or Contacts reference; Notes are linked Markdown
+documents (excluding tasks, snippets, and skills); Email is your own mailbox's
+threads with CRM company domains or contact addresses. Lists page as you scroll.
+Empty CRM scope never falls back to all content. A loading failure offers
+**Try again**. Tasks has **New task**, with Companies and Contacts visible in
+place of Status. Choose a CRM association when creating a task from this feed.
+Opening Task through the global Create menu while Customers is focused uses the
+same preset. With an embedded company or contact detail open, global Create
+prefills the current breadcrumb record; a contact also includes its company.
+Closing the detail returns global Create to the unassociated CRM preset.
+
+Verify activity loading with a CRM containing thousands of companies and
+contacts, not only an empty fixture. Opening a tab must settle without repeated
+requests; switching tabs must preserve filtering and scrolling must load older
+matching items. A frontend preview still needs the Soup/email SQL optimizations
+deployed on its backend to verify large-scope request performance.
+
+Record-level **New task** also prefills the current record.
+**Add property** can reveal Status or another supported property.
 
 Companies lists every visible company, grouped by Stage by default, with Owner,
 Revenue and Last Interaction columns. A Stage column is off by default; turn it
-on, or hide Owner or Revenue, under **Display options**. Its toolbar holds
-sort, group, filter, display options, saved views, and **New company** at the
-right end.
+on, or hide Owner or Revenue, under **Display options**. Its single-row desktop
+header matches Tasks: title, filter group, view-options group (sort, group,
+display options, and saved views), then the shared **New** menu and expandable
+Search. New has the same options as the sidebar.
 
 People lists contacts across every CRM-enabled team the viewer belongs to, from
 the same Soup query with only CRM contacts opted in (`crmf`). The server collapses
@@ -30,19 +68,22 @@ duplicate full email addresses (case-insensitive) to one contact. Hidden contact
 and contacts under hidden companies are excluded. Columns are Person (name and
 email), Company and Last contacted (sortable). `Search people` matches name or
 email on the server after a short typing pause, so results include contacts not
-yet scrolled into view. **New contact** sits at the right end of the toolbar. Its
-dialog asks for a company through a **Choose a company** pill (searchable by name
+yet scrolled into view. The desktop header has the title, shared **New** menu,
+and expandable Search; choose **Contact** from New. On touch, **New contact**
+is unchanged. The contact dialog asks for a company through a **Choose a company** pill (searchable by name
 or domain, from the up to 500 most relevant companies with a domain) and fixes
 the email to that company's primary domain; **Add contact** on a company's Team
 tab skips the company pill. The company, contact and pipeline dialogs share the
 task/project composer layout: name on the first row beside **Close**, details
 below, and a **Create …** button that also submits on Command-Enter.
 
-`Search companies` and `Search people` use the shared Email/Tasks search bar.
-Command-F focuses it, `Clear search` resets it, and Escape leaves the field.
+Desktop `Search companies` and `Search people` start as outlined icon buttons
+and expand into the shared Email/Tasks search bar. Command-F expands and focuses
+the field; Close or Escape clears the query and returns to the icon.
 
 On touch devices, CRM uses the same scrollable pill tabs as Tasks in the top
-header: Companies, People, available pipelines, and enabled lists. Swipe the
+header: Companies, People, Tasks, Email, Notes, Calls, available pipelines, and
+enabled lists. Swipe the
 strip horizontally to reach every destination; the selected tab stays visible.
 The tabs remain available inside pipelines, with no hamburger button. Company
 filters lead the strip when available. On mobile, pipelines omit their title
@@ -94,7 +135,7 @@ already in the trail (such as the contact's own company from `Companies >
 <company> > <contact>`) returns to it instead of adding a duplicate. Back and
 Forward restore the trail; a reloaded or shared record URL shows only `<list> >
 <record>`. The CRM sidebar stays visible throughout.
-Company and contact headers have `Copy link` beside the side-panel toggle.
+Company and contact headers group `Copy link` separately from the side-panel toggle. Desktop section tabs collapse to icons in narrow panes; each icon keeps a tooltip.
 Their information panel starts closed and opens as a floating bubble at every
 width, without shrinking the record content. Click outside the bubble or use
 the toggle to dismiss it; the open state is not restored on a later visit.
@@ -117,16 +158,19 @@ Emails, Files, Calls, and References rows open their items without selection
 checkboxes, including on touch devices.
 
 A company is laid out like a project. Its split header or embedded breadcrumb
-header shows inset `Overview`, `Team`, `Emails`, `Files`, `Tasks`, and `Calls`
+header shows rounded view tabs for `Overview`, `Team`, `Emails`, `Files`, `Tasks`, and `Calls`
 tabs, collapsing to icons when narrow. Overview shows the name, pills
 for each domain and `Last interacted`, the generated description, a
 **Pipelines** section and the Discussion. Pipelines stacks one full-width card
 per row of a pipeline you can open that references the record. A card's header
 strip names the pipeline (a lock marks a private one); below it, the row's first
-four fields sit side by side, label over value, and the rest wait behind
-`Show N more`. Cells edit like the pipeline table's when you can edit that
-pipeline. Inside Customers, the header's `Open <pipeline>` button opens it. The
-`Pipelines` caret header collapses and expands the cards, like the Discussion
+four fields sit side by side, label over value (two per row on a narrow card),
+and the rest wait behind `Show N more` in the card's footer. Expanded, text
+values wrap to their full length instead of truncating, the footer's
+`Show less` stays pinned to the bottom of the view while the card runs past it,
+and collapsing scrolls the card back into view. Cells edit like the pipeline
+table's when you can edit that pipeline. Inside Customers, the header's
+`Open <pipeline>` button opens it. The `Pipelines` caret header collapses and expands the cards, like the Discussion
 header; both start expanded on each visit. The
 section is absent when the record is in no pipeline.
 Team lists the contacts with `Add contact`. Emails keeps the
@@ -205,8 +249,8 @@ The sidebar's Records and Lists sections can also collapse independently.
 records editor. They have their own identity, ownership and sharing; their
 storage does not appear as a separate database in navigation.
 **New pipeline** is disabled until the team's CRM is enabled. For a new team,
-use **Open CRM settings** in the empty state to enable CRM, then return to
-Customers to create a pipeline. Verify this with a newly created team as well as
+use **Open CRM settings** in the empty state to enable CRM, then use the back
+arrow to return to Customers and create a pipeline. Verify this with a newly created team as well as
 an existing CRM-enabled team.
 Choose **New pipeline**, enter a name in the dialog's first row, pick
 **Companies** (the default) or **Contacts** from the record-type pill, and tick
@@ -297,7 +341,7 @@ picker. Checking or unchecking saves immediately and refreshes the CRM sidebar's
 membership counts. Changes are disabled while saving; failures show an inline retry
 message and keep the last saved membership. With no lists, create one in the CRM sidebar.
 
-`New company` uses the existing creation dialog. `Import` previews a CSV with a
+Desktop `New` → `Company` uses the existing creation dialog. `Import` previews a CSV with a
 `Domain` (or `Domains`, `Website`) column and an optional `Name` or `Company`
 column, such as a Companies export (up to 10,000 rows, at most 5 MB). Each row
 takes its first valid domain; rows without one or repeating an earlier domain are
@@ -315,8 +359,14 @@ value (missing Stage options are added; owners match by email) and offers **Open
 pipeline** after. If that step fails, importing again reuses the same pipeline
 and adds only missing rows. A pipeline's own **Import CSV** also takes a
 Companies export. Use preview
-and cancel for browser checks against hosted dev data. `CRM settings` opens the existing
-settings panel. Requires a team with CRM enabled.
+and cancel for browser checks against hosted dev data.
+
+`CRM settings` shows the settings in the Customers pane, in place of the open
+list, pipeline, or record, and highlights its sidebar item. The back arrow
+(**Close CRM settings**) returns to that same list, pipeline, or record; picking
+another sidebar destination, or browser Back, also leaves settings. On touch
+the back arrow is the only control in the header. It is the same page as
+Settings > CRM, with the same member and admin permissions; check both roles.
 
 `Export` opens options for companies. Choose Current view
 (respects filters/search) or All records across views (each visible record once), then

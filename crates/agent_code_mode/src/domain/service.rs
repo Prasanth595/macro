@@ -229,10 +229,12 @@ pub fn covered_by_code_sdk(name: &str, user_tool: bool) -> bool {
                 | "RenameDocument"
                 | "MoveToProject"
                 | "MoveToTrash"
-                | "CommentOnDocument"
-                | "DeleteDocumentComment"
-                | "EditDocumentComment"
-                | "ResolveDocumentComment"
+                | "ReadDiscussion"
+                | "Comment"
+                | "CommentOnText"
+                | "DeleteComment"
+                | "EditComment"
+                | "ResolveComment"
                 | "ReadProject"
                 | "CreateProject"
                 | "SetFavorite"
@@ -364,6 +366,7 @@ fn receipt(record: &ExecutionRecord) -> ExecutionReceipt {
     ExecutionReceipt {
         execution_id: record.execution_id,
         status: record.status,
+        activity: record.activity.clone(),
         result: record.result.clone(),
         error: execution_error(record),
     }
