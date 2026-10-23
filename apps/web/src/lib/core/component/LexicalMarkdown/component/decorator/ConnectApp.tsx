@@ -13,7 +13,6 @@ import { useOptionalMessage } from '@app/features/channel/Message/context';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { HarnessIcon } from '@core/component/HarnessIcon';
 import { useSettingsState } from '@core/constant/SettingsState';
-import { useUserId } from '@core/context/user';
 import { PipedreamConnectorIcon } from '@core/pipedream/ConnectorIcon';
 import { AppConnectionContext } from '@core/pipedream/connection-context';
 import { requestConnectApp } from '@core/pipedream/pendingConnect';
@@ -178,10 +177,7 @@ function ConnectPipedreamApp(props: ConnectProps) {
 
 function ConnectHarness(props: ConnectProps) {
   const { openSettings } = useSettingsState();
-  const connected = useHarnessConnectionStatus(
-    () => props.appSlug,
-    useUserId()
-  );
+  const connected = useHarnessConnectionStatus(() => props.appSlug);
   return (
     <ConnectButton
       {...props}

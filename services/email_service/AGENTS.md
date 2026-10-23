@@ -48,6 +48,13 @@ the gateway `/email` prefix.
 
 ## Gotchas
 
+- Provider-sync deletions deferred by active sends publish no deletion event; scheduled recovery reconciles the retained marker before trying to claim delivery.
+
+- Draft edit routes carry `draft_generation` from the editing lifetime, including attachments, deletion, transfer, and schedules; regenerate OpenAPI clients when this contract changes.
+
+- The Gmail delivery adapter freezes approved upload/provider-file IDs before
+  loading bytes through the authorized reader; Outlook uses its own coordinator.
+
 - Forwarded attachments use the source inbox's provider credentials; the email
   domain rechecks the scheduled actor's access before cross-inbox downloads.
 - Macro's own digest emails are filtered out of Signal/email notifications
@@ -60,6 +67,9 @@ the gateway `/email` prefix.
   calendar refresh so unrelated invitation updates retain teammates' OOO rows.
 - Spawn `run_transfers` regardless of the Outlook flags. Gmail inbox moves
   finish there; with writes off it pauses only the Outlook retire step.
+- Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
+  Skip the bad address with a WARN that omits it (the parse error echoes it)
+  instead of failing the step; see `pubsub::util::build_contact_connections`.
 
 ## Related
 

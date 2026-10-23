@@ -665,11 +665,10 @@ pub struct ExternalSessionResponse {
 
 impl From<ExternalSession> for ExternalSessionResponse {
     fn from(external: ExternalSession) -> Self {
-        let url = external.web_url();
         Self {
             provider: external.provider,
             name: external.external_name,
-            url,
+            url: external.external_url,
         }
     }
 }
@@ -1579,6 +1578,8 @@ pub struct LogFrameDto {
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum LogDirectionDto {
+    /// Trusted system-event invocation, separate from user prompts.
+    Notification,
     /// Runtime → server.
     ToServer,
     /// Server → runtime.

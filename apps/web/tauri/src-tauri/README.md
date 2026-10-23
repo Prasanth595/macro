@@ -11,7 +11,8 @@ Only desktop icons carry the ALPHA badge; iOS and Android icons are unbadged.
 The macOS icon uses the badged artwork in the Icon Composer source
 `icons/macos/Macro.icon`; this artwork is no longer copied from iOS. The macOS-only
 Tauri configuration bundles its compiled `Assets.car` and `Macro.icns`, and
-merges the generated icon names into Info.plist. Tahoe uses the icon
+declares the icon names in the hand-maintained `icons/macos/Info.plist`, which
+the script below does not overwrite. Tahoe uses the icon
 composition; older macOS uses the generated fallback. The artwork has no
 baked-in rounded tile or transparent border for macOS to place inside another
 enclosure.
@@ -40,26 +41,96 @@ Each frontend startup emits `native_webview_started` to PostHog and a
 native version and launch ID, and navigation type. Native diagnostics retain
 WebContent termination counts/timestamps and bundle-update reload dispatch
 counts/last source across WebView replacements. Compare counters within the same
-native launch: an increased termination count identifies WebKit process recovery;
-an increased updater count identifies an app-requested update reload attempt.
+native launch: an increased termination count identifies web content process
+recovery; an increased updater count identifies an app-requested update reload
+attempt.
 Dispatch does not prove the JavaScript reload completed. A new native launch ID
 means the host process restarted. Missing counters on an older binary mean
 unknown, not zero. The properties are also attached to subsequent PostHog events.
-Termination reporting is available only on iOS and macOS. On other platforms,
-startup events mark it unavailable and omit termination counts/timestamps even
+Termination reporting is available on iOS and macOS, including Chromium macOS.
+Other platforms mark it unavailable and omit termination counts/timestamps even
 when the native snapshot includes an unused zero-valued counter.
 
 The Apple termination callback preserves Tauri's default reload behavior and adds
-the native evidence before reloading. It does not establish why WebKit terminated
-(for example, memory pressure versus a crash); device crash/termination reports
-are needed for that distinction. Native counters require a full app release,
-while the frontend remains compatible with older binaries.
+the native evidence before reloading. It does not establish why the web content
+process terminated (for example, memory pressure versus a crash); device
+crash/termination reports are needed for that distinction. Native counters
+require a full app release, while the frontend remains compatible with older
+binaries.
+
+`frontend_instance_id` is generated once per document and attached to every
+PostHog event (including automatic exceptions/pageviews) and OTel resource.
+`native_instance_id` joins both systems to the host launch. A new frontend ID
+with the same native ID establishes a document replacement; SPA navigation
+keeps both. OTel export still obeys the existing browser telemetry gate.
+
+Frontend reloads go through `reloadApp(reason)`: automatic cache replacement,
+accepted update, failed-load recovery, user recovery, or logout. It saves a
+one-shot session-storage marker and asks native to record the request before
+reloading, waiting at most 250ms for user-requested reloads. Automatic idle
+reloads keep their synchronous timing and send native evidence best effort.
+An individual diagnostic IPC timeout stops waiting for that event; three
+cumulative timeouts disable further writes for the document. Timed-out requests
+remain charged against the 32-request budget because the native invocation may
+still be pending.
+A native command rejection disables writes immediately. Logout cleanup can
+bypass the budget, with the same 250ms wait limit.
+The next native startup reports
+`requested_reload_*`; stale markers older than 30 minutes are discarded. Native
+bundle reload dispatches have their own `native_bundle_reload_last_id` and
+`native_bundle_reload_last_dispatch_ms`. These are evidence of intent/dispatch,
+not proof of the cause of a termination.
+
+New binaries retain 128 diagnostic events and a separate latest frontend
+heartbeat in native memory. Events
+cover native foreground/background, WebContent termination, iOS memory warnings,
+frontend visibility/connectivity, and explicit reload requests. Keep reload
+diagnostics at document/native lifecycle boundaries; UI mount state and streamed
+text changes do not establish a reload cause and should not generate native IPC.
+The schema accepts no message text, URLs, or content identifiers.
+Heartbeats record visibility and connectivity every five seconds while visible
+and at visibility transitions; background throttling is expected. They provide
+a last-known responsive timestamp, not proof of a hang or its cause.
+Heartbeats cannot evict history. Logout clears history and rejects late callbacks.
+Recovery also requires a session-storage lease matching the previous document;
+logout deletes it before awaiting native IPC. A missing/blocked lease suppresses
+replay, so even a failed native clear cannot export the previous account's history.
+
+After replacement, `native_diagnostic_recovered` PostHog events and
+`native.diagnostic.recovered` OTel samples report the buffered evidence.
+`source_frontend_instance_id` identifies the old document,
+`recovered_by_frontend_instance_id` the uploader, and
+`native_event_timestamp_ms` the original observation time. OTel samples use that
+original timestamp; PostHog captures recovery now and retains the observation
+timestamp as a property. Session storage avoids repeated exports; stable
+`native_event_id` values permit deduplication if storage is lost. Export is best
+effort, not a server-acknowledged delivery queue. The buffer survives WebContent
+replacement but not host termination, and a full ring reports dropped events.
+
+UIKit memory warnings support a memory-pressure hypothesis but are not a WebKit
+kill reason. No warning does not rule out memory-related termination. Native
+history and memory warnings require a rebuilt app; older binaries report
+unavailable coverage and receive no periodic diagnostic commands. These additions
+are optional and do not raise the minimum native build for OTA bundles.
+
+The new wire types are generated from Rust (Specta is a dev dependency). After
+editing the contract, run from the repository root with the development native
+environment configured:
+
+```sh
+UPDATE_NATIVE_DIAGNOSTIC_TYPES=1 cargo test --manifest-path apps/web/tauri/Cargo.toml --locked -p app -p macro_bundle_updater_plugin --lib --no-default-features diagnostic_wire_types
+```
+
+The same tests without that environment variable check for drift.
 
 ## Running in development
 
 ```sh
-# Desktop shell (macOS/Linux/Windows)
+# Linux and Windows desktop shell (from this directory)
 cargo tauri dev
+
+# macOS desktop shell (from ../desktop-cef, using the macro-cef cargo-tauri CLI)
+RUSTUP_TOOLCHAIN=1.95.0 cargo-tauri dev
 
 # iOS simulator
 cargo tauri ios dev
@@ -150,7 +221,10 @@ document-rendering finding; passing the smoke test is not full iOS 26/27 parity.
 ## Building bundles
 
 ```sh
-# Desktop bundle
+# macOS desktop bundle (Chromium; from the repository root)
+nix build --option sandbox false .#tauri-desktop-cef-app
+
+# Linux and Windows desktop bundles (system webview; from this directory)
 cargo tauri build
 
 # iOS / Android release artifacts
@@ -250,6 +324,23 @@ does not navigate. Ship this native change with the frontend and raise the macOS
 builds ignore the added ID and cannot navigate. Previously delivered alerts have
 no destination to recover. Verify the [notification walkthrough](../../../../docs/agent-guide/notifications.md)
 in an installed macOS bundle before release.
+
+`send_macos_notification` also takes an optional `subtitle` (the conversation),
+`threadId` (stacks a conversation's alerts), and `sender` (`id`, `name`,
+`avatarUrl`). A sender makes it a communication notification, as on iOS: the
+downloaded avatar replaces the app icon and group conversations show their name.
+The new arguments are optional, so older frontends and native builds keep
+working together. macOS honors this only for an app signed with the restricted
+`com.apple.developer.usernotifications.communication` entitlement and
+`INSendMessageIntent` in `NSUserActivityTypes`; local and ad-hoc builds show the
+plain title and subtitle. A Developer ID build carries the entitlement only with
+an embedded provisioning profile, so the release workflow requires the
+`MACOS_DEVELOPER_ID_PROVISIONING_PROFILE_BASE64` secret next to the certificate.
+Create it in the Apple Developer portal: enable **Communication Notifications**
+on the `com.macro.app.prod` App ID, create a **Developer ID** macOS provisioning
+profile for that App ID and the certificate, and store the base64 profile as the
+secret. The DMG build fails if the profile is missing or does not grant the
+entitlement to the bundle identifier; renew the secret when the profile expires.
 
 Linux notification activation requires `send_linux_notification` and
 `close_linux_notification`. Ship a full native AppImage containing these commands;
@@ -413,8 +504,11 @@ These are process memory measurements, not JavaScript heap/allocation profiles.
 RSS and macOS physical footprint have different accounting; sums are explicitly
 process sums and need not equal Activity Monitor's app total.
 
-macOS sampling uses `proc_pid_rusage`. WebKit helpers are XPC processes, so PPID
-alone is insufficient. Attribution resolves the optional private libSystem SPI
+macOS sampling uses `proc_pid_rusage`. The sampler recognizes WebKit helpers in
+older WKWebView builds; Chromium desktop builds currently report only native
+process memory and mark frontend coverage unavailable. WebKit helpers are XPC
+processes, so PPID alone is insufficient. Attribution resolves the optional
+private libSystem SPI
 `responsibility_get_pid_responsible_for_pid` at runtime and includes only known
 WebKit helpers whose responsible PID is this app. If the SPI, permissions, or
 attribution are unavailable, frontend coverage is explicitly unavailable. Never

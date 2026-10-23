@@ -5,9 +5,8 @@ title bar's traffic-light controls. Drag this top strip to move the window, or
 double-click it to toggle zoom. The loading shell uses the same inset; browser,
 Windows, Linux, and mobile layouts do not add this space.
 
-Native desktop content keeps its rounded split frame even with only one split,
-and the app icon rail has no right divider. On macOS, Back and Forward arrows
-beside the traffic lights navigate the active split's history. Each arrow is
+On macOS, Back and Forward arrows beside the traffic lights navigate the active
+split's history. Each arrow is
 disabled when its direction has no entry. Sidebar controls remain inside each
 workspace. The top-right split icon opens another Home split, even
 when Home is already open, and is disabled when there is no room for a new split.
@@ -322,10 +321,10 @@ its existing navigation controls. Block detail panels (including Calendar) have
 **Hide side panel** in their own header and a hamburger **Show side panel** beside
 the main title when hidden, with separate preferences per block type.
 
-Multiple desktop splits appear as individually bordered, medium-rounded panels with
-6px top, right, and bottom insets and 6px resizable gaps.
-The leftmost panel sits flush against the app rail, whose divider is hidden while
-multiple splits are open. A single split stays edge to edge. Touch layouts keep their existing presentation.
+Desktop splits, including a single split in the browser or native app, appear as
+individually bordered panels with 8px corners and 6px top, right, and bottom
+insets and 6px resizable gaps. The leftmost panel sits flush against the app rail,
+which has no right divider. Touch layouts keep their existing presentation.
 
 Split focus mode (`Shift+Esc`) floats the active split in a rounded, bordered
 panel over the same glass scrim as dialogs. Click the scrim or use the shortcut
@@ -418,6 +417,11 @@ edge so an older unread item can keep the dot lit. These witnesses must never be
 used as the complete mark-read/done input. The experimental notification-time
 sort remains on its existing REST path; disabling GraphQL or enabling that sort
 must not construct an unsupported GraphQL input or blank the app shell.
+Cold offline launch must retain navigation even while notification preferences
+or badge queries are pending. Unknown preferences use the default enabled
+behavior; loaded disabled preferences still suppress Email's dot, including
+after a failed refresh. Verify both unreachable services while the OS reports
+online and a paused offline transport, then reconnect without remounting chrome.
 Opening a view alone does not clear its dot — reading or completing the represented
 items does. The button's
 accessible description is `Unread items` while its dot is active.
@@ -428,7 +432,8 @@ is unread, and that completing the last one clears it. Query bounds and
 pagination are unchanged.
 
 The Agents sidebar opens with a **Work** / **Code** switch (radio group
-"Agents mode") under its title; Work is the default and the choice is remembered
+"Agents mode") under New, using the shared pill tabs on desktop; touch keeps
+its existing tabs. Work is the default and the choice is remembered
 per user across reloads. Work lists chat sessions and legacy chats; Code lists
 coding sessions only, newest first. Each mode's empty state is its own ("No
 conversations yet." / "No coding conversations yet."). Opening a session of the
@@ -445,7 +450,8 @@ unsynced PR shows its number without an assumed status. Missing metadata is omit
 "Coding agent" is never substituted for a branch. There is no right-side dot in
 Agents; Home keeps its sparkle and trailing unread dot. Only the selected row has
 the selected background. Legacy chat rows keep their chat icon.
-Use **Search conversations** beside the Conversations heading to filter by title.
+Use **Search conversations** beside the sidebar collapse icon to open a search
+field above New and filter by title.
 Results stay packed at the top with compact spacing, even with only a few matches;
 clearing the search restores the list.
 Its **New conversation** button opens the composer for the current mode with one
@@ -458,11 +464,26 @@ offers both kinds. Opening an existing row restores its own kind and URL.
 Right-click a conversation for Rename, Favorite, Copy link, Share, Delete, and
 the other entity actions used on Home.
 
-Home's inner rail starts with a full-width **New chat** plus button that returns
-to Home's starting pane without creating a chat. Email and Tasks use the same
-pill styling and top placement for **New email** and **New task**, replacing
-the sidebar title bars. When multiple desktop splits are open, a **Close** (X)
-button appears beside each sidebar's New button and closes that split, including
+Desktop inner sidebars place the same full-width, outlined **New** pill directly
+below the title. List toolbars use its compact version, including when the
+sidebar is hidden. Email, Drive, Tasks, and the Projects list use one desktop
+row: title, filter controls, view options, New, and Search. Filter and view
+controls use the rounded, bordered button groups from the email thread toolbar;
+New and Search have their own rounded, bordered backgrounds. Search starts as an
+icon and expands into a compact field when clicked or opened with Cmd/Ctrl+F.
+Closing it clears the query and returns to the icon. The action stays specific to
+the view: Home returns to its starting pane, Email composes mail, Chat offers a
+channel or direct message, and Calendar offers an event or call. Tasks offers
+**Task**, **Project** (when enabled), and **Tag** in both the Tasks and Projects
+lists. Customers offers Company, Contact, and enabled Pipeline creation. Reviews
+uses the general creation menu. Agents keeps New above its Chat/Code mode tabs.
+Each desktop sidebar puts its Search icon immediately left of the collapse
+control. Click it to reveal the view's search field between the title and New,
+at the same height as the New button; click again to hide it. The field focuses when opened. Existing list-toolbar
+search remains available and shares its query where the view filters a list.
+Mobile creation controls, search controls, and placement are unchanged.
+When multiple desktop splits are open, a **Close** (X) button appears in the
+sidebar title bar and closes that split, including
 when the sidebar is an overlay in a narrow split. Verify with three splits:
 open **Show navigation**, then use the sidebar's **Close** button without first
 hiding navigation; only its owning split closes. The last logical split has no
@@ -532,13 +553,13 @@ entry open the detailed launcher at standard dialog width. Selecting **Create**
 closes the command menu and hands focus to the launcher; individual creation
 commands remain searchable in the command menu. The left side is one continuous
 list without section labels or gaps. Up to three recently used choices appear
-first, followed by all choices in this order: **Docs** (Document, Snippet), **Organization**
+first, followed by the remaining choices in this order: **Docs** (Document, Snippet), **Organization**
 (Folder), **Design** (Canvas, Design, Photoshop file, Illustrator file), **Data**
 (Database, Spreadsheet, Form), **Comms** (Email, Message, Channel, Call), **Tasks**
 (Task, Project, Reminder), **AI** (Agent, Routine, Skill), and **Other** (Code and
 any uncategorized entries). Only available entries appear.
-Recent items also remain in their normal positions. With no history, the list
-starts with Document. Hover or keyboard navigation updates the right detail panel;
+Recent items appear only at the top, not again in their categories. With no
+history, the list starts with Document. Hover or keyboard navigation updates the right detail panel;
 click a row or press Enter to start that creation flow. List icons are monochrome:
 muted normally and full ink on the selected row. The detail panel centers
 its block-colored icon tile with a solid theme-aware fill and shared glass rim,
@@ -562,8 +583,9 @@ holding Shift uses the same new-split behavior where supported.
 
 The **Search mode** toggle (or **/**) switches between direct entity shortcuts
 shown beside each choice and the standard create search input. Search mode is
-the default; the preference persists across opens. Search filters both Recents and categories. Up/Down moves
-through the displayed order and scrolls the selected row into view; Left/Right
+the default; the preference persists across opens. Search filters both Recents
+and categories; a recent choice appears only under Recents, not again in its
+category. Up/Down moves through the displayed order and scrolls the selected row into view; Left/Right
 edits the search input. Enter creates the selected item, Shift+Enter opens it in a
 new split where supported, and Escape closes the launcher. Typing in search mode
 never runs an entity shortcut. Switching modes preserves selection and dimensions.
@@ -938,16 +960,27 @@ restart rules still apply.
 ## Keyboard model (from the in-app guide; verified partially)
 
 - `Ctrl/Cmd+K` — jump to anything by name.
+- `?` — the focused view's shortcuts, read from its registered keys (hidden
+  navigation keys and `g` sequences included); `?` again closes it. Only the
+  key opens it: the command menu does not list it, since run from there it
+  would describe the menu. A view's `g` letters are listed under that view.
 - `c` then `d`/`t`/`e`/`m`/`a` — create doc / task / email / channel / AI chat.
   Single-letter shortcuts only work when no editor has focus; press `Escape` first.
-- `/` — search everything. `j`/`k` — move in lists. `e` — mark done.
+- `/` — search everything (in Email it focuses email search). `j`/`k` — move in
+  lists. `e` — mark done.
 - `#` — move email to Trash, with an Undo toast. Works on the selected or focused
   rows in a mail list and on the thread open in an email detail or block. Email
   only; other entity types keep Delete/Backspace and do not answer `#`.
-- `g` then `h` — Home; `g` then `i` remains an alias.
+- `g` then `h` — Home; `g` then `i` remains an alias. While Email is focused,
+  `g i`/`o`/`s`/`t`/`d`/`e`/`a` open its tabs instead (`g i` Signal, `g t` Sent;
+  see `email.md`); `g h` still goes Home.
 - In Email and Tasks search, `Escape` returns focus to the list and keeps the query.
   Use the search field's clear button to clear it.
 - Splits: `` ` `` split, `Shift+H`/`Shift+L` move focus, `Shift+Esc` maximize.
+- Desktop app only: `Ctrl/Cmd` with `+`, `-`, and `0` zoom the page and reset it,
+  through the same stops a browser uses. The level persists across relaunches,
+  and the commands appear in the command menu as Zoom in / Zoom out / Actual
+  size. In a browser tab these stay the browser's own zoom.
 - In any text surface: `@` mentions (bidirectional links), `#` tags, `/` block commands,
   `:` emoji. Clicking a rendered tag opens a Search split filtered to that tag.
 
@@ -957,31 +990,6 @@ picker; a failed catalog shows an inline error. The rest of settings stays usabl
 Settings → Agents → Agents ends with **Coding sessions**: per-user **Create
 tasks** and **Open pull requests** switches, both off by default. Each saves on
 toggle and reverts with a toast if the save fails.
-
-With the `claude-cloud` feature flag enabled, Claude Cloud connection setup is in
-Settings → Agents → Runtimes (Manage on Bring your own agent), above Cursor, with the
-Anthropic logo. The agent editor's Where it runs offers In Claude Code but does not host
-Claude's connection form. **Connect Claude** starts authorization and opens sign-in
-on the first click; a fallback link remains if the browser blocks the tab.
-Approve on Claude's page, copy the complete `code#state`, then use **Finish
-connecting**. Hosted and local deployments use the same flow. Grants and pending
-sign-in attempts are encrypted in MacroDB and survive restarts or replica changes.
-If the card says sign-in is not configured, the deployment is missing its Claude
-OAuth KMS key; changing the frontend flag cannot fix that backend configuration.
-Claude's model picker uses provider-reported IDs,
-names, descriptions, and order. Settings discovers from recent account sessions;
-session catalogs update through replay, polling, and streaming. Before any catalog
-is available, only subscription default is shown with an explanation. It saves the next-turn preference
-without waking an idle worker; provider model rejections surface during the turn.
-Claude agents use their saved MCP selection through the shared authenticated
-session egress path. Remote HTTP/SSE servers are supported; stdio servers are
-rejected. Tool permission requests use Macro's standard session policy. MCP setup
-failures surface as turn errors and request interruption; the first prompt also
-wakes the cloud worker, so setup failure may occur after submission. Reconnecting
-refreshes the session credential and restores the saved selection.
-Claude sessions expose **Open in Claude** in the header
-toolbar (or its overflow menu). With a live runtime, messages sent in Claude are
-polled into Macro about every two seconds; disconnected runtimes must resume first.
 
 Home does not bind Delete or Backspace to deleting list items. These keys remain
 available to the open editor (for example, clearing a selected spreadsheet range).
