@@ -18,7 +18,10 @@ permissions:
 
 jobs:
   alert:
-    if: contains(fromJSON('["failure", "timed_out"]'), github.event.workflow_run.conclusion)
+    # A desktop build on a pull request reports to its author through the PR checks.
+    if: >-
+      contains(fromJSON('["failure", "timed_out"]'), github.event.workflow_run.conclusion) &&
+      !(github.event.workflow_run.name == 'Build Desktop on Tag' && github.event.workflow_run.event == 'pull_request')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

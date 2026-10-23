@@ -1,4 +1,5 @@
 use super::*;
+use serde_yaml::Value;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
@@ -164,9 +165,29 @@ fn called(calls: &str, prefix: &str) -> bool {
 }
 
 fn rendered_yaml() -> String {
-    build_desktop_on_tag()
-        .to_string()
-        .expect("desktop workflow should serialize")
+    render().expect("desktop workflow should serialize")
+}
+
+fn rendered_jobs() -> serde_yaml::Mapping {
+    let root: Value = serde_yaml::from_str(&rendered_yaml()).expect("desktop workflow YAML");
+    root.get("jobs")
+        .and_then(Value::as_mapping)
+        .expect("desktop workflow jobs")
+        .clone()
+}
+
+fn job<'a>(jobs: &'a serde_yaml::Mapping, id: &str) -> &'a Value {
+    jobs.get(id).unwrap_or_else(|| panic!("job {id}"))
+}
+
+fn condition(value: &Value) -> &str {
+    value.get("if").and_then(Value::as_str).unwrap_or("")
+}
+
+fn script_path(name: &str) -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src/workflows/scripts")
+        .join(name)
 }
 
 #[test]
@@ -285,4 +306,75 @@ fn older_release_cannot_replace_update_feed_or_latest_release() {
         !called(&calls, &format!("release edit {RELEASE_TAG} ")),
         "{calls}"
     );
+}
+
+#[test]
+fn pull_request_builds_never_sign_notarize_cache_or_upload() {
+    let jobs = rendered_jobs();
+    for build in ["build-appimage", "build-dmg"] {
+        let steps = job(&jobs, build)
+            .get("steps")
+            .and_then(Value::as_sequence)
+            .expect("build steps");
+        for step in steps {
+            let rendered = serde_yaml::to_string(step).expect("step YAML");
+            // The bundle inlines the public PostHog key; every other secret signs,
+            // notarizes, or publishes.
+            let release_only = rendered.contains("MACOS_")
+                || rendered.contains("DOPPLER_TOKEN")
+                || rendered.contains("upload-artifact")
+                || rendered.contains("save_macos_nix_cache")
+                || rendered.contains("Prune and save macOS Nix");
+            if release_only {
+                assert!(
+                    condition(step).contains("github.event_name != 'pull_request'"),
+                    "{build} step must not run on pull requests:\n{rendered}"
+                );
+            }
+        }
+    }
+    assert!(
+        condition(job(&jobs, "publish-installers")).contains("github.event_name != 'pull_request'")
+    );
+    assert!(
+        condition(job(&jobs, "publish-release"))
+            .contains("startsWith(needs.resolve-ref.outputs.ref, 'refs/tags/v')")
+    );
+}
+
+fn resolve_ref(event: &str, selected_ref: &str, input_ref: &str) -> (Output, String) {
+    let temp = tempfile::tempdir().expect("resolve fixture directory");
+    let github_output = temp.path().join("github-output");
+    let output = Command::new("bash")
+        .arg(script_path("resolve_desktop_ref.sh"))
+        .env("EVENT_NAME", event)
+        .env("SELECTED_REF", selected_ref)
+        .env("INPUT_REF", input_ref)
+        .env("GITHUB_EVENT_REF", "")
+        .env("GITHUB_EVENT_REF_TYPE", "")
+        .env("GITHUB_OUTPUT", &github_output)
+        .output()
+        .expect("run desktop ref resolution");
+    (
+        output,
+        fs::read_to_string(github_output).unwrap_or_default(),
+    )
+}
+
+#[test]
+fn pull_requests_and_the_nightly_build_their_own_ref() {
+    let (output, resolved) = resolve_ref("pull_request", "refs/pull/8600/merge", "");
+    assert!(output.status.success());
+    assert_eq!(resolved, "ref=refs/pull/8600/merge\n");
+
+    let (output, resolved) = resolve_ref("schedule", "refs/heads/main", "");
+    assert!(output.status.success());
+    assert_eq!(resolved, "ref=refs/heads/main\n");
+}
+
+#[test]
+fn manual_overrides_still_only_accept_release_tags() {
+    let (output, resolved) = resolve_ref("workflow_dispatch", "refs/heads/main", "main");
+    assert!(!output.status.success());
+    assert_eq!(resolved, "");
 }

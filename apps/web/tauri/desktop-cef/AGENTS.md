@@ -1,7 +1,9 @@
 # desktop-cef
 
 Status: shipped macOS desktop app. The desktop release workflow builds it,
-packages it as a signed DMG, and publishes the release.
+packages it as a signed DMG, and publishes the release. The same workflow runs
+on pull requests that change desktop build inputs (ad-hoc signed, not
+notarized or uploaded) and nightly on main.
 
 ## What it is
 

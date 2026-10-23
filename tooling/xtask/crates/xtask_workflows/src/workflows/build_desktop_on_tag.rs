@@ -1,6 +1,9 @@
 //! `Build Desktop on Tag` — orchestrator workflow that triggers AppImage and DMG
-//! builds in parallel when a release tag is pushed. Also supports manual
-//! dispatch. Generated into `build_desktop_on_tag.yml`.
+//! builds in parallel when a release tag is pushed. Pull requests that change
+//! the desktop build run the same jobs without signing or publishing, and main
+//! builds nightly so failures from outside the repository (runner images,
+//! Apple services, credentials) surface before a release does. Also supports
+//! manual dispatch. Generated into `build_desktop_on_tag.yml`.
 //!
 //! The reusable job definitions live in [`super::build_appimage_on_tag`] and
 //! [`super::build_dmg_on_tag`].
@@ -8,19 +11,29 @@
 use std::collections::HashMap;
 
 use gh_workflow::{
-    Concurrency, Event, Expression, Job, Level, Permissions, Push, Run, Step, Workflow,
-    WorkflowDispatch, WorkflowDispatchInput,
+    Concurrency, Event, Expression, Job, Level, Permissions, PullRequest, Push, Run, Step,
+    Workflow, WorkflowDispatch, WorkflowDispatchInput,
 };
 
-use crate::workflows::{build_appimage_on_tag, build_dmg_on_tag, steps, vars};
+use crate::workflows::build_appimage_on_tag::{self, NOT_PULL_REQUEST};
+use crate::workflows::{build_dmg_on_tag, steps, vars};
 
 #[cfg(test)]
 mod test;
 
 const RESOLVED_REF: &str = "${{ needs.resolve-ref.outputs.ref }}";
 
-/// Build the workflow.
-pub fn build_desktop_on_tag() -> Workflow {
+/// 09:17 UTC, ahead of the US workday's first release.
+const NIGHTLY_CRON: &str = "17 9 * * *";
+
+/// Render the workflow.
+pub fn render() -> anyhow::Result<String> {
+    build_desktop_on_tag()
+        .to_string()
+        .map_err(|e| anyhow::anyhow!("{e:?}"))
+}
+
+fn build_desktop_on_tag() -> Workflow {
     Workflow::new("Build Desktop on Tag")
         .on(desktop_events())
         .concurrency(
@@ -46,6 +59,7 @@ pub fn build_desktop_on_tag() -> Workflow {
                 xtask_paths::runtime_path!("release-artifacts/*"),
             )
             .name("Publish desktop installers")
+            .cond(Expression::new(NOT_PULL_REQUEST))
             .add_needs("resolve-ref")
             .add_needs("build-appimage")
             .add_needs("build-dmg"),
@@ -108,7 +122,34 @@ fn publish_desktop_job() -> Job {
 fn desktop_events() -> Event {
     Event::default()
         .push(Push::default().add_tag(build_appimage_on_tag::DESKTOP_TAG_PATTERN))
+        .pull_request(desktop_pull_request())
+        .add_cron_schedule(NIGHTLY_CRON)
         .workflow_dispatch(workflow_dispatch())
+}
+
+/// Desktop-specific build inputs that no other pull request check builds. The
+/// desktop app also bundles the frontend and the root workspace's `macrod`;
+/// those are covered by the web and Rust checks, and the nightly build catches
+/// what only breaks in the desktop packaging of them.
+fn desktop_pull_request() -> PullRequest {
+    PullRequest::default()
+        .add_branch("main")
+        .add_path(xtask_paths::repo_glob!("apps/web/tauri/**"))
+        .add_path(xtask_paths::repo_glob!(
+            "apps/web/scripts/desktop-release.mjs"
+        ))
+        .add_path(xtask_paths::repo_glob!("nix/tauri-desktop.nix"))
+        .add_path(xtask_paths::repo_glob!("nix/dmg-layout.py"))
+        .add_path(xtask_paths::repo_glob!("nix/appimage/**"))
+        .add_path(xtask_paths::repo_glob!("nix-support/**"))
+        .add_path(xtask_paths::repo_glob!("flake.nix"))
+        .add_path(xtask_paths::repo_glob!("flake.lock"))
+        .add_path(xtask_paths::repo_glob!("rust-toolchain.toml"))
+        .add_path(xtask_paths::repo_glob!(".github/actions/setup-nix/**"))
+        .add_path(xtask_paths::repo_glob!(".github/actions/teardown-nix/**"))
+        .add_path(xtask_paths::repo_glob!(
+            ".github/workflows/build_desktop_on_tag.yml"
+        ))
 }
 
 fn workflow_dispatch() -> WorkflowDispatch {
@@ -128,8 +169,10 @@ fn workflow_dispatch() -> WorkflowDispatch {
 
 fn resolve_ref() -> Job {
     Job::default()
+        // Fork and Dependabot pull requests get no secrets, so they could not
+        // build the bundle.
         .cond(Expression::new(
-            "github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'create' && github.event.ref_type == 'tag')",
+            "github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') || (github.event_name == 'create' && github.event.ref_type == 'tag')",
         ))
         .name("Resolve build ref")
         .runs_on("ubuntu-latest")
