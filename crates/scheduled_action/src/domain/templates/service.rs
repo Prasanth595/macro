@@ -373,20 +373,20 @@ where
         let mut settled = BTreeMap::new();
         let mut open = Vec::new();
         for variable in &draft.variables {
-            if let VariableMode::Fixed { value } = &variable.mode {
-                if self.problem(user, variable, value).await?.is_none() {
-                    settled.insert(
-                        variable.key.clone(),
-                        FilledVariable {
-                            key: variable.key.clone(),
-                            value: Some(value.clone()),
-                            reason: Some("Set by the template.".to_owned()),
-                            confidence: Some(Confidence::High),
-                            problem: None,
-                        },
-                    );
-                    continue;
-                }
+            if let VariableMode::Fixed { value } = &variable.mode
+                && self.problem(user, variable, value).await?.is_none()
+            {
+                settled.insert(
+                    variable.key.clone(),
+                    FilledVariable {
+                        key: variable.key.clone(),
+                        value: Some(value.clone()),
+                        reason: Some("Set by the template.".to_owned()),
+                        confidence: Some(Confidence::High),
+                        problem: None,
+                    },
+                );
+                continue;
             }
             open.push(variable);
         }

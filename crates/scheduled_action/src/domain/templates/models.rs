@@ -339,10 +339,10 @@ impl TemplateDraft {
             if is_agent != (variable.key.as_str() == AGENT_VARIABLE) {
                 return Err(TemplateError::AgentVariable);
             }
-            if let VariableMode::Fixed { value } = &variable.mode {
-                if is_agent || !value.fits(variable.kind) {
-                    return Err(TemplateError::FixedValueMismatch(variable.key.clone()));
-                }
+            if let VariableMode::Fixed { value } = &variable.mode
+                && (is_agent || !value.fits(variable.kind))
+            {
+                return Err(TemplateError::FixedValueMismatch(variable.key.clone()));
             }
         }
         if self.task.target.key.as_str() != AGENT_VARIABLE
