@@ -59,7 +59,7 @@ function setup(single = false, searchable = false, initial: string[] = []) {
   const [selected, setSelected] = createSignal<string[]>(initial);
   const [open, setOpen] = createSignal(true);
   render(() => (
-    <ListFilterDropdown
+    <ListFilterDropdown<'people' | 'scope', string>
       label="Filter tasks"
       activeCount={selected().length}
       open={open()}
@@ -85,6 +85,7 @@ function setup(single = false, searchable = false, initial: string[] = []) {
         },
       ]}
       isSelected={(_, id) => selected().includes(id)}
+      selectedIds={(group) => (group === 'people' ? selected() : [])}
       onSelectionChange={(_, id, checked) =>
         setSelected((ids) =>
           checked
@@ -347,6 +348,30 @@ it.each(['pointer', 'keyboard'])(
       clickSearchOption(screen.getByRole('option', { name: 'Alice' }), false);
     await waitFor(() => expect(open()).toBe(false));
     expect(selected()).toEqual(['alice']);
+  }
+);
+
+it.each([false, true])(
+  'Only clears hidden group selections without ordinary toggles dropping them (searchable: %s)',
+  async (searchable) => {
+    const { selected, open } = setup(false, searchable, [
+      'alice',
+      'unavailable',
+    ]);
+    await openSubmenu();
+    const bob = await screen.findByRole(
+      searchable ? 'option' : 'menuitemcheckbox',
+      { name: 'Bob' }
+    );
+    const checkbox = bob.querySelector<HTMLElement>(
+      '[data-multiselect-checkbox]'
+    )!;
+    if (searchable) clickSearchOption(checkbox, false);
+    else selectOption(checkbox);
+    expect(selected()).toEqual(['alice', 'unavailable', 'bob']);
+    fireEvent.click(screen.getByRole('button', { name: 'Select only Bob' }));
+    expect(selected()).toEqual(['bob']);
+    expect(open()).toBe(true);
   }
 );
 
