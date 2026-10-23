@@ -147,7 +147,7 @@ to update the model list in the same sheet; tap a model to select it and close.
 The active agent's main models and current selection appear beneath **Models**.
 **Show all models** expands the list in place; search always includes every model
 and accepts model names, IDs, and providers. **Create agent** is a quiet action at the bottom.
-The separate effort button opens its own flat list of levels.
+The gauge button opens one flat sheet for effort and supported speed choices.
 
 The floating mobile composer appears only on **Agents**; Home and other views
 keep their New action or their own reply/comment composer.
@@ -513,11 +513,11 @@ the shimmer.
   as the new-conversation picker. Desktop sessions show the complete searchable
   shortlist in one menu, with **Show all models** and search reaching the full
   catalog. Phone sessions use the same approach in a bottom sheet.
-- The separate gauge control opens a flat **Reasoning effort** list using the
-  current model's advertised choices. Click a level, or select it with the
+- The separate gauge control opens one menu with **Reasoning effort** and
+  supported **Speed** choices using the current model's advertised capabilities. Click a level, or select it with the
   keyboard, to apply it and close the menu. On phones the same choices appear
-  in their own bottom sheet. Models with fewer than two effort choices omit
-  the effort control. Choose the model first, then adjust its effort; model
+  in their own bottom sheet. Models with fewer than two effort choices omit the effort section;
+  the control remains available if they support accelerated speed. Choose the model first, then adjust its effort; model
   rows no longer contain effort submenus.
   Free and Pro users start new conversations at the lowest advertised level,
   unless they explicitly choose another. Existing sessions keep their current setting.
@@ -1768,13 +1768,15 @@ There is no periodic PR lookup polling.
 ### Agent reasoning effort
 
 Open the gauge control beside the model selector to choose from a flat list of
-**Reasoning effort** levels. The current level has a checkmark. Choosing a level
+**Reasoning effort** levels and, on supported models, **Speed** choices. Both
+current settings have checkmarks. Choosing a level
 applies it immediately and closes the menu; Escape closes it without a change.
 Phones show the same choices in a bottom sheet. Select a model first, then use
 its advertised effort choices. Cursor and Macro's in-memory agent discover
 capabilities for the selected model. The model trigger shows the model name;
-the gauge control displays the current effort on desktop and announces it on mobile. Models without effort support remain
-selectable, and omit the effort control. Default retains the runtime's default
+the gauge control displays the current effort and enabled accelerated speed on
+desktop and announces both on mobile. Models without effort support remain
+selectable; the gauge still appears if accelerated speed is available. Default retains the runtime's default
 behavior when it is advertised.
 
 In an open session, choosing a different model's effort confirms the model first,
@@ -1904,20 +1906,23 @@ choose a vision model or start a conversation without images.
 
 ## Accelerated model speed
 
-The lightning button beside the model selector enables Ultrafast for GPT-6 Astra
-and GPT-6.1 Sol (6× token pricing). Its tooltip shows the mode, state, and usage
-multiplier before sending. Claude models, including Opus 5.5, stay on standard
-speed until Anthropic approves fast mode for this account. Other models keep
-standard speed. The preference is saved in browser local storage and shared by
-legacy chat and native Macro agent composers. External coding agents use their
-own speed controls.
+In new and running agent conversations, the gauge menu combines **Reasoning
+effort** with **Speed**. Choose Standard or Ultrafast for GPT-6 Astra and
+GPT-6.1 Sol; Ultrafast shows **6× AI usage** before selection. The preference is
+saved in browser local storage and remains independent of effort. The trigger
+includes Ultrafast while enabled. Claude models, including Opus 5.5, stay on
+standard speed until Anthropic approves fast mode for this account. Models without
+accelerated speed omit the Speed section. External coding agents retain their own
+speed behavior.
 
-Preview the controls at `/app/debug/ui?ui=speed-toggle`.
-Click the bolt and verify its brief scale/rotation animation and highlighted state.
-Reload, change between supported models, and confirm the preference survives.
-Select an unsupported model and verify the bolt is hidden; switching back restores
-the preference. With reduced motion enabled, toggling changes the state without
-animation. Native sessions confirm speed configuration before sending the prompt;
+Preview the combined menu at `/app/debug/ui?ui=speed-toggle`.
+Legacy chat retains the lightning button, sharing the same saved preference.
+Its gallery example is on the same page; its scale/rotation animation
+respects reduced motion. In the agent composer, select speed and effort from the
+same menu, reopen it, and verify both choices remain independent. Change between
+supported models and confirm the speed preference survives. Select an unsupported
+model and verify the Speed section disappears; switching back restores the
+preference. Native sessions confirm speed configuration before sending the prompt;
 a rejected configuration must retain the unsent draft and attachments.
 
 Usage records follow the provider's delivered speed for each call, including tool

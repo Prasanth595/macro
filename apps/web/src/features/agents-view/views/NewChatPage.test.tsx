@@ -1,4 +1,5 @@
 import type { InputAttachmentData } from '@channel/Input/types';
+import { setFastModeEnabled } from '@core/component/AI/signal/speed';
 import { CURSOR_BOT_ID } from '@core/constant/cursorAgent';
 import { MACRO_CODER_BOT_ID } from '@core/constant/macroCoder';
 import {
@@ -106,7 +107,8 @@ vi.mock('@queries/agents/capabilities', () => ({
     },
     isFetching: false,
     get data() {
-      if (target()?.model !== 'gpt-5') return { configOptions: [] };
+      if (!['gpt-5', 'openai/gpt-6-astra'].includes(target()?.model ?? ''))
+        return { configOptions: [] };
       return {
         configOptions: [
           {
@@ -228,6 +230,7 @@ vi.mock('../components/ChatComposer', () => ({
 
 beforeEach(() => {
   localStorage.clear();
+  setFastModeEnabled(false);
   mocks.userId = () => 'user';
 });
 
@@ -1193,6 +1196,39 @@ describe('agent-led new conversation', () => {
       expect.objectContaining({
         modelOverride: 'gpt-5',
         effortOverride: { configId: 'cursor_effort', value: 'ultra' },
+      })
+    );
+  });
+  it('sends speed and effort selected through the same control', async () => {
+    const send = page();
+    openAgents();
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'GPT-6 Astra' }), {
+      key: 'Enter',
+    });
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    fireEvent.keyDown(
+      screen.getByRole('button', { name: 'Effort: Low · Speed: Standard' }),
+      { key: 'Enter' }
+    );
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Ultra' }), {
+      key: 'Enter',
+    });
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    fireEvent.keyDown(
+      screen.getByRole('button', { name: 'Effort: Ultra · Speed: Standard' }),
+      { key: 'Enter' }
+    );
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: /Ultrafast/ }), {
+      key: 'Enter',
+    });
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    expect(localStorage.getItem('macro:ai-fast-mode')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(send).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        modelOverride: 'openai/gpt-6-astra',
+        effortOverride: { configId: 'cursor_effort', value: 'ultra' },
+        speedOverride: { configId: 'speed', value: 'ultrafast' },
       })
     );
   });

@@ -6,12 +6,14 @@ import {
   uploadInputAttachments,
 } from '@channel/Input';
 import { FloatRegionOrInline } from '@components/app/mobile/float-regions/FloatRegion';
-import { SpeedToggle } from '@core/component/AI/component/input/SpeedToggle';
 import {
   acceleratedSpeed,
   speedForModel,
 } from '@core/component/AI/constant/speed';
-import { fastModeEnabled } from '@core/component/AI/signal/speed';
+import {
+  fastModeEnabled,
+  setFastModeEnabled,
+} from '@core/component/AI/signal/speed';
 import { ComposerGreeting } from '@core/component/ComposerGreeting';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { useUserId } from '@core/context/user';
@@ -162,6 +164,14 @@ export function NewChatPage(props: {
     effortConfigOption(
       capabilities.isSuccess ? capabilities.data.configOptions : []
     );
+  const speed = () => {
+    if (!['macro-inmem', 'in-memory'].includes(selected()?.harness ?? ''))
+      return;
+    const tier = acceleratedSpeed(composerModelOverride() ?? '');
+    return tier
+      ? { tier, enabled: fastModeEnabled(), onChange: setFastModeEnabled }
+      : undefined;
+  };
   const [effortSelection, setEffortSelection] = createSignal<{
     target: string;
     configId: string;
@@ -404,6 +414,7 @@ export function NewChatPage(props: {
             onCloseAutoFocus={restoreInputFocus}
             onOpenChange={setEffortPickerOpen}
             config={effort()}
+            speed={speed()}
             value={effortOverride()?.value}
             disabled={Boolean(blocked())}
             onChange={(choice) =>
@@ -413,13 +424,6 @@ export function NewChatPage(props: {
               })
             }
           />
-          <Show
-            when={['macro-inmem', 'in-memory'].includes(
-              selected()?.harness ?? ''
-            )}
-          >
-            <SpeedToggle model={composerModelOverride() ?? ''} />
-          </Show>
         </div>
       }
       drawer={

@@ -1,9 +1,11 @@
-import { SpeedToggle } from '@core/component/AI/component/input/SpeedToggle';
 import {
   acceleratedSpeed,
   speedForModel,
 } from '@core/component/AI/constant/speed';
-import { fastModeEnabled } from '@core/component/AI/signal/speed';
+import {
+  fastModeEnabled,
+  setFastModeEnabled,
+} from '@core/component/AI/signal/speed';
 import ArrowUp from '@phosphor/arrow-up.svg';
 import { Button } from '@ui';
 /**
@@ -121,6 +123,14 @@ export function AgentComposer(props: {
   };
 
   const effort = () => effortConfigOption(metadata()?.configOptions ?? []);
+  const speed = () => {
+    if (!metadata()?.configOptions.some((option) => option.id === 'speed'))
+      return;
+    const tier = acceleratedSpeed(metadata()?.model ?? '');
+    return tier
+      ? { tier, enabled: fastModeEnabled(), onChange: setFastModeEnabled }
+      : undefined;
+  };
   const changingEffort = () => {
     const option = effort();
     return option ? changingConfig(messages(), option.id) : undefined;
@@ -403,6 +413,7 @@ export function AgentComposer(props: {
             <EffortSelector
               onCloseAutoFocus={restoreInputFocus}
               config={effort()}
+              speed={speed()}
               value={changingEffort()}
               disabled={
                 loadFailed() ||
@@ -419,14 +430,6 @@ export function AgentComposer(props: {
                   fireAndForget(chooseModel(model, choice), 'agent-composer');
               }}
             />
-
-            <Show
-              when={metadata()?.configOptions.some(
-                (option) => option.id === 'speed'
-              )}
-            >
-              <SpeedToggle model={metadata()?.model ?? ''} />
-            </Show>
           </div>
         }
       />

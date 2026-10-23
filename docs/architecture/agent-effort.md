@@ -100,11 +100,16 @@ initial shortlist; search and **Show all models** reveal the complete catalog
 in place. Custom catalogs without main choices remain fully visible. Running
 sessions use the same flat model list.
 
-The adjacent gauge control shows the current effort on desktop and opens a flat **Reasoning effort** list. Entries come
+The adjacent gauge control shows the current effort on desktop and opens one flat
+menu for **Reasoning effort** and supported **Speed** choices. Entries come
 from the selected model's advertised choices and retain their opaque values,
 including Default when advertised. Selecting a level applies it immediately and
 closes the menu; Escape discards no staged value because selection is immediate.
-Mobile retains separate bottom sheets for agent/model selection and effort.
+Speed choices share that menu: Standard and the supported accelerated tier, with
+its usage multiplier visible. Choosing speed updates the persisted preference
+without changing effort; the send path applies it as before. Models with no effort
+choices can still expose speed. Mobile keeps an agent/model sheet and one combined
+effort/speed sheet.
 
 Capability discovery is scoped to the selected model and harness. Current
 session metadata takes precedence for its active model. Loading, discovery
