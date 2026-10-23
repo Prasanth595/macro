@@ -157,6 +157,40 @@ async fn deployed_hosts_present_the_authentication_key_not_its_secret_name() {
     assert_eq!(config.authentication_service_secret_key.as_str(), None);
 }
 
+#[tokio::test]
+async fn deployed_hosts_refuse_a_value_that_is_not_a_readable_secret_name() {
+    for value in ["internal-key", ""] {
+        let mut values = config_values();
+        values["ENVIRONMENT"] = json!("dev");
+        values["AUTHENTICATION_SERVICE_SECRET_KEY"] = json!(value);
+        let config: Config = serde_json::from_value(values).unwrap();
+        let environment = config.environment;
+        assert!(
+            config
+                .resolve_remote_secrets(environment, &SecretsByName)
+                .await
+                .is_err(),
+            "{value:?} must fail startup"
+        );
+    }
+}
+
+#[tokio::test]
+async fn local_hosts_present_the_configured_key_itself() {
+    let mut values = config_values();
+    values["AUTHENTICATION_SERVICE_SECRET_KEY"] = json!("local-key");
+    let config: Config = serde_json::from_value(values).unwrap();
+    let environment = config.environment;
+    let config = config
+        .resolve_remote_secrets(environment, &SecretsByName)
+        .await
+        .unwrap();
+    assert_eq!(
+        config.authentication_service_secret_key.as_str(),
+        Some("local-key")
+    );
+}
+
 #[test]
 fn event_routines_default_off_and_reuse_existing_brokers() {
     let config: Config = serde_json::from_value(config_values()).unwrap();
