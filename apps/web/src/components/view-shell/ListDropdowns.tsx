@@ -329,9 +329,23 @@ export function ListFilterDropdown<
                           !props.isSelected(group().id, id)
                       )
                     }
-                    closeOnSelect={
-                      group().selectionMode === 'single' ? true : 'unless-shift'
+                    onOnly={(id) =>
+                      batch(() => {
+                        for (const option of group().options) {
+                          const selected = option.id === id;
+                          if (
+                            !option.disabled &&
+                            selected !== props.isSelected(group().id, option.id)
+                          )
+                            props.onSelectionChange(
+                              group().id,
+                              option.id,
+                              selected
+                            );
+                        }
+                      })
                     }
+                    closeOnSelect
                     contentClass={group().contentClass}
                   />
                 }

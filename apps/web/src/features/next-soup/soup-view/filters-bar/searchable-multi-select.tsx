@@ -1,11 +1,14 @@
 import { useSelectedFirst } from '@core/util/useSelectedFirst';
 import type { CollectionNode } from '@kobalte/core';
 import { Combobox, useComboboxContext } from '@kobalte/core/combobox';
-import CheckIcon from '@phosphor/check.svg';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
 import { makeEventListener } from '@solid-primitives/event-listener';
 import { cn, Layer } from '@ui';
-import { createSelectionDismissal } from '@ui/utils/selectionDismissal';
+import { MultiSelectItemContent } from '@ui/components/MultiSelectItemContent';
+import {
+  applyMultiSelectSelection,
+  createMultiSelectSelection,
+} from '@ui/utils/multiSelectSelection';
 import {
   type Accessor,
   createMemo,
@@ -21,6 +24,7 @@ export type SearchableOption = {
   icon?: () => JSX.Element;
   /** Drawn in place of `label`, which still drives search. */
   content?: () => JSX.Element;
+  disabled?: boolean;
 };
 
 export type SearchableSelectAction = {
@@ -57,11 +61,7 @@ type SearchableMultiSelectProps = {
   listboxClass?: string;
   /** Keep `options` in their given order instead of pinning selected first. */
   preserveOrder?: boolean;
-  /**
-   * Render a per-row "Only" action that narrows the selection to that row.
-   * When the row is already the sole active one the label flips to "All" and
-   * the handler is expected to restore the full selection.
-   */
+  /** Optional Only/All behavior for tri-state filters such as inboxes. */
   onOnly?: (id: string) => void;
   /** Non-toggling action row appended after the options. */
   action?: SearchableSelectAction;
@@ -74,6 +74,7 @@ const SearchableMultiSelectItem = (itemProps: {
   item: CollectionNode<SearchableOption>;
   onOnly?: (id: string) => void;
   isSoleActive?: (id: string) => boolean;
+  selection: ReturnType<typeof createMultiSelectSelection>;
 }) => {
   const combobox = useComboboxContext();
   let selectedOnPointerUp = false;
@@ -83,8 +84,9 @@ const SearchableMultiSelectItem = (itemProps: {
     <Combobox.Item
       item={itemProps.item}
       ref={(element) => {
-        // Kobalte composes item handlers without checking defaultPrevented.
-        // Intercept Shift selection before those handlers can select a range.
+        itemProps.selection.track(element);
+        // Intercept Shift activation before Kobalte selects a range. The change
+        // handler turns the resulting single-item toggle into exclusive selection.
         const intercept = (event: Event) => {
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -143,57 +145,56 @@ const SearchableMultiSelectItem = (itemProps: {
           true
         );
       }}
-      class="group rounded-lg w-full flex items-center gap-1.5 p-1.5 px-2 text-left text-sm font-normal data-highlighted:bg-ink/5 cursor-default"
+      aria-label={itemProps.item.rawValue.label}
+      aria-keyshortcuts="Space Enter Shift+Enter"
+      class={cn(
+        'group relative rounded-lg w-full flex items-center gap-1.5 p-1.5 px-2 text-left text-sm font-normal data-highlighted:bg-ink/5 cursor-default touch:min-h-11',
+        itemProps.item.rawValue.id !== ACTION_ID && 'pr-14'
+      )}
     >
-      <Show when={itemProps.item.rawValue.id !== ACTION_ID}>
-        <span
-          class={cn(
-            'size-3.5 flex items-center justify-center shrink-0 rounded-sm border text-surface',
-            'border-transparent group-hover:not-hover:border-edge-muted group-data-highlighted:not-hover:border-edge-muted hover:border-accent',
-            'group-data-selected:bg-accent group-data-selected:border-accent'
-          )}
-        >
-          <Combobox.ItemIndicator>
-            <CheckIcon class="size-2.5" />
-          </Combobox.ItemIndicator>
-        </span>
-      </Show>
-      <Show when={itemProps.item.rawValue.icon}>
-        {(icon) => (
-          <span class="size-4 flex items-center justify-center shrink-0">
-            {icon()()}
-          </span>
-        )}
-      </Show>
-      <Combobox.ItemLabel class="flex-1 truncate text-ink">
-        {itemProps.item.rawValue.content?.() ?? itemProps.item.rawValue.label}
-      </Combobox.ItemLabel>
       <Show
-        when={
-          itemProps.item.rawValue.id !== ACTION_ID
-            ? itemProps.onOnly
-            : undefined
+        when={itemProps.item.rawValue.id !== ACTION_ID}
+        fallback={
+          <>
+            <Show when={itemProps.item.rawValue.icon}>
+              {(icon) => (
+                <span class="size-4 flex items-center justify-center shrink-0">
+                  {icon()()}
+                </span>
+              )}
+            </Show>
+            <Combobox.ItemLabel class="flex-1 truncate text-ink">
+              {itemProps.item.rawValue.label}
+            </Combobox.ItemLabel>
+          </>
         }
       >
-        {(onOnly) => (
-          <button
-            type="button"
-            class="shrink-0 text-xxs text-ink-muted opacity-0 group-hover:opacity-100 group-data-highlighted:opacity-100 hover:text-ink"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onPointerUp={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOnly()(itemProps.item.rawValue.id);
-            }}
-          >
-            {itemProps.isSoleActive?.(itemProps.item.rawValue.id)
+        <MultiSelectItemContent
+          checked={combobox
+            .listState()
+            .selectionManager()
+            .isSelected(itemProps.item.key)}
+          label={itemProps.item.rawValue.label}
+          disabled={itemProps.item.rawValue.disabled}
+          onOnly={() => itemProps.onOnly?.(itemProps.item.rawValue.id)}
+          onlyLabel={
+            itemProps.isSoleActive?.(itemProps.item.rawValue.id)
               ? 'All'
-              : 'Only'}
-          </button>
-        )}
+              : 'Only'
+          }
+        >
+          <Show when={itemProps.item.rawValue.icon}>
+            {(icon) => (
+              <span class="size-4 flex items-center justify-center shrink-0">
+                {icon()()}
+              </span>
+            )}
+          </Show>
+          <Combobox.ItemLabel class="flex-1 truncate text-ink">
+            {itemProps.item.rawValue.content?.() ??
+              itemProps.item.rawValue.label}
+          </Combobox.ItemLabel>
+        </MultiSelectItemContent>
       </Show>
     </Combobox.Item>
   );
@@ -203,6 +204,7 @@ const VirtualizedListbox = (props: {
   class?: string;
   onOnly?: (id: string) => void;
   isSoleActive?: (id: string) => boolean;
+  selection: ReturnType<typeof createMultiSelectSelection>;
 }) => {
   let handle: VirtualizerHandle | undefined;
   // Kobalte supplies the collection after applying the combobox search
@@ -236,6 +238,7 @@ const VirtualizedListbox = (props: {
                 item={item}
                 onOnly={props.onOnly}
                 isSoleActive={props.isSoleActive}
+                selection={props.selection}
               />
             )}
           </Virtualizer>
@@ -278,7 +281,7 @@ const useActiveOptions = (
 const getOptionId = (opt: SearchableOption) => opt.id;
 
 export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
-  const selection = createSelectionDismissal();
+  const selection = createMultiSelectSelection();
   const [internalOpen, setInternalOpen] = createSignal(false);
   const [searchQuery, setSearchQuery] = createSignal('');
 
@@ -319,7 +322,15 @@ export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
       props.action.onSelect();
       return;
     }
-    props.onChange(selected.map((o) => o.id));
+    const id =
+      selected.find((option) => !props.activeIds().includes(option.id))?.id ??
+      activeOptions().find(
+        (option) => !selected.some((next) => next.id === option.id)
+      )?.id;
+    if (id !== undefined)
+      props.onChange(
+        applyMultiSelectSelection(props.activeIds(), id, selection.intent())
+      );
     dismissAfterSelection();
   };
 
@@ -327,13 +338,13 @@ export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
     if (selection.shouldClose()) queueMicrotask(() => handleOpenChange(false));
   };
   const handleOnly = (id: string) => {
-    props.onOnly?.(id);
-    dismissAfterSelection();
+    if (props.onOnly) props.onOnly(id);
+    else props.onChange([id]);
   };
 
   const isSoleActive = (id: string) => {
     const ids = props.activeIds();
-    return ids.length === 1 && ids[0] === id;
+    return !!props.onOnly && ids.length === 1 && ids[0] === id;
   };
 
   return (
@@ -350,6 +361,7 @@ export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
       optionValue="id"
       optionTextValue="label"
       optionLabel="label"
+      optionDisabled="disabled"
       allowsEmptyCollection
       virtualized
       removeOnBackspace={false}
@@ -390,8 +402,9 @@ export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
               >
                 <VirtualizedListbox
                   class={props.listboxClass}
-                  onOnly={props.onOnly && handleOnly}
+                  onOnly={handleOnly}
                   isSoleActive={isSoleActive}
+                  selection={selection}
                 />
               </Show>
             </div>
@@ -424,7 +437,7 @@ type SearchableMultiSelectInlineProps = {
 export const SearchableMultiSelectInline = (
   props: SearchableMultiSelectInlineProps
 ) => {
-  const selection = createSelectionDismissal();
+  const selection = createMultiSelectSelection();
   const [searchQuery, setSearchQuery] = createSignal('');
 
   const activeOptions = useActiveOptions(props.options, props.activeIds);
@@ -442,7 +455,15 @@ export const SearchableMultiSelectInline = (
     props.preserveOrder ? props.options() : selectedFirstOptions();
 
   const handleChange = (selected: SearchableOption[]) => {
-    props.onChange(selected.map((o) => o.id));
+    const id =
+      selected.find((option) => !props.activeIds().includes(option.id))?.id ??
+      activeOptions().find(
+        (option) => !selected.some((next) => next.id === option.id)
+      )?.id;
+    if (id !== undefined)
+      props.onChange(
+        applyMultiSelectSelection(props.activeIds(), id, selection.intent())
+      );
     if (selection.shouldClose())
       queueMicrotask(() => props.onSelectionComplete?.());
   };
@@ -492,6 +513,7 @@ export const SearchableMultiSelectInline = (
       optionValue="id"
       optionTextValue="label"
       optionLabel="label"
+      optionDisabled="disabled"
       allowsEmptyCollection
       virtualized
       removeOnBackspace={false}
@@ -517,7 +539,11 @@ export const SearchableMultiSelectInline = (
             </div>
           }
         >
-          <VirtualizedListbox class={props.listboxClass} />
+          <VirtualizedListbox
+            class={props.listboxClass}
+            selection={selection}
+            onOnly={(id) => props.onChange([id])}
+          />
         </Show>
       </div>
     </Combobox>
