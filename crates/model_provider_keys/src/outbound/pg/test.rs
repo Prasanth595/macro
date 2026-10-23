@@ -213,3 +213,31 @@ async fn the_table_refuses_a_prefix_that_is_not_the_providers(pool: PgPool) -> a
     }
     Ok(())
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_cursor_key_and_personal_keys_coexist(pool: PgPool) -> anyhow::Result<()> {
+    insert_team(&pool).await?;
+    sqlx::query!(
+        r#"
+        INSERT INTO cursor_configs (
+            user_id, provider, key_ciphertext, encryption_version, kms_key_id, key_prefix
+        )
+        VALUES ($1, 'cursor', '\x01', 1, 'kms', 'crsr_')
+        "#,
+        MEMBER,
+    )
+    .execute(&pool)
+    .await?;
+    let repo = PgProviderKeyRepo::new(pool);
+
+    repo.upsert(&personal(MEMBER), ModelProvider::Anthropic, &encrypted(), "sk-ant-")
+        .await?;
+    repo.upsert(&personal(MEMBER), ModelProvider::OpenAi, &encrypted(), "sk-")
+        .await?;
+
+    assert_eq!(
+        repo.available(&user(MEMBER)).await?.personal,
+        vec![ModelProvider::Anthropic, ModelProvider::OpenAi]
+    );
+    Ok(())
+}

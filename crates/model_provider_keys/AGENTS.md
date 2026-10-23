@@ -46,8 +46,6 @@ crate doc in `src/lib.rs`.
 - The KMS context names the owner. Team keys use the context they were first
   encrypted under (`the_team_context_is_unchanged` pins it); changing it makes
   stored keys undecryptable.
-- Until `cursor_configs_user_id_key` (`UNIQUE (user_id)`) is dropped, a user
-  with a Cursor key cannot also store a personal key: the insert violates it.
 - Keys are a paid-plan feature, checked on save and on every turn. A
   downgrade keeps the row: it stays listed and removable, but `ModelKeys`
   answers as if it did not exist.

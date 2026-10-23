@@ -859,9 +859,7 @@ only for Anthropic and OpenAI models:
   model`.
 
 Team membership is checked on every turn: a member who leaves the team loses
-the team's key on their next message. Until the follow-up migration drops
-`cursor_configs_user_id_key`, saving a personal key fails for someone who also
-has a Cursor key connected.
+the team's key on their next message.
 
 ### Quota manual checks
 
