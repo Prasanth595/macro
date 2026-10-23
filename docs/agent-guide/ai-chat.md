@@ -387,6 +387,8 @@ the shimmer.
   a faint gradient gives the dark toggle depth without borders or shadows.
   Light mode uses a panel-colored selected segment with a subtle border and shadow.
   The footer, track, and selected segment follow the active theme's color tokens.
+  The footer mixes a little ink into the panel color so its rounded lower lip
+  remains distinct from the page, including behind the input's bottom corners.
   Verify them with a colored dark theme (such as Moon) and a colored light theme,
   including switching Chat / Code; none should retain fixed neutral grays.
   The selected segment glides for 250ms with
