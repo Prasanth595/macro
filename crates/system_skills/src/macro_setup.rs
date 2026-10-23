@@ -26,6 +26,7 @@ Do everything else yourself. Ask only what you can't work out, and ask it in the
 4. `SetupProposePlan`: `all: true` per app unless they narrowed it, `declined` for what they said no to, `other_apps` for tools setup doesn't import, `scope_notes` in their words. Show `plan_text` as written and get one yes.
 5. `SetupImport` with that `plan_id`, the same selections and declined refs, and `approved: true`.
 6. `SetupGetStatus` with the same apps, and follow its `next_step` until it says setup is done. Report a table of what came in with links, what didn't and why, and `not_covered` with its alternatives. Name one thing to open first and end with the link to their workspace.
+7. With an inbox connected, `SetupFirstLook`: who they work with, what's waiting and this week's meetings. Follow its `next_step`: check a thread or two before describing a company, then offer each idea one at a time and act only on a yes.
 
 ## What happens to each tool
 
