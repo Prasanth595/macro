@@ -3,7 +3,7 @@ import { catchToResult } from '@core/util/result';
 import {
   getFileDocumentBlob,
   loadFileDocumentData,
-} from '@service-storage/util/fileDocument';
+} from '@queries/storage/file-document';
 import { formatDocumentName } from '@service-storage/util/filename';
 import { FileDownloadButton } from './FileDownload';
 
@@ -18,7 +18,7 @@ export function DocumentDownloadButton(props: { documentId: string }) {
         catchToResult(async () => {
           const { documentMetadata } = await loadFileDocumentData(
             documentId,
-            options.signal
+            options
           );
           options.signal.throwIfAborted();
           return {

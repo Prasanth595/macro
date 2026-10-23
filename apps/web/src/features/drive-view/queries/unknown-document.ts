@@ -1,7 +1,7 @@
 import {
   type FileDocumentData,
   loadFileDocumentData,
-} from '@service-storage/util/fileDocument';
+} from '@queries/storage/file-document';
 
 export type UnknownDocumentData = FileDocumentData;
 

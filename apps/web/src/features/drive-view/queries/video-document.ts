@@ -3,7 +3,7 @@ import {
   type FileDocumentData,
   getFileDocumentUrl,
   loadFileDocumentData,
-} from '@service-storage/util/fileDocument';
+} from '@queries/storage/file-document';
 
 export type VideoDocumentData = FileDocumentData & {
   videoUrl?: string;

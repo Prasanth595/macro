@@ -22,6 +22,7 @@ export type DownloadSource = {
   load: (options: {
     signal: AbortSignal;
     onProgress: (progress: FetchProgress) => void;
+    span: Span;
   }) => Promise<Result<{ blob: Blob; name?: string }, ResultError<string>[]>>;
 };
 
@@ -235,6 +236,7 @@ export function createFileDownload(
         try {
           const result = await snapshot.load({
             signal: request.signal,
+            span,
             onProgress: (next) => {
               if (controller === request) setProgress(next);
             },
