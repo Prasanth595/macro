@@ -840,6 +840,32 @@ describe('GraphQL Soup browser cache session gate', () => {
     );
   });
 
+  it('never rejects or stalls sign-out when queue inspection fails', async () => {
+    const soup = await import('./graphql-soup');
+    soup.getGraphqlSoupClient();
+
+    mocks.host.inspectMutations.mockImplementationOnce(() => {
+      throw new Error('worker gone');
+    });
+    await expect(
+      soup.recordGraphqlMutationQueueCleared('logout')
+    ).resolves.toBeUndefined();
+
+    vi.useFakeTimers();
+    try {
+      mocks.host.inspectMutations.mockReturnValueOnce(new Promise(() => {}));
+      const pending = soup.recordGraphqlMutationQueueCleared('logout');
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect(pending).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(mocks.telemetryWarn).not.toHaveBeenCalledWith(
+      'graphql.mutation_queue.cleared',
+      expect.anything()
+    );
+  });
+
   it.each([
     'Cannot query field "cacheProjection" on type "GraphqlSoupEntity".',
     'Unknown field "cacheProjection" on type "GraphqlSoupEntity".',

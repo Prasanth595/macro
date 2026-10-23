@@ -54,6 +54,7 @@ import type { GithubPrMentionLocation } from '@service-notification/generated/sc
 import type { GithubPrReviewState } from '@service-notification/generated/schemas/githubPrReviewState';
 import type { NotifEvent } from '@service-notification/generated/schemas/notifEvent';
 import type { NotificationDocumentSubType } from '@service-notification/generated/schemas/notificationDocumentSubType';
+import { raceTimeout } from '@solid-primitives/promise';
 import {
   type AnyVariables,
   type Client,
@@ -112,6 +113,7 @@ import {
 } from './graphql-soup-websocket';
 
 const dssHost = SERVER_HOSTS['document-storage-service'];
+const QUEUE_CLEAR_INSPECTION_TIMEOUT_MS = 1000;
 
 function mergeHeaders(...headers: Array<HeadersInit | undefined>): Headers {
   const result = new Headers();
@@ -620,15 +622,20 @@ function fallbackAfterInitializationFailure(error: unknown): void {
  * Reports the queued mutations a local sign-out deletes. Start it before the
  * cache wipe; it never delays or fails the wipe.
  */
-export function recordGraphqlMutationQueueCleared(
+export async function recordGraphqlMutationQueueCleared(
   cause: MutationQueueClearCause
 ): Promise<void> {
   const host = cachedCacheHost;
-  if (!host?.inspectMutations || host.disabled) return Promise.resolve();
-  return host.inspectMutations().then(
-    (queue) => reportMutationQueueCleared(queue, cause),
-    () => undefined
-  );
+  if (!host?.inspectMutations || host.disabled) return;
+  try {
+    const queue = await raceTimeout(
+      host.inspectMutations(),
+      QUEUE_CLEAR_INSPECTION_TIMEOUT_MS
+    );
+    if (queue) reportMutationQueueCleared(queue, cause);
+  } catch {
+    // A rejected entry makes sign-out rotate the cache scope.
+  }
 }
 
 /** Returns the persistent normalized-cache host after client initialization. */
