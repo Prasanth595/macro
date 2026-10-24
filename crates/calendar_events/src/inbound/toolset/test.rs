@@ -1,3 +1,5 @@
+mod read_calendar_event;
+
 use std::sync::Mutex;
 
 use ai_toolset::schema::generate_validated_input_schema;
@@ -29,6 +31,10 @@ fn tool_input_schemas_satisfy_strict_mode() {
         (
             "ListCalendars",
             generate_validated_input_schema::<ListCalendars>().map(|schema| schema.name),
+        ),
+        (
+            "ReadCalendarEvent",
+            generate_validated_input_schema::<ReadCalendarEvent>().map(|schema| schema.name),
         ),
         (
             "CreateCalendarEvent",
@@ -316,7 +322,7 @@ impl CalendarOccurrenceService for MockOccurrences {
         _requester_id: &str,
         _items: Vec<crate::domain::models::CalendarMentionRequestItem>,
     ) -> Result<Vec<crate::domain::models::CalendarMentionPreview>, rootcause::Report> {
-        unreachable!("no calendar tool resolves mention previews")
+        unreachable!("these tests read no mentioned events")
     }
 
     async fn list_team_out_of_office(
