@@ -62,6 +62,16 @@ fn rate_limited_responses_carry_a_retry_after_header_when_known() {
         Some("42")
     );
 
+    let headers = provider_error_headers(&EmailApiError::RateLimited {
+        retry_after: Some(Duration::from_millis(950)),
+        origin: RateLimitOrigin::Local,
+    });
+    assert_eq!(
+        headers.get(RETRY_AFTER).and_then(|v| v.to_str().ok()),
+        Some("1"),
+        "a sub-second wait must not tell clients to retry immediately"
+    );
+
     assert!(
         provider_error_headers(&EmailApiError::RateLimited {
             retry_after: None,
