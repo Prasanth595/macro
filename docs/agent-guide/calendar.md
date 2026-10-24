@@ -1258,15 +1258,21 @@ description links use the host's normal link-opening behavior.
 A published event file (`METHOD:PUBLISH`, what `Forward by email` attaches) is a shared
 event, not an invitation: the card reads `Shared event organized by <organizer>` and never
 shows Yes / Maybe / No, a last response, or a waiting-for-sync line. When the viewer already
-holds the meeting it says `On your calendar.` with `Open in calendar` and `View your day`;
-otherwise it says `Not on your calendar.` and, behind the `enable-calendar-add-shared-event`
-flag, offers `Add to calendar`, which imports the same snapshot as the channel-share card
+holds the meeting it says `On your calendar.` with `Open in calendar` and `View your day`.
+When the calendar check confirms the viewer does not hold it, the card says
+`Not on your calendar.` and, behind the `enable-calendar-add-shared-event` flag, offers
+`Add to calendar`, which imports the same snapshot as the channel-share card
 (the viewer's only writable Google calendar, or one picked from a menu; the real organizer
 kept, the viewer as the only guest, nobody notified) through email service's
 `POST /email/threads/{thread_id}/messages/{message_id}/calendar-invitations/{invitation_id}/copy`.
 The server reads the event from the saved email, never from the request. The card then
 resolves to the snapshot. A single occurrence, a cancelled event, a time that cannot be read,
 and mail saved before recurrence was recorded on the snapshot get no `Add to calendar`.
+Nor does a card whose check is not confirmed: it says `Checking your connected calendar…`
+while loading, `Connect a calendar to add this event.` without a calendar, and
+`Calendar unavailable. Saved event details are shown.` when the check fails; a failed
+refresh after an earlier `Not on your calendar.` keeps that line under the unavailable notice
+but withholds the button.
 
 A connected, resolved invitation shows the responding address and Yes / Maybe / No.
 Calendars connected through a linked inbox also resolve here, using that inbox's
