@@ -17,4 +17,4 @@ Read one calendar event by id: the `documentId` of a calendar event mention (`bl
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `eventId` | string | Yes | Calendar event id: a calendar mention's documentId, or an eventId from a calendar tool. |
-| `occurrenceKey` | string | No | Occurrence to read for a recurring event: the mention's occurrenceKey block param, or a recurrenceId from ListCalendarEvents. Omit to read the next upcoming instance. |
+| `occurrenceKey` | string | No | Occurrence to read for a recurring event: the mention's occurrenceKey block param, or a recurrenceId from ListCalendarEvents. Omit to read the next upcoming instance, else the latest past one, else the series start. |

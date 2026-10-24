@@ -12742,7 +12742,7 @@ export interface ReadCalendarEvent {
    */
   eventId: string;
   /**
-   * Occurrence to read for a recurring event: the mention's occurrenceKey block param, or a recurrenceId from ListCalendarEvents. Omit to read the next upcoming instance.
+   * Occurrence to read for a recurring event: the mention's occurrenceKey block param, or a recurrenceId from ListCalendarEvents. Omit to read the next upcoming instance, else the latest past one, else the series start.
    */
   occurrenceKey?: string | null;
 }
@@ -12784,7 +12784,8 @@ export interface ReadCalendarEventResponse {
   isRecurring: boolean;
   /**
    * Key of the instance read: the requested occurrence when it exists,
-   * otherwise the next upcoming one.
+   * otherwise the next upcoming one, else the latest past one, else the
+   * series start.
    */
   recurrenceId?: string | null;
   /**

@@ -55,7 +55,8 @@ pub struct ReadCalendarEventResponse {
     /// Whether the event repeats.
     pub is_recurring: bool,
     /// Key of the instance read: the requested occurrence when it exists,
-    /// otherwise the next upcoming one.
+    /// otherwise the next upcoming one, else the latest past one, else the
+    /// series start.
     pub recurrence_id: Option<String>,
     /// Location label, when set.
     pub location: Option<String>,
@@ -145,7 +146,7 @@ pub struct ReadCalendarEvent {
     pub event_id: Uuid,
     /// Occurrence of a recurring event to read.
     #[schemars(
-        description = "Occurrence to read for a recurring event: the mention's occurrenceKey block param, or a recurrenceId from ListCalendarEvents. Omit to read the next upcoming instance."
+        description = "Occurrence to read for a recurring event: the mention's occurrenceKey block param, or a recurrenceId from ListCalendarEvents. Omit to read the next upcoming instance, else the latest past one, else the series start."
     )]
     pub occurrence_key: Option<String>,
 }
