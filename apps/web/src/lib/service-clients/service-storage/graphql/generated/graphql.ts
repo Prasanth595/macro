@@ -2237,10 +2237,16 @@ export type WorkFeedDoneItemInput = {
   /** The item's id. */
   id: string | number;
   /**
-   * The entry's `revision` the caller observed. Reasons newer than it
-   * stay active. Omit to acknowledge everything current.
+   * The entry's `revision` the caller observed, or with `rowId` the row's.
+   * Reasons newer than it stay active. Omit to acknowledge everything
+   * current.
    */
   revision?: string | null | undefined;
+  /**
+   * Complete only this inbox row of the item: what it shows and hides.
+   * The item stays in feeds while it has other reasons.
+   */
+  rowId?: string | number | null | undefined;
 };
 
 /** Page request for the viewer's work feed. */
@@ -2309,6 +2315,42 @@ export type WorkFeedPrimaryReason =
   /** The viewer's own work is the newest reason: open the entity. */
   | 'OWN_WORK';
 
+/** The kind of a notification inbox row. */
+export type WorkFeedRowType =
+  /** Access the viewer requested was granted. */
+  | 'ACCESS_GRANTED'
+  /** A request for access to something the viewer can share. */
+  | 'ACCESS_REQUESTED'
+  /** An agent session's or AI chat's latest response or question. */
+  | 'AGENT'
+  /** An action an AI suggests, awaiting the viewer's decision. */
+  | 'AI_SUGGESTION'
+  /** Reminders of an upcoming calendar event. */
+  | 'CALENDAR_EVENT'
+  /** A request to join a calendar event the viewer shared. */
+  | 'CALENDAR_JOIN_REQUEST'
+  /** A top-level channel message that mentions the viewer, with its thread. */
+  | 'CHANNEL_MENTION'
+  /** A channel's top-level messages, reactions to them and invites. */
+  | 'CHANNEL_MESSAGES'
+  /** A channel thread's replies, mentions and reactions. */
+  | 'CHANNEL_THREAD'
+  /**
+   * A top-level discussion comment that mentions the viewer, with its
+   * thread.
+   */
+  | 'DISCUSSION_MENTION'
+  /** An entity's top-level discussion comments. */
+  | 'DISCUSSION_MESSAGES'
+  /** One discussion thread's replies. */
+  | 'DISCUSSION_THREAD'
+  /** An email thread. */
+  | 'EMAIL'
+  /** A GitHub pull request's activity. */
+  | 'PULL_REQUEST'
+  /** A task assigned to the viewer. */
+  | 'TASK';
+
 /**
  * Which items a work feed shows. Pages, subscriptions and undo for one feed
  * send the same scope.
@@ -2318,6 +2360,12 @@ export type WorkFeedScopeInput = {
   includeSnippets?: boolean | null | undefined;
   /** Which reasons admit items. Defaults to `WORK`. */
   mode?: WorkFeedMode | null | undefined;
+  /**
+   * In an `ATTENTION` feed, the inbox row kinds to list; omitted or empty
+   * lists every kind, and an entry with no matching row is not listed.
+   * Rejected in a `WORK` feed, whose entries have no rows.
+   */
+  rowTypes?: Array<WorkFeedRowType> | null | undefined;
   /**
    * Item kinds to include. Omitted or empty means the mode's defaults:
    * work feeds show every kind except `INITIATIVE`, `CRM_COMPANY` and

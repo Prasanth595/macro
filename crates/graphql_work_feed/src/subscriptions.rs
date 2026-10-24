@@ -71,7 +71,7 @@ impl<E: SoupEntityEdges> WorkFeedSubscriptionRoot<E> {
     > {
         let user = require_authenticated_user(ctx)?;
         let context = ctx.data::<WorkFeedGraphqlContext>()?.clone();
-        let scope = scope.unwrap_or_default().into_scope();
+        let scope = scope.unwrap_or_default().into_scope()?;
         let viewer = context.viewer(user.clone()).await?;
         let mut triggers = context.triggers.subscribe(user);
 

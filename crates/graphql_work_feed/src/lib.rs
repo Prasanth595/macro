@@ -10,7 +10,7 @@ mod context;
 mod inputs;
 /// Done and undo mutations.
 mod mutations;
-/// Page, entry, item, stack and patch objects.
+/// Page, entry, row, item, stack and patch objects.
 mod objects;
 /// The `workFeed` page resolver.
 mod query;
@@ -22,15 +22,16 @@ pub use context::{
     WorkFeedViewerResolver,
 };
 pub use inputs::{
-    GraphqlWorkFeedItemType, GraphqlWorkFeedMode, MarkWorkFeedItemsDoneInput,
-    UndoWorkFeedItemsDoneInput, WorkFeedDoneItemInput, WorkFeedInput, WorkFeedScopeInput,
+    GraphqlWorkFeedItemType, GraphqlWorkFeedMode, GraphqlWorkFeedRowType,
+    MarkWorkFeedItemsDoneInput, UndoWorkFeedItemsDoneInput, WorkFeedDoneItemInput, WorkFeedInput,
+    WorkFeedScopeInput,
 };
 pub use mutations::{
     MarkWorkFeedItemsDonePayload, UndoWorkFeedItemsDonePayload, WorkFeedMutationRoot,
 };
 pub use objects::{
     GraphqlWorkFeedEntry, GraphqlWorkFeedItem, GraphqlWorkFeedPage, GraphqlWorkFeedPatch,
-    GraphqlWorkFeedStack,
+    GraphqlWorkFeedRow, GraphqlWorkFeedStack,
 };
 pub use query::resolve_work_feed;
 pub use subscriptions::WorkFeedSubscriptionRoot;

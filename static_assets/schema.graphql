@@ -411,7 +411,8 @@ type CompleteMutationRoot {
 	inviteCalendarEventGuests(input: InviteCalendarEventGuestsInput!): GraphqlCalendarMutationPayload!
 	"""
 	Mark work feed items done for the authenticated user: acknowledge the
-	notifications each entry showed and archive inbox email.
+	notifications each entry showed and archive inbox email. An item with
+	a `rowId` completes only that inbox row.
 	Notifications newer than an entry's `revision` stay active. Own work
 	is not acknowledged, so an item the user also worked on stays in the
 	work feed, seen. Tasks, discussions and pull requests themselves are
@@ -9657,10 +9658,15 @@ The result of marking work feed items done.
 """
 type MarkWorkFeedItemsDonePayload {
 	"""
-	The completed items; remove them from every feed. Items that were
-	already gone are included.
+	The items completed as a whole; remove them from every feed. Items
+	that were already gone are included. Row targets are not listed here.
 	"""
 	itemIds: [ID!]!
+	"""
+	The inbox rows completed by `rowId` targets, including rows that were
+	already gone. Their items stay while they have other rows.
+	"""
+	rowIds: [ID!]!
 	"""
 	Opaque token that reverses exactly this operation.
 	"""
@@ -10495,10 +10501,16 @@ input WorkFeedDoneItemInput {
 	"""
 	id: ID!
 	"""
-	The entry's `revision` the caller observed. Reasons newer than it
-	stay active. Omit to acknowledge everything current.
+	The entry's `revision` the caller observed, or with `rowId` the row's.
+	Reasons newer than it stay active. Omit to acknowledge everything
+	current.
 	"""
 	revision: String
+	"""
+	Complete only this inbox row of the item: what it shows and hides.
+	The item stays in feeds while it has other reasons.
+	"""
+	rowId: ID
 }
 
 """
@@ -10534,6 +10546,12 @@ type WorkFeedEntry {
 	opens, when its primary reason is attention.
 	"""
 	primaryStackIndex: Int
+	"""
+	In an attention feed, the item's notification inbox rows, newest
+	first; empty in work feeds. Read these rather than the item's stacks
+	and attention fields, which describe the item as every feed shares it.
+	"""
+	rows: [WorkFeedRow!]!
 }
 
 """
@@ -10743,6 +10761,113 @@ enum WorkFeedPrimaryReason {
 }
 
 """
+One notification inbox row: the notifications an attention feed shows
+together for one item, such as a thread, a channel's top-level activity
+or one access request. Its contents depend only on the viewer's
+notifications, so it is the same in every attention feed.
+"""
+type WorkFeedRow {
+	"""
+	Stable per-viewer row id. Opaque; it does not change when the row's
+	type changes between mention and thread.
+	"""
+	id: ID!
+	"""
+	The row's kind.
+	"""
+	rowType: WorkFeedRowType!
+	"""
+	Opaque token of what the row stands for; send it with `rowId` to mark
+	the row done, so notifications that arrive later stay active.
+	"""
+	revision: String!
+	"""
+	When the row's newest shown notification was created, in RFC 3339.
+	"""
+	latestAt: String!
+	"""
+	Whether the row is unread.
+	"""
+	unseen: Boolean!
+	"""
+	How many notifications the row shows.
+	"""
+	count: Int!
+	"""
+	The notifications the row shows, newest first. Defaults to 20,
+	capped at 100; `count` is the full size.
+	"""
+	notifications(limit: Int): [GraphqlNotification!]!
+}
+
+"""
+The kind of a notification inbox row.
+"""
+enum WorkFeedRowType {
+	"""
+	An action an AI suggests, awaiting the viewer's decision.
+	"""
+	AI_SUGGESTION
+	"""
+	An agent session's or AI chat's latest response or question.
+	"""
+	AGENT
+	"""
+	An email thread.
+	"""
+	EMAIL
+	"""
+	A top-level channel message that mentions the viewer, with its thread.
+	"""
+	CHANNEL_MENTION
+	"""
+	A channel's top-level messages, reactions to them and invites.
+	"""
+	CHANNEL_MESSAGES
+	"""
+	A channel thread's replies, mentions and reactions.
+	"""
+	CHANNEL_THREAD
+	"""
+	A top-level discussion comment that mentions the viewer, with its
+	thread.
+	"""
+	DISCUSSION_MENTION
+	"""
+	An entity's top-level discussion comments.
+	"""
+	DISCUSSION_MESSAGES
+	"""
+	One discussion thread's replies.
+	"""
+	DISCUSSION_THREAD
+	"""
+	A task assigned to the viewer.
+	"""
+	TASK
+	"""
+	A GitHub pull request's activity.
+	"""
+	PULL_REQUEST
+	"""
+	Reminders of an upcoming calendar event.
+	"""
+	CALENDAR_EVENT
+	"""
+	A request to join a calendar event the viewer shared.
+	"""
+	CALENDAR_JOIN_REQUEST
+	"""
+	A request for access to something the viewer can share.
+	"""
+	ACCESS_REQUESTED
+	"""
+	Access the viewer requested was granted.
+	"""
+	ACCESS_GRANTED
+}
+
+"""
 Which items a work feed shows. Pages, subscriptions and undo for one feed
 send the same scope.
 """
@@ -10761,6 +10886,12 @@ input WorkFeedScopeInput {
 	Whether snippet documents are included. Defaults to false.
 	"""
 	includeSnippets: Boolean
+	"""
+	In an `ATTENTION` feed, the inbox row kinds to list; omitted or empty
+	lists every kind, and an entry with no matching row is not listed.
+	Rejected in a `WORK` feed, whose entries have no rows.
+	"""
+	rowTypes: [WorkFeedRowType!]
 }
 
 """

@@ -4,8 +4,10 @@ use graphql_soup::{GraphqlSoupEntity, SoupEntityEdges};
 use soup::domain::models::SoupProjectionHydration;
 use work_feed::domain::models::{
     WorkFeedChange, WorkFeedEntry, WorkFeedItemState, WorkFeedPage, WorkFeedPrimaryReason,
-    WorkFeedStack, WorkFeedStackKind, counts_as_unseen,
+    WorkFeedRow, WorkFeedStack, WorkFeedStackKind, counts_as_unseen,
 };
+
+use crate::inputs::GraphqlWorkFeedRowType;
 
 /// Most notifications one stack returns when no limit is given.
 const DEFAULT_STACK_NOTIFICATION_LIMIT: i32 = 20;
@@ -143,6 +145,69 @@ impl GraphqlWorkFeedStack {
     }
 }
 
+/// One notification inbox row of an attention feed entry.
+pub struct GraphqlWorkFeedRow(WorkFeedRow);
+
+/// One notification inbox row: the notifications an attention feed shows
+/// together for one item, such as a thread, a channel's top-level activity
+/// or one access request. Its contents depend only on the viewer's
+/// notifications, so it is the same in every attention feed.
+#[Object(name = "WorkFeedRow")]
+impl GraphqlWorkFeedRow {
+    /// Stable per-viewer row id. Opaque; it does not change when the row's
+    /// type changes between mention and thread.
+    async fn id(&self) -> ID {
+        ID(self.0.id.clone())
+    }
+
+    /// The row's kind.
+    async fn row_type(&self) -> GraphqlWorkFeedRowType {
+        self.0.row_type.into()
+    }
+
+    /// Opaque token of what the row stands for; send it with `rowId` to mark
+    /// the row done, so notifications that arrive later stay active.
+    async fn revision(&self) -> String {
+        self.0.revision().encode()
+    }
+
+    /// When the row's newest shown notification was created, in RFC 3339.
+    async fn latest_at(&self) -> String {
+        self.0.latest().created_at.to_rfc3339()
+    }
+
+    /// Whether the row is unread.
+    async fn unseen(&self) -> bool {
+        self.0.unseen
+    }
+
+    /// How many notifications the row shows.
+    async fn count(&self) -> i32 {
+        i32::try_from(self.0.notifications.len()).unwrap_or(i32::MAX)
+    }
+
+    /// The notifications the row shows, newest first. Defaults to 20,
+    /// capped at 100; `count` is the full size.
+    async fn notifications(
+        &self,
+        limit: Option<i32>,
+    ) -> async_graphql::Result<Vec<GraphqlNotification>> {
+        let limit = graphql_common::parse_limit(
+            limit,
+            DEFAULT_STACK_NOTIFICATION_LIMIT,
+            MAX_STACK_NOTIFICATION_LIMIT,
+        )?;
+        Ok(self
+            .0
+            .notifications
+            .iter()
+            .take(limit as usize)
+            .cloned()
+            .map(GraphqlNotification::from)
+            .collect())
+    }
+}
+
 /// One context the viewer can return to or acknowledge. The same item is
 /// shared by every feed it appears in; per-feed placement lives on its entry.
 pub struct GraphqlWorkFeedItem<E: SoupEntityEdges> {
@@ -211,6 +276,8 @@ pub struct GraphqlWorkFeedEntry<E: SoupEntityEdges> {
     revision: String,
     /// The entry's primary reason.
     primary: WorkFeedPrimaryReason,
+    /// The item's inbox rows in this feed.
+    rows: Vec<GraphqlWorkFeedRow>,
 }
 
 /// An item placed in one feed: where it sits, why, and what marking it done
@@ -256,6 +323,13 @@ impl<E: SoupEntityEdges> GraphqlWorkFeedEntry<E> {
             WorkFeedPrimaryReason::Attention { stack } => i32::try_from(stack).ok(),
         }
     }
+
+    /// In an attention feed, the item's notification inbox rows, newest
+    /// first; empty in work feeds. Read these rather than the item's stacks
+    /// and attention fields, which describe the item as every feed shares it.
+    async fn rows(&self) -> &[GraphqlWorkFeedRow] {
+        &self.rows
+    }
 }
 
 impl<E: SoupEntityEdges> GraphqlWorkFeedEntry<E> {
@@ -273,6 +347,7 @@ impl<E: SoupEntityEdges> GraphqlWorkFeedEntry<E> {
             touched_at: item.touched_at.map(|touched| touched.to_rfc3339()),
             revision,
             primary: item.primary,
+            rows: entry.rows.into_iter().map(GraphqlWorkFeedRow).collect(),
             item: GraphqlWorkFeedItem {
                 id: item.key.id(),
                 entity: GraphqlSoupEntity::new_with_projection(item.entity),

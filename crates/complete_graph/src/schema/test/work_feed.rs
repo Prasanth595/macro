@@ -5,8 +5,8 @@ use ::work_feed::domain::{
         WorkFeedChange, WorkFeedDoneOutcome, WorkFeedDoneReceipt, WorkFeedDoneTarget,
         WorkFeedEntry, WorkFeedError, WorkFeedItem, WorkFeedItemKey, WorkFeedItemState,
         WorkFeedItemType, WorkFeedMode, WorkFeedPage, WorkFeedPosition, WorkFeedPrimaryReason,
-        WorkFeedQuery, WorkFeedRevision, WorkFeedScope, WorkFeedStack, WorkFeedStackKind,
-        WorkFeedTrigger, WorkFeedViewer,
+        WorkFeedQuery, WorkFeedRevision, WorkFeedRow, WorkFeedRowType, WorkFeedScope,
+        WorkFeedStack, WorkFeedStackKind, WorkFeedTrigger, WorkFeedViewer,
     },
     ports::WorkFeedTriggers,
 };
@@ -85,6 +85,25 @@ fn doc_entry() -> WorkFeedEntry<SoupProjectionHydration> {
     }
 }
 
+fn row_id() -> String {
+    format!("{}#thread:{}", doc_key().id(), Uuid::from_u128(1))
+}
+
+/// The document entry as an attention feed lists it: one thread row whose
+/// newest comment speaks for the older one.
+fn doc_attention_entry() -> WorkFeedEntry<SoupProjectionHydration> {
+    WorkFeedEntry {
+        rows: vec![WorkFeedRow {
+            id: row_id(),
+            row_type: WorkFeedRowType::DiscussionMention,
+            notifications: vec![comment(2, 7)],
+            hidden: vec![comment(1, 5)],
+            unseen: true,
+        }],
+        ..doc_entry()
+    }
+}
+
 #[derive(Default)]
 struct RecordingWorkFeedService {
     pages: Mutex<Vec<(WorkFeedViewer, WorkFeedQuery)>>,
@@ -102,10 +121,14 @@ impl WorkFeedGraphqlService for Recording {
         viewer: WorkFeedViewer,
         query: WorkFeedQuery,
     ) -> BoxFuture<'_, Result<WorkFeedPage<SoupProjectionHydration>, WorkFeedError>> {
+        let entry = match query.scope.mode {
+            WorkFeedMode::Work => doc_entry(),
+            WorkFeedMode::Attention => doc_attention_entry(),
+        };
         self.0.pages.lock().unwrap().push((viewer, query));
         Box::pin(async {
             Ok(WorkFeedPage {
-                entries: vec![doc_entry()],
+                entries: vec![entry],
                 next: Some(WorkFeedPosition {
                     sort_at: at(9),
                     entity_id: DOC_ID.to_string(),
@@ -146,7 +169,12 @@ impl WorkFeedGraphqlService for Recording {
     ) -> BoxFuture<'_, Result<WorkFeedDoneOutcome, WorkFeedError>> {
         let items = targets
             .iter()
+            .filter(|target| target.row.is_none())
             .map(|target| target.key.clone())
+            .collect::<Vec<_>>();
+        let rows = targets
+            .iter()
+            .filter_map(|target| target.row.clone())
             .collect::<Vec<_>>();
         self.0.dones.lock().unwrap().push(targets);
         Box::pin(async move {
@@ -157,7 +185,7 @@ impl WorkFeedGraphqlService for Recording {
                     ..Default::default()
                 },
                 items,
-                rows: Vec::new(),
+                rows,
             })
         })
     }
@@ -478,4 +506,108 @@ async fn work_feed_updates_batch_recomputed_patches() {
         triggers.subscribed.lock().unwrap().as_slice(),
         &[viewer_id()]
     );
+}
+
+#[tokio::test]
+async fn attention_feeds_list_entry_rows_and_complete_one_row() {
+    let harness = harness();
+    let service = Arc::new(RecordingWorkFeedService::default());
+    let triggers = ManualTriggers::default();
+
+    let response = harness
+        .schema
+        .execute(
+            harness
+                .request(
+                    r#"{ user { workFeed(input: {
+                        scope: { mode: ATTENTION, includeSnippets: true, rowTypes: [DISCUSSION_MENTION] }
+                    }) {
+                        entries {
+                            item { id }
+                            rows {
+                                id rowType revision latestAt unseen count
+                                notifications(limit: 5) { id }
+                            }
+                        }
+                    } } }"#,
+                    authenticated_parts(),
+                )
+                .data(context(&service, &triggers)),
+        )
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    let data = response.data.into_json().unwrap();
+    let row = &data["user"]["workFeed"]["entries"][0]["rows"][0];
+    assert_eq!(row["id"], row_id());
+    assert_eq!(row["rowType"], "DISCUSSION_MENTION");
+    assert_eq!(row["latestAt"], at(7).to_rfc3339());
+    assert_eq!(row["unseen"], true);
+    assert_eq!(row["count"], 1);
+    assert_eq!(
+        row["notifications"],
+        serde_json::json!([{ "id": Uuid::from_u128(2).to_string() }])
+    );
+    // The revision covers the hidden older comment the row stands for.
+    let revision = WorkFeedRevision::decode(row["revision"].as_str().unwrap()).unwrap();
+    assert_eq!(revision.attention_through, Some(at(7)));
+    assert_eq!(
+        service.pages.lock().unwrap()[0].1.scope.row_types,
+        vec![WorkFeedRowType::DiscussionMention]
+    );
+
+    let done = harness
+        .schema
+        .execute(
+            harness
+                .request(
+                    &format!(
+                        r#"mutation {{ markWorkFeedItemsDone(input: {{ items: [
+                            {{ id: "document:{DOC_ID}", rowId: "{row}", revision: "{revision}" }}
+                        ] }}) {{ itemIds rowIds undoToken }} }}"#,
+                        row = row_id(),
+                        revision = row["revision"].as_str().unwrap(),
+                    ),
+                    authenticated_parts(),
+                )
+                .data(viewer_id())
+                .data(context(&service, &triggers)),
+        )
+        .await;
+    assert!(done.errors.is_empty(), "{:?}", done.errors);
+    let done = done.data.into_json().unwrap();
+    assert_eq!(
+        done["markWorkFeedItemsDone"]["itemIds"],
+        serde_json::json!([])
+    );
+    assert_eq!(
+        done["markWorkFeedItemsDone"]["rowIds"],
+        serde_json::json!([row_id()])
+    );
+    let targets = service.dones.lock().unwrap()[0].clone();
+    assert_eq!(targets[0].key, doc_key());
+    assert_eq!(targets[0].row, Some(row_id()));
+}
+
+#[tokio::test]
+async fn work_feeds_reject_row_types() {
+    let harness = harness();
+    let service = Arc::new(RecordingWorkFeedService::default());
+    let response = harness
+        .schema
+        .execute(
+            harness
+                .request(
+                    r#"{ user { workFeed(input: { scope: { mode: WORK, rowTypes: [TASK] } }) {
+                        nextCursor
+                    } } }"#,
+                    authenticated_parts(),
+                )
+                .data(context(&service, &ManualTriggers::default())),
+        )
+        .await;
+    assert_eq!(
+        response.errors[0].message,
+        "rowTypes only apply to ATTENTION feeds"
+    );
+    assert!(service.pages.lock().unwrap().is_empty());
 }

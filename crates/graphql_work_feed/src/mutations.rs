@@ -14,9 +14,12 @@ use crate::{
 /// The result of marking work feed items done.
 #[derive(SimpleObject)]
 pub struct MarkWorkFeedItemsDonePayload {
-    /// The completed items; remove them from every feed. Items that were
-    /// already gone are included.
+    /// The items completed as a whole; remove them from every feed. Items
+    /// that were already gone are included. Row targets are not listed here.
     item_ids: Vec<ID>,
+    /// The inbox rows completed by `rowId` targets, including rows that were
+    /// already gone. Their items stay while they have other rows.
+    row_ids: Vec<ID>,
     /// Opaque token that reverses exactly this operation.
     undo_token: String,
 }
@@ -40,7 +43,8 @@ impl<E> Default for WorkFeedMutationRoot<E> {
 #[Object]
 impl<E: SoupEntityEdges> WorkFeedMutationRoot<E> {
     /// Mark work feed items done for the authenticated user: acknowledge the
-    /// notifications each entry showed and archive inbox email.
+    /// notifications each entry showed and archive inbox email. An item with
+    /// a `rowId` completes only that inbox row.
     /// Notifications newer than an entry's `revision` stay active. Own work
     /// is not acknowledged, so an item the user also worked on stays in the
     /// work feed, seen. Tasks, discussions and pull requests themselves are
@@ -61,6 +65,7 @@ impl<E: SoupEntityEdges> WorkFeedMutationRoot<E> {
             .map_err(to_graphql_error)?;
         Ok(MarkWorkFeedItemsDonePayload {
             item_ids: outcome.items.iter().map(|key| ID(key.id())).collect(),
+            row_ids: outcome.rows.into_iter().map(ID).collect(),
             undo_token: outcome.receipt.encode(),
         })
     }
@@ -77,7 +82,7 @@ impl<E: SoupEntityEdges> WorkFeedMutationRoot<E> {
         let context = ctx.data::<WorkFeedGraphqlContext>()?;
         let receipt = WorkFeedDoneReceipt::decode(&input.undo_token)
             .map_err(|_| async_graphql::Error::new("invalid work feed undo token"))?;
-        let scope = input.scope.unwrap_or_default().into_scope();
+        let scope = input.scope.unwrap_or_default().into_scope()?;
         let viewer = context.viewer(user).await?;
         let changes = context
             .service

@@ -11,7 +11,10 @@ subscription.
 
 - `src/query.rs`: `resolve_work_feed`.
 - `src/objects.rs`: `GraphqlWorkFeedPage`, `GraphqlWorkFeedEntry`,
-  `GraphqlWorkFeedItem`, `GraphqlWorkFeedStack`, `GraphqlWorkFeedPatch`.
+  `GraphqlWorkFeedItem`, `GraphqlWorkFeedStack`, `GraphqlWorkFeedRow`,
+  `GraphqlWorkFeedPatch`. Attention feeds put notification inbox rows on the
+  entry (`rows`), never on the item: the web cache shares an item by id
+  across feeds.
 - `src/mutations.rs`: mark-done / undo-done mutations.
 - `src/subscriptions.rs`: `WorkFeedSubscriptionRoot` — realtime patches.
 - `src/context.rs`: `WorkFeedGraphqlContext`, `WorkFeedViewerResolver`.
@@ -33,6 +36,9 @@ subscription.
 - Add a feed item field: `src/objects.rs` → `src/query.rs` if it needs new
   input scoping (`src/inputs.rs`).
 - Add a mutation: `src/mutations.rs` → `work_feed` domain port.
+- Add an inbox row kind: `work_feed`'s `WorkFeedRowType` →
+  `GraphqlWorkFeedRowType` in `src/inputs.rs` (both directions) → regenerate
+  the SDL.
 
 ## Checks
 

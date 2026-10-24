@@ -34,8 +34,13 @@ fn scope_input_maps_types_and_mode() {
             GraphqlWorkFeedItemType::PullRequest,
         ]),
         include_snippets: Some(true),
+        row_types: Some(vec![
+            GraphqlWorkFeedRowType::ChannelMention,
+            GraphqlWorkFeedRowType::AccessRequested,
+        ]),
     }
-    .into_scope();
+    .into_scope()
+    .unwrap();
     assert_eq!(scope.mode, WorkFeedMode::Attention);
     assert_eq!(
         scope.types,
@@ -45,26 +50,65 @@ fn scope_input_maps_types_and_mode() {
         ]
     );
     assert!(scope.include_snippets);
+    assert_eq!(
+        scope.row_types,
+        vec![
+            WorkFeedRowType::ChannelMention,
+            WorkFeedRowType::AccessRequested
+        ]
+    );
+}
+
+#[test]
+fn row_types_only_apply_to_attention_feeds() {
+    let work = WorkFeedScopeInput {
+        row_types: Some(vec![GraphqlWorkFeedRowType::Task]),
+        ..Default::default()
+    };
+    assert!(work.into_scope().is_err());
+
+    let every_row = WorkFeedScopeInput {
+        mode: Some(GraphqlWorkFeedMode::Work),
+        row_types: Some(Vec::new()),
+        ..Default::default()
+    };
+    assert!(every_row.into_scope().unwrap().row_types.is_empty());
 }
 
 #[test]
 fn done_input_parses_ids_and_revisions() {
     let revision = WorkFeedRevision::default().encode();
     let targets = MarkWorkFeedItemsDoneInput {
-        items: vec![WorkFeedDoneItemInput {
-            id: ID("document:11111111-aaaa-aaaa-aaaa-aaaaaaaaaaaa".to_string()),
-            revision: Some(revision),
-        }],
+        items: vec![
+            WorkFeedDoneItemInput {
+                id: ID("document:11111111-aaaa-aaaa-aaaa-aaaaaaaaaaaa".to_string()),
+                revision: Some(revision),
+                row_id: None,
+            },
+            WorkFeedDoneItemInput {
+                id: ID("document:11111111-aaaa-aaaa-aaaa-aaaaaaaaaaaa".to_string()),
+                revision: None,
+                row_id: Some(ID(
+                    "document:11111111-aaaa-aaaa-aaaa-aaaaaaaaaaaa#task".to_string()
+                )),
+            },
+        ],
     }
     .into_targets()
     .unwrap();
-    assert_eq!(targets.len(), 1);
+    assert_eq!(targets.len(), 2);
     assert_eq!(targets[0].revision, Some(WorkFeedRevision::default()));
+    assert_eq!(targets[0].row, None);
+    assert_eq!(
+        targets[1].row.as_deref(),
+        Some("document:11111111-aaaa-aaaa-aaaa-aaaaaaaaaaaa#task")
+    );
 
     let bad_id = MarkWorkFeedItemsDoneInput {
         items: vec![WorkFeedDoneItemInput {
             id: ID("nope".to_string()),
             revision: None,
+            row_id: None,
         }],
     };
     assert!(bad_id.into_targets().is_err());
@@ -74,6 +118,7 @@ fn done_input_parses_ids_and_revisions() {
             .map(|_| WorkFeedDoneItemInput {
                 id: ID("document:x".to_string()),
                 revision: None,
+                row_id: None,
             })
             .collect(),
     };

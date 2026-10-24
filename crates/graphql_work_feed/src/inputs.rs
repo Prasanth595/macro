@@ -1,7 +1,7 @@
 use async_graphql::{Enum, ID, InputObject};
 use work_feed::domain::models::{
     WorkFeedDoneTarget, WorkFeedItemKey, WorkFeedItemType, WorkFeedMode, WorkFeedPosition,
-    WorkFeedQuery, WorkFeedRevision, WorkFeedScope,
+    WorkFeedQuery, WorkFeedRevision, WorkFeedRowType, WorkFeedScope,
 };
 
 #[cfg(test)]
@@ -83,6 +83,87 @@ impl From<GraphqlWorkFeedItemType> for WorkFeedItemType {
     }
 }
 
+/// The kind of a notification inbox row.
+#[derive(Enum, Clone, Copy, Debug, PartialEq, Eq)]
+#[graphql(name = "WorkFeedRowType")]
+pub enum GraphqlWorkFeedRowType {
+    /// An action an AI suggests, awaiting the viewer's decision.
+    AiSuggestion,
+    /// An agent session's or AI chat's latest response or question.
+    Agent,
+    /// An email thread.
+    Email,
+    /// A top-level channel message that mentions the viewer, with its thread.
+    ChannelMention,
+    /// A channel's top-level messages, reactions to them and invites.
+    ChannelMessages,
+    /// A channel thread's replies, mentions and reactions.
+    ChannelThread,
+    /// A top-level discussion comment that mentions the viewer, with its
+    /// thread.
+    DiscussionMention,
+    /// An entity's top-level discussion comments.
+    DiscussionMessages,
+    /// One discussion thread's replies.
+    DiscussionThread,
+    /// A task assigned to the viewer.
+    Task,
+    /// A GitHub pull request's activity.
+    PullRequest,
+    /// Reminders of an upcoming calendar event.
+    CalendarEvent,
+    /// A request to join a calendar event the viewer shared.
+    CalendarJoinRequest,
+    /// A request for access to something the viewer can share.
+    AccessRequested,
+    /// Access the viewer requested was granted.
+    AccessGranted,
+}
+
+impl From<GraphqlWorkFeedRowType> for WorkFeedRowType {
+    fn from(value: GraphqlWorkFeedRowType) -> Self {
+        match value {
+            GraphqlWorkFeedRowType::AiSuggestion => Self::AiSuggestion,
+            GraphqlWorkFeedRowType::Agent => Self::Agent,
+            GraphqlWorkFeedRowType::Email => Self::Email,
+            GraphqlWorkFeedRowType::ChannelMention => Self::ChannelMention,
+            GraphqlWorkFeedRowType::ChannelMessages => Self::ChannelMessages,
+            GraphqlWorkFeedRowType::ChannelThread => Self::ChannelThread,
+            GraphqlWorkFeedRowType::DiscussionMention => Self::DiscussionMention,
+            GraphqlWorkFeedRowType::DiscussionMessages => Self::DiscussionMessages,
+            GraphqlWorkFeedRowType::DiscussionThread => Self::DiscussionThread,
+            GraphqlWorkFeedRowType::Task => Self::Task,
+            GraphqlWorkFeedRowType::PullRequest => Self::PullRequest,
+            GraphqlWorkFeedRowType::CalendarEvent => Self::CalendarEvent,
+            GraphqlWorkFeedRowType::CalendarJoinRequest => Self::CalendarJoinRequest,
+            GraphqlWorkFeedRowType::AccessRequested => Self::AccessRequested,
+            GraphqlWorkFeedRowType::AccessGranted => Self::AccessGranted,
+        }
+    }
+}
+
+impl From<WorkFeedRowType> for GraphqlWorkFeedRowType {
+    fn from(value: WorkFeedRowType) -> Self {
+        match value {
+            WorkFeedRowType::AiSuggestion => Self::AiSuggestion,
+            WorkFeedRowType::Agent => Self::Agent,
+            WorkFeedRowType::Email => Self::Email,
+            WorkFeedRowType::ChannelMention => Self::ChannelMention,
+            WorkFeedRowType::ChannelMessages => Self::ChannelMessages,
+            WorkFeedRowType::ChannelThread => Self::ChannelThread,
+            WorkFeedRowType::DiscussionMention => Self::DiscussionMention,
+            WorkFeedRowType::DiscussionMessages => Self::DiscussionMessages,
+            WorkFeedRowType::DiscussionThread => Self::DiscussionThread,
+            WorkFeedRowType::Task => Self::Task,
+            WorkFeedRowType::PullRequest => Self::PullRequest,
+            WorkFeedRowType::CalendarEvent => Self::CalendarEvent,
+            WorkFeedRowType::CalendarJoinRequest => Self::CalendarJoinRequest,
+            WorkFeedRowType::AccessRequested => Self::AccessRequested,
+            WorkFeedRowType::AccessGranted => Self::AccessGranted,
+        }
+    }
+}
+
 /// Which items a work feed shows. Pages, subscriptions and undo for one feed
 /// send the same scope.
 #[derive(InputObject, Default, Clone)]
@@ -95,13 +176,29 @@ pub struct WorkFeedScopeInput {
     pub types: Option<Vec<GraphqlWorkFeedItemType>>,
     /// Whether snippet documents are included. Defaults to false.
     pub include_snippets: Option<bool>,
+    /// In an `ATTENTION` feed, the inbox row kinds to list; omitted or empty
+    /// lists every kind, and an entry with no matching row is not listed.
+    /// Rejected in a `WORK` feed, whose entries have no rows.
+    pub row_types: Option<Vec<GraphqlWorkFeedRowType>>,
 }
 
 impl WorkFeedScopeInput {
-    /// Convert into the domain scope, applying defaults.
-    pub(crate) fn into_scope(self) -> WorkFeedScope {
-        WorkFeedScope {
-            mode: self.mode.unwrap_or_default().into(),
+    /// Validate and convert into the domain scope, applying defaults.
+    pub(crate) fn into_scope(self) -> async_graphql::Result<WorkFeedScope> {
+        let mode: WorkFeedMode = self.mode.unwrap_or_default().into();
+        let row_types: Vec<WorkFeedRowType> = self
+            .row_types
+            .unwrap_or_default()
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        if mode == WorkFeedMode::Work && !row_types.is_empty() {
+            return Err(async_graphql::Error::new(
+                "rowTypes only apply to ATTENTION feeds",
+            ));
+        }
+        Ok(WorkFeedScope {
+            mode,
             types: self
                 .types
                 .unwrap_or_default()
@@ -109,8 +206,8 @@ impl WorkFeedScopeInput {
                 .map(Into::into)
                 .collect(),
             include_snippets: self.include_snippets.unwrap_or(false),
-            row_types: Vec::new(),
-        }
+            row_types,
+        })
     }
 }
 
@@ -137,7 +234,7 @@ impl WorkFeedInput {
             .transpose()
             .map_err(|_| async_graphql::Error::new("invalid work feed cursor"))?;
         Ok(WorkFeedQuery {
-            scope: self.scope.unwrap_or_default().into_scope(),
+            scope: self.scope.unwrap_or_default().into_scope()?,
             limit: u16::try_from(limit).expect("limit is capped below u16::MAX"),
             after,
         })
@@ -149,9 +246,13 @@ impl WorkFeedInput {
 pub struct WorkFeedDoneItemInput {
     /// The item's id.
     pub id: ID,
-    /// The entry's `revision` the caller observed. Reasons newer than it
-    /// stay active. Omit to acknowledge everything current.
+    /// The entry's `revision` the caller observed, or with `rowId` the row's.
+    /// Reasons newer than it stay active. Omit to acknowledge everything
+    /// current.
     pub revision: Option<String>,
+    /// Complete only this inbox row of the item: what it shows and hides.
+    /// The item stays in feeds while it has other reasons.
+    pub row_id: Option<ID>,
 }
 
 /// Input for marking work feed items done.
@@ -182,7 +283,7 @@ impl MarkWorkFeedItemsDoneInput {
                 Ok(WorkFeedDoneTarget {
                     key,
                     revision,
-                    row: None,
+                    row: item.row_id.map(|row| row.0),
                 })
             })
             .collect()
