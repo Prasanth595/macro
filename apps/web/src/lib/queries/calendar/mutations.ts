@@ -72,6 +72,17 @@ async function patchOccurrenceCaches(
   };
 }
 
+/**
+ * Refreshes what a settled write can change without holding the mutation
+ * open: the write is done once the provider answers, while a delta sync can
+ * queue behind other cache work for many seconds.
+ */
+function refreshAfterWrite(eventId: string) {
+  fireAndForget(invalidateCalendarInvitations(), 'calendar-mutations');
+  invalidateCalendarEventPreviews(eventId);
+  fireAndForget(invalidateCalendarOccurrences(), 'calendar-mutations');
+}
+
 function patchEventItems(
   eventId: string,
   patch: (item: CalendarOccurrenceItem) => CalendarOccurrenceItem
@@ -505,11 +516,7 @@ export function useInviteCalendarEventGuestsMutation(
             )
           ),
         onError: (_error, _args, context) => context?.rollback(),
-        onSettled: (_data, _error, args) => {
-          fireAndForget(invalidateCalendarInvitations(), 'calendar-mutations');
-          invalidateCalendarEventPreviews(args.eventId);
-          return invalidateCalendarOccurrences();
-        },
+        onSettled: (_data, _error, args) => refreshAfterWrite(args.eventId),
       },
       callbacks
     ),
@@ -638,11 +645,7 @@ export function useDeleteCalendarEventMutation(callbacks?: DeleteCallbacks) {
         onMutate: (args) =>
           patchOccurrenceCaches((items) => applyDeletion(items, args)),
         onError: (_error, _args, context) => context?.rollback(),
-        onSettled: (_data, _error, args) => {
-          fireAndForget(invalidateCalendarInvitations(), 'calendar-mutations');
-          invalidateCalendarEventPreviews(args.eventId);
-          return invalidateCalendarOccurrences();
-        },
+        onSettled: (_data, _error, args) => refreshAfterWrite(args.eventId),
       },
       callbacks
     ),
@@ -778,11 +781,7 @@ export function useUpdateCalendarEventMutation(callbacks?: UpdateCallbacks) {
           );
         },
         onError: (_error, _args, context) => context?.rollback(),
-        onSettled: (_data, _error, args) => {
-          fireAndForget(invalidateCalendarInvitations(), 'calendar-mutations');
-          invalidateCalendarEventPreviews(args.eventId);
-          return invalidateCalendarOccurrences();
-        },
+        onSettled: (_data, _error, args) => refreshAfterWrite(args.eventId),
       },
       callbacks
     ),
