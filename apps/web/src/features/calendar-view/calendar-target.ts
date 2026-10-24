@@ -1,7 +1,7 @@
 import { parseLocalDate } from '@app/features/calendar/utils/calendar-date';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Telemetry } from '@macro-inc/observability';
-import { invalidateCalendarOccurrences } from '@queries/calendar/occurrences';
+import { syncCalendarOccurrences } from '@queries/calendar/occurrences';
 import type { CalendarOccurrenceItem } from '@service-storage/generated/schemas/calendarOccurrenceItem';
 import { type Accessor, createEffect, createMemo } from 'solid-js';
 import type { CalendarFocusTarget } from './calendar-focus-target';
@@ -59,12 +59,13 @@ interface CalendarLocatorQuery {
  * shared-event card while no calendar was open reaches a cached week only on
  * a later sync, long after the request has expired. When the locator answers
  * without the event, the calendar data is brought forward once per request
- * (a delta sync, then a refetch), so the target can still land.
+ * (a delta sync, waiting for a cache that is still starting, then a refetch),
+ * so the target can still land.
  */
 export function createCalendarFocusTarget(
   request: Accessor<CalendarFocusRequest | undefined>,
   locator: CalendarLocatorQuery,
-  refreshCalendar: () => Promise<unknown> = invalidateCalendarOccurrences
+  refreshCalendar: () => Promise<unknown> = syncCalendarOccurrences
 ): Accessor<CalendarFocusTarget | undefined> {
   // A cold `.data` read suspends the nearest <Suspense>, which is the one
   // wrapping each calendar page: the first aim of a session enables this

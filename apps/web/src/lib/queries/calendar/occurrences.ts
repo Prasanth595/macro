@@ -259,3 +259,20 @@ export async function invalidateCalendarOccurrences() {
     queryKey: calendarKeys.occurrences._def,
   });
 }
+
+/**
+ * Brings the calendar forward for a read that came back without something it
+ * expected. Unlike `invalidateCalendarOccurrences`, the delta always runs,
+ * waiting for a cache that is still starting: nothing awaits this refresh, and
+ * a refetch that skipped the delta could reread a stale covered week.
+ */
+export async function syncCalendarOccurrences() {
+  await activeCalendarSyncController()
+    ?.runDelta()
+    .catch((error) => {
+      console.warn('Calendar delta sync failed', error);
+    });
+  return queryClient.invalidateQueries({
+    queryKey: calendarKeys.occurrences._def,
+  });
+}

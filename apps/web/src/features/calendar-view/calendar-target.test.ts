@@ -6,7 +6,7 @@ import { createCalendarFocusTarget } from './calendar-target';
 import type { CalendarFocusRequest } from './types';
 
 vi.mock('@queries/calendar/occurrences', () => ({
-  invalidateCalendarOccurrences: vi.fn(),
+  syncCalendarOccurrences: vi.fn(),
 }));
 
 const OCCURRENCE_KEY = '2026-10-29T21:00:00+00:00';
