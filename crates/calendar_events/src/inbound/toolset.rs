@@ -571,7 +571,8 @@ fn copy_question(copies: &[MeetingCopy], inboxes: usize, change: CopyChange) -> 
     let effect = match change {
         CopyChange::Delete => {
             "Deleting the copy an inbox organizes cancels the meeting for every guest, while \
-             deleting a guest's copy declines the invitation for that inbox."
+             deleting a guest's copy takes it off that inbox's calendar and, on Google, also \
+             declines the invitation and tells the organizer."
                 .to_string()
         }
         CopyChange::Update { adds_guests } => {

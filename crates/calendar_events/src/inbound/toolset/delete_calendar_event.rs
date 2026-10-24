@@ -54,8 +54,10 @@ targeted occurrence's ListCalendarEvents entry.\n\
 When the meeting is on several of the user's inboxes (one ListCalendarEvents entry per \
 inbox), ask which inbox's copy to delete unless the user named one or only one copy is \
 writable (`isReadOnly` false), in which case delete that one and say why. Deleting the copy \
-the user organizes cancels the meeting for every guest, while deleting a copy where they are \
-a guest only takes it off that inbox's calendar."
+the user organizes cancels the meeting for every guest. Deleting a copy where they are a \
+guest takes the meeting off that inbox's calendar: on Google it also declines the invitation \
+and tells the organizer, while on Outlook the organizer is not told and still sees the \
+invitation unanswered."
 )]
 pub struct DeleteCalendarEvent {
     /// Event to delete.

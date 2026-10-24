@@ -169,8 +169,8 @@ deleting. Never pick a copy for such a change silently. If only one copy allows 
 (`viewerCan`, or for deleting, `isReadOnly` false), use that copy and say why (for example, \
 only the copy the user organizes can move the meeting). If more than one can, \
 ask which inbox, saying what the change would do from each, such as deleting the organizer's \
-copy cancelling the meeting for everyone while deleting a guest's copy only takes it off that \
-inbox's calendar."
+copy cancelling the meeting for everyone while deleting a guest's copy takes the meeting off \
+that inbox's calendar and, on Google, also declines the invitation and tells the organizer."
 )]
 pub struct ListCalendarEvents {
     /// Inclusive window start.
