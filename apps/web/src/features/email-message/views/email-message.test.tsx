@@ -214,6 +214,34 @@ it('returns focus to the calendar file chip when its dialog closes', async () =>
   await waitFor(() => expect(document.activeElement).toBe(chip));
 });
 
+it('keeps the chip to return focus to when the thread refreshes its attachments', async () => {
+  const [current, setCurrent] = createSignal(message([invitationFixture]));
+  render(() => (
+    <EmailMessageView
+      message={current()}
+      renderInvitation={(_message, invitation) => <div>{invitation.id}</div>}
+      onOpenAttachment={vi.fn()}
+      isTouch={false}
+      isPersonal={false}
+      isSelected={false}
+      allowHover={false}
+      isExpanded
+    />
+  ));
+  const chip = screen.getByRole('button', { name: 'Planning.ics' });
+  fireEvent.click(chip);
+  setCurrent({
+    ...message([invitationFixture]),
+    attachments: [structuredClone(calendarFile), structuredClone(pdfFile)],
+  });
+  // The open dialog hides the page behind it from the accessibility tree.
+  expect(
+    screen.getByRole('button', { name: 'Planning.ics', hidden: true })
+  ).toBe(chip);
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+  await waitFor(() => expect(document.activeElement).toBe(chip));
+});
+
 it('closes the calendar file dialog when its card opens the calendar', async () => {
   let navigate: (() => void) | undefined;
   render(() => (

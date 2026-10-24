@@ -256,21 +256,26 @@ export function EmailMessageView(props: EmailMessageViewProps) {
           {/* Other attachments (non-media or without sfs_id) */}
           <Show when={otherAttachments().length > 0}>
             <div class="flex flex-row overflow-x-scroll mt-2 gap-2">
-              <For each={otherAttachments()}>
+              {/* Keyed so a thread refresh keeps each chip, and with it the
+                  calendar file dialog's focus target. */}
+              <Key
+                each={otherAttachments()}
+                by={(attachment) => attachment.db_id}
+              >
                 {(attachment) => (
                   <EmailAttachmentPill
                     attachment={{
-                      fileName: attachment.filename ?? '',
-                      mimeType: attachment.mime_type ?? undefined,
+                      fileName: attachment().filename ?? '',
+                      mimeType: attachment().mime_type ?? undefined,
                     }}
                     onClick={
                       props.onOpenAttachment
-                        ? (chip) => openAttachment(attachment, chip)
+                        ? (chip) => openAttachment(attachment(), chip)
                         : undefined
                     }
                   />
                 )}
-              </For>
+              </Key>
             </div>
           </Show>
 
