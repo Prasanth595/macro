@@ -14,6 +14,7 @@ import { toSubType } from '@entity/types/entity';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import { emailClient } from '@service-email/client';
 import type { ApiThread } from '@service-email/generated/schemas';
+import { scheduledActionClient } from '@service-scheduled-action/client';
 import { storageServiceClient } from '@service-storage/client';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import { entityMessagesClient } from '@service-storage/messages';
@@ -483,6 +484,33 @@ async function fetchFormPreviews(ids: string[]): Promise<PreviewItem[]> {
   );
 }
 
+/** A routine previews from its own read; one that is gone reads as deleted. */
+async function fetchRoutinePreviews(ids: string[]): Promise<PreviewItem[]> {
+  return Promise.all(
+    ids.map(async (id): Promise<PreviewItem> => {
+      const base = { id, type: 'routine', loading: false } as const;
+      const routine = await scheduledActionClient.getRoutine(id);
+      if (routine.isErr())
+        return {
+          ...base,
+          access: routine.error.some(
+            (error) => error.code === 'NOT_FOUND' || error.code === 'GONE'
+          )
+            ? 'does_not_exist'
+            : 'no_access',
+        };
+      return {
+        ...base,
+        access: 'access',
+        rawName: routine.value.name,
+        name: routine.value.name,
+        owner: routine.value.owner,
+        updatedAt: routine.value.updated_at,
+      };
+    })
+  );
+}
+
 function filterMapToId(items: Array<ItemEntity>, type: ItemEntity['type']) {
   return items.filter((i) => i.type === type).map(({ id }) => id);
 }
@@ -513,6 +541,7 @@ export async function fetchRestPreviewBatch(
     doFetch(fetchCalendarEventPreviews, filterMapToId(items, 'calendar_event')),
     doFetch(fetchDatabasePreviews, filterMapToId(items, 'database')),
     doFetch(fetchFormPreviews, filterMapToId(items, 'form')),
+    doFetch(fetchRoutinePreviews, filterMapToId(items, 'routine')),
   ]);
   const resultMap = new Map<string, PreviewItem>();
   results.flat().forEach((result) => {
