@@ -56,6 +56,11 @@ function createDeviceContext(source: EmailInbox, destination: EmailInbox) {
       senderEmail: inboxes.find((inbox) => inbox.id === input.inboxId)
         ?.email_address,
     });
+  const forgotten = Promise.withResolvers<string>();
+  context.drafts.forgetLocalDraft = async (draftId) => {
+    await localDrafts.forgetLocalDraft(draftId);
+    forgotten.resolve(draftId);
+  };
   const moved = Promise.withResolvers<
     { saved: SaveEmailDraft } | { failed: string; reason?: string }
   >();
@@ -70,7 +75,7 @@ function createDeviceContext(source: EmailInbox, destination: EmailInbox) {
   context.notices.feedback.failure = vi.fn((failed: string, options) => {
     moved.resolve({ failed, reason: options?.subtext });
   });
-  return { context, moved: moved.promise };
+  return { context, moved: moved.promise, forgotten: forgotten.promise };
 }
 
 const directions = [
@@ -81,7 +86,10 @@ const directions = [
 it.each(directions)(
   'keeps saving a draft locally after its sender moves it from %s to %s',
   async (_from, _to, source, destination) => {
-    const { context, moved } = createDeviceContext(source, destination);
+    const { context, moved, forgotten } = createDeviceContext(
+      source,
+      destination
+    );
     const root = mountEmailComposer(context, undefined, {
       draft: message('draft', {
         is_draft: true,
@@ -99,13 +107,12 @@ it.each(directions)(
           draft: expect.objectContaining({ db_id: 'moved-draft' }),
         }),
       });
-      root.edit('After the move');
-      await root.state.flushLocal();
       expect(root.state.localSaveState()).toBe('saved');
       expect(await localDrafts.readLocalDraft('moved-draft')).toMatchObject({
         inboxId: 'other',
-        content: { body_text: 'After the move' },
+        content: { sender_email: destination.email_address },
       });
+      expect(await forgotten).toBe('draft');
       expect(await localDrafts.readLocalDraft('draft')).toBeUndefined();
     } finally {
       root.dispose();
@@ -114,9 +121,53 @@ it.each(directions)(
 );
 
 it.each(directions)(
-  'keeps saving a reply locally after its sender moves it from %s to %s',
+  'shows the moved draft from %s to %s and still saves its new sender',
   async (_from, _to, source, destination) => {
     const { context, moved } = createDeviceContext(source, destination);
+    const showMovedDraft = vi.fn();
+    // A thread route shows the moved draft by unmounting this composer.
+    const root = mountEmailComposer(
+      context,
+      {
+        showMovedDraft: (draft) => {
+          showMovedDraft(draft);
+          root.dispose();
+        },
+      },
+      {
+        draft: message('draft', {
+          is_draft: true,
+          link_id: 'inbox',
+          from: { email: source.email_address },
+        }),
+      }
+    );
+    root.edit('Moving draft');
+    await root.state.flushLocal();
+    root.state.context.onSelectInbox?.('other');
+    expect(await moved).toEqual({
+      saved: expect.objectContaining({
+        inboxId: 'other',
+        draft: expect.objectContaining({
+          db_id: 'moved-draft',
+          sender_email: destination.email_address,
+        }),
+      }),
+    });
+    expect(showMovedDraft).toHaveBeenCalledExactlyOnceWith({
+      draftId: 'moved-draft',
+      threadId: 'moved-thread',
+    });
+  }
+);
+
+it.each(directions)(
+  'keeps saving a reply locally after its sender moves it from %s to %s',
+  async (_from, _to, source, destination) => {
+    const { context, moved, forgotten } = createDeviceContext(
+      source,
+      destination
+    );
     const reply = mountReplyComposer(context, undefined, {
       draft: message('draft', {
         is_draft: true,
@@ -135,13 +186,12 @@ it.each(directions)(
           draft: expect.objectContaining({ db_id: 'moved-draft' }),
         }),
       });
-      reply.edit('After the move');
-      await reply.flushLocal();
       expect(reply.localSaveState()).toBe('saved');
       expect(await localDrafts.readLocalDraft('moved-draft')).toMatchObject({
         inboxId: 'other',
-        content: { body_text: 'After the move' },
+        content: { sender_email: destination.email_address },
       });
+      expect(await forgotten).toBe('draft');
       expect(await localDrafts.readLocalDraft('draft')).toBeUndefined();
     } finally {
       reply.dispose();

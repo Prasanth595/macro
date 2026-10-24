@@ -6,10 +6,11 @@ import { createPanelFocusSibling } from './editor-adapter';
 export function createEmailComposeHost(): EmailComposeHost {
   const { replaceSplit } = useSplitLayout();
   const panel = useSplitPanel();
+  const showThread = (id: string) => {
+    replaceSplit({ content: { type: 'email', id }, mergeHistory: true });
+  };
   return {
-    showThread: (id: string) => {
-      replaceSplit({ content: { type: 'email', id }, mergeHistory: true });
-    },
+    showThread,
     showDraft: (id: string) => {
       replaceSplit({
         content: {
@@ -20,6 +21,7 @@ export function createEmailComposeHost(): EmailComposeHost {
         },
       });
     },
+    showMovedDraft: ({ threadId }) => showThread(threadId),
     goBack: () => panel?.handle.goBack(),
     focusSibling: createPanelFocusSibling(),
     registerBack: (handler: () => boolean) => {
