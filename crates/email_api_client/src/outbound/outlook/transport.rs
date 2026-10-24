@@ -3,6 +3,7 @@ use std::time::{Duration, SystemTime};
 use reqwest::{Method, RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use tracing::Instrument;
 use url::Url;
 
 use super::{IMMUTABLE_ID_PREFERENCE, OutlookApiClientRepository};
@@ -46,6 +47,18 @@ impl OutlookApiClientRepository {
             .await
     }
 
+    #[tracing::instrument(
+        name = "outlook.graph_request",
+        skip_all,
+        fields(
+            otel.kind = "client",
+            http.request.method = %method,
+            url.path = url.path(),
+            http.response.status_code = tracing::field::Empty,
+            reauthorized = false,
+        ),
+        err(level = "warn")
+    )]
     pub(super) async fn conditional_request(
         &self,
         token: &AccessToken,
@@ -87,6 +100,7 @@ impl OutlookApiClientRepository {
                     (&self.rejected_token_refresh, retry, self.mailbox)
                 {
                     let fresh = refresh.refresh(mailbox).await?;
+                    tracing::Span::current().record("reauthorized", true);
                     *self
                         .refreshed_token
                         .lock()
@@ -117,7 +131,11 @@ impl OutlookApiClientRepository {
     ) -> Result<Response, EmailApiError> {
         let permit = if let Some(gate) = &self.gate {
             let mailbox = self.mailbox.ok_or_else(invalid_response)?;
-            Some((mailbox, gate.acquire(mailbox).await?))
+            let permit = gate
+                .acquire(mailbox)
+                .instrument(tracing::info_span!("outlook.graph_admission"))
+                .await?;
+            Some((mailbox, permit))
         } else {
             None
         };
@@ -142,10 +160,11 @@ impl OutlookApiClientRepository {
         let request = request.map_err(transport_failed)?;
         let method = request.method().clone();
         let response = client.execute(request).await.map_err(transport_failed)?;
-        if response.status().is_success() {
+        let status = response.status();
+        tracing::Span::current().record("http.response.status_code", status.as_u16());
+        if status.is_success() {
             return Ok(response);
         }
-        let status = response.status();
         let path = response.url().path().to_owned();
         let request_id = response
             .headers()
