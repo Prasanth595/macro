@@ -235,6 +235,11 @@ where
                 .calendar_changed(&outcome.owner_id, email_link_id, outcome.team_ooo_changed)
                 .await;
         }
+        if !outcome.channel_viewers_who_lost_access.is_empty() {
+            self.refresh
+                .channel_access_lost(&outcome.channel_viewers_who_lost_access, outcome.event_id)
+                .await;
+        }
         if let Some(viewer) = viewer {
             viewer.mark_event(&mut event, email_link_id);
         }

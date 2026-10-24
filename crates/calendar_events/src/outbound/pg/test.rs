@@ -4811,6 +4811,64 @@ async fn insert_channel(pool: &PgPool, owner_id: &str, members: &[&str]) -> Uuid
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn hiding_a_channel_shared_event_reports_the_members_it_cut_off(pool: PgPool) {
+    let author_id = "macro|hiding-author@example.com";
+    let member_id = "macro|hiding-member@example.com";
+    let former_id = "macro|hiding-former@example.com";
+    let link = insert_link(&pool, author_id).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    let provider = provider_ids(&repo, link).await;
+    let write = |title: &str, sequence: u32, visibility: EventVisibility| {
+        let mut upsert = timed_upsert(
+            author_id,
+            link,
+            provider,
+            "hiding@example.com",
+            title,
+            sequence,
+        );
+        upsert.event.visibility = visibility;
+        CalendarEventWrite::Fixture(upsert)
+    };
+    let event_id = repo
+        .upsert_event(write("Review", 1, EventVisibility::Default))
+        .await
+        .unwrap()
+        .event_id;
+    let channel_id = insert_channel(&pool, author_id, &[author_id, member_id, former_id]).await;
+    sqlx::query!(
+        "UPDATE comms_channel_participants SET left_at = now() WHERE channel_id = $1 AND user_id = $2",
+        channel_id,
+        former_id,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    share_with_channel(&pool, event_id, channel_id).await;
+
+    // An edit that keeps the event visible cuts no one off.
+    let renamed = repo
+        .upsert_event(write("Review notes", 2, EventVisibility::Public))
+        .await
+        .unwrap();
+    assert!(renamed.channel_viewers_who_lost_access.is_empty());
+
+    let hidden = repo
+        .upsert_event(write("Review notes", 3, EventVisibility::Private))
+        .await
+        .unwrap();
+    assert_eq!(hidden.event_id, event_id);
+    assert_eq!(hidden.channel_viewers_who_lost_access, vec![member_id]);
+
+    // Already hidden: a further edit has no one left to tell.
+    let edited = repo
+        .upsert_event(write("Review notes v2", 4, EventVisibility::Confidential))
+        .await
+        .unwrap();
+    assert!(edited.channel_viewers_who_lost_access.is_empty());
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn mention_previews_fall_back_to_a_channel_shared_projection(pool: PgPool) {
     let author_id = "macro|shared-author@example.com";
     let attendee_id = "macro|shared-attendee@example.com";

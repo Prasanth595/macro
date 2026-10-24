@@ -76,6 +76,7 @@ impl CalendarRepository for FakeRepo {
             owner_id,
             change: CalendarEventChange::Created,
             team_ooo_changed,
+            channel_viewers_who_lost_access: Vec::new(),
         })
     }
 

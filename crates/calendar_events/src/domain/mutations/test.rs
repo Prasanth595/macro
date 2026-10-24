@@ -177,6 +177,8 @@ struct FakeRepo {
     /// What the upsert reports doing to the row. `Created` by default, since
     /// most fixtures persist a fresh event.
     write_change: CalendarEventChange,
+    /// Channel members the upsert reports the write cut off.
+    channel_viewers_who_lost_access: Vec<String>,
     upserts: Arc<Mutex<Vec<CalendarEventUpsert>>>,
     removed_sources: Arc<Mutex<Vec<(Uuid, Uuid, String)>>>,
     /// Per-event fates `remove_provider_source` reports back.
@@ -210,6 +212,7 @@ impl Default for FakeRepo {
             creation_target: None,
             persisted_event_id: None,
             write_change: CalendarEventChange::Created,
+            channel_viewers_who_lost_access: Vec::new(),
             upserts: Default::default(),
             removed_sources: Default::default(),
             retired_events: Vec::new(),
@@ -265,6 +268,7 @@ impl CalendarRepository for FakeRepo {
             owner_id,
             change: self.write_change,
             team_ooo_changed,
+            channel_viewers_who_lost_access: self.channel_viewers_who_lost_access.clone(),
         })
     }
 
@@ -977,6 +981,7 @@ impl macro_event_broker::MacroEventBroker for RecordingEventBroker {
 #[derive(Clone, Default)]
 struct RecordingRefreshNotifier {
     notified: Arc<Mutex<Vec<(String, Uuid, bool)>>>,
+    access_lost: Arc<Mutex<Vec<(Vec<String>, Uuid)>>>,
 }
 
 impl CalendarRefreshNotifier for RecordingRefreshNotifier {
@@ -986,6 +991,13 @@ impl CalendarRefreshNotifier for RecordingRefreshNotifier {
             email_link_id,
             team_ooo_changed,
         ));
+    }
+
+    async fn channel_access_lost(&self, user_ids: &[String], event_id: Uuid) {
+        self.access_lost
+            .lock()
+            .expect("notifier lock")
+            .push((user_ids.to_vec(), event_id));
     }
 }
 
@@ -1249,6 +1261,37 @@ async fn a_persisted_mutation_nudges_the_links_calendar_viewers() {
     assert!(
         !notified[0].2,
         "ordinary event edits preserve cached OOO rows"
+    );
+}
+
+#[tokio::test]
+async fn channel_members_a_write_cut_off_are_told() {
+    let event_id = Uuid::now_v7();
+    let repo = FakeRepo {
+        creation_target: Some(creation_target(false)),
+        persisted_event_id: Some(event_id),
+        write_change: CalendarEventChange::Updated,
+        channel_viewers_who_lost_access: vec!["macro|member@example.com".to_string()],
+        ..FakeRepo::default()
+    };
+    let refresh = RecordingRefreshNotifier::default();
+    service_with_refresh(
+        repo,
+        FakeProvider::new(FakeProviderBehavior::Echo),
+        FakeTokens::ok(),
+        refresh.clone(),
+    )
+    .create_event("macro|user", None, None, draft())
+    .await
+    .unwrap();
+
+    assert_eq!(
+        refresh
+            .access_lost
+            .lock()
+            .expect("notifier lock")
+            .as_slice(),
+        [(vec!["macro|member@example.com".to_string()], event_id)]
     );
 }
 

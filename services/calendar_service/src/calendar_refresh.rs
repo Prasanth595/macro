@@ -57,6 +57,24 @@ impl CalendarRefreshNotifier for ConnectionGatewayCalendarRefresh {
             .in_current_span(),
         );
     }
+
+    async fn channel_access_lost(&self, user_ids: &[String], event_id: Uuid) {
+        // Spawned like `calendar_changed`: the write is already committed.
+        let client = self.client.clone();
+        let user_ids = user_ids.to_vec();
+        tokio::spawn(
+            async move {
+                let recipients: Vec<&str> = user_ids.iter().map(String::as_str).collect();
+                if let Err(error) = client
+                    .calendar_event_access_changed(&recipients, &event_id.to_string())
+                    .await
+                {
+                    tracing::error!(error=?error, %event_id, "failed to tell channel members they lost a calendar event");
+                }
+            }
+            .in_current_span(),
+        );
+    }
 }
 
 impl calendar_events::domain::team::CalendarTeamNotifier for ConnectionGatewayCalendarRefresh {

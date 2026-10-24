@@ -1,6 +1,7 @@
 //! PostgreSQL implementation of the calendar repository port.
 mod change_log;
 mod changes;
+mod channel_access;
 mod details;
 mod export;
 mod invitations;
@@ -932,6 +933,7 @@ impl CalendarRepository for PgCalendarRepository {
                     owner_id: upsert.event.owner_id.clone(),
                     change: CalendarEventChange::Unchanged,
                     team_ooo_changed: false,
+                    channel_viewers_who_lost_access: Vec::new(),
                 });
             }
         }
@@ -1042,6 +1044,7 @@ impl CalendarRepository for PgCalendarRepository {
                 owner_id: upsert.event.owner_id.clone(),
                 change: CalendarEventChange::Unchanged,
                 team_ooo_changed: false,
+                channel_viewers_who_lost_access: Vec::new(),
             });
         };
         if provider_sync {
@@ -1067,6 +1070,10 @@ impl CalendarRepository for PgCalendarRepository {
         } else {
             owns_schedule
         };
+        // Channel shares outlive a later decision to hide the event, so whoever
+        // they reached is told when it stops being visible to them.
+        let was_channel_visible =
+            !inserted && channel_access::channel_visible(&mut tx, event_id).await?;
         if is_canonical {
             apply_content_projection(&mut tx, event_id, source_id, &projection, source_kind)
                 .await?;
@@ -1078,6 +1085,12 @@ impl CalendarRepository for PgCalendarRepository {
                 apply_time_projection(&mut tx, event_id, source_id, &projection).await?;
             }
         }
+        let channel_viewers_who_lost_access =
+            if was_channel_visible && !channel_access::channel_visible(&mut tx, event_id).await? {
+                channel_access::channel_viewers(&mut tx, event_id).await?
+            } else {
+                Vec::new()
+            };
         if is_canonical || writes_schedule {
             rebuild_entity_reminder_firings(
                 &mut tx,
@@ -1105,6 +1118,7 @@ impl CalendarRepository for PgCalendarRepository {
                 CalendarEventChange::Updated
             },
             team_ooo_changed,
+            channel_viewers_who_lost_access,
         })
     }
 
