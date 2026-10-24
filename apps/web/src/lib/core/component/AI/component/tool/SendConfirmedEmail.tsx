@@ -1,7 +1,11 @@
 import type { NamedTool } from '@service-cognition/generated/tools/tool';
 import { Match, Show, Switch } from 'solid-js';
 import { BaseTool } from './BaseTool';
-import { DraftEmailResponse, SentEmailResponse } from './SendEmail';
+import {
+  DraftEmailResponse,
+  SendEmailCall,
+  SentEmailResponse,
+} from './SendEmail';
 import { createToolRenderer } from './ToolRenderer';
 
 type SendConfirmedEmailResponse = NamedTool<
@@ -42,7 +46,12 @@ const handler = createToolRenderer({
     const draftResponse = getDraftResponse(response());
 
     return (
-      <Show when={ctx.response}>
+      <Show
+        when={ctx.response}
+        fallback={
+          <SendEmailCall args={args} renderContext={ctx.renderContext} />
+        }
+      >
         <Switch>
           <Match when={sentResponse}>
             <SentEmailResponse
