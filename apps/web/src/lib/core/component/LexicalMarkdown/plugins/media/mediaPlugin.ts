@@ -98,8 +98,14 @@ export const UPDATE_MEDIA_SIZE_COMMAND: LexicalCommand<
   [NodeKey, { width: number; height: number }, MediaType]
 > = createCommand('UPDATE_MEDIA_SIZE_COMMAND');
 
+type MediaPick = MediaType | 'all';
+
 export const TRY_INSERT_MEDIA_UPLOAD_COMMAND: LexicalCommand<
-  MediaType | 'all'
+  | MediaPick
+  | {
+      mediaType: MediaPick;
+      constrainedMediaDimensions: { width: number; height: number };
+    }
 > = createCommand('TRY_INSERT_MEDIA_UPLOAD_COMMAND');
 
 function validateMediaFile(file: UploadFile, mediaType: MediaType): boolean {
@@ -531,7 +537,11 @@ function registerMediaPlugin(editor: LexicalEditor) {
 
     editor.registerCommand(
       TRY_INSERT_MEDIA_UPLOAD_COMMAND,
-      (mediaType) => {
+      (payload) => {
+        const { mediaType, constrainedMediaDimensions } =
+          typeof payload === 'string'
+            ? { mediaType: payload, constrainedMediaDimensions: undefined }
+            : payload;
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
@@ -555,12 +565,15 @@ function registerMediaPlugin(editor: LexicalEditor) {
               : isVideo
                 ? 'video'
                 : null;
-            if (type) {
-              addMediaFromFile(editor, file, type).catch((error) =>
-                Telemetry.error(error, {
-                  surface: 'media-upload',
-                  mediaType: type,
-                })
+            if (type && (mediaType === 'all' || type === mediaType)) {
+              fireAndForget(
+                addMediaFromFile(
+                  editor,
+                  file,
+                  type,
+                  constrainedMediaDimensions
+                ),
+                'media-upload'
               );
             }
           }

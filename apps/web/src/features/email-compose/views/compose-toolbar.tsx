@@ -5,11 +5,13 @@ import {
   SplitHeaderRight,
 } from '@components/app/split-layout/components/SplitHeader';
 import { defaultSelectionData } from '@core/component/LexicalMarkdown/plugins';
+import { TRY_INSERT_MEDIA_UPLOAD_COMMAND } from '@core/component/LexicalMarkdown/plugins/media';
 import {
   NODE_TRANSFORM,
   type NodeTransformType,
 } from '@core/component/LexicalMarkdown/plugins/node-transform/nodeTransformPlugin';
 import { fileSelector } from '@core/directive/fileSelector';
+import ImageIcon from '@phosphor/image.svg';
 import PaperclipIcon from '@phosphor/paperclip.svg?component-solid';
 import TextAa from '@phosphor/text-aa.svg';
 import Trash from '@phosphor/trash.svg';
@@ -69,6 +71,23 @@ export function EmailComposeToolbar(props: {
               disabled={ctx.disabled()}
             >
               <PaperclipIcon />
+            </Button>
+          </Show>
+          <Show when={props.editor}>
+            <Button
+              onClick={() =>
+                props
+                  .editor?.()
+                  ?.dispatchCommand(TRY_INSERT_MEDIA_UPLOAD_COMMAND, {
+                    mediaType: 'image',
+                    constrainedMediaDimensions: { width: 542, height: 542 },
+                  })
+              }
+              label="Insert image"
+              size="icon-composer"
+              disabled={ctx.disabled()}
+            >
+              <ImageIcon />
             </Button>
           </Show>
           <Button

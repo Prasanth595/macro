@@ -443,7 +443,10 @@ HTML messages with preserved sender typography retain their explicit sizes.
 Desktop reply actions sit together at the bottom right: discard, attach, schedule,
 then Send, with circular hover backgrounds inside the card's 16px padding.
 Standalone compose uses one right-aligned row inside its 16px content padding:
-delete, attach, format, schedule, and send. Touch compose uses its header toolbar.
+delete, attach, insert image, format, schedule, and send. Touch compose uses its
+header toolbar, which has no insert image button. **Insert image** opens an
+image-only picker and inlines the chosen images at the cursor, uploading and
+sized like pasted ones; a video chosen there is ignored.
 `R` and `Alt+R` (`Option+R` on macOS) open reply-all for the selected message,
 or the latest message when none is selected. `F` opens a forward and focuses To.
 In new emails, replies, reply-alls, and forwards, `Cmd+Shift+C` (`Ctrl+Shift+C`)
