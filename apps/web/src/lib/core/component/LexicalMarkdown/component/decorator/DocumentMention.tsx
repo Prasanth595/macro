@@ -35,6 +35,7 @@ import { formatDate } from '@core/util/date';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { matches } from '@core/util/match';
 import { openInNewSplitForMention } from '@core/util/openInNewSplit';
+import { thrownResultErrorHasCode } from '@core/util/result';
 import { useNativeSplitNavigationHandler } from '@core/util/useSplitNavigationHandler';
 import {
   $convertMentionToCard,
@@ -399,7 +400,13 @@ export function DocumentMention(props: DocumentMentionDecoratorProps) {
   // Only skill mentions need to distinguish built-ins from stored documents.
   // Ordinary mentions must not wait for a once-per-session skills request.
   return (
-    <Switch fallback={<PreviewedMention {...props} />}>
+    <Switch
+      fallback={
+        <Suspense fallback={<DocumentMentionStatic {...props} />}>
+          <DocumentMentionInner {...props} />
+        </Suspense>
+      }
+    >
       <Match when={props.blockName === 'database'}>
         <DatabaseMention {...props} />
       </Match>
@@ -413,18 +420,98 @@ export function DocumentMention(props: DocumentMentionDecoratorProps) {
   );
 }
 
+/** Whether a mention was made in the last minute; it stops being recent while mounted. */
+function createRecentMention(createdAt: number | undefined) {
+  const recentForMs = createdAt
+    ? createdAt + RECENT_MENTION_THRESHOLD_MS - Date.now()
+    : 0;
+  const [isRecent, setIsRecent] = createSignal(recentForMs > 0);
+  if (recentForMs > 0) {
+    const timer = setTimeout(() => setIsRecent(false), recentForMs);
+    onCleanup(() => clearTimeout(timer));
+  }
+  return isRecent;
+}
+
 /**
- * A reference read through the shared item preview. Databases, forms and
- * routines keep their own chip while they open, and fall back to this one
- * once the item is gone or hidden from the viewer, so they read and behave
- * like every other unavailable reference.
+ * A database, form or routine reference whose item is gone or hidden from the
+ * viewer. It reads `Deleted` or `No Access` like any other unavailable
+ * reference, and clicking it keeps the item's card open (a tap opens the card
+ * as a sheet) instead of opening anything.
  */
-function PreviewedMention(props: DocumentMentionDecoratorProps) {
+function UnavailableMention(props: {
+  access: PreviewItemNoAccess['access'];
+  documentInfo: DocumentPreviewContentProps['documentInfo'];
+  collapsed?: boolean;
+}) {
+  const [previewCardOpen, setPreviewCardOpen] = createSignal(false);
+  const [previewSheetOpen, setPreviewSheetOpen] = createSignal(false);
+  const open = (event: MouseEvent | KeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isTouchDevice()) setPreviewSheetOpen(true);
+    else setPreviewCardOpen(true);
+  };
   return (
-    <Suspense fallback={<DocumentMentionStatic {...props} />}>
-      <DocumentMentionInner {...props} />
-    </Suspense>
+    <>
+      <Show when={isTouchDevice()}>
+        <DocumentPreviewSheet
+          open={previewSheetOpen()}
+          onOpenChange={setPreviewSheetOpen}
+          documentInfo={props.documentInfo}
+        />
+      </Show>
+      <HoverCard
+        open={previewCardOpen()}
+        onOpenChange={setPreviewCardOpen}
+        keepOpenOnTriggerPress
+        trigger={
+          <span
+            class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
+            role="link"
+            tabIndex={0}
+            on:mousedown={(event) => event.preventDefault()}
+            on:click={open}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') open(event);
+            }}
+          >
+            <Show
+              when={props.access === 'no_access'}
+              fallback={
+                <MentionContainer
+                  icon={<TrashSimple />}
+                  text="Deleted"
+                  collapsed={props.collapsed}
+                />
+              }
+            >
+              <MentionContainer
+                icon={<EyeSlashDuo />}
+                text="No Access"
+                collapsed={props.collapsed}
+              />
+            </Show>
+          </span>
+        }
+        content={
+          <PopupPreview
+            mouseEnter={() => {}}
+            mouseLeave={() => {}}
+            documentInfo={props.documentInfo}
+          />
+        }
+      />
+    </>
   );
+}
+
+/** How a database's or form's failed detail read reads on its reference. */
+function detailUnavailable(error: unknown): PreviewItemNoAccess['access'] {
+  return thrownResultErrorHasCode(error, 'NOT_FOUND') ||
+    thrownResultErrorHasCode(error, 'GONE')
+    ? 'does_not_exist'
+    : 'no_access';
 }
 
 function RoutineMention(props: DocumentMentionDecoratorProps) {
@@ -438,15 +525,29 @@ function PreviewedRoutineMention(props: DocumentMentionDecoratorProps) {
     id: props.documentId,
     type: 'routine',
   }));
-  const isUnavailable = () => {
+  const isRecentMention = createRecentMention(props.createdAt);
+  // A routine made in the last minute can briefly preview as missing; it
+  // still opens rather than reading as deleted.
+  const unavailable = () => {
     const i = item();
-    return (
-      !i.loading && (i.access === 'no_access' || i.access === 'does_not_exist')
-    );
+    if (i.loading || i.access === 'access') return undefined;
+    if (i.access === 'does_not_exist' && isRecentMention()) return undefined;
+    return i.access;
   };
   return (
-    <Show when={isUnavailable()} fallback={<RoutineLink {...props} />}>
-      <PreviewedMention {...props} blockName="routine" />
+    <Show when={unavailable()} fallback={<RoutineLink {...props} />}>
+      {(access) => (
+        <UnavailableMention
+          access={access()}
+          collapsed={props.collapsed}
+          documentInfo={{
+            id: props.documentId,
+            type: 'routine',
+            params: {},
+            isOpenable: true,
+          }}
+        />
+      )}
     </Show>
   );
 }
@@ -522,7 +623,21 @@ function DatabaseMention(props: DocumentMentionDecoratorProps) {
     });
   };
   return (
-    <Show when={!detail.isError} fallback={<PreviewedMention {...props} />}>
+    <Show
+      when={!detail.isError}
+      fallback={
+        <UnavailableMention
+          access={detailUnavailable(detail.error)}
+          collapsed={props.collapsed}
+          documentInfo={{
+            id: props.documentId,
+            type: 'database',
+            params: props.blockParams ?? {},
+            isOpenable: true,
+          }}
+        />
+      }
+    >
       <span class="inline-flex items-baseline gap-1">
         <span
           class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
@@ -586,7 +701,21 @@ function FormMention(props: DocumentMentionDecoratorProps) {
     );
   };
   return (
-    <Show when={!detail.isError} fallback={<PreviewedMention {...props} />}>
+    <Show
+      when={!detail.isError}
+      fallback={
+        <UnavailableMention
+          access={detailUnavailable(detail.error)}
+          collapsed={props.collapsed}
+          documentInfo={{
+            id: props.documentId,
+            type: 'form',
+            params: props.blockParams ?? {},
+            isOpenable: true,
+          }}
+        />
+      }
+    >
       <span
         class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
         role="link"
@@ -707,14 +836,7 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
   // Check if this is a recently created mention that we should show fallback for.
   // It stops being recent while mounted, so a chip for an event deleted in the
   // meantime then reads and opens as deleted without a remount.
-  const recentForMs = props.createdAt
-    ? props.createdAt + RECENT_MENTION_THRESHOLD_MS - Date.now()
-    : 0;
-  const [isRecentMention, setIsRecentMention] = createSignal(recentForMs > 0);
-  if (recentForMs > 0) {
-    const timer = setTimeout(() => setIsRecentMention(false), recentForMs);
-    onCleanup(() => clearTimeout(timer));
-  }
+  const isRecentMention = createRecentMention(props.createdAt);
 
   const showEmbedOption = createMemo(() => {
     if (!lexicalWrapper?.isInteractable()) return false;

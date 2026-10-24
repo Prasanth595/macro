@@ -4,6 +4,7 @@ import { PosthogProvider } from '@app/lib/analytics/posthog';
 import type { BlockAlias, BlockName } from '@core/block';
 import { UserContextProvider } from '@core/context/user';
 import { onElementConnect } from '@core/util/onElementConnect';
+import { ThrownResultError } from '@core/util/result';
 import { $dfs } from '@lexical/utils';
 import {
   $isDocumentMentionNode,
@@ -138,8 +139,8 @@ for (const mention of mentions) {
     loading: false,
   } satisfies PreviewItem);
 }
-// Database and form chips read their own detail first, and fall back to the
-// shared unavailable chip once it fails.
+// Database and form chips read their own detail; a deleted one answers 404 and
+// a hidden one 403.
 for (const mention of mentions) {
   const queryKey =
     mention.blockName === 'database'
@@ -154,7 +155,11 @@ for (const mention of mentions) {
     .build(queryClient, { queryKey })
     .setState({
       status: 'error',
-      error: new Error('The detail request failed'),
+      error: new ThrownResultError([
+        mention.preview.access === 'does_not_exist'
+          ? { code: 'NOT_FOUND', message: 'Not found' }
+          : { code: 'FORBIDDEN', message: 'Forbidden' },
+      ]),
       errorUpdatedAt: Date.now(),
       fetchStatus: 'idle',
     });
