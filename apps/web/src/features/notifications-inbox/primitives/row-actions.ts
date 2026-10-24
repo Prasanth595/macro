@@ -3,11 +3,9 @@ import { match } from 'ts-pattern';
 import type {
   InboxRowAction,
   InboxRowActions,
+  InboxRowChoice,
   NotificationInboxRow,
 } from '../context/notifications-inbox-context';
-
-/** One answer a row offers, e.g. approving an access request. */
-export type InboxRowChoice = 'approve' | 'deny' | 'accept' | 'decline';
 
 /** What the row's newest notification asks the viewer to decide, if anything. */
 export function rowAction(

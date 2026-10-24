@@ -50,6 +50,7 @@ import { InboxFilterMenu } from '../components/inbox-filter-menu';
 import { NotificationRow } from '../components/notification-row';
 import { RowActionButtons } from '../components/row-action-buttons';
 import {
+  type InboxRowChoice,
   type NotificationInboxRow,
   useNotificationsInboxContext,
 } from '../context/notifications-inbox-context';
@@ -61,7 +62,6 @@ import { createInboxSelection } from '../primitives/inbox-selection';
 import {
   actionChoices,
   createRowActions,
-  type InboxRowChoice,
   rowAction,
 } from '../primitives/row-actions';
 import { isRowUnseen, unseenNotifications } from '../primitives/row-seen';

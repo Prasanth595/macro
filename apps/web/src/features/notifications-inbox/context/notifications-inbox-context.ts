@@ -65,6 +65,9 @@ export type JoinRequestAction = {
 /** What a row's buttons can do. */
 export type InboxRowAction = AccessRequestAction | JoinRequestAction;
 
+/** One answer a row offers, e.g. approving an access request. */
+export type InboxRowChoice = 'approve' | 'deny' | 'accept' | 'decline';
+
 /** How row actions reach the server; each rejects when it fails. */
 export type InboxRowActions = {
   resolveAccessRequest: (

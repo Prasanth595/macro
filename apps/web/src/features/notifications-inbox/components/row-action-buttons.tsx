@@ -1,7 +1,7 @@
 import { Button } from '@ui';
 import { For } from 'solid-js';
 import { match } from 'ts-pattern';
-import type { InboxRowChoice } from '../primitives/row-actions';
+import type { InboxRowChoice } from '../context/notifications-inbox-context';
 
 const choiceLabel = (choice: InboxRowChoice) =>
   match(choice)
