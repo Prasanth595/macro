@@ -120,10 +120,12 @@ it only works when that inbox is an attendee.\n\
 \n\
 When the meeting is on several of the user's inboxes, ListCalendarEvents lists one entry per \
 inbox; pick the copy by its rule. Reminders may go to one copy and an `rsvp` to the copy \
-where the user is a guest, naming the inbox in your reply. Any other change goes to the only \
-copy whose `viewerCan` allows it, with the reason, or to the copy the user chooses when more \
-than one could make it. One call changes one copy, so an edit on one copy and an `rsvp` on \
-another take two calls."
+where the user is a guest, naming the inbox in your reply. Any other change needs `inbox`, \
+the inbox of the copy it changes; without it the tool refuses and lists each copy. Use the \
+only copy whose `viewerCan` allows the change, with the reason, or the copy the user chooses \
+when more than one could make it, and add guests from the copy the user organizes when there \
+is one. One call changes one copy, so an edit on one copy and an `rsvp` on another take two \
+calls."
 )]
 pub struct UpdateCalendarEvent {
     /// Event to update.
