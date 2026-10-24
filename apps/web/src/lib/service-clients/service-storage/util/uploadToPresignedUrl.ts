@@ -3,8 +3,15 @@ import { platformFetch } from '@core/util/platformFetch';
 import type { ResultError } from '@core/util/result';
 import { err, ok, type Result } from 'neverthrow';
 
-type UploadResult = Result<void, ResultError<'SERVER_ERROR'>[]>;
+type UploadResult = Result<
+  void,
+  ResultError<'SERVER_ERROR' | 'NETWORK_ERROR'>[]
+>;
 
+/**
+ * Resolves to an error for every failed upload, including one that gets no
+ * response, so callers can clean up; rejects only when `signal` aborts.
+ */
 export async function uploadToPresignedUrl({
   presignedUrl,
   buffer,
@@ -42,12 +49,18 @@ export async function uploadToPresignedUrl({
   }
 
   onProgress?.(null);
-  const response = await platformFetch(presignedUrl, {
-    method: 'PUT',
-    body: blob,
-    headers,
-    signal,
-  });
+  let response: Response;
+  try {
+    response = await platformFetch(presignedUrl, {
+      method: 'PUT',
+      body: blob,
+      headers,
+      signal,
+    });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    return err([{ code: 'NETWORK_ERROR', message: String(error) }]);
+  }
 
   if (!response.ok) {
     const message = await response.text();
@@ -86,10 +99,11 @@ function uploadWithXhr({
         resolve(err([{ code: 'SERVER_ERROR', message: xhr.responseText }]));
       }
     };
-    // Mirror fetch, which rejects on network failure and abort.
     xhr.onerror = () => {
       settle();
-      reject(new TypeError('Failed to upload file'));
+      resolve(
+        err([{ code: 'NETWORK_ERROR', message: 'Failed to upload file' }])
+      );
     };
     xhr.onabort = () => {
       settle();
