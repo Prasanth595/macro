@@ -22,7 +22,11 @@ const person = z.discriminatedUnion('type', [
     })
     .strict(),
 ]);
-const ids = z.array(z.string().guid()).max(100);
+const identifier = z
+  .string()
+  .guid()
+  .transform((id) => id.toLowerCase());
+const ids = z.array(identifier).max(100);
 const schema = z
   .object({
     kind: z.literal('tasks'),
@@ -38,8 +42,8 @@ const schema = z
           .array(
             z
               .object({
-                propertyDefinitionId: z.string().guid(),
-                optionId: z.string().guid(),
+                propertyDefinitionId: identifier,
+                optionId: identifier,
               })
               .strict()
           )
