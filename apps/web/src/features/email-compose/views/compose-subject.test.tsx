@@ -1,4 +1,10 @@
-import { cleanup, render, screen, waitFor } from '@solidjs/testing-library';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@solidjs/testing-library';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ComposeProvider } from '../context/compose-context';
 import { createComposeContext } from '../tests/capabilities';
@@ -11,7 +17,7 @@ vi.mock('@ui', async () => ({
 
 afterEach(cleanup);
 
-function renderSubject(initialInboxId: 'gmail' | 'outlook', subject: string) {
+function renderSubject(initialInboxId: 'gmail' | 'outlook', mobile = false) {
   const context = createComposeContext();
   context.accounts.inboxes = () => [
     {
@@ -27,10 +33,7 @@ function renderSubject(initialInboxId: 'gmail' | 'outlook', subject: string) {
       settings: {},
     },
   ];
-  const root = mountEmailComposer(context, undefined, {
-    initialInboxId,
-    initialSubject: subject,
-  });
+  const root = mountEmailComposer(context, undefined, { initialInboxId });
   render(() => (
     <ComposeProvider
       value={{
@@ -40,62 +43,77 @@ function renderSubject(initialInboxId: 'gmail' | 'outlook', subject: string) {
           readDroppedFiles: vi.fn(),
           insertFiles: vi.fn(),
         },
-        isMobile: () => false,
+        isMobile: () => mobile,
         scheduleEnabled: true,
       }}
     >
       <ComposeSubject />
     </ComposeProvider>
   ));
-  const input = screen.getByPlaceholderText('Subject') as HTMLInputElement;
-  return { root, input };
+  return root;
 }
 
-function overLimitHint(input: HTMLInputElement) {
-  if (input.getAttribute('aria-invalid') !== 'true') return undefined;
-  const id = input.getAttribute('aria-describedby');
+function subjectField() {
+  return screen.getByRole('textbox') as HTMLInputElement | HTMLTextAreaElement;
+}
+
+function typeSubject(value: string) {
+  const field = subjectField();
+  field.focus();
+  fireEvent.input(field, { target: { value } });
+  return field;
+}
+
+function overLimitHint(field: HTMLElement) {
+  if (field.getAttribute('aria-invalid') !== 'true') return undefined;
+  const id = field.getAttribute('aria-describedby');
   return id ? document.getElementById(id)?.textContent?.trim() : undefined;
 }
 
 describe('ComposeSubject provider subject limit', () => {
-  it('flags an Outlook subject over 255 characters without cutting it', () => {
-    const subject = 'a'.repeat(300);
-    const { root, input } = renderSubject('outlook', subject);
+  it('flags an Outlook subject over 255 characters until it is trimmed, without cutting it', () => {
+    const root = renderSubject('outlook');
     try {
-      expect(overLimitHint(input)).toBeTruthy();
-      expect(input.value).toBe(subject);
+      const subject = 'a'.repeat(300);
+      const field = typeSubject(subject);
+      expect(overLimitHint(field)).toBeTruthy();
+      expect(field.value).toBe(subject);
       expect(root.state.context.subject()).toBe(subject);
+
+      typeSubject('a'.repeat(255));
+      expect(overLimitHint(subjectField())).toBeUndefined();
     } finally {
       root.dispose();
     }
   });
 
-  it('accepts an Outlook subject of exactly 255 characters', () => {
-    const { root, input } = renderSubject('outlook', 'a'.repeat(255));
+  it('flags a long Outlook subject typed on mobile', () => {
+    const root = renderSubject('outlook', true);
     try {
-      expect(overLimitHint(input)).toBeUndefined();
+      expect(overLimitHint(typeSubject('a'.repeat(300)))).toBeTruthy();
     } finally {
       root.dispose();
     }
   });
 
   it('leaves a long Gmail subject alone', () => {
-    const { root, input } = renderSubject('gmail', 'a'.repeat(300));
+    const root = renderSubject('gmail');
     try {
-      expect(overLimitHint(input)).toBeUndefined();
+      expect(overLimitHint(typeSubject('a'.repeat(300)))).toBeUndefined();
     } finally {
       root.dispose();
     }
   });
 
   it('flags a long subject once the sender switches from Gmail to Outlook', async () => {
-    const { root, input } = renderSubject('gmail', 'a'.repeat(300));
+    const root = renderSubject('gmail');
     try {
+      typeSubject('a'.repeat(300));
       root.state.context.onSelectInbox?.('outlook');
       await waitFor(() =>
         expect(root.state.context.selectedInboxId?.()).toBe('outlook')
       );
-      expect(overLimitHint(input)).toBeTruthy();
+      expect(overLimitHint(subjectField())).toBeTruthy();
     } finally {
       root.dispose();
     }

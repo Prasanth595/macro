@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@solidjs/testing-library';
+import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import { type ComponentProps, createRoot, createSignal } from 'solid-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EmailInbox } from '../context/compose-capabilities';
@@ -38,20 +38,22 @@ afterEach(() => {
   disposers.splice(0).forEach((dispose) => dispose());
 });
 
-function renderEnvelope(options: {
-  inboxId: 'gmail' | 'outlook';
-  subject: string;
-  mobile: boolean;
-}) {
-  const fields = createRoot((dispose) => {
+function renderEnvelope(inboxId: 'gmail' | 'outlook', mobile: boolean) {
+  const state = createRoot((dispose) => {
     disposers.push(dispose);
     const [values, setValues] = createSignal<EmailFormRecipients>({
       to: [],
       cc: [],
       bcc: [],
     });
+    const [subject, setSubject] = createSignal('');
+    const [activeInboxId, setActiveInboxId] = createSignal(inboxId);
     return {
       values,
+      subject,
+      setSubject,
+      activeInboxId,
+      setActiveInboxId,
       fields: createReplyRecipientFields({
         values,
         container: () => undefined,
@@ -64,25 +66,33 @@ function renderEnvelope(options: {
   });
   render(() => (
     <ReplyEnvelope
-      fields={fields.fields}
-      values={fields.values}
+      fields={state.fields}
+      values={state.values}
       options={() => []}
       inboxes={() => inboxes}
-      activeInboxId={() => options.inboxId}
+      activeInboxId={state.activeInboxId}
       senderEmail={() => undefined}
       onSenderChange={() => {}}
-      subject={() => options.subject}
-      onSubjectChange={() => {}}
+      subject={state.subject}
+      onSubjectChange={state.setSubject}
       showSubject
-      mobile={() => options.mobile}
+      mobile={() => mobile}
       portalScope={() => undefined}
       replyType={() => 'forward'}
       disabled={() => false}
     />
   ));
-  return screen.getByPlaceholderText(
-    options.mobile ? 'Subject:' : 'Subject'
+  const input = screen.getByPlaceholderText(
+    mobile ? 'Subject:' : 'Subject'
   ) as HTMLInputElement;
+  return {
+    ...state,
+    input,
+    type(value: string) {
+      input.focus();
+      fireEvent.input(input, { target: { value } });
+    },
+  };
 }
 
 function overLimitHint(input: HTMLInputElement) {
@@ -94,29 +104,25 @@ function overLimitHint(input: HTMLInputElement) {
 describe.each([false, true])(
   'ReplyEnvelope subject limit (mobile=%s)',
   (mobile) => {
-    it('flags an Outlook subject over 255 characters without cutting it', () => {
+    it('flags an Outlook subject over 255 characters until it is trimmed, without cutting it', () => {
+      const envelope = renderEnvelope('outlook', mobile);
       const subject = 'a'.repeat(300);
-      const input = renderEnvelope({ inboxId: 'outlook', subject, mobile });
-      expect(overLimitHint(input)).toBeTruthy();
-      expect(input.value).toBe(subject);
+      envelope.type(subject);
+      expect(overLimitHint(envelope.input)).toBeTruthy();
+      expect(envelope.input.value).toBe(subject);
+      expect(envelope.subject()).toBe(subject);
+
+      envelope.type('a'.repeat(255));
+      expect(overLimitHint(envelope.input)).toBeUndefined();
     });
 
-    it('accepts an Outlook subject of exactly 255 characters', () => {
-      const input = renderEnvelope({
-        inboxId: 'outlook',
-        subject: 'a'.repeat(255),
-        mobile,
-      });
-      expect(overLimitHint(input)).toBeUndefined();
-    });
+    it('flags a long Gmail subject only after switching to Outlook', () => {
+      const envelope = renderEnvelope('gmail', mobile);
+      envelope.type('a'.repeat(300));
+      expect(overLimitHint(envelope.input)).toBeUndefined();
 
-    it('leaves a long Gmail subject alone', () => {
-      const input = renderEnvelope({
-        inboxId: 'gmail',
-        subject: 'a'.repeat(300),
-        mobile,
-      });
-      expect(overLimitHint(input)).toBeUndefined();
+      envelope.setActiveInboxId('outlook');
+      expect(overLimitHint(envelope.input)).toBeTruthy();
     });
   }
 );
