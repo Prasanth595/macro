@@ -14,6 +14,7 @@ import { queryClient } from '../client';
 import { messageKeys } from '../messages/keys';
 import { refreshActiveGraphqlPreviewQueries } from '../preview/active-queries';
 import { refreshActiveGraphqlSoupQueries } from '../soup/graphql/active-queries';
+import { soupKeys } from '../soup/keys';
 import { invalidateAllSoup } from '../soup/normalized-cache';
 import { databasesKeys, entityKeys } from '../storage/keys';
 import { accessRequestKeys } from './keys';
@@ -62,6 +63,7 @@ export function refreshSharedAccess(entity: AccessChangeEntity) {
   fireAndForget(invalidateAccessRequests(entity), 'access-requests');
   // Permissions change list membership even when the item was never cached.
   invalidateAllSoup();
+  queryClient.invalidateQueries({ queryKey: soupKeys.search._def });
   fireAndForget(refreshActiveGraphqlSoupQueries(), 'access-requests');
   // A folder grant reaches what it holds, and a channel what was shared there.
   const includesDescendants =

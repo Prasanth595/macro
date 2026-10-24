@@ -675,12 +675,17 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
     return lexicalWrapper?.isInteractable() ?? false;
   });
 
-  // Check if this is a recently created mention that we should show fallback for
-  const isRecentMention = createMemo(() => {
-    if (!props.createdAt) return false;
-    const age = Date.now() - props.createdAt;
-    return age < RECENT_MENTION_THRESHOLD_MS;
-  });
+  // Check if this is a recently created mention that we should show fallback for.
+  // It stops being recent while mounted, so a chip for an event deleted in the
+  // meantime then reads and opens as deleted without a remount.
+  const recentForMs = props.createdAt
+    ? props.createdAt + RECENT_MENTION_THRESHOLD_MS - Date.now()
+    : 0;
+  const [isRecentMention, setIsRecentMention] = createSignal(recentForMs > 0);
+  if (recentForMs > 0) {
+    const timer = setTimeout(() => setIsRecentMention(false), recentForMs);
+    onCleanup(() => clearTimeout(timer));
+  }
 
   const showEmbedOption = createMemo(() => {
     if (!lexicalWrapper?.isInteractable()) return false;
@@ -745,18 +750,33 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
       : undefined
   );
 
+  // A deleted or inaccessible item has nothing to open. A just-created
+  // mention can briefly preview as missing; it still opens rather than
+  // reading as deleted.
+  const isUnavailable = () => {
+    const i = item();
+    if (i.loading) return false;
+    return (
+      i.access === 'no_access' ||
+      (i.access === 'does_not_exist' && !isRecentMention())
+    );
+  };
+  const showsPreviewOnOpen = () =>
+    calendarOpen()?.kind === 'read_only' || isUnavailable();
+
   const open = createCallback((e: MouseEvent | KeyboardEvent | null) => {
     // The calendar is a singleton block: open it aimed at the viewer's own
     // copy of the meeting. A meeting shared through the channel but absent
-    // from the viewer's calendars has nothing to open, so its read-only
-    // preview card is shown instead, as a sheet on touch devices.
+    // from the viewer's calendars, like any item that is gone or hidden from
+    // the viewer, has nothing to open, so its preview card is shown instead,
+    // as a sheet on touch devices.
+    if (showsPreviewOnOpen()) {
+      if (isTouchDevice()) setPreviewSheetOpen(true);
+      else setPreviewCardOpen(true);
+      return;
+    }
     const target = calendarOpen();
-    if (target) {
-      if (target.kind === 'read_only') {
-        if (isTouchDevice()) setPreviewSheetOpen(true);
-        else setPreviewCardOpen(true);
-        return;
-      }
+    if (target?.kind === 'calendar') {
       fireAndForget(
         openCalendarEventSplit({
           ...target.target,
@@ -845,9 +865,10 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
     e.stopPropagation();
     const i = item();
     if (
-      !i.loading &&
-      (i.access === 'access' ||
-        shouldUseFallbackForRecentMention(i, isRecentMention()))
+      isUnavailable() ||
+      (!i.loading &&
+        (i.access === 'access' ||
+          shouldUseFallbackForRecentMention(i, isRecentMention())))
     ) {
       open(e);
     }
@@ -902,10 +923,7 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
       {/* The sheet stays up once open, so a share the viewer adds or is
           invited to meanwhile shows it is on their calendar in place. */}
       <Show
-        when={
-          isTouchDevice() &&
-          (calendarOpen()?.kind === 'read_only' || previewSheetOpen())
-        }
+        when={isTouchDevice() && (showsPreviewOnOpen() || previewSheetOpen())}
       >
         <DocumentPreviewSheet
           open={previewSheetOpen()}
@@ -916,7 +934,7 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
       <HoverCard
         open={previewCardOpen()}
         onOpenChange={setPreviewCardOpen}
-        keepOpenOnTriggerPress={calendarOpen()?.kind === 'read_only'}
+        keepOpenOnTriggerPress={showsPreviewOnOpen()}
         trigger={
           <span class="relative">
             <span

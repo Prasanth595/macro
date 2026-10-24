@@ -200,6 +200,8 @@ struct FakeRepo {
     scheduled_syncs: Arc<Mutex<Vec<Uuid>>>,
     /// Join requests, keyed by event and requester like the table.
     join_requests: Arc<Mutex<Vec<crate::domain::join_requests::CalendarJoinRequest>>>,
+    /// The requester's copies of the addressed meeting.
+    meeting_copies: Vec<crate::domain::models::MeetingCopy>,
 }
 
 impl Default for FakeRepo {
@@ -227,6 +229,7 @@ impl Default for FakeRepo {
             export: None,
             scheduled_syncs: Default::default(),
             join_requests: Default::default(),
+            meeting_copies: Vec::new(),
         }
     }
 }
@@ -303,7 +306,7 @@ impl CalendarRepository for FakeRepo {
         _requester_id: &str,
         _event_id: Uuid,
     ) -> Result<Vec<crate::domain::models::MeetingCopy>, rootcause::Report> {
-        unreachable!()
+        Ok(self.meeting_copies.clone())
     }
 
     async fn event_export(
@@ -3159,6 +3162,7 @@ async fn outlook_write_pause_rejects_provider_operations_before_fetching_tokens(
         .unwrap();
 }
 
+mod copies;
 mod copy;
 mod details;
 mod guest_policy;

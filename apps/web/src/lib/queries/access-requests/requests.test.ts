@@ -7,6 +7,7 @@ import { messageKeys } from '../messages/keys';
 import { registerActiveGraphqlPreviewQuery } from '../preview/active-queries';
 import { previewKeys } from '../preview/keys';
 import { registerActiveGraphqlSoupQuery } from '../soup/graphql/active-queries';
+import { soupKeys } from '../soup/keys';
 import { databasesKeys } from '../storage/keys';
 import { refreshSharedAccess } from './requests';
 
@@ -149,5 +150,12 @@ it('refreshes the previews of a calendar event the viewer can no longer see', ()
   });
   expect(mocks.invalidate).toHaveBeenCalledWith({
     queryKey: [...calendarKeys.mentionPreview._def, 'event'],
+  });
+});
+
+it('drops cached search answers, which only a new search filters by current access', () => {
+  refreshSharedAccess({ entityType: 'document', entityId: 'document' });
+  expect(mocks.invalidate).toHaveBeenCalledWith({
+    queryKey: soupKeys.search._def,
   });
 });
