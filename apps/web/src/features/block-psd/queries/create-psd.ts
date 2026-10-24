@@ -41,14 +41,17 @@ export async function createPsdDocument(args: {
   fireAndForget(invalidateUserQuota(), 'create-psd-document');
   if (created.isErr()) return undefined;
   const doc = created.value;
+  const documentId = doc.metadata.documentId;
   const upload = await uploadToPresignedUrl({
     presignedUrl: doc.presignedUrl,
     buffer: bytes,
     sha,
     type: PSD_MIME,
   });
-  if (upload.isErr()) return undefined;
-  const documentId = doc.metadata.documentId;
+  if (upload.isErr()) {
+    await storageServiceClient.deleteDocument({ documentId });
+    return undefined;
+  }
   fireAndForget(
     postNewHistoryItem('document', documentId),
     'create-psd-document'

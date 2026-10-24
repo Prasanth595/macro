@@ -33,14 +33,17 @@ export async function createFigDocument(args: {
   fireAndForget(invalidateUserQuota(), 'create-fig-document');
   if (created.isErr()) return undefined;
   const doc = created.value;
+  const documentId = doc.metadata.documentId;
   const upload = await uploadToPresignedUrl({
     presignedUrl: doc.presignedUrl,
     buffer: bytes,
     sha,
     type: FIG_MIME,
   });
-  if (upload.isErr()) return undefined;
-  const documentId = doc.metadata.documentId;
+  if (upload.isErr()) {
+    await storageServiceClient.deleteDocument({ documentId });
+    return undefined;
+  }
   fireAndForget(
     postNewHistoryItem('document', documentId),
     'create-fig-document'

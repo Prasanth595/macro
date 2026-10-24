@@ -370,8 +370,12 @@ export async function createCodeFileFromText({
     sha,
     type: mimeType,
   });
-  if (uploadResult.isErr())
+  if (uploadResult.isErr()) {
+    await storageServiceClient.deleteDocument({
+      documentId: document.metadata.documentId,
+    });
     return err([{ code: 'SERVER_ERROR', message: 'Failed to upload file' }]);
+  }
   fireAndForget(
     postNewHistoryItem('document', document.metadata.documentId),
     'create-entity'
