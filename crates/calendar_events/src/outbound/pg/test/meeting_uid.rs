@@ -52,9 +52,12 @@ async fn the_meeting_uid_unwraps_only_an_imported_exchange_uid(pool: PgPool) {
         meeting_uid(&pool, "weekly@google.com").await,
         "weekly@google.com"
     );
-    // A wrapped UID it would not reproduce exactly is left alone.
+    // A wrapped UID that is not printable ASCII, or that the escape encoding
+    // would not reproduce exactly, is left alone.
     let backslash = exchange_uid("a\\b@example.com");
     assert_eq!(meeting_uid(&pool, &backslash).await, backslash);
+    let delete = exchange_uid("a\x7Fb@example.com");
+    assert_eq!(meeting_uid(&pool, &delete).await, delete);
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
