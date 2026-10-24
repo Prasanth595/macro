@@ -2,10 +2,6 @@ import type { EmailMessage } from '../../email-message/core/email-message';
 import { isViewerAddress } from '../../email-message/core/email-user';
 import type { EmailThread } from './email-thread';
 
-/**
- * Sender actions historically target the earliest sender other than the
- * viewer. With the viewer unknown, that sender could be the viewer.
- */
 export function selectThreadSender(thread: EmailThread, viewerEmail?: string) {
   if (!viewerEmail) return undefined;
   return selectThreadMessages(thread).messages.find(

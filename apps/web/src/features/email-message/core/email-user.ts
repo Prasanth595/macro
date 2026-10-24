@@ -2,7 +2,6 @@ import type { EmailMessage } from '@app/features/email-message/core/email-messag
 
 import { getFirstName } from './name';
 
-/** Whether a mail address is the viewer's. */
 export function isViewerAddress(
   address: string | null | undefined,
   viewerEmail: string | undefined

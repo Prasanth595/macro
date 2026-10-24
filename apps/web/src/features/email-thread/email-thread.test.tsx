@@ -80,7 +80,6 @@ vi.mock('./calendar-invitation', () => ({
 vi.mock('./thread-action-adapter', () => ({
   createThreadActionAdapter: vi.fn(),
 }));
-// The full view pulls in app services through the message list and composer.
 vi.mock('./views/email-thread', () => ({
   EmailThreadView: () => {
     const source = useEmailThreadViewContext().thread.source;

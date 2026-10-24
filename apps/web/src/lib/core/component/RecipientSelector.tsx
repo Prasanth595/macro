@@ -656,8 +656,7 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
 
   let contentEl: HTMLElement | undefined;
 
-  // A comma or semicolon ends an address, as in other mail clients. Committing
-  // changes the selection, and Kobalte clears the input when it does.
+  // Committing changes the selection, and Kobalte clears the input when it does.
   const commitSeparatedEmails = (input: string) => {
     if (!/[,;]\s*$/.test(input)) return false;
     const emails = input
@@ -672,7 +671,6 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
       );
     if (emails.length === 0 || !emails.every((e) => EmailValidator.validate(e)))
       return false;
-    // A suggestion picked within the debounce window is not in props yet.
     const current =
       pendingSelection ?? (props.selectedOptions as CombinedRecipientItem[]);
     const currentEmails = new Set(

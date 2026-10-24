@@ -292,8 +292,6 @@ fn contact(recipient: wire::Recipient) -> ContactInfo {
 /// Graph's `bodyPreview` length.
 const SNIPPET_CHARS: usize = 255;
 
-/// Graph's `bodyPreview` starts the whole body, quoted history included, so
-/// replies would preview the message they answer.
 fn reply_snippet(subject: Option<&str>, html: Option<&str>, text: Option<&str>) -> Option<String> {
     let reply = email_utils::body_replyless::compute_body_replyless(subject, html, text)?;
     let reply = match html {
