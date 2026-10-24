@@ -1,18 +1,20 @@
 import '@app/index.css';
 import { fireAndForget } from '@core/util/fireAndForget';
-import { Button, Checkbox } from '@ui';
+import { Button, Checkbox, ConfirmDialog } from '@ui';
 import { ok } from 'neverthrow';
 import { createSignal, Show } from 'solid-js';
 import { createStore, reconcile } from 'solid-js/store';
 import { render } from 'solid-js/web';
 import { SavedViewDialog } from '../../saved-views/components/saved-view-dialog';
 import { SavedViewList } from '../../saved-views/components/saved-view-list';
+import { SavedViewPicker } from '../../saved-views/components/saved-view-picker';
 import type { SavedViewsSource } from '../../saved-views/context/saved-views-source';
 import type { SavedView } from '../../saved-views/core/saved-view';
 import { createTaskSavedViews } from '../primitives/create-task-saved-views';
 import type { TasksViewState } from '../types';
 
 function Fixture() {
+  const [viewerId, setViewerId] = createSignal('viewer');
   const [items, setItems] = createSignal<SavedView[]>([]);
   const [selected, setSelected] = createSignal<string>();
   const [writes, setWrites] = createSignal(0);
@@ -73,7 +75,7 @@ function Fixture() {
     source,
     selectedId: selected,
     taskId: () => undefined,
-    viewerId: () => 'viewer',
+    viewerId,
     state,
     facetContext: () => ({ tagPropertyDefinitionByOptionId: new Map() }),
     navigate: setSelected,
@@ -84,6 +86,31 @@ function Fixture() {
       setState('facets', reconcile(facets));
     },
   });
+  const picker = new URLSearchParams(location.search).has('picker');
+  const list = (onAction = (action: () => void) => action()) => (
+    <SavedViewList
+      items={items()}
+      loading={false}
+      failed={false}
+      selectedId={selected()}
+      open={open()}
+      onOpenChange={setOpen}
+      hasMore={false}
+      loadingMore={false}
+      viewerId="viewer"
+      canShare
+      saving={views.saving()}
+      onRename={(view) => onAction(() => views.rename(view))}
+      onShare={(view) => onAction(() => views.share(view))}
+      onDuplicate={(view) => onAction(() => views.duplicate(view))}
+      onCopyLink={() => {}}
+      onDelete={(view) => onAction(() => views.confirmDelete(view))}
+      onSelect={(id) => onAction(() => views.select(id))}
+      onCreate={() => onAction(views.start)}
+      onRetry={() => {}}
+      onLoadMore={() => {}}
+    />
+  );
   return (
     <main
       class="mx-auto flex max-w-4xl flex-col gap-6 p-6 text-ink sm:flex-row"
@@ -91,28 +118,11 @@ function Fixture() {
     >
       <aside class="w-full sm:w-60">
         <h1 class="pb-4 text-xl font-medium">Tasks</h1>
-        <SavedViewList
-          items={items()}
-          loading={false}
-          failed={false}
-          selectedId={selected()}
-          open={open()}
-          onOpenChange={setOpen}
-          hasMore={false}
-          loadingMore={false}
-          viewerId="viewer"
-          canShare
-          saving={views.saving()}
-          onRename={views.rename}
-          onShare={views.share}
-          onDuplicate={views.duplicate}
-          onCopyLink={() => {}}
-          onDelete={views.confirmDelete}
-          onSelect={views.select}
-          onCreate={views.start}
-          onRetry={() => {}}
-          onLoadMore={() => {}}
-        />
+        <Show when={picker} fallback={list()}>
+          <SavedViewPicker label="Browse saved views" scopeKey={viewerId()}>
+            {list}
+          </SavedViewPicker>
+        </Show>
       </aside>
       <section class="flex flex-1 flex-col gap-4">
         <h2>{views.active() ? views.title() : 'All tasks'}</h2>
@@ -140,6 +150,9 @@ function Fixture() {
           <Button onClick={views.leave}>All tasks</Button>
         </div>
         <output aria-label="Saved writes">{writes()}</output>
+        <Button data-switch-account onClick={() => setViewerId('other-viewer')}>
+          Switch account
+        </Button>
       </section>
       <Show when={views.form()} keyed>
         {(form) => (
@@ -163,6 +176,18 @@ function Fixture() {
           />
         )}
       </Show>
+      <ConfirmDialog
+        open={views.deleting()}
+        onOpenChange={(open) => {
+          if (!open) views.cancelDelete();
+        }}
+        title="Delete saved view?"
+        body="Tasks are not deleted."
+        confirmLabel="Delete view"
+        tone="danger"
+        pending={views.saving()}
+        onConfirm={() => fireAndForget(views.remove(), 'saved-views-browser')}
+      />
     </main>
   );
 }

@@ -9,7 +9,7 @@ import DotsIcon from '@phosphor/dots-three.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import UsersIcon from '@phosphor/users.svg';
 import { Button, Dropdown } from '@ui';
-import { For, Show } from 'solid-js';
+import { createSignal, For, Show } from 'solid-js';
 import type { SavedView } from '../core/saved-view';
 import { SavedViewMenuItems } from './saved-view-menu';
 
@@ -56,6 +56,7 @@ export function SavedViewList(props: {
         <ViewSidebar.Nav aria-label="Saved task views">
           <For each={props.items}>
             {(view) => {
+              const [menuAnchor, setMenuAnchor] = createSignal<HTMLElement>();
               const menuProps = {
                 get owned() {
                   return view.ownerId === props.viewerId;
@@ -74,7 +75,11 @@ export function SavedViewList(props: {
               };
               return (
                 <ContextMenu>
-                  <ContextMenuTrigger as="div" class="group relative min-w-0">
+                  <ContextMenuTrigger
+                    as="div"
+                    ref={setMenuAnchor}
+                    class="group relative min-w-0"
+                  >
                     <ViewSidebar.Item
                       active={view.id === props.selectedId}
                       onClick={() => props.onSelect(view.id)}
@@ -108,13 +113,18 @@ export function SavedViewList(props: {
                         >
                           <DotsIcon class="size-4" />
                         </Dropdown.Trigger>
-                        <Dropdown.Content class="min-w-44">
+                        <Dropdown.Content class="min-w-44" portalScope="local">
                           <SavedViewMenuItems {...menuProps} />
                         </Dropdown.Content>
                       </Dropdown>
                     </div>
                   </ContextMenuTrigger>
-                  <ContextMenu.Portal>
+                  <ContextMenu.Portal
+                    mount={
+                      menuAnchor()?.closest<HTMLElement>('.portal-scope') ??
+                      undefined
+                    }
+                  >
                     <ContextMenuContent class="min-w-44">
                       <SavedViewMenuItems context {...menuProps} />
                     </ContextMenuContent>

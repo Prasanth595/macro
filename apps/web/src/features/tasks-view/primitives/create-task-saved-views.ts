@@ -381,20 +381,28 @@ export function createTaskSavedViews(options: {
     const record = deletionRecord();
     if (!record || record.ownerId !== options.viewerId() || saving()) return;
     const requestScope = scope();
+    const requestViewer = options.viewerId();
     setSaving(true);
     const result = await options.source.delete({
       id: record.id,
       expectedRevision: record.revision,
     });
     setSaving(false);
+    if (
+      result.isOk() &&
+      options.viewerId() === requestViewer &&
+      options.selectedId() === record.id
+    ) {
+      leave();
+      return;
+    }
     if (scope() !== requestScope) return;
     if (result.isErr()) {
       setError(result.error.message);
       setConflict(result.error.code === 'CONFLICT');
       return;
     }
-    if (options.selectedId() === record.id) leave();
-    else setDeletionRecord(undefined);
+    setDeletionRecord(undefined);
   };
   const reload = async () => {
     const requestScope = scope();

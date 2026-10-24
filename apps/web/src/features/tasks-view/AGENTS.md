@@ -22,6 +22,7 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 - Keep embedded Project/CRM task consumers free of saved-view management.
 - Show Save view before Filters only when built-in filters differ from defaults; exclude search and presentation from that comparison.
 - Keep sidebar actions targeted to their own record; Rename and Share preserve unsaved filters, while Duplicate starts with a prefilled private copy.
+- Honor confirmed deletion when the same account selects the target while deletion is pending; never apply completion to another account.
 
 ## Checks
 

@@ -321,7 +321,8 @@ definition is not mistaken for the visible search results.
   background save fails after navigation.
 - Task-detail navigation and its return breadcrumb retain the originating saved
   view identity, but do not persist an unsaved filter draft. Scope async results
-  to the account, selected view, and revision before installing them.
+  to the account, selected view, and revision before installing them. A confirmed
+  deletion also exits its target if the same account selected it during the request.
 
 ### Mobile
 
@@ -333,8 +334,11 @@ and existing mobile list-only behavior.
 Show Save view left of the mobile filter trigger under the same changed-filter
 condition. Provide management through each saved-view row's visible overflow
 button and the selected view's overflow actions. Use existing dialog/drawer
-conventions for naming, sharing, conflicts, and delete confirmation. No
-hover-only controls or desktop-only management actions.
+conventions for naming, sharing, conflicts, and delete confirmation. Keep row
+menus inside the drawer's portal scope for keyboard access. Finish drawer closure
+and restore its trigger focus before opening an action's dialog. Discard queued
+actions when the account changes. No hover-only controls or desktop-only
+management actions.
 
 ### URLs and unavailable views
 

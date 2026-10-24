@@ -357,4 +357,43 @@ describe('saved task drafts', () => {
     expect(h.controller.record()?.id).toBe(view.id);
     expect(h.controller.dirty()).toBe(true);
   });
+
+  it('leaves the deleted view when selected during its pending deletion', async () => {
+    const h = harness();
+    const other = { ...view, id: 'other-view' };
+    let finish!: (result: Result<void, SavedViewError>) => void;
+    h.source.delete = () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
+    h.controller.confirmDelete(other);
+    const remove = h.controller.remove();
+    h.setId(other.id);
+    h.setDetail(other);
+    expect(h.controller.record()?.id).toBe(other.id);
+    finish(ok(undefined));
+    await remove;
+    expect(h.controller.active()).toBe(false);
+    expect(h.controller.record()).toBeUndefined();
+  });
+
+  it('does not apply a completed deletion to another account', async () => {
+    const h = harness();
+    let finish!: (result: Result<void, SavedViewError>) => void;
+    h.source.delete = () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
+    h.controller.confirmDelete();
+    const remove = h.controller.remove();
+    batch(() => {
+      h.setViewerId('other-viewer');
+      h.setDetailViewerId('other-viewer');
+      h.setDetail({ ...view, ownerId: 'other-viewer' });
+    });
+    finish(ok(undefined));
+    await remove;
+    expect(h.controller.active()).toBe(true);
+    expect(h.controller.record()?.ownerId).toBe('other-viewer');
+  });
 });

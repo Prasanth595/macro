@@ -155,5 +155,137 @@ for (const device of [
         fullPage: true,
       });
     });
+    test('keeps keyboard focus through picker menus and dialog handoffs', async ({
+      page,
+    }) => {
+      await page.goto(
+        '/src/features/tasks-view/browser-test/saved-views.html?picker'
+      );
+      await page
+        .getByRole('button', { name: 'Save as view', exact: true })
+        .click();
+      await page.getByLabel('Name', { exact: true }).fill('Keyboard view');
+      await page
+        .getByRole('dialog', { name: 'Save view', exact: true })
+        .getByRole('button', { name: 'Save view', exact: true })
+        .click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      const picker = page.getByRole('button', {
+        name: 'Browse saved views',
+        exact: true,
+      });
+      for (const action of [
+        { name: 'Rename', title: 'Rename saved view', steps: 0 },
+        { name: 'Share', title: 'Share saved view', steps: 1 },
+        { name: 'Duplicate', title: 'Duplicate saved view', steps: 2 },
+        { name: 'Delete view', title: 'Delete saved view?', steps: 4 },
+      ]) {
+        await picker.click();
+        const drawer = page.getByRole('dialog', {
+          name: 'Saved views',
+          exact: true,
+        });
+        await expect(drawer).toBeVisible();
+        await expect(drawer).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
+        await expect(drawer).not.toHaveAttribute('data-transitioning', '');
+        if (action.name === 'Duplicate') {
+          await drawer
+            .getByRole('button', { name: 'Keyboard view', exact: true })
+            .click({ button: 'right' });
+        } else {
+          await page
+            .getByRole('button', {
+              name: 'Actions for Keyboard view',
+              exact: true,
+            })
+            .press('ArrowDown');
+        }
+        await expect(
+          page.getByRole('menuitem', { name: 'Rename', exact: true })
+        ).toBeFocused();
+        for (let step = 0; step < action.steps; step++)
+          await page.keyboard.press('ArrowDown');
+        await expect(
+          page.getByRole('menuitem', { name: action.name, exact: true })
+        ).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(drawer).toBeHidden();
+        const dialog = page.getByRole('dialog', {
+          name: action.title,
+          exact: true,
+        });
+        await expect(dialog).toBeVisible();
+        if (device.name === 'phone') {
+          await expect(dialog).toHaveCSS(
+            'transform',
+            'matrix(1, 0, 0, 1, 0, 0)'
+          );
+          await expect(dialog).not.toHaveAttribute('data-transitioning', '');
+        }
+        await expect(dialog.locator(':focus')).toHaveCount(1);
+        if (action.name === 'Rename' || action.name === 'Duplicate')
+          await expect(
+            dialog.getByLabel('Name', { exact: true })
+          ).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(dialog.locator(':focus')).toHaveCount(1);
+        await page.screenshot({
+          path: `/tmp/saved-view-${device.name}-${action.name.replaceAll(' ', '-')}-focus.png`,
+        });
+        await expect(dialog.locator(':focus')).toHaveCount(1);
+        if (action.name === 'Delete view')
+          await dialog
+            .getByRole('button', { name: 'Delete view', exact: true })
+            .click();
+        else await page.keyboard.press('Escape');
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+      }
+    });
+    test('discards queued picker actions when the account changes', async ({
+      page,
+    }) => {
+      await page.goto(
+        '/src/features/tasks-view/browser-test/saved-views.html?picker'
+      );
+      await page
+        .getByRole('button', { name: 'Save as view', exact: true })
+        .click();
+      await page.getByLabel('Name', { exact: true }).fill('Private view');
+      await page
+        .getByRole('dialog', { name: 'Save view', exact: true })
+        .getByRole('button', { name: 'Save view', exact: true })
+        .click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await page
+        .getByRole('button', { name: 'Browse saved views', exact: true })
+        .click();
+      const drawer = page.getByRole('dialog', {
+        name: 'Saved views',
+        exact: true,
+      });
+      await expect(drawer).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
+      await expect(drawer).not.toHaveAttribute('data-transitioning', '');
+      await page
+        .getByRole('button', { name: 'Actions for Private view', exact: true })
+        .click();
+      // An authentication event can arrive in the same turn as the menu action.
+      await page
+        .getByRole('menuitem', { name: 'Duplicate', exact: true })
+        .evaluate((item) => {
+          item.dispatchEvent(
+            new KeyboardEvent('keydown', {
+              key: 'Enter',
+              bubbles: true,
+              cancelable: true,
+            })
+          );
+          document
+            .querySelector<HTMLButtonElement>('[data-switch-account]')
+            ?.click();
+        });
+      await expect(drawer).toBeHidden();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(page.getByLabel('Saved writes')).toHaveText('1');
+    });
   });
 }

@@ -10,7 +10,7 @@ Reusable named filter definitions. The first consumer is main Tasks; the generic
 - `context/saved-views-source.ts`: injectable read/write contract.
 - `queries/saved-views.ts`: GraphQL live reads, cursor paging, and authoritative writes.
 - `primitives/create-saved-view-draft.ts`: confirmed baseline versus temporary edits.
-- `components/`: props-only list, shared padded context/overflow actions, and create/duplicate/rename/share dialogs.
+- `components/`: props-only list, shared padded context/overflow actions, mobile picker, and create/duplicate/rename/share dialogs.
 
 ## Boundaries
 
@@ -19,6 +19,8 @@ Reusable named filter definitions. The first consumer is main Tasks; the generic
 - Share definitions, not access to their matching entities; the backend owns authorization.
 - Rebuild loaded cursor chains after confirmed membership changes; never invent permission state or splice a full page.
 - Keep consumer edits on failed saves; only confirmed writes replace the baseline.
+- Mount picker menus inside the drawer portal scope, then close the drawer and restore focus before opening another dialog.
+- Bind deferred picker actions to the opening account and discard them after an account change.
 - Validate the response viewer before exposing cached reads after an account change.
 
 ## Checks

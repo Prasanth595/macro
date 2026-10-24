@@ -1,23 +1,24 @@
 import { replacePaneSearchParams } from '@app/lib/split-router';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
-import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import { writeClipboardData } from '@core/util/dataTransfer';
 import { fireAndForget } from '@core/util/fireAndForget';
-import BookmarkIcon from '@phosphor/bookmark-simple.svg';
 import DotsIcon from '@phosphor/dots-three.svg';
 import { Button, ConfirmDialog, Dropdown } from '@ui';
-import { createSignal, For, Show } from 'solid-js';
+import { For, Show } from 'solid-js';
 import { SavedViewDialog } from '../../saved-views/components/saved-view-dialog';
 import { SavedViewList } from '../../saved-views/components/saved-view-list';
 import { SavedViewMenuItems } from '../../saved-views/components/saved-view-menu';
+import { SavedViewPicker } from '../../saved-views/components/saved-view-picker';
 import { materializeTaskSavedView } from '../filters/task-saved-view';
 import { useTaskFilters } from '../filters/use-task-filters';
 import { tasksTabSearch, tasksTabSearchCodec } from '../tasks-tab-search';
 import { useTasksView } from '../tasks-view-context';
 
-export function TaskSavedViewsList(props: { onNavigate?: () => void }) {
+export function TaskSavedViewsList(props: {
+  onAction?: (action: () => void) => void;
+}) {
   const {
     savedViews,
     savedViewTeam,
@@ -25,6 +26,8 @@ export function TaskSavedViewsList(props: { onNavigate?: () => void }) {
     setSidebarSectionOpen,
   } = useTasksView();
   const viewerId = useUserId();
+  const run = (action: () => void) =>
+    props.onAction ? props.onAction(action) : action();
   return (
     <Show when={savedViews}>
       {(views) => (
@@ -40,33 +43,15 @@ export function TaskSavedViewsList(props: { onNavigate?: () => void }) {
           viewerId={viewerId()}
           canShare={Boolean(savedViewTeam?.())}
           saving={views().saving()}
-          onRename={(view) => {
-            views().rename(view);
-            props.onNavigate?.();
-          }}
-          onShare={(view) => {
-            views().share(view);
-            props.onNavigate?.();
-          }}
-          onDuplicate={(view) => {
-            views().duplicate(view);
-            props.onNavigate?.();
-          }}
+          onRename={(view) => run(() => views().rename(view))}
+          onShare={(view) => run(() => views().share(view))}
+          onDuplicate={(view) => run(() => views().duplicate(view))}
           onCopyLink={(view) =>
             fireAndForget(copySavedViewLink(view.id), 'saved-views')
           }
-          onDelete={(view) => {
-            views().confirmDelete(view);
-            props.onNavigate?.();
-          }}
-          onSelect={(id) => {
-            views().select(id);
-            props.onNavigate?.();
-          }}
-          onCreate={() => {
-            views().start();
-            props.onNavigate?.();
-          }}
+          onDelete={(view) => run(() => views().confirmDelete(view))}
+          onSelect={(id) => run(() => views().select(id))}
+          onCreate={() => run(() => views().start())}
           onRetry={() => fireAndForget(views().source.refresh(), 'saved-views')}
           onLoadMore={() =>
             fireAndForget(views().source.loadMore(), 'saved-views')
@@ -79,33 +64,16 @@ export function TaskSavedViewsList(props: { onNavigate?: () => void }) {
 
 export function TaskSavedViewsPicker() {
   const { savedViews } = useTasksView();
-  const [open, setOpen] = createSignal(false);
+  const viewerId = useUserId();
   return (
     <Show when={savedViews}>
       {(views) => (
-        <MobileDrawer open={open()} onOpenChange={setOpen} restoreFocus>
-          <MobileDrawer.Trigger
-            as={Button}
-            size="icon-md"
-            variant="outline"
-            depth={3}
-            label={views().active() ? views().title() : 'Saved views'}
-          >
-            <BookmarkIcon class="size-4" />
-          </MobileDrawer.Trigger>
-          <MobileDrawer.Portal>
-            <MobileDrawer.Overlay />
-            <MobileDrawer.Content>
-              <MobileDrawer.Handle />
-              <MobileDrawer.Title class="px-6 pb-3 text-base font-medium">
-                Saved views
-              </MobileDrawer.Title>
-              <MobileDrawer.ScrollBody class="px-3">
-                <TaskSavedViewsList onNavigate={() => setOpen(false)} />
-              </MobileDrawer.ScrollBody>
-            </MobileDrawer.Content>
-          </MobileDrawer.Portal>
-        </MobileDrawer>
+        <SavedViewPicker
+          scopeKey={viewerId()}
+          label={views().active() ? views().title() : 'Saved views'}
+        >
+          {(onAction) => <TaskSavedViewsList onAction={onAction} />}
+        </SavedViewPicker>
       )}
     </Show>
   );
