@@ -355,6 +355,12 @@ export function createSoupLiveQuery(
       keepPreviousData: queryOptions.keepPreviousData ?? false,
       onResult: (result, page) => {
         const metadata = normalizedCacheResultMetadata(result);
+        if (result.data) {
+          batch(() => {
+            setBaselineGeneration(cacheGeneration);
+            setBaselineInputKey(firstInputKey);
+          });
+        }
         if (result.error && metadata?.source === 'live-network') {
           // The exchange keeps the rows already shown; a failed response's
           // partial data claims no authority over them or the local rows.
@@ -362,10 +368,6 @@ export function createSoupLiveQuery(
           return;
         }
         if (!result.data) return;
-        batch(() => {
-          setBaselineGeneration(cacheGeneration);
-          setBaselineInputKey(firstInputKey);
-        });
         if (metadata?.source !== 'live-network') {
           // An affected/cache result already reflects local state. Its pending
           // network acknowledgement may no longer claim authority over it.
