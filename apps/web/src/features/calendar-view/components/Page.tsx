@@ -418,14 +418,6 @@ function CalendarPageHost(props: {
     }
     const targetId = calendarFocusTargetId(target);
     const event = props.eventsById().get(targetId);
-    if (
-      !event &&
-      props.data.occurrencesQuery.isSuccess &&
-      !props.data.isLoading()
-    ) {
-      calendarFocus.refreshForMissingTarget(target);
-      return;
-    }
     const chip = props.grid.eventElements.get(targetId);
     if (!event || !chip?.isConnected) return;
     calendarFocus.consume(target.requestId);
