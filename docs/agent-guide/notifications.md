@@ -1,5 +1,32 @@
 # Notifications
 
+## Notifications view — `/app/notifications`
+
+Behind `enable-unified-notifications` (with GraphQL Soup), the bell below Home
+on the outer rail (`g i`) opens one list of everything that needs you, newest
+first. With the flag off the route redirects to Home once flags load.
+
+Each row is one stack of notifications from the server work feed's attention
+rows: an email thread, a channel's top-level messages, one thread, one
+top-level mention, an entity's comments, one comment thread, a task
+assignment, a pull request, a calendar event, an access request or grant, an
+agent session, or an AI suggestion. A message that mentions you appears once,
+in its mention row. Rows show a type glyph, a muted line saying who did what
+(for example **Jacob assigned you a task**), the subject (email subject,
+message or comment text, task name, PR or event title), a count when the row
+stands for several notifications, the time, and an unread dot.
+
+Click or press Enter to open what the row is about at the notification's
+location; Shift-click or the alternate key opens a new split. `j`/`k` move.
+Hover a row and choose **Mark done**, or press `e`, to complete that row only:
+the channel thread stays when the channel's top-level row is done. A toast
+offers **Undo**, as does `⌘Z`/`Ctrl+Z`. A new notification in a done row brings
+it back. An empty inbox reads **You’re all caught up**.
+
+Verify with two accounts: a reply in a thread you're in, a top-level mention,
+and a document comment each add their own row; marking one done leaves the
+others, and Undo restores it in place.
+
 ## Notifications
 
 In the desktop app, **Settings → Notifications → Delivery → Desktop notifications**

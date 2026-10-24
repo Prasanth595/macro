@@ -1,0 +1,65 @@
+# One notification inbox entry: the item's entity and its rows in an
+# attention feed. Rows are per feed, so they come from the entry rather than
+# the item, whose stacks Home's work feed shares.
+fragment NotificationInboxEntryFields on WorkFeedEntry {
+	sortAt
+	item {
+		id
+		entity {
+			...SoupItemPreviewFields
+		}
+	}
+	rows {
+		id
+		rowType
+		revision
+		latestAt
+		unseen
+		count
+		notifications(limit: 20) {
+			...SoupNotificationFields
+		}
+	}
+}
+
+fragment NotificationInboxPatchFields on WorkFeedPatch {
+	__typename
+	... on WorkFeedEntryUpserted {
+		entry {
+			...NotificationInboxEntryFields
+		}
+	}
+	... on WorkFeedEntryRemoved {
+		itemId
+	}
+	... on WorkFeedInvalidated {
+		refresh
+	}
+}
+
+query NotificationInbox($input: WorkFeedInput) {
+	user {
+		id
+		workFeed(input: $input) {
+			entries {
+				...NotificationInboxEntryFields
+			}
+			nextCursor
+		}
+	}
+}
+
+mutation UndoNotificationInboxDone($input: UndoWorkFeedItemsDoneInput!) {
+	undoWorkFeedItemsDone(input: $input) {
+		patches {
+			...NotificationInboxPatchFields
+		}
+	}
+}
+
+# Membership and row changes for one inbox scope, applied as batches.
+subscription NotificationInboxUpdates($scope: WorkFeedScopeInput) {
+	workFeedUpdates(scope: $scope) {
+		...NotificationInboxPatchFields
+	}
+}

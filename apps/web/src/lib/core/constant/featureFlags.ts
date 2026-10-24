@@ -756,6 +756,17 @@ export const enableActivityFeed = defineFlag({
   default: onInDev,
 });
 
+// The unified Notifications view: one stacked list of everything that needs
+// the viewer, read from the server work feed's attention rows. Gates the
+// view and its route (redirects to Home when off), the rail bell, and its
+// go-to hotkey. PostHog-gated with a dev-mode default; override with
+// VITE_ENABLE_UNIFIED_NOTIFICATIONS.
+export const enableUnifiedNotifications = defineFlag({
+  key: 'enable-unified-notifications',
+  env: 'ENABLE_UNIFIED_NOTIFICATIONS',
+  default: onInDev,
+});
+
 // AI agents: the folded agent-session view in channels, and which bot the
 // single `@macro` mention targets — the agent session when on, the classic
 // in-channel reply when off.

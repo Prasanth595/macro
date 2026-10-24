@@ -54,6 +54,8 @@ const policies = {
     'authoritative: exact affected notification IDs required for undo',
   UndoWorkFeedItemsDone:
     'authoritative: the server returns the restored feed entries',
+  UndoNotificationInboxDone:
+    'authoritative: the server returns the restored inbox entries',
   MoveEntities:
     'authoritative: destination authorization and membership refresh',
   UpdateEntitySharePolicies:
