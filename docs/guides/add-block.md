@@ -292,7 +292,9 @@ was moved onto `crates/docx_engine` the next day; start with a crate.
 - `queries/create-<name>.ts` (`block-psd/queries/create-psd.ts`): create the
   document (`storageServiceClient.createDocument`, then `uploadToPresignedUrl`)
   or the entity through its API, then `postNewHistoryItem`, `setPreviewOnCreate`,
-  `refetchSoupEntity`, and `analytics.track('create_entity', ...)`.
+  `refetchSoupEntity`, and `analytics.track('create_entity', ...)`. If the
+  upload fails, call `storageServiceClient.deleteDocument` before returning, or
+  the document is left with no content and fails to open.
 - `apps/web/src/features/command/Launcher.tsx`:
   - a case in `runCreateAction`, behind the flag;
   - an entry in `CREATABLE_BLOCKS` with an unused one-letter `hotkey`;
