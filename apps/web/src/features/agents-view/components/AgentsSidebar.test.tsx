@@ -158,6 +158,8 @@ describe('mixed Agents sidebar', () => {
         hasNextPage={false}
         loadingNextPage={false}
         onSearchChange={vi.fn()}
+        showUnlistedRuns={false}
+        onShowUnlistedRunsChange={vi.fn()}
         onOpenConversation={open}
         onRetry={vi.fn()}
         onLoadMore={vi.fn()}
@@ -197,9 +199,8 @@ describe('mixed Agents sidebar', () => {
     expect(screen.queryByRole('button', { name: /Plan launch/ })).toBeNull();
     expect(screen.queryByText('Archived')).toBeNull();
 
-    expect(
-      screen.queryByRole('button', { name: 'New conversation' })
-    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
+    expect(openPage).toHaveBeenCalledWith('new');
   });
 
   it('keeps paging while filters leave too few conversations to scroll', () => {
@@ -226,6 +227,8 @@ describe('mixed Agents sidebar', () => {
         hasNextPage
         loadingNextPage={false}
         onSearchChange={vi.fn()}
+        showUnlistedRuns={false}
+        onShowUnlistedRunsChange={vi.fn()}
         onOpenConversation={vi.fn()}
         onRetry={vi.fn()}
         onLoadMore={loadMore}
@@ -237,6 +240,76 @@ describe('mixed Agents sidebar', () => {
     ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
     expect(clear).toHaveBeenCalledOnce();
+  });
+
+  it('toggles hidden routine runs and marks the runs it lists', () => {
+    const [show, setShow] = createSignal(false);
+    const change = vi.fn(setShow);
+    render(() => (
+      <AgentsSidebar
+        filters={EMPTY_CONVERSATION_FILTERS}
+        grouping="none"
+        onFilterChange={vi.fn()}
+        onClearFilters={vi.fn()}
+        onGroupingChange={vi.fn()}
+        activePage="new"
+        onOpenPage={vi.fn()}
+        conversations={[
+          {
+            type: 'agent_session',
+            id: 'run',
+            name: 'Morning digest',
+            ownerId: 'me',
+            isArchived: false,
+            botId: 'macro',
+            status: 'acp_ready',
+            source: 'routine',
+          },
+          {
+            type: 'agent_session',
+            id: 'mine',
+            name: 'Plan launch',
+            ownerId: 'me',
+            isArchived: false,
+            botId: 'macro',
+            status: 'acp_ready',
+          },
+        ]}
+        archived={[]}
+        modeForConversation={() => 'chat'}
+        activeConversationId={undefined}
+        search=""
+        loading={false}
+        error={false}
+        hasNextPage={false}
+        loadingNextPage={false}
+        onSearchChange={vi.fn()}
+        showUnlistedRuns={show()}
+        onShowUnlistedRunsChange={change}
+        onOpenConversation={vi.fn()}
+        onRetry={vi.fn()}
+        onLoadMore={vi.fn()}
+      />
+    ));
+
+    const toggle = screen.getByRole('button', {
+      name: 'Show hidden routine runs',
+    });
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(toggle);
+    expect(change).toHaveBeenLastCalledWith(true);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(toggle);
+    expect(change).toHaveBeenLastCalledWith(false);
+
+    const run = screen
+      .getByRole('button', { name: 'Morning digest' })
+      .closest('[data-agent-session-row]');
+    expect(run?.querySelector('[aria-label="Routine run"]')).toBeTruthy();
+    const mine = screen
+      .getByRole('button', { name: 'Plan launch' })
+      .closest('[data-agent-session-row]');
+    expect(mine?.querySelector('[aria-label="Routine run"]')).toBeNull();
   });
 
   it('opens rename and delete on a session or chat right-click', async () => {
@@ -278,6 +351,8 @@ describe('mixed Agents sidebar', () => {
         hasNextPage={false}
         loadingNextPage={false}
         onSearchChange={vi.fn()}
+        showUnlistedRuns={false}
+        onShowUnlistedRunsChange={vi.fn()}
         onOpenConversation={vi.fn()}
         onRetry={vi.fn()}
         onLoadMore={vi.fn()}
@@ -363,6 +438,8 @@ describe.each(['home', 'sidebar'] as const)('%s agent rows', (surface) => {
           hasNextPage={false}
           loadingNextPage={false}
           onSearchChange={vi.fn()}
+          showUnlistedRuns={false}
+          onShowUnlistedRunsChange={vi.fn()}
           onOpenConversation={open}
           onRetry={vi.fn()}
           onLoadMore={vi.fn()}

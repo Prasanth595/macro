@@ -45,17 +45,25 @@ import {
   manageBotChannelAccessHandler,
 } from './Bots';
 import {
+  addSharedCalendarEventHandler,
   createCalendarEventHandler,
   createConfirmedCalendarEventHandler,
   deleteCalendarEventHandler,
   listCalendarEventsHandler,
   listCalendarsHandler,
+  readCalendarEventHandler,
   updateCalendarEventHandler,
 } from './CalendarTools';
 import {
   deleteCallRecordHandler,
   updateCallRecordHandler,
 } from './CallRecordMutations';
+import {
+  applyCanvasEditsHandler,
+  editCanvasHandler,
+  readCanvasHandler,
+  renderCanvasHandler,
+} from './Canvas';
 import {
   deleteChannelMessageHandler,
   editChannelMessageHandler,
@@ -74,6 +82,14 @@ import {
   listCodingAgentsHandler,
 } from './CodingAgents';
 import { decideHandler, generateObjectHandler } from './Cognition';
+import {
+  commentHandler,
+  commentOnTextHandler,
+  deleteCommentHandler,
+  editCommentHandler,
+  readDiscussionHandler,
+  resolveCommentHandler,
+} from './Comments';
 import { createDocumentHandler } from './CreateDocument';
 import { createProjectHandler } from './CreateProject';
 import { createSkillHandler } from './CreateSkill';
@@ -91,12 +107,6 @@ import {
 } from './DesignDocument';
 import { discoverConnectorsHandler } from './DiscoverConnectors';
 import { displayResultsHandler } from './DisplayResults';
-import {
-  commentOnDocumentHandler,
-  deleteDocumentCommentHandler,
-  editDocumentCommentHandler,
-  resolveDocumentCommentHandler,
-} from './DocumentComments';
 import { editDocumentHandler } from './EditDocument';
 import { editTagHandler } from './EditTag';
 import {
@@ -111,6 +121,7 @@ import { getThreadHandler } from './GetThread';
 import {
   createImportEntityHandler,
   deleteImportEntityHandler,
+  importFromNotionHandler,
   importNotionPageHandler,
   listImportEntitiesHandler,
 } from './ImportTools';
@@ -180,6 +191,7 @@ import { getTeamAvailabilityHandler } from './TeamAvailability';
 import { textEditorCodeExecutionHandler } from './TextEditorCodeExecution';
 import {
   type RenderContext,
+  type ToolEnding,
   ToolErrorContext,
   type ToolHandler,
   type ToolHandlerMap,
@@ -238,11 +250,14 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   CreateConfirmedCalendarEvent: createConfirmedCalendarEventHandler,
   UpdateCalendarEvent: updateCalendarEventHandler,
   DeleteCalendarEvent: deleteCalendarEventHandler,
+  AddSharedCalendarEvent: addSharedCalendarEventHandler,
   ListCalendarEvents: listCalendarEventsHandler,
   ListCalendars: listCalendarsHandler,
+  ReadCalendarEvent: readCalendarEventHandler,
   GetTeamAvailability: getTeamAvailabilityHandler,
   CreateImportEntity: createImportEntityHandler,
   DeleteImportEntity: deleteImportEntityHandler,
+  ImportFromNotion: importFromNotionHandler,
   ImportNotionPage: importNotionPageHandler,
   GetCompany: getCompanyHandler,
   CreateCompany: createCompanyHandler,
@@ -289,6 +304,10 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   CreateTag: createTagHandler,
   DeleteTag: deleteTagHandler,
   EditDocument: editDocumentHandler,
+  ReadCanvas: readCanvasHandler,
+  RenderCanvas: renderCanvasHandler,
+  EditCanvas: editCanvasHandler,
+  ApplyCanvasEdits: applyCanvasEditsHandler,
   EditTag: editTagHandler,
   GetThread: getThreadHandler,
   NameSearch: nameSearchHandler,
@@ -312,10 +331,12 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   ReadSkill: readSkillHandler,
   RenameChannel: renameChannelHandler,
   RenameDocument: renameDocumentHandler,
-  CommentOnDocument: commentOnDocumentHandler,
-  ResolveDocumentComment: resolveDocumentCommentHandler,
-  EditDocumentComment: editDocumentCommentHandler,
-  DeleteDocumentComment: deleteDocumentCommentHandler,
+  ReadDiscussion: readDiscussionHandler,
+  Comment: commentHandler,
+  CommentOnText: commentOnTextHandler,
+  ResolveComment: resolveCommentHandler,
+  EditComment: editCommentHandler,
+  DeleteComment: deleteCommentHandler,
   SearchSkills: searchSkillsHandler,
   SearchTools: searchToolsHandler,
   SelfKnowledge: selfKnowledgeHandler,
@@ -342,6 +363,10 @@ type ToolProps = {
     json: unknown;
     name: string;
   };
+  /** The tool's reason for a call that failed. */
+  error?: string;
+  /** The turn ended before the call returned. */
+  stopped?: boolean;
   part_index: number;
   chat_id: string;
   message_id: string;
@@ -433,7 +458,14 @@ export function RenderTool(props: ToolProps) {
       }
     >
       <ToolErrorContext.Provider
-        value={() => (props.isComplete && !response() ? 'failed' : undefined)}
+        value={(): ToolEnding | undefined => {
+          if (props.error !== undefined) {
+            return { kind: 'failed', reason: props.error };
+          }
+          if (props.stopped) return { kind: 'stopped' };
+          if (props.isComplete && !response()) return { kind: 'failed' };
+          return undefined;
+        }}
       >
         <Show
           when={isToolShown(tool.name, databasesEnabled().enabled)}
@@ -446,6 +478,9 @@ export function RenderTool(props: ToolProps) {
             renderContext={{
               isStreaming: props.renderContext.renderContext.isStreaming,
               grouped: props.renderContext.renderContext.grouped,
+              running:
+                !props.isComplete &&
+                props.renderContext.renderContext.isStreaming,
               followedBy: props.renderContext.renderContext.followedBy,
             }}
           />

@@ -12,8 +12,10 @@ import {
   speedForModel,
 } from '@core/component/AI/constant/speed';
 import { fastModeEnabled } from '@core/component/AI/signal/speed';
+import { ComposerGreeting } from '@core/component/ComposerGreeting';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { useUserId } from '@core/context/user';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { uploadFile } from '@core/util/upload';
 import ChatIcon from '@phosphor/chat-circle.svg';
@@ -222,7 +224,11 @@ export function NewChatPage(props: {
   };
 
   const connect = (agent: RosterAgent) => {
-    if (agent.harness === 'cursor') openSettings('Harness');
+    // Both land on Settings → Runtimes: Cursor to save an API key, macrod to
+    // restart the local runtime (one click on desktop) or re-pair it.
+    if (agent.harness === 'cursor' || agent.harness === 'macrod') {
+      openSettings('Harness');
+    }
   };
 
   const attachmentTracker = createMemo(() => {
@@ -360,23 +366,17 @@ export function NewChatPage(props: {
     <div ref={tourTarget(AGENTS_TOUR.modeSwitch)} class="shrink-0">
       <Tabs
         aria-label="Conversation mode"
-        list={(['chat', 'code'] as const).map((mode) => ({
-          value: mode,
-          label: () => (
-            <span class="flex items-center gap-1.5">
-              {mode === 'code' ? (
-                <CodeIcon class="size-3.5" />
-              ) : (
-                <ChatIcon class="size-3.5" />
-              )}
-              {/* Phones keep the icons; the name stays for assistive tech. */}
-              <span class="touch:sr-only">{agentsModeLabel(mode)}</span>
-            </span>
-          ),
-        }))}
+        options={[
+          { value: 'chat', label: agentsModeLabel('chat'), icon: ChatIcon },
+          { value: 'code', label: agentsModeLabel('code'), icon: CodeIcon },
+        ]}
+        variant="track"
+        fullWidth
+        // Phones keep the icons; the name stays for assistive tech.
+        iconOnly={isTouchDevice()}
         value={mode()}
-        onChange={(value) => setMode(value === 'code' ? 'code' : 'chat')}
-        labelClass="px-3 touch:px-2.5"
+        onChange={setMode}
+        class="w-56 touch:w-24"
       />
     </div>
   );
@@ -470,9 +470,17 @@ export function NewChatPage(props: {
       <section class="page newchat" data-active aria-label="New conversation">
         <div ref={tourTarget(AGENTS_TOUR.composer)} class="col">
           <div class="greeting">
-            <h2>
-              {coding() ? 'What should we build?' : 'What should we work on?'}
-            </h2>
+            <ComposerGreeting wireframe={coding()}>
+              <Show when={mode()} keyed>
+                {(currentMode) => (
+                  <span class="greeting-text">
+                    {currentMode === 'code'
+                      ? 'What should we build?'
+                      : 'What should we work on?'}
+                  </span>
+                )}
+              </Show>
+            </ComposerGreeting>
           </div>
           <FloatRegionOrInline
             region="accessory"

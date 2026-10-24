@@ -7,12 +7,13 @@ import {
   initializeGoogleAnalytics,
   initializeMetaPixel,
 } from '@app/lib/analytics/providers';
+import { frontendInstanceId } from '@app/observability/frontend-instance';
 import { DEV_MODE_ENV, PROD_MODE_ENV } from '@core/constant/featureFlags';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { getPlatform, isTauri } from '@core/util/platform';
 import {
-  redactCallLinkProperties,
-  redactCallLinkTokens,
+  redactLinkTokenProperties,
+  redactLinkTokens,
 } from '@core/util/telemetryUrl';
 import { getWebOrigin } from '@core/util/webOrigin';
 import type { Team } from '@service-auth/generated/schemas/team';
@@ -124,7 +125,7 @@ const POSTHOG_RECORDER_PROXY_SCRIPT_NAME = 'runtime.js';
 
 function isPrivateCallPage() {
   const path = window.location.pathname + window.location.hash;
-  return redactCallLinkTokens(path) !== path;
+  return redactLinkTokens(path) !== path;
 }
 
 const initializePosthog = (instance: PostHog) => {
@@ -149,10 +150,11 @@ const initializePosthog = (instance: PostHog) => {
       // Call URLs are bearer capabilities and meeting content must not replay.
       if (isPrivateCallPage()) return null;
       if (cr) {
-        cr.properties = redactCallLinkProperties(cr.properties);
-        if (cr.$set) cr.$set = redactCallLinkProperties(cr.$set);
+        cr.properties = redactLinkTokenProperties(cr.properties);
+        cr.properties.frontend_instance_id = frontendInstanceId;
+        if (cr.$set) cr.$set = redactLinkTokenProperties(cr.$set);
         if (cr.$set_once) {
-          cr.$set_once = redactCallLinkProperties(cr.$set_once);
+          cr.$set_once = redactLinkTokenProperties(cr.$set_once);
         }
         cr.properties.env = DEV_MODE_ENV
           ? 'DEV'
@@ -405,10 +407,8 @@ const createAnalytics = () => {
     if (disabled) return;
 
     if (isPrivateCallPage()) return;
-    const pagePath = redactCallLinkTokens(
-      opts?.path ?? window.location.pathname
-    );
-    const pageLocation = redactCallLinkTokens(
+    const pagePath = redactLinkTokens(opts?.path ?? window.location.pathname);
+    const pageLocation = redactLinkTokens(
       opts?.location ?? window.location.href
     );
     const deviceType = getDeviceType();

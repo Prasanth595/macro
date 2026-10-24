@@ -27,6 +27,14 @@ comment to check the location inside the entity, not just the entity itself.
 This requires a full native macOS release; frontend-only updates cannot add the
 response delegate or repair destinations in previously delivered alerts.
 
+In a signed macOS release, an alert from a person shows their avatar in place of
+the app icon, their name as the title, and the channel or document name beneath
+for group conversations; direct messages show only the sender. Alerts from one
+conversation stack together in Notification Center and play the default sound.
+Verify a channel message, a direct message, a document comment, and a reminder
+(no sender: app icon and the combined title). Local and ad-hoc builds lack the
+communication entitlement and show the app icon with the sender and subtitle.
+
 On Linux desktop builds with native notification activation, clicking a system
 notification (or its **Open** action) restores/presents Macro and opens that
 notification's target using the normal in-app navigation. Dismissing or expiring
@@ -38,6 +46,15 @@ binary reports **Update Macro to receive desktop notifications.** Activation is
 supported while the app process is running, not after quitting it. The isolated
 Linux WebKit/D-Bus regression is `bun run native:e2e:notifications`; compositor
 focus behavior still needs a real Wayland/X11 desktop check.
+
+On iOS builds with durable push navigation, a tapped channel push chooses the
+first route after verifying its recipient account. A failed or stalled native
+bridge must release startup within 1.5 seconds; the app can show its auth or
+retry UI while retaining the tap. If the bridge recovers later, the tap uses
+normal navigation without resetting the current page to the app root. Check
+both listener attachment and pending-intent reads, including a tap delivered
+before the pending read stalls. Receiving a push without tapping it must not
+navigate.
 
 On native Android, enable notifications in Settings while signed in. Android 13+
 also asks for system permission; the system's **Activity** notification channel

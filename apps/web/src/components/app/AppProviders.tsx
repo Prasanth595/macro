@@ -12,7 +12,7 @@ import { useReactiveFavicon } from '@components/app/useReactiveFavicon';
 import { useGlobalAttachableHistory } from '@core/component/AI/signal/globalAttachments';
 import { toast } from '@core/component/Toast/Toast';
 import { TeamContextProvider } from '@core/context/team';
-import { useIsAuthenticated, useUserId } from '@core/context/user';
+import { useIsAuthenticated, useUserId, useUserInfo } from '@core/context/user';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { createBlockOrchestrator } from '@core/orchestrator';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -24,6 +24,7 @@ import {
 } from '@notifications';
 import { maybeHandlePlatformNotification } from '@notifications/notification-platform';
 import { useChatRenameWebsocketSync } from '@queries/chat';
+import { useWarmPromptDismissals } from '@queries/prompt-dismissals';
 import { useQuerySync } from '@queries/sync/use-query-sync';
 import { MutationUndoProvider } from '@queries/undo';
 import {
@@ -79,7 +80,11 @@ function ConfiguredGlobalAppStateProvider(props: ParentProps) {
   useReactiveFavicon(notificationSource);
 
   const blockOrchestrator = createBlockOrchestrator();
-  usePendingNotificationNavigationEffect(notificationSource);
+  const userInfo = useUserInfo();
+  usePendingNotificationNavigationEffect(
+    notificationSource,
+    () => userInfo()?.userId
+  );
 
   return (
     <GlobalAppStateProvider
@@ -100,6 +105,7 @@ export function AppProviders(props: ParentProps) {
   useQuerySync(userId);
   useSoupBackfills(userId);
   useCalendarCache(() => userId() !== undefined);
+  useWarmPromptDismissals(userId);
   useGlobalAttachableHistory();
 
   return (

@@ -1,4 +1,5 @@
 import { ViewBreadcrumbs } from '@app/components/view-shell';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { SidePanel } from '@components/app/side-panel';
 import { EntityIcon } from '@core/component/EntityIcon';
 import {
@@ -6,8 +7,10 @@ import {
   ParamsProvider,
 } from '@core/component/ParamsProvider';
 import { COMMENT_LINK_PARAM } from '@core/messages/comment-link';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import SpinnerIcon from '@phosphor/spinner.svg';
+import { createElementSize } from '@solid-primitives/resize-observer';
 import { Button, Tooltip } from '@ui';
 import {
   createEffect,
@@ -16,12 +19,14 @@ import {
   For,
   type JSX,
   on,
+  onCleanup,
   onMount,
   Show,
   Suspense,
   untrack,
 } from 'solid-js';
 import { RecordTabs } from '../components/record-tabs';
+import { useCrmContext } from '../context/crm-context';
 import type { CrmCommentTarget } from '../context/workspace-context';
 import {
   COMPANY_SECTIONS,
@@ -81,6 +86,8 @@ export function CrmRecordDetail(props: {
   const current = createMemo(() => trail()[trail().length - 1]!, undefined, {
     equals: (left, right) => recordKey(left) === recordKey(right),
   });
+  // Keep the selected identity available even if the detail body shows an error.
+  onCleanup(useCrmContext().registerTaskComposerRecord(current));
   const companySection = (): CompanySection =>
     sectionOf(COMPANY_SECTIONS, props.section);
   const contactSection = (): ContactSection =>
@@ -99,6 +106,8 @@ export function CrmRecordDetail(props: {
   const back = () =>
     trail().length > 1 ? returnTo(trail().length - 2) : props.onClose();
   let container: HTMLDivElement | undefined;
+  const size = createElementSize(() => container);
+  const compactTabs = () => !isTouchDevice() && (size.width ?? 0) < 900;
   onMount(() => container?.focus());
 
   return (
@@ -168,7 +177,7 @@ export function CrmRecordDetail(props: {
           tabindex={-1}
           class="flex size-full min-h-0 min-w-0 flex-col overflow-hidden outline-none"
         >
-          <div class="flex h-12 min-w-0 shrink-0 items-center gap-3 border-b border-edge-muted px-4 touch:h-auto touch:min-h-12 touch:pt-[calc(var(--mobile-content-inset-top,var(--safe-top,0px))+0.5rem)] touch:pb-2">
+          <div class="flex h-12 min-w-0 shrink-0 items-center gap-2 px-3 touch:gap-3 touch:border-b touch:border-edge-muted touch:px-4 touch:h-auto touch:min-h-12 touch:pt-[calc(var(--mobile-content-inset-top,var(--safe-top,0px))+0.5rem)] touch:pb-2">
             {props.navigation}
             <ViewBreadcrumbs.Outlet
               aria-label="CRM record location"
@@ -180,6 +189,7 @@ export function CrmRecordDetail(props: {
                 fallback={
                   <RecordTabs
                     sections={COMPANY_SECTIONS}
+                    compact={compactTabs()}
                     value={companySection()}
                     onChange={props.onSectionChange}
                   />
@@ -187,13 +197,16 @@ export function CrmRecordDetail(props: {
               >
                 <RecordTabs
                   sections={CONTACT_SECTIONS}
+                  compact={compactTabs()}
                   value={contactSection()}
                   onChange={props.onSectionChange}
                 />
               </Show>
             </div>
-            <div class="ml-auto flex shrink-0 items-center gap-1">
-              <CrmCopyLinkButton type={current().type} id={current().id} />
+            <div class="ml-auto flex shrink-0 items-center gap-2 touch:gap-1">
+              <HeaderActionGroup label="Sharing">
+                <CrmCopyLinkButton type={current().type} id={current().id} />
+              </HeaderActionGroup>
               <SidePanel.Toggle />
             </div>
           </div>
