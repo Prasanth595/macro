@@ -201,6 +201,10 @@ function updateSoupFavorite(entityId: string, favorite: boolean) {
 
 type FavoriteMutationContext = { rollback: () => void } | undefined;
 
+// A paused REST toggle lives only in memory and replays in parallel on
+// reconnect, so an offline toggle must fail and roll back instead of waiting.
+const TOGGLE_NETWORK_MODE = 'always';
+
 type AddFavoriteArgs = AddFavoriteRequest;
 type AddFavoriteCallbacks = FavoriteMutationCallbacks<
   FavoriteWriteResult,
@@ -223,6 +227,7 @@ export function useAddFavoriteMutation(callbacks?: AddFavoriteCallbacks) {
   }
 
   return useMutation(() => ({
+    networkMode: TOGGLE_NETWORK_MODE,
     mutationFn: async (args: AddFavoriteArgs): Promise<FavoriteWriteResult> => {
       await throwOnErr(() => storageServiceClient.favorites.addFavorite(args));
       return { kind: 'committed' };
@@ -282,6 +287,7 @@ export function useRemoveFavoriteMutation(callbacks?: RemoveFavoriteCallbacks) {
   }
 
   return useMutation(() => ({
+    networkMode: TOGGLE_NETWORK_MODE,
     mutationFn: async (
       args: RemoveFavoriteArgs
     ): Promise<FavoriteWriteResult> => {
