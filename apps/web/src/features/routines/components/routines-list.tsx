@@ -16,7 +16,7 @@ export function RoutinesList(props: {
   loading: boolean;
   error: boolean;
   pendingId?: string;
-  /** False where the host already titles the page, as the settings sheet does. */
+  /** False where the host already titles the page, as Settings does. */
   showTitle?: boolean;
   registerSearchFocus?: (focus: () => void) => void;
   onCreate: () => void;

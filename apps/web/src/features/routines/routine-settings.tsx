@@ -1,10 +1,9 @@
 import { openAgentsPage } from '@app/features/agents-view/primitives/open-page';
 import { useMobileSettings } from '@app/features/settings/context/mobile-settings';
-import { SettingsSheetContext } from '@app/features/settings/primitives';
+import { SettingsPage } from '@app/features/settings/primitives';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
-import { useContext } from 'solid-js';
 import { getErrorMessage } from './core/routine-draft';
 import { createRoutineListSource } from './queries/routine-sources';
 import { createRoutineTargetDisplay } from './queries/routine-target-display';
@@ -14,7 +13,6 @@ import { RoutinesListView } from './views/routines-list';
 export function RoutineSettings() {
   const layout = useSplitLayout();
   const settings = useMobileSettings();
-  const inSheet = useContext(SettingsSheetContext);
   const userId = useUserId();
   const display = createRoutineTargetDisplay();
   const source = createRoutineListSource((error) =>
@@ -33,14 +31,16 @@ export function RoutineSettings() {
     });
   };
   return (
-    <RoutinesListView
-      source={source}
-      userId={userId}
-      targetLabel={display.targetLabel}
-      targetModel={display.targetModel}
-      showTitle={!inSheet}
-      onCreate={create}
-      onOpen={open}
-    />
+    <SettingsPage title="Routines" bodyClass="[--mobile-content-inset-top:0px]">
+      <RoutinesListView
+        source={source}
+        userId={userId}
+        targetLabel={display.targetLabel}
+        targetModel={display.targetModel}
+        showTitle={false}
+        onCreate={create}
+        onOpen={open}
+      />
+    </SettingsPage>
   );
 }

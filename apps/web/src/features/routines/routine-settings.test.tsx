@@ -83,7 +83,9 @@ describe('routine settings', () => {
 
   it('opens the composer and the created routine from Create', () => {
     render(() => <RoutineSettings />);
-    expect(screen.getByRole('heading', { name: 'Routines' })).toBeTruthy();
+    expect(screen.getAllByRole('heading', { name: 'Routines' })).toHaveLength(
+      1
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Create Routine' }));
     expect(mocks.close).toHaveBeenCalledOnce();
     const content = mocks.popoverSplit.mock.calls[0][0];
