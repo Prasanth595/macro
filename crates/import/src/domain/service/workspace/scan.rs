@@ -50,6 +50,6 @@ async fn write<R: NotionPlanRepo>(
     source: ImportSource,
 ) {
     if let Err(error) = repo.record_scan(user, source, scanned).await {
-        tracing::warn!(error = ?error, "could not record the notion scan progress");
+        tracing::warn!(error = ?error, "could not record the workspace scan progress");
     }
 }

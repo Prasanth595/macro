@@ -82,7 +82,7 @@ impl JobControl {
 
     fn stop(&self, reason: Stop) {
         if self.reason.set(reason).is_ok() {
-            tracing::info!(reason = reason.as_ref(), "notion import job stopping");
+            tracing::info!(reason = reason.as_ref(), "workspace import job stopping");
             self.cancel.stop();
             self.stopped.cancel();
         }
@@ -176,14 +176,14 @@ where
                                     let reason = if service.cancelled(&user).await {
                                         Stop::Cancelled
                                     } else {
-                                        tracing::warn!("notion import lease was taken over");
+                                        tracing::warn!("workspace import lease was taken over");
                                         Stop::LeaseLost
                                     };
                                     watched.stop(reason);
                                     return;
                                 }
                                 Err(error) => {
-                                    tracing::warn!(error = ?error, "notion import lease was not renewed");
+                                    tracing::warn!(error = ?error, "workspace import lease was not renewed");
                                 }
                             }
                         }
@@ -198,8 +198,8 @@ where
     /// Give the run up so another process adopts it straight away.
     pub(in crate::domain::service) async fn release_run(&self, user: &MacroUserIdStr<'static>) {
         match self.repo.release_lease(user, self.jobs.instance).await {
-            Ok(released) => tracing::info!(released, "notion import handed over"),
-            Err(error) => tracing::warn!(error = ?error, "notion import lease was not released"),
+            Ok(released) => tracing::info!(released, "workspace import handed over"),
+            Err(error) => tracing::warn!(error = ?error, "workspace import lease was not released"),
         }
     }
 
@@ -218,7 +218,7 @@ where
         {
             Ok(adopted) => adopted,
             Err(error) => {
-                tracing::warn!(error = ?error, "could not adopt stalled notion imports");
+                tracing::warn!(error = ?error, source = self.workspace_source.as_ref(), "could not adopt stalled workspace imports");
                 return 0;
             }
         };
@@ -237,7 +237,7 @@ where
             tokio::select! {
                 () = shutdown.cancelled() => return,
                 _ = sweep.tick() => {
-                    let span = tracing::info_span!("notion_import.sweep", adopted = tracing::field::Empty);
+                    let span = tracing::info_span!("workspace_import.sweep", adopted = tracing::field::Empty);
                     let mut adopted = self.adopt_stalled(None).instrument(span.clone()).await;
                     for source in [ImportSource::Linear, ImportSource::Jira] {
                         if self.trackers.contains_key(&source) {
@@ -260,7 +260,8 @@ where
             None => "none",
         };
         let span = tracing::info_span!(
-            "notion_import.adopt",
+            "workspace_import.adopt",
+            source = self.workspace_source.as_ref(),
             user = %run.user,
             status = run.status.as_ref(),
             adoptions = run.adoptions,
@@ -297,7 +298,7 @@ where
                             );
                         }
                         Err(error) => {
-                            tracing::warn!(error = ?error, "could not read the notion write to resume");
+                            tracing::warn!(error = ?error, "could not read the workspace write to resume");
                             self.give_up(&user, run.status).await;
                         }
                     }
@@ -312,7 +313,7 @@ where
     /// Fail a run that cannot be resumed and send its rows back to staged.
     /// A write given up on ends like any other, so its session hears of it.
     async fn give_up(&self, user: &MacroUserIdStr<'static>, status: RunStatus) {
-        tracing::warn!("giving up on a stalled notion import");
+        tracing::warn!("giving up on a stalled workspace import");
         let failed = match status {
             RunStatus::Importing => {
                 self.end_write(user, RunStatus::Failed, Some(IMPORT_STOPPED))
@@ -331,7 +332,7 @@ where
             }
         };
         if let Err(error) = failed {
-            tracing::warn!(error = ?error, "could not fail the stalled notion import");
+            tracing::warn!(error = ?error, "could not fail the stalled workspace import");
         }
         let _ = self.repo.settle_importing(user, IMPORT_STOPPED).await;
         self.notify(user).await;
