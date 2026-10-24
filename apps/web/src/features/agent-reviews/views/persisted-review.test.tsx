@@ -17,6 +17,9 @@ vi.mock('../queries/reviews', () => ({
   }),
   useReviewActions: () => ({ reload: vi.fn(), decide: reviews.decide }),
 }));
+vi.mock('@core/context/user', () => ({
+  useUserId: () => () => 'macro|owner@macro.local',
+}));
 function Card(props: { review: Review; actions: ReviewActions }) {
   return (
     <>
@@ -84,6 +87,7 @@ describe('PersistedReview', () => {
         sessionId="session"
         reviewId="review"
         canAct
+        ownerId="macro|owner@macro.local"
         onDecision={onDecision}
       />
     ));
@@ -105,6 +109,7 @@ describe('PersistedReview', () => {
         sessionId="session"
         reviewId="review"
         canAct
+        ownerId="macro|owner@macro.local"
         onDecision={onDecision}
       />
     ));
