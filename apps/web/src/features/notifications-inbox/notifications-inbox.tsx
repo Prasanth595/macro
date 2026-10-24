@@ -1,6 +1,9 @@
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
+import { useSettingsState } from '@core/constant/SettingsState';
+import { useUserId } from '@core/context/user';
 import { getDisplayNameParts, tryMacroId } from '@core/user';
+import { createUserScopedStorage } from '@core/util/userScopedStorage';
 import {
   getGithubSenderLogin,
   isGithubNotificationType,
@@ -21,6 +24,7 @@ import {
   getGraphqlSoupClient,
   subscribeGraphqlSoupReconnected,
 } from '@service-storage/graphql-soup';
+import { Show } from 'solid-js';
 import {
   type NotificationsInboxContext,
   NotificationsInboxProvider,
@@ -28,6 +32,8 @@ import {
 import { openNotificationInSplit } from './open-notification-in-split';
 import { createWorkFeedInboxSource } from './queries/work-feed-inbox-source';
 import { NotificationsView } from './views/notifications-view';
+
+const filterStorage = createUserScopedStorage('macro:notifications:filters:v1');
 
 /** Who caused a notification, by the name a row should show. */
 function actorName(notification: UnifiedNotification): string | undefined {
@@ -52,7 +58,8 @@ function actorName(notification: UnifiedNotification): string | undefined {
 }
 
 function createAppNotificationsInboxContext(
-  notificationSource: NotificationSource
+  notificationSource: NotificationSource,
+  userId: string
 ): NotificationsInboxContext {
   return {
     createFeed: (scope) =>
@@ -70,6 +77,10 @@ function createAppNotificationsInboxContext(
       notificationSource.withLocalState?.(notification) ?? notification.state,
     markNotificationsSeen: (notifications) =>
       notificationSource.bulkMarkAsRead([...notifications]),
+    filterStorage: {
+      read: () => filterStorage.read(userId),
+      write: (value) => filterStorage.write(userId, value),
+    },
   };
 }
 
@@ -77,18 +88,25 @@ function createAppNotificationsInboxContext(
 export function NotificationsInbox() {
   const panel = useSplitPanelOrThrow();
   const notificationSource = useGlobalNotificationSource();
+  const userId = useUserId();
+  const { openSettings } = useSettingsState();
   return (
-    <NotificationsInboxProvider
-      value={createAppNotificationsInboxContext(notificationSource)}
-    >
-      <NotificationsView
-        onOpen={(row, { newSplit }) =>
-          openNotificationInSplit(row, {
-            newSplit,
-            splitHandle: panel.handle,
-          })
-        }
-      />
-    </NotificationsInboxProvider>
+    <Show when={userId()} keyed>
+      {(id) => (
+        <NotificationsInboxProvider
+          value={createAppNotificationsInboxContext(notificationSource, id)}
+        >
+          <NotificationsView
+            onOpenSettings={() => openSettings('Notifications')}
+            onOpen={(row, { newSplit }) =>
+              openNotificationInSplit(row, {
+                newSplit,
+                splitHandle: panel.handle,
+              })
+            }
+          />
+        </NotificationsInboxProvider>
+      )}
+    </Show>
   );
 }

@@ -14,7 +14,7 @@ export type InboxRowContent = {
 
 export type NotificationInboxRow = InboxRow<InboxRowContent>;
 
-/** Which rows a feed shows; no row types means every type. */
+/** Which rows a feed shows; with no row types it shows and reads nothing. */
 export type InboxScope = {
   rowTypes: readonly InboxRowType[];
 };
@@ -64,6 +64,11 @@ export type NotificationsInboxContext = {
   markNotificationsSeen: (
     notifications: readonly UnifiedNotification[]
   ) => Promise<void>;
+  /** Where the reader's filters are kept between visits. */
+  filterStorage: {
+    read: () => string | null;
+    write: (value: string) => void;
+  };
 };
 
 const Context = createContext<NotificationsInboxContext>();

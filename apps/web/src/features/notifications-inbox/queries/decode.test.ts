@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { ALL_INBOX_ROW_TYPES } from '../core/inbox-filters';
 import { inboxEntry } from '../tests/wire';
 import { encodeInboxScope, toInboxEntry } from './decode';
 
@@ -73,6 +74,14 @@ describe('toInboxEntry', () => {
 });
 
 describe('encodeInboxScope', () => {
+  it('reads every row, new types included, when every type is chosen', () => {
+    expect(encodeInboxScope({ rowTypes: ALL_INBOX_ROW_TYPES })).toEqual({
+      mode: 'ATTENTION',
+      includeSnippets: true,
+      rowTypes: [],
+    });
+  });
+
   it('reads the attention feed, narrowed to the chosen rows', () => {
     expect(encodeInboxScope({ rowTypes: ['email', 'channel_thread'] })).toEqual(
       {

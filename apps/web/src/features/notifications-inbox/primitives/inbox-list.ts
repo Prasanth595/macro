@@ -7,7 +7,8 @@ import type {
 export type InboxListView =
   | { t: 'loading' }
   | { t: 'error' }
-  | { t: 'empty' }
+  /** `filtered` when rows exist but the status filter hides them all. */
+  | { t: 'empty'; filtered: boolean }
   | {
       t: 'ready';
       rows: readonly NotificationInboxRow[];
@@ -34,20 +35,27 @@ export type InboxDoneNotices = {
 };
 
 /**
- * The inbox list's state and actions over one feed. Loaded rows stay on
- * screen through a failed refresh, and an empty page that has more to load
- * is still ready so the view keeps paging.
+ * The inbox list's state and actions over one feed, showing the rows
+ * `include` admits. Loaded rows stay on screen through a failed refresh,
+ * and an empty page that has more to load is still ready so the view keeps
+ * paging.
  */
 export function createInboxList(
   feed: InboxFeedSource,
-  notices: InboxDoneNotices
+  notices: InboxDoneNotices,
+  include: (row: NotificationInboxRow) => boolean = () => true
 ) {
   const view = (): InboxListView => {
-    const rows = feed.rows();
+    const loaded = feed.rows();
     const error = feed.error();
-    if (rows === undefined) return error ? { t: 'error' } : { t: 'loading' };
+    if (loaded === undefined) {
+      return error ? { t: 'error' } : { t: 'loading' };
+    }
+    const rows = loaded.filter(include);
     if (rows.length === 0 && !feed.hasMore()) {
-      return error ? { t: 'error' } : { t: 'empty' };
+      return error
+        ? { t: 'error' }
+        : { t: 'empty', filtered: loaded.length > 0 };
     }
     return {
       t: 'ready',

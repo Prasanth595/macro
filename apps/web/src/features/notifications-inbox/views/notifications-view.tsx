@@ -3,6 +3,7 @@ import {
   useListInteractions,
 } from '@app/components/list';
 import {
+  useViewControlHotkeys,
   ViewBreadcrumbs,
   ViewShell,
   ViewSidebar,
@@ -25,6 +26,7 @@ import type { EntityData } from '@entity';
 import { formatTimestamp } from '@entity/utils/timestamp';
 import ArrowCounterClockwise from '@phosphor/arrow-counter-clockwise.svg';
 import BellIcon from '@phosphor/bell.svg';
+import GearSixIcon from '@phosphor/gear-six.svg';
 import { useMutationUndoContext } from '@queries/undo';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { debounce } from '@solid-primitives/scheduled';
@@ -43,12 +45,15 @@ import {
   Switch,
 } from 'solid-js';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
+import { InboxFilterMenu } from '../components/inbox-filter-menu';
 import { NotificationRow } from '../components/notification-row';
 import {
   type NotificationInboxRow,
   useNotificationsInboxContext,
 } from '../context/notifications-inbox-context';
+import { statusIncludes } from '../core/inbox-filters';
 import { describeInboxRow } from '../primitives/describe-row';
+import { createInboxFilters } from '../primitives/inbox-filters';
 import { createInboxList } from '../primitives/inbox-list';
 import { createInboxSelection } from '../primitives/inbox-selection';
 import { isRowUnseen, unseenNotifications } from '../primitives/row-seen';
@@ -58,6 +63,8 @@ type ActivationMetadata = { event?: MouseEvent; newSplit?: boolean };
 export type NotificationsViewProps = {
   /** Open what a row is about; the host decides where. */
   onOpen: (row: NotificationInboxRow, options: { newSplit: boolean }) => void;
+  /** Open the settings that decide which notifications are delivered. */
+  onOpenSettings: () => void;
 };
 
 /** Distance from the end of the list, in pixels, that loads the next page. */
@@ -88,13 +95,16 @@ function NotificationsBreadcrumb(props: { onReturn: () => void }) {
   );
 }
 
-function ListHeaderTitle() {
+function ListHeader(props: { actions: JSX.Element }) {
   return (
     <header class="flex shrink-0 flex-col">
       <ViewSidebar.Header>
-        <div class="flex min-w-0 items-center gap-1">
+        <div class="flex min-w-0 flex-1 items-center gap-1">
           <ViewSidebar.CloseButton class="shrink-0" />
           <ViewSidebar.Title>Notifications</ViewSidebar.Title>
+          <div class="ml-auto flex shrink-0 items-center gap-1">
+            {props.actions}
+          </div>
         </div>
       </ViewSidebar.Header>
     </header>
@@ -118,33 +128,56 @@ export function NotificationsView(props: NotificationsViewProps) {
   const panel = useSplitPanelOrThrow();
   const context = useNotificationsInboxContext();
   const { pushUndo } = useMutationUndoContext();
-  const feed = context.createFeed(() => ({ rowTypes: [] }));
-  const inbox = createInboxList(feed, {
-    pushUndo: (entry) => pushUndo(entry),
-    announceDone: (count, undo) => {
-      const id = toast.success(
-        count > 1 ? `Marked ${count} notifications as done` : 'Marked as done',
-        {
-          actions: [
-            {
-              label: 'Undo',
-              icon: ArrowCounterClockwise,
-              onClick: () => fireAndForget(undo(), 'notifications-inbox'),
-            },
-          ],
-          duration: 3_000,
-          stack: true,
-          hideOnMobile: true,
-        }
-      );
-      return () => {
-        if (id !== undefined) toast.dismiss(id);
-      };
+  const filters = createInboxFilters(context.filterStorage);
+  const feed = context.createFeed(() => ({ rowTypes: filters.rowTypes() }));
+  const inbox = createInboxList(
+    feed,
+    {
+      pushUndo: (entry) => pushUndo(entry),
+      announceDone: (count, undo) => {
+        const id = toast.success(
+          count > 1
+            ? `Marked ${count} notifications as done`
+            : 'Marked as done',
+          {
+            actions: [
+              {
+                label: 'Undo',
+                icon: ArrowCounterClockwise,
+                onClick: () => fireAndForget(undo(), 'notifications-inbox'),
+              },
+            ],
+            duration: 3_000,
+            stack: true,
+            hideOnMobile: true,
+          }
+        );
+        return () => {
+          if (id !== undefined) toast.dismiss(id);
+        };
+      },
+      announceFailure: (message) => toast.failure(message),
     },
-    announceFailure: (message) => toast.failure(message),
-  });
+    (row) =>
+      statusIncludes(
+        filters.filters().status,
+        isRowUnseen(row, context.notificationState)
+      )
+  );
 
   onMount(() => panel.handle.setDisplayName('Notifications'));
+
+  const [filterOpen, setFilterOpen] = createSignal(false);
+  useViewControlHotkeys({
+    scopeId: panel.splitHotkeyScope,
+    enabled: panel.isPanelActive,
+    filter: {
+      description: 'Filter notifications',
+      run: () => {
+        setFilterOpen(true);
+      },
+    },
+  });
 
   const view = createMemo(inbox.view);
   const rows = (): readonly NotificationInboxRow[] => {
@@ -276,7 +309,7 @@ export function NotificationsView(props: NotificationsViewProps) {
 
   const listBody = () => (
     <Switch>
-      <Match when={view().t === 'loading'}>
+      <Match when={!filters.showsNothing() && view().t === 'loading'}>
         <ListSkeleton.Root
           label="Loading notifications"
           class="px-(--sidebar-gutter) pt-2"
@@ -302,6 +335,22 @@ export function NotificationsView(props: NotificationsViewProps) {
             }
           >
             Try again
+          </Button>
+        </ListStatus>
+      </Match>
+      <Match when={filters.showsNothing()}>
+        <ListStatus>
+          <span>Every kind of notification is hidden.</span>
+          <Button variant="outline" size="sm" onClick={filters.reset}>
+            Reset filters
+          </Button>
+        </ListStatus>
+      </Match>
+      <Match when={view().t === 'empty' && filters.activeCount() > 0}>
+        <ListStatus>
+          <span>No notifications match these filters.</span>
+          <Button variant="outline" size="sm" onClick={filters.reset}>
+            Reset filters
           </Button>
         </ListStatus>
       </Match>
@@ -373,7 +422,31 @@ export function NotificationsView(props: NotificationsViewProps) {
             resizable
           >
             <ViewShell.Aside class="flex flex-col bg-panel">
-              <ListHeaderTitle />
+              <ListHeader
+                actions={
+                  <>
+                    <div class="relative">
+                      <InboxFilterMenu
+                        open={filterOpen()}
+                        onOpenChange={setFilterOpen}
+                        status={filters.filters().status}
+                        isShown={filters.isShown}
+                        activeCount={filters.activeCount()}
+                        onStatusChange={filters.setStatus}
+                        onShownChange={filters.setShown}
+                        onReset={filters.reset}
+                      />
+                    </div>
+                    <Button
+                      size="icon-md"
+                      label="Notification settings"
+                      onClick={() => props.onOpenSettings()}
+                    >
+                      <GearSixIcon />
+                    </Button>
+                  </>
+                }
+              />
               <div
                 role="grid"
                 aria-label="Notifications"

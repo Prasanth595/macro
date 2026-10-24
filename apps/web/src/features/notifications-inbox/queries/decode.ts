@@ -8,6 +8,7 @@ import type {
 import { mapGraphqlNotification } from '@service-storage/graphql-soup';
 import { match } from 'ts-pattern';
 import type { InboxScope } from '../context/notifications-inbox-context';
+import { ALL_INBOX_ROW_TYPES } from '../core/inbox-filters';
 import type { InboxRowType } from '../core/inbox-row';
 import type { WorkFeedInboxEntry } from './work-feed-entries';
 
@@ -52,12 +53,18 @@ const toGraphqlRowType = (type: InboxRowType): WorkFeedRowType =>
       throw new Error(`Unknown inbox row type: ${type}`);
     });
 
-/** Encode an inbox scope as the attention feed it reads. */
+/**
+ * Encode an inbox scope as the attention feed it reads. Every known type
+ * reads every row, including row types a newer server adds.
+ */
 export function encodeInboxScope(scope: InboxScope): WorkFeedScopeInput {
+  const everyType = ALL_INBOX_ROW_TYPES.every((type) =>
+    scope.rowTypes.includes(type)
+  );
   return {
     mode: 'ATTENTION',
     includeSnippets: true,
-    rowTypes: scope.rowTypes.map(toGraphqlRowType),
+    rowTypes: everyType ? [] : scope.rowTypes.map(toGraphqlRowType),
   };
 }
 

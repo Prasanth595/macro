@@ -83,6 +83,9 @@ export function createWorkFeedInboxSource(
   options: WorkFeedInboxSourceOptions
 ): InboxFeedSource {
   const scopeInput = createMemo(() => encodeInboxScope(options.scope()));
+  // A scope with no row types shows nothing, so it reads nothing.
+  const enabled = () =>
+    options.enabled() && options.scope().rowTypes.length > 0;
 
   const query = createUrqlInfiniteQuery<
     NotificationInboxQuery,
@@ -98,7 +101,7 @@ export function createWorkFeedInboxSource(
       variables: (cursor) => inboxPageVariables(scope, cursor),
       getNextPageParam: (lastPage) =>
         lastPage.user.workFeed.nextCursor ?? undefined,
-      enabled: options.enabled(),
+      enabled: enabled(),
       requestPolicy: 'cache-and-network',
       keepPreviousData: true,
       select: ({ pages, pageParams }) => ({
@@ -120,7 +123,7 @@ export function createWorkFeedInboxSource(
   const live = createLiveWorkFeed({
     client: options.client,
     cacheHost: options.cacheHost,
-    enabled: options.enabled,
+    enabled,
     query,
     pages: {
       cachedQuery: inboxCachedQuery,
@@ -207,9 +210,9 @@ export function createWorkFeedInboxSource(
 
   return {
     rows,
-    isLoading: () => options.enabled() && query.isLoading && !query.data,
+    isLoading: () => enabled() && query.isLoading && !query.data,
     error: () => query.error ?? undefined,
-    hasMore: () => options.enabled() && query.hasNextPage && !query.error,
+    hasMore: () => enabled() && query.hasNextPage && !query.error,
     isLoadingMore: () => query.isFetchingNextPage,
     loadMore: async () => {
       if (!query.hasNextPage || query.isFetchingNextPage) return;

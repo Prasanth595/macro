@@ -2,6 +2,7 @@ import { createFakeWorkFeedClient } from '@queries/work-feed/tests/fake-client';
 import { createRoot } from 'solid-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { InboxFeedSource } from '../context/notifications-inbox-context';
+import { ALL_INBOX_ROW_TYPES } from '../core/inbox-filters';
 import {
   inboxEntry,
   inboxPage,
@@ -76,7 +77,7 @@ function setup(mutationData: Record<string, unknown> = {}) {
     feed = createWorkFeedInboxSource({
       client: () => fake.client,
       cacheHost: () => fake.host,
-      scope: () => ({ rowTypes: [] }),
+      scope: () => ({ rowTypes: ALL_INBOX_ROW_TYPES }),
       enabled: () => true,
       overrideNotificationsDone,
       revalidateNotifications,

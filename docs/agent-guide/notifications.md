@@ -16,12 +16,18 @@ in its mention row. Rows show a type glyph, a muted line saying who did what
 message or comment text, task name, PR or event title), a count when the row
 stands for several notifications, the time, and an unread dot.
 
-Click or press Enter to open what the row is about at the notification's
-location; Shift-click or the alternate key opens a new split. `j`/`k` move.
-Hover a row and choose **Mark done**, or press `e`, to complete that row only:
-the channel thread stays when the channel's top-level row is done. A toast
-offers **Undo**, as does `⌘Z`/`Ctrl+Z`. A new notification in a done row brings
-it back. An empty inbox reads **You’re all caught up**.
+Click a row or press Enter to preview it beside the list, opened at the
+notification's message, thread, or comment, under a **Notifications >**
+breadcrumb that clears the preview. Previewing marks the row's notifications
+seen and drops its unread dot. With a preview open, `j`/`k` move it along the
+list; choosing the shown row again re-aims it. Calendar events and projects
+open in their own views instead. Shift-click or the alternate key opens a new
+split. Hover a row and choose **Mark done**, or press `e`, to complete that row
+only: the channel thread stays when the channel's top-level row is done, and an
+open preview moves to the next row. A toast offers **Undo**, as does
+`⌘Z`/`Ctrl+Z`. A new notification in a done row brings it back. An empty inbox
+reads **You’re all caught up**; with nothing chosen the pane reads **No
+notification selected**.
 
 Verify with two accounts: a reply in a thread you're in, a top-level mention,
 and a document comment each add their own row; marking one done leaves the
