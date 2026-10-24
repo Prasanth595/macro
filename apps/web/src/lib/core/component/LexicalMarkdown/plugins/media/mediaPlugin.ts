@@ -363,6 +363,7 @@ function registerMediaPlugin(editor: LexicalEditor) {
       if (mutation !== 'created') continue;
       const url = editor.getEditorState().read(() => {
         const node = $getNodeByKey(key);
+        if (!node) return undefined;
         return ($isImageNode(node) || $isVideoNode(node)) &&
           node.getSrcType() === 'local'
           ? node.getUrl()
@@ -494,6 +495,7 @@ function registerMediaPlugin(editor: LexicalEditor) {
           return true;
         }
         const node = $getNodeByKey(key);
+        if (!node) return true;
         if (
           ($isImageNode(node) || $isVideoNode(node)) &&
           node.getSrcType() === 'sfs'

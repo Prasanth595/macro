@@ -172,7 +172,10 @@ it.each([
       expect(context.notices.feedback.failure).not.toHaveBeenCalled();
       expect(context.delivery.sendMessage).toHaveBeenCalledOnce();
       const [sent] = vi.mocked(context.delivery.sendMessage).mock.calls[0]!;
-      const html = Buffer.from(sent.message.body_html, 'base64url').toString();
+      const html = Buffer.from(
+        sent.message.body_html ?? '',
+        'base64url'
+      ).toString();
       expect(html).toContain('/file/sfs-pasted-image');
       expect(html).not.toContain('blob:');
       expect(uploads).toHaveLength(1);
