@@ -562,6 +562,9 @@ keyboard shortcut on touch. Desktop uses the centered composer dialog.
 3. `type_text` the title, then press **Ctrl+Enter** to create, or tap `Create Task` on
    touch (the button enables once there is a title). Dialog also offers `Continue editing in split` to open the
    task as a full document.
+   Creating shows a `Task created` toast with `Open` and `Open (New Split)` as
+   soon as the server returns, then copies the task link in the background. A
+   denied or prompted clipboard write never delays or replaces that toast.
 
 The property row adapts when the launching pane supplies a task-composer preset.
 The app shell's creation-context provider snapshots the focused pane's preset
