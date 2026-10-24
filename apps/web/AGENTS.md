@@ -25,6 +25,11 @@ It exercises the real resize solver, scroll container, and Lexical layout primit
 Discussion link scrolling has a backend-free browser regression:
 `bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.
 
+Phone sheets stacked on each other (Connect email over Settings, Add guests,
+RSVP scope and the delete confirmation over event details) have a backend-free
+browser regression for backdrop taps that must not press what the scrim covers:
+`bunx playwright test --config src/components/app/mobile/browser-test/playwright.config.ts`.
+
 Meeting-note creation, linking, optional team access, retry, and unlinking have desktop and
 phone browser coverage in `features/calendar-notes`:
 `bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.
