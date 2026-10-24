@@ -5,6 +5,24 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+/// Which calendar events a unified search covers.
+///
+/// A channel share grants view access to the sharer's own projection, which is
+/// on none of the member's calendars, so the default scope never reaches it.
+/// Asking for shared events is a separate scope rather than a widening, so a
+/// caller can list them after the viewer's own events without reordering them.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CalendarEventSearchScope {
+    /// Events on the caller's own calendars and on inboxes delegated to them.
+    #[default]
+    Own,
+    /// Only events someone shared with a channel the caller belongs to and that
+    /// the caller holds on none of their calendars, under the same rule as the
+    /// event's own access check: never a private, confidential or cancelled one.
+    SharedWithYou,
+}
+
 /// Timed or all-day span of a calendar event.
 ///
 /// Deliberately a local mirror of `models_soup::calendar_event::SoupCalendarEventTime`
