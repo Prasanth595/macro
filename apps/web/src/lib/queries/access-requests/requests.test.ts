@@ -128,6 +128,9 @@ it('drops what was shared in a channel the viewer lost, and the channel itself',
   expect(preview).toHaveBeenCalledOnce();
   expect(activity).toHaveBeenCalledWith(null);
   expect(mocks.invalidate).toHaveBeenCalledWith({
+    queryKey: channelKeys.listChannels.queryKey,
+  });
+  expect(mocks.invalidate).toHaveBeenCalledWith({
     queryKey: channelKeys.withID('channel').queryKey,
   });
   expect(mocks.invalidate).toHaveBeenCalledWith({

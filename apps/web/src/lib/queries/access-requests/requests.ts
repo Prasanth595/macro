@@ -95,6 +95,7 @@ export function refreshSharedAccess(entity: AccessChangeEntity) {
     invalidateCalendarEventPreviews(entity.entityId);
   if (entity.entityType === 'channel') {
     for (const key of [
+      channelKeys.listChannels,
       channelKeys.withID(entity.entityId),
       channelKeys.participants(entity.entityId),
       channelKeys.attachments(entity.entityId),
