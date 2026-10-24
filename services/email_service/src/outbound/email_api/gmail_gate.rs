@@ -10,7 +10,7 @@ use email_api_client::domain::models::{
 };
 use email_api_client::domain::ports::ProviderRequestGate;
 use models_email::gmail::operations::GmailApiOperation;
-use redis::aio::MultiplexedConnection;
+use redis::aio::ConnectionManager;
 use uuid::Uuid;
 
 // Gmail answers 429 "Too many concurrent requests for user" above an
@@ -26,8 +26,9 @@ const WINDOW_SECONDS: u32 = 10;
 const UNITS_PER_WINDOW: u32 = 2_300;
 const BACKFILL_UNITS_PER_WINDOW: u32 = 1_800;
 // Gmail requests have no client timeout, so this lease is what frees the slot
-// of a crashed or hung caller.
-const PERMIT_MS: u32 = 120_000;
+// of a crashed, cancelled, or hung caller. It matches the Gmail queues'
+// 60-second visibility timeout, after which their work is redelivered anyway.
+const PERMIT_MS: u32 = 60_000;
 // Google asks clients to wait at least a second before retrying a 429.
 const BUSY_RETRY_MS: u32 = 1_000;
 // Gmail sends no Retry-After with its rate limits.
@@ -119,16 +120,17 @@ impl RateBudget {
 ///
 /// It fails closed: when Redis cannot decide, the request is refused as a
 /// local rate limit, so callers defer or requeue the work rather than send it
-/// unmetered.
+/// unmetered. Because of that it needs a reconnecting connection; a dropped
+/// multiplexed connection would stop all Gmail work until the process restarts.
 #[derive(Clone)]
 pub struct RedisGmailRequestGate {
-    connection: MultiplexedConnection,
+    connection: ConnectionManager,
     budget: RateBudget,
 }
 
 impl RedisGmailRequestGate {
     /// Creates a gate that admits requests within the selected budget.
-    pub fn new(connection: MultiplexedConnection, budget: RateBudget) -> Self {
+    pub fn new(connection: ConnectionManager, budget: RateBudget) -> Self {
         Self { connection, budget }
     }
 }

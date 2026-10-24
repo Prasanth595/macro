@@ -1,14 +1,14 @@
 use super::*;
 
-async fn connection() -> MultiplexedConnection {
+async fn connection() -> ConnectionManager {
     redis::Client::open("redis://127.0.0.1:6379/")
         .unwrap()
-        .get_multiplexed_async_connection()
+        .get_connection_manager()
         .await
         .expect("start local Redis before running this integration test")
 }
 
-async fn cleanup(connection: &MultiplexedConnection, link_id: Uuid) {
+async fn cleanup(connection: &ConnectionManager, link_id: Uuid) {
     let _: i32 = redis::cmd("DEL")
         .arg(&keys(link_id))
         .query_async(&mut connection.clone())
@@ -205,6 +205,36 @@ async fn a_redis_failure_defers_the_request_instead_of_admitting_it() {
             .await,
         Err(RateLimitRefusal::new(Some(UNAVAILABLE_RETRY_AFTER)))
     );
+    cleanup(&connection, link_id).await;
+}
+
+#[tokio::test]
+#[ignore = "requires local Redis on port 6379; kills only its own connection"]
+async fn admission_resumes_after_redis_drops_the_connection() {
+    let connection = connection().await;
+    let live = RedisGmailRequestGate::new(connection.clone(), RateBudget::Live);
+    let link_id = Uuid::now_v7();
+    let id: i64 = redis::cmd("CLIENT")
+        .arg("ID")
+        .query_async(&mut connection.clone())
+        .await
+        .unwrap();
+    let _: redis::RedisResult<i32> = redis::cmd("CLIENT")
+        .arg("KILL")
+        .arg("ID")
+        .arg(id)
+        .query_async(&mut connection.clone())
+        .await;
+
+    // The first request after the drop may still meet the dead connection.
+    let first = live.acquire(link_id, ApiOperationKind::GetMessage).await;
+    assert!(
+        first.is_ok() || first == Err(RateLimitRefusal::new(Some(UNAVAILABLE_RETRY_AFTER))),
+        "{first:?}"
+    );
+    live.acquire(link_id, ApiOperationKind::GetMessage)
+        .await
+        .expect("the gate reconnects instead of refusing until a restart");
     cleanup(&connection, link_id).await;
 }
 

@@ -201,7 +201,12 @@ pub async fn run() -> anyhow::Result<()> {
             auth_service_client.as_ref().clone(),
             sqs_client.as_ref().clone(),
         ),
-        RedisGmailRequestGate::new(redis_conn.clone(), RateBudget::Live),
+        RedisGmailRequestGate::new(
+            redis_client.inner.get_connection_manager().await.context(
+                "failed to get reconnecting redis connection for the gmail request gate",
+            )?,
+            RateBudget::Live,
+        ),
     );
     let redis_client = Arc::new(redis_client);
     let gmail_token_state = GmailTokenState::new(GmailTokenProviderImpl::new(
