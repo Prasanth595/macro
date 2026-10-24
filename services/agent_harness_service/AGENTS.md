@@ -29,10 +29,10 @@ Pulumi stacks; they do not host extra agent processes.
 - `src/cognition/`: existing chat, completions, integrations, and projection
   workers; the library also exports their OpenAPI document.
 - `src/code_mode/review_notifications.rs`: agent reviews' inbox notification
-  (`agent_review_requested`), sent per review under a derived id while the
-  account holder has `enable-unified-notifications`, then withdrawn and marked
-  done once the review is resolved. One PostHog client serves this and
-  `ai-code-mode`.
+  (`agent_review_requested`), sent per email or calendar review under a derived
+  id while the account holder has `enable-unified-notifications`, then
+  withdrawn and marked done once the review is resolved. Import reviews never
+  reach the inbox. One PostHog client serves this and `ai-code-mode`.
 - `src/scheduling.rs`: routine HTTP routes and background scheduling;
   domain/adapters live in `crates/scheduled_action`.
 - `src/preview.rs` + `src/preview/`: preview control routes, public HTTP and SSH listeners;

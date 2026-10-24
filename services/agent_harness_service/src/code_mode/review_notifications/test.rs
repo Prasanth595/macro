@@ -100,7 +100,7 @@ fn a_reply_review_counts_and_previews_only_drafts_still_awaiting() {
             ),
         ],
     );
-    let metadata = requested(session_ref(), &record);
+    let metadata = requested(session_ref(), &record).expect("email reviews reach the inbox");
     assert_eq!(metadata.review_id, Uuid::from_u128(0xc));
     assert_eq!(metadata.review_kind, AgentReviewKind::Email);
     assert_eq!(metadata.draft_count, 2);
@@ -123,7 +123,11 @@ fn a_new_email_among_replies_is_not_a_reply_review() {
             ),
         ],
     );
-    assert!(!requested(session_ref(), &record).replies);
+    assert!(
+        !requested(session_ref(), &record)
+            .expect("email reviews reach the inbox")
+            .replies
+    );
 }
 
 #[test]
@@ -132,7 +136,7 @@ fn a_calendar_review_previews_its_first_event_title_within_bounds() {
         ReviewKind::Calendar,
         vec![(json!({"title":"x".repeat(200)}), ReviewItemStatus::Pending)],
     );
-    let metadata = requested(session_ref(), &record);
+    let metadata = requested(session_ref(), &record).expect("calendar reviews reach the inbox");
     assert_eq!(metadata.review_kind, AgentReviewKind::Calendar);
     assert!(!metadata.replies);
     assert_eq!(
@@ -244,4 +248,17 @@ async fn nobody_is_notified_without_the_inbox_or_its_flags() {
         notifier.announce(&account_holder(), &record).await;
         assert!(notifier.ingress.sent.lock().unwrap().is_empty());
     }
+}
+
+#[tokio::test]
+async fn an_import_review_never_reaches_the_inbox() {
+    let record = review(
+        ReviewKind::Import,
+        vec![(json!({"source":"notion"}), ReviewItemStatus::Pending)],
+    );
+    assert!(requested(session_ref(), &record).is_none());
+
+    let notifier = notifier(Some(flags(Ok(true))));
+    notifier.announce(&account_holder(), &record).await;
+    assert!(notifier.ingress.sent.lock().unwrap().is_empty());
 }

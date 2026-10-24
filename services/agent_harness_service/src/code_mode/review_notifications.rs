@@ -63,22 +63,31 @@ pub fn notification_id(record: &ReviewRecord) -> Uuid {
     )
 }
 
+/// The inbox kind of a review of `kind` and the draft field it previews.
+/// Only drafted emails and events are AI suggestions; an import plan is
+/// approved where it was staged and never reaches the inbox.
+fn inbox_kind(kind: ReviewKind) -> Option<(AgentReviewKind, &'static str)> {
+    match kind {
+        ReviewKind::Email => Some((AgentReviewKind::Email, "subject")),
+        ReviewKind::Calendar => Some((AgentReviewKind::Calendar, "title")),
+        ReviewKind::Import => None,
+    }
+}
+
 /// The inbox's account of `record`: its drafts still awaiting a decision.
+/// `None` for reviews the inbox does not list.
 pub fn requested(
     session: AgentSessionNotificationRef,
     record: &ReviewRecord,
-) -> AgentReviewRequestedMetadata {
+) -> Option<AgentReviewRequestedMetadata> {
+    let (review_kind, preview_field) = inbox_kind(record.kind)?;
     let awaiting: Vec<&Value> = record
         .items
         .iter()
         .filter(|item| item.status == ReviewItemStatus::Pending)
         .map(|item| &item.draft)
         .collect();
-    let (review_kind, preview_field) = match record.kind {
-        ReviewKind::Email => (AgentReviewKind::Email, "subject"),
-        ReviewKind::Calendar => (AgentReviewKind::Calendar, "title"),
-    };
-    AgentReviewRequestedMetadata {
+    Some(AgentReviewRequestedMetadata {
         session,
         review_id: record.id.0,
         review_kind,
@@ -96,7 +105,7 @@ pub fn requested(
             .map(str::trim)
             .filter(|preview| !preview.is_empty())
             .map(|preview| preview.chars().take(PREVIEW_MAX_CHARS).collect()),
-    }
+    })
 }
 
 impl<S, I, R, W, F> InboxReviewNotifier<S, I, R, W, F>
@@ -125,7 +134,7 @@ where
     /// the inbox.
     #[tracing::instrument(skip_all, fields(review_id = %record.id.0, session_id = %record.session_id))]
     pub async fn announce(&self, account_holder: &MacroUserIdStr<'static>, record: &ReviewRecord) {
-        if !self.delivers_to(account_holder).await {
+        if inbox_kind(record.kind).is_none() || !self.delivers_to(account_holder).await {
             return;
         }
         let session = match self.sessions.get(record.session_id).await {
@@ -153,11 +162,14 @@ where
                 return;
             }
         };
+        let Some(notification) = requested(session_ref(&identity, None), record) else {
+            return;
+        };
         let request = SendNotificationRequestBuilder {
             notification_entity: EntityType::AgentSession
                 .with_entity_string(record.session_id.to_string()),
             secondary_notification_entity: None,
-            notification: requested(session_ref(&identity, None), record),
+            notification,
             // A bot is not a user: the kind's own title names it.
             sender_id: None,
             recipient_ids: HashSet::from([account_holder.clone()]),
@@ -176,9 +188,13 @@ where
     R: NotificationReader,
     W: NotificationWithdrawal,
 {
-    /// Withdraw `record`'s inbox notification and mark it done.
+    /// Withdraw `record`'s inbox notification and mark it done. A review the
+    /// inbox does not list had none, so it leaves no withdrawal behind.
     #[tracing::instrument(skip_all, fields(review_id = %record.id.0, session_id = %record.session_id))]
     pub async fn retract(&self, account_holder: &MacroUserIdStr<'static>, record: &ReviewRecord) {
+        if inbox_kind(record.kind).is_none() {
+            return;
+        }
         let id = notification_id(record);
         if let Err(error) = self.withdrawal.withdraw(id).await {
             tracing::warn!(?error, "failed to withdraw a review notification");
