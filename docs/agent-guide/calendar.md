@@ -554,7 +554,7 @@ notified only when someone besides you is on it.
 With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
 whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
 organizer lets guests invite. It opens an editor anchored to the button (on phones, a bottom
-sheet stacked over the dimmed event details, showing one bright handle): the current guests are listed under `Invited` without a remove control, the picker
+sheet stacked over the dimmed event details, showing one bright handle; a tap on the dimmed details closes only this sheet and presses nothing under it): the current guests are listed under `Invited` without a remove control, the picker
 adds people, each new guest has an `Optional` checkbox, a recurring event offers `This
 event` / `All events` (`All events` by default, like the editor's recurring edits), and
 `Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape closes. The new guests appear at
@@ -731,7 +731,9 @@ adds the event or is invited, and switches to that line and `Open` in place. Ope
 sheet (`Open`, the title, or Open in New Split) closes it, since the native apps keep the
 pane behind the opened one mounted. When Calendar opens on an event its loaded week doesn't
 have yet, such as a copy added a moment ago while Calendar was closed, it syncs once and then
-shows the event's details.
+shows the event's details. The agent reads a mentioned event, including one only shared with
+the viewer, with `ReadCalendarEvent`: the same fields, plus how the viewer holds it (their own,
+invited, a snapshot, or only shared with them) and their join request.
 
 ## Scheduling — `/app/scheduling`
 
@@ -1262,8 +1264,10 @@ works there, and `Download .ics`, which saves the file without adding it to Driv
 card falls back to the saved invitation (the event matches nothing on your calendars, as with
 a forwarded event), its status line reads `Saved invitation.` in the dialog; the card in the
 email adds that the original email or invitation attachment has more options. The card
-stays put while the thread refreshes, and `Open in calendar` closes the dialog before the
-calendar opens, including when Calendar is already open in another split. A calendar file with
+stays put while the thread refreshes. Close, Escape, or dismissing the phone drawer returns
+focus to the attachment chip; `Open in calendar` closes the dialog before the calendar opens,
+including when Calendar is already open in another split, without pulling focus back to the
+email. A calendar file with
 no card (nothing Macro could read) downloads directly, and an Outlook cloud-reference `.ics`
 opens its Outlook page like any other reference attachment.
 Related recurring components are grouped behind their own disclosure. Only mail synced

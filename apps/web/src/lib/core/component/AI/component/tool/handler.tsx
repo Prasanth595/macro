@@ -51,6 +51,7 @@ import {
   deleteCalendarEventHandler,
   listCalendarEventsHandler,
   listCalendarsHandler,
+  readCalendarEventHandler,
   updateCalendarEventHandler,
 } from './CalendarTools';
 import {
@@ -253,6 +254,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   AddSharedCalendarEvent: addSharedCalendarEventHandler,
   ListCalendarEvents: listCalendarEventsHandler,
   ListCalendars: listCalendarsHandler,
+  ReadCalendarEvent: readCalendarEventHandler,
   GetTeamAvailability: getTeamAvailabilityHandler,
   CreateImportEntity: createImportEntityHandler,
   DeleteImportEntity: deleteImportEntityHandler,
