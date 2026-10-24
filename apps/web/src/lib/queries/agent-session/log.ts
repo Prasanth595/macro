@@ -314,15 +314,20 @@ async function readSignedOutLog(
 }
 
 function fetchSignedOutLog(sessionId: string): SessionLogWatch {
-  const fetched = readSignedOutLog(sessionId);
+  let rejectFetched!: (error: AgentSessionLogUnavailable) => void;
+  const fetched = new Promise<SessionLogSnapshot>((resolve, reject) => {
+    rejectFetched = reject;
+    readSignedOutLog(sessionId).then(resolve, reject);
+  });
   // A rejection nobody has awaited yet must not be reported as unhandled.
   fetched.catch(() => undefined);
   return {
     cached: Promise.resolve(undefined),
     cacheMiss: () => 'no_cache',
     fetched,
-    // The harness always answers, so there is nothing to stop waiting for.
-    stop: () => undefined,
+    stop: () => {
+      rejectFetched(new AgentSessionLogUnavailable(sessionId, 'failed'));
+    },
   };
 }
 
