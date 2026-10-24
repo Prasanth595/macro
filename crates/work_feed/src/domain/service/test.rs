@@ -258,6 +258,7 @@ fn query() -> WorkFeedQuery {
             mode: WorkFeedMode::Work,
             types: Vec::new(),
             include_snippets: false,
+            row_types: Vec::new(),
         },
         limit: 50,
         after: None,
@@ -444,6 +445,7 @@ async fn done_acknowledges_only_what_was_observed() {
                 revision: Some(WorkFeedRevision {
                     attention_through: Some(at(6)),
                 }),
+                row: None,
             }],
         )
         .await
@@ -492,10 +494,12 @@ async fn done_without_a_revision_completes_everything_current() {
                 WorkFeedDoneTarget {
                     key: key(entity(EntityType::EmailThread, MAIL)),
                     revision: None,
+                    row: None,
                 },
                 WorkFeedDoneTarget {
                     key: key(entity(EntityType::EmailThread, SENT_MAIL)),
                     revision: None,
+                    row: None,
                 },
             ],
         )
@@ -530,6 +534,7 @@ async fn done_leaves_own_work_alone() {
             vec![WorkFeedDoneTarget {
                 key: doc.clone(),
                 revision: None,
+                row: None,
             }],
         )
         .await
@@ -552,6 +557,7 @@ async fn done_on_an_item_already_gone_changes_nothing() {
             vec![WorkFeedDoneTarget {
                 key: gone.clone(),
                 revision: None,
+                row: None,
             }],
         )
         .await
@@ -586,10 +592,12 @@ async fn undo_reverses_exactly_one_done() {
                 WorkFeedDoneTarget {
                     key: doc.clone(),
                     revision: None,
+                    row: None,
                 },
                 WorkFeedDoneTarget {
                     key: mail.clone(),
                     revision: None,
+                    row: None,
                 },
             ],
         )
@@ -621,4 +629,252 @@ async fn undo_reverses_exactly_one_done() {
             .iter()
             .all(|change| matches!(change, WorkFeedChange::Upserted(_)))
     );
+}
+
+fn attention_query(row_types: Vec<WorkFeedRowType>) -> WorkFeedQuery {
+    WorkFeedQuery {
+        scope: WorkFeedScope {
+            mode: WorkFeedMode::Attention,
+            types: Vec::new(),
+            include_snippets: true,
+            row_types,
+        },
+        limit: 50,
+        after: None,
+    }
+}
+
+fn thread_candidate(minute: u32) -> SourceItem<&'static str> {
+    let mut item = candidate(
+        "thread",
+        entity(EntityType::ChannelMessage, THREAD),
+        Some(minute),
+        None,
+    );
+    item.facts.thread_channel = Some(uuid(CHANNEL));
+    item
+}
+
+fn document_mention(id: u128, message: u128, minute: u32) -> FeedNotification {
+    notification(
+        id,
+        entity(EntityType::Channel, CHANNEL),
+        "document_mention",
+        json!({
+            "documentName": "Plan",
+            "owner": "macro|other@example.com",
+            "messageId": uuid(message),
+            "messageContent": "see doc",
+            "channelType": "public",
+        }),
+        minute,
+        NotificationState::Unseen,
+    )
+}
+
+#[tokio::test]
+async fn attention_entries_carry_rows_and_leave_items_as_work_feeds_build_them() {
+    let channel = entity(EntityType::Channel, CHANNEL);
+    let items = vec![candidate("channel", channel.clone(), Some(5), None)];
+    let notifications = vec![
+        channel_reaction(1, CHANNEL, 0x100, None, 5),
+        channel_send(2, CHANNEL, 0x101, 4),
+    ];
+
+    let work = service(items.clone(), notifications.clone())
+        .page(viewer(), query())
+        .await
+        .unwrap();
+    let attention = service(items, notifications)
+        .page(viewer(), attention_query(Vec::new()))
+        .await
+        .unwrap();
+
+    // The item is the same in both feeds: the top-level reaction is not in
+    // the channel's stacks, which leave reactions to message threads.
+    let (work, attention) = (&work.entries[0], &attention.entries[0]);
+    assert!(work.rows.is_empty());
+    assert_eq!(
+        attention
+            .item
+            .stacks
+            .iter()
+            .map(|s| s.kind)
+            .collect::<Vec<_>>(),
+        work.item.stacks.iter().map(|s| s.kind).collect::<Vec<_>>()
+    );
+    assert_eq!(attention.item.attention_at, work.item.attention_at);
+    assert_eq!(
+        ids(&attention.item.notifications),
+        ids(&work.item.notifications)
+    );
+
+    // The inbox row holds the channel's top-level activity, reaction included.
+    assert_eq!(attention.rows.len(), 1);
+    assert_eq!(attention.rows[0].row_type, WorkFeedRowType::ChannelMessages);
+    assert_eq!(
+        ids(&attention.rows[0].notifications),
+        vec![uuid(1), uuid(2)]
+    );
+    assert_eq!(
+        attention.rows[0].id,
+        format!("channel:{}#top_level", uuid(CHANNEL))
+    );
+}
+
+#[tokio::test]
+async fn row_types_narrow_rows_and_drop_items_without_one() {
+    let doc = entity(EntityType::Document, DOC);
+    let task = notification(
+        1,
+        doc.clone(),
+        "task_assigned",
+        json!({ "taskId": uuid(DOC), "taskName": "Ship", "assignedBy": "macro|other@example.com" }),
+        2,
+        NotificationState::Unseen,
+    );
+    let items = vec![candidate("doc", doc.clone(), Some(3), None)];
+    let notifications = vec![task, doc_comment(2, DOC, 0xA0, 0xA0, 3)];
+
+    let tasks = service(items.clone(), notifications.clone())
+        .page(viewer(), attention_query(vec![WorkFeedRowType::Task]))
+        .await
+        .unwrap();
+    assert_eq!(
+        tasks.entries[0]
+            .rows
+            .iter()
+            .map(|row| row.row_type)
+            .collect::<Vec<_>>(),
+        vec![WorkFeedRowType::Task]
+    );
+
+    let access = service(items, notifications)
+        .page(
+            viewer(),
+            attention_query(vec![WorkFeedRowType::AccessRequested]),
+        )
+        .await
+        .unwrap();
+    assert!(access.entries.is_empty());
+}
+
+#[tokio::test]
+async fn row_done_acknowledges_only_what_its_row_stands_for() {
+    let thread = key(entity(EntityType::ChannelMessage, THREAD));
+    let items = vec![
+        thread_candidate(2),
+        candidate(
+            "channel",
+            entity(EntityType::Channel, CHANNEL),
+            Some(4),
+            None,
+        ),
+    ];
+    let notifications = vec![
+        // The top-level message that mentions the viewer, with a document
+        // chip the mention speaks for.
+        channel_mention(1, CHANNEL, THREAD, None, 1),
+        document_mention(2, THREAD, 1),
+        channel_reply(3, CHANNEL, THREAD, 0x101, 2),
+        // Unrelated top-level activity stays active.
+        channel_send(4, CHANNEL, 0x102, 4),
+    ];
+    let service = service(items, notifications);
+    let page = service
+        .page(viewer(), attention_query(Vec::new()))
+        .await
+        .unwrap();
+    let row = page
+        .entries
+        .iter()
+        .flat_map(|entry| &entry.rows)
+        .find(|row| row.row_type == WorkFeedRowType::ChannelMention)
+        .unwrap()
+        .clone();
+    assert_eq!(ids(&row.hidden), vec![uuid(2)]);
+
+    // The caller saw the row before the reply arrived: the reply stays.
+    let outcome = service
+        .mark_done(
+            viewer(),
+            vec![WorkFeedDoneTarget {
+                key: thread.clone(),
+                revision: Some(WorkFeedRevision {
+                    attention_through: Some(at(1)),
+                }),
+                row: Some(row.id.clone()),
+            }],
+        )
+        .await
+        .unwrap();
+
+    assert!(outcome.items.is_empty(), "the item itself was not targeted");
+    assert_eq!(outcome.rows, vec![row.id]);
+    assert_eq!(outcome.receipt.items, vec![thread.id()]);
+    assert_eq!(outcome.receipt.notification_ids, vec![uuid(1), uuid(2)]);
+    assert_eq!(
+        service.notifications.state_of(uuid(3)),
+        NotificationState::Unseen
+    );
+    assert_eq!(
+        service.notifications.state_of(uuid(4)),
+        NotificationState::Unseen
+    );
+}
+
+#[tokio::test]
+async fn an_email_row_done_archives_its_thread() {
+    let mail = key(entity(EntityType::EmailThread, MAIL));
+    let items = vec![mail_candidate(
+        "mail",
+        MAIL,
+        Some(3),
+        None,
+        MailFacts {
+            inbox_visible: true,
+            is_read: false,
+        },
+    )];
+    let service = service(
+        items,
+        vec![new_email(1, MAIL, 3, NotificationState::Unseen)],
+    );
+
+    let outcome = service
+        .mark_done(
+            viewer(),
+            vec![WorkFeedDoneTarget {
+                key: mail.clone(),
+                revision: None,
+                row: Some(format!("{}#email", mail.id())),
+            }],
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(outcome.receipt.notification_ids, vec![uuid(1)]);
+    assert_eq!(outcome.receipt.archived_threads, vec![uuid(MAIL)]);
+    assert_eq!(
+        *service.mail.calls.lock().unwrap(),
+        vec![(uuid(MAIL), true)]
+    );
+}
+
+#[tokio::test]
+async fn a_done_row_must_belong_to_its_item() {
+    let doc = key(entity(EntityType::Document, DOC));
+    let other = key(entity(EntityType::Document, OTHER_DOC));
+    let error = service(Vec::new(), Vec::new())
+        .mark_done(
+            viewer(),
+            vec![WorkFeedDoneTarget {
+                key: doc,
+                revision: None,
+                row: Some(format!("{}#task", other.id())),
+            }],
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error, WorkFeedError::InvalidInput(_)));
 }

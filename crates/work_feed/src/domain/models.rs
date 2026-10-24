@@ -158,6 +158,13 @@ impl WorkFeedItemKey {
         format!("{}:{}", self.0.entity_type, self.0.entity_id)
     }
 
+    /// Whether `row_id` names one of this item's inbox rows.
+    pub fn owns_row(&self, row_id: &str) -> bool {
+        row_id
+            .strip_prefix(&self.id())
+            .is_some_and(|slot| slot.starts_with('#'))
+    }
+
     /// Parse an id produced by [`Self::id`].
     pub fn parse(id: &str) -> Result<Self, InvalidWorkFeedItemId> {
         let (entity_type, entity_id) = id.split_once(':').ok_or(InvalidWorkFeedItemId)?;
@@ -251,6 +258,81 @@ pub fn counts_as_unseen(notification: &UserNotificationRow<NotifEvent>) -> bool 
     )
 }
 
+/// The kind of a notification inbox row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum WorkFeedRowType {
+    /// An action an AI suggests, awaiting the viewer's decision.
+    AiSuggestion,
+    /// An agent session's or AI chat's latest response or question.
+    Agent,
+    /// An email thread.
+    Email,
+    /// A top-level channel message that mentions the viewer, with its thread.
+    ChannelMention,
+    /// A channel's top-level messages, reactions to them and invites.
+    ChannelMessages,
+    /// A channel thread's replies, mentions and reactions.
+    ChannelThread,
+    /// A top-level discussion comment that mentions the viewer, with its
+    /// thread.
+    DiscussionMention,
+    /// An entity's top-level discussion comments.
+    DiscussionMessages,
+    /// One discussion thread's replies.
+    DiscussionThread,
+    /// A task assigned to the viewer.
+    Task,
+    /// A GitHub pull request's activity.
+    PullRequest,
+    /// Reminders of an upcoming calendar event.
+    CalendarEvent,
+    /// A request to join a calendar event the viewer shared.
+    CalendarJoinRequest,
+    /// A request for access to something the viewer can share.
+    AccessRequested,
+    /// Access the viewer requested was granted.
+    AccessGranted,
+}
+
+/// One notification inbox row: the notifications an attention feed shows
+/// together for one item.
+#[derive(Debug, Clone)]
+pub struct WorkFeedRow {
+    /// Stable per-viewer id, `<item id>#<slot>`. Opaque to callers; a row
+    /// keeps its id when its type changes between mention and thread.
+    pub id: String,
+    /// The row's kind.
+    pub row_type: WorkFeedRowType,
+    /// The notifications the row shows, newest first; never empty.
+    pub notifications: Vec<FeedNotification>,
+    /// Notifications the row stands for without showing them: those another
+    /// notification about the same message speaks for, and noise. Done
+    /// acknowledges them with the row.
+    pub hidden: Vec<FeedNotification>,
+    /// Whether the row is unread.
+    pub unseen: bool,
+}
+
+impl WorkFeedRow {
+    /// The newest notification the row shows.
+    pub fn latest(&self) -> &FeedNotification {
+        &self.notifications[0]
+    }
+
+    /// What marking the row done acknowledges: everything it stands for up
+    /// to its newest notification, shown or hidden.
+    pub fn revision(&self) -> WorkFeedRevision {
+        WorkFeedRevision {
+            attention_through: self
+                .notifications
+                .iter()
+                .chain(&self.hidden)
+                .map(|notification| notification.created_at)
+                .max(),
+        }
+    }
+}
+
 /// Why an item is presented the way it is, chosen with its click target.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WorkFeedPrimaryReason {
@@ -324,10 +406,14 @@ impl<E> WorkFeedItem<E> {
 /// An item placed in one feed.
 #[derive(Debug, Clone)]
 pub struct WorkFeedEntry<E> {
-    /// The item.
+    /// The item. It is the same in every feed: an attention feed presents
+    /// it through `rows` instead of changing its stacks.
     pub item: WorkFeedItem<E>,
     /// Where the item sits: the later of its attention and own-work times.
     pub sort_at: DateTime<Utc>,
+    /// The item's notification inbox rows in an attention feed, newest
+    /// first; empty in work feeds.
+    pub rows: Vec<WorkFeedRow>,
 }
 
 /// Where the next page of a feed starts.
@@ -368,6 +454,9 @@ pub struct WorkFeedScope {
     pub types: Vec<WorkFeedItemType>,
     /// Whether snippet documents are included.
     pub include_snippets: bool,
+    /// In an attention feed, the row kinds to list; empty means every kind.
+    /// An item with no matching row is not listed.
+    pub row_types: Vec<WorkFeedRowType>,
 }
 
 impl WorkFeedScope {
@@ -378,6 +467,18 @@ impl WorkFeedScope {
             mode: WorkFeedMode::Work,
             types: WorkFeedItemType::ALL.to_vec(),
             include_snippets: true,
+            row_types: Vec::new(),
+        }
+    }
+
+    /// Every inbox row of every item: the scope a row-scoped done finds its
+    /// row in.
+    pub fn every_row() -> Self {
+        Self {
+            mode: WorkFeedMode::Attention,
+            types: WorkFeedItemType::ALL.to_vec(),
+            include_snippets: true,
+            row_types: Vec::new(),
         }
     }
 }
@@ -418,7 +519,10 @@ pub struct WorkFeedDoneTarget {
     /// The item.
     pub key: WorkFeedItemKey,
     /// What the caller observed; `None` acknowledges everything current.
+    /// With `row`, the row's revision.
     pub revision: Option<WorkFeedRevision>,
+    /// Complete only this inbox row of the item, by its id.
+    pub row: Option<String>,
 }
 
 /// Everything one mark-done operation changed, so undo can reverse exactly
@@ -464,9 +568,12 @@ impl WorkFeedDoneReceipt {
 /// The outcome of marking items done.
 #[derive(Debug)]
 pub struct WorkFeedDoneOutcome {
-    /// The items now done; requested items that were already gone are
-    /// reported done as well, so callers can drop them.
+    /// The items now done as a whole; requested items that were already
+    /// gone are reported done as well, so callers can drop them.
     pub items: Vec<WorkFeedItemKey>,
+    /// The inbox rows now done, by id; rows already gone are reported too.
+    /// Their items stay in feeds while they have other reasons.
+    pub rows: Vec<String>,
     /// What the operation changed, for undo.
     pub receipt: WorkFeedDoneReceipt,
 }

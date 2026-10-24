@@ -1,5 +1,7 @@
-//! Work feed domain: models, ports, policy, stacking and the service.
+//! Work feed domain: models, ports, policy, stacking, inbox rows and the
+//! service.
 
+pub mod inbox;
 pub mod models;
 pub mod policy;
 pub mod ports;

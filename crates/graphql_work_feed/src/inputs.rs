@@ -109,6 +109,7 @@ impl WorkFeedScopeInput {
                 .map(Into::into)
                 .collect(),
             include_snippets: self.include_snippets.unwrap_or(false),
+            row_types: Vec::new(),
         }
     }
 }
@@ -178,7 +179,11 @@ impl MarkWorkFeedItemsDoneInput {
                     .map(|revision| WorkFeedRevision::decode(&revision))
                     .transpose()
                     .map_err(|_| async_graphql::Error::new("invalid work feed revision"))?;
-                Ok(WorkFeedDoneTarget { key, revision })
+                Ok(WorkFeedDoneTarget {
+                    key,
+                    revision,
+                    row: None,
+                })
             })
             .collect()
     }

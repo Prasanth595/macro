@@ -230,6 +230,11 @@ kinds introduced by a newer backend.
   notifications to thread roots and stacks comment events. A new kind defaults to
   a standalone stack (`_ => None`); add it to the thread-root and
   `is_channel_event` / `is_comment_event` matches if it belongs to a conversation.
+- **Notifications inbox rows:** `place_event` in
+  `crates/work_feed/src/domain/inbox.rs` matches every kind exhaustively; give
+  the new kind its row slot and say whether it is shown or hidden as noise.
+  Channel and discussion kinds also need their message role in `channel_view` /
+  `discussion_view`.
 - **Channel unread scoping:** channel thread SQL in
   `crates/notification/src/outbound/entity_notifications.rs` lists event types by
   name. Add a channel-scoped kind there, with tests beside it.

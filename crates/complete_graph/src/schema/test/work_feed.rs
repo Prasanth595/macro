@@ -64,6 +64,7 @@ fn doc_entry() -> WorkFeedEntry<SoupProjectionHydration> {
     let notifications = vec![comment(2, 7), comment(1, 5)];
     WorkFeedEntry {
         sort_at: at(9),
+        rows: Vec::new(),
         item: WorkFeedItem {
             key: doc_key(),
             entity: SoupProjectionHydration {
@@ -156,6 +157,7 @@ impl WorkFeedGraphqlService for Recording {
                     ..Default::default()
                 },
                 items,
+                rows: Vec::new(),
             })
         })
     }

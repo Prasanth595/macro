@@ -3,17 +3,20 @@
 
 use std::collections::{HashMap, HashSet};
 
+use chrono::{DateTime, Utc};
+use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::{Entity, EntityType};
 use model_notifications::NotifEvent;
 use rootcause::Report;
 use uuid::Uuid;
 
 use super::{
+    inbox,
     models::{
         FeedNotification, WorkFeedChange, WorkFeedDoneOutcome, WorkFeedDoneReceipt,
         WorkFeedDoneTarget, WorkFeedEntry, WorkFeedError, WorkFeedItem, WorkFeedItemKey,
-        WorkFeedItemState, WorkFeedPage, WorkFeedPrimaryReason, WorkFeedQuery, WorkFeedScope,
-        WorkFeedViewer, counts_as_unseen,
+        WorkFeedItemState, WorkFeedMode, WorkFeedPage, WorkFeedPrimaryReason, WorkFeedQuery,
+        WorkFeedRowType, WorkFeedScope, WorkFeedViewer, counts_as_unseen,
     },
     policy,
     ports::{
@@ -53,7 +56,9 @@ pub trait WorkFeedService: Send + Sync + 'static {
     /// Acknowledge the attention the caller observed on each item: its
     /// notifications move to done and its inbox email is archived. Own work
     /// is not acknowledged, so an item the viewer also worked on stays in the
-    /// work feed, seen, at its own-work time. Underlying tasks, discussions
+    /// work feed, seen, at its own-work time. A target naming an inbox row
+    /// acknowledges only what that row stands for, shown or hidden, and an
+    /// email row also archives its thread. Underlying tasks, discussions
     /// and pull requests are not completed.
     fn mark_done(
         &self,
@@ -109,11 +114,21 @@ fn notification_source(item: &SourceItem<impl Sized>) -> Option<Entity<'static>>
     }
 }
 
+/// What an attention feed needs to cut its items into inbox rows.
+struct RowContext<'a> {
+    viewer: &'a MacroUserIdStr<'static>,
+    row_types: &'a [WorkFeedRowType],
+    now: DateTime<Utc>,
+}
+
 /// Build one item from its candidate and its source's active notifications.
-/// Returns `None` when, after scoping, the item has no reason left.
+/// The item is built the same way in every feed; an attention feed (`rows`
+/// set) also cuts it into inbox rows and lists it only while it has a row.
+/// Returns `None` when the item has no reason left in the feed.
 fn assemble_item<E>(
     item: SourceItem<E>,
     loaded: &HashMap<Entity<'static>, Vec<FeedNotification>>,
+    rows: Option<&RowContext<'_>>,
 ) -> Option<Assembled<E>> {
     let source = notification_source(&item);
     let available = source
@@ -130,11 +145,34 @@ fn assemble_item<E>(
     };
     // An email's attention lasts while it is in the inbox: archive is mail's
     // own done, whatever its notifications' states.
-    if item.facts.mail.is_some_and(|mail| !mail.inbox_visible) {
+    let in_inbox = item.facts.mail.is_none_or(|mail| mail.inbox_visible);
+    if !in_inbox {
         scoped.clear();
     }
     stacking::sort_newest_first(&mut scoped);
-    if scoped.is_empty() && item.touched_at.is_none() {
+    let key = WorkFeedItemKey::new(item.key);
+    let rows = match rows {
+        Some(context) if in_inbox => {
+            let mut rows = inbox::rows(
+                &key,
+                available,
+                item.facts.mail,
+                context.viewer,
+                context.now,
+            );
+            if !context.row_types.is_empty() {
+                rows.retain(|row| context.row_types.contains(&row.row_type));
+            }
+            Some(rows)
+        }
+        Some(_) => Some(Vec::new()),
+        None => None,
+    };
+    let listed = match &rows {
+        Some(rows) => !rows.is_empty(),
+        None => !scoped.is_empty() || item.touched_at.is_some(),
+    };
+    if !listed {
         return None;
     }
 
@@ -163,8 +201,9 @@ fn assemble_item<E>(
     Some(Assembled {
         entry: WorkFeedEntry {
             sort_at: item.sort_at,
+            rows: rows.unwrap_or_default(),
             item: WorkFeedItem {
-                key: WorkFeedItemKey::new(item.key),
+                key,
                 entity: item.entity,
                 state: if unseen {
                     WorkFeedItemState::Unseen
@@ -189,10 +228,12 @@ where
     M: WorkFeedMail,
     G: WorkFeedSignals,
 {
-    /// Load the candidates' notifications and build their items, in order.
+    /// Load the candidates' notifications and build their items for
+    /// `scope`, in order.
     async fn assemble(
         &self,
         viewer: &WorkFeedViewer,
+        scope: &WorkFeedScope,
         items: Vec<SourceItem<S::Entity>>,
     ) -> Result<Vec<Assembled<S::Entity>>, Report> {
         let mut sources = Vec::new();
@@ -209,9 +250,14 @@ where
                 .active(viewer.user.clone(), sources)
                 .await?
         };
+        let rows = (scope.mode == WorkFeedMode::Attention).then(|| RowContext {
+            viewer: &viewer.user,
+            row_types: &scope.row_types,
+            now: Utc::now(),
+        });
         Ok(items
             .into_iter()
-            .filter_map(|item| assemble_item(item, &loaded))
+            .filter_map(|item| assemble_item(item, &loaded, rows.as_ref()))
             .collect())
     }
 
@@ -238,7 +284,7 @@ where
                     only: Some(chunk.iter().map(|key| key.entity().clone()).collect()),
                 })
                 .await?;
-            for assembled in self.assemble(viewer, page.items).await? {
+            for assembled in self.assemble(viewer, scope, page.items).await? {
                 current.insert(assembled.entry.item.key.clone(), assembled);
             }
         }
@@ -252,6 +298,15 @@ fn unique_keys(keys: impl IntoIterator<Item = WorkFeedItemKey>) -> Vec<WorkFeedI
     keys.into_iter()
         .filter(|key| seen.insert(key.clone()))
         .collect()
+}
+
+/// Add the ids of `notifications` created by `through` to `ids`, once each.
+fn acknowledge(ids: &mut Vec<Uuid>, notifications: &[FeedNotification], through: DateTime<Utc>) {
+    for notification in notifications {
+        if notification.created_at <= through && !ids.contains(&notification.notification_id) {
+            ids.push(notification.notification_id);
+        }
+    }
 }
 
 /// An email thread item's thread id.
@@ -289,7 +344,7 @@ where
             })
             .await?;
         let entries = self
-            .assemble(&viewer, page.items)
+            .assemble(&viewer, &query.scope, page.items)
             .await?
             .into_iter()
             .map(|assembled| assembled.entry)
@@ -327,42 +382,95 @@ where
         viewer: WorkFeedViewer,
         targets: Vec<WorkFeedDoneTarget>,
     ) -> Result<WorkFeedDoneOutcome, WorkFeedError> {
+        if targets.iter().any(|target| {
+            target
+                .row
+                .as_ref()
+                .is_some_and(|row| !target.key.owns_row(row))
+        }) {
+            return Err(WorkFeedError::InvalidInput(
+                "a done row does not belong to its item",
+            ));
+        }
         let keys = unique_keys(targets.iter().map(|target| target.key.clone()));
         if keys.is_empty() {
             return Ok(WorkFeedDoneOutcome {
                 items: Vec::new(),
+                rows: Vec::new(),
                 receipt: WorkFeedDoneReceipt::default(),
             });
         }
+        let item_keys = unique_keys(
+            targets
+                .iter()
+                .filter(|target| target.row.is_none())
+                .map(|target| target.key.clone()),
+        );
+        let row_keys = unique_keys(
+            targets
+                .iter()
+                .filter(|target| target.row.is_some())
+                .map(|target| target.key.clone()),
+        );
         // Evaluate each item in every feed's scope, whatever feed the caller
-        // was looking at, so done acknowledges what they observed.
-        let current = self
-            .current(&viewer, &WorkFeedScope::everything(), &keys)
-            .await?;
+        // was looking at, so done acknowledges what they observed. A row is
+        // found among every row of its item.
+        let items = if item_keys.is_empty() {
+            HashMap::new()
+        } else {
+            self.current(&viewer, &WorkFeedScope::everything(), &item_keys)
+                .await?
+        };
+        let rows = if row_keys.is_empty() {
+            HashMap::new()
+        } else {
+            self.current(&viewer, &WorkFeedScope::every_row(), &row_keys)
+                .await?
+        };
 
         let mut notification_ids = Vec::new();
         let mut archive = Vec::new();
+        let mut done_rows = Vec::new();
         let mut planned = HashSet::new();
         for target in &targets {
-            if !planned.insert(target.key.clone()) {
+            let planned_key = (target.key.clone(), target.row.clone());
+            if !planned.insert(planned_key) {
                 continue;
             }
-            let Some(assembled) = current.get(&target.key) else {
-                // Already gone from every feed: nothing left to acknowledge.
-                continue;
+            let (assembled, archives) = match &target.row {
+                None => {
+                    // Already gone from every feed: nothing left to acknowledge.
+                    let Some(assembled) = items.get(&target.key) else {
+                        continue;
+                    };
+                    let item = &assembled.entry.item;
+                    let observed = target.revision.unwrap_or_else(|| item.revision());
+                    if let Some(through) = observed.attention_through {
+                        acknowledge(&mut notification_ids, &item.notifications, through);
+                    }
+                    (assembled, true)
+                }
+                Some(row_id) => {
+                    done_rows.push(row_id.clone());
+                    let Some(assembled) = rows.get(&target.key) else {
+                        continue;
+                    };
+                    let Some(row) = assembled.entry.rows.iter().find(|row| row.id == *row_id)
+                    else {
+                        continue;
+                    };
+                    let observed = target.revision.unwrap_or_else(|| row.revision());
+                    if let Some(through) = observed.attention_through {
+                        acknowledge(&mut notification_ids, &row.notifications, through);
+                        acknowledge(&mut notification_ids, &row.hidden, through);
+                    }
+                    (assembled, row.row_type == WorkFeedRowType::Email)
+                }
             };
-            let item = &assembled.entry.item;
-            let observed = target.revision.unwrap_or_else(|| item.revision());
-            if let Some(through) = observed.attention_through {
-                notification_ids.extend(
-                    item.notifications
-                        .iter()
-                        .filter(|notification| notification.created_at <= through)
-                        .map(|notification| notification.notification_id),
-                );
-            }
-            if assembled.facts.mail.is_some_and(|mail| mail.inbox_visible)
+            if archives
+                && assembled.facts.mail.is_some_and(|mail| mail.inbox_visible)
                 && let Some(thread_id) = email_thread_id(&target.key)
+                && !archive.contains(&thread_id)
             {
                 archive.push(thread_id);
             }
@@ -398,7 +506,8 @@ where
                 notification_ids: changed_notifications,
                 archived_threads: archived,
             },
-            items: keys,
+            items: item_keys,
+            rows: done_rows,
         })
     }
 
