@@ -9,6 +9,14 @@ export function attachmentLimitBytes(provider?: 'GMAIL' | 'OUTLOOK'): number {
   return provider === 'OUTLOOK' ? 25_000_000 : MAX_ATTACHMENTS_BYTES_SIZE;
 }
 
+// Exchange stores at most 255 characters of a subject. Gmail has no documented
+// subject limit short of its message size cap.
+export function subjectLimitChars(
+  provider?: 'GMAIL' | 'OUTLOOK'
+): number | undefined {
+  return provider === 'OUTLOOK' ? 255 : undefined;
+}
+
 // Stable id for the compose "To" input so the create gesture can focus it
 // synchronously on iOS (the virtual keyboard only opens within a user gesture).
 export const EMAIL_COMPOSE_TO_INPUT_ID = 'email-compose-to-input';
