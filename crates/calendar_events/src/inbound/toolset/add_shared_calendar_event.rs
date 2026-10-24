@@ -118,7 +118,7 @@ where
 {
     type Output = ToolCalendarEvent;
 
-    #[tracing::instrument(skip_all, fields(user_id=?request_context.user_id, event_id=%self.event_id), err)]
+    #[tracing::instrument(skip_all, fields(event_id=%self.event_id), err)]
     async fn call(
         &self,
         service_context: ServiceContext<CalendarToolContext<M, O, L>>,
