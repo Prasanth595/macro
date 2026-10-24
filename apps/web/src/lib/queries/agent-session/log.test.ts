@@ -6,7 +6,8 @@
 
 import type { AgentSessionLogEntryDto } from '@service-agent-harness/generated/schemas';
 import type { AgentSessionLogQuery } from '@service-storage/graphql/generated/graphql';
-import type { OperationResult } from '@urql/core';
+import { CombinedError, type OperationResult } from '@urql/core';
+import { err, ok } from 'neverthrow';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeSubject, type Source } from 'wonka';
 
@@ -32,9 +33,15 @@ const host = vi.hoisted(() => ({
   writeQuery: vi.fn(),
   deleteRecords: vi.fn(),
 }));
+const soup = vi.hoisted(() => ({ sessionActive: true }));
 vi.mock('@service-storage/graphql-soup', () => ({
   getGraphqlSoupClient: () => client,
   getGraphqlCacheHost: () => host,
+  graphqlSoupSessionActive: () => soup.sessionActive,
+}));
+const harness = vi.hoisted(() => ({ getLog: vi.fn() }));
+vi.mock('@service-agent-harness/client', () => ({
+  agentHarnessServiceClient: harness,
 }));
 
 import { watchAgentSessionLog } from './log';
@@ -101,6 +108,7 @@ let calls: string[];
 
 beforeEach(() => {
   vi.useFakeTimers();
+  soup.sessionActive = true;
   calls = [];
   query = makeSubject();
   appended = makeSubject();
@@ -265,5 +273,56 @@ describe('watchAgentSessionLog', () => {
 
     expect(gap).toHaveBeenCalledOnce();
     watch.stop();
+  });
+
+  describe('signed out', () => {
+    /** What the GraphQL `user` root answers a caller with no account. */
+    const unauthenticated = () => {
+      const result = {
+        data: null,
+        error: new CombinedError({
+          graphQLErrors: [
+            { message: 'authentication required', path: ['user'] },
+          ],
+        }),
+        stale: false,
+        hasNext: false,
+      } as unknown as Result<AgentSessionLogQuery>;
+      metadata.set(result, { source: 'live-network' });
+      return result;
+    };
+
+    beforeEach(() => {
+      soup.sessionActive = false;
+    });
+
+    it('reads a public session from the harness, which applies link sharing', async () => {
+      harness.getLog.mockResolvedValue(
+        ok({
+          bot: { id: 'bot-id', name: 'Agent', handle: 'agent' },
+          entries: [row(1), row(2)],
+        })
+      );
+      const watch = watchAgentSessionLog(SESSION);
+      query.next(unauthenticated());
+
+      expect(await watch.fetched).toEqual({
+        bot: { id: 'bot-id', name: 'Agent', handle: 'agent' },
+        rows: [row(1), row(2)],
+      });
+      expect(await watch.cached).toBeUndefined();
+    });
+
+    it('reports a session the harness refuses as inaccessible', async () => {
+      harness.getLog.mockResolvedValue(
+        err([{ code: 'UNAUTHORIZED', message: 'Unauthorized access' }])
+      );
+      const watch = watchAgentSessionLog(SESSION);
+      query.next(unauthenticated());
+
+      await expect(watch.fetched).rejects.toMatchObject({
+        reason: 'inaccessible',
+      });
+    });
   });
 });
