@@ -708,7 +708,9 @@ it by posting the chip. It asks whether to share with the channel, and a yes in 
 writes the same channel grant. Private and confidential events are never shared this way.
 Every calendar mention's hover card shows the schedule, location, organizer and attendee
 count, plus the first lines of the event description (its links open), and no last-updated
-byline.
+byline. The agent reads a mentioned event, including one only shared with the viewer, with
+`ReadCalendarEvent`: the same fields, plus whether the event is on the viewer's calendar or only
+shared with them and their join request.
 
 ## Scheduling — `/app/scheduling`
 
