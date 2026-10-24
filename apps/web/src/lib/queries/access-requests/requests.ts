@@ -11,6 +11,7 @@ import { invalidateCalendarEventPreviews } from '../calendar/mention-preview';
 import { callKeys } from '../call/keys';
 import { channelKeys } from '../channel/keys';
 import { queryClient } from '../client';
+import { messageKeys } from '../messages/keys';
 import { refreshActiveGraphqlPreviewQueries } from '../preview/active-queries';
 import { refreshActiveGraphqlSoupQueries } from '../soup/graphql/active-queries';
 import { invalidateAllSoup } from '../soup/normalized-cache';
@@ -98,6 +99,13 @@ export function refreshSharedAccess(entity: AccessChangeEntity) {
       channelKeys.mentions(entity.entityId),
     ])
       queryClient.invalidateQueries({ queryKey: key.queryKey });
+    // An open conversation closes once its timeline is refused.
+    queryClient.invalidateQueries({
+      queryKey: [
+        ...messageKeys.messages._def,
+        { type: 'channel', id: entity.entityId },
+      ],
+    });
     // Events shared with the channel left with it.
     invalidateCalendarEventPreviews();
   }

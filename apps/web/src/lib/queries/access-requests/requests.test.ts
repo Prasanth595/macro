@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { registerActivityRevalidator } from '../activity/push-registry';
 import { calendarKeys } from '../calendar/keys';
 import { channelKeys } from '../channel/keys';
+import { messageKeys } from '../messages/keys';
 import { registerActiveGraphqlPreviewQuery } from '../preview/active-queries';
 import { previewKeys } from '../preview/keys';
 import { registerActiveGraphqlSoupQuery } from '../soup/graphql/active-queries';
@@ -127,6 +128,12 @@ it('drops what was shared in a channel the viewer lost, and the channel itself',
   expect(activity).toHaveBeenCalledWith(null);
   expect(mocks.invalidate).toHaveBeenCalledWith({
     queryKey: channelKeys.withID('channel').queryKey,
+  });
+  expect(mocks.invalidate).toHaveBeenCalledWith({
+    queryKey: [
+      ...messageKeys.messages._def,
+      { type: 'channel', id: 'channel' },
+    ],
   });
   expect(mocks.invalidate).toHaveBeenCalledWith({
     queryKey: calendarKeys.mentionPreview._def,
