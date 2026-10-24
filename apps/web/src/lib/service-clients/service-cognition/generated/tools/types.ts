@@ -13429,9 +13429,14 @@ export interface ToolChannelMessage {
    */
   channelId: string;
   /**
-   * Sender user id.
+   * Sender id: `macro|<email>` for a person, `bot|<id>` for a bot.
    */
   senderId: string;
+  /**
+   * The sender's name as the app shows it, for the same sender as
+   * `senderId`. Absent when a person has no profile name.
+   */
+  senderName?: string | null;
   /**
    * Message content, possibly truncated.
    */
@@ -13504,9 +13509,14 @@ export interface ToolThreadReply {
    */
   threadId: string;
   /**
-   * Sender user id.
+   * Sender id: `macro|<email>` for a person, `bot|<id>` for a bot.
    */
   senderId: string;
+  /**
+   * The sender's name as the app shows it, for the same sender as
+   * `senderId`. Absent when a person has no profile name.
+   */
+  senderName?: string | null;
   /**
    * Reply content, possibly truncated.
    */
