@@ -1,5 +1,5 @@
 use super::*;
-use crate::domain::send_attempt::{EmailSendRepo, SendAttemptStatus};
+use crate::domain::send_attempt::{EmailSendRepo, SendAttempt, SendAttemptStatus};
 use macro_user_id::user_id::MacroUserIdStr;
 
 async fn claim(sync: &PgMailboxSync) -> DraftLease {
@@ -10,6 +10,10 @@ async fn claim(sync: &PgMailboxSync) -> DraftLease {
     .await
     .unwrap()
     .unwrap()
+}
+
+fn actor() -> MacroUserIdStr<'static> {
+    MacroUserIdStr::parse_from_str(ACTOR).unwrap()
 }
 
 async fn submitted_send(db: &PgPool) -> (PgMailboxSync, EmailPgRepo, DraftLease, Uuid) {
@@ -23,14 +27,17 @@ async fn submitted_send(db: &PgPool) -> (PgMailboxSync, EmailPgRepo, DraftLease,
     (sync, repo, lease, link)
 }
 
-async fn pending_status(repo: &EmailPgRepo, link: Uuid) -> SendAttemptStatus {
-    let actor = MacroUserIdStr::parse_from_str(ACTOR).unwrap();
-    let attempts = repo
-        .pending_send_attempts(&actor, &[link], None)
+async fn pending_attempt(repo: &EmailPgRepo, link: Uuid) -> SendAttempt {
+    let mut attempts = repo
+        .pending_send_attempts(&actor(), &[link], None)
         .await
         .unwrap();
     assert_eq!(attempts.len(), 1);
-    attempts[0].1.status
+    attempts.remove(0).1
+}
+
+async fn pending_status(repo: &EmailPgRepo, link: Uuid) -> SendAttemptStatus {
+    pending_attempt(repo, link).await.status
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
@@ -53,6 +60,27 @@ async fn routine_outlook_confirmation_reads_as_sending_until_delivery_is_unknown
     assert_eq!(
         pending_status(&repo, link).await,
         SendAttemptStatus::DeliveryUnconfirmed
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn cancelling_while_outlook_confirms_is_too_late(db: PgPool) {
+    let (_, repo, lease, link) = submitted_send(&db).await;
+    let attempt = pending_attempt(&repo, link).await.attempt_id;
+    let cancelled = repo.cancel_send(&actor(), link, attempt).await.unwrap();
+    assert_eq!(cancelled.status, SendAttemptStatus::Sending);
+    let processing = sqlx::query_scalar!(
+        "SELECT processing FROM email_scheduled_messages WHERE message_id = $1",
+        lease.message_id
+    )
+    .fetch_optional(&db)
+    .await
+    .unwrap();
+    assert_eq!(processing, Some(true), "the submitted delivery is kept");
+    assert_eq!(
+        pending_status(&repo, link).await,
+        SendAttemptStatus::Sending,
+        "the attempt is still pending, not cancelled"
     );
 }
 
