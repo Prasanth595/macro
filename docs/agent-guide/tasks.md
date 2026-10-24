@@ -540,7 +540,8 @@ keyboard shortcut on touch. Desktop uses the centered composer dialog.
    `Add description...`, and property buttons: `Not Started` (status), `Priority`, assignee
    chip (defaults to you), `Due Date`, `Project` (when Projects is enabled; the standard
    property dropdown, listing projects), `Change or select tags`, a `Create More` switch,
-   and `Create Task Ctrl ↵`. `Attach image or video` (paperclip) sits just under the
+   and `Create Task Ctrl ↵` (`Create Task` alone on touch). `Attach image or video`
+   (paperclip) sits just under the
    description, above the property buttons. If the chosen project can't be
    set, the task is still created and a toast says it wasn't added to the project.
    The `Share with <team name>` switch in the footer's left corner (hidden when you
@@ -549,8 +550,8 @@ keyboard shortcut on touch. Desktop uses the centered composer dialog.
    explains whether the task will be visible to your whole team or only to you and
    the people you share it with. The choice also applies to Create More, continuing
    in a split, and tasks created from a project.
-3. `type_text` the title, then press **Ctrl+Enter** to create (the `Create Task` button
-   enables once there is a title). Dialog also offers `Continue editing in split` to open the
+3. `type_text` the title, then press **Ctrl+Enter** to create, or tap `Create Task` on
+   touch (the button enables once there is a title). Dialog also offers `Continue editing in split` to open the
    task as a full document.
 
 The property row adapts when the launching pane supplies a task-composer preset.
