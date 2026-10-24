@@ -1,27 +1,42 @@
 import '@app/index.css';
 import { AnalyticsContextProvider } from '@app/lib/analytics/analytics-context';
 import { PosthogProvider } from '@app/lib/analytics/posthog';
-import type { BlockName } from '@core/block';
+import type { BlockAlias, BlockName } from '@core/block';
 import { UserContextProvider } from '@core/context/user';
+import { onElementConnect } from '@core/util/onElementConnect';
+import { $dfs } from '@lexical/utils';
+import {
+  $isDocumentMentionNode,
+  DocumentMentionNode,
+} from '@macro-inc/lexical-core';
+import { setDecorator } from '@macro-inc/lexical-core/decoratorRegistry';
+import { agentSessionKeys } from '@queries/agent-session/keys';
 import { authKeys } from '@queries/auth/keys';
 import type { UserInfoData } from '@queries/auth/user-info';
 import { queryClient } from '@queries/client';
 import { previewKeys } from '@queries/preview/keys';
 import type { PreviewItem, PreviewItemNoAccess } from '@queries/preview/types';
+import { databaseDetailQueryOptions } from '@queries/storage/databases';
+import { formDetailQueryOptions } from '@queries/storage/forms';
+import { systemSkillsQueryOptions } from '@queries/storage/system-skills';
 import { MemoryRouter, Route } from '@solidjs/router';
 import { QueryClientProvider } from '@tanstack/solid-query';
-import {
-  KEY_ENTER_COMMAND,
-  type LexicalCommand,
-  type LexicalEditor,
-} from 'lexical';
-import { For } from 'solid-js';
+import { $createNodeSelection, $setSelection } from 'lexical';
+import { For, onCleanup } from 'solid-js';
 import { render } from 'solid-js/web';
-import { LexicalWrapperContext } from '../../../context/LexicalWrapperContext';
-import type { PluginManager, SelectionData } from '../../../plugins';
+import {
+  createLexicalWrapper,
+  LexicalWrapperContext,
+} from '../../../context/LexicalWrapperContext';
+import { selectionDataPlugin } from '../../../plugins';
 import { channelTheme } from '../../../theme';
+import { setEditorStateFromMarkdown } from '../../../utils';
+import { DecoratorRenderer } from '../../core/DecoratorRenderer';
 import { StaticMarkdownContext } from '../../core/StaticMarkdown';
+import { AgentSessionMention } from '../AgentSessionMention';
 import { DocumentMention } from '../DocumentMention';
+
+setDecorator(DocumentMentionNode, DocumentMention);
 
 // The previews answer as the API does for an item deleted (or a meeting
 // cancelled) since it was mentioned, or one the viewer can't open.
@@ -50,17 +65,112 @@ const mentions = [
     blockName: 'calendar',
     preview: { type: 'calendar_event', access: 'no_access' },
   },
+  {
+    label: 'Deleted database',
+    id: '01a16d55-0000-7000-8000-000000000005',
+    blockName: 'database',
+    preview: { type: 'database', access: 'does_not_exist' },
+  },
+  {
+    label: 'Hidden database',
+    id: '01a16d55-0000-7000-8000-000000000006',
+    blockName: 'database',
+    preview: { type: 'database', access: 'no_access' },
+  },
+  {
+    label: 'Deleted form',
+    id: '01a16d55-0000-7000-8000-000000000007',
+    blockName: 'form',
+    preview: { type: 'form', access: 'does_not_exist' },
+  },
+  {
+    label: 'Hidden form',
+    id: '01a16d55-0000-7000-8000-000000000008',
+    blockName: 'form',
+    preview: { type: 'form', access: 'no_access' },
+  },
+  {
+    label: 'Deleted skill',
+    id: '01a16d55-0000-7000-8000-000000000009',
+    blockName: 'skill',
+    preview: { type: 'document', access: 'does_not_exist' },
+  },
+  {
+    label: 'Deleted routine',
+    id: '01a16d55-0000-7000-8000-00000000000a',
+    blockName: 'routine',
+    preview: { type: 'routine', access: 'does_not_exist' },
+  },
+  {
+    label: 'Hidden routine',
+    id: '01a16d55-0000-7000-8000-00000000000b',
+    blockName: 'routine',
+    preview: { type: 'routine', access: 'no_access' },
+  },
 ] as const satisfies ReadonlyArray<{
   label: string;
   id: string;
-  blockName: BlockName;
+  blockName: BlockName | BlockAlias;
   preview: Pick<PreviewItemNoAccess, 'type' | 'access'>;
+}>;
+
+const sessions = [
+  {
+    label: 'Deleted agent session',
+    id: '01a16d55-0000-7000-8000-00000000000c',
+    access: 'does_not_exist',
+  },
+  {
+    label: 'Hidden agent session',
+    id: '01a16d55-0000-7000-8000-00000000000d',
+    access: 'no_access',
+  },
+] as const satisfies ReadonlyArray<{
+  label: string;
+  id: string;
+  access: PreviewItemNoAccess['access'];
 }>;
 
 for (const mention of mentions) {
   queryClient.setQueryData(previewKeys.item(mention.id).queryKey, {
     id: mention.id,
     ...mention.preview,
+    loading: false,
+  } satisfies PreviewItem);
+}
+// Database and form chips read their own detail first, and fall back to the
+// shared unavailable chip once it fails.
+for (const mention of mentions) {
+  const queryKey =
+    mention.blockName === 'database'
+      ? databaseDetailQueryOptions(mention.id).queryKey
+      : mention.blockName === 'form'
+        ? formDetailQueryOptions(mention.id).queryKey
+        : undefined;
+  if (!queryKey) continue;
+  queryClient.setQueryDefaults(queryKey, { retryOnMount: false });
+  queryClient
+    .getQueryCache()
+    .build(queryClient, { queryKey })
+    .setState({
+      status: 'error',
+      error: new Error('The detail request failed'),
+      errorUpdatedAt: Date.now(),
+      fetchStatus: 'idle',
+    });
+}
+queryClient.setQueryData(systemSkillsQueryOptions().queryKey, []);
+for (const session of sessions) {
+  for (const graphql of [false, true]) {
+    queryClient.setQueryData(
+      agentSessionKeys.preview(session.id, graphql).queryKey,
+      { access: session.access }
+    );
+  }
+  queryClient.setQueryData(previewKeys.item(session.id).queryKey, {
+    id: session.id,
+    type: 'agent_session',
+    access: session.access,
     loading: false,
   } satisfies PreviewItem);
 }
@@ -72,55 +182,50 @@ queryClient.setQueryData(authKeys.userInfo.queryKey, {
 
 declare global {
   interface Window {
-    pressEnterOnSelectedMention?: () => boolean;
+    selectComposerMention?: () => void;
   }
 }
 
-// An editor holding the deleted document's chip as its node selection, so
-// Enter reaches the chip's KEY_ENTER_COMMAND handler as it does in a composer.
-const selectedMentionKey = 'selected-deleted-document';
-const editor = {
-  registerCommand: <T,>(
-    command: LexicalCommand<T>,
-    handler: (payload: T) => boolean
-  ) => {
-    if (command === KEY_ENTER_COMMAND) {
-      window.pressEnterOnSelectedMention = () =>
-        (handler as (event: KeyboardEvent | null) => boolean)(null);
-    }
-    return () => {};
-  },
-  isEditable: () => false,
-  hasNode: () => false,
-  update: () => {},
-  dispatchCommand: () => true,
-};
-
-function SelectedMention() {
-  const selection = {
-    type: 'node',
-    nodeKeys: new Set([selectedMentionKey]),
-  } as SelectionData;
+/** An editable editor holding the deleted document's chip. */
+function Composer() {
+  const wrapper = createLexicalWrapper({
+    type: 'chat',
+    namespace: 'unavailable-mention-composer',
+    isInteractable: () => true,
+  });
+  wrapper.plugins.richText().use(selectionDataPlugin(wrapper));
+  setEditorStateFromMarkdown(
+    wrapper.editor,
+    `Before <m-document-mention>${JSON.stringify({
+      documentId: mentions[1].id,
+      blockName: mentions[1].blockName,
+      documentName: 'Planning',
+    })}</m-document-mention> after`
+  );
+  // Selects the chip as a node, as arrowing onto it in a composer does.
+  window.selectComposerMention = () =>
+    wrapper.editor.update(() => {
+      const mention = $dfs().find(({ node }) => $isDocumentMentionNode(node));
+      if (!mention) return;
+      const selection = $createNodeSelection();
+      selection.add(mention.node.getKey());
+      $setSelection(selection);
+    });
+  onCleanup(() => wrapper.cleanup());
   return (
-    <LexicalWrapperContext.Provider
-      value={{
-        type: 'markdown',
-        owner: null,
-        plugins: {} as PluginManager,
-        editor: editor as unknown as LexicalEditor,
-        cleanup: () => {},
-        isInteractable: () => true,
-        selection,
-      }}
-    >
-      <DocumentMention
-        key={selectedMentionKey}
-        theme={channelTheme}
-        documentId={mentions[1].id}
-        documentName="Planning"
-        blockName={mentions[1].blockName}
-        createdAt={Date.now() - 10 * 60 * 1000}
+    <LexicalWrapperContext.Provider value={wrapper}>
+      <div
+        ref={(element) =>
+          onElementConnect(element, () =>
+            wrapper.editor.setRootElement(element)
+          )
+        }
+        contentEditable
+        role="textbox"
+        aria-label="Composer"
+        class="w-96 border border-edge-muted p-2 outline-none"
       />
+      <DecoratorRenderer editor={wrapper.editor} />
     </LexicalWrapperContext.Provider>
   );
 }
@@ -143,9 +248,20 @@ function Fixture() {
           </p>
         )}
       </For>
-      <p>
-        Selected in an editor: <SelectedMention />
-      </p>
+      <For each={sessions}>
+        {(session) => (
+          <p>
+            {session.label}:{' '}
+            <AgentSessionMention
+              key={session.id}
+              theme={channelTheme}
+              id={session.id}
+              label="Planning"
+            />
+          </p>
+        )}
+      </For>
+      <Composer />
     </main>
   );
 }
