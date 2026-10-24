@@ -85,6 +85,8 @@ const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
   GetTeamAvailability: (whose) => `check availability for ${whose} team`,
   GetThread: (whose) => `read ${whose} email`,
   ImportCompaniesCsv: (whose) => `import companies into ${whose} CRM`,
+  ImportFromNotion: (whose) =>
+    `import a Notion workspace into ${whose} workspace`,
   ImportNotionPage: (whose) => `import a Notion page into ${whose} workspace`,
   ImportPipelineCsv: (whose) => `import deals into ${whose} pipelines`,
   IssueBotCredential: (whose) => `issue credentials for ${whose} bots`,
@@ -124,6 +126,7 @@ const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
   ReactToChannelMessage: (whose) => `react to messages from ${whose} account`,
   ReadActivity: (whose) => `read ${whose} recent activity`,
   ReadBookingSettings: (whose) => `read ${whose} booking settings`,
+  ReadCalendarEvent: (whose) => `read ${whose} calendar`,
   ReadCallRecord: (whose) => `read ${whose} call recordings`,
   ReadChannelMessageContext: (whose) => `read ${whose} channel messages`,
   ReadChannelMessages: (whose) => `read ${whose} channel messages`,
