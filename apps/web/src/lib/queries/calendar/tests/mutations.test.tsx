@@ -9,6 +9,10 @@ import { err, ok } from 'neverthrow';
 import type { JSX } from 'solid-js';
 import { render } from 'solid-js/web';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  type CalendarSyncController,
+  setActiveCalendarSyncController,
+} from '../graphql/sync-controller';
 import { invalidateInvitationScheduling } from '../invitations';
 import { calendarKeys } from '../keys';
 import {
@@ -235,6 +239,7 @@ beforeEach(() => {
 afterEach(() => {
   dispose?.();
   dispose = undefined;
+  setActiveCalendarSyncController(undefined);
   testQueryClient.clear();
 });
 
@@ -719,6 +724,58 @@ describe('useUpdateCalendarEventMutation', () => {
       expect(titleOfEvent1()).toBe('Renamed by the provider')
     );
     viewport.unsubscribe();
+  });
+
+  it("keeps a newer edit on screen when an earlier save's refresh lands during it", async () => {
+    const deltas: Array<() => void> = [];
+    setActiveCalendarSyncController({
+      answering: () => true,
+      runDelta: () =>
+        new Promise<void>((resolve) => {
+          deltas.push(resolve);
+        }),
+    } as unknown as CalendarSyncController);
+    let serverTitle = 'First';
+    const read = vi.fn(async (): Promise<CalendarOccurrencesData> => {
+      const item = standaloneItem();
+      item.event.title = serverTitle;
+      return { items: [item, recurringItem()], syncStatus: 'ready' };
+    });
+    const unsubscribe = new QueryObserver(testQueryClient, {
+      queryKey: calendarKeys.occurrences('user', viewportA).queryKey,
+      queryFn: read,
+      staleTime: Number.POSITIVE_INFINITY,
+    }).subscribe(() => {});
+    const second = deferredResult();
+    updateCalendarEventMock
+      .mockResolvedValueOnce(ok({ id: 'event-1' }))
+      .mockReturnValueOnce(second.promise);
+    const update = renderHook(() => useUpdateCalendarEventMutation());
+    const titleOfEvent1 = () =>
+      viewportData(viewportA)?.items.find((item) => item.event.id === 'event-1')
+        ?.event.title;
+
+    await update.mutateAsync({ eventId: 'event-1', patch: { title: 'First' } });
+    const saving = update.mutateAsync({
+      eventId: 'event-1',
+      patch: { title: 'Second' },
+    });
+    await vi.waitFor(() => expect(titleOfEvent1()).toBe('Second'));
+
+    deltas[0]();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(testQueryClient.isFetching()).toBe(0));
+    expect(titleOfEvent1()).toBe('Second');
+
+    serverTitle = 'Second';
+    second.resolve(ok({ id: 'event-1' }));
+    await saving;
+    await vi.waitFor(() => expect(deltas).toHaveLength(2));
+    deltas[1]();
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(testQueryClient.isFetching()).toBe(0));
+    expect(titleOfEvent1()).toBe('Second');
+    unsubscribe();
   });
 
   it('scopes an optimistic edit to the targeted occurrence, or widens to the series', async () => {
