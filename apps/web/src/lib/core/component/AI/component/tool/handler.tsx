@@ -57,6 +57,12 @@ import {
   updateCallRecordHandler,
 } from './CallRecordMutations';
 import {
+  applyCanvasEditsHandler,
+  editCanvasHandler,
+  readCanvasHandler,
+  renderCanvasHandler,
+} from './Canvas';
+import {
   deleteChannelMessageHandler,
   editChannelMessageHandler,
   openDirectMessageHandler,
@@ -293,6 +299,10 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   CreateTag: createTagHandler,
   DeleteTag: deleteTagHandler,
   EditDocument: editDocumentHandler,
+  ReadCanvas: readCanvasHandler,
+  RenderCanvas: renderCanvasHandler,
+  EditCanvas: editCanvasHandler,
+  ApplyCanvasEdits: applyCanvasEditsHandler,
   EditTag: editTagHandler,
   GetThread: getThreadHandler,
   NameSearch: nameSearchHandler,
