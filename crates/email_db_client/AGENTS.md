@@ -53,6 +53,9 @@ Parsed message responses expose the draft generation captured in the same SQL sn
 
 - Forwarded-attachment delivery reads preserve `source_link_id` from the original
   message; the destination draft inbox is only the query access scope.
+- A marker row belongs to its newest write; abandoning that write hands the
+  row back to the write it took over. Code that stages or undoes a Gmail label
+  write takes `lock_thread_label_writes` for its threads first.
 - Quote and alias camelCase columns to Rust field names; check
   `crates/macro_db_client/migrations/` for real column spelling, don't guess.
 

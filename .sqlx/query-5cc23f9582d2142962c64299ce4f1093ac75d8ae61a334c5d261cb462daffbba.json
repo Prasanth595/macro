@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH handed_back AS (\n            UPDATE email_gmail_pending_label_writes\n            SET write_id = previous_write_id,\n                expires_at = previous_expires_at,\n                previous_write_id = NULL,\n                previous_expires_at = NULL\n            WHERE message_id = ANY($1) AND write_id = $2 AND previous_write_id IS NOT NULL\n            RETURNING message_id\n        ),\n        removed AS (\n            DELETE FROM email_gmail_pending_label_writes\n            WHERE message_id = ANY($1) AND write_id = $2 AND previous_write_id IS NULL\n            RETURNING message_id\n        )\n        SELECT message_id AS \"message_id!\" FROM handed_back\n        UNION\n        SELECT message_id FROM removed\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_id!",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5cc23f9582d2142962c64299ce4f1093ac75d8ae61a334c5d261cb462daffbba"
+}
