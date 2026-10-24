@@ -201,7 +201,8 @@ async fn outlook_followup_ignores_a_category_named_trash(
     let mailbox = service(pool.clone());
     sqlx::query!(
         "INSERT INTO email_labels (id, link_id, provider_label_id, name, message_list_visibility, label_list_visibility, type)
-         VALUES (gen_random_uuid(), $1, 'TRASH', 'TRASH', 'Show', 'LabelShow', 'User')",
+         VALUES ($1, $2, 'TRASH', 'TRASH', 'Show', 'LabelShow', 'User')",
+        Uuid::now_v7(),
         OUTLOOK_LINK
     )
     .execute(&pool)
@@ -286,7 +287,8 @@ async fn gmail_followup_is_unavailable_with_trash_or_spam_labels(
     for system_label in ["TRASH", "SPAM"] {
         let label = sqlx::query_scalar!(
             "INSERT INTO email_labels (id, link_id, provider_label_id, name, message_list_visibility, label_list_visibility, type)
-             VALUES (gen_random_uuid(), $1, $2, $3, 'Hide', 'LabelHide', 'System') RETURNING id",
+             VALUES ($1, $2, $3, $4, 'Hide', 'LabelHide', 'System') RETURNING id",
+            Uuid::now_v7(),
             link,
             system_label,
             system_label
