@@ -379,13 +379,21 @@ function registerMediaPlugin(editor: LexicalEditor) {
     }
   };
 
+  // Lexical throws when listening for a node the editor did not register, and
+  // chat and calendar editors leave out some media nodes.
+  const followCreated = (
+    klass: typeof ImageNode | typeof VideoNode,
+    mediaType: MediaType
+  ) =>
+    editor.hasNodes([klass])
+      ? editor.registerMutationListener(klass, (mutations) =>
+          followCreatedLocalMedia(mutations, mediaType)
+        )
+      : () => {};
+
   return mergeRegister(
-    editor.registerMutationListener(ImageNode, (mutations) =>
-      followCreatedLocalMedia(mutations, 'image')
-    ),
-    editor.registerMutationListener(VideoNode, (mutations) =>
-      followCreatedLocalMedia(mutations, 'video')
-    ),
+    followCreated(ImageNode, 'image'),
+    followCreated(VideoNode, 'video'),
 
     editor.registerCommand(
       INSERT_MEDIA_COMMAND,
