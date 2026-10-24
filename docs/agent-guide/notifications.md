@@ -49,6 +49,14 @@ hide every row show **No notifications match these filters**. The gear beside
 the filter opens **Settings → Notifications**, which decides what is delivered
 at all (including push and email).
 
+On touch devices the dock's bell (**Notifications**) opens this view with the
+flag on, as the list alone under a floating **Notifications** header with a
+filter drawer (Status and Type). Rows keep the same anatomy with 44px targets
+and inline answer buttons; tapping a row opens it full-screen in place, a left
+swipe marks it done (with the same Undo), and pulling down refreshes. Hover
+controls and the preview pane are desktop-only. The dock keeps the bell active
+while the view shows.
+
 Verify with two accounts: a reply in a thread you're in, a top-level mention,
 and a document comment each add their own row; marking one done leaves the
 others, and Undo restores it in place.

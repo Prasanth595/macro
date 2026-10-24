@@ -11,6 +11,12 @@ import {
 import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
 import { createPreviewSelectionGuard } from '@components/app/createPreviewSelectionGuard';
 import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
+import { MobileTopEdgeFade } from '@components/app/mobile/MobileEdgeFade';
+import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
+import {
+  SwipableRow,
+  SwipableRowProvider,
+} from '@components/app/mobile/SwipableRow';
 import { PreviewPanel } from '@components/app/PreviewPanel';
 import {
   type PreviewPanelSelection,
@@ -21,11 +27,13 @@ import { SplitPanel } from '@components/app/split-panel';
 import { toast } from '@core/component/Toast/Toast';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import type { EntityData } from '@entity';
 import { formatTimestamp } from '@entity/utils/timestamp';
 import ArrowCounterClockwise from '@phosphor/arrow-counter-clockwise.svg';
 import BellIcon from '@phosphor/bell.svg';
+import CheckIcon from '@phosphor/check.svg';
 import GearSixIcon from '@phosphor/gear-six.svg';
 import { useMutationUndoContext } from '@queries/undo';
 import { createElementSize } from '@solid-primitives/resize-observer';
@@ -46,6 +54,7 @@ import {
 } from 'solid-js';
 import { match } from 'ts-pattern';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
+import { InboxFilterDrawer } from '../components/inbox-filter-drawer';
 import { InboxFilterMenu } from '../components/inbox-filter-menu';
 import { NotificationRow } from '../components/notification-row';
 import { RowActionButtons } from '../components/row-action-buttons';
@@ -129,7 +138,7 @@ function ListHeader(props: { actions: JSX.Element }) {
 
 function ListStatus(props: { children: JSX.Element }) {
   return (
-    <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center text-sm text-ink-muted">
+    <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center text-sm text-ink-muted touch:pt-(--mobile-content-inset-top)">
       {props.children}
     </div>
   );
@@ -138,7 +147,9 @@ function ListStatus(props: { children: JSX.Element }) {
 /**
  * The unified notifications list beside a preview of the chosen row: one row
  * per thing that needs the viewer, newest first. `j`/`k` move (and follow in
- * an open preview), Enter previews, `e` marks the focused row done.
+ * an open preview), Enter previews, `e` marks the focused row done. Touch
+ * shows the list alone: a tap opens the row in place, a left swipe marks it
+ * done, and pulling down refreshes.
  */
 export function NotificationsView(props: NotificationsViewProps) {
   const panel = useSplitPanelOrThrow();
@@ -237,6 +248,12 @@ export function NotificationsView(props: NotificationsViewProps) {
     getKey: (row) => row.id,
     onActivate: ({ item, metadata }) => {
       previewAfterMove.clear();
+      // Phones show one pane: open in place.
+      if (isTouchDevice()) {
+        markSeen(item);
+        props.onOpen(item, { newSplit: false });
+        return;
+      }
       if (metadata?.newSplit === true || metadata?.event?.shiftKey === true) {
         markSeen(item);
         props.onOpen(item, { newSplit: true });
@@ -275,6 +292,9 @@ export function NotificationsView(props: NotificationsViewProps) {
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const [virtualizer, setVirtualizer] = createSignal<VirtualizerHandle>();
   const viewportSize = createElementSize(viewport);
+  const [topSpacer, setTopSpacer] = createSignal<HTMLDivElement>();
+  const topSpacerSize = createElementSize(topSpacer);
+  const [listFrame, setListFrame] = createSignal<HTMLDivElement>();
 
   const loadMore = () => fireAndForget(inbox.loadMore(), 'notifications-inbox');
 
@@ -342,12 +362,28 @@ export function NotificationsView(props: NotificationsViewProps) {
   const display = (row: NotificationInboxRow) =>
     describeInboxRow(row, context.actorName);
 
+  /** On touch, a left swipe marks the row done. */
+  const SwipeToDone = (swipe: {
+    row: NotificationInboxRow;
+    children: JSX.Element;
+  }) => (
+    <Show when={isTouchDevice()} fallback={swipe.children}>
+      <SwipableRow
+        id={swipe.row.id}
+        swipeLeftColor="bg-success"
+        swipeLeftRevealedComponent={<CheckIcon class="size-8 text-surface" />}
+      >
+        {swipe.children}
+      </SwipableRow>
+    </Show>
+  );
+
   const listBody = () => (
     <Switch>
       <Match when={!filters.showsNothing() && view().t === 'loading'}>
         <ListSkeleton.Root
           label="Loading notifications"
-          class="px-(--sidebar-gutter) pt-2"
+          class="px-(--sidebar-gutter) pt-2 touch:pt-(--mobile-content-inset-top)"
         >
           <For each={[0, 1, 2, 3, 4]}>
             {() => (
@@ -390,7 +426,7 @@ export function NotificationsView(props: NotificationsViewProps) {
         </ListStatus>
       </Match>
       <Match when={view().t === 'empty'}>
-        <div class="min-h-0 flex-1 overflow-y-auto">
+        <div class="min-h-0 flex-1 overflow-y-auto touch:pt-(--mobile-content-inset-top)">
           <EmptyStatePanel
             graphic={BellIcon}
             title="You’re all caught up"
@@ -401,14 +437,21 @@ export function NotificationsView(props: NotificationsViewProps) {
       <Match when={view().t === 'ready'}>
         <div
           ref={setViewport}
-          class="scrollbar-hidden min-h-0 flex-1 overflow-y-auto overscroll-none"
+          class="scrollbar-hidden min-h-0 flex-1 overflow-y-auto overscroll-none pb-[max(0.5rem,var(--mobile-content-inset-bottom,0px))]"
           onScroll={checkNearEnd}
         >
+          {/* The spacer scrolls away; the viewport stays behind the header. */}
+          <div
+            ref={setTopSpacer}
+            aria-hidden="true"
+            class="h-0 touch:h-(--mobile-content-inset-top)"
+          />
           <Suspense>
             <Virtualizer
               ref={setVirtualizer}
               data={rows()}
               scrollRef={viewport()}
+              startMargin={isTouchDevice() ? (topSpacerSize.height ?? 0) : 0}
               bufferSize={500}
               itemSize={64}
               keepMounted={
@@ -417,43 +460,45 @@ export function NotificationsView(props: NotificationsViewProps) {
               onScroll={checkNearEnd}
             >
               {(row) => (
-                <NotificationRow
-                  id={row.id}
-                  type={row.type}
-                  action={display(row).action}
-                  subject={display(row).subject}
-                  time={formatTimestamp(new Date(row.latestAt))}
-                  count={row.count}
-                  unseen={isRowUnseen(row, context.notificationState)}
-                  highlighted={
-                    list.focus.key() === row.id ||
-                    selection.selected()?.id === row.id
-                  }
-                  onHover={() => list.focus.set(row.id, { reason: 'hover' })}
-                  onClick={(event) =>
-                    list.activate.key(row.id, {
-                      reason: 'pointer',
-                      metadata: { event },
-                    })
-                  }
-                  onDone={() => markDone([row])}
-                  actions={
-                    <Show when={rowAction(row)}>
-                      {(action) => (
-                        <RowActionButtons
-                          choices={actionChoices(action())}
-                          pending={rowActions.pending(row.id)}
-                          onChoose={(choice) =>
-                            fireAndForget(
-                              rowActions.run(row, choice),
-                              'notifications-inbox'
-                            )
-                          }
-                        />
-                      )}
-                    </Show>
-                  }
-                />
+                <SwipeToDone row={row}>
+                  <NotificationRow
+                    id={row.id}
+                    type={row.type}
+                    action={display(row).action}
+                    subject={display(row).subject}
+                    time={formatTimestamp(new Date(row.latestAt))}
+                    count={row.count}
+                    unseen={isRowUnseen(row, context.notificationState)}
+                    highlighted={
+                      list.focus.key() === row.id ||
+                      selection.selected()?.id === row.id
+                    }
+                    onHover={() => list.focus.set(row.id, { reason: 'hover' })}
+                    onClick={(event) =>
+                      list.activate.key(row.id, {
+                        reason: 'pointer',
+                        metadata: { event },
+                      })
+                    }
+                    onDone={() => markDone([row])}
+                    actions={
+                      <Show when={rowAction(row)}>
+                        {(action) => (
+                          <RowActionButtons
+                            choices={actionChoices(action())}
+                            pending={rowActions.pending(row.id)}
+                            onChoose={(choice) =>
+                              fireAndForget(
+                                rowActions.run(row, choice),
+                                'notifications-inbox'
+                              )
+                            }
+                          />
+                        )}
+                      </Show>
+                    }
+                  />
+                </SwipeToDone>
               )}
             </Virtualizer>
           </Suspense>
@@ -462,76 +507,131 @@ export function NotificationsView(props: NotificationsViewProps) {
     </Switch>
   );
 
+  const filterControls = {
+    get status() {
+      return filters.filters().status;
+    },
+    isShown: filters.isShown,
+    get activeCount() {
+      return filters.activeCount();
+    },
+    onStatusChange: filters.setStatus,
+    onShownChange: filters.setShown,
+    onReset: filters.reset,
+  };
+
+  const touchLayout = () => (
+    <ViewShell.Root aside={false} main={{ min: 224 }}>
+      <ViewShell.Main>
+        <div
+          ref={setListFrame}
+          class="relative flex size-full min-h-0 min-w-0 flex-col"
+          style={{
+            '--mobile-content-inset-top':
+              'calc(var(--safe-top, 0px) + 3.75rem)',
+          }}
+        >
+          <header class="pointer-events-none absolute inset-x-0 top-0 z-split-panel-chrome flex shrink-0 flex-col px-(--mobile-chrome-gutter) pt-[calc(var(--safe-top,0px)+0.5rem)]">
+            <div class="pointer-events-auto flex h-10 min-w-0 items-center gap-2">
+              <h1 class="min-w-0 flex-1 truncate text-lg font-semibold text-ink">
+                Notifications
+              </h1>
+              <InboxFilterDrawer {...filterControls} />
+            </div>
+          </header>
+          <PullToRefresh
+            scrollContainer={() => viewport() ?? listFrame()}
+            onRefresh={inbox.refresh}
+          />
+          <SwipableRowProvider
+            container={viewport}
+            canSwipeLeft={(rowId) => rows().some((row) => row.id === rowId)}
+            onSwipeLeft={(rowId) => {
+              const row = rows().find((candidate) => candidate.id === rowId);
+              if (row) markDone([row]);
+            }}
+          >
+            <div
+              role="grid"
+              aria-label="Notifications"
+              class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+            >
+              {listBody()}
+            </div>
+          </SwipableRowProvider>
+          <MobileTopEdgeFade />
+        </div>
+      </ViewShell.Main>
+    </ViewShell.Root>
+  );
+
   return (
     <SplitPanel.Root>
       <SplitPanel.Body>
-        <div class="size-full min-h-0 bg-panel">
-          <ViewShell.Root
-            asidePreferenceKey="notifications"
-            aside={{ preserveDuringResize: false }}
-            main={{ preferredWidth: 640 }}
-            resizable
-          >
-            <ViewShell.Aside class="flex flex-col bg-panel">
-              <ListHeader
-                actions={
-                  <>
-                    <div class="relative">
-                      <InboxFilterMenu
-                        open={filterOpen()}
-                        onOpenChange={setFilterOpen}
-                        status={filters.filters().status}
-                        isShown={filters.isShown}
-                        activeCount={filters.activeCount()}
-                        onStatusChange={filters.setStatus}
-                        onShownChange={filters.setShown}
-                        onReset={filters.reset}
-                      />
-                    </div>
-                    <Button
-                      size="icon-md"
-                      label="Notification settings"
-                      onClick={() => props.onOpenSettings()}
-                    >
-                      <GearSixIcon />
-                    </Button>
-                  </>
-                }
-              />
-              <div
-                role="grid"
-                aria-label="Notifications"
-                aria-activedescendant={list.focus.key()}
-                tabIndex={0}
-                class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden outline-none"
-              >
-                {listBody()}
-              </div>
-            </ViewShell.Aside>
-            <ViewShell.Main class="overflow-hidden">
-              <Show
-                when={previewTarget()}
-                fallback={
-                  <EmptyStatePanel
-                    graphic={BellIcon}
-                    title="No notification selected"
-                    description="Pick a notification to see it here."
-                  />
-                }
-              >
-                <PreviewPanel
-                  target={previewTarget()}
-                  navigationRequest={selection.navigationRequest()}
-                  orchestrator={orchestrator}
-                  splitPanelContext={panel}
-                  headerLeading={
-                    <NotificationsBreadcrumb onReturn={selection.clear} />
+        <Show when={!isTouchDevice()} fallback={touchLayout()}>
+          <div class="size-full min-h-0 bg-panel">
+            <ViewShell.Root
+              asidePreferenceKey="notifications"
+              aside={{ preserveDuringResize: false }}
+              main={{ preferredWidth: 640 }}
+              resizable
+            >
+              <ViewShell.Aside class="flex flex-col bg-panel">
+                <ListHeader
+                  actions={
+                    <>
+                      <div class="relative">
+                        <InboxFilterMenu
+                          open={filterOpen()}
+                          onOpenChange={setFilterOpen}
+                          {...filterControls}
+                        />
+                      </div>
+                      <Button
+                        size="icon-md"
+                        label="Notification settings"
+                        onClick={() => props.onOpenSettings()}
+                      >
+                        <GearSixIcon />
+                      </Button>
+                    </>
                   }
                 />
-              </Show>
-            </ViewShell.Main>
-          </ViewShell.Root>
-        </div>
+                <div
+                  role="grid"
+                  aria-label="Notifications"
+                  aria-activedescendant={list.focus.key()}
+                  tabIndex={0}
+                  class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden outline-none"
+                >
+                  {listBody()}
+                </div>
+              </ViewShell.Aside>
+              <ViewShell.Main class="overflow-hidden">
+                <Show
+                  when={previewTarget()}
+                  fallback={
+                    <EmptyStatePanel
+                      graphic={BellIcon}
+                      title="No notification selected"
+                      description="Pick a notification to see it here."
+                    />
+                  }
+                >
+                  <PreviewPanel
+                    target={previewTarget()}
+                    navigationRequest={selection.navigationRequest()}
+                    orchestrator={orchestrator}
+                    splitPanelContext={panel}
+                    headerLeading={
+                      <NotificationsBreadcrumb onReturn={selection.clear} />
+                    }
+                  />
+                </Show>
+              </ViewShell.Main>
+            </ViewShell.Root>
+          </div>
+        </Show>
       </SplitPanel.Body>
     </SplitPanel.Root>
   );

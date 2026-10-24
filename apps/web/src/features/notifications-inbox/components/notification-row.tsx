@@ -27,8 +27,9 @@ export type NotificationRowProps = {
 
 /**
  * One notification inbox row: a type glyph, a muted line saying who did
- * what, the subject, and optional actions. The time shows until the row is
- * hovered, when Mark done takes its place.
+ * what, the subject, and optional actions. With a pointer the time shows
+ * until the row is hovered, when Mark done takes its place; touch marks done
+ * by swiping the row.
  */
 export function NotificationRow(props: NotificationRowProps) {
   return (
@@ -38,8 +39,8 @@ export function NotificationRow(props: NotificationRowProps) {
       aria-selected={props.highlighted}
       data-notification-row=""
       class={cn(
-        'group/notification relative mx-(--sidebar-gutter) my-(--sidebar-row-gap) flex gap-2.5 rounded-lg px-2 py-2',
-        props.highlighted ? 'bg-active' : 'hover:bg-hover'
+        'group/notification relative mx-(--sidebar-gutter) my-(--sidebar-row-gap) flex gap-2.5 rounded-lg px-2 py-2 touch:min-h-[44px]',
+        props.highlighted ? 'bg-active' : 'not-touch:hover:bg-hover'
       )}
       onMouseMove={() => props.onHover()}
       onClick={(event) => props.onClick(event)}
@@ -58,7 +59,7 @@ export function NotificationRow(props: NotificationRowProps) {
             <span class="min-w-0 flex-1 truncate text-sm text-ink-muted">
               {props.action}
             </span>
-            <span class="shrink-0 text-xs text-ink-extra-muted group-hover/notification:hidden">
+            <span class="shrink-0 text-xs text-ink-extra-muted not-touch:group-hover/notification:hidden">
               {props.time}
             </span>
             <Show when={props.unseen}>
@@ -91,7 +92,8 @@ export function NotificationRow(props: NotificationRowProps) {
           </Show>
         </div>
       </div>
-      <div class="absolute top-1.5 right-2 hidden group-hover/notification:block">
+      {/* Touch marks done by swiping the row instead. */}
+      <div class="absolute top-1.5 right-2 hidden not-touch:group-hover/notification:block">
         <Button
           size="icon-sm"
           label="Mark done"
