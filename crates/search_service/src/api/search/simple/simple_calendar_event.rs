@@ -26,7 +26,16 @@ pub(in crate::api::search) struct FilterCalendarEventResponse {
 /// `ids_only` is otherwise set only when the caller named specific event ids.
 /// Without them the query stays scoped by owner/link, because an empty id list
 /// under `ids_only` would be rejected rather than matching everything.
-#[tracing::instrument(skip(ctx, user_id, filters), err)]
+#[tracing::instrument(
+    name = "search.calendar_event_access",
+    skip(ctx, user_id, filters),
+    fields(
+        named_event_count = filters.calendar_event_ids.len(),
+        calendar_event_count,
+        link_count
+    ),
+    err
+)]
 pub(in crate::api::search) async fn filter_calendar_events(
     ctx: &SearchHandlerState,
     user_id: &str,
@@ -42,16 +51,16 @@ pub(in crate::api::search) async fn filter_calendar_events(
         .cloned()
         .collect();
 
-    match scope {
+    let response = match scope {
         CalendarEventSearchScope::Own => {
             let inboxes = email_db_client::links::get::fetch_inboxes_for_macro_id(&ctx.db, user_id)
                 .await
                 .map_err(SearchError::InternalError)?;
-            Ok(FilterCalendarEventResponse {
+            FilterCalendarEventResponse {
                 calendar_event_ids,
                 link_ids: inboxes.iter().map(|l| l.id.to_string()).collect(),
                 ids_only: !filters.calendar_event_ids.is_empty(),
-            })
+            }
         }
         CalendarEventSearchScope::SharedWithYou => {
             let named: Vec<Uuid> = calendar_event_ids
@@ -63,7 +72,7 @@ pub(in crate::api::search) async fn filter_calendar_events(
             )
             .await
             .map_err(SearchError::InternalError)?;
-            Ok(FilterCalendarEventResponse {
+            FilterCalendarEventResponse {
                 // Named ids narrow within the shared set; they never add to it.
                 calendar_event_ids: shared
                     .into_iter()
@@ -72,7 +81,11 @@ pub(in crate::api::search) async fn filter_calendar_events(
                     .collect(),
                 link_ids: Vec::new(),
                 ids_only: true,
-            })
+            }
         }
-    }
+    };
+    let span = tracing::Span::current();
+    span.record("calendar_event_count", response.calendar_event_ids.len());
+    span.record("link_count", response.link_ids.len());
+    Ok(response)
 }
