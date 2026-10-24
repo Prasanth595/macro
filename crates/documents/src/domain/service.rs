@@ -1750,8 +1750,6 @@ impl<
                 file_type: args.file_type.clone(),
             })
             .await?;
-        self.tell_users_who_may_lose_access(&entity_access_receipt, outcome)
-            .await;
 
         // Update project modified timestamps. args.project_id of None means "no change",
         // so only move the document out of its old project when a different project (or
@@ -1784,6 +1782,9 @@ impl<
                 |e| tracing::error!(error=?e, project_id=?project_id, "unable to update project modified date"),
             );
         }
+
+        self.tell_users_who_may_lose_access(&entity_access_receipt, outcome)
+            .await;
 
         // Send invalidation event
         let _ = self
