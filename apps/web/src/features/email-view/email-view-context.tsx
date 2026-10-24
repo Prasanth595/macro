@@ -425,14 +425,14 @@ export const [EmailViewProvider, useEmailView] = createAssertedContextProvider<
     );
   };
 
-  const tagViewTitle = createMemo(() => {
+  const tagViewTitle = () => {
     const tagIds = state.facets.tags ?? [];
     if (state.tab !== 'all' || tagIds.length === 0) return undefined;
     const labels = listTagOptions(tagSets())
       .filter((tag) => tagIds.includes(tag.id))
       .map((tag) => tag.label);
     return labels.length > 0 ? labels.join(', ') : undefined;
-  });
+  };
 
   const [readingPane, setReadingPane] = usePreference(
     'macro:pref:email:reading-pane',
