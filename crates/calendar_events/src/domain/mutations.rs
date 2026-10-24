@@ -131,6 +131,13 @@ where
         if retired.is_empty() {
             return;
         }
+        for event in &retired {
+            if !event.channel_viewers_who_lost_access.is_empty() {
+                self.refresh
+                    .channel_access_lost(&event.channel_viewers_who_lost_access, event.event_id)
+                    .await;
+            }
+        }
         self.publish_retirements(retired);
         self.refresh
             .calendar_changed(owner_id, email_link_id, true)

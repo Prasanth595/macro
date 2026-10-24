@@ -522,6 +522,9 @@ pub struct RetiredCalendarEvent {
     /// Whether the row is now gone. `false` means it was rewritten from a
     /// remaining source.
     pub deleted: bool,
+    /// Members of the channels the event was shared with who could see it
+    /// before the retirement and no longer can, other than its owner.
+    pub channel_viewers_who_lost_access: Vec<String>,
 }
 
 /// Persistence operations used by calendar business logic.

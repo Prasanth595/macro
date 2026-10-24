@@ -4869,6 +4869,63 @@ async fn hiding_a_channel_shared_event_reports_the_members_it_cut_off(pool: PgPo
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn deleting_a_channel_shared_event_reports_the_members_it_reached(pool: PgPool) {
+    let author_id = "macro|deleting-author@example.com";
+    let member_id = "macro|deleting-member@example.com";
+    let link = insert_link(&pool, author_id).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    let provider = provider_ids(&repo, link).await;
+    let (account_id, calendar_id) = provider;
+    let channel_id = insert_channel(&pool, author_id, &[author_id, member_id]).await;
+    let shared = |uid: &str, visibility: EventVisibility| {
+        let mut upsert = timed_upsert(author_id, link, provider, uid, "Review", 1);
+        upsert.event.visibility = visibility;
+        CalendarEventWrite::Fixture(upsert)
+    };
+    let visible_id = repo
+        .upsert_event(shared("deleting@example.com", EventVisibility::Default))
+        .await
+        .unwrap()
+        .event_id;
+    let private_id = repo
+        .upsert_event(shared(
+            "deleting-private@example.com",
+            EventVisibility::Private,
+        ))
+        .await
+        .unwrap()
+        .event_id;
+    share_with_channel(&pool, visible_id, channel_id).await;
+    share_with_channel(&pool, private_id, channel_id).await;
+
+    let retired = repo
+        .remove_provider_source(account_id, calendar_id, "provider-deleting@example.com")
+        .await
+        .unwrap();
+    assert_eq!(
+        retired,
+        vec![RetiredCalendarEvent {
+            event_id: visible_id,
+            owner_id: author_id.to_string(),
+            deleted: true,
+            channel_viewers_who_lost_access: vec![member_id.to_string()],
+        }]
+    );
+
+    // The channel never saw a private event, so deleting it cuts no one off.
+    let retired = repo
+        .remove_provider_source(
+            account_id,
+            calendar_id,
+            "provider-deleting-private@example.com",
+        )
+        .await
+        .unwrap();
+    assert_eq!(retired.len(), 1);
+    assert!(retired[0].channel_viewers_who_lost_access.is_empty());
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn mention_previews_fall_back_to_a_channel_shared_projection(pool: PgPool) {
     let author_id = "macro|shared-author@example.com";
     let attendee_id = "macro|shared-attendee@example.com";
@@ -6217,6 +6274,7 @@ async fn retiring_the_primary_copy_promotes_the_shared_copy(pool: PgPool) {
             event_id,
             owner_id: member.to_string(),
             deleted: false,
+            channel_viewers_who_lost_access: Vec::new(),
         }]
     );
     let content = entity_content(&pool, event_id).await;
@@ -6431,6 +6489,7 @@ async fn canonical_selection_skips_copies_on_deleted_calendars(pool: PgPool) {
             event_id,
             owner_id: member.to_string(),
             deleted: true,
+            channel_viewers_who_lost_access: Vec::new(),
         }]
     );
 }

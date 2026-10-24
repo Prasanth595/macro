@@ -1331,17 +1331,20 @@ async fn deleting_a_series_publishes_deleted_per_removed_event() {
                 event_id: master,
                 owner_id: "macro|owner".to_string(),
                 deleted: true,
+                channel_viewers_who_lost_access: Vec::new(),
             },
             RetiredCalendarEvent {
                 event_id: instance,
                 owner_id: "macro|owner".to_string(),
                 deleted: true,
+                channel_viewers_who_lost_access: Vec::new(),
             },
             // Still backed by another source, so the row was rewritten.
             RetiredCalendarEvent {
                 event_id: survivor,
                 owner_id: "macro|owner".to_string(),
                 deleted: false,
+                channel_viewers_who_lost_access: Vec::new(),
             },
         ],
         ..FakeRepo::default()
@@ -1380,6 +1383,49 @@ async fn deleting_a_series_publishes_deleted_per_removed_event() {
             // A surviving row is an update, not a deletion.
             (survivor.to_string(), "updated"),
         ]
+    );
+}
+
+#[tokio::test]
+async fn deleting_a_shared_event_tells_the_channel_members_it_reached() {
+    let master = Uuid::now_v7();
+    let instance = Uuid::now_v7();
+    let repo = FakeRepo {
+        mutation_target: Some(mutation_target(false)),
+        retired_events: vec![
+            RetiredCalendarEvent {
+                event_id: master,
+                owner_id: "macro|owner".to_string(),
+                deleted: true,
+                channel_viewers_who_lost_access: vec!["macro|member@example.com".to_string()],
+            },
+            RetiredCalendarEvent {
+                event_id: instance,
+                owner_id: "macro|owner".to_string(),
+                deleted: true,
+                channel_viewers_who_lost_access: Vec::new(),
+            },
+        ],
+        ..FakeRepo::default()
+    };
+    let refresh = RecordingRefreshNotifier::default();
+    service_with_refresh(
+        repo,
+        FakeProvider::new(FakeProviderBehavior::Echo),
+        FakeTokens::ok(),
+        refresh.clone(),
+    )
+    .delete_event("macro|user", master, None, CalendarDeletionScope::All)
+    .await
+    .unwrap();
+
+    assert_eq!(
+        refresh
+            .access_lost
+            .lock()
+            .expect("notifier lock")
+            .as_slice(),
+        [(vec!["macro|member@example.com".to_string()], master)]
     );
 }
 

@@ -2208,6 +2208,7 @@ impl CalendarRepository for PgCalendarRepository {
                 event_id: row.id,
                 owner_id: row.owner_id,
                 deleted: false,
+                channel_viewers_who_lost_access: Vec::new(),
             }
         }));
         let mut announced = HashSet::new();
@@ -3924,6 +3925,13 @@ async fn restore_best_source_or_delete(
     .fetch_one(&mut **tx)
     .await
     .map_err(report)?;
+    // Read who the event's channel shares reach before a delete or a rewrite
+    // from a private source can hide it from them.
+    let channel_viewers = if channel_access::channel_visible(tx, event_id).await? {
+        channel_access::channel_viewers(tx, event_id).await?
+    } else {
+        Vec::new()
+    };
 
     let source = sqlx::query!(
         r#"
@@ -3953,6 +3961,7 @@ async fn restore_best_source_or_delete(
             event_id,
             owner_id: identity.owner_id,
             deleted: true,
+            channel_viewers_who_lost_access: channel_viewers,
         }));
     };
 
@@ -3971,10 +3980,17 @@ async fn restore_best_source_or_delete(
         identity.source_link_id,
         CalendarChangeOp::UpsertEvent(event_id),
     );
+    let channel_viewers_who_lost_access =
+        if channel_viewers.is_empty() || channel_access::channel_visible(tx, event_id).await? {
+            Vec::new()
+        } else {
+            channel_viewers
+        };
     Ok(Some(RetiredCalendarEvent {
         event_id,
         owner_id: identity.owner_id,
         deleted: false,
+        channel_viewers_who_lost_access,
     }))
 }
 
