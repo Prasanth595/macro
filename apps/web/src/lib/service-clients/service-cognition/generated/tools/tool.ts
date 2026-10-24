@@ -235,6 +235,14 @@ type ToolParserMap = {
     call: types.ImportCompaniesCsv;
     response: types.ImportCompaniesCsvResponse;
   };
+  ImportFromJira: {
+    call: types.ImportFromJira;
+    response: types.TrackerImportResponse;
+  };
+  ImportFromLinear: {
+    call: types.ImportFromLinear;
+    response: types.TrackerImportResponse;
+  };
   ImportFromNotion: {
     call: types.ImportFromNotion;
     response: types.ImportFromNotionResponse;
@@ -778,6 +786,14 @@ const toolParserMap = {
   ImportCompaniesCsv: {
     call: schemas.ImportCompaniesCsv,
     response: schemas.ImportCompaniesCsvResponse,
+  },
+  ImportFromJira: {
+    call: schemas.ImportFromJira,
+    response: schemas.TrackerImportResponse,
+  },
+  ImportFromLinear: {
+    call: schemas.ImportFromLinear,
+    response: schemas.TrackerImportResponse,
   },
   ImportFromNotion: {
     call: schemas.ImportFromNotion,
@@ -1360,6 +1376,14 @@ type ToolDataMap = {
   ImportCompaniesCsv: {
     call: types.ImportCompaniesCsv;
     response: types.ImportCompaniesCsvResponse;
+  };
+  ImportFromJira: {
+    call: types.ImportFromJira;
+    response: types.TrackerImportResponse;
+  };
+  ImportFromLinear: {
+    call: types.ImportFromLinear;
+    response: types.TrackerImportResponse;
   };
   ImportFromNotion: {
     call: types.ImportFromNotion;
