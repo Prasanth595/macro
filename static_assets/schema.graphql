@@ -9791,8 +9791,9 @@ type NotificationInboxActor {
 	kind: NotificationInboxActorKind!
 	"""
 	The user id for a user, the bot id for an agent; absent for Macro.
+	Not `id`: the client cache reads an `id` field as entity identity.
 	"""
-	id: ID
+	principalId: String
 	"""
 	The display name when the row carries it (an agent's bot name);
 	users are looked up by id.

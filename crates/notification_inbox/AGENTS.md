@@ -49,6 +49,9 @@ agent session). Built on the shared feed layer, `crates/attention_feed`.
   threads, so channel rows partition the whole channel's notifications.
 - Row types, actor kinds and action kinds only grow: add values, never
   repurpose or remove them; clients skip values they do not know.
+- Only rows have an `id` in GraphQL; the client cache reads any `id` field as
+  entity identity and requires `ID!`, so other inbox types use other names
+  (`groupId`, `principalId`, `targetId`).
 - Row contents must not depend on the scope; scopes only filter rows, so the
   web cache can normalize rows by id across inboxes.
 
