@@ -189,7 +189,8 @@ export function ConnectedCalendars(props: {
                           <Checkbox.Label class="min-w-0 text-sm text-ink-muted">
                             <span class="break-words">{calendar().name}</span>
                             <Show when={calendar().isPrimary}>
-                              <span class="ml-2 text-xs text-ink-extra-muted">
+                              {' '}
+                              <span class="ml-1 text-xs text-ink-extra-muted">
                                 Primary
                               </span>
                             </Show>
