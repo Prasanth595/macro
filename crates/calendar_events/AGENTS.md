@@ -92,6 +92,13 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   `InvalidInput`.
   `ViewerCapabilities::set_guest_policy` is therefore Google-only, and
   `organize` is the organizer signal clients read instead.
+- Sharing an event into a channel writes an `entity_access` row on the
+  sharer's copy. The `calendar_event_entity_access_cleanup` trigger deletes it
+  with the event row, which covers every way a copy goes away: a delete
+  through Macro, a sync tombstone or removal, a disabled calendar, and the
+  `email_links` cascade when the inbox is removed. A cancelled, private or
+  confidential row keeps its grants, since readers skip them and the row can
+  come back. Removing one source, or cancelling one occurrence, leaves the row.
 - A channel-shared event reaches a member's calendar as a snapshot, not a
   seat: `copy_shared_event` (`src/domain/mutations/copy.rs`) imports it under
   the meeting's iCalendar UID with no join link, behind the same
@@ -156,10 +163,17 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   through several inboxes); a change whose effect differs by copy (details,
   guests, permissions, deleting) goes to the only copy allowed to make it, with
   the reason, or the agent asks, and guests are added from the copy the user
-  organizes. UpdateCalendarEvent and DeleteCalendarEvent enforce it
-  (`confirm_copy`): such a change on a meeting the user holds through several
-  of their own inboxes (`meeting_copies`) is refused, listing each copy, until
-  `inbox` names the addressed copy's inbox.
+  organizes. `domain::copies::check_copy` enforces it: such a change on a
+  meeting the user holds through several of their own inboxes
+  (`meeting_copies`) is refused, listing each copy, until `inbox` names the
+  addressed copy's inbox. UpdateCalendarEvent and DeleteCalendarEvent check
+  every call; the update, invite-guests and delete routes check agent runs (a
+  token with `agent_id`, as code mode mints) and any request naming `inbox`
+  through `CalendarCopyConfirmation`, answering 409 `copy_choice_required`.
+  Code-mode agents never see the calendar tools
+  (`agent_code_mode::covered_by_code_sdk`), so the routes and the SDK docs are
+  what reach them; the web, which opens one copy, sends no `inbox` and is not
+  checked.
 - Copies of one meeting pair by `calendar_meeting_uid(ical_uid)`, not the raw
   UID: Exchange gives a meeting it imports from an invitation its own UID that
   wraps the original after `vCal-Uid`, and the SQL function unwraps it, so an

@@ -553,6 +553,9 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     setMenuOpen(false);
   };
 
+  // Phones only show the full list, so there is no grouped view to go back to.
+  const canExitViewAll = () => controller.isViewAllMode() && !isMobile();
+
   useMenuKeyboardNavigation({
     isActive: menuOpen,
     onUp: () => {
@@ -562,7 +565,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       controller.selectNext();
     },
     onLeft: () => {
-      if (controller.isViewAllMode()) {
+      if (canExitViewAll()) {
         controller.exitViewAll();
       }
     },
@@ -596,7 +599,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       setMenuOpen(false);
     },
     onClose: () => {
-      if (controller.isViewAllMode()) {
+      if (canExitViewAll()) {
         controller.exitViewAll();
       } else {
         closeMenu();
@@ -735,6 +738,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     <Show when={menuOpen()}>
       <ScopedPortal scope={props.portalScope} mount={props.portalMount}>
         <div
+          data-holds-prompts
           class="w-96 max-w-[calc(100cqw-1rem-2px)] cursor-default select-none z-modal-content"
           classList={{ 'menu-open-animation': props.animate !== false }}
           on:touchstart={(e) => e.stopPropagation()}
