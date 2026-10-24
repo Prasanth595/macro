@@ -26,7 +26,7 @@ pub(in crate::api::search) struct FilterCalendarEventResponse {
 /// `ids_only` is otherwise set only when the caller named specific event ids.
 /// Without them the query stays scoped by owner/link, because an empty id list
 /// under `ids_only` would be rejected rather than matching everything.
-#[tracing::instrument(skip(ctx, filters), err)]
+#[tracing::instrument(skip(ctx, user_id, filters), err)]
 pub(in crate::api::search) async fn filter_calendar_events(
     ctx: &SearchHandlerState,
     user_id: &str,

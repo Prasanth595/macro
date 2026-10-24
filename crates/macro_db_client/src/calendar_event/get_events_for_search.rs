@@ -71,7 +71,7 @@ pub struct CalendarEventSearchInfo {
 /// Occurrences are materialized only inside a rolling window, so a series can
 /// legitimately resolve to no occurrence at all; callers fall back to the
 /// master span.
-#[tracing::instrument(skip(db, event_ids), fields(event_count = event_ids.len()), err)]
+#[tracing::instrument(skip(db, requester_id, event_ids), fields(event_count = event_ids.len()), err)]
 pub async fn get_calendar_events_for_search(
     db: &Pool<Postgres>,
     requester_id: &str,
@@ -211,7 +211,7 @@ pub async fn get_calendar_events_for_search(
 /// nor confidential). A meeting the requester also holds, owned or through a
 /// delegated inbox, is left out: a mention of it resolves to their own copy,
 /// which their own scope already finds.
-#[tracing::instrument(skip(db), fields(shared_event_count), err)]
+#[tracing::instrument(skip(db, requester_id), fields(shared_event_count), err)]
 pub async fn get_channel_shared_calendar_event_ids(
     db: &Pool<Postgres>,
     requester_id: &str,
