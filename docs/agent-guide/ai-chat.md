@@ -349,8 +349,10 @@ the shimmer.
   leading icon; the row's accessible name appends `Starting` or `Working`.
   The row follows each turn without a reload: it turns Working when a turn
   starts and clears when the last turn ends. Each session update re-reads the
-  row from the primary database, so a lagging read replica cannot leave a
-  finished session showing Working.
+  row from the primary database after the list refetch, which corrects a
+  stale replica read at that point; a later replica-backed refetch from
+  another trigger can still briefly restore an older row until the next
+  session update.
   Sessions with a linked PR show
   **#<number>** beneath the title (icon colored by open / merged / closed; no
   status word). Clicking it opens the synced

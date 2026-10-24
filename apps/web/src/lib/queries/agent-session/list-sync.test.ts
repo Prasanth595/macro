@@ -143,6 +143,30 @@ it('retries a session whose row read failed', async () => {
   ]);
 });
 
+it('lets every row read settle before retrying the batch', async () => {
+  mocks.graphqlSoup.mockReturnValue(true);
+  let finishSecond!: () => void;
+  mocks.row
+    .mockResolvedValueOnce({ error: new Error('network') })
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSecond = () => resolve({});
+        })
+    );
+  const refresh = Promise.all([
+    refreshAgentSessionLists('first'),
+    refreshAgentSessionLists('second'),
+  ]);
+  await vi.waitFor(() => expect(mocks.row).toHaveBeenCalledTimes(2));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(mocks.row).toHaveBeenCalledTimes(2);
+  finishSecond();
+  await refresh;
+  expect(mocks.row).toHaveBeenCalledTimes(4);
+});
+
 it('leaves soup lists alone when the gateway socket opens', async () => {
   await invalidateAgentSessionMetadata();
   expect(mocks.rest).not.toHaveBeenCalled();
