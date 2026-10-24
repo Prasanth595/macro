@@ -353,6 +353,26 @@ export type AgentSessionChangesResponse = {
 };
 
 /**
+ * Response body for one session's folded log.
+ */
+export type AgentSessionFoldedLogResponse = {
+    /**
+     * The agent whose messages these are; it sent every agent message.
+     */
+    bot: SessionBot;
+    /**
+     * The conversation, oldest first: prompts, replies, tool calls and their
+     * results, plans, permission requests and how each turn ended. Each
+     * element is a `FoldedMessage` from the fold's TypeScript contract,
+     * which the SDK exports; the schema is opaque here because those types
+     * are described with specta rather than utoipa.
+     */
+    messages: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
  * One entry of a session's protocol log.
  *
  * Serializes as `{"userId": ..., "direction": ..., "content": ...}` - the
@@ -796,20 +816,6 @@ export type CodingPreferencesBody = {
 };
 
 /**
- * One-time manual code. Deliberately does not implement Debug.
- */
-export type CompleteRequest = {
-    /**
-     * Server-issued handle; never an owner selected by the caller.
-     */
-    attemptId: string;
-    /**
-     * Claude's complete code#state string, not an access token.
-     */
-    code: string;
-};
-
-/**
  * Request body for a control operation on a live session.
  *
  * A wrapper around the operation rather than the bare enum so that fields
@@ -1017,6 +1023,11 @@ export type CreateSessionThread = {
 };
 
 /**
+ * Surface of a review decision.
+ */
+export type DecisionVia = 'card' | 'chat' | 'inbox';
+
+/**
  * HTTP request selecting one provider to probe.
  */
 export type DiscoverAgentCapabilitiesRequest = {
@@ -1102,13 +1113,6 @@ export type ElicitationContentValue = string | boolean | number | number | Array
 export type ElicitationRequestId = number | string;
 
 /**
- * A JSON body is required on writes, including start/disconnect (no form-based CSRF).
- */
-export type EmptyRequest = {
-    [key: string]: never;
-};
-
-/**
  * A bounded SDK operation observed during execution; not an authorization or write receipt.
  */
 export type ExecutionActivity = {
@@ -1136,6 +1140,7 @@ export type ExecutionId = string;
  * The full journal is not included in the model's tool result.
  */
 export type ExecutionRecord = {
+    actingAs?: null | ToolActor;
     /**
      * Advisory SDK operation activity, without arguments or response contents.
      */
@@ -1168,6 +1173,10 @@ export type ExecutionRecord = {
      * Overall execution state.
      */
     status: ExecutionStatus;
+    /**
+     * Original turn, preventing another requester from replaying a saved result.
+     */
+    turnId?: string | null;
 };
 
 /**
@@ -1252,7 +1261,7 @@ export type LoadAgentModelsResponse = {
 /**
  * Which way a logged frame travelled, mirroring [`Message`]'s discriminant.
  */
-export type LogDirectionDto = 'to_server' | 'to_runtime';
+export type LogDirectionDto = 'notification' | 'to_server' | 'to_runtime';
 
 /**
  * The two fields [`AgentSessionLogEntryDto`] flattens in.
@@ -1321,7 +1330,7 @@ export type MessageParent = {
 /**
  * Harness names accepted by the model discovery endpoint.
  */
-export type ModelHarnessDto = 'in-memory' | 'cursor' | 'claude-cloud' | 'macrod';
+export type ModelHarnessDto = 'in-memory' | 'cursor' | 'macrod';
 
 /**
  * The decision carried by an [`AgentPermissionAction`].
@@ -1609,6 +1618,28 @@ export type ReviewDecision = {
 };
 
 /**
+ * Facts about the most recent account-holder decision.
+ */
+export type ReviewDecisionContext = {
+    /**
+     * Authenticated account holder.
+     */
+    by: string;
+    /**
+     * Items selected by this decision.
+     */
+    items: Array<string>;
+    /**
+     * Revision claimed by this batch, used in notification deduplication.
+     */
+    revision: number;
+    /**
+     * Entry surface.
+     */
+    via: DecisionVia;
+};
+
+/**
  * Persisted review identity.
  */
 export type ReviewId = string;
@@ -1621,6 +1652,10 @@ export type ReviewItem = {
      * Validated arguments for the existing composer/action.
      */
     draft: unknown;
+    /**
+     * Whether the account holder edited this draft before deciding.
+     */
+    edited?: boolean;
     /**
      * Failure or uncertainty description.
      */
@@ -1640,7 +1675,7 @@ export type ReviewItem = {
 };
 
 /**
- * A review item never retries an ambiguous external result automatically.
+ * Review item state, shared with notification consumers.
  */
 export type ReviewItemStatus = 'pending' | 'submitting' | 'completed' | 'dismissed' | 'unknown';
 
@@ -1653,6 +1688,11 @@ export type ReviewKind = 'email' | 'calendar';
  * Full UI record, fetched outside the model context.
  */
 export type ReviewRecord = {
+    /**
+     * Account whose email/calendar the drafts use; historical records use the session owner.
+     */
+    actingUser?: string | null;
+    decision?: null | ReviewDecisionContext;
     executionId?: null | ExecutionId;
     /**
      * Review identity.
@@ -1666,15 +1706,6 @@ export type ReviewRecord = {
      * Component kind.
      */
     kind: ReviewKind;
-    /**
-     * Most recent delivery claim, allowing retry after a replica stops.
-     */
-    notificationAttemptAt?: number | null;
-    /**
-     * Stable queued-action identity until the outcome has reached the session.
-     * A failed notification may be retried without repeating external actions.
-     */
-    notificationId?: string | null;
     /**
      * Durable presentation acknowledgment, separate from user decisions.
      */
@@ -1828,40 +1859,9 @@ export type StartFreshAgentConversationRequest = {
 };
 
 /**
- * Public PKCE challenge and attempt handle; contains no verifier or provider tokens.
+ * Which authenticated participant's access a tool call requests.
  */
-export type StartResponse = {
-    /**
-     * Opaque owner-bound attempt handle.
-     */
-    attemptId: string;
-    /**
-     * Claude-hosted consent page.
-     */
-    authorizationUrl: string;
-    /**
-     * Attempt lifetime in seconds.
-     */
-    expiresIn: number;
-};
-
-/**
- * Safe connection metadata.
- */
-export type StatusResponse = {
-    /**
-     * Whether the authenticated Macro user has connected.
-     */
-    connected: boolean;
-    /**
-     * Whether this deployment supports browser connection.
-     */
-    enabled: boolean;
-    /**
-     * Whether reconnecting after service restart is required.
-     */
-    ephemeral: boolean;
-};
+export type ToolActor = 'requester' | 'owner';
 
 /**
  * How a person answers a held tool call.
@@ -2652,6 +2652,32 @@ export type GetAgentSessionLogResponses = {
 
 export type GetAgentSessionLogResponse = GetAgentSessionLogResponses[keyof GetAgentSessionLogResponses];
 
+export type GetAgentSessionFoldedLogData = {
+    body?: never;
+    path: {
+        /**
+         * ID of the agent session
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/agent-sessions/{session_id}/log/folded';
+};
+
+export type GetAgentSessionFoldedLogErrors = {
+    401: string;
+    403: string;
+    500: string;
+};
+
+export type GetAgentSessionFoldedLogError = GetAgentSessionFoldedLogErrors[keyof GetAgentSessionFoldedLogErrors];
+
+export type GetAgentSessionFoldedLogResponses = {
+    200: AgentSessionFoldedLogResponse;
+};
+
+export type GetAgentSessionFoldedLogResponse = GetAgentSessionFoldedLogResponses[keyof GetAgentSessionFoldedLogResponses];
+
 export type RenameAgentSessionData = {
     body: RenameAgentSessionRequest;
     path: {
@@ -3081,101 +3107,3 @@ export type AnswerAgentSessionToolApprovalResponses = {
 };
 
 export type AnswerAgentSessionToolApprovalResponse = AnswerAgentSessionToolApprovalResponses[keyof AnswerAgentSessionToolApprovalResponses];
-
-export type DisconnectData = {
-    body: EmptyRequest;
-    path?: never;
-    query?: never;
-    url: '/claude-auth';
-};
-
-export type DisconnectErrors = {
-    /**
-     * Disabled
-     */
-    403: unknown;
-};
-
-export type DisconnectResponses = {
-    /**
-     * Disconnected
-     */
-    204: void;
-};
-
-export type DisconnectResponse = DisconnectResponses[keyof DisconnectResponses];
-
-export type StatusData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/claude-auth';
-};
-
-export type StatusErrors = {
-    /**
-     * Unauthenticated
-     */
-    401: unknown;
-};
-
-export type StatusResponses = {
-    200: StatusResponse;
-};
-
-export type StatusResponse2 = StatusResponses[keyof StatusResponses];
-
-export type CompleteData = {
-    body: CompleteRequest;
-    path?: never;
-    query?: never;
-    url: '/claude-auth/complete';
-};
-
-export type CompleteErrors = {
-    /**
-     * Invalid code
-     */
-    400: unknown;
-    /**
-     * Expired or replayed
-     */
-    409: unknown;
-    /**
-     * Provider failed
-     */
-    502: unknown;
-};
-
-export type CompleteResponses = {
-    /**
-     * Connected
-     */
-    204: void;
-};
-
-export type CompleteResponse = CompleteResponses[keyof CompleteResponses];
-
-export type StartData = {
-    body: EmptyRequest;
-    path?: never;
-    query?: never;
-    url: '/claude-auth/start';
-};
-
-export type StartErrors = {
-    /**
-     * Disabled
-     */
-    403: unknown;
-    /**
-     * Too many attempts
-     */
-    429: unknown;
-};
-
-export type StartResponses = {
-    200: StartResponse;
-};
-
-export type StartResponse2 = StartResponses[keyof StartResponses];

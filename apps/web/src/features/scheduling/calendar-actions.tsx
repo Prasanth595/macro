@@ -6,6 +6,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { enableCalendarScheduling } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
 import { writeClipboardData } from '@core/util/dataTransfer';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { getWebOrigin } from '@core/util/webOrigin';
 import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
@@ -15,7 +16,7 @@ import { For, Show, Suspense } from 'solid-js';
 import type { EventType } from './core/types';
 import { useSchedulingProfileWithAutoSetupQuery } from './queries/source';
 
-function Actions(props: { sidebar?: boolean }) {
+function Actions(props: { sidebar?: boolean; compact?: boolean }) {
   const user = useUserId();
   const navigate = useNavigate();
   const source = useSchedulingProfileWithAutoSetupQuery(
@@ -37,7 +38,7 @@ function Actions(props: { sidebar?: boolean }) {
   const copyLink = async (event?: EventType) => {
     const profile = source.isSuccess ? source.data : undefined;
     if (!profile?.revision) {
-      navigate({ route: bookingLinksRoute });
+      fireAndForget(navigate({ route: bookingLinksRoute }), 'scheduling');
       return;
     }
 
@@ -54,12 +55,14 @@ function Actions(props: { sidebar?: boolean }) {
   return (
     <Dropdown placement={props.sidebar ? 'bottom-start' : 'bottom-end'}>
       <Dropdown.Trigger
-        variant="ghost"
-        size={props.sidebar ? 'md' : 'lg'}
+        variant={props.compact ? 'outline' : 'ghost'}
+        size={props.sidebar || props.compact ? 'md' : 'lg'}
         class={
           props.sidebar
             ? 'h-(--sidebar-row-height) w-full justify-start gap-(--sidebar-label-gap) rounded-lg px-(--sidebar-item-inset) text-left font-normal touch:h-11'
-            : 'shrink-0 px-2 text-sm lg:px-3'
+            : props.compact
+              ? 'shrink-0 px-2 text-sm'
+              : 'shrink-0 px-2 text-sm lg:px-3'
         }
         label="Booking links"
       >
@@ -98,7 +101,9 @@ function Actions(props: { sidebar?: boolean }) {
           >
             <For each={enabledLinks()}>
               {(event) => (
-                <Dropdown.Item onSelect={() => void copyLink(event)}>
+                <Dropdown.Item
+                  onSelect={() => fireAndForget(copyLink(event), 'scheduling')}
+                >
                   <span class="min-w-0 truncate">{event.title}</span>
                 </Dropdown.Item>
               )}
@@ -117,11 +122,14 @@ function Actions(props: { sidebar?: boolean }) {
     </Dropdown>
   );
 }
-export function CalendarSchedulingActions(props: { sidebar?: boolean }) {
+export function CalendarSchedulingActions(props: {
+  sidebar?: boolean;
+  compact?: boolean;
+}) {
   return (
     <ShowFeatureFlag flag={enableCalendarScheduling}>
       <Suspense>
-        <Actions sidebar={props.sidebar} />
+        <Actions sidebar={props.sidebar} compact={props.compact} />
       </Suspense>
     </ShowFeatureFlag>
   );

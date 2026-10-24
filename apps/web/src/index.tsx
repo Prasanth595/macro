@@ -11,10 +11,15 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { getPlatform, isTauri } from '@core/util/platform';
 import { platformFetch } from '@core/util/platformFetch';
 import { promptReloadForFailedLoad } from '@core/util/reloadForNewerBuild';
+import { Telemetry } from '@macro-inc/observability';
 import { initMonochromeIcons } from '@ui/utils/monochromeIcons';
 import { ErrorBoundary, render } from 'solid-js/web';
 import { FatalError } from './components/app/FatalError';
+import { prepareNotificationLaunch } from './lib/tauri/notification-launch';
+import { perfMark } from './observability/perf-marks';
 import { Root } from './routes/Root';
+
+perfMark('boot.entry-evaluated');
 
 // Override global fetch with platformFetch for Tauri compatibility
 // Skip localhost requests (dev server) to avoid breaking HMR
@@ -98,7 +103,14 @@ const renderApp = () => {
 };
 
 async function main() {
+  perfMark('boot.main');
   await initializeBrowserObservability();
+  perfMark('boot.observability-ready');
+  try {
+    await prepareNotificationLaunch();
+  } catch (error) {
+    Telemetry.error(error, { surface: 'notification-launch' });
+  }
 
   console.log('App Version ', import.meta.env.__APP_VERSION__);
 
@@ -112,8 +124,9 @@ async function main() {
     });
   }
 
+  perfMark('boot.render-start');
   renderApp();
+  perfMark('boot.render-returned');
 }
 
-// unawaited
-main();
+main().catch((error) => Telemetry.error(error, { surface: 'app-startup' }));

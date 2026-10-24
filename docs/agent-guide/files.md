@@ -16,6 +16,20 @@ viewer identity is available, document inserts into Shared are rejected.
 Files opens **Drive** using the same shell as Tasks, on desktop and touch
 devices alike.
 
+With `enable-graphql-soup` enabled, supported file/folder/chat moves, trash,
+restore, permanent deletion, duplication, and share-policy changes use GraphQL
+mutations. Verify moving into a folder and back to root, opening the returned
+copy, and updating team/link/channel access on desktop and touch. Call-record
+permanent deletion and team sharing also use these mutations. A denied or failed
+GraphQL write must not retry through REST or report success; mixed bulk actions
+retain successful siblings. A plan-refused chat duplicate still opens the paywall
+with either transport; it must not create a copy or retry through REST. Restore immediately after trash and confirm the row
+returns without waiting for retained deletion markers to expire, even if the
+trash's background refresh failed. A delete started after the restore request
+must still hide its row. With the flag off, the existing REST paths remain.
+Deleting a non-owned item still only removes it from history. Forking a markdown
+history version still uses REST because GraphQL duplication copies current content.
+
 With `enable-databases` enabled, **My Files** includes owned databases and
 **Shared with me** includes databases shared by other owners. **All files**
 also includes accessible databases owned by others. **Search Drive** matches
@@ -36,8 +50,9 @@ starts on **Recent**; explicit tab and folder links keep their destination. The
 first pill is Recent. The drawer holds Sort (hidden on Recent, where the viewer's own
 edit order applies) and, on tab locations only, the same filter groups as the
 desktop **Filter** menu; active selections show a count badge on the trigger
-and a `Clear all` action in the drawer. The in-view `Search Drive` field, the
-Sort/Filter dropdowns, and the header New menu are desktop-only — search on
+and a `Clear all` action in the drawer. The single-row desktop list header orders the title, Filter, Sort, New, and an
+expandable Search icon. `Cmd/Ctrl+F` opens the search field. These list-header
+controls are desktop-only — search on
 touch uses the global search overlay and creation uses the dock's New button.
 The **Folders** pill opens the folder overview and stays highlighted inside
 any folder; tapping it from inside a folder returns to the overview, and
@@ -89,8 +104,12 @@ and **Created by** submenus alongside **Files** for Default, All files, and Emai
 attachments. Options within a group match any selected option; different groups
 combine to narrow the results. Created by is hidden while My Files
 is restricted to your own files. Recent offers only file-scope filtering.
-Hold Shift while selecting or deselecting Type options to keep the submenu open
-and combine several file types without reopening it. Desktop filter submenus allow a
+The desktop Filter trigger shows the number of active filters, matching the
+mobile drawer; clearing all filters removes the badge. Hold Shift while selecting
+or deselecting Type options to keep the submenu open and combine several file
+types without reopening it. A normal selection closes the menu. Verify the badge
+tracks consecutive selections (1 → 2 → 1), including when filter groups refresh
+while the menu is open. Desktop filter submenus allow a
 250 ms grace period when the mouse crosses the parent menu's padding; entering
 the submenu cancels the pending close. While the mouse heads toward an open
 submenu, including one that opens to the left, the categories it crosses on the
@@ -137,3 +156,41 @@ switch via the header pills; on narrow desktop layouts the header keeps a plain
 title and navigation goes through the hamburger overlay. Location, search,
 filters, expanded folders, list focus, and scroll position are restored when
 returning from an opened file.
+
+## Downloading files
+
+Open a video, image, code file, canvas, or other uploaded file in Drive. Its
+header exposes **Download** on desktop, phone, and tablet. The file menu uses
+the same action. Video routes also expose it in their header; channel videos
+expose it over the player on hover or keyboard focus (always visible on touch)
+and in the expanded viewer. Linked video cards also offer Download in their
+preview header without opening the file.
+
+- Click Download once. The control shows preparation progress when the server
+  provides a length, disables repeat clicks, and offers Cancel. Browser users
+  proceed directly to browser downloads. Android and iOS binaries with the
+  file-export bridge proceed directly to the system save picker.
+- **Download started** means the browser accepted the file; check its downloads
+  UI for the location and final completion. **File saved** is reserved for a
+  completed native save. Retry download remains available after a fetch failure.
+- On phones and tablets that support system sharing, **Download** opens a menu
+  with **Download** and **Share**. Share opens the system share sheet; desktop
+  headers keep only Macro's existing Share control for access and links. If a browser's
+  user gesture expires during loading, a ready notice asks for another tap on
+  Share in the open menu; that tap uses the prepared bytes without another network request.
+  No Macro download dialog appears. Cancelling a chooser keeps the file ready
+  for another attempt and does not report success.
+- Installed iOS binaries without the optional file-export bridge use the system
+  share sheet for saving too. After a slow preparation, tap **Save file** to open
+  it, then choose Save to Files or another available system action. The dedicated
+  save picker becomes available when the new native binary ships.
+- Change files or close the viewer during preparation: the old request must stop
+  and must not save a late response. Close the expanded viewer with Escape and
+  confirm focus returns to its opener.
+
+Verification: use an existing video in a channel and Drive. Check both message
+and expanded-viewer download actions; compare downloaded bytes, filename, and
+extension with the original. Repeat at 390px with touch enabled and at tablet
+width. Exercise a failed request, retry, cancellation, and changing selection.
+Native save/share dialogs require physical iOS/Android verification in addition
+to browser emulation.

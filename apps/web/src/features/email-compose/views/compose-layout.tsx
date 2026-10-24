@@ -14,6 +14,8 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { FromInboxSelector } from '../components/from-inbox-selector';
 import { useCompose } from '../context/compose-context';
+import { registerCcBccHotkeys } from '../primitives/cc-bcc-hotkeys';
+import { registerDraftActionHotkeys } from '../primitives/draft-action-hotkeys';
 import { ComposeBody } from './compose-body';
 import { ComposeRecipients } from './compose-recipients';
 import { ComposeSubject } from './compose-subject';
@@ -92,42 +94,17 @@ export function ComposeLayout(props: {
     shouldReturnFocusOnClose: false,
   });
 
-  registerHotkey({
-    hotkey: 'shift+cmd+c',
+  registerCcBccHotkeys({
     scopeId: composeHotkeyScope,
-    description: 'Edit "Cc" recipients',
-    keyDownHandler: () => {
-      if (ctx.disabled()) return false;
-      if (!showCc()) {
-        setShowCc(true);
-        queueMicrotask(() => refs()?.ccRecipientsSelector?.focus());
-        return true;
-      }
-      refs()?.ccRecipientsSelector?.focus();
-      return true;
+    disabled: ctx.disabled,
+    cc: {
+      reveal: () => setShowCc(true),
+      input: () => refs().ccRecipientsSelector,
     },
-    runWithInputFocused: true,
-    hotkeyToken: TOKENS.email.compose.edit.ccRecipients,
-    shouldReturnFocusOnClose: false,
-  });
-
-  registerHotkey({
-    hotkey: 'shift+cmd+b',
-    scopeId: composeHotkeyScope,
-    description: 'Edit "Bcc" recipients',
-    keyDownHandler: () => {
-      if (ctx.disabled()) return false;
-      if (!showBcc()) {
-        setShowBcc(true);
-        queueMicrotask(() => refs()?.bccRecipientsSelector?.focus());
-        return true;
-      }
-      refs()?.bccRecipientsSelector?.focus();
-      return true;
+    bcc: {
+      reveal: () => setShowBcc(true),
+      input: () => refs().bccRecipientsSelector,
     },
-    runWithInputFocused: true,
-    hotkeyToken: TOKENS.email.compose.edit.bccRecipients,
-    shouldReturnFocusOnClose: false,
   });
 
   registerHotkey({
@@ -156,6 +133,13 @@ export function ComposeLayout(props: {
     runWithInputFocused: true,
     hotkeyToken: TOKENS.email.compose.edit.message,
     shouldReturnFocusOnClose: false,
+  });
+
+  registerDraftActionHotkeys({
+    scopeId: composeHotkeyScope,
+    disabled: ctx.disabled,
+    discard: () => ctx.onDelete?.(),
+    attach: ctx.hideAttachments ? undefined : ctx.onAddAttachments,
   });
 
   registerHotkey({
@@ -305,11 +289,7 @@ export function ComposeLayout(props: {
           debugName={props.bodyDebugName}
           inputRef={registerRef('messageInput')}
           mobileScrollRef={() => mobileScrollRef}
-          onAddFiles={(files) => {
-            ctx.onAddAttachments(
-              files.map((file) => ({ type: 'local', file }))
-            );
-          }}
+          onAddFiles={ctx.onAddAttachments}
         />
         {props.toolbar}
       </div>

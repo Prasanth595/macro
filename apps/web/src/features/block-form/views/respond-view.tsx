@@ -1,3 +1,5 @@
+import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
+import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowLeft from '@phosphor/arrow-left.svg';
 import ArrowRight from '@phosphor/arrow-right.svg';
 import CalendarCheck from '@phosphor/calendar-check.svg';
@@ -253,8 +255,8 @@ export function RespondView(props: {
               aria-busy="true"
               aria-label="Loading"
             >
-              <div class="h-24 animate-pulse rounded-xl bg-hover" />
-              <div class="h-24 animate-pulse rounded-xl bg-hover" />
+              <ListSkeleton.Bar class="h-24 w-full rounded-xl" />
+              <ListSkeleton.Bar class="h-24 w-full rounded-xl" />
             </div>
           </Match>
           <Match
@@ -285,7 +287,9 @@ export function RespondView(props: {
                   class="self-start"
                   disabled={unavailable().retrying}
                   aria-busy={unavailable().retrying}
-                  onClick={() => void respond.retryResponse()}
+                  onClick={() =>
+                    fireAndForget(respond.retryResponse(), 'form-respond')
+                  }
                 >
                   Try again
                 </Button>
@@ -307,7 +311,7 @@ export function RespondView(props: {
                 variant="outline"
                 size="sm"
                 class="mt-2 self-start"
-                onClick={() => void retry()}
+                onClick={() => fireAndForget(retry(), 'form-respond')}
               >
                 Try again
               </Button>
@@ -329,14 +333,15 @@ export function RespondView(props: {
                 }}
                 onMessageOwner={
                   signedIn() && context.viewer.userId() !== form().ownerId
-                    ? () =>
-                        void context
+                    ? () => {
+                        context
                           .messageOwner(form().ownerId)
                           .mapErr((failure) =>
                             context.notify.failure(
                               `The conversation couldn’t be opened: ${failure.message}`
                             )
-                          )
+                          );
+                      }
                     : undefined
                 }
               />
@@ -414,7 +419,7 @@ export function RespondView(props: {
                 onSubmit={(event) => {
                   event.preventDefault();
                   if (answering().isLast) {
-                    void submitAndReveal();
+                    fireAndForget(submitAndReveal(), 'form-respond');
                     return;
                   }
                   if (respond.next()) revealTop();

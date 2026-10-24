@@ -22,7 +22,7 @@ static INSTRUCTIONS: &str = r##"These rules apply everywhere you author Markdown
 
 When referencing a Macro item, person, date/time, agent session, or other mentionable chip, use XML mention tags with a JSON payload. Those tags render as clickable chips. Do not use plain Markdown links or bare names for these. Empty name/label strings are fine — the frontend resolves them.
 
-### Documents, channels, chats, and similar items
+### Documents, channels, and similar items
 
 Use `<m-document-mention>` with the right `blockName` (and `blockParams` when needed):
 
@@ -30,7 +30,6 @@ Use `<m-document-mention>` with the right `blockName` (and `blockParams` when ne
 - Image document mention (a generated or uploaded picture): `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"image","blockParams":{}}</m-document-mention>`
 - Channel mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"channel","blockParams":{}}</m-document-mention>`
 - Channel message mention: `<m-document-mention>{"documentId":"{channel_id}","documentName":"","blockName":"channel","blockParams":{"channel_message_id":"{message_id}"}}</m-document-mention>`
-- Chat mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"chat","blockParams":{}}</m-document-mention>`
 - Project mention (a task project, i.e. an initiative): `<m-document-mention>{"documentId":"{initiative_id}","documentName":"","blockName":"initiative","blockParams":{}}</m-document-mention>`
 - Folder mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"project","blockParams":{}}</m-document-mention>`
 - Task mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"task","blockParams":{}}</m-document-mention>`
@@ -40,6 +39,7 @@ Use `<m-document-mention>` with the right `blockName` (and `blockParams` when ne
 - Skill mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"skill","blockParams":{}}</m-document-mention>`
 - Call mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"call","blockParams":{}}</m-document-mention>`
 - Automation mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"automation","blockParams":{}}</m-document-mention>`
+- Routine mention: `<m-document-mention>{"documentId":"{id}","documentName":"{name}","blockName":"routine"}</m-document-mention>`
 - Snippet mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"snippet","blockParams":{}}</m-document-mention>`
 - CRM company mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"company","blockParams":{}}</m-document-mention>`
 - CRM pipeline mention: `<m-document-mention>{"documentId":"{pipeline_id}","documentName":"","blockName":"pipeline","blockParams":{}}</m-document-mention>`

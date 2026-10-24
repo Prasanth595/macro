@@ -69,9 +69,10 @@ function envOverride(env: string | undefined): boolean | undefined {
  * Define a feature flag. Pass `key` for PostHog, or `env` (and no `key`)
  * for env-only. `env` is the name after `VITE_`, e.g. `'ENABLE_REMINDERS'`.
  *
- * `default` is used when env is unset. Omit it on env-only flags for `false`.
- * For remote flags, omit it (or pass `undefined`) to defer to PostHog.
- * The caller decides when a default applies, e.g. `DEV_MODE_ENV || undefined`.
+ * `default` is used when env is unset. A new flag is usually on in dev:
+ * `DEV_MODE_ENV` for env-only, `onInDev` (`DEV_MODE_ENV || undefined`) for
+ * remote. One that stays off in dev says why in a comment. Omitted, an
+ * env-only flag is `false` and a remote flag defers to PostHog.
  *
  * Remote: `useFeatureFlag(flag)` or `isFeatureEnabled(flag)`.
  * Env-only: `isFeatureEnabled(flag)` only.
@@ -156,6 +157,13 @@ export const enableSlackArchiveImport = defineFlag({
   default: onInDev,
 });
 
+/** Sidebar prompt cards: imports, calendars, repositories, and Home setup. */
+export const enableSidebarPromotions = defineFlag({
+  key: 'enable-sidebar-promotions',
+  env: 'ENABLE_SIDEBAR_PROMOTIONS',
+  default: onInDev,
+});
+
 /** Shows the Reviews shortcut in Tasks; copied Reviews links remain accessible. */
 export const enableTasksReviews = defineFlag({
   key: 'enable-tasks-reviews',
@@ -167,14 +175,6 @@ export const enableTasksReviews = defineFlag({
 export const enableGantt = defineFlag({
   key: 'enable-gantt',
   env: 'ENABLE_GANTT',
-});
-
-// Claude Cloud: the built-in @claude mention and agent assignee, its Runtimes
-// connection card, and harness/model discovery. Off until PostHog enables it,
-// including in dev; override locally with VITE_CLAUDE_CLOUD.
-export const claudeCloud = defineFlag({
-  key: 'claude-cloud',
-  env: 'CLAUDE_CLOUD',
 });
 
 export const ENABLE_PDF_MODIFICATION_DATA_AUTOSAVE = defineFlag({
@@ -456,6 +456,12 @@ export const enableCrm = defineFlag({
   default: onInDev,
 });
 
+/** CRM activity tabs and context-aware task composition. Off until opted in. */
+export const enableCrmActivity = defineFlag({
+  key: 'enable-crm-activity',
+  env: 'ENABLE_CRM_ACTIVITY',
+});
+
 // Company collections are paused until ready; preserve stored lists while off.
 export const enableCrmLists = defineFlag({
   key: 'enable-crm-lists',
@@ -603,6 +609,15 @@ export const enableCalendarUi = defineFlag({
   default: onInDev,
 });
 
+// Calendar meeting notes and document-side meeting-link management. On in dev;
+// production uses PostHog's internal-user rollout. This is a UI rollout, not
+// an authorization check: saved meeting grants remain enforced by the service.
+export const enableCalendarMeetingNotes = defineFlag({
+  key: 'enable-calendar-meeting-notes',
+  env: 'ENABLE_CALENDAR_MEETING_NOTES',
+  default: onInDev,
+});
+
 // Calendar event search UI: the Search view's Calendar type (and calendar
 // rows) plus the in-calendar keyword search. A sub-feature of the calendar UI
 // — opening a hit needs the calendar block — so it only takes effect where
@@ -670,6 +685,28 @@ export const enableCalendarTeamSharing = defineFlag({
   default: onInDev,
 });
 
+// A guest adding guests: the event details "Add guests" action and the
+// composer's add-only guest editing. The invite endpoints enforce the
+// organizer's policy unflagged, so this only hides the entry points.
+// PostHog-gated with a dev-mode default; override with
+// VITE_ENABLE_CALENDAR_GUEST_INVITES.
+export const enableCalendarGuestInvites = defineFlag({
+  key: 'enable-calendar-guest-invites',
+  env: 'ENABLE_CALENDAR_GUEST_INVITES',
+  default: onInDev,
+});
+
+// Adding a channel-shared event to your own calendar: the "Add to calendar"
+// action on a shared event's mention card. On in dev only until a real Google
+// import has passed on dev; there is no PostHog flag yet, so it stays off in
+// production. "Download .ics" beside it is not gated. Override with
+// VITE_ENABLE_CALENDAR_ADD_SHARED_EVENT.
+export const enableCalendarAddSharedEvent = defineFlag({
+  key: 'enable-calendar-add-shared-event',
+  env: 'ENABLE_CALENDAR_ADD_SHARED_EVENT',
+  default: onInDev,
+});
+
 // Sharing a personal tag with the team: the "Share with team" action on
 // personal tags in Settings › Tags, and the prompt that merges into an
 // existing team label when the names collide. The backend endpoints ship
@@ -729,11 +766,11 @@ export const enableChatV3Agents = defineFlag({
   default: onInDev,
 });
 
-// Private conversations with agent personas. Explicit environment opt-in;
-// this flag has no remote PostHog source. VITE_ENABLE_AGENT_DMS=true enables it.
+// Private conversations with agent personas. On in dev; there is no PostHog
+// flag. Override with VITE_ENABLE_AGENT_DMS.
 export const ENABLE_AGENT_DMS = defineFlag({
   env: 'ENABLE_AGENT_DMS',
-  default: false,
+  default: DEV_MODE_ENV,
 }).enabled;
 
 // The built-in @cursor mention, using the mentioning user's own Cursor account.

@@ -1,5 +1,6 @@
 import { useSidePanel } from '@components/app/side-panel';
 import { createImageActions } from '@core/component/Lightbox/createImageActions';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import {
   alignCommand,
@@ -10,6 +11,11 @@ import {
   styleCommand,
 } from '@macro-inc/graphics';
 import { attachConnectorControls } from '@macro-inc/graphics/browser';
+import type { GraphicsPresence } from '@macro-inc/graphics/loro';
+import {
+  attachPresencePointer,
+  GraphicsPresenceOverlay,
+} from '@macro-inc/graphics/loro/solid';
 import {
   ConnectorView,
   EllipseView,
@@ -65,6 +71,7 @@ import { TextEditingView } from './text-editing-view';
 
 export function CanvasView(props: {
   state: CanvasState;
+  presence?: GraphicsPresence;
   fitOnLoad?: boolean;
   scopeId: string;
   embedView: Component<CanvasEmbedViewProps>;
@@ -200,6 +207,8 @@ export function CanvasView(props: {
     });
     props.attachScope(root);
     props.onViewport(host);
+    if (props.presence)
+      onCleanup(attachPresencePointer(host, editor, props.presence));
     onCleanup(props.insert.attach(host));
     droppable(host);
     onCleanup(props.clipboard.attach(root));
@@ -249,12 +258,18 @@ export function CanvasView(props: {
               onRestoreFocus={focus}
               onSelect={(asset, mode) => {
                 if (mode === 'media')
-                  void props.assets.media(asset, location.world);
+                  fireAndForget(
+                    props.assets.media(asset, location.world),
+                    'canvas-assets'
+                  );
                 else props.assets.document(asset, location.world, 'preview');
                 props.insert.close();
               }}
               onFiles={(files) => {
-                void props.assets.files(files, location.world);
+                fireAndForget(
+                  props.assets.files(files, location.world),
+                  'canvas-assets'
+                );
                 props.insert.close();
               }}
             />
@@ -263,7 +278,7 @@ export function CanvasView(props: {
         <Show when={!sidePanel?.isOpen()}>
           <Layer depth={2}>
             <aside
-              class="absolute right-4 top-4 z-30 flex max-h-[calc(100%-2rem)] w-64 max-w-[calc(100%-2rem)] flex-col overflow-hidden rounded-xl border border-edge-muted bg-surface shadow-lg"
+              class="absolute right-4 top-4 z-30 flex max-h-[calc(100%-2rem)] w-64 max-w-[calc(100%-2rem)] flex-col overflow-hidden rounded-xl border border-edge-muted bg-surface shadow-lg touch:top-16 touch:max-h-[calc(100%-5rem)]"
               style={{
                 height:
                   state.selection().length > 0
@@ -418,7 +433,12 @@ export function CanvasView(props: {
                       <Button
                         size="sm"
                         disabled={imageActionsDisabled()}
-                        onClick={() => void imageActions.copyToClipboard()}
+                        onClick={() =>
+                          fireAndForget(
+                            imageActions.copyToClipboard(),
+                            'canvas-image-actions'
+                          )
+                        }
                       >
                         <Copy />
                         Copy image
@@ -426,7 +446,12 @@ export function CanvasView(props: {
                       <Button
                         size="sm"
                         disabled={imageActionsDisabled()}
-                        onClick={() => void imageActions.downloadImage()}
+                        onClick={() =>
+                          fireAndForget(
+                            imageActions.downloadImage(),
+                            'canvas-image-actions'
+                          )
+                        }
                       >
                         <DownloadSimple />
                         Save image
@@ -514,9 +539,12 @@ export function CanvasView(props: {
                 if (state.embeds.active()) return;
                 if (!event.dataTransfer?.files.length) return;
                 event.preventDefault();
-                void props.assets.files(
-                  Array.from(event.dataTransfer.files),
-                  point(event.clientX, event.clientY)
+                fireAndForget(
+                  props.assets.files(
+                    Array.from(event.dataTransfer.files),
+                    point(event.clientX, event.clientY)
+                  ),
+                  'canvas-assets'
                 );
               }}
               class="absolute inset-0"
@@ -685,6 +713,37 @@ export function CanvasView(props: {
                   )}
                 </Show>
               </GraphicsSurface>
+              <Show when={props.presence}>
+                {(presence) => (
+                  <GraphicsPresenceOverlay
+                    editor={editor}
+                    presence={presence()}
+                    renderers={{
+                      rectangle: (props) => (
+                        <RectangleView
+                          {...props}
+                          contentView={CanvasTextContent}
+                        />
+                      ),
+                      ellipse: (props) => (
+                        <EllipseView
+                          {...props}
+                          contentView={CanvasTextContent}
+                        />
+                      ),
+                      connector: (props) => (
+                        <ConnectorView
+                          {...props}
+                          contentView={CanvasTextContent}
+                        />
+                      ),
+                      text: (props) => (
+                        <TextView {...props} contentView={CanvasTextContent} />
+                      ),
+                    }}
+                  />
+                )}
+              </Show>
             </div>
           </ContextMenu.Trigger>
           <CanvasContextMenu
@@ -694,8 +753,16 @@ export function CanvasView(props: {
               selectedImage()
                 ? {
                     disabled: imageActionsDisabled(),
-                    onCopy: () => void imageActions.copyToClipboard(),
-                    onSave: () => void imageActions.downloadImage(),
+                    onCopy: () =>
+                      fireAndForget(
+                        imageActions.copyToClipboard(),
+                        'canvas-image-actions'
+                      ),
+                    onSave: () =>
+                      fireAndForget(
+                        imageActions.downloadImage(),
+                        'canvas-image-actions'
+                      ),
                   }
                 : undefined
             }

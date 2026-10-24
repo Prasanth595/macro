@@ -5,10 +5,18 @@ import {
   isFeatureEnabled,
 } from '@core/constant/featureFlags';
 import { SERVER_HOSTS } from '@core/constant/servers';
+import { hasLoginCookie } from '@core/util/cookies';
 import { fetchToken } from '@core/util/fetchWithToken';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isTauri } from '@core/util/platform';
 import { platformFetch } from '@core/util/platformFetch';
 import { reloadForNewerBuild } from '@core/util/reloadForNewerBuild';
+import {
+  createMutationQueueTelemetry,
+  type MutationQueueClearCause,
+  type MutationQueueEnvironment,
+  reportMutationQueueCleared,
+} from '@graphql-cache/exchange/mutation-queue-telemetry';
 import { networkRevalidationExchange } from '@graphql-cache/exchange/network-revalidation-exchange';
 import {
   HYDRATE_ONLY_CONTEXT_KEY,
@@ -46,6 +54,7 @@ import type { GithubPrMentionLocation } from '@service-notification/generated/sc
 import type { GithubPrReviewState } from '@service-notification/generated/schemas/githubPrReviewState';
 import type { NotifEvent } from '@service-notification/generated/schemas/notifEvent';
 import type { NotificationDocumentSubType } from '@service-notification/generated/schemas/notificationDocumentSubType';
+import { raceTimeout } from '@solid-primitives/promise';
 import {
   type AnyVariables,
   type Client,
@@ -67,10 +76,11 @@ import {
   createClient as createGraphqlWsClient,
   type Client as GraphqlWsClient,
 } from 'graphql-ws';
-import { createSignal } from 'solid-js';
-import { match } from 'ts-pattern';
+import { batch, createSignal, untrack } from 'solid-js';
+import { match, P } from 'ts-pattern';
 import { delegateChannelNotificationRefresh } from '../../queries/channel/notification-refresh';
 import { soupOptimisticResolvers } from '../../queries/optimistic-resolvers';
+import { createCacheRecovery } from './cache-recovery';
 import { emailCacheDeletionKeys } from './email-cache-deletions';
 import type { SoupApiItem } from './generated/schemas/soupApiItem';
 import type { SoupCalendarEventSoupPropertiesField } from './generated/schemas/soupCalendarEventSoupPropertiesField';
@@ -80,6 +90,7 @@ import type { SoupProperty } from './generated/schemas/soupProperty';
 import {
   type ChannelListItemFieldsFragment,
   type ChannelListNotificationFieldsFragment,
+  type GraphqlEmailView,
   type GroupedSoupInput,
   type GroupSoupQuery,
   GroupSoupDocument as GroupSoupQueryDocument,
@@ -102,6 +113,7 @@ import {
 } from './graphql-soup-websocket';
 
 const dssHost = SERVER_HOSTS['document-storage-service'];
+const QUEUE_CLEAR_INSPECTION_TIMEOUT_MS = 1000;
 
 function mergeHeaders(...headers: Array<HeadersInit | undefined>): Headers {
   const result = new Headers();
@@ -267,11 +279,18 @@ async function isLegacyProjectionValidationError(
 
 export async function dssGraphqlFetch(
   input: RequestInfo | URL,
-  init?: RequestInit
+  init?: RequestInit,
+  queueOwner?: CacheHost
 ): Promise<Response> {
+  const retiredQueue =
+    queueOwner?.disabled ||
+    (cachedCacheHost !== undefined && cachedCacheHost !== queueOwner);
   // Even an in-flight cached client can fall back after queue initialization
   // fails. Check at transport time so it cannot overtake preserved mutations.
-  if (graphqlDraftQueueBlocked() && typeof init?.body === 'string') {
+  if (
+    (retiredQueue || graphqlDraftQueueBlocked()) &&
+    typeof init?.body === 'string'
+  ) {
     const payload = JSON.parse(init.body) as {
       query?: string;
       operationName?: string;
@@ -290,14 +309,27 @@ export async function dssGraphqlFetch(
               selection.name.value
             )
         )
-      )
+      ) {
+        if (retiredQueue)
+          throw new Error(
+            'Draft sync client was replaced. Retry using the recovered queue.'
+          );
         assertEmailDraftQueueAvailable();
+      }
     }
   }
   return Telemetry.span('graphql.transport', async (span) => {
     const started = performance.now();
     try {
-      const transportInit = graphqlSoupTransportRequest(init);
+      const traceHeaders: Record<string, string> = {};
+      span.injectTraceHeaders(traceHeaders);
+      const requestInit = graphqlSoupTransportRequest(init);
+      // Links this request, and a queued mutation attempt above it, to the
+      // server's request and `graphql.execute` spans.
+      const transportInit: RequestInit = {
+        ...requestInit,
+        headers: mergeHeaders(requestInit?.headers, traceHeaders),
+      };
       span.event('request_dispatch');
       const response = await authorizedDssGraphqlFetch(input, transportInit);
       span.setAttr('graphql.response_headers_ms', performance.now() - started);
@@ -365,7 +397,9 @@ export function subscribeGraphqlSoupReconnected(
 }
 
 function createGraphqlSoupWebSocketClient(
-  onConnected: () => void
+  onConnected: () => void,
+  onState: (state: MutationQueueEnvironment['websocket']) => void = () =>
+    undefined
 ): GraphqlWsClient {
   let connections = 0;
   const resolveWebSocketUrl = createGraphqlSoupWebSocketUrlResolver({
@@ -385,7 +419,10 @@ function createGraphqlSoupWebSocketClient(
     retryAttempts: SOUP_GRAPHQL_WEBSOCKET_RETRY_ATTEMPTS,
     retryWait: waitToRetryGraphqlSoupWebSocket,
     on: {
+      connecting: () => onState('connecting'),
+      closed: () => onState('disconnected'),
       connected: () => {
+        onState('connected');
         onConnected();
         connections += 1;
         if (connections === 1) return;
@@ -447,15 +484,86 @@ function getUncachedRealtimeClient(): Client {
   uncachedRealtimeClient = client;
   uncachedRealtimeCleanup = () => {
     subscriptionsLifecycle.dispose();
-    void websocketClient.dispose();
+    fireAndForget(websocketClient.dispose(), 'graphql-soup-client');
   };
   return client;
 }
 
 let cacheInitializationFailed = false;
+const cacheRecovery = createCacheRecovery(() =>
+  Telemetry.span('graphql.cache_recovery', async (span) => {
+    const session = cacheSessionGeneration;
+    cachedClient = undefined;
+    getGraphqlSoupClient();
+    const host = cachedCacheHost;
+    if (!host || host.disabled)
+      throw new Error('Local cache could not restart.');
+    await host.currentRevision();
+    span.event('engine_ready');
+    // Opening the engine is insufficient: inspect the preserved queue before
+    // making draft writes available again.
+    await host.inspectMutations?.();
+    span.event('queue_readable');
+    if (
+      session !== cacheSessionGeneration ||
+      host !== cachedCacheHost ||
+      host.disabled
+    )
+      throw new Error('Cache recovery was superseded.');
+    cacheInitializationFailed = false;
+    setCacheAvailability((version) => version + 1);
+  })
+);
+let cacheSessionGeneration = 0;
+
+export const graphqlCacheRecoveryState = cacheRecovery.state;
+export const retryGraphqlCacheInitialization = cacheRecovery.retry;
 // Changes when the session abandons its cache so reactive readers of the
 // availability getters below (query options, effects) move to network paths.
 const [cacheAvailability, setCacheAvailability] = createSignal(0);
+// Signed-out pages (auth routes, shared links, an expired session) can neither
+// authenticate the live-updates websocket nor own a draft queue, so they only
+// get the plain network client.
+const [sessionActive, setSessionActive] = createSignal(hasLoginCookie());
+
+/**
+ * Records whether this tab has a signed-in session. Ending one disposes the
+ * cached and realtime clients, so their websocket and queue runner stop.
+ */
+export function setGraphqlSoupSessionActive(active: boolean): void {
+  if (untrack(sessionActive) === active) return;
+  if (!active) {
+    // Flip first, or a reactive reader woken by the teardown rebuilds the client.
+    setSessionActive(false);
+    disposeSessionClients();
+    return;
+  }
+  // Build before readers wake: getGraphqlCacheHost() only reports an existing
+  // host, so a reader that ran while signed out would otherwise stay uncached.
+  batch(() => {
+    setSessionActive(true);
+    untrack(getGraphqlSoupClient);
+    setCacheAvailability((version) => version + 1);
+  });
+}
+
+function disposeSessionClients(): void {
+  cacheSessionGeneration += 1;
+  cacheRecovery.reset();
+  cacheInitializationFailed = false;
+  const cleanup = cachedCacheCleanup;
+  cachedCacheCleanup = undefined;
+  cachedCacheHost = undefined;
+  cachedClient = undefined;
+  browserCacheClientActivated = false;
+  disposeUncachedRealtimeClient();
+  try {
+    cleanup?.();
+  } catch {
+    // Teardown failures cannot keep a signed-out tab on the cached client.
+  }
+  setCacheAvailability((version) => version + 1);
+}
 
 /**
  * Whether the normalized cache is active for soup GraphQL queries.
@@ -464,6 +572,7 @@ const [cacheAvailability, setCacheAvailability] = createSignal(0);
  */
 export function graphqlCacheEnabled(): boolean {
   cacheAvailability();
+  if (!sessionActive()) return false;
   if (cacheInitializationFailed) return false;
   if (!isTauri() && browserCacheClientActivated) return true;
   return getBrowserTursoCacheRolloutDecision().enabled;
@@ -486,12 +595,12 @@ export function graphqlDraftQueueBlocked(): boolean {
 export function assertEmailDraftQueueAvailable(): void {
   if (graphqlDraftQueueBlocked()) {
     throw new Error(
-      'Draft sync is unavailable while queued changes are preserved. Reload or update Macro to resume the queue before saving or discarding.'
+      'Draft sync is unavailable while queued changes are preserved. Retry draft synchronization to resume the queue. If recovery requires an update, update Macro before saving or discarding.'
     );
   }
 }
 
-function fallbackAfterInitializationFailure(): void {
+function fallbackAfterInitializationFailure(error: unknown): void {
   const cleanup = cachedCacheCleanup;
   cachedCacheCleanup = undefined;
   cachedCacheHost = undefined;
@@ -505,7 +614,28 @@ function fallbackAfterInitializationFailure(): void {
   } catch {
     // Initialization-failure cleanup cannot alter GraphQL transport fallback.
   }
+  cacheRecovery.failed(error);
   setCacheAvailability((version) => version + 1);
+}
+
+/**
+ * Reports the queued mutations a local sign-out deletes. Start it before the
+ * cache wipe; it never delays or fails the wipe.
+ */
+export async function recordGraphqlMutationQueueCleared(
+  cause: MutationQueueClearCause
+): Promise<void> {
+  const host = cachedCacheHost;
+  if (!host?.inspectMutations || host.disabled) return;
+  try {
+    const queue = await raceTimeout(
+      host.inspectMutations(),
+      QUEUE_CLEAR_INSPECTION_TIMEOUT_MS
+    );
+    if (queue) reportMutationQueueCleared(queue, cause);
+  } catch {
+    // A rejected entry makes sign-out rotate the cache scope.
+  }
 }
 
 /** Returns the persistent normalized-cache host after client initialization. */
@@ -521,9 +651,10 @@ export function getGraphqlCacheHost(): CacheHost | undefined {
  * engine by the identity witness on `QueryRoot.user.id` (a response for a
  * different user wipes and rebinds the cache). See @graphql-cache/scope.
  * Failures fall back to uncached reads. Draft mutations remain blocked until
- * a reload or native update can resume the preserved queue.
+ * recovery has reopened and inspected the preserved queue.
  */
 export function getGraphqlSoupClient(): Client {
+  if (!sessionActive()) return graphqlSoupClient;
   const native = isTauri();
   // Only the browser Turso client is session-latched. Tauri keeps the prior
   // dynamic GraphQL transport behavior and can return to the plain client when
@@ -582,22 +713,23 @@ export function getGraphqlSoupClient(): Client {
       // Retires the host: operations still running on this client, and any
       // caller that captured the host, fall back to the network from here.
       host?.dispose();
-      if (websocketClient) void websocketClient.dispose();
+      if (websocketClient)
+        fireAndForget(websocketClient.dispose(), 'graphql-soup-client');
     };
     const onInitializationError = (error: Error) => {
       if (!host || cachedCacheHost !== host) return;
       // Another context holds the database: a tab on another deployed build,
-      // or a closing tab whose worker still has the files open. This page
-      // simply runs uncached until it reloads.
+      // or a closing tab whose worker still has the files open. Retry later
+      // without stealing the lock or changing the cache scope.
       if (isOwnerLockUnavailableError(error)) {
-        fallbackAfterInitializationFailure();
+        fallbackAfterInitializationFailure(error);
         console.info(
-          `[graphql-cache] ${error.message}; using the network until reload`
+          `[graphql-cache] ${error.message}; using the network while waiting to retry`
         );
         return;
       }
       reportCacheError(error, 'initialization');
-      fallbackAfterInitializationFailure();
+      fallbackAfterInitializationFailure(error);
       toast.failure(
         error instanceof NativeCacheUpgradeRequiredError
           ? 'Macro update required'
@@ -606,7 +738,9 @@ export function getGraphqlSoupClient(): Client {
           subtext:
             error instanceof NativeCacheUpgradeRequiredError
               ? error.message
-              : 'Macro will continue without local caching for this session.',
+              : cacheRecovery.state() === 'unavailable'
+                ? 'Drafts remain on this device. Reconnect or retry draft synchronization.'
+                : 'Queued changes are preserved. Update or reload Macro to recover local storage.',
         }
       );
       console.warn(
@@ -627,10 +761,21 @@ export function getGraphqlSoupClient(): Client {
               onSuperseded: () => reloadForNewerBuild(),
             })
       );
+      let websocketState: MutationQueueEnvironment['websocket'] = 'none';
       const graphqlWsClient = createGraphqlSoupWebSocketClient(
-        subscriptionsLifecycle.connected
+        subscriptionsLifecycle.connected,
+        (state) => {
+          websocketState = state;
+        }
       );
       websocketClient = graphqlWsClient;
+      const mutationQueueTelemetry = createMutationQueueTelemetry({
+        environment: () => ({
+          authenticated: untrack(sessionActive),
+          online: navigator.onLine,
+          websocket: websocketState,
+        }),
+      });
       const client = createClient({
         url: `${dssHost}/items/soup/graphql`,
         // See graphqlSoupClient: GET serves GraphiQL on this path.
@@ -663,15 +808,18 @@ export function getGraphqlSoupClient(): Client {
                 ?.id,
             // Preserve optimistic intent only while transport failures retry.
             shouldRetryMutation: shouldRetryGraphqlMutation,
+            mutationQueueTelemetry,
             delegateRevalidation: delegateChannelNotificationRefresh,
           }),
           graphqlSoupSubscriptionExchange(graphqlWsClient),
           fetchExchange,
         ],
-        fetch: dssGraphqlFetch,
+        fetch: (input, init) => dssGraphqlFetch(input, init, host),
       });
       cachedCacheHost = host;
-      cacheInitializationFailed = false;
+      // A replacement stays blocked until its persisted queue is readable.
+      if (cacheRecovery.state() !== 'recovering')
+        cacheInitializationFailed = false;
       unregisterHost = registerCacheHost(host);
       subscriptionsLifecycle.replace(client, host);
       cachedCacheCleanup = cleanup;
@@ -683,6 +831,7 @@ export function getGraphqlSoupClient(): Client {
       cachedCacheHost = undefined;
       cachedCacheCleanup = undefined;
       cacheInitializationFailed = true;
+      cacheRecovery.failed(error);
       setCacheAvailability((version) => version + 1);
       console.warn('graphql cache init failed; using uncached client', error);
       return isFeatureEnabled(enableGraphqlSoup)
@@ -781,7 +930,7 @@ function mapGraphqlPropertyValue(
       type: 'Link' as const,
       value: urls,
     }))
-    .exhaustive();
+    .exhaustive(() => null);
 }
 
 /** Maps GraphQL property fragments to the shared Soup property shape. */
@@ -822,7 +971,7 @@ function mapDocumentSubType(subType: GraphqlSoupDocument['subType']) {
     .with({ __typename: 'GraphqlInitiativeDescriptionSubType' }, () => ({
       type: 'initiative_description' as const,
     }))
-    .exhaustive();
+    .exhaustive(() => undefined);
 }
 
 function mapChannelMessage(
@@ -1058,7 +1207,7 @@ function mapGraphqlNotificationMetadata(
               .with('REPLY', () => 'reply' as const)
               .with('ASSIGNEE', () => 'assignee' as const)
               .with('OWNER', () => 'owner' as const)
-              .exhaustive(),
+              .exhaustive(() => 'mention' as const),
             messageId: metadata.initiativeDiscussionMessageId,
             threadId: metadata.initiativeDiscussionThreadId,
             text: metadata.initiativeDiscussionText,
@@ -1079,7 +1228,7 @@ function mapGraphqlNotificationMetadata(
               .with('MENTION', () => 'mention' as const)
               .with('REPLY', () => 'reply' as const)
               .with('OWNER', () => 'owner' as const)
-              .exhaustive(),
+              .exhaustive(() => 'mention' as const),
             messageId: metadata.crmDiscussionMessageId,
             threadId: metadata.crmDiscussionThreadId,
             text: metadata.crmDiscussionText,
@@ -1258,6 +1407,18 @@ function mapGraphqlNotificationMetadata(
             minutesBefore: metadata.calendarEventReminderMinutesBefore,
           },
         }) satisfies NotifEventMember<'calendar_event_reminder'>
+    )
+    .with(
+      { __typename: 'GraphqlCalendarEventJoinRequestMetadata' },
+      (metadata) =>
+        ({
+          tag: 'calendar_event_join_request',
+          content: {
+            requestId: metadata.calendarEventJoinRequestRequestId,
+            eventId: metadata.calendarEventJoinRequestEventId,
+            title: metadata.calendarEventJoinRequestTitle,
+          },
+        }) satisfies NotifEventMember<'calendar_event_join_request'>
     )
     .with(
       { __typename: 'GraphqlAiResponseMetadata' },
@@ -1482,7 +1643,13 @@ function mapGraphqlNotificationMetadata(
           },
         }) satisfies NotifEventMember<'agent_session_mentioned'>
     )
-    .exhaustive();
+    .exhaustive(
+      () =>
+        ({
+          tag: 'reminder',
+          content: { description: '', reminderId: '' },
+        }) satisfies NotifEventMember<'reminder'>
+    );
 }
 
 /**
@@ -1518,9 +1685,50 @@ function mapGraphqlNotifications(
   return notifications?.map(mapGraphqlNotification);
 }
 
-export function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem | null {
+function latestTimestamp(
+  ...timestamps: (string | null | undefined)[]
+): string | undefined {
+  return timestamps.reduce<string | undefined>(
+    (latest, timestamp) =>
+      typeof timestamp === 'string' &&
+      (latest === undefined || Date.parse(timestamp) > Date.parse(latest))
+        ? timestamp
+        : latest,
+    undefined
+  );
+}
+
+/** The server's per-view sort key, recomputed from the thread's own facts so a
+ * cache re-read never dates a row by the view that fetched the thread last.
+ * Mirrors `get_sort_timestamp_field` in crates/email; INBOX is the server's
+ * default view. */
+export function emailThreadSortTs(
+  thread: {
+    latestInboundMessageTs?: string | null;
+    reminderReturnedAt?: string | null;
+    latestOutboundMessageTs?: string | null;
+    latestNonSpamMessageTs?: string | null;
+    updatedAt: string;
+  },
+  emailView: GraphqlEmailView | null | undefined
+): string {
+  const key = match(emailView)
+    .with('SENT', () => thread.latestOutboundMessageTs)
+    .with('INBOX', P.nullish, () =>
+      latestTimestamp(thread.latestInboundMessageTs, thread.reminderReturnedAt)
+    )
+    .otherwise(() => thread.latestNonSpamMessageTs);
+  return key ?? thread.updatedAt;
+}
+
+export function mapGraphqlSoupItem(
+  item: GraphqlSoupItem,
+  options?: { emailView?: GraphqlEmailView | null }
+): SoupApiItem | null {
   // Rows are read by the database SQL engine, never listed as Soup items.
   if (item.__typename === 'GraphqlSoupDatabaseRow') return null;
+  // Kept in the schema for older clients; the server never returns one.
+  if (item.__typename === 'GraphqlSoupReminder') return null;
 
   const frecency = item.frecencyScore ?? 0;
 
@@ -1591,6 +1799,16 @@ export function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem | null {
             turnState: entity.turnState,
             bot: entity.bot,
             threadId: entity.threadId,
+            source: match(entity.source)
+              .with('USER', () => 'user' as const)
+              .with('AGENT', () => 'agent' as const)
+              .with('ROUTINE', () => 'routine' as const)
+              .exhaustive(() => 'user' as const),
+            visibility: match(entity.visibility)
+              .with('LISTED', () => 'listed' as const)
+              .with('UNLISTED', () => 'unlisted' as const)
+              .with('HIDDEN', () => 'hidden' as const)
+              .exhaustive(() => 'listed' as const),
             status: entity.status,
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
@@ -1666,7 +1884,7 @@ export function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem | null {
             isImportant: entity.isImportant,
             isSignal: entity.isSignal,
             projectId: entity.projectId ?? undefined,
-            sortTs: entity.sortTs,
+            sortTs: emailThreadSortTs(entity, options?.emailView),
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
             viewedAt: entity.viewedAt ?? undefined,
@@ -1915,7 +2133,7 @@ export function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem | null {
           > & { notifications: ReturnType<typeof mapGraphqlNotifications> },
         }) as unknown as SoupApiItem
     )
-    .exhaustive();
+    .exhaustive(() => null);
 }
 
 export type FetchGraphqlSoupOptions = {
@@ -1943,7 +2161,7 @@ type GraphqlSoupPageData = {
 export function mapGraphqlSoupPage(data: GraphqlSoupPageData): SoupPage {
   return {
     items: data.user.soup.items
-      .map(mapGraphqlSoupItem)
+      .map((item) => mapGraphqlSoupItem(item))
       .filter((item): item is SoupApiItem => item !== null),
     next_cursor: data.user.soup.nextCursor ?? undefined,
   };

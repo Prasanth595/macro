@@ -181,19 +181,21 @@ function Root(props: ViewShellRootProps) {
   ]);
 
   const panel = useContext(SplitPanelContext);
-  // A view opened beside another split starts without navigation; only the
-  // primary split follows, and writes, the saved preference.
+  // A view opened beside another split starts without navigation, then keeps
+  // that split's choice as the split moves between views; only the primary
+  // split follows, and writes, the saved preference.
   const secondarySplit =
     local.asidePreferenceKey !== undefined &&
     panel !== undefined &&
     !untrack(panel.handle.isFirst);
-  const [wideAsideCollapsed, setWideAsideCollapsed] =
-    local.asidePreferenceKey && !secondarySplit
+  const [wideAsideCollapsed, setWideAsideCollapsed] = secondarySplit
+    ? (panel?.navigationCollapsed ?? createSignal(true))
+    : local.asidePreferenceKey
       ? usePreference(
           `macro:pref:view-sidebar:collapsed:${local.asidePreferenceKey}`,
           { default: false }
         )
-      : createSignal(secondarySplit);
+      : createSignal(false);
   const id = createUniqueId();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const animateSidebar = createSidebarMotion(root);
@@ -617,8 +619,18 @@ export function ViewNavigationControls() {
   );
 }
 
-function Main(props: JSX.HTMLAttributes<HTMLElement>) {
-  const [local, rest] = splitProps(props, ['children', 'class', 'ref']);
+type ViewShellMainProps = JSX.HTMLAttributes<HTMLElement> & {
+  /** Called with the solved width after a drag beside an inline detail. */
+  onWidthChangeEnd?: (width: number) => void;
+};
+
+function Main(props: ViewShellMainProps) {
+  const [local, rest] = splitProps(props, [
+    'children',
+    'class',
+    'ref',
+    'onWidthChangeEnd',
+  ]);
   const ws = useViewShellInternal();
   const layout = ws.main.layout;
   const target = () => {
@@ -636,6 +648,7 @@ function Main(props: JSX.HTMLAttributes<HTMLElement>) {
       minSize={layout().min}
       maxSize={ws.detail.placement() === 'inline' ? layout().max : undefined}
       target={target()}
+      onSizeChangeEnd={local.onWidthChangeEnd}
     >
       <main
         {...rest}
@@ -657,7 +670,7 @@ function TopBar(props: JSX.HTMLAttributes<HTMLDivElement>) {
         {...rest}
         ref={mergeRefs(local.ref, tourTarget(VIEW_SHELL_TOUR.topBar))}
         class={cn(
-          '@container/split-header flex h-12 min-w-0 shrink-0 items-center gap-1 px-2 py-3 not-touch:pl-3 touch:hidden',
+          '@container/split-header flex h-12 min-w-0 shrink-0 items-center gap-1 px-2 py-3 not-touch:gap-2 not-touch:py-2 not-touch:pl-3 touch:hidden',
           local.class
         )}
         data-view-shell-top-bar=""
@@ -675,7 +688,7 @@ function Header(props: JSX.HTMLAttributes<HTMLElement>) {
     <header
       {...rest}
       class={cn(
-        'shrink-0 px-4 py-4 touch:px-(--mobile-chrome-gutter) touch:pt-[calc(var(--safe-top,0px)+0.5rem)]',
+        'shrink-0 px-4 py-4 touch:px-(--mobile-chrome-gutter) touch:pt-[calc(var(--mobile-content-inset-top,var(--safe-top,0px))+0.5rem)]',
         local.class
       )}
       data-view-shell-header=""

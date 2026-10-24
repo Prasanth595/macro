@@ -35,6 +35,7 @@
  * forwarding could duplicate a side effect already durable in the old scope.
  */
 
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   type Client,
   CombinedError,
@@ -95,6 +96,10 @@ import {
   replayDocument,
   withQueueRequestTimeout,
 } from './mutation-queue-runner';
+import {
+  type MutationQueueTelemetry,
+  NOOP_MUTATION_QUEUE_TELEMETRY,
+} from './mutation-queue-telemetry';
 import type { QueryRevalidation } from './optimistic';
 import {
   normalizedEntityKey,
@@ -375,10 +380,19 @@ function uncertainEnqueueResult(op: Operation, error: Error): OperationResult {
 }
 
 export interface NormalizedCacheExchangeOptions {
-  /** Best-effort startup recovery before per-mutation admission. */
-  prepareMutationQueue?: () => Promise<void>;
-  /** False discards obsolete client intent without sending it to the server. */
-  beforeMutationAttempt?: (mutation: ClaimedMutation) => Promise<boolean>;
+  /**
+   * Best-effort startup recovery before per-mutation admission. Resolve
+   * `false` when it cannot run yet; the next drain asks again.
+   */
+  prepareMutationQueue?: () => Promise<boolean | void>;
+  /**
+   * False discards obsolete client intent without sending it to the server.
+   * `'defer'` keeps the mutation queued and asks again shortly, for intent
+   * that cannot be judged yet (a draft before its account is known).
+   */
+  beforeMutationAttempt?: (
+    mutation: ClaimedMutation
+  ) => Promise<boolean | 'defer'>;
   /** Persist domain recovery state for a replayed result, including when its UI is closed. */
   onMutationAttemptResult?: (
     mutation: ClaimedMutation,
@@ -409,6 +423,8 @@ export interface NormalizedCacheExchangeOptions {
    * a later background attempt. Defaults to `false`.
    */
   shouldRetryMutation?: (error: CombinedError) => boolean | Promise<boolean>;
+  /** Spans, bounded logs, and counters for the durable mutation queue. */
+  mutationQueueTelemetry?: MutationQueueTelemetry;
 }
 
 export function normalizedCacheExchange(
@@ -605,22 +621,25 @@ export function normalizedCacheExchange(
         }
       })().catch(() => undefined);
       retained.recoveryPromise = recovery;
-      void recovery.then(() => {
-        if (retained.recoveryPromise === recovery) {
-          retained.recoveryPromise = undefined;
-        }
-        if (
-          queryStates.get(key) !== state ||
-          state.retainedReplacementFallback !== retained
-        )
-          return;
-        retained.recovering = false;
-        if (retained.invalidated) {
-          state.retainedReplacementFallback = undefined;
-        } else if (retained.readyPending) {
-          recoverRetainedReplacementFallback(key);
-        }
-      });
+      fireAndForget(
+        recovery.then(() => {
+          if (retained.recoveryPromise === recovery) {
+            retained.recoveryPromise = undefined;
+          }
+          if (
+            queryStates.get(key) !== state ||
+            state.retainedReplacementFallback !== retained
+          )
+            return;
+          retained.recovering = false;
+          if (retained.invalidated) {
+            state.retainedReplacementFallback = undefined;
+          } else if (retained.readyPending) {
+            recoverRetainedReplacementFallback(key);
+          }
+        }),
+        'graphql-cache-exchange'
+      );
     };
 
     const pendingAffectedReads = new Set<Promise<void>>();
@@ -834,6 +853,8 @@ export function normalizedCacheExchange(
       };
 
       const queueOwner = `exchange:${host.clientId}`;
+      const queueTelemetry =
+        options.mutationQueueTelemetry ?? NOOP_MUTATION_QUEUE_TELEMETRY;
       const mutationQueue = createMutationQueueRunner({
         host,
         client,
@@ -1054,18 +1075,26 @@ export function normalizedCacheExchange(
           nowMs: now,
           leaseExpiresAtMs: now + QUEUE_LEASE_MS,
         };
+        const enqueueTelemetry = queueTelemetry.enqueue({
+          uuid: args.uuid,
+          operationName: args.operationName,
+        });
         let enqueue: EnqueueOptimisticMutationResult;
+        let linkPatchesDegraded = false;
         try {
           enqueue = await host.enqueueOptimisticMutation(args, claim);
         } catch (error) {
-          if (!mutationQueue.isCurrent(epoch))
+          if (!mutationQueue.isCurrent(epoch)) {
+            enqueueTelemetry.failed('storage-changed');
             return uncertainEnqueueResult(
               op,
               new Error('cache storage changed during enqueue', {
                 cause: error,
               })
             );
+          }
           if (isAdmittedEnqueueUncertainError(error)) {
+            enqueueTelemetry.failed('uncertain');
             options.onCacheError?.(error, op);
             // The old-scope queue may already contain the side effect. It is
             // unsafe to forward or retry without a coordinator fence.
@@ -1074,6 +1103,7 @@ export function normalizedCacheExchange(
           // Another context holds the database, so the enqueue never reached
           // an engine. Send it as a disabled cache would.
           if (isOwnerLockUnavailableError(error)) {
+            enqueueTelemetry.failed('owner-lock');
             enqueueForward(op);
             return undefined;
           }
@@ -1081,10 +1111,12 @@ export function normalizedCacheExchange(
           // not expose a partial relation move: retain entity optimism and
           // the post-success revalidation descriptors instead.
           if (args.linkPatches.length === 0) {
+            enqueueTelemetry.failed('rejected');
             options.onCacheError?.(error, op);
             enqueueForward(op);
             return undefined;
           }
+          linkPatchesDegraded = true;
           // Deliberately loud: this fallback is durable but invisible until
           // reconnect — the mutation's optimistic list membership silently
           // becomes eventual. A systematic rejection (schema drift, a patch
@@ -1118,27 +1150,38 @@ export function normalizedCacheExchange(
               claim
             );
           } catch (fallbackError) {
-            if (!mutationQueue.isCurrent(epoch))
+            if (!mutationQueue.isCurrent(epoch)) {
+              enqueueTelemetry.failed('storage-changed');
               return uncertainEnqueueResult(
                 op,
                 new Error('cache storage changed during enqueue', {
                   cause: fallbackError,
                 })
               );
+            }
             options.onCacheError?.(fallbackError, op);
             if (isAdmittedEnqueueUncertainError(fallbackError)) {
+              enqueueTelemetry.failed('uncertain');
               return uncertainEnqueueResult(op, fallbackError);
             }
+            enqueueTelemetry.failed('rejected');
             enqueueForward(op);
             return undefined;
           }
         }
         if (!mutationQueue.isCurrent(epoch)) {
+          enqueueTelemetry.failed('storage-changed');
           return uncertainEnqueueResult(
             op,
             new Error('cache storage changed during enqueue')
           );
         }
+        enqueueTelemetry.persisted({
+          transactionId: enqueue.transactionId,
+          replaced: enqueue.upsertKind.kind === 'replaced-pending',
+          claimed: enqueue.initialClaim.kind === 'claimed',
+          linkPatchesDegraded,
+        });
         return await mutationQueue.admit(op, enqueue, epoch);
       }
 

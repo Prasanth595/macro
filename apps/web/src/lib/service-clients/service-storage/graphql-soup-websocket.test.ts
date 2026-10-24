@@ -1,9 +1,9 @@
 import { err, ok } from 'neverthrow';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const toastFailure = vi.hoisted(() => vi.fn());
-vi.mock('@core/component/Toast/Toast', () => ({
-  toast: { failure: toastFailure },
+const telemetryError = vi.hoisted(() => vi.fn());
+vi.mock('@macro-inc/observability', () => ({
+  Telemetry: { error: telemetryError },
 }));
 
 const nativeStatus = vi.hoisted(() => ({
@@ -140,12 +140,13 @@ describe('GraphQL Soup websocket retry policy', () => {
     vi.useFakeTimers();
     vi.spyOn(Math, 'random').mockReturnValue(1);
     const resolved = vi.fn();
-    void waitToRetryGraphqlSoupWebSocket(30).then(resolved);
+    const waiting = waitToRetryGraphqlSoupWebSocket(30).then(resolved);
 
     await vi.advanceTimersByTimeAsync(62_999);
     expect(resolved).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     expect(resolved).toHaveBeenCalledOnce();
+    await waiting;
     vi.mocked(Math.random).mockRestore();
   });
 
@@ -158,22 +159,26 @@ describe('GraphQL Soup websocket retry policy', () => {
     setVisibility('hidden');
     setNativeStatus('offline');
     const resolved = vi.fn();
-    void waitToRetryGraphqlSoupWebSocket(10).then(resolved);
+    const waiting = waitToRetryGraphqlSoupWebSocket(10).then(resolved);
     await vi.advanceTimersByTimeAsync(1_000);
     expect(resolved).not.toHaveBeenCalled();
 
     opportunity();
     await vi.advanceTimersByTimeAsync(0);
     expect(resolved).toHaveBeenCalledOnce();
+    await waiting;
     expect(nativeStatus.listeners.size).toBe(0);
   });
 
   it('does not treat the current native status as a reconnect opportunity', async () => {
     vi.useFakeTimers();
     const resolved = vi.fn();
-    void waitToRetryGraphqlSoupWebSocket(10).then(resolved);
+    const waiting = waitToRetryGraphqlSoupWebSocket(10).then(resolved);
     await vi.advanceTimersByTimeAsync(0);
     expect(resolved).not.toHaveBeenCalled();
+
+    dispatchEvent(new Event('online'));
+    await waiting;
   });
 });
 
@@ -282,7 +287,7 @@ describe('GraphQL Soup subscription lifecycle', () => {
   });
 
   it('signals a terminal subscription failure once across both subscriptions', () => {
-    toastFailure.mockClear();
+    telemetryError.mockClear();
     const receive: Array<(result: { error?: unknown }) => void> = [];
     const client = {
       subscription: vi.fn(() => ({
@@ -301,18 +306,19 @@ describe('GraphQL Soup subscription lifecycle', () => {
       } as never
     );
 
-    receive[0]?.({ error: new Error('retry budget exhausted') });
+    const firstError = new Error('retry budget exhausted');
+    receive[0]?.({ error: firstError });
     receive[1]?.({ error: new Error('duplicate terminal result') });
 
-    expect(toastFailure).toHaveBeenCalledOnce();
-    expect(toastFailure).toHaveBeenCalledWith('Live updates disconnected', {
-      subtext: 'Refresh to reconnect.',
+    expect(telemetryError).toHaveBeenCalledOnce();
+    expect(telemetryError).toHaveBeenCalledWith(firstError, {
+      'error.source': 'graphql-soup-websocket',
     });
     lifecycle.dispose();
   });
 
   it('reattaches an ended subscription set on the next foreground or online signal', () => {
-    toastFailure.mockClear();
+    telemetryError.mockClear();
     const receive: Array<
       (result: { error?: unknown; hasNext?: boolean }) => void
     > = [];
@@ -353,7 +359,7 @@ describe('GraphQL Soup subscription lifecycle', () => {
     setVisibility('visible');
     dispatchEvent(new Event('online'));
     expect(client.subscription).toHaveBeenCalledTimes(4);
-    expect(toastFailure).toHaveBeenCalledOnce();
+    expect(telemetryError).toHaveBeenCalledOnce();
 
     receive[2]?.({ error: new Error('again'), hasNext: false });
     lifecycle.dispose();
@@ -362,7 +368,7 @@ describe('GraphQL Soup subscription lifecycle', () => {
   });
 
   it('signals a new outage after a successful reconnection', () => {
-    toastFailure.mockClear();
+    telemetryError.mockClear();
     const receive: Array<(result: { error?: unknown }) => void> = [];
     const client = {
       subscription: vi.fn(() => ({
@@ -379,7 +385,7 @@ describe('GraphQL Soup subscription lifecycle', () => {
     lifecycle.connected();
     receive[0]?.({ error: new Error('second outage') });
 
-    expect(toastFailure).toHaveBeenCalledTimes(2);
+    expect(telemetryError).toHaveBeenCalledTimes(2);
     lifecycle.dispose();
   });
 });

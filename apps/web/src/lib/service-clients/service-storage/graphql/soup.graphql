@@ -119,6 +119,8 @@ fragment SoupItemPreviewFields on GraphqlSoupEntity {
 			avatarUrl
 		}
 		threadId
+		source
+		visibility
 		status
 		createdAt
 		updatedAt
@@ -197,6 +199,8 @@ fragment SoupItemPreviewFields on GraphqlSoupEntity {
 		inboxVisible
 		linkId
 		latestInboundMessageTs
+		latestOutboundMessageTs
+		latestNonSpamMessageTs
 		reminderReturnedAt
 		mailDraftState @cacheOnly { ...EmailDraftStateFields }
         mailAllPreview @cacheOnly { ...MailPreviewFields }
@@ -212,7 +216,6 @@ fragment SoupItemPreviewFields on GraphqlSoupEntity {
 		isImportant
 		isSignal
 		projectId
-		sortTs
 		createdAt
 		updatedAt
 		viewedAt
@@ -618,6 +621,11 @@ fragment SoupNotificationNavigationMetadataFields on GraphqlNotifEvent {
 		calendarEventReminderTimeZone: timeZone
 		calendarEventReminderMinutesBefore: minutesBefore
 	}
+	... on GraphqlCalendarEventJoinRequestMetadata {
+		calendarEventJoinRequestRequestId: requestId
+		calendarEventJoinRequestEventId: eventId
+		calendarEventJoinRequestTitle: title
+	}
 	... on GraphqlAiResponseMetadata {
 		aiResponseSummary: summary
 		aiResponseMessageId: messageId
@@ -773,6 +781,7 @@ fragment SoupNotificationNavigationMetadataFields on GraphqlNotifEvent {
 fragment MailAccountFields on GraphqlEmailLink {
   id
   macroId
+  provider
   emailAddress
   photoUrl
   isPrimary

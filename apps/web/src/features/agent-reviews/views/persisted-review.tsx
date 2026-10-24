@@ -1,4 +1,6 @@
-import { Show, Suspense } from 'solid-js';
+import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
+import { createEffect, on, Show, Suspense } from 'solid-js';
 import { useReview, useReviewActions } from '../queries/reviews';
 import { ReviewStack } from './review-stack';
 
@@ -7,7 +9,12 @@ export function PersistedReview(props: {
   sessionId: string;
   reviewId: string;
   canAct: boolean;
+  ownerId?: string;
+  eventId?: string;
+  onDecision?: () => void;
+  onDecisionFailed?: () => void;
 }) {
+  const userId = useUserId();
   const query = useReview(
     () => props.sessionId,
     () => props.reviewId
@@ -16,6 +23,26 @@ export function PersistedReview(props: {
     () => props.sessionId,
     () => props.reviewId
   );
+  createEffect(
+    on(
+      () => props.eventId,
+      (id) => {
+        if (id) fireAndForget(query.refetch(), 'agent-reviews');
+      }
+    )
+  );
+  const decisions = {
+    reload: actions.reload,
+    decide: async (decision: Parameters<typeof actions.decide>[0]) => {
+      if (decision.action !== 'edit') props.onDecision?.();
+      try {
+        return await actions.decide(decision);
+      } catch (error) {
+        if (decision.action !== 'edit') props.onDecisionFailed?.();
+        throw error;
+      }
+    },
+  };
   return (
     <Suspense fallback={<p class="text-xs text-ink-muted">Loading review…</p>}>
       <Show when={query.isError}>
@@ -24,7 +51,7 @@ export function PersistedReview(props: {
           <button
             type="button"
             class="underline"
-            onClick={() => void query.refetch()}
+            onClick={() => fireAndForget(query.refetch(), 'agent-reviews')}
           >
             Retry
           </button>
@@ -34,8 +61,11 @@ export function PersistedReview(props: {
         {(record) => (
           <ReviewStack
             review={record()}
-            canAct={props.canAct}
-            actions={actions}
+            canAct={
+              props.canAct &&
+              userId() === (record().actingUser ?? props.ownerId)
+            }
+            actions={decisions}
           />
         )}
       </Show>

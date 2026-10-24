@@ -1,6 +1,7 @@
 import { CalendarDraftComposer } from '@core/component/AI/component/tool/calendar/DraftComposer';
 import { EmailDraftComposer } from '@core/component/AI/component/tool/email/DraftComposer';
 import type { UserToolReviewSink } from '@core/component/AI/component/tool/user-tool-review';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   CreateCalendarEvent,
   SendEmail,
@@ -48,7 +49,6 @@ export function ReviewStack(props: {
     Boolean(controller.error()) ||
     controller.stale() ||
     record().presentedAt == null ||
-    Boolean(record().notificationId) ||
     record().items.some((item) => item.status === 'submitting');
 
   function capture(): boolean {
@@ -157,7 +157,7 @@ export function ReviewStack(props: {
       record().items.find((item) => item.id === id)?.status === 'pending',
     lockedNotice: () =>
       !props.canAct
-        ? 'Only the session owner can submit this review.'
+        ? 'Only the person whose account this review uses can submit it.'
         : undefined,
     onEdit: (draft) => {
       controller.edit(id, draft);
@@ -231,7 +231,7 @@ export function ReviewStack(props: {
             variant="outline"
             size="sm"
             disabled={working()}
-            onClick={() => void reload()}
+            onClick={() => fireAndForget(reload(), 'agent-reviews')}
           >
             Reload saved review
           </Button>
@@ -253,6 +253,11 @@ export function ReviewStack(props: {
       <Show when={current()?.status !== 'pending'}>
         <p role="status" class="mb-2 px-1 text-xs text-ink-muted">
           {statusLabel(current()?.status, record().kind)}
+        </p>
+      </Show>
+      <Show when={startedByAgent(record(), current())}>
+        <p class="mb-2 px-1 text-xs text-ink-muted">
+          Started by the agent at your request
         </p>
       </Show>
       <ReviewDeck
@@ -353,11 +358,17 @@ export function ReviewStack(props: {
             const items = confirmingBatch();
             if (items.length === 0 || !confirmationOpen()) return;
             setConfirmationOpen(false);
-            void submitAll(items);
+            fireAndForget(submitAll(items), 'agent-reviews');
           }}
         />
       </Show>
     </section>
+  );
+}
+function startedByAgent(review: Review, item: ReviewItem | undefined) {
+  return (
+    review.decision?.via === 'chat' &&
+    (item?.status === 'submitting' || item?.status === 'completed')
   );
 }
 function neverDraft(): never {

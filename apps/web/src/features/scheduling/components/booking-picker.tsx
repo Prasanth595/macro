@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Button } from '@ui';
 import {
   createEffect,
@@ -32,7 +33,6 @@ export function BookingPicker(props: {
   event: PublicEvent;
   source: BookingSource;
   onReceipt: (receipt: BookingReceipt) => void;
-  onChooseEvent?: () => void;
   /** Shows real availability but never books: an author's preview. */
   preview?: boolean;
 }) {
@@ -95,7 +95,7 @@ export function BookingPicker(props: {
     );
   const choose = (value: string) => {
     setDate(value);
-    void flow.chooseDate(event().id, value, zone());
+    fireAndForget(flow.chooseDate(event().id, value, zone()), 'scheduling');
   };
   const submit = async (e: SubmitEvent) => {
     e.preventDefault();
@@ -116,18 +116,6 @@ export function BookingPicker(props: {
     <section class="@container overflow-hidden rounded-2xl border border-edge-muted bg-surface-1 text-ink">
       <div class="grid @3xl:grid-cols-[260px_minmax(0,1fr)]">
         <aside class="border-b border-edge-muted bg-surface-0 p-5 @md:p-7 @3xl:border-r @3xl:border-b-0">
-          <Show when={props.onChooseEvent}>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              class="mb-5"
-              disabled={locked()}
-              onClick={props.onChooseEvent}
-            >
-              ← All meetings
-            </Button>
-          </Show>
           <p class="text-sm text-ink-muted">{props.profile.name}</p>
           <h2 class="mt-2 text-2xl font-semibold tracking-tight">
             {event().title}
@@ -214,7 +202,7 @@ export function BookingPicker(props: {
               fallback={
                 <form
                   class="mx-auto flex max-w-lg flex-col gap-5"
-                  onSubmit={(e) => void submit(e)}
+                  onSubmit={(e) => fireAndForget(submit(e), 'scheduling')}
                 >
                   <Button
                     type="button"

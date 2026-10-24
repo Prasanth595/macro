@@ -11,6 +11,7 @@ import { searchQuickAccessEntities } from '@core/context/quickAccess/entity-sear
 import { useUserId } from '@core/context/user';
 import clickOutside from '@core/directive/clickOutside';
 import { debouncedDependent } from '@core/util/debounce';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import type { GithubPullRequestEntity } from '@entity';
 import PlusIcon from '@phosphor/plus.svg';
@@ -244,7 +245,7 @@ function SkillsMenuInner(props: SkillsMenuProps) {
 
   const deleteSkill = (item: EntityItem) => {
     closeMenu();
-    void deleteAction.execute([item.data]);
+    fireAndForget(deleteAction.execute([item.data]), 'entity-actions');
   };
 
   /**
@@ -351,7 +352,11 @@ function SkillsMenuInner(props: SkillsMenuProps) {
           }}
           on:touchstart={(e) => e.stopPropagation()}
         >
-          <Surface depth={2} class="pt-2 pb-1.5 glass bg-menu-glass rounded-xl">
+          <Surface
+            depth={2}
+            hideBorder
+            class="menu-surface rounded-xl pt-2 pb-1.5"
+          >
             <div
               class="overflow-y-auto scrollbar-hidden"
               style={{ 'max-height': `${contentMaxHeight()}px` }}

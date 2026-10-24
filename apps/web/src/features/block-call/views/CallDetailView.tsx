@@ -1,6 +1,8 @@
 import { ViewShell } from '@app/components/view-shell';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { createSearchParams } from '@app/lib/split-router';
+import { HeaderActionButton } from '@components/app/HeaderActionButton';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { SidePanel } from '@components/app/side-panel';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { SplitPanel } from '@components/app/split-panel';
@@ -8,6 +10,7 @@ import { getPermissions } from '@core/component/SharePermissions';
 import { ShareTrigger } from '@core/component/TopBar/ShareButton';
 import { useShareModal } from '@core/component/TopBar/shareModal';
 import { isMobile } from '@core/mobile/isMobile';
+import { fireAndForget } from '@core/util/fireAndForget';
 import PhoneCallIcon from '@phosphor/phone-call.svg';
 import SpinnerIcon from '@phosphor/spinner.svg';
 import { useCallRecordQuery } from '@queries/call/call';
@@ -74,12 +77,15 @@ export function CallDetailActions(props: {
   }));
 
   return (
-    <div class="ml-auto flex shrink-0 items-center gap-1">
+    <div class="ml-auto flex shrink-0 items-center gap-2 touch:gap-1">
       <Show when={!isMobile() && !props.record.isActive && canCallAgain()}>
-        <Button variant="outline" size="sm" onClick={callAgain}>
-          <PhoneCallIcon class="size-4" />
-          Call Again
-        </Button>
+        <HeaderActionGroup label="Call actions">
+          <HeaderActionButton
+            label="Call Again"
+            icon={<PhoneCallIcon class="size-3.5 touch:size-4" />}
+            onClick={callAgain}
+          />
+        </HeaderActionGroup>
       </Show>
       <SidePanel.HeaderActionsOutlet />
       <ShareTrigger
@@ -113,7 +119,7 @@ function LoadedCallContent(props: {
   onMount(() => {
     optimisticUpdateSoupItemViewedAt(props.callId);
     if (!hasSoupEntity(props.callId)) {
-      void refetchSoupEntity(props.callId, 'call');
+      fireAndForget(refetchSoupEntity(props.callId, 'call'), 'call-detail');
     }
   });
   return (
@@ -171,7 +177,9 @@ export function CallDetailContent(props: {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => void props.query.refetch()}
+                    onClick={() =>
+                      fireAndForget(props.query.refetch(), 'call-detail')
+                    }
                   >
                     Retry
                   </Button>

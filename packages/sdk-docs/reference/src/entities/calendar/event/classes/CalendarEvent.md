@@ -21,6 +21,7 @@ mutations, but reading a field on it throws.
 | <a id="property-attendees"></a> `attendees` | `readonly` | () => `Promise`\<[`CalendarAttendee`](../../../../../generated/calendar/types.gen/type-aliases/CalendarAttendee.md)[]\> | Attendees on the canonical copy. | - |
 | <a id="property-calendar"></a> `calendar` | `readonly` | () => `Promise`\<[`Calendar`](../../calendar/classes/Calendar.md) \| `undefined`\> | The calendar the canonical source belongs to, when known. | - |
 | <a id="property-description"></a> `description` | `readonly` | () => `Promise`\<`string` \| `undefined`\> | Optional event body. | - |
+| <a id="property-guestpolicy"></a> `guestPolicy` | `readonly` | () => `Promise`\<[`GuestPolicy`](../../../../../generated/calendar/types.gen/type-aliases/GuestPolicy.md)\> | What the organizer lets guests do: modify, invite others, see the guest list. | - |
 | <a id="property-id"></a> `id` | `public readonly` | `string` | - | [`MacroEntity`](../../../entity/classes/MacroEntity.md).[`id`](../../../entity/classes/MacroEntity.md#property-id) |
 | <a id="property-isreadonly"></a> `isReadOnly` | `readonly` | () => `Promise`\<`boolean`\> | Whether the canonical source's calendar prohibits editing. | - |
 | <a id="property-location"></a> `location` | `readonly` | () => `Promise`\<`string` \| `undefined`\> | Optional physical or virtual location label. | - |
@@ -29,8 +30,36 @@ mutations, but reading a field on it throws.
 | <a id="property-time"></a> `time` | `readonly` | () => `Promise`\<[`EventTime`](../../../../../generated/calendar/types.gen/type-aliases/EventTime.md)\> | Timed or all-day shape. | - |
 | <a id="property-title"></a> `title` | `readonly` | () => `Promise`\<`string`\> | Display title. | - |
 | <a id="property-transparency"></a> `transparency` | `readonly` | () => `Promise`\<[`EventTransparency`](../../../../../generated/calendar/types.gen/type-aliases/EventTransparency.md)\> | Availability behavior. | - |
+| <a id="property-viewercan"></a> `viewerCan` | `readonly` | () => `Promise`\<[`ViewerCapabilities`](../../../../../generated/calendar/types.gen/type-aliases/ViewerCapabilities.md)\> | What the connected account may do with this event under its guest policy. | - |
 
 ## Methods
+
+### addToCalendar()
+
+> **addToCalendar**(`options?`): `Promise`\<`CalendarEvent`\>
+
+Add a snapshot of an event shared with one of the requester's
+channels to one of their Google calendars, and return a handle to the
+synced snapshot. The snapshot keeps the meeting's iCalendar UID and
+organizer, lists only the requester as a guest, and carries no join link;
+nobody is notified, and answers or guests on it never reach the meeting.
+Refused with `already_on_calendar` when the meeting is already on one of
+their calendars, with `join_request_open` while their request to join it
+is pending or accepted (the meeting then arrives as an invitation), and
+with `copy_refused` when Google will not import it.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | \{ `calendar?`: [`Calendar`](../../calendar/classes/Calendar.md); \} |
+| `options.calendar?` | [`Calendar`](../../calendar/classes/Calendar.md) |
+
+#### Returns
+
+`Promise`\<`CalendarEvent`\>
+
+***
 
 ### delete()
 
@@ -47,6 +76,124 @@ Delete the event (or a scoped part of a recurring series) at its provider.
 #### Returns
 
 `Promise`\<`void`\>
+
+***
+
+### ics()
+
+> **ics**(): `Promise`\<`string`\>
+
+The event as an iCalendar (`.ics`) document: its series, title,
+description, location and organizer, never its guests or join link.
+Available for the requester's own events and ones shared with a channel
+they belong to.
+
+#### Returns
+
+`Promise`\<`string`\>
+
+***
+
+### inviteGuests()
+
+> **inviteGuests**(`options`): `Promise`\<`CalendarEvent`\>
+
+Add guests without touching anyone already invited, and return a handle
+to the synced record. The organizer may, and so may a guest the organizer
+lets invite others (see [CalendarEvent.viewerCan](#property-viewercan)); Google emails
+the new guests.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options` | [`InviteGuestsOptions`](../interfaces/InviteGuestsOptions.md) |
+
+#### Returns
+
+`Promise`\<`CalendarEvent`\>
+
+***
+
+### linkNote()
+
+> **linkNote**(`document`, `occurrence`, `options?`): `Promise`\<[`CalendarNote`](../../note/classes/CalendarNote.md)\>
+
+Link a markdown document you own. Meeting-detail viewers gain read access;
+an optional team gains read access too. Editing and other sharing are preserved.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `document` | [`Document`](../../../documents/document/classes/Document.md) |
+| `occurrence` | [`CalendarOccurrence`](../../../../../generated/storage/types.gen/type-aliases/CalendarOccurrence.md) |
+| `options?` | \{ `team?`: [`Team`](../../../teams/team/classes/Team.md); \} |
+| `options.team?` | [`Team`](../../../teams/team/classes/Team.md) |
+
+#### Returns
+
+`Promise`\<[`CalendarNote`](../../note/classes/CalendarNote.md)\>
+
+***
+
+### notes()
+
+> **notes**(`occurrence`): `Promise`\<[`CalendarNote`](../../note/classes/CalendarNote.md)[]\>
+
+Notes linked to a specific occurrence returned by `calendar.occurrences()`.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `occurrence` | [`CalendarOccurrence`](../../../../../generated/storage/types.gen/type-aliases/CalendarOccurrence.md) |
+
+#### Returns
+
+`Promise`\<[`CalendarNote`](../../note/classes/CalendarNote.md)[]\>
+
+***
+
+### prepareReplacement()
+
+> **prepareReplacement**(`options`): `Promise`\<[`CalendarReplacement`](../../replacement/classes/CalendarReplacement.md)\>
+
+Preview an organizer replacement without cancelling or sending invitations.
+Review replacement.status() before explicitly calling replacement.confirm().
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options` | \{ `calendar?`: [`Calendar`](../../calendar/classes/Calendar.md); `recurrenceId?`: `string`; `removeConference`: `boolean`; \} |
+| `options.calendar?` | [`Calendar`](../../calendar/classes/Calendar.md) |
+| `options.recurrenceId?` | `string` |
+| `options.removeConference` | `boolean` |
+
+#### Returns
+
+`Promise`\<[`CalendarReplacement`](../../replacement/classes/CalendarReplacement.md)\>
+
+***
+
+### providerUrl()
+
+> **providerUrl**(`options?`): `Promise`\<`string` \| `undefined`\>
+
+Open this calendar copy in its provider for actions unavailable through its API.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | \{ `calendar?`: [`Calendar`](../../calendar/classes/Calendar.md); `recurrenceId?`: `string`; \} |
+| `options.calendar?` | [`Calendar`](../../calendar/classes/Calendar.md) |
+| `options.recurrenceId?` | `string` |
+
+#### Returns
+
+`Promise`\<`string` \| `undefined`\>
 
 ***
 

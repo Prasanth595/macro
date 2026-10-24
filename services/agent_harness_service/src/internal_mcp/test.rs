@@ -109,8 +109,11 @@ async fn rpc(
     app: Router,
     token: Option<&str>,
     method: &str,
-    params: serde_json::Value,
+    mut params: serde_json::Value,
 ) -> (StatusCode, serde_json::Value) {
+    if method == "tools/call" && params["name"] != "DescribeCodeTools" {
+        params["arguments"]["acting_as"] = serde_json::json!("owner");
+    }
     let mut request = Request::builder()
         .method("POST")
         .uri("/mcp/internal")
@@ -154,15 +157,19 @@ async fn each_harness_gets_only_internal_tools_and_writes_only_its_session() {
         let tasks = FixedTasks::default();
         let app = router(
             Arc::new(repo.clone()),
-            Arc::new(SessionPullRequestService::new(
-                repo.clone(),
-                RecordingRealtime::new(),
-                Arc::new(tasks.clone()),
-            )),
-            Arc::new(tasks.clone()),
             "localhost".into(),
-            None,
-            Arc::new(OnceLock::new()),
+            InternalTools {
+                service: Arc::new(SessionPullRequestService::new(
+                    repo.clone(),
+                    RecordingRealtime::new(),
+                    Arc::new(tasks.clone()),
+                )),
+                tasks: Arc::new(tasks.clone()),
+                code_mode: None,
+                cognition: None,
+                reviews: Arc::new(OnceLock::new()),
+                gate: Arc::new(agent_inmem::domain::tool_gate::UngatedNativeTools),
+            },
         );
         assert_eq!(
             rpc(app.clone(), None, "tools/list", serde_json::json!({}))
@@ -215,12 +222,21 @@ async fn each_harness_gets_only_internal_tools_and_writes_only_its_session() {
         assert_eq!(
             names,
             [
+                "DecideReview",
+                "GetReview",
                 "PresentReview",
                 "link_task",
                 "set_pull_request",
                 "task_pull_requests"
             ]
         );
+        let read_review = listed["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|tool| tool["name"] == "GetReview")
+            .unwrap();
+        assert_eq!(read_review["annotations"]["readOnlyHint"], true);
         // The presentation tool is advertised without code mode, but startup
         // wiring must be complete before a call can create a saved review.
         let (_, unavailable) = rpc(
