@@ -950,13 +950,15 @@ async fn load_user_display_names(
         .collect())
 }
 
-/// `first last` as the app shows it; "N/A" marks an unset part.
+/// `first last` as the app shows it; "N/A" or a blank marks an unset part.
 fn display_name(first_name: Option<&str>, last_name: Option<&str>) -> Option<String> {
     const NA: &str = "N/A";
-    match (
-        first_name.filter(|value| *value != NA),
-        last_name.filter(|value| *value != NA),
-    ) {
+    fn part(value: Option<&str>) -> Option<&str> {
+        value
+            .map(str::trim)
+            .filter(|value| !value.is_empty() && *value != NA)
+    }
+    match (part(first_name), part(last_name)) {
         (None, None) => None,
         (None, Some(last_name)) => Some(last_name.to_string()),
         (Some(first_name), None) => Some(first_name.to_string()),
