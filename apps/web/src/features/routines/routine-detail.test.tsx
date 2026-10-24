@@ -875,6 +875,11 @@ describe('routine editor triggers', () => {
       expect(
         screen.queryByRole('textbox', { name: 'Instructions' })
       ).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Back to routines' }));
+      expect(mocks.openWithSplit).toHaveBeenLastCalledWith(
+        expect.objectContaining({ type: 'component', id: 'routines' }),
+        { activate: true, search: {} }
+      );
     }
   );
 
