@@ -167,8 +167,8 @@ export async function transferEmailDraft(input: {
     result = recovery.committed;
   }
   // Cache refresh errors must not turn a committed move into a failed write.
-  // The caller shows the moved draft first: evicting the source thread
-  // replaces a route still showing it with the not-found page.
+  // The caller shows the moved draft first. Evicting the source thread
+  // replaces a route that still shows it with the not-found page.
   fireAndForget(refreshTransferredThreads(result), 'email-draft-transfer');
   return result;
 }
