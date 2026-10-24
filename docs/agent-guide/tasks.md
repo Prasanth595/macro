@@ -128,13 +128,14 @@ Saved views are available on main Tasks, not inside Project or CRM task lists.
 - Desktop: use the **Saved views** sidebar section. Its icon-only **+** remains available while collapsed or empty.
 - Mobile: the bookmark button beside the filter control opens the shared Views drawer. Creation, selection, editing, and deletion work there too.
 - **+** starts an unsaved view with All Tasks scope and explicit open-status filters. Configure filters, then choose **Save view** and provide a name.
-- **Save as view** in the filter menu/drawer captures current filters, including My Tasks or Created by me scope and the current status selection. It excludes text search, sort, grouping, and layout.
+- **Save view** appears immediately left of Filters when filters differ from the built-in tab defaults. It captures the current filters, including My Tasks or Created by me scope and status, but excludes text search, sort, grouping, and layout.
 - In a saved view, **Scope** appears in the filters. **Me (each viewer)** is relative; choosing a named person remains fixed.
-- Temporary edits show **Save changes** and **Reset**. The overflow menu provides **Save as new**, **Rename or share**, **Copy link**, and confirmed **Delete view**. Non-owners cannot overwrite or delete a shared view.
+- Temporary edits show **Save changes** and **Reset**. Right-click a sidebar view or use its **…** button for **Rename**, **Share**, **Duplicate**, **Copy link**, and confirmed **Delete view**. The selected view's overflow menu offers the same actions. Non-owners cannot rename, share, overwrite, or delete a shared view.
+- **Rename** and **Share** edit metadata without saving temporary filter changes. **Duplicate** opens a private copy with a prefilled “(copy)” name; duplicating the selected view includes its temporary filters. Sidebar actions on another view do not change the current selection unless a duplicate is saved.
 - The optional **Share with team** checkbox shares only the filter definition. Each teammate still sees only permitted items. Sharing stops if the owner leaves the team; rejoining does not reactivate it.
 - Leaving the view or opening task detail discards temporary edits. The return breadcrumb retains the saved-view identity and reloads its saved filters.
 - An unavailable, deleted, or unsupported view shows an explicit unavailable state, not All Tasks under the old name. Unknown tag/person labels retain their filters until deliberately removed.
-- A conflicting save retains the draft and offers **Reload saved view** or **Save as new**. A network failure also retains the name and sharing inputs.
+- A conflicting save retains the draft and offers **Reload saved view** or **Duplicate**. A network failure also retains the name and sharing inputs.
 - Copy links use the existing split search codec, for example `/app/component/tasks?s0.tasks.savedView=<uuid>`.
 
 Verify creation without early persistence, explicit save/reset, copy versus owner-only editing, desktop/mobile metadata dialogs, and returning from task detail. Repeat with another teammate, a removed/rejoined owner, an unavailable tag, and a stale revision.

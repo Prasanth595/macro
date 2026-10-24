@@ -1,4 +1,5 @@
 import { fireAndForget } from '@core/util/fireAndForget';
+import { ok } from 'neverthrow';
 import {
   type Accessor,
   batch,
@@ -29,10 +30,12 @@ import {
 import type { TasksViewState, TaskTab } from '../types';
 
 type SavedViewForm = {
-  mode: 'create' | 'update';
+  mode: 'create' | 'duplicate' | 'rename' | 'share';
   id: string;
   name: string;
   sharedTeamId: string | null;
+  record?: SavedView;
+  config?: TaskSavedViewConfig;
 };
 
 type SavedViewWrite =
@@ -60,7 +63,8 @@ export function createTaskSavedViews(options: {
   const [conflict, setConflict] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
   const [form, setForm] = createSignal<SavedViewForm>();
-  const [deleting, setDeleting] = createSignal(false);
+  const [deletionRecord, setDeletionRecord] = createSignal<SavedView>();
+  const deleting = () => Boolean(deletionRecord());
   const active = () => creating() || Boolean(options.selectedId());
   const capture = () =>
     captureTaskSavedView({
@@ -72,6 +76,17 @@ export function createTaskSavedViews(options: {
     const result = capture();
     return result.isOk() ? result.value : undefined;
   });
+  const changedFromBase = () => {
+    const base = captureTaskSavedView({
+      tab: options.state.tab,
+      facets: DEFAULT_TASK_FACET_SELECTION,
+      context: options.facetContext(),
+    });
+    const definition = current();
+    return Boolean(
+      definition && base.isOk() && !taskSavedViewsEqual(definition, base.value)
+    );
+  };
   const draft = createSavedViewDraft({ current, equal: taskSavedViewsEqual });
   const apply = (definition: TaskSavedViewConfig) => {
     const materialized = materializeTaskSavedView(definition);
@@ -143,7 +158,7 @@ export function createTaskSavedViews(options: {
           setUnavailable(undefined);
           setError(undefined);
           setForm(undefined);
-          setDeleting(false);
+          setDeletionRecord(undefined);
           options.clearSearch();
         }
         if (!id) {
@@ -212,7 +227,7 @@ export function createTaskSavedViews(options: {
       draft.install(undefined, undefined);
       setTagBindings(new Map());
       setForm(undefined);
-      setDeleting(false);
+      setDeletionRecord(undefined);
       setError(undefined);
       setUnavailable(undefined);
       options.navigate(undefined);
@@ -234,15 +249,33 @@ export function createTaskSavedViews(options: {
     });
     options.navigate(undefined);
   };
-  const openForm = (mode: 'create' | 'update') => {
-    const record = draft.record();
-    if (mode === 'update' && (!record || !owned())) return;
+  const openForm = (mode: SavedViewForm['mode'], record = draft.record()) => {
+    if (saving()) return;
     setError(undefined);
+    if (mode === 'create') {
+      setForm({ mode, id: uuid(), name: '', sharedTeamId: null });
+      return;
+    }
+    if (!record) return;
+    if (mode !== 'duplicate' && record.ownerId !== options.viewerId()) return;
+    const definition =
+      mode === 'duplicate' && record.id === draft.record()?.id
+        ? capture()
+        : decodeTaskSavedView(record.config);
+    if (definition.isErr()) {
+      setError(definition.error);
+      return;
+    }
     setForm({
       mode,
-      id: mode === 'update' && record ? record.id : uuid(),
-      name: mode === 'update' ? (record?.name ?? '') : '',
-      sharedTeamId: mode === 'update' ? (record?.sharedTeamId ?? null) : null,
+      id: mode === 'duplicate' ? uuid() : record.id,
+      name:
+        mode === 'duplicate'
+          ? `${record.name.slice(0, 113)} (copy)`
+          : record.name,
+      sharedTeamId: mode === 'duplicate' ? null : record.sharedTeamId,
+      record,
+      config: definition.value,
     });
   };
   const writeRequest = (
@@ -251,17 +284,17 @@ export function createTaskSavedViews(options: {
     team?: string | null
   ): SavedViewWrite | undefined => {
     const metadata = form();
-    const record = draft.record();
+    const record = metadata?.record ?? draft.record();
     const targetName = (name ?? metadata?.name ?? record?.name ?? '').trim();
     if (!targetName) {
       setError('Give this view a name.');
       return;
     }
-    const mode = metadata?.mode ?? 'update';
-    if (mode === 'create') {
+    const mode = metadata?.mode;
+    if (mode === 'create' || mode === 'duplicate') {
       if (!metadata) return;
       return {
-        mode,
+        mode: 'create',
         input: {
           id: metadata.id,
           name: targetName,
@@ -270,7 +303,7 @@ export function createTaskSavedViews(options: {
         },
       };
     }
-    if (!record || !owned()) return;
+    if (!record || record.ownerId !== options.viewerId()) return;
     const input: UpdateSavedView = {
       id: record.id,
       name: targetName,
@@ -278,9 +311,13 @@ export function createTaskSavedViews(options: {
       expectedRevision: record.revision,
     };
     // A filter/name save must not renew an expired sharing lifetime.
-    if (team !== undefined && team !== record.sharedTeamId)
+    if (
+      metadata?.mode !== 'rename' &&
+      team !== undefined &&
+      team !== record.sharedTeamId
+    )
       input.sharedTeamId = team;
-    return { mode, input };
+    return { mode: 'update', input };
   };
   const scope = () =>
     JSON.stringify([
@@ -291,7 +328,8 @@ export function createTaskSavedViews(options: {
     ]);
   const save = async (name?: string, sharedTeamId?: string | null) => {
     if (saving()) return;
-    const definition = capture();
+    const metadata = form();
+    const definition = metadata?.config ? ok(metadata.config) : capture();
     if (definition.isErr()) {
       setError(definition.error);
       return;
@@ -328,15 +366,20 @@ export function createTaskSavedViews(options: {
     }
     batch(() => {
       setForm(undefined);
-      setCreating(request.mode === 'create');
-      draft.install(result.value, confirmed.value);
+      if (request.mode === 'create') {
+        if (metadata?.mode === 'duplicate') apply(confirmed.value);
+        setCreating(true);
+        draft.install(result.value, confirmed.value);
+        options.navigate(result.value.id);
+      } else if (options.selectedId() === result.value.id) {
+        draft.install(result.value, confirmed.value);
+      }
       setConflict(false);
-      if (request.mode === 'create') options.navigate(result.value.id);
     });
   };
   const remove = async () => {
-    const record = draft.record();
-    if (!record || !owned() || saving()) return;
+    const record = deletionRecord();
+    if (!record || record.ownerId !== options.viewerId() || saving()) return;
     const requestScope = scope();
     setSaving(true);
     const result = await options.source.delete({
@@ -350,7 +393,8 @@ export function createTaskSavedViews(options: {
       setConflict(result.error.code === 'CONFLICT');
       return;
     }
-    leave();
+    if (options.selectedId() === record.id) leave();
+    else setDeletionRecord(undefined);
   };
   const reload = async () => {
     const requestScope = scope();
@@ -378,6 +422,7 @@ export function createTaskSavedViews(options: {
     record: draft.record,
     dirty: draft.dirty,
     owned,
+    changedFromBase,
     tagBindings,
     form,
     deleting,
@@ -391,13 +436,16 @@ export function createTaskSavedViews(options: {
     remove,
     reload,
     saveAs: () => openForm('create'),
-    manage: () => openForm('update'),
+    duplicate: (record?: SavedView) => openForm('duplicate', record),
+    rename: (record?: SavedView) => openForm('rename', record),
+    share: (record?: SavedView) => openForm('share', record),
     closeForm: () => setForm(undefined),
-    confirmDelete: () => {
+    confirmDelete: (record = draft.record()) => {
+      if (!record || record.ownerId !== options.viewerId() || saving()) return;
       setError(undefined);
-      setDeleting(true);
+      setDeletionRecord(record);
     },
-    cancelDelete: () => setDeleting(false),
+    cancelDelete: () => setDeletionRecord(undefined),
     setScope: (tab: TaskTab) => options.apply(tab, options.state.facets),
   };
 }

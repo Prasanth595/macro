@@ -100,6 +100,14 @@ function Fixture() {
           onOpenChange={setOpen}
           hasMore={false}
           loadingMore={false}
+          viewerId="viewer"
+          canShare
+          saving={views.saving()}
+          onRename={views.rename}
+          onShare={views.share}
+          onDuplicate={views.duplicate}
+          onCopyLink={() => {}}
+          onDelete={views.confirmDelete}
           onSelect={views.select}
           onCreate={views.start}
           onRetry={() => {}}
@@ -136,7 +144,7 @@ function Fixture() {
       <Show when={views.form()} keyed>
         {(form) => (
           <SavedViewDialog
-            title="Save task view"
+            mode={form.mode}
             name={form.name}
             sharedTeamId={form.sharedTeamId}
             team={{ id: 'team', name: 'Example team' }}

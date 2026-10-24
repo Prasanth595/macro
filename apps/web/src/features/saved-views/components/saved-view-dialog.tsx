@@ -1,11 +1,12 @@
 import { Button, Checkbox, Dialog, Input } from '@ui';
 import { createSignal, type JSX, Show } from 'solid-js';
+import { match } from 'ts-pattern';
 
 export function SavedViewDialog(props: {
   name: string;
   sharedTeamId: string | null;
   team?: { id: string; name: string };
-  title: string;
+  mode: 'create' | 'duplicate' | 'rename' | 'share';
   summary: JSX.Element;
   pending: boolean;
   error?: string;
@@ -14,6 +15,19 @@ export function SavedViewDialog(props: {
 }) {
   const [name, setName] = createSignal(props.name);
   const [shared, setShared] = createSignal(Boolean(props.sharedTeamId));
+  const labels = () =>
+    match(props.mode)
+      .with('create', () => ({ title: 'Save view', submit: 'Save view' }))
+      .with('duplicate', () => ({
+        title: 'Duplicate saved view',
+        submit: 'Duplicate',
+      }))
+      .with('rename', () => ({ title: 'Rename saved view', submit: 'Rename' }))
+      .with('share', () => ({
+        title: 'Share saved view',
+        submit: 'Save sharing',
+      }))
+      .exhaustive();
   return (
     <Dialog
       open
@@ -33,22 +47,30 @@ export function SavedViewDialog(props: {
           );
         }}
       >
-        <Dialog.Title class="text-lg font-medium">{props.title}</Dialog.Title>
-        <label class="flex flex-col gap-2 text-sm">
-          Name
-          <Input
-            value={name()}
-            onInput={(event) => setName(event.currentTarget.value)}
-            maxLength={120}
-            required
-            disabled={props.pending}
-            placeholder="e.g. Needs review"
-          />
-        </label>
-        <div class="flex flex-col gap-2 text-xs text-ink-muted">
-          {props.summary}
-        </div>
-        <Show when={props.team || props.sharedTeamId}>
+        <Dialog.Title class="text-lg font-medium">
+          {labels().title}
+        </Dialog.Title>
+        <Show when={props.mode !== 'share'}>
+          <label class="flex flex-col gap-2 text-sm">
+            Name
+            <Input
+              value={name()}
+              onInput={(event) => setName(event.currentTarget.value)}
+              maxLength={120}
+              required
+              disabled={props.pending}
+              placeholder="e.g. Needs review"
+            />
+          </label>
+        </Show>
+        <Show when={props.mode === 'create' || props.mode === 'duplicate'}>
+          <div class="flex flex-col gap-2 text-xs text-ink-muted">
+            {props.summary}
+          </div>
+        </Show>
+        <Show
+          when={props.mode !== 'rename' && (props.team || props.sharedTeamId)}
+        >
           <div class="flex flex-col gap-2">
             <Checkbox
               checked={shared()}
@@ -84,7 +106,7 @@ export function SavedViewDialog(props: {
             variant="strong"
             disabled={props.pending || !name().trim()}
           >
-            {props.pending ? 'Saving…' : 'Save view'}
+            {props.pending ? 'Saving…' : labels().submit}
           </Button>
         </div>
       </form>

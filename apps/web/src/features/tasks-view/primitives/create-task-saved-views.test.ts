@@ -240,7 +240,7 @@ describe('saved task drafts', () => {
 
   it('keeps the opening revision while metadata is being edited', async () => {
     const h = harness();
-    h.controller.manage();
+    h.controller.rename();
     h.setDetail({ ...view, revision: 2, name: 'Renamed elsewhere' });
     expect(h.controller.record()?.revision).toBe(1);
     await h.controller.save('My rename', null);
@@ -260,5 +260,101 @@ describe('saved task drafts', () => {
     expect(h.controller.dirty()).toBe(true);
     expect(h.controller.record()?.revision).toBe(1);
     expect(h.state.facets.priority).toEqual(['urgent']);
+  });
+
+  it('compares saved filters against the built-in defaults without search or layout', () => {
+    const h = harness();
+    h.controller.leave();
+    expect(h.controller.changedFromBase()).toBe(false);
+    h.setState('search', 'urgent');
+    h.setState('layout', 'board');
+    expect(h.controller.changedFromBase()).toBe(false);
+    h.setState('facets', 'priority', ['urgent']);
+    expect(h.controller.changedFromBase()).toBe(true);
+  });
+
+  it('renames another sidebar view without persisting or replacing the current draft', async () => {
+    const h = harness();
+    h.setState('facets', 'priority', ['urgent']);
+    const other = { ...view, id: 'other-view', revision: 3 };
+    h.source.update = vi.fn(async (input) =>
+      ok({ ...other, name: input.name })
+    );
+    h.controller.rename(other);
+    await h.controller.save('Renamed');
+    expect(h.source.update).toHaveBeenCalledWith({
+      id: other.id,
+      name: 'Renamed',
+      expectedRevision: 3,
+      config: other.config,
+    });
+    expect(h.controller.record()?.id).toBe(view.id);
+    expect(h.state.facets.priority).toEqual(['urgent']);
+    expect(h.controller.dirty()).toBe(true);
+  });
+
+  it('shares the saved definition without saving temporary filters', async () => {
+    const h = harness();
+    h.setState('facets', 'priority', ['urgent']);
+    h.source.update = vi.fn(async () =>
+      ok({ ...view, sharedTeamId: 'team', revision: 2 })
+    );
+    h.controller.share();
+    await h.controller.save(view.name, 'team');
+    expect(h.source.update).toHaveBeenCalledWith(
+      expect.objectContaining({ config: view.config, sharedTeamId: 'team' })
+    );
+    expect(h.controller.dirty()).toBe(true);
+    expect(h.state.facets.priority).toEqual(['urgent']);
+  });
+
+  it('duplicates current edits privately and prefills the name', async () => {
+    const h = harness();
+    h.setDetail({ ...view, sharedTeamId: 'team' });
+    h.setState('facets', 'priority', ['urgent']);
+    h.source.create = vi.fn(async (input) =>
+      ok({ ...input, ownerId: view.ownerId, revision: 1 })
+    );
+    h.controller.duplicate();
+    const form = h.controller.form();
+    expect(form?.name).toBe(`${view.name} (copy)`);
+    expect(form?.sharedTeamId).toBeNull();
+    await h.controller.save(form?.name);
+    expect(h.source.create).toHaveBeenCalledWith(
+      expect.objectContaining({ sharedTeamId: null })
+    );
+    expect(h.controller.record()?.id).not.toBe(view.id);
+    expect(h.state.facets.priority).toEqual(['urgent']);
+    expect(h.controller.dirty()).toBe(false);
+  });
+
+  it('duplicates another sidebar definition rather than the open view filters', async () => {
+    const h = harness();
+    h.setState('facets', 'priority', ['urgent']);
+    const other = { ...view, id: 'other-view', name: 'Other view' };
+    h.source.create = vi.fn(async (input) =>
+      ok({ ...input, ownerId: view.ownerId, revision: 1 })
+    );
+    h.controller.duplicate(other);
+    await h.controller.save(h.controller.form()?.name);
+    expect(h.source.create).toHaveBeenCalledWith(
+      expect.objectContaining({ config: other.config })
+    );
+    expect(h.state.facets.priority).toEqual([]);
+    expect(h.controller.dirty()).toBe(false);
+  });
+
+  it('deletes an unselected view without leaving the current draft', async () => {
+    const h = harness();
+    h.setState('facets', 'priority', ['urgent']);
+    const other = { ...view, id: 'other-view', revision: 3 };
+    h.controller.confirmDelete(other);
+    await h.controller.remove();
+    expect(h.source.delete).toHaveBeenCalledWith({
+      id: other.id,
+      expectedRevision: 3,
+    });
+    expect(h.controller.record()?.id).toBe(view.id);
+    expect(h.controller.dirty()).toBe(true);
   });
 });

@@ -21,10 +21,10 @@ main Tasks screen.
 | Management | Only the owner can rename, update, delete, share, or unshare. |
 | Relative people | “Me” means the current viewer; explicitly selected people remain fixed. |
 | Contents | Filters only, including implicit scope. No search text, layout, sorting, grouping, or scroll state. |
-| Editing | Explicit Save changes, Reset, and Save as new. |
+| Editing | Explicit Save changes, Reset, and Duplicate. |
 | Navigation | Leaving discards temporary edits without a confirmation prompt. |
 | Creation | The section's icon-only `+` starts an unsaved view; configure before creating. |
-| Capture | A separate Save as view action captures the current filters. |
+| Capture | Save view appears left of Filters when filters differ from the built-in defaults. |
 | Mobile | Full creation, browsing, editing, and management support. |
 | Initial surfaces | Main Tasks only; not project or CRM embedded task lists. |
 | Owner departure | Team sharing stops when the owner leaves and does not revive after rejoining. |
@@ -291,13 +291,16 @@ and a team-sharing indicator where applicable. Use the existing sidebar and
 control primitives.
 
 The main pane displays the selected view's name and its normal Task controls.
-Provide an accessible overflow menu for Rename, Sharing, Copy link, Save a copy,
-and Delete. Non-owners get only actions they can perform; backend enforcement
-remains authoritative. Delete requires confirmation.
+Provide matching sidebar context/overflow and selected-view overflow menus with
+separate Rename and Share actions, Duplicate, Copy link, and confirmed Delete.
+Wrap menu items in the existing padded groups. Non-owners get only actions they
+can perform; backend enforcement remains authoritative. Rename and Share update
+metadata only, preserving temporary filters without saving them.
 
-Add **Save as view** to the Task filter control. It captures structured filters
-and implicit scope, excluding search. Show a short reminder when search is
-active so the saved definition is not mistaken for the visible search results.
+Show **Save view** immediately left of Filters when the current filters differ
+from the built-in tab defaults. It captures structured filters and implicit scope,
+excluding search. Show a short reminder when search is active so the saved
+definition is not mistaken for the visible search results.
 
 ### Drafts and explicit saving
 
@@ -308,8 +311,11 @@ active so the saved definition is not mistaken for the visible search results.
   optional team sharing. Cancel restores normal navigation without persistence.
 - Opening a saved view replaces the prior filter scope rather than intersecting
   with the previously selected built-in tab. Clear unrelated text search.
-- Changes show Save changes, Reset, and Save as new for the owner. Other viewers
-  can Reset or Save as new, but cannot overwrite the shared definition.
+- Changes show Save changes and Reset for the owner. All viewers can Duplicate
+  with a prefilled “(copy)” name; copies are private unless explicitly shared.
+  Duplicating the selected view includes temporary filters; duplicating another
+  sidebar view uses that view's saved definition. Other viewers cannot overwrite
+  the shared definition.
 - Only a confirmed write updates the saved baseline. Failures keep the draft and
   its inputs. Leaving the view discards temporary filters, including when a
   background save fails after navigation.
@@ -324,10 +330,11 @@ Add a Views picker using the shared `MobileDrawer`; include the named list,
 active saved-view name, and the section's `+`. Preserve the built-in navigation
 and existing mobile list-only behavior.
 
-Expose Save as view inside the filter drawer and management through the saved
-view's overflow actions. Use the existing dialog/drawer conventions for naming,
-sharing, conflicts, and delete confirmation. No hover-only controls or
-desktop-only management actions.
+Show Save view left of the mobile filter trigger under the same changed-filter
+condition. Provide management through each saved-view row's visible overflow
+button and the selected view's overflow actions. Use existing dialog/drawer
+conventions for naming, sharing, conflicts, and delete confirmation. No
+hover-only controls or desktop-only management actions.
 
 ### URLs and unavailable views
 

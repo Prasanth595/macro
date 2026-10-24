@@ -13,7 +13,10 @@ import { Show } from 'solid-js';
 import { TASK_TABS } from '../constants';
 import { TasksCreateAction } from '../tasks-create-action';
 import { useTasksView } from '../tasks-view-context';
-import { TaskSavedViewActions } from '../views/task-saved-views';
+import {
+  TaskSavedViewActions,
+  TaskSaveViewButton,
+} from '../views/task-saved-views';
 import { TasksControls } from './TasksControls';
 import { TasksMobileTabs } from './TasksMobileTabs';
 
@@ -71,6 +74,7 @@ export function TasksHeader(props: TasksHeaderProps) {
         <ListHeader
           title={<ViewBreadcrumbs.Outlet aria-label="Task location" />}
         >
+          <TaskSaveViewButton />
           <TaskSavedViewActions />
           <TasksControls />
           <TasksCreateAction

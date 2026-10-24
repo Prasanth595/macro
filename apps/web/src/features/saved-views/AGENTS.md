@@ -10,7 +10,7 @@ Reusable named filter definitions. The first consumer is main Tasks; the generic
 - `context/saved-views-source.ts`: injectable read/write contract.
 - `queries/saved-views.ts`: GraphQL live reads, cursor paging, and authoritative writes.
 - `primitives/create-saved-view-draft.ts`: confirmed baseline versus temporary edits.
-- `components/`: props-only list and metadata dialog.
+- `components/`: props-only list, shared padded context/overflow actions, and create/duplicate/rename/share dialogs.
 
 ## Boundaries
 

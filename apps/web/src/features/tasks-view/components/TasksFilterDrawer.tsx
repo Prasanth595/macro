@@ -1,14 +1,13 @@
 import { MobileFilterDrawer } from '@app/components/view-shell/MobileFilterDrawer';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { Accordion } from '@kobalte/core/accordion';
-import { Button } from '@ui';
-import { createMemo, createSignal, For, Show } from 'solid-js';
+import { createMemo, createSignal, For } from 'solid-js';
 import { TASK_GROUP_OPTIONS, TASK_SORT_OPTIONS } from '../constants';
 import { useTaskFilters } from '../filters/use-task-filters';
 import { useTasksView } from '../tasks-view-context';
 
 export function TasksFilterDrawer() {
-  const { state, setPrimarySort, setState, savedViews } = useTasksView();
+  const { state, setPrimarySort, setState } = useTasksView();
   const filters = useTaskFilters();
   const [open, setOpen] = createSignal(false);
   const primarySort = () => state.sort[0]?.id ?? 'updated_at';
@@ -22,19 +21,6 @@ export function TasksFilterDrawer() {
       activeCount={filters.activeCount()}
       onClear={filters.clear}
     >
-      <Show when={savedViews}>
-        <div class="px-6 pt-4">
-          <Button
-            fullWidth
-            onClick={() => {
-              setOpen(false);
-              savedViews?.saveAs();
-            }}
-          >
-            Save as view
-          </Button>
-        </div>
-      </Show>
       <MobileDrawer.Label id="task-sort-label" class="pt-4">
         Sort
       </MobileDrawer.Label>

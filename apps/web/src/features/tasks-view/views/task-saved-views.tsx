@@ -2,6 +2,7 @@ import { replacePaneSearchParams } from '@app/lib/split-router';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { toast } from '@core/component/Toast/Toast';
+import { useUserId } from '@core/context/user';
 import { writeClipboardData } from '@core/util/dataTransfer';
 import { fireAndForget } from '@core/util/fireAndForget';
 import BookmarkIcon from '@phosphor/bookmark-simple.svg';
@@ -10,13 +11,20 @@ import { Button, ConfirmDialog, Dropdown } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import { SavedViewDialog } from '../../saved-views/components/saved-view-dialog';
 import { SavedViewList } from '../../saved-views/components/saved-view-list';
+import { SavedViewMenuItems } from '../../saved-views/components/saved-view-menu';
+import { materializeTaskSavedView } from '../filters/task-saved-view';
 import { useTaskFilters } from '../filters/use-task-filters';
 import { tasksTabSearch, tasksTabSearchCodec } from '../tasks-tab-search';
 import { useTasksView } from '../tasks-view-context';
 
 export function TaskSavedViewsList(props: { onNavigate?: () => void }) {
-  const { savedViews, isSidebarSectionOpen, setSidebarSectionOpen } =
-    useTasksView();
+  const {
+    savedViews,
+    savedViewTeam,
+    isSidebarSectionOpen,
+    setSidebarSectionOpen,
+  } = useTasksView();
+  const viewerId = useUserId();
   return (
     <Show when={savedViews}>
       {(views) => (
@@ -29,6 +37,28 @@ export function TaskSavedViewsList(props: { onNavigate?: () => void }) {
           onOpenChange={(open) => setSidebarSectionOpen('saved-views', open)}
           hasMore={views().source.hasMore()}
           loadingMore={views().source.loadingMore()}
+          viewerId={viewerId()}
+          canShare={Boolean(savedViewTeam?.())}
+          saving={views().saving()}
+          onRename={(view) => {
+            views().rename(view);
+            props.onNavigate?.();
+          }}
+          onShare={(view) => {
+            views().share(view);
+            props.onNavigate?.();
+          }}
+          onDuplicate={(view) => {
+            views().duplicate(view);
+            props.onNavigate?.();
+          }}
+          onCopyLink={(view) =>
+            fireAndForget(copySavedViewLink(view.id), 'saved-views')
+          }
+          onDelete={(view) => {
+            views().confirmDelete(view);
+            props.onNavigate?.();
+          }}
           onSelect={(id) => {
             views().select(id);
             props.onNavigate?.();
@@ -81,24 +111,38 @@ export function TaskSavedViewsPicker() {
   );
 }
 
-export function TaskSavedViewActions() {
+async function copySavedViewLink(id: string) {
+  const params = tasksTabSearchCodec.serialize({
+    ...tasksTabSearch.defaults,
+    savedView: id,
+  });
+  if (!params) return;
+  const url = new URL('/app/component/tasks', window.location.origin);
+  replacePaneSearchParams(url.searchParams, [
+    { [tasksTabSearch.namespace]: params },
+  ]);
+  const copied = await writeClipboardData({ 'text/plain': url.toString() });
+  if (!copied) toast.failure('Could not copy link');
+  else toast.success('Link copied');
+}
+
+export function TaskSaveViewButton() {
   const { savedViews } = useTasksView();
-  const copyLink = async () => {
-    const id = savedViews?.record()?.id;
-    if (!id) return;
-    const params = tasksTabSearchCodec.serialize({
-      ...tasksTabSearch.defaults,
-      savedView: id,
-    });
-    if (!params) return;
-    const url = new URL('/app/component/tasks', window.location.origin);
-    replacePaneSearchParams(url.searchParams, [
-      { [tasksTabSearch.namespace]: params },
-    ]);
-    const copied = await writeClipboardData({ 'text/plain': url.toString() });
-    if (!copied) toast.failure('Could not copy link');
-    else toast.success('Link copied');
-  };
+  return (
+    <Show
+      when={savedViews && !savedViews.active() && savedViews.changedFromBase()}
+    >
+      <HeaderActionGroup label="Save task filters">
+        <Button size="md" variant="ghost" onClick={() => savedViews?.saveAs()}>
+          Save view
+        </Button>
+      </HeaderActionGroup>
+    </Show>
+  );
+}
+
+export function TaskSavedViewActions() {
+  const { savedViews, savedViewTeam } = useTasksView();
   return (
     <Show when={savedViews?.active() && savedViews?.ready()}>
       <HeaderActionGroup label="Saved view actions">
@@ -138,25 +182,23 @@ export function TaskSavedViewActions() {
                 >
                   <DotsIcon class="size-4" />
                 </Dropdown.Trigger>
-                <Dropdown.Content>
-                  <Show when={savedViews?.owned()}>
-                    <Dropdown.Item onSelect={() => savedViews?.manage()}>
-                      Rename or share
-                    </Dropdown.Item>
-                  </Show>
-                  <Dropdown.Item onSelect={() => savedViews?.saveAs()}>
-                    Save as new
-                  </Dropdown.Item>
-                  <Dropdown.Item
-                    onSelect={() => fireAndForget(copyLink(), 'saved-views')}
-                  >
-                    Copy link
-                  </Dropdown.Item>
-                  <Show when={savedViews?.owned()}>
-                    <Dropdown.Item onSelect={() => savedViews?.confirmDelete()}>
-                      Delete view
-                    </Dropdown.Item>
-                  </Show>
+                <Dropdown.Content class="min-w-44">
+                  <SavedViewMenuItems
+                    owned={savedViews?.owned() ?? false}
+                    canShare={Boolean(
+                      savedViewTeam?.() || savedViews?.record()?.sharedTeamId
+                    )}
+                    disabled={savedViews?.saving()}
+                    onRename={() => savedViews?.rename()}
+                    onShare={() => savedViews?.share()}
+                    onDuplicate={() => savedViews?.duplicate()}
+                    onCopyLink={() => {
+                      const id = savedViews?.record()?.id;
+                      if (id)
+                        fireAndForget(copySavedViewLink(id), 'saved-views');
+                    }}
+                    onDelete={() => savedViews?.confirmDelete()}
+                  />
                 </Dropdown.Content>
               </Dropdown>
             </>
@@ -184,60 +226,62 @@ export function TaskSavedViewDialogs() {
   return (
     <>
       <Show when={savedViews?.form()} keyed>
-        {(form) => (
-          <SavedViewDialog
-            title={
-              form.mode === 'create' ? 'Save task view' : 'Edit saved view'
-            }
-            name={form.name}
-            sharedTeamId={form.sharedTeamId}
-            team={savedViewTeam?.()}
-            pending={savedViews?.saving() ?? false}
-            error={savedViews?.error()}
-            onClose={() => savedViews?.closeForm()}
-            onSave={(name, team) =>
-              fireAndForget(
-                savedViews?.save(name, team) ?? Promise.resolve(),
-                'saved-views'
-              )
-            }
-            summary={
-              <>
-                <p>
-                  Scope:{' '}
-                  {state.tab === 'my-tasks'
-                    ? 'Assigned to me (each viewer)'
-                    : state.tab === 'created-by-me'
-                      ? 'Created by me (each viewer)'
-                      : 'All tasks'}
-                </p>
-                <For
-                  each={filters
-                    .groups()
-                    .filter((group) => group.id !== 'scope')}
-                >
-                  {(group) => (
-                    <Show when={(state.facets[group.id] ?? []).length}>
-                      <p>
-                        {group.label}:{' '}
-                        {(state.facets[group.id] ?? [])
-                          .map(
-                            (id) =>
-                              group.options.find((option) => option.id === id)
-                                ?.label ?? 'Unavailable option'
-                          )
-                          .join(', ')}
-                      </p>
-                    </Show>
-                  )}
-                </For>
-                <Show when={state.search.trim()}>
-                  <p>Search text is not included.</p>
-                </Show>
-              </>
-            }
-          />
-        )}
+        {(form) => {
+          const selection = () =>
+            form.config ? materializeTaskSavedView(form.config) : state;
+          return (
+            <SavedViewDialog
+              mode={form.mode}
+              name={form.name}
+              sharedTeamId={form.sharedTeamId}
+              team={savedViewTeam?.()}
+              pending={savedViews?.saving() ?? false}
+              error={savedViews?.error()}
+              onClose={() => savedViews?.closeForm()}
+              onSave={(name, team) =>
+                fireAndForget(
+                  savedViews?.save(name, team) ?? Promise.resolve(),
+                  'saved-views'
+                )
+              }
+              summary={
+                <>
+                  <p>
+                    Scope:{' '}
+                    {selection().tab === 'my-tasks'
+                      ? 'Assigned to me (each viewer)'
+                      : selection().tab === 'created-by-me'
+                        ? 'Created by me (each viewer)'
+                        : 'All tasks'}
+                  </p>
+                  <For
+                    each={filters
+                      .groups()
+                      .filter((group) => group.id !== 'scope')}
+                  >
+                    {(group) => (
+                      <Show when={(selection().facets[group.id] ?? []).length}>
+                        <p>
+                          {group.label}:{' '}
+                          {(selection().facets[group.id] ?? [])
+                            .map(
+                              (id) =>
+                                group.options.find((option) => option.id === id)
+                                  ?.label ?? 'Unavailable option'
+                            )
+                            .join(', ')}
+                        </p>
+                      </Show>
+                    )}
+                  </For>
+                  <Show when={state.search.trim()}>
+                    <p>Search text is not included.</p>
+                  </Show>
+                </>
+              }
+            />
+          );
+        }}
       </Show>
       <ConfirmDialog
         open={savedViews?.deleting() ?? false}
@@ -297,8 +341,12 @@ export function TaskSavedViewStatus() {
             Reload saved view
           </Button>
         </Show>
-        <Button size="sm" variant="ghost" onClick={() => savedViews?.saveAs()}>
-          Save as new
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => savedViews?.duplicate()}
+        >
+          Duplicate
         </Button>
       </div>
     </Show>
