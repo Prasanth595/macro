@@ -48,7 +48,9 @@ const toActor = (actor: WireRow['actor']): InboxActor | undefined => {
   return match(actor.kind)
     .returnType<InboxActor>()
     .with('USER', () =>
-      actor.id ? { kind: 'user', id: actor.id } : { kind: 'other' }
+      actor.principalId
+        ? { kind: 'user', id: actor.principalId }
+        : { kind: 'other' }
     )
     .with('AGENT', () => ({ kind: 'agent', name: actor.name ?? undefined }))
     .with('MACRO', () => ({ kind: 'macro' }))

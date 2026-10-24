@@ -84,7 +84,11 @@ export function inboxEntry(fixture: {
       latestAt: row.latestAt,
       actor:
         row.actor === undefined
-          ? { kind: 'USER', id: 'macro|colleague@example.com', name: null }
+          ? {
+              kind: 'USER',
+              principalId: 'macro|colleague@example.com',
+              name: null,
+            }
           : row.actor,
       actions: row.actions ?? [],
       unseen: row.unseen ?? true,

@@ -14,7 +14,7 @@ fragment NotificationInboxEntryFields on NotificationInboxEntry {
 		latestAt
 		actor {
 			kind
-			id
+			principalId
 			name
 		}
 		actions {

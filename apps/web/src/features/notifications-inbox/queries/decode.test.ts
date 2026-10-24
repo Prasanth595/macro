@@ -81,7 +81,11 @@ describe('toInboxGroup', () => {
             id: 'document:doc-a#access_requested:r1',
             rowType: 'ACCESS_REQUESTED',
             latestAt: '2026-02-01T10:09:00Z',
-            actor: { kind: 'USER', id: 'macro|ana@example.com', name: null },
+            actor: {
+              kind: 'USER',
+              principalId: 'macro|ana@example.com',
+              name: null,
+            },
             actions: [
               { kind: 'APPROVE', targetId: 'r1', url: null },
               { kind: 'DENY', targetId: 'r1', url: null },
@@ -91,7 +95,7 @@ describe('toInboxGroup', () => {
             id: 'document:doc-a#agent',
             rowType: 'AGENT',
             latestAt: '2026-02-01T10:08:00Z',
-            actor: { kind: 'AGENT', id: 'bot-1', name: 'Builder' },
+            actor: { kind: 'AGENT', principalId: 'bot-1', name: 'Builder' },
             actions: [{ kind: 'ANSWER', targetId: null, url: null }],
           },
           {
@@ -134,7 +138,7 @@ describe('toInboxGroup', () => {
             latestAt: '2026-02-01T10:09:00Z',
             actor: {
               kind: 'TEAM' as NotificationInboxActorKind,
-              id: null,
+              principalId: null,
               name: null,
             },
             actions: [
