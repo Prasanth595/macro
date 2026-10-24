@@ -232,6 +232,13 @@ toast (behind `enable-calendar-prompt-web` and `enable-calendar-prompt-mobile`)
 follows the same rule: it asks once per own inbox missing calendar permission,
 never for an inbox another Macro user delegated to the viewer (a **Shared** row
 in Settings → Email, whose per-inbox Enable calendar button stays available).
+The calendar view's setup prompt decides and acts on own inboxes alone too: a
+delegate with no inbox of their own sees **Connect your calendar**, the Calendar
+is off vs Enable calendar wording counts only own inboxes, and Grant access, Turn
+on and Reconnect only start consent for one of them. It covers the grid only in a
+week without events and with no working calendar the viewer can see; a working
+calendar shared with them keeps it to the bottom-right pill, so a delegate whose
+only working calendar is shared sees the pill in every week.
 Account checkboxes show/hide all child calendars; partial selection is shown as
 mixed. Individual calendars can also be shown/hidden. The account color is the
 default for its calendars; a child color overrides it. Click a color dot to open
@@ -646,7 +653,10 @@ shows or hides the overlay (the list itself always shows); clicking a row naviga
 to that date. Coverage depends on each teammate having connected their own calendar and using
 Google's out-of-office event type.
 
-Routine sync notifications that explicitly exclude OOO changes refresh this list
+The grid's pages and the list read the overlay from shared fixed 91-day windows,
+each fetched once and refreshed by one 30-second poll while the tab is focused, so
+an open calendar typically makes two out-of-office requests per poll. Routine sync
+notifications that explicitly exclude OOO changes refresh this list
 in the background without returning to its skeleton. OOO changes, sharing changes,
 and notifications without that guarantee still clear cached rows and close open
 OOO details immediately before refetching.
@@ -670,7 +680,10 @@ when they have several; Outlook calendars are not offered, since Microsoft canno
 meeting's iCalendar UID. Google imports an event only for its organizer or an attendee, so the
 snapshot keeps the real organizer and lists the viewer, already accepted, as its only guest: the
 meeting's other guests and join link stay out and nobody is notified. If Google refuses anyway,
-the card says Google won't add the event to that calendar and points to `Download .ics`. The
+the card says Google won't add the event to that calendar and points to `Download .ics`. The agent
+adds the same snapshot with `AddSharedCalendarEvent` while the server switch
+`ENABLE_CALENDAR_ADD_SHARED_EVENT` is on (off unless set): it uses the one calendar the card would
+offer, asks which one when there are several, and meets the same refusals. The
 mention then opens the snapshot, whose details say `Your copy of a shared event. It doesn't
 update when the organizer changes it.` and offer no RSVP, `Add guests` or `Only the organizer can
 invite guests.` line, since none of it would reach the meeting. It offers no `Edit event` on
@@ -708,7 +721,15 @@ it by posting the chip. It asks whether to share with the channel, and a yes in 
 writes the same channel grant. Private and confidential events are never shared this way.
 Every calendar mention's hover card shows the schedule, location, organizer and attendee
 count, plus the first lines of the event description (its links open), and no last-updated
-byline.
+byline. When the mention names someone else's copy of a meeting the viewer also holds (a shared
+event they added or were invited to, or a meeting someone else mentioned), the card says how:
+`Your copy is on your calendar` for a snapshot, `You're invited · on your calendar` when the
+viewer's copy is a guest's, and `On your calendar` otherwise (the viewer organizes it, or it sits
+in a delegated inbox), with an `Open` button that opens the viewer's copy. A mention of the
+viewer's own copy shows neither. A shared-event sheet open on a phone stays up when the viewer
+adds the event or is invited, and switches to that line and `Open` in place. Opening from the
+sheet (`Open`, the title, or Open in New Split) closes it, since the native apps keep the
+pane behind the opened one mounted.
 
 ## Scheduling — `/app/scheduling`
 
@@ -1235,7 +1256,10 @@ ICS attachments show a calendar icon in the attachment pill and file headers on
 desktop and mobile, including when the email uses `application/ics` or a
 parameterized `text/calendar` MIME type. Opening the attachment of a message that shows a
 card opens a dialog (a drawer on phones) with the same card, so its RSVP or `Add to calendar`
-works there, and `Download .ics`, which saves the file without adding it to Drive. The card
+works there, and `Download .ics`, which saves the file without adding it to Drive. When the
+card falls back to the saved invitation (the event matches nothing on your calendars, as with
+a forwarded event), its status line reads `Saved invitation.` in the dialog; the card in the
+email adds that the original email or invitation attachment has more options. The card
 stays put while the thread refreshes, and `Open in calendar` closes the dialog before the
 calendar opens, including when Calendar is already open in another split. A calendar file with
 no card (nothing Macro could read) downloads directly, and an Outlook cloud-reference `.ics`

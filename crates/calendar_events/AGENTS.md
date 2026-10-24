@@ -115,7 +115,11 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   meeting on another calendar of the same inbox. Google
   only: never import over a UID the calendar already holds, since an import
   updates that event in place and would strip an unsynced invitation's
-  guests.
+  guests. The agent adds a copy with `AddSharedCalendarEvent`
+  (`src/inbound/toolset/add_shared_calendar_event.rs`) only while the
+  `ENABLE_CALENDAR_ADD_SHARED_EVENT` deployment switch is on (off unless set,
+  like the card's `enable-calendar-add-shared-event`); without a `calendarId`
+  it takes the card's only target calendar or asks which one.
 - Asking to join a channel-shared event (`src/domain/join_requests.rs`) is a
   Macro-stored request, not an `entity_access` row: the grant is a provider guest
   write. Eligibility is the invite path's own `copy_capabilities` on the
@@ -142,8 +146,19 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   Since one meeting on two inboxes is two entities, the agent tools label every
   event they return with its calendar's name, its `inbox` and the user's
   `myRole` there (`ToolEventRole::of`), so the agent can ask or pick by inbox.
+  Their descriptions set the rule: reminders and an answer may go to one copy
+  if the reply names its inbox (an answer asks first when the user is a guest
+  through several inboxes); a change whose effect differs by copy (details,
+  guests, permissions, deleting) goes to the only copy allowed to make it, with
+  the reason, or the agent asks.
 - Preserve the conservative OOO refresh hint on write outcomes and sync reports;
   its contract is in [team sharing](../../docs/design/calendar-team-sharing.md).
+- The team out-of-office overlay (`src/outbound/pg_team/ooo.rs`) starts from
+  the viewer's teammates and reaches sources through
+  `calendar_event_sources_out_of_office_idx` on the source's typed
+  `event_type`. Filtering on the payload's `eventType` alone makes Postgres
+  unpack every source on every primary calendar in the tenant (about 1.8 s per
+  call in production before October 2026).
 
 ## Related
 
