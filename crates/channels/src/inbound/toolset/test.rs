@@ -298,6 +298,13 @@ impl messages::domain::api::MessageReader for RecordingMessages {
     > {
         unimplemented!("read path unused by mutation tools")
     }
+    async fn user_display_names(
+        &self,
+        _: Vec<MacroUserIdStr<'static>>,
+    ) -> Result<HashMap<MacroUserIdStr<'static>, String>, messages::domain::ports::MessageError>
+    {
+        unimplemented!("read path unused by mutation tools")
+    }
 }
 
 fn user_id() -> MacroUserIdStr<'static> {

@@ -1931,6 +1931,14 @@ impl ChannelAttachmentRepo for PgChannelsRepo {
         .fetch_all(&self.pool)
         .await?)
     }
+
+    #[tracing::instrument(skip_all, fields(user_count = user_ids.len()), err)]
+    async fn get_user_display_names(
+        &self,
+        user_ids: &[MacroUserIdStr<'static>],
+    ) -> Result<HashMap<MacroUserIdStr<'static>, String>, Self::Err> {
+        Ok(load_user_display_names(&self.pool, user_ids).await?)
+    }
 }
 
 impl ChannelRepo for PgChannelsRepo {

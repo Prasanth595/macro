@@ -3,8 +3,8 @@ use messages::domain::ports::MessageTimelineQuery;
 
 use super::ChannelToolContext;
 use super::types::{
-    SenderNames, ToolChannelMessage, ToolOmission, ToolOmissionKind, ToolResolvedMessage,
-    ToolThreadReply, clamp_max_chars, content_truncation_omissions, user_senders,
+    PeopleNames, ToolChannelMessage, ToolOmission, ToolOmissionKind, ToolResolvedMessage,
+    ToolThreadReply, clamp_max_chars, content_truncation_omissions, message_people,
 };
 use crate::domain::ports::ChannelService;
 use ai_toolset::{AsyncTool, RequestContext, ServiceContext, ToolCallError, ToolResult};
@@ -175,14 +175,14 @@ where
             ),
         };
 
-        let senders = user_senders(
+        let people = message_people(
             channel_page
                 .items
                 .iter()
                 .flat_map(|item| std::iter::once(&item.message).chain(&item.thread.preview))
                 .chain(thread_replies.iter().flatten()),
         );
-        let names = service_context.sender_names(senders).await;
+        let names = service_context.people_names(people).await;
         let channel_messages: Vec<ToolChannelMessage> = channel_page
             .items
             .into_iter()
@@ -273,7 +273,7 @@ struct ReplyContextArgs<'a> {
     before: Option<u16>,
     after: Option<u16>,
     max_chars_per_message: usize,
-    names: &'a SenderNames,
+    names: &'a PeopleNames,
 }
 
 fn read_reply_context(
