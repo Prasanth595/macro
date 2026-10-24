@@ -159,7 +159,7 @@ pub struct ToolReaction {
     pub users: Vec<String>,
     /// The names the app shows for the people in `users`, keyed by their id.
     /// People without a profile name are absent.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub user_names: BTreeMap<String, String>,
 }
 
