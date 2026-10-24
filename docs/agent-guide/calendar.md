@@ -554,7 +554,7 @@ notified only when someone besides you is on it.
 With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
 whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
 organizer lets guests invite. It opens an editor anchored to the button (on phones, a bottom
-sheet stacked over the dimmed event details, showing one bright handle): the current guests are listed under `Invited` without a remove control, the picker
+sheet stacked over the dimmed event details, showing one bright handle; a tap on the dimmed details closes only this sheet and presses nothing under it): the current guests are listed under `Invited` without a remove control, the picker
 adds people, each new guest has an `Optional` checkbox, a recurring event offers `This
 event` / `All events` (`All events` by default, like the editor's recurring edits), and
 `Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape closes. The new guests appear at
@@ -680,7 +680,10 @@ when they have several; Outlook calendars are not offered, since Microsoft canno
 meeting's iCalendar UID. Google imports an event only for its organizer or an attendee, so the
 snapshot keeps the real organizer and lists the viewer, already accepted, as its only guest: the
 meeting's other guests and join link stay out and nobody is notified. If Google refuses anyway,
-the card says Google won't add the event to that calendar and points to `Download .ics`. The
+the card says Google won't add the event to that calendar and points to `Download .ics`. The agent
+adds the same snapshot with `AddSharedCalendarEvent` while the server switch
+`ENABLE_CALENDAR_ADD_SHARED_EVENT` is on (off unless set): it uses the one calendar the card would
+offer, asks which one when there are several, and meets the same refusals. The
 mention then opens the snapshot, whose details say `Your copy of a shared event. It doesn't
 update when the organizer changes it.` and offer no RSVP, `Add guests` or `Only the organizer can
 invite guests.` line, since none of it would reach the meeting. It offers no `Edit event` on
@@ -726,7 +729,11 @@ in a delegated inbox), with an `Open` button that opens the viewer's copy. A men
 viewer's own copy shows neither. A shared-event sheet open on a phone stays up when the viewer
 adds the event or is invited, and switches to that line and `Open` in place. Opening from the
 sheet (`Open`, the title, or Open in New Split) closes it, since the native apps keep the
-pane behind the opened one mounted.
+pane behind the opened one mounted. When Calendar opens on an event its loaded week doesn't
+have yet, such as a copy added a moment ago while Calendar was closed, it syncs once and then
+shows the event's details. The agent reads a mentioned event, including one only shared with
+the viewer, with `ReadCalendarEvent`: the same fields, plus how the viewer holds it (their own,
+invited, a snapshot, or only shared with them) and their join request.
 
 ## Scheduling — `/app/scheduling`
 
@@ -1253,9 +1260,14 @@ ICS attachments show a calendar icon in the attachment pill and file headers on
 desktop and mobile, including when the email uses `application/ics` or a
 parameterized `text/calendar` MIME type. Opening the attachment of a message that shows a
 card opens a dialog (a drawer on phones) with the same card, so its RSVP or `Add to calendar`
-works there, and `Download .ics`, which saves the file without adding it to Drive. The card
-stays put while the thread refreshes, and `Open in calendar` closes the dialog before the
-calendar opens, including when Calendar is already open in another split. A calendar file with
+works there, and `Download .ics`, which saves the file without adding it to Drive. When the
+card falls back to the saved invitation (the event matches nothing on your calendars, as with
+a forwarded event), its status line reads `Saved invitation.` in the dialog; the card in the
+email adds that the original email or invitation attachment has more options. The card
+stays put while the thread refreshes. Close, Escape, or dismissing the phone drawer returns
+focus to the attachment chip; `Open in calendar` closes the dialog before the calendar opens,
+including when Calendar is already open in another split, without pulling focus back to the
+email. A calendar file with
 no card (nothing Macro could read) downloads directly, and an Outlook cloud-reference `.ics`
 opens its Outlook page like any other reference attachment.
 Related recurring components are grouped behind their own disclosure. Only mail synced
@@ -1283,7 +1295,9 @@ error; offline responses are not sent. Cancellation and response/proposal notifi
 do not offer RSVP or Join. Disconnected, ambiguous, and syncing states explain why an
 action is unavailable.
 
-`Open in calendar` focuses the current occurrence, even if its date changed.
+`Open in calendar` focuses the current occurrence, even if its date changed. It retargets a
+Calendar split that is already open; otherwise a click replaces the email with Calendar and a
+shift-click opens Calendar in a new split beside it, from the inline card and the `.ics` dialog.
 `View your day` opens a compact agenda without changing the active split; Close returns
 focus to its trigger. Busy overlapping events are labeled, while cancelled, declined,
 and free events do not count as conflicts. Calendar 12/24-hour preferences apply to

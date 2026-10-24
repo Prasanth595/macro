@@ -23,7 +23,8 @@ async fn an_inbox_submit_runs_the_drafts_and_records_the_inbox() {
     assert_eq!(f.actions.calls.lock().unwrap().len(), 1);
     assert!(f.store.2.lock().unwrap().iter().all(|pending| matches!(
         &pending.notification.event,
-        NotificationEvent::ReviewDecided(outcome) | NotificationEvent::ReviewSettled(outcome)
+        NotificationEvent::ReviewDecided(outcome)
+            | NotificationEvent::ReviewSettled(ReviewSettlement::Actions(outcome))
             if outcome.via == DecisionVia::Inbox
     )));
     assert_eq!(

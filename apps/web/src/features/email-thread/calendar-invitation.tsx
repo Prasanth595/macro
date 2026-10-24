@@ -23,6 +23,8 @@ export type CalendarInvitationOpenTarget = {
   eventId: string;
   occurrenceKey: string;
   time: EventTime;
+  /** Open Calendar beside the email unless a Calendar split is already open. */
+  openInNewSplit?: boolean;
 };
 
 export function EmailCalendarInvitation(props: {
@@ -33,10 +35,16 @@ export function EmailCalendarInvitation(props: {
   openCalendar?: (target: CalendarInvitationOpenTarget) => void;
   /** Called before Open in calendar leaves the email. */
   onNavigate?: () => void;
+  /** The card is shown inside the calendar file it came from. */
+  inCalendarFile?: boolean;
 }) {
   const calendarEnabled = useCalendarUiFlag();
   const saved = () => (
-    <CalendarInviteCard invitation={props.invitation} hour12={props.hour12} />
+    <CalendarInviteCard
+      invitation={props.invitation}
+      hour12={props.hour12}
+      inCalendarFile={props.inCalendarFile}
+    />
   );
   // Without the calendar UI, the saved invitation renders with no calendar lookup.
   return (
@@ -105,6 +113,7 @@ function ConnectedInvitation(
       <CalendarInviteCard
         invitation={props.invitation}
         hour12={props.hour12}
+        inCalendarFile={props.inCalendarFile}
         actions={{
           get resolution() {
             return state();
@@ -140,9 +149,9 @@ function ConnectedInvitation(
             const open = props.openCalendar;
             const leave = props.onNavigate;
             return target && open
-              ? () => {
+              ? (options: { openInNewSplit: boolean }) => {
                   leave?.();
-                  open(target);
+                  open({ ...target, openInNewSplit: options.openInNewSplit });
                 }
               : undefined;
           },

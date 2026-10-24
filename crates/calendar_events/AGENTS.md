@@ -115,7 +115,11 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   meeting on another calendar of the same inbox. Google
   only: never import over a UID the calendar already holds, since an import
   updates that event in place and would strip an unsynced invitation's
-  guests.
+  guests. The agent adds a copy with `AddSharedCalendarEvent`
+  (`src/inbound/toolset/add_shared_calendar_event.rs`) only while the
+  `ENABLE_CALENDAR_ADD_SHARED_EVENT` deployment switch is on (off unless set,
+  like the card's `enable-calendar-add-shared-event`); without a `calendarId`
+  it takes the card's only target calendar or asks which one.
 - Asking to join a channel-shared event (`src/domain/join_requests.rs`) is a
   Macro-stored request, not an `entity_access` row: the grant is a provider guest
   write. Eligibility is the invite path's own `copy_capabilities` on the
@@ -127,6 +131,11 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   `copy_shared_event` refuses with `JoinRequestOpen`: the answer is an
   invitation under the meeting's UID, which a snapshot imported meanwhile
   would take in. A declined requester may still add a copy.
+- Calendar mentions reach the agent as document mentions (`blockName`
+  `calendar`), but `ReadContent` and `ReadMetadata` need document access, which
+  a channel-shared event never grants. The agent reads a mentioned event with
+  `ReadCalendarEvent` (`src/inbound/toolset/read_calendar_event.rs`), which goes
+  through `mention_previews`: the hover card's visibility and fields.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` and the copy's source link wherever a read path
   marks the viewer, and never store it. Each connected inbox gets its own copy
