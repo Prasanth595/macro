@@ -1,10 +1,10 @@
-import { err, ok } from 'neverthrow';
+import { ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   createDocument: vi.fn(),
   deleteDocument: vi.fn(),
-  uploadToPresignedUrl: vi.fn(),
+  platformFetch: vi.fn(),
 }));
 vi.mock('@app/lib/analytics', () => ({ analytics: { track: vi.fn() } }));
 vi.mock('@queries/auth', () => ({ invalidateUserQuota: async () => {} }));
@@ -19,8 +19,8 @@ vi.mock('@service-storage/client', () => ({
     deleteDocument: mocks.deleteDocument,
   },
 }));
-vi.mock('@service-storage/util/uploadToPresignedUrl', () => ({
-  uploadToPresignedUrl: mocks.uploadToPresignedUrl,
+vi.mock('@core/util/platformFetch', () => ({
+  platformFetch: mocks.platformFetch,
 }));
 
 import { createCodeFileFromText } from './create';
@@ -38,8 +38,8 @@ beforeEach(() => {
 
 describe('createCodeFileFromText', () => {
   it('deletes the created document when the content upload fails', async () => {
-    mocks.uploadToPresignedUrl.mockResolvedValue(
-      err([{ code: 'SERVER_ERROR', message: '<Code>AccessDenied</Code>' }])
+    mocks.platformFetch.mockResolvedValue(
+      new Response('<Code>AccessDenied</Code>', { status: 403 })
     );
 
     const result = await createCodeFileFromText({
@@ -54,8 +54,23 @@ describe('createCodeFileFromText', () => {
     });
   });
 
+  it('deletes the created document when the content upload gets no response', async () => {
+    mocks.platformFetch.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    const result = await createCodeFileFromText({
+      code: 'print("Hello, World!")',
+      extension: 'py',
+      title: 'New Code File',
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(mocks.deleteDocument).toHaveBeenCalledWith({
+      documentId: 'code-doc',
+    });
+  });
+
   it('keeps the created document when the content upload succeeds', async () => {
-    mocks.uploadToPresignedUrl.mockResolvedValue(ok(undefined));
+    mocks.platformFetch.mockResolvedValue(new Response(null));
 
     const result = await createCodeFileFromText({
       code: 'print("Hello, World!")',

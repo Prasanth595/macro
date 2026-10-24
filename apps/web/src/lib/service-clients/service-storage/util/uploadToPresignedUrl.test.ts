@@ -82,10 +82,10 @@ describe('uploadToPresignedUrl with progress', () => {
     ]);
   });
 
-  it('rejects on network failure, like fetch', async () => {
+  it('returns a network error when the upload gets no response', async () => {
     const pending = uploadToPresignedUrl({ ...params(), onProgress: vi.fn() });
     xhr().onerror?.();
-    await expect(pending).rejects.toThrow(TypeError);
+    expect((await pending)._unsafeUnwrapErr()[0]?.code).toBe('NETWORK_ERROR');
   });
 
   it('aborts with the signal and removes its listener', async () => {
@@ -120,5 +120,27 @@ describe('uploadToPresignedUrl with progress', () => {
     expect((await uploadToPresignedUrl(params())).isOk()).toBe(true);
     expect(platformFetch).toHaveBeenCalledOnce();
     expect(FakeXhr.instances).toHaveLength(0);
+  });
+});
+
+describe('uploadToPresignedUrl without progress', () => {
+  it('returns a network error when fetch gets no response', async () => {
+    vi.mocked(platformFetch).mockRejectedValue(
+      new TypeError('Failed to fetch')
+    );
+
+    const result = await uploadToPresignedUrl(params());
+
+    expect(result._unsafeUnwrapErr()[0]?.code).toBe('NETWORK_ERROR');
+  });
+
+  it('rejects when the signal aborts the fetch', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    vi.mocked(platformFetch).mockRejectedValue(controller.signal.reason);
+
+    await expect(
+      uploadToPresignedUrl({ ...params(), signal: controller.signal })
+    ).rejects.toBe(controller.signal.reason);
   });
 });
