@@ -2,11 +2,10 @@ import { isTauri } from '@core/util/platform';
 import { platformFetch } from '@core/util/platformFetch';
 import type { ResultError } from '@core/util/result';
 import { Telemetry } from '@macro-inc/observability';
+import { differenceInSeconds, isValid, parseISO } from 'date-fns';
 import { err, ok, type Result } from 'neverthrow';
 
 type UploadResult = Result<void, ResultError<'SERVER_ERROR'>[]>;
-
-const AMZ_DATE = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/;
 
 export async function uploadToPresignedUrl({
   presignedUrl,
@@ -78,17 +77,15 @@ function rejected(input: {
   const element = (name: string) =>
     input.body.match(new RegExp(`<${name}>([^<]*)</${name}>`))?.[1];
   const query = new URL(input.presignedUrl).searchParams;
-  const signedAt = Date.parse(
-    query.get('X-Amz-Date')?.replace(AMZ_DATE, '$1-$2-$3T$4:$5:$6Z') ?? ''
-  );
+  const signedAt = parseISO(query.get('X-Amz-Date') ?? '');
   Telemetry.warn('storage_upload.rejected', {
     'storage_upload.status': input.status,
     'storage_upload.s3_code': element('Code'),
     'storage_upload.s3_message': element('Message'),
     'storage_upload.s3_request_id': element('RequestId'),
-    'storage_upload.url_age_seconds': Number.isNaN(signedAt)
-      ? undefined
-      : Math.round((input.sentAt - signedAt) / 1000),
+    'storage_upload.url_age_seconds': isValid(signedAt)
+      ? differenceInSeconds(input.sentAt, signedAt)
+      : undefined,
     'storage_upload.url_expires_seconds':
       Number(query.get('X-Amz-Expires')) || undefined,
     'storage_upload.credential_prefix': query
