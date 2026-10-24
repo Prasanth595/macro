@@ -39,7 +39,9 @@ pub(super) async fn event_export(
             resolved.is_channel_shared AS "is_channel_shared!",
             resolved.owner_id AS "owner_id!",
             resolved.event_type AS "event_type!",
-            resolved.ical_uid AS "ical_uid!",
+            -- The meeting's UID, not an Outlook copy's Exchange wrapper of it:
+            -- an .ics or a snapshot carries it to other calendars.
+            calendar_meeting_uid(resolved.ical_uid) AS "ical_uid!",
             resolved.sequence AS "sequence!",
             resolved.title AS "title!",
             resolved.description,

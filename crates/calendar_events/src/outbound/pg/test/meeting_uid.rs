@@ -145,4 +145,5 @@ async fn an_outlook_copy_pairs_with_the_meetings_google_copies(pool: PgPool) {
         .expect("an Outlook copy is the viewer's own");
     assert_eq!(export.access, CalendarEventExportAccess::OwnCopy);
     assert_eq!(export.owner_id, outlook_only_id);
+    assert_eq!(export.ical_uid, "pairing@google.com");
 }
