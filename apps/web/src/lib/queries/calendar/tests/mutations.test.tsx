@@ -1,6 +1,10 @@
 import { previewKeys } from '@queries/preview/keys';
 import type { CalendarOccurrenceItem } from '@service-storage/generated/schemas/calendarOccurrenceItem';
-import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryObserver,
+} from '@tanstack/solid-query';
 import { err, ok } from 'neverthrow';
 import type { JSX } from 'solid-js';
 import { render } from 'solid-js/web';
@@ -194,6 +198,30 @@ function deferredResult() {
     resolve = res;
   });
   return { promise, resolve };
+}
+
+/**
+ * Keeps viewport A on screen, so a settled write refetches it, and holds that
+ * refetch open until the test answers it.
+ */
+function watchViewportA() {
+  let answer!: (data: CalendarOccurrencesData) => void;
+  const refetch = vi.fn(
+    () =>
+      new Promise<CalendarOccurrencesData>((resolve) => {
+        answer = resolve;
+      })
+  );
+  const unsubscribe = new QueryObserver(testQueryClient, {
+    queryKey: calendarKeys.occurrences('user', viewportA).queryKey,
+    queryFn: refetch,
+    staleTime: Number.POSITIVE_INFINITY,
+  }).subscribe(() => {});
+  return {
+    refetch,
+    answer: (data: CalendarOccurrencesData) => answer(data),
+    unsubscribe,
+  };
 }
 
 beforeEach(() => {
@@ -557,6 +585,27 @@ describe('useDeleteCalendarEventMutation', () => {
     expect(items.map((item) => item.event.id)).toEqual(['event-1']);
   });
 
+  it('finishes once the provider deletes the event, before the viewport refetch returns', async () => {
+    deleteCalendarEventMock.mockResolvedValue(ok({}));
+    const viewport = watchViewportA();
+    const remove = renderHook(() => useDeleteCalendarEventMutation());
+
+    const deleted = remove.mutateAsync({ eventId: 'event-1' });
+    await vi.waitFor(() => expect(viewport.refetch).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(remove.isSuccess).toBe(true));
+    await deleted;
+    expect(viewportData(viewportA)?.items.map((item) => item.event.id)).toEqual(
+      ['event-2']
+    );
+
+    viewport.answer({ items: [recurringItem()], syncStatus: 'ready' });
+    await vi.waitFor(() => expect(testQueryClient.isFetching()).toBe(0));
+    expect(viewportData(viewportA)?.items.map((item) => item.event.id)).toEqual(
+      ['event-2']
+    );
+    viewport.unsubscribe();
+  });
+
   it('restores removed items when the request fails', async () => {
     deleteCalendarEventMock.mockResolvedValue(failure());
     const remove = renderHook(() => useDeleteCalendarEventMutation());
@@ -644,6 +693,32 @@ describe('useUpdateCalendarEventMutation', () => {
     expect(recurring?.occurrence.time).toMatchObject({
       startsAt: '2026-08-05T09:00:00Z',
     });
+  });
+
+  it('finishes a save once the provider accepts it, then shows the refetched event', async () => {
+    updateCalendarEventMock.mockResolvedValue(ok({ id: 'event-1' }));
+    const viewport = watchViewportA();
+    const update = renderHook(() => useUpdateCalendarEventMutation());
+    const titleOfEvent1 = () =>
+      viewportData(viewportA)?.items.find((item) => item.event.id === 'event-1')
+        ?.event.title;
+
+    const saved = update.mutateAsync({
+      eventId: 'event-1',
+      patch: { title: 'Renamed' },
+    });
+    await vi.waitFor(() => expect(viewport.refetch).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(update.isSuccess).toBe(true));
+    await saved;
+    expect(titleOfEvent1()).toBe('Renamed');
+
+    const refetched = standaloneItem();
+    refetched.event.title = 'Renamed by the provider';
+    viewport.answer({ items: [refetched], syncStatus: 'ready' });
+    await vi.waitFor(() =>
+      expect(titleOfEvent1()).toBe('Renamed by the provider')
+    );
+    viewport.unsubscribe();
   });
 
   it('scopes an optimistic edit to the targeted occurrence, or widens to the series', async () => {
