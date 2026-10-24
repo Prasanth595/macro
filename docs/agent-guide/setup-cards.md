@@ -29,7 +29,7 @@ Every other app opens Pipedream's Connect UI inside the dialog. A connected row
 - The shared review identifies its source, shows task/project totals for issue
   trackers, and lets the owner exclude objects and change sharing. On phones,
   **Open full review** uses the existing full-height sheet. Approve on the card,
-  or say yes and let the agent call `ApproveReview`; planning must be ready.
+  or say yes and let the agent submit it with `DecideReview`; planning must be ready.
   Stop affects the selected source only, and completed copies stay in Macro.
 - Files also offers **Upload files** and **Upload a folder** (Drive's own
   uploads), and Customers offers **Upload a CSV** (the existing CSV import).

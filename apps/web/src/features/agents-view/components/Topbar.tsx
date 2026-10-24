@@ -1,5 +1,4 @@
 import { ViewShell } from '@app/components/view-shell/ViewShell';
-import { SplitPanel } from '@components/app/split-panel';
 import ArrowLeft from '@phosphor/arrow-left.svg';
 import { Button } from '@ui';
 import { type JSX, Show } from 'solid-js';
@@ -13,12 +12,7 @@ export function Topbar(props: {
 }) {
   return (
     <ViewShell.TopBar class="touch:flex">
-      <Show
-        when={props.onBack}
-        fallback={
-          <SplitPanel.CloseButton class="hidden shrink-0 @max-[720px]/view-shell:flex" />
-        }
-      >
+      <Show when={props.onBack}>
         <Button
           variant="ghost"
           size="icon-md"
@@ -37,7 +31,7 @@ export function Topbar(props: {
           </Show>
         )}
       </div>
-      <div class="header-actions ml-auto flex shrink-0 items-center gap-1">
+      <div class="header-actions ml-auto flex shrink-0 items-center gap-2 touch:gap-1">
         {props.children}
       </div>
     </ViewShell.TopBar>

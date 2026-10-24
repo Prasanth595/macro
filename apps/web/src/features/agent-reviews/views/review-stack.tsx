@@ -158,7 +158,7 @@ export function ReviewStack(props: {
       record().items.find((item) => item.id === id)?.status === 'pending',
     lockedNotice: () =>
       !props.canAct
-        ? 'Only the session owner can submit this review.'
+        ? 'Only the person whose account this review uses can submit it.'
         : undefined,
     onEdit: (draft) => {
       controller.edit(id, draft);
@@ -256,6 +256,11 @@ export function ReviewStack(props: {
           {statusLabel(current()?.status, record().kind)}
         </p>
       </Show>
+      <Show when={startedByAgent(record(), current())}>
+        <p class="mb-2 px-1 text-xs text-ink-muted">
+          Started by the agent at your request
+        </p>
+      </Show>
       <ReviewDeck
         count={record().items.length}
         email={record().kind === 'email'}
@@ -350,6 +355,12 @@ export function ReviewStack(props: {
         />
       </Show>
     </section>
+  );
+}
+function startedByAgent(review: Review, item: ReviewItem | undefined) {
+  return (
+    review.decision?.via === 'chat' &&
+    (item?.status === 'submitting' || item?.status === 'completed')
   );
 }
 function neverDraft(): never {

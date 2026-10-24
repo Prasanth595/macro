@@ -13,7 +13,6 @@ export type ImportSource = (typeof ImportSource)[keyof typeof ImportSource];
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const ImportSource = {
   linear: 'linear',
-  jira: 'jira',
   notion: 'notion',
   slack: 'slack',
 } as const;

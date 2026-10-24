@@ -46,19 +46,28 @@ The cognition CloudFront signer setting must retain its Secrets Manager
 reference, replacing any obsolete inline harness value under that name. The
 AI tool context uses the separate `_SECRET_NAME` setting for the same key.
 
-`MCP_PUBLIC_URL` is the original `https://mcp-server[-dev].macro.com` server
-base. `MCP_CLIENT_PUBLIC_URL` is the original
-`https://document-cognition[-dev].macro.com` outbound integration callback base.
-The former services used `MCP_PUBLIC_URL` for both meanings. The gateway keeps
-its existing feature-prefix routes as well. Host rules on the shared gateway
-forward the original MCP paths unchanged and prepend `/cognition` internally
-for the original cognition host. The browser URL and OAuth redirect URI remain
-unchanged. The shared wildcard certificate already covers both hostnames.
-Local instance generation sets both values separately and sets `APP_BASE_URL`
-to the instance's frontend origin. Its FusionAuth configuration permits callbacks
-through both loopback and the machine hostname; the default harness API is
-published on port 8101, matching the SDK port map. The `local/lcl_personal` Doppler config also
-contains the renamed client setting.
+Stable public origins now come from `macro_service_urls`: `McpPublicUrl` is the
+original `https://mcp-server[-dev].macro.com` server base and `CognitionPublicUrl`
+is the original `https://document-cognition[-dev].macro.com` integration callback
+base. Keep these distinct from internal gateway API routes. The shared gateway
+forwards MCP paths unchanged and prepends `/cognition` for the cognition host;
+registered OAuth redirects and browser URLs are unchanged.
+
+`AppServiceUrl` supplies browser links and preview form origins. Preview control
+uses the host of `PreviewGatewayUrl`; local instances also accept their app and
+loopback hosts. Local instance generation supplies process-level
+`OVERRIDE_MCP_PUBLIC_URL`, `OVERRIDE_COGNITION_PUBLIC_URL`, and
+`OVERRIDE_APP_SERVICE_URL`. `PREVIEW_DOMAIN` and `PREVIEW_SSH_HOST` remain in
+Doppler because infrastructure generates them.
+
+The Pulumi stack temporarily retains the old `MCP_PUBLIC_URL`,
+`MCP_CLIENT_PUBLIC_URL`, `PREVIEW_APP_ORIGIN`, and `PREVIEW_CONTROL_HOSTS`
+resources with frozen values and `retainOnDelete`. This allows automatic ECS
+rollback to the previous image, which still requires these keys. New binaries
+ignore them. After the new version is the rollback baseline in both environments,
+remove those compatibility resource declarations; do not delete the retained
+Doppler values while historical-image rollback is still needed. `APP_BASE_URL`
+is also ignored by the new harness; other services may still consume it.
 
 `POSTHOG_API_KEY` and `POSTHOG_HOST` are already typed harness fields. They
 remain available for existing feature flags and future analytics. No MCP
@@ -113,6 +122,9 @@ maintenance window:
    replacements. Preview and apply this staged harness while the old feature
    services remain live. Explicitly wait for two healthy combined tasks:
    `continueBeforeSteadyState` means Pulumi completion alone is insufficient.
+   After an ECS rollback, verify and restore the full service configuration,
+   including both security groups and all intended target attachments; retrying
+   only the task definition can leave preview ingress blocked.
 4. In that checkout, restore the three feature rules with their final logical
    resource names, temporarily using verified unused priorities numerically
    lower than the old rules. Keep preview target attachments omitted. Preview
@@ -135,12 +147,18 @@ maintenance window:
    step: omitted resources can cause Pulumi to demand their deletion. Apply
    those exact DNS-only plans, wait at least two observed DNS TTLs, and verify
    the original URLs through normal DNS before applying the retirement programs.
-6. Apply the retired `mcp-server` and `agent-schedule-service` stack programs,
-   then `document-cognition` (directory `document-cognition-service`). Remove
-   their old ECS services and rules, plus cognition's refresh Lambda/EventBridge
-   rules, retaining the projection queue and DLQ. The temporary harness rules
-   continue serving traffic. The retired MCP and scheduler stacks are no longer
-   automatic service builds; do not destroy the shared gateway or database.
+6. In the old-source cognition checkout, preview a targeted
+   `pulumi destroy --target <refresh-lambda-urn> --target-dependents --preview-only`.
+   Verify
+   that it deletes only the refresh function, its invocation permissions and
+   EventBridge targets, and its alarms. Keep the execution role, EC2 cleanup
+   permissions, and Lambda security group. Repeat without `--preview-only`,
+   then wait for its VPC network interfaces to disappear before removing the
+   role or security group. Do not run the old program again after this deletion:
+   it would recreate the function. See [AWS VPC cleanup guidance](https://docs.aws.amazon.com/lambda/latest/dg/configuration-vpc.html).
+   Apply the retired MCP, scheduler, and cognition stack programs, retaining
+   the projection queue and DLQ. The temporary harness rules continue serving
+   traffic. Do not destroy the shared gateway or database.
 7. Apply network-only `preview-gateway`, removing its ECS task while retaining
    the domain, certificates, HTTPS/SSH load balancers, security group, and target
    groups. Preserve the control target group's default port to avoid replacing

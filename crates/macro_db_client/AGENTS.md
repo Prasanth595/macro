@@ -70,6 +70,10 @@ unreferenced replicas. These additive tables do not change agent-session claims.
 
 ## Gotchas
 
+- `calendar_event_notes` and `calendar_note_event_visible` are shared by calendar
+  note reads and document authorization; keep both consumers on the same policy.
+  The additive migration must precede their service rollout. See
+  [meeting-note access](../../docs/architecture/calendar-meeting-notes.md).
 - Migrations deploy before service code: never drop a column/table in the
   same PR that removes its last usage (see `docs/development/database.md`).
 - Never hand-edit `.sqlx/query-*.json` or invent a migration timestamp.
@@ -84,6 +88,15 @@ unreferenced replicas. These additive tables do not change agent-session claims.
 
 - Rules: `.agents/rules/rust/db.md`, `.agents/rules/rust/architecture.md` ·
   Docs: `docs/development/database.md` · Skill: `dump-schema`
+
+Email send migrations add `email_messages.draft_generation` and attempt handle/inbox
+fences. Deploy the additive migrations and all generation-aware writers before
+enabling the independent email outbox; old writers do not enforce these fences.
+
+`preserve_deleted_email_send_delivery` defers active-send deletion before compacting
+content. Bypass retention for inboxes marked `deleting_at` and direct inbox
+cascades; other parent cascades must not destroy unresolved delivery state. Deferred markers retain provider identity and
+draft generation so Undo/resend cannot inherit an old deletion.
 
 The import ledger accepts Jira Cloud sources with `jira_issue`, `jira_project`
 and `jira_epic` kinds. Jira has its own concurrent partial team-claim index; source

@@ -40,7 +40,7 @@ pub enum NotionImportAction {
 #[serde(rename_all = "camelCase")]
 #[schemars(
     title = "ImportFromNotion",
-    description = "Import the user's Notion workspace (or part of it) into Macro: pages become documents in folders mirroring Notion's page tree, databases become Macro databases with their rows and relations, and task-tracker databases become Macro tasks. `plan` reads the workspace through the user's Notion connection, decides per page and database what to do (and, with `sharing` \"ai\", who sees it), links anything a teammate already imported and shared, and stages a plan without writing anything. Who sees the import: unless the user already said, call `plan` without `sharing` first. A user who is not on a team gets a personal import straight away; tell them so and do not offer team sharing. For a user on a team it answers that `sharing` is required: then ask them in one short question with three options (shared with their team, only them, or let AI decide per page), do not guess, and plan again with their answer. `plan` answers within seconds while planning goes on in the background: present the plan right away with PresentReview (kind \"import\", drafts [{\"source\":\"notion\"}]). The review fills in as Notion is read and each object is decided, and the user approves it there once it is ready; do not wait for planning or check `status` in a loop. Approving that review writes the plan; never import plan items with other tools. End your message after presenting it by asking \"Should I kick it off?\"; if the user says yes, approve it yourself with ApproveReview (the reviewId PresentReview returned). `status` reports progress; `cancel` stops planning or importing. Use this for anything bigger than a single page instead of ImportNotionPage."
+    description = "Import the user's Notion workspace (or part of it) into Macro: pages become documents in folders mirroring Notion's page tree, databases become Macro databases with their rows and relations, and task-tracker databases become Macro tasks. `plan` reads the workspace through the user's Notion connection, decides per page and database what to do (and, with `sharing` \"ai\", who sees it), links anything a teammate already imported and shared, and stages a plan without writing anything. Who sees the import: unless the user already said, call `plan` without `sharing` first. A user who is not on a team gets a personal import straight away; tell them so and do not offer team sharing. For a user on a team it answers that `sharing` is required: then ask them in one short question with three options (shared with their team, only them, or let AI decide per page), do not guess, and plan again with their answer. `plan` answers within seconds while planning goes on in the background: present the plan right away with PresentReview (kind \"import\", drafts [{\"source\":\"notion\"}]). The review fills in as Notion is read and each object is decided, and the user approves it there once it is ready; do not wait for planning or check `status` in a loop. Approving that review writes the plan; never import plan items with other tools. End your message after presenting it by asking \"Should I kick it off?\"; if the user says yes, approve it yourself with DecideReview, submitting the reviewId PresentReview returned. `status` reports progress; `cancel` stops planning or importing. Use this for anything bigger than a single page instead of ImportNotionPage."
 )]
 pub struct ImportFromNotion {
     /// What to do.
@@ -172,7 +172,7 @@ pub(super) fn message(action: NotionImportAction, report: &NotionImportReport) -
             let progress = planning_progress(report);
             match report.review_id {
                 None => format!(
-                    "Planning has started and goes on in the background{progress}.{personal} Present the plan now with {present} and tell the user in a sentence that the review fills in as Notion is read and each object is decided, and that they approve it there once it is ready. Do not wait for planning or check `status` in a loop. End your message by asking \"Should I kick it off once it's ready?\". If they say yes, call ApproveReview; while the plan is still being made it refuses, so tell them it is not ready yet and that they can say so again, or approve it on the card, once it is."
+                    "Planning has started and goes on in the background{progress}.{personal} Present the plan now with {present} and tell the user in a sentence that the review fills in as Notion is read and each object is decided, and that they approve it there once it is ready. Do not wait for planning or check `status` in a loop. End your message by asking \"Should I kick it off once it's ready?\". If they say yes, approve it with DecideReview (a submit decision); while the plan is still being made it refuses, so tell them it is not ready yet and that they can say so again, or approve it on the card, once it is."
                 ),
                 Some(_) => format!(
                     "The plan is presented and still being made{progress}.{personal} The review fills in as planning goes, and the user approves it there once it is ready. Do not wait for planning or check `status` in a loop."
@@ -186,12 +186,12 @@ pub(super) fn message(action: NotionImportAction, report: &NotionImportReport) -
                 ""
             };
             format!(
-                "The plan is ready: {planned}.{already}{personal} Tell the user these numbers as they are, then present the plan now with {present}. Nothing is written until they approve it{choose}. End your message by asking \"Should I kick it off?\"; if they say yes, approve it with ApproveReview.{hand}"
+                "The plan is ready: {planned}.{already}{personal} Tell the user these numbers as they are, then present the plan now with {present}. Nothing is written until they approve it{choose}. End your message by asking \"Should I kick it off?\"; if they say yes, approve it with DecideReview (a submit decision).{hand}"
             )
         }
         (_, Some(RunStatus::Ready)) => {
             format!(
-                "The plan ({planned}) is presented and waiting for the user's approval. If they tell you to go ahead, approve it with ApproveReview.{already}{hand}"
+                "The plan ({planned}) is presented and waiting for the user's approval. If they tell you to go ahead, approve it with DecideReview (a submit decision).{already}{hand}"
             )
         }
         (_, Some(RunStatus::Importing)) => format!(

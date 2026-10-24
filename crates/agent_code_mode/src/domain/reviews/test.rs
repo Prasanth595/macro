@@ -103,6 +103,8 @@ impl ExecutionStore for Executions {
             return Err(CodeModeError::NotFound);
         }
         Ok(ExecutionRecord {
+            acting_as: None,
+            turn_id: None,
             execution_id: execution,
             source: String::new(),
             status: ExecutionStatus::Running,
@@ -119,6 +121,7 @@ struct Actions {
     archived: AtomicBool,
     prompter: Mutex<Option<TurnPrompter>>,
     calls: Mutex<Vec<Value>>,
+    actors: Mutex<Vec<String>>,
     presentations: Mutex<Vec<ReviewId>>,
     fail_presentation: AtomicBool,
     block_actions: AtomicBool,
@@ -137,10 +140,13 @@ impl ReviewActions for Actions {
     }
     async fn approvable(
         &self,
-        owner: &MacroUserIdStr<'static>,
-        _: &ReviewRecord,
+        account_holder: &MacroUserIdStr<'static>,
+        record: &ReviewRecord,
     ) -> Result<bool, CodeModeError> {
-        assert_eq!(owner, &self.owner);
+        assert_eq!(
+            Some(account_holder),
+            record.acting_user.as_ref().or(Some(&self.owner))
+        );
         Ok(self.approvable.load(Ordering::SeqCst))
     }
     fn validate(&self, _: ReviewKind, draft: &Value) -> Result<(), CodeModeError> {
@@ -155,7 +161,7 @@ impl ReviewActions for Actions {
         _: &ReviewRecord,
         draft: Value,
     ) -> Result<Value, CodeModeError> {
-        assert_eq!(owner, &self.owner);
+        self.actors.lock().unwrap().push(owner.to_string());
         self.calls.lock().unwrap().push(draft.clone());
         self.action_started.notify_one();
         if self.block_actions.load(Ordering::SeqCst) {
@@ -199,6 +205,7 @@ impl Fixture {
             archived: AtomicBool::new(false),
             prompter: Mutex::new(None),
             calls: Mutex::default(),
+            actors: Mutex::default(),
             presentations: Mutex::default(),
             fail_presentation: AtomicBool::new(false),
             block_actions: AtomicBool::new(false),
@@ -637,13 +644,7 @@ async fn a_system_turn_cannot_approve_even_with_owner_credentials() {
         f.service
             .decide_for_session(f.session, &f.actions.owner, row.id, decision.clone())
             .await,
-        Err(CodeModeError::Invalid(_))
-    ));
-    assert!(matches!(
-        f.service
-            .approve_for_session(&owned_session(&f), &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Invalid(_))
+        Err(CodeModeError::Forbidden)
     ));
     assert!(f.actions.calls.lock().unwrap().is_empty());
     f.actions.prompter.lock().unwrap().as_mut().unwrap().kind =
@@ -660,204 +661,6 @@ async fn a_system_turn_cannot_approve_even_with_owner_credentials() {
     assert!(
         matches!(&events[1].notification.event, NotificationEvent::ReviewSettled(ReviewSettlement::Actions(outcome)) if outcome.by == f.actions.owner.as_ref() && outcome.via == DecisionVia::Chat)
     );
-}
-
-fn owned_session(f: &Fixture) -> agent_session::domain::model::AgentSession {
-    let mut session = agent_session::testing::test_agent_session(f.session);
-    session.owner_id = f.actions.owner.clone().into();
-    session
-}
-
-fn prompted_by(user: &MacroUserIdStr<'static>) -> Option<TurnPrompter> {
-    Some(TurnPrompter {
-        action_id: agent_runtime_protocol::domain::action::AgentActionId::mint(),
-        user: Some(user.clone()),
-        kind: PrompterKind::User,
-    })
-}
-
-#[tokio::test]
-async fn the_agent_approves_only_in_a_turn_its_owner_prompted() {
-    let f = Fixture::new();
-    let row = f.create(vec![json!({"subject":"x"})]).await;
-    let session = owned_session(&f);
-    let teammate = MacroUserIdStr::parse_from_str("macro|teammate@macro.local")
-        .unwrap()
-        .into_owned();
-
-    *f.actions.prompter.lock().unwrap() = prompted_by(&teammate);
-    assert!(matches!(
-        f.service
-            .approve_for_session(&session, &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Invalid(_))
-    ));
-    *f.actions.prompter.lock().unwrap() = None;
-    assert!(matches!(
-        f.service
-            .approve_for_session(&session, &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Invalid(_))
-    ));
-    // The teammate prompting the turn cannot act as the owner either.
-    *f.actions.prompter.lock().unwrap() = prompted_by(&teammate);
-    assert!(matches!(
-        f.service
-            .approve_for_session(&session, &teammate, row.id)
-            .await,
-        Err(CodeModeError::Forbidden)
-    ));
-    let unsaved = f.store.get(f.session, row.id).await.unwrap();
-    assert_eq!(unsaved.revision, row.revision);
-    assert_eq!(unsaved.items[0].status, ReviewItemStatus::Pending);
-    assert!(f.actions.calls.lock().unwrap().is_empty());
-
-    f.actions.archived.store(true, Ordering::SeqCst);
-    *f.actions.prompter.lock().unwrap() = prompted_by(&f.actions.owner);
-    assert!(matches!(
-        f.service
-            .approve_for_session(&session, &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Forbidden)
-    ));
-    assert!(f.actions.calls.lock().unwrap().is_empty());
-    assert!(f.store.2.lock().unwrap().is_empty());
-}
-
-#[tokio::test]
-async fn the_agent_approves_the_draft_the_owner_saved_on_the_card() {
-    let f = Fixture::new();
-    *f.actions.prompter.lock().unwrap() = prompted_by(&f.actions.owner);
-    let row = f.create(vec![json!({"subject":"as drafted"})]).await;
-    let edited = f
-        .service
-        .decide(
-            &f.edit(),
-            &f.actions.owner,
-            row.id,
-            ReviewDecision::Edit {
-                revision: row.revision,
-                item: row.items[0].id,
-                draft: json!({"subject":"as the owner left it"}),
-            },
-        )
-        .await
-        .unwrap();
-
-    let approved = f
-        .service
-        .approve_for_session(&owned_session(&f), &f.actions.owner, row.id)
-        .await
-        .unwrap();
-    f.actions.action_started.notified().await;
-
-    assert_eq!(approved.revision, edited.revision + 1);
-    assert_eq!(approved.items[0].status, ReviewItemStatus::Submitting);
-    let decision = approved.decision.expect("recorded as a chat decision");
-    assert_eq!(decision.via, DecisionVia::Chat);
-    assert_eq!(decision.by, f.actions.owner.as_ref());
-    assert_eq!(
-        *f.actions.calls.lock().unwrap(),
-        vec![json!({"subject":"as the owner left it"})]
-    );
-}
-
-#[tokio::test]
-async fn the_agent_cannot_approve_a_plan_still_being_prepared() {
-    let f = Fixture::new();
-    *f.actions.prompter.lock().unwrap() = prompted_by(&f.actions.owner);
-    let row = f.create(vec![json!({"subject":"x"})]).await;
-    f.actions.approvable.store(false, Ordering::SeqCst);
-
-    assert!(matches!(
-        f.service
-            .approve_for_session(&owned_session(&f), &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Invalid(_))
-    ));
-    assert!(matches!(
-        f.service
-            .decide_for_session(
-                f.session,
-                &f.actions.owner,
-                row.id,
-                ReviewDecision::Submit {
-                    revision: row.revision,
-                    items: vec![],
-                },
-            )
-            .await,
-        Err(CodeModeError::Invalid(_))
-    ));
-    let unsaved = f.store.get(f.session, row.id).await.unwrap();
-    assert_eq!(unsaved.revision, row.revision);
-    assert_eq!(unsaved.items[0].status, ReviewItemStatus::Pending);
-    assert!(f.actions.calls.lock().unwrap().is_empty());
-}
-
-#[tokio::test]
-async fn the_agent_and_the_card_approving_together_start_once() {
-    let f = Fixture::new();
-    *f.actions.prompter.lock().unwrap() = prompted_by(&f.actions.owner);
-    f.actions.block_actions.store(true, Ordering::SeqCst);
-    let row = f.create(vec![json!({"subject":"x"})]).await;
-    let session = owned_session(&f);
-    let access = f.edit();
-
-    let (card, agent) = tokio::join!(
-        f.service.decide(
-            &access,
-            &f.actions.owner,
-            row.id,
-            ReviewDecision::Submit {
-                revision: row.revision,
-                items: vec![],
-            },
-        ),
-        f.service
-            .approve_for_session(&session, &f.actions.owner, row.id)
-    );
-    assert_eq!(usize::from(card.is_ok()) + usize::from(agent.is_ok()), 1);
-    assert!(matches!(
-        card.err().or(agent.err()),
-        Some(CodeModeError::Conflict)
-    ));
-    f.actions.action_started.notified().await;
-    assert!(matches!(
-        f.service
-            .approve_for_session(&session, &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Conflict)
-    ));
-    f.actions.action_gate.notify_one();
-    let done = f.settled(row.id).await;
-    assert_eq!(done.items[0].status, ReviewItemStatus::Completed);
-    assert!(matches!(
-        f.service
-            .approve_for_session(&session, &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Conflict)
-    ));
-    assert_eq!(f.actions.calls.lock().unwrap().len(), 1);
-}
-
-#[tokio::test]
-async fn the_agent_approves_only_reviews_of_its_own_session() {
-    let f = Fixture::new();
-    *f.actions.prompter.lock().unwrap() = prompted_by(&f.actions.owner);
-    let row = f.create(vec![json!({"subject":"x"})]).await;
-    let mut elsewhere = agent_session::testing::test_agent_session(AgentSessionId::new_from_uuid(
-        macro_uuid::generate_uuid_v7(),
-    ));
-    elsewhere.owner_id = f.actions.owner.clone().into();
-
-    assert!(matches!(
-        f.service
-            .approve_for_session(&elsewhere, &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::NotFound)
-    ));
-    assert!(f.actions.calls.lock().unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -959,4 +762,82 @@ async fn dismissing_an_import_wakes_the_session() {
     assert_eq!(events.len(), 1);
     assert!(events[0].wake);
     assert!(f.actions.calls.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn requester_reviews_are_decided_and_executed_only_with_their_account() {
+    let f = Fixture::new();
+    let requester = MacroUserIdStr::try_from_email("requester@example.com").unwrap();
+    let access = EntityAccessReceipt::dangerously_assert_authenticated_user(
+        requester.clone(),
+        &f.session.to_string(),
+        EntityType::AgentSession,
+    );
+    let row = f
+        .service
+        .create(
+            &access,
+            &requester,
+            f.input(vec![json!({"subject":"requester draft"})]),
+        )
+        .await
+        .unwrap();
+    assert_eq!(row.acting_user.as_ref(), Some(&requester));
+    let decision = ReviewDecision::Submit {
+        revision: row.revision,
+        items: vec![],
+    };
+    assert!(matches!(
+        f.service
+            .decide(&f.edit(), &f.actions.owner, row.id, decision.clone())
+            .await,
+        Err(CodeModeError::Forbidden)
+    ));
+    f.service
+        .decide(&access, &requester, row.id, decision)
+        .await
+        .unwrap();
+    let settled = f.settled(row.id).await;
+    assert_eq!(settled.items[0].status, ReviewItemStatus::Completed);
+    assert_eq!(
+        *f.actions.actors.lock().unwrap(),
+        vec![requester.to_string()]
+    );
+}
+
+#[tokio::test]
+async fn a_chat_submit_waits_until_the_review_is_approvable() {
+    let f = Fixture::new();
+    let row = f.create(vec![json!({"subject":"x"})]).await;
+    *f.actions.prompter.lock().unwrap() = Some(TurnPrompter {
+        action_id: agent_runtime_protocol::domain::action::AgentActionId::mint(),
+        user: Some(f.actions.owner.clone()),
+        kind: agent_session::domain::model::PrompterKind::User,
+    });
+    let submit = ReviewDecision::Submit {
+        revision: row.revision,
+        items: vec![],
+    };
+    f.actions.approvable.store(false, Ordering::SeqCst);
+
+    assert!(matches!(
+        f.service
+            .decide_for_session(f.session, &f.actions.owner, row.id, submit.clone())
+            .await,
+        Err(CodeModeError::Invalid(_))
+    ));
+    let unsaved = f.store.get(f.session, row.id).await.unwrap();
+    assert_eq!(unsaved.revision, row.revision);
+    assert_eq!(unsaved.items[0].status, ReviewItemStatus::Pending);
+    assert!(f.actions.calls.lock().unwrap().is_empty());
+
+    f.actions.approvable.store(true, Ordering::SeqCst);
+    let approved = f
+        .service
+        .decide_for_session(f.session, &f.actions.owner, row.id, submit)
+        .await
+        .unwrap();
+    assert_eq!(approved.decision.unwrap().via, DecisionVia::Chat);
+    let settled = f.settled(row.id).await;
+    assert_eq!(settled.items[0].status, ReviewItemStatus::Completed);
 }

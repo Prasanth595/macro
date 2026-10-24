@@ -2,6 +2,7 @@
 mod markdown_images;
 #[cfg(test)]
 mod test;
+mod tool_mode_cache;
 mod tool_response;
 mod tool_service;
 
@@ -23,7 +24,14 @@ use rmcp::transport::streamable_http_server::{
 };
 use secretsmanager_client::LocalOrRemoteSecret;
 use std::sync::Arc;
-use tool_service::AuthenticatedToolService;
+use tool_mode_cache::CachedToolMode;
+use tool_service::{AuthenticatedToolService, CodeModeSurface};
+
+/// User-scoped code execution and the flag that offers it.
+pub struct PublicCodeMode {
+    pub service: Arc<dyn agent_code_mode::domain::UserCodeMode>,
+    pub selector: Arc<dyn agent_inmem::domain::tool_mode::ToolModeSelector>,
+}
 
 const DEFAULT_MCP_ALLOWED_REDIRECT_HOSTS: [&str; 5] = [
     "claude.ai",
@@ -33,13 +41,6 @@ const DEFAULT_MCP_ALLOWED_REDIRECT_HOSTS: [&str; 5] = [
     "www.cursor.com",
 ];
 
-/// Preserve the public MCP domain verification endpoint from the former host.
-async fn openai_domain_verification() -> String {
-    crate::config::OpenaiDomainVerificationToken::new()
-        .and_then(|token| token.value().map(str::to_string))
-        .unwrap_or_else(|| "PLACEHOLDER_TOKEN_REPLACE_WITH_ACTUAL_OPENAI_TOKEN".to_string())
-}
-
 /// Build public MCP routes using the harness's shared tools and identities.
 pub async fn router(
     config: &Config,
@@ -48,25 +49,44 @@ pub async fn router(
     jwt_args: JwtValidationArgs,
     background_tasks: tokio_util::task::TaskTracker,
     cancellation: tokio_util::sync::CancellationToken,
+    code_mode: Option<PublicCodeMode>,
 ) -> anyhow::Result<axum::Router> {
-    let auth_proxy = build_auth_proxy(config, secrets).await?;
-    let item_base_url = config.app_base_url.to_string();
+    let public_url = macro_service_urls::McpPublicUrl::new()?;
+    let auth_proxy = build_auth_proxy(config, secrets, &public_url).await?;
+    let item_base_url = macro_service_urls::AppServiceUrl::new()?.to_string();
     let static_file_base_url =
         url::Url::parse(macro_service_urls::StaticFileServiceUrl::new()?.as_ref())?;
-    let mcp_public_host = url::Url::parse(config.mcp_public_url.as_ref())?
+    let mcp_public_host = public_url
+        .parse_url()?
         .host_str()
-        .context("MCP_PUBLIC_URL has no host")?
+        .context("public MCP URL has no host")?
         .to_owned();
+    // Built once: the factory runs per request in stateless mode.
+    let tools = ai_tools::tools_for(ai_tools::AiHost::Mcp).toolset;
+    let code_mode = code_mode.map(|code_mode| {
+        Arc::new(CodeModeSurface {
+            native: ai_tools::tools_for_mcp_code_mode().toolset,
+            tools: Arc::new(agent_code_mode::inbound::toolset::user_toolset()),
+            context: agent_code_mode::inbound::toolset::UserCodeModeToolContext {
+                service: code_mode.service,
+                cognition: tool_context.cognition_tool_context.service.clone(),
+            },
+            selector: Arc::new(CachedToolMode::new(code_mode.selector)),
+        })
+    });
     // Create the MCP service with authenticated tool handler
     let mcp_service = StreamableHttpService::new(
         move || {
-            let tools = ai_tools::tools_for(ai_tools::AiHost::Mcp);
-            Ok(AuthenticatedToolService::new(
-                tools.toolset,
+            let service = AuthenticatedToolService::new(
+                tools.clone(),
                 tool_context.clone(),
                 item_base_url.clone(),
                 static_file_base_url.clone(),
-            ))
+            );
+            Ok(match &code_mode {
+                Some(code_mode) => service.with_code_mode(code_mode.clone()),
+                None => service,
+            })
         },
         Arc::new(LocalSessionManager::default()),
         {
@@ -101,10 +121,6 @@ pub async fn router(
     // browser API layers, with the same tracing layer as the harness API.
     Ok(
         mcp_auth_proxy::inbound::axum_router::mounted_mcp_router(auth_proxy, jwt_args, mcp_service)
-            .route(
-                "/.well-known/openai-apps-challenge",
-                axum::routing::get(openai_domain_verification),
-            )
             .layer(
                 macro_tower_layers::MacroRequestIdAndTracingLayer::new(
                     std::time::Duration::from_millis(200),
@@ -117,8 +133,9 @@ pub async fn router(
 async fn build_auth_proxy(
     config: &Config,
     secretsmanager_client: &secretsmanager_client::SecretsManager,
+    public_url: &macro_service_urls::McpPublicUrl,
 ) -> anyhow::Result<McpAuthProxyServiceImpl<RedisInflightAuth>> {
-    let mcp_public_url: String = config.mcp_public_url.as_ref().to_owned();
+    let mcp_public_url = public_url.to_string();
     let mcp_oauth_redirect_uri = format!("{mcp_public_url}/oauth/callback");
 
     let fusionauth_api_key = LocalOrRemoteSecret::new_from_secret_manager(

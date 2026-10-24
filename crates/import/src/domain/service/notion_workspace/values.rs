@@ -104,6 +104,7 @@ impl ColumnShape {
 /// database and the property, so a resumed write names the same columns.
 pub(super) fn planned_column(
     property: &NotionPropertySchema,
+    names: &ColumnNames,
     database: Uuid,
 ) -> Option<PlannedColumn> {
     let shape = match &property.kind {
@@ -149,9 +150,50 @@ pub(super) fn planned_column(
     Some(PlannedColumn {
         id: ColumnId::from_uuid(derived_id(database, &format!("column/{}", property.id))),
         property: property.name.clone(),
-        name: capped_name(&property.name),
+        name: names.of(property),
         shape,
     })
+}
+
+/// The column name each property of one data source gets, by property id.
+/// Macro refuses an empty column name, so a blank one becomes "Untitled" (or
+/// "Untitled 2", ...), distinct from the data source's other names. It
+/// depends on the schema alone, so a resumed write picks the same names.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct ColumnNames(HashMap<String, String>);
+
+impl ColumnNames {
+    const UNTITLED: &str = "Untitled";
+
+    pub fn new(properties: &[NotionPropertySchema]) -> Self {
+        let mut taken: std::collections::HashSet<String> = properties
+            .iter()
+            .map(|property| capped_name(&property.name).to_lowercase())
+            .collect();
+        let names = properties
+            .iter()
+            .map(|property| {
+                let mut name = capped_name(&property.name);
+                if name.is_empty() {
+                    name = std::iter::once(Self::UNTITLED.to_string())
+                        .chain((2..).map(|index| format!("{} {index}", Self::UNTITLED)))
+                        .find(|candidate| !taken.contains(&candidate.to_lowercase()))
+                        .unwrap_or_else(|| Self::UNTITLED.to_string());
+                    taken.insert(name.to_lowercase());
+                }
+                (property.id.clone(), name)
+            })
+            .collect();
+        Self(names)
+    }
+
+    /// `property`'s column name.
+    pub fn of(&self, property: &NotionPropertySchema) -> String {
+        self.0
+            .get(&property.id)
+            .cloned()
+            .unwrap_or_else(|| capped_name(&property.name))
+    }
 }
 
 /// Options with usable, distinct labels, ids minted.

@@ -34,6 +34,13 @@ fn domain_errors_map_to_distinct_transport_semantics() {
         (StatusCode::CONFLICT, CalendarMutationErrorCode::NotAttendee)
     );
     assert_eq!(
+        transport_of(CalendarMutationError::NotOrganizer),
+        (
+            StatusCode::FORBIDDEN,
+            CalendarMutationErrorCode::NotOrganizer
+        )
+    );
+    assert_eq!(
         transport_of(CalendarMutationError::GuestsCannotInvite),
         (
             StatusCode::FORBIDDEN,
@@ -45,6 +52,13 @@ fn domain_errors_map_to_distinct_transport_semantics() {
         (
             StatusCode::FORBIDDEN,
             CalendarMutationErrorCode::GuestListHidden
+        )
+    );
+    assert_eq!(
+        transport_of(CalendarMutationError::GuestsCannotModify),
+        (
+            StatusCode::FORBIDDEN,
+            CalendarMutationErrorCode::GuestsCannotModify
         )
     );
     assert_eq!(

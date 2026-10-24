@@ -1,8 +1,10 @@
 //! PostgreSQL implementation of the calendar repository port.
 mod change_log;
 mod changes;
+mod details;
 mod export;
 mod invitations;
+mod join_requests;
 #[cfg(feature = "outlook")]
 mod outlook;
 mod replacement;
@@ -30,12 +32,13 @@ use crate::domain::{
         CalendarEvent, CalendarEventMutationTarget, CalendarEventOverride, CalendarEventSource,
         CalendarEventSourceContent, CalendarEventUpsert, CalendarGrantBinding, CalendarGrantIntent,
         CalendarLinkTokenIdentity, CalendarMentionEvent, CalendarMentionPreview,
-        CalendarMentionRequestItem, CalendarOccurrence, CalendarOccurrenceCursor, CalendarProvider,
-        CalendarReminderFiring, CalendarSyncStatus, CalendarWatchRelease, ConferenceProvider,
-        DisconnectedCalendar, DueCalendarReminder, EventReminderOverride, EventReminders,
-        EventStart, EventStatus, EventTime, EventTransparency, EventType, EventVisibility,
-        GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel,
-        GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange, ProviderCalendar,
+        CalendarMentionRequestItem, CalendarMentionViewerCopy, CalendarOccurrence,
+        CalendarOccurrenceCursor, CalendarProvider, CalendarReminderFiring, CalendarSyncStatus,
+        CalendarWatchRelease, ConferenceProvider, DisconnectedCalendar, DueCalendarReminder,
+        EventDetails, EventReminderOverride, EventReminders, EventStart, EventStatus, EventTime,
+        EventTransparency, EventType, EventVisibility, GOOGLE_CALENDAR_SCOPES,
+        GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel, GuestPolicy,
+        OccurrenceException, OccurrenceListing, OccurrenceRange, OwnedInbox, ProviderCalendar,
         StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities, VisibleCalendar,
         is_system_calendar,
     },
@@ -399,6 +402,7 @@ struct OccurrenceJoinRow {
     guests_can_modify: bool,
     guests_can_invite_others: bool,
     guests_can_see_other_guests: bool,
+    is_snapshot: bool,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -411,6 +415,9 @@ struct MentionPreviewRow {
     mention_exists: bool,
     resolved_event_id: Option<Uuid>,
     is_channel_shared: Option<bool>,
+    is_snapshot: Option<bool>,
+    inbox_organizes: Option<bool>,
+    inbox_attends: Option<bool>,
     title: Option<String>,
     description: Option<String>,
     location: Option<String>,
@@ -466,9 +473,10 @@ struct StoredSourceProjection {
 }
 
 /// The entity as a source projection stores it: never the viewer's
-/// capabilities, and the guest policy only when it differs from Google's
-/// default, so projections stored before either was modeled still compare
-/// equal and an unchanged event is not rewritten.
+/// capabilities, the guest policy only when it differs from Google's default,
+/// and the snapshot flag only on a snapshot, so projections stored before
+/// these were modeled still compare equal and an unchanged event is not
+/// rewritten.
 fn serialize_stored_event<S: serde::Serializer>(
     event: &CalendarEvent,
     serializer: S,
@@ -478,6 +486,9 @@ fn serialize_stored_event<S: serde::Serializer>(
         fields.remove("viewerCan");
         if event.guest_policy.is_default() {
             fields.remove("guestPolicy");
+        }
+        if !event.is_snapshot {
+            fields.remove("isSnapshot");
         }
     }
     value.serialize(serializer)
@@ -794,7 +805,7 @@ impl CalendarRepository for PgCalendarRepository {
         let mut tx = self.pool.begin().await.map_err(report)?;
         let user_mutation = matches!(write, CalendarEventWrite::UserMutation(_));
         let provider_sync = matches!(write, CalendarEventWrite::GoogleBackfill { .. });
-        let upsert = match write {
+        let mut upsert = match write {
             #[cfg(feature = "outlook")]
             CalendarEventWrite::OutlookSync { lease, upsert } => {
                 outlook::fence(&mut tx, &lease).await?;
@@ -899,7 +910,18 @@ impl CalendarRepository for PgCalendarRepository {
                         })
                     })
             });
+        let mut became_seat = false;
         if let Some(row) = &existing {
+            // A snapshot an invitation has reached is its owner's seat at the
+            // meeting. Answering can leave Google's copy looking like the
+            // import again, as when the meeting lists only them, so a copy
+            // stored as a seat stays one.
+            let stored_snapshot = row
+                .normalized_payload
+                .pointer("/event/isSnapshot")
+                .is_some_and(|value| value == true);
+            became_seat = stored_snapshot && !upsert.event.is_snapshot;
+            upsert.event.is_snapshot &= stored_snapshot;
             let incoming =
                 serde_json::to_value(StoredSourceProjection::from(&upsert)).map_err(report)?;
             if canonical_projection(&row.normalized_payload) == canonical_projection(&incoming) {
@@ -936,6 +958,7 @@ impl CalendarRepository for PgCalendarRepository {
                 canonical_source_kind,
                 reminders_use_default, reminder_overrides,
                 guests_can_modify, guests_can_invite_others, guests_can_see_other_guests,
+                is_snapshot,
                 created_at, updated_at, schedule_updated_at
             )
             VALUES (
@@ -947,6 +970,7 @@ impl CalendarRepository for PgCalendarRepository {
                 $19, $27, $20, $21, $22,
                 $25, $26,
                 $31, $32, $33,
+                $34,
                 $23, $24, $24
             )
             ON CONFLICT (owner_id, source_link_id, ical_uid) DO NOTHING
@@ -988,6 +1012,7 @@ impl CalendarRepository for PgCalendarRepository {
             upsert.event.guest_policy.can_modify,
             upsert.event.guest_policy.can_invite_others,
             upsert.event.guest_policy.can_see_other_guests,
+            upsert.event.is_snapshot,
         )
         .fetch_optional(&mut *tx)
         .await
@@ -1065,6 +1090,12 @@ impl CalendarRepository for PgCalendarRepository {
         let mut log = ChangeLogBatch::default();
         log.record(source_link_id, CalendarChangeOp::UpsertEvent(event_id));
         log.commit(tx).await?;
+        if became_seat {
+            tracing::info!(
+                %event_id,
+                "an invitation reached a snapshot, which is now its owner's seat"
+            );
+        }
         Ok(CalendarEventWriteOutcome {
             event_id,
             owner_id: upsert.event.owner_id.clone(),
@@ -1134,6 +1165,7 @@ impl CalendarRepository for PgCalendarRepository {
                 event.guests_can_modify,
                 event.guests_can_invite_others,
                 event.guests_can_see_other_guests,
+                event.is_snapshot,
                 event.created_at,
                 event.updated_at
             FROM calendar_event_occurrences occurrence
@@ -1269,6 +1301,9 @@ impl CalendarRepository for PgCalendarRepository {
                 (mentioned.id IS NOT NULL) AS "mention_exists!",
                 viewer_event.id AS "resolved_event_id?",
                 viewer_event.is_channel_shared AS "is_channel_shared?",
+                viewer_event.is_snapshot AS "is_snapshot?",
+                viewer_event.inbox_organizes AS "inbox_organizes?",
+                viewer_event.inbox_attends AS "inbox_attends?",
                 COALESCE(occurrence_override.title, viewer_event.title) AS "title?",
                 left(
                     COALESCE(occurrence_override.description, viewer_event.description),
@@ -1303,6 +1338,27 @@ impl CalendarRepository for PgCalendarRepository {
                         false AS is_channel_shared,
                         (candidate.owner_id = $1) AS is_owned,
                         (candidate.id = mentioned.id) AS is_mentioned,
+                        candidate.is_snapshot,
+                        -- The copy's own inbox decides how the requester
+                        -- holds it, as it decides their capabilities: an
+                        -- inbox they own that organizes it or is on it.
+                        COALESCE(
+                            lower(copy_inbox.email_address) = lower(candidate.organizer_email)
+                            OR EXISTS (
+                                SELECT 1
+                                FROM calendar_event_attendees organizer
+                                WHERE organizer.event_id = candidate.id
+                                  AND organizer.is_organizer
+                                  AND lower(organizer.email) = lower(copy_inbox.email_address)
+                            ),
+                            false
+                        ) AS inbox_organizes,
+                        EXISTS (
+                            SELECT 1
+                            FROM calendar_event_attendees guest
+                            WHERE guest.event_id = candidate.id
+                              AND lower(guest.email) = lower(copy_inbox.email_address)
+                        ) AS inbox_attends,
                         candidate.title,
                         candidate.description,
                         candidate.location,
@@ -1316,6 +1372,9 @@ impl CalendarRepository for PgCalendarRepository {
                         candidate.time_zone,
                         candidate.updated_at
                     FROM calendar_events candidate
+                    LEFT JOIN email_links copy_inbox
+                        ON copy_inbox.id = candidate.source_link_id
+                       AND copy_inbox.macro_id = $1
                     WHERE candidate.ical_uid = mentioned.ical_uid
                       AND candidate.status <> 'cancelled'
                       AND (
@@ -1333,6 +1392,9 @@ impl CalendarRepository for PgCalendarRepository {
                         true,
                         false,
                         true,
+                        false,
+                        false,
+                        false,
                         mentioned.title,
                         mentioned.description,
                         mentioned.location,
@@ -1424,6 +1486,50 @@ impl CalendarRepository for PgCalendarRepository {
         event_id: Uuid,
     ) -> Result<Option<CalendarEventExport>, Report> {
         export::event_export(&self.pool, requester_id, event_id).await
+    }
+
+    #[tracing::instrument(skip(self, requester_id, requester_email), err)]
+    async fn open_join_request(
+        &self,
+        event_id: Uuid,
+        requester_id: &str,
+        requester_email: &str,
+    ) -> Result<(crate::domain::join_requests::CalendarJoinRequest, bool), Report> {
+        join_requests::open_join_request(&self.pool, event_id, requester_id, requester_email).await
+    }
+
+    #[tracing::instrument(skip(self, requester_id), err)]
+    async fn find_join_request(
+        &self,
+        event_id: Uuid,
+        requester_id: &str,
+    ) -> Result<Option<crate::domain::join_requests::CalendarJoinRequest>, Report> {
+        join_requests::find_join_request(&self.pool, event_id, requester_id).await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn list_pending_join_requests(
+        &self,
+        event_id: Uuid,
+    ) -> Result<Vec<crate::domain::join_requests::CalendarJoinRequest>, Report> {
+        join_requests::list_pending_join_requests(&self.pool, event_id).await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_join_request(
+        &self,
+        request_id: Uuid,
+    ) -> Result<Option<crate::domain::join_requests::CalendarJoinRequest>, Report> {
+        join_requests::get_join_request(&self.pool, request_id).await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn resolve_join_request(
+        &self,
+        request_id: Uuid,
+        status: crate::domain::join_requests::CalendarJoinRequestStatus,
+    ) -> Result<Option<crate::domain::join_requests::CalendarJoinRequest>, Report> {
+        join_requests::resolve_join_request(&self.pool, request_id, status).await
     }
 
     #[tracing::instrument(skip(self, requester_id), err)]
@@ -2058,6 +2164,13 @@ impl CalendarRepository for PgCalendarRepository {
                 event.guests_can_modify,
                 event.guests_can_invite_others,
                 event.guests_can_see_other_guests,
+                -- A snapshot imported into one calendar can share its entity
+                -- with the real meeting on another, so the addressed copy's
+                -- own projection says whether it is a snapshot.
+                COALESCE(
+                    source.normalized_payload->'event'->>'isSnapshot' = 'true',
+                    false
+                ) AS "is_snapshot!",
                 source.is_read_only,
                 source.provider_event_id AS "provider_event_id!",
                 source.provider_recurring_event_id,
@@ -2110,7 +2223,7 @@ impl CalendarRepository for PgCalendarRepository {
         let Some(row) = row else {
             return Ok(None);
         };
-        let actor = ActorInboxes::from_owned(self.owned_inbox_emails(requester_id).await?);
+        let actor = ActorInboxes::from_owned(self.owned_inboxes(requester_id).await?);
         let token_identity = CalendarLinkTokenIdentity {
             binding: Some(CalendarGrantBinding {
                 link_id: row.email_link_id,
@@ -2141,7 +2254,17 @@ impl CalendarRepository for PgCalendarRepository {
                 can_invite_others: row.guests_can_invite_others,
                 can_see_other_guests: row.guests_can_see_other_guests,
             },
+            is_snapshot: row.is_snapshot,
         }))
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_event_details(
+        &self,
+        event_id: Uuid,
+        occurrence_key: Option<&str>,
+    ) -> Result<Option<EventDetails>, Report> {
+        details::event_details(&self.pool, event_id, occurrence_key).await
     }
 
     #[tracing::instrument(skip(self), err)]
@@ -2261,7 +2384,7 @@ impl CalendarRepository for PgCalendarRepository {
         let Some(row) = row else {
             return Ok(None);
         };
-        let actor = ActorInboxes::from_owned(self.owned_inbox_emails(requester_id).await?);
+        let actor = ActorInboxes::from_owned(self.owned_inboxes(requester_id).await?);
         let token_identity = CalendarLinkTokenIdentity {
             binding: Some(CalendarGrantBinding {
                 link_id: row.email_link_id,
@@ -2374,10 +2497,13 @@ impl CalendarRepository for PgCalendarRepository {
     }
 
     #[tracing::instrument(skip(self, requester_id), err)]
-    async fn owned_inbox_emails(&self, requester_id: &str) -> Result<Vec<String>, Report> {
-        sqlx::query_scalar!(
+    async fn owned_inboxes(&self, requester_id: &str) -> Result<Vec<OwnedInbox>, Report> {
+        sqlx::query!(
             r#"
-            SELECT email_address::text AS "email_address!"
+            SELECT
+                id AS link_id,
+                email_address::text AS "email_address!",
+                provider::text AS "provider!"
             FROM email_links
             WHERE macro_id = $1
             "#,
@@ -2385,7 +2511,17 @@ impl CalendarRepository for PgCalendarRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(report)
+        .map_err(report)?
+        .into_iter()
+        .map(|row| {
+            Ok(OwnedInbox {
+                link_id: row.link_id,
+                email: row.email_address,
+                provider: CalendarProvider::from_link(&row.provider)
+                    .ok_or_else(|| rootcause::report!("unsupported calendar provider"))?,
+            })
+        })
+        .collect()
     }
 
     #[tracing::instrument(skip(self), err)]
@@ -3478,6 +3614,7 @@ async fn apply_content_projection(
             guests_can_modify = $18,
             guests_can_invite_others = $19,
             guests_can_see_other_guests = $20,
+            is_snapshot = $21,
             created_at = $15,
             updated_at = GREATEST(calendar_events.updated_at, $16)
         WHERE id = $1
@@ -3502,6 +3639,7 @@ async fn apply_content_projection(
         projection.event.guest_policy.can_modify,
         projection.event.guest_policy.can_invite_others,
         projection.event.guest_policy.can_see_other_guests,
+        projection.event.is_snapshot,
     )
     .execute(&mut **tx)
     .await
@@ -4441,6 +4579,13 @@ fn mention_preview_from_row(row: MentionPreviewRow) -> Result<CalendarMentionPre
     Ok(CalendarMentionPreview::Accessible(Box::new(
         CalendarMentionEvent {
             viewer_event_id: (!is_channel_shared).then_some(resolved_event_id),
+            viewer_copy: (!is_channel_shared).then(|| {
+                CalendarMentionViewerCopy::classify(
+                    row.is_snapshot.unwrap_or_default(),
+                    row.inbox_organizes.unwrap_or_default(),
+                    row.inbox_attends.unwrap_or_default(),
+                )
+            }),
             title: row.title.unwrap_or_default(),
             description: row
                 .description
@@ -4454,6 +4599,9 @@ fn mention_preview_from_row(row: MentionPreviewRow) -> Result<CalendarMentionPre
             attendee_count: usize::try_from(row.attendee_count.unwrap_or_default())
                 .unwrap_or_default(),
             updated_at: row.updated_at.unwrap_or(DateTime::<Utc>::MIN_UTC),
+            // The domain service fills the ask-to-join state in.
+            can_request_to_join: false,
+            join_request_status: None,
         },
     )))
 }
@@ -4540,6 +4688,7 @@ fn series_event_from_join(
             can_invite_others: row.guests_can_invite_others,
             can_see_other_guests: row.guests_can_see_other_guests,
         },
+        is_snapshot: row.is_snapshot,
         viewer_can: ViewerCapabilities::NONE,
         created_at: row.created_at,
         updated_at: row.updated_at,

@@ -107,12 +107,12 @@ where
             .list_occurrences(requester_id, range, cursor, limit)
             .await?;
         if let Some(viewer) =
-            ActorInboxes::from_owned(self.repository.owned_inbox_emails(requester_id).await?)
+            ActorInboxes::from_owned(self.repository.owned_inboxes(requester_id).await?)
         {
             for listing in &mut rows {
-                viewer.mark_event(&mut listing.event);
+                viewer.mark_event(&mut listing.event, listing.link_id);
                 if let Some(attendees) = &mut listing.exception.attendees {
-                    viewer.mark_attendees(attendees);
+                    viewer.mark_attendees(attendees, listing.link_id);
                 }
             }
         }
@@ -187,9 +187,18 @@ where
         if items.is_empty() {
             return Ok(Vec::new());
         }
-        self.repository
-            .mention_previews(requester_id, items, Utc::now())
-            .await
+        let mut previews = self
+            .repository
+            .mention_previews(requester_id, items.clone(), Utc::now())
+            .await?;
+        super::join_requests::annotate_join_state(
+            &self.repository,
+            requester_id,
+            &items,
+            &mut previews,
+        )
+        .await?;
+        Ok(previews)
     }
 
     /// The IANA time zone of the requester's primary calendar.

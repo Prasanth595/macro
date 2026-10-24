@@ -18,7 +18,7 @@ use std::time::Duration;
 #[serde(rename_all = "camelCase")]
 #[schemars(
     title = "ImportFromLinear",
-    description = "Import a Linear workspace into Macro: issues become tasks, and teams, projects and initiatives become Macro projects. Plan reads only through the user's connected Linear account; no source writes are possible. First plan without sharing unless the user already chose. If sharing is required, ask team, personal, or AI; users without a team get a personal import. Present the plan immediately with PresentReview kind import, drafts [{source: linear}], even while it is running. Do not poll status or recreate plan items with other tools. Nothing is written until approval. Ask Should I kick it off? If the owner says yes, call ApproveReview with the review id. Status reports progress; cancel stops this import and keeps completed copies."
+    description = "Import a Linear workspace into Macro: issues become tasks, and teams, projects and initiatives become Macro projects. Plan reads only through the user's connected Linear account; no source writes are possible. First plan without sharing unless the user already chose. If sharing is required, ask team, personal, or AI; users without a team get a personal import. Present the plan immediately with PresentReview kind import, drafts [{source: linear}], even while it is running. Do not poll status or recreate plan items with other tools. Nothing is written until approval. Ask Should I kick it off? If the user says yes, approve it with DecideReview (a submit decision) using the review id. Status reports progress; cancel stops this import and keeps completed copies."
 )]
 pub struct ImportFromLinear {
     /// Plan, status or cancel.
@@ -33,7 +33,7 @@ pub struct ImportFromLinear {
 #[serde(rename_all = "camelCase")]
 #[schemars(
     title = "ImportFromJira",
-    description = "Import Jira Cloud into Macro: issues become tasks, and projects and epics become Macro projects. Plan reads all sites visible through the user's connected Jira account; no source writes are possible. First plan without sharing unless the user already chose. If sharing is required, ask team, personal, or AI; users without a team get a personal import. Present the plan immediately with PresentReview kind import, drafts [{source: jira}], even while it is running. Do not poll status or recreate plan items with other tools. Nothing is written until approval. Ask Should I kick it off? If the owner says yes, call ApproveReview with the review id. Status reports progress; cancel stops this import and keeps completed copies."
+    description = "Import Jira Cloud into Macro: issues become tasks, and projects and epics become Macro projects. Plan reads all sites visible through the user's connected Jira account; no source writes are possible. First plan without sharing unless the user already chose. If sharing is required, ask team, personal, or AI; users without a team get a personal import. Present the plan immediately with PresentReview kind import, drafts [{source: jira}], even while it is running. Do not poll status or recreate plan items with other tools. Nothing is written until approval. Ask Should I kick it off? If the user says yes, approve it with DecideReview (a submit decision) using the review id. Status reports progress; cancel stops this import and keeps completed copies."
 )]
 pub struct ImportFromJira {
     /// Plan, status or cancel.
@@ -144,10 +144,10 @@ fn message(
             report.imported
         ),
         (_, Some(RunStatus::Running)) => format!(
-            "Planning {name} in the background. {visibility} Present the review now with {present}; it fills in as planning runs. Do not wait or poll status. Ask \"Should I kick it off once it's ready?\". ApproveReview starts it only when ready."
+            "Planning {name} in the background. {visibility} Present the review now with {present}; it fills in as planning runs. Do not wait or poll status. Ask \"Should I kick it off once it's ready?\". If they say yes, approve it with DecideReview (a submit decision); it refuses until the plan is ready."
         ),
         (_, Some(RunStatus::Ready)) => format!(
-            "The {name} plan has {} issues and {} groups: {} tasks and {} other copies; {} skipped, {} by hand, {} already in Macro. {visibility} Present it with {present} if not presented yet. Nothing is written until approval. Ask \"Should I kick it off?\"; when the owner says yes, call ApproveReview with this review id.",
+            "The {name} plan has {} issues and {} groups: {} tasks and {} other copies; {} skipped, {} by hand, {} already in Macro. {visibility} Present it with {present} if not presented yet. Nothing is written until approval. Ask \"Should I kick it off?\"; if they say yes, approve it with DecideReview (a submit decision).",
             report.issues,
             report.projects,
             report.task_rows,

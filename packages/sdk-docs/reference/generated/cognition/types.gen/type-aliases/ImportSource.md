@@ -1,5 +1,5 @@
 # Type Alias: ImportSource
 
-> **ImportSource** = `"linear"` \| `"jira"` \| `"notion"` \| `"slack"`
+> **ImportSource** = `"linear"` \| `"notion"` \| `"slack"`
 
 External systems items can be imported from.

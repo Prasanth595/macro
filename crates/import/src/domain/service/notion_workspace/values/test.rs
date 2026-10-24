@@ -40,14 +40,30 @@ fn a_status_column_becomes_a_select_and_its_cells_point_at_the_planned_options()
         },
     };
 
-    let column = planned_column(&property, Uuid::from_u128(500)).unwrap();
+    let column = planned_column(
+        &property,
+        &ColumnNames::new(std::slice::from_ref(&property)),
+        Uuid::from_u128(500),
+    )
+    .unwrap();
     assert_eq!(
-        planned_column(&property, Uuid::from_u128(500)).unwrap(),
+        planned_column(
+            &property,
+            &ColumnNames::new(std::slice::from_ref(&property)),
+            Uuid::from_u128(500)
+        )
+        .unwrap(),
         column,
         "writing the same database again names the same column and options"
     );
     assert_ne!(
-        planned_column(&property, Uuid::from_u128(501)).unwrap().id,
+        planned_column(
+            &property,
+            &ColumnNames::new(std::slice::from_ref(&property)),
+            Uuid::from_u128(501)
+        )
+        .unwrap()
+        .id,
         column.id
     );
 
@@ -133,7 +149,12 @@ fn columns_take_the_closest_macro_type_and_titles_and_relations_wait() {
             kind: kind.clone(),
         };
         assert_eq!(
-            planned_column(&property, Uuid::from_u128(500)).map(|column| column.shape.kind()),
+            planned_column(
+                &property,
+                &ColumnNames::new(std::slice::from_ref(&property)),
+                Uuid::from_u128(500)
+            )
+            .map(|column| column.shape.kind()),
             expected,
             "{kind:?}"
         );
@@ -165,12 +186,14 @@ fn people_cells_hold_only_notion_users_matched_to_team_members() {
     ]
     .into_iter()
     .collect();
+    let owner = NotionPropertySchema {
+        id: "own".to_string(),
+        name: "Owner".to_string(),
+        kind: NotionPropertyKind::People,
+    };
     let column = planned_column(
-        &NotionPropertySchema {
-            id: "own".to_string(),
-            name: "Owner".to_string(),
-            kind: NotionPropertyKind::People,
-        },
+        &owner,
+        &ColumnNames::new(std::slice::from_ref(&owner)),
         Uuid::from_u128(500),
     )
     .unwrap();
@@ -342,5 +365,34 @@ fn a_task_list_row_maps_its_named_columns_onto_task_fields_and_keeps_the_rest_in
     assert_eq!(
         task_body(&task, "Pair with Bo on the parser.", &fields, &people),
         "Pair with Bo on the parser.\n\n---\n\n- **Sprint:** Sprint 12"
+    );
+}
+
+#[test]
+fn blank_property_names_become_untitled_columns_distinct_from_the_others() {
+    let property = |id: &str, name: &str, kind| NotionPropertySchema {
+        id: id.to_string(),
+        name: name.to_string(),
+        kind,
+    };
+    let properties = vec![
+        property("title", "Name", NotionPropertyKind::Title),
+        property("empty", "", NotionPropertyKind::RichText),
+        property("spaces", "   ", NotionPropertyKind::Number),
+        property("taken", "untitled", NotionPropertyKind::Checkbox),
+    ];
+
+    let names = ColumnNames::new(&properties);
+    let columns: Vec<String> = properties
+        .iter()
+        .filter_map(|property| planned_column(property, &names, Uuid::from_u128(500)))
+        .map(|column| column.name)
+        .collect();
+
+    assert_eq!(columns, ["Untitled 2", "Untitled 3", "untitled"]);
+    assert_eq!(
+        ColumnNames::new(&properties),
+        names,
+        "a resumed write names the blank columns the same way"
     );
 }

@@ -1,3 +1,4 @@
+import { useUserId } from '@core/context/user';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { createEffect, on, Show, Suspense } from 'solid-js';
 import { match } from 'ts-pattern';
@@ -11,10 +12,12 @@ export function PersistedReview(props: {
   sessionId: string;
   reviewId: string;
   canAct: boolean;
+  ownerId?: string;
   eventId?: string;
   onDecision?: () => void;
   onDecisionFailed?: () => void;
 }) {
+  const userId = useUserId();
   const query = useReview(
     () => props.sessionId,
     () => props.reviewId
@@ -59,25 +62,27 @@ export function PersistedReview(props: {
         </p>
       </Show>
       <Show when={query.isSuccess ? query.data : undefined}>
-        {(record) =>
+        {(record) => {
+          const canAct = () =>
+            props.canAct && userId() === (record().actingUser ?? props.ownerId);
           // A review's kind is fixed when it is saved.
-          match(record().kind)
+          return match(record().kind)
             .with('import', () => (
               <ImportReview
                 review={record()}
-                canAct={props.canAct}
+                canAct={canAct()}
                 actions={decisions('import')}
               />
             ))
             .with('email', 'calendar', (kind) => (
               <ReviewStack
                 review={record()}
-                canAct={props.canAct}
+                canAct={canAct()}
                 actions={decisions(kind)}
               />
             ))
-            .exhaustive()
-        }
+            .exhaustive();
+        }}
       </Show>
     </Suspense>
   );

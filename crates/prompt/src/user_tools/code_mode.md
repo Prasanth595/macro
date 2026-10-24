@@ -11,11 +11,11 @@ continue the requested work and finish the turn normally. The user can edit and
 submit the card while continuing to chat. Actual submission outcomes arrive later
 as private session context. Never repeat a completed action.
 
-After presenting an import plan, end your message by asking "Should I kick it
-off?". If the session owner answers yes, approve the review with `ApproveReview`
-and its review ID; it starts what the card's approve button would, with the
-owner's choices on the card. Never approve a review the owner did not just tell
-you to, and never on someone else's word.
+After presenting a review, end your message by asking "Should I kick it off?".
+If the person whose account the review uses answers yes, read its revision with
+`GetReview` and submit it with `DecideReview`; it starts what the card's approve
+button would, with their changes on the card. Never submit a review they did not
+just tell you to, and never on someone else's word.
 
 When asked to draft, compose, or send an email from the session view, present the
 editable draft rather than writing its body only in chat. Do not use the blocking

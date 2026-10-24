@@ -6,6 +6,7 @@ import type {
   EventTime,
   EventTransparency,
   EventVisibility,
+  GuestPolicy,
   OutOfOfficeProperties,
   TeamCalendarSharing,
 } from '../../../generated/calendar/types.gen';
@@ -16,7 +17,9 @@ import type {
 } from '../../../generated/storage/types.gen';
 import { paginate, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
+import { Document } from '../documents/document';
 import type { Link } from '../email/link';
+import { Team } from '../teams/team';
 import { User } from '../users/user';
 import { Calendar } from './calendar';
 import { CalendarEvent } from './event';
@@ -49,6 +52,8 @@ export interface CreateEventOptions {
   macroCall?: boolean;
   /** Out-of-office properties; present to create an out-of-office event. */
   outOfOffice?: OutOfOfficeProperties;
+  /** What guests may do; omit for Google's defaults. Google calendars only. */
+  guestPolicy?: GuestPolicy;
   /** Exact calendar to create the event on; takes precedence over the inbox
    * default. */
   calendar?: Calendar;
@@ -63,6 +68,23 @@ export interface CreateEventOptions {
  * SDK reaches it on the gateway's `/calendar` route).
  */
 export class CalendarNamespace {
+  /** Find up to 30 owned markdown documents for meeting notes, plus available extra team audiences. */
+  async noteDocuments(query = '') {
+    const picker = unwrap(
+      await this.client.calendar.noteDocuments({ query: { query } }),
+    );
+    return {
+      documents: picker.documents.map((note) => ({
+        document: Document.byId(this.client, note.documentId),
+        name: note.name,
+      })),
+      teams: picker.teams.map((team) => ({
+        team: Team.byId(this.client, team.id),
+        name: team.name,
+      })),
+    };
+  }
+
   /** Calendar availability settings, each referring to a typed calendar. */
   async availabilityCalendars() {
     return unwrap(
@@ -192,6 +214,7 @@ function toCreateBody(options: CreateEventOptions): CreateCalendarEventRequest {
     conference: options.conference,
     macroCall: options.macroCall,
     outOfOffice: options.outOfOffice,
+    guestPolicy: options.guestPolicy,
     calendarId: options.calendar?.id,
     emailLinkId: options.emailLink?.id,
   };

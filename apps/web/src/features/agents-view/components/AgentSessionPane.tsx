@@ -39,6 +39,7 @@ import { Permissions } from '@core/component/SharePermissions';
 import { ShareTrigger } from '@core/component/TopBar/ShareButton';
 import { useShareModal } from '@core/component/TopBar/shareModal';
 import { useUserId } from '@core/context/user';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { openExternalUrl } from '@core/util/url';
 import type { AgentSessionEntity } from '@entity';
 import ShareIcon from '@icon/share.svg';
@@ -183,8 +184,6 @@ function SessionContent(props: {
                           {
                             label: () => {
                               const provider = session()?.external?.provider;
-                              if (provider === 'claude-cloud')
-                                return 'Open in Claude';
                               return provider
                                 ? `Open in ${provider.charAt(0).toUpperCase()}${provider.slice(1)}`
                                 : 'Open externally';
@@ -276,7 +275,11 @@ function SessionContent(props: {
                     <Transcript searchTarget={searchTarget()} />
                   </AgentConnections>
                 </div>
-                <div class="dock">
+                {/* The pane's last row on desktop, where the corner prompt sits. */}
+                <div
+                  class="dock"
+                  data-holds-prompts={isTouchDevice() ? undefined : ''}
+                >
                   <div class="composer-anchor flex flex-col gap-2">
                     <Show
                       when={!session()?.isArchived}

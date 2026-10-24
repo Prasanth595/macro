@@ -34,6 +34,33 @@ mutations, but reading a field on it throws.
 
 ## Methods
 
+### addToCalendar()
+
+> **addToCalendar**(`options?`): `Promise`\<`CalendarEvent`\>
+
+Add a snapshot of an event shared with one of the requester's
+channels to one of their Google calendars, and return a handle to the
+synced snapshot. The snapshot keeps the meeting's iCalendar UID and
+organizer, lists only the requester as a guest, and carries no join link;
+nobody is notified, and answers or guests on it never reach the meeting.
+Refused with `already_on_calendar` when the meeting is already on one of
+their calendars, with `join_request_open` while their request to join it
+is pending or accepted (the meeting then arrives as an invitation), and
+with `copy_refused` when Google will not import it.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | \{ `calendar?`: [`Calendar`](../../calendar/classes/Calendar.md); \} |
+| `options.calendar?` | [`Calendar`](../../calendar/classes/Calendar.md) |
+
+#### Returns
+
+`Promise`\<`CalendarEvent`\>
+
+***
+
 ### delete()
 
 > **delete**(`options?`): `Promise`\<`void`\>
@@ -85,6 +112,46 @@ the new guests.
 #### Returns
 
 `Promise`\<`CalendarEvent`\>
+
+***
+
+### linkNote()
+
+> **linkNote**(`document`, `occurrence`, `options?`): `Promise`\<[`CalendarNote`](../../note/classes/CalendarNote.md)\>
+
+Link a markdown document you own. Meeting-detail viewers gain read access;
+an optional team gains read access too. Editing and other sharing are preserved.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `document` | [`Document`](../../../documents/document/classes/Document.md) |
+| `occurrence` | [`CalendarOccurrence`](../../../../../generated/storage/types.gen/type-aliases/CalendarOccurrence.md) |
+| `options?` | \{ `team?`: [`Team`](../../../teams/team/classes/Team.md); \} |
+| `options.team?` | [`Team`](../../../teams/team/classes/Team.md) |
+
+#### Returns
+
+`Promise`\<[`CalendarNote`](../../note/classes/CalendarNote.md)\>
+
+***
+
+### notes()
+
+> **notes**(`occurrence`): `Promise`\<[`CalendarNote`](../../note/classes/CalendarNote.md)[]\>
+
+Notes linked to a specific occurrence returned by `calendar.occurrences()`.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `occurrence` | [`CalendarOccurrence`](../../../../../generated/storage/types.gen/type-aliases/CalendarOccurrence.md) |
+
+#### Returns
+
+`Promise`\<[`CalendarNote`](../../note/classes/CalendarNote.md)[]\>
 
 ***
 

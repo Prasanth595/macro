@@ -100,13 +100,15 @@ impl<S: AgentSessionRepo, H: AgentSessionNotificationRecipient> ReviewActions fo
     }
     async fn approvable(
         &self,
-        owner: &MacroUserIdStr<'static>,
+        account_holder: &MacroUserIdStr<'static>,
         record: &ReviewRecord,
     ) -> Result<bool, CodeModeError> {
         if record.kind != ReviewKind::Import {
             return Ok(true);
         }
-        let report = self.import_report(owner, import_source(record)?).await?;
+        let report = self
+            .import_report(account_holder, import_source(record)?)
+            .await?;
         Ok(report.review_id == Some(record.id.0) && report.status == Some(RunStatus::Ready))
     }
     async fn execute(

@@ -38,6 +38,9 @@ thin binary over `../src-tauri` (`app_lib::run_with`) that selects
 - The `cef` feature of `../src-tauri` adds no dependencies; it switches the
   served origin to `http://tauri.localhost` and the `AppRuntime` alias to
   `tauri::DynRuntime`. It only compiles in this workspace.
+- The CEF Tauri fork's `on_web_content_process_terminate` callback takes a
+  webview and termination details; the regular fork takes only a webview.
+  Check both workspaces when changing shared callback registration.
 - Needs Rust 1.95 (the repo pins 1.94), `cmake`, and `ninja`; the first build
   downloads about 1 GB of CEF into `~/Library/Caches/tauri-cef`.
 - Nix pins Rust 1.95 and the `macro-cef` Tauri CLI separately for macOS. Keep
@@ -45,7 +48,9 @@ thin binary over `../src-tauri` (`app_lib::run_with`) that selects
   framework and helper apps from macOS bundles.
 - Keep `entitlements.plist` on the CEF config and the Nix DMG signing step. The
   release signs the unsigned Nix app after bundling, and Chromium needs the JIT
-  entitlements under the hardened runtime.
+  entitlements under the hardened runtime. Calls and dictation need its camera
+  and audio-input entitlements, plus the usage descriptions in
+  `../src-tauri/icons/macos/Info.plist`; without either, macOS refuses capture.
 - Keep `tauri.conf.json` aligned with `../src-tauri/tauri.conf.json` and
   `tauri.macos.conf.json`: the CLI bundles from this file, while the app's
   runtime config still comes from `../src-tauri`.

@@ -45,6 +45,7 @@ import {
   manageBotChannelAccessHandler,
 } from './Bots';
 import {
+  addSharedCalendarEventHandler,
   createCalendarEventHandler,
   createConfirmedCalendarEventHandler,
   deleteCalendarEventHandler,
@@ -56,6 +57,12 @@ import {
   deleteCallRecordHandler,
   updateCallRecordHandler,
 } from './CallRecordMutations';
+import {
+  applyCanvasEditsHandler,
+  editCanvasHandler,
+  readCanvasHandler,
+  renderCanvasHandler,
+} from './Canvas';
 import {
   deleteChannelMessageHandler,
   editChannelMessageHandler,
@@ -243,6 +250,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   CreateConfirmedCalendarEvent: createConfirmedCalendarEventHandler,
   UpdateCalendarEvent: updateCalendarEventHandler,
   DeleteCalendarEvent: deleteCalendarEventHandler,
+  AddSharedCalendarEvent: addSharedCalendarEventHandler,
   ListCalendarEvents: listCalendarEventsHandler,
   ListCalendars: listCalendarsHandler,
   GetTeamAvailability: getTeamAvailabilityHandler,
@@ -297,6 +305,10 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   CreateTag: createTagHandler,
   DeleteTag: deleteTagHandler,
   EditDocument: editDocumentHandler,
+  ReadCanvas: readCanvasHandler,
+  RenderCanvas: renderCanvasHandler,
+  EditCanvas: editCanvasHandler,
+  ApplyCanvasEdits: applyCanvasEditsHandler,
   EditTag: editTagHandler,
   GetThread: getThreadHandler,
   NameSearch: nameSearchHandler,

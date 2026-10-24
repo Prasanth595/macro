@@ -10,11 +10,11 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use super::{
-    AttendeeInput, CalendarToolContext, EventRemindersInput, EventTimeInput, OutOfOfficeInput,
-    ToolCalendarEvent, mutation_tool_error,
+    AttendeeInput, CalendarLabels, CalendarToolContext, EventRemindersInput, EventTimeInput,
+    OutOfOfficeInput, ToolCalendarEvent, mutation_tool_error,
 };
 use crate::domain::{
-    models::{AttendeeResponseStatus, CalendarEventPatch, ConferenceChange},
+    models::{AttendeeResponseStatus, CalendarEventPatch, ConferenceChange, GuestPolicy},
     ports::{
         CalendarMutationService, CalendarOccurrenceService, CalendarRsvpScope, CalendarUpdateScope,
         MeetingLinkProvider,
@@ -103,13 +103,27 @@ true (the user organizes the event, or the organizer lets guests modify it). Whe
 false, the list may only grow: pass the current attendees plus the additions; the additions \
 are invited without touching anyone else, and dropping any guest fails. Adding guests then \
 needs `viewerCan.inviteGuests`; otherwise the organizer doesn't let guests invite others \
-or hides the guest list. \
+or hides the guest list, or the event is an Outlook meeting the user doesn't organize. \
 An empty string for `description` or `location` clears it. Fails on events from calendars \
 the user cannot edit.\n\
 \n\
+A guest without modify rights (`viewerCan.editDetails` false while `viewerCan.rsvp` is \
+true) may only change their own `reminders`, add guests where `viewerCan.inviteGuests` \
+allows it, and answer with `rsvp`; changing the title, time, description, location, \
+recurrence or conference fails because the organizer doesn't let guests change the \
+event.\n\
+\n\
 `rsvp` sets the user's own response to an invitation and is independent of the field \
 edits — it can be the only thing this call changes. It applies at the same `scope` as \
-the rest of the call, and only works on events the user is actually an attendee of."
+the rest of the call and answers as the connected inbox the event's copy belongs to, so \
+it only works when that inbox is an attendee.\n\
+\n\
+When the meeting is on several of the user's inboxes, ListCalendarEvents lists one entry per \
+inbox; pick the copy by its rule. Reminders may go to one copy and an `rsvp` to the copy \
+where the user is a guest, naming the inbox in your reply. Any other change goes to the only \
+copy whose `viewerCan` allows it, with the reason, or to the copy the user chooses when more \
+than one could make it. One call changes one copy, so an edit on one copy and an `rsvp` on \
+another take two calls."
 )]
 pub struct UpdateCalendarEvent {
     /// Event to update.
@@ -229,6 +243,17 @@ pub struct UpdateCalendarEvent {
     )]
     #[serde(default)]
     pub out_of_office: Option<OutOfOfficeInput>,
+
+    /// Replacement guest policy.
+    #[schemars(
+        description = "Replace what guests may do: `canModify` (change the event; implies \
+                       `canInviteOthers`), `canInviteOthers` and `canSeeOtherGuests`, all three \
+                       required. Only the organizer of a Google event may set it \
+                       (`viewerCan.setGuestPolicy`), and only with scope \"all\": it belongs to \
+                       the whole series. Outlook events have none. Omit to leave it untouched."
+    )]
+    #[serde(default)]
+    pub guest_policy: Option<GuestPolicy>,
 }
 
 impl ToolAnnotated for UpdateCalendarEvent {
@@ -304,6 +329,7 @@ where
             reminders: self.reminders.clone().map(Into::into),
             conference: self.conference.map(Into::into),
             out_of_office: self.out_of_office.clone().map(Into::into),
+            guest_policy: self.guest_policy,
         };
 
         // An RSVP is its own provider call, so a call carrying only one runs
@@ -365,6 +391,7 @@ where
             })?,
         };
 
-        Ok(ToolCalendarEvent::from_event(&event))
+        let labels = CalendarLabels::load(&*service_context.mutations, &requester_id).await;
+        Ok(ToolCalendarEvent::from_event(&event, &labels))
     }
 }
