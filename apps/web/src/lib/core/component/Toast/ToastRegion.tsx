@@ -30,7 +30,7 @@ export function ToastRegion() {
           limit={1}
           pauseOnInteraction={false}
           swipeDirection="right"
-          class="in-[body:has([role=dialog],[role=alertdialog],[data-holds-prompts]:not([inert]_*))]:hidden"
+          class="in-[body:has([role=dialog],[role=alertdialog],[data-holds-prompts]:not([inert],[inert]_*))]:hidden"
         >
           <Toast.List class="flex flex-col gap-2" />
         </Toast.Region>
@@ -76,7 +76,7 @@ export function ToastRegion() {
           limit={1}
           pauseOnInteraction={false}
           swipeDirection="left"
-          class="in-[body:has([role=dialog],[role=alertdialog],[data-holds-prompts]:not([inert]_*))]:hidden"
+          class="in-[body:has([role=dialog],[role=alertdialog],[data-holds-prompts]:not([inert],[inert]_*))]:hidden"
         >
           <Toast.List class="flex flex-col gap-2" />
         </Toast.Region>

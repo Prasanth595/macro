@@ -48,6 +48,12 @@ test('waits for a presented surface that holds prompts', async ({ page }) => {
   await press(page, 'Toggle composer background');
   await expect(prompt(page)).toBeHidden();
 
+  await press(page, 'Toggle composer inert');
+  await expect(prompt(page)).toBeVisible();
+
+  await press(page, 'Toggle composer inert');
+  await expect(prompt(page)).toBeHidden();
+
   await press(page, 'Toggle composer');
   await expect(prompt(page)).toBeVisible();
 });

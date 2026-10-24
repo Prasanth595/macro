@@ -15,6 +15,7 @@ function Fixture() {
   const [fullscreenOpen, setFullscreenOpen] = createSignal(false);
   const [composerOpen, setComposerOpen] = createSignal(false);
   const [composerInBackground, setComposerInBackground] = createSignal(false);
+  const [composerInert, setComposerInert] = createSignal(false);
 
   onMount(() => {
     toast.custom(
@@ -64,6 +65,9 @@ function Fixture() {
       >
         Toggle composer background
       </Button>
+      <Button variant="outline" onClick={() => setComposerInert((v) => !v)}>
+        Toggle composer inert
+      </Button>
       <Dialog open={dialogOpen()} onOpenChange={setDialogOpen}>
         <Dialog.Title>Delete event</Dialog.Title>
         <Button variant="outline" onClick={() => setDialogOpen(false)}>
@@ -82,7 +86,11 @@ function Fixture() {
       </Dialog>
       <Show when={composerOpen()}>
         <div inert={composerInBackground()}>
-          <section data-holds-prompts aria-label="Composer">
+          <section
+            data-holds-prompts
+            inert={composerInert()}
+            aria-label="Composer"
+          >
             Draft
           </section>
         </div>
