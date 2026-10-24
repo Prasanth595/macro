@@ -643,12 +643,6 @@ async fn a_system_turn_cannot_approve_even_with_owner_credentials() {
             .await,
         Err(CodeModeError::Invalid(_))
     ));
-    assert!(matches!(
-        f.service
-            .approve_for_session(&owned_session(&f), &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Invalid(_))
-    ));
     assert!(f.actions.calls.lock().unwrap().is_empty());
     f.actions.prompter.lock().unwrap().as_mut().unwrap().kind =
         agent_session::domain::model::PrompterKind::User;
@@ -666,12 +660,6 @@ async fn a_system_turn_cannot_approve_even_with_owner_credentials() {
     );
 }
 
-fn owned_session(f: &Fixture) -> agent_session::domain::model::AgentSession {
-    let mut session = agent_session::testing::test_agent_session(f.session);
-    session.owner_id = f.actions.owner.clone().into();
-    session
-}
-
 fn prompted_by(user: &MacroUserIdStr<'static>) -> Option<TurnPrompter> {
     Some(TurnPrompter {
         action_id: agent_runtime_protocol::domain::action::AgentActionId::mint(),
@@ -681,104 +669,12 @@ fn prompted_by(user: &MacroUserIdStr<'static>) -> Option<TurnPrompter> {
 }
 
 #[tokio::test]
-async fn the_agent_approves_only_in_a_turn_its_owner_prompted() {
-    let f = Fixture::new();
-    let row = f.create(vec![json!({"subject":"x"})]).await;
-    let session = owned_session(&f);
-    let teammate = MacroUserIdStr::parse_from_str("macro|teammate@macro.local")
-        .unwrap()
-        .into_owned();
-
-    *f.actions.prompter.lock().unwrap() = prompted_by(&teammate);
-    assert!(matches!(
-        f.service
-            .approve_for_session(&session, &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Invalid(_))
-    ));
-    *f.actions.prompter.lock().unwrap() = None;
-    assert!(matches!(
-        f.service
-            .approve_for_session(&session, &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Invalid(_))
-    ));
-    // The teammate prompting the turn cannot act as the owner either.
-    *f.actions.prompter.lock().unwrap() = prompted_by(&teammate);
-    assert!(matches!(
-        f.service
-            .approve_for_session(&session, &teammate, row.id)
-            .await,
-        Err(CodeModeError::Forbidden)
-    ));
-    let unsaved = f.store.get(f.session, row.id).await.unwrap();
-    assert_eq!(unsaved.revision, row.revision);
-    assert_eq!(unsaved.items[0].status, ReviewItemStatus::Pending);
-    assert!(f.actions.calls.lock().unwrap().is_empty());
-
-    f.actions.archived.store(true, Ordering::SeqCst);
-    *f.actions.prompter.lock().unwrap() = prompted_by(&f.actions.owner);
-    assert!(matches!(
-        f.service
-            .approve_for_session(&session, &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Forbidden)
-    ));
-    assert!(f.actions.calls.lock().unwrap().is_empty());
-    assert!(f.store.2.lock().unwrap().is_empty());
-}
-
-#[tokio::test]
-async fn the_agent_approves_the_draft_the_owner_saved_on_the_card() {
-    let f = Fixture::new();
-    *f.actions.prompter.lock().unwrap() = prompted_by(&f.actions.owner);
-    let row = f.create(vec![json!({"subject":"as drafted"})]).await;
-    let edited = f
-        .service
-        .decide(
-            &f.edit(),
-            &f.actions.owner,
-            row.id,
-            ReviewDecision::Edit {
-                revision: row.revision,
-                item: row.items[0].id,
-                draft: json!({"subject":"as the owner left it"}),
-            },
-        )
-        .await
-        .unwrap();
-
-    let approved = f
-        .service
-        .approve_for_session(&owned_session(&f), &f.actions.owner, row.id)
-        .await
-        .unwrap();
-    f.actions.action_started.notified().await;
-
-    assert_eq!(approved.revision, edited.revision + 1);
-    assert_eq!(approved.items[0].status, ReviewItemStatus::Submitting);
-    let decision = approved.decision.expect("recorded as a chat decision");
-    assert_eq!(decision.via, DecisionVia::Chat);
-    assert_eq!(decision.by, f.actions.owner.as_ref());
-    assert_eq!(
-        *f.actions.calls.lock().unwrap(),
-        vec![json!({"subject":"as the owner left it"})]
-    );
-}
-
-#[tokio::test]
 async fn the_agent_cannot_approve_a_plan_still_being_prepared() {
     let f = Fixture::new();
     *f.actions.prompter.lock().unwrap() = prompted_by(&f.actions.owner);
     let row = f.create(vec![json!({"subject":"x"})]).await;
     f.actions.approvable.store(false, Ordering::SeqCst);
 
-    assert!(matches!(
-        f.service
-            .approve_for_session(&owned_session(&f), &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Invalid(_))
-    ));
     assert!(matches!(
         f.service
             .decide_for_session(
@@ -796,71 +692,6 @@ async fn the_agent_cannot_approve_a_plan_still_being_prepared() {
     let unsaved = f.store.get(f.session, row.id).await.unwrap();
     assert_eq!(unsaved.revision, row.revision);
     assert_eq!(unsaved.items[0].status, ReviewItemStatus::Pending);
-    assert!(f.actions.calls.lock().unwrap().is_empty());
-}
-
-#[tokio::test]
-async fn the_agent_and_the_card_approving_together_start_once() {
-    let f = Fixture::new();
-    *f.actions.prompter.lock().unwrap() = prompted_by(&f.actions.owner);
-    f.actions.block_actions.store(true, Ordering::SeqCst);
-    let row = f.create(vec![json!({"subject":"x"})]).await;
-    let session = owned_session(&f);
-    let access = f.edit();
-
-    let (card, agent) = tokio::join!(
-        f.service.decide(
-            &access,
-            &f.actions.owner,
-            row.id,
-            ReviewDecision::Submit {
-                revision: row.revision,
-                items: vec![],
-            },
-        ),
-        f.service
-            .approve_for_session(&session, &f.actions.owner, row.id)
-    );
-    assert_eq!(usize::from(card.is_ok()) + usize::from(agent.is_ok()), 1);
-    assert!(matches!(
-        card.err().or(agent.err()),
-        Some(CodeModeError::Conflict)
-    ));
-    f.actions.action_started.notified().await;
-    assert!(matches!(
-        f.service
-            .approve_for_session(&session, &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Conflict)
-    ));
-    f.actions.action_gate.notify_one();
-    let done = f.settled(row.id).await;
-    assert_eq!(done.items[0].status, ReviewItemStatus::Completed);
-    assert!(matches!(
-        f.service
-            .approve_for_session(&session, &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::Conflict)
-    ));
-    assert_eq!(f.actions.calls.lock().unwrap().len(), 1);
-}
-
-#[tokio::test]
-async fn the_agent_approves_only_reviews_of_its_own_session() {
-    let f = Fixture::new();
-    *f.actions.prompter.lock().unwrap() = prompted_by(&f.actions.owner);
-    let row = f.create(vec![json!({"subject":"x"})]).await;
-    let mut elsewhere = agent_session::testing::test_agent_session(AgentSessionId::new_from_uuid(
-        macro_uuid::generate_uuid_v7(),
-    ));
-    elsewhere.owner_id = f.actions.owner.clone().into();
-
-    assert!(matches!(
-        f.service
-            .approve_for_session(&elsewhere, &f.actions.owner, row.id)
-            .await,
-        Err(CodeModeError::NotFound)
-    ));
     assert!(f.actions.calls.lock().unwrap().is_empty());
 }
 

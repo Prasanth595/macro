@@ -21,7 +21,7 @@ the user's Pipedream grant), asks the decision model what to do with each page
 and data source (copy, tasks, skip, or by hand), and stages the plan as ledger
 rows. The agent presents it with `PresentReview` (kind `import`) and asks
 "Should I kick it off?"; the owner approves on the card or by saying yes, which
-has the agent call `ApproveReview`. `plan` returns after a short wait
+has the agent submit it with `DecideReview`. `plan` returns after a short wait
 (`PLAN_WAIT`), usually while the run is still `running`, and the agent
 presents the review at once: the harness ties the staged rows and the
 `running` run (`import_run.review_id`) to the review, so rows staged later

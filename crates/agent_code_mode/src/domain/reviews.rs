@@ -554,42 +554,6 @@ impl ReviewService {
             .await
     }
 
-    /// Approve every pending item of an open review in `session`, because
-    /// its owner told the agent to in chat. It runs the card's Submit with
-    /// the draft the card saved, so the owner's changes there stand, and
-    /// only in a turn the owner prompted: anyone else's message, a bot's, or
-    /// a system event never approves. Racing the card, or repeating, claims
-    /// once; the loser gets [`CodeModeError::Conflict`].
-    #[tracing::instrument(skip(self, session), fields(session = %session.id, review = %id.0), err(Debug))]
-    pub async fn approve_for_session(
-        &self,
-        session: &agent_session::domain::model::AgentSession,
-        actor: &MacroUserIdStr<'static>,
-        id: ReviewId,
-    ) -> Result<ReviewRecord, CodeModeError> {
-        self.owner_prompted(session.id, actor).await?;
-        let record = self.store.get(session.id, id).await?;
-        if !record
-            .items
-            .iter()
-            .any(|item| item.status == ReviewItemStatus::Pending)
-        {
-            return Err(CodeModeError::Conflict);
-        }
-        self.ensure_approvable(&record).await?;
-        self.decide_owned(
-            session.id,
-            actor,
-            id,
-            ReviewDecision::Submit {
-                revision: record.revision,
-                items: Vec::new(),
-            },
-            DecisionVia::Chat,
-        )
-        .await
-    }
-
     /// Refuse unless the session is live and `actor` prompted its current
     /// turn as a person; `decide_owned` then requires them to be the review's
     /// account holder. A system event's turn has no acting user.

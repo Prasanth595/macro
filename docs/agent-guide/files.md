@@ -83,7 +83,7 @@ due date and assignee. **Open full review** shows the whole plan in a dialog
 (a full-height sheet on phones). **Import …** approves straight from the
 card, with no confirmation step. The agent ends that
 message with "Should I kick it off?"; when the owner answers yes in chat, it
-approves the review itself (`ApproveReview`, the card's own approve with the
+approves the review itself (a `DecideReview` submit, the card's own approve with the
 card's choices), and the card's run state adds **Started by the agent at your
 request** ("at the owner's request" for other viewers). A message from anyone
 but the owner never approves, and a plan still being made cannot be approved
