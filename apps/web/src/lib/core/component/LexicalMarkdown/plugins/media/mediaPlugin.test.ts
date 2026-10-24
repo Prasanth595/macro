@@ -4,6 +4,7 @@ import {
   $generateNodesFromSerializedNodes,
   $insertGeneratedNodes,
 } from '@lexical/clipboard';
+import { createEmptyHistoryState, registerHistory } from '@lexical/history';
 import { $dfs } from '@lexical/utils';
 import { $isImageNode, SupportedNodeTypes } from '@macro-inc/lexical-core';
 import {
@@ -14,9 +15,11 @@ import {
   $getSelection,
   COMMAND_PRIORITY_LOW,
   createEditor,
+  HISTORY_PUSH_TAG,
   type LexicalCommand,
   type LexicalEditor,
   type NodeKey,
+  UNDO_COMMAND,
 } from 'lexical';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
@@ -207,6 +210,28 @@ it('gives a copy pasted into another editor mid-upload the same static file', as
     { srcType: 'sfs', url: staticFileIdEndpoint('sfs-1') },
   ]);
   expect(images(source)).toMatchObject([{ srcType: 'sfs' }]);
+});
+
+it('points an image deleted mid-upload and restored by undo at its static file', async () => {
+  const editor = mountDocumentEditor();
+  unmounts.push(registerHistory(editor, createEmptyHistoryState(), 0));
+  await addMediaFromFile(editor, screenshot(), 'image');
+  await vi.advanceTimersByTimeAsync(0);
+  editor.update(
+    () => {
+      for (const { node } of $dfs()) if ($isImageNode(node)) node.remove();
+    },
+    { discrete: true, tag: HISTORY_PUSH_TAG }
+  );
+
+  uploads[0]!.resolve('sfs-1');
+  await vi.advanceTimersByTimeAsync(0);
+  editor.dispatchCommand(UNDO_COMMAND, undefined);
+  await vi.advanceTimersByTimeAsync(0);
+
+  expect(images(editor)).toMatchObject([
+    { srcType: 'sfs', url: staticFileIdEndpoint('sfs-1') },
+  ]);
 });
 
 it('uploads a file pasted twice once and points both images at it', async () => {
