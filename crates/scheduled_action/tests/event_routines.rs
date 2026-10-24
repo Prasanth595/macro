@@ -426,7 +426,8 @@ async fn send(
     let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     (
         status,
-        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+        serde_json::from_slice(&bytes)
+            .unwrap_or_else(|_| Value::String(String::from_utf8_lossy(&bytes).into_owned())),
     )
 }
 fn legacy() -> Value {
@@ -558,7 +559,15 @@ async fn only_the_owner_reads_a_routine_and_others_cannot_tell_it_exists(pool: P
 
     let refused = send(&h.app, get_as_user("stranger", &url), Value::Null).await;
     assert_eq!(refused.0, StatusCode::UNAUTHORIZED);
-    assert!(refused.1.get("name").is_none());
+    let refused_body = refused.1.to_string();
+    let fixture = legacy();
+    for field in [
+        &fixture["name"],
+        &fixture["task"]["prompt"],
+        &fixture["task"]["user_prompt"],
+    ] {
+        assert!(!refused_body.contains(field.as_str().unwrap()));
+    }
     for request in [
         get_as_user("stranger", &missing),
         get_as_user("stranger", &format!("{url}/history")),
