@@ -287,6 +287,12 @@ inbox ID is not a precomputed header: primary-inbox omission belongs to the adap
 Existing message/thread model fields retain their established snake_case spelling;
 this cleanup does not rename generated schemas or persisted URLs. In particular,
 the host still reads/writes the existing `draftID` compose route parameter.
+Those parameters live only in memory, so the compose route also records the
+composer's server-confirmed draft in its `email-compose.draft` pane search,
+replacing the current history entry, and reopens that draft ahead of
+`draftID` (`compose-route-draft.ts`). A From switch that moves a draft keeps
+the compose route in place, while a thread route follows the moved draft to
+its new thread (`compose-host-adapter.ts`).
 
 `EmailThreadStateProvider` and `useEmailThreadState` name mounted thread state.
 `ThreadReplyInput` names the thread-owned reply entry point, while

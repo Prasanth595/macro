@@ -84,6 +84,12 @@ provider copy before choosing an explicit resend; a resend in flight shows as
 the send button's pending state. Switching the sender
 inbox copies the draft and attachments into the destination; wait for completion
 before sending. If the copy is interrupted, use retry or keep the original.
+A draft opened from Drafts then shows its thread in the destination inbox,
+never the not-found page; a draft in compose stays open there. Keep editing
+after the switch and check that no "This draft changed while saving" notice
+appears. Once a new compose's first save is confirmed, the URL carries its
+draft (`s0.email-compose.draft` for the first pane): reloading reopens it with
+its From, including after a From switch.
 
 Opening an attachment opens it in a split from its Drive copy, except a
 calendar file: it opens its event (see the calendar invitations section of the
