@@ -618,11 +618,13 @@ type DeleteCallbacks = MutationCallbacks<
   CalendarMutationContext
 >;
 
-/** Deletes an event (a recurring event's entire series) at the provider. */
-export function useDeleteCalendarEventMutation(callbacks?: DeleteCallbacks) {
-  return useMutation(() => ({
-    mutationFn: async (args: DeleteCalendarEventArgs) => {
-      const host = answeringGraphqlCalendarHost();
+async function deleteCalendarEvent(args: DeleteCalendarEventArgs) {
+  return Telemetry.span('calendar.delete_event', async (span) => {
+    const host = answeringGraphqlCalendarHost();
+    span.setAttr('calendar.event_id', args.eventId);
+    span.setAttr('calendar.delete.scope', args.scope ?? 'all');
+    span.setAttr('calendar.transport', host ? 'graphql' : 'rest');
+    try {
       if (host) {
         await executeGraphqlDelete(host, args);
         return;
@@ -634,7 +636,18 @@ export function useDeleteCalendarEventMutation(callbacks?: DeleteCallbacks) {
           recurrenceId: args.recurrenceId,
         })
       );
-    },
+    } catch (error) {
+      // Provider messages can quote addresses; record only the category.
+      span.error('Calendar event delete failed');
+      throw error;
+    }
+  });
+}
+
+/** Deletes an event (a recurring event's entire series) at the provider. */
+export function useDeleteCalendarEventMutation(callbacks?: DeleteCallbacks) {
+  return useMutation(() => ({
+    mutationFn: deleteCalendarEvent,
     ...withCallbacks<
       unknown,
       Error,
@@ -741,16 +754,15 @@ function applyEventPatch(
   return { ...item, event, occurrence };
 }
 
-/**
- * Patches event fields. A recurring event patches the whole series by
- * default; a `this_event` scope writes the patch as a single-occurrence
- * exception addressed by `recurrenceId`, so the optimistic update lands on
- * that occurrence alone.
- */
-export function useUpdateCalendarEventMutation(callbacks?: UpdateCallbacks) {
-  return useMutation(() => ({
-    mutationFn: async (args: UpdateCalendarEventArgs) => {
-      const host = answeringGraphqlCalendarHost();
+async function updateCalendarEvent(
+  args: UpdateCalendarEventArgs
+): Promise<CalendarEventEntity | undefined> {
+  return Telemetry.span('calendar.update_event', async (span) => {
+    const host = answeringGraphqlCalendarHost();
+    span.setAttr('calendar.event_id', args.eventId);
+    span.setAttr('calendar.update.scope', args.scope ?? 'all');
+    span.setAttr('calendar.transport', host ? 'graphql' : 'rest');
+    try {
       if (host) return committedEvent(await executeGraphqlUpdate(host, args));
       return await throwOnErr(() =>
         emailClient.updateCalendarEvent(args.eventId, {
@@ -760,7 +772,23 @@ export function useUpdateCalendarEventMutation(callbacks?: UpdateCallbacks) {
           recurrenceId: args.recurrenceId,
         })
       );
-    },
+    } catch (error) {
+      // Provider messages can quote addresses; record only the category.
+      span.error('Calendar event update failed');
+      throw error;
+    }
+  });
+}
+
+/**
+ * Patches event fields. A recurring event patches the whole series by
+ * default; a `this_event` scope writes the patch as a single-occurrence
+ * exception addressed by `recurrenceId`, so the optimistic update lands on
+ * that occurrence alone.
+ */
+export function useUpdateCalendarEventMutation(callbacks?: UpdateCallbacks) {
+  return useMutation(() => ({
+    mutationFn: updateCalendarEvent,
     ...withCallbacks<
       CalendarEventEntity | undefined,
       Error,
