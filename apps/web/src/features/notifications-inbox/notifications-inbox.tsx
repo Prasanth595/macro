@@ -18,6 +18,7 @@ import {
   setDoneOverride,
 } from '@notifications/notification-source';
 import type { UnifiedNotification } from '@notifications/types';
+import { useRespondToCalendarJoinRequestMutation } from '@queries/calendar/join-requests';
 import { revalidateNotificationReaders } from '@queries/notification/revalidation';
 import {
   getGraphqlCacheHost,
@@ -30,6 +31,7 @@ import {
   NotificationsInboxProvider,
 } from './context/notifications-inbox-context';
 import { openNotificationInSplit } from './open-notification-in-split';
+import { resolveAccessRequest } from './queries/row-actions';
 import { createWorkFeedInboxSource } from './queries/work-feed-inbox-source';
 import { NotificationsView } from './views/notifications-view';
 
@@ -59,9 +61,11 @@ function actorName(notification: UnifiedNotification): string | undefined {
 
 function createAppNotificationsInboxContext(
   notificationSource: NotificationSource,
-  userId: string
+  userId: string,
+  answerJoinRequest: NotificationsInboxContext['actions']['answerJoinRequest']
 ): NotificationsInboxContext {
   return {
+    actions: { resolveAccessRequest, answerJoinRequest },
     createFeed: (scope) =>
       createWorkFeedInboxSource({
         client: getGraphqlSoupClient,
@@ -90,11 +94,23 @@ export function NotificationsInbox() {
   const notificationSource = useGlobalNotificationSource();
   const userId = useUserId();
   const { openSettings } = useSettingsState();
+  const respondToJoinRequest = useRespondToCalendarJoinRequestMutation();
+  const answerJoinRequest: NotificationsInboxContext['actions']['answerJoinRequest'] =
+    async (action, accept) => {
+      await respondToJoinRequest.mutateAsync({
+        request: { id: action.requestId, eventId: action.eventId },
+        decision: accept ? 'accept' : 'decline',
+      });
+    };
   return (
     <Show when={userId()} keyed>
       {(id) => (
         <NotificationsInboxProvider
-          value={createAppNotificationsInboxContext(notificationSource, id)}
+          value={createAppNotificationsInboxContext(
+            notificationSource,
+            id,
+            answerJoinRequest
+          )}
         >
           <NotificationsView
             onOpenSettings={() => openSettings('Notifications')}

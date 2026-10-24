@@ -29,6 +29,26 @@ open preview moves to the next row. A toast offers **Undo**, as does
 reads **You’re all caught up**; with nothing chosen the pane reads **No
 notification selected**.
 
+Rows that ask for a decision carry buttons under the subject. An access
+request offers **Approve** (grants the level asked for) and **Deny**; a request
+to join an event you shared offers **Accept** and **Decline**. Answering
+disables both buttons until it finishes, shows a toast (**Access granted**,
+**Access request denied**, **Added to the event**, **Join request declined**),
+and removes the row; a failed answer leaves the row and says so. Choosing a
+button never opens the row.
+
+**Filter notifications** (funnel, or `f`) offers **Status** (Unread, Read, All;
+single choice) and **Type** checkboxes that start checked: Mentions, Replies,
+Messages, Comments, Email, Tasks, Pull requests, Calendar, Access requests,
+Agents, and AI suggestions. Unchecking a type hides its rows (Mentions covers
+both channel and comment mentions, Replies both channel and comment threads).
+The trigger counts hidden types plus a narrowed status, and **Reset filters**
+restores everything. Choices persist per user across reloads. Hiding every type
+shows **Every kind of notification is hidden** with Reset filters; filters that
+hide every row show **No notifications match these filters**. The gear beside
+the filter opens **Settings → Notifications**, which decides what is delivered
+at all (including push and email).
+
 Verify with two accounts: a reply in a thread you're in, a top-level mention,
 and a document comment each add their own row; marking one done leaves the
 others, and Undo restores it in place.

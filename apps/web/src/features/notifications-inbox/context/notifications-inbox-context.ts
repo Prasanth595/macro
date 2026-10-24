@@ -44,7 +44,42 @@ export type InboxFeedSource = {
   markDone: (rows: readonly NotificationInboxRow[]) => Promise<InboxDoneResult>;
 };
 
+/** A pending request to access an entity the viewer can share. */
+export type AccessRequestAction = {
+  kind: 'access_request';
+  entityType: string;
+  entityId: string;
+  requestId: string;
+  revision: number;
+  /** What approving grants: the level asked for. */
+  level: 'view' | 'comment' | 'edit';
+};
+
+/** A request to join a calendar event the viewer shared. */
+export type JoinRequestAction = {
+  kind: 'join_request';
+  requestId: string;
+  eventId: string;
+};
+
+/** What a row's buttons can do. */
+export type InboxRowAction = AccessRequestAction | JoinRequestAction;
+
+/** How row actions reach the server; each rejects when it fails. */
+export type InboxRowActions = {
+  resolveAccessRequest: (
+    action: AccessRequestAction,
+    approve: boolean
+  ) => Promise<void>;
+  answerJoinRequest: (
+    action: JoinRequestAction,
+    accept: boolean
+  ) => Promise<void>;
+};
+
 export type NotificationsInboxContext = {
+  /** Act on what a row asks for: approve access, answer a join request. */
+  actions: InboxRowActions;
   /** Create a feed for `scope` under the caller's owner. */
   createFeed: (scope: Accessor<InboxScope>) => InboxFeedSource;
   /**

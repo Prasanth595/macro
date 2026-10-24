@@ -44,9 +44,11 @@ import {
   Suspense,
   Switch,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import { InboxFilterMenu } from '../components/inbox-filter-menu';
 import { NotificationRow } from '../components/notification-row';
+import { RowActionButtons } from '../components/row-action-buttons';
 import {
   type NotificationInboxRow,
   useNotificationsInboxContext,
@@ -56,6 +58,12 @@ import { describeInboxRow } from '../primitives/describe-row';
 import { createInboxFilters } from '../primitives/inbox-filters';
 import { createInboxList } from '../primitives/inbox-list';
 import { createInboxSelection } from '../primitives/inbox-selection';
+import {
+  actionChoices,
+  createRowActions,
+  type InboxRowChoice,
+  rowAction,
+} from '../primitives/row-actions';
 import { isRowUnseen, unseenNotifications } from '../primitives/row-seen';
 
 type ActivationMetadata = { event?: MouseEvent; newSplit?: boolean };
@@ -69,6 +77,14 @@ export type NotificationsViewProps = {
 
 /** Distance from the end of the list, in pixels, that loads the next page. */
 const LOAD_MORE_DISTANCE_PX = 300;
+
+const actionOutcome = (choice: InboxRowChoice) =>
+  match(choice)
+    .with('approve', () => 'Access granted')
+    .with('deny', () => 'Access request denied')
+    .with('accept', () => 'Added to the event')
+    .with('decline', () => 'Join request declined')
+    .exhaustive();
 
 /**
  * What the preview pane can show inline; calendar events and projects open
@@ -227,6 +243,25 @@ export function NotificationsView(props: NotificationsViewProps) {
         return;
       }
       preview(item);
+    },
+  });
+
+  const rowActions = createRowActions({
+    actions: context.actions,
+    complete: (row) => {
+      const next = selection.afterLeaving([row.id]);
+      if (next === 'none') selection.clear();
+      else if (next !== 'stay') preview(next);
+      return feed.markDone([row]);
+    },
+    notices: {
+      succeeded: (choice) => toast.success(actionOutcome(choice)),
+      failed: (choice) =>
+        toast.failure(
+          choice === 'approve' || choice === 'deny'
+            ? 'Couldn’t answer the access request'
+            : 'Couldn’t answer the join request'
+        ),
     },
   });
 
@@ -402,6 +437,22 @@ export function NotificationsView(props: NotificationsViewProps) {
                     })
                   }
                   onDone={() => markDone([row])}
+                  actions={
+                    <Show when={rowAction(row)}>
+                      {(action) => (
+                        <RowActionButtons
+                          choices={actionChoices(action())}
+                          pending={rowActions.pending(row.id)}
+                          onChoose={(choice) =>
+                            fireAndForget(
+                              rowActions.run(row, choice),
+                              'notifications-inbox'
+                            )
+                          }
+                        />
+                      )}
+                    </Show>
+                  }
                 />
               )}
             </Virtualizer>
