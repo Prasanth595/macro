@@ -1,5 +1,5 @@
--- Outlook mailbox for follow-up reminders. Outlook links have no system label
--- rows; folder membership lives in mailbox_state.
+-- Outlook mailbox. Outlook links have no system label rows; folder membership
+-- lives in mailbox_state.
 -- Thread 1: one received message in the Inbox folder.
 -- Thread 2: one sent message in Sent Items, never received.
 

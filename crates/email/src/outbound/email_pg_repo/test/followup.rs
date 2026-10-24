@@ -39,7 +39,7 @@ async fn unavailable(
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../../fixtures", scripts("email_followup_outlook"))
+    fixtures(path = "../../../../fixtures", scripts("email_outlook_threads"))
 )]
 async fn outlook_followup_moves_the_thread_through_mailbox_commands(
     pool: Pool<Postgres>,
@@ -100,7 +100,7 @@ async fn outlook_followup_moves_the_thread_through_mailbox_commands(
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../../fixtures", scripts("email_followup_outlook"))
+    fixtures(path = "../../../../fixtures", scripts("email_outlook_threads"))
 )]
 async fn outlook_followup_returns_a_sent_only_thread_to_the_inbox(
     pool: Pool<Postgres>,
@@ -155,7 +155,7 @@ async fn outlook_followup_returns_a_sent_only_thread_to_the_inbox(
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../../fixtures", scripts("email_followup_outlook"))
+    fixtures(path = "../../../../fixtures", scripts("email_outlook_threads"))
 )]
 async fn outlook_followup_is_unavailable_in_trash_or_junk(
     pool: Pool<Postgres>,
@@ -192,7 +192,7 @@ async fn outlook_followup_is_unavailable_in_trash_or_junk(
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../../fixtures", scripts("email_followup_outlook"))
+    fixtures(path = "../../../../fixtures", scripts("email_outlook_threads"))
 )]
 async fn outlook_followup_ignores_a_category_named_trash(
     pool: Pool<Postgres>,
