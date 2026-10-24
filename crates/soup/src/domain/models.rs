@@ -953,6 +953,9 @@ pub struct WorkFeedCandidateRequest<'a> {
     pub foreign_entity_sources: &'a [SourceId],
     /// Entity types whose candidates the domain can hydrate for this request.
     pub hydratable: NotifiedHydratableTypes,
+    /// Whether CRM company and contact candidates can be hydrated: the viewer
+    /// has a CRM team receipt.
+    pub crm: bool,
     /// Restrict the feed to these candidate keys, for recomputing known items.
     pub only: Option<&'a [Entity<'static>]>,
 }

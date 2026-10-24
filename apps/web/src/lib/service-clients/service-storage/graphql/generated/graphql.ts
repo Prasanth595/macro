@@ -2277,10 +2277,16 @@ export type WorkFeedItemType =
   | 'CHANNEL_THREAD'
   /** AI chats. */
   | 'CHAT'
+  /** CRM companies and their discussions. */
+  | 'CRM_COMPANY'
+  /** CRM contacts and their discussions. */
+  | 'CRM_CONTACT'
   /** Documents and tasks. */
   | 'DOCUMENT'
   /** Email threads. */
   | 'EMAIL'
+  /** Projects (initiatives) and their discussions. */
+  | 'INITIATIVE'
   /** Projects. */
   | 'PROJECT'
   /** GitHub pull requests. */
@@ -2312,7 +2318,11 @@ export type WorkFeedScopeInput = {
   includeSnippets?: boolean | null | undefined;
   /** Which reasons admit items. Defaults to `WORK`. */
   mode?: WorkFeedMode | null | undefined;
-  /** Item kinds to include; omitted or empty means every kind. */
+  /**
+   * Item kinds to include. Omitted or empty means the mode's defaults:
+   * work feeds show every kind except `INITIATIVE`, `CRM_COMPANY` and
+   * `CRM_CONTACT`; attention feeds show every kind.
+   */
   types?: Array<WorkFeedItemType> | null | undefined;
 };
 

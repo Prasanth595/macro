@@ -2,6 +2,7 @@ use super::*;
 use crate::domain::models::{NotifiedHydratableTypes, WorkFeedPagePosition};
 use chrono::Timelike;
 use foreign_entity::domain::models::SourceId;
+use item_filters::ast::EntityFilterAst;
 use macro_db_migrator::MACRO_DB_MIGRATIONS;
 use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::Entity;
@@ -22,6 +23,14 @@ const THREAD_M: &str = "99999999-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const THREAD_Z: &str = "44444444-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const THREAD_S: &str = "44444444-5555-5555-5555-555555555555";
 const LINK_1: &str = "55555555-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const PROJECT_1: &str = "66666666-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const COMPANY_1: &str = "88888888-0000-0000-0000-000000000001";
+const CONTACT_1: &str = "88888888-1111-0000-0000-000000000001";
+const DISCUSSION_TYPES: &[EntityType] = &[
+    EntityType::Initiative,
+    EntityType::CrmCompany,
+    EntityType::CrmContact,
+];
 
 const EVERYTHING: NotifiedHydratableTypes = NotifiedHydratableTypes {
     channels: true,
@@ -57,6 +66,7 @@ fn req<'a>(
         link_ids,
         foreign_entity_sources: sources,
         hydratable: EVERYTHING,
+        crm: false,
         only: None,
     }
 }
@@ -275,6 +285,53 @@ async fn types_narrow_both_streams(pool: Pool<Postgres>) -> anyhow::Result<()> {
             (EntityType::EmailThread, THREAD_Z.to_string()),
             (EntityType::Chat, CHAT_A.to_string()),
         ]
+    );
+
+    Ok(())
+}
+
+#[sqlx::test(
+    fixtures(
+        path = "../../../../fixtures",
+        scripts("work_feed", "work_feed_discussions")
+    ),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn discussions_on_visible_projects_and_crm_records_are_candidates(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let link_ids = [Uuid::parse_str(LINK_1)?];
+    let sources = sources();
+    let filter = EntityFilterAst {
+        initiative_filter: Some(std::sync::Arc::new(filter_ast::Expr::val(
+            item_filters::ast::initiative::InitiativeLiteral::Include,
+        ))),
+        ..Default::default()
+    };
+    let mut request = req(WorkFeedSoupMode::Attention, &link_ids, &sources);
+    request.types = DISCUSSION_TYPES;
+    request.filter = Some(&filter);
+    request.crm = true;
+    let page = work_feed_soup_page(&pool, request).await?;
+
+    // Hidden company-2 and contact-2 and company-3 on another team stay out.
+    assert_eq!(
+        keys(&page),
+        vec![
+            (EntityType::Initiative, PROJECT_1.to_string()),
+            (EntityType::CrmContact, CONTACT_1.to_string()),
+            (EntityType::CrmCompany, COMPANY_1.to_string()),
+        ]
+    );
+
+    // Without a CRM receipt to hydrate them, CRM records are not candidates.
+    let mut request = req(WorkFeedSoupMode::Attention, &link_ids, &sources);
+    request.types = DISCUSSION_TYPES;
+    request.filter = Some(&filter);
+    let page = work_feed_soup_page(&pool, request).await?;
+    assert_eq!(
+        keys(&page),
+        vec![(EntityType::Initiative, PROJECT_1.to_string())]
     );
 
     Ok(())

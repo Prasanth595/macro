@@ -10680,6 +10680,18 @@ enum WorkFeedItemType {
 	Agent sessions.
 	"""
 	AGENT_SESSION
+	"""
+	Projects (initiatives) and their discussions.
+	"""
+	INITIATIVE
+	"""
+	CRM companies and their discussions.
+	"""
+	CRM_COMPANY
+	"""
+	CRM contacts and their discussions.
+	"""
+	CRM_CONTACT
 }
 
 """
@@ -10740,7 +10752,9 @@ input WorkFeedScopeInput {
 	"""
 	mode: WorkFeedMode
 	"""
-	Item kinds to include; omitted or empty means every kind.
+	Item kinds to include. Omitted or empty means the mode's defaults:
+	work feeds show every kind except `INITIATIVE`, `CRM_COMPANY` and
+	`CRM_CONTACT`; attention feeds show every kind.
 	"""
 	types: [WorkFeedItemType!]
 	"""

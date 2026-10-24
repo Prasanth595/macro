@@ -48,6 +48,8 @@ own_work AS NOT MATERIALIZED (
         WHEN 'calendar_event' THEN {calendar_event_gate}
         WHEN 'foreign_entity' THEN {foreign_entity_gate}
         WHEN 'agent_session' THEN {agent_session_gate}
+        WHEN 'crm_company' THEN {crm_company_gate}
+        WHEN 'crm_contact' THEN {crm_contact_gate}
         ELSE FALSE
     END
 ),
@@ -142,6 +144,8 @@ attention_page AS (
         WHEN 'calendar_event' THEN {calendar_event_gate}
         WHEN 'foreign_entity' THEN {foreign_entity_gate}
         WHEN 'agent_session' THEN {agent_session_gate}
+        WHEN 'crm_company' THEN {crm_company_gate}
+        WHEN 'crm_contact' THEN {crm_contact_gate}
         ELSE FALSE
     END
     ORDER BY nc.attention_at DESC, nc.entity_id DESC

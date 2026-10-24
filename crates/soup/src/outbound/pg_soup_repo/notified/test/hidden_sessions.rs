@@ -19,6 +19,7 @@ fn work_request<'a>(
         link_ids: &[],
         foreign_entity_sources: sources,
         hydratable: EVERYTHING,
+        crm: false,
         only,
     }
 }

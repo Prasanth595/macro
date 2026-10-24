@@ -56,6 +56,12 @@ pub enum GraphqlWorkFeedItemType {
     PullRequest,
     /// Agent sessions.
     AgentSession,
+    /// Projects (initiatives) and their discussions.
+    Initiative,
+    /// CRM companies and their discussions.
+    CrmCompany,
+    /// CRM contacts and their discussions.
+    CrmContact,
 }
 
 impl From<GraphqlWorkFeedItemType> for WorkFeedItemType {
@@ -70,6 +76,9 @@ impl From<GraphqlWorkFeedItemType> for WorkFeedItemType {
             GraphqlWorkFeedItemType::CalendarEvent => Self::CalendarEvent,
             GraphqlWorkFeedItemType::PullRequest => Self::PullRequest,
             GraphqlWorkFeedItemType::AgentSession => Self::AgentSession,
+            GraphqlWorkFeedItemType::Initiative => Self::Initiative,
+            GraphqlWorkFeedItemType::CrmCompany => Self::CrmCompany,
+            GraphqlWorkFeedItemType::CrmContact => Self::CrmContact,
         }
     }
 }
@@ -80,7 +89,9 @@ impl From<GraphqlWorkFeedItemType> for WorkFeedItemType {
 pub struct WorkFeedScopeInput {
     /// Which reasons admit items. Defaults to `WORK`.
     pub mode: Option<GraphqlWorkFeedMode>,
-    /// Item kinds to include; omitted or empty means every kind.
+    /// Item kinds to include. Omitted or empty means the mode's defaults:
+    /// work feeds show every kind except `INITIATIVE`, `CRM_COMPANY` and
+    /// `CRM_CONTACT`; attention feeds show every kind.
     pub types: Option<Vec<GraphqlWorkFeedItemType>>,
     /// Whether snippet documents are included. Defaults to false.
     pub include_snippets: Option<bool>,

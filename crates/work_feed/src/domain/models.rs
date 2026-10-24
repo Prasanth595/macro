@@ -58,11 +58,18 @@ pub enum WorkFeedItemType {
     PullRequest,
     /// Agent sessions.
     AgentSession,
+    /// Projects (initiatives) and their discussions.
+    Initiative,
+    /// CRM companies and their discussions.
+    CrmCompany,
+    /// CRM contacts and their discussions.
+    CrmContact,
 }
 
 impl WorkFeedItemType {
-    /// Every item type, the default selection.
-    pub const ALL: [WorkFeedItemType; 9] = [
+    /// The item types a work feed shows when the caller names none: Home's
+    /// kinds.
+    pub const WORK_DEFAULT: [WorkFeedItemType; 9] = [
         Self::Document,
         Self::Chat,
         Self::Project,
@@ -73,6 +80,32 @@ impl WorkFeedItemType {
         Self::PullRequest,
         Self::AgentSession,
     ];
+
+    /// Every item type. An attention feed shows them all when the caller
+    /// names none: Home's kinds plus the projects and CRM records whose
+    /// discussions notify the viewer.
+    pub const ALL: [WorkFeedItemType; 12] = [
+        Self::Document,
+        Self::Chat,
+        Self::Project,
+        Self::Email,
+        Self::Channel,
+        Self::ChannelThread,
+        Self::CalendarEvent,
+        Self::PullRequest,
+        Self::AgentSession,
+        Self::Initiative,
+        Self::CrmCompany,
+        Self::CrmContact,
+    ];
+
+    /// The item types `mode` shows when the caller names none.
+    pub fn defaults(mode: WorkFeedMode) -> &'static [WorkFeedItemType] {
+        match mode {
+            WorkFeedMode::Work => &Self::WORK_DEFAULT,
+            WorkFeedMode::Attention => &Self::ALL,
+        }
+    }
 
     /// The candidate entity type items of this kind are keyed on.
     pub fn entity_type(self) -> EntityType {
@@ -86,6 +119,9 @@ impl WorkFeedItemType {
             Self::CalendarEvent => EntityType::CalendarEvent,
             Self::PullRequest => EntityType::ForeignEntity,
             Self::AgentSession => EntityType::AgentSession,
+            Self::Initiative => EntityType::Initiative,
+            Self::CrmCompany => EntityType::CrmCompany,
+            Self::CrmContact => EntityType::CrmContact,
         }
     }
 }
@@ -327,7 +363,8 @@ impl WorkFeedPosition {
 pub struct WorkFeedScope {
     /// Which reasons admit items.
     pub mode: WorkFeedMode,
-    /// The item kinds to include; empty means every kind.
+    /// The item kinds to include; empty means the mode's defaults
+    /// ([`WorkFeedItemType::defaults`]).
     pub types: Vec<WorkFeedItemType>,
     /// Whether snippet documents are included.
     pub include_snippets: bool,
@@ -339,7 +376,7 @@ impl WorkFeedScope {
     pub fn everything() -> Self {
         Self {
             mode: WorkFeedMode::Work,
-            types: Vec::new(),
+            types: WorkFeedItemType::ALL.to_vec(),
             include_snippets: true,
         }
     }

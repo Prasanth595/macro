@@ -223,7 +223,7 @@ where
         keys: &[WorkFeedItemKey],
     ) -> Result<HashMap<WorkFeedItemKey, Assembled<S::Entity>>, Report> {
         let filter = policy::signal_filter(&viewer.user, scope.include_snippets);
-        let types = policy::candidate_types(&scope.types);
+        let types = policy::candidate_types(scope.mode, &scope.types);
         let mut current = HashMap::with_capacity(keys.len());
         for chunk in keys.chunks(RECOMPUTE_CHUNK) {
             let page = self
@@ -281,7 +281,7 @@ where
             .page(SourceRequest {
                 viewer: viewer.clone(),
                 mode: query.scope.mode,
-                types: policy::candidate_types(&query.scope.types),
+                types: policy::candidate_types(query.scope.mode, &query.scope.types),
                 filter: policy::signal_filter(&viewer.user, query.scope.include_snippets),
                 limit: query.limit,
                 after: query.after,

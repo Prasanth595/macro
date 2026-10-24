@@ -48,7 +48,7 @@ use crate::outbound::pg_soup_repo::touched::view_tags_sql;
 use crate::outbound::pg_soup_repo::type_err;
 
 /// Every type the work feed can surface, in the order the notified-at feed
-/// decides them.
+/// decides them, then the CRM records only the work feed lists.
 fn requested_types<'a>(req: &WorkFeedCandidateRequest<'a>) -> Vec<&'static str> {
     let notified = NotifiedSoupRequest {
         user_id: req.user_id.copied(),
@@ -60,10 +60,62 @@ fn requested_types<'a>(req: &WorkFeedCandidateRequest<'a>) -> Vec<&'static str> 
         hydratable: req.hydratable,
     };
     let requested: Vec<&'static str> = req.types.iter().map(|t| (*t).into()).collect();
+    let crm: &[&'static str] = if req.crm {
+        &[EntityType::CrmCompany.into(), EntityType::CrmContact.into()]
+    } else {
+        &[]
+    };
     included_types(&notified)
         .into_iter()
+        .chain(crm.iter().copied())
         .filter(|entity_type| requested.contains(entity_type))
         .collect()
+}
+
+/// The `crm_companies` row aliased `alias` is visible to the viewer: its
+/// team has CRM enabled, the viewer belongs to that team, and the company is
+/// not hidden (hidden records are listed only on explicit admin requests).
+fn visible_crm_company(alias: &str) -> String {
+    format!(
+        r#"NOT {alias}.hidden
+            AND EXISTS (
+                SELECT 1 FROM team_user tu
+                JOIN team_crm_settings tcs ON tcs.team_id = tu.team_id
+                WHERE tu.team_id = {alias}.team_id
+                AND tu.user_id = $1
+                AND tcs.crm_enabled
+            )"#
+    )
+}
+
+fn crm_company_gate() -> String {
+    uuid_guarded(
+        ID_SQL,
+        format!(
+            r#"EXISTS (
+                SELECT 1 FROM crm_companies c
+                WHERE c.id = {ID_SQL}::uuid
+                AND {visible}
+            )"#,
+            visible = visible_crm_company("c"),
+        ),
+    )
+}
+
+fn crm_contact_gate() -> String {
+    uuid_guarded(
+        ID_SQL,
+        format!(
+            r#"EXISTS (
+                SELECT 1 FROM crm_contacts ct
+                JOIN crm_companies c ON c.id = ct.company_id
+                WHERE ct.id = {ID_SQL}::uuid
+                AND NOT ct.hidden
+                AND {visible}
+            )"#,
+            visible = visible_crm_company("c"),
+        ),
+    )
 }
 
 /// An email thread's attention lasts while the thread is in the inbox: mail
@@ -112,6 +164,8 @@ fn build_query(req: &WorkFeedCandidateRequest<'_>) -> String {
         calendar_event_gate = calendar_event_gate(filter),
         foreign_entity_gate = foreign_entity_gate(filter),
         agent_session_gate = agent_session_gate(filter),
+        crm_company_gate = crm_company_gate(),
+        crm_contact_gate = crm_contact_gate(),
     )
 }
 

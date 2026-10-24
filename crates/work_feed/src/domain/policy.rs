@@ -18,12 +18,13 @@ use item_filters::{
         document::DocumentLiteral,
         email::EmailLiteral,
         foreign_entity::ForeignEntityLiteral,
+        initiative::InitiativeLiteral,
     },
 };
 use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::EntityType;
 
-use super::models::WorkFeedItemType;
+use super::models::{WorkFeedItemType, WorkFeedMode};
 
 #[cfg(test)]
 mod test;
@@ -40,6 +41,8 @@ const GITHUB_PULL_REQUEST_SOURCE: &str = "github_pull_request";
 /// - Agent sessions are opted in (Soup excludes them by default), except
 ///   unlisted ones: a routine's runs, unless the routine lists them, live in
 ///   its history and the Agents list.
+/// - Projects (initiatives) are opted in the same way; only feeds whose
+///   types include them ask for them, which work feeds do not by default.
 /// - Snippets are documents only when the caller shows them.
 pub fn signal_filter(user: &MacroUserIdStr<'static>, include_snippets: bool) -> EntityFilterAst {
     EntityFilterAst {
@@ -70,15 +73,16 @@ pub fn signal_filter(user: &MacroUserIdStr<'static>, include_snippets: bool) -> 
                 AgentSessionVisibility::Unlisted,
             ))),
         ))),
+        initiative_filter: Some(Arc::new(Expr::val(InitiativeLiteral::Include))),
         ..Default::default()
     }
 }
 
 /// The candidate entity types for the requested item kinds, deduplicated in
-/// request order; no kinds means every kind.
-pub fn candidate_types(types: &[WorkFeedItemType]) -> Vec<EntityType> {
+/// request order; no kinds means the mode's defaults.
+pub fn candidate_types(mode: WorkFeedMode, types: &[WorkFeedItemType]) -> Vec<EntityType> {
     let requested: &[WorkFeedItemType] = if types.is_empty() {
-        &WorkFeedItemType::ALL
+        WorkFeedItemType::defaults(mode)
     } else {
         types
     };
