@@ -13,6 +13,7 @@ type Wording = (whose: string) => string;
  * `null` for the tools that use nobody's access and so are never held.
  */
 const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
+  AddSharedCalendarEvent: (whose) => `add a shared event to ${whose} calendar`,
   AddToPipeline: (whose) => `add deals to ${whose} pipelines`,
   BashCodeExecution: (whose) => `run code with ${whose} access`,
   BulkSetEntityPropertyOptions: (whose) =>
@@ -57,6 +58,8 @@ const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
   DisplayResults: (whose) => `show results from ${whose} workspace`,
   DuplicateItem: (whose) => `duplicate items in ${whose} workspace`,
   EditBookingLink: (whose) => `edit ${whose} booking links`,
+  ApplyCanvasEdits: (whose) => `edit ${whose} canvases`,
+  EditCanvas: (whose) => `edit ${whose} canvases`,
   EditChannelMessage: (whose) => `edit messages from ${whose} account`,
   EditDocument: (whose) => `edit ${whose} documents`,
   EditComment: (whose) => `edit comments on ${whose} items`,
@@ -132,6 +135,8 @@ const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
   UpdateAgentSessionSharing: (whose) => `change ${whose} session sharing`,
   ReadAgentSession: (whose) => `read ${whose} agent sessions`,
   ReadChat: (whose) => `read ${whose} chats`,
+  ReadCanvas: (whose) => `read ${whose} canvases`,
+  RenderCanvas: (whose) => `view ${whose} canvases`,
   ReadContent: (whose) => `read ${whose} documents`,
   ReadDiscussion: (whose) => `read comments on ${whose} items`,
   ReadDesign: (whose) => `read ${whose} designs`,
