@@ -145,6 +145,7 @@ where
     type Output = ReadChannelMessagesResponse;
 
     #[tracing::instrument(
+        name = "channels.tool.read_messages",
         skip_all,
         fields(user_id=?request_context.user_id, channel_id=%self.channel_id),
         err

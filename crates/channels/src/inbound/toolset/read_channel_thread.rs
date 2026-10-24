@@ -129,6 +129,7 @@ where
     type Output = ReadChannelThreadResponse;
 
     #[tracing::instrument(
+        name = "channels.tool.read_thread",
         skip_all,
         fields(user_id=?request_context.user_id, channel_id=%self.channel_id),
         err
