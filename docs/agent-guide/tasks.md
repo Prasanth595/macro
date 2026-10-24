@@ -530,7 +530,10 @@ Use existing PRs and do not modify hosted data.
 On touch devices, task creation opens in a bottom sheet with a drag handle and
 scrollable, keyboard-aware content. Its glass pane has broad screen-scaled
 corners, an 8px outer inset, and a blurred backdrop, matching the create and
-filter sheets. Desktop uses the centered composer dialog.
+filter sheets. Its footer wraps when a phone is too narrow for one row: the
+`Share with <team name>` switch keeps the left corner and `Create More` and
+`Create Task` move to a right-aligned row below it. `Create Task` shows no
+keyboard shortcut on touch. Desktop uses the centered composer dialog.
 
 1. Click the `Task` button (or `Create` → `Task T`, or keyboard `c` then `t`).
 2. A dialog opens with the title contenteditable focused (placeholder `New task`), plus
