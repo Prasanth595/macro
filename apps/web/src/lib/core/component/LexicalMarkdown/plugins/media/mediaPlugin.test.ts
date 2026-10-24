@@ -6,7 +6,11 @@ import {
 } from '@lexical/clipboard';
 import { createEmptyHistoryState, registerHistory } from '@lexical/history';
 import { $dfs } from '@lexical/utils';
-import { $isImageNode, SupportedNodeTypes } from '@macro-inc/lexical-core';
+import {
+  $isImageNode,
+  RegisteredNodesByType,
+  SupportedNodeTypes,
+} from '@macro-inc/lexical-core';
 import {
   $createNodeSelection,
   $createParagraphNode,
@@ -14,6 +18,7 @@ import {
   $getRoot,
   $getSelection,
   COMMAND_PRIORITY_LOW,
+  type CreateEditorArgs,
   createEditor,
   HISTORY_PUSH_TAG,
   type LexicalCommand,
@@ -72,9 +77,11 @@ vi.mock('@service-connection/websocket', () => ({
 
 const unmounts: Array<() => void> = [];
 
-function mountDocumentEditor() {
+function mountDocumentEditor(
+  nodes: CreateEditorArgs['nodes'] = SupportedNodeTypes
+) {
   const editor = createEditor({
-    nodes: SupportedNodeTypes,
+    nodes,
     onError(error) {
       throw error;
     },
@@ -210,6 +217,21 @@ it('gives a copy pasted into another editor mid-upload the same static file', as
     { srcType: 'sfs', url: staticFileIdEndpoint('sfs-1') },
   ]);
   expect(images(source)).toMatchObject([{ srcType: 'sfs' }]);
+});
+
+it('gives a copy pasted into a chat editor, which has no video nodes, the same static file', async () => {
+  const source = mountDocumentEditor(RegisteredNodesByType.chat);
+  const target = mountDocumentEditor(RegisteredNodesByType.chat);
+  await addMediaFromFile(source, screenshot(), 'image');
+  await vi.advanceTimersByTimeAsync(0);
+  pasteCopyOfImages(source, target);
+
+  uploads[0]!.resolve('sfs-1');
+  await vi.advanceTimersByTimeAsync(0);
+
+  expect(images(target)).toMatchObject([
+    { srcType: 'sfs', url: staticFileIdEndpoint('sfs-1') },
+  ]);
 });
 
 it('points an image deleted mid-upload and restored by undo at its static file', async () => {
