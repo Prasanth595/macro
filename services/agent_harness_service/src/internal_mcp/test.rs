@@ -244,7 +244,7 @@ async fn each_harness_gets_only_internal_tools_and_writes_only_its_session() {
         };
         assert!(description("PresentReview").contains("Should I kick it off?"));
         assert!(description("DecideReview").contains("Should I kick it off?"));
-        assert!(description("DecideReview").contains("still being prepared"));
+        assert!(description("DecideReview").contains("not ready yet"));
         let read_review = listed["result"]["tools"]
             .as_array()
             .unwrap()

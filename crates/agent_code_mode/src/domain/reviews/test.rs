@@ -140,10 +140,13 @@ impl ReviewActions for Actions {
     }
     async fn approvable(
         &self,
-        owner: &MacroUserIdStr<'static>,
-        _: &ReviewRecord,
+        account_holder: &MacroUserIdStr<'static>,
+        record: &ReviewRecord,
     ) -> Result<bool, CodeModeError> {
-        assert_eq!(owner, &self.owner);
+        assert_eq!(
+            Some(account_holder),
+            record.acting_user.as_ref().or(Some(&self.owner))
+        );
         Ok(self.approvable.load(Ordering::SeqCst))
     }
     fn validate(&self, _: ReviewKind, draft: &Value) -> Result<(), CodeModeError> {
@@ -641,7 +644,7 @@ async fn a_system_turn_cannot_approve_even_with_owner_credentials() {
         f.service
             .decide_for_session(f.session, &f.actions.owner, row.id, decision.clone())
             .await,
-        Err(CodeModeError::Invalid(_))
+        Err(CodeModeError::Forbidden)
     ));
     assert!(f.actions.calls.lock().unwrap().is_empty());
     f.actions.prompter.lock().unwrap().as_mut().unwrap().kind =
@@ -658,41 +661,6 @@ async fn a_system_turn_cannot_approve_even_with_owner_credentials() {
     assert!(
         matches!(&events[1].notification.event, NotificationEvent::ReviewSettled(ReviewSettlement::Actions(outcome)) if outcome.by == f.actions.owner.as_ref() && outcome.via == DecisionVia::Chat)
     );
-}
-
-fn prompted_by(user: &MacroUserIdStr<'static>) -> Option<TurnPrompter> {
-    Some(TurnPrompter {
-        action_id: agent_runtime_protocol::domain::action::AgentActionId::mint(),
-        user: Some(user.clone()),
-        kind: PrompterKind::User,
-    })
-}
-
-#[tokio::test]
-async fn the_agent_cannot_approve_a_plan_still_being_prepared() {
-    let f = Fixture::new();
-    *f.actions.prompter.lock().unwrap() = prompted_by(&f.actions.owner);
-    let row = f.create(vec![json!({"subject":"x"})]).await;
-    f.actions.approvable.store(false, Ordering::SeqCst);
-
-    assert!(matches!(
-        f.service
-            .decide_for_session(
-                f.session,
-                &f.actions.owner,
-                row.id,
-                ReviewDecision::Submit {
-                    revision: row.revision,
-                    items: vec![],
-                },
-            )
-            .await,
-        Err(CodeModeError::Invalid(_))
-    ));
-    let unsaved = f.store.get(f.session, row.id).await.unwrap();
-    assert_eq!(unsaved.revision, row.revision);
-    assert_eq!(unsaved.items[0].status, ReviewItemStatus::Pending);
-    assert!(f.actions.calls.lock().unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -835,4 +803,41 @@ async fn requester_reviews_are_decided_and_executed_only_with_their_account() {
         *f.actions.actors.lock().unwrap(),
         vec![requester.to_string()]
     );
+}
+
+#[tokio::test]
+async fn a_chat_submit_waits_until_the_review_is_approvable() {
+    let f = Fixture::new();
+    let row = f.create(vec![json!({"subject":"x"})]).await;
+    *f.actions.prompter.lock().unwrap() = Some(TurnPrompter {
+        action_id: agent_runtime_protocol::domain::action::AgentActionId::mint(),
+        user: Some(f.actions.owner.clone()),
+        kind: agent_session::domain::model::PrompterKind::User,
+    });
+    let submit = ReviewDecision::Submit {
+        revision: row.revision,
+        items: vec![],
+    };
+    f.actions.approvable.store(false, Ordering::SeqCst);
+
+    assert!(matches!(
+        f.service
+            .decide_for_session(f.session, &f.actions.owner, row.id, submit.clone())
+            .await,
+        Err(CodeModeError::Invalid(_))
+    ));
+    let unsaved = f.store.get(f.session, row.id).await.unwrap();
+    assert_eq!(unsaved.revision, row.revision);
+    assert_eq!(unsaved.items[0].status, ReviewItemStatus::Pending);
+    assert!(f.actions.calls.lock().unwrap().is_empty());
+
+    f.actions.approvable.store(true, Ordering::SeqCst);
+    let approved = f
+        .service
+        .decide_for_session(f.session, &f.actions.owner, row.id, submit)
+        .await
+        .unwrap();
+    assert_eq!(approved.decision.unwrap().via, DecisionVia::Chat);
+    let settled = f.settled(row.id).await;
+    assert_eq!(settled.items[0].status, ReviewItemStatus::Completed);
 }

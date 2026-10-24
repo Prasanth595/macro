@@ -4,7 +4,7 @@ use agent_runtime_protocol::domain::notification::{
     DecisionOutcome, DecisionVia, ItemStatus, NotificationEvent, ReviewItemOutcome, ReviewOutcome,
     ReviewSettlement,
 };
-use agent_session::domain::model::{AgentSessionId, PrompterKind, TurnPrompter};
+use agent_session::domain::model::{AgentSessionId, TurnPrompter};
 use agent_session::domain::notifications::{PendingNotification, ProduceNotification};
 use async_trait::async_trait;
 use entity_access::domain::models::{
@@ -227,17 +227,18 @@ pub trait ReviewActions: Send + Sync + 'static {
     async fn session(&self, session: AgentSessionId) -> Result<ReviewSession, CodeModeError>;
     /// Validate draft structure without performing the action.
     fn validate(&self, kind: ReviewKind, draft: &Value) -> Result<(), CodeModeError>;
-    /// Whether `record`'s action can start now; an import whose plan is
-    /// still being made cannot.
+    /// Whether `record`'s action can start now. A kind whose action depends on
+    /// work still in progress refuses until it is ready.
     async fn approvable(
         &self,
-        owner: &MacroUserIdStr<'static>,
-        record: &ReviewRecord,
-    ) -> Result<bool, CodeModeError>;
+        _account_holder: &MacroUserIdStr<'static>,
+        _record: &ReviewRecord,
+    ) -> Result<bool, CodeModeError> {
+        Ok(true)
+    }
     /// Execute the reviewed draft of `record` as its saved, authenticated
-    /// account holder.
-    /// An import only starts here: its background write reports its own end
-    /// as a `review.settled` event once it stops.
+    /// account holder. An import only starts here: its background write
+    /// reports its own end as a `review.settled` event once it stops.
     async fn execute(
         &self,
         owner: &MacroUserIdStr<'static>,
@@ -545,49 +546,29 @@ impl ReviewService {
         id: ReviewId,
         decision: ReviewDecision,
     ) -> Result<ReviewRecord, CodeModeError> {
-        self.owner_prompted(session, actor).await?;
+        let state = self.actions.session(session).await?;
+        if state.archived
+            || !state.prompter.is_some_and(|prompter| {
+                prompter.kind == agent_session::domain::model::PrompterKind::User
+                    && prompter.user.as_ref() == Some(actor)
+            })
+        {
+            return Err(CodeModeError::Forbidden);
+        }
         if let ReviewDecision::Submit { .. } = decision {
-            self.ensure_approvable(&self.store.get(session, id).await?)
-                .await?;
+            let record = self.store.get(session, id).await?;
+            if self.record_actor(&record).await? != *actor {
+                return Err(CodeModeError::Forbidden);
+            }
+            if !self.actions.approvable(actor, &record).await? {
+                return Err(CodeModeError::Invalid(
+                    "This review is not ready to approve yet. Check it again before approving."
+                        .into(),
+                ));
+            }
         }
         self.decide_owned(session, actor, id, decision, DecisionVia::Chat)
             .await
-    }
-
-    /// Refuse unless the session is live and `actor` prompted its current
-    /// turn as a person; `decide_owned` then requires them to be the review's
-    /// account holder. A system event's turn has no acting user.
-    async fn owner_prompted(
-        &self,
-        session: AgentSessionId,
-        actor: &MacroUserIdStr<'static>,
-    ) -> Result<(), CodeModeError> {
-        let state = self.actions.session(session).await?;
-        if state.archived {
-            return Err(CodeModeError::Forbidden);
-        }
-        match state.prompter {
-            Some(TurnPrompter {
-                kind: PrompterKind::System,
-                ..
-            }) => Err(CodeModeError::Invalid(
-                "A system event started this turn, not the review's account holder, so it cannot approve or decide a review. Tell them what happened and let them approve on the card or ask you to.".into(),
-            )),
-            Some(prompter) if prompter.acting_user() == Some(actor) => Ok(()),
-            _ => Err(CodeModeError::Invalid(
-                "Only the review's account holder can have you approve it, and someone else prompted this turn. Ask them to approve it on the card.".into(),
-            )),
-        }
-    }
-
-    async fn ensure_approvable(&self, record: &ReviewRecord) -> Result<(), CodeModeError> {
-        let holder = self.record_actor(record).await?;
-        if self.actions.approvable(&holder, record).await? {
-            return Ok(());
-        }
-        Err(CodeModeError::Invalid(
-            "This review is not ready to approve yet; its plan is still being prepared. Check again before approving.".into(),
-        ))
     }
 
     #[tracing::instrument(name = "review.decide", skip_all, fields(session_id = %session, review_id = %id.0), err)]
