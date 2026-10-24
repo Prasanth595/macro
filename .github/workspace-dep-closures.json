@@ -4623,6 +4623,7 @@
       "crates/properties",
       "crates/rate_limit",
       "crates/remote_env_var",
+      "crates/share_permission_db_utils",
       "crates/system_properties",
       "crates/workspace-hack"
     ],
@@ -4688,6 +4689,7 @@
       "crates/properties",
       "crates/rate_limit",
       "crates/remote_env_var",
+      "crates/share_permission_db_utils",
       "crates/system_properties",
       "crates/workspace-hack"
     ],
@@ -13873,6 +13875,28 @@
     ],
     "webhook_signature": [
       "crates/webhook_signature",
+      "crates/workspace-hack"
+    ],
+    "whatsapp_fake_server": [
+      "crates/whatsapp_fake_server",
+      "crates/whatsmeow",
+      "crates/whatsmeow_proto",
+      "crates/whatsmeow_signal",
+      "crates/workspace-hack"
+    ],
+    "whatsmeow": [
+      "crates/whatsmeow",
+      "crates/whatsmeow_proto",
+      "crates/workspace-hack"
+    ],
+    "whatsmeow_proto": [
+      "crates/whatsmeow_proto",
+      "crates/workspace-hack"
+    ],
+    "whatsmeow_signal": [
+      "crates/whatsmeow",
+      "crates/whatsmeow_proto",
+      "crates/whatsmeow_signal",
       "crates/workspace-hack"
     ],
     "work_feed": [

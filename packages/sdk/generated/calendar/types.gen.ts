@@ -359,7 +359,7 @@ export type CalendarGuestInputBody = {
  */
 export type CalendarJoinRequest = {
     /**
-     * When the request was made, or last reopened.
+     * When the request was made.
      */
     createdAt: string;
     /**
@@ -411,7 +411,7 @@ export type CalendarMutationApiError = {
 /**
  * Machine-readable failure category for calendar mutations.
  */
-export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'not_organizer' | 'guests_cannot_invite' | 'guest_list_hidden' | 'guests_cannot_modify' | 'already_on_calendar' | 'copy_refused' | 'snapshot' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
+export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'not_organizer' | 'guests_cannot_invite' | 'guest_list_hidden' | 'guests_cannot_modify' | 'already_on_calendar' | 'join_request_open' | 'copy_refused' | 'snapshot' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
 
 /**
  * Provider selected from the persisted calendar account and email binding.
@@ -573,6 +573,29 @@ export type CreateCalendarEventRequest = {
 };
 
 /**
+ * An owner's durable sharing link, including meetings they can no longer open.
+ */
+export type DocumentNoteLink = {
+    /**
+     * Current name of the owned markdown document.
+     */
+    documentName: string;
+    /**
+     * Linked calendar copy.
+     */
+    eventId: string;
+    /**
+     * Current title, or a safe placeholder when meeting details are unavailable.
+     */
+    eventTitle: string;
+    /**
+     * Original occurrence start, or `single` for a one-time meeting.
+     */
+    occurrenceKey: string;
+    team?: null | NoteTeam;
+};
+
+/**
  * One reminder: how it alerts and how many minutes before the event start
  * (before midnight in the calendar's zone for all-day events) it fires.
  */
@@ -700,6 +723,16 @@ export type InviteCalendarEventGuestsRequest = {
 };
 
 /**
+ * Optional additional view access for one team.
+ */
+export type LinkNoteRequest = {
+    /**
+     * Null means the meeting audience only.
+     */
+    teamId?: string | null;
+};
+
+/**
  * Calendars visible to the requester across connected and delegated inboxes.
  */
 export type ListCalendarsResponse = {
@@ -707,6 +740,67 @@ export type ListCalendarsResponse = {
      * Primaries and writable calendars first.
      */
     calendars: Array<VisibleCalendar>;
+};
+
+/**
+ * One linked document and the extra access this link grants.
+ */
+export type MeetingNote = {
+    /**
+     * Whether this viewer can change this document's sharing.
+     */
+    canManage: boolean;
+    /**
+     * Markdown document identity.
+     */
+    documentId: string;
+    /**
+     * Current document name.
+     */
+    name: string;
+    team?: null | NoteTeam;
+};
+
+/**
+ * A document available in the note picker.
+ */
+export type NoteDocument = {
+    /**
+     * Markdown document identity.
+     */
+    documentId: string;
+    /**
+     * Current document name, never a copied title.
+     */
+    name: string;
+};
+
+/**
+ * Picker results; only documents whose owner is the caller are suggested.
+ */
+export type NotePicker = {
+    /**
+     * At most 30 matching markdown documents, most recently updated first.
+     */
+    documents: Array<NoteDocument>;
+    /**
+     * Teams the caller currently belongs to.
+     */
+    teams: Array<NoteTeam>;
+};
+
+/**
+ * An additional team audience, separate from the meeting's audience.
+ */
+export type NoteTeam = {
+    /**
+     * Team identity.
+     */
+    id: string;
+    /**
+     * Display name.
+     */
+    name: string;
 };
 
 /**
@@ -1194,7 +1288,7 @@ export type CopyCalendarEventErrors = {
      */
     404: CalendarMutationApiError;
     /**
-     * Already on the requester's calendar, no writable calendar, or the provider refused the copy
+     * Already on the requester's calendar, a request to join it is pending or accepted, no writable calendar, or the provider refused the copy
      */
     409: CalendarMutationApiError;
     /**
@@ -1263,6 +1357,68 @@ export type InviteCalendarEventGuestsResponses = {
 };
 
 export type InviteCalendarEventGuestsResponse = InviteCalendarEventGuestsResponses[keyof InviteCalendarEventGuestsResponses];
+
+export type EventNotesData = {
+    body?: never;
+    path: {
+        event_id: string;
+    };
+    query: {
+        /**
+         * Stable occurrence key returned by the calendar read API.
+         */
+        occurrenceKey: string;
+    };
+    url: '/events/{event_id}/notes';
+};
+
+export type EventNotesResponses = {
+    200: Array<MeetingNote>;
+};
+
+export type EventNotesResponse = EventNotesResponses[keyof EventNotesResponses];
+
+export type UnlinkEventNoteData = {
+    body?: never;
+    path: {
+        event_id: string;
+        document_id: string;
+    };
+    query: {
+        /**
+         * Stable occurrence key returned by the calendar read API.
+         */
+        occurrenceKey: string;
+    };
+    url: '/events/{event_id}/notes/{document_id}';
+};
+
+export type UnlinkEventNoteResponses = {
+    204: void;
+};
+
+export type UnlinkEventNoteResponse = UnlinkEventNoteResponses[keyof UnlinkEventNoteResponses];
+
+export type LinkEventNoteData = {
+    body: LinkNoteRequest;
+    path: {
+        event_id: string;
+        document_id: string;
+    };
+    query: {
+        /**
+         * Stable occurrence key returned by the calendar read API.
+         */
+        occurrenceKey: string;
+    };
+    url: '/events/{event_id}/notes/{document_id}';
+};
+
+export type LinkEventNoteResponses = {
+    204: void;
+};
+
+export type LinkEventNoteResponse = LinkEventNoteResponses[keyof LinkEventNoteResponses];
 
 export type CalendarEventProviderUrlData = {
     body?: never;
@@ -1422,6 +1578,39 @@ export type RespondToJoinRequestResponses = {
 };
 
 export type RespondToJoinRequestResponse = RespondToJoinRequestResponses[keyof RespondToJoinRequestResponses];
+
+export type NoteDocumentsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Empty returns recent documents.
+         */
+        query?: string;
+    };
+    url: '/meeting-notes/documents';
+};
+
+export type NoteDocumentsResponses = {
+    200: NotePicker;
+};
+
+export type NoteDocumentsResponse = NoteDocumentsResponses[keyof NoteDocumentsResponses];
+
+export type DocumentNoteLinksData = {
+    body?: never;
+    path: {
+        document_id: string;
+    };
+    query?: never;
+    url: '/meeting-notes/documents/{document_id}/links';
+};
+
+export type DocumentNoteLinksResponses = {
+    200: Array<DocumentNoteLink>;
+};
+
+export type DocumentNoteLinksResponse = DocumentNoteLinksResponses[keyof DocumentNoteLinksResponses];
 
 export type DiscardCalendarReplacementData = {
     body?: never;

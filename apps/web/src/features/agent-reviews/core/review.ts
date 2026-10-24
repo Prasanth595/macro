@@ -2,12 +2,15 @@
 export type Review = {
   id: string;
   sessionId: string;
+  actingUser?: string | null;
   executionId?: string | null;
   kind: 'email' | 'calendar';
   title: string;
   revision: number;
   updatedAt: number;
   presentedAt?: number | null;
+  /** The most recent decision; `chat` when the agent acted on the account holder's word. */
+  decision?: { via: 'card' | 'chat' | 'inbox' } | null;
   items: ReviewItem[];
 };
 export type ReviewItem = {

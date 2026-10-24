@@ -115,8 +115,13 @@ export function EmailThreadView(props: EmailThreadViewProps) {
             }}
           >
             {/* Edge-to-edge on mobile/tablet: the message list carries its own
-                  insets in-scroll and under-scrolls the floating chrome. */}
-            <div class="size-full select-none overscroll-none overflow-hidden flex flex-col">
+                  insets in-scroll and under-scrolls the floating chrome. On
+                  every device persistent prompts wait rather than cover its
+                  last attachments, reply bar and reply composer. */}
+            <div
+              class="size-full select-none overscroll-none overflow-hidden flex flex-col"
+              data-holds-prompts
+            >
               {props.header}
               {props.actions}
               {viewContext.rendering.renderOrganizationStatus?.({

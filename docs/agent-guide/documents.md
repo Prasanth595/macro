@@ -4,6 +4,17 @@ The document header has separate Share, Copy Share Link, and Side Panel buttons.
 They are borderless with a soft rounded background on hover. Share opens the
 sharing dialog; copying a link is a separate action.
 
+With `enable-calendar-meeting-notes` enabled, owned markdown documents' Share
+panel also lists **Meeting links** (under the **Link** tab on mobile).
+Each shows its occurrence and optional team view grant.
+Use **Unlink** and confirm to remove that grant without deleting the document.
+This remains available when the meeting is cancelled or no longer shared with
+you; unavailable meeting details are hidden. See [Calendar meeting notes](calendar.md#meeting-notes).
+Turning the flag off does not revoke saved grants. If meeting access cannot be
+checked, the share status uses **Restricted** instead of claiming **Just me**;
+known public, team, or shared access still appears.
+This status follows the current document and account when navigating with Share open.
+
 Verify **Public → View** links in a fresh signed-out browser context. The
 `/app/drive/md/<id>` route (including folder/tab document links and legacy
 `/app/md/<id>` redirects) must show the document without private Drive lists or
@@ -76,9 +87,22 @@ property selector for that document.
 Adding or reselecting a property from the title row pins it there. Adding from
 the side panel leaves it unpinned. The side panel shows all assigned properties,
 including unpinned ones.
+In document, task, snippet, and skill side panels, hover or focus a property row
+to find
+**Pin below title** beside **Remove from entity**. These controls stay visible
+on touch devices. A pinned row shows **Unpin from title**; unpinning keeps both
+the saved value and the side-panel row.
+Pinning is unavailable for read-only documents, metadata, and properties still
+being assigned, except the task's default Project placeholder. Long values truncate
+or wrap within the value column without
+covering the pin or remove controls.
+Escape cancels an inline text or number draft without saving it.
 Hover or focus an inline property pill to find **Unpin** (keeps its saved
-value) and **Delete from item** (removes the document's assignment, without
-deleting the shared property definition). Pins are saved with the document.
+value) and **Delete from item** where removal is allowed (removes the assignment,
+without deleting the shared property definition). Task builtins cannot be deleted
+from these pills. Pins are saved with the document, including an explicitly empty
+pin list. Tasks initially show Status, Priority, Assignees, and Project when enabled;
+changing pins keeps the other defaults unless they are explicitly unpinned.
 
 Markdown code blocks have a **Copy Code** button in both editable and read-only
 views. Successful copies briefly animate the icon to a solid green check-circle;
@@ -98,6 +122,23 @@ current selection, or all content when nothing is selected. The zoom menu keeps
 **Zoom to fit** for all content and adds **Zoom to fit selection**, disabled with
 no selection. Verify one item and multiple selected items, then deselect and
 check that **.** fits everything again.
+Canvas **Ask Macro**, including the Drive detail header, attaches the open canvas to the existing agent composer on
+desktop and mobile. Ask it to create or edit a diagram: `ReadCanvas` reads the
+current live scene and `EditCanvas` applies bounded commands through the same
+collaborative room. Expand the tool result to inspect its outcome; edits appear
+in the canvas while the agent works. A viewer can read but cannot edit. New
+media/document references and removal of embedded assets remain UI actions.
+If an edit is cancelled or loses its acknowledgement, inspect the canvas before
+repeating the request because earlier snippets may already have applied.
+
+To verify AI editing, open the same canvas as an owner, a second editor and a
+viewer. Use **Ask Macro** to create two labeled boxes and a bound arrow. Confirm
+all three see the changes, the viewer's edit request is refused, and a second
+editor's unrelated shape/style edits survive. Move an endpoint shape and check
+the connector follows it. Reload both editing sessions and inspect the tool's
+expandable result. At phone width, tap the document title to open its file menu for Ask Macro; the floating zoom/inspector sits below that header. Use the responsive action
+and verify the composer attachment and result disclosure remain usable.
+
 All canvases open in Canvas Next, including drive details and Markdown embeds;
 there is no rollout flag or legacy editor. Unversioned/version 1 files migrate
 in memory. Opening a file alone does not save the migration; the first edit saves
