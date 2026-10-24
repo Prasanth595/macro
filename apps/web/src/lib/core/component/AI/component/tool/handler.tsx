@@ -51,6 +51,7 @@ import {
   deleteCalendarEventHandler,
   listCalendarEventsHandler,
   listCalendarsHandler,
+  readCalendarEventHandler,
   updateCalendarEventHandler,
 } from './CalendarTools';
 import {
@@ -120,6 +121,7 @@ import { getThreadHandler } from './GetThread';
 import {
   createImportEntityHandler,
   deleteImportEntityHandler,
+  importFromNotionHandler,
   importNotionPageHandler,
   listImportEntitiesHandler,
 } from './ImportTools';
@@ -250,9 +252,11 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   AddSharedCalendarEvent: addSharedCalendarEventHandler,
   ListCalendarEvents: listCalendarEventsHandler,
   ListCalendars: listCalendarsHandler,
+  ReadCalendarEvent: readCalendarEventHandler,
   GetTeamAvailability: getTeamAvailabilityHandler,
   CreateImportEntity: createImportEntityHandler,
   DeleteImportEntity: deleteImportEntityHandler,
+  ImportFromNotion: importFromNotionHandler,
   ImportNotionPage: importNotionPageHandler,
   GetCompany: getCompanyHandler,
   CreateCompany: createCompanyHandler,
