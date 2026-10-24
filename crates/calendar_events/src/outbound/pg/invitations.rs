@@ -54,6 +54,7 @@ impl CalendarInvitationRepository for PgCalendarRepository {
                     OR EXISTS (SELECT 1 FROM macro_user_links delegation
                         WHERE delegation.primary_macro_id = $1 AND delegation.link_id = e.source_link_id))
                   AND EXISTS (SELECT 1 FROM calendar_event_sources s JOIN calendar_accounts a ON a.id = s.account_id JOIN calendars c ON c.id = s.calendar_id WHERE s.event_id = e.id AND s.source_kind IN ('google', 'outlook') AND NOT c.is_deleted AND a.sync_status NOT IN ('disabled', 'reauth_required'))
+                  AND EXISTS (SELECT 1 FROM calendar_event_occurrences o WHERE o.event_id = e.id AND (requested.occurrence_key IS NULL OR o.occurrence_key = requested.occurrence_key OR o.recurrence_id = requested.occurrence_key))
                 -- The receiving inbox's copy stays inside the limit however many copies there are.
                 ORDER BY e.source_link_id = requested.preferred_link_id DESC, e.id LIMIT 16
             ) candidate

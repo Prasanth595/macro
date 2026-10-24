@@ -178,6 +178,39 @@ async fn the_receiving_inbox_keeps_its_copy_past_the_candidate_limit(pool: PgPoo
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn copies_without_the_requested_occurrence_leave_room_for_one_with_it(pool: PgPool) {
+    let viewer = "macro|invite-instance@example.com";
+    insert_user(&pool, viewer).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    for _ in 0..16 {
+        let link = insert_link(&pool, viewer).await;
+        event(&pool, &repo, viewer, link).await;
+    }
+    // Created last, and the only copy holding the second occurrence.
+    let link = insert_link(&pool, viewer).await;
+    persist_complete_grant(&pool, link, 1).await;
+    let provider = provider_ids(&repo, link).await;
+    let mut upsert = timed_upsert(viewer, link, provider, "invite-uid", "Review", 1);
+    upsert.event.is_read_only = false;
+    upsert.event.recurrence_lines.clear();
+    upsert.occurrences.remove(0);
+    upsert.occurrences.truncate(1);
+    let requested = upsert.occurrences[0].occurrence_key.clone();
+    let holding = repo.upsert_event_fixture(upsert).await.unwrap();
+    let mut identity = identity(Uuid::nil());
+    identity.occurrence_key = Some(requested.clone());
+    let result = CalendarInvitationResolver::new(repo)
+        .resolve(viewer, &[identity])
+        .await
+        .unwrap();
+    assert!(
+        matches!(&result[0], InvitationResolution::Resolved { event, occurrence, .. }
+            if event.id == holding && occurrence.occurrence_key == requested),
+        "{result:?}"
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn invitation_delegation_is_scoped_to_the_granted_inbox(pool: PgPool) {
     let viewer = "macro|invite-delegate@example.com";
     let owner = "macro|invite-owner@example.com";
