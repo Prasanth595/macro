@@ -26,6 +26,12 @@ impl<T> PendingAroundRead<T> {
         );
         labels
     }
+
+    /// Whether a write stopped being pending during the read, so Gmail may
+    /// have applied it after answering.
+    pub fn write_settled_during_read(&self) -> bool {
+        self.before.iter().any(|label| !self.after.contains(label))
+    }
 }
 
 /// Runs `read` between two reads of the message's pending label writes.

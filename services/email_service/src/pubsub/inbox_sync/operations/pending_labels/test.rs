@@ -24,6 +24,7 @@ async fn a_write_gmail_confirms_during_the_read_is_not_trusted_from_it(pool: PgP
     .unwrap();
 
     assert_eq!(read.untrusted_labels(), vec!["INBOX".to_string()]);
+    assert!(read.write_settled_during_read());
 }
 
 #[sqlx::test(
@@ -51,4 +52,5 @@ async fn a_write_staged_during_the_read_is_not_trusted_from_it(pool: PgPool) {
         read.untrusted_labels(),
         vec!["INBOX".to_string(), "STARRED".to_string()]
     );
+    assert!(!read.write_settled_during_read());
 }
