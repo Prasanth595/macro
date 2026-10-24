@@ -641,7 +641,7 @@ impl ReviewService {
         Ok(())
     }
 
-    #[tracing::instrument(name = "review.decide", skip_all, fields(session_id = %session, review_id = %id.0), err)]
+    #[tracing::instrument(name = "review.decide", skip_all, fields(session_id = %session, review_id = %id.0, review.via = ?via), err)]
     async fn decide_owned(
         &self,
         session: AgentSessionId,
