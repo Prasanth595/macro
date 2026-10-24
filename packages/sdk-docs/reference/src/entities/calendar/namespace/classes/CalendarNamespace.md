@@ -148,7 +148,9 @@ copy to change, unless they named it, only one copy can make the change,
 or you add guests from the copy they organize. Never choose between the
 user's inboxes yourself, whatever they look like. Pass the chosen copy's
 `inbox` to its `update`, `inviteGuests` or `delete`; without it the call
-is refused with `copy_choice_required` and the question to ask.
+is refused with `copy_choice_required`, which names each copy's inbox and
+event and gives the question to ask. An occurrence whose calendar is no
+longer listed has no `inbox`; take it from that refusal.
 
 #### Parameters
 
