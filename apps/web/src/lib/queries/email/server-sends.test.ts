@@ -60,6 +60,22 @@ it('waits offline and refreshes server sends on reconnect', async () => {
   expect(serverEmailSends()).toEqual(pending.pendingEmailSends.attempts);
 });
 
+it('answers a refresh made during a read with a read that started after it', async () => {
+  const first = Promise.withResolvers<PendingEmailSendsQuery['user']>();
+  vi.mocked(readPendingEmailSends)
+    .mockImplementationOnce(() => first.promise)
+    .mockResolvedValueOnce({
+      ...pending,
+      pendingEmailSends: { nextCursor: null, attempts: [] },
+    });
+  setServerSendSession('owner');
+  const refresh = refreshServerEmailSends();
+  first.resolve(pending);
+  await refresh;
+  expect(readPendingEmailSends).toHaveBeenCalledTimes(2);
+  expect(serverEmailSends()).toEqual([]);
+});
+
 it('discards an in-flight status response after sign-out', async () => {
   const response = Promise.withResolvers<PendingEmailSendsQuery['user']>();
   const started = Promise.withResolvers<AbortSignal>();
