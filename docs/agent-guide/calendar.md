@@ -729,7 +729,11 @@ in a delegated inbox), with an `Open` button that opens the viewer's copy. A men
 viewer's own copy shows neither. A shared-event sheet open on a phone stays up when the viewer
 adds the event or is invited, and switches to that line and `Open` in place. Opening from the
 sheet (`Open`, the title, or Open in New Split) closes it, since the native apps keep the
-pane behind the opened one mounted.
+pane behind the opened one mounted. When Calendar opens on an event its loaded week doesn't
+have yet, such as a copy added a moment ago while Calendar was closed, it syncs once and then
+shows the event's details. The agent reads a mentioned event, including one only shared with
+the viewer, with `ReadCalendarEvent`: the same fields, plus how the viewer holds it (their own,
+invited, a snapshot, or only shared with them) and their join request.
 
 ## Scheduling — `/app/scheduling`
 
@@ -1260,8 +1264,10 @@ works there, and `Download .ics`, which saves the file without adding it to Driv
 card falls back to the saved invitation (the event matches nothing on your calendars, as with
 a forwarded event), its status line reads `Saved invitation.` in the dialog; the card in the
 email adds that the original email or invitation attachment has more options. The card
-stays put while the thread refreshes, and `Open in calendar` closes the dialog before the
-calendar opens, including when Calendar is already open in another split. A calendar file with
+stays put while the thread refreshes. Close, Escape, or dismissing the phone drawer returns
+focus to the attachment chip; `Open in calendar` closes the dialog before the calendar opens,
+including when Calendar is already open in another split, without pulling focus back to the
+email. A calendar file with
 no card (nothing Macro could read) downloads directly, and an Outlook cloud-reference `.ics`
 opens its Outlook page like any other reference attachment.
 Related recurring components are grouped behind their own disclosure. Only mail synced
@@ -1289,7 +1295,9 @@ error; offline responses are not sent. Cancellation and response/proposal notifi
 do not offer RSVP or Join. Disconnected, ambiguous, and syncing states explain why an
 action is unavailable.
 
-`Open in calendar` focuses the current occurrence, even if its date changed.
+`Open in calendar` focuses the current occurrence, even if its date changed. It retargets a
+Calendar split that is already open; otherwise a click replaces the email with Calendar and a
+shift-click opens Calendar in a new split beside it, from the inline card and the `.ics` dialog.
 `View your day` opens a compact agenda without changing the active split; Close returns
 focus to its trigger. Busy overlapping events are labeled, while cancelled, declined,
 and free events do not count as conflicts. Calendar 12/24-hour preferences apply to
