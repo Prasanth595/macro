@@ -117,13 +117,18 @@ async fn an_outlook_inbox_answers_through_its_own_copy_of_a_google_meeting(pool:
     // UID, which wraps the invitation's.
     let outlook_event =
         event_with_uid(&pool, &repo, viewer, outlook, &exchange_uid("invite-uid")).await;
-    let outlook_email =
-        sqlx::query_scalar!("SELECT email_address FROM email_links WHERE id = $1", outlook)
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let outlook_email = sqlx::query_scalar!(
+        "SELECT email_address FROM email_links WHERE id = $1",
+        outlook
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     let resolver = CalendarInvitationResolver::new(repo.clone());
-    let only_outlook = resolver.resolve(viewer, &[identity(outlook)]).await.unwrap();
+    let only_outlook = resolver
+        .resolve(viewer, &[identity(outlook)])
+        .await
+        .unwrap();
     assert!(
         matches!(&only_outlook[0], InvitationResolution::Resolved {
             event, responding_email, can_respond: true, ..
@@ -144,7 +149,10 @@ async fn an_outlook_inbox_answers_through_its_own_copy_of_a_google_meeting(pool:
         } if event.id == outlook_event && responding_email == &outlook_email),
         "{result:?}"
     );
-    assert!(matches!(result[1], InvitationResolution::Ambiguous), "{result:?}");
+    assert!(
+        matches!(result[1], InvitationResolution::Ambiguous),
+        "{result:?}"
+    );
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
