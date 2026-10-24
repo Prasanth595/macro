@@ -122,7 +122,8 @@ When the meeting is on several of the user's inboxes, ListCalendarEvents lists o
 inbox; pick the copy by its rule. Reminders may go to one copy and an `rsvp` to the copy \
 where the user is a guest, naming the inbox in your reply. Any other change goes to the only \
 copy whose `viewerCan` allows it, with the reason, or to the copy the user chooses when more \
-than one could make it."
+than one could make it. One call changes one copy, so an edit on one copy and an `rsvp` on \
+another take two calls."
 )]
 pub struct UpdateCalendarEvent {
     /// Event to update.

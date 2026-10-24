@@ -160,12 +160,14 @@ means, describe each by its inbox and role, never by id; when the user names an 
 on the entry whose `inbox` matches.\n\
 \n\
 When the user does not name an inbox, choose the copy by what the change does. Reminders \
-belong to one copy only, so set them on one copy without asking and say which inbox you used; \
-answer an invitation on the copy where the user is a guest. Any other change reaches the \
-meeting differently from each copy: the title, time, description, location, recurrence or \
-conference, adding or removing guests, guest permissions, and deleting. Never pick a copy for \
-such a change silently. If only one copy's `viewerCan` allows it, use that copy and say why \
-(for example, only the copy the user organizes can move the meeting). If more than one can, \
+belong to one copy only, so set them on one copy without asking and say which inbox you used. \
+Answer an invitation on the copy where the user is a guest; when they are a guest through \
+more than one inbox, ask which inbox answers, since each answers only for itself. Any other \
+change reaches the meeting differently from each copy: the title, time, description, \
+location, recurrence or conference, adding or removing guests, guest permissions, and \
+deleting. Never pick a copy for such a change silently. If only one copy allows it \
+(`viewerCan`, or for deleting, `isReadOnly` false), use that copy and say why (for example, \
+only the copy the user organizes can move the meeting). If more than one can, \
 ask which inbox, saying what the change would do from each, such as deleting the organizer's \
 copy cancelling the meeting for everyone while deleting a guest's copy only takes it off that \
 inbox's calendar."
