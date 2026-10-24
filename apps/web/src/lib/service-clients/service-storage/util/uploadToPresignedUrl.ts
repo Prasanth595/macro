@@ -1,17 +1,14 @@
 import { isTauri } from '@core/util/platform';
 import { platformFetch } from '@core/util/platformFetch';
 import type { ResultError } from '@core/util/result';
-import { err, ok, type Result } from 'neverthrow';
+import { err, ok, type Result, ResultAsync } from 'neverthrow';
 
 type UploadResult = Result<
   void,
   ResultError<'SERVER_ERROR' | 'NETWORK_ERROR'>[]
 >;
 
-/**
- * Resolves to an error for every failed upload, including one that gets no
- * response, so callers can clean up; rejects only when `signal` aborts.
- */
+/** Rejects when `signal` aborts the upload. */
 export async function uploadToPresignedUrl({
   presignedUrl,
   buffer,
@@ -49,21 +46,22 @@ export async function uploadToPresignedUrl({
   }
 
   onProgress?.(null);
-  let response: Response;
-  try {
-    response = await platformFetch(presignedUrl, {
+  const response = await ResultAsync.fromPromise(
+    platformFetch(presignedUrl, {
       method: 'PUT',
       body: blob,
       headers,
       signal,
-    });
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    return err([{ code: 'NETWORK_ERROR', message: String(error) }]);
+    }),
+    (error) => String(error)
+  );
+  if (response.isErr()) {
+    signal?.throwIfAborted();
+    return err([{ code: 'NETWORK_ERROR', message: response.error }]);
   }
 
-  if (!response.ok) {
-    const message = await response.text();
+  if (!response.value.ok) {
+    const message = await response.value.text();
     return err([{ code: 'SERVER_ERROR', message: message }]);
   }
 
