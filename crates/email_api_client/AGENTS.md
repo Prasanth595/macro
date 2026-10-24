@@ -18,8 +18,8 @@ Outlook (Microsoft Graph) outbound adapters.
 - `src/outbound/outlook.rs`: the Microsoft Graph adapter (feature
   `outbound-outlook`); every Graph call goes through `outlook/transport.rs`,
   which owns request headers, provider error mapping, write-failure logs,
-  and the `outlook.graph_request` span (with an `outlook.graph_admission`
-  child for the per-mailbox gate wait).
+  and one `outlook.graph_request` span per attempt (with an
+  `outlook.graph_admission` child for the per-mailbox gate wait).
 
 ## Scope
 

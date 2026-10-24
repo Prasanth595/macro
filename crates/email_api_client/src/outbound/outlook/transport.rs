@@ -47,18 +47,6 @@ impl OutlookApiClientRepository {
             .await
     }
 
-    #[tracing::instrument(
-        name = "outlook.graph_request",
-        skip_all,
-        fields(
-            otel.kind = "client",
-            http.request.method = %method,
-            url.path = url.path(),
-            http.response.status_code = tracing::field::Empty,
-            reauthorized = false,
-        ),
-        err(level = "warn")
-    )]
     pub(super) async fn conditional_request(
         &self,
         token: &AccessToken,
@@ -67,6 +55,7 @@ impl OutlookApiClientRepository {
         body: Option<&Value>,
         expected_version: Option<&str>,
     ) -> Result<Response, EmailApiError> {
+        let path = url.path().to_owned();
         let refreshed = self
             .refreshed_token
             .lock()
@@ -94,13 +83,12 @@ impl OutlookApiClientRepository {
             .rejected_token_refresh
             .as_ref()
             .and_then(|_| request.try_clone());
-        match self.gated_request(request).await {
+        match self.graph_attempt(request, &method, &path, false).await {
             Err(EmailApiError::AuthRequired) => {
                 if let (Some(refresh), Some(retry), Some(mailbox)) =
                     (&self.rejected_token_refresh, retry, self.mailbox)
                 {
                     let fresh = refresh.refresh(mailbox).await?;
-                    tracing::Span::current().record("reauthorized", true);
                     *self
                         .refreshed_token
                         .lock()
@@ -115,13 +103,39 @@ impl OutlookApiClientRepository {
                     .map_err(|_| invalid_response())?;
                     authorization.set_sensitive(true);
                     headers.insert(reqwest::header::AUTHORIZATION, authorization);
-                    self.gated_request(retry.headers(headers)).await
+                    self.graph_attempt(retry.headers(headers), &method, &path, true)
+                        .await
                 } else {
                     Err(EmailApiError::AuthRequired)
                 }
             }
             result => result,
         }
+    }
+
+    /// One Graph round trip, including its wait for the mailbox gate. A replay
+    /// with a refreshed token is its own attempt, so each keeps its status.
+    #[tracing::instrument(
+        name = "outlook.graph_request",
+        skip_all,
+        fields(
+            otel.kind = "client",
+            http.request.method = %method,
+            url.path = path,
+            link_id = self.mailbox.map(|mailbox| tracing::field::display(mailbox.link_id)),
+            http.response.status_code = tracing::field::Empty,
+            reauthorized = reauthorized,
+        ),
+        err(level = "warn")
+    )]
+    async fn graph_attempt(
+        &self,
+        request: RequestBuilder,
+        method: &Method,
+        path: &str,
+        reauthorized: bool,
+    ) -> Result<Response, EmailApiError> {
+        self.gated_request(request).await
     }
 
     /// Includes anonymous, preauthorized attachment uploads in mailbox accounting.
