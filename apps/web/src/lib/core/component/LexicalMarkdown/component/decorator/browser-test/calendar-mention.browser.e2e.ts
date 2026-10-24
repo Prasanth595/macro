@@ -12,11 +12,11 @@ test('clicking a deleted calendar mention keeps its card open', async ({
   await expect(chip).toBeVisible();
 
   await chip.click();
-  await expect(page.getByText(gone)).toBeVisible();
+  await expect(page.getByText(gone, { exact: true })).toBeVisible();
   await expect(page.getByText(/file exists/)).toBeHidden();
 
   await page.keyboard.press('Escape');
-  await expect(page.getByText(gone)).toBeHidden();
+  await expect(page.getByText(gone, { exact: true })).toBeHidden();
 });
 
 test.describe('on a phone', () => {
@@ -38,6 +38,6 @@ test.describe('on a phone', () => {
     await chip.tap({ force: true });
     const sheet = page.getByRole('dialog', { name: 'Preview' });
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByText(gone)).toBeVisible();
+    await expect(sheet.getByText(gone, { exact: true })).toBeVisible();
   });
 });
