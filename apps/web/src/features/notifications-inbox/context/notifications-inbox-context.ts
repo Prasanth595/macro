@@ -53,6 +53,17 @@ export type NotificationsInboxContext = {
    * user's name resolves after it loads.
    */
   actorName: (notification: UnifiedNotification) => string | undefined;
+  /**
+   * A notification's state with this session's seen and done intent applied,
+   * ahead of the server's change.
+   */
+  notificationState: (
+    notification: UnifiedNotification
+  ) => UnifiedNotification['state'];
+  /** Mark notifications seen; shows at once and rolls back on failure. */
+  markNotificationsSeen: (
+    notifications: readonly UnifiedNotification[]
+  ) => Promise<void>;
 };
 
 const Context = createContext<NotificationsInboxContext>();

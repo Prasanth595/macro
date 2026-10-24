@@ -1,3 +1,4 @@
+import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { getDisplayNameParts, tryMacroId } from '@core/user';
 import {
@@ -9,7 +10,10 @@ import {
   getNotificationAgentSender,
   getNotificationSenderFallbackName,
 } from '@notifications/notification-sender';
-import { setDoneOverride } from '@notifications/notification-source';
+import {
+  type NotificationSource,
+  setDoneOverride,
+} from '@notifications/notification-source';
 import type { UnifiedNotification } from '@notifications/types';
 import { revalidateNotificationReaders } from '@queries/notification/revalidation';
 import {
@@ -47,7 +51,9 @@ function actorName(notification: UnifiedNotification): string | undefined {
   );
 }
 
-function createAppNotificationsInboxContext(): NotificationsInboxContext {
+function createAppNotificationsInboxContext(
+  notificationSource: NotificationSource
+): NotificationsInboxContext {
   return {
     createFeed: (scope) =>
       createWorkFeedInboxSource({
@@ -60,14 +66,21 @@ function createAppNotificationsInboxContext(): NotificationsInboxContext {
         revalidateNotifications: revalidateNotificationReaders,
       }),
     actorName,
+    notificationState: (notification) =>
+      notificationSource.withLocalState?.(notification) ?? notification.state,
+    markNotificationsSeen: (notifications) =>
+      notificationSource.bulkMarkAsRead([...notifications]),
   };
 }
 
-/** The Notifications view with the app's feed and navigation. */
+/** The Notifications view with the app's feed, notification state and navigation. */
 export function NotificationsInbox() {
   const panel = useSplitPanelOrThrow();
+  const notificationSource = useGlobalNotificationSource();
   return (
-    <NotificationsInboxProvider value={createAppNotificationsInboxContext()}>
+    <NotificationsInboxProvider
+      value={createAppNotificationsInboxContext(notificationSource)}
+    >
       <NotificationsView
         onOpen={(row, { newSplit }) =>
           openNotificationInSplit(row, {

@@ -2,19 +2,32 @@ import {
   createListController,
   useListInteractions,
 } from '@app/components/list';
-import { ViewShell, ViewSidebar } from '@app/components/view-shell';
+import {
+  ViewBreadcrumbs,
+  ViewShell,
+  ViewSidebar,
+} from '@app/components/view-shell';
 import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
+import { createPreviewSelectionGuard } from '@components/app/createPreviewSelectionGuard';
+import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
+import { PreviewPanel } from '@components/app/PreviewPanel';
+import {
+  type PreviewPanelSelection,
+  previewBlockTarget,
+} from '@components/app/previewTarget';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { SplitPanel } from '@components/app/split-panel';
 import { toast } from '@core/component/Toast/Toast';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { fireAndForget } from '@core/util/fireAndForget';
+import type { EntityData } from '@entity';
 import { formatTimestamp } from '@entity/utils/timestamp';
 import ArrowCounterClockwise from '@phosphor/arrow-counter-clockwise.svg';
 import BellIcon from '@phosphor/bell.svg';
 import { useMutationUndoContext } from '@queries/undo';
 import { createElementSize } from '@solid-primitives/resize-observer';
+import { debounce } from '@solid-primitives/scheduled';
 import { Button, EmptyStatePanel } from '@ui';
 import {
   createEffect,
@@ -25,6 +38,7 @@ import {
   Match,
   onCleanup,
   onMount,
+  Show,
   Suspense,
   Switch,
 } from 'solid-js';
@@ -36,6 +50,8 @@ import {
 } from '../context/notifications-inbox-context';
 import { describeInboxRow } from '../primitives/describe-row';
 import { createInboxList } from '../primitives/inbox-list';
+import { createInboxSelection } from '../primitives/inbox-selection';
+import { isRowUnseen, unseenNotifications } from '../primitives/row-seen';
 
 type ActivationMetadata = { event?: MouseEvent; newSplit?: boolean };
 
@@ -46,6 +62,31 @@ export type NotificationsViewProps = {
 
 /** Distance from the end of the list, in pixels, that loads the next page. */
 const LOAD_MORE_DISTANCE_PX = 300;
+
+/**
+ * What the preview pane can show inline; calendar events and projects open
+ * in their own views instead.
+ */
+const previewSelection = (
+  entity: EntityData
+): PreviewPanelSelection | undefined =>
+  entity.type === 'calendar_event' || entity.type === 'initiative'
+    ? undefined
+    : entity;
+
+function NotificationsBreadcrumb(props: { onReturn: () => void }) {
+  return (
+    <nav aria-label="Notifications location" class="flex items-center gap-0.5">
+      <ViewBreadcrumbs.ReturnButton
+        data-allow-focus-in-preview
+        onClick={props.onReturn}
+      >
+        Notifications
+      </ViewBreadcrumbs.ReturnButton>
+      <ViewBreadcrumbs.Separator />
+    </nav>
+  );
+}
 
 function ListHeaderTitle() {
   return (
@@ -69,8 +110,9 @@ function ListStatus(props: { children: JSX.Element }) {
 }
 
 /**
- * The unified notifications list: one row per thing that needs the viewer,
- * newest first. `j`/`k` move, Enter opens, `e` marks the focused row done.
+ * The unified notifications list beside a preview of the chosen row: one row
+ * per thing that needs the viewer, newest first. `j`/`k` move (and follow in
+ * an open preview), Enter previews, `e` marks the focused row done.
  */
 export function NotificationsView(props: NotificationsViewProps) {
   const panel = useSplitPanelOrThrow();
@@ -110,15 +152,57 @@ export function NotificationsView(props: NotificationsViewProps) {
     return current.t === 'ready' ? current.rows : [];
   };
 
+  const orchestrator = useGlobalBlockOrchestrator();
+  const guard = createPreviewSelectionGuard();
+  const selection = createInboxSelection(rows);
+  const previewTarget = createMemo(() => {
+    const row = selection.selected();
+    const entity = row && previewSelection(row.content.entity);
+    return entity && previewBlockTarget(entity);
+  });
+
+  const markSeen = (row: NotificationInboxRow) => {
+    const unseen = unseenNotifications(row, context.notificationState);
+    if (unseen.length === 0) return;
+    fireAndForget(context.markNotificationsSeen(unseen), 'notifications-inbox');
+  };
+
+  /** Show a row in the preview, or open it when it has no inline preview. */
+  const preview = (row: NotificationInboxRow) => {
+    const entity = previewSelection(row.content.entity);
+    if (!entity) {
+      props.onOpen(row, { newSplit: false });
+      return;
+    }
+    const target = previewBlockTarget(entity);
+    if (!guard.canSelect(target)) return;
+    selection.select(row);
+    guard(target);
+    markSeen(row);
+  };
+  const previewAfterMove = debounce(preview, 150);
+  onCleanup(() => previewAfterMove.clear());
+
   const list = createListController<NotificationInboxRow, ActivationMetadata>({
     items: rows,
     getKey: (row) => row.id,
-    onActivate: ({ item, metadata }) =>
-      props.onOpen(item, {
-        newSplit:
-          metadata?.newSplit === true || metadata?.event?.shiftKey === true,
-      }),
+    onActivate: ({ item, metadata }) => {
+      previewAfterMove.clear();
+      if (metadata?.newSplit === true || metadata?.event?.shiftKey === true) {
+        markSeen(item);
+        props.onOpen(item, { newSplit: true });
+        return;
+      }
+      preview(item);
+    },
   });
+
+  const markDone = (done: readonly NotificationInboxRow[]) => {
+    const next = selection.afterLeaving(done.map((row) => row.id));
+    if (next === 'none') selection.clear();
+    else if (next !== 'stay') preview(next);
+    fireAndForget(inbox.markDone(done), 'notifications-inbox');
+  };
 
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const [virtualizer, setVirtualizer] = createSignal<VirtualizerHandle>();
@@ -133,6 +217,10 @@ export function NotificationsView(props: NotificationsViewProps) {
     scrollHandle: virtualizer,
     navigation: {
       onNavigate: (event) => {
+        // An open preview follows the keyboard.
+        if (event.result && selection.selected()) {
+          previewAfterMove(event.result.item);
+        }
         if (event.kind !== 'move' || event.direction !== 1) return;
         if (!event.result || list.items.count() - event.result.index <= 4) {
           loadMore();
@@ -155,7 +243,7 @@ export function NotificationsView(props: NotificationsViewProps) {
       if (event?.repeat) return true;
       const row = list.focus.item();
       if (!row) return false;
-      fireAndForget(inbox.markDone([row]), 'notifications-inbox');
+      markDone([row]);
       return true;
     },
   });
@@ -252,8 +340,11 @@ export function NotificationsView(props: NotificationsViewProps) {
                   subject={display(row).subject}
                   time={formatTimestamp(new Date(row.latestAt))}
                   count={row.count}
-                  unseen={row.unseen}
-                  highlighted={list.focus.key() === row.id}
+                  unseen={isRowUnseen(row, context.notificationState)}
+                  highlighted={
+                    list.focus.key() === row.id ||
+                    selection.selected()?.id === row.id
+                  }
                   onHover={() => list.focus.set(row.id, { reason: 'hover' })}
                   onClick={(event) =>
                     list.activate.key(row.id, {
@@ -261,9 +352,7 @@ export function NotificationsView(props: NotificationsViewProps) {
                       metadata: { event },
                     })
                   }
-                  onDone={() =>
-                    fireAndForget(inbox.markDone([row]), 'notifications-inbox')
-                  }
+                  onDone={() => markDone([row])}
                 />
               )}
             </Virtualizer>
@@ -296,11 +385,26 @@ export function NotificationsView(props: NotificationsViewProps) {
               </div>
             </ViewShell.Aside>
             <ViewShell.Main class="overflow-hidden">
-              <EmptyStatePanel
-                graphic={BellIcon}
-                title="No notification selected"
-                description="Pick a notification to see it here."
-              />
+              <Show
+                when={previewTarget()}
+                fallback={
+                  <EmptyStatePanel
+                    graphic={BellIcon}
+                    title="No notification selected"
+                    description="Pick a notification to see it here."
+                  />
+                }
+              >
+                <PreviewPanel
+                  target={previewTarget()}
+                  navigationRequest={selection.navigationRequest()}
+                  orchestrator={orchestrator}
+                  splitPanelContext={panel}
+                  headerLeading={
+                    <NotificationsBreadcrumb onReturn={selection.clear} />
+                  }
+                />
+              </Show>
             </ViewShell.Main>
           </ViewShell.Root>
         </div>
