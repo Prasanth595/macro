@@ -1576,7 +1576,9 @@ export function normalizedCacheExchange(
           const view =
             current?.view ??
             new LiveQuery(result.data, queryShape(result.operation.query));
-          if (current) view.replace(result.data);
+          // As with persistence, a failed refresh's partial nulls are not
+          // authoritative: mounted readers keep the rows they already hold.
+          if (current && !result.error) view.replace(result.data);
           const liveResult = withLiveQueryData({ ...result }, view.data);
           liveQueries.set(result.operation.key, { view, result: liveResult });
           return liveResult;

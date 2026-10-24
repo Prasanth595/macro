@@ -765,6 +765,62 @@ describe('normalizedCacheExchange', () => {
     }
   );
 
+  it('keeps mounted live data when a refresh of the same query fails with partial data', async () => {
+    type Page = {
+      user: { soup: { items: { __typename: string; id: string }[] } | null };
+    };
+    const soup = gql<Page>`query Soup { user { soup { items { __typename id } } } }`;
+    const responses: Pick<OperationResult, 'data' | 'error'>[] = [
+      { data: { user: { soup: { items: [{ __typename: 'Doc', id: '1' }] } } } },
+      {
+        data: { user: { soup: null } },
+        error: new CombinedError({
+          graphQLErrors: [
+            { message: 'pool timed out while waiting for an open connection' },
+          ],
+        }),
+      },
+    ];
+    const client = createClient({
+      url: '/graphql',
+      exchanges: [
+        normalizedCacheExchange(host),
+        () => (source) =>
+          pipe(
+            source,
+            map((operation) => ({
+              operation,
+              stale: false,
+              hasNext: false,
+              ...responses.shift(),
+            }))
+          ),
+      ],
+    });
+    const { mounted, dispose } = createRoot((dispose) => ({
+      mounted: createUrqlQuery(() => ({
+        client,
+        query: soup,
+        variables: {},
+        requestPolicy: 'network-only' as const,
+      })),
+      dispose,
+    }));
+    try {
+      await vi.waitFor(() => expect(mounted.isSuccess).toBe(true));
+      const page = mounted.data!;
+
+      const refresh = await client
+        .query(soup, {}, { requestPolicy: 'network-only' })
+        .toPromise();
+
+      expect(refresh.error?.message).toContain('pool timed out');
+      expect(page.user.soup?.items.map((item) => item.id)).toEqual(['1']);
+    } finally {
+      dispose();
+    }
+  });
+
   it('keeps live objects reactive through full reads on older cache hosts', async () => {
     type Rows = { rows: { __typename: string; id: string; isRead: boolean }[] };
     const first = gql<Rows>`query First { rows { __typename id isRead } }`;
