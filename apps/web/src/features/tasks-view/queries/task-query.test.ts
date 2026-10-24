@@ -106,3 +106,52 @@ it('uses the initiative Project property for board columns without changing lega
     sort_direction: 'asc',
   });
 });
+
+describe('saved task filter execution', () => {
+  it('resolves relative people separately for every viewer in lists and searches', () => {
+    for (const viewer of ['macro|a@example.com', 'macro|b@example.com']) {
+      const facets = { assignees: ['@viewer'], 'created-by': ['@viewer'] };
+      const query = buildTaskQuery({ ...options, userId: viewer, facets });
+      const search = buildTaskSearchRequest({
+        query: 'review',
+        matchType: 'partial',
+        tab: 'team-tasks',
+        userId: viewer,
+        facets,
+      });
+      expect(query.body.propf).toEqual({
+        l: { pd: '00000001-0000-0000-0000-000000000001', v: { er: viewer } },
+      });
+      expect(search.body.filters?.document_filters?.owners).toEqual([viewer]);
+      expect(search.body.filters?.property_filters?.[0]?.entity_ids).toEqual([
+        viewer,
+      ]);
+    }
+  });
+
+  it('keeps stored tag and unknown status clauses when viewer metadata is unavailable', () => {
+    const tag = '20000000-0000-4000-8000-000000000001';
+    const property = '10000000-0000-4000-8000-000000000001';
+    const status = '30000000-0000-4000-8000-000000000001';
+    const facets = { tags: [tag], status: [status] };
+    const facetContext = {
+      tagPropertyDefinitionByOptionId: new Map([[tag, property]]),
+    };
+    const query = buildTaskQuery({ ...options, facets, facetContext });
+    const search = buildTaskSearchRequest({
+      query: 'review',
+      matchType: 'partial',
+      tab: 'team-tasks',
+      userId: 'viewer',
+      facets,
+      facetContext,
+    });
+    expect(JSON.stringify(query.body.propf)).toContain(tag);
+    expect(JSON.stringify(query.body.propf)).toContain(property);
+    expect(JSON.stringify(query.body.propf)).toContain(status);
+    expect(search.body.filters?.tag_option_ids).toEqual([tag]);
+    expect(search.body.filters?.property_filters?.[0]?.option_ids).toEqual([
+      status,
+    ]);
+  });
+});
