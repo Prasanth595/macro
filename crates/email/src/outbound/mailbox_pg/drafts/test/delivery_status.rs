@@ -2,18 +2,21 @@ use super::*;
 use crate::domain::send_attempt::{EmailSendRepo, SendAttemptStatus};
 use macro_user_id::user_id::MacroUserIdStr;
 
+async fn claim(sync: &PgMailboxSync) -> DraftLease {
+    sync.claim_draft(
+        Uuid::now_v7(),
+        crate::domain::mailbox::drafts::models::DraftClaimMode::All,
+    )
+    .await
+    .unwrap()
+    .unwrap()
+}
+
 async fn submitted_send(db: &PgPool) -> (PgMailboxSync, EmailPgRepo, DraftLease, Uuid) {
     let (sync, repo, input, link) = setup(db, true).await;
     sqlx::query!("INSERT INTO email_scheduled_messages (link_id,message_id,send_time,actor_id,processing) VALUES ($1,$2,now(),$3,true)",link,input.db_id,ACTOR).execute(db).await.unwrap();
     sqlx::query!("INSERT INTO email_send_attempts (user_id,link_id,attempt_id,message_id,thread_id,send_time) VALUES ($1,$2,$3,$4,$5,now())",ACTOR,link,Uuid::now_v7(),input.db_id,input.thread_db_id).execute(db).await.unwrap();
-    let lease = sync
-        .claim_draft(
-            Uuid::now_v7(),
-            crate::domain::mailbox::drafts::models::DraftClaimMode::All,
-        )
-        .await
-        .unwrap()
-        .unwrap();
+    let lease = claim(&sync).await;
     sync.checkpoint_draft(&lease, &checkpoint(&lease, DraftStage::Confirming))
         .await
         .unwrap();
@@ -37,12 +40,13 @@ async fn routine_outlook_confirmation_reads_as_sending_until_delivery_is_unknown
         pending_status(&repo, link).await,
         SendAttemptStatus::Sending
     );
-    sync.release_draft(&lease, 10).await.unwrap();
+    sync.release_draft(&lease, 0).await.unwrap();
     assert_eq!(
         pending_status(&repo, link).await,
         SendAttemptStatus::Sending,
         "waiting between confirmation polls is still sending"
     );
+    let lease = claim(&sync).await;
     sync.fail_draft(&lease, DraftFailure::SendUnknown)
         .await
         .unwrap();
