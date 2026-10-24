@@ -1255,10 +1255,12 @@ ICS attachments show a calendar icon in the attachment pill and file headers on
 desktop and mobile, including when the email uses `application/ics` or a
 parameterized `text/calendar` MIME type. Opening the attachment of a message that shows a
 card opens a dialog (a drawer on phones) with the same card, so its RSVP or `Add to calendar`
-works there, and `Download .ics`, which saves the file without adding it to Drive. When the
-card falls back to the saved invitation (the event matches nothing on your calendars, as with
-a forwarded event), its status line reads `Saved invitation.` in the dialog; the card in the
-email adds that the original email or invitation attachment has more options. The card
+works there, and `Download .ics`, which saves the file without adding it to Drive. When an
+invitation's card falls back to the saved invitation (the event matches nothing on your
+calendars), its status line reads `Saved invitation.` in the dialog; the card in the email
+adds that the original email or invitation attachment has more options. A shared event shown
+without a calendar check reads `Shared event.` in the dialog the same way, while the card in
+the email points at the original email or event attachment. The card
 stays put while the thread refreshes, and `Open in calendar` closes the dialog before the
 calendar opens, including when Calendar is already open in another split. A calendar file with
 no card (nothing Macro could read) downloads directly, and an Outlook cloud-reference `.ics`
@@ -1276,7 +1278,9 @@ description links use the host's normal link-opening behavior.
 A published event file (`METHOD:PUBLISH`, what `Forward by email` attaches) is a shared
 event, not an invitation: the card reads `Shared event organized by <organizer>` and never
 shows Yes / Maybe / No, a last response, or a waiting-for-sync line. When the viewer already
-holds the meeting it says `On your calendar.` with `Open in calendar` and `View your day`.
+holds the meeting it says `On your calendar.` with `Open in calendar` and `View your day`;
+when the meeting is on more than one of the viewer's accounts it says
+`This event matches multiple accounts. Open your calendar to choose.`, as an invitation does.
 When the calendar check confirms the viewer does not hold it, the card says
 `Not on your calendar.` and, behind the `enable-calendar-add-shared-event` flag, offers
 `Add to calendar`, which imports the same snapshot as the channel-share card

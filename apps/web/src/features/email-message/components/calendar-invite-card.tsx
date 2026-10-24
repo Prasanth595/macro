@@ -157,7 +157,12 @@ export function CalendarInviteCard(props: {
     ['resolved', 'ambiguous'].includes(props.actions?.resolution?.kind ?? '');
   const sharedStatus = () =>
     match(props.actions?.resolution?.kind)
-      .with('resolved', 'ambiguous', () => 'On your calendar.')
+      .with('resolved', () => 'On your calendar.')
+      .with(
+        'ambiguous',
+        () =>
+          'This event matches multiple accounts. Open your calendar to choose.'
+      )
       .with('no_match', () => 'Not on your calendar.')
       .with('disconnected', () => 'Connect a calendar to add this event.')
       .with(
@@ -169,9 +174,10 @@ export function CalendarInviteCard(props: {
         'unavailable',
         () => 'Calendar unavailable. Saved event details are shown.'
       )
-      .otherwise(
-        () =>
-          'Shared event. Open the original email or event attachment to add it to a calendar.'
+      .otherwise(() =>
+        props.inCalendarFile
+          ? 'Shared event.'
+          : 'Shared event. Open the original email or event attachment to add it to a calendar.'
       );
   const fallbackStatus = () =>
     match(props.actions?.resolution?.kind)
