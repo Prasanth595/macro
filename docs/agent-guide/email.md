@@ -830,6 +830,8 @@ send require reconnection for any draft with attachments. Online, clicking Send 
 a save debounce finishes must start or continue uploads; a queued save's confirmation
 must also resume pending uploads after reload. Pending or failed inline image/video
 uploads block Send and Schedule send until they have durable URLs or are removed.
+An inline image cut and pasted elsewhere in the body, or copied into another
+editor, while it uploads must unblock Send once that upload finishes.
 
 Queued sends survive query-cache recovery in independent account-scoped storage,
 retaining their original attempt IDs, frozen bodies, attachments and cancellation
