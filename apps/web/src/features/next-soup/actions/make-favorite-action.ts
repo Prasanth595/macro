@@ -68,13 +68,18 @@ export const makeFavoriteAction = () => {
     // Each mutation rolls its own optimistic change back on failure, so report
     // what actually happened rather than an all-or-nothing result.
     const failed = results.filter((r) => r.status === 'rejected').length;
+    const queued = results.filter(
+      (r) => r.status === 'fulfilled' && r.value.kind === 'queued'
+    ).length;
     const succeeded = results.length - failed;
-    if (failed === 0) {
-      toast.success(
-        succeeded > 1
-          ? `${verb} ${succeeded} items ${preposition} favorites`
-          : `${verb} ${preposition} favorites`
-      );
+    const summary =
+      succeeded > 1
+        ? `${verb} ${succeeded} items ${preposition} favorites`
+        : `${verb} ${preposition} favorites`;
+    if (failed === 0 && queued === 0) {
+      toast.success(summary);
+    } else if (failed === 0) {
+      toast.alert(`${summary}, waiting to sync`);
     } else if (succeeded === 0) {
       toast.failure('Failed to update favorites');
     } else {

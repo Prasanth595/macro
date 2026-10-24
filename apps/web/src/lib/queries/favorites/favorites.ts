@@ -10,7 +10,7 @@ import type { AddFavoriteRequest } from '@service-storage/generated/schemas/addF
 import type { Favorite } from '@service-storage/generated/schemas/favorite';
 import type { FavoritesList } from '@service-storage/generated/schemas/favoritesList';
 import type { ListFavoritesParams } from '@service-storage/generated/schemas/listFavoritesParams';
-import type { ReorderFavoritesResult } from '@service-storage/graphql-favorites';
+import type { FavoriteWriteResult } from '@service-storage/graphql-favorites';
 import { queryOptions, useMutation, useQuery } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
 
@@ -203,7 +203,7 @@ type FavoriteMutationContext = { rollback: () => void } | undefined;
 
 type AddFavoriteArgs = AddFavoriteRequest;
 type AddFavoriteCallbacks = FavoriteMutationCallbacks<
-  Favorite | undefined,
+  FavoriteWriteResult,
   AddFavoriteArgs,
   FavoriteMutationContext
 >;
@@ -223,9 +223,16 @@ export function useAddFavoriteMutation(callbacks?: AddFavoriteCallbacks) {
   }
 
   return useMutation(() => ({
-    mutationFn: async (args: AddFavoriteArgs) =>
-      await throwOnErr(() => storageServiceClient.favorites.addFavorite(args)),
-    ...withCallbacks<Favorite, Error, AddFavoriteArgs, FavoriteMutationContext>(
+    mutationFn: async (args: AddFavoriteArgs): Promise<FavoriteWriteResult> => {
+      await throwOnErr(() => storageServiceClient.favorites.addFavorite(args));
+      return { kind: 'committed' };
+    },
+    ...withCallbacks<
+      FavoriteWriteResult,
+      Error,
+      AddFavoriteArgs,
+      FavoriteMutationContext
+    >(
       {
         onMutate: async (args: AddFavoriteArgs) => {
           await queryClient.cancelQueries({
@@ -264,7 +271,7 @@ type RemoveFavoriteArgs = {
   entityId: string;
 };
 type RemoveFavoriteCallbacks = FavoriteMutationCallbacks<
-  void,
+  FavoriteWriteResult,
   RemoveFavoriteArgs,
   FavoriteMutationContext
 >;
@@ -275,12 +282,20 @@ export function useRemoveFavoriteMutation(callbacks?: RemoveFavoriteCallbacks) {
   }
 
   return useMutation(() => ({
-    mutationFn: async (args: RemoveFavoriteArgs) => {
+    mutationFn: async (
+      args: RemoveFavoriteArgs
+    ): Promise<FavoriteWriteResult> => {
       await throwOnErr(() =>
         storageServiceClient.favorites.removeFavoriteByEntity(args)
       );
+      return { kind: 'committed' };
     },
-    ...withCallbacks<void, Error, RemoveFavoriteArgs, FavoriteMutationContext>(
+    ...withCallbacks<
+      FavoriteWriteResult,
+      Error,
+      RemoveFavoriteArgs,
+      FavoriteMutationContext
+    >(
       {
         onMutate: async (args: RemoveFavoriteArgs) => {
           await queryClient.cancelQueries({
@@ -319,7 +334,7 @@ type ReorderFavoritesArgs = {
   favorites: { entityType: FavoriteEntityType; entityId: string }[];
 };
 type ReorderFavoritesCallbacks = FavoriteMutationCallbacks<
-  ReorderFavoritesResult,
+  FavoriteWriteResult,
   ReorderFavoritesArgs,
   FavoriteMutationContext
 >;
@@ -334,7 +349,7 @@ export function useReorderFavoritesMutation(
   return useMutation(() => ({
     mutationFn: async (
       args: ReorderFavoritesArgs
-    ): Promise<ReorderFavoritesResult> => {
+    ): Promise<FavoriteWriteResult> => {
       // Entities the user has not favorited (e.g. an optimistic row whose add
       // is still in flight) are ignored by the backend.
       if (args.favorites.length === 0) return { kind: 'committed' };
@@ -346,7 +361,7 @@ export function useReorderFavoritesMutation(
       return { kind: 'committed' };
     },
     ...withCallbacks<
-      ReorderFavoritesResult,
+      FavoriteWriteResult,
       Error,
       ReorderFavoritesArgs,
       FavoriteMutationContext
