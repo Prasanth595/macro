@@ -27,7 +27,7 @@ export function ConnectedCalendars(props: {
   canConnect: boolean;
   onRetry: () => void;
   onConnect: () => void;
-  onEnable: () => void;
+  onEnable: (account: ConnectedCalendarAccount) => void;
   onDisconnect: (account: ConnectedCalendarAccount) => void;
   isVisible: (id: string) => boolean;
   onVisibilityChange: (ids: string[], visible: boolean) => void;
@@ -74,14 +74,16 @@ export function ConnectedCalendars(props: {
               </Show>
             }
           >
-            <Button
-              size="sm"
-              variant="cta"
-              disabled={props.connecting}
-              onClick={props.onEnable}
-            >
-              {props.connecting ? 'Connecting…' : 'Connect'}
-            </Button>
+            {(account) => (
+              <Button
+                size="sm"
+                variant="cta"
+                disabled={props.connecting}
+                onClick={() => props.onEnable(account())}
+              >
+                {props.connecting ? 'Connecting…' : 'Connect'}
+              </Button>
+            )}
           </Show>
         </SettingsRow>
         <Show when={props.loading}>
@@ -155,7 +157,7 @@ export function ConnectedCalendars(props: {
                       disabled={props.connecting}
                       onClick={() =>
                         account().needsPermission
-                          ? props.onEnable()
+                          ? props.onEnable(account())
                           : props.onDisconnect(account())
                       }
                     >
