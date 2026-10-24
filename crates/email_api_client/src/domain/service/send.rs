@@ -56,12 +56,11 @@ where
         {
             Ok(access_token) => access_token,
             Err(error) => {
-                self.gate.finish(link_id, permit, None).await;
+                self.gate.finish(permit, None).await;
                 return Err(error);
             }
         };
         Ok(PreparedSendMessage {
-            link_id,
             permit,
             access_token,
             mime,
@@ -74,7 +73,7 @@ where
     #[tracing::instrument(skip_all)]
     pub async fn send_prepared(
         &self,
-        prepared: &PreparedSendMessage,
+        prepared: PreparedSendMessage,
     ) -> Result<SentIds, EmailApiError> {
         let result = self
             .repository
@@ -85,7 +84,7 @@ where
             )
             .await;
         self.gate
-            .finish(prepared.link_id, prepared.permit, result.as_ref().err())
+            .finish(prepared.permit, result.as_ref().err())
             .await;
         result.inspect_err(log_operation_error)
     }

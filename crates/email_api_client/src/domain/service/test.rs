@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::task::{Context, Waker};
 use std::time::Duration;
 
 use models_email::email::service::label::Label;
@@ -45,6 +46,53 @@ impl MailboxLabelClient for TokenCheckingLabels {
     async fn delete_label(&self, _: &AccessToken, _: &str) -> Result<(), EmailApiError> {
         unreachable!("not used by these tests")
     }
+}
+
+/// Never answers, like a Gmail request still in flight.
+struct UnansweredLabels;
+
+impl MailboxLabelClient for UnansweredLabels {
+    async fn list_labels(&self, _: &AccessToken, _: Uuid) -> Result<Vec<Label>, EmailApiError> {
+        std::future::pending().await
+    }
+
+    async fn create_label(
+        &self,
+        _: &AccessToken,
+        _: Uuid,
+        _: &str,
+    ) -> Result<Label, EmailApiError> {
+        unreachable!("not used by these tests")
+    }
+
+    async fn delete_label(&self, _: &AccessToken, _: &str) -> Result<(), EmailApiError> {
+        unreachable!("not used by these tests")
+    }
+}
+
+#[tokio::test]
+async fn a_caller_cancelled_mid_request_releases_its_admission() {
+    let calls = call_log();
+    let service = EmailApiClientServiceImpl::new(
+        UnansweredLabels,
+        FakeTokenSource::new(calls.clone(), Ok(AccessToken::new("access-token"))),
+        FakeGate::new(calls.clone(), Ok(())),
+    );
+    let mut read = Box::pin(service.list_labels(Uuid::nil()));
+    let poll = read.as_mut().poll(&mut Context::from_waker(Waker::noop()));
+    assert!(poll.is_pending());
+
+    // An HTTP client disconnected, or a lease-keeping select! gave up.
+    drop(read);
+
+    assert_eq!(
+        *calls.lock().unwrap(),
+        vec![
+            Call::Acquire(Uuid::nil(), ApiOperationKind::ListLabels),
+            Call::Token(Uuid::nil(), TokenFreshness::Cached),
+            Call::Abandon(Uuid::nil()),
+        ]
+    );
 }
 
 async fn list_labels_with(

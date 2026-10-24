@@ -16,9 +16,10 @@ async fn cleanup(connection: &ConnectionManager, link_id: Uuid) {
         .unwrap();
 }
 
-fn refusal_delay(result: Result<Uuid, RateLimitRefusal>) -> Duration {
+fn refusal_delay(result: Result<RequestPermit, RateLimitRefusal>) -> Duration {
     result
-        .expect_err("the request should be refused")
+        .err()
+        .expect("the request should be refused")
         .retry_after
         .expect("a refusal reports when to retry")
 }
@@ -52,7 +53,8 @@ async fn backfill_leaves_two_of_five_in_flight_slots_to_live_work() {
         .acquire(link_id, ApiOperationKind::ModifyMessageLabels)
         .await
         .unwrap();
-    live.acquire(link_id, ApiOperationKind::ModifyMessageLabels)
+    let _second_live = live
+        .acquire(link_id, ApiOperationKind::ModifyMessageLabels)
         .await
         .unwrap();
     assert_eq!(
@@ -63,11 +65,12 @@ async fn backfill_leaves_two_of_five_in_flight_slots_to_live_work() {
         Duration::from_secs(1)
     );
 
-    live.finish(link_id, first_live, None).await;
-    live.acquire(link_id, ApiOperationKind::ModifyMessageLabels)
+    live.finish(first_live, None).await;
+    let _third_live = live
+        .acquire(link_id, ApiOperationKind::ModifyMessageLabels)
         .await
         .unwrap();
-    backfill.finish(link_id, backfill_permits[0], None).await;
+    backfill.finish(backfill_permits.remove(0), None).await;
     assert!(
         backfill
             .acquire(link_id, ApiOperationKind::GetMessage)
@@ -95,7 +98,6 @@ async fn a_gmail_rate_limit_pauses_every_caller_for_the_capped_cooldown() {
         .await
         .unwrap();
     live.finish(
-        link_id,
         local_refusal,
         Some(&EmailApiError::RateLimited {
             retry_after: None,
@@ -103,12 +105,12 @@ async fn a_gmail_rate_limit_pauses_every_caller_for_the_capped_cooldown() {
         }),
     )
     .await;
-    live.acquire(link_id, ApiOperationKind::GetMessage)
+    let _admitted = live
+        .acquire(link_id, ApiOperationKind::GetMessage)
         .await
         .unwrap();
 
     live.finish(
-        link_id,
         throttled,
         Some(&EmailApiError::RateLimited {
             retry_after: None,
@@ -132,7 +134,6 @@ async fn a_gmail_rate_limit_pauses_every_caller_for_the_capped_cooldown() {
         .await
         .unwrap();
     live.finish(
-        link_id,
         permit,
         Some(&EmailApiError::RateLimited {
             retry_after: Some(Duration::from_secs(3_600)),
@@ -172,7 +173,7 @@ async fn quota_units_are_refused_until_the_oldest_second_leaves_the_window() {
         .acquire(link_id, ApiOperationKind::ListThreads)
         .await
         .unwrap();
-    live.finish(link_id, permit, None).await;
+    live.finish(permit, None).await;
     // A send fits once the oldest second leaves the window; backfill's lower
     // threshold also has to wait for the next one.
     let live_delay = refusal_delay(live.acquire(link_id, ApiOperationKind::SendMessage).await);
@@ -202,8 +203,9 @@ async fn a_redis_failure_defers_the_request_instead_of_admitting_it() {
 
     assert_eq!(
         live.acquire(link_id, ApiOperationKind::ModifyMessageLabels)
-            .await,
-        Err(RateLimitRefusal::new(Some(UNAVAILABLE_RETRY_AFTER)))
+            .await
+            .err(),
+        Some(RateLimitRefusal::new(Some(UNAVAILABLE_RETRY_AFTER)))
     );
     cleanup(&connection, link_id).await;
 }
@@ -227,14 +229,20 @@ async fn admission_resumes_after_redis_drops_the_connection() {
         .await;
 
     // The first request after the drop may still meet the dead connection.
-    let first = live.acquire(link_id, ApiOperationKind::GetMessage).await;
+    let first = live
+        .acquire(link_id, ApiOperationKind::GetMessage)
+        .await
+        .err();
     assert!(
-        first.is_ok() || first == Err(RateLimitRefusal::new(Some(UNAVAILABLE_RETRY_AFTER))),
+        first.is_none() || first == Some(RateLimitRefusal::new(Some(UNAVAILABLE_RETRY_AFTER))),
         "{first:?}"
     );
-    live.acquire(link_id, ApiOperationKind::GetMessage)
-        .await
-        .expect("the gate reconnects instead of refusing until a restart");
+    assert!(
+        live.acquire(link_id, ApiOperationKind::GetMessage)
+            .await
+            .is_ok(),
+        "the gate reconnects instead of refusing until a restart"
+    );
     cleanup(&connection, link_id).await;
 }
 

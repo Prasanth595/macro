@@ -87,12 +87,11 @@ impl SendRequest {
 /// Locally prepared delivery. Tokens and message contents cannot be logged via
 /// `Debug`, and callers cannot construct it without completing preparation.
 ///
-/// It holds the send's admission permit until dispatch releases it; a delivery
-/// that is never dispatched frees the permit when its lease expires.
+/// It holds the send's admission permit until dispatch finishes it; a delivery
+/// dropped without dispatch releases the permit.
 #[cfg(feature = "ports")]
 pub struct PreparedSendMessage {
-    pub(crate) link_id: uuid::Uuid,
-    pub(crate) permit: uuid::Uuid,
+    pub(crate) permit: super::RequestPermit,
     pub(crate) access_token: AccessToken,
     pub(crate) mime: Vec<u8>,
     pub(crate) provider_thread_id: Option<String>,

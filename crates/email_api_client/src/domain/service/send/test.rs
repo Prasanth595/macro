@@ -96,12 +96,40 @@ async fn preparation_holds_admission_until_the_single_dispatch_releases_it() {
             Call::Token(Uuid::nil(), TokenFreshness::Cached),
         ]
     );
-    service.send_prepared(&prepared).await.unwrap();
+    service.send_prepared(prepared).await.unwrap();
     assert_eq!(
         calls.lock().unwrap()[2..],
         [
             Call::Repository("send_prepared"),
             Call::Finish(Uuid::nil(), None),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_prepared_send_dropped_before_dispatch_releases_its_admission() {
+    let calls = call_log();
+    let service = EmailApiClientServiceImpl::new(
+        SendClient {
+            calls: calls.clone(),
+        },
+        FakeTokenSource::new(calls.clone(), Ok(AccessToken::new("access-token"))),
+        FakeGate::new(calls.clone(), Ok(())),
+    );
+    let prepared = service
+        .prepare_send(Uuid::nil(), &send_request(), Some("thread-1"))
+        .await
+        .unwrap();
+
+    // The delivery coordinator lost its claim before submission.
+    drop(prepared);
+
+    assert_eq!(
+        *calls.lock().unwrap(),
+        [
+            Call::Acquire(Uuid::nil(), super::ApiOperationKind::SendMessage),
+            Call::Token(Uuid::nil(), TokenFreshness::Cached),
+            Call::Abandon(Uuid::nil()),
         ]
     );
 }

@@ -3,7 +3,8 @@
 use uuid::Uuid;
 
 use super::models::{
-    AccessToken, ApiOperationKind, EmailApiError, RateLimitOrigin, TokenError, TokenFreshness,
+    AccessToken, ApiOperationKind, EmailApiError, RateLimitOrigin, RequestPermit, TokenError,
+    TokenFreshness,
 };
 use super::ports::{ProviderRequestGate, ProviderTokenSource};
 
@@ -144,7 +145,8 @@ where
     /// paying the token dance (SELECT + Redis + possible auth-service refresh +
     /// health write) per refused attempt. An admission or token failure is
     /// logged and returned as the outer error; the provider's answer is the
-    /// inner result, which also decides whether the mailbox cools down.
+    /// inner result, which also decides whether the mailbox cools down. If
+    /// the caller is cancelled first, the dropped permit releases itself.
     async fn attempt<O, F, Fut>(
         &self,
         link_id: Uuid,
@@ -162,7 +164,7 @@ where
             Err(error) => Err(error),
         };
         let provider_error = result.as_ref().ok().and_then(|call| call.as_ref().err());
-        self.gate.finish(link_id, permit, provider_error).await;
+        self.gate.finish(permit, provider_error).await;
         result
     }
 
@@ -172,7 +174,7 @@ where
         &self,
         link_id: Uuid,
         operation: ApiOperationKind,
-    ) -> Result<Uuid, EmailApiError> {
+    ) -> Result<RequestPermit, EmailApiError> {
         self.gate
             .acquire(link_id, operation)
             .await

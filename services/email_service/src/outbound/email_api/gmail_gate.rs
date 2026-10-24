@@ -6,7 +6,7 @@ mod test;
 use std::time::Duration;
 
 use email_api_client::domain::models::{
-    ApiOperationKind, EmailApiError, RateLimitOrigin, RateLimitRefusal,
+    ApiOperationKind, EmailApiError, RateLimitOrigin, RateLimitRefusal, RequestPermit,
 };
 use email_api_client::domain::ports::ProviderRequestGate;
 use models_email::gmail::operations::GmailApiOperation;
@@ -25,10 +25,10 @@ const BACKFILL_CONCURRENT_REQUESTS: u32 = 3;
 const WINDOW_SECONDS: u32 = 10;
 const UNITS_PER_WINDOW: u32 = 2_300;
 const BACKFILL_UNITS_PER_WINDOW: u32 = 1_800;
-// Gmail requests have no client timeout, so this lease is what frees the slot
-// of a crashed, cancelled, or hung caller. It matches the Gmail queues'
-// 60-second visibility timeout, after which their work is redelivered anyway.
-const PERMIT_MS: u32 = 60_000;
+// Longer than the Gmail client's 60-second request timeout. Finished and
+// dropped permits release themselves; the lease frees the slots of a crashed
+// process.
+const PERMIT_MS: u32 = 90_000;
 // Google asks clients to wait at least a second before retrying a 429.
 const BUSY_RETRY_MS: u32 = 1_000;
 // Gmail sends no Retry-After with its rate limits.
@@ -160,7 +160,7 @@ impl ProviderRequestGate for RedisGmailRequestGate {
         &self,
         link_id: Uuid,
         operation: ApiOperationKind,
-    ) -> Result<Uuid, RateLimitRefusal> {
+    ) -> Result<RequestPermit, RateLimitRefusal> {
         let permit = Uuid::now_v7();
         let [inflight, window, cooldown] = keys(link_id);
         let (concurrent_requests, units_per_window) = self.budget.limits();
@@ -178,7 +178,21 @@ impl ProviderRequestGate for RedisGmailRequestGate {
             .invoke_async(&mut self.connection.clone())
             .await;
         match delay {
-            Ok(0) => Ok(permit),
+            Ok(0) => {
+                let gate = self.clone();
+                Ok(RequestPermit::new(
+                    link_id,
+                    permit,
+                    move |link_id, permit| {
+                        // Drop cannot wait. Without a runtime, the lease frees the slot.
+                        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+                            runtime.spawn(async move {
+                                gate.release(link_id, permit, Duration::ZERO).await
+                            });
+                        }
+                    },
+                ))
+            }
             Ok(delay) => Err(RateLimitRefusal::new(Some(Duration::from_millis(delay)))),
             Err(error) => {
                 tracing::warn!(%link_id, %error, "Gmail request admission is unavailable");
@@ -187,13 +201,21 @@ impl ProviderRequestGate for RedisGmailRequestGate {
         }
     }
 
-    async fn finish(&self, link_id: Uuid, permit: Uuid, error: Option<&EmailApiError>) {
+    async fn finish(&self, permit: RequestPermit, error: Option<&EmailApiError>) {
+        self.release(permit.link_id(), permit.id(), cooldown(error))
+            .await;
+        permit.disarm();
+    }
+}
+
+impl RedisGmailRequestGate {
+    async fn release(&self, link_id: Uuid, permit: Uuid, cooldown: Duration) {
         let [inflight, _, cooldown_key] = keys(link_id);
         let result: redis::RedisResult<i32> = redis::Script::new(FINISH)
             .key(inflight)
             .key(cooldown_key)
             .arg(permit.to_string())
-            .arg(cooldown(error).as_millis().to_string())
+            .arg(cooldown.as_millis().to_string())
             .invoke_async(&mut self.connection.clone())
             .await;
         if result.is_err() {

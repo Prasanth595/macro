@@ -7,7 +7,8 @@ use uuid::Uuid;
 
 use super::super::models::{
     AccessToken, ApiOperationKind, ChangeBatch, EmailApiError, ProviderSubscription,
-    RateLimitRefusal, SendRequest, SentIds, SyncCursor, ThreadListPage, TokenError, TokenFreshness,
+    RateLimitRefusal, RequestPermit, SendRequest, SentIds, SyncCursor, ThreadListPage, TokenError,
+    TokenFreshness,
 };
 use super::super::ports::{
     MailboxAttachmentClient, MailboxBlocklistClient, MailboxContactsClient, MailboxLabelClient,
@@ -21,6 +22,7 @@ pub(super) enum Call {
     HealthNeutralToken(Uuid, TokenFreshness),
     Acquire(Uuid, ApiOperationKind),
     Finish(Uuid, Option<EmailApiError>),
+    Abandon(Uuid),
     Repository(&'static str),
 }
 
@@ -111,19 +113,25 @@ impl ProviderRequestGate for FakeGate {
         &self,
         link_id: Uuid,
         operation: ApiOperationKind,
-    ) -> Result<Uuid, RateLimitRefusal> {
+    ) -> Result<RequestPermit, RateLimitRefusal> {
         self.calls
             .lock()
             .unwrap()
             .push(Call::Acquire(link_id, operation));
-        self.result.clone().map(|()| Uuid::nil())
+        let calls = self.calls.clone();
+        self.result.clone().map(|()| {
+            RequestPermit::new(link_id, Uuid::nil(), move |link_id, _| {
+                calls.lock().unwrap().push(Call::Abandon(link_id));
+            })
+        })
     }
 
-    async fn finish(&self, link_id: Uuid, _: Uuid, error: Option<&EmailApiError>) {
+    async fn finish(&self, permit: RequestPermit, error: Option<&EmailApiError>) {
         self.calls
             .lock()
             .unwrap()
-            .push(Call::Finish(link_id, error.cloned()));
+            .push(Call::Finish(permit.link_id(), error.cloned()));
+        permit.disarm();
     }
 }
 

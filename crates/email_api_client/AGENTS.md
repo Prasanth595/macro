@@ -51,11 +51,13 @@ Outlook (Microsoft Graph) outbound adapters.
 - The service is generic over `<R, T, L>` (repository, token source, request
   gate) — add a new dependency as a port + generic bound, not a concrete
   field.
-- Every provider call holds a `ProviderRequestGate` permit for its duration
-  and releases it with the call's error, so a provider rate limit cools the
-  mailbox down for every caller. New service methods go through
-  `read_with_token` or `call_with_token`; a call made with a bare token is
-  invisible to the in-flight cap.
+- Every provider call holds a `ProviderRequestGate` permit (`RequestPermit`)
+  for its duration and finishes it with the call's error, so a provider rate
+  limit cools the mailbox down for every caller. A permit dropped unfinished,
+  by a cancelled future or an undispatched `PreparedSendMessage`, releases
+  itself. New service methods go through `read_with_token` or
+  `call_with_token`; a call made with a bare token is invisible to the
+  in-flight cap.
 - Link-based reads go through `read_with_token`, which retries once with a
   fresh token when the provider answers `AuthRequired`; a cached token can
   outlive a revoked grant, and only the fresh fetch lets the token source mark
