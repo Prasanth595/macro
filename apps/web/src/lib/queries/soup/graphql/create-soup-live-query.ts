@@ -177,7 +177,9 @@ export function createSoupLiveQuery(
   let networkAuthorityInput: GraphqlSoupInput | undefined;
   let staleFallbackSpan: ReturnType<typeof Telemetry.span> | undefined;
 
-  const recordAuthority = (source: 'network' | 'local' | 'stale-fallback') => {
+  const recordAuthority = (
+    source: 'network' | 'failed-network' | 'local' | 'stale-fallback'
+  ) => {
     const span = Telemetry.span('graphql_cache.soup_authority');
     span.setAttr('authority.source', source);
     span.end();
@@ -349,12 +351,18 @@ export function createSoupLiveQuery(
         : 'cache-and-network',
       keepPreviousData: queryOptions.keepPreviousData ?? false,
       onResult: (result, page) => {
+        const metadata = normalizedCacheResultMetadata(result);
+        if (result.error && metadata?.source === 'live-network') {
+          // The exchange keeps the rows already shown; a failed response's
+          // partial data claims no authority over them or the local rows.
+          recordAuthority('failed-network');
+          return;
+        }
         if (!result.data) return;
         batch(() => {
           setBaselineGeneration(cacheGeneration);
           setBaselineInputKey(firstInputKey);
         });
-        const metadata = normalizedCacheResultMetadata(result);
         if (metadata?.source !== 'live-network') {
           // An affected/cache result already reflects local state. Its pending
           // network acknowledgement may no longer claim authority over it.
