@@ -100,6 +100,8 @@ the gateway `/email` prefix.
   only messages whose markers its write still owns, clears them on success and
   hands them back on a permanent failure. Markers expire after 12 hours, which
   must outlast an operation's redelivery through the gmail_ops queues.
+- gmail_ops moves transient Gmail failures to the retry queue like rate limits;
+  the primary queue dead-letters after three receives.
 - Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
   Skip the bad address with a WARN that omits it (the parse error echoes it)
   instead of failing the step; see `pubsub::util::build_contact_connections`.

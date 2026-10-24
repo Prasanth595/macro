@@ -43,6 +43,8 @@ pub enum FailureReason {
     CalendarBackfillBusy,
     GmailApiFailed,
     GmailApiRateLimited,
+    /// Gmail failed with a server or network error.
+    GmailApiUnavailable,
     OutdatedHistoryId,
     AttachmentParsingFailed,
     DSSUploadFailed,
