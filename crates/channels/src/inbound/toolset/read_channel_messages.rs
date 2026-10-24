@@ -144,7 +144,11 @@ where
 {
     type Output = ReadChannelMessagesResponse;
 
-    #[tracing::instrument(skip_all, fields(user_id=?request_context.user_id), err)]
+    #[tracing::instrument(
+        skip_all,
+        fields(user_id=?request_context.user_id, channel_id=%self.channel_id),
+        err
+    )]
     async fn call(
         &self,
         service_context: ServiceContext<ChannelToolContext<Svc, AccessSvc>>,
