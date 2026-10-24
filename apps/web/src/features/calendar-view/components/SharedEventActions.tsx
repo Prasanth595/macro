@@ -35,8 +35,6 @@ export function SharedEventActions(props: {
   canRequestToJoin: boolean;
   /** The viewer's request to join, if they made one. */
   joinRequestStatus?: CalendarJoinRequestStatus;
-  /** Called once the copy is on the viewer's calendar. */
-  onAdded?: () => void;
 }) {
   const addSharedEvent = useCalendarAddSharedEventFlag();
   const [menuOpen, setMenuOpen] = createSignal(false);
@@ -45,10 +43,7 @@ export function SharedEventActions(props: {
   useHoldParentHoverCardOpen(menuOpen);
 
   const copy = useCopySharedCalendarEventMutation({
-    onSuccess: () => {
-      toast.success('Added to your calendar');
-      props.onAdded?.();
-    },
+    onSuccess: () => toast.success('Added to your calendar'),
     onError: toastAddToCalendarFailure,
   });
 
