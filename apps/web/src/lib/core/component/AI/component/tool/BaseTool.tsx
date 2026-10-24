@@ -47,9 +47,12 @@ function BaseToolCall(props: ToolCallProps) {
       </Show>
       <Show when={showReason() && reason()}>
         {(text) => (
-          <Tool.Response>
-            <p class="whitespace-pre-wrap break-words">{text()}</p>
-          </Tool.Response>
+          <p
+            class="whitespace-pre-wrap break-words pb-2"
+            classList={{ 'pl-6': grouped(), 'pl-9 pr-3': !grouped() }}
+          >
+            {text()}
+          </p>
         )}
       </Show>
     </Tool.Root>
