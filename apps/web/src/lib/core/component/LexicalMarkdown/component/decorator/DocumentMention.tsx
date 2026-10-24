@@ -399,13 +399,7 @@ export function DocumentMention(props: DocumentMentionDecoratorProps) {
   // Only skill mentions need to distinguish built-ins from stored documents.
   // Ordinary mentions must not wait for a once-per-session skills request.
   return (
-    <Switch
-      fallback={
-        <Suspense fallback={<DocumentMentionStatic {...props} />}>
-          <DocumentMentionInner {...props} />
-        </Suspense>
-      }
-    >
+    <Switch fallback={<PreviewedMention {...props} />}>
       <Match when={props.blockName === 'database'}>
         <DatabaseMention {...props} />
       </Match>
@@ -419,8 +413,46 @@ export function DocumentMention(props: DocumentMentionDecoratorProps) {
   );
 }
 
-/** Routine references use their saved label; routines have no shared item preview. */
+/**
+ * A reference read through the shared item preview. Databases, forms and
+ * routines keep their own chip while they open, and fall back to this one
+ * once the item is gone or hidden from the viewer, so they read and behave
+ * like every other unavailable reference.
+ */
+function PreviewedMention(props: DocumentMentionDecoratorProps) {
+  return (
+    <Suspense fallback={<DocumentMentionStatic {...props} />}>
+      <DocumentMentionInner {...props} />
+    </Suspense>
+  );
+}
+
 function RoutineMention(props: DocumentMentionDecoratorProps) {
+  const lexicalWrapper = useContext(LexicalWrapperContext);
+  if (lexicalWrapper?.skipPreviewFetch) return <RoutineLink {...props} />;
+  return <PreviewedRoutineMention {...props} />;
+}
+
+function PreviewedRoutineMention(props: DocumentMentionDecoratorProps) {
+  const { item } = useItemPreviewData(() => ({
+    id: props.documentId,
+    type: 'routine',
+  }));
+  const isUnavailable = () => {
+    const i = item();
+    return (
+      !i.loading && (i.access === 'no_access' || i.access === 'does_not_exist')
+    );
+  };
+  return (
+    <Show when={isUnavailable()} fallback={<RoutineLink {...props} />}>
+      <PreviewedMention {...props} blockName="routine" />
+    </Show>
+  );
+}
+
+/** Routine references use their saved label; routines have no hover preview. */
+function RoutineLink(props: DocumentMentionDecoratorProps) {
   const name = () =>
     props.documentName?.replaceAll('\n', ' ').trim() || 'Routine';
   const open = (event: MouseEvent | KeyboardEvent) => {
@@ -471,7 +503,6 @@ function DatabaseMention(props: DocumentMentionDecoratorProps) {
   const name = () =>
     detail.isSuccess ? detail.data.database.name : props.documentName;
   const open = (event: MouseEvent | KeyboardEvent) => {
-    if (detail.isError) return;
     event.preventDefault();
     event.stopPropagation();
     openDocument(
@@ -491,51 +522,48 @@ function DatabaseMention(props: DocumentMentionDecoratorProps) {
     });
   };
   return (
-    <span class="inline-flex items-baseline gap-1">
-      <span
-        class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
-        role="link"
-        tabIndex={0}
-        on:mousedown={(event) => event.preventDefault()}
-        on:click={open}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') open(event);
-        }}
-      >
-        <MentionContainer
-          icon={<EntityIcon targetType="database" size="fill" />}
-          collapsed={props.collapsed}
-          text={
-            <span
-              data-document-mention="true"
-              data-document-id={props.documentId}
-              data-block-name="database"
-              data-document-name={name()}
-            >
-              {detail.isError ? 'Database unavailable' : name() || 'Database'}
-            </span>
-          }
-        />
-      </span>
-      <Show
-        when={
-          enabled().enabled &&
-          editable() &&
-          wrapper?.isInteractable() &&
-          !detail.isError
-        }
-      >
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          label="Expand database"
+    <Show when={!detail.isError} fallback={<PreviewedMention {...props} />}>
+      <span class="inline-flex items-baseline gap-1">
+        <span
+          class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
+          role="link"
+          tabIndex={0}
           on:mousedown={(event) => event.preventDefault()}
-          on:click={expand}
+          on:click={open}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') open(event);
+          }}
         >
-          <ArrowsOut class="size-3.5" />
-        </Button>
-      </Show>
-    </span>
+          <MentionContainer
+            icon={<EntityIcon targetType="database" size="fill" />}
+            collapsed={props.collapsed}
+            text={
+              <span
+                data-document-mention="true"
+                data-document-id={props.documentId}
+                data-block-name="database"
+                data-document-name={name()}
+              >
+                {name() || 'Database'}
+              </span>
+            }
+          />
+        </span>
+        <Show
+          when={enabled().enabled && editable() && wrapper?.isInteractable()}
+        >
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            label="Expand database"
+            on:mousedown={(event) => event.preventDefault()}
+            on:click={expand}
+          >
+            <ArrowsOut class="size-3.5" />
+          </Button>
+        </Show>
+      </span>
+    </Show>
   );
 }
 
@@ -548,7 +576,6 @@ function FormMention(props: DocumentMentionDecoratorProps) {
   const name = () =>
     detail.isSuccess ? detail.data.form.name : props.documentName;
   const open = (event: MouseEvent | KeyboardEvent) => {
-    if (detail.isError) return;
     event.preventDefault();
     event.stopPropagation();
     openDocument(
@@ -559,31 +586,33 @@ function FormMention(props: DocumentMentionDecoratorProps) {
     );
   };
   return (
-    <span
-      class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
-      role="link"
-      tabIndex={0}
-      on:mousedown={(event) => event.preventDefault()}
-      on:click={open}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') open(event);
-      }}
-    >
-      <MentionContainer
-        icon={<EntityIcon targetType="form" size="fill" />}
-        collapsed={props.collapsed}
-        text={
-          <span
-            data-document-mention="true"
-            data-document-id={props.documentId}
-            data-block-name="form"
-            data-document-name={name()}
-          >
-            {detail.isError ? 'Form unavailable' : name() || 'Form'}
-          </span>
-        }
-      />
-    </span>
+    <Show when={!detail.isError} fallback={<PreviewedMention {...props} />}>
+      <span
+        class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
+        role="link"
+        tabIndex={0}
+        on:mousedown={(event) => event.preventDefault()}
+        on:click={open}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') open(event);
+        }}
+      >
+        <MentionContainer
+          icon={<EntityIcon targetType="form" size="fill" />}
+          collapsed={props.collapsed}
+          text={
+            <span
+              data-document-mention="true"
+              data-document-id={props.documentId}
+              data-block-name="form"
+              data-document-name={name()}
+            >
+              {name() || 'Form'}
+            </span>
+          }
+        />
+      </span>
+    </Show>
   );
 }
 
