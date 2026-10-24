@@ -606,6 +606,12 @@ search mode, and shortcuts; Left/Right also navigates its cards outside search.
 The inline `/app/debug/create-menu-demo` keeps all three layouts for comparison
 without creating data. Mobile continues to use its create sheet.
 
+**Code** creates `New Code File.py` and uploads its starter content to S3. If
+that upload fails, the new document moves to Trash and the toast **Could not
+create the code file** appears, as **Database** and **Form** do for their
+failures. To check it, answer the presigned S3 `PUT` with 403 (for example with
+a Playwright route); `GET /dss/documents/<id>` then reports a `deletedAt`.
+
 On mobile, the bottom dock defaults to Notifications, Calendar, Email, Channels,
 Agents, Files, Tasks, Calls, CRM, Reviews, and Scheduling. Feature-gated views
 appear only when enabled. The navigation island measures its width and fits as
