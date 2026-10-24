@@ -151,17 +151,16 @@ where
     /// This charges a full message read; ingest paths that already fetched the
     /// message should consume [`MessageWithCalendarParts::calendar_parts`]
     /// instead. This lookup exists for durable re-extraction jobs.
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), fields(retry_count = 0))]
     pub async fn get_calendar_parts(
         &self,
         link_id: Uuid,
         provider_message_id: &str,
     ) -> Result<Vec<CalendarPart>, EmailApiError> {
-        self.call_with_token(link_id, ApiOperationKind::GetMessage, |token| async move {
+        self.read_with_token(link_id, ApiOperationKind::GetMessage, |token| async move {
             self.repository
                 .get_calendar_parts(&token, provider_message_id)
                 .await
-                .inspect_err(log_operation_error)
         })
         .await
     }

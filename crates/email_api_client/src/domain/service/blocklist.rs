@@ -47,17 +47,12 @@ where
     }
 
     /// Lists email addresses covered by blocked-sender rules.
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), fields(retry_count = 0))]
     pub async fn list_blocked_senders(&self, link_id: Uuid) -> Result<Vec<String>, EmailApiError> {
-        self.call_with_token(
+        self.read_with_token(
             link_id,
             ApiOperationKind::ListBlockedSenders,
-            |token| async move {
-                self.repository
-                    .list_blocked_senders(&token)
-                    .await
-                    .inspect_err(log_operation_error)
-            },
+            |token| async move { self.repository.list_blocked_senders(&token).await },
         )
         .await
     }

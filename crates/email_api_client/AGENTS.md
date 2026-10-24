@@ -59,7 +59,9 @@ Outlook (Microsoft Graph) outbound adapters.
 - Link-based reads go through `read_with_token`, which retries once with a
   fresh token when the provider answers `AuthRequired`; a cached token can
   outlive a revoked grant, and only the fresh fetch lets the token source mark
-  the link for reauthorization. Writes use `call_with_token` and do not retry.
+  the link for reauthorization. Contact listings use `retry_with_fresh_token`
+  to keep their WARN-level logging. Writes use `call_with_token` and do not
+  retry.
 - Graph answers a bodyless POST or PATCH without `Content-Length: 0` with 411
   Length Required. `transport.rs` adds the header, so new Graph calls must go
   through `request`/`conditional_request` rather than the raw client.

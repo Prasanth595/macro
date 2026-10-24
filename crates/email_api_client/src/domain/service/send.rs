@@ -91,22 +91,17 @@ where
     }
 
     /// Checks sent mail for a stable delivery identifier without sending again.
-    #[tracing::instrument(skip(self, message_id))]
+    #[tracing::instrument(skip(self, message_id), fields(retry_count = 0))]
     pub async fn find_sent_message(
         &self,
         link_id: Uuid,
         message_id: &str,
     ) -> Result<Option<SentIds>, EmailApiError> {
         validate_message_id(message_id).inspect_err(log_operation_error)?;
-        self.call_with_token(
+        self.read_with_token(
             link_id,
             ApiOperationKind::ListMessages,
-            |token| async move {
-                self.repository
-                    .find_sent_message(&token, message_id)
-                    .await
-                    .inspect_err(log_operation_error)
-            },
+            |token| async move { self.repository.find_sent_message(&token, message_id).await },
         )
         .await
     }

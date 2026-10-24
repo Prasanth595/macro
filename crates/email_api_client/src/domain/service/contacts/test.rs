@@ -98,6 +98,63 @@ where
     );
 }
 
+/// Answers a cached token the way Google answers a revoked or expired one.
+struct RejectsCachedToken;
+
+impl MailboxContactsClient for RejectsCachedToken {
+    async fn get_self_contact(&self, _: &AccessToken, _: Uuid) -> Result<Contact, EmailApiError> {
+        unreachable!("not used by this test")
+    }
+
+    async fn list_contacts(
+        &self,
+        access_token: &AccessToken,
+        _: Uuid,
+        _: Option<&str>,
+    ) -> Result<ContactList, EmailApiError> {
+        match access_token.expose_secret() {
+            "cached" => Err(EmailApiError::AuthRequired),
+            _ => Err(expected_error()),
+        }
+    }
+
+    async fn list_other_contacts(
+        &self,
+        _: &AccessToken,
+        _: Uuid,
+        _: Option<&str>,
+    ) -> Result<ContactList, EmailApiError> {
+        unreachable!("not used by this test")
+    }
+}
+
+#[tokio::test]
+async fn a_rejected_cached_token_is_retried_fresh_for_contact_sync() {
+    let calls = call_log();
+    let link_id = Uuid::new_v4();
+    let service = EmailApiClientServiceImpl::new(
+        RejectsCachedToken,
+        FakeTokenSource::new(calls.clone(), Ok(AccessToken::new("cached")))
+            .with_fresh(Ok(AccessToken::new("fresh"))),
+        FakeGate::new(calls.clone(), Ok(())),
+    );
+
+    let result = service.list_contacts(link_id, None).await;
+
+    assert_eq!(result.err(), Some(expected_error()));
+    assert_eq!(
+        *calls.lock().unwrap(),
+        vec![
+            Call::Acquire(link_id, ApiOperationKind::ListContacts),
+            Call::Token(link_id, TokenFreshness::Cached),
+            Call::Finish(link_id, Some(EmailApiError::AuthRequired)),
+            Call::Acquire(link_id, ApiOperationKind::ListContacts),
+            Call::Token(link_id, TokenFreshness::Fresh),
+            Call::Finish(link_id, Some(expected_error())),
+        ]
+    );
+}
+
 #[tokio::test]
 async fn contact_reads_use_correct_operation_kinds_and_forward_sync_tokens() {
     assert_call(

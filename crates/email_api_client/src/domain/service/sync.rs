@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use super::super::models::{ChangeBatch, EmailApiError, SyncCursor};
 use super::super::ports::{MailboxSyncClient, ProviderRequestGate, ProviderTokenSource};
-use super::{ApiOperationKind, EmailApiClientServiceImpl, log_operation_error};
+use super::{ApiOperationKind, EmailApiClientServiceImpl};
 
 impl<R, T, L> EmailApiClientServiceImpl<R, T, L>
 where
@@ -11,13 +11,10 @@ where
     L: ProviderRequestGate,
 {
     /// Returns the number of threads reported by a linked mailbox.
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), fields(retry_count = 0))]
     pub async fn get_thread_count(&self, link_id: Uuid) -> Result<u64, EmailApiError> {
-        self.call_with_token(link_id, ApiOperationKind::GetProfile, |token| async move {
-            self.repository
-                .get_thread_count(&token)
-                .await
-                .inspect_err(log_operation_error)
+        self.read_with_token(link_id, ApiOperationKind::GetProfile, |token| async move {
+            self.repository.get_thread_count(&token).await
         })
         .await
     }
