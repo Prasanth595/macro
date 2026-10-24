@@ -45,7 +45,7 @@ impl CalendarInvitationRepository for PgCalendarRepository {
             CROSS JOIN LATERAL (
                 SELECT e.id, e.source_link_id, l.email_address, e.sequence, e.status, e.updated_at
                 FROM calendar_events e JOIN email_links l ON l.id = e.source_link_id
-                WHERE e.ical_uid = requested.uid
+                WHERE calendar_meeting_uid(e.ical_uid) = calendar_meeting_uid(requested.uid)
                   AND ((e.owner_id = $1 AND l.macro_id = $1)
                     OR EXISTS (SELECT 1 FROM macro_user_links delegation
                         WHERE delegation.primary_macro_id = $1 AND delegation.link_id = e.source_link_id))
