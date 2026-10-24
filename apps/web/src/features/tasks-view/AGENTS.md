@@ -14,9 +14,10 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 
 ## Gotchas
 
-- Keep saved filters separate from presentation and text search; capture implicit assignment/creator scope and open statuses.
+- Keep saved filters separate from presentation and text search; capture implicit assignment/creator conditions as normal OR-valued person facets and capture open statuses.
 - Preserve stable tag/property bindings when labels disappear, and fail closed on unsupported definitions.
 - Resolve the semantic viewer token only when executing a filter; a selected fixed user stays fixed.
+- Keep saved views on All Tasks with every restriction in editable facets; upgrade v1 scope to v2 person filters without a separate Scope control.
 - Do not persist temporary saved-view filters in entry snapshots; detail navigation discards those edits but retains the saved-view ID.
 - Pass saved-view state through the existing Tasks search codec; split URLs namespace it as `s0.tasks.savedView`.
 - Keep embedded Project/CRM task consumers free of saved-view management.

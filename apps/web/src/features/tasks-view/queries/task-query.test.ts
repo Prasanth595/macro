@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import {
+  captureTaskSavedView,
+  materializeTaskSavedView,
+} from '../filters/task-saved-view';
 import { type BuildTaskQueryOptions, buildTaskQuery } from './task-query';
 import { buildTaskSearchRequest } from './task-search';
 
@@ -108,6 +112,78 @@ it('uses the initiative Project property for board columns without changing lega
 });
 
 describe('saved task filter execution', () => {
+  it('captures built-in person restrictions as OR filters for each viewer', () => {
+    for (const { tab, facets } of [
+      {
+        tab: 'my-tasks' as const,
+        facets: { assignees: ['macro|fixed@example.com'] },
+      },
+      {
+        tab: 'created-by-me' as const,
+        facets: { 'created-by': ['macro|fixed@example.com'] },
+      },
+    ]) {
+      const captured = captureTaskSavedView({
+        tab,
+        facets,
+        context: { tagPropertyDefinitionByOptionId: new Map() },
+      });
+      expect(captured.isOk()).toBe(true);
+      if (captured.isErr()) continue;
+      const restored = materializeTaskSavedView(captured.value);
+      for (const viewer of ['macro|a@example.com', 'macro|b@example.com']) {
+        const query = buildTaskQuery({
+          ...options,
+          ...restored,
+          userId: viewer,
+        });
+        const search = buildTaskSearchRequest({
+          ...restored,
+          query: 'review',
+          matchType: 'partial',
+          userId: viewer,
+        });
+        if (tab === 'my-tasks') {
+          expect(query.body.df).toEqual({ l: { dst: 'task' } });
+          expect(query.body.propf).toEqual({
+            '|': [
+              {
+                l: {
+                  pd: '00000001-0000-0000-0000-000000000001',
+                  v: { er: viewer },
+                },
+              },
+              {
+                l: {
+                  pd: '00000001-0000-0000-0000-000000000001',
+                  v: { er: 'macro|fixed@example.com' },
+                },
+              },
+            ],
+          });
+          expect(
+            search.body.filters?.property_filters?.[0]?.entity_ids
+          ).toEqual(['macro|fixed@example.com', viewer]);
+        } else {
+          expect(query.body.df).toEqual({
+            '&': [
+              { l: { dst: 'task' } },
+              {
+                '|': [
+                  { l: { o: viewer } },
+                  { l: { o: 'macro|fixed@example.com' } },
+                ],
+              },
+            ],
+          });
+          expect(search.body.filters?.document_filters?.owners).toEqual([
+            'macro|fixed@example.com',
+            viewer,
+          ]);
+        }
+      }
+    }
+  });
   it('resolves relative people separately for every viewer in lists and searches', () => {
     for (const viewer of ['macro|a@example.com', 'macro|b@example.com']) {
       const facets = { assignees: ['@viewer'], 'created-by': ['@viewer'] };

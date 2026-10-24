@@ -20,7 +20,7 @@ main Tasks screen.
 | Item access | Sharing never grants access to matching entities. |
 | Management | Only the owner can rename, update, delete, share, or unshare. |
 | Relative people | “Me” means the current viewer; explicitly selected people remain fixed. |
-| Contents | Filters only, including implicit scope. No search text, layout, sorting, grouping, or scroll state. |
+| Contents | Filters only, including implicit assignment or creator conditions. No search text, layout, sorting, grouping, or scroll state. |
 | Editing | Explicit Save changes, Reset, and Duplicate. |
 | Navigation | Leaving discards temporary edits without a confirmation prompt. |
 | Creation | The section's icon-only `+` starts an unsaved view; configure before creating. |
@@ -98,7 +98,7 @@ or CRM components.
 Keep the existing JSON `config` column. New consumers use a versioned envelope:
 
 - `kind`: a stable consumer identifier, initially `tasks`.
-- `version`: the consumer's definition version, initially `1`.
+- `version`: the consumer's definition version, currently `2` for Tasks.
 - `filters`: that consumer's declarative filter definition.
 
 The backend validates generic write bounds and stores the configuration without
@@ -111,19 +111,18 @@ compiled Soup AST. A compiled AST bakes in the current user, requires reverse
 parsing to restore editable controls, and couples persisted definitions to query
 transport details. Reuse the existing compiler at execution time instead.
 
-### Task definition v1
+### Task definition v2
 
 The proposed shape below uses explanatory UUID placeholders, not real IDs:
 
 ```json
 {
   "kind": "tasks",
-  "version": 1,
+  "version": 2,
   "filters": {
-    "scope": "assigned-to-viewer",
     "statusOptionIds": ["<in-progress-option-uuid>"],
     "priorityOptionIds": [],
-    "assignees": [],
+    "assignees": [{ "type": "viewer" }],
     "creators": [{ "type": "user", "id": "macro|example@example.com" }],
     "tags": [{
       "propertyDefinitionId": "<tag-property-uuid>",
@@ -133,24 +132,29 @@ The proposed shape below uses explanatory UUID placeholders, not real IDs:
 }
 ```
 
-- Scope is `all`, `assigned-to-viewer`, or `created-by-viewer`. It is an actual
-  filter, not a saved tab or layout choice.
+- Save My Tasks by adding a viewer reference to Assignee; save Created by me by
+  adding one to Created by. All Tasks adds neither. There is no separate Scope
+  control or persisted scope field.
 - Person references are either `{ "type": "viewer" }` or
   `{ "type": "user", "id": "..." }`. The picker distinguishes the relative
   **Me** option from a fixed person. Do not replace every occurrence of the
   creator's ID with a viewer token.
-- Within each facet, values are alternatives (OR). Different facets and scope
-  are combined with AND, matching existing Tasks behavior. An empty facet adds
-  no restriction.
+- Within each facet, values are alternatives (OR). Different facets combine
+  with AND. An empty facet adds no restriction.
 - Persist stable status and priority option IDs, not display labels. Persist
   both tag IDs so inaccessible or deleted tag metadata cannot erase a clause.
 - Capture the actual open-status selection when present. Do not depend on
   whatever default statuses a future client chooses.
-- Scope remains separate from the assignee/creator facet: My Tasks plus an
-  explicit assignee selection means both conditions, not their union.
+- Capturing My Tasks with an additional assignee uses normal OR matching: tasks
+  assigned to either person. Created by me follows the same rule for creators.
+  This intentionally replaces the separate, intersecting scope condition in v1.
+- The decoder upgrades v1 definitions by merging their scope's viewer reference
+  into the matching person facet. New writes use v2; no database migration is needed.
+  This can broaden a legacy definition that combined scope with other people,
+  as explicitly chosen for consistent normal-filter behavior.
 
-Materialization resolves viewer references at open/query time and converts the
-result into the existing Task facets and scope. The same resolved definition
+Materialization always uses the All Tasks tab and restores every restriction as
+an editable facet. Viewer references resolve at query time. The same definition
 must feed list, board, Gantt, client predicates, and temporary text-search
 requests. Search text is not saved, but search results must satisfy every saved
 filter. In particular, search must use stored tag bindings rather than silently
@@ -298,15 +302,14 @@ can perform; backend enforcement remains authoritative. Rename and Share update
 metadata only, preserving temporary filters without saving them.
 
 Show **Save view** immediately left of Filters when the current filters differ
-from the built-in tab defaults. It captures structured filters and implicit scope,
+from the built-in tab defaults. It captures structured filters and implicit person conditions,
 excluding search. Show a short reminder when search is active so the saved
 definition is not mistaken for the visible search results.
 
 ### Drafts and explicit saving
 
-- `+` starts a transient New view with All Tasks scope and the normal open-status
-  selection, shown as explicit filters. It does not copy the current selection
-  or create a database row yet.
+- `+` starts a transient New view with no person restrictions and the normal
+  open-status filters. Nothing is persisted until Save view succeeds.
 - Reuse the Task filter controls to configure it. Saving requests a name and
   optional team sharing. Cancel restores normal navigation without persistence.
 - Opening a saved view replaces the prior filter scope rather than intersecting

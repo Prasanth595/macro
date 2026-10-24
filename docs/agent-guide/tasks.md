@@ -127,9 +127,9 @@ Saved views are available on main Tasks, not inside Project or CRM task lists.
 
 - Desktop: use the **Saved views** sidebar section. Its icon-only **+** remains available while collapsed or empty.
 - Mobile: the bookmark button beside the filter control opens the shared Views drawer. Creation, selection, editing, and deletion work there too.
-- **+** starts an unsaved view with All Tasks scope and explicit open-status filters. Configure filters, then choose **Save view** and provide a name.
-- **Save view** appears immediately left of Filters when filters differ from the built-in tab defaults. It captures the current filters, including My Tasks or Created by me scope and status, but excludes text search, sort, grouping, and layout.
-- In a saved view, **Scope** appears in the filters. **Me (each viewer)** is relative; choosing a named person remains fixed.
+- **+** starts an unsaved view without person restrictions and with explicit open-status filters. Configure filters, then choose **Save view** and provide a name.
+- **Save view** appears immediately left of Filters when filters differ from the built-in tab defaults. It captures current filters and status, but excludes text search, sort, grouping, and layout. My Tasks adds **Me (each viewer)** to Assignee; Created by me adds it to Created by. Additional people in the same filter use OR matching.
+- Saved views use the normal Assignee and Created by filters, not a separate Scope control. **Me (each viewer)** stays relative; a named person stays fixed. Removing Me removes that restriction.
 - Temporary edits show **Save changes** and **Reset**. Right-click a sidebar view or use its **…** button for **Rename**, **Share**, **Duplicate**, **Copy link**, and confirmed **Delete view**. The selected view's overflow menu offers the same actions. Non-owners cannot rename, share, overwrite, or delete a shared view.
 - **Rename** and **Share** edit metadata without saving temporary filter changes. **Duplicate** opens a private copy with a prefilled “(copy)” name; duplicating the selected view includes its temporary filters. Sidebar actions on another view do not change the current selection unless a duplicate is saved.
 - The optional **Share with team** checkbox shares only the filter definition. Each teammate still sees only permitted items. Sharing stops if the owner leaves the team; rejoining does not reactivate it.

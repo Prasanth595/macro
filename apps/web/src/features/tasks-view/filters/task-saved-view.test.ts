@@ -10,9 +10,8 @@ import {
 
 const definition = {
   kind: 'tasks',
-  version: 1,
+  version: 2,
   filters: {
-    scope: 'assigned-to-viewer',
     statusOptionIds: [PROPERTY_OPTION_IDS.STATUS.IN_PROGRESS],
     priorityOptionIds: [],
     assignees: [
@@ -30,12 +29,12 @@ const definition = {
 };
 
 describe('Task saved-view definitions', () => {
-  it('round trips implicit scope, relative people, fixed people, and inaccessible tag bindings', () => {
+  it('round trips relative people, fixed people, and inaccessible tag bindings', () => {
     const decoded = decodeTaskSavedView(definition);
     expect(decoded.isOk()).toBe(true);
     if (decoded.isErr()) return;
     const restored = materializeTaskSavedView(decoded.value);
-    expect(restored.tab).toBe('my-tasks');
+    expect(restored.tab).toBe('team-tasks');
     expect(restored.facets.assignees).toContain(TASK_VIEWER);
     expect(restored.facets.assignees).toContain('macro|owner@example.com');
     const captured = captureTaskSavedView({
@@ -47,8 +46,58 @@ describe('Task saved-view definitions', () => {
     expect(taskSavedViewsEqual(decoded.value, captured.value)).toBe(true);
   });
 
+  it('converts legacy scopes into ordinary person alternatives', () => {
+    for (const [scope, field] of [
+      ['assigned-to-viewer', 'assignees'],
+      ['created-by-viewer', 'creators'],
+    ] as const) {
+      const decoded = decodeTaskSavedView({
+        ...definition,
+        version: 1,
+        filters: {
+          ...definition.filters,
+          scope,
+          [field]: [{ type: 'user', id: 'macro|owner@example.com' }],
+        },
+      });
+      expect(decoded.isOk()).toBe(true);
+      if (decoded.isErr()) continue;
+      expect(decoded.value.version).toBe(2);
+      expect(decoded.value.filters).not.toHaveProperty('scope');
+      expect(decoded.value.filters[field]).toEqual([
+        { type: 'user', id: 'macro|owner@example.com' },
+        { type: 'viewer' },
+      ]);
+    }
+  });
+
+  it('keeps the largest legacy person selection readable and saveable', () => {
+    const decoded = decodeTaskSavedView({
+      ...definition,
+      version: 1,
+      filters: {
+        ...definition.filters,
+        scope: 'assigned-to-viewer',
+        assignees: Array.from({ length: 100 }, (_, index) => ({
+          type: 'user',
+          id: `macro|person-${index}@example.com`,
+        })),
+      },
+    });
+    expect(decoded.isOk()).toBe(true);
+    if (decoded.isErr()) return;
+    expect(decoded.value.filters.assignees).toHaveLength(101);
+    const restored = materializeTaskSavedView(decoded.value);
+    expect(
+      captureTaskSavedView({
+        ...restored,
+        context: { tagPropertyDefinitionByOptionId: restored.tagBindings },
+      }).isOk()
+    ).toBe(true);
+  });
+
   it('does not silently accept an unknown filter or version', () => {
-    expect(decodeTaskSavedView({ ...definition, version: 2 }).isErr()).toBe(
+    expect(decodeTaskSavedView({ ...definition, version: 3 }).isErr()).toBe(
       true
     );
     expect(

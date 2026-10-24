@@ -26,6 +26,7 @@ import {
   materializeTaskSavedView,
   type TaskSavedViewConfig,
   taskSavedViewsEqual,
+  withTaskTabFilters,
 } from '../filters/task-saved-view';
 import type { TasksViewState, TaskTab } from '../types';
 
@@ -88,11 +89,14 @@ export function createTaskSavedViews(options: {
     );
   };
   const draft = createSavedViewDraft({ current, equal: taskSavedViewsEqual });
-  const apply = (definition: TaskSavedViewConfig) => {
+  const apply = (
+    definition: TaskSavedViewConfig,
+    facets?: TasksViewState['facets']
+  ) => {
     const materialized = materializeTaskSavedView(definition);
     batch(() => {
       setTagBindings(materialized.tagBindings);
-      options.apply(materialized.tab, materialized.facets);
+      options.apply(materialized.tab, facets ?? materialized.facets);
     });
   };
   const reset = () => {
@@ -367,7 +371,12 @@ export function createTaskSavedViews(options: {
     batch(() => {
       setForm(undefined);
       if (request.mode === 'create') {
-        if (metadata?.mode === 'duplicate') apply(confirmed.value);
+        apply(
+          confirmed.value,
+          metadata?.mode === 'duplicate'
+            ? undefined
+            : withTaskTabFilters(options.state.tab, options.state.facets)
+        );
         setCreating(true);
         draft.install(result.value, confirmed.value);
         options.navigate(result.value.id);
@@ -431,6 +440,7 @@ export function createTaskSavedViews(options: {
     dirty: draft.dirty,
     owned,
     changedFromBase,
+    current,
     tagBindings,
     form,
     deleting,
@@ -454,7 +464,6 @@ export function createTaskSavedViews(options: {
       setDeletionRecord(record);
     },
     cancelDelete: () => setDeletionRecord(undefined),
-    setScope: (tab: TaskTab) => options.apply(tab, options.state.facets),
   };
 }
 

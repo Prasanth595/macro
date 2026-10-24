@@ -32,8 +32,7 @@ export type TaskFilterGroupId =
   | 'priority'
   | 'assignees'
   | 'created-by'
-  | 'tags'
-  | 'scope';
+  | 'tags';
 
 export function useTaskFilters() {
   const { state, setFacets, setState, savedViews } = useTasksView();
@@ -68,7 +67,7 @@ export function useTaskFilters() {
         />
       ),
     }));
-    return savedViews?.active()
+    return savedViews
       ? [
           {
             id: TASK_VIEWER,
@@ -103,20 +102,6 @@ export function useTaskFilters() {
 
   const groups = createMemo(
     (): ListFilterGroup<TaskFilterGroupId, string>[] => [
-      ...(savedViews?.active()
-        ? [
-            {
-              id: 'scope' as const,
-              label: 'Scope',
-              selectionMode: 'single' as const,
-              options: [
-                { id: 'team-tasks', label: 'All tasks' },
-                { id: 'my-tasks', label: 'Assigned to me (each viewer)' },
-                { id: 'created-by-me', label: 'Created by me (each viewer)' },
-              ],
-            },
-          ]
-        : []),
       {
         id: 'status',
         label: 'Status',
@@ -173,24 +158,13 @@ export function useTaskFilters() {
   );
 
   const isSelected = (groupId: TaskFilterGroupId, optionId: string) =>
-    groupId === 'scope'
-      ? state.tab === optionId
-      : (state.facets[groupId] ?? []).includes(optionId);
+    (state.facets[groupId] ?? []).includes(optionId);
 
   const setSelected = (
     groupId: TaskFilterGroupId,
     optionId: string,
     selected: boolean
   ) => {
-    if (groupId === 'scope') {
-      if (
-        optionId === 'my-tasks' ||
-        optionId === 'team-tasks' ||
-        optionId === 'created-by-me'
-      )
-        savedViews?.setScope(optionId);
-      return;
-    }
     const update = selected ? addUnique(optionId) : removeValue(optionId);
     setFacets({
       ...state.facets,
@@ -201,7 +175,7 @@ export function useTaskFilters() {
   const activeCount = () =>
     Object.values(state.facets).reduce(
       (count, optionIds) => count + optionIds.length,
-      savedViews?.active() && state.tab !== 'team-tasks' ? 1 : 0
+      0
     );
 
   const aiCatalog = (): AiTaskFilterCatalog => ({
@@ -237,11 +211,7 @@ export function useTaskFilters() {
   return {
     activeCount,
     applyDescription,
-    clear: () =>
-      batch(() => {
-        setFacets({});
-        if (savedViews?.active()) savedViews.setScope('team-tasks');
-      }),
+    clear: () => setFacets({}),
     groups,
     isSelected,
     setSelected,

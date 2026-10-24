@@ -163,12 +163,7 @@ function Fixture() {
             team={{ id: 'team', name: 'Example team' }}
             pending={views.saving()}
             error={views.error()}
-            summary={
-              <p>
-                Scope:{' '}
-                {state.tab === 'team-tasks' ? 'All tasks' : 'Assigned to me'}
-              </p>
-            }
+            summary={<p>Filters only; text search is not included.</p>}
             onSave={(name, team) => {
               fireAndForget(views.save(name, team), 'saved-views-browser');
             }}

@@ -14,7 +14,7 @@ Reusable named filter definitions. The first consumer is main Tasks; the generic
 
 ## Boundaries
 
-- Keep Task filters, scope, navigation, and configuration decoding in `features/tasks-view`.
+- Keep Task filters, navigation, and configuration decoding in `features/tasks-view`.
 - Do not migrate CRM's legacy personal views or team settings into this consumer.
 - Share definitions, not access to their matching entities; the backend owns authorization.
 - Rebuild loaded cursor chains after confirmed membership changes; never invent permission state or splice a full page.

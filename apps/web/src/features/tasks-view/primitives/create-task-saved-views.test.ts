@@ -18,12 +18,11 @@ const view: SavedView = {
   sharedTeamId: null,
   config: {
     kind: 'tasks',
-    version: 1,
+    version: 2,
     filters: {
-      scope: 'assigned-to-viewer',
       statusOptionIds: [],
       priorityOptionIds: [],
-      assignees: [],
+      assignees: [{ type: 'viewer' }],
       creators: [],
       tags: [],
     },
@@ -108,15 +107,36 @@ function harness() {
 }
 
 describe('saved task drafts', () => {
-  it('loads scope, leaves edits unsaved, and resets without writing', () => {
+  it('loads person filters, leaves edits unsaved, and resets without writing', () => {
     const h = harness();
-    expect(h.state.tab).toBe('my-tasks');
+    expect(h.state.tab).toBe('team-tasks');
+    expect(h.state.facets.assignees).toEqual(['@viewer']);
     h.setState('facets', { priority: ['urgent'] });
     expect(h.controller.dirty()).toBe(true);
     expect(h.update).not.toHaveBeenCalled();
     h.controller.reset();
     expect(h.state.facets.priority).toEqual([]);
     expect(h.controller.dirty()).toBe(false);
+  });
+
+  it('opens a captured built-in view with editable person alternatives and no tab restriction', async () => {
+    const h = harness();
+    h.controller.leave();
+    h.setState('tab', 'my-tasks');
+    h.setState('facets', { assignees: ['macro|other@example.com'] });
+    h.source.create = async (input) => ok({ ...view, ...input });
+    h.controller.saveAs();
+    await h.controller.save('Either assignee');
+    expect(h.state.tab).toBe('team-tasks');
+    expect(h.state.facets.assignees).toEqual([
+      'macro|other@example.com',
+      '@viewer',
+    ]);
+    expect(h.controller.dirty()).toBe(false);
+    h.setState('facets', 'assignees', ['macro|other@example.com']);
+    expect(h.controller.dirty()).toBe(true);
+    h.controller.reset();
+    expect(h.state.facets.assignees).toContain('@viewer');
   });
 
   it('discards a temporary draft on task navigation and when leaving a view', () => {
@@ -175,7 +195,7 @@ describe('saved task drafts', () => {
     const h = harness();
     h.setDetail({
       ...view,
-      config: { kind: 'tasks', version: 2, filters: {} },
+      config: { kind: 'tasks', version: 3, filters: {} },
     });
     expect(h.controller.ready()).toBe(false);
     expect(h.controller.unavailable()).toBeTruthy();
@@ -216,6 +236,26 @@ describe('saved task drafts', () => {
     expect(h.controller.dirty()).toBe(false);
     expect(h.controller.record()?.revision).toBe(1);
     expect(h.state.facets.priority).toEqual([]);
+  });
+
+  it('keeps filter edits made while a new view is saving', async () => {
+    const h = harness();
+    h.controller.leave();
+    h.setState('tab', 'my-tasks');
+    h.controller.saveAs();
+    let finish!: () => void;
+    h.source.create = (input) =>
+      new Promise((resolve) => {
+        finish = () => resolve(ok({ ...view, ...input }));
+      });
+    const save = h.controller.save('Pending view');
+    h.setState('facets', 'priority', ['urgent']);
+    finish();
+    await save;
+    expect(h.state.tab).toBe('team-tasks');
+    expect(h.state.facets.assignees).toEqual(['@viewer']);
+    expect(h.state.facets.priority).toEqual(['urgent']);
+    expect(h.controller.dirty()).toBe(true);
   });
 
   it('uses the authoritative definition after retrying an already-created ID', async () => {

@@ -195,8 +195,10 @@ export function TaskSavedViewDialogs() {
     <>
       <Show when={savedViews?.form()} keyed>
         {(form) => {
-          const selection = () =>
-            form.config ? materializeTaskSavedView(form.config) : state;
+          const selection = () => {
+            const config = form.config ?? savedViews?.current();
+            return config ? materializeTaskSavedView(config) : state;
+          };
           return (
             <SavedViewDialog
               mode={form.mode}
@@ -214,19 +216,7 @@ export function TaskSavedViewDialogs() {
               }
               summary={
                 <>
-                  <p>
-                    Scope:{' '}
-                    {selection().tab === 'my-tasks'
-                      ? 'Assigned to me (each viewer)'
-                      : selection().tab === 'created-by-me'
-                        ? 'Created by me (each viewer)'
-                        : 'All tasks'}
-                  </p>
-                  <For
-                    each={filters
-                      .groups()
-                      .filter((group) => group.id !== 'scope')}
-                  >
+                  <For each={filters.groups()}>
                     {(group) => (
                       <Show when={(selection().facets[group.id] ?? []).length}>
                         <p>
