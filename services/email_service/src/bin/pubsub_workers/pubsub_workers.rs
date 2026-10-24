@@ -4,7 +4,7 @@ use document_storage_service_client::DocumentStorageServiceClient;
 use email_api_client::GmailApiClientRepository;
 use email_service::config::Config;
 use email_service::outbound::email_api::{
-    EmailServiceTokenSource, GmailApi, RateBudget, RedisProviderRateLimiter,
+    EmailServiceTokenSource, GmailApi, RateBudget, RedisGmailRequestGate,
 };
 use email_service::pubsub::CrmMetadataResolver;
 use email_service::util::redis::RedisClient;
@@ -30,15 +30,14 @@ fn compose_email_api(
     db: PgPool,
     subscription_topic: String,
     auth_service_client: authentication_service_client::AuthServiceClient,
-    redis_client: RedisClient,
     redis_conn: redis::aio::MultiplexedConnection,
     sqs_client: sqs_client::SQS,
     rate_budget: RateBudget,
 ) -> GmailApi {
     GmailApi::new(
         GmailApiClientRepository::from_subscription_topic(subscription_topic),
-        EmailServiceTokenSource::new(db, redis_conn, auth_service_client, sqs_client),
-        RedisProviderRateLimiter::new(redis_client, rate_budget),
+        EmailServiceTokenSource::new(db, redis_conn.clone(), auth_service_client, sqs_client),
+        RedisGmailRequestGate::new(redis_conn, rate_budget),
     )
 }
 
@@ -268,15 +267,11 @@ async fn main() -> anyhow::Result<()> {
         queue: ingress_queue,
     });
 
-    let redis_client = RedisClient::new(
-        redis_inner_client,
-        config.redis_rate_limit_reqs,
-        config.redis_rate_limit_reqs_backfill,
-        config.redis_rate_limit_window_secs,
-    );
+    let redis_client = RedisClient::new(redis_inner_client, config.redis_rate_limit_window_secs);
 
-    // One long-lived multiplexed connection shared by both token sources;
-    // cloning it is an Arc bump, not a new TCP dial per provider call.
+    // One long-lived multiplexed connection shared by the token sources and
+    // request gates; cloning it is an Arc bump, not a new TCP dial per
+    // provider call.
     let redis_conn = redis_client
         .inner
         .get_multiplexed_async_connection()
@@ -287,7 +282,6 @@ async fn main() -> anyhow::Result<()> {
         db.clone(),
         config.gmail_gcp_queue.to_string(),
         auth_service_client.clone(),
-        redis_client.clone(),
         redis_conn.clone(),
         sqs_client.clone(),
         RateBudget::Live,
@@ -321,7 +315,6 @@ async fn main() -> anyhow::Result<()> {
         db_backfill.clone(),
         config.gmail_gcp_queue.to_string(),
         auth_service_client.clone(),
-        redis_client.clone(),
         redis_conn,
         sqs_client.clone(),
         RateBudget::Backfill,
