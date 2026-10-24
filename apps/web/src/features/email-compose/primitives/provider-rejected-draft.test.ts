@@ -1,3 +1,4 @@
+import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { MessageOperation } from '../../email-message/core/message-operation';
 import { message } from '../../email-message/tests/messages';
@@ -10,10 +11,11 @@ afterEach(() => vi.useRealTimers());
 
 function mountDraft(
   kind: 'compose' | 'reply',
-  operation: MessageOperation | null
+  seeded: MessageOperation | null
 ) {
   const context = createComposeContext();
-  context.operations = () => ({ operation: () => operation, resolve: vi.fn() });
+  const [operation, setOperation] = createSignal(seeded);
+  context.operations = () => ({ operation, resolve: vi.fn() });
   context.setDraftLifecycle({
     type: 'editing',
     draftId: 'draft',
@@ -21,7 +23,7 @@ function mountDraft(
     inboxId: 'inbox',
     observedAt: Date.now(),
   });
-  const draft = message('draft', { is_draft: true, operation });
+  const draft = message('draft', { is_draft: true, operation: seeded });
   const compose =
     kind === 'compose'
       ? mountEmailComposer(context, undefined, { draft })
@@ -32,6 +34,7 @@ function mountDraft(
       : undefined;
   return {
     context,
+    setOperation,
     edit: (text: string) => (compose ?? reply)?.edit(text),
     async send() {
       const sent = compose
@@ -48,7 +51,7 @@ function mountDraft(
 }
 
 it.each(['compose', 'reply'] as const)(
-  'keeps a %s draft the provider rejected editable but does not send it',
+  'holds a %s draft the provider rejected until it accepts an edit',
   async (kind) => {
     const draft = mountDraft(kind, {
       state: 'FAILED',
@@ -61,6 +64,9 @@ it.each(['compose', 'reply'] as const)(
       expect(draft.context.drafts.saveDraft).toHaveBeenCalled();
       await draft.send();
       expect(draft.context.delivery.sendMessage).not.toHaveBeenCalled();
+      draft.setOperation({ state: 'SYNCHRONIZED', revision: '4' });
+      await draft.send();
+      expect(draft.context.delivery.sendMessage).toHaveBeenCalled();
     } finally {
       draft.dispose();
     }
