@@ -44,7 +44,7 @@ vi.mock('@service-agent-harness/client', () => ({
   agentHarnessServiceClient: harness,
 }));
 
-import { watchAgentSessionLog } from './log';
+import { AgentSessionLogUnavailable, watchAgentSessionLog } from './log';
 
 const SESSION = '01a0abed-279f-724c-9f49-60dbedc79b6e';
 
@@ -323,6 +323,34 @@ describe('watchAgentSessionLog', () => {
       await expect(watch.fetched).rejects.toMatchObject({
         reason: 'inaccessible',
       });
+    });
+
+    it('fails a read stopped before the harness answers, whatever it answers later', async () => {
+      let answer!: (result: unknown) => void;
+      harness.getLog.mockReturnValue(
+        new Promise((resolve) => {
+          answer = resolve;
+        })
+      );
+      const watch = watchAgentSessionLog(SESSION);
+      const failed = vi.fn();
+      watch.fetched.catch(failed);
+
+      watch.stop();
+      await settle();
+      expect(failed).toHaveBeenCalledOnce();
+
+      answer(
+        ok({
+          bot: { id: 'bot-id', name: 'Agent', handle: 'agent' },
+          entries: [row(1)],
+        })
+      );
+      await settle();
+      await expect(watch.fetched).rejects.toBeInstanceOf(
+        AgentSessionLogUnavailable
+      );
+      await expect(watch.fetched).rejects.toMatchObject({ reason: 'failed' });
     });
   });
 });
