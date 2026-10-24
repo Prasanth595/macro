@@ -41,9 +41,34 @@ fn a_copy_of_several_inboxes_needs_its_inbox() {
         "{message}"
     );
     assert!(
-        message.contains(
+        message.ends_with(
             "Ask the user exactly this and wait for the answer: \"Which inbox's copy should I \
              delete: guest@example.com (guest) or owner@example.com (organizer)?\""
+        ),
+        "{message}"
+    );
+}
+
+#[test]
+fn a_guest_list_change_is_asked_as_a_change_not_an_addition() {
+    let refusal = check_copy(
+        &two_inboxes(),
+        INVITED,
+        None,
+        CopyChange::Update {
+            changes_guests: true,
+        },
+    )
+    .expect("two inboxes hold the meeting");
+    let message = refusal.message();
+    assert!(
+        message.contains("To change the guest list, suggest owner@example.com"),
+        "{message}"
+    );
+    assert!(
+        message.ends_with(
+            "\"Which inbox's copy should I change the guests on: owner@example.com (organizer) \
+             or guest@example.com (guest)?\""
         ),
         "{message}"
     );
@@ -58,7 +83,9 @@ fn the_question_names_each_inbox_once() {
         &copies,
         ORGANIZED,
         None,
-        CopyChange::Update { adds_guests: false },
+        CopyChange::Update {
+            changes_guests: false,
+        },
     )
     .expect("three inboxes hold the meeting");
     assert!(
@@ -90,7 +117,9 @@ fn another_copys_inbox_is_refused_with_that_copys_id() {
         &two_inboxes(),
         ORGANIZED,
         Some("guest@example.com"),
-        CopyChange::Update { adds_guests: false },
+        CopyChange::Update {
+            changes_guests: false,
+        },
     )
     .expect("the inbox holds a different copy");
     assert!(
@@ -104,13 +133,8 @@ fn another_copys_inbox_is_refused_with_that_copys_id() {
 
 #[test]
 fn adding_guests_suggests_the_copy_the_user_organizes() {
-    let refusal = check_copy(
-        &two_inboxes(),
-        INVITED,
-        None,
-        CopyChange::Update { adds_guests: true },
-    )
-    .expect("two inboxes hold the meeting");
+    let refusal = check_copy(&two_inboxes(), INVITED, None, CopyChange::InviteGuests)
+        .expect("two inboxes hold the meeting");
     assert!(
         refusal
             .message()

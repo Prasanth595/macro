@@ -359,7 +359,7 @@ where
                 self.event_id,
                 self.inbox.as_deref(),
                 CopyChange::Update {
-                    adds_guests: patch.attendees.is_some(),
+                    changes_guests: patch.attendees.is_some(),
                 },
             )
             .await?;

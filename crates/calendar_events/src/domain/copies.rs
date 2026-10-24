@@ -13,12 +13,14 @@ use super::models::MeetingCopy;
 /// user's copies makes it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CopyChange {
-    /// Details, guests or guest permissions; `adds_guests` when the change
-    /// carries guests to add.
+    /// Details, guest permissions or the guest list; `changes_guests` when
+    /// the change carries a guest list, which may invite or remove guests.
     Update {
-        /// Whether the change adds guests.
-        adds_guests: bool,
+        /// Whether the change carries a guest list.
+        changes_guests: bool,
     },
+    /// Adding guests without touching anyone already invited.
+    InviteGuests,
     /// Deleting the copy.
     Delete,
 }
@@ -105,37 +107,55 @@ fn copy_question(copies: &[MeetingCopy], inboxes: usize, change: CopyChange) -> 
                 .to_string(),
             "delete",
         ),
-        CopyChange::Update { adds_guests } => {
-            let organizer = copies.iter().find(|copy| copy.organizes);
-            match organizer {
-                Some(organizer) if adds_guests => (
-                    format!(
-                        "To add guests, suggest {}: it organizes the meeting, so they are \
-                         invited directly, while a guest's copy can invite only where the \
-                         organizer allows it.",
-                        organizer.inbox
-                    ),
-                    "add the guests from",
+        CopyChange::InviteGuests => match copies.iter().find(|copy| copy.organizes) {
+            Some(organizer) => (
+                format!(
+                    "To add guests, suggest {}: it organizes the meeting, so they are invited \
+                     directly, while a guest's copy can invite only where the organizer allows \
+                     it.",
+                    organizer.inbox
                 ),
-                _ => (
-                    "The change reaches the meeting differently from each copy, and a guest's \
+                "add the guests from",
+            ),
+            None => (
+                "A guest's copy can invite only where the organizer allows it.".to_string(),
+                "add the guests from",
+            ),
+        },
+        CopyChange::Update { changes_guests } => match copies.iter().find(|copy| copy.organizes) {
+            Some(organizer) if changes_guests => (
+                format!(
+                    "To change the guest list, suggest {}: it organizes the meeting, so it \
+                         can invite and remove guests, while a guest's copy can only invite, \
+                         and only where the organizer allows it.",
+                    organizer.inbox
+                ),
+                "change the guests on",
+            ),
+            _ => (
+                "The change reaches the meeting differently from each copy, and a guest's \
                      copy can only make it where the organizer allows it."
-                        .to_string(),
-                    "change",
-                ),
-            }
-        }
+                    .to_string(),
+                "change",
+            ),
+        },
     };
-    let adds_guests = matches!(change, CopyChange::Update { adds_guests: true });
+    let organizer_first = matches!(
+        change,
+        CopyChange::InviteGuests
+            | CopyChange::Update {
+                changes_guests: true
+            }
+    );
     let question = format!(
         "Which inbox's copy should I {verb}: {}?",
-        choices(copies, adds_guests)
+        choices(copies, organizer_first)
     );
     format!(
         "This meeting is on {inboxes} of the user's inboxes: {listed}. {effect} Never choose \
-         between the user's inboxes yourself, whatever they look like. Ask the user exactly \
-         this and wait for the answer: \"{question}\" Then call again with the chosen copy's \
-         `eventId` and its inbox as `inbox`."
+         between the user's inboxes yourself, whatever they look like. Once the user answers, \
+         call again with the chosen copy's `eventId` and its inbox as `inbox`. Ask the user \
+         exactly this and wait for the answer: \"{question}\""
     )
 }
 
