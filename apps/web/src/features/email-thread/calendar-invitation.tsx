@@ -117,8 +117,10 @@ function ConnectedInvitation(
     onSuccess: () => toast.success('Added to your calendar'),
     onError: toastAddToCalendarFailure,
   });
+  // Like the response actions, adding waits for a calendar check that worked.
   const canAdd = () =>
     addSharedEvent() &&
+    !query.isError &&
     state().kind === 'no_match' &&
     invitationCanBeAdded(props.invitation);
   return (

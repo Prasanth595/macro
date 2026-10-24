@@ -271,6 +271,16 @@ describe('forwarded event email', () => {
     ).toBeNull();
   });
 
+  it('withholds Add to calendar while the calendar check is failing', () => {
+    queryState.failed = () => true;
+    queryState.data = { [key]: { kind: 'no_match' } };
+    renderShared();
+    expect(screen.getByText('Not on your calendar.')).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: 'Add to calendar' })
+    ).toBeNull();
+  });
+
   it('offers no Add to calendar while the rollout flag is off', () => {
     calendarUi.addSharedEvent = false;
     queryState.failed = () => false;
