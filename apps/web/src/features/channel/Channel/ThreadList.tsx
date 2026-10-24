@@ -43,7 +43,7 @@ export type ThreadListInitialPosition =
 export type ThreadListNavigation = {
   /** Publish geometry after registered destinations finish mounting/unmounting. */
   requestLayoutUpdate: () => void;
-  scrollToLatest: () => boolean;
+  scrollToLatest: (behavior?: ScrollBehavior) => boolean;
   scrollToMessage: (
     id: string,
     options?: { align?: ScrollAlignment; userIntent?: ScrollDirection }
@@ -410,11 +410,11 @@ export function ThreadList(props: ThreadListProps) {
 
   const navigation: ThreadListNavigation = {
     requestLayoutUpdate: scheduleScrollState,
-    scrollToLatest: () => {
+    scrollToLatest: (behavior) => {
       if (!canNavigate() || !props.keys().length) return false;
       lifecycle.send('navigate');
       scrollCompensation?.finish();
-      virtualizer.scrollToEnd();
+      virtualizer.scrollToEnd({ behavior });
       scheduleScrollState();
       return true;
     },
