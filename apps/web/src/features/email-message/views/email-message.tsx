@@ -69,14 +69,15 @@ export function EmailMessageView(props: EmailMessageViewProps) {
   // event; any other file, and a cloud reference with no bytes to download,
   // goes to the host.
   const [calendarFile, setCalendarFile] = createSignal<EmailAttachment>();
-  let navigatingAway = false;
-  const openAttachment = (attachment: EmailAttachment) => {
+  // Closing the dialog returns focus to the chip that opened it.
+  let calendarFileChip: HTMLElement | undefined;
+  const openAttachment = (attachment: EmailAttachment, chip: HTMLElement) => {
     if (
       invitationGroups().length > 0 &&
       !attachment.reference_url &&
       isCalendarFile(attachment.filename, attachment.mime_type)
     ) {
-      navigatingAway = false;
+      calendarFileChip = chip;
       setCalendarFile(attachment);
       return;
     }
@@ -85,7 +86,7 @@ export function EmailMessageView(props: EmailMessageViewProps) {
   // A card action that opens the calendar closes the dialog first, so it
   // neither covers the destination nor pulls focus back to the email.
   const closeForNavigation = () => {
-    navigatingAway = true;
+    calendarFileChip = undefined;
     setCalendarFile(undefined);
   };
   const renderInvitation = (
@@ -264,7 +265,7 @@ export function EmailMessageView(props: EmailMessageViewProps) {
                     }}
                     onClick={
                       props.onOpenAttachment
-                        ? () => openAttachment(attachment)
+                        ? (chip) => openAttachment(attachment, chip)
                         : undefined
                     }
                   />
@@ -312,7 +313,7 @@ export function EmailMessageView(props: EmailMessageViewProps) {
             fileName={file().filename ?? ''}
             open
             onClose={() => setCalendarFile(undefined)}
-            restoreFocus={() => !navigatingAway}
+            returnFocus={() => calendarFileChip}
             onDownload={
               props.onDownloadAttachment
                 ? () => props.onDownloadAttachment?.(file())
