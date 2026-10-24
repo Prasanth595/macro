@@ -1817,3 +1817,68 @@ async fn test_allow_non_admin_invites_defaults_true_and_toggles(
 
     Ok(())
 }
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("teams"))
+)]
+async fn membership_compensation_preserves_lifetime_and_never_overwrites_new_join(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    use crate::domain::membership::TeamMembershipEvidence;
+    let repo = TeamRepositoryImpl::new(pool.clone());
+    let team = uuid::Uuid::parse_str("11111111-1111-1111-1111-111111111111")?;
+    let member = MacroUserIdStr::parse_from_str("macro|user2@user.com")?;
+    let current = repo.lifetimes(&[(team, member.to_string())]).await?;
+    let removed = repo.remove_user_from_team(&team, &member).await?;
+    assert_eq!(removed.membership_id, current[&(team, member.to_string())]);
+    assert!(
+        repo.lifetimes(&[(team, member.to_string())])
+            .await?
+            .is_empty()
+    );
+    repo.rollback_remove_user_from_team(&removed).await?;
+    repo.rollback_remove_user_from_team(&removed).await?;
+    assert_eq!(
+        repo.lifetimes(&[(team, member.to_string())]).await?[&(team, member.to_string())],
+        removed.membership_id
+    );
+    let removed = repo.remove_user_from_team(&team, &member).await?;
+    let newer = uuid::Uuid::now_v7();
+    sqlx::query!("INSERT INTO team_user (team_id, user_id, team_role, membership_id) VALUES ($1, $2, 'member', $3)", team, member.as_ref(), newer).execute(&pool).await?;
+    assert!(repo.rollback_remove_user_from_team(&removed).await.is_err());
+    assert_eq!(
+        repo.lifetimes(&[(team, member.to_string())]).await?[&(team, member.to_string())],
+        newer
+    );
+    repo.rollback_add_user_to_team(&removed).await?;
+    assert_eq!(
+        repo.lifetimes(&[(team, member.to_string())]).await?[&(team, member.to_string())],
+        newer
+    );
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("teams"))
+)]
+async fn membership_evidence_batches_owner_and_viewer(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    use crate::domain::membership::TeamMembershipEvidence;
+    let repo = TeamRepositoryImpl::new(pool);
+    let team = uuid::Uuid::parse_str("11111111-1111-1111-1111-111111111111")?;
+    assert_eq!(repo.viewer_teams("macro|user2@user.com").await?, vec![team]);
+    let evidence = repo
+        .lifetimes(&[
+            (team, "macro|user@user.com".into()),
+            (team, "macro|user2@user.com".into()),
+            (team, "macro|absent@example.com".into()),
+        ])
+        .await?;
+    assert_eq!(evidence.len(), 2);
+    assert_ne!(
+        evidence[&(team, "macro|user@user.com".into())],
+        evidence[&(team, "macro|user2@user.com".into())]
+    );
+    Ok(())
+}

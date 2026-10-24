@@ -49,6 +49,7 @@ fn repository_with_link(token: TeamInviteLinkToken) -> MockTeamRepository {
         team_name: "Acme".to_string(),
     });
     team_repository.add_user_to_team_result = Some(TeamMember {
+        membership_id: uuid::Uuid::now_v7(),
         team_id: TEAM_ID,
         user_id: joiner(),
         role: TeamRole::Member,

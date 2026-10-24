@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT user_id, \n                team_role as \"team_role!: TeamRole\",\n                plan as \"plan!: SeatPlan\"\n            FROM team_user\n            WHERE team_id = $1\n            ",
+  "query": "\n            SELECT user_id, \n                team_role as \"team_role!: TeamRole\",\n                plan as \"plan!: SeatPlan\",\n                membership_id\n            FROM team_user\n            WHERE team_id = $1\n            AND user_id = $2\n            ",
   "describe": {
     "columns": [
       {
@@ -38,18 +38,25 @@
             }
           }
         }
+      },
+      {
+        "ordinal": 3,
+        "name": "membership_id",
+        "type_info": "Uuid"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "Text"
       ]
     },
     "nullable": [
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "97cb7478b93746370096159cf3ea1d204737836a35ff6ec31cdb7f3c047ce34a"
+  "hash": "55099deb6e4787988fefaba7d8b42de2d4b1bf86a33d4904775f9b9462719302"
 }

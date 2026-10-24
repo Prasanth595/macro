@@ -18,7 +18,8 @@ event contract (schema, sanitization, delivery semantics).
   deletion side effects (owned-entity transfer, seat release).
 - `src/inbound/axum_router.rs` / `src/inbound/toolset.rs`: HTTP routes and AI
   tool surface.
-- `src/outbound/team_repo.rs`: the Postgres repository.
+- `src/outbound/team_repo.rs`: the Postgres repository and primary-backed batched membership evidence.
+- `src/domain/membership.rs`: internal lifetime evidence for dependent domains; joins mint UUIDv7, and compensation preserves its original lifetime.
 
 ## Scope
 

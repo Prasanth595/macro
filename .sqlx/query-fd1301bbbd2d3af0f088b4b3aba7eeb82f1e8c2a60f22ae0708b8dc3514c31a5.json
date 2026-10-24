@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, user_id, name, config, created_at, updated_at FROM saved_view WHERE user_id = $1",
+  "query": "SELECT id, user_id, name, config, created_at, updated_at, revision, shared_team_id, shared_owner_membership_id FROM saved_view WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -32,11 +32,26 @@
         "ordinal": 5,
         "name": "updated_at",
         "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "revision",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "shared_team_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 8,
+        "name": "shared_owner_membership_id",
+        "type_info": "Uuid"
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -45,8 +60,11 @@
       false,
       false,
       false,
-      false
+      false,
+      false,
+      true,
+      true
     ]
   },
-  "hash": "68ad8e75246fed44a1e258483299257bc04def00c6417bee80f7816d1a085578"
+  "hash": "fd1301bbbd2d3af0f088b4b3aba7eeb82f1e8c2a60f22ae0708b8dc3514c31a5"
 }

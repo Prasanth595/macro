@@ -83,6 +83,13 @@ unreferenced replicas. These additive tables do not change agent-session claims.
   `docs/design/outlook-email-support.md` for failure recovery and deployment order.
 - Quote and alias camelCase columns to Rust field names
   (`SELECT "userId" AS user_id`); don't guess spelling — check `migrations/`.
+- Saved-view sharing adds membership lifetimes with a default for legacy writers,
+  batched backfill, concurrent indexes, and separately validated constraints.
+  Apply those migrations before the saved-view service rollout, and enable the
+  GraphQL consumer only after all writers use lifetime-aware compensation and
+  deletion fencing. Keep permanent `saved_view_tombstone` IDs; they prevent
+  delayed creates from resurrecting deleted definitions. See
+  [saved views](../../docs/design/saved-views.md) for the rollout order.
 
 ## Related
 

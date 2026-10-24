@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tu.team_id, tu.user_id, tu.membership_id FROM team_user tu\n             JOIN unnest($1::uuid[], $2::text[]) AS requested(team_id, user_id)\n             ON tu.team_id = requested.team_id AND tu.user_id = requested.user_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "team_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "membership_id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3f07a3597b0c5985736a857c0a16c6cae71fa4477e190d7117cd163234f3399c"
+}

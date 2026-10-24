@@ -165,6 +165,12 @@ pub trait TeamRepository: Clone + Send + Sync + 'static {
         accepted_invite: &AcceptedTeamInvite<'_>,
     ) -> impl Future<Output = Result<(), TeamError>> + Send;
 
+    /// Rolls back only this membership lifetime, leaving a newer join untouched.
+    fn rollback_add_user_to_team(
+        &self,
+        added_member: &TeamMember<'_>,
+    ) -> impl Future<Output = Result<(), TeamError>> + Send;
+
     /// Rolls back a previously removed team member.
     fn rollback_remove_user_from_team(
         &self,

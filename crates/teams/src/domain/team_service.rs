@@ -336,12 +336,8 @@ where
                 match self.team_repository.get_team_payment_status(&team_id).await {
                     Ok(team_payment_status) => team_payment_status,
                     Err(error) => {
-                        self.rollback_add_user_to_team(
-                            &team_id,
-                            user_id,
-                            "getting team payment status",
-                        )
-                        .await;
+                        self.rollback_add_user_to_team(&team_member, "getting team payment status")
+                            .await;
                         return Err(error.into());
                     }
                 };
@@ -356,8 +352,7 @@ where
                     Ok(team_subscription_id) => team_subscription_id,
                     Err(error) => {
                         self.rollback_add_user_to_team(
-                            &team_id,
-                            user_id,
+                            &team_member,
                             "getting team subscription id",
                         )
                         .await;
@@ -366,7 +361,7 @@ where
                 };
 
                 if team_subscription_id.is_some() {
-                    self.rollback_add_user_to_team(&team_id, user_id, "the payment status check")
+                    self.rollback_add_user_to_team(&team_member, "the payment status check")
                         .await;
                     return Err(JoinTeamError::TeamError(TeamError::TeamNotPaying).into());
                 }
@@ -375,12 +370,8 @@ where
                     .backfill_legacy_team_subscription_or_free(&team_id)
                     .await
                 {
-                    self.rollback_add_user_to_team(
-                        &team_id,
-                        user_id,
-                        "backfilling team subscription",
-                    )
-                    .await;
+                    self.rollback_add_user_to_team(&team_member, "backfilling team subscription")
+                        .await;
                     return Err(e.into_join_team_error().into());
                 }
             }
@@ -392,7 +383,7 @@ where
             {
                 Ok(team_subscription_id) => team_subscription_id,
                 Err(error) => {
-                    self.rollback_add_user_to_team(&team_id, user_id, "getting team subscription")
+                    self.rollback_add_user_to_team(&team_member, "getting team subscription")
                         .await;
                     return Err(error.into());
                 }
@@ -407,12 +398,8 @@ where
                         .increment_seat_count(&subscription_id, team_member.plan, 1)
                         .await
                     {
-                        self.rollback_add_user_to_team(
-                            &team_id,
-                            user_id,
-                            "incrementing seat count",
-                        )
-                        .await;
+                        self.rollback_add_user_to_team(&team_member, "incrementing seat count")
+                            .await;
                         return Err(JoinTeamError::CustomerError(e).into());
                     }
 
@@ -447,7 +434,7 @@ where
                         })
                         .ok();
                 }
-                self.rollback_add_user_to_team(&team_id, user_id, "adding team member roles")
+                self.rollback_add_user_to_team(&team_member, "adding team member roles")
                     .await;
                 return Err(JoinTeamError::AddRolesToUserError(e).into());
             }
@@ -483,7 +470,7 @@ where
                     })
                     .ok();
             }
-            self.rollback_add_user_to_team(&team_id, user_id, "adding team member to channels")
+            self.rollback_add_user_to_team(&team_member, "adding team member to channels")
                 .await;
             return Err(JoinTeamError::TeamError(channel_error_to_team_error(e)).into());
         }
@@ -1241,14 +1228,11 @@ where
     /// `try_join_team_by_domain`): removes the membership again and undoes
     /// the team seat count bump. Failures are logged and swallowed, like
     /// the other join rollbacks.
-    async fn rollback_add_user_to_team(
-        &self,
-        team_id: &uuid::Uuid,
-        user_id: &MacroUserIdStr<'_>,
-        failed_step: &str,
-    ) {
+    async fn rollback_add_user_to_team(&self, member: &TeamMember<'_>, failed_step: &str) {
+        let team_id = member.team_id;
+        let user_id = &member.user_id;
         self.team_repository
-            .remove_user_from_team(team_id, user_id)
+            .rollback_add_user_to_team(member)
             .await
             .inspect_err(|rollback_err| {
                 tracing::error!(

@@ -1,7 +1,8 @@
 # Saved views: reusable storage, Tasks first
 
-**Status:** Proposed implementation design. Product decisions below are agreed;
-no application code or migrations have been implemented.
+**Status:** Approved design, implemented on the task-saved-views branch. The
+starting point below describes the code before this change; rollout requires
+the additive migrations and backend GraphQL schema before the frontend.
 
 ## Goal and scope
 
@@ -33,15 +34,15 @@ links, presentation settings, new task filter categories, or CRM migration are
 included. In particular, the current Tasks implementation has no due-date filter;
 this feature does not add one.
 
-## Current implementation
+## Starting point before this change
 
 - [`saved_views`](../../crates/saved_views/src/lib.rs) already stores `id`,
   `user_id`, `name`, arbitrary JSON `config`, and timestamps in `saved_view`.
   Configuration is explicitly consumer-owned.
-- [Its PostgreSQL adapter](../../crates/saved_views/src/pgsql.rs) implements
-  personal CRUD. PATCH shallow-merges JSON. Ownership checks currently live in
-  the [DSS REST adapter](../../services/document_storage_service/src/api/saved_views.rs),
-  not a domain service. There are no GraphQL saved-view operations.
+- [Its PostgreSQL adapter](../../crates/saved_views/src/pgsql.rs) previously
+  implemented personal CRUD with shallow-merge PATCH. Ownership checks lived in
+  the [DSS REST adapter](../../services/document_storage_service/src/api/saved_views.rs).
+  This change moves policy into the domain service and adds GraphQL operations.
 - [CRM personal views](../../apps/web/src/features/crm/queries/saved-views.ts)
   use this storage. CRM team views instead live in team CRM settings, and CRM
   share links encode configuration snapshots. Preserve those existing contracts.
@@ -212,7 +213,8 @@ The Teams-owned port supplies authoritative membership evidence; saved-view
 storage owns definition persistence. Do not query or mutate `team_user` directly
 from a GraphQL resolver or add saved-view SQL to team handlers. Listing must apply
 effective visibility before its public pagination limit, with batched membership
-evidence rather than per-row service calls.
+evidence rather than per-row service calls. Recheck the viewer alongside each
+owner in that batch; the initial team list only narrows candidate selection.
 
 **Implementation checkpoint:** audit every membership insertion and compensation
 path. Removal rollback currently uses `ON CONFLICT DO NOTHING`; it must distinguish
@@ -253,8 +255,16 @@ operation, rather than changing CRM's existing PATCH semantics.
 Stale revisions return a terminal conflict and preserve the newer record. Keep
 the draft so the user can reload or save a separate copy. Retried creation with
 the same owned ID returns the existing resource without overwriting it; retried
-deletion of an absent ID is harmless. GraphQL permission, conflict, and validation
-errors must not become transport retries that block the mutation queue.
+deletion of an absent ID is harmless. A permanent ID-only tombstone prevents a
+late create retry from resurrecting a deleted view. Keep physical deletion so
+older REST readers still see absence, not an empty soft-deleted row. Serialize
+create/delete in upgraded writers with the same per-ID transaction lock. The
+deletion trigger captures old REST deletes and account cascades without taking
+that advisory lock after its row lock. Creation rechecks tombstones after INSERT
+and rolls back if a legacy deletion committed while INSERT waited. Tombstones
+contain no names, filters, or owner foreign key, and must not be purged. GraphQL
+permission, conflict, and validation errors must not become transport retries
+that block the mutation queue.
 
 Return authoritative records from create/update and the deleted identity from
 delete. Reconcile affected collection membership in the shared GraphQL cache;

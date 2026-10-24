@@ -19,7 +19,7 @@ use macro_user_id::{
 };
 use model_owner::Owner;
 use models_permissions::share_permission::LinkShare;
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 use std::str::FromStr;
 
 /// utility fn for queries to create a sqlx err
@@ -119,12 +119,13 @@ impl TeamRepositoryImpl {
 
         sqlx::query!(
             r#"
-            INSERT INTO team_user (team_id, user_id, team_role, plan)
-            VALUES ($1, $2, 'owner', $3)
+            INSERT INTO team_user (team_id, user_id, team_role, plan, membership_id)
+            VALUES ($1, $2, 'owner', $3, $4)
             "#,
             &team.id,
             user_id.as_ref(),
             owner_plan as _,
+            uuid::Uuid::now_v7(),
         )
         .execute(&mut *transaction)
         .await?;
@@ -545,7 +546,6 @@ impl TeamRepository for TeamRepositoryImpl {
     }
 
     #[tracing::instrument(skip(self), err)]
-    #[allow(clippy::disallowed_methods, reason = "legacy code. fix later")]
     async fn remove_user_from_team(
         &self,
         team_id: &uuid::Uuid,
@@ -559,15 +559,15 @@ impl TeamRepository for TeamRepositoryImpl {
 
         let mut transaction = self.pool.begin().await?;
 
-        let row = sqlx::query(
+        let row = sqlx::query!(
             r#"
             DELETE FROM team_user
             WHERE team_id = $1 AND user_id = $2
-            RETURNING team_role, plan
+            RETURNING team_role AS "team_role!: TeamRole", plan AS "plan!: SeatPlan", membership_id
             "#,
+            team_id,
+            user_id.as_ref(),
         )
-        .bind(team_id)
-        .bind(user_id.as_ref())
         .fetch_optional(&mut *transaction)
         .await?;
 
@@ -578,8 +578,9 @@ impl TeamRepository for TeamRepositoryImpl {
         let removed_member = TeamMember {
             team_id: *team_id,
             user_id: user_id.clone().into_owned(),
-            role: row.try_get("team_role")?,
-            plan: row.try_get("plan")?,
+            role: row.team_role,
+            plan: row.plan,
+            membership_id: row.membership_id,
         };
 
         TeamRepositoryImpl::bump_seat_count(&mut transaction, team_id, -1).await?;
@@ -752,7 +753,8 @@ impl TeamRepository for TeamRepositoryImpl {
             r#"
             SELECT user_id, 
                 team_role as "team_role!: TeamRole",
-                plan as "plan!: SeatPlan"
+                plan as "plan!: SeatPlan",
+                membership_id
             FROM team_user
             WHERE team_id = $1
             "#,
@@ -772,6 +774,7 @@ impl TeamRepository for TeamRepositoryImpl {
                         user_id,
                         role: row.team_role,
                         plan: row.plan,
+                        membership_id: row.membership_id,
                         team_id: *team_id,
                     })
                 } else {
@@ -789,7 +792,6 @@ impl TeamRepository for TeamRepositoryImpl {
     }
 
     #[tracing::instrument(skip(self), err)]
-    #[allow(clippy::disallowed_methods, reason = "legacy code. fix later")]
     async fn accept_team_invite(
         &self,
         team_invite_id: &uuid::Uuid,
@@ -800,79 +802,70 @@ impl TeamRepository for TeamRepositoryImpl {
         let user_email = user_id.email_part().lowercase();
 
         // Get invite data before deleting it so the accept can be rolled back later.
-        let invite = sqlx::query(
+        let invite = sqlx::query!(
             r#"
-            SELECT id, email, team_role, team_id, invited_by, created_at, last_sent_at
+            SELECT id, email, team_role AS "team_role!: TeamRole",
+                   team_id, invited_by, created_at, last_sent_at
             FROM team_invite
             WHERE id = $1 AND email = $2
             "#,
+            team_invite_id,
+            user_email.as_ref(),
         )
-        .bind(team_invite_id)
-        .bind(user_email.as_ref())
         .fetch_one(&mut *transaction)
         .await?;
 
         let invite_snapshot = TeamInviteSnapshot {
-            id: invite.try_get("id")?,
-            team_id: invite.try_get("team_id")?,
-            email: Email::parse_from_str(invite.try_get::<String, _>("email")?.as_str())
+            id: invite.id,
+            team_id: invite.team_id,
+            email: Email::parse_from_str(&invite.email)
                 .map(|e| e.into_owned().lowercase())
                 .map_err(|e| TeamError::StorageLayerError(e.into()))?,
-            team_role: invite.try_get("team_role")?,
-            invited_by: MacroUserIdStr::parse_from_str(
-                invite.try_get::<String, _>("invited_by")?.as_str(),
-            )
-            .map(|id| id.into_owned())
-            .map_err(|e| TeamError::StorageLayerError(e.into()))?,
-            created_at: chrono::DateTime::from_naive_utc_and_offset(
-                invite.try_get("created_at")?,
-                chrono::Utc,
-            ),
+            team_role: invite.team_role,
+            invited_by: MacroUserIdStr::parse_from_str(&invite.invited_by)
+                .map(|id| id.into_owned())
+                .map_err(|e| TeamError::StorageLayerError(e.into()))?,
+            created_at: chrono::DateTime::from_naive_utc_and_offset(invite.created_at, chrono::Utc),
             last_sent_at: chrono::DateTime::from_naive_utc_and_offset(
-                invite.try_get("last_sent_at")?,
+                invite.last_sent_at,
                 chrono::Utc,
             ),
         };
 
         // Assign user to team_user
-        let team_member = sqlx::query(
+        let team_member = sqlx::query!(
             r#"
-            INSERT INTO team_user (team_id, user_id, team_role)
-            VALUES ($1, $2, $3)
-            RETURNING user_id, team_role, team_id, plan
+            INSERT INTO team_user (team_id, user_id, team_role, membership_id)
+            VALUES ($1, $2, $3, $4)
+            RETURNING user_id, team_role AS "team_role!: TeamRole", team_id,
+                      plan AS "plan!: SeatPlan", membership_id
             "#,
+            invite_snapshot.team_id,
+            user_id.as_ref(),
+            invite_snapshot.team_role as _,
+            uuid::Uuid::now_v7(),
         )
-        .bind(invite_snapshot.team_id)
-        .bind(user_id.as_ref())
-        .bind(invite_snapshot.team_role)
         .fetch_one(&mut *transaction)
         .await?;
 
         // bump seat count
-        let team_id: uuid::Uuid = team_member.try_get("team_id")?;
+        let team_id = team_member.team_id;
         TeamRepositoryImpl::bump_seat_count(&mut transaction, &team_id, 1).await?;
 
         // Remove team invite
-        sqlx::query(
-            r#"
-            DELETE FROM team_invite
-            WHERE id = $1
-            "#,
-        )
-        .bind(team_invite_id)
-        .execute(&mut *transaction)
-        .await?;
+        sqlx::query!("DELETE FROM team_invite WHERE id = $1", team_invite_id)
+            .execute(&mut *transaction)
+            .await?;
 
         transaction.commit().await?;
 
         let member = TeamMember {
-            user_id: MacroUserIdStr::parse_from_str(
-                team_member.try_get::<String, _>("user_id")?.as_str(),
-            )
-            .map(|id| id.into_owned())
-            .map_err(|e| TeamError::StorageLayerError(e.into()))?,
-            role: team_member.try_get("team_role")?,
-            plan: team_member.try_get("plan")?,
+            user_id: MacroUserIdStr::parse_from_str(&team_member.user_id)
+                .map(|id| id.into_owned())
+                .map_err(|e| TeamError::StorageLayerError(e.into()))?,
+            role: team_member.team_role,
+            plan: team_member.plan,
+            membership_id: team_member.membership_id,
             team_id,
         };
 
@@ -883,21 +876,21 @@ impl TeamRepository for TeamRepositoryImpl {
     }
 
     #[tracing::instrument(skip(self), err)]
-    #[allow(clippy::disallowed_methods, reason = "legacy code. fix later")]
     async fn rollback_accept_team_invite(
         &self,
         accepted_invite: &AcceptedTeamInvite<'_>,
     ) -> Result<(), TeamError> {
         let mut transaction = self.pool.begin().await?;
 
-        let deleted = sqlx::query(
+        let deleted = sqlx::query!(
             r#"
             DELETE FROM team_user
-            WHERE team_id = $1 AND user_id = $2
+            WHERE team_id = $1 AND user_id = $2 AND membership_id = $3
             "#,
+            accepted_invite.member.team_id,
+            accepted_invite.member.user_id.as_ref(),
+            accepted_invite.member.membership_id,
         )
-        .bind(accepted_invite.member.team_id)
-        .bind(accepted_invite.member.user_id.as_ref())
         .execute(&mut *transaction)
         .await?;
 
@@ -910,21 +903,21 @@ impl TeamRepository for TeamRepositoryImpl {
             .await?;
         }
 
-        sqlx::query(
+        sqlx::query!(
             r#"
             INSERT INTO team_invite
                 (id, team_id, email, team_role, invited_by, created_at, last_sent_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT DO NOTHING
             "#,
+            accepted_invite.invite.id,
+            accepted_invite.invite.team_id,
+            accepted_invite.invite.email.as_ref(),
+            accepted_invite.invite.team_role as _,
+            accepted_invite.invite.invited_by.as_ref(),
+            accepted_invite.invite.created_at.naive_utc(),
+            accepted_invite.invite.last_sent_at.naive_utc(),
         )
-        .bind(accepted_invite.invite.id)
-        .bind(accepted_invite.invite.team_id)
-        .bind(accepted_invite.invite.email.as_ref())
-        .bind(accepted_invite.invite.team_role)
-        .bind(accepted_invite.invite.invited_by.as_ref())
-        .bind(accepted_invite.invite.created_at.naive_utc())
-        .bind(accepted_invite.invite.last_sent_at.naive_utc())
         .execute(&mut *transaction)
         .await?;
 
@@ -934,28 +927,62 @@ impl TeamRepository for TeamRepositoryImpl {
     }
 
     #[tracing::instrument(skip(self), err)]
-    #[allow(clippy::disallowed_methods, reason = "legacy code. fix later")]
+    async fn rollback_add_user_to_team(
+        &self,
+        added_member: &TeamMember<'_>,
+    ) -> Result<(), TeamError> {
+        let mut transaction = self.pool.begin().await?;
+        let deleted = sqlx::query!(
+            "DELETE FROM team_user WHERE team_id = $1 AND user_id = $2 AND membership_id = $3",
+            added_member.team_id,
+            added_member.user_id.as_ref(),
+            added_member.membership_id,
+        )
+        .execute(&mut *transaction)
+        .await?;
+        if deleted.rows_affected() > 0 {
+            Self::bump_seat_count(&mut transaction, &added_member.team_id, -1).await?;
+        }
+        transaction.commit().await?;
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self), err)]
     async fn rollback_remove_user_from_team(
         &self,
         removed_member: &TeamMember<'_>,
     ) -> Result<(), TeamError> {
         let mut transaction = self.pool.begin().await?;
 
-        let inserted = sqlx::query(
+        let inserted = sqlx::query!(
             r#"
-            INSERT INTO team_user (team_id, user_id, team_role, plan)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO team_user (team_id, user_id, team_role, plan, membership_id)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT DO NOTHING
             "#,
+            removed_member.team_id,
+            removed_member.user_id.as_ref(),
+            removed_member.role as _,
+            removed_member.plan as _,
+            removed_member.membership_id,
         )
-        .bind(removed_member.team_id)
-        .bind(removed_member.user_id.as_ref())
-        .bind(removed_member.role)
-        .bind(removed_member.plan)
         .execute(&mut *transaction)
         .await?;
 
-        if inserted.rows_affected() > 0 {
+        if inserted.rows_affected() == 0 {
+            let current = sqlx::query_scalar!(
+                "SELECT membership_id FROM team_user WHERE team_id = $1 AND user_id = $2",
+                removed_member.team_id,
+                removed_member.user_id.as_ref()
+            )
+            .fetch_optional(&mut *transaction)
+            .await?;
+            if current != Some(removed_member.membership_id) {
+                return Err(TeamError::StorageLayerError(anyhow::anyhow!(
+                    "membership lifetime changed during removal compensation"
+                )));
+            }
+        } else {
             TeamRepositoryImpl::bump_seat_count(&mut transaction, &removed_member.team_id, 1)
                 .await?;
         }
@@ -993,7 +1020,8 @@ impl TeamRepository for TeamRepositoryImpl {
             r#"
             SELECT user_id, 
                 team_role as "team_role!: TeamRole",
-                plan as "plan!: SeatPlan"
+                plan as "plan!: SeatPlan",
+                membership_id
             FROM team_user
             WHERE team_id = $1
             "#,
@@ -1013,6 +1041,7 @@ impl TeamRepository for TeamRepositoryImpl {
                         user_id,
                         role: row.team_role,
                         plan: row.plan,
+                        membership_id: row.membership_id,
                         team_id: *team_id,
                     })
                 } else {
@@ -1104,7 +1133,8 @@ impl TeamRepository for TeamRepositoryImpl {
             r#"
             SELECT user_id,
                 team_role as "team_role!: TeamRole",
-                plan as "plan!: SeatPlan"
+                plan as "plan!: SeatPlan",
+                membership_id
             FROM team_user
             WHERE team_id = $1
             "#,
@@ -1121,6 +1151,7 @@ impl TeamRepository for TeamRepositoryImpl {
                         user_id: id.into_owned(),
                         role: row.team_role,
                         plan: row.plan,
+                        membership_id: row.membership_id,
                         team_id: *team_id,
                     })
                     .ok()
@@ -1332,7 +1363,8 @@ impl TeamRepository for TeamRepositoryImpl {
             r#"
             SELECT user_id, 
                 team_role as "team_role!: TeamRole",
-                plan as "plan!: SeatPlan"
+                plan as "plan!: SeatPlan",
+                membership_id
             FROM team_user
             WHERE team_id = $1
             AND user_id = $2
@@ -1348,6 +1380,7 @@ impl TeamRepository for TeamRepositoryImpl {
                 team_id: *team_id,
                 role: r.team_role,
                 plan: r.plan,
+                membership_id: r.membership_id,
             })
         })
         .fetch_one(&self.pool)
@@ -1603,20 +1636,22 @@ impl TeamRepository for TeamRepositoryImpl {
 
         let inserted = sqlx::query!(
             r#"
-            INSERT INTO team_user (team_id, user_id, team_role)
-            VALUES ($1, $2, 'member')
+            INSERT INTO team_user (team_id, user_id, team_role, membership_id)
+            VALUES ($1, $2, 'member', $3)
             ON CONFLICT DO NOTHING
+            RETURNING membership_id
             "#,
             team_id,
             user_id.as_ref(),
+            uuid::Uuid::now_v7(),
         )
-        .execute(&mut *transaction)
+        .fetch_optional(&mut *transaction)
         .await?;
 
         // Already a member — nothing was added, so don't touch the invite or seat count.
-        if inserted.rows_affected() == 0 {
+        let Some(inserted) = inserted else {
             return Ok(None);
-        }
+        };
 
         let user_email = user_id.email_part().lowercase();
         sqlx::query!(
@@ -1639,6 +1674,7 @@ impl TeamRepository for TeamRepositoryImpl {
             user_id: user_id.clone().into_owned(),
             role: TeamRole::Member,
             plan: SeatPlan::Premium,
+            membership_id: inserted.membership_id,
         }))
     }
 
@@ -1687,5 +1723,41 @@ impl TeamRepository for TeamRepositoryImpl {
         .await?;
 
         Ok(team_id)
+    }
+}
+
+impl crate::domain::membership::TeamMembershipEvidence for TeamRepositoryImpl {
+    type Err = sqlx::Error;
+
+    #[tracing::instrument(name = "team_membership.viewer_teams", skip_all, err)]
+    async fn viewer_teams(&self, viewer: &str) -> Result<Vec<uuid::Uuid>, Self::Err> {
+        sqlx::query_scalar!("SELECT team_id FROM team_user WHERE user_id = $1", viewer)
+            .fetch_all(&self.pool)
+            .await
+    }
+
+    #[tracing::instrument(skip(self, pairs), fields(pair_count = pairs.len()), err)]
+    async fn lifetimes(
+        &self,
+        pairs: &[(uuid::Uuid, String)],
+    ) -> Result<std::collections::HashMap<(uuid::Uuid, String), uuid::Uuid>, Self::Err> {
+        if pairs.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+        let team_ids: Vec<_> = pairs.iter().map(|(id, _)| *id).collect();
+        let user_ids: Vec<_> = pairs.iter().map(|(_, user)| user.clone()).collect();
+        let rows = sqlx::query!(
+            "SELECT tu.team_id, tu.user_id, tu.membership_id FROM team_user tu
+             JOIN unnest($1::uuid[], $2::text[]) AS requested(team_id, user_id)
+             ON tu.team_id = requested.team_id AND tu.user_id = requested.user_id",
+            &team_ids,
+            &user_ids,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| ((row.team_id, row.user_id), row.membership_id))
+            .collect())
     }
 }

@@ -223,9 +223,13 @@ export type CreateInitiativeInput = {
 
 /** Inputs for creating a saved view with a stable client-generated identity. */
 export type CreateSavedViewInput = {
+  /** Consumer-owned JSON object, limited to 32 KiB. */
   config: unknown;
+  /** Client-generated UUID reused when retrying the same creation. */
   id: string | number;
+  /** Nonempty display name, limited to 120 characters. */
   name: string;
+  /** Current team to share with, or null for a private definition. */
   sharedTeamId?: string | number | null | undefined;
 };
 
@@ -260,7 +264,9 @@ export type DeleteEmailDraftInput = {
 
 /** Inputs for a revision-guarded deletion. */
 export type DeleteSavedViewInput = {
+  /** Revision that must still match when the deletion commits. */
   expectedRevision: number;
+  /** Identity of the definition to delete. */
   id: string | number;
 };
 
@@ -2044,6 +2050,7 @@ export type SaveEmailDraftInput = {
 
 /** Explicit sharing action: an omitted input leaves sharing unchanged; null team ID makes it private. */
 export type SavedViewSharingInput = {
+  /** Current team to share with; null explicitly removes sharing. */
   teamId?: string | number | null | undefined;
 };
 
@@ -2253,10 +2260,15 @@ export type UpdateNotificationsInput = {
 
 /** Inputs for a revision-guarded replacement update. */
 export type UpdateSavedViewInput = {
+  /** Complete replacement configuration; omission preserves current filters. */
   config?: unknown;
+  /** Revision that must still match when the update commits. */
   expectedRevision: number;
+  /** Identity of the definition to update. */
   id: string | number;
+  /** Replacement display name; omission preserves the current name. */
   name?: string | null | undefined;
+  /** Explicit sharing change; omission preserves the existing share. */
   sharing?: SavedViewSharingInput | null | undefined;
 };
 
