@@ -1,16 +1,16 @@
 import type { EmailSendIntent } from '@queries/email/send-queue';
 import {
+  serverEmailSends,
+  setServerSendSession,
+} from '@queries/email/server-sends';
+import { readPendingEmailSends } from '@service-storage/email-send';
+import {
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from '@solidjs/testing-library';
-import {
-  serverEmailSends,
-  setServerSendSession,
-} from '@queries/email/server-sends';
-import { readPendingEmailSends } from '@service-storage/email-send';
 import { type ComponentProps, createSignal } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { QueuedSendStatus } from './queued-send-status';
