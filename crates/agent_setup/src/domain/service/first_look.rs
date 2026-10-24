@@ -20,6 +20,11 @@ const CORRESPONDENT_LIMIT: i64 = 300;
 /// The most open threads read.
 const OPEN_THREAD_LIMIT: i64 = 100;
 
+/// "1 person", "3 people".
+fn counted(n: u32, one: &str, many: &str) -> String {
+    format!("{n} {}", if n == 1 { one } else { many })
+}
+
 impl AgentSetupService {
     /// What the person's mail and calendar show about their work. Read-only;
     /// reads counts, subjects and attendees, never message bodies.
@@ -82,10 +87,15 @@ impl AgentSetupService {
         );
         let next_step = self.first_look_step(&findings);
         let left_out = format!(
-            "Left out: {} people on personal addresses (gmail.com and the like), {} automated \
-             senders, and anyone who only ever wrote in (newsletters, cold email). Don't look \
-             them up.",
-            findings.personal_left_out, findings.automated_left_out
+            "Left out: {} on personal addresses (gmail.com and the like), {} (no-reply, \
+             support@ and the like), and anyone who only ever wrote in (newsletters, cold \
+             email). Don't look them up.",
+            counted(findings.personal_left_out, "person", "people"),
+            counted(
+                findings.automated_left_out,
+                "automated or shared address",
+                "automated or shared addresses"
+            ),
         );
         let Findings {
             teammates,

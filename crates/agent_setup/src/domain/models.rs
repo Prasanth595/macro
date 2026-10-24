@@ -406,8 +406,10 @@ pub struct Person {
     pub emails_received: u32,
     /// Meetings together in the last 30 days and the next 7.
     pub meetings: u32,
-    /// Their latest email or meeting.
-    pub last_contact: DateTime<Utc>,
+    /// Their latest email or past meeting; absent when the only contact so
+    /// far is an upcoming meeting.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_contact: Option<DateTime<Utc>>,
 }
 
 /// An outside organization the person works with, by email domain.
@@ -423,8 +425,10 @@ pub struct Company {
     pub emails: u32,
     /// Meetings with anyone there.
     pub meetings: u32,
-    /// The latest email or meeting with anyone there.
-    pub last_contact: DateTime<Utc>,
+    /// The latest email or past meeting with anyone there; absent when the
+    /// only contact so far is an upcoming meeting.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_contact: Option<DateTime<Utc>>,
 }
 
 /// A recent email thread waiting on a reply.

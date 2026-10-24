@@ -164,8 +164,8 @@ fn count(value: i64) -> u32 {
 fn ranked(people: Vec<(String, &Tally)>) -> Vec<Person> {
     let mut people: Vec<(u32, Person)> = people
         .into_iter()
-        .filter_map(|(email, tally)| {
-            Some((
+        .map(|(email, tally)| {
+            (
                 tally.contact(),
                 Person {
                     email,
@@ -173,9 +173,9 @@ fn ranked(people: Vec<(String, &Tally)>) -> Vec<Person> {
                     emails_sent: tally.sent,
                     emails_received: tally.received,
                     meetings: tally.meetings,
-                    last_contact: tally.last_contact?,
+                    last_contact: tally.last_contact,
                 },
-            ))
+            )
         })
         .collect();
     people.sort_by(|(a_contact, a), (b_contact, b)| {
@@ -249,9 +249,7 @@ pub fn first_look(signals: Signals<'_>) -> Findings {
             if tally.name.is_none() {
                 tally.name = attendee.name.clone();
             }
-            // An upcoming meeting is the only contact for someone known
-            // only from the calendar.
-            if meeting.starts_at <= signals.now || tally.last_contact.is_none() {
+            if meeting.starts_at <= signals.now {
                 tally.saw(meeting.starts_at);
             }
         }
@@ -287,7 +285,7 @@ pub fn first_look(signals: Signals<'_>) -> Findings {
                 .sum();
             let meetings = people.iter().map(|(_, tally)| tally.meetings).sum();
             let people = ranked(people);
-            let last_contact = people.iter().map(|person| person.last_contact).max()?;
+            let last_contact = people.iter().filter_map(|person| person.last_contact).max();
             (contact >= MIN_COMPANY_CONTACT).then(|| {
                 (
                     contact,

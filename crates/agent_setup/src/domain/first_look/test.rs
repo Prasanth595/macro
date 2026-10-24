@@ -104,7 +104,7 @@ fn meetings_weigh_more_than_email_and_a_single_email_is_not_a_company() {
     assert_eq!(found.companies[0].meetings, 2);
     assert_eq!(
         found.companies[0].people[0].last_contact,
-        now() - Duration::days(2)
+        Some(now() - Duration::days(2))
     );
 }
 
