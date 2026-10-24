@@ -94,6 +94,12 @@ the gateway `/email` prefix.
   redeploy both services. Before rolling workers back past that release, turn
   it off and let the gmail-ops queues drain. Retire the single-message form
   only after every producer sends batches.
+- Gmail label writes leave a marker in `email_gmail_pending_label_writes`.
+  Inbox sync keeps the local state of a label marked before or after it reads
+  Gmail (`inbox_sync::operations::pending_labels`). gmail_ops sends and reverts
+  only messages whose markers its write still owns, clears them on success and
+  hands them back on a permanent failure. Markers expire after 12 hours, which
+  must outlast an operation's redelivery through the gmail_ops queues.
 - Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
   Skip the bad address with a WARN that omits it (the parse error echoes it)
   instead of failing the step; see `pubsub::util::build_contact_connections`.

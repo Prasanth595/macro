@@ -70,6 +70,11 @@ tools — hexagonal, heavily feature-gated.
   dependency belongs under before wiring it in.
 - `domain/ports.rs` defines the traits adapters implement — call through the
   domain service, never an outbound adapter directly from another crate.
+- `EmailRepo::stage_thread_label_change` reads which messages change, applies
+  the change and marks the changed provider messages (exactly what
+  `commit_thread_label_write` enqueues) in one transaction holding the thread's
+  label-write lock. The enqueue carries the write's id; a group that can't be
+  queued hands its markers back to the write they were taken from.
 - Sender discovery authorizes the inbox first. Gmail aliases use the sender
   provider; Outlook exposes its verified primary address without a Gmail lookup.
 - Outlook links have no system label rows. Move a thread in or out of the inbox

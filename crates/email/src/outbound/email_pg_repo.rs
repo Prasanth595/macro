@@ -4,8 +4,8 @@ use crate::domain::{
         EmailErr, EmailFilter, EmailInboxDetails, EmailThreadMailProjection, EmailThreadMetadata,
         EmailThreadPreview, Label, Link, LinkLabel, MessageAttachment, MessageLabel, MessageRow,
         MessageTimestamps, ParsedAddresses, PreviewCursorQuery, ResolvedDraftInput,
-        SettledDraftIds, SimpleMessage, SimpleMessageInfo, ThreadRow, UpsertEmailFilterInput,
-        UpsertedContacts, UserProvider,
+        SettledDraftIds, SimpleMessage, SimpleMessageInfo, StagedLabelChange, ThreadRow,
+        UpsertEmailFilterInput, UpsertedContacts, UserProvider,
     },
     ports::{
         DraftAttachmentRepo, EmailRepo, EmailUserRepo, LinkEmailSettings, RecipientsByMessageId,
@@ -437,14 +437,37 @@ impl EmailRepo for EmailPgRepo {
             .await
     }
 
-    async fn set_thread_read_state(
+    async fn stage_thread_label_change(
         &self,
         thread_id: Uuid,
         link_id: Uuid,
+        provider_label_id: &str,
+        add: bool,
+        write_id: Uuid,
+    ) -> Result<Option<StagedLabelChange>, Self::Err> {
+        label::stage_thread_label_change(
+            &self.pool,
+            thread_id,
+            link_id,
+            provider_label_id,
+            add,
+            write_id,
+        )
+        .await
+    }
+
+    async fn abandon_pending_label_writes(
+        &self,
         message_ids: &[Uuid],
-        is_read: bool,
+        write_id: Uuid,
     ) -> Result<(), Self::Err> {
-        label::set_thread_read_state(&self.pool, thread_id, link_id, message_ids, is_read).await
+        email_db_client::labels::pending_writes::abandon_pending_label_writes(
+            &self.pool,
+            message_ids,
+            write_id,
+        )
+        .await?;
+        Ok(())
     }
 
     async fn set_thread_inbox_state(

@@ -1,5 +1,6 @@
 use crate::pubsub::gmail_ops::email_api_error::handle_email_api_error;
 use crate::pubsub::gmail_ops::error_handlers::prefix_error_source;
+use crate::pubsub::gmail_ops::operations::OperationError;
 use crate::pubsub::gmail_ops::operations::block_sender::block_sender;
 use crate::pubsub::gmail_ops::operations::delete_label::delete_label;
 use crate::pubsub::gmail_ops::operations::modify_message_labels::modify_message_labels;
@@ -74,19 +75,30 @@ async fn inner_process_message(
             "modify_message_labels",
             modify_message_labels(ctx, &link, payload).await,
         ),
-        GmailOpsOperation::DeleteLabel(payload) => {
-            ("delete_label", delete_label(ctx, &link, payload).await)
-        }
-        GmailOpsOperation::BlockSender(payload) => {
-            ("block_sender", block_sender(ctx, &link, payload).await)
-        }
-        GmailOpsOperation::UnblockSender(payload) => {
-            ("unblock_sender", unblock_sender(ctx, &link, payload).await)
-        }
+        GmailOpsOperation::DeleteLabel(payload) => (
+            "delete_label",
+            delete_label(ctx, &link, payload).await.map_err(Into::into),
+        ),
+        GmailOpsOperation::BlockSender(payload) => (
+            "block_sender",
+            block_sender(ctx, &link, payload).await.map_err(Into::into),
+        ),
+        GmailOpsOperation::UnblockSender(payload) => (
+            "unblock_sender",
+            unblock_sender(ctx, &link, payload)
+                .await
+                .map_err(Into::into),
+        ),
     };
 
     if let Err(error) = operation_result {
-        let processing_error = handle_email_api_error(ctx, data, error).await;
+        let processing_error = match error {
+            OperationError::Gmail(error) => handle_email_api_error(ctx, data, error).await,
+            OperationError::Database(source) => ProcessingError::Retryable(DetailedError {
+                reason: FailureReason::DatabaseQueryFailed,
+                source,
+            }),
+        };
         return Err(prefix_error_source(processing_error, operation_name));
     }
 

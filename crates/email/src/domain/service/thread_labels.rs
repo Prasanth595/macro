@@ -49,6 +49,9 @@ struct ThreadLabelWrite {
     link: Link,
     label: LinkLabel,
     add: bool,
+    /// Marks each thread's changed messages as waiting on this write when it
+    /// is staged; every group of the write carries it.
+    write_id: Uuid,
     threads: Vec<StagedThreadLabels>,
 }
 
@@ -437,8 +440,9 @@ where
                 .await;
         }
 
+        let write_id = macro_uuid::generate_uuid_v7();
         let thread = self
-            .stage_thread_labels(link, thread_id, &label.provider_label_id, add)
+            .stage_thread_labels(link, thread_id, &label.provider_label_id, add, write_id)
             .await?;
         let successful_ids = thread.all_ids.clone();
         self.commit_thread_label_write(
@@ -446,6 +450,7 @@ where
                 link: link.clone(),
                 label,
                 add,
+                write_id,
                 threads: vec![thread],
             },
             actor,
@@ -518,6 +523,7 @@ where
                             link,
                             label,
                             add: !archived,
+                            write_id: macro_uuid::generate_uuid_v7(),
                             threads: Vec::new(),
                         });
                         writes.len() - 1
@@ -529,6 +535,7 @@ where
                         thread_id,
                         system_labels::INBOX,
                         !archived,
+                        writes[index].write_id,
                     )
                     .await?;
                 Ok(Some((index, thread)))
@@ -574,81 +581,36 @@ where
     }
 
     /// Commit one thread's label change to the DB, capturing what sending it
-    /// to Gmail or reverting it needs.
+    /// to Gmail or reverting it needs. The messages that change are read in
+    /// the same transaction that changes them and marks them pending for
+    /// `write_id`: only those go to Gmail, and an enqueue-failure revert
+    /// restores only what this call changed.
     async fn stage_thread_labels(
         &self,
         link: &Link,
         thread_id: Uuid,
         provider_label_id: &str,
         add: bool,
+        write_id: Uuid,
     ) -> Result<StagedThreadLabels, EmailErr> {
-        let messages = self
-            .email_repo
-            .get_thread_label_messages(thread_id, link.id)
-            .await
-            .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?;
-
-        if messages.is_empty() {
-            return Err(EmailErr::ThreadEmpty);
-        }
-
         if provider_label_id.is_empty() {
             return Err(EmailErr::EmptyProviderLabelId);
         }
 
-        let all_ids: Vec<Uuid> = messages.iter().map(|m| m.db_id).collect();
-
-        // Snapshot which messages actually gain/lose the label. Only those go
-        // to Gmail, and an enqueue-failure revert restores only what this call
-        // changed — the batch writes are idempotent, and blindly inverting
-        // every message would strip pre-existing state. Best effort: if the
-        // snapshot read fails, fall back to treating all messages as changed.
-        let changed_ids: Vec<Uuid> = match self.email_repo.labels_by_message_ids(&all_ids).await {
-            Ok(labels_by_id) => all_ids
-                .iter()
-                .filter(|id| {
-                    let has_label = labels_by_id.get(id).is_some_and(|labels| {
-                        labels
-                            .iter()
-                            .any(|l| l.provider_label_id == provider_label_id)
-                    });
-                    has_label != add
-                })
-                .copied()
-                .collect(),
-            Err(e) => {
-                let err = anyhow::Error::from(e);
-                if provider_label_id == system_labels::INBOX {
-                    return Err(EmailErr::RepoErr(err));
-                }
-                tracing::warn!(error=?err, "failed to snapshot message labels; revert would cover all messages");
-                all_ids.clone()
-            }
-        };
-
-        let inbox_visible = if provider_label_id == system_labels::INBOX {
-            Some(
-                self.email_repo
-                    .thread_by_id(thread_id)
-                    .await
-                    .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?
-                    .ok_or(EmailErr::ThreadNotFound)?
-                    .inbox_visible,
-            )
-        } else {
-            None
-        };
-
-        // Optimistic DB update: update all messages first
-        self.apply_label_db_changes(link, thread_id, &all_ids, provider_label_id, add)
-            .await?;
+        let staged = self
+            .email_repo
+            .stage_thread_label_change(thread_id, link.id, provider_label_id, add, write_id)
+            .await
+            .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?
+            .ok_or(EmailErr::ThreadEmpty)?;
 
         Ok(StagedThreadLabels {
             thread_id,
-            messages,
-            all_ids,
-            changed_ids,
-            inbox_visible,
+            all_ids: staged.messages.iter().map(|m| m.db_id).collect(),
+            messages: staged.messages,
+            changed_ids: staged.changed_ids,
+            inbox_visible: (provider_label_id == system_labels::INBOX)
+                .then_some(staged.inbox_visible),
         })
     }
 
@@ -667,6 +629,7 @@ where
             link,
             label,
             add,
+            write_id,
             mut threads,
         } = write;
         let provider_label_id = label.provider_label_id.as_str();
@@ -692,6 +655,7 @@ where
                     provider_messages,
                     labels_to_add.clone(),
                     labels_to_remove.clone(),
+                    write_id,
                 )
                 .await
             {
@@ -702,6 +666,13 @@ where
                     self.revert_label_db_changes(&link, thread, provider_label_id, add)
                         .await;
                 }
+                let unsent_message_ids: Vec<Uuid> = unsent_threads
+                    .iter()
+                    .flat_map(StagedThreadLabels::changed_provider_messages)
+                    .map(|(id, _)| id)
+                    .collect();
+                self.abandon_pending_label_writes(&unsent_message_ids, write_id)
+                    .await;
                 unsent = Some(UnsentThreads {
                     thread_ids: unsent_threads.iter().map(|t| t.thread_id).collect(),
                     error: EmailErr::EnqueueErr(err),
@@ -844,59 +815,17 @@ where
         }
     }
 
-    /// Apply a thread label change to the DB. UNREAD/read flags and INBOX/
-    /// visibility commit atomically; a failure propagates before provider sync
-    /// or events. Other labels retain their best-effort starred side effect.
-    async fn apply_label_db_changes(
-        &self,
-        link: &Link,
-        thread_id: Uuid,
-        message_ids: &[Uuid],
-        provider_label_id: &str,
-        add: bool,
-    ) -> Result<(), EmailErr> {
-        if provider_label_id == system_labels::INBOX {
-            return self
-                .email_repo
-                .set_thread_inbox_state(thread_id, link.id, message_ids, add, add)
-                .await
-                .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)));
-        }
-        if provider_label_id == system_labels::UNREAD {
-            return self
-                .email_repo
-                .set_thread_read_state(thread_id, link.id, message_ids, !add)
-                .await
-                .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)));
-        }
-
-        let db_result = if add {
-            self.email_repo
-                .insert_message_labels_batch(message_ids, provider_label_id, link.id)
-                .await
-        } else {
-            self.email_repo
-                .delete_message_labels_batch(message_ids, provider_label_id, link.id)
-                .await
-        };
-
-        if let Err(e) = db_result {
-            let err = anyhow::Error::from(e);
-            tracing::error!(error=?err, "failed to update message labels in database");
-            return Err(EmailErr::RepoErr(err));
-        }
-
-        if provider_label_id == system_labels::STARRED
-            && let Err(e) = self
-                .email_repo
-                .update_message_starred_status_batch(message_ids, link.id, add)
-                .await
+    /// Best effort: a marker left behind only keeps inbox sync off that label
+    /// on those messages until it expires.
+    async fn abandon_pending_label_writes(&self, message_ids: &[Uuid], write_id: Uuid) {
+        if let Err(e) = self
+            .email_repo
+            .abandon_pending_label_writes(message_ids, write_id)
+            .await
         {
             let err = anyhow::Error::from(e);
-            tracing::error!(error=?err, "failed to update message starred status");
+            tracing::error!(error=?err, "failed to abandon pending label write markers");
         }
-
-        Ok(())
     }
 
     /// Map a user-initiated thread label change onto the semantic
