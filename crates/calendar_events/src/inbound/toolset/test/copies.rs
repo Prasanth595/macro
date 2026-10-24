@@ -168,7 +168,7 @@ async fn a_detail_change_asks_which_copy() {
     assert!(
         error
             .description
-            .contains("Ask the user which inbox's copy"),
+            .contains("\"Which inbox's copy should I change: "),
         "{}",
         error.description
     );

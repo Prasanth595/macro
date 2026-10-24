@@ -36,6 +36,39 @@ fn a_copy_of_several_inboxes_needs_its_inbox() {
         "{message}"
     );
     assert!(message.contains("cancels the meeting"), "{message}");
+    assert!(
+        message.contains("Never choose between the user's inboxes yourself"),
+        "{message}"
+    );
+    assert!(
+        message.contains(
+            "Ask the user exactly this and wait for the answer: \"Which inbox's copy should I \
+             delete: guest@example.com (guest) or owner@example.com (organizer)?\""
+        ),
+        "{message}"
+    );
+}
+
+#[test]
+fn the_question_names_each_inbox_once() {
+    let mut copies = two_inboxes();
+    copies.push(copy(Uuid::from_u128(9), "Guest@Example.com", false));
+    copies.push(copy(Uuid::from_u128(10), "outlook@example.com", false));
+    let refusal = check_copy(
+        &copies,
+        ORGANIZED,
+        None,
+        CopyChange::Update { adds_guests: false },
+    )
+    .expect("three inboxes hold the meeting");
+    assert!(
+        refusal.message().contains(
+            "\"Which inbox's copy should I change: guest@example.com (guest), owner@example.com \
+             (organizer) or outlook@example.com (guest)?\""
+        ),
+        "{}",
+        refusal.message()
+    );
 }
 
 #[test]
@@ -82,6 +115,14 @@ fn adding_guests_suggests_the_copy_the_user_organizes() {
         refusal
             .message()
             .contains("To add guests, suggest owner@example.com"),
+        "{}",
+        refusal.message()
+    );
+    assert!(
+        refusal.message().contains(
+            "\"Which inbox's copy should I add the guests from: owner@example.com (organizer) \
+             or guest@example.com (guest)?\""
+        ),
         "{}",
         refusal.message()
     );
