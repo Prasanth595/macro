@@ -164,6 +164,29 @@ for (const mention of mentions) {
       fetchStatus: 'idle',
     });
 }
+// A database that loaded, then failed to refetch for a reason other than
+// being gone, keeps the chip it loaded.
+const loadedDatabaseId = '01a16d55-0000-7000-8000-00000000000e';
+{
+  const { queryKey } = databaseDetailQueryOptions(loadedDatabaseId);
+  queryClient.setQueryDefaults(queryKey, {
+    retryOnMount: false,
+    refetchOnMount: false,
+  });
+  queryClient
+    .getQueryCache()
+    .build(queryClient, { queryKey })
+    .setState({
+      status: 'error',
+      data: { database: { id: loadedDatabaseId, name: 'Roadmap' } },
+      dataUpdatedAt: Date.now(),
+      error: new ThrownResultError([
+        { code: 'NETWORK_ERROR', message: 'Failed to fetch' },
+      ]),
+      errorUpdatedAt: Date.now(),
+      fetchStatus: 'idle',
+    });
+}
 queryClient.setQueryData(systemSkillsQueryOptions().queryKey, []);
 for (const session of sessions) {
   for (const graphql of [false, true]) {
@@ -253,6 +276,17 @@ function Fixture() {
           </p>
         )}
       </For>
+      <p>
+        Loaded database:{' '}
+        <DocumentMention
+          key={loadedDatabaseId}
+          theme={channelTheme}
+          documentId={loadedDatabaseId}
+          documentName="Roadmap"
+          blockName="database"
+          createdAt={Date.now() - 10 * 60 * 1000}
+        />
+      </p>
       <For each={sessions}>
         {(session) => (
           <p>

@@ -35,7 +35,7 @@ import { formatDate } from '@core/util/date';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { matches } from '@core/util/match';
 import { openInNewSplitForMention } from '@core/util/openInNewSplit';
-import { thrownResultErrorHasCode } from '@core/util/result';
+import { ThrownResultError } from '@core/util/result';
 import { useNativeSplitNavigationHandler } from '@core/util/useSplitNavigationHandler';
 import {
   $convertMentionToCard,
@@ -47,6 +47,7 @@ import ArrowsOut from '@phosphor/arrows-out-simple.svg';
 import EyeSlashDuo from '@phosphor/eye-slash.svg';
 import TrashSimple from '@phosphor/trash-simple.svg';
 import {
+  failedReadAccess,
   type ItemEntity,
   isAccessiblePreviewItem,
   isCalendarEventPreviewItem,
@@ -506,12 +507,23 @@ function UnavailableMention(props: {
   );
 }
 
-/** How a database's or form's failed detail read reads on its reference. */
-function detailUnavailable(error: unknown): PreviewItemNoAccess['access'] {
-  return thrownResultErrorHasCode(error, 'NOT_FOUND') ||
-    thrownResultErrorHasCode(error, 'GONE')
-    ? 'does_not_exist'
-    : 'no_access';
+/**
+ * How a database or form reference reads once its detail read fails, or
+ * nothing while it keeps the chip it loaded: a refetch that fails for any
+ * reason but the item being gone leaves the loaded chip on screen.
+ */
+function detailUnavailable(detail: {
+  isError: boolean;
+  error: unknown;
+  dataUpdatedAt: number;
+}): PreviewItemNoAccess['access'] | undefined {
+  if (!detail.isError) return undefined;
+  const access =
+    detail.error instanceof ThrownResultError
+      ? failedReadAccess(detail.error.errors)
+      : 'no_access';
+  if (detail.dataUpdatedAt > 0 && access !== 'does_not_exist') return undefined;
+  return access;
 }
 
 function RoutineMention(props: DocumentMentionDecoratorProps) {
@@ -624,10 +636,53 @@ function DatabaseMention(props: DocumentMentionDecoratorProps) {
   };
   return (
     <Show
-      when={!detail.isError}
+      when={detailUnavailable(detail)}
       fallback={
+        <span class="inline-flex items-baseline gap-1">
+          <span
+            class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
+            role="link"
+            tabIndex={0}
+            on:mousedown={(event) => event.preventDefault()}
+            on:click={open}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') open(event);
+            }}
+          >
+            <MentionContainer
+              icon={<EntityIcon targetType="database" size="fill" />}
+              collapsed={props.collapsed}
+              text={
+                <span
+                  data-document-mention="true"
+                  data-document-id={props.documentId}
+                  data-block-name="database"
+                  data-document-name={name()}
+                >
+                  {name() || 'Database'}
+                </span>
+              }
+            />
+          </span>
+          <Show
+            when={enabled().enabled && editable() && wrapper?.isInteractable()}
+          >
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              label="Expand database"
+              on:mousedown={(event) => event.preventDefault()}
+              on:click={expand}
+            >
+              <ArrowsOut class="size-3.5" />
+            </Button>
+          </Show>
+        </span>
+      }
+    >
+      {(access) => (
         <UnavailableMention
-          access={detailUnavailable(detail.error)}
+          access={access()}
           collapsed={props.collapsed}
           documentInfo={{
             id: props.documentId,
@@ -636,48 +691,7 @@ function DatabaseMention(props: DocumentMentionDecoratorProps) {
             isOpenable: true,
           }}
         />
-      }
-    >
-      <span class="inline-flex items-baseline gap-1">
-        <span
-          class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
-          role="link"
-          tabIndex={0}
-          on:mousedown={(event) => event.preventDefault()}
-          on:click={open}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') open(event);
-          }}
-        >
-          <MentionContainer
-            icon={<EntityIcon targetType="database" size="fill" />}
-            collapsed={props.collapsed}
-            text={
-              <span
-                data-document-mention="true"
-                data-document-id={props.documentId}
-                data-block-name="database"
-                data-document-name={name()}
-              >
-                {name() || 'Database'}
-              </span>
-            }
-          />
-        </span>
-        <Show
-          when={enabled().enabled && editable() && wrapper?.isInteractable()}
-        >
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            label="Expand database"
-            on:mousedown={(event) => event.preventDefault()}
-            on:click={expand}
-          >
-            <ArrowsOut class="size-3.5" />
-          </Button>
-        </Show>
-      </span>
+      )}
     </Show>
   );
 }
@@ -702,10 +716,38 @@ function FormMention(props: DocumentMentionDecoratorProps) {
   };
   return (
     <Show
-      when={!detail.isError}
+      when={detailUnavailable(detail)}
       fallback={
+        <span
+          class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
+          role="link"
+          tabIndex={0}
+          on:mousedown={(event) => event.preventDefault()}
+          on:click={open}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') open(event);
+          }}
+        >
+          <MentionContainer
+            icon={<EntityIcon targetType="form" size="fill" />}
+            collapsed={props.collapsed}
+            text={
+              <span
+                data-document-mention="true"
+                data-document-id={props.documentId}
+                data-block-name="form"
+                data-document-name={name()}
+              >
+                {name() || 'Form'}
+              </span>
+            }
+          />
+        </span>
+      }
+    >
+      {(access) => (
         <UnavailableMention
-          access={detailUnavailable(detail.error)}
+          access={access()}
           collapsed={props.collapsed}
           documentInfo={{
             id: props.documentId,
@@ -714,33 +756,7 @@ function FormMention(props: DocumentMentionDecoratorProps) {
             isOpenable: true,
           }}
         />
-      }
-    >
-      <span
-        class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
-        role="link"
-        tabIndex={0}
-        on:mousedown={(event) => event.preventDefault()}
-        on:click={open}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') open(event);
-        }}
-      >
-        <MentionContainer
-          icon={<EntityIcon targetType="form" size="fill" />}
-          collapsed={props.collapsed}
-          text={
-            <span
-              data-document-mention="true"
-              data-document-id={props.documentId}
-              data-block-name="form"
-              data-document-name={name()}
-            >
-              {name() || 'Form'}
-            </span>
-          }
-        />
-      </span>
+      )}
     </Show>
   );
 }

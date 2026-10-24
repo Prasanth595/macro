@@ -58,6 +58,17 @@ for (const [label, name, card] of cases) {
   });
 }
 
+test('a database chip whose refetch failed keeps its loaded chip', async ({
+  page,
+}) => {
+  await page.goto(fixture);
+  const loaded = page
+    .getByRole('paragraph')
+    .filter({ hasText: 'Loaded database:' });
+  await expect(loaded.getByText('Roadmap', { exact: true })).toBeVisible();
+  await expect(loaded.getByText('No Access', { exact: true })).toBeHidden();
+});
+
 test('Enter on a deleted chip selected in a composer keeps its card open', async ({
   page,
 }) => {
