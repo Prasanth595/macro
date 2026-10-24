@@ -1,18 +1,21 @@
-import type { WorkFeedEntryFieldsFragment } from '@service-storage/graphql/generated/graphql';
 import { describe, expect, it } from 'vitest';
-import { createFakeWorkFeedClient } from '../tests/fake-client';
-import {
-  documentEntry,
-  invalidatedPatch,
-  removedPatch,
-  upsertedPatch,
-  workFeedPage,
-} from '../tests/wire';
+import { createFakeWorkFeedClient } from './tests/fake-client';
 import {
   compareWorkFeedEntries,
   placeWorkFeedPatches,
   writeWorkFeedPatches,
 } from './work-feed-cache';
+import type { WorkFeedEntryShape, WorkFeedPatchShape } from './work-feed-types';
+
+type Entry = WorkFeedEntryShape;
+
+const documentEntry = ({
+  docId,
+  sortAt,
+}: {
+  docId: string;
+  sortAt: string;
+}): Entry => ({ sortAt, item: { id: `document:${docId}` } });
 
 const at = (docId: string, minute: number) =>
   documentEntry({
@@ -20,7 +23,28 @@ const at = (docId: string, minute: number) =>
     sortAt: `2026-02-01T10:${String(minute).padStart(2, '0')}:00Z`,
   });
 
-const ids = (pages: WorkFeedEntryFieldsFragment[][] | undefined) =>
+const upsertedPatch = (entry: Entry): WorkFeedPatchShape<Entry> => ({
+  __typename: 'WorkFeedEntryUpserted',
+  entry,
+});
+const removedPatch = (itemId: string): WorkFeedPatchShape<Entry> => ({
+  __typename: 'WorkFeedEntryRemoved',
+  itemId,
+});
+const invalidatedPatch = (): WorkFeedPatchShape<Entry> => ({
+  __typename: 'WorkFeedInvalidated',
+  refresh: true,
+});
+const workFeedPage = (entries: Entry[], nextCursor: string | null = null) => ({
+  user: { id: 'macro|viewer@example.com', workFeed: { entries, nextCursor } },
+});
+
+const cachedQuery = {
+  query: 'query WorkFeed { user { id } }',
+  operationName: 'WorkFeed',
+};
+
+const ids = (pages: Entry[][] | undefined) =>
   pages?.map((page) => page.map((entry) => entry.item.id.split(':')[1]));
 
 describe('compareWorkFeedEntries', () => {
@@ -107,6 +131,7 @@ describe('writeWorkFeedPatches', () => {
 
     const placed = await writeWorkFeedPatches(
       fake.host,
+      cachedQuery,
       [firstPage, secondPage],
       [upsertedPatch(at('new', 40))],
       false
@@ -126,6 +151,7 @@ describe('writeWorkFeedPatches', () => {
     expect(
       await writeWorkFeedPatches(
         fake.host,
+        cachedQuery,
         [firstPage],
         [upsertedPatch(at('new', 40))],
         false

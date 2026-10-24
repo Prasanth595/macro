@@ -1,16 +1,9 @@
 import type { CacheHost } from '@graphql-cache/host/types';
-import {
-  WorkFeedDocument,
-  type WorkFeedEntryFieldsFragment,
-  type WorkFeedPatchFieldsFragment,
-  type WorkFeedQuery,
-  type WorkFeedQueryVariables,
-} from '@service-storage/graphql/generated/graphql';
-import { stringifyDocument } from '@urql/core';
-
-type Entry = WorkFeedEntryFieldsFragment;
-
-const workFeedQuery = stringifyDocument(WorkFeedDocument);
+import type {
+  WorkFeedEntryShape,
+  WorkFeedPageData,
+  WorkFeedPatchShape,
+} from './work-feed-types';
 
 /** Sub-millisecond digits of an RFC 3339 time, which `Date.parse` drops. */
 function subMillis(time: string): number {
@@ -22,7 +15,10 @@ function subMillis(time: string): number {
 const entityIdOf = (itemId: string) => itemId.slice(itemId.indexOf(':') + 1);
 
 /** The server's feed order: newest `sortAt` first, then entity id descending. */
-export function compareWorkFeedEntries(a: Entry, b: Entry): number {
+export function compareWorkFeedEntries(
+  a: WorkFeedEntryShape,
+  b: WorkFeedEntryShape
+): number {
   const millis = Date.parse(b.sortAt) - Date.parse(a.sortAt);
   if (millis !== 0) return millis;
   const sub = subMillis(b.sortAt) - subMillis(a.sortAt);
@@ -33,7 +29,11 @@ export function compareWorkFeedEntries(a: Entry, b: Entry): number {
 }
 
 /** Insert an entry before the first loaded row it sorts ahead of. */
-function insertEntry(pages: Entry[][], entry: Entry, hasMore: boolean) {
+function insertEntry<Entry extends WorkFeedEntryShape>(
+  pages: Entry[][],
+  entry: Entry,
+  hasMore: boolean
+) {
   for (const page of pages) {
     const index = page.findIndex(
       (row) => compareWorkFeedEntries(entry, row) < 0
@@ -54,9 +54,9 @@ function insertEntry(pages: Entry[][], entry: Entry, hasMore: boolean) {
  * inserted into one page leaves no gap before the next. Returns undefined
  * when the batch invalidates the feed.
  */
-export function placeWorkFeedPatches(
+export function placeWorkFeedPatches<Entry extends WorkFeedEntryShape>(
   pages: readonly (readonly Entry[])[],
-  patches: readonly WorkFeedPatchFieldsFragment[],
+  patches: readonly WorkFeedPatchShape<Entry>[],
   hasMore: boolean
 ): Entry[][] | undefined {
   let next = pages.map((page) => [...page]);
@@ -74,8 +74,15 @@ export function placeWorkFeedPatches(
   return next;
 }
 
-const sameEntries = (a: readonly Entry[], b: readonly Entry[]) =>
+const sameEntries = <Entry>(a: readonly Entry[], b: readonly Entry[]) =>
   a.length === b.length && a.every((entry, index) => entry === b[index]);
+
+/** The cached query a feed's pages are stored under. */
+export type WorkFeedCachedQuery = {
+  /** The printed query document. */
+  query: string;
+  operationName: string;
+};
 
 /**
  * Write one server batch into a feed's cached pages, so every query reading
@@ -83,24 +90,28 @@ const sameEntries = (a: readonly Entry[], b: readonly Entry[]) =>
  * be placed — an invalidation, or a page the cache no longer holds — and the
  * feed must be read again.
  */
-export async function writeWorkFeedPatches(
+export async function writeWorkFeedPatches<
+  Entry extends WorkFeedEntryShape,
+  Page extends WorkFeedPageData<Entry>,
+  Variables extends Record<string, unknown>,
+>(
   host: Pick<CacheHost, 'readQuery' | 'writeQuery'>,
-  pageVariables: readonly WorkFeedQueryVariables[],
-  patches: readonly WorkFeedPatchFieldsFragment[],
+  cachedQuery: WorkFeedCachedQuery,
+  pageVariables: readonly Variables[],
+  patches: readonly WorkFeedPatchShape<Entry>[],
   hasMore: boolean
 ): Promise<boolean> {
   if (pageVariables.length === 0) return false;
-  const pages: WorkFeedQuery[] = [];
+  const pages: Page[] = [];
   for (const variables of pageVariables) {
     const read = await host.readQuery({
-      query: workFeedQuery,
-      operationName: 'WorkFeed',
+      ...cachedQuery,
       variables,
       priority: 'user-visible',
     });
     if (read.kind !== 'hit') return false;
     // The generated document defines the normalized cache result's shape.
-    pages.push(read.data as WorkFeedQuery);
+    pages.push(read.data as Page);
   }
   const placed = placeWorkFeedPatches(
     pages.map((page) => page.user.workFeed.entries),
@@ -112,13 +123,12 @@ export async function writeWorkFeedPatches(
     const page = pages[index];
     if (sameEntries(entries, page.user.workFeed.entries)) continue;
     await host.writeQuery({
-      query: workFeedQuery,
-      operationName: 'WorkFeed',
+      ...cachedQuery,
       variables: pageVariables[index],
       data: {
         ...page,
         user: { ...page.user, workFeed: { ...page.user.workFeed, entries } },
-      } satisfies WorkFeedQuery,
+      },
     });
   }
   return true;

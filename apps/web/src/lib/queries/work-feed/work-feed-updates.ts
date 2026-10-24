@@ -1,26 +1,23 @@
-import {
-  type WorkFeedPatchFieldsFragment,
-  WorkFeedUpdatesDocument,
-  type WorkFeedUpdatesSubscription,
-  type WorkFeedUpdatesSubscriptionVariables,
-} from '@service-storage/graphql/generated/graphql';
+import type { TypedDocumentNode } from '@graphql-typed-document-node/core';
 import type { Client } from '@urql/core';
 import { pipe, subscribe } from 'wonka';
-import type { WorkFeedScope } from '../core/work-feed';
-import { encodeWorkFeedScope } from './decode';
 
-export type WorkFeedUpdatesHandlers = {
+export type WorkFeedUpdatesHandlers<Patch> = {
   /** One server batch, to apply together. */
-  patches: (patches: WorkFeedPatchFieldsFragment[]) => void;
+  patches: (patches: Patch[]) => void;
   /** The stream errored or ended: changes may be missed until resubscribed. */
   interrupted: () => void;
 };
 
 /** Follow one feed's live changes; returns the unsubscribe function. */
-export function subscribeToWorkFeedUpdates(
+export function subscribeToWorkFeedUpdates<
+  Patch,
+  Variables extends Record<string, unknown>,
+>(
   client: Client,
-  scope: WorkFeedScope,
-  handlers: WorkFeedUpdatesHandlers
+  document: TypedDocumentNode<{ workFeedUpdates: Patch[] }, Variables>,
+  variables: Variables,
+  handlers: WorkFeedUpdatesHandlers<Patch>
 ): () => void {
   let ended = false;
   const end = () => {
@@ -29,10 +26,7 @@ export function subscribeToWorkFeedUpdates(
     handlers.interrupted();
   };
   const { unsubscribe } = pipe(
-    client.subscription<
-      WorkFeedUpdatesSubscription,
-      WorkFeedUpdatesSubscriptionVariables
-    >(WorkFeedUpdatesDocument, { scope: encodeWorkFeedScope(scope) }),
+    client.subscription(document, variables),
     subscribe((result) => {
       if (result.error) {
         end();

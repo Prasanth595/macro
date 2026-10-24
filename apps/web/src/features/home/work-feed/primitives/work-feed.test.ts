@@ -1,8 +1,9 @@
 import type { EntityData } from '@entity';
+import { WORK_FEED_RESUBSCRIBE_DELAY_MS } from '@queries/work-feed/live-work-feed';
+import { createFakeWorkFeedClient } from '@queries/work-feed/tests/fake-client';
 import { createRoot } from 'solid-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorkFeedScope } from '../core/work-feed';
-import { createFakeWorkFeedClient } from '../tests/fake-client';
 import {
   documentEntry,
   invalidatedPatch,
@@ -10,7 +11,7 @@ import {
   upsertedPatch,
   workFeedPage,
 } from '../tests/wire';
-import { createWorkFeed, WORK_FEED_RESUBSCRIBE_DELAY_MS } from './work-feed';
+import { createWorkFeed } from './work-feed';
 
 // Row mapping imports allBlocks, which loads every block module; one of them
 // opens a websocket that jsdom rejects after the test ends.
