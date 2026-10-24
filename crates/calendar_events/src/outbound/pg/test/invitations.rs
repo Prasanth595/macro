@@ -156,6 +156,28 @@ async fn an_outlook_inbox_answers_through_its_own_copy_of_a_google_meeting(pool:
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn the_receiving_inbox_keeps_its_copy_past_the_candidate_limit(pool: PgPool) {
+    let viewer = "macro|invite-many@example.com";
+    insert_user(&pool, viewer).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    for _ in 0..16 {
+        let link = insert_link(&pool, viewer).await;
+        event(&pool, &repo, viewer, link).await;
+    }
+    // Created last, its copy sorts after the 16 others.
+    let receiving = insert_link(&pool, viewer).await;
+    let received = event(&pool, &repo, viewer, receiving).await;
+    let result = CalendarInvitationResolver::new(repo)
+        .resolve(viewer, &[identity(receiving)])
+        .await
+        .unwrap();
+    assert!(
+        matches!(&result[0], InvitationResolution::Resolved { event, .. } if event.id == received),
+        "{result:?}"
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn invitation_delegation_is_scoped_to_the_granted_inbox(pool: PgPool) {
     let viewer = "macro|invite-delegate@example.com";
     let owner = "macro|invite-owner@example.com";
