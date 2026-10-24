@@ -745,18 +745,32 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
       : undefined
   );
 
+  // A just-created mention can briefly preview as missing; it still opens
+  // the calendar rather than reading as deleted.
+  const isDeletedCalendarEvent = () => {
+    const i = item();
+    return (
+      verifyBlockName(props.blockName) === 'calendar' &&
+      !i.loading &&
+      i.access === 'does_not_exist' &&
+      !isRecentMention()
+    );
+  };
+  const showsPreviewOnOpen = () =>
+    calendarOpen()?.kind === 'read_only' || isDeletedCalendarEvent();
+
   const open = createCallback((e: MouseEvent | KeyboardEvent | null) => {
     // The calendar is a singleton block: open it aimed at the viewer's own
     // copy of the meeting. A meeting shared through the channel but absent
-    // from the viewer's calendars has nothing to open, so its read-only
-    // preview card is shown instead, as a sheet on touch devices.
+    // from the viewer's calendars, or one that is gone, has nothing to open,
+    // so its preview card is shown instead, as a sheet on touch devices.
+    if (showsPreviewOnOpen()) {
+      if (isTouchDevice()) setPreviewSheetOpen(true);
+      else setPreviewCardOpen(true);
+      return;
+    }
     const target = calendarOpen();
-    if (target) {
-      if (target.kind === 'read_only') {
-        if (isTouchDevice()) setPreviewSheetOpen(true);
-        else setPreviewCardOpen(true);
-        return;
-      }
+    if (target?.kind === 'calendar') {
       fireAndForget(
         openCalendarEventSplit({
           ...target.target,
@@ -845,9 +859,10 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
     e.stopPropagation();
     const i = item();
     if (
-      !i.loading &&
-      (i.access === 'access' ||
-        shouldUseFallbackForRecentMention(i, isRecentMention()))
+      isDeletedCalendarEvent() ||
+      (!i.loading &&
+        (i.access === 'access' ||
+          shouldUseFallbackForRecentMention(i, isRecentMention())))
     ) {
       open(e);
     }
@@ -902,10 +917,7 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
       {/* The sheet stays up once open, so a share the viewer adds or is
           invited to meanwhile shows it is on their calendar in place. */}
       <Show
-        when={
-          isTouchDevice() &&
-          (calendarOpen()?.kind === 'read_only' || previewSheetOpen())
-        }
+        when={isTouchDevice() && (showsPreviewOnOpen() || previewSheetOpen())}
       >
         <DocumentPreviewSheet
           open={previewSheetOpen()}
@@ -916,7 +928,7 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
       <HoverCard
         open={previewCardOpen()}
         onOpenChange={setPreviewCardOpen}
-        keepOpenOnTriggerPress={calendarOpen()?.kind === 'read_only'}
+        keepOpenOnTriggerPress={showsPreviewOnOpen()}
         trigger={
           <span class="relative">
             <span
