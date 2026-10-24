@@ -37,6 +37,20 @@ for (const [label, name, card] of cases) {
   });
 }
 
+test('Enter on a selected deleted chip keeps its card open', async ({
+  page,
+}) => {
+  await page.goto(fixture);
+  const card = "This document was deleted or doesn't exist.";
+  await expect(chip(page, 'Selected in an editor', 'Deleted')).toBeVisible();
+
+  expect(
+    await page.evaluate(() => window.pressEnterOnSelectedMention?.())
+  ).toBe(true);
+  await expect(page.getByText(card, { exact: true })).toBeVisible();
+  await expect(page.getByText(/file/)).toBeHidden();
+});
+
 test.describe('on a phone', () => {
   test.use({
     viewport: { width: 390, height: 844 },

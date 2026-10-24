@@ -10,8 +10,15 @@ import { previewKeys } from '@queries/preview/keys';
 import type { PreviewItem, PreviewItemNoAccess } from '@queries/preview/types';
 import { MemoryRouter, Route } from '@solidjs/router';
 import { QueryClientProvider } from '@tanstack/solid-query';
+import {
+  KEY_ENTER_COMMAND,
+  type LexicalCommand,
+  type LexicalEditor,
+} from 'lexical';
 import { For } from 'solid-js';
 import { render } from 'solid-js/web';
+import { LexicalWrapperContext } from '../../../context/LexicalWrapperContext';
+import type { PluginManager, SelectionData } from '../../../plugins';
 import { channelTheme } from '../../../theme';
 import { StaticMarkdownContext } from '../../core/StaticMarkdown';
 import { DocumentMention } from '../DocumentMention';
@@ -63,6 +70,61 @@ queryClient.setQueryData(authKeys.userInfo.queryKey, {
   email: 'viewer@example.com',
 } as UserInfoData);
 
+declare global {
+  interface Window {
+    pressEnterOnSelectedMention?: () => boolean;
+  }
+}
+
+// An editor holding the deleted document's chip as its node selection, so
+// Enter reaches the chip's KEY_ENTER_COMMAND handler as it does in a composer.
+const selectedMentionKey = 'selected-deleted-document';
+const editor = {
+  registerCommand: <T,>(
+    command: LexicalCommand<T>,
+    handler: (payload: T) => boolean
+  ) => {
+    if (command === KEY_ENTER_COMMAND) {
+      window.pressEnterOnSelectedMention = () =>
+        (handler as (event: KeyboardEvent | null) => boolean)(null);
+    }
+    return () => {};
+  },
+  isEditable: () => false,
+  hasNode: () => false,
+  update: () => {},
+  dispatchCommand: () => true,
+};
+
+function SelectedMention() {
+  const selection = {
+    type: 'node',
+    nodeKeys: new Set([selectedMentionKey]),
+  } as SelectionData;
+  return (
+    <LexicalWrapperContext.Provider
+      value={{
+        type: 'markdown',
+        owner: null,
+        plugins: {} as PluginManager,
+        editor: editor as unknown as LexicalEditor,
+        cleanup: () => {},
+        isInteractable: () => true,
+        selection,
+      }}
+    >
+      <DocumentMention
+        key={selectedMentionKey}
+        theme={channelTheme}
+        documentId={mentions[1].id}
+        documentName="Planning"
+        blockName={mentions[1].blockName}
+        createdAt={Date.now() - 10 * 60 * 1000}
+      />
+    </LexicalWrapperContext.Provider>
+  );
+}
+
 function Fixture() {
   return (
     <main class="p-4 text-ink bg-page space-y-2">
@@ -81,6 +143,9 @@ function Fixture() {
           </p>
         )}
       </For>
+      <p>
+        Selected in an editor: <SelectedMention />
+      </p>
     </main>
   );
 }
