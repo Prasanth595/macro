@@ -347,6 +347,12 @@ the shimmer.
   whose turn is still running (the agent is working, writing code, or stopping)
   shows the same three-dot working wave as the transcript in place of the
   leading icon; the row's accessible name appends `Starting` or `Working`.
+  The row follows each turn without a reload: it turns Working when a turn
+  starts and clears when the last turn ends. Each session update re-reads the
+  row from the primary database after the list refetch, which corrects a
+  stale replica read at that point; a later replica-backed refetch from
+  another trigger can still briefly restore an older row until the next
+  session update.
   Sessions with a linked PR show
   **#<number>** beneath the title (icon colored by open / merged / closed; no
   status word). Clicking it opens the synced
@@ -1377,8 +1383,15 @@ it points right when collapsed and down when expanded. Individual results start
 collapsed. Existing rich result views retain their own content and controls;
 when a result view provides its own disclosure, use that control rather than
 adding a second nested disclosure. Counts come from structured responses,
-edits show additions/deletions, and other tools show their outcome. A call cut
-off when its turn ends reads **Stopped**.
+edits show additions/deletions, and other tools show their outcome. A Macro
+tool call keeps the same label and icon as its successful row in every state,
+never the tool's code name: while it runs its text shimmers; a call cut off when
+its turn ends reads **Stopped**; a failed call is faded with **Failed** on the
+right (for example **Add to calendar · Failed**), and when the tool gave a
+reason, **Failed** carries a caret that opens it. Only a call whose arguments do
+not fit the tool (still arriving, or malformed) keeps the summary row with the
+tool's name. Labels stay in the present tense (**Fetch**, **Load tools**) until
+a result arrives.
 
 Only tools with a supported result view can expand. Unknown tools, unsupported
 drafts, and payloads that do not fit their renderer stay as summary rows with
@@ -2066,8 +2079,12 @@ reads the saved version and discards the local edit; it never retries an externa
 send automatically. If the outcome is unknown, check the inbox/calendar before
 attempting another send elsewhere. Review decisions produce durable system events
 for the same review ID. The card refreshes in place, with **Responding** below it
-until the agent starts its reply. This behaves the same on mobile. These events
-create no user bubble; events without an existing card use a quiet timeline row.
+until the agent starts its reply. This behaves the same on mobile. Approving an
+import plan only starts its write, so no **Responding** shows until the write
+ends; the card shows its final state and the agent's reply follows. A plan
+still being made when it was presented also wakes the agent once it is ready.
+These events create no user bubble; events without an existing card use a
+quiet timeline row.
 The agent can read final drafts and confirmed outcomes through **GetReview**.
 An exact silent response produces no assistant message or unread notification.
 A decision in chat from the review’s acting account uses the same saved-revision claim as the card;
@@ -2137,4 +2154,8 @@ Agent-session system events appear as a single quiet row with a kind-specific
 icon, an outcome summary, and relative time (hover for the exact timestamp).
 Failures and unconfirmed outcomes use the error tone. Review events refresh
 the existing card without adding a second timeline row when that card is
-already in the thread. The row stays on one line and truncates on phones.
+already in the thread. Import reviews add "Import plan ready" with the plan's
+counts once planning finishes, and settle as "Import finished", "Import
+failed" or "Import cancelled" with imported, failed and by-hand counts; the
+row never shows the report's error text. The row stays on one line and
+truncates on phones.

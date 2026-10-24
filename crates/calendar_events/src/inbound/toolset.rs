@@ -11,6 +11,7 @@ mod create_confirmed_calendar_event;
 mod delete_calendar_event;
 mod list_calendar_events;
 mod list_calendars;
+mod read_calendar_event;
 mod update_calendar_event;
 
 #[cfg(test)]
@@ -22,11 +23,13 @@ use std::sync::Arc;
 use ai_toolset::{AsyncToolCollection, ToolCallError};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
+use rootcause::compat::boxed_error::IntoBoxedError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::domain::{
+    copies::{CopyChange, check_copy},
     meeting_links::{CreateEventWithMacroCallError, EventWithMacroCall, MeetingLinkError},
     models::{
         CalendarAttendeeInput, CalendarEvent, EventReminderOverride, EventReminders, EventTime,
@@ -48,6 +51,7 @@ pub use list_calendar_events::{
     CalendarEventListItem, ListCalendarEvents, ListCalendarEventsResponse,
 };
 pub use list_calendars::{ListCalendars, ListCalendarsToolResponse, ToolCalendar};
+pub use read_calendar_event::{CalendarEventAccess, ReadCalendarEvent, ReadCalendarEventResponse};
 pub use update_calendar_event::{
     ConferenceChangeInput, RsvpResponseInput, UpdateCalendarEvent, UpdateScopeInput,
 };
@@ -122,6 +126,7 @@ where
     AsyncToolCollection::new()
         .add_tool::<ListCalendarEvents, CalendarToolContext<M, O, L>>()
         .add_tool::<ListCalendars, CalendarToolContext<M, O, L>>()
+        .add_tool::<ReadCalendarEvent, CalendarToolContext<M, O, L>>()
         .add_tool::<UpdateCalendarEvent, CalendarToolContext<M, O, L>>()
         .add_tool::<DeleteCalendarEvent, CalendarToolContext<M, O, L>>()
         .add_tool::<AddSharedCalendarEvent, CalendarToolContext<M, O, L>>()
@@ -475,6 +480,35 @@ impl CalendarLabels {
             .and_then(|id| self.by_calendar.get(&id))
             .map(|calendar| calendar.email_address.clone())
             .or_else(|| link_id.and_then(|id| self.inbox_by_link.get(&id)).cloned())
+    }
+}
+
+/// Make sure the agent chose which copy to change when the meeting is on
+/// several of the user's inboxes (`copies::check_copy`): a refusal comes
+/// back with each copy's inbox and role, so the agent asks the user instead
+/// of picking one.
+async fn confirm_copy<O: CalendarOccurrenceService>(
+    occurrences: &O,
+    requester_id: &str,
+    event_id: Uuid,
+    inbox: Option<&str>,
+    change: CopyChange,
+) -> Result<(), ToolCallError> {
+    let copies = occurrences
+        .meeting_copies(requester_id, event_id)
+        .await
+        .map_err(|error| ToolCallError {
+            description: "Failed to check which of the user's inboxes hold this meeting. Try \
+                          again shortly."
+                .to_string(),
+            internal_error: anyhow::Error::from_boxed(error.into_boxed_error()),
+        })?;
+    match check_copy(&copies, event_id, inbox, change) {
+        None => Ok(()),
+        Some(refusal) => Err(ToolCallError {
+            description: refusal.message().to_string(),
+            internal_error: anyhow::anyhow!("the call did not confirm which copy it changes"),
+        }),
     }
 }
 
