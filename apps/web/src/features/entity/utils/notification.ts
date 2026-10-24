@@ -275,6 +275,7 @@ export function getNotificationActionText(n: Notification): string {
     .with('agent_session_settled', () => 'finished')
     .with('agent_session_waiting_for_input', () => 'asked')
     .with('agent_session_mentioned', () => 'mentioned')
+    .with('agent_review_requested', () => 'drafted')
     .exhaustive(() => 'notified');
 }
 
@@ -355,6 +356,10 @@ export function extractMessageContent(notification: Notification): string {
     )
     .with({ tag: 'agent_session_waiting_for_input' }, (m) => m.content.question)
     .with({ tag: 'agent_session_mentioned' }, (m) => m.content.sessionName)
+    .with(
+      { tag: 'agent_review_requested' },
+      (m) => m.content.preview || m.content.title
+    )
     .exhaustive(() => '');
 }
 

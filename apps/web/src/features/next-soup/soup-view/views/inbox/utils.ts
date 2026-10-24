@@ -75,6 +75,8 @@ function notificationContent(notification: Notification): string | undefined {
     return `Requested ${metadata.content.accessLevel} access`;
   if (metadata.tag === 'entity_access_granted')
     return `Granted you ${metadata.content.accessLevel} access`;
+  if (metadata.tag === 'agent_review_requested')
+    return metadata.content.preview || metadata.content.title;
   const field =
     NOTIFICATION_CONTENT_FIELD[notification.notification_metadata.tag];
   if (!field) return undefined;

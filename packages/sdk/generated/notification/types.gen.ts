@@ -5,6 +5,43 @@ export type ClientOptions = {
 };
 
 /**
+ * What submitting a review does.
+ */
+export type AgentReviewKind = 'email' | 'calendar';
+
+/**
+ * An agent presented drafts that wait for the recipient to submit or dismiss
+ * them. Sent to the account the drafts would act as; withdrawn once nothing
+ * in the review waits for a decision.
+ */
+export type AgentReviewRequestedMetadata = AgentSessionNotificationRef & {
+    /**
+     * How many drafts wait for a decision.
+     */
+    draftCount: number;
+    /**
+     * The first draft's subject or event title, when it has one.
+     */
+    preview?: string | null;
+    /**
+     * Every drafted email replies to an existing message.
+     */
+    replies: boolean;
+    /**
+     * The review awaiting a decision, within the session.
+     */
+    reviewId: string;
+    /**
+     * What submitting the review does.
+     */
+    reviewKind: AgentReviewKind;
+    /**
+     * The review's label, as the agent wrote it.
+     */
+    title: string;
+};
+
+/**
  * Someone named the recipient in a prompt to an agent session.
  */
 export type AgentSessionMentionedMetadata = AgentSessionNotificationRef & {
@@ -1247,6 +1284,12 @@ export type NotifEvent = {
      */
     content: CalendarEventJoinRequestMetadata;
     tag: 'calendar_event_join_request';
+} | {
+    /**
+     * An agent presented drafts waiting for the user to approve.
+     */
+    content: AgentReviewRequestedMetadata;
+    tag: 'agent_review_requested';
 };
 
 /**

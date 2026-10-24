@@ -62,7 +62,8 @@ async function resolveActorName(
   const meta = notification.notification_metadata;
   if (
     meta.tag === 'agent_session_settled' ||
-    meta.tag === 'agent_session_waiting_for_input'
+    meta.tag === 'agent_session_waiting_for_input' ||
+    meta.tag === 'agent_review_requested'
   ) {
     return meta.content.botName;
   }

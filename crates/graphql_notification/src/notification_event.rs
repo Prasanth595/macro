@@ -12,6 +12,10 @@ pub use crm_discussion::GraphqlCrmDiscussionMetadata;
 mod calendar_join_request;
 pub use calendar_join_request::GraphqlCalendarEventJoinRequestMetadata;
 
+/// Agent drafts awaiting approval notification metadata.
+mod agent_review;
+pub use agent_review::GraphqlAgentReviewRequestedMetadata;
+
 use async_graphql::{Enum, ID, Object, Union};
 use model_notifications::{
     AgentSessionMentionedMetadata, AgentSessionNotificationRef, AgentSessionSettledMetadata,
@@ -1300,6 +1304,8 @@ pub enum GraphqlNotifEvent {
     AgentSessionMentioned(GraphqlAgentSessionMentionedMetadata),
     /// Calendar event join request metadata.
     CalendarEventJoinRequest(GraphqlCalendarEventJoinRequestMetadata),
+    /// Agent drafts awaiting approval metadata.
+    AgentReviewRequested(GraphqlAgentReviewRequestedMetadata),
 }
 
 impl From<NotifEvent> for GraphqlNotifEvent {
@@ -1393,6 +1399,9 @@ impl From<NotifEvent> for GraphqlNotifEvent {
             ),
             NotifEvent::AgentSessionMentioned(metadata) => {
                 Self::AgentSessionMentioned(GraphqlAgentSessionMentionedMetadata(metadata))
+            }
+            NotifEvent::AgentReviewRequested(metadata) => {
+                Self::AgentReviewRequested(GraphqlAgentReviewRequestedMetadata(metadata))
             }
         }
     }

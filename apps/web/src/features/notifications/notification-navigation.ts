@@ -388,14 +388,16 @@ function getSupportedHandler(
         P.union(
           'agent_session_settled',
           'agent_session_waiting_for_input',
-          'agent_session_mentioned'
+          'agent_session_mentioned',
+          'agent_review_requested'
         ),
         () => {
           const meta = notification.notification_metadata;
           if (
             meta.tag !== 'agent_session_settled' &&
             meta.tag !== 'agent_session_waiting_for_input' &&
-            meta.tag !== 'agent_session_mentioned'
+            meta.tag !== 'agent_session_mentioned' &&
+            meta.tag !== 'agent_review_requested'
           ) {
             return null;
           }

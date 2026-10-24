@@ -1051,6 +1051,58 @@
   },
   "components": {
     "schemas": {
+      "AgentReviewKind": {
+        "type": "string",
+        "description": "What submitting a review does.",
+        "enum": ["email", "calendar"]
+      },
+      "AgentReviewRequestedMetadata": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AgentSessionNotificationRef"
+          },
+          {
+            "type": "object",
+            "required": [
+              "reviewId",
+              "reviewKind",
+              "title",
+              "draftCount",
+              "replies"
+            ],
+            "properties": {
+              "draftCount": {
+                "type": "integer",
+                "format": "int32",
+                "description": "How many drafts wait for a decision.",
+                "minimum": 0
+              },
+              "preview": {
+                "type": ["string", "null"],
+                "description": "The first draft's subject or event title, when it has one."
+              },
+              "replies": {
+                "type": "boolean",
+                "description": "Every drafted email replies to an existing message."
+              },
+              "reviewId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The review awaiting a decision, within the session."
+              },
+              "reviewKind": {
+                "$ref": "#/components/schemas/AgentReviewKind",
+                "description": "What submitting the review does."
+              },
+              "title": {
+                "type": "string",
+                "description": "The review's label, as the agent wrote it."
+              }
+            }
+          }
+        ],
+        "description": "An agent presented drafts that wait for the recipient to submit or dismiss\nthem. Sent to the account the drafts would act as; withdrawn once nothing\nin the review waits for a decision."
+      },
       "AgentSessionMentionedMetadata": {
         "allOf": [
           {
@@ -2901,6 +2953,21 @@
               "tag": {
                 "type": "string",
                 "enum": ["calendar_event_join_request"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "An agent presented drafts waiting for the user to approve.",
+            "required": ["content", "tag"],
+            "properties": {
+              "content": {
+                "$ref": "#/components/schemas/AgentReviewRequestedMetadata",
+                "description": "An agent presented drafts waiting for the user to approve."
+              },
+              "tag": {
+                "type": "string",
+                "enum": ["agent_review_requested"]
               }
             }
           }

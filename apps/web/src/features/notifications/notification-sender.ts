@@ -32,6 +32,7 @@ export function getNotificationSenderFallbackName(
     .with(
       'agent_session_settled',
       'agent_session_waiting_for_input',
+      'agent_review_requested',
       () => content?.botName
     )
     .with(

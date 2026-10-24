@@ -201,7 +201,8 @@ export function handleNotificationUpdate(notification: UnifiedNotification) {
         tag: P.union(
           'agent_session_settled',
           'agent_session_waiting_for_input',
-          'agent_session_mentioned'
+          'agent_session_mentioned',
+          'agent_review_requested'
         ),
       },
       () => {

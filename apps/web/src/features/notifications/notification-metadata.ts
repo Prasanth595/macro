@@ -85,8 +85,29 @@ export function getNotificationAction(n: UnifiedNotification): string {
       .with('agent_session_settled', () => 'finished')
       .with('agent_session_waiting_for_input', () => 'needs your answer in')
       .with('agent_session_mentioned', () => 'mentioned you in')
+      .with('agent_review_requested', () => {
+        const meta = n.notification_metadata;
+        return meta.tag === 'agent_review_requested'
+          ? `drafted ${describeAgentReviewDrafts(meta.content)} in`
+          : 'drafted';
+      })
       .exhaustive(() => 'notified you about')
   );
+}
+
+/** What an agent drafted for approval, as the object of "drafted". */
+export function describeAgentReviewDrafts(content: {
+  reviewKind: 'email' | 'calendar';
+  replies: boolean;
+  draftCount: number;
+}): string {
+  const [one, many] =
+    content.reviewKind === 'calendar'
+      ? ['an event', 'events']
+      : content.replies
+        ? ['a reply', 'replies']
+        : ['an email', 'emails'];
+  return content.draftCount === 1 ? one : `${content.draftCount} ${many}`;
 }
 
 export function getNotificationTargetName(
@@ -143,7 +164,8 @@ export function getNotificationTargetName(
           tag: P.union(
             'agent_session_settled',
             'agent_session_waiting_for_input',
-            'agent_session_mentioned'
+            'agent_session_mentioned',
+            'agent_review_requested'
           ),
         },
         (m) => m.content.sessionName
@@ -222,6 +244,10 @@ export function getNotificationContent(
         (m) => m.content.question
       )
       .with({ tag: 'agent_session_mentioned' }, () => undefined)
+      .with(
+        { tag: 'agent_review_requested' },
+        (m) => m.content.preview || m.content.title
+      )
       .exhaustive(() => undefined)
   );
 }
@@ -292,7 +318,8 @@ export function shouldShowNotificationTarget(n: UnifiedNotification): boolean {
           tag: P.union(
             'agent_session_settled',
             'agent_session_waiting_for_input',
-            'agent_session_mentioned'
+            'agent_session_mentioned',
+            'agent_review_requested'
           ),
         },
         () => true

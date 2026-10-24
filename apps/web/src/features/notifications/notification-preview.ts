@@ -32,4 +32,5 @@ export const NOTIFICATION_LABEL_BY_TYPE: Record<NotificationType, string> = {
   agent_session_settled: 'AGENT',
   agent_session_waiting_for_input: 'ASKING',
   agent_session_mentioned: 'MENTION',
+  agent_review_requested: 'DRAFT',
 } as const;

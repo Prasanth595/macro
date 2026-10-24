@@ -266,6 +266,9 @@ const tagBubbleIcon = (tag: NotificationTag) =>
     .with('agent_session_mentioned', () => () => (
       <AtIcon class={AVATAR_GLYPH_CLASS} />
     ))
+    .with('agent_review_requested', () => () => (
+      <AgentIcon class={AVATAR_GLYPH_CLASS} />
+    ))
     .with('reminder', () => () => <BellSimpleIcon class={AVATAR_GLYPH_CLASS} />)
     .with('calendar_event_reminder', () => () => (
       <CalendarBlankIcon class={AVATAR_GLYPH_CLASS} />
@@ -1151,16 +1154,18 @@ export function AiCardLayout(props: InboxCardLayoutProps) {
 
 /**
  * An agent session the user was notified about: it finished, it is asking
- * them something, or a prompt named them. The row is the session - title,
- * agent icon, click opens it - and the body is what the agent said or
- * asked, attributed to the bot (or to whoever wrote the mentioning prompt).
+ * them something, it drafted something for them to approve, or a prompt
+ * named them. The row is the session - title, agent icon, click opens it -
+ * and the body is what the agent said, asked or drafted, attributed to the
+ * bot (or to whoever wrote the mentioning prompt).
  */
 export function AgentSessionCardLayout(props: InboxCardLayoutProps) {
   const meta = () => {
     const meta = props.item.notification?.notification_metadata;
     return meta?.tag === 'agent_session_settled' ||
       meta?.tag === 'agent_session_waiting_for_input' ||
-      meta?.tag === 'agent_session_mentioned'
+      meta?.tag === 'agent_session_mentioned' ||
+      meta?.tag === 'agent_review_requested'
       ? meta
       : undefined;
   };

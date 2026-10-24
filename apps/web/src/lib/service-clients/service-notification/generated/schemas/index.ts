@@ -5,6 +5,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './agentReviewKind';
+export * from './agentReviewRequestedMetadata';
+export * from './agentReviewRequestedMetadataAllOf';
+export * from './agentReviewRequestedMetadataAllOfPreview';
 export * from './agentSessionMentionedMetadata';
 export * from './agentSessionMentionedMetadataAllOf';
 export * from './agentSessionMentionedMetadataAllOfMentionedBy';
@@ -189,6 +193,8 @@ export * from './notifEventOneOfSeven';
 export * from './notifEventOneOfSevenTag';
 export * from './notifEventOneOfSixone';
 export * from './notifEventOneOfSixoneTag';
+export * from './notifEventOneOfSixthree';
+export * from './notifEventOneOfSixthreeTag';
 export * from './notifEventOneOfTag';
 export * from './notifEventOneOfThree';
 export * from './notifEventOneOfThreefive';

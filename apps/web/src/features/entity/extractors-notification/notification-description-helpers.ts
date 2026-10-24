@@ -130,6 +130,7 @@ export function getActionVerb(type: NotificationType): string {
       .with('agent_session_settled', () => 'finished')
       .with('agent_session_waiting_for_input', () => 'needs your answer')
       .with('agent_session_mentioned', () => 'mentioned you')
+      .with('agent_review_requested', () => 'drafted')
       .exhaustive(() => 'updated')
   );
 }
@@ -196,6 +197,7 @@ export function getTypeNoun(type: NotificationType, count: number): string {
     .with('agent_session_mentioned', () =>
       count === 1 ? 'mention' : 'mentions'
     )
+    .with('agent_review_requested', () => (count === 1 ? 'draft' : 'drafts'))
     .exhaustive(() => (count === 1 ? 'notification' : 'notifications'));
 }
 

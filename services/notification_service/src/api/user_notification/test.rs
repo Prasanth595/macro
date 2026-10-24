@@ -239,6 +239,27 @@ fn to_typed_row_calendar_event_join_request() {
 }
 
 #[test]
+fn to_typed_row_agent_review_requested() {
+    let metadata = serde_json::json!({
+        "sessionId": "01a15f1b-801e-70d6-873d-689f42c0b0e9",
+        "sessionName": "Follow up with Acme",
+        "botId": "00000000-0000-0000-0000-00000000a2a2",
+        "botName": "Macro",
+        "reviewId": "01a0d015-b785-7602-9dc8-db34ca69c29b",
+        "reviewKind": "email",
+        "title": "Replies to this week's leads",
+        "draftCount": 2,
+        "replies": true
+    });
+    let row = make_row("agent_review_requested", metadata);
+    let typed = to_typed_row(row).expect("should deserialize agent_review_requested");
+    assert!(matches!(
+        typed.notification_metadata,
+        NotifEvent::AgentReviewRequested(_)
+    ));
+}
+
+#[test]
 fn to_typed_row_unknown_event_type_fails() {
     let metadata = serde_json::json!({"foo": "bar"});
     let row = make_row("unknown_event", metadata);

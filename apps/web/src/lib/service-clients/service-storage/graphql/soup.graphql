@@ -776,6 +776,23 @@ fragment SoupNotificationNavigationMetadataFields on GraphqlNotifEvent {
 		agentSessionMentionedMentionedBy: mentionedBy
 		agentSessionMentionedActionId: actionId
 	}
+	... on GraphqlAgentReviewRequestedMetadata {
+		agentReviewRequestedSession: session {
+			sessionId
+			sessionName
+			botId
+			botName
+			channelId
+			threadId
+			announcementMessageId
+		}
+		agentReviewRequestedReviewId: reviewId
+		agentReviewRequestedReviewKind: reviewKind
+		agentReviewRequestedTitle: title
+		agentReviewRequestedDraftCount: draftCount
+		agentReviewRequestedReplies: replies
+		agentReviewRequestedPreview: preview
+	}
 }
 
 fragment MailAccountFields on GraphqlEmailLink {

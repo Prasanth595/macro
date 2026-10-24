@@ -1,9 +1,11 @@
 mod access_request;
+mod agent_review;
 mod calendar_join_request;
 mod channel_push;
 pub use access_request::{
     EntityAccessGrantedMetadata, EntityAccessRequestedMetadata, RequestedAccessLevel,
 };
+pub use agent_review::{AgentReviewKind, AgentReviewRequestedMetadata};
 pub use calendar_join_request::CalendarEventJoinRequestMetadata;
 use chrono::{DateTime, NaiveDate, Utc};
 pub use invite_email::{

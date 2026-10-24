@@ -44,6 +44,7 @@ import { Telemetry } from '@macro-inc/observability';
 import { notificationStateFromGraphql } from '@notifications/notification-state';
 import { localDraftQueueLifecycle } from '@queries/email/local-drafts';
 import { getMacroApiToken } from '@service-auth/fetch';
+import type { AgentReviewKind } from '@service-notification/generated/schemas/agentReviewKind';
 import type { ApiUserNotification } from '@service-notification/generated/schemas/apiUserNotification';
 import type { ChannelType } from '@service-notification/generated/schemas/channelType';
 import type { GithubPrCheckRunState } from '@service-notification/generated/schemas/githubPrCheckRunState';
@@ -1642,6 +1643,23 @@ function mapGraphqlNotificationMetadata(
             actionId: metadata.agentSessionMentionedActionId,
           },
         }) satisfies NotifEventMember<'agent_session_mentioned'>
+    )
+    .with(
+      { __typename: 'GraphqlAgentReviewRequestedMetadata' },
+      (metadata) =>
+        ({
+          tag: 'agent_review_requested',
+          content: {
+            ...agentSessionContent(metadata.agentReviewRequestedSession),
+            reviewId: metadata.agentReviewRequestedReviewId,
+            reviewKind:
+              metadata.agentReviewRequestedReviewKind.toLowerCase() as AgentReviewKind,
+            title: metadata.agentReviewRequestedTitle,
+            draftCount: metadata.agentReviewRequestedDraftCount,
+            replies: metadata.agentReviewRequestedReplies,
+            preview: metadata.agentReviewRequestedPreview ?? undefined,
+          },
+        }) satisfies NotifEventMember<'agent_review_requested'>
     )
     .exhaustive(
       () =>

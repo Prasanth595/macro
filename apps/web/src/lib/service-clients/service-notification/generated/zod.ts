@@ -190,6 +190,8 @@ export const listTypedNotificationsResponseItemsItemNotificationMetadataContentT
 
 export const listTypedNotificationsResponseItemsItemNotificationMetadataContentTurnMinOne = 0;
 
+export const listTypedNotificationsResponseItemsItemNotificationMetadataContentDraftCountMin = 0;
+
 export const listTypedNotificationsResponse = zod
   .object({
     items: zod
@@ -2092,6 +2094,111 @@ export const listTypedNotificationsResponse = zod
                     .describe(
                       'A channel member asked to be added as a guest of an event the\nuser shared with the channel.'
                     ),
+                  zod
+                    .object({
+                      content: zod
+                        .object({
+                          announcementMessageId: zod
+                            .uuid()
+                            .nullish()
+                            .describe(
+                              'The magic-chip message for the turn in question, when one was posted.'
+                            ),
+                          botId: zod
+                            .string()
+                            .describe(
+                              'The bot the session runs for. A string on the wire: system bots have\nfixed ids like `00000000-0000-0000-0000-00000000a2a2`, which are not\nRFC 4122 uuids and fail a `format: uuid` check on the client.'
+                            ),
+                          botName: zod
+                            .string()
+                            .describe(
+                              "The bot's display name; agent notifications have no user sender, so\nthis is who they read as being from."
+                            ),
+                          channelId: zod
+                            .uuid()
+                            .nullish()
+                            .describe(
+                              'The channel the session was opened from, when it was opened from a\nchannel thread.'
+                            ),
+                          parent: zod
+                            .union([
+                              zod.null(),
+                              zod
+                                .object({
+                                  id: zod
+                                    .string()
+                                    .describe('The parent entity id.'),
+                                  type: zod
+                                    .string()
+                                    .describe(
+                                      '`channel`, `document`, or `initiative`.'
+                                    ),
+                                })
+                                .describe(
+                                  "The session an agent-session notification is about, and where its magic\nchip lives when it was opened from a thread.\n\nThe conversation an agent session was opened from: a channel, document,\nor initiative. Spelled like the message API's parent for client routing."
+                                ),
+                            ])
+                            .optional(),
+                          sessionId: zod
+                            .uuid()
+                            .describe('The session; what a click opens.'),
+                          sessionName: zod
+                            .string()
+                            .describe(
+                              "The session's name at the time of the event."
+                            ),
+                          threadId: zod
+                            .uuid()
+                            .nullish()
+                            .describe(
+                              'The thread the session was opened from, when it was.'
+                            ),
+                        })
+                        .describe(
+                          'Flattened into each agent-session kind so the wire keeps these keys at the\ntop level of the metadata, the way [`CommonChannelMetadata`] does.'
+                        )
+                        .and(
+                          zod.object({
+                            draftCount: zod
+                              .number()
+                              .min(
+                                listTypedNotificationsResponseItemsItemNotificationMetadataContentDraftCountMin
+                              )
+                              .describe('How many drafts wait for a decision.'),
+                            preview: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                "The first draft's subject or event title, when it has one."
+                              ),
+                            replies: zod
+                              .boolean()
+                              .describe(
+                                'Every drafted email replies to an existing message.'
+                              ),
+                            reviewId: zod
+                              .uuid()
+                              .describe(
+                                'The review awaiting a decision, within the session.'
+                              ),
+                            reviewKind: zod
+                              .enum(['email', 'calendar'])
+                              .describe('What submitting a review does.'),
+                            title: zod
+                              .string()
+                              .describe(
+                                "The review's label, as the agent wrote it."
+                              ),
+                          })
+                        )
+                        .describe(
+                          'An agent presented drafts that wait for the recipient to submit or dismiss\nthem. Sent to the account the drafts would act as; withdrawn once nothing\nin the review waits for a decision.'
+                        ),
+                      tag: zod.enum(['agent_review_requested']),
+                    })
+                    .describe(
+                      'An agent presented drafts waiting for the user to approve.'
+                    ),
                 ])
                 .describe(
                   'Mirrors [`model_notifications::NotificationEvent`] but uses `tag` \/ `content`\nas the serde adjacently-tagged field names so it can be deserialized from the\nshape produced by [`UserNotificationRow::into_tagged`] +\n[`UserNotificationRow::into_json`].\n\nOnly includes variants whose metadata types implement the `Notification` trait.'
@@ -2185,6 +2292,8 @@ export const bulkGetTypedNotificationsByEventItemIdsResponseItemsItemNotificatio
 export const bulkGetTypedNotificationsByEventItemIdsResponseItemsItemNotificationMetadataContentTurnMin = 0;
 
 export const bulkGetTypedNotificationsByEventItemIdsResponseItemsItemNotificationMetadataContentTurnMinOne = 0;
+
+export const bulkGetTypedNotificationsByEventItemIdsResponseItemsItemNotificationMetadataContentDraftCountMin = 0;
 
 export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
   .object({
@@ -4088,6 +4197,111 @@ export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
                     .describe(
                       'A channel member asked to be added as a guest of an event the\nuser shared with the channel.'
                     ),
+                  zod
+                    .object({
+                      content: zod
+                        .object({
+                          announcementMessageId: zod
+                            .uuid()
+                            .nullish()
+                            .describe(
+                              'The magic-chip message for the turn in question, when one was posted.'
+                            ),
+                          botId: zod
+                            .string()
+                            .describe(
+                              'The bot the session runs for. A string on the wire: system bots have\nfixed ids like `00000000-0000-0000-0000-00000000a2a2`, which are not\nRFC 4122 uuids and fail a `format: uuid` check on the client.'
+                            ),
+                          botName: zod
+                            .string()
+                            .describe(
+                              "The bot's display name; agent notifications have no user sender, so\nthis is who they read as being from."
+                            ),
+                          channelId: zod
+                            .uuid()
+                            .nullish()
+                            .describe(
+                              'The channel the session was opened from, when it was opened from a\nchannel thread.'
+                            ),
+                          parent: zod
+                            .union([
+                              zod.null(),
+                              zod
+                                .object({
+                                  id: zod
+                                    .string()
+                                    .describe('The parent entity id.'),
+                                  type: zod
+                                    .string()
+                                    .describe(
+                                      '`channel`, `document`, or `initiative`.'
+                                    ),
+                                })
+                                .describe(
+                                  "The session an agent-session notification is about, and where its magic\nchip lives when it was opened from a thread.\n\nThe conversation an agent session was opened from: a channel, document,\nor initiative. Spelled like the message API's parent for client routing."
+                                ),
+                            ])
+                            .optional(),
+                          sessionId: zod
+                            .uuid()
+                            .describe('The session; what a click opens.'),
+                          sessionName: zod
+                            .string()
+                            .describe(
+                              "The session's name at the time of the event."
+                            ),
+                          threadId: zod
+                            .uuid()
+                            .nullish()
+                            .describe(
+                              'The thread the session was opened from, when it was.'
+                            ),
+                        })
+                        .describe(
+                          'Flattened into each agent-session kind so the wire keeps these keys at the\ntop level of the metadata, the way [`CommonChannelMetadata`] does.'
+                        )
+                        .and(
+                          zod.object({
+                            draftCount: zod
+                              .number()
+                              .min(
+                                bulkGetTypedNotificationsByEventItemIdsResponseItemsItemNotificationMetadataContentDraftCountMin
+                              )
+                              .describe('How many drafts wait for a decision.'),
+                            preview: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                "The first draft's subject or event title, when it has one."
+                              ),
+                            replies: zod
+                              .boolean()
+                              .describe(
+                                'Every drafted email replies to an existing message.'
+                              ),
+                            reviewId: zod
+                              .uuid()
+                              .describe(
+                                'The review awaiting a decision, within the session.'
+                              ),
+                            reviewKind: zod
+                              .enum(['email', 'calendar'])
+                              .describe('What submitting a review does.'),
+                            title: zod
+                              .string()
+                              .describe(
+                                "The review's label, as the agent wrote it."
+                              ),
+                          })
+                        )
+                        .describe(
+                          'An agent presented drafts that wait for the recipient to submit or dismiss\nthem. Sent to the account the drafts would act as; withdrawn once nothing\nin the review waits for a decision.'
+                        ),
+                      tag: zod.enum(['agent_review_requested']),
+                    })
+                    .describe(
+                      'An agent presented drafts waiting for the user to approve.'
+                    ),
                 ])
                 .describe(
                   'Mirrors [`model_notifications::NotificationEvent`] but uses `tag` \/ `content`\nas the serde adjacently-tagged field names so it can be deserialized from the\nshape produced by [`UserNotificationRow::into_tagged`] +\n[`UserNotificationRow::into_json`].\n\nOnly includes variants whose metadata types implement the `Notification` trait.'
@@ -4175,6 +4389,8 @@ export const getTypedNotificationsByEventItemIdResponseItemsItemNotificationMeta
 export const getTypedNotificationsByEventItemIdResponseItemsItemNotificationMetadataContentTurnMin = 0;
 
 export const getTypedNotificationsByEventItemIdResponseItemsItemNotificationMetadataContentTurnMinOne = 0;
+
+export const getTypedNotificationsByEventItemIdResponseItemsItemNotificationMetadataContentDraftCountMin = 0;
 
 export const getTypedNotificationsByEventItemIdResponse = zod
   .object({
@@ -6078,6 +6294,111 @@ export const getTypedNotificationsByEventItemIdResponse = zod
                     .describe(
                       'A channel member asked to be added as a guest of an event the\nuser shared with the channel.'
                     ),
+                  zod
+                    .object({
+                      content: zod
+                        .object({
+                          announcementMessageId: zod
+                            .uuid()
+                            .nullish()
+                            .describe(
+                              'The magic-chip message for the turn in question, when one was posted.'
+                            ),
+                          botId: zod
+                            .string()
+                            .describe(
+                              'The bot the session runs for. A string on the wire: system bots have\nfixed ids like `00000000-0000-0000-0000-00000000a2a2`, which are not\nRFC 4122 uuids and fail a `format: uuid` check on the client.'
+                            ),
+                          botName: zod
+                            .string()
+                            .describe(
+                              "The bot's display name; agent notifications have no user sender, so\nthis is who they read as being from."
+                            ),
+                          channelId: zod
+                            .uuid()
+                            .nullish()
+                            .describe(
+                              'The channel the session was opened from, when it was opened from a\nchannel thread.'
+                            ),
+                          parent: zod
+                            .union([
+                              zod.null(),
+                              zod
+                                .object({
+                                  id: zod
+                                    .string()
+                                    .describe('The parent entity id.'),
+                                  type: zod
+                                    .string()
+                                    .describe(
+                                      '`channel`, `document`, or `initiative`.'
+                                    ),
+                                })
+                                .describe(
+                                  "The session an agent-session notification is about, and where its magic\nchip lives when it was opened from a thread.\n\nThe conversation an agent session was opened from: a channel, document,\nor initiative. Spelled like the message API's parent for client routing."
+                                ),
+                            ])
+                            .optional(),
+                          sessionId: zod
+                            .uuid()
+                            .describe('The session; what a click opens.'),
+                          sessionName: zod
+                            .string()
+                            .describe(
+                              "The session's name at the time of the event."
+                            ),
+                          threadId: zod
+                            .uuid()
+                            .nullish()
+                            .describe(
+                              'The thread the session was opened from, when it was.'
+                            ),
+                        })
+                        .describe(
+                          'Flattened into each agent-session kind so the wire keeps these keys at the\ntop level of the metadata, the way [`CommonChannelMetadata`] does.'
+                        )
+                        .and(
+                          zod.object({
+                            draftCount: zod
+                              .number()
+                              .min(
+                                getTypedNotificationsByEventItemIdResponseItemsItemNotificationMetadataContentDraftCountMin
+                              )
+                              .describe('How many drafts wait for a decision.'),
+                            preview: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                "The first draft's subject or event title, when it has one."
+                              ),
+                            replies: zod
+                              .boolean()
+                              .describe(
+                                'Every drafted email replies to an existing message.'
+                              ),
+                            reviewId: zod
+                              .uuid()
+                              .describe(
+                                'The review awaiting a decision, within the session.'
+                              ),
+                            reviewKind: zod
+                              .enum(['email', 'calendar'])
+                              .describe('What submitting a review does.'),
+                            title: zod
+                              .string()
+                              .describe(
+                                "The review's label, as the agent wrote it."
+                              ),
+                          })
+                        )
+                        .describe(
+                          'An agent presented drafts that wait for the recipient to submit or dismiss\nthem. Sent to the account the drafts would act as; withdrawn once nothing\nin the review waits for a decision.'
+                        ),
+                      tag: zod.enum(['agent_review_requested']),
+                    })
+                    .describe(
+                      'An agent presented drafts waiting for the user to approve.'
+                    ),
                 ])
                 .describe(
                   'Mirrors [`model_notifications::NotificationEvent`] but uses `tag` \/ `content`\nas the serde adjacently-tagged field names so it can be deserialized from the\nshape produced by [`UserNotificationRow::into_tagged`] +\n[`UserNotificationRow::into_json`].\n\nOnly includes variants whose metadata types implement the `Notification` trait.'
@@ -6174,6 +6495,8 @@ export const getTypedNotificationByIdResponseNotificationMetadataContentReviewGi
 export const getTypedNotificationByIdResponseNotificationMetadataContentTurnMin = 0;
 
 export const getTypedNotificationByIdResponseNotificationMetadataContentTurnMinOne = 0;
+
+export const getTypedNotificationByIdResponseNotificationMetadataContentDraftCountMin = 0;
 
 export const getTypedNotificationByIdResponse = zod
   .object({
@@ -7917,6 +8240,105 @@ export const getTypedNotificationByIdResponse = zod
             })
             .describe(
               'A channel member asked to be added as a guest of an event the\nuser shared with the channel.'
+            ),
+          zod
+            .object({
+              content: zod
+                .object({
+                  announcementMessageId: zod
+                    .uuid()
+                    .nullish()
+                    .describe(
+                      'The magic-chip message for the turn in question, when one was posted.'
+                    ),
+                  botId: zod
+                    .string()
+                    .describe(
+                      'The bot the session runs for. A string on the wire: system bots have\nfixed ids like `00000000-0000-0000-0000-00000000a2a2`, which are not\nRFC 4122 uuids and fail a `format: uuid` check on the client.'
+                    ),
+                  botName: zod
+                    .string()
+                    .describe(
+                      "The bot's display name; agent notifications have no user sender, so\nthis is who they read as being from."
+                    ),
+                  channelId: zod
+                    .uuid()
+                    .nullish()
+                    .describe(
+                      'The channel the session was opened from, when it was opened from a\nchannel thread.'
+                    ),
+                  parent: zod
+                    .union([
+                      zod.null(),
+                      zod
+                        .object({
+                          id: zod.string().describe('The parent entity id.'),
+                          type: zod
+                            .string()
+                            .describe(
+                              '`channel`, `document`, or `initiative`.'
+                            ),
+                        })
+                        .describe(
+                          "The session an agent-session notification is about, and where its magic\nchip lives when it was opened from a thread.\n\nThe conversation an agent session was opened from: a channel, document,\nor initiative. Spelled like the message API's parent for client routing."
+                        ),
+                    ])
+                    .optional(),
+                  sessionId: zod
+                    .uuid()
+                    .describe('The session; what a click opens.'),
+                  sessionName: zod
+                    .string()
+                    .describe("The session's name at the time of the event."),
+                  threadId: zod
+                    .uuid()
+                    .nullish()
+                    .describe(
+                      'The thread the session was opened from, when it was.'
+                    ),
+                })
+                .describe(
+                  'Flattened into each agent-session kind so the wire keeps these keys at the\ntop level of the metadata, the way [`CommonChannelMetadata`] does.'
+                )
+                .and(
+                  zod.object({
+                    draftCount: zod
+                      .number()
+                      .min(
+                        getTypedNotificationByIdResponseNotificationMetadataContentDraftCountMin
+                      )
+                      .describe('How many drafts wait for a decision.'),
+                    preview: zod
+                      .string()
+                      .nullish()
+                      .describe(
+                        "The first draft's subject or event title, when it has one."
+                      ),
+                    replies: zod
+                      .boolean()
+                      .describe(
+                        'Every drafted email replies to an existing message.'
+                      ),
+                    reviewId: zod
+                      .uuid()
+                      .describe(
+                        'The review awaiting a decision, within the session.'
+                      ),
+                    reviewKind: zod
+                      .enum(['email', 'calendar'])
+                      .describe('What submitting a review does.'),
+                    title: zod
+                      .string()
+                      .describe("The review's label, as the agent wrote it."),
+                  })
+                )
+                .describe(
+                  'An agent presented drafts that wait for the recipient to submit or dismiss\nthem. Sent to the account the drafts would act as; withdrawn once nothing\nin the review waits for a decision.'
+                ),
+              tag: zod.enum(['agent_review_requested']),
+            })
+            .describe(
+              'An agent presented drafts waiting for the user to approve.'
             ),
         ])
         .describe(

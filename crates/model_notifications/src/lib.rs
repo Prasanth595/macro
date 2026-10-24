@@ -10,21 +10,21 @@ mod metadata;
 mod unsubscribe;
 pub use device::DeviceType;
 pub use metadata::{
-    AgentSessionMentionedMetadata, AgentSessionNotificationRef, AgentSessionOriginParent,
-    AgentSessionSettledMetadata, AgentSessionWaitingForInputMetadata, AiResponseMetadata,
-    CalendarEventJoinRequestMetadata, CalendarEventReminderMetadata, CallStartedMetadata,
-    ChannelInviteMetadata, ChannelMentionMetadata, ChannelMessageReactionMetadata,
-    ChannelMessageSendMetadata, ChannelReplyMetadata, ChannelType, ColleagueJoinedMacro,
-    CommentedOnDocumentMetadata, CommonChannelMetadata, CrmDiscussionMetadata, CrmDiscussionReason,
-    DocumentMentionMetadata, EntityAccessGrantedMetadata, EntityAccessRequestedMetadata,
-    GithubPrCheckRun, GithubPrCheckRunState, GithubPrComment, GithubPrCommentKind,
-    GithubPrEventAction, GithubPrEventStatus, GithubPrMention, GithubPrMentionLocation,
-    GithubPrNotificationCommon, GithubPrReview, GithubPrReviewState, GithubPrStatusChanged,
-    GithubReviewRequested, InboxReauthRequiredMetadata, InitiativeDiscussionMetadata,
-    InitiativeDiscussionReason, InviteToTeamMetadata, InviteePlan, ItemSharedMetadata,
-    MentionedInDocumentCommentMetadata, NewEmailMetadata, NotificationDocumentSubType,
-    NotificationTitle, ReminderMetadata, RepliedToDocumentCommentThreadMetadata,
-    RequestedAccessLevel, TaskAssignedMetadata,
+    AgentReviewKind, AgentReviewRequestedMetadata, AgentSessionMentionedMetadata,
+    AgentSessionNotificationRef, AgentSessionOriginParent, AgentSessionSettledMetadata,
+    AgentSessionWaitingForInputMetadata, AiResponseMetadata, CalendarEventJoinRequestMetadata,
+    CalendarEventReminderMetadata, CallStartedMetadata, ChannelInviteMetadata,
+    ChannelMentionMetadata, ChannelMessageReactionMetadata, ChannelMessageSendMetadata,
+    ChannelReplyMetadata, ChannelType, ColleagueJoinedMacro, CommentedOnDocumentMetadata,
+    CommonChannelMetadata, CrmDiscussionMetadata, CrmDiscussionReason, DocumentMentionMetadata,
+    EntityAccessGrantedMetadata, EntityAccessRequestedMetadata, GithubPrCheckRun,
+    GithubPrCheckRunState, GithubPrComment, GithubPrCommentKind, GithubPrEventAction,
+    GithubPrEventStatus, GithubPrMention, GithubPrMentionLocation, GithubPrNotificationCommon,
+    GithubPrReview, GithubPrReviewState, GithubPrStatusChanged, GithubReviewRequested,
+    InboxReauthRequiredMetadata, InitiativeDiscussionMetadata, InitiativeDiscussionReason,
+    InviteToTeamMetadata, InviteePlan, ItemSharedMetadata, MentionedInDocumentCommentMetadata,
+    NewEmailMetadata, NotificationDocumentSubType, NotificationTitle, ReminderMetadata,
+    RepliedToDocumentCommentThreadMetadata, RequestedAccessLevel, TaskAssignedMetadata,
 };
 pub use unsubscribe::UserUnsubscribe;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -275,6 +275,9 @@ define_notif_event!(
         /// A channel member asked to be added as a guest of an event the
         /// user shared with the channel.
         CalendarEventJoinRequest(CalendarEventJoinRequestMetadata),
+
+        /// An agent presented drafts waiting for the user to approve.
+        AgentReviewRequested(AgentReviewRequestedMetadata),
     }
 );
 
@@ -345,6 +348,7 @@ impl NotificationTitle for NotifEvent {
             NotifEvent::AgentSessionSettled(m) => m.format_title(sender_id),
             NotifEvent::AgentSessionWaitingForInput(m) => m.format_title(sender_id),
             NotifEvent::AgentSessionMentioned(m) => m.format_title(sender_id),
+            NotifEvent::AgentReviewRequested(m) => m.format_title(sender_id),
         }
     }
 
@@ -412,6 +416,7 @@ impl NotificationTitle for NotifEvent {
             NotifEvent::AgentSessionSettled(m) => m.format_body(sender_id),
             NotifEvent::AgentSessionWaitingForInput(m) => m.format_body(sender_id),
             NotifEvent::AgentSessionMentioned(m) => m.format_body(sender_id),
+            NotifEvent::AgentReviewRequested(m) => m.format_body(sender_id),
         }
     }
 }
