@@ -294,7 +294,7 @@ empty, collapsed, loading, or in an error state. Rows show the name, active stat
 and a team-sharing indicator where applicable. Use the existing sidebar and
 control primitives.
 
-The main pane displays the selected view's name and its normal Task controls.
+The main pane displays the selected view's name with its overflow menu immediately beside it, plus the normal Task controls.
 Provide matching sidebar context/overflow and selected-view overflow menus with
 separate Rename and Share actions, Duplicate, Copy link, and confirmed Delete.
 Wrap menu items in the existing padded groups. Non-owners get only actions they
@@ -336,7 +336,7 @@ and existing mobile list-only behavior.
 
 Show Save view left of the mobile filter trigger under the same changed-filter
 condition. Provide management through each saved-view row's visible overflow
-button and the selected view's overflow actions. Use existing dialog/drawer
+button and the overflow menu beside the selected view's name. Use existing dialog/drawer
 conventions for naming, sharing, conflicts, and delete confirmation. Keep row
 menus inside the drawer's portal scope for keyboard access. Finish drawer closure
 and restore its trigger focus before opening an action's dialog. Discard queued

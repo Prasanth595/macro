@@ -6,7 +6,7 @@ import { writeClipboardData } from '@core/util/dataTransfer';
 import { fireAndForget } from '@core/util/fireAndForget';
 import DotsIcon from '@phosphor/dots-three.svg';
 import { Button, ConfirmDialog, Dropdown } from '@ui';
-import { For, Show } from 'solid-js';
+import { For, onCleanup, Show } from 'solid-js';
 import { SavedViewDialog } from '../../saved-views/components/saved-view-dialog';
 import { SavedViewList } from '../../saved-views/components/saved-view-list';
 import { SavedViewMenuItems } from '../../saved-views/components/saved-view-menu';
@@ -109,66 +109,130 @@ export function TaskSaveViewButton() {
   );
 }
 
-export function TaskSavedViewActions() {
+export function TaskSavedViewMenu() {
   const { savedViews, savedViewTeam } = useTasksView();
+  const viewerId = useUserId();
+  let trigger: HTMLButtonElement | undefined;
+  let menuOpen = false;
+  let disposed = false;
+  let pendingAction:
+    | {
+        viewerId: string | undefined;
+        viewId: string | undefined;
+        run: () => void;
+      }
+    | undefined;
+  onCleanup(() => {
+    disposed = true;
+    pendingAction = undefined;
+  });
+  const defer = (run: () => void) => {
+    pendingAction = {
+      viewerId: viewerId(),
+      viewId: savedViews?.record()?.id,
+      run,
+    };
+  };
+  const finishMenuClose = (event: Event) => {
+    const action = pendingAction;
+    pendingAction = undefined;
+    if (!action) return;
+    event.preventDefault();
+    // Release the menu's modal lock before opening another focus trap.
+    queueMicrotask(() => {
+      if (
+        disposed ||
+        menuOpen ||
+        action.viewerId !== viewerId() ||
+        action.viewId !== savedViews?.record()?.id
+      )
+        return;
+      trigger?.focus({ preventScroll: true });
+      action.run();
+    });
+  };
   return (
-    <Show when={savedViews?.active() && savedViews?.ready()}>
+    <Show
+      when={
+        savedViews?.active() && savedViews.ready() && !savedViews.creating()
+      }
+    >
+      <HeaderActionGroup label="Saved view menu">
+        <Dropdown
+          placement="bottom-start"
+          onOpenChange={(open) => {
+            menuOpen = open;
+            if (open) pendingAction = undefined;
+          }}
+        >
+          <Dropdown.Trigger
+            ref={trigger}
+            size="icon-md"
+            variant="ghost"
+            label="Saved view actions"
+          >
+            <DotsIcon class="size-4" />
+          </Dropdown.Trigger>
+          <Dropdown.Content class="min-w-44" onCloseAutoFocus={finishMenuClose}>
+            <SavedViewMenuItems
+              owned={savedViews?.owned() ?? false}
+              canShare={Boolean(
+                savedViewTeam?.() || savedViews?.record()?.sharedTeamId
+              )}
+              disabled={savedViews?.saving()}
+              onRename={() => defer(() => savedViews?.rename())}
+              onShare={() => defer(() => savedViews?.share())}
+              onDuplicate={() => defer(() => savedViews?.duplicate())}
+              onCopyLink={() => {
+                const id = savedViews?.record()?.id;
+                if (id) fireAndForget(copySavedViewLink(id), 'saved-views');
+              }}
+              onDelete={() => defer(() => savedViews?.confirmDelete())}
+            />
+          </Dropdown.Content>
+        </Dropdown>
+      </HeaderActionGroup>
+    </Show>
+  );
+}
+
+export function TaskSavedViewActions() {
+  const { savedViews } = useTasksView();
+  return (
+    <Show
+      when={
+        savedViews?.active() &&
+        savedViews.ready() &&
+        (savedViews.creating() || savedViews.dirty())
+      }
+    >
       <HeaderActionGroup label="Saved view actions">
         <Show
           when={savedViews?.creating()}
           fallback={
             <>
-              <Show when={savedViews?.dirty()}>
-                <Show when={savedViews?.owned()}>
-                  <Button
-                    size="md"
-                    variant="ghost"
-                    disabled={savedViews?.saving()}
-                    onClick={() =>
-                      fireAndForget(
-                        savedViews?.save() ?? Promise.resolve(),
-                        'saved-views'
-                      )
-                    }
-                  >
-                    Save changes
-                  </Button>
-                </Show>
+              <Show when={savedViews?.owned()}>
                 <Button
                   size="md"
                   variant="ghost"
-                  onClick={() => savedViews?.reset()}
+                  disabled={savedViews?.saving()}
+                  onClick={() =>
+                    fireAndForget(
+                      savedViews?.save() ?? Promise.resolve(),
+                      'saved-views'
+                    )
+                  }
                 >
-                  Reset
+                  Save changes
                 </Button>
               </Show>
-              <Dropdown placement="bottom-end">
-                <Dropdown.Trigger
-                  size="icon-md"
-                  variant="ghost"
-                  label="Saved view actions"
-                >
-                  <DotsIcon class="size-4" />
-                </Dropdown.Trigger>
-                <Dropdown.Content class="min-w-44">
-                  <SavedViewMenuItems
-                    owned={savedViews?.owned() ?? false}
-                    canShare={Boolean(
-                      savedViewTeam?.() || savedViews?.record()?.sharedTeamId
-                    )}
-                    disabled={savedViews?.saving()}
-                    onRename={() => savedViews?.rename()}
-                    onShare={() => savedViews?.share()}
-                    onDuplicate={() => savedViews?.duplicate()}
-                    onCopyLink={() => {
-                      const id = savedViews?.record()?.id;
-                      if (id)
-                        fireAndForget(copySavedViewLink(id), 'saved-views');
-                    }}
-                    onDelete={() => savedViews?.confirmDelete()}
-                  />
-                </Dropdown.Content>
-              </Dropdown>
+              <Button
+                size="md"
+                variant="ghost"
+                onClick={() => savedViews?.reset()}
+              >
+                Reset
+              </Button>
             </>
           }
         >

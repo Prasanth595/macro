@@ -15,6 +15,7 @@ import { TasksCreateAction } from '../tasks-create-action';
 import { useTasksView } from '../tasks-view-context';
 import {
   TaskSavedViewActions,
+  TaskSavedViewMenu,
   TaskSaveViewButton,
 } from '../views/task-saved-views';
 import { TasksControls } from './TasksControls';
@@ -72,7 +73,12 @@ export function TasksHeader(props: TasksHeaderProps) {
       when={isTouchDevice()}
       fallback={
         <ListHeader
-          title={<ViewBreadcrumbs.Outlet aria-label="Task location" />}
+          title={
+            <div class="flex min-w-0 items-center gap-1">
+              <ViewBreadcrumbs.Outlet aria-label="Task location" />
+              <TaskSavedViewMenu />
+            </div>
+          }
         >
           <TaskSaveViewButton />
           <TaskSavedViewActions />
@@ -98,9 +104,12 @@ export function TasksHeader(props: TasksHeaderProps) {
           <TasksMobileTabs />
           <Show when={savedViews?.active()}>
             <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <span class="truncate text-sm font-medium">
-                {savedViews?.title()}
-              </span>
+              <div class="flex min-w-0 items-center gap-1">
+                <span class="truncate text-sm font-medium">
+                  {savedViews?.title()}
+                </span>
+                <TaskSavedViewMenu />
+              </div>
               <TaskSavedViewActions />
             </div>
           </Show>
