@@ -77,10 +77,11 @@ function createServerSendObserver(accountId: string) {
   async function refresh(): Promise<void> {
     if (disposed) return;
     if (running) {
-      rerun ??= running.then(() => {
+      rerun ??= (async () => {
+        await running;
         rerun = undefined;
-        return refresh();
-      });
+        await refresh();
+      })();
       return rerun;
     }
     if (timer !== undefined) clearTimeout(timer);
