@@ -26,7 +26,8 @@ Email's Tags sidebar uses the [nested tag tree](tasks.md#nested-sidebar-tags).
 Carets and folder-only parents expand branches; actual tags select their exact ID
 and switch the mailbox to All. Parent selection does not include descendant tags.
 While tags scope All, the header and breadcrumb show the tag names instead of
-`All`; a tag filter on any other tab keeps that tab's title.
+`All`. A narrow pane keeps its short `Email` or `Inbox` breadcrumb label. A tag
+filter on any other tab keeps that tab's title.
 Unlike Calls, it lists only personal tags; team-shared tags are hidden,
 and its `New tag` action creates a personal tag with no Team sharing option.
 
