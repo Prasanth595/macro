@@ -44,10 +44,9 @@ pub(in crate::api::search) async fn filter_calendar_events(
 
     match scope {
         CalendarEventSearchScope::Own => {
-            let inboxes =
-                email_db_client::links::get::fetch_inboxes_for_macro_id(&ctx.db, user_id)
-                    .await
-                    .map_err(SearchError::InternalError)?;
+            let inboxes = email_db_client::links::get::fetch_inboxes_for_macro_id(&ctx.db, user_id)
+                .await
+                .map_err(SearchError::InternalError)?;
             Ok(FilterCalendarEventResponse {
                 calendar_event_ids,
                 link_ids: inboxes.iter().map(|l| l.id.to_string()).collect(),

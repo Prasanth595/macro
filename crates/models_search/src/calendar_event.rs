@@ -12,7 +12,9 @@ use utoipa::ToSchema;
 /// it. Shared events are a separate scope rather than part of the default, so
 /// a caller can list them after the caller's own events without reordering
 /// those.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum CalendarEventSearchScope {
     /// Events on the caller's own calendars and on inboxes delegated to them.

@@ -100,8 +100,7 @@ async fn shared_ids_cover_live_shares_the_member_holds_no_copy_of(pool: Pool<Pos
     let attended = insert_event(&pool, OWNER, "attended@example.com", "public").await;
     insert_event(&pool, ATTENDEE, "attended@example.com", "default").await;
     let private = insert_event(&pool, OWNER, "private@example.com", "private").await;
-    let confidential =
-        insert_event(&pool, OWNER, "confidential@example.com", "confidential").await;
+    let confidential = insert_event(&pool, OWNER, "confidential@example.com", "confidential").await;
     insert_event(&pool, OWNER, "unshared@example.com", "default").await;
     let channel_id = insert_channel(&pool).await;
     for event_id in [shared, attended, private, confidential] {
