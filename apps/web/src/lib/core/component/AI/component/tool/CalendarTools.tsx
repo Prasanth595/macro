@@ -289,6 +289,24 @@ export const deleteCalendarEventHandler = createToolRenderer({
   ),
 });
 
+export const readCalendarEventHandler = createToolRenderer({
+  name: 'ReadCalendarEvent',
+  render: (ctx) => (
+    <BaseTool icon={CalendarDots} renderContext={ctx.renderContext} type="call">
+      <div class="flex min-w-0 flex-1 items-center justify-between gap-3 overflow-hidden">
+        <span class="min-w-0 truncate">Read calendar event</span>
+        <Show when={ctx.response?.data}>
+          {(event) => (
+            <span class="min-w-0 truncate text-xs text-ink-extra-muted">
+              {event().title}
+            </span>
+          )}
+        </Show>
+      </div>
+    </BaseTool>
+  ),
+});
+
 const ListEventsResponse = (props: { events: CalendarEventListItem[] }) => (
   <Tool.List>
     <For each={props.events}>
