@@ -43,7 +43,7 @@ import {
   type NodeKey,
   type NodeMutation,
 } from 'lexical';
-import { ok, type Result } from 'neverthrow';
+import { ok, type Result, ResultAsync } from 'neverthrow';
 import { $insertNodesAndSplitList } from '../../utils';
 import { mapRegisterDelete } from '../shared';
 
@@ -172,13 +172,13 @@ async function processFile(file: UploadFile): Promise<UploadFile> {
  * undefined when the upload fails.
  */
 async function uploadStaticFile(file: File): Promise<string | undefined> {
-  try {
-    return await createStaticUploadFile(
-      await processFile(createUploadFile(file))
-    );
-  } catch {
-    return undefined;
-  }
+  const uploaded = await ResultAsync.fromPromise(
+    processFile(createUploadFile(file)),
+    () => undefined
+  ).andThen((processed) =>
+    ResultAsync.fromPromise(createStaticUploadFile(processed), () => undefined)
+  );
+  return uploaded.unwrapOr(undefined);
 }
 
 /**
@@ -321,22 +321,25 @@ function registerMediaPlugin(editor: LexicalEditor) {
     file: File,
     mediaType: MediaType
   ): Promise<string | undefined> => {
-    try {
-      const fileKey = await getFileKey(createUploadFile(file));
-      let upload = uploadsByFileKey.get(fileKey);
-      if (!upload) {
-        upload = uploadStaticFile(file);
-        uploadsByFileKey.set(fileKey, upload);
-      }
-      const id = await upload;
-      if (id === undefined && uploadsByFileKey.get(fileKey) === upload) {
-        uploadsByFileKey.delete(fileKey);
-      }
-      return id;
-    } catch (error) {
-      Telemetry.error(error, { surface: 'media-upload', mediaType });
+    const keyed = await ResultAsync.fromPromise(
+      getFileKey(createUploadFile(file)),
+      (error) => error
+    );
+    if (keyed.isErr()) {
+      Telemetry.error(keyed.error, { surface: 'media-upload', mediaType });
       return undefined;
     }
+    const fileKey = keyed.value;
+    let upload = uploadsByFileKey.get(fileKey);
+    if (!upload) {
+      upload = uploadStaticFile(file);
+      uploadsByFileKey.set(fileKey, upload);
+    }
+    const id = await upload;
+    if (id === undefined && uploadsByFileKey.get(fileKey) === upload) {
+      uploadsByFileKey.delete(fileKey);
+    }
+    return id;
   };
 
   const followUpload = async (
