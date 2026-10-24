@@ -883,6 +883,18 @@ describe('routine editor triggers', () => {
     }
   );
 
+  it('replaces a cached routine with the refusal when a refetch is refused', () => {
+    render(() => <Routine />);
+    expect(screen.getByRole('textbox', { name: 'Instructions' })).toBeTruthy();
+    mocks.detailError = () =>
+      new ThrownResultError([{ code: 'UNAUTHORIZED', message: 'refused' }]);
+    setStatus('error');
+    expect(
+      screen.getByText("You don't have access to this routine")
+    ).toBeTruthy();
+    expect(screen.queryByRole('textbox', { name: 'Instructions' })).toBeNull();
+  });
+
   it('preserves the cron editor and queued save after a background refetch error', async () => {
     render(() => <Routine />);
     const editor = screen.getByRole('textbox', { name: 'Instructions' });
