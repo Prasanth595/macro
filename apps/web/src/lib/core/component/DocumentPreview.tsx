@@ -602,14 +602,13 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
   const isOpenable = () =>
     !!props.documentInfo.isOpenable && !isReadOnlyCalendarShare();
 
-  const openTarget = async (event: MouseEvent) => {
+  const openTarget = async (event: MouseEvent): Promise<boolean> => {
     const calendarTarget = calendarOpenTarget();
     if (calendarTarget) {
-      await openCalendarEventSplit({
+      return openCalendarEventSplit({
         ...calendarTarget,
         openInNewSplit: event.shiftKey,
       });
-      return;
     }
     const type = targetBlockType();
     const splitManager = globalSplitManager();
@@ -623,7 +622,7 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
         link += `?${queryParams}`;
       }
       navigate(link);
-      return;
+      return true;
     }
 
     if (event.shiftKey) {
@@ -631,7 +630,7 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
         { type, id: props.documentInfo.id, params: props.documentInfo.params },
         { preferNewSplit: true }
       );
-      return;
+      return true;
     }
 
     splitManager.replaceAllSplits({
@@ -639,11 +638,11 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
       id: props.documentInfo.id,
       params: props.documentInfo.params,
     });
+    return true;
   };
 
   const openDocument = createCallback(async (event: MouseEvent) => {
-    await openTarget(event);
-    props.onOpened?.();
+    if (await openTarget(event)) props.onOpened?.();
   });
 
   const handleOpenInChat = () => {
@@ -739,14 +738,16 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
     );
   };
 
-  const openTargetInNewSplit = async () => {
+  const openTargetInNewSplit = async (): Promise<boolean> => {
     const calendarTarget = calendarOpenTarget();
     if (calendarTarget) {
-      await openCalendarEventSplit({ ...calendarTarget, openInNewSplit: true });
-      return;
+      return openCalendarEventSplit({
+        ...calendarTarget,
+        openInNewSplit: true,
+      });
     }
     const splitManager = globalSplitManager();
-    if (!splitManager) return;
+    if (!splitManager) return false;
 
     const type = targetBlockType();
     const existing = splitManager.getSplitByContent(
@@ -766,7 +767,7 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
       });
     }
 
-    if (!isBlockNameWithLocation(type)) return;
+    if (!isBlockNameWithLocation(type)) return true;
 
     const orchestrator = splitManager.getOrchestrator();
     const handle = await orchestrator.getBlockHandle(
@@ -775,11 +776,11 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
     );
 
     await handle?.goToLocationFromParams(props.documentInfo.params);
+    return true;
   };
 
   const openInNewSplit = createCallback(async () => {
-    await openTargetInNewSplit();
-    props.onOpened?.();
+    if (await openTargetInNewSplit()) props.onOpened?.();
   });
 
   const PreviewTitle = (local: { name: string }) => (
