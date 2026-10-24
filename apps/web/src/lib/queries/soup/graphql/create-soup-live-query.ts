@@ -178,10 +178,13 @@ export function createSoupLiveQuery(
   let staleFallbackSpan: ReturnType<typeof Telemetry.span> | undefined;
 
   const recordAuthority = (
-    source: 'network' | 'failed-network' | 'local' | 'stale-fallback'
+    source: 'network' | 'failed-network' | 'local' | 'stale-fallback',
+    pageIndex?: number
   ) => {
     const span = Telemetry.span('graphql_cache.soup_authority');
     span.setAttr('authority.source', source);
+    if (pageIndex !== undefined)
+      span.setAttr('authority.page_index', pageIndex);
     span.end();
   };
   const finishStaleFallback = (source: 'network' | 'local') => {
@@ -355,7 +358,7 @@ export function createSoupLiveQuery(
         if (result.error && metadata?.source === 'live-network') {
           // The exchange keeps the rows already shown; a failed response's
           // partial data claims no authority over them or the local rows.
-          recordAuthority('failed-network');
+          recordAuthority('failed-network', page.pageIndex);
           return;
         }
         if (!result.data) return;
