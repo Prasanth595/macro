@@ -13,6 +13,10 @@ type ToolParserMap = {
     call: types.AddToPipeline;
     response: types.AddToPipelineResponse;
   };
+  ApplyCanvasEdits: {
+    call: types.ApplyCanvasEdits;
+    response: types.CanvasResponse;
+  };
   BashCodeExecution: {
     call: types.BashCodeExecution;
     response: types.BashCodeExecutionResponse;
@@ -153,6 +157,7 @@ type ToolParserMap = {
     call: types.EditBookingLink;
     response: types.BookingLinkResult;
   };
+  EditCanvas: { call: types.EditCanvas; response: types.CanvasResponse };
   EditChannelMessage: {
     call: types.EditChannelMessage;
     response: types.EditChannelMessageResponse;
@@ -355,6 +360,7 @@ type ToolParserMap = {
     call: types.ReadCallRecord;
     response: types.ReadCallRecordResponse;
   };
+  ReadCanvas: { call: types.ReadCanvas; response: types.CanvasResponse };
   ReadChannelMessageContext: {
     call: types.ReadChannelMessageContext;
     response: types.ReadChannelMessageContextResponse;
@@ -424,6 +430,7 @@ type ToolParserMap = {
     response: types.RenameDocumentResponse;
   };
   RenameItem: { call: types.RenameItem; response: types.RenameItemResponse };
+  RenderCanvas: { call: types.RenderCanvas; response: types.CanvasRender };
   ResolveComment: {
     call: types.ResolveComment;
     response: types.ResolveCommentResponse;
@@ -524,6 +531,10 @@ const toolParserMap = {
   AddToPipeline: {
     call: schemas.AddToPipeline,
     response: schemas.AddToPipelineResponse,
+  },
+  ApplyCanvasEdits: {
+    call: schemas.ApplyCanvasEdits,
+    response: schemas.CanvasResponse,
   },
   BashCodeExecution: {
     call: schemas.BashCodeExecution,
@@ -671,6 +682,7 @@ const toolParserMap = {
     call: schemas.EditBookingLink,
     response: schemas.BookingLinkResult,
   },
+  EditCanvas: { call: schemas.EditCanvas, response: schemas.CanvasResponse },
   EditChannelMessage: {
     call: schemas.EditChannelMessage,
     response: schemas.EditChannelMessageResponse,
@@ -903,6 +915,7 @@ const toolParserMap = {
     call: schemas.ReadCallRecord,
     response: schemas.ReadCallRecordResponse,
   },
+  ReadCanvas: { call: schemas.ReadCanvas, response: schemas.CanvasResponse },
   ReadChannelMessageContext: {
     call: schemas.ReadChannelMessageContext,
     response: schemas.ReadChannelMessageContextResponse,
@@ -984,6 +997,7 @@ const toolParserMap = {
     call: schemas.RenameItem,
     response: schemas.RenameItemResponse,
   },
+  RenderCanvas: { call: schemas.RenderCanvas, response: schemas.CanvasRender },
   ResolveComment: {
     call: schemas.ResolveComment,
     response: schemas.ResolveCommentResponse,
@@ -1104,6 +1118,10 @@ type ToolDataMap = {
   AddToPipeline: {
     call: types.AddToPipeline;
     response: types.AddToPipelineResponse;
+  };
+  ApplyCanvasEdits: {
+    call: types.ApplyCanvasEdits;
+    response: types.CanvasResponse;
   };
   BashCodeExecution: {
     call: types.BashCodeExecution;
@@ -1245,6 +1263,7 @@ type ToolDataMap = {
     call: types.EditBookingLink;
     response: types.BookingLinkResult;
   };
+  EditCanvas: { call: types.EditCanvas; response: types.CanvasResponse };
   EditChannelMessage: {
     call: types.EditChannelMessage;
     response: types.EditChannelMessageResponse;
@@ -1447,6 +1466,7 @@ type ToolDataMap = {
     call: types.ReadCallRecord;
     response: types.ReadCallRecordResponse;
   };
+  ReadCanvas: { call: types.ReadCanvas; response: types.CanvasResponse };
   ReadChannelMessageContext: {
     call: types.ReadChannelMessageContext;
     response: types.ReadChannelMessageContextResponse;
@@ -1516,6 +1536,7 @@ type ToolDataMap = {
     response: types.RenameDocumentResponse;
   };
   RenameItem: { call: types.RenameItem; response: types.RenameItemResponse };
+  RenderCanvas: { call: types.RenderCanvas; response: types.CanvasRender };
   ResolveComment: {
     call: types.ResolveComment;
     response: types.ResolveCommentResponse;

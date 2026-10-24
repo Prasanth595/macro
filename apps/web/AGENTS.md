@@ -25,6 +25,10 @@ It exercises the real resize solver, scroll container, and Lexical layout primit
 Discussion link scrolling has a backend-free browser regression:
 `bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.
 
+Persistent prompts stepping aside for popovers, dialogs, drawers and
+`data-holds-prompts` surfaces have a backend-free browser regression:
+`bunx playwright test --config src/lib/core/component/Toast/browser-test/playwright.config.ts`.
+
 Meeting-note creation, linking, optional team access, retry, and unlinking have desktop and
 phone browser coverage in `features/calendar-notes`:
 `bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.
@@ -94,6 +98,11 @@ initialization, WAL/snapshot recovery and teardown live in
 reference bookkeeping is excluded from scene undo. Run the feature tests and
 `bunx playwright test --config src/features/block-canvas/browser-test/playwright.config.ts`
 for multiplayer changes.
+
+Canvas **Ask Macro**, including the Drive detail header, attaches the current canvas to the existing agent composer
+on desktop and mobile. Tool results render through
+`lib/core/component/AI/component/tool/Canvas.tsx`; edits arrive through live sync.
+The shared plain-text Lexical codec is `packages/lexical-core/canvas-text.ts`.
 
 ## Development Patterns
 

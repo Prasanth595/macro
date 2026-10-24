@@ -232,6 +232,13 @@ toast (behind `enable-calendar-prompt-web` and `enable-calendar-prompt-mobile`)
 follows the same rule: it asks once per own inbox missing calendar permission,
 never for an inbox another Macro user delegated to the viewer (a **Shared** row
 in Settings → Email, whose per-inbox Enable calendar button stays available).
+The calendar view's setup prompt decides and acts on own inboxes alone too: a
+delegate with no inbox of their own sees **Connect your calendar**, the Calendar
+is off vs Enable calendar wording counts only own inboxes, and Grant access, Turn
+on and Reconnect only start consent for one of them. It covers the grid only in a
+week without events and with no working calendar the viewer can see; a working
+calendar shared with them keeps it to the bottom-right pill, so a delegate whose
+only working calendar is shared sees the pill in every week.
 Account checkboxes show/hide all child calendars; partial selection is shown as
 mixed. Individual calendars can also be shown/hidden. The account color is the
 default for its calendars; a child color overrides it. Click a color dot to open
@@ -532,7 +539,9 @@ an untouched rule must not be reformatted and included in a reminder-only PATCH.
 A weekly rule without `BYDAY` repeats on the start's weekday: plain `FREQ=WEEKLY` opens on the
 `Weekly on <day>` preset, and one with an end (such as `COUNT=3`) opens `Custom` with that day
 selected, since the presets never end. Either is saved as written while untouched; moving the
-start to another weekday keeps a custom rule on the day the editor shows.
+start to another weekday keeps a custom rule on the day the editor shows. Event details (desktop
+popover and phone drawer) and Forward by email's summary name the day too (`Weekly on Saturday ·
+3 occurrences`), read from the occurrence's original slot in the event's own time zone.
 As in Google Calendar, the guests row of the details popover (a bottom sheet on phones)
 carries `Copy guest emails` and `Email guests` icon buttons, both hidden when you are the
 only guest (always so on a snapshot). Copying puts every guest's address on the clipboard,
@@ -576,7 +585,7 @@ repeat, conferencing and location controls are disabled, each with the tooltip `
 organizer can change this event.`; the same line shows under the pills, which is all a
 touch device shows. The event kind and calendar pills, which on any other edit open their one
 value as a list, are disabled too. Disabled pills, the date and time pills included, are
-dimmed and show no hover. Notifications stay editable and Save sends only `reminders` (plus any
+dimmed and show no hover; the All day switch is dimmed too. Notifications stay editable and Save sends only `reminders` (plus any
 invitation). An editor already open when the organizer turns modifying off follows the
 guest's copy once it syncs: the same fields lock, return to the event's own (keeping
 notification and guest changes) and a toast shows the line. That guest cannot drag or resize
@@ -600,7 +609,10 @@ defaults (invite others and see the guest list) preselected on a new event and t
 `guestPolicy` on an edit. As in Google, checking `Modify event` also checks `Invite others` and
 locks it. The row shows on a new event and on an edit whose `viewerCan.setGuestPolicy` is true,
 on Google calendars only (the calendar's `capabilities.guestPolicy`); Outlook calendars and
-out-of-office events have none. Like the repeat rule, it is disabled while a recurring edit
+out-of-office events have none. While a recurring edit targets `This event`, the Repeats pill
+opens its list read-only and says why, as a tooltip and under the pills (`The repeat rule
+applies to all events. Choose All events to change it.`). Like the repeat rule, the row is
+disabled while a recurring edit
 targets `This event`, since the policy belongs to the whole series, and says so after the
 switches (`Guest permissions apply to all events. Choose All events to change them.`);
 choosing `This event` returns it to the stored values. Save sends `guestPolicy` only when it
@@ -641,7 +653,10 @@ shows or hides the overlay (the list itself always shows); clicking a row naviga
 to that date. Coverage depends on each teammate having connected their own calendar and using
 Google's out-of-office event type.
 
-Routine sync notifications that explicitly exclude OOO changes refresh this list
+The grid's pages and the list read the overlay from shared fixed 91-day windows,
+each fetched once and refreshed by one 30-second poll while the tab is focused, so
+an open calendar typically makes two out-of-office requests per poll. Routine sync
+notifications that explicitly exclude OOO changes refresh this list
 in the background without returning to its skeleton. OOO changes, sharing changes,
 and notifications without that guarantee still clear cached rows and close open
 OOO details immediately before refetching.
@@ -686,7 +701,9 @@ copy whose organizer lets guests invite others and shows the guest list), and ot
 reads `The person who shared this event can't add guests to it.` The card then shows
 `Requested`, and `Invited` once accepted, and stops offering `Add to calendar` until the request
 is declined: the sharer's answer is an invitation to the meeting, and a snapshot added meanwhile
-would take that invitation in and stay a snapshot. The sharer gets a `calendar_event_join_request`
+would take that invitation in and stay a snapshot. The server refuses the copy in the same cases
+(`join_request_open`, from the API, the SDK and the agent alike); a card that had not caught up
+says `You've asked to join this event` and refreshes to `Requested` or `Invited`. The sharer gets a `calendar_event_join_request`
 notification (Settings → Notifications → Calendar → Requests to join), which Home lists as
 `<requester> asked to join <event>` with a person-plus glyph, like a comment row. It opens the event,
 whose details list each request with `Add as guest` and `Decline` on desktop and in the phone
@@ -701,7 +718,15 @@ it by posting the chip. It asks whether to share with the channel, and a yes in 
 writes the same channel grant. Private and confidential events are never shared this way.
 Every calendar mention's hover card shows the schedule, location, organizer and attendee
 count, plus the first lines of the event description (its links open), and no last-updated
-byline.
+byline. When the mention names someone else's copy of a meeting the viewer also holds (a shared
+event they added or were invited to, or a meeting someone else mentioned), the card says how:
+`Your copy is on your calendar` for a snapshot, `You're invited · on your calendar` when the
+viewer's copy is a guest's, and `On your calendar` otherwise (the viewer organizes it, or it sits
+in a delegated inbox), with an `Open` button that opens the viewer's copy. A mention of the
+viewer's own copy shows neither. A shared-event sheet open on a phone stays up when the viewer
+adds the event or is invited, and switches to that line and `Open` in place. Opening from the
+sheet (`Open`, the title, or Open in New Split) closes it, since the native apps keep the
+pane behind the opened one mounted.
 
 ## Scheduling — `/app/scheduling`
 
@@ -1228,8 +1253,14 @@ ICS attachments show a calendar icon in the attachment pill and file headers on
 desktop and mobile, including when the email uses `application/ics` or a
 parameterized `text/calendar` MIME type. Opening the attachment of a message that shows a
 card opens a dialog (a drawer on phones) with the same card, so its RSVP or `Add to calendar`
-works there, and `Download .ics`, which saves the file without adding it to Drive. A calendar
-file with no card (nothing Macro could read) downloads directly.
+works there, and `Download .ics`, which saves the file without adding it to Drive. When the
+card falls back to the saved invitation (the event matches nothing on your calendars, as with
+a forwarded event), its status line reads `Saved invitation.` in the dialog; the card in the
+email adds that the original email or invitation attachment has more options. The card
+stays put while the thread refreshes, and `Open in calendar` closes the dialog before the
+calendar opens, including when Calendar is already open in another split. A calendar file with
+no card (nothing Macro could read) downloads directly, and an Outlook cloud-reference `.ics`
+opens its Outlook page like any other reference attachment.
 Related recurring components are grouped behind their own disclosure. Only mail synced
 after the feature shipped gets a card; older invitations render as plain email.
 A newly arrived scheduling update shows RSVP and Join only once its calendar state has
