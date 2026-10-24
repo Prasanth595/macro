@@ -5355,6 +5355,7 @@
           "guest_list_hidden",
           "guests_cannot_modify",
           "already_on_calendar",
+          "join_request_open",
           "copy_refused",
           "snapshot",
           "invalid_input",

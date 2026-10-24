@@ -2,7 +2,11 @@ import { toast } from '@core/component/Toast/Toast';
 import CalendarPlusIcon from '@phosphor/calendar-plus.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import { useVisibleCalendarsQuery } from '@queries/calendar/calendars';
-import { isAlreadyOnCalendar, isCopyRefused } from '@queries/calendar/copy';
+import {
+  isAlreadyOnCalendar,
+  isCopyRefused,
+  isJoinRequestOpen,
+} from '@queries/calendar/copy';
 import { queryReadyGate } from '@queries/gate';
 import { Button, Dropdown } from '@ui';
 import { For, Show } from 'solid-js';
@@ -11,6 +15,10 @@ import { For, Show } from 'solid-js';
 export function toastAddToCalendarFailure(error: unknown) {
   if (isAlreadyOnCalendar(error)) {
     toast.failure('This event is already on your calendar');
+  } else if (isJoinRequestOpen(error)) {
+    toast.failure("You've asked to join this event", {
+      subtext: "It reaches your calendar once you're added as a guest.",
+    });
   } else if (isCopyRefused(error)) {
     toast.failure("Google Calendar won't add this event to that calendar", {
       subtext: 'Download the .ics file to add it another way.',
