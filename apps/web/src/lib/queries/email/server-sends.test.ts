@@ -44,9 +44,10 @@ afterEach(() => {
 
 it('loads sends from other devices on sign-in without a local send or rollout flag', async () => {
   setServerSendSession('owner');
-  await refreshServerEmailSends();
+  await vi.waitFor(() =>
+    expect(serverEmailSends()).toEqual(pending.pendingEmailSends.attempts)
+  );
   expect(readPendingEmailSends).toHaveBeenCalledTimes(1);
-  expect(serverEmailSends()).toEqual(pending.pendingEmailSends.attempts);
 });
 
 it('waits offline and refreshes server sends on reconnect', async () => {

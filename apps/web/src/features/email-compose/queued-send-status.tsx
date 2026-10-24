@@ -20,7 +20,7 @@ import {
   serverEmailSendsError,
 } from '@queries/email/server-sends';
 import { Button } from '@ui';
-import { createSignal, For, Show } from 'solid-js';
+import { createEffect, createSignal, For, on, Show } from 'solid-js';
 
 /**
  * Routine delivery is silent. A send shows here only while it waits on this
@@ -85,6 +85,16 @@ export function QueuedSendStatus(props: {
         (!props.threadId || row.attempt.threadId === props.threadId) &&
         (!props.inboxIds?.length || props.inboxIds.includes(row.linkId))
     );
+  // The last server poll can still list a send this device just retired.
+  createEffect(
+    on(
+      () => sends.intents().map((intent) => intent.uuid),
+      (ids, previous) => {
+        if (previous?.some((id) => !ids.includes(id)))
+          fireAndForget(refreshServerEmailSends(), 'email-server-sends');
+      }
+    )
+  );
   return (
     <Show
       when={
