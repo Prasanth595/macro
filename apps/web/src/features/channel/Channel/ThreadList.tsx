@@ -457,7 +457,7 @@ export function ThreadList(props: ThreadListProps) {
     // The virtualizer's cached offset can trail scrollTop: this publish may run
     // in the microtask before its own scroll listener records the new position.
     const distanceFromBottom = Math.max(
-      virtualizer.getMaxScrollOffset() - distanceFromTop,
+      el.scrollHeight - el.clientHeight - distanceFromTop,
       0
     );
     // WebKit cannot move the native top boundary during a fling without a
