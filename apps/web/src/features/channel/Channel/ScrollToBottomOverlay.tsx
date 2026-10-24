@@ -24,12 +24,16 @@ type ScrollToBottomOverlayProps = {
 };
 
 export function ScrollToBottomOverlay(props: ScrollToBottomOverlayProps) {
-  const touch = isTouchDevice();
   return (
-    <Show when={shouldShowScrollToBottomButton(props.scrollState(), touch)}>
+    <Show
+      when={shouldShowScrollToBottomButton(
+        props.scrollState(),
+        isTouchDevice()
+      )}
+    >
       <Layer depth={3}>
         <Show
-          when={touch}
+          when={isTouchDevice()}
           fallback={
             <button
               type="button"
