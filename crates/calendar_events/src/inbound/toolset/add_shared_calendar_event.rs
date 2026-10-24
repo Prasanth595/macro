@@ -90,20 +90,18 @@ fn only_target(calendars: &[VisibleCalendar]) -> Result<Uuid, ToolCallError> {
                 .to_string(),
         )),
         [target] => Ok(target.id),
+        // Ids only: a refusal is traced, and Google names a primary calendar
+        // after its owner's address. ListCalendars has the names to ask with.
         targets => {
             let choices = targets
                 .iter()
-                .map(|calendar| {
-                    format!(
-                        "{} ({}): calendarId {}",
-                        calendar.name, calendar.email_address, calendar.id
-                    )
-                })
+                .map(|calendar| calendar.id.to_string())
                 .collect::<Vec<_>>()
-                .join("; ");
+                .join(", ");
             Err(refused(format!(
-                "The user has several Google calendars that can take a copy. Ask which one and \
-                 call again with its calendarId: {choices}."
+                "The user has several Google calendars that can take a copy. Ask which one, \
+                 naming them from ListCalendars, and call again with its calendarId, one of: \
+                 {choices}."
             )))
         }
     }

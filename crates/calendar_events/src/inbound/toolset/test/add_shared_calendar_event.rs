@@ -78,6 +78,7 @@ async fn asks_which_calendar_when_several_take_copies() {
     assert!(error.description.contains("Ask which one"));
     assert!(error.description.contains(&Uuid::from_u128(9).to_string()));
     assert!(error.description.contains(&Uuid::from_u128(10).to_string()));
+    assert!(!error.description.contains("@"));
 }
 
 #[tokio::test]
