@@ -7262,6 +7262,7 @@ mod export;
 mod invitations;
 mod join_requests;
 mod meeting_copies;
+mod meeting_uid;
 #[cfg(feature = "notes")]
 mod notes;
 mod source_access;

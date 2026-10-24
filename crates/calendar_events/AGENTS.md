@@ -158,9 +158,14 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   the reason, or the agent asks, and guests are added from the copy the user
   organizes. UpdateCalendarEvent and DeleteCalendarEvent enforce it
   (`confirm_copy`): such a change on a meeting the user holds through several
-  of their own inboxes (`meeting_copies`, matched by iCalendar UID) is refused,
-  listing each copy, until `inbox` names the addressed copy's inbox. An Outlook
-  copy of a Google meeting carries Exchange's UID, so it is not matched.
+  of their own inboxes (`meeting_copies`) is refused, listing each copy, until
+  `inbox` names the addressed copy's inbox.
+- Copies of one meeting pair by `calendar_meeting_uid(ical_uid)`, not the raw
+  UID: Exchange gives a meeting it imports from an invitation its own UID that
+  wraps the original after `vCal-Uid`, and the SQL function unwraps it, so an
+  Outlook copy of a Google meeting pairs with its Google copies in
+  `meeting_copies`, the mention preview and `event_export`. Email invitation
+  matching (`pg/invitations.rs`) still compares the raw UID.
 - Preserve the conservative OOO refresh hint on write outcomes and sync reports;
   its contract is in [team sharing](../../docs/design/calendar-team-sharing.md).
 - The team out-of-office overlay (`src/outbound/pg_team/ooo.rs`) starts from

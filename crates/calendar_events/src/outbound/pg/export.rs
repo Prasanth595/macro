@@ -77,7 +77,8 @@ pub(super) async fn event_export(
                 candidate.organizer_name,
                 candidate.updated_at
             FROM calendar_events candidate
-            WHERE candidate.ical_uid = requested.ical_uid
+            WHERE calendar_meeting_uid(candidate.ical_uid)
+                = calendar_meeting_uid(requested.ical_uid)
               AND candidate.status <> 'cancelled'
               AND (
                     candidate.owner_id = $1
