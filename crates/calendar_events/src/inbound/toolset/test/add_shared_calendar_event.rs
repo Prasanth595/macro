@@ -95,6 +95,25 @@ async fn adds_the_copy_to_the_named_calendar() {
 }
 
 #[tokio::test]
+async fn refuses_a_named_calendar_the_card_does_not_offer() {
+    let mut calendars = calendars_without_copies();
+    calendars.push(visible_calendar(9, 4, "gab@example.com", "Work"));
+
+    // Outlook, read-only and subscribed.
+    for named in [20, 22, 23].map(Uuid::from_u128) {
+        let (result, copied) = add(calendars.clone(), None, true, args(Some(named))).await;
+
+        assert!(copied.is_empty());
+        assert!(
+            result
+                .unwrap_err()
+                .description
+                .contains("can't take a copy")
+        );
+    }
+}
+
+#[tokio::test]
 async fn points_to_the_ics_file_when_no_calendar_takes_copies() {
     let (result, copied) = add(calendars_without_copies(), None, true, args(None)).await;
 

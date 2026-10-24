@@ -76,6 +76,22 @@ fn refused(description: String) -> ToolCallError {
     }
 }
 
+/// A named calendar, held to the card's choices.
+fn named_target(calendars: &[VisibleCalendar], calendar_id: Uuid) -> Result<Uuid, ToolCallError> {
+    if calendars
+        .iter()
+        .any(|calendar| calendar.id == calendar_id && takes_copies(calendar))
+    {
+        return Ok(calendar_id);
+    }
+    Err(refused(
+        "That calendar can't take a copy: shared events can be added only to a writable Google \
+         calendar the user keeps, not a subscribed one. Pick another from ListCalendars, or \
+         suggest downloading the event's .ics file from its card."
+            .to_string(),
+    ))
+}
+
 /// The calendar a copy goes to when none was named: the only one that takes
 /// copies, or a refusal that lists the choices to ask the user about.
 fn only_target(calendars: &[VisibleCalendar]) -> Result<Uuid, ToolCallError> {
@@ -135,7 +151,7 @@ where
             .await
             .map_err(|error| mutation_tool_error(ACTION, error))?;
         let calendar_id = match self.calendar_id {
-            Some(calendar_id) => calendar_id,
+            Some(calendar_id) => named_target(&calendars, calendar_id)?,
             None => only_target(&calendars)?,
         };
         let copy = service_context
