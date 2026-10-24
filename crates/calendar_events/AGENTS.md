@@ -167,10 +167,12 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   meeting the user holds through several of their own inboxes
   (`meeting_copies`) is refused, listing each copy, until `inbox` names the
   addressed copy's inbox. UpdateCalendarEvent and DeleteCalendarEvent check
-  every call; the update, invite-guests and delete routes check agent runs (a
-  token with `agent_id`, as code mode mints) and any request naming `inbox`
-  through `CalendarCopyConfirmation`, answering 409 `copy_choice_required`.
-  Code-mode agents never see the calendar tools
+  every call; the update, invite-guests and delete routes check agent runs and
+  any request naming `inbox` through `CalendarCopyConfirmation`, answering 409
+  `copy_choice_required`. An agent run is a token with `agent_id` (in-app code
+  mode) or a request carrying `x-macro-code-execution`, which
+  `code_execution`'s bootstrap sets on every code-mode program's SDK requests,
+  public MCP clients' included. Code-mode agents never see the calendar tools
   (`agent_code_mode::covered_by_code_sdk`), so the routes and the SDK docs are
   what reach them; the web, which opens one copy, sends no `inbox` and is not
   checked.
