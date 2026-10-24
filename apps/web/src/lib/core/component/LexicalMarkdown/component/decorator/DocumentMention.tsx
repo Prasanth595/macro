@@ -675,12 +675,17 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
     return lexicalWrapper?.isInteractable() ?? false;
   });
 
-  // Check if this is a recently created mention that we should show fallback for
-  const isRecentMention = createMemo(() => {
-    if (!props.createdAt) return false;
-    const age = Date.now() - props.createdAt;
-    return age < RECENT_MENTION_THRESHOLD_MS;
-  });
+  // Check if this is a recently created mention that we should show fallback for.
+  // It stops being recent while mounted, so a chip for an event deleted in the
+  // meantime then reads and opens as deleted without a remount.
+  const recentForMs = props.createdAt
+    ? props.createdAt + RECENT_MENTION_THRESHOLD_MS - Date.now()
+    : 0;
+  const [isRecentMention, setIsRecentMention] = createSignal(recentForMs > 0);
+  if (recentForMs > 0) {
+    const timer = setTimeout(() => setIsRecentMention(false), recentForMs);
+    onCleanup(() => clearTimeout(timer));
+  }
 
   const showEmbedOption = createMemo(() => {
     if (!lexicalWrapper?.isInteractable()) return false;
