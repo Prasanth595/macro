@@ -317,7 +317,9 @@ fn entities(identity: &SessionIdentity) -> (Entity<'static>, Option<Entity<'stat
     )
 }
 
-fn session_ref(
+/// The session block every agent-session notification carries.
+#[must_use]
+pub fn session_ref(
     identity: &SessionIdentity,
     announcement_message_id: Option<Uuid>,
 ) -> AgentSessionNotificationRef {

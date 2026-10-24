@@ -1,6 +1,8 @@
 use super::*;
 use crate::domain::{ExecutionRecord, ExecutionStatus};
 use macro_user_id::cowlike::CowLike;
+
+mod notifications;
 use serde_json::json;
 use std::{
     collections::HashMap,
@@ -185,10 +187,39 @@ impl ReviewActions for Actions {
         Ok(())
     }
 }
+/// What the account holder was told, in order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Told {
+    Awaiting(String, ReviewId),
+    Resolved(String, ReviewId),
+}
+#[derive(Default)]
+struct Notifier {
+    told: Mutex<Vec<Told>>,
+    changed: tokio::sync::Notify,
+}
+#[async_trait]
+impl ReviewNotifier for Notifier {
+    async fn awaiting(&self, account_holder: &MacroUserIdStr<'static>, record: &ReviewRecord) {
+        self.told
+            .lock()
+            .unwrap()
+            .push(Told::Awaiting(account_holder.to_string(), record.id));
+        self.changed.notify_waiters();
+    }
+    async fn resolved(&self, account_holder: &MacroUserIdStr<'static>, record: &ReviewRecord) {
+        self.told
+            .lock()
+            .unwrap()
+            .push(Told::Resolved(account_holder.to_string(), record.id));
+        self.changed.notify_waiters();
+    }
+}
 struct Fixture {
     service: ReviewService,
     store: Arc<Store>,
     actions: Arc<Actions>,
+    notifier: Arc<Notifier>,
     session: AgentSessionId,
     execution: ExecutionId,
 }
@@ -213,18 +244,38 @@ impl Fixture {
             action_started: tokio::sync::Notify::new(),
             approvable: AtomicBool::new(true),
         });
+        let notifier = Arc::new(Notifier::default());
         let service = ReviewService::new(
             store.clone(),
             Arc::new(Executions { session, execution }),
             actions.clone(),
+            notifier.clone(),
         );
         Self {
             service,
             store,
             actions,
+            notifier,
             session,
             execution,
         }
+    }
+    /// Everything told so far, once at least `count` things were.
+    async fn told(&self, count: usize) -> Vec<Told> {
+        tokio::time::timeout(std::time::Duration::from_secs(3), async {
+            loop {
+                let changed = self.notifier.changed.notified();
+                tokio::pin!(changed);
+                changed.as_mut().enable();
+                let told = self.notifier.told.lock().unwrap().clone();
+                if told.len() >= count {
+                    return told;
+                }
+                changed.await;
+            }
+        })
+        .await
+        .expect("the account holder was told")
     }
     fn edit(&self) -> EntityAccessReceipt<EditAccessLevel> {
         EntityAccessReceipt::dangerously_assert_authenticated_user(

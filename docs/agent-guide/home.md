@@ -226,6 +226,14 @@ not retracted automatically yet: answering the question or starting the next tur
 the earlier notification until you mark it done. The chip announcement post itself no
 longer notifies the thread. Settings → notifications lists them under `AI`.
 
+With `enable-unified-notifications` on for the account, an agent that presents drafts for
+approval (a review of emails or calendar events) also notifies the account the drafts
+would act as: `<bot> drafted a reply` (or `an email`, `3 replies`, `an event`) in
+`<session>`, with the first draft's subject or event title as the body. It files under the
+session the same way and opens it. Once every draft in the review is sent, created or
+dismissed, from the card or the chat, the notification is withdrawn and marked done. With
+the flag off nothing is sent. It has no Settings toggle yet.
+
 ## Home — `/app/component/home`
 
 Greeting, example prompt buttons (`Draft a document`, `Draft an email`,

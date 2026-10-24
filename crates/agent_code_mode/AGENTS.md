@@ -54,6 +54,14 @@ reads final
 drafts and outcomes. Legacy notificationId/notificationAttemptAt fields are no
 longer delivery state.
 
+The account holder hears about a review outside the session through the
+`ReviewNotifier` port: `awaiting` after presentation and before it is
+acknowledged (so a retried presentation notifies again, and the notifier
+deduplicates), and `resolved` after any save that leaves no item pending or
+submitting, whichever surface decided it. Both are best effort and never fail
+the review. The harness adapter is the inbox notification
+(`services/agent_harness_service/src/code_mode/review_notifications.rs`).
+
 ## Checks
 
 - `cargo test -p agent_code_mode --lib` from the repository root, with live local

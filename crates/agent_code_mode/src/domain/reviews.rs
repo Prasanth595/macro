@@ -248,25 +248,40 @@ pub trait ReviewActions: Send + Sync + 'static {
     ) -> Result<(), CodeModeError>;
 }
 
+/// Tells a review's account holder outside the session that drafts wait for
+/// them, and takes that back once nothing in the review does. Best effort:
+/// a delivery failure never fails the review.
+#[async_trait]
+pub trait ReviewNotifier: Send + Sync + 'static {
+    /// `record` was presented with drafts awaiting `account_holder`. A retried
+    /// presentation calls this again; implementations notify once per review.
+    async fn awaiting(&self, account_holder: &MacroUserIdStr<'static>, record: &ReviewRecord);
+    /// Nothing in `record` awaits `account_holder` any more.
+    async fn resolved(&self, account_holder: &MacroUserIdStr<'static>, record: &ReviewRecord);
+}
+
 /// Session-owned interaction service. User decisions outlive the Deno process.
 #[derive(Clone)]
 pub struct ReviewService {
     store: Arc<dyn ReviewStore>,
     executions: Arc<dyn ExecutionStore>,
     actions: Arc<dyn ReviewActions>,
+    notifier: Arc<dyn ReviewNotifier>,
 }
 
 impl ReviewService {
-    /// Compose persistence and existing actions.
+    /// Compose persistence, existing actions and account-holder notification.
     pub fn new(
         store: Arc<dyn ReviewStore>,
         executions: Arc<dyn ExecutionStore>,
         actions: Arc<dyn ReviewActions>,
+        notifier: Arc<dyn ReviewNotifier>,
     ) -> Self {
         Self {
             store,
             executions,
             actions,
+            notifier,
         }
     }
     async fn owner(
@@ -383,6 +398,10 @@ impl ReviewService {
         // to the session owner. The record's immutable actor governs all actions.
         let owner = self.owner(record.session_id).await?;
         self.actions.present(&owner, &record).await?;
+        // Before acknowledging, so a presentation retried after an interruption
+        // notifies too.
+        let account_holder = record.acting_user.clone().unwrap_or(owner);
+        self.notifier.awaiting(&account_holder, &record).await;
         record.presented_at = Some(chrono::Utc::now().timestamp_millis());
         match self.save(&mut record, None).await {
             Ok(()) => Ok(record),
@@ -498,7 +517,32 @@ impl ReviewService {
                 .map_err(|error| CodeModeError::Storage(rootcause::report!(error).into()))
             })
             .transpose()?;
-        self.store.save(previous, record, pending.as_ref()).await
+        self.store.save(previous, record, pending.as_ref()).await?;
+        if !record.items.iter().any(|item| {
+            matches!(
+                item.status,
+                ReviewItemStatus::Pending | ReviewItemStatus::Submitting
+            )
+        }) {
+            self.notify_resolved(record).await;
+        }
+        Ok(())
+    }
+    /// Historical reviews without an acting account belong to the session
+    /// owner; a session that can no longer be read leaves the notification for
+    /// the account holder to clear.
+    async fn notify_resolved(&self, record: &ReviewRecord) {
+        let account_holder = match &record.acting_user {
+            Some(user) => user.clone(),
+            None => match self.actions.session(record.session_id).await {
+                Ok(session) => session.owner,
+                Err(error) => {
+                    tracing::warn!(?error, review_id = %record.id.0, "could not find a resolved review's account holder");
+                    return;
+                }
+            },
+        };
+        self.notifier.resolved(&account_holder, record).await;
     }
     /// Claim the exact saved revision, then complete independently of the request.
     /// Persisted submitting states become unknown after interrupted work.

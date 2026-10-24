@@ -598,24 +598,29 @@ async fn run() -> anyhow::Result<()> {
         }
         None => None,
     };
+    // One PostHog client, cloned for every per-user flag this process reads.
+    let feature_flags = config
+        .posthog_api_key
+        .value()
+        .map(|key| {
+            feature_flags::outbound::posthog::PostHogFeatureFlags::new(
+                config
+                    .posthog_host
+                    .value()
+                    .unwrap_or("https://us.i.posthog.com"),
+                key.to_owned(),
+                std::time::Duration::from_secs(3),
+            )
+        })
+        .transpose()
+        .map_err(|error| anyhow::anyhow!("invalid feature flag configuration: {error}"))?;
     // `ai-code-mode` decides, per user, whether agent sessions and the public
     // MCP present the SDK in place of the tools it covers.
     let code_mode_selector: Option<Arc<dyn agent_inmem::domain::tool_mode::ToolModeSelector>> =
-        match (&code_runner, config.posthog_api_key.value()) {
-            (Some(_), Some(key)) => {
-                let flags = feature_flags::outbound::posthog::PostHogFeatureFlags::new(
-                    config
-                        .posthog_host
-                        .value()
-                        .unwrap_or("https://us.i.posthog.com"),
-                    key.to_owned(),
-                    std::time::Duration::from_secs(3),
-                )
-                .map_err(|error| anyhow::anyhow!("invalid feature flag configuration: {error}"))?;
-                Some(Arc::new(
-                    agent_inmem::domain::tool_mode::FlaggedToolMode::new(flags),
-                ))
-            }
+        match (&code_runner, &feature_flags) {
+            (Some(_), Some(flags)) => Some(Arc::new(
+                agent_inmem::domain::tool_mode::FlaggedToolMode::new(flags.clone()),
+            )),
             _ => None,
         };
     let public_code_mode = match (&code_runner, &code_mode_selector) {
@@ -1218,6 +1223,15 @@ async fn run() -> anyhow::Result<()> {
             harness: harness.clone(),
             context: tool_context.clone(),
             tools: ai_tools::code_mode_tools(),
+        }),
+        Arc::new(code_mode::review_notifications::InboxReviewNotifier {
+            sessions: session_repo.clone(),
+            ingress: Arc::clone(&notifications),
+            reader: tool_context.notification_tool_context.service.clone(),
+            withdrawal: Arc::new(
+                notification::outbound::withdrawal::PgNotificationWithdrawal(pool.clone()),
+            ),
+            flags: feature_flags.clone(),
         }),
     );
     reviews_cell
