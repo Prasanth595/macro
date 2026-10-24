@@ -7,10 +7,11 @@ use utoipa::ToSchema;
 
 /// Which calendar events a unified search covers.
 ///
-/// A channel share grants view access to the sharer's own projection, which is
-/// on none of the member's calendars, so the default scope never reaches it.
-/// Asking for shared events is a separate scope rather than a widening, so a
-/// caller can list them after the viewer's own events without reordering them.
+/// Sharing an event with a channel lets its members see the sharer's copy,
+/// which is on none of their own calendars, so the default scope never finds
+/// it. Shared events are a separate scope rather than part of the default, so
+/// a caller can list them after the caller's own events without reordering
+/// those.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CalendarEventSearchScope {
