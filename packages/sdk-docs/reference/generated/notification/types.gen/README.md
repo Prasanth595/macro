@@ -2,6 +2,8 @@
 
 ## Type Aliases
 
+- [AgentReviewKind](type-aliases/AgentReviewKind.md)
+- [AgentReviewRequestedMetadata](type-aliases/AgentReviewRequestedMetadata.md)
 - [AgentSessionMentionedMetadata](type-aliases/AgentSessionMentionedMetadata.md)
 - [AgentSessionNotificationRef](type-aliases/AgentSessionNotificationRef.md)
 - [AgentSessionOriginParent](type-aliases/AgentSessionOriginParent.md)
