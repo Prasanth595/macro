@@ -49,6 +49,14 @@ export type {
 type CalendarMutationContext = { rollback: () => void };
 
 /**
+ * Moves when a write starts patching the occurrence viewports. A refresh
+ * from an earlier write drops its refetch once this has moved: the server
+ * may not have the newer write yet, so the refetch could undo its optimistic
+ * patch, and the newer write refreshes the viewports itself once it settles.
+ */
+let occurrenceWriteRevision = 0;
+
+/**
  * Optimistically rewrite every cached occurrence viewport (each visible
  * range is its own cache entry) and return a rollback that restores the
  * exact snapshots.
@@ -56,6 +64,7 @@ type CalendarMutationContext = { rollback: () => void };
 async function patchOccurrenceCaches(
   update: (items: CalendarOccurrenceItem[]) => CalendarOccurrenceItem[]
 ): Promise<CalendarMutationContext> {
+  occurrenceWriteRevision += 1;
   await queryClient.cancelQueries({
     queryKey: calendarKeys.occurrences._def,
   });
@@ -80,7 +89,11 @@ async function patchOccurrenceCaches(
 function refreshAfterWrite(eventId: string) {
   fireAndForget(invalidateCalendarInvitations(), 'calendar-mutations');
   invalidateCalendarEventPreviews(eventId);
-  fireAndForget(invalidateCalendarOccurrences(), 'calendar-mutations');
+  const revision = occurrenceWriteRevision;
+  fireAndForget(
+    invalidateCalendarOccurrences(() => revision === occurrenceWriteRevision),
+    'calendar-mutations'
+  );
 }
 
 function patchEventItems(
@@ -293,6 +306,7 @@ export function useRsvpCalendarEventMutation(callbacks?: RsvpCallbacks) {
     >(
       {
         onMutate: async (args) => {
+          occurrenceWriteRevision += 1;
           const revision = ++rsvpRevisionCounter;
           await queryClient.cancelQueries({
             queryKey: calendarKeys.occurrences._def,
