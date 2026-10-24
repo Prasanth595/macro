@@ -100,7 +100,7 @@ test exercises this ordering.
 | `EmailRenderingContextValue` | Theme values, explicit image policy, link preparation, and image resolution with an abortable resource lifetime |
 | `EmailFormContextInputs` | Viewer address and available inbox identities for recipient selection |
 | `EmailReplySession` | Thread identity, recipient options, personal-reply classification, a targeted reply request, and host intents for leaving the composer or removing its draft |
-| `EmailDraftStorage` | Save/delete and restore an undone draft; inputs use domain inbox IDs and completion intent |
+| `EmailDraftStorage` | Save/delete and restore an undone draft, and drop a moved draft's working copy; inputs use domain inbox IDs and completion intent |
 | `EmailAttachmentStorage` | Upload, forward, and remove draft attachments |
 | `EmailDelivery` | Send, undo, schedule, unschedule, and archive operations |
 | `EmailComposeFeedback` | User notices and error reporting |
@@ -109,7 +109,7 @@ test exercises this ordering.
 | `EmailEditorFiles` | View-owned editor file upload and sharing integration |
 | `EmailComposeContext` | Compose capabilities supplied to views, which pass the narrow inputs each controller needs |
 | `PersistedEmailIdentity` | Successful save/send result: draft, thread, and inbox identity without a transport envelope |
-| `EmailComposeHost` | Optional navigation, back handling, and focus movement supplied by the host |
+| `EmailComposeHost` | Optional navigation, a moved draft's destination, the route's draft, back handling, and focus movement supplied by the host |
 
 Core types are owned by the features. Generated email service schemas and concrete
 query results stop at adapters. `email-thread/queries/thread-source.ts` uses
