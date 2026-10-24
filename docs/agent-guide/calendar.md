@@ -730,8 +730,8 @@ viewer's own copy shows neither. A shared-event sheet open on a phone stays up w
 adds the event or is invited, and switches to that line and `Open` in place. Opening from the
 sheet (`Open`, the title, or Open in New Split) closes it, since the native apps keep the
 pane behind the opened one mounted. The agent reads a mentioned event, including one only shared
-with the viewer, with `ReadCalendarEvent`: the same fields, plus whether the event is on the
-viewer's calendar or only shared with them and their join request.
+with the viewer, with `ReadCalendarEvent`: the same fields, plus how the viewer holds it (their own, invited, a
+snapshot, or only shared with them) and their join request.
 
 ## Scheduling — `/app/scheduling`
 

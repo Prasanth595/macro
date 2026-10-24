@@ -14,28 +14,49 @@ use uuid::Uuid;
 use super::{CalendarToolContext, description_preview, time_fields};
 use crate::domain::{
     join_requests::CalendarJoinRequestStatus,
-    models::{CalendarMentionEvent, CalendarMentionPreview, CalendarMentionRequestItem},
+    models::{
+        CalendarMentionEvent, CalendarMentionPreview, CalendarMentionRequestItem,
+        CalendarMentionViewerCopy,
+    },
     ports::{CalendarMutationService, CalendarOccurrenceService, MeetingLinkProvider},
 };
 
-/// How the user sees the event.
+/// How the user holds the event, as its mention card says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CalendarEventAccess {
-    /// The meeting is on one of the user's calendars; `eventId` is their own
-    /// copy.
+    /// The meeting is on one of the user's calendars as their own: they
+    /// organize it, or it sits in a delegated inbox. `eventId` is that copy.
     OnYourCalendar,
+    /// The user is a guest on the meeting; `eventId` is their copy.
+    Invited,
+    /// The user added a snapshot of a shared meeting: a private copy that
+    /// doesn't follow the organizer's changes, where an answer or a new guest
+    /// would never reach the meeting. `eventId` is the snapshot.
+    Snapshot,
     /// Someone shared their copy with a channel the user belongs to and the
     /// meeting is on none of the user's calendars: read-only, with no copy
     /// of the user's to change.
     SharedWithYou,
 }
 
+impl CalendarEventAccess {
+    fn of(event: &CalendarMentionEvent) -> Self {
+        match (event.viewer_event_id, event.viewer_copy) {
+            (None, _) => Self::SharedWithYou,
+            (Some(_), Some(CalendarMentionViewerCopy::Snapshot)) => Self::Snapshot,
+            (Some(_), Some(CalendarMentionViewerCopy::Invitation)) => Self::Invited,
+            (Some(_), Some(CalendarMentionViewerCopy::Event) | None) => Self::OnYourCalendar,
+        }
+    }
+}
+
 /// One calendar event, with the fields its mention preview card shows.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ReadCalendarEventResponse {
-    /// Whether the event is on the user's calendar or only shared with them.
+    /// How the user holds the event: on their calendar, invited, as a
+    /// snapshot, or only shared with them.
     pub access: CalendarEventAccess,
     /// The user's own copy of the meeting, for UpdateCalendarEvent and
     /// DeleteCalendarEvent. It can differ from the id that was read, and is
@@ -81,16 +102,23 @@ pub struct ReadCalendarEventResponse {
 
 impl ReadCalendarEventResponse {
     fn from_preview(event: CalendarMentionEvent) -> Self {
-        let access = if event.viewer_event_id.is_some() {
-            CalendarEventAccess::OnYourCalendar
-        } else {
-            CalendarEventAccess::SharedWithYou
-        };
+        let access = CalendarEventAccess::of(&event);
         let (start, end, is_all_day, time_zone) = time_fields(&event.time);
         let summary = match access {
             CalendarEventAccess::OnYourCalendar => {
                 format!("{} is on the user's calendar.", event.title)
             }
+            CalendarEventAccess::Invited => {
+                format!(
+                    "The user is invited to {}; it is on their calendar.",
+                    event.title
+                )
+            }
+            CalendarEventAccess::Snapshot => format!(
+                "The user's calendar has a snapshot of {}: their own copy of a shared meeting, \
+                 which doesn't follow the organizer's changes.",
+                event.title
+            ),
             CalendarEventAccess::SharedWithYou => format!(
                 "{} was shared with a channel the user belongs to and is not on their calendar.",
                 event.title
@@ -130,13 +158,17 @@ Returns what the mention's preview card shows: title, time, location, descriptio
 (truncated), organizer, guest count, and whether it repeats. ReadContent and ReadMetadata \
 read documents only; use this tool for calendar events.\n\
 \n\
-`access` is `on_your_calendar` when the meeting is on one of the user's calendars; `eventId` \
-is then the user's own copy for UpdateCalendarEvent and DeleteCalendarEvent. It is \
-`shared_with_you` when someone shared their copy with a channel the user belongs to and the \
-meeting is on none of the user's calendars: the event is read-only for the user, and \
-`canRequestToJoin` and `joinRequestStatus` say whether they can ask the person who shared it \
-to add them as a guest, which they do from the event's card. To read one instance of a \
-recurring event, pass the mention's `occurrenceKey` block param."
+`access` says how the user holds the meeting, as the card does. `on_your_calendar`: their own \
+event (they organize it, or a delegated inbox holds it). `invited`: they are a guest. \
+`snapshot`: a private copy they added of a shared meeting, which doesn't follow the organizer's \
+changes and where an answer or a new guest would never reach the meeting. In these three, \
+`eventId` is the user's copy for UpdateCalendarEvent and DeleteCalendarEvent. \
+`shared_with_you`: someone shared their copy with a channel the user belongs to and the meeting \
+is on none of the user's calendars. The event is then read-only for the user; \
+AddSharedCalendarEvent adds a snapshot of it, and `canRequestToJoin` and `joinRequestStatus` say \
+whether they can ask the person who shared it to add them as a guest, which they do from the \
+event's card. To read one instance of a recurring event, pass the mention's `occurrenceKey` \
+block param."
 )]
 pub struct ReadCalendarEvent {
     /// Calendar event id.

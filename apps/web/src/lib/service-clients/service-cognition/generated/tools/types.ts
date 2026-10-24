@@ -4225,9 +4225,13 @@ export type SessionLinkScope = 'off' | 'public' | 'team';
  */
 export type AccessLevel = 'view' | 'comment' | 'edit' | 'owner';
 /**
- * How the user sees the event.
+ * How the user holds the event, as its mention card says.
  */
-export type CalendarEventAccess = 'on_your_calendar' | 'shared_with_you';
+export type CalendarEventAccess =
+  | 'on_your_calendar'
+  | 'invited'
+  | 'snapshot'
+  | 'shared_with_you';
 /**
  * Lifecycle of a request to be added as a guest of a shared event.
  */
@@ -12935,7 +12939,7 @@ export interface EventType {
 /**
  * Read one calendar event by id: the `documentId` of a calendar event mention (`blockName` `calendar`) in a message, document, or email, or an `eventId` a calendar tool returned. Returns what the mention's preview card shows: title, time, location, description (truncated), organizer, guest count, and whether it repeats. ReadContent and ReadMetadata read documents only; use this tool for calendar events.
  *
- * `access` is `on_your_calendar` when the meeting is on one of the user's calendars; `eventId` is then the user's own copy for UpdateCalendarEvent and DeleteCalendarEvent. It is `shared_with_you` when someone shared their copy with a channel the user belongs to and the meeting is on none of the user's calendars: the event is read-only for the user, and `canRequestToJoin` and `joinRequestStatus` say whether they can ask the person who shared it to add them as a guest, which they do from the event's card. To read one instance of a recurring event, pass the mention's `occurrenceKey` block param.
+ * `access` says how the user holds the meeting, as the card does. `on_your_calendar`: their own event (they organize it, or a delegated inbox holds it). `invited`: they are a guest. `snapshot`: a private copy they added of a shared meeting, which doesn't follow the organizer's changes and where an answer or a new guest would never reach the meeting. In these three, `eventId` is the user's copy for UpdateCalendarEvent and DeleteCalendarEvent. `shared_with_you`: someone shared their copy with a channel the user belongs to and the meeting is on none of the user's calendars. The event is then read-only for the user; AddSharedCalendarEvent adds a snapshot of it, and `canRequestToJoin` and `joinRequestStatus` say whether they can ask the person who shared it to add them as a guest, which they do from the event's card. To read one instance of a recurring event, pass the mention's `occurrenceKey` block param.
  */
 export interface ReadCalendarEvent {
   /**

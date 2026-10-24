@@ -1,7 +1,8 @@
 use super::*;
 use crate::domain::join_requests::CalendarJoinRequestStatus;
 use crate::domain::models::{
-    CalendarMentionEvent, CalendarMentionPreview, CalendarMentionRequestItem, EventTime,
+    CalendarMentionEvent, CalendarMentionPreview, CalendarMentionRequestItem,
+    CalendarMentionViewerCopy, EventTime,
 };
 
 /// Resolves every mention to `preview` and records what was asked for.
@@ -73,6 +74,7 @@ impl CalendarOccurrenceService for PreviewOccurrences {
 fn mention(viewer_event_id: Option<Uuid>) -> CalendarMentionEvent {
     CalendarMentionEvent {
         viewer_event_id,
+        viewer_copy: viewer_event_id.map(|_| CalendarMentionViewerCopy::Event),
         title: "Design review".to_string(),
         description: Some("Walk through the rollout.".to_string()),
         time: EventTime::Timed {
@@ -166,6 +168,27 @@ async fn an_event_on_the_users_calendar_reads_with_their_own_copy() {
     assert_eq!(read["access"], "on_your_calendar");
     assert_eq!(read["eventId"], own_copy.to_string());
     assert!(read.get("joinRequestStatus").is_none());
+}
+
+#[tokio::test]
+async fn a_copy_reads_the_way_the_card_names_it() {
+    for (copy, access) in [
+        (CalendarMentionViewerCopy::Invitation, "invited"),
+        (CalendarMentionViewerCopy::Snapshot, "snapshot"),
+    ] {
+        let mut event = mention(Some(Uuid::from_u128(45)));
+        event.viewer_copy = Some(copy);
+
+        let (result, _) = read(
+            CalendarMentionPreview::Accessible(Box::new(event)),
+            serde_json::json!({ "eventId": Uuid::from_u128(46), "occurrenceKey": null }),
+        )
+        .await;
+
+        let read = result.unwrap();
+        assert_eq!(read["access"], access);
+        assert_eq!(read["eventId"], Uuid::from_u128(45).to_string());
+    }
 }
 
 #[tokio::test]

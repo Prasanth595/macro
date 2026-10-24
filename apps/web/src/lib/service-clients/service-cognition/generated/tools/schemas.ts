@@ -11816,6 +11816,8 @@ export const ReadCalendarEventResponse = z.object({
   access: z.any().superRefine((x, ctx) => {
     const schemas = [
       z.literal('on_your_calendar'),
+      z.literal('invited'),
+      z.literal('snapshot'),
       z.literal('shared_with_you'),
     ];
     const errors = schemas.reduce<z.ZodError[]>(
