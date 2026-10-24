@@ -821,6 +821,64 @@ describe('normalizedCacheExchange', () => {
     }
   });
 
+  it('applies a cache hit that carries an earlier network failure', async () => {
+    type Page = { rows: { __typename: string; id: string }[] };
+    const rows = gql<Page>`query Rows { rows { __typename id } }`;
+    const failure = () => ({
+      data: { rows: [] },
+      error: new CombinedError({
+        graphQLErrors: [{ message: 'database unavailable' }],
+      }),
+    });
+    host.scriptRead({
+      kind: 'hit',
+      data: { rows: [{ __typename: 'Thread', id: '1' }] },
+    });
+    const client = createClient({
+      url: '/graphql',
+      exchanges: [
+        normalizedCacheExchange(host),
+        () => (source) =>
+          pipe(
+            source,
+            map((operation) => ({
+              operation,
+              stale: false,
+              hasNext: false,
+              ...failure(),
+            }))
+          ),
+      ],
+    });
+    const { mounted, dispose } = createRoot((dispose) => ({
+      mounted: createUrqlQuery(() => ({
+        client,
+        query: rows,
+        variables: {},
+        requestPolicy: 'cache-and-network' as const,
+      })),
+      dispose,
+    }));
+    try {
+      await vi.waitFor(() => expect(mounted.error).toBeTruthy());
+      expect(mounted.data?.rows.map((row) => row.id)).toEqual(['1']);
+
+      host.scriptRead({
+        kind: 'hit',
+        data: { rows: [{ __typename: 'Thread', id: '2' }] },
+      });
+      await client
+        .query(rows, {}, { requestPolicy: 'cache-and-network' })
+        .toPromise();
+
+      await vi.waitFor(() =>
+        expect(mounted.data?.rows.map((row) => row.id)).toEqual(['2'])
+      );
+    } finally {
+      dispose();
+    }
+  });
+
   it('keeps live objects reactive through full reads on older cache hosts', async () => {
     type Rows = { rows: { __typename: string; id: string; isRead: boolean }[] };
     const first = gql<Rows>`query First { rows { __typename id isRead } }`;

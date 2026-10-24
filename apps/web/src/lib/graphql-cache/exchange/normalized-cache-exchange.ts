@@ -1576,9 +1576,13 @@ export function normalizedCacheExchange(
           const view =
             current?.view ??
             new LiveQuery(result.data, queryShape(result.operation.query));
-          // As with persistence, a failed refresh's partial nulls are not
-          // authoritative: mounted readers keep the rows they already hold.
-          if (current && !result.error) view.replace(result.data);
+          // As with persistence, a failed network response's partial nulls are
+          // not authoritative: mounted readers keep the rows they already hold.
+          // Cache reads still apply when they carry that failure's error.
+          const failedNetworkResult =
+            result.error !== undefined &&
+            normalizedCacheResultMetadata(result)?.source === 'live-network';
+          if (current && !failedNetworkResult) view.replace(result.data);
           const liveResult = withLiveQueryData({ ...result }, view.data);
           liveQueries.set(result.operation.key, { view, result: liveResult });
           return liveResult;
