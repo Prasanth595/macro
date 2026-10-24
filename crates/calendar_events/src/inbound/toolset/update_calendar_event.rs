@@ -293,6 +293,7 @@ where
             scope=?self.scope,
             attendee_count=?self.attendees.as_ref().map(Vec::len),
             rsvp=?self.rsvp,
+            inbox_confirmed=self.inbox.is_some(),
             "Update calendar event"
         );
 

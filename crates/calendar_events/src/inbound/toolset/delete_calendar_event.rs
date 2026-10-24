@@ -122,7 +122,13 @@ where
         service_context: ServiceContext<CalendarToolContext<M, O, L>>,
         request_context: RequestContext,
     ) -> ToolResult<Self::Output> {
-        tracing::info!(params=?self, "Delete calendar event");
+        tracing::info!(
+            event_id=%self.event_id,
+            calendar_id=?self.calendar_id,
+            scope=?self.scope,
+            inbox_confirmed=self.inbox.is_some(),
+            "Delete calendar event"
+        );
 
         let requester_id = request_context.user_id.to_string();
         let scoped_occurrence = |kind: &'static str| {
