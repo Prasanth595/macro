@@ -366,17 +366,12 @@ describe('favorites transport', () => {
         remove: useRemoveFavoriteMutation(),
       }));
 
-      const outcome = await Promise.race([
-        mutations[kind]
-          .mutateAsync({ entityType: 'document', entityId: 'document-1' })
-          .then(
-            () => 'committed',
-            () => 'failed'
-          ),
-        new Promise((resolve) => setTimeout(() => resolve('pending'), 50)),
-      ]);
-
-      expect(outcome).toBe('failed');
+      await expect(
+        mutations[kind].mutateAsync({
+          entityType: 'document',
+          entityId: 'document-1',
+        })
+      ).rejects.toBe(networkDown);
       expect(
         testQueryClient
           .getQueryData<FavoritesList>(favoriteKeys.list().queryKey)

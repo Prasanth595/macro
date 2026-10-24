@@ -25,22 +25,18 @@ afterEach(() => {
   else Reflect.deleteProperty(navigator, 'clipboard');
 });
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
-
-it('announces the task while the clipboard write is still pending', async () => {
+it('announces the task while the clipboard write is still pending', () => {
   writeText.mockReturnValue(new Promise<void>(() => {}));
 
   showTaskCreatedToast('task-1', undefined, openWithSplit);
-  await settle();
 
   expect(toast.success).toHaveBeenCalledTimes(1);
 });
 
-it('opens the created task from the toast and copies its link', async () => {
+it('opens the created task from the toast and copies its link', () => {
   writeText.mockResolvedValue(undefined);
 
   showTaskCreatedToast('task-1', undefined, openWithSplit);
-  await settle();
 
   expect(writeText).toHaveBeenCalledWith(
     expect.stringMatching(/\/task\/task-1$/)
@@ -54,10 +50,13 @@ it('opens the created task from the toast and copies its link', async () => {
 });
 
 it('keeps the task toast when the clipboard denies the write', async () => {
-  writeText.mockRejectedValue(new DOMException('denied', 'NotAllowedError'));
+  const denial = new DOMException('denied', 'NotAllowedError');
+  const deniedWrite = Promise.reject(denial);
+  writeText.mockReturnValue(deniedWrite);
 
   showTaskCreatedToast('task-1', undefined, openWithSplit);
-  await settle();
+  // The helper awaited this promise first, so its rejection handling has run.
+  await expect(deniedWrite).rejects.toBe(denial);
 
   expect(toast.success).toHaveBeenCalledTimes(1);
   expect(toast.failure).not.toHaveBeenCalled();

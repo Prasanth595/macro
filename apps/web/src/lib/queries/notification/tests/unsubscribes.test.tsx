@@ -162,15 +162,9 @@ describe('offline mute writes', () => {
       client.removeUnsubscribeItem.mockRejectedValue(networkDown);
       const mutations = setup();
 
-      const outcome = await Promise.race([
-        mutations[kind].mutateAsync(item).then(
-          () => 'committed',
-          () => 'failed'
-        ),
-        new Promise((resolve) => setTimeout(() => resolve('pending'), 50)),
-      ]);
-
-      expect(outcome).toBe('failed');
+      await expect(mutations[kind].mutateAsync(item)).rejects.toBe(
+        networkDown
+      );
       expect(queryClient.getQueryData(key)).toEqual([original]);
     }
   );
