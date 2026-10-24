@@ -128,4 +128,20 @@ describe('EntityEmailParticipants', () => {
 
     expect(container.textContent).toBe('me');
   });
+
+  it("recognizes the row's inbox address whatever its case", () => {
+    const { container } = render(() => (
+      <EntityEmailParticipants
+        entity={emailEntity(
+          [
+            { email: 'Teo@Macro420.onmicrosoft.com', name: 'Teo Nys' },
+            { email: 'wolf@macro.com' },
+          ],
+          'outlook'
+        )}
+      />
+    ));
+
+    expect(container.textContent).toBe('Wolf Ryan');
+  });
 });

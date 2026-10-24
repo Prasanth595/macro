@@ -52,6 +52,20 @@ describe('thread message selection', () => {
     ).toBeUndefined();
     expect(selectThreadSender(thread([]))).toBeUndefined();
   });
+  it('targets no sender while the viewer is unknown, so a sender action cannot hit the viewer', () => {
+    const own = message('own', {
+      from: { email: 'viewer@example.com' },
+      internal_date_ts: '2026-09-01T00:00:00Z',
+    });
+    const reply = message('reply', {
+      from: { email: 'external@example.com' },
+      internal_date_ts: '2026-09-02T00:00:00Z',
+    });
+    expect(selectThreadSender(thread([own, reply]))).toBeUndefined();
+    expect(selectThreadSender(thread([own, reply]), 'viewer@example.com')).toBe(
+      'external@example.com'
+    );
+  });
   it('orders messages chronologically without mutating the source and separates reply drafts', () => {
     const newer = message('new', { internal_date_ts: '2026-09-02T10:00:00Z' });
     const older = message('old');

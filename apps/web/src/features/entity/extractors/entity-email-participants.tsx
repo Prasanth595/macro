@@ -1,3 +1,4 @@
+import { isViewerAddress } from '@app/features/email-message/core/email-user';
 import { HoverCard } from '@core/component/HoverCard';
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { unifiedListMarkdownTheme } from '@core/component/LexicalMarkdown/theme';
@@ -112,7 +113,7 @@ function resolveParticipants(
 
   for (const participant of participants) {
     if (!participant.email) continue;
-    if (userEmail && participant.email === userEmail) continue;
+    if (isViewerAddress(participant.email, userEmail)) continue;
 
     const macroDisplayName = getMacroDisplayName(participant.email);
     const displayName = resolveParticipantName(participant, macroDisplayName);
@@ -126,7 +127,7 @@ function resolveParticipants(
   // Every participant was the current user (self-to-self threads, or
   // duplicate own-address rows from multi-inbox accounts) — show "me".
   if (result.length === 0) {
-    const self = participants.find((p) => userEmail && p.email === userEmail);
+    const self = participants.find((p) => isViewerAddress(p.email, userEmail));
     if (self) return [{ participant: self, displayName: 'me' }];
   }
 
