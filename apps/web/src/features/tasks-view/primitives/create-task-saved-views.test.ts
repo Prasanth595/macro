@@ -151,6 +151,24 @@ describe('saved task drafts', () => {
     expect(h.state.facets.priority).toBeUndefined();
   });
 
+  it('ignores save completion after a task-detail round trip discards its draft', async () => {
+    const h = harness();
+    let finish!: (result: Result<SavedView, SavedViewError>) => void;
+    h.source.update = () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
+    h.setState('facets', { priority: ['urgent'] });
+    const save = h.controller.save();
+    h.setTaskId('task-1');
+    h.setTaskId(undefined);
+    finish(ok({ ...view, revision: 2 }));
+    await save;
+    expect(h.controller.dirty()).toBe(false);
+    expect(h.controller.record()?.revision).toBe(1);
+    expect(h.state.facets.priority).toEqual([]);
+  });
+
   it('uses the authoritative definition after retrying an already-created ID', async () => {
     const h = harness();
     h.source.create = vi.fn(async (input) => ok({ ...view, id: input.id }));

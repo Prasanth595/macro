@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   type Accessor,
   batch,
@@ -103,6 +104,7 @@ export function createTaskSavedViews(options: {
     draft.install(record, decoded.value);
     apply(decoded.value);
   };
+  let navigationEpoch = 0;
   let priorSelection: string | undefined;
   let priorViewer: string | undefined;
   createEffect(
@@ -128,6 +130,7 @@ export function createTaskSavedViews(options: {
         priorSelection = id;
         priorViewer = viewer;
         if (changed) {
+          navigationEpoch += 1;
           options.setActive(Boolean(id));
           if (!keepConfirmed) draft.install(undefined, undefined);
           setUnavailable(undefined);
@@ -156,7 +159,12 @@ export function createTaskSavedViews(options: {
   );
   createEffect(
     on(options.taskId, (id, previous) => {
-      if (id !== previous && active()) reset();
+      if (id === previous) return;
+      navigationEpoch += 1;
+      if (!active()) return;
+      reset();
+      if (id === undefined)
+        fireAndForget(options.source.refreshDetail(), 'saved-views');
     })
   );
 
@@ -173,6 +181,7 @@ export function createTaskSavedViews(options: {
     options.navigate(id);
   };
   const leave = () => {
+    navigationEpoch += 1;
     batch(() => {
       setCreating(false);
       options.setActive(false);
@@ -187,6 +196,7 @@ export function createTaskSavedViews(options: {
     });
   };
   const start = () => {
+    navigationEpoch += 1;
     batch(() => {
       setCreating(true);
       options.setActive(true);
@@ -250,7 +260,12 @@ export function createTaskSavedViews(options: {
     return { mode, input };
   };
   const scope = () =>
-    `${options.viewerId()}:${creating() ? 'new' : (options.selectedId() ?? '')}`;
+    JSON.stringify([
+      options.viewerId(),
+      creating() ? 'new' : options.selectedId(),
+      navigationEpoch,
+      draft.record()?.revision,
+    ]);
   const save = async (name?: string, sharedTeamId?: string | null) => {
     if (saving()) return;
     const definition = capture();
@@ -261,6 +276,7 @@ export function createTaskSavedViews(options: {
     const request = writeRequest(definition.value, name, sharedTeamId);
     if (!request) return;
     const requestScope = scope();
+    const requestViewer = options.viewerId();
     setSaving(true);
     setError(undefined);
     const result =
@@ -268,7 +284,15 @@ export function createTaskSavedViews(options: {
         ? await options.source.create(request.input)
         : await options.source.update(request.input);
     setSaving(false);
-    if (scope() !== requestScope) return;
+    if (scope() !== requestScope) {
+      if (
+        result.isOk() &&
+        options.viewerId() === requestViewer &&
+        options.selectedId() === request.input.id
+      )
+        fireAndForget(options.source.refreshDetail(), 'saved-views');
+      return;
+    }
     if (result.isErr()) {
       setConflict(result.error.code === 'CONFLICT');
       setError(result.error.message);

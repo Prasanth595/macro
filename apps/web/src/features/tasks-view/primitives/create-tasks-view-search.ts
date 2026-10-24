@@ -36,6 +36,8 @@ export function createTasksViewSearch(options: {
           search.sortReversed,
           search.groupBy,
           options.nonListLayoutsEnabled?.() ?? true,
+          search.savedView,
+          state.savedViewActive,
         ] as const,
       ([tab, layout, sort, sortReversed, groupBy, nonListLayoutsEnabled]) => {
         if (!options.enabled) return;
@@ -43,7 +45,11 @@ export function createTasksViewSearch(options: {
 
         options.setState(
           produce((draft) => {
-            if (draft.tab !== tab) {
+            if (
+              !search.savedView &&
+              !draft.savedViewActive &&
+              draft.tab !== tab
+            ) {
               draft.tab = tab;
               draft.facets = normalizeFacetSelection(
                 DEFAULT_TASK_FACET_SELECTION
@@ -54,7 +60,11 @@ export function createTasksViewSearch(options: {
             draft.layout = nonListLayoutsEnabled ? requestedLayout : 'list';
             draft.groupBy =
               groupBy ??
-              (tab === entryTab ? entryGroupBy : TASK_DEFAULT_GROUP_BY[tab]);
+              (draft.savedViewActive || search.savedView
+                ? draft.groupBy
+                : tab === entryTab
+                  ? entryGroupBy
+                  : TASK_DEFAULT_GROUP_BY[tab]);
             draft.sort = sort
               ? [{ id: sort, reversed: sortReversed === 'true' }]
               : entrySort.map((item) => ({ ...item }));

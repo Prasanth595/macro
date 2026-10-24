@@ -206,3 +206,38 @@ it('falls back from restored board entries and from desktop boards when mobile a
   desktop.setState('layout', 'board');
   expect(desktop.state.layout).toBe('board');
 });
+
+it('keeps saved scope and draft filters when changing presentation', () => {
+  const view = setup({
+    state: {
+      tab: 'team-tasks',
+      savedViewActive: true,
+      facets: { priority: ['urgent'] },
+    },
+    search: {
+      tab: 'my-tasks',
+      savedView: '10000000-0000-4000-8000-000000000001',
+    },
+  });
+  view.setState('layout', 'board');
+  view.setState('groupBy', 'assignee');
+  view.setPrimarySort('created_at');
+  expect(view.state.tab).toBe('team-tasks');
+  expect(view.state.facets).toEqual({ priority: ['urgent'] });
+  expect(view.search.savedView).toBe('10000000-0000-4000-8000-000000000001');
+});
+
+it('restores the requested built-in scope after leaving a saved view', () => {
+  const view = setup({
+    state: {
+      tab: 'team-tasks',
+      savedViewActive: true,
+      facets: { priority: ['urgent'] },
+    },
+    search: { savedView: '10000000-0000-4000-8000-000000000001' },
+  });
+  view.setSearch({ savedView: undefined, tab: 'created-by-me' });
+  view.setState('savedViewActive', false);
+  expect(view.state.tab).toBe('created-by-me');
+  expect(view.state.facets.priority).toBeUndefined();
+});
