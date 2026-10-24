@@ -90,7 +90,6 @@ export function QueuedSendStatus(props: {
       when={
         visible().length > 0 ||
         visibleServer().length > 0 ||
-        serverEmailSendsError() ||
         emailSendStorageWarning()
       }
     >
@@ -113,7 +112,7 @@ export function QueuedSendStatus(props: {
         <For each={visibleServer()}>
           {(row) => <ServerSendStatus row={row} />}
         </For>
-        <Show when={serverEmailSendsError()}>
+        <Show when={visibleServer().length > 0 && serverEmailSendsError()}>
           <p class="text-xs text-ink-muted" role="status">
             {serverEmailSendsError()}
           </p>
