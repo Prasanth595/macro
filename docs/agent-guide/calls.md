@@ -1,21 +1,28 @@
 # Calls
 
-## Calls — `/app/component/calls`
+## Calls — `/app/calls`
 
-On desktop a collapsible sidebar holds the search field (`Search calls`, `⌘F`),
+On desktop a collapsible sidebar starts with the shared outlined `New` button,
+with `Search calls` immediately left of collapse. Search reveals its field above
+New. The sidebar also holds
 the views `All` / `Missed` / `Unattended`, a `Type` section (`Internal` /
 `External`; External means at least one guest without a Macro account joined),
 a `Channels` section listing channels seen in loaded calls, and `Tags`. Choosing
 a type, channel, or tag shows only that one; choosing it again clears it. These
-refinements carry across the three views. Sort, group, filter, and `New call`
-sit in the list's top bar. Phones keep pill tabs and the header search.
+refinements carry across the three views. The desktop header uses one row:
+title, an outlined filter group, a view-options group, `New`, and an expandable
+Search icon. Command-F expands and focuses search; Close or Escape clears it
+and restores the icon. Phones keep pill tabs and the header search.
 With `enable-quick-calls` enabled, `New call` opens a menu with `Start an instant
 call`, `Call a channel or contact`, and `Manage call links`; without the flag it
 opens the recipient picker directly. `Start an instant call` opens `/app/meet/new`
 without creating a meeting, the same setup reached from `New Call` beside
 Calendar's `New event` or `Create` → `Call` (`C C`). Scheduled calls are created
 through Calendar and can be shared with people who do not have a Macro account.
-The channel/contact option opens the recipient picker.
+The channel/contact option opens the recipient picker. Starting a channel call
+connects the creator without waiting for recording, transcription, or recipient
+notification delivery. Verify that a second participant still receives the ring
+and can join, and that leaving immediately does not leave a recording running.
 Recordings, transcriptions
 and summaries appear here; empty state notes "Calls are available to agents."
 
@@ -48,7 +55,7 @@ Soup lists without a refresh; history is not backfilled. Imported calls appear
 in `All` and `Attended`, never in a channel's `Calls` tab, and open in the
 normal call detail with title, summary, attendees
 (shown as guests), and transcript but no recording. Rename and delete do not
-apply to imported calls yet. Webhooks require a public HTTPS `MCP_PUBLIC_URL`;
+apply to imported calls yet. Webhooks require a public HTTPS cognition callback origin (`CognitionPublicUrl`);
 on a laptop stack, expose the webhook path with a tunnel such as Tailscale Funnel.
 
 A channel's `Calls` tab lists that channel's recordings with the same rows, filtered
@@ -244,12 +251,17 @@ joining a standalone call never makes its content available to the wider team.
 
 Android channel calls use a native call activity rather than browser media.
 After joining, the themed drawer shows a large participant tile and a horizontally
-scrolling participant strip; tap a strip tile to make it primary. Speaker toggles
+scrolling participant strip without the transcription agent; tap a strip tile to make it primary. Speaker toggles
 speaker mode (hold it for headset/Bluetooth routing), Mute and Video control capture, and **Leave** ends the call.
 The local primary video tile exposes Switch camera. Swipe the drawer handle down,
-tap outside the drawer, or use Back to enter PiP on supported devices; **Open call
-controls** in the web call controls restores the native surface. Leaving the channel does
-not end the call. Incoming calls expose Answer/Decline in the **Calls** notification
-channel, including while locked/backgrounded. PiP is a native, device-dependent
+tap outside the drawer, or use Back to shrink it to a thumbnail over Macro, as on
+iOS: tap it to reopen the drawer, drag it to another corner, or drag it past a side
+to tuck it away (an edge tab brings it back once someone else is in the call). Leaving the app continues the call in system PiP (you and the
+active speaker); tapping PiP shows Android's menu with Mute, **Leave** and expand,
+which reopens the drawer. **Open call controls** in the web call controls also
+reopens the drawer. Leaving the channel does not end the call. Incoming calls
+expose Answer/Decline in the **Calls** notification channel, including while
+locked/backgrounded; while Android 14+ blocks full-screen notifications, a toast
+offers **Allow** (system setting) or **Hide**. PiP is a native, device-dependent
 flow. Browser-only tests cannot validate Telecom, FCM wakeup or background media;
 follow the hardware matrix in [Android development](../development/android.md#native-calling).

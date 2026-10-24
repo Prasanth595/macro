@@ -1,5 +1,11 @@
 import type { FacetSelection, SortSelection } from '@app/features/soup';
+import type { TaskComposerContext } from '../task-composer/core/context';
 import type { TaskDueDateFilter } from './core/task-due-date';
+
+export type TaskCreateOptions = {
+  dueDate?: Date;
+  composerContext?: TaskComposerContext;
+};
 
 export type TaskTab = 'my-tasks' | 'created-by-me' | 'team-tasks' | 'projects';
 export type TasksTab = TaskTab;

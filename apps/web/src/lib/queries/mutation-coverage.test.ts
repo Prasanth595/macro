@@ -22,9 +22,10 @@ const policies = {
   UpdateInitiative: 'resolver',
   DeleteEntityProperty: 'resolver',
   SaveEmailDraft: 'custom: draft identity and thread links',
-  SendEmailMessage:
-    'authoritative: online-only delivery; success requires server validation and enqueue',
   DeleteEmailDraft: 'custom: draft removal and thread links',
+  SendEmailMessage:
+    'custom: independent email outbox and fetch-only submission',
+  CancelEmailSend: 'custom: independent outbox cancellation and atomic restore',
   SetFavorite: 'custom: favorite list membership',
   ReorderFavorites: 'custom: ordered favorite links',
   SetEntityProperty: 'custom: assignment identity and parent links',
@@ -33,6 +34,7 @@ const policies = {
   UpdateCalendarEvent: 'custom: event and occurrence edits',
   DeleteCalendarEvent: 'custom: event and occurrence removal',
   RespondToCalendarEvent: 'custom: attendee response',
+  InviteCalendarEventGuests: 'custom: added attendees',
   MarkWorkFeedItemsDone:
     'custom: feed rows stay hidden until the server removes them',
   CreateInitiative: 'authoritative: server assigns the project ID',

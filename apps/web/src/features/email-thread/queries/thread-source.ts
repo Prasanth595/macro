@@ -62,6 +62,7 @@ export function toEmailThread(thread: ApiThread): EmailThread {
       })),
       created_at: message.created_at,
       db_id: message.db_id,
+      draft_generation: message.draft_generation,
       from: message.from
         ? {
             email: message.from.email,
@@ -88,6 +89,7 @@ export function toEmailThread(thread: ApiThread): EmailThread {
       provider_id: message.provider_id,
       replying_to_id: message.replying_to_id,
       scheduled_send_time: message.scheduled_send_time,
+      scheduled_send_status: message.scheduled_send_status,
       sent_at: message.sent_at,
       snippet: message.snippet,
       subject: message.subject,

@@ -1,3 +1,7 @@
+import {
+  DEFAULT_GUEST_POLICY,
+  NO_VIEWER_CAPABILITIES,
+} from '@app/features/calendar/types';
 import type { InvitationResolution } from '@service-email/generated/schemas/invitationResolution';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import { createSignal, type JSX } from 'solid-js';
@@ -54,6 +58,7 @@ vi.mock('./calendar-invitation-day', () => ({
 }));
 vi.mock('@ui', async () => ({
   ...(await vi.importActual('@app/components/ui/components/Avatar')),
+  ...(await vi.importActual('@app/components/ui/components/Tabs')),
   Button: (props: JSX.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button {...props} />
   ),
@@ -94,6 +99,9 @@ const wire: InvitationResolution = {
     sequence: 1,
     status: 'confirmed',
     isReadOnly: false,
+    guestPolicy: DEFAULT_GUEST_POLICY,
+    isSnapshot: false,
+    viewerCan: NO_VIEWER_CAPABILITIES,
     time,
     transparency: 'opaque',
     visibility: 'default',
@@ -122,14 +130,14 @@ describe('email invitation production host', () => {
       />
     ));
     expect(
-      screen.getByRole('button', { name: 'Yes' }).getAttribute('aria-pressed')
-    ).toBe('true');
+      (screen.getByRole('radio', { name: 'Yes' }) as HTMLInputElement).checked
+    ).toBe(true);
     setFailed(true);
     expect(
       screen.getByRole('heading', { name: 'Current product review' })
     ).toBeTruthy();
     expect(screen.getByText('Last response: Yes')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Yes' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Yes' })).toBeNull();
     expect(
       screen.getByText(/Calendar unavailable. Showing last-known/)
     ).toBeTruthy();
@@ -137,8 +145,8 @@ describe('email invitation production host', () => {
     expect(queryState.refetch).toHaveBeenCalled();
     setFailed(false);
     expect(
-      screen.getByRole('button', { name: 'Yes' }).getAttribute('aria-pressed')
-    ).toBe('true');
+      (screen.getByRole('radio', { name: 'Yes' }) as HTMLInputElement).checked
+    ).toBe(true);
   });
   it.each(['counter', 'request'] as const)(
     'opens the displayed proposal or newer snapshot day for %s',

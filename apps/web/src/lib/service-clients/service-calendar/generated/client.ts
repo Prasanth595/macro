@@ -10,12 +10,16 @@ import type {
   CalendarEvent,
   CalendarEventProviderUrl,
   CalendarEventProviderUrlParams,
+  CalendarJoinRequest,
   CalendarMutationApiError,
   CalendarReplacementView,
+  CopyCalendarEventRequest,
   CreateCalendarEventRequest,
   DeleteCalendarEventParams,
+  InviteCalendarEventGuestsRequest,
   ListCalendarsResponse,
   PrepareCalendarReplacementRequest,
+  RespondToJoinRequestRequest,
   RsvpCalendarEventRequest,
   TeamCalendarSharingBody,
   UpdateCalendarEventRequest,
@@ -415,6 +419,178 @@ export const updateCalendarEvent = async (
 };
 
 /**
+ * @summary Add a snapshot of an event shared with one of the requester's channels to
+one of their Google calendars and return the synced snapshot. The
+snapshot keeps the meeting's iCalendar UID and organizer, lists only the
+requester as a guest, and carries no join link; nobody is notified.
+ */
+export type copyCalendarEventResponse201 = {
+  data: CalendarEvent;
+  status: 201;
+};
+
+export type copyCalendarEventResponse400 = {
+  data: CalendarMutationApiError;
+  status: 400;
+};
+
+export type copyCalendarEventResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type copyCalendarEventResponse403 = {
+  data: CalendarMutationApiError;
+  status: 403;
+};
+
+export type copyCalendarEventResponse404 = {
+  data: CalendarMutationApiError;
+  status: 404;
+};
+
+export type copyCalendarEventResponse409 = {
+  data: CalendarMutationApiError;
+  status: 409;
+};
+
+export type copyCalendarEventResponse503 = {
+  data: CalendarMutationApiError;
+  status: 503;
+};
+
+export type copyCalendarEventResponseSuccess = copyCalendarEventResponse201 & {
+  headers: Headers;
+};
+export type copyCalendarEventResponseError = (
+  | copyCalendarEventResponse400
+  | copyCalendarEventResponse401
+  | copyCalendarEventResponse403
+  | copyCalendarEventResponse404
+  | copyCalendarEventResponse409
+  | copyCalendarEventResponse503
+) & {
+  headers: Headers;
+};
+
+export type copyCalendarEventResponse =
+  | copyCalendarEventResponseSuccess
+  | copyCalendarEventResponseError;
+
+export const getCopyCalendarEventUrl = (eventId: string) => {
+  return `/events/${eventId}/copy`;
+};
+
+export const copyCalendarEvent = async (
+  eventId: string,
+  copyCalendarEventRequest: CopyCalendarEventRequest,
+  options?: RequestInit
+): Promise<copyCalendarEventResponse> => {
+  const res = await fetch(getCopyCalendarEventUrl(eventId), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(copyCalendarEventRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: copyCalendarEventResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as copyCalendarEventResponse;
+};
+
+/**
+ * @summary Add guests to a calendar event without touching anyone already invited,
+and return its synced entity. The organizer, and guests the organizer lets
+invite others, may call it; Google emails the new guests.
+ */
+export type inviteCalendarEventGuestsResponse200 = {
+  data: CalendarEvent;
+  status: 200;
+};
+
+export type inviteCalendarEventGuestsResponse400 = {
+  data: CalendarMutationApiError;
+  status: 400;
+};
+
+export type inviteCalendarEventGuestsResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type inviteCalendarEventGuestsResponse403 = {
+  data: CalendarMutationApiError;
+  status: 403;
+};
+
+export type inviteCalendarEventGuestsResponse404 = {
+  data: CalendarMutationApiError;
+  status: 404;
+};
+
+export type inviteCalendarEventGuestsResponse409 = {
+  data: CalendarMutationApiError;
+  status: 409;
+};
+
+export type inviteCalendarEventGuestsResponse503 = {
+  data: CalendarMutationApiError;
+  status: 503;
+};
+
+export type inviteCalendarEventGuestsResponseSuccess =
+  inviteCalendarEventGuestsResponse200 & {
+    headers: Headers;
+  };
+export type inviteCalendarEventGuestsResponseError = (
+  | inviteCalendarEventGuestsResponse400
+  | inviteCalendarEventGuestsResponse401
+  | inviteCalendarEventGuestsResponse403
+  | inviteCalendarEventGuestsResponse404
+  | inviteCalendarEventGuestsResponse409
+  | inviteCalendarEventGuestsResponse503
+) & {
+  headers: Headers;
+};
+
+export type inviteCalendarEventGuestsResponse =
+  | inviteCalendarEventGuestsResponseSuccess
+  | inviteCalendarEventGuestsResponseError;
+
+export const getInviteCalendarEventGuestsUrl = (eventId: string) => {
+  return `/events/${eventId}/guests`;
+};
+
+export const inviteCalendarEventGuests = async (
+  eventId: string,
+  inviteCalendarEventGuestsRequest: InviteCalendarEventGuestsRequest,
+  options?: RequestInit
+): Promise<inviteCalendarEventGuestsResponse> => {
+  const res = await fetch(getInviteCalendarEventGuestsUrl(eventId), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(inviteCalendarEventGuestsRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: inviteCalendarEventGuestsResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as inviteCalendarEventGuestsResponse;
+};
+
+/**
  * @summary Resolve an authorized event's provider link for Outlook-only actions.
  */
 export type calendarEventProviderUrlResponse200 = {
@@ -645,6 +821,87 @@ export const healthHandler = async (
     status: res.status,
     headers: res.headers,
   } as healthHandlerResponse;
+};
+
+/**
+ * @summary Answer a request to join an event the requester can change and return
+where it now stands. Accepting adds the guest through the invite path; an
+already answered request is returned unchanged.
+ */
+export type respondToJoinRequestResponse200 = {
+  data: CalendarJoinRequest;
+  status: 200;
+};
+
+export type respondToJoinRequestResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type respondToJoinRequestResponse403 = {
+  data: CalendarMutationApiError;
+  status: 403;
+};
+
+export type respondToJoinRequestResponse404 = {
+  data: CalendarMutationApiError;
+  status: 404;
+};
+
+export type respondToJoinRequestResponse409 = {
+  data: CalendarMutationApiError;
+  status: 409;
+};
+
+export type respondToJoinRequestResponse503 = {
+  data: CalendarMutationApiError;
+  status: 503;
+};
+
+export type respondToJoinRequestResponseSuccess =
+  respondToJoinRequestResponse200 & {
+    headers: Headers;
+  };
+export type respondToJoinRequestResponseError = (
+  | respondToJoinRequestResponse401
+  | respondToJoinRequestResponse403
+  | respondToJoinRequestResponse404
+  | respondToJoinRequestResponse409
+  | respondToJoinRequestResponse503
+) & {
+  headers: Headers;
+};
+
+export type respondToJoinRequestResponse =
+  | respondToJoinRequestResponseSuccess
+  | respondToJoinRequestResponseError;
+
+export const getRespondToJoinRequestUrl = (requestId: string) => {
+  return `/join-requests/${requestId}`;
+};
+
+export const respondToJoinRequest = async (
+  requestId: string,
+  respondToJoinRequestRequest: RespondToJoinRequestRequest,
+  options?: RequestInit
+): Promise<respondToJoinRequestResponse> => {
+  const res = await fetch(getRespondToJoinRequestUrl(requestId), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(respondToJoinRequestRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: respondToJoinRequestResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as respondToJoinRequestResponse;
 };
 
 /**

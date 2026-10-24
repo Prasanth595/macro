@@ -63,6 +63,8 @@ fn mention_preview_items_serialize_the_preview_contract() {
             organizer_name: None,
             attendee_count: 3,
             updated_at: starts_at,
+            can_request_to_join: false,
+            join_request_status: None,
         }),
     };
     let json = serde_json::to_value(&accessible).unwrap();
@@ -100,5 +102,17 @@ fn mention_preview_items_serialize_the_preview_contract() {
     assert_eq!(
         serde_json::to_value(&deleted).unwrap()["type"],
         "does_not_exist"
+    );
+}
+
+#[test]
+fn ics_disposition_names_the_file_after_the_title() {
+    assert_eq!(
+        ics_disposition("Q3 \"offsite\" / café"),
+        "attachment; filename=\"event.ics\"; filename*=UTF-8''Q3%20%22offsite%22%20%2F%20caf%C3%A9.ics"
+    );
+    assert_eq!(
+        ics_disposition("  "),
+        "attachment; filename=\"event.ics\"; filename*=UTF-8''event.ics"
     );
 }

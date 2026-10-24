@@ -240,7 +240,13 @@ registration gets sixty seconds per attempt, with three attempts; engine recover
 retains its bounded five retries. Exhausted bootstrap retries preserve the cache
 scope only when the coordinator explicitly proves storage was untouched, not from
 a page's last-seen phase. Missing/broken transports remain conservatively
-uncertain.
+uncertain. Pages retry proven untouched bootstrap and owner-lock failures on reconnect,
+foregrounding, or explicit draft Retry, with jittered exponential backoff capped
+at thirty seconds. A newly registered host restarts an exhausted untouched
+coordinator at a new owner epoch with `open-existing`; failed hosts remain
+excluded. Draft writes stay blocked until the replacement opens and inspects
+the preserved mutation queue. Unknown storage failures still require explicit
+recovery or an update; retry never rotates the scope or clears persisted data.
 
 A build's coordinator has its build time in the SharedWorker name, so builds
 use separate coordinators even when their coordinator script URL is identical.
@@ -322,7 +328,15 @@ paths remain behind the same `CacheHost` interface.
 | Turso over filesystem IO | Tauri native | records, search projection, mutation queue, optimistic layers, and metadata; WAL mode |
 | Turso over OPFS | browser | the same frozen schema behind the OPFS IO adapter and coordinated worker lifecycle |
 
-Normalized records are serialized with `postcard` into `records.value`.
+Normalized records are serialized with `postcard` into `records.value`, behind a
+one-byte encoding tag: records of 256 bytes or more are stored deflated when that
+is smaller, and everything else stays raw. Other persisted payloads (queued
+mutations, optimistic layers, projections) remain plain postcard. A format bump
+that only changes the record encoding carries the previous database forward by
+dropping records, search projections, index facts, and calendar ranges — all
+refetchable — while keeping queued mutations, optimistic layers, and their
+projections. Native storage then compacts the migrated file with `VACUUM INTO`, so
+the upgrade reclaims the space instead of leaving freed pages behind.
 Both hosts use the same `Storage` implementation and compound entity keys.
 Wasm futures are not `Send`, so the `Storage` trait's futures are bound by
 `MaybeSend` (`crates/maybe_send`): `Send` on native targets, where Tauri drives
@@ -633,6 +647,11 @@ from the prediction keep their cached values on existing entities. Nested
 response keys come from the representative, so a document that selects a field
 under a different alias does not receive that field's predicted value.
 
+Email sends use the independent email working-copy database and fetch-only
+GraphQL client. The cache queue holds draft autosaves and ordinary mutations;
+it does not persist, dispatch, or cancel sends. The email dispatcher owns send
+leases and recovery, including when no composer is mounted.
+
 The durable optimistic queue owns ordering, retries, commit and rollback. The
 query author supplies no optimistic callbacks, result traversal or cache writes.
 Both the list and a detail query for that thread observe the same effective
@@ -663,7 +682,7 @@ Invalidations arriving during a refresh cause a trailing authorized read instead
 of being discarded; simultaneous refresh requests share one read.
 
 [Mutation coverage](../src/lib/queries/mutation-coverage.test.ts) enumerates all
-35 mutation documents and fails when a document has no declared strategy.
+37 mutation documents and fails when a document has no declared strategy.
 Because predictions are keyed by mutation field, it also checks that local
 resolver documents select only resolved fields, and that any other document
 reaching a field resolver is a listed exception the resolver declines.
@@ -675,8 +694,8 @@ every schema argument of its field with the schema's type:
 | Strategy | Operations |
 | --- | --- |
 | Local resolver (7) | MarkEmailThreadSeen, MarkEmailThreadUnread, SetEmailThreadArchived, UpdateNotifications, RenameEntities, UpdateInitiative, DeleteEntityProperty |
-| Existing domain optimistic recipe (11) | SaveEmailDraft, DeleteEmailDraft, SetFavorite, ReorderFavorites, SetEntityProperty, UpdateEntityPropertyOptions, CreateCalendarEvent, UpdateCalendarEvent, DeleteCalendarEvent, RespondToCalendarEvent, MarkWorkFeedItemsDone |
-| Authoritative outcome (10) | CreateInitiative, DeleteInitiative, EnsureInitiativeDescriptionSurface, RenameDatabase, TrashDatabase, RenameForm, TrashForm, RecordChannelActivity, UpdateNotificationsForEntity, UndoWorkFeedItemsDone |
+| Existing domain optimistic recipe (12) | SaveEmailDraft, DeleteEmailDraft, SetFavorite, ReorderFavorites, SetEntityProperty, UpdateEntityPropertyOptions, CreateCalendarEvent, UpdateCalendarEvent, DeleteCalendarEvent, RespondToCalendarEvent, InviteCalendarEventGuests, MarkWorkFeedItemsDone |
+| Authoritative outcome (11) | SendEmailMessage, CreateInitiative, DeleteInitiative, EnsureInitiativeDescriptionSurface, RenameDatabase, TrashDatabase, RenameForm, TrashForm, RecordChannelActivity, UpdateNotificationsForEntity, UndoWorkFeedItemsDone |
 | Document only; no production caller (7) | MoveEntities, UpdateEntitySharePolicies, TrashEntities, RestoreEntities, DeleteEntitiesPermanently, DuplicateEntities, SetEntityFavorite |
 
 The project resolver predicts names and members; sharing waits for the server.
@@ -746,7 +765,8 @@ a supported filter plus created/updated sort, their combined server membership
 is the baseline for the same predicate adapter used by flat Soup. Selected
 normalized rows then derive date, project and property memberships (including
 multi-value and scoped property joins); entity-type bins retain their invariant
-server keys. Missing grouping evidence retains the old membership. When local selection is
+server keys. Missing grouping evidence or an unrecognized grouping field retains
+the old membership. When local selection is
 incomplete, display fields come from current merged server pages before falling
 back to the original evidence; current page fields do not rebase membership or
 count evidence. Unsupported
@@ -756,7 +776,13 @@ separate date-grouping policy.
 Server membership evidence is captured separately from normalized field/link
 updates, and local evaluation waits for network persistence. Filter/account/cache
 generation changes discard old local evidence and continuation owners. Initial
-network refreshes restart continuation coverage. Group readers delegate paging
+network refreshes rebuild each loaded continuation chain from its new cursor,
+retaining the previous owner until all previously loaded pages are ready (or the
+server ends the chain). Failed replacements leave the old rows available and
+report the paging error; explicit refresh waits for these replacements. A group
+whose fresh initial page has no cursor drops obsolete continuations immediately.
+The `graphql_cache.soup_grouped_refresh` span records the loaded page count and
+replacement outcome. Group readers delegate paging
 to this owner, so moving a continuation row cannot leave a second copy behind.
 The initial cursor remains baseline metadata; paging follows the last loaded
 server continuation, never a locally fabricated cursor.

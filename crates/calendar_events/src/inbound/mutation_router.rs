@@ -23,13 +23,14 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::domain::{
+    join_requests::CalendarJoinRequest,
     meeting_links::{
         CreateEventWithMacroCallError, MeetingLinkError, create_event_with_macro_call,
     },
     models::{
         AttendeeResponseStatus, CalendarAttendeeInput, CalendarEvent, CalendarEventDraft,
         CalendarEventPatch, ConferenceChange, EventReminders, EventTime, EventTransparency,
-        EventVisibility, OutOfOfficeProperties, VisibleCalendar,
+        EventVisibility, GuestPolicy, OutOfOfficeProperties, VisibleCalendar,
     },
     ports::{
         CalendarDeletionScope, CalendarMutationError, CalendarMutationService, CalendarRsvpScope,
@@ -100,6 +101,18 @@ where
             "/events/{event_id}/rsvp",
             put(rsvp_calendar_event::<S, L, Auth>),
         )
+        .route(
+            "/events/{event_id}/guests",
+            post(invite_calendar_event_guests::<S, L, Auth>),
+        )
+        .route(
+            "/events/{event_id}/copy",
+            post(copy_calendar_event::<S, L, Auth>),
+        )
+        .route(
+            "/join-requests/{request_id}",
+            put(respond_to_join_request::<S, L, Auth>),
+        )
         .with_state(state)
 }
 
@@ -167,6 +180,10 @@ pub struct CreateCalendarEventRequest {
     /// out-of-office status event (primary calendar only, timed, no
     /// attendees), omitted for a regular event.
     pub out_of_office: Option<OutOfOfficeProperties>,
+    /// What guests may do; omit for Google's defaults (guests may invite
+    /// others and see the guest list, not modify the event). Google
+    /// calendars only.
+    pub guest_policy: Option<GuestPolicy>,
 }
 
 /// Request body patching an event; omitted fields are left untouched.
@@ -205,6 +222,9 @@ pub struct UpdateCalendarEventRequest {
     /// already out-of-office — the provider event type is immutable. Omit to
     /// leave them untouched.
     pub out_of_office: Option<OutOfOfficeProperties>,
+    /// Replacement guest policy; only the organizer of a Google event may
+    /// change it, for the whole event or series. Omit to leave it untouched.
+    pub guest_policy: Option<GuestPolicy>,
     /// How much of a recurring series the update covers. Omit to let
     /// `recurrenceId` decide: the identified occurrence alone when one is
     /// supplied, otherwise the whole event or series. An explicit
@@ -279,6 +299,7 @@ pub enum CalendarRsvpScopeParam {
 #[serde(rename_all = "camelCase")]
 pub struct RsvpCalendarEventRequest {
     /// The owned connected address whose attendance is changed. Validated by the domain.
+    /// Omit to answer as the inbox the addressed copy syncs through.
     pub responding_email: Option<String>,
     /// Calendar whose copy of the event is answered, for an event synced
     /// from more than one calendar. Omit to answer on the canonical copy.
@@ -292,6 +313,46 @@ pub struct RsvpCalendarEventRequest {
     /// widened to the series.
     pub scope: Option<CalendarRsvpScopeParam>,
     /// Original-start key of the occurrence the response targets.
+    pub recurrence_id: Option<String>,
+}
+
+/// A guest added to an event.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CalendarGuestInputBody {
+    /// Guest email address.
+    pub email: String,
+    /// Whether attendance is optional.
+    #[serde(default)]
+    pub optional: bool,
+}
+
+impl From<CalendarGuestInputBody> for CalendarAttendeeInput {
+    fn from(body: CalendarGuestInputBody) -> Self {
+        Self {
+            email: body.email,
+            is_optional: body.optional,
+            response_status: None,
+        }
+    }
+}
+
+/// Request body adding guests to an event without touching anyone already
+/// invited.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct InviteCalendarEventGuestsRequest {
+    /// Calendar whose copy of the event is written, for an event synced from
+    /// more than one calendar. Omit to write the canonical copy.
+    pub calendar_id: Option<Uuid>,
+    /// Guests to add; anyone already on the event is skipped.
+    pub guests: Vec<CalendarGuestInputBody>,
+    /// How much of a recurring series gains the guests. Omit to let
+    /// `recurrenceId` decide: the identified occurrence alone when one is
+    /// supplied, otherwise the whole event or series. An explicit
+    /// `this_event` scope requires `recurrenceId`.
+    pub scope: Option<CalendarUpdateScopeParam>,
+    /// Original-start key of the occurrence the guests are added to.
     pub recurrence_id: Option<String>,
 }
 
@@ -310,6 +371,22 @@ pub enum CalendarMutationErrorCode {
     NoWritableCalendar,
     /// The connected account is not an attendee of the event.
     NotAttendee,
+    /// Only the organizer may change the event's guest policy.
+    NotOrganizer,
+    /// Only the organizer may invite guests: the organizer does not let
+    /// guests invite others, or the event is an Outlook meeting.
+    GuestsCannotInvite,
+    /// The organizer hides the guest list, so a guest cannot add guests.
+    GuestListHidden,
+    /// The organizer does not let guests change the event's details.
+    GuestsCannotModify,
+    /// The meeting is already on one of the requester's calendars.
+    AlreadyOnCalendar,
+    /// The provider refused to add a copy of the event to the calendar.
+    CopyRefused,
+    /// The event is a snapshot of a shared meeting, so an answer or a new
+    /// guest would never reach the meeting.
+    Snapshot,
     /// The request was invalid.
     InvalidInput,
     /// The calendar grant must be re-consented.
@@ -378,6 +455,41 @@ impl From<CalendarMutationError> for CalendarMutationApiError {
                 StatusCode::CONFLICT,
                 CalendarMutationErrorCode::NotAttendee,
                 "the connected account is not an attendee of this event".to_string(),
+            ),
+            CalendarMutationError::NotOrganizer => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::NotOrganizer,
+                "Only the organizer can change guest permissions.".to_string(),
+            ),
+            CalendarMutationError::GuestsCannotInvite => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::GuestsCannotInvite,
+                "Only the organizer can invite guests to this event.".to_string(),
+            ),
+            CalendarMutationError::GuestListHidden => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::GuestListHidden,
+                "Guests cannot be added while the organizer hides the guest list.".to_string(),
+            ),
+            CalendarMutationError::GuestsCannotModify => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::GuestsCannotModify,
+                "The organizer doesn't let guests change this event.".to_string(),
+            ),
+            CalendarMutationError::AlreadyOnCalendar => (
+                StatusCode::CONFLICT,
+                CalendarMutationErrorCode::AlreadyOnCalendar,
+                "this event is already on one of your calendars".to_string(),
+            ),
+            CalendarMutationError::CopyRefused(_) => (
+                StatusCode::CONFLICT,
+                CalendarMutationErrorCode::CopyRefused,
+                "Google Calendar won't add a copy of this event to that calendar.".to_string(),
+            ),
+            CalendarMutationError::Snapshot => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::Snapshot,
+                "This is your own copy of a shared event, so answers and guests won't reach its organizer.".to_string(),
             ),
             CalendarMutationError::InvalidInput(message) => (
                 StatusCode::BAD_REQUEST,
@@ -483,6 +595,7 @@ where
         reminders: request.reminders,
         conference: request.conference,
         out_of_office: request.out_of_office,
+        guest_policy: request.guest_policy,
     };
     let requester_id: &str = user.authorization.user.macro_user_id.as_ref();
     let event = if request.macro_call {
@@ -583,7 +696,7 @@ fn update_scope(
         (status = 200, description = "The updated calendar event", body = CalendarEvent),
         (status = 400, description = "Invalid event fields", body = CalendarMutationApiError),
         (status = 401, description = "Authentication required"),
-        (status = 403, description = "Calendar is read-only or needs reauthorization", body = CalendarMutationApiError),
+        (status = 403, description = "Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting", body = CalendarMutationApiError),
         (status = 404, description = "Event or targeted occurrence not found", body = CalendarMutationApiError),
         (status = 409, description = "The provider rejected the update", body = CalendarMutationApiError),
         (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
@@ -615,6 +728,7 @@ where
         reminders: request.reminders,
         conference: request.conference,
         out_of_office: request.out_of_office,
+        guest_policy: request.guest_policy,
     };
     let event = state
         .service
@@ -698,7 +812,7 @@ where
     responses(
         (status = 200, description = "The updated calendar event", body = CalendarEvent),
         (status = 401, description = "Authentication required"),
-        (status = 403, description = "Calendar is read-only or needs reauthorization", body = CalendarMutationApiError),
+        (status = 403, description = "Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting", body = CalendarMutationApiError),
         (status = 404, description = "Event not found", body = CalendarMutationApiError),
         (status = 409, description = "The connected account is not an attendee", body = CalendarMutationApiError),
         (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
@@ -739,4 +853,171 @@ where
         )
         .await?;
     Ok(Json(event))
+}
+
+/// Add guests to a calendar event without touching anyone already invited,
+/// and return its synced entity. The organizer, and guests the organizer lets
+/// invite others, may call it; Google emails the new guests.
+#[tracing::instrument(skip_all, fields(event_id = %event_id), err)]
+#[utoipa::path(
+    post,
+    path = "/events/{event_id}/guests",
+    tag = "calendar_events",
+    params(("event_id" = Uuid, Path, description = "Calendar event entity id")),
+    request_body = InviteCalendarEventGuestsRequest,
+    responses(
+        (status = 200, description = "The updated calendar event", body = CalendarEvent),
+        (status = 400, description = "Invalid guests or scope", body = CalendarMutationApiError),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Calendar is read-only, only the organizer can invite guests, the event is a snapshot of a shared meeting, or the calendar needs reauthorization", body = CalendarMutationApiError),
+        (status = 404, description = "Event or occurrence not found", body = CalendarMutationApiError),
+        (status = 409, description = "The connected account neither organizes nor attends the event", body = CalendarMutationApiError),
+        (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
+    )
+)]
+pub async fn invite_calendar_event_guests<S, L, Auth>(
+    State(state): State<CalendarMutationRouterState<S, L, Auth>>,
+    user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    Path(event_id): Path<Uuid>,
+    Json(request): Json<InviteCalendarEventGuestsRequest>,
+) -> Result<Json<CalendarEvent>, CalendarMutationApiError>
+where
+    S: CalendarMutationService,
+    L: MeetingLinkProvider,
+    Auth: MacroAuthorizationService,
+{
+    let scope = match (request.scope, request.recurrence_id) {
+        (Some(CalendarUpdateScopeParam::All), _) | (None, None) => CalendarUpdateScope::All,
+        (Some(CalendarUpdateScopeParam::ThisEvent), Some(recurrence_id))
+        | (None, Some(recurrence_id)) => CalendarUpdateScope::ThisEvent { recurrence_id },
+        (Some(CalendarUpdateScopeParam::ThisEvent), None) => {
+            return Err(CalendarMutationApiError {
+                code: CalendarMutationErrorCode::InvalidInput,
+                message: "a this-event invite requires recurrenceId".to_string(),
+                status: StatusCode::BAD_REQUEST,
+            });
+        }
+    };
+    let event = state
+        .service
+        .invite_guests(
+            user.authorization.user.macro_user_id.as_ref(),
+            event_id,
+            request.calendar_id,
+            request.guests.into_iter().map(Into::into).collect(),
+            scope,
+        )
+        .await?;
+    Ok(Json(event))
+}
+
+/// Request body adding a channel-shared event to the requester's calendar.
+#[derive(Debug, Default, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CopyCalendarEventRequest {
+    /// Google calendar to add the copy to; defaults to the requester's
+    /// primary inbox's primary calendar.
+    pub calendar_id: Option<Uuid>,
+}
+
+/// Add a snapshot of an event shared with one of the requester's channels to
+/// one of their Google calendars and return the synced snapshot. The
+/// snapshot keeps the meeting's iCalendar UID and organizer, lists only the
+/// requester as a guest, and carries no join link; nobody is notified.
+#[tracing::instrument(skip_all, fields(event_id = %event_id), err)]
+#[utoipa::path(
+    post,
+    path = "/events/{event_id}/copy",
+    tag = "calendar_events",
+    params(("event_id" = Uuid, Path, description = "Shared calendar event entity id")),
+    request_body = CopyCalendarEventRequest,
+    responses(
+        (status = 201, description = "The copy on the requester's calendar", body = CalendarEvent),
+        (status = 400, description = "The event cannot be copied, or the calendar is not a Google calendar", body = CalendarMutationApiError),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Calendar is read-only or needs reauthorization", body = CalendarMutationApiError),
+        (status = 404, description = "Event not found or not shared with the requester", body = CalendarMutationApiError),
+        (status = 409, description = "Already on the requester's calendar, no writable calendar, or the provider refused the copy", body = CalendarMutationApiError),
+        (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
+    )
+)]
+pub async fn copy_calendar_event<S, L, Auth>(
+    State(state): State<CalendarMutationRouterState<S, L, Auth>>,
+    user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    Path(event_id): Path<Uuid>,
+    Json(request): Json<CopyCalendarEventRequest>,
+) -> Result<(StatusCode, Json<CalendarEvent>), CalendarMutationApiError>
+where
+    S: CalendarMutationService,
+    L: MeetingLinkProvider,
+    Auth: MacroAuthorizationService,
+{
+    let event = state
+        .service
+        .copy_shared_event(
+            user.authorization.user.macro_user_id.as_ref(),
+            event_id,
+            request.calendar_id,
+        )
+        .await?;
+    Ok((StatusCode::CREATED, Json(event)))
+}
+
+/// How a sharer answers a request to join their event.
+#[derive(Clone, Copy, Debug, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CalendarJoinRequestDecision {
+    /// Add the requester as a guest, which sends them the invitation.
+    Accept,
+    /// Turn the request down. The requester is not told.
+    Decline,
+}
+
+/// Request body answering a join request.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RespondToJoinRequestRequest {
+    /// The sharer's answer.
+    pub decision: CalendarJoinRequestDecision,
+}
+
+/// Answer a request to join an event the requester can change and return
+/// where it now stands. Accepting adds the guest through the invite path; an
+/// already answered request is returned unchanged.
+#[tracing::instrument(skip_all, fields(request_id = %request_id), err)]
+#[utoipa::path(
+    put,
+    path = "/join-requests/{request_id}",
+    tag = "calendar_events",
+    params(("request_id" = Uuid, Path, description = "Join request id")),
+    request_body = RespondToJoinRequestRequest,
+    responses(
+        (status = 200, description = "The answered join request", body = CalendarJoinRequest),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Calendar is read-only, the organizer doesn't let guests invite others, or the calendar needs reauthorization", body = CalendarMutationApiError),
+        (status = 404, description = "Request not found or its event cannot be changed by the requester", body = CalendarMutationApiError),
+        (status = 409, description = "The provider rejected the new guest", body = CalendarMutationApiError),
+        (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
+    )
+)]
+pub async fn respond_to_join_request<S, L, Auth>(
+    State(state): State<CalendarMutationRouterState<S, L, Auth>>,
+    user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    Path(request_id): Path<Uuid>,
+    Json(request): Json<RespondToJoinRequestRequest>,
+) -> Result<Json<CalendarJoinRequest>, CalendarMutationApiError>
+where
+    S: CalendarMutationService,
+    L: MeetingLinkProvider,
+    Auth: MacroAuthorizationService,
+{
+    let answered = state
+        .service
+        .respond_to_join_request(
+            user.authorization.user.macro_user_id.as_ref(),
+            request_id,
+            matches!(request.decision, CalendarJoinRequestDecision::Accept),
+        )
+        .await?;
+    Ok(Json(answered))
 }

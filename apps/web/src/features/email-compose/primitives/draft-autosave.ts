@@ -16,8 +16,6 @@ export function createDraftAutosave<Snapshot, Result>(options: {
   let queue: Promise<Result | undefined> = Promise.resolve(undefined);
   let localWrites: Promise<void> = Promise.resolve();
   let newestSnapshot = 0;
-  const [inputIdle, setInputIdle] = createSignal(true);
-  const [shouldAcknowledge, setShouldAcknowledge] = createSignal(true);
   const [localSaveState, setLocalSaveState] = createSignal<
     'saving' | 'saved' | 'failed'
   >('saved');
@@ -54,7 +52,6 @@ export function createDraftAutosave<Snapshot, Result>(options: {
   const cancel = () => {
     scheduled.clear();
     pending = undefined;
-    setInputIdle(true);
   };
   const enqueue = (snapshot: Snapshot, local: Promise<void>) => {
     const write = async () => {
@@ -64,16 +61,11 @@ export function createDraftAutosave<Snapshot, Result>(options: {
     queue = queue.then(write, write);
     return queue;
   };
-  const save = (
-    snapshot = options.capture(),
-    saveOptions: { acknowledge?: boolean } = {}
-  ) => {
-    setShouldAcknowledge(saveOptions.acknowledge !== false);
+  const save = (snapshot = options.capture()) => {
     cancel();
     return enqueue(snapshot, saveLocally(snapshot));
   };
   const scheduled = debounce(() => {
-    setInputIdle(true);
     if (options.paused()) return;
     void save().catch((error) => options.onError?.(error));
   }, 500);
@@ -89,15 +81,16 @@ export function createDraftAutosave<Snapshot, Result>(options: {
   });
   return {
     save,
+    async saveLocal(snapshot = options.capture()) {
+      cancel();
+      await saveLocally(snapshot);
+    },
     cancel,
     settled: () => queue,
     flushLocal,
     localSaveState,
-    acknowledgeSaved: () => inputIdle() && shouldAcknowledge(),
     schedule() {
       if (options.paused()) return;
-      setShouldAcknowledge(true);
-      setInputIdle(false);
       const snapshot = options.capture();
       pending = { snapshot };
       void saveLocally(snapshot).catch((error) => options.onError?.(error));

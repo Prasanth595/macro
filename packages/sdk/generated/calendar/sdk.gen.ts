@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CalendarEventProviderUrlData, CalendarEventProviderUrlErrors, CalendarEventProviderUrlResponses, CalendarReplacementStatusData, CalendarReplacementStatusErrors, CalendarReplacementStatusResponses, ConfirmCalendarReplacementData, ConfirmCalendarReplacementErrors, ConfirmCalendarReplacementResponses, CreateCalendarEventData, CreateCalendarEventErrors, CreateCalendarEventResponses, DeleteCalendarEventData, DeleteCalendarEventErrors, DeleteCalendarEventResponses, DiscardCalendarReplacementData, DiscardCalendarReplacementErrors, DiscardCalendarReplacementResponses, GetAvailabilityCalendarsData, GetAvailabilityCalendarsResponses, GetTeamSharingData, GetTeamSharingResponses, HealthHandlerData, HealthHandlerResponses, ListCalendarsData, ListCalendarsErrors, ListCalendarsResponses, PrepareCalendarReplacementData, PrepareCalendarReplacementErrors, PrepareCalendarReplacementResponses, RsvpCalendarEventData, RsvpCalendarEventErrors, RsvpCalendarEventResponses, SetAvailabilityCalendarData, SetAvailabilityCalendarResponses, SetTeamSharingData, SetTeamSharingResponses, UpdateCalendarEventData, UpdateCalendarEventErrors, UpdateCalendarEventResponses } from './types.gen';
+import type { CalendarEventProviderUrlData, CalendarEventProviderUrlErrors, CalendarEventProviderUrlResponses, CalendarReplacementStatusData, CalendarReplacementStatusErrors, CalendarReplacementStatusResponses, ConfirmCalendarReplacementData, ConfirmCalendarReplacementErrors, ConfirmCalendarReplacementResponses, CopyCalendarEventData, CopyCalendarEventErrors, CopyCalendarEventResponses, CreateCalendarEventData, CreateCalendarEventErrors, CreateCalendarEventResponses, DeleteCalendarEventData, DeleteCalendarEventErrors, DeleteCalendarEventResponses, DiscardCalendarReplacementData, DiscardCalendarReplacementErrors, DiscardCalendarReplacementResponses, GetAvailabilityCalendarsData, GetAvailabilityCalendarsResponses, GetTeamSharingData, GetTeamSharingResponses, HealthHandlerData, HealthHandlerResponses, InviteCalendarEventGuestsData, InviteCalendarEventGuestsErrors, InviteCalendarEventGuestsResponses, ListCalendarsData, ListCalendarsErrors, ListCalendarsResponses, PrepareCalendarReplacementData, PrepareCalendarReplacementErrors, PrepareCalendarReplacementResponses, RespondToJoinRequestData, RespondToJoinRequestErrors, RespondToJoinRequestResponses, RsvpCalendarEventData, RsvpCalendarEventErrors, RsvpCalendarEventResponses, SetAvailabilityCalendarData, SetAvailabilityCalendarResponses, SetTeamSharingData, SetTeamSharingResponses, UpdateCalendarEventData, UpdateCalendarEventErrors, UpdateCalendarEventResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -121,6 +121,39 @@ export class Sdk extends HeyApiClient {
     }
     
     /**
+     * Add a snapshot of an event shared with one of the requester's channels to
+     * one of their Google calendars and return the synced snapshot. The
+     * snapshot keeps the meeting's iCalendar UID and organizer, lists only the
+     * requester as a guest, and carries no join link; nobody is notified.
+     */
+    public copyCalendarEvent<ThrowOnError extends boolean = false>(options: Options<CopyCalendarEventData, ThrowOnError>): RequestResult<CopyCalendarEventResponses, CopyCalendarEventErrors, ThrowOnError> {
+        return (options.client ?? this.client).post<CopyCalendarEventResponses, CopyCalendarEventErrors, ThrowOnError>({
+            url: '/events/{event_id}/copy',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Add guests to a calendar event without touching anyone already invited,
+     * and return its synced entity. The organizer, and guests the organizer lets
+     * invite others, may call it; Google emails the new guests.
+     */
+    public inviteCalendarEventGuests<ThrowOnError extends boolean = false>(options: Options<InviteCalendarEventGuestsData, ThrowOnError>): RequestResult<InviteCalendarEventGuestsResponses, InviteCalendarEventGuestsErrors, ThrowOnError> {
+        return (options.client ?? this.client).post<InviteCalendarEventGuestsResponses, InviteCalendarEventGuestsErrors, ThrowOnError>({
+            url: '/events/{event_id}/guests',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
      * Resolve an authorized event's provider link for Outlook-only actions.
      */
     public calendarEventProviderUrl<ThrowOnError extends boolean = false>(options: Options<CalendarEventProviderUrlData, ThrowOnError>): RequestResult<CalendarEventProviderUrlResponses, CalendarEventProviderUrlErrors, ThrowOnError> {
@@ -160,6 +193,22 @@ export class Sdk extends HeyApiClient {
      */
     public healthHandler<ThrowOnError extends boolean = false>(options?: Options<HealthHandlerData, ThrowOnError>): RequestResult<HealthHandlerResponses, unknown, ThrowOnError> {
         return (options?.client ?? this.client).get<HealthHandlerResponses, unknown, ThrowOnError>({ url: '/health', ...options });
+    }
+    
+    /**
+     * Answer a request to join an event the requester can change and return
+     * where it now stands. Accepting adds the guest through the invite path; an
+     * already answered request is returned unchanged.
+     */
+    public respondToJoinRequest<ThrowOnError extends boolean = false>(options: Options<RespondToJoinRequestData, ThrowOnError>): RequestResult<RespondToJoinRequestResponses, RespondToJoinRequestErrors, ThrowOnError> {
+        return (options.client ?? this.client).put<RespondToJoinRequestResponses, RespondToJoinRequestErrors, ThrowOnError>({
+            url: '/join-requests/{request_id}',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
     }
     
     /**

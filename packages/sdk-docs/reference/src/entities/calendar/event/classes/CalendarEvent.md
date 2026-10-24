@@ -34,6 +34,31 @@ mutations, but reading a field on it throws.
 
 ## Methods
 
+### addToCalendar()
+
+> **addToCalendar**(`options?`): `Promise`\<`CalendarEvent`\>
+
+Add a snapshot of an event shared with one of the requester's
+channels to one of their Google calendars, and return a handle to the
+synced snapshot. The snapshot keeps the meeting's iCalendar UID and
+organizer, lists only the requester as a guest, and carries no join link;
+nobody is notified, and answers or guests on it never reach the meeting.
+Refused with `already_on_calendar` when the meeting is already on one of
+their calendars, and with `copy_refused` when Google will not import it.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | \{ `calendar?`: [`Calendar`](../../calendar/classes/Calendar.md); \} |
+| `options.calendar?` | [`Calendar`](../../calendar/classes/Calendar.md) |
+
+#### Returns
+
+`Promise`\<`CalendarEvent`\>
+
+***
+
 ### delete()
 
 > **delete**(`options?`): `Promise`\<`void`\>
@@ -49,6 +74,42 @@ Delete the event (or a scoped part of a recurring series) at its provider.
 #### Returns
 
 `Promise`\<`void`\>
+
+***
+
+### ics()
+
+> **ics**(): `Promise`\<`string`\>
+
+The event as an iCalendar (`.ics`) document: its series, title,
+description, location and organizer, never its guests or join link.
+Available for the requester's own events and ones shared with a channel
+they belong to.
+
+#### Returns
+
+`Promise`\<`string`\>
+
+***
+
+### inviteGuests()
+
+> **inviteGuests**(`options`): `Promise`\<`CalendarEvent`\>
+
+Add guests without touching anyone already invited, and return a handle
+to the synced record. The organizer may, and so may a guest the organizer
+lets invite others (see [CalendarEvent.viewerCan](#property-viewercan)); Google emails
+the new guests.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options` | [`InviteGuestsOptions`](../interfaces/InviteGuestsOptions.md) |
+
+#### Returns
+
+`Promise`\<`CalendarEvent`\>
 
 ***
 

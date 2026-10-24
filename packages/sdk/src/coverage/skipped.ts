@@ -25,11 +25,6 @@ import type { Sdk as StorageSdk } from '../../generated/storage/sdk.gen';
 import type { Sdk as UnfurlSdk } from '../../generated/unfurl/sdk.gen';
 
 export const agentHarnessExcluded = [
-  // Claude Cloud sign-in is an app-internal auth flow, not SDK surface.
-  'complete',
-  'disconnect',
-  'start',
-  'status',
   'loadAgentModelsHandler',
   'discoverAgentCapabilitiesHandler',
   'previewAgentSessions',
@@ -146,6 +141,8 @@ export const authBacklog = [] as const satisfies readonly (keyof AuthSdk)[];
 export const calendarExcluded = [
   // Health probe is infra, not SDK surface.
   'healthHandler',
+  // Answering a request to join a channel-shared event is a web-app action.
+  'respondToJoinRequest',
 ] as const satisfies readonly (keyof CalendarSdk)[];
 
 export const calendarBacklog =
@@ -278,6 +275,10 @@ export const staticFilesBacklog =
   [] as const satisfies readonly (keyof StaticFilesSdk)[];
 
 export const storageExcluded = [
+  // Asking to join a channel-shared event, and its sharer's request list,
+  // are web-app actions.
+  'listJoinRequests',
+  'requestToJoin',
   // Browser Loro-session initialization/publication; SDK layout writes use putFormLayout.
   'collaborateForm',
   // Slack archive imports are browser-admin workflows, not SDK surface in v1.

@@ -64,6 +64,7 @@ import {
 } from './queries/use-tasks-query';
 import { tasksTabSearch, tasksTabSearchCodec } from './tasks-tab-search';
 import type {
+  TaskCreateOptions,
   TaskDetailTarget,
   TaskSortId,
   TasksTab,
@@ -87,7 +88,7 @@ export type TasksViewProviderProps = ContextProviderProps & {
   ) => boolean;
   onCloseTask?: () => void;
   /** Host-owned task creation, including scope and permissions for embedded views. */
-  onCreateTask?: (dueDate?: Date) => void;
+  onCreateTask?: (options?: TaskCreateOptions) => void;
 };
 
 export type TasksListActivationMetadata = {
@@ -104,7 +105,7 @@ export type TasksViewContext = {
   scopeKey?: string;
   state: Store<TasksViewState>;
   calendar: Accessor<TaskCalendar>;
-  createTask?: (dueDate?: Date) => void;
+  createTask?: TasksViewProviderProps['onCreateTask'];
   projectsEnabled: Accessor<boolean>;
   ganttEnabled: Accessor<boolean>;
   setState: SetStoreFunction<TasksViewState>;

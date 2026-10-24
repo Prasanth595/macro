@@ -21,6 +21,16 @@ queries used across Rust services.
 - Not here: domain logic, authorization decisions, or caching built on top of
   these queries — those live in the owning domain crate/service that calls in.
 
+`agent_session_notification` is an additive leased outbox owned by
+`agent_session`. Review adapters use its transaction-aware producer port;
+notification frames have their own log direction. Session deletion cascades
+outbox rows, and migrations retain compatibility with prior table writers.
+
+The agent-session notification migration backfills legacy review outcomes and
+bridges old-producer writes during rollout; keep that bridge until legacy
+review producers have retired. Encode empty legacy item lists as JSON arrays so
+the typed notification reader can decode them.
+
 ## Boundaries
 
 - Depends on: `entity_access_db_utils`, `entity_registry_db_utils`,
@@ -53,6 +63,11 @@ stable across retries, and `announced` records successful pending-message posts.
 The additive migrations are compatible with older service binaries; session
 deletion cascades its rows.
 
+`agent_preview_*` stores preview-specific ownership, credential hashes and
+watchers; its queries and policy belong to `agent_preview`. Leases have a bounded
+TTL, deletion cascades credentials, and sweepers reclaim expired watchers and
+unreferenced replicas. These additive tables do not change agent-session claims.
+
 ## Gotchas
 
 - Migrations deploy before service code: never drop a column/table in the
@@ -69,3 +84,12 @@ deletion cascades its rows.
 
 - Rules: `.agents/rules/rust/db.md`, `.agents/rules/rust/architecture.md` ·
   Docs: `docs/development/database.md` · Skill: `dump-schema`
+
+Email send migrations add `email_messages.draft_generation` and attempt handle/inbox
+fences. Deploy the additive migrations and all generation-aware writers before
+enabling the independent email outbox; old writers do not enforce these fences.
+
+`preserve_deleted_email_send_delivery` defers active-send deletion before compacting
+content. Bypass retention for inboxes marked `deleting_at` and direct inbox
+cascades; other parent cascades must not destroy unresolved delivery state. Deferred markers retain provider identity and
+draft generation so Undo/resend cannot inherit an old deletion.

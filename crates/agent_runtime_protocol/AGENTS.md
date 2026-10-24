@@ -33,13 +33,21 @@ payloads.
 - Depends on: nothing crate-specific (foundational protocol crate).
 - Used by: `agent_session`, `agent_session_realtime`, `agent_harness`,
   `agent_egress`, `agent_inmem`, `webhook`, `complete_graph`, and the
-  Cursor/Codex/Claude cloud-agent adapter crates.
+  Cursor/Codex cloud-agent adapter crates.
 
 ## Recipes
 
 - Add a new message type: `src/domain/` (schema) → `src/testing/wire_conformance.rs`
   (conformance test) → `src/bin/export_types.rs` if the frontend needs the
   generated type.
+
+`domain/notification.rs` owns typed system events and their ACP metadata/XML.
+Notification-only invocations use `AgentAction::notification`; public control must
+reject caller-supplied notification metadata. Payloads contain facts, not drafts.
+The fold reuses this tagged event enum for its generated TypeScript union;
+retain Specta derives on event payloads and preserve the producer wire shape.
+Allow exact `<noop/>` only before any tool call in a notification turn; prompt
+instructions must match the fold's conservative treatment of all tool activity.
 
 ## Checks
 

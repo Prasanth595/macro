@@ -200,7 +200,7 @@ pub fn run_with(builder: tauri::Builder<AppRuntime>) {
 
     #[cfg(any(target_os = "ios", target_os = "macos"))]
     {
-        builder = builder.on_web_content_process_terminate(|webview| {
+        let on_terminate = |webview: &tauri::Webview<AppRuntime>| {
             tracing::warn!(webview = %webview.label(), "WebContent process terminated; reloading");
             if let Some(state) = webview.try_state::<diagnostics::Diagnostics>() {
                 let _ = state.record_web_content_termination().inspect_err(|error| {
@@ -212,7 +212,16 @@ pub fn run_with(builder: tauri::Builder<AppRuntime>) {
             let _ = webview.reload().inspect_err(|error| {
                 tracing::error!(%error, "Failed to reload terminated WebContent process");
             });
-        });
+        };
+        #[cfg(feature = "cef")]
+        {
+            builder = builder
+                .on_web_content_process_terminate(move |webview, _details| on_terminate(webview));
+        }
+        #[cfg(not(feature = "cef"))]
+        {
+            builder = builder.on_web_content_process_terminate(on_terminate);
+        }
     }
 
     #[cfg(desktop)]
@@ -245,6 +254,7 @@ pub fn run_with(builder: tauri::Builder<AppRuntime>) {
             .plugin(tauri_plugin_auth::init())
             .plugin(tauri_plugin_virtual_keyboard::init())
             .plugin(tauri_plugin_edit_menu::init())
+            .plugin(tauri_plugin_file_export::init())
             .plugin(tauri_plugin_input_accessory::init())
             .plugin(tauri_plugin_network_status::init())
             .plugin(tauri_plugin_pasteboard::init())
@@ -357,6 +367,7 @@ pub fn run_with(builder: tauri::Builder<AppRuntime>) {
             desktop_update::get_native_update_status,
             desktop_update::restart_native_update,
             diagnostics::read_desktop_diagnostics,
+            diagnostics::record_frontend_diagnostic,
             #[cfg(target_os = "linux")]
             linux_notification::send_linux_notification,
             #[cfg(target_os = "linux")]
@@ -480,6 +491,9 @@ pub fn run_with(builder: tauri::Builder<AppRuntime>) {
             ..
         } => {
             tracing::debug!(window_label = %label, "mobile window resumed");
+            if let Some(state) = app_handle.try_state::<diagnostics::Diagnostics>() {
+                state.record_native_event(diagnostics::events::NativeEvent::Foreground);
+            }
             let app = app_handle.clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = retry_waiting_for_wifi(&app).await {
@@ -507,6 +521,15 @@ pub fn run_with(builder: tauri::Builder<AppRuntime>) {
                         }
                     }
                 });
+            }
+        }
+        #[cfg(mobile)]
+        RunEvent::WindowEvent {
+            event: tauri::WindowEvent::Suspended,
+            ..
+        } => {
+            if let Some(state) = app_handle.try_state::<diagnostics::Diagnostics>() {
+                state.record_native_event(diagnostics::events::NativeEvent::Background);
             }
         }
         #[cfg(desktop)]
