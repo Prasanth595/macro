@@ -97,10 +97,7 @@ function copyImages(from: LexicalEditor, { cut }: { cut: boolean }) {
   return nodes;
 }
 
-function pasteAtEnd(
-  to: LexicalEditor,
-  nodes: ReturnType<typeof copyImages>
-) {
+function pasteAtEnd(to: LexicalEditor, nodes: ReturnType<typeof copyImages>) {
   to.update(
     () => {
       $getRoot().selectEnd();
