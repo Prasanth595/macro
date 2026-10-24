@@ -33,7 +33,8 @@ pub struct GraphqlNotificationInboxActor {
     /// The kind of principal.
     kind: GraphqlNotificationInboxActorKind,
     /// The user id for a user, the bot id for an agent; absent for Macro.
-    id: Option<ID>,
+    /// Not `id`: the client cache reads an `id` field as entity identity.
+    principal_id: Option<String>,
     /// The display name when the row carries it (an agent's bot name);
     /// users are looked up by id.
     name: Option<String>,
@@ -44,17 +45,17 @@ impl From<InboxActor> for GraphqlNotificationInboxActor {
         match actor {
             InboxActor::User(user) => Self {
                 kind: GraphqlNotificationInboxActorKind::User,
-                id: Some(ID(user.as_ref().to_string())),
+                principal_id: Some(user.as_ref().to_string()),
                 name: None,
             },
             InboxActor::Agent { bot_id, name } => Self {
                 kind: GraphqlNotificationInboxActorKind::Agent,
-                id: Some(ID(bot_id.to_string())),
+                principal_id: Some(bot_id.to_string()),
                 name: Some(name),
             },
             InboxActor::Macro => Self {
                 kind: GraphqlNotificationInboxActorKind::Macro,
-                id: None,
+                principal_id: None,
                 name: None,
             },
         }

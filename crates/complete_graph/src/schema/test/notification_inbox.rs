@@ -261,7 +261,7 @@ async fn notification_inbox_pages_groups_with_their_rows() {
                             entity { __typename id }
                             rows {
                                 id rowType threadId latestAt unseen count revision
-                                actor { kind id name }
+                                actor { kind principalId name }
                                 actions { kind targetId url }
                                 notifications(limit: 1) { id eventType }
                             }
@@ -289,7 +289,7 @@ async fn notification_inbox_pages_groups_with_their_rows() {
     assert_eq!(row["count"], 2);
     assert_eq!(
         row["actor"],
-        serde_json::json!({ "kind": "USER", "id": VALID_USER_ID, "name": null })
+        serde_json::json!({ "kind": "USER", "principalId": VALID_USER_ID, "name": null })
     );
     assert_eq!(
         row["actions"],
