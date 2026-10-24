@@ -932,4 +932,5 @@ See [Tasks](tasks.md#reviews-view) for verification.
 
 The desktop `Create` → `Task` modal uses the standard dialog panel, circular
 icon controls, and a pill-shaped `Create Task` button with 16px outer padding.
-The mobile task drawer retains its existing layout.
+The mobile task drawer keeps its layout apart from the wrapping footer described
+above.

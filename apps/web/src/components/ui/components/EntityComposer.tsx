@@ -76,10 +76,7 @@ function Footer(props: SlotProps) {
   return (
     <div
       {...rest}
-      class={cn(
-        'shrink-0 flex flex-wrap justify-between items-end gap-2',
-        local.class
-      )}
+      class={cn('shrink-0 flex justify-between items-end gap-2', local.class)}
     />
   );
 }
