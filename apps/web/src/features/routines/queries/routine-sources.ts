@@ -1,4 +1,5 @@
 import { fireAndForget } from '@core/util/fireAndForget';
+import { thrownResultErrorHasCode } from '@core/util/result';
 import type { ScheduledAction } from '@service-scheduled-action/generated/schemas';
 import type { Accessor } from 'solid-js';
 import { createMemo, onMount } from 'solid-js';
@@ -48,6 +49,8 @@ function toRoutine(schedule: ScheduledAction): RoutineSnapshot {
     draft: draftFromSchedule(schedule),
   };
 }
+
+const UNAVAILABLE_CODES = ['UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND'];
 
 type DetailCallbacks = {
   onError(title: string, error: unknown): void;
@@ -99,6 +102,11 @@ export function createRoutineDetailSource(
     },
     loading: () => detail.isPending,
     error: () => detail.isError,
+    unavailable: () =>
+      detail.isError &&
+      UNAVAILABLE_CODES.some((code) =>
+        thrownResultErrorHasCode(detail.error, code)
+      ),
     async update(draft) {
       const previous = raw();
       const body = previous && draftToUpdateBody(draft, previous);

@@ -2,7 +2,7 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import CopyIcon from '@phosphor/copy.svg';
 import DotsIcon from '@phosphor/dots-three.svg';
 import TrashIcon from '@phosphor/trash-simple.svg';
-import { Dropdown } from '@ui';
+import { Dropdown, EmptyStatePanel } from '@ui';
 import { type Accessor, createSignal, Match, Show, Switch } from 'solid-js';
 import { RoutineEditor } from '../components/routine-editor';
 import { RoutineRunButton } from '../components/routine-run-button';
@@ -54,14 +54,25 @@ export function RoutineDetailView(props: {
     <Show
       when={schedule()}
       fallback={
-        <div class="flex size-full flex-col items-center justify-center gap-2 p-3 text-center text-sm text-ink-muted">
-          <Switch fallback={<>Routine not found.</>}>
-            <Match when={props.source.error() && !schedule()}>
-              Unable to load routine. Please try again.
-            </Match>
-            <Match when={props.source.loading()}>Loading…</Match>
-          </Switch>
-        </div>
+        <Show
+          when={!props.source.unavailable()}
+          fallback={
+            <EmptyStatePanel
+              centered
+              title="You don't have access to this routine"
+              description="Routines are private to their owner. It may also have been deleted."
+            />
+          }
+        >
+          <div class="flex size-full flex-col items-center justify-center gap-2 p-3 text-center text-sm text-ink-muted">
+            <Switch fallback={<>Routine not found.</>}>
+              <Match when={props.source.error() && !schedule()}>
+                Unable to load routine. Please try again.
+              </Match>
+              <Match when={props.source.loading()}>Loading…</Match>
+            </Switch>
+          </div>
+        </Show>
       }
     >
       {(routine) => (

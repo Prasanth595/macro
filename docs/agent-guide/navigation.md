@@ -838,10 +838,10 @@ their history and do not repeat.
 
 An `m-document-mention` with `blockName: "routine"`, the returned routine ID,
 and the saved name renders as a clickable mention in an agent reply. Routines
-do not appear in the mention menu. Anyone signed in with the link can view its
-settings, instructions, and triggers. Only the owner can edit, enable, run,
-duplicate, delete, or view run history; other users do not see those controls.
-Run conversations keep their own permissions.
+do not appear in the mention menu. Routines are private to their owner: anyone
+else who opens the mention, including a teammate, sees **You don't have access
+to this routine**, the same view as for a deleted routine, and nothing of its
+settings or instructions. Run conversations keep their own permissions.
 
 **Run History** shows outcome, duration, and firing time. History loads fifty
 rows at a time; **Load more runs** reveals older records. Accessible run rows
