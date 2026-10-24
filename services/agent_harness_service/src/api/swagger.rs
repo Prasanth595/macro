@@ -63,6 +63,7 @@ impl Modify for SecurityAddon {
         agent_code_mode::inbound::axum_router::get_review,
         agent_code_mode::inbound::axum_router::list_reviews,
         agent_code_mode::inbound::axum_router::decide_review,
+        agent_code_mode::inbound::axum_router::decide_review_from_inbox,
         axum_router::create_agent_session_handler,
         axum_router::warm_agent_session_handler,
         axum_router::get_agent_session_handler,

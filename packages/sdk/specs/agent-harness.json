@@ -2415,6 +2415,64 @@
         }
       }
     },
+    "/agent-sessions/{session_id}/reviews/{review_id}/inbox-decision": {
+      "post": {
+        "tags": ["agent-sessions"],
+        "summary": "Submit or dismiss drafts from the notifications inbox against the revision it showed.",
+        "operationId": "decide_session_review_from_inbox",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": ""
+          },
+          "403": {
+            "description": ""
+          },
+          "409": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/agent-sessions/{session_id}/sandbox-size": {
       "put": {
         "tags": ["agent-sessions"],

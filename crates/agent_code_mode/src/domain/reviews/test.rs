@@ -2,6 +2,7 @@ use super::*;
 use crate::domain::{ExecutionRecord, ExecutionStatus};
 use macro_user_id::cowlike::CowLike;
 
+mod inbox;
 mod notifications;
 use serde_json::json;
 use std::{

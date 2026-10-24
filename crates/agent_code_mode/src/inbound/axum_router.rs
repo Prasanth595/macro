@@ -88,6 +88,10 @@ where
             get(get_review::<Access, Auth>).post(decide_review::<Access, Auth>),
         )
         .route(
+            "/{session_id}/reviews/{review_id}/inbox-decision",
+            post(decide_review_from_inbox::<Access, Auth>),
+        )
+        .route(
             "/{session_id}/code-executions/{execution_id}/reviews",
             get(list_reviews::<Access, Auth>),
         )
@@ -199,6 +203,30 @@ pub async fn decide_review<Access: EntityAccessService, Auth: MacroAuthorization
     state
         .reviews
         .decide(
+            &access.entity_access_receipt,
+            &caller.authorization.macro_user_id,
+            ReviewId(id),
+            decision,
+        )
+        .await
+        .map(Json)
+        .map_err(CodeExecutionApiError)
+}
+#[utoipa::path(post, path = "/agent-sessions/{session_id}/reviews/{review_id}/inbox-decision", tag = "agent-sessions", operation_id = "decide_session_review_from_inbox", params(("session_id" = Uuid, Path), ("review_id" = Uuid, Path)), request_body = ReviewDecision, responses((status = 200, body = ReviewRecord), (status = 400), (status = 403), (status = 409)))]
+/// Submit or dismiss drafts from the notifications inbox against the revision it showed.
+pub async fn decide_review_from_inbox<
+    Access: EntityAccessService,
+    Auth: MacroAuthorizationService,
+>(
+    access: AgentSessionAccessLevelExtractor<EditAccessLevel, Access, Auth>,
+    caller: MacroAuthorizationExtractor<Auth, UserOnly>,
+    State(state): State<CodeExecutionRouterState<Access, Auth>>,
+    Path((_session, id)): Path<(Uuid, Uuid)>,
+    Json(decision): Json<ReviewDecision>,
+) -> Result<Json<ReviewRecord>, CodeExecutionApiError> {
+    state
+        .reviews
+        .decide_from_inbox(
             &access.entity_access_receipt,
             &caller.authorization.macro_user_id,
             ReviewId(id),

@@ -49,8 +49,11 @@ ACP presentation uses the session owner's transcript capability, independently
 of the account that later sends the email or creates the event. Cards require
 direct user authentication; `DecideReview` requires a real turn prompted by the
 review's acting account, and its Submit waits for `ReviewActions::approvable`
-(default: always), the hook a kind uses to refuse until it is ready. `GetReview`
-reads final
+(default: always), the hook a kind uses to refuse until it is ready. The
+notifications inbox decides through `POST /reviews/{id}/inbox-decision`
+(`ReviewService::decide_from_inbox`): the card's authorization, Submit and
+Dismiss only, Submit gated by `approvable` like chat, recorded as `via: inbox`.
+`GetReview` reads final
 drafts and outcomes. Legacy notificationId/notificationAttemptAt fields are no
 longer delivery state.
 

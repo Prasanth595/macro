@@ -2800,6 +2800,80 @@ export const decideSessionReview = async (
 };
 
 /**
+ * @summary Submit or dismiss drafts from the notifications inbox against the revision it showed.
+ */
+export type decideSessionReviewFromInboxResponse200 = {
+  data: ReviewRecord;
+  status: 200;
+};
+
+export type decideSessionReviewFromInboxResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type decideSessionReviewFromInboxResponse403 = {
+  data: void;
+  status: 403;
+};
+
+export type decideSessionReviewFromInboxResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type decideSessionReviewFromInboxResponseSuccess =
+  decideSessionReviewFromInboxResponse200 & {
+    headers: Headers;
+  };
+export type decideSessionReviewFromInboxResponseError = (
+  | decideSessionReviewFromInboxResponse400
+  | decideSessionReviewFromInboxResponse403
+  | decideSessionReviewFromInboxResponse409
+) & {
+  headers: Headers;
+};
+
+export type decideSessionReviewFromInboxResponse =
+  | decideSessionReviewFromInboxResponseSuccess
+  | decideSessionReviewFromInboxResponseError;
+
+export const getDecideSessionReviewFromInboxUrl = (
+  sessionId: string,
+  reviewId: string
+) => {
+  return `/agent-sessions/${sessionId}/reviews/${reviewId}/inbox-decision`;
+};
+
+export const decideSessionReviewFromInbox = async (
+  sessionId: string,
+  reviewId: string,
+  reviewDecision: ReviewDecision,
+  options?: RequestInit
+): Promise<decideSessionReviewFromInboxResponse> => {
+  const res = await fetch(
+    getDecideSessionReviewFromInboxUrl(sessionId, reviewId),
+    {
+      ...options,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      body: JSON.stringify(reviewDecision),
+    }
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: decideSessionReviewFromInboxResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as decideSessionReviewFromInboxResponse;
+};
+
+/**
  * @summary Resize this session's sandbox and remember the size as the owner's default.
  */
 export type putAgentSessionSandboxSizeResponse200 = {

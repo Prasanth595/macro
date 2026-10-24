@@ -592,19 +592,53 @@ impl ReviewService {
             return Err(CodeModeError::Forbidden);
         }
         if let ReviewDecision::Submit { .. } = decision {
-            let record = self.store.get(session, id).await?;
-            if self.record_actor(&record).await? != *actor {
-                return Err(CodeModeError::Forbidden);
-            }
-            if !self.actions.approvable(actor, &record).await? {
-                return Err(CodeModeError::Invalid(
-                    "This review is not ready to approve yet. Check it again before approving."
-                        .into(),
-                ));
-            }
+            self.ensure_approvable(session, actor, id).await?;
         }
         self.decide_owned(session, actor, id, decision, DecisionVia::Chat)
             .await
+    }
+
+    /// The notifications inbox's actions: submit or dismiss drafts from
+    /// outside the session, with the card's authorization. Edits stay in the
+    /// review itself, and a submit waits until the review is approvable, as in
+    /// chat, because the inbox may be showing an older revision of the drafts.
+    pub async fn decide_from_inbox(
+        &self,
+        access: &EntityAccessReceipt<EditAccessLevel>,
+        actor: &MacroUserIdStr<'static>,
+        id: ReviewId,
+        decision: ReviewDecision,
+    ) -> Result<ReviewRecord, CodeModeError> {
+        let session = self.authorize(access, actor).await?;
+        match &decision {
+            ReviewDecision::Edit { .. } => {
+                return Err(CodeModeError::Invalid(
+                    "Open the review to edit its drafts.".into(),
+                ));
+            }
+            ReviewDecision::Submit { .. } => self.ensure_approvable(session, actor, id).await?,
+            ReviewDecision::Dismiss { .. } => {}
+        }
+        self.decide_owned(session, actor, id, decision, DecisionVia::Inbox)
+            .await
+    }
+
+    async fn ensure_approvable(
+        &self,
+        session: AgentSessionId,
+        actor: &MacroUserIdStr<'static>,
+        id: ReviewId,
+    ) -> Result<(), CodeModeError> {
+        let record = self.store.get(session, id).await?;
+        if self.record_actor(&record).await? != *actor {
+            return Err(CodeModeError::Forbidden);
+        }
+        if !self.actions.approvable(actor, &record).await? {
+            return Err(CodeModeError::Invalid(
+                "This review is not ready to approve yet. Check it again before approving.".into(),
+            ));
+        }
+        Ok(())
     }
 
     #[tracing::instrument(name = "review.decide", skip_all, fields(session_id = %session, review_id = %id.0), err)]

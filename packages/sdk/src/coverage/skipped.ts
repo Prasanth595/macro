@@ -25,6 +25,9 @@ import type { Sdk as StorageSdk } from '../../generated/storage/sdk.gen';
 import type { Sdk as UnfurlSdk } from '../../generated/unfurl/sdk.gen';
 
 export const agentHarnessExcluded = [
+  // The notifications inbox's entry point; SDK reviews decide through
+  // decideSessionReview, which records the same claim and outcome.
+  'decideSessionReviewFromInbox',
   'loadAgentModelsHandler',
   'discoverAgentCapabilitiesHandler',
   'previewAgentSessions',

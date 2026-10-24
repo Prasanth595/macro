@@ -3040,6 +3040,28 @@ export type DecideSessionReviewResponses = {
 
 export type DecideSessionReviewResponse = DecideSessionReviewResponses[keyof DecideSessionReviewResponses];
 
+export type DecideSessionReviewFromInboxData = {
+    body: ReviewDecision;
+    path: {
+        session_id: string;
+        review_id: string;
+    };
+    query?: never;
+    url: '/agent-sessions/{session_id}/reviews/{review_id}/inbox-decision';
+};
+
+export type DecideSessionReviewFromInboxErrors = {
+    400: unknown;
+    403: unknown;
+    409: unknown;
+};
+
+export type DecideSessionReviewFromInboxResponses = {
+    200: ReviewRecord;
+};
+
+export type DecideSessionReviewFromInboxResponse = DecideSessionReviewFromInboxResponses[keyof DecideSessionReviewFromInboxResponses];
+
 export type PutAgentSessionSandboxSizeData = {
     body: SandboxSizeBody;
     path: {
