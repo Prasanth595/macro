@@ -9,6 +9,10 @@ import * as schemas from './schemas';
 import type * as types from './types';
 
 type ToolParserMap = {
+  AddSharedCalendarEvent: {
+    call: types.AddSharedCalendarEvent;
+    response: types.ToolCalendarEvent;
+  };
   AddToPipeline: {
     call: types.AddToPipeline;
     response: types.AddToPipelineResponse;
@@ -523,6 +527,10 @@ type ToolParserMap = {
 };
 
 const toolParserMap = {
+  AddSharedCalendarEvent: {
+    call: schemas.AddSharedCalendarEvent,
+    response: schemas.ToolCalendarEvent,
+  },
   AddToPipeline: {
     call: schemas.AddToPipeline,
     response: schemas.AddToPipelineResponse,
@@ -1105,6 +1113,10 @@ type NamedRawTool = {
 };
 
 type ToolDataMap = {
+  AddSharedCalendarEvent: {
+    call: types.AddSharedCalendarEvent;
+    response: types.ToolCalendarEvent;
+  };
   AddToPipeline: {
     call: types.AddToPipeline;
     response: types.AddToPipelineResponse;
