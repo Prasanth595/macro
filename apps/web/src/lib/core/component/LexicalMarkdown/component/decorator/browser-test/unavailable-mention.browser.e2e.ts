@@ -1,23 +1,41 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 const fixture =
-  '/src/lib/core/component/LexicalMarkdown/component/decorator/browser-test/calendar-mention.html';
-const gone = 'This event was deleted or cancelled.';
+  '/src/lib/core/component/LexicalMarkdown/component/decorator/browser-test/unavailable-mention.html';
 
-test('clicking a deleted calendar mention keeps its card open', async ({
-  page,
-}) => {
-  await page.goto(fixture);
-  const chip = page.getByRole('link', { name: 'Deleted' });
-  await expect(chip).toBeVisible();
+const cases = [
+  ['Deleted event', 'Deleted', 'This event was deleted or cancelled.'],
+  [
+    'Deleted document',
+    'Deleted',
+    "This document was deleted or doesn't exist.",
+  ],
+  ['Deleted channel', 'Deleted', "This channel was deleted or doesn't exist."],
+  ['Hidden event', 'No Access', "You don't have access to this event"],
+] as const;
 
-  await chip.click();
-  await expect(page.getByText(gone, { exact: true })).toBeVisible();
-  await expect(page.getByText(/file exists/)).toBeHidden();
+function chip(page: Page, label: string, name: string) {
+  return page
+    .getByRole('paragraph')
+    .filter({ hasText: `${label}:` })
+    .getByRole('link', { name });
+}
 
-  await page.keyboard.press('Escape');
-  await expect(page.getByText(gone, { exact: true })).toBeHidden();
-});
+for (const [label, name, card] of cases) {
+  test(`clicking the ${label.toLowerCase()} chip keeps its card open`, async ({
+    page,
+  }) => {
+    await page.goto(fixture);
+    await expect(chip(page, label, name)).toBeVisible();
+
+    await chip(page, label, name).click();
+    await expect(page.getByText(card, { exact: true })).toBeVisible();
+    await expect(page.getByText(/file/)).toBeHidden();
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByText(card, { exact: true })).toBeHidden();
+  });
+}
 
 test.describe('on a phone', () => {
   test.use({
@@ -26,18 +44,19 @@ test.describe('on a phone', () => {
     isMobile: true,
   });
 
-  test('tapping a deleted calendar mention opens its card as a sheet', async ({
-    page,
-  }) => {
-    await page.goto(fixture);
-    const chip = page.getByRole('link', { name: 'Deleted' });
-    await expect(chip).toBeVisible();
+  for (const [label, name, card] of cases) {
+    test(`tapping the ${label.toLowerCase()} chip opens its card as a sheet`, async ({
+      page,
+    }) => {
+      await page.goto(fixture);
+      await expect(chip(page, label, name)).toBeVisible();
 
-    // The hover card marks its trigger aria-disabled on touch, where it shows
-    // nothing; a real tap still reaches the chip.
-    await chip.tap({ force: true });
-    const sheet = page.getByRole('dialog', { name: 'Preview' });
-    await expect(sheet).toBeVisible();
-    await expect(sheet.getByText(gone, { exact: true })).toBeVisible();
-  });
+      // The hover card marks its trigger aria-disabled on touch, where it
+      // shows nothing; a real tap still reaches the chip.
+      await chip(page, label, name).tap({ force: true });
+      const sheet = page.getByRole('dialog', { name: 'Preview' });
+      await expect(sheet).toBeVisible();
+      await expect(sheet.getByText(card, { exact: true })).toBeVisible();
+    });
+  }
 });
