@@ -24,5 +24,5 @@ export function isInitialSyncComplete(
       UserProvider.GMAIL,
       () => latestBackfill?.status === BackfillJobStatus.Complete
     )
-    .exhaustive();
+    .exhaustive(() => false);
 }
