@@ -42,8 +42,8 @@ const handler = createToolRenderer({
   render: (ctx) => {
     const response = () => ctx.response?.data;
     const args = ctx.tool.data;
-    const sentResponse = getSentResponse(response());
-    const draftResponse = getDraftResponse(response());
+    const sentResponse = () => getSentResponse(response());
+    const draftResponse = () => getDraftResponse(response());
 
     return (
       <Show
@@ -53,22 +53,26 @@ const handler = createToolRenderer({
         }
       >
         <Switch>
-          <Match when={sentResponse}>
-            <SentEmailResponse
-              args={args}
-              chatId={ctx.chat_id}
-              messageId={ctx.message_id}
-              renderContext={ctx.renderContext}
-              threadId={sentResponse!.thread_id}
-              toolCallId={ctx.tool.id}
-            />
+          <Match when={sentResponse()}>
+            {(sent) => (
+              <SentEmailResponse
+                args={args}
+                chatId={ctx.chat_id}
+                messageId={ctx.message_id}
+                renderContext={ctx.renderContext}
+                threadId={sent().thread_id}
+                toolCallId={ctx.tool.id}
+              />
+            )}
           </Match>
-          <Match when={draftResponse}>
-            <DraftEmailResponse
-              args={args}
-              draftId={draftResponse!.draft_id}
-              renderContext={ctx.renderContext}
-            />
+          <Match when={draftResponse()}>
+            {(draft) => (
+              <DraftEmailResponse
+                args={args}
+                draftId={draft().draft_id}
+                renderContext={ctx.renderContext}
+              />
+            )}
           </Match>
           <Match when={response() === 'userEdited'}>
             <BaseTool renderContext={ctx.renderContext} type="response">
