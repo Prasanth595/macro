@@ -404,9 +404,9 @@ and backward, including after returning to the list: the subject and email body
 should remain visible without reloading.
 Shift-click opens a standalone split at `/app/email/<thread-id>`, which remains
 the destination for direct links and legacy surfaces. **Copy Link** on a
-thread, from a row or the title menu, copies
-`/app/mail/<thread-id>`, which opens the thread in Mail and pastes as an email
-mention. Click a message header to
+thread copies `/app/mail/<thread-id>` from a row, the title menu, the Share
+dialog, or a reminder notification. The link opens the thread in Mail and
+pastes as an email mention. Click a message header to
 expand or collapse it; `Show N hidden messages` reveals the collapsed middle of
 a longer conversation. A standalone link with
 `?email_message_id=<message-id>` loads older pages as needed, expands the target,

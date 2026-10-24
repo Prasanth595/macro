@@ -7,10 +7,6 @@ import { type EntityData, isGithubPrEntity } from '@entity';
 import { calendarEventLinkTarget } from '../utils';
 import type { EntityActionListState } from './entity-action-context';
 
-/** Email threads route at /app/mail; /app/email is the legacy block URL. */
-const blockUrlSegment = (blockType: string): string =>
-  blockType === 'email' ? 'mail' : blockType;
-
 /**
  * Get the URL type/path segment for an entity
  */
@@ -25,7 +21,7 @@ const getEntityUrlType = (entity: EntityData): string => {
   ) {
     return 'channel';
   }
-  return blockUrlSegment(entity.type);
+  return entity.type;
 };
 
 const getEntityUrlId = (entity: EntityData): string => {
@@ -90,7 +86,7 @@ export const makeCopyLinkAction = () => {
    * entity is absent from Quick Access (notably email threads and calls). */
   const executeByBlock = async (id: string, blockType: string) => {
     await navigator.clipboard.writeText(
-      buildSimpleEntityUrl({ id, type: blockUrlSegment(blockType) })
+      buildSimpleEntityUrl({ id, type: blockType })
     );
     toast.success('Link copied to clipboard');
   };
