@@ -39,6 +39,7 @@
   "agent-harness.createSessionReview": "Create Session Review",
   "agent-harness.getSessionReview": "Get Session Review",
   "agent-harness.decideSessionReview": "Decide Session Review",
+  "agent-harness.decideSessionReviewFromInbox": "Decide Session Review From Inbox",
   "agent-harness.putAgentSessionSandboxSize": "Put Agent Session Sandbox Size",
   "agent-harness.answerAgentSessionToolApproval": "Answer Agent Session Tool Approval",
   "auth.updateAiBillingAutoReload": "Update Ai Billing Auto Reload",
