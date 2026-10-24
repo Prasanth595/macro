@@ -3,6 +3,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { message } from '../../email-message/tests/messages';
 import type {
+  ComposeNoticeOptions,
   EmailInbox,
   SaveEmailDraft,
 } from '../context/compose-capabilities';
@@ -72,9 +73,12 @@ function createDeviceContext(source: EmailInbox, destination: EmailInbox) {
       inboxId: input.inboxId ?? 'inbox',
     };
   });
-  context.notices.feedback.failure = vi.fn((failed: string, options) => {
-    moved.resolve({ failed, reason: options?.subtext });
-  });
+  context.notices.feedback.failure = vi.fn(
+    (failed: string, options?: ComposeNoticeOptions) => {
+      moved.resolve({ failed, reason: options?.subtext });
+      return undefined;
+    }
+  );
   return { context, moved: moved.promise, forgotten: forgotten.promise };
 }
 
