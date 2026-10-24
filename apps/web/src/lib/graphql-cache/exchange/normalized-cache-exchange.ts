@@ -1565,6 +1565,26 @@ export function normalizedCacheExchange(
             !activeOps.has(result.operation.key)
           )
             return result;
+          const current = liveQueries.get(result.operation.key);
+          // As with persistence, a failed network response (partial nulls or
+          // no data at all) is not authoritative: mounted readers keep the view
+          // they hold and later results keep updating it. Cache reads still
+          // apply when they carry that failure's error.
+          if (
+            current &&
+            result.error !== undefined &&
+            normalizedCacheResultMetadata(result)?.source === 'live-network'
+          ) {
+            const liveResult = withLiveQueryData(
+              { ...result },
+              current.view.data
+            );
+            liveQueries.set(result.operation.key, {
+              view: current.view,
+              result: liveResult,
+            });
+            return liveResult;
+          }
           if (
             !isQueryObject(result.data) ||
             !supportsStoreReconciliation(result.data)
@@ -1572,17 +1592,10 @@ export function normalizedCacheExchange(
             liveQueries.delete(result.operation.key);
             return result;
           }
-          const current = liveQueries.get(result.operation.key);
           const view =
             current?.view ??
             new LiveQuery(result.data, queryShape(result.operation.query));
-          // As with persistence, a failed network response's partial nulls are
-          // not authoritative: mounted readers keep the rows they already hold.
-          // Cache reads still apply when they carry that failure's error.
-          const failedNetworkResult =
-            result.error !== undefined &&
-            normalizedCacheResultMetadata(result)?.source === 'live-network';
-          if (current && !failedNetworkResult) view.replace(result.data);
+          if (current) view.replace(result.data);
           const liveResult = withLiveQueryData({ ...result }, view.data);
           liveQueries.set(result.operation.key, { view, result: liveResult });
           return liveResult;

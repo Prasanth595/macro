@@ -821,6 +821,58 @@ describe('normalizedCacheExchange', () => {
     }
   });
 
+  it('keeps the mounted live view through a refresh that fails without data', async () => {
+    type Page = { rows: { __typename: string; id: string }[] };
+    const rows = gql<Page>`query Rows { rows { __typename id } }`;
+    const responses: Pick<OperationResult, 'data' | 'error'>[] = [
+      { data: { rows: [{ __typename: 'Thread', id: '1' }] } },
+      {
+        data: undefined,
+        error: new CombinedError({ networkError: new Error('offline') }),
+      },
+      { data: { rows: [{ __typename: 'Thread', id: '2' }] } },
+    ];
+    const client = createClient({
+      url: '/graphql',
+      exchanges: [
+        normalizedCacheExchange(host),
+        () => (source) =>
+          pipe(
+            source,
+            map((operation) => ({
+              operation,
+              stale: false,
+              hasNext: false,
+              ...responses.shift(),
+            }))
+          ),
+      ],
+    });
+    const { mounted, dispose } = createRoot((dispose) => ({
+      mounted: createUrqlQuery(() => ({
+        client,
+        query: rows,
+        variables: {},
+        requestPolicy: 'network-only' as const,
+      })),
+      dispose,
+    }));
+    try {
+      await vi.waitFor(() => expect(mounted.isSuccess).toBe(true));
+      const page = mounted.data!;
+      const refresh = () =>
+        client.query(rows, {}, { requestPolicy: 'network-only' }).toPromise();
+
+      expect((await refresh()).error?.networkError?.message).toBe('offline');
+      expect(page.rows.map((row) => row.id)).toEqual(['1']);
+
+      await refresh();
+      expect(page.rows.map((row) => row.id)).toEqual(['2']);
+    } finally {
+      dispose();
+    }
+  });
+
   it('applies a cache hit that carries an earlier network failure', async () => {
     type Page = { rows: { __typename: string; id: string }[] };
     const rows = gql<Page>`query Rows { rows { __typename id } }`;
