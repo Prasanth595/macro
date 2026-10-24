@@ -512,7 +512,10 @@ export function runCreateAction(
             projectId: options.projectId,
             source,
           });
-          if (result.isErr()) return;
+          if (result.isErr()) {
+            toast.failure('Could not create the code file');
+            return;
+          }
           return result.value.documentId ?? undefined;
         },
         shouldInsert,
