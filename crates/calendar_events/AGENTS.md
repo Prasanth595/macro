@@ -123,7 +123,10 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   and accepting calls `invite_guests` as the sharer
   (`src/domain/mutations/join.rs`). A declined request stands: asking again
   is refused with `Declined` (409 `request_declined`) and never notifies the
-  sharer twice.
+  sharer twice. While the requester's request is pending or accepted,
+  `copy_shared_event` refuses with `JoinRequestOpen`: the answer is an
+  invitation under the meeting's UID, which a snapshot imported meanwhile
+  would take in. A declined requester may still add a copy.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` and the copy's source link wherever a read path
   marks the viewer, and never store it. Each connected inbox gets its own copy
@@ -136,8 +139,22 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   canonical copy's values) and in each source's projection, omitted there while
   it holds Google's default. Event responses always carry both;
   `StoredSourceProjection` strips them so unchanged events keep comparing equal.
+  Since one meeting on two inboxes is two entities, the agent tools label every
+  event they return with its calendar's name, its `inbox` and the user's
+  `myRole` there (`ToolEventRole::of`), so the agent can ask or pick by inbox.
+  Their descriptions set the rule: reminders and an answer may go to one copy
+  if the reply names its inbox (an answer asks first when the user is a guest
+  through several inboxes); a change whose effect differs by copy (details,
+  guests, permissions, deleting) goes to the only copy allowed to make it, with
+  the reason, or the agent asks.
 - Preserve the conservative OOO refresh hint on write outcomes and sync reports;
   its contract is in [team sharing](../../docs/design/calendar-team-sharing.md).
+- The team out-of-office overlay (`src/outbound/pg_team/ooo.rs`) starts from
+  the viewer's teammates and reaches sources through
+  `calendar_event_sources_out_of_office_idx` on the source's typed
+  `event_type`. Filtering on the payload's `eventType` alone makes Postgres
+  unpack every source on every primary calendar in the tenant (about 1.8 s per
+  call in production before October 2026).
 
 ## Related
 
