@@ -73,7 +73,8 @@ export function EmailComposeToolbar(props: {
               <PaperclipIcon />
             </Button>
           </Show>
-          <Show when={props.editor}>
+          {/* Inline drafts send without waiting for inline media uploads. */}
+          <Show when={props.editor && !props.inline}>
             <Button
               onClick={() =>
                 props
