@@ -131,6 +131,12 @@ it('drops what was shared in a channel the viewer lost, and the channel itself',
     queryKey: channelKeys.listChannels.queryKey,
   });
   expect(mocks.invalidate).toHaveBeenCalledWith({
+    queryKey: channelKeys.activity.queryKey,
+  });
+  expect(mocks.invalidate).toHaveBeenCalledWith({
+    queryKey: channelKeys.channelBots('channel').queryKey,
+  });
+  expect(mocks.invalidate).toHaveBeenCalledWith({
     queryKey: channelKeys.withID('channel').queryKey,
   });
   expect(mocks.invalidate).toHaveBeenCalledWith({

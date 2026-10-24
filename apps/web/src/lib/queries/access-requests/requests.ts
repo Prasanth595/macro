@@ -96,10 +96,12 @@ export function refreshSharedAccess(entity: AccessChangeEntity) {
   if (entity.entityType === 'channel') {
     for (const key of [
       channelKeys.listChannels,
+      channelKeys.activity,
       channelKeys.withID(entity.entityId),
       channelKeys.participants(entity.entityId),
       channelKeys.attachments(entity.entityId),
       channelKeys.mentions(entity.entityId),
+      channelKeys.channelBots(entity.entityId),
     ])
       queryClient.invalidateQueries({ queryKey: key.queryKey });
     // An open conversation closes once its timeline is refused.
