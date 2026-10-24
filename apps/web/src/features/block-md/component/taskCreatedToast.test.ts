@@ -30,7 +30,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 it('announces the task while the clipboard write is still pending', async () => {
   writeText.mockReturnValue(new Promise<void>(() => {}));
 
-  void showTaskCreatedToast('task-1', undefined, openWithSplit);
+  showTaskCreatedToast('task-1', undefined, openWithSplit);
   await settle();
 
   expect(toast.success).toHaveBeenCalledTimes(1);
@@ -39,7 +39,7 @@ it('announces the task while the clipboard write is still pending', async () => 
 it('opens the created task from the toast and copies its link', async () => {
   writeText.mockResolvedValue(undefined);
 
-  void showTaskCreatedToast('task-1', undefined, openWithSplit);
+  showTaskCreatedToast('task-1', undefined, openWithSplit);
   await settle();
 
   expect(writeText).toHaveBeenCalledWith(
@@ -56,7 +56,7 @@ it('opens the created task from the toast and copies its link', async () => {
 it('keeps the task toast when the clipboard denies the write', async () => {
   writeText.mockRejectedValue(new DOMException('denied', 'NotAllowedError'));
 
-  void showTaskCreatedToast('task-1', undefined, openWithSplit);
+  showTaskCreatedToast('task-1', undefined, openWithSplit);
   await settle();
 
   expect(toast.success).toHaveBeenCalledTimes(1);

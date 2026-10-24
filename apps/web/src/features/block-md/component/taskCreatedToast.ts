@@ -1,5 +1,6 @@
 import type { useSplitLayout } from '@components/app/split-layout/layout';
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { buildSimpleEntityUrl } from '@core/util/url';
 import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
 import SplitIcon from '@phosphor/square-half.svg';
@@ -43,7 +44,15 @@ export function showTaskCreatedToast(
   // The write needs the click's user activation, which can lapse while the
   // server creates the task. The browser then denies it or holds it behind a
   // permission prompt, and the toast must not wait on either.
-  navigator.clipboard
-    .writeText(buildSimpleEntityUrl({ type: 'task', id: documentId }))
-    .catch(() => {});
+  fireAndForget(copyTaskLink(documentId), 'compose-task');
+}
+
+async function copyTaskLink(documentId: string) {
+  try {
+    await navigator.clipboard.writeText(
+      buildSimpleEntityUrl({ type: 'task', id: documentId })
+    );
+  } catch {
+    // A denied write is expected, and the toast already confirmed the task.
+  }
 }
