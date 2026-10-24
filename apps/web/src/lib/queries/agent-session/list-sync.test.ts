@@ -7,6 +7,14 @@ const mocks = vi.hoisted(() => ({
   graphql: vi.fn<(options?: { throwOnError?: boolean }) => Promise<void>>(
     async () => {}
   ),
+  graphqlSoup: vi.fn(() => false),
+  row: vi.fn<
+    (
+      document: unknown,
+      variables: { sessionId: string },
+      context: { requestPolicy: string }
+    ) => Promise<{ error?: Error }>
+  >(async () => ({})),
 }));
 
 vi.mock('@queries/soup/refresh', () => ({
@@ -15,15 +23,32 @@ vi.mock('@queries/soup/refresh', () => ({
 vi.mock('@queries/soup/graphql/active-queries', () => ({
   refreshActiveGraphqlSoupQueries: mocks.graphql,
 }));
+vi.mock('@core/constant/featureFlags', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@core/constant/featureFlags')>()),
+  isFeatureEnabled: mocks.graphqlSoup,
+}));
+vi.mock('@service-storage/graphql-soup', () => ({
+  getGraphqlSoupClient: () => ({
+    query: (
+      document: unknown,
+      variables: { sessionId: string },
+      context: { requestPolicy: string }
+    ) => ({ toPromise: () => mocks.row(document, variables, context) }),
+  }),
+}));
 vi.mock('@queries/client', async () => {
   const { QueryClient } = await import('@tanstack/query-core');
   return { queryClient: new QueryClient() };
 });
 
+import { AgentSessionRowDocument } from '@service-storage/graphql/generated/graphql';
 import { refreshAgentSessionLists } from './list-sync';
 import { invalidateAgentSessionMetadata } from './session-metadata-sync';
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.graphqlSoup.mockReturnValue(false);
+});
 afterEach(() => vi.restoreAllMocks());
 
 it('coalesces a metadata burst into one REST list refresh', async () => {
@@ -40,6 +65,43 @@ it('coalesces a metadata burst into one REST list refresh', async () => {
 it('never network-refreshes the GraphQL soup queries', async () => {
   await refreshAgentSessionLists('first');
   expect(mocks.graphql).not.toHaveBeenCalled();
+});
+
+it('re-reads each changed session row from the network under GraphQL Soup', async () => {
+  mocks.graphqlSoup.mockReturnValue(true);
+  await Promise.all([
+    refreshAgentSessionLists('first'),
+    refreshAgentSessionLists('first'),
+    refreshAgentSessionLists('second'),
+  ]);
+  expect(mocks.row.mock.calls).toEqual([
+    [
+      AgentSessionRowDocument,
+      { sessionId: 'first' },
+      { requestPolicy: 'network-only' },
+    ],
+    [
+      AgentSessionRowDocument,
+      { sessionId: 'second' },
+      { requestPolicy: 'network-only' },
+    ],
+  ]);
+  expect(mocks.graphql).not.toHaveBeenCalled();
+});
+
+it('reads no GraphQL row while lists are on REST', async () => {
+  await refreshAgentSessionLists('first');
+  expect(mocks.row).not.toHaveBeenCalled();
+});
+
+it('retries a session whose row read failed', async () => {
+  mocks.graphqlSoup.mockReturnValue(true);
+  mocks.row.mockResolvedValueOnce({ error: new Error('network') });
+  await refreshAgentSessionLists('first');
+  expect(mocks.row.mock.calls.map(([, variables]) => variables)).toEqual([
+    { sessionId: 'first' },
+    { sessionId: 'first' },
+  ]);
 });
 
 it('leaves soup lists alone when the gateway socket opens', async () => {
