@@ -673,10 +673,7 @@ export function ComposeTask(props: ComposeTaskProps) {
       if (props.onSuccess) {
         props.onSuccess({ documentId, title: taskTitle, content: taskContent });
       } else {
-        fireAndForget(
-          showTaskCreatedToast(documentId, initialSnapshot, openWithSplit),
-          'compose-task'
-        );
+        showTaskCreatedToast(documentId, initialSnapshot, openWithSplit);
       }
       props.onCreateTask?.(taskTitle, taskContent);
       return;
@@ -707,10 +704,7 @@ export function ComposeTask(props: ComposeTaskProps) {
     if (props.onSuccess) {
       props.onSuccess({ documentId, title: taskTitle, content: taskContent });
     } else {
-      fireAndForget(
-        showTaskCreatedToast(documentId, initialSnapshot, openWithSplit),
-        'compose-task'
-      );
+      showTaskCreatedToast(documentId, initialSnapshot, openWithSplit);
     }
     props.onCreateTask?.(taskTitle, taskContent);
   };

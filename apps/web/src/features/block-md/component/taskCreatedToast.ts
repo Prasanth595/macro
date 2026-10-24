@@ -6,27 +6,16 @@ import SplitIcon from '@phosphor/square-half.svg';
 
 type OpenWithSplit = ReturnType<typeof useSplitLayout>['openWithSplit'];
 
-export async function showTaskCreatedToast(
+export function showTaskCreatedToast(
   documentId: string,
   optimisticSnapshot: Uint8Array | undefined,
   openWithSplit: OpenWithSplit
 ) {
-  // Auto-copy link to clipboard
-  const url = buildSimpleEntityUrl({ type: 'task', id: documentId });
-  let linkCopied = false;
-  try {
-    await navigator.clipboard.writeText(url);
-    linkCopied = true;
-  } catch {
-    toast.failure('Failed to copy link to clipboard');
-  }
-
   const snapshotParams = optimisticSnapshot
     ? { params: { optimisticSnapshot }, preserveParams: true as const }
     : {};
 
   toast.success('Task created', {
-    subtext: linkCopied ? 'Link copied' : undefined,
     actions: [
       {
         label: 'Open',
@@ -50,4 +39,11 @@ export async function showTaskCreatedToast(
       },
     ],
   });
+
+  // The write needs the click's user activation, which can lapse while the
+  // server creates the task. The browser then denies it or holds it behind a
+  // permission prompt, and the toast must not wait on either.
+  navigator.clipboard
+    .writeText(buildSimpleEntityUrl({ type: 'task', id: documentId }))
+    .catch(() => {});
 }
