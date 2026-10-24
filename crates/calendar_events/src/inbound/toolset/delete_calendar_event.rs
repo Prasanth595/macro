@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{CalendarToolContext, mutation_tool_error};
+use super::{CalendarToolContext, CopyChange, confirm_copy, mutation_tool_error};
 use crate::domain::ports::{
     CalendarDeletionScope, CalendarMutationService, CalendarOccurrenceService, MeetingLinkProvider,
 };
@@ -70,6 +70,16 @@ pub struct DeleteCalendarEvent {
     )]
     #[serde(default)]
     pub calendar_id: Option<uuid::Uuid>,
+
+    /// Inbox holding the copy to delete.
+    #[schemars(
+        description = "The `inbox` of the copy to delete, from its ListCalendarEvents entry. \
+                       Required when the meeting is on more than one of the user's inboxes: \
+                       the tool refuses without it and lists each copy. It must be the inbox \
+                       holding the copy `eventId` names."
+    )]
+    #[serde(default)]
+    pub inbox: Option<String>,
 
     /// Deletion scope.
     #[schemars(
@@ -137,6 +147,14 @@ where
             ),
         };
 
+        confirm_copy(
+            &*service_context.occurrences,
+            &requester_id,
+            self.event_id,
+            self.inbox.as_deref(),
+            CopyChange::Delete,
+        )
+        .await?;
         service_context
             .mutations
             .delete_event(&requester_id, self.event_id, self.calendar_id, scope)
