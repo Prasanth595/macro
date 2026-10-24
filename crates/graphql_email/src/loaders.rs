@@ -18,15 +18,29 @@ pub(crate) const MAX_EMAIL_CONTENT_MESSAGES: usize = 100;
 const MAX_EMAIL_THREAD_METADATA_KEYS: usize = 500;
 const MAX_EMAIL_THREAD_MAIL_PROJECTION_KEYS: usize = 500;
 
+/// Why a Soup email thread's metadata or Mail projection was not returned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmailThreadUnavailable {
+    /// The viewer has no access to the thread.
+    NoAccess,
+    /// The access check found no such thread.
+    ThreadNotFound,
+    /// The viewer may read the thread, but the email service returned no row
+    /// for it.
+    NoRow,
+    /// The access check failed. Details are logged, never exposed.
+    AccessCheckFailed,
+    /// Loading the authorized threads failed. Details are logged, never exposed.
+    LoadFailed,
+}
+
 /// Canonical metadata loaded for one Soup email thread.
 #[derive(Debug, Clone)]
 pub enum EmailThreadMetadataLoad {
     /// The canonical thread metadata was found.
     Found(EmailThreadMetadata),
-    /// The thread was absent or inaccessible.
-    Missing,
-    /// An internal failure occurred. Details are logged, never exposed.
-    Failed,
+    /// The metadata was not returned to this viewer.
+    Unavailable(EmailThreadUnavailable),
 }
 
 /// Reader used by lazy Soup email-thread metadata fields.
@@ -44,10 +58,8 @@ pub trait SoupEmailThreadMetadataEdgeReader: Send + Sync + 'static {
 pub enum EmailThreadMailProjectionLoad {
     /// The Mail projection data was found.
     Found(Arc<EmailThreadMailProjection>),
-    /// The thread was absent or inaccessible.
-    Missing,
-    /// An internal failure occurred. Details are logged, never exposed.
-    Failed,
+    /// The projection was not returned to this viewer.
+    Unavailable(EmailThreadUnavailable),
 }
 
 /// Reader used by offline Mail cache facts and canonical preview fields.
@@ -230,7 +242,12 @@ impl SoupEmailThreadMetadataEdgeReader for NoOpSoupEmailContentEdgeReader {
     ) -> HashMap<Uuid, EmailThreadMetadataLoad> {
         thread_ids
             .into_iter()
-            .map(|thread_id| (thread_id, EmailThreadMetadataLoad::Missing))
+            .map(|thread_id| {
+                (
+                    thread_id,
+                    EmailThreadMetadataLoad::Unavailable(EmailThreadUnavailable::NoRow),
+                )
+            })
             .collect()
     }
 }
@@ -243,7 +260,12 @@ impl SoupEmailThreadMailProjectionEdgeReader for NoOpSoupEmailContentEdgeReader 
     ) -> HashMap<Uuid, EmailThreadMailProjectionLoad> {
         thread_ids
             .into_iter()
-            .map(|thread_id| (thread_id, EmailThreadMailProjectionLoad::Missing))
+            .map(|thread_id| {
+                (
+                    thread_id,
+                    EmailThreadMailProjectionLoad::Unavailable(EmailThreadUnavailable::NoRow),
+                )
+            })
             .collect()
     }
 }
@@ -299,16 +321,28 @@ where
                     authorized.push(receipt);
                     authorized_ids.push(thread_id);
                 }
-                Err(
-                    AccessError::Unauthorized
-                    | AccessError::UnauthorizedWithMessage(_)
-                    | AccessError::NotFound(_),
-                ) => {
-                    loads.insert(thread_id, EmailThreadMetadataLoad::Missing);
+                Err(AccessError::Unauthorized | AccessError::UnauthorizedWithMessage(_)) => {
+                    loads.insert(
+                        thread_id,
+                        EmailThreadMetadataLoad::Unavailable(EmailThreadUnavailable::NoAccess),
+                    );
+                }
+                Err(AccessError::NotFound(_)) => {
+                    loads.insert(
+                        thread_id,
+                        EmailThreadMetadataLoad::Unavailable(
+                            EmailThreadUnavailable::ThreadNotFound,
+                        ),
+                    );
                 }
                 Err(error) => {
                     tracing::error!(%thread_id, error = ?error, "email thread metadata access check failed");
-                    loads.insert(thread_id, EmailThreadMetadataLoad::Failed);
+                    loads.insert(
+                        thread_id,
+                        EmailThreadMetadataLoad::Unavailable(
+                            EmailThreadUnavailable::AccessCheckFailed,
+                        ),
+                    );
                 }
             }
         }
@@ -325,7 +359,7 @@ where
             Ok(mut metadata) => {
                 for thread_id in authorized_ids {
                     let load = metadata.remove(&thread_id).map_or(
-                        EmailThreadMetadataLoad::Missing,
+                        EmailThreadMetadataLoad::Unavailable(EmailThreadUnavailable::NoRow),
                         EmailThreadMetadataLoad::Found,
                     );
                     loads.insert(thread_id, load);
@@ -333,11 +367,12 @@ where
             }
             Err(error) => {
                 tracing::error!(error = ?error, "bulk email thread metadata load failed");
-                loads.extend(
-                    authorized_ids
-                        .into_iter()
-                        .map(|thread_id| (thread_id, EmailThreadMetadataLoad::Failed)),
-                );
+                loads.extend(authorized_ids.into_iter().map(|thread_id| {
+                    (
+                        thread_id,
+                        EmailThreadMetadataLoad::Unavailable(EmailThreadUnavailable::LoadFailed),
+                    )
+                }));
             }
         }
 
@@ -377,16 +412,30 @@ where
                     authorized.push(receipt);
                     authorized_ids.push(thread_id);
                 }
-                Err(
-                    AccessError::Unauthorized
-                    | AccessError::UnauthorizedWithMessage(_)
-                    | AccessError::NotFound(_),
-                ) => {
-                    loads.insert(thread_id, EmailThreadMailProjectionLoad::Missing);
+                Err(AccessError::Unauthorized | AccessError::UnauthorizedWithMessage(_)) => {
+                    loads.insert(
+                        thread_id,
+                        EmailThreadMailProjectionLoad::Unavailable(
+                            EmailThreadUnavailable::NoAccess,
+                        ),
+                    );
+                }
+                Err(AccessError::NotFound(_)) => {
+                    loads.insert(
+                        thread_id,
+                        EmailThreadMailProjectionLoad::Unavailable(
+                            EmailThreadUnavailable::ThreadNotFound,
+                        ),
+                    );
                 }
                 Err(error) => {
                     tracing::error!(%thread_id, error = ?error, "email thread Mail projection access check failed");
-                    loads.insert(thread_id, EmailThreadMailProjectionLoad::Failed);
+                    loads.insert(
+                        thread_id,
+                        EmailThreadMailProjectionLoad::Unavailable(
+                            EmailThreadUnavailable::AccessCheckFailed,
+                        ),
+                    );
                 }
             }
         }
@@ -402,21 +451,23 @@ where
         {
             Ok(mut projections) => {
                 for thread_id in authorized_ids {
-                    let load = projections
-                        .remove(&thread_id)
-                        .map_or(EmailThreadMailProjectionLoad::Missing, |projection| {
-                            EmailThreadMailProjectionLoad::Found(Arc::new(projection))
-                        });
+                    let load = projections.remove(&thread_id).map_or(
+                        EmailThreadMailProjectionLoad::Unavailable(EmailThreadUnavailable::NoRow),
+                        |projection| EmailThreadMailProjectionLoad::Found(Arc::new(projection)),
+                    );
                     loads.insert(thread_id, load);
                 }
             }
             Err(error) => {
                 tracing::error!(error = ?error, "bulk email thread Mail projection load failed");
-                loads.extend(
-                    authorized_ids
-                        .into_iter()
-                        .map(|thread_id| (thread_id, EmailThreadMailProjectionLoad::Failed)),
-                );
+                loads.extend(authorized_ids.into_iter().map(|thread_id| {
+                    (
+                        thread_id,
+                        EmailThreadMailProjectionLoad::Unavailable(
+                            EmailThreadUnavailable::LoadFailed,
+                        ),
+                    )
+                }));
             }
         }
 
@@ -616,13 +667,21 @@ where
 /// DataLoader for canonical metadata attached to Soup email threads.
 pub struct EmailThreadMetadataLoader<R> {
     user_id: MacroUserIdStr<'static>,
+    viewer_id: Option<Uuid>,
     reader: R,
 }
 
 impl<R> EmailThreadMetadataLoader<R> {
     /// Create a metadata DataLoader scoped to the requesting user.
-    pub fn new(user_id: MacroUserIdStr<'static>, reader: R) -> Self {
-        Self { user_id, reader }
+    ///
+    /// `viewer_id` is the viewer's opaque account id (`macro_user.id`), logged
+    /// instead of the email-bearing `user_id` when a thread is unavailable.
+    pub fn new(user_id: MacroUserIdStr<'static>, viewer_id: Option<Uuid>, reader: R) -> Self {
+        Self {
+            user_id,
+            viewer_id,
+            reader,
+        }
     }
 }
 
@@ -634,23 +693,35 @@ where
     type Error = std::convert::Infallible;
 
     async fn load(&self, keys: &[Uuid]) -> Result<HashMap<Uuid, Self::Value>, Self::Error> {
-        Ok(self
+        let loads = self
             .reader
             .get_email_thread_metadata(&self.user_id, keys.to_vec())
-            .await)
+            .await;
+        for (thread_id, load) in &loads {
+            if let EmailThreadMetadataLoad::Unavailable(reason) = load {
+                tracing::warn!(
+                    %thread_id,
+                    viewer_id = self.viewer_id.map(tracing::field::display),
+                    ?reason,
+                    "email thread metadata unavailable"
+                );
+            }
+        }
+        Ok(loads)
     }
 }
 
 /// Build a canonical email-thread metadata DataLoader scoped to the requesting user.
 pub fn email_thread_metadata_loader<R>(
     user_id: MacroUserIdStr<'static>,
+    viewer_id: Option<Uuid>,
     reader: R,
 ) -> DataLoader<EmailThreadMetadataLoader<R>>
 where
     R: SoupEmailThreadMetadataEdgeReader,
 {
     let loader = DataLoader::new(
-        EmailThreadMetadataLoader::new(user_id, reader),
+        EmailThreadMetadataLoader::new(user_id, viewer_id, reader),
         tokio::spawn,
     )
     .max_batch_size(MAX_EMAIL_THREAD_METADATA_KEYS);
@@ -663,13 +734,21 @@ where
 /// DataLoader for Mail-specific cache facts and canonical previews.
 pub struct EmailThreadMailProjectionLoader<R> {
     user_id: MacroUserIdStr<'static>,
+    viewer_id: Option<Uuid>,
     reader: R,
 }
 
 impl<R> EmailThreadMailProjectionLoader<R> {
     /// Create a Mail projection DataLoader scoped to the requesting user.
-    pub fn new(user_id: MacroUserIdStr<'static>, reader: R) -> Self {
-        Self { user_id, reader }
+    ///
+    /// `viewer_id` is the viewer's opaque account id (`macro_user.id`), logged
+    /// instead of the email-bearing `user_id` when a thread is unavailable.
+    pub fn new(user_id: MacroUserIdStr<'static>, viewer_id: Option<Uuid>, reader: R) -> Self {
+        Self {
+            user_id,
+            viewer_id,
+            reader,
+        }
     }
 }
 
@@ -681,23 +760,35 @@ where
     type Error = std::convert::Infallible;
 
     async fn load(&self, keys: &[Uuid]) -> Result<HashMap<Uuid, Self::Value>, Self::Error> {
-        Ok(self
+        let loads = self
             .reader
             .get_email_thread_mail_projections(&self.user_id, keys.to_vec())
-            .await)
+            .await;
+        for (thread_id, load) in &loads {
+            if let EmailThreadMailProjectionLoad::Unavailable(reason) = load {
+                tracing::warn!(
+                    %thread_id,
+                    viewer_id = self.viewer_id.map(tracing::field::display),
+                    ?reason,
+                    "email thread Mail projection unavailable"
+                );
+            }
+        }
+        Ok(loads)
     }
 }
 
 /// Build a Mail projection DataLoader scoped to the requesting user.
 pub fn email_thread_mail_projection_loader<R>(
     user_id: MacroUserIdStr<'static>,
+    viewer_id: Option<Uuid>,
     reader: R,
 ) -> DataLoader<EmailThreadMailProjectionLoader<R>>
 where
     R: SoupEmailThreadMailProjectionEdgeReader,
 {
     let loader = DataLoader::new(
-        EmailThreadMailProjectionLoader::new(user_id, reader),
+        EmailThreadMailProjectionLoader::new(user_id, viewer_id, reader),
         tokio::spawn,
     )
     .max_batch_size(MAX_EMAIL_THREAD_MAIL_PROJECTION_KEYS);
