@@ -695,7 +695,8 @@ impl CalendarRepository for PgCalendarRepository {
         if row.provider == "OUTLOOK" {
             sqlx::query!("UPDATE email_link_microsoft_scopes SET calendar_disabled_at=now(),updated_at=now() WHERE link_id=$1",email_link_id).execute(&mut *tx).await.map_err(report)?;
             let mut log = ChangeLogBatch::default();
-            disable_calendar_capability_tx(&mut tx, &mut log, email_link_id).await?;
+            let retired_shared_events =
+                disable_calendar_capability_tx(&mut tx, &mut log, email_link_id).await?;
             sqlx::query!(
                 "DELETE FROM calendar_accounts WHERE email_link_id=$1",
                 email_link_id
@@ -716,6 +717,7 @@ impl CalendarRepository for PgCalendarRepository {
                     provider: CalendarProvider::Outlook,
                 },
                 watch_channels: vec![],
+                retired_shared_events,
             }));
         }
 
@@ -772,7 +774,8 @@ impl CalendarRepository for PgCalendarRepository {
         // cascades its calendars and backfill jobs.
         invalidate_stale_google_jobs_tx(&mut tx, email_link_id, grant_version).await?;
         let mut log = ChangeLogBatch::default();
-        disable_calendar_capability_tx(&mut tx, &mut log, email_link_id).await?;
+        let retired_shared_events =
+            disable_calendar_capability_tx(&mut tx, &mut log, email_link_id).await?;
         sqlx::query!(
             "DELETE FROM calendar_accounts WHERE email_link_id = $1",
             email_link_id,
@@ -795,6 +798,7 @@ impl CalendarRepository for PgCalendarRepository {
                     .ok_or_else(|| rootcause::report!("unsupported calendar provider"))?,
             },
             watch_channels,
+            retired_shared_events,
         }))
     }
 
@@ -3317,11 +3321,15 @@ async fn clear_calendar_opt_out_tx(
 /// invisible rather than leaked, because enrichment re-reads visibility from
 /// Postgres and drops a hit whose row is gone. Removing them wants a
 /// purge-by-owner operation, not this path.
+///
+/// What it does return are the events whose channel members it cut off, each
+/// naming them, so a disconnect can tell them; there are only as many as the
+/// inbox's events shared into channels.
 async fn disable_calendar_capability_tx(
     tx: &mut Transaction<'_, Postgres>,
     log: &mut ChangeLogBatch,
     email_link_id: Uuid,
-) -> Result<(), Report> {
+) -> Result<Vec<RetiredCalendarEvent>, Report> {
     let account_id = sqlx::query_scalar!(
         r#"
         UPDATE calendar_accounts
@@ -3337,7 +3345,7 @@ async fn disable_calendar_capability_tx(
     .await
     .map_err(report)?;
     let Some(account_id) = account_id else {
-        return Ok(());
+        return Ok(Vec::new());
     };
 
     let removed_calendars = sqlx::query_scalar!(
@@ -3378,8 +3386,13 @@ async fn disable_calendar_capability_tx(
     .fetch_all(&mut **tx)
     .await
     .map_err(report)?;
+    let mut shared_events = Vec::new();
     for event_id in &affected_event_ids {
-        restore_best_source_or_delete(tx, log, *event_id).await?;
+        if let Some(retired) = restore_best_source_or_delete(tx, log, *event_id).await?
+            && !retired.channel_viewers_who_lost_access.is_empty()
+        {
+            shared_events.push(retired);
+        }
     }
 
     // Reminder delivery claims are deliberately not foreign-keyed to
@@ -3398,7 +3411,7 @@ async fn disable_calendar_capability_tx(
     .execute(&mut **tx)
     .await
     .map_err(report)?;
-    Ok(())
+    Ok(shared_events)
 }
 
 async fn upsert_google_account_tx(
@@ -3927,11 +3940,7 @@ async fn restore_best_source_or_delete(
     .map_err(report)?;
     // Read who the event's channel shares reach before a delete or a rewrite
     // from a private source can hide it from them.
-    let channel_viewers = if channel_access::channel_visible(tx, event_id).await? {
-        channel_access::channel_viewers(tx, event_id).await?
-    } else {
-        Vec::new()
-    };
+    let channel_viewers = channel_access::visible_channel_viewers(tx, event_id).await?;
 
     let source = sqlx::query!(
         r#"

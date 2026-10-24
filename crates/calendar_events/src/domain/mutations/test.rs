@@ -2843,6 +2843,7 @@ fn disconnected(channels: &[(&str, &str)]) -> DisconnectedCalendar {
                 resource_id: (*resource_id).to_string(),
             })
             .collect(),
+        retired_shared_events: Vec::new(),
     }
 }
 
@@ -2899,6 +2900,42 @@ async fn disconnecting_calendar_nudges_the_links_calendar_viewers() {
     assert_eq!(
         refresh.notified.lock().expect("notifier lock").as_slice(),
         [("macro|user".to_string(), link_id, true)]
+    );
+}
+
+#[tokio::test]
+async fn disconnecting_calendar_tells_channel_members_of_its_shared_events() {
+    let shared = Uuid::now_v7();
+    let repo = FakeRepo {
+        disconnected: Some(DisconnectedCalendar {
+            retired_shared_events: vec![RetiredCalendarEvent {
+                event_id: shared,
+                owner_id: "macro|user".to_string(),
+                deleted: true,
+                channel_viewers_who_lost_access: vec!["macro|member@example.com".to_string()],
+            }],
+            ..disconnected(&[])
+        }),
+        ..FakeRepo::default()
+    };
+    let refresh = RecordingRefreshNotifier::default();
+    service_with_refresh(
+        repo,
+        FakeProvider::new(FakeProviderBehavior::Echo),
+        FakeTokens::ok(),
+        refresh.clone(),
+    )
+    .disconnect_calendar("macro|user", Uuid::now_v7())
+    .await
+    .unwrap();
+
+    assert_eq!(
+        refresh
+            .access_lost
+            .lock()
+            .expect("notifier lock")
+            .as_slice(),
+        [(vec!["macro|member@example.com".to_string()], shared)]
     );
 }
 

@@ -131,17 +131,22 @@ where
         if retired.is_empty() {
             return;
         }
-        for event in &retired {
+        self.tell_channel_viewers_who_lost_access(&retired).await;
+        self.publish_retirements(retired);
+        self.refresh
+            .calendar_changed(owner_id, email_link_id, true)
+            .await;
+    }
+
+    /// Tell channel members a retirement cut off from shared events.
+    async fn tell_channel_viewers_who_lost_access(&self, retired: &[RetiredCalendarEvent]) {
+        for event in retired {
             if !event.channel_viewers_who_lost_access.is_empty() {
                 self.refresh
                     .channel_access_lost(&event.channel_viewers_who_lost_access, event.event_id)
                     .await;
             }
         }
-        self.publish_retirements(retired);
-        self.refresh
-            .calendar_changed(owner_id, email_link_id, true)
-            .await;
     }
 
     /// Announce what a write did to the canonical row. A write that changed
@@ -712,6 +717,8 @@ where
         // arrive for a disconnected link, so viewers have to be nudged here.
         self.refresh
             .calendar_changed(requester_id, email_link_id, true)
+            .await;
+        self.tell_channel_viewers_who_lost_access(&disconnected.retired_shared_events)
             .await;
         Ok(())
     }

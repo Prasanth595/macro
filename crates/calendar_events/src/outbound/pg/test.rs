@@ -4652,6 +4652,34 @@ async fn a_reissued_grant_keeps_calendar_off_until_it_is_requested_again(pool: P
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn disconnecting_calendar_reports_the_channel_members_of_its_shared_events(pool: PgPool) {
+    let owner_id = "macro|calendar-disconnect-shared@example.com";
+    let member_id = "macro|calendar-disconnect-member@example.com";
+    let link_id = insert_link(&pool, owner_id).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    let (_account_id, _calendar_id, event_id, _watch_channel_id) =
+        connected_calendar(&pool, &repo, owner_id, link_id).await;
+    let channel_id = insert_channel(&pool, owner_id, &[owner_id, member_id]).await;
+    share_with_channel(&pool, event_id, channel_id).await;
+
+    let disconnected = repo
+        .disconnect_provider_calendar(owner_id, link_id)
+        .await
+        .unwrap()
+        .expect("the owner's inbox is disconnectable");
+
+    assert_eq!(
+        disconnected.retired_shared_events,
+        vec![RetiredCalendarEvent {
+            event_id,
+            owner_id: owner_id.to_string(),
+            deleted: true,
+            channel_viewers_who_lost_access: vec![member_id.to_string()],
+        }]
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn only_the_owner_can_disconnect_an_inbox_calendar(pool: PgPool) {
     let owner_id = "macro|calendar-owner@example.com";
     let link_id = insert_link(&pool, owner_id).await;
