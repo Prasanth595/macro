@@ -3,24 +3,34 @@ import {
   isFeatureEnabled,
 } from '@core/constant/featureFlags';
 import { fireAndForget } from '@core/util/fireAndForget';
+import {
+  getSoupEntityById,
+  hasSoupEntity,
+  hydrateSoupEntity,
+} from '@queries/soup/normalized-cache';
 import { refreshSoupEntities } from '@queries/soup/refresh';
 import { AgentSessionRowDocument } from '@service-storage/graphql/generated/graphql';
-import { getGraphqlSoupClient } from '@service-storage/graphql-soup';
+import {
+  getGraphqlSoupClient,
+  mapGraphqlAgentSessionRow,
+} from '@service-storage/graphql-soup';
 
 const changedSessions = new Set<string>();
 let pending: Promise<void> | undefined;
 
 /**
- * Re-read each session's row from the primary into the normalized GraphQL
- * cache. Every GraphQL Soup list shares that record, so this updates them all
- * without refetching any list; a replica-backed list refetch could return the
- * row from before the change and leave it there.
+ * Read each session's row from the primary and apply it to every list holding
+ * it: GraphQL lists share the normalized record the read writes, REST lists
+ * the normalized entity hydrated from it. Runs after the REST list refetch,
+ * which reads a replica that can still return the row from before the change.
  */
-async function refreshGraphqlSessionRows(sessions: string[]): Promise<void> {
-  if (!isFeatureEnabled(enableGraphqlSoup)) return;
+async function readSessionRows(sessions: string[]): Promise<void> {
+  const graphqlLists = isFeatureEnabled(enableGraphqlSoup);
+  const held = sessions.filter((id) => graphqlLists || hasSoupEntity(id));
+  if (held.length === 0) return;
   const client = getGraphqlSoupClient();
   await Promise.all(
-    sessions.map(async (sessionId) => {
+    held.map(async (sessionId) => {
       const result = await client
         .query(
           AgentSessionRowDocument,
@@ -29,6 +39,15 @@ async function refreshGraphqlSessionRows(sessions: string[]): Promise<void> {
         )
         .toPromise();
       if (result.error) throw result.error;
+      const session = result.data?.user.agentSession;
+      if (!session) return;
+      const cached = getSoupEntityById(session.id);
+      if (cached?.tag !== 'agentSession') return;
+      hydrateSoupEntity({
+        tag: 'agentSession',
+        frecency_score: cached.frecency_score,
+        data: mapGraphqlAgentSessionRow(session),
+      });
     })
   );
 }
@@ -40,10 +59,8 @@ async function refreshQueuedLists(resolve: () => void): Promise<void> {
       const sessions = [...changedSessions];
       changedSessions.clear();
       try {
-        await Promise.all([
-          refreshSoupEntities(sessions, { throwOnError: true }),
-          refreshGraphqlSessionRows(sessions),
-        ]);
+        await refreshSoupEntities(sessions, { throwOnError: true });
+        await readSessionRows(sessions);
       } catch (error) {
         for (const session of sessions) changedSessions.add(session);
         if (!retryAvailable) throw error;
@@ -62,7 +79,7 @@ async function refreshQueuedLists(resolve: () => void): Promise<void> {
 
 /**
  * Refresh the lists that show a session after its metadata changes: REST
- * lists refetch, GraphQL lists get the session's row re-read.
+ * lists refetch, then the session's own row is read from the primary.
  * A burst shares one pass; updates committed during a fetch get a later pass.
  * A failed pass retries once with queued updates. Further failures retain the
  * batch for the next event instead of dropping it or spinning.
