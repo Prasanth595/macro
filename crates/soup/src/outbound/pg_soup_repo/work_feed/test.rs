@@ -23,6 +23,11 @@ const THREAD_M: &str = "99999999-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const THREAD_Z: &str = "44444444-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const THREAD_S: &str = "44444444-5555-5555-5555-555555555555";
 const LINK_1: &str = "55555555-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const CHANNEL_Y: &str = "33333333-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+const ROOT_R1: &str = "99999999-1111-1111-1111-111111111111";
+const ROOT_R2: &str = "99999999-2222-2222-2222-222222222222";
+const ROOT_R3: &str = "99999999-3333-3333-3333-333333333333";
+const CHANNEL_TYPES: &[EntityType] = &[EntityType::Channel, EntityType::ChannelMessage];
 const PROJECT_1: &str = "66666666-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const COMPANY_1: &str = "88888888-0000-0000-0000-000000000001";
 const CONTACT_1: &str = "88888888-1111-0000-0000-000000000001";
@@ -332,6 +337,89 @@ async fn discussions_on_visible_projects_and_crm_records_are_candidates(
     assert_eq!(
         keys(&page),
         vec![(EntityType::Initiative, PROJECT_1.to_string())]
+    );
+
+    Ok(())
+}
+
+#[sqlx::test(
+    fixtures(
+        path = "../../../../fixtures",
+        scripts("work_feed", "work_feed_channel_reactions")
+    ),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn work_mode_keys_top_level_reactions_to_their_message(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let link_ids = [Uuid::parse_str(LINK_1)?];
+    let sources = sources();
+    let mut request = req(WorkFeedSoupMode::Work, &link_ids, &sources);
+    request.types = CHANNEL_TYPES;
+    let page = work_feed_soup_page(&pool, request).await?;
+
+    assert_eq!(
+        keys(&page),
+        vec![
+            (EntityType::ChannelMessage, ROOT_R3.to_string()),
+            (EntityType::ChannelMessage, ROOT_R2.to_string()),
+            (EntityType::ChannelMessage, ROOT_R1.to_string()),
+            (EntityType::Channel, CHANNEL_X.to_string()),
+            (EntityType::ChannelMessage, THREAD_M.to_string()),
+        ]
+    );
+
+    Ok(())
+}
+
+#[sqlx::test(
+    fixtures(
+        path = "../../../../fixtures",
+        scripts("work_feed", "work_feed_channel_reactions")
+    ),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn attention_mode_keeps_top_level_reactions_with_their_channel(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let link_ids = [Uuid::parse_str(LINK_1)?];
+    let sources = sources();
+    let mut request = req(WorkFeedSoupMode::Attention, &link_ids, &sources);
+    request.types = CHANNEL_TYPES;
+    let page = work_feed_soup_page(&pool, request).await?;
+
+    // The top-level reaction (T30) and document mention (T32) place
+    // channel-Y; the reaction inside thread R2 stays with the thread, and a
+    // mention keys to its message's thread whether or not it has replies.
+    assert_eq!(
+        keys(&page),
+        vec![
+            (EntityType::Channel, CHANNEL_Y.to_string()),
+            (EntityType::ChannelMessage, ROOT_R2.to_string()),
+            (EntityType::ChannelMessage, THREAD_M.to_string()),
+        ]
+    );
+    assert_eq!(
+        minutes(&page),
+        vec![
+            (32, Some(32), None),
+            (31, Some(31), None),
+            (1, Some(1), None)
+        ]
+    );
+
+    // Recomputing the channel finds it, and the message it no longer
+    // claims is gone from the attention feed.
+    let only: Vec<Entity<'static>> = vec![
+        EntityType::Channel.with_entity_string(CHANNEL_Y.to_string()),
+        EntityType::ChannelMessage.with_entity_string(ROOT_R1.to_string()),
+    ];
+    let mut request = req(WorkFeedSoupMode::Attention, &link_ids, &sources);
+    request.only = Some(&only);
+    let page = work_feed_soup_page(&pool, request).await?;
+    assert_eq!(
+        keys(&page),
+        vec![(EntityType::Channel, CHANNEL_Y.to_string())]
     );
 
     Ok(())

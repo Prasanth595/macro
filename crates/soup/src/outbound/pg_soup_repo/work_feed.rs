@@ -12,9 +12,12 @@
 //!
 //! Both streams share the notified-at feed's keying (thread-scoped channel
 //! notifications become `channel_message` candidates on their thread root)
-//! and its per-type gates. One condition is specific to the work feed: an
+//! and its per-type gates. Two conditions are specific to the work feed: an
 //! email thread's attention lasts only while the thread is in the inbox
-//! (mail's own notion of done).
+//! (mail's own notion of done), and in attention mode a reaction to, or a
+//! document mention in, a top-level message belongs to its channel rather
+//! than to a thread rooted at that message, so the notifications inbox shows
+//! them with the channel's other top-level activity.
 //!
 //! Done notifications never place an item, so the query reads only the
 //! viewer's pending ones, once, and both streams look attention up there.
@@ -133,6 +136,28 @@ fn email_inbox_gate() -> String {
     )
 }
 
+/// `ChannelMessageReactionMetadata::TYPE_NAME`; soup does not depend on
+/// `model_notifications`.
+const CHANNEL_MESSAGE_REACTION: &str = "channel_message_reaction";
+/// `DocumentMentionMetadata::TYPE_NAME`.
+const DOCUMENT_MENTION: &str = "document_mention";
+
+/// Whether the `notification` row `n` is keyed to the channel thread named by
+/// its secondary item. In attention mode (`$9` false) a reaction or document
+/// mention without a thread stays with its channel; in work mode every
+/// notification naming a `channel_message` keys to that thread, as Home has
+/// always shown it.
+fn thread_keyed() -> String {
+    format!(
+        r#"(n.event_item_type = 'channel'
+            AND n.secondary_event_item_type = 'channel_message'
+            AND ($9 OR NOT (
+                n.notification_event_type IN ('{CHANNEL_MESSAGE_REACTION}', '{DOCUMENT_MENTION}')
+                AND NULLIF(COALESCE(n.metadata->>'threadId', n.metadata->>'thread_id'), '') IS NULL
+            )))"#
+    )
+}
+
 /// Whether the `activity_events` row aliased `alias` is the viewer's own work:
 /// any action but a view, except that an email thread is only worked on by
 /// sending from it. Archiving, starring, labeling and moving a thread record
@@ -151,6 +176,7 @@ fn build_query(req: &WorkFeedCandidateRequest<'_>) -> String {
     let filter = req.filter;
     format!(
         include_str!("work_feed/query.sql"),
+        thread_keyed = thread_keyed(),
         own_work_ae = own_work("ae"),
         own_work_newer = own_work("newer"),
         email_inbox_gate = email_inbox_gate(),
