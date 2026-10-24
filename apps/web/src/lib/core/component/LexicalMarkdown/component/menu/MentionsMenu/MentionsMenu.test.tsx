@@ -262,8 +262,10 @@ it('closes the mobile menu on the first Escape', () => {
 
   menu.openMenu();
   expect(menu.isOpen()).toBe(true);
+  expect(screen.queryByText(/View all/)).toBeNull();
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(menu.isOpen()).toBe(false);
+  expect(screen.queryByText(/View all/)).toBeNull();
 });
 
 it('leaves a category list on the first desktop Escape and closes on the second', () => {
