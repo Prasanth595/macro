@@ -67,9 +67,7 @@ const routes = createRoutesManifest({
 } satisfies SplitRoutes);
 
 const openedRoute = (link: string) => {
-  const [root, ...segments] = new URL(link).pathname
-    .split('/')
-    .filter(Boolean);
+  const [root, ...segments] = new URL(link).pathname.split('/').filter(Boolean);
   expect(root).toBe('app');
   const leaf = decodePane(routes, segments)?.matches.at(-1);
   return leaf && { id: leaf.id, params: leaf.params };
