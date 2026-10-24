@@ -17,6 +17,8 @@ export type SavedViewsSource = {
   loadMore: () => Promise<unknown>;
   refresh: () => Promise<unknown>;
   detail: Accessor<SavedView | null | undefined>;
+  /** Viewer identity returned with the current detail, not the requested identity. */
+  detailViewerId: Accessor<string | undefined>;
   detailError: Accessor<unknown>;
   detailLoading: Accessor<boolean>;
   refreshDetail: () => Promise<unknown>;

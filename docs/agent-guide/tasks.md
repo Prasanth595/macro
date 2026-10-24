@@ -121,6 +121,27 @@ should appear immediately and stay visible through both responses in the list,
 task header, side panel, and a reopened picker. A rejected save should remove only
 the optimistic tag. Repeat with an existing assignment and with removal.
 
+## Saved views
+
+Saved views are available on main Tasks, not inside Project or CRM task lists.
+
+- Desktop: use the **Saved views** sidebar section. Its icon-only **+** remains available while collapsed or empty.
+- Mobile: the bookmark button beside the filter control opens the shared Views drawer. Creation, selection, editing, and deletion work there too.
+- **+** starts an unsaved view with All Tasks scope and explicit open-status filters. Configure filters, then choose **Save view** and provide a name.
+- **Save as view** in the filter menu/drawer captures current filters, including My Tasks or Created by me scope and the current status selection. It excludes text search, sort, grouping, and layout.
+- In a saved view, **Scope** appears in the filters. **Me (each viewer)** is relative; choosing a named person remains fixed.
+- Temporary edits show **Save changes** and **Reset**. The overflow menu provides **Save as new**, **Rename or share**, **Copy link**, and confirmed **Delete view**. Non-owners cannot overwrite or delete a shared view.
+- The optional **Share with team** checkbox shares only the filter definition. Each teammate still sees only permitted items. Sharing stops if the owner leaves the team; rejoining does not reactivate it.
+- Leaving the view or opening task detail discards temporary edits. The return breadcrumb retains the saved-view identity and reloads its saved filters.
+- An unavailable, deleted, or unsupported view shows an explicit unavailable state, not All Tasks under the old name. Unknown tag/person labels retain their filters until deliberately removed.
+- A conflicting save retains the draft and offers **Reload saved view** or **Save as new**. A network failure also retains the name and sharing inputs.
+- Copy links use the existing split search codec, for example `/app/component/tasks?s0.tasks.savedView=<uuid>`.
+
+Verify creation without early persistence, explicit save/reset, copy versus owner-only editing, desktop/mobile metadata dialogs, and returning from task detail. Repeat with another teammate, a removed/rejoined owner, an unavailable tag, and a stale revision.
+
+The backend-free browser regression exercises the shared list/dialog and real draft controller at desktop and phone widths:
+`bunx playwright test --config src/features/tasks-view/browser-test/saved-views.playwright.config.ts` from `apps/web`.
+
 ## Gantt layout
 
 Choose **Gantt** in the **Task layout** group to see task timelines.
@@ -925,7 +946,7 @@ Task navigation uses `My Tasks`, `All Tasks`, and `Created by me`. The desktop
 sidebar has the full-width `New` menu and a collapsible list of task favorites;
 tag filtering lives in the `Filter` menu. Favorite rows open their tasks.
 Normal row and favorite activation replaces the list with the editable task
-document; its originating-tab breadcrumb returns to the list and its
+document; its originating-tab or saved-view breadcrumb returns to the list and its
 header exposes Share and the task Details/Properties panel. Shift-click opens
 the task in a new split instead. While the list is visible, `J` and `K` move
 focus without opening a task until activation. In an open task detail, they

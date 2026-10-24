@@ -3,6 +3,7 @@ import { type JSX, Show } from 'solid-js';
 import { TASK_TABS, type TaskTabItem } from '../constants';
 import { useTasksView } from '../tasks-view-context';
 import type { TasksTab } from '../types';
+import { TaskSavedViewsPicker } from '../views/task-saved-views';
 import { TasksFilterDrawer } from './TasksFilterDrawer';
 
 const toPill = (tab: TaskTabItem): PillTabItem<TasksTab> => ({
@@ -11,7 +12,7 @@ const toPill = (tab: TaskTabItem): PillTabItem<TasksTab> => ({
 });
 
 export function TasksMobileTabs(props: { leading?: JSX.Element }) {
-  const { state, setTab, projectsEnabled } = useTasksView();
+  const { state, setTab, projectsEnabled, savedViews } = useTasksView();
   const items = (): PillTabItem<TasksTab>[] =>
     TASK_TABS.filter((tab) => tab.id !== 'projects' || projectsEnabled()).map(
       toPill
@@ -25,13 +26,16 @@ export function TasksMobileTabs(props: { leading?: JSX.Element }) {
         contentClass="px-(--mobile-chrome-gutter)"
         leading={
           props.leading ?? (
-            <Show when={state.tab !== 'projects'}>
-              <TasksFilterDrawer />
-            </Show>
+            <>
+              <TaskSavedViewsPicker />
+              <Show when={state.tab !== 'projects'}>
+                <TasksFilterDrawer />
+              </Show>
+            </>
           )
         }
         items={items()}
-        value={state.tab}
+        value={savedViews?.active() ? undefined : state.tab}
         onChange={setTab}
       />
     </div>

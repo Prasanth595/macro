@@ -116,9 +116,16 @@ export function createTaskSavedViews(options: {
           creating(),
           options.source.detail(),
           options.source.detailError(),
+          options.source.detailViewerId(),
         ] as const,
-      ([id, viewer, isNew, record, loadError]) => {
-        if (isNew) {
+      ([id, viewer, isNew, record, loadError, detailViewer]) => {
+        const accountChanged =
+          priorViewer !== undefined && viewer !== priorViewer;
+        if (accountChanged) {
+          setCreating(false);
+          setTagBindings(new Map());
+        }
+        if (isNew && !accountChanged) {
           if (!draft.record() || draft.record()?.id !== id) return;
           setCreating(false);
         }
@@ -140,12 +147,16 @@ export function createTaskSavedViews(options: {
           options.clearSearch();
         }
         if (!id) {
-          if (wasSelected && hadBaseline) {
+          if ((wasSelected && hadBaseline) || accountChanged) {
             setTagBindings(new Map());
-            options.apply(options.state.tab, DEFAULT_TASK_FACET_SELECTION);
+            options.apply(
+              accountChanged ? 'my-tasks' : options.state.tab,
+              DEFAULT_TASK_FACET_SELECTION
+            );
           }
           return;
         }
+        if (detailViewer !== undefined && detailViewer !== viewer) return;
         if (loadError || record === null) {
           setUnavailable(
             'This saved view is unavailable or you no longer have access.'
@@ -166,6 +177,18 @@ export function createTaskSavedViews(options: {
       if (id === undefined)
         fireAndForget(options.source.refreshDetail(), 'saved-views');
     })
+  );
+
+  createEffect(
+    on(
+      () => options.state.tab,
+      (tab, previous) => {
+        if (tab === previous || active()) return;
+        navigationEpoch += 1;
+        setForm(undefined);
+        setError(undefined);
+      }
+    )
   );
 
   const ready = () =>

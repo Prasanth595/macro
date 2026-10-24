@@ -210,6 +210,7 @@ export type ListFilterDropdownProps<
   clearLabel?: string;
   class?: string;
   contentClass?: string;
+  footer?: JSX.Element;
 } & ListDropdownOpenProps;
 
 /**
@@ -379,6 +380,7 @@ export function ListFilterDropdown<
             </Dropdown.Group>
           )}
         </Show>
+        {props.footer}
       </Dropdown.Content>
     </Dropdown>
   );

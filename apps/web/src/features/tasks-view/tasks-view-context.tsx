@@ -6,7 +6,9 @@ import {
   listOwnedSlotName,
 } from '@app/components/list';
 import { setSidebarSectionCollapsed } from '@app/components/view-shell';
+import type { SavedViewsSource } from '@app/features/saved-views/context/saved-views-source';
 import { normalizeFacetSelection } from '@app/features/soup';
+import { createTagFacetContext } from '@app/features/soup/filters/facets/tag-facet';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   enableGantt,
@@ -51,8 +53,13 @@ import {
 } from 'solid-js/store';
 import { TASK_DEFAULT_GROUP_BY } from './constants';
 import { toTaskBoardGrouping } from './core/task-board';
+import type { TaskFacetContext } from './filters/task-facets';
 import { DEFAULT_TASK_FACET_SELECTION } from './filters/task-facets';
 import { createTasksViewPersistence } from './persistence';
+import {
+  createTaskSavedViews,
+  type TaskSavedViews,
+} from './primitives/create-task-saved-views';
 import { createTasksViewSearch } from './primitives/create-tasks-view-search';
 import {
   type TasksDataSource,
@@ -87,6 +94,11 @@ export type TasksViewProviderProps = ContextProviderProps & {
   onCloseTask?: () => void;
   /** Host-owned task creation, including scope and permissions for embedded views. */
   onCreateTask?: (options?: TaskCreateOptions) => void;
+  savedViewTeam?: Accessor<{ id: string; name: string } | undefined>;
+  /** Main Tasks supplies the generic source; embedded lists leave it out. */
+  savedViewsSource?: (
+    selectedId: Accessor<string | undefined>
+  ) => SavedViewsSource;
 };
 
 export type TasksListActivationMetadata = {
@@ -102,6 +114,9 @@ type TasksListController = ListController<
 export type TasksViewContext = {
   scopeKey?: string;
   state: Store<TasksViewState>;
+  savedViews?: TaskSavedViews;
+  savedViewTeam?: Accessor<{ id: string; name: string } | undefined>;
+  facetContext: Accessor<TaskFacetContext>;
   createTask?: TasksViewProviderProps['onCreateTask'];
   projectsEnabled: Accessor<boolean>;
   ganttEnabled: Accessor<boolean>;
@@ -241,6 +256,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   const currentSearch = () =>
     tasksTabSearchCodec.serialize({
       tab: state.tab,
+      savedView: tabSearch.savedView,
       // Preserve a rollout-hidden Gantt selection across task navigation.
       layout: isTouchDevice() ? 'list' : persistedState.layout,
       sort: state.sort[0]?.id,
@@ -255,12 +271,52 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   const isGroupExpanded = (groupId: string) =>
     !state.collapsedGroupIds.includes(groupId);
 
+  let savedViews: TaskSavedViews | undefined;
+  const facetContext = (): TaskFacetContext => {
+    const tags = new Map(
+      createTagFacetContext(tagSets()).tagPropertyDefinitionByOptionId
+    );
+    for (const [option, property] of savedViews?.tagBindings() ?? [])
+      tags.set(option, property);
+    return { tagPropertyDefinitionByOptionId: tags, viewerId: userId() };
+  };
+  const savedViewsSource = props.savedViewsSource?.(() => tabSearch.savedView);
+  if (savedViewsSource) {
+    savedViews = createTaskSavedViews({
+      source: savedViewsSource,
+      selectedId: () => tabSearch.savedView,
+      viewerId: userId,
+      taskId: () => routeParams.taskId,
+      state,
+      facetContext,
+      setActive: (active) => setState('savedViewActive', active),
+      apply: (tab, facets) =>
+        setState(
+          produce((draft) => {
+            draft.tab = tab;
+            draft.facets = normalizeFacetSelection(facets);
+            draft.collapsedGroupIds = [];
+          })
+        ),
+      clearSearch: () => setState('search', ''),
+      navigate: (id) => {
+        setTabSearch(
+          { savedView: id, tab: persistedState.tab },
+          { history: 'replace' }
+        );
+        closeTask();
+      },
+    });
+  }
+
   const source = withSplitPanelOwner(ownedSlot('data-source'), () =>
     (props.sourceFactory ?? useTasksDataSource)(state, {
       userId,
       tagSets,
       tagSetsReady,
       isGroupExpanded,
+      facetContext,
+      enabled: () => savedViews?.ready() ?? true,
       board: () => state.layout === 'board',
     })
   );
@@ -396,7 +452,9 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
 
   const setTab = (tab: TasksTab) => {
     if (tab === 'projects' && !projectsEnabled()) return;
-    if (persistedState.tab === tab) {
+    const leavingSavedView = savedViews?.active() ?? false;
+    if (leavingSavedView) savedViews?.leave();
+    if (persistedState.tab === tab && !leavingSavedView) {
       closeTask();
       return;
     }
@@ -437,6 +495,9 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
 
   return {
     scopeKey: props.scopeKey,
+    savedViews,
+    savedViewTeam: props.savedViewTeam,
+    facetContext,
     get createTask() {
       return props.onCreateTask;
     },

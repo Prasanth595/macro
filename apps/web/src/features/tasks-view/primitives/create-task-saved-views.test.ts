@@ -1,5 +1,5 @@
 import { err, ok, type Result } from 'neverthrow';
-import { createRoot, createSignal } from 'solid-js';
+import { batch, createRoot, createSignal } from 'solid-js';
 import { createStore, reconcile } from 'solid-js/store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SavedViewsSource } from '../../saved-views/context/saved-views-source';
@@ -40,6 +40,12 @@ function harness() {
       view
     );
     const [taskId, setTaskId] = createSignal<string>();
+    const [viewerId, setViewerId] = createSignal<string | undefined>(
+      view.ownerId
+    );
+    const [detailViewerId, setDetailViewerId] = createSignal<
+      string | undefined
+    >(view.ownerId);
     const [state, setState] = createStore<TasksViewState>({
       layout: 'list',
       tab: 'team-tasks',
@@ -60,6 +66,7 @@ function harness() {
       loadMore: async () => {},
       refresh: async () => {},
       detail,
+      detailViewerId,
       detailLoading: () => false,
       detailError: () => undefined,
       refreshDetail: async () => {},
@@ -71,7 +78,7 @@ function harness() {
       source,
       selectedId: id,
       taskId,
-      viewerId: () => view.ownerId,
+      viewerId,
       state,
       facetContext: () => ({
         tagPropertyDefinitionByOptionId: new Map(),
@@ -92,6 +99,8 @@ function harness() {
       setId,
       setDetail,
       setTaskId,
+      setViewerId,
+      setDetailViewerId,
       source,
       update,
     };
@@ -120,6 +129,46 @@ describe('saved task drafts', () => {
     expect(h.controller.active()).toBe(false);
     expect(h.state.savedViewActive).toBe(false);
     expect(h.state.facets.priority).toBeUndefined();
+  });
+
+  it('does not install another account’s cached detail before its new read arrives', () => {
+    const h = harness();
+    h.setViewerId('other-viewer');
+    expect(h.controller.ready()).toBe(false);
+    expect(h.controller.record()).toBeUndefined();
+    batch(() => {
+      h.setDetail({ ...view, sharedTeamId: 'team' });
+      h.setDetailViewerId('other-viewer');
+    });
+    expect(h.controller.ready()).toBe(true);
+    expect(h.controller.owned()).toBe(false);
+  });
+
+  it('discards a new-view draft when the account changes', () => {
+    const h = harness();
+    h.controller.start();
+    h.controller.saveAs();
+    h.setViewerId('other-viewer');
+    expect(h.controller.creating()).toBe(false);
+    expect(h.controller.form()).toBeUndefined();
+  });
+
+  it('does not open a completed copy after the built-in tab changes', async () => {
+    const h = harness();
+    h.controller.leave();
+    h.controller.saveAs();
+    let finish!: (result: Result<SavedView, SavedViewError>) => void;
+    h.source.create = () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
+    const save = h.controller.save('Copy', null);
+    h.setState('tab', 'created-by-me');
+    finish(ok({ ...view, id: 'new-view' }));
+    await save;
+    expect(h.controller.active()).toBe(false);
+    expect(h.controller.record()).toBeUndefined();
+    expect(h.state.tab).toBe('created-by-me');
   });
 
   it('fails closed on unknown filter versions', () => {

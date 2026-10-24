@@ -13,6 +13,7 @@ import { Show } from 'solid-js';
 import { TASK_TABS } from '../constants';
 import { TasksCreateAction } from '../tasks-create-action';
 import { useTasksView } from '../tasks-view-context';
+import { TaskSavedViewActions } from '../views/task-saved-views';
 import { TasksControls } from './TasksControls';
 import { TasksMobileTabs } from './TasksMobileTabs';
 
@@ -22,9 +23,11 @@ export type TasksHeaderProps = {
 };
 
 export function TaskViewBreadcrumbItem() {
-  const { state } = useTasksView();
+  const { state, savedViews } = useTasksView();
   const tabTitle = () =>
-    TASK_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Tasks';
+    savedViews?.active()
+      ? savedViews.title()
+      : (TASK_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Tasks');
 
   return (
     <ViewBreadcrumbs.Item
@@ -47,7 +50,7 @@ export function TaskViewBreadcrumbItem() {
 
 export function TasksHeader(props: TasksHeaderProps) {
   const panel = useSplitPanelOrThrow();
-  const { state, setState, projectsEnabled } = useTasksView();
+  const { state, setState, projectsEnabled, savedViews } = useTasksView();
   let focusSearch: (() => void) | undefined;
   useViewControlHotkeys({
     scopeId: panel.splitHotkeyScope,
@@ -68,6 +71,7 @@ export function TasksHeader(props: TasksHeaderProps) {
         <ListHeader
           title={<ViewBreadcrumbs.Outlet aria-label="Task location" />}
         >
+          <TaskSavedViewActions />
           <TasksControls />
           <TasksCreateAction
             presentation="toolbar"
@@ -88,6 +92,14 @@ export function TasksHeader(props: TasksHeaderProps) {
       <ViewShell.Header>
         <div class="flex min-w-0 flex-col @max-[720px]/view-shell:gap-3">
           <TasksMobileTabs />
+          <Show when={savedViews?.active()}>
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <span class="truncate text-sm font-medium">
+                {savedViews?.title()}
+              </span>
+              <TaskSavedViewActions />
+            </div>
+          </Show>
         </div>
       </ViewShell.Header>
     </Show>

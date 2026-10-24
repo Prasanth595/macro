@@ -10,7 +10,7 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import GanttIcon from '@phosphor/chart-bar-horizontal.svg';
 import BoardIcon from '@phosphor/kanban.svg';
 import ListIcon from '@phosphor/list-bullets.svg';
-import { Button } from '@ui';
+import { Button, Dropdown } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createSignal, Show } from 'solid-js';
 import { TASK_GROUP_OPTIONS, TASK_SORT_OPTIONS } from '../constants';
@@ -30,8 +30,14 @@ export function TasksControls() {
 
 function DesktopTasksControls() {
   const panel = useSplitPanelOrThrow();
-  const { state, setPrimarySort, setState, projectsEnabled, ganttEnabled } =
-    useTasksView();
+  const {
+    state,
+    setPrimarySort,
+    setState,
+    projectsEnabled,
+    ganttEnabled,
+    savedViews,
+  } = useTasksView();
   const filters = useTaskFilters();
   const [openMenu, setOpenMenu] = createSignal<'filters' | 'sort'>();
   let filterTrigger: HTMLButtonElement | undefined;
@@ -95,6 +101,20 @@ function DesktopTasksControls() {
             isSelected={filters.isSelected}
             onSelectionChange={filters.setSelected}
             onClear={filters.clear}
+            footer={
+              <Show when={savedViews}>
+                <Dropdown.Group>
+                  <Dropdown.Item
+                    onSelect={() => {
+                      setOpenMenu(undefined);
+                      savedViews?.saveAs();
+                    }}
+                  >
+                    Save as view
+                  </Dropdown.Item>
+                </Dropdown.Group>
+              </Show>
+            }
             aiFilter={{
               placeholder: 'Filter with AI…',
               onSubmit: filters.applyDescription,
