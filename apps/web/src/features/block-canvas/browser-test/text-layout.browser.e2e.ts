@@ -61,8 +61,26 @@ async function expectInside(
           ink.bottom,
         height: ink.height,
       });
+      const textRects: DOMRect[] = [];
+      const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const nodeText = node.textContent;
+        if (!nodeText) continue;
+        // Wrapped trailing spaces can hang outside the line without painting ink.
+        for (const word of nodeText.matchAll(/\S+/gu)) {
+          const range = document.createRange();
+          range.setStart(node, word.index);
+          range.setEnd(node, word.index + word[0].length);
+          textRects.push(
+            ...Array.from(range.getClientRects()).filter(
+              (rect) => rect.width > 0 && rect.height > 0
+            )
+          );
+        }
+      }
       return {
         ...margins(ink),
+        text: textRects.map(margins),
         chips: Array.from(
           content.querySelectorAll('[data-user-mention]'),
           (chip) => margins(chip.getBoundingClientRect())
@@ -72,7 +90,8 @@ async function expectInside(
     { ratio, standalone }
   );
   expect(boxes.height).toBeGreaterThan(0);
-  for (const ink of [boxes, ...boxes.chips])
+  expect(boxes.text.length).toBeGreaterThan(0);
+  for (const ink of [boxes, ...boxes.text, ...boxes.chips])
     for (const margin of [ink.left, ink.right, ink.top, ink.bottom])
       expect(margin).toBeGreaterThanOrEqual(-1);
 }
