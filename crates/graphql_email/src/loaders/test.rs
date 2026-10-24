@@ -589,7 +589,7 @@ impl CapturedLogs {
 }
 
 #[tokio::test]
-async fn unavailable_threads_are_logged_with_the_reason_and_opaque_viewer() {
+async fn unavailable_threads_are_logged_in_the_request_span_with_the_reason_and_opaque_viewer() {
     let logs = CapturedLogs::default();
     let writer = logs.clone();
     let _guard = tracing::subscriber::set_default(
@@ -598,6 +598,7 @@ async fn unavailable_threads_are_logged_with_the_reason_and_opaque_viewer() {
             .with_writer(move || writer.clone())
             .finish(),
     );
+    tracing::callsite::rebuild_interest_cache();
     let denying_reader = || {
         EmailServiceEmailContentReader::new(
             Arc::new(RecordingContentService::default()),
@@ -607,30 +608,32 @@ async fn unavailable_threads_are_logged_with_the_reason_and_opaque_viewer() {
     let user_id = MacroUserIdStr::try_from_email("reader@example.com").unwrap();
     let viewer_id = Uuid::from_u128(77);
     let thread_id = Uuid::from_u128(1);
+    let metadata_loader =
+        email_thread_metadata_loader(user_id.clone(), Some(viewer_id), denying_reader());
+    let projection_loader =
+        email_thread_mail_projection_loader(user_id, Some(viewer_id), denying_reader());
 
-    let metadata =
-        EmailThreadMetadataLoader::new(user_id.clone(), Some(viewer_id), denying_reader())
-            .load(&[thread_id])
-            .await
-            .unwrap();
-    let projections =
-        EmailThreadMailProjectionLoader::new(user_id, Some(viewer_id), denying_reader())
-            .load(&[thread_id])
-            .await
-            .unwrap();
+    let (metadata, projection) = async {
+        (
+            metadata_loader.load_one(thread_id).await.unwrap(),
+            projection_loader.load_one(thread_id).await.unwrap(),
+        )
+    }
+    .instrument(tracing::info_span!("graphql_request"))
+    .await;
+
     assert!(matches!(
-        metadata.get(&thread_id),
+        metadata,
         Some(EmailThreadMetadataLoad::Unavailable(
             EmailThreadUnavailable::NoAccess
         ))
     ));
     assert!(matches!(
-        projections.get(&thread_id),
+        projection,
         Some(EmailThreadMailProjectionLoad::Unavailable(
             EmailThreadUnavailable::NoAccess
         ))
     ));
-
     let logs = logs.text();
     for message in [
         "email thread metadata unavailable",
@@ -641,6 +644,8 @@ async fn unavailable_threads_are_logged_with_the_reason_and_opaque_viewer() {
             .find(|line| line.contains(message))
             .unwrap_or_else(|| panic!("no {message:?} warning in {logs}"));
         assert!(line.contains("WARN"), "{line}");
+        // The fmt subscriber prefixes an event with the spans it fired in.
+        assert!(line.contains("graphql_request:"), "{line}");
         assert!(line.contains(&format!("thread_id={thread_id}")), "{line}");
         assert!(line.contains(&format!("viewer_id={viewer_id}")), "{line}");
         assert!(line.contains("reason=NoAccess"), "{line}");

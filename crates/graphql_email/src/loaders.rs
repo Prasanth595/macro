@@ -9,8 +9,9 @@ use email::domain::{
     ports::{EmailContentService, EmailThreadMailProjectionService, EmailThreadMetadataService},
 };
 use entity_access::domain::{models::AccessError, ports::EntityAccessService};
-use futures::future::join_all;
+use futures::future::{BoxFuture, join_all};
 use macro_user_id::user_id::MacroUserIdStr;
+use tracing::Instrument;
 use uuid::Uuid;
 
 pub(crate) const MAX_EMAIL_CONTENT_KEYS: usize = 20;
@@ -664,6 +665,12 @@ where
     }
 }
 
+/// Spawns a DataLoader batch in the span of the field that started it, so the
+/// batch's logs stay in the request's trace.
+fn spawn_in_current_span(batch: BoxFuture<'static, ()>) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(batch.in_current_span())
+}
+
 /// DataLoader for canonical metadata attached to Soup email threads.
 pub struct EmailThreadMetadataLoader<R> {
     user_id: MacroUserIdStr<'static>,
@@ -722,7 +729,7 @@ where
 {
     let loader = DataLoader::new(
         EmailThreadMetadataLoader::new(user_id, viewer_id, reader),
-        tokio::spawn,
+        spawn_in_current_span,
     )
     .max_batch_size(MAX_EMAIL_THREAD_METADATA_KEYS);
     // Subscription connection data outlives one payload. Coalesce concurrent
@@ -789,7 +796,7 @@ where
 {
     let loader = DataLoader::new(
         EmailThreadMailProjectionLoader::new(user_id, viewer_id, reader),
-        tokio::spawn,
+        spawn_in_current_span,
     )
     .max_batch_size(MAX_EMAIL_THREAD_MAIL_PROJECTION_KEYS);
     // Subscription connection data outlives one payload. Coalesce concurrent
@@ -879,7 +886,10 @@ pub fn email_content_loader<R>(
 where
     R: SoupEmailContentEdgeReader,
 {
-    DataLoader::new(EmailContentLoader::new(user_id, reader), tokio::spawn)
+    DataLoader::new(
+        EmailContentLoader::new(user_id, reader),
+        spawn_in_current_span,
+    )
 }
 
 #[cfg(test)]
