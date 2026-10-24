@@ -5,6 +5,7 @@ import CalendarPlus from '@phosphor-icons/core/regular/calendar-plus.svg';
 import CalendarX from '@phosphor-icons/core/regular/calendar-x.svg';
 import VideoCamera from '@phosphor-icons/core/regular/video-camera.svg';
 import type { NamedTool } from '@service-cognition/generated/tools/tool';
+import { Tooltip } from '@ui';
 import { format, isSameDay, subDays } from 'date-fns';
 import { createSignal, For, Match, Show, Switch } from 'solid-js';
 import { BaseTool } from './BaseTool';
@@ -297,9 +298,11 @@ export const readCalendarEventHandler = createToolRenderer({
         <span class="min-w-0 truncate">Read calendar event</span>
         <Show when={ctx.response?.data}>
           {(event) => (
-            <span class="min-w-0 truncate text-xs text-ink-extra-muted">
-              {event().title}
-            </span>
+            <Tooltip label={event().title} as="span" class="min-w-0">
+              <span class="min-w-0 truncate text-xs text-ink-extra-muted">
+                {event().title}
+              </span>
+            </Tooltip>
           )}
         </Show>
       </div>
