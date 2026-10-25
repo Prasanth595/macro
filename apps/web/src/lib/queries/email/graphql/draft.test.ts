@@ -315,6 +315,35 @@ it.each([true, false])(
   }
 );
 
+it.each([true, false])(
+  'editing a draft follows received mail that changed after the draft was saved (received=%s)',
+  async (hasReceivedMail) => {
+    const { draft, thread } = await standalone();
+    const saved = updateDraftThread(
+      {
+        ...thread,
+        hasReceivedMail: !hasReceivedMail,
+        messages: [],
+        mailDraftState: {
+          baseline: { ...thread.mailDraftState!.baseline, messageCount: 1 },
+          drafts: [],
+        },
+      },
+      draft,
+      false
+    );
+    const edited = updateDraftThread(
+      { ...saved, hasReceivedMail },
+      { ...draft, updatedAt: '2026-09-23T12:00:00Z' },
+      false
+    );
+    expect(edited).toMatchObject({
+      inboxVisible: hasReceivedMail,
+      latestInboundMessageTs: hasReceivedMail ? '2026-09-23T12:00:00Z' : null,
+    });
+  }
+);
+
 it('editing an older draft keeps the later received preview and discarding restores the full baseline', async () => {
   const { draft, thread } = await standalone();
   const received = {
