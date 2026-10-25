@@ -224,8 +224,8 @@ the flag request gets no answer, for example when a browser blocks it.
 Calendar connections live in **Settings → Calendar** (`/app/settings/calendar`).
 Connected calendars offers Connect account (the existing Google consent flow),
 Connect calendar for accounts missing calendar permission, and Disconnect with
-confirmation. When the only linked account lacks calendar permission, the Google
-Calendar row shows just a filled Connect button for it, with no account list or
+confirmation. When the only linked account lacks calendar permission, the
+Calendar accounts row shows just a filled Connect button for it, with no account list or
 visibility note. Disconnect removes calendar access/data, not the Gmail connection.
 Settings → Calendar lists only the viewer's own inboxes. The **Enable calendar**
 toast (behind `enable-calendar-prompt-web` and `enable-calendar-prompt-mobile`)
