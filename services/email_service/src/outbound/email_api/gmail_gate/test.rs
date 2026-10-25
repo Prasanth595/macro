@@ -211,7 +211,7 @@ async fn a_backfill_request_defers_once_its_wait_runs_out() {
 
 #[tokio::test]
 #[ignore = "requires local Redis on port 6379; uses only unique mailbox keys"]
-async fn a_gmail_rate_limit_pauses_every_caller_for_the_capped_cooldown() {
+async fn a_gmail_rate_limit_pauses_live_work_briefly_and_backfill_longer() {
     let connection = connection().await;
     let live = RedisGmailRequestGate::new(connection.clone(), RateBudget::Live);
     let mut backfill = RedisGmailRequestGate::new(connection.clone(), RateBudget::Backfill);
@@ -247,14 +247,13 @@ async fn a_gmail_rate_limit_pauses_every_caller_for_the_capped_cooldown() {
         }),
     )
     .await;
-    let delay = refusal_delay(backfill.acquire(link_id, ApiOperationKind::GetThread).await);
-    assert!(delay > Duration::from_millis(500) && delay <= DEFAULT_COOLDOWN);
-
+    let live_delay = refusal_delay(live.acquire(link_id, ApiOperationKind::SendMessage).await);
+    assert!(live_delay > Duration::from_millis(500) && live_delay <= DEFAULT_COOLDOWN);
+    let backfill_delay =
+        refusal_delay(backfill.acquire(link_id, ApiOperationKind::GetThread).await);
     assert!(
-        live.acquire(link_id, ApiOperationKind::SendMessage)
-            .await
-            .is_err(),
-        "the cooldown applies to every operation"
+        backfill_delay > Duration::from_secs(9) && backfill_delay <= BACKFILL_COOLDOWN,
+        "backfill leaves the room Gmail has left to live work for longer"
     );
     cleanup(&connection, link_id).await;
 
@@ -271,6 +270,12 @@ async fn a_gmail_rate_limit_pauses_every_caller_for_the_capped_cooldown() {
     )
     .await;
     let delay = refusal_delay(live.acquire(link_id, ApiOperationKind::GetMessage).await);
+    assert!(delay > Duration::from_secs(59) && delay <= MAX_COOLDOWN);
+    let delay = refusal_delay(
+        backfill
+            .acquire(link_id, ApiOperationKind::GetMessage)
+            .await,
+    );
     assert!(delay > Duration::from_secs(59) && delay <= MAX_COOLDOWN);
     cleanup(&connection, link_id).await;
 }
