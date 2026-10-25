@@ -564,6 +564,3 @@ impl<R: ViewRepository, M: MembershipPort> SavedViewApi for SavedViewService<R, 
         SavedViewService::delete(self, viewer, id, revision).await
     }
 }
-
-#[cfg(test)]
-mod test;

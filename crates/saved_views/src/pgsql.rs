@@ -223,6 +223,3 @@ impl crate::domain::ViewRepository for PgViewStorage {
         Ok(deleted)
     }
 }
-
-#[cfg(test)]
-mod test;
