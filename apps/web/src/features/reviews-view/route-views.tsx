@@ -31,19 +31,22 @@ function TrackedReviewsView() {
   return <ReviewsView />;
 }
 
-export const ReviewsRouteView = withAuth(() => {
-  const params = useParams<{ foreignEntityId?: string }>();
-  const flag = useFeatureFlag(enableTasksReviews);
-  return (
-    <Show
-      when={params.foreignEntityId || flag().enabled}
-      fallback={
-        <Show when={!flag().loading} fallback={<ReviewsViewSkeleton />}>
-          <DisabledReviewsRoute />
-        </Show>
-      }
-    >
-      <TrackedReviewsView />
-    </Show>
-  );
-}, ReviewsViewSkeleton);
+export const ReviewsRouteView = withAuth(
+  () => {
+    const params = useParams<{ foreignEntityId?: string }>();
+    const flag = useFeatureFlag(enableTasksReviews);
+    return (
+      <Show
+        when={params.foreignEntityId || flag().enabled}
+        fallback={
+          <Show when={!flag().loading} fallback={<ReviewsViewSkeleton />}>
+            <DisabledReviewsRoute />
+          </Show>
+        }
+      >
+        <TrackedReviewsView />
+      </Show>
+    );
+  },
+  { pending: ReviewsViewSkeleton }
+);

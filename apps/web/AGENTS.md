@@ -152,8 +152,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Gate account-only queries, comment readers, and account WebSockets on confirmed
   authentication; keep public document loading independent of those services
   and distinguish unresolved identity from confirmed sign-out in UI prompts.
-  `withAuth` routes offer sign-in on confirmed sign-out; never leave a
-  signed-out viewer on a loader.
+  `withAuth` routes offer sign-in on confirmed sign-out, or the route's
+  `signedOut` face when it has one; never leave a signed-out viewer on a
+  loader.
 - Probe identity on deploy-preview origins even without a local login hint;
   shared HttpOnly dev cookies are not visible to JavaScript or localStorage.
 - Leave the login hint (`syncLoginStorage(true)`) before a full-page hosted

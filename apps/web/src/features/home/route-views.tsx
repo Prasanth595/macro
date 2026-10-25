@@ -47,20 +47,23 @@ function HomeLegacyRouteView() {
   );
 }
 
-export const HomeRouteView = withAuth(() => {
-  const params = useParams<HomeDetailParams>();
-  const detailRequested = () =>
-    homeDetailParamsFromRoute(params) !== undefined ||
-    typeof params.period === 'string';
+export const HomeRouteView = withAuth(
+  () => {
+    const params = useParams<HomeDetailParams>();
+    const detailRequested = () =>
+      homeDetailParamsFromRoute(params) !== undefined ||
+      typeof params.period === 'string';
 
-  return (
-    <AppView
-      id="home"
-      detailDesktopOnly
-      detailRequested={detailRequested}
-      detailFallback={<HomeLegacyRouteView />}
-    >
-      <HomeView />
-    </AppView>
-  );
-}, HomePendingView);
+    return (
+      <AppView
+        id="home"
+        detailDesktopOnly
+        detailRequested={detailRequested}
+        detailFallback={<HomeLegacyRouteView />}
+      >
+        <HomeView />
+      </AppView>
+    );
+  },
+  { pending: HomePendingView }
+);

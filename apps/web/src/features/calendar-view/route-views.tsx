@@ -9,5 +9,5 @@ const CalendarView = lazy(async () => ({
 
 export const CalendarRouteView = withAuth(
   () => <CalendarView route={calendarSplitRoute} />,
-  CalendarViewSkeleton
+  { pending: CalendarViewSkeleton }
 );

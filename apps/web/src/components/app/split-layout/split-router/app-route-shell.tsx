@@ -36,13 +36,20 @@ function SignedOutRoute() {
   );
 }
 
+export type AuthFaces<P extends object> = {
+  /** Draws while sign-in is unconfirmed. */
+  pending?: Component;
+  /** Replaces the sign-in prompt once sign-out is confirmed. */
+  signedOut?: Component<P>;
+};
+
 /**
- * Renders `View` once signed in; `Pending`, if given, draws while sign-in is
- * confirmed. A confirmed sign-out shows Login and Sign Up.
+ * Renders `View` once signed in and `faces.pending`, if given, while sign-in is
+ * confirmed. A confirmed sign-out shows `faces.signedOut`, or Login and Sign Up.
  */
 export function withAuth<P extends object>(
   View: Component<P>,
-  Pending?: Component
+  { pending: Pending, signedOut: SignedOut }: AuthFaces<P> = {}
 ): Component<P> {
   return (props) => {
     const authenticated = useIsAuthenticated();
@@ -52,7 +59,7 @@ export function withAuth<P extends object>(
           <View {...props} />
         </Match>
         <Match when={authenticated() === false}>
-          <SignedOutRoute />
+          {SignedOut ? <SignedOut {...props} /> : <SignedOutRoute />}
         </Match>
         <Match when={Pending && authenticated() === undefined}>
           {Pending && <Pending />}

@@ -27,18 +27,21 @@ function MailLegacyRouteView() {
   );
 }
 
-export const MailRouteView = withAuth(() => {
-  const params = useParams<{ threadId?: string }>();
-  const detailRequested = () => typeof params.threadId === 'string';
+export const MailRouteView = withAuth(
+  () => {
+    const params = useParams<{ threadId?: string }>();
+    const detailRequested = () => typeof params.threadId === 'string';
 
-  return (
-    <AppView
-      id="mail"
-      detailDesktopOnly
-      detailRequested={detailRequested}
-      detailFallback={<MailLegacyRouteView />}
-    >
-      <EmailView />
-    </AppView>
-  );
-}, EmailViewSkeleton);
+    return (
+      <AppView
+        id="mail"
+        detailDesktopOnly
+        detailRequested={detailRequested}
+        detailFallback={<MailLegacyRouteView />}
+      >
+        <EmailView />
+      </AppView>
+    );
+  },
+  { pending: EmailViewSkeleton }
+);

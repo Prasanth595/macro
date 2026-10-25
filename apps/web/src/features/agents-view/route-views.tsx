@@ -83,99 +83,102 @@ function LegacyAgentsView() {
   );
 }
 
-export const AgentsRouteView = withAuth(() => {
-  const panel = useSplitPanelOrThrow();
-  const route = () => {
-    const content = panel.handle.content();
-    if (content.type === 'component' && content.id === 'routines') return;
-    const requested =
-      content.type === 'component' &&
-      typeof content.params?.agentsRoute === 'string'
-        ? content.params.agentsRoute
-        : content.id;
-    return parseAgentsRoute(requested);
-  };
-  usePageViewTracking('agents');
-  const flag = useFeatureFlag(enableChatV3Agents);
-  const enabled = () => flag().enabled;
-  createRenderEffect(() => {
-    if (flag().loading) return;
-    panel.handle.updateMeta?.({
-      splitPanelLayout: enabled() ? 'composable' : 'legacy',
+export const AgentsRouteView = withAuth(
+  () => {
+    const panel = useSplitPanelOrThrow();
+    const route = () => {
+      const content = panel.handle.content();
+      if (content.type === 'component' && content.id === 'routines') return;
+      const requested =
+        content.type === 'component' &&
+        typeof content.params?.agentsRoute === 'string'
+          ? content.params.agentsRoute
+          : content.id;
+      return parseAgentsRoute(requested);
+    };
+    usePageViewTracking('agents');
+    const flag = useFeatureFlag(enableChatV3Agents);
+    const enabled = () => flag().enabled;
+    createRenderEffect(() => {
+      if (flag().loading) return;
+      panel.handle.updateMeta?.({
+        splitPanelLayout: enabled() ? 'composable' : 'legacy',
+      });
     });
-  });
-  const connectionsRequested = () => {
-    const content = panel.handle.content();
+    const connectionsRequested = () => {
+      const content = panel.handle.content();
+      return (
+        content.type === 'component' &&
+        content.id !== 'routines' &&
+        content.params?.agentPage === 'connections'
+      );
+    };
     return (
-      content.type === 'component' &&
-      content.id !== 'routines' &&
-      content.params?.agentPage === 'connections'
-    );
-  };
-  return (
-    <Show when={!flag().loading} fallback={<AgentsViewSkeleton />}>
-      <Show
-        when={enabled()}
-        fallback={
-          <Show
-            when={connectionsRequested()}
-            fallback={
-              <Show
-                when={route()}
-                fallback={
-                  <Show
-                    when={(() => {
-                      const content = panel.handle.content();
-                      return (
-                        content.type === 'component' &&
-                        (content.id === 'routines' ||
-                          content.params?.agentPage === 'routines')
-                      );
-                    })()}
-                    fallback={<LegacyAgentsView />}
-                  >
-                    <div class="size-full overflow-auto touch:pt-(--mobile-content-inset-top) touch:pb-(--mobile-content-inset-bottom)">
-                      <RoutinesPage />
-                    </div>
-                  </Show>
-                }
-              >
-                {(current) => (
-                  <RedirectSplit
-                    to={{
-                      type:
-                        current().conversation.type === 'agent_session'
-                          ? 'agent'
-                          : 'chat',
-                      id: current().conversation.id,
-                    }}
-                  />
-                )}
-              </Show>
-            }
-          >
-            <IntegrationsPage />
-          </Show>
-        }
-      >
+      <Show when={!flag().loading} fallback={<AgentsViewSkeleton />}>
         <Show
-          when={isTouchDevice() && route()}
-          fallback={<AgentsView initialRoute={route()} />}
+          when={enabled()}
+          fallback={
+            <Show
+              when={connectionsRequested()}
+              fallback={
+                <Show
+                  when={route()}
+                  fallback={
+                    <Show
+                      when={(() => {
+                        const content = panel.handle.content();
+                        return (
+                          content.type === 'component' &&
+                          (content.id === 'routines' ||
+                            content.params?.agentPage === 'routines')
+                        );
+                      })()}
+                      fallback={<LegacyAgentsView />}
+                    >
+                      <div class="size-full overflow-auto touch:pt-(--mobile-content-inset-top) touch:pb-(--mobile-content-inset-bottom)">
+                        <RoutinesPage />
+                      </div>
+                    </Show>
+                  }
+                >
+                  {(current) => (
+                    <RedirectSplit
+                      to={{
+                        type:
+                          current().conversation.type === 'agent_session'
+                            ? 'agent'
+                            : 'chat',
+                        id: current().conversation.id,
+                      }}
+                    />
+                  )}
+                </Show>
+              }
+            >
+              <IntegrationsPage />
+            </Show>
+          }
         >
-          {(current) => (
-            <RedirectSplit
-              mergeHistory
-              to={{
-                type:
-                  current().conversation.type === 'agent_session'
-                    ? 'agent'
-                    : 'chat',
-                id: current().conversation.id,
-              }}
-            />
-          )}
+          <Show
+            when={isTouchDevice() && route()}
+            fallback={<AgentsView initialRoute={route()} />}
+          >
+            {(current) => (
+              <RedirectSplit
+                mergeHistory
+                to={{
+                  type:
+                    current().conversation.type === 'agent_session'
+                      ? 'agent'
+                      : 'chat',
+                  id: current().conversation.id,
+                }}
+              />
+            )}
+          </Show>
         </Show>
       </Show>
-    </Show>
-  );
-}, AgentsViewSkeleton);
+    );
+  },
+  { pending: AgentsViewSkeleton }
+);

@@ -28,18 +28,21 @@ function ChannelsLegacyRouteView() {
   );
 }
 
-export const ChannelsRouteView = withAuth(() => {
-  const params = useParams<{ channelId?: string }>();
-  const detailRequested = () => typeof params.channelId === 'string';
+export const ChannelsRouteView = withAuth(
+  () => {
+    const params = useParams<{ channelId?: string }>();
+    const detailRequested = () => typeof params.channelId === 'string';
 
-  return (
-    <AppView
-      id="channels"
-      detailDesktopOnly
-      detailRequested={detailRequested}
-      detailFallback={<ChannelsLegacyRouteView />}
-    >
-      <ChannelsView />
-    </AppView>
-  );
-}, ChannelsViewSkeleton);
+    return (
+      <AppView
+        id="channels"
+        detailDesktopOnly
+        detailRequested={detailRequested}
+        detailFallback={<ChannelsLegacyRouteView />}
+      >
+        <ChannelsView />
+      </AppView>
+    );
+  },
+  { pending: ChannelsViewSkeleton }
+);

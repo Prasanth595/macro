@@ -56,7 +56,7 @@ export const TasksRouteView = withAuth(() => {
       <TasksView />
     </AppView>
   );
-}, TasksViewSkeleton);
+}, { pending: TasksViewSkeleton });
 
 function DisabledProjectRoute() {
   const navigate = useNavigate();
