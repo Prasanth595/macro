@@ -3,6 +3,7 @@ use crate::pubsub::gmail_ops::operations::OperationError;
 use crate::pubsub::gmail_ops::worker::GmailOpsContext;
 use anyhow::Context;
 use email_db_client::labels::pending_writes::{self, LabelWriteTurn};
+use futures::future::BoxFuture;
 use models_email::gmail::gmail_ops::{GmailMessageRef, ModifyMessageLabelsBatchPayload};
 use models_email::service;
 use models_email::service::link::Link;
@@ -19,6 +20,19 @@ mod test;
 /// every message sent, and a message Gmail no longer has is skipped;
 /// transient errors (5xx, network) and rate limits keep the optimistic DB
 /// changes for the retry, which resends the whole batch.
+///
+/// Boxed so this large future lives on the heap rather than in the frames
+/// that await it: unoptimized builds give every awaited future its own stack
+/// slot, and the gmail_ops dispatch awaits it in two places, deep enough to
+/// overflow a worker thread's stack in a local build.
+pub fn modify_message_labels<'a>(
+    ctx: &'a GmailOpsContext,
+    link: &'a Link,
+    payload: &'a ModifyMessageLabelsBatchPayload,
+) -> BoxFuture<'a, Result<(), OperationError>> {
+    Box::pin(modify_message_labels_unboxed(ctx, link, payload))
+}
+
 #[tracing::instrument(
     skip(ctx, link, payload),
     fields(
@@ -28,7 +42,7 @@ mod test;
     ),
     err(Debug)
 )]
-pub async fn modify_message_labels(
+async fn modify_message_labels_unboxed(
     ctx: &GmailOpsContext,
     link: &Link,
     payload: &ModifyMessageLabelsBatchPayload,
@@ -101,7 +115,18 @@ async fn label_write_turns(
     pending_writes::label_write_turns(db, &db_message_ids, &provider_label_ids, write_id).await
 }
 
-async fn send(
+/// Sends `messages` to Gmail and records the outcome. Boxed for the reason
+/// given on [`modify_message_labels`]: the operation awaits it in two places.
+fn send<'a>(
+    ctx: &'a GmailOpsContext,
+    link: &'a Link,
+    payload: &'a ModifyMessageLabelsBatchPayload,
+    messages: &'a [&'a GmailMessageRef],
+) -> BoxFuture<'a, Result<(), OperationError>> {
+    Box::pin(send_unboxed(ctx, link, payload, messages))
+}
+
+async fn send_unboxed(
     ctx: &GmailOpsContext,
     link: &Link,
     payload: &ModifyMessageLabelsBatchPayload,
