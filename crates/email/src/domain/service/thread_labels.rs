@@ -24,8 +24,6 @@ struct StagedThreadLabels {
     all_ids: Vec<Uuid>,
     /// Messages that gain or lose the label; only these go to Gmail or revert.
     changed_ids: Vec<Uuid>,
-    /// The thread's inbox visibility before an INBOX change.
-    inbox_visible: Option<bool>,
 }
 
 impl StagedThreadLabels {
@@ -40,6 +38,16 @@ impl StagedThreadLabels {
                     .filter(|pid| !pid.is_empty())
                     .map(|pid| (msg.db_id, pid.clone()))
             })
+    }
+
+    /// Changed Macro-only drafts, which never reach Gmail.
+    fn changed_local_messages(&self) -> Vec<Uuid> {
+        self.messages
+            .iter()
+            .filter(|msg| self.changed_ids.contains(&msg.db_id))
+            .filter(|msg| msg.provider_id.as_ref().is_none_or(|pid| pid.is_empty()))
+            .map(|msg| msg.db_id)
+            .collect()
     }
 }
 
@@ -609,8 +617,6 @@ where
             all_ids: staged.messages.iter().map(|m| m.db_id).collect(),
             messages: staged.messages,
             changed_ids: staged.changed_ids,
-            inbox_visible: (provider_label_id == system_labels::INBOX)
-                .then_some(staged.inbox_visible),
         })
     }
 
@@ -663,16 +669,9 @@ where
                 tracing::error!(error=?err, "failed to enqueue gmail ops label sync, reverting database changes");
                 let unsent_threads = threads.split_off(group.start);
                 for thread in &unsent_threads {
-                    self.revert_label_db_changes(&link, thread, provider_label_id, add)
+                    self.revert_label_db_changes(&link, thread, provider_label_id, add, write_id)
                         .await;
                 }
-                let unsent_message_ids: Vec<Uuid> = unsent_threads
-                    .iter()
-                    .flat_map(StagedThreadLabels::changed_provider_messages)
-                    .map(|(id, _)| id)
-                    .collect();
-                self.abandon_pending_label_writes(&unsent_message_ids, write_id)
-                    .await;
                 unsent = Some(UnsentThreads {
                     thread_ids: unsent_threads.iter().map(|t| t.thread_id).collect(),
                     error: EmailErr::EnqueueErr(err),
@@ -729,102 +728,37 @@ where
 
     /// Best-effort revert of the optimistic label write after the Gmail sync
     /// could not be enqueued. Only `changed_ids` — the messages that actually
-    /// gained/lost the label — are inverted, so messages that already held
-    /// the requested state keep it; the denormalized thread read flag is
-    /// restored to its derived pre-op value. Every step logs and continues on
-    /// failure: the caller surfaces the enqueue error regardless.
+    /// gained/lost the label — go back, and a message a newer write changed
+    /// since keeps that write's state. Logs on failure: the caller surfaces
+    /// the enqueue error regardless, and a pending marker left behind only
+    /// keeps inbox sync off that label until it expires.
     async fn revert_label_db_changes(
         &self,
         link: &Link,
         thread: &StagedThreadLabels,
         provider_label_id: &str,
         add: bool,
+        write_id: Uuid,
     ) {
-        let StagedThreadLabels {
-            thread_id,
-            all_ids,
-            changed_ids,
-            inbox_visible,
-            ..
-        } = thread;
-        let thread_id = *thread_id;
-        if let Some(inbox_visible) = *inbox_visible {
-            if let Err(e) = self
-                .email_repo
-                .set_thread_inbox_state(thread_id, link.id, changed_ids, !add, inbox_visible)
-                .await
-            {
-                let err = anyhow::Error::from(e);
-                tracing::error!(error=?err, "failed to revert thread inbox state after enqueue failure");
-            }
-            return;
-        }
-        if !changed_ids.is_empty() {
-            let db_result = if add {
-                self.email_repo
-                    .delete_message_labels_batch(changed_ids, provider_label_id, link.id)
-                    .await
-            } else {
-                self.email_repo
-                    .insert_message_labels_batch(changed_ids, provider_label_id, link.id)
-                    .await
-            };
-            if let Err(e) = db_result {
-                let err = anyhow::Error::from(e);
-                tracing::error!(error=?err, "failed to revert message labels after enqueue failure");
-            }
-        }
-
-        if provider_label_id == system_labels::UNREAD {
-            // Restore is_read on the flipped messages: they were read before
-            // an UNREAD add (`add` == true) and unread before a removal.
-            if !changed_ids.is_empty()
-                && let Err(e) = self
-                    .email_repo
-                    .update_message_read_status_batch(changed_ids, link.id, add)
-                    .await
-            {
-                let err = anyhow::Error::from(e);
-                tracing::error!(error=?err, "failed to revert message read status after enqueue failure");
-            }
-            // Pre-op unread set: everything outside `changed_ids` for an add,
-            // `changed_ids` itself for a removal — the thread was read iff
-            // that set was empty.
-            let original_is_read = if add {
-                changed_ids.len() == all_ids.len()
-            } else {
-                changed_ids.is_empty()
-            };
-            if let Err(e) = self
-                .email_repo
-                .update_thread_read_status(thread_id, link.id, original_is_read)
-                .await
-            {
-                let err = anyhow::Error::from(e);
-                tracing::error!(error=?err, "failed to revert thread read status after enqueue failure");
-            }
-        } else if provider_label_id == system_labels::STARRED
-            && !changed_ids.is_empty()
-            && let Err(e) = self
-                .email_repo
-                .update_message_starred_status_batch(changed_ids, link.id, !add)
-                .await
-        {
-            let err = anyhow::Error::from(e);
-            tracing::error!(error=?err, "failed to revert message starred status after enqueue failure");
-        }
-    }
-
-    /// Best effort: a marker left behind only keeps inbox sync off that label
-    /// on those messages until it expires.
-    async fn abandon_pending_label_writes(&self, message_ids: &[Uuid], write_id: Uuid) {
+        let provider_ids: Vec<Uuid> = thread
+            .changed_provider_messages()
+            .map(|(id, _)| id)
+            .collect();
         if let Err(e) = self
             .email_repo
-            .abandon_pending_label_writes(message_ids, write_id)
+            .revert_staged_label_change(
+                thread.thread_id,
+                link.id,
+                provider_label_id,
+                add,
+                write_id,
+                &provider_ids,
+                &thread.changed_local_messages(),
+            )
             .await
         {
             let err = anyhow::Error::from(e);
-            tracing::error!(error=?err, "failed to abandon pending label write markers");
+            tracing::error!(error=?err, "failed to revert label change after enqueue failure");
         }
     }
 

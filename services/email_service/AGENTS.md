@@ -96,10 +96,13 @@ the gateway `/email` prefix.
   only after every producer sends batches.
 - Gmail label writes leave a marker in `email_gmail_pending_label_writes`.
   Inbox sync keeps the local state of a label marked before or after it reads
-  Gmail (`inbox_sync::operations::pending_labels`). gmail_ops sends and reverts
-  only messages whose markers its write still owns, clears them on success and
-  hands them back on a permanent failure. Markers expire after 12 hours, which
-  must outlast an operation's redelivery through the gmail_ops queues.
+  Gmail (`inbox_sync::operations::pending_labels`). gmail_ops sends only
+  messages its write is the newest on; an operation with a newer write still
+  on its way waits in the retry queue (`NewerLabelWritePending`) and sends if
+  that write is rejected.
+  A permanent failure puts back what the older writes or the original state
+  say. Markers expire after 12 hours, which must outlast an operation's
+  redelivery through the gmail_ops queues.
 - gmail_ops moves transient Gmail failures to the retry queue like rate limits;
   the primary queue dead-letters after three receives.
 - Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.

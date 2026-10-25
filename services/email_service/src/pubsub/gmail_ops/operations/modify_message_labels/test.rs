@@ -3,6 +3,8 @@ use macro_db_migrator::MACRO_DB_MIGRATIONS;
 use models_email::gmail::gmail_ops::ModifyMessageLabelsPayload;
 
 const THREAD: Uuid = Uuid::from_u128(0xb1);
+const ARCHIVE: Uuid = Uuid::from_u128(0xf1);
+const UNARCHIVE: Uuid = Uuid::from_u128(0xf2);
 
 async fn messages_with_label(pool: &PgPool, provider_label_id: &str) -> Vec<Uuid> {
     sqlx::query_scalar!(
@@ -21,7 +23,7 @@ async fn messages_with_label(pool: &PgPool, provider_label_id: &str) -> Vec<Uuid
 
 async fn pending_markers(pool: &PgPool) -> Vec<(Uuid, Uuid)> {
     sqlx::query!(
-        "SELECT message_id, write_id FROM email_gmail_pending_label_writes ORDER BY message_id"
+        "SELECT message_id, write_id FROM email_gmail_pending_label_writes ORDER BY message_id, seq"
     )
     .fetch_all(pool)
     .await
@@ -56,63 +58,119 @@ fn message(id: u128) -> GmailMessageRef {
     }
 }
 
-fn archive(
-    write_id: Option<u128>,
+fn inbox_write(
+    write_id: Uuid,
+    present: bool,
     messages: Vec<GmailMessageRef>,
 ) -> ModifyMessageLabelsBatchPayload {
+    let label = vec!["INBOX".to_string()];
     ModifyMessageLabelsBatchPayload {
         messages,
-        labels_to_add: vec![],
-        labels_to_remove: vec!["INBOX".to_string()],
-        pending_write_id: write_id.map(Uuid::from_u128),
+        labels_to_add: if present { label.clone() } else { vec![] },
+        labels_to_remove: if present { vec![] } else { label },
+        pending_write_id: Some(write_id),
     }
 }
 
-#[sqlx::test(
-    migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../../../fixtures", scripts("gmail_ops_label_revert"))
-)]
-async fn a_write_sends_only_the_messages_no_newer_write_took_over(pool: PgPool) {
-    let batch = archive(Some(0xf1), vec![message(0xa), message(0xb), message(0xc)]);
-    let sent: Vec<Uuid> = messages_to_send(&pool, &batch)
-        .await
-        .unwrap()
-        .into_iter()
-        .map(|message| message.db_message_id)
-        .collect();
-    assert_eq!(sent, vec![Uuid::from_u128(0xa), Uuid::from_u128(0xc)]);
-
-    // Queued before markers existed: nothing to check against.
-    let legacy = archive(None, vec![message(0xa), message(0xb)]);
-    assert_eq!(messages_to_send(&pool, &legacy).await.unwrap().len(), 2);
+/// A newer write unarchives message B locally, as staging does.
+async fn unarchive_b(pool: &PgPool) {
+    let mut tx = pool.begin().await.unwrap();
+    sqlx::query!(
+        "INSERT INTO email_message_labels (message_id, label_id) VALUES ($1, $2)",
+        Uuid::from_u128(0xb),
+        Uuid::from_u128(0xc1),
+    )
+    .execute(&mut *tx)
+    .await
+    .unwrap();
+    pending_writes::mark_pending_label_writes(
+        &mut *tx,
+        Uuid::from_u128(0xa1),
+        &[Uuid::from_u128(0xb)],
+        "INBOX",
+        true,
+        UNARCHIVE,
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
 }
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../../../fixtures", scripts("gmail_ops_label_revert"))
 )]
-async fn rejected_batch_reverts_only_the_messages_its_write_still_owns(pool: PgPool) {
-    let batch = archive(Some(0xf1), vec![message(0xa), message(0xb)]);
+async fn an_older_write_waits_for_a_newer_one_and_sends_once_gmail_rejects_it(pool: PgPool) {
+    unarchive_b(&pool).await;
+    let archive = inbox_write(
+        ARCHIVE,
+        false,
+        vec![message(0xa), message(0xb), message(0xc)],
+    );
+    let turns = label_write_turns(&pool, &archive, ARCHIVE).await.unwrap();
+    assert_eq!(turns[&Uuid::from_u128(0xa)], LabelWriteTurn::Send);
+    assert_eq!(turns[&Uuid::from_u128(0xb)], LabelWriteTurn::Wait);
 
     revert_db_changes(
         &pool,
         &link(&pool).await,
-        &batch,
+        &inbox_write(UNARCHIVE, true, vec![message(0xb)]),
+        vec![Uuid::from_u128(0xb)],
+    )
+    .await
+    .unwrap();
+
+    // B is archived again, and the archive now sends it with the others.
+    assert!(messages_with_label(&pool, "INBOX").await.is_empty());
+    let turns = label_write_turns(&pool, &archive, ARCHIVE).await.unwrap();
+    assert!(turns.values().all(|turn| *turn == LabelWriteTurn::Send));
+    assert_eq!(thread_state(&pool).await, (false, true));
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../../../fixtures", scripts("gmail_ops_label_revert"))
+)]
+async fn a_confirmed_newer_write_supersedes_the_older_one(pool: PgPool) {
+    unarchive_b(&pool).await;
+    let mut tx = pool.begin().await.unwrap();
+    pending_writes::confirm_pending_label_writes(&mut tx, &[Uuid::from_u128(0xb)], UNARCHIVE)
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+
+    let archive = inbox_write(ARCHIVE, false, vec![message(0xa), message(0xb)]);
+    let turns = label_write_turns(&pool, &archive, ARCHIVE).await.unwrap();
+    assert_eq!(turns[&Uuid::from_u128(0xa)], LabelWriteTurn::Send);
+    assert_eq!(turns[&Uuid::from_u128(0xb)], LabelWriteTurn::Superseded);
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../../../fixtures", scripts("gmail_ops_label_revert"))
+)]
+async fn rejected_batch_reverts_only_the_messages_its_write_was_newest_on(pool: PgPool) {
+    unarchive_b(&pool).await;
+
+    revert_db_changes(
+        &pool,
+        &link(&pool).await,
+        &inbox_write(ARCHIVE, false, vec![message(0xa), message(0xb)]),
         vec![Uuid::from_u128(0xa), Uuid::from_u128(0xb)],
     )
     .await
     .unwrap();
 
-    // B's newer write keeps B archived; C was not in this batch.
+    // B keeps the newer unarchive; C was not in this batch.
     assert_eq!(
         messages_with_label(&pool, "INBOX").await,
-        vec![Uuid::from_u128(0xa)]
+        vec![Uuid::from_u128(0xa), Uuid::from_u128(0xb)]
     );
     assert_eq!(
         pending_markers(&pool).await,
         vec![
-            (Uuid::from_u128(0xb), Uuid::from_u128(0xf2)),
-            (Uuid::from_u128(0xc), Uuid::from_u128(0xf1)),
+            (Uuid::from_u128(0xb), UNARCHIVE),
+            (Uuid::from_u128(0xc), ARCHIVE),
         ]
     );
     assert_eq!(thread_state(&pool).await, (true, true));
@@ -122,61 +180,8 @@ async fn rejected_batch_reverts_only_the_messages_its_write_still_owns(pool: PgP
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../../../fixtures", scripts("gmail_ops_label_revert"))
 )]
-async fn rejected_write_hands_its_markers_back_to_the_write_it_took_over(pool: PgPool) {
-    // B's newer write unarchived it after the write ...00f1 archived it.
-    sqlx::query!(
-        "INSERT INTO email_message_labels (message_id, label_id) VALUES ($1, $2)",
-        Uuid::from_u128(0xb),
-        Uuid::from_u128(0xc1),
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    sqlx::query!(
-        r#"
-        UPDATE email_gmail_pending_label_writes
-        SET previous_write_id = $2, previous_expires_at = now() + interval '12 hours'
-        WHERE message_id = $1
-        "#,
-        Uuid::from_u128(0xb),
-        Uuid::from_u128(0xf1),
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    let unarchive = ModifyMessageLabelsBatchPayload {
-        messages: vec![message(0xb)],
-        labels_to_add: vec!["INBOX".to_string()],
-        labels_to_remove: vec![],
-        pending_write_id: Some(Uuid::from_u128(0xf2)),
-    };
-
-    revert_db_changes(
-        &pool,
-        &link(&pool).await,
-        &unarchive,
-        vec![Uuid::from_u128(0xb)],
-    )
-    .await
-    .unwrap();
-
-    assert!(messages_with_label(&pool, "INBOX").await.is_empty());
-    assert_eq!(
-        pending_markers(&pool).await,
-        vec![
-            (Uuid::from_u128(0xa), Uuid::from_u128(0xf1)),
-            (Uuid::from_u128(0xb), Uuid::from_u128(0xf1)),
-            (Uuid::from_u128(0xc), Uuid::from_u128(0xf1)),
-        ]
-    );
-    assert_eq!(thread_state(&pool).await, (false, true));
-}
-
-#[sqlx::test(
-    migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../../../fixtures", scripts("gmail_ops_label_revert"))
-)]
 async fn rejected_mark_read_restores_the_unread_message_and_thread(pool: PgPool) {
+    let mark_read = Uuid::from_u128(0xf3);
     sqlx::query!(
         r#"
         INSERT INTO email_labels (id, link_id, provider_label_id, name, message_list_visibility, label_list_visibility, type, created_at)
@@ -188,28 +193,27 @@ async fn rejected_mark_read_restores_the_unread_message_and_thread(pool: PgPool)
     .execute(&pool)
     .await
     .unwrap();
-    sqlx::query!(
-        r#"
-        INSERT INTO email_gmail_pending_label_writes (message_id, provider_label_id, write_id, expires_at)
-        VALUES ($1, 'UNREAD', $2, now() + interval '12 hours')
-        "#,
-        Uuid::from_u128(0xa),
-        Uuid::from_u128(0xf3),
+    pending_writes::mark_pending_label_writes(
+        &pool,
+        Uuid::from_u128(0xa1),
+        &[Uuid::from_u128(0xa)],
+        "UNREAD",
+        false,
+        mark_read,
     )
-    .execute(&pool)
     .await
     .unwrap();
-    let mark_read = ModifyMessageLabelsBatchPayload {
+    let batch = ModifyMessageLabelsBatchPayload {
         messages: vec![message(0xa)],
         labels_to_add: vec![],
         labels_to_remove: vec!["UNREAD".to_string()],
-        pending_write_id: Some(Uuid::from_u128(0xf3)),
+        pending_write_id: Some(mark_read),
     };
 
     revert_db_changes(
         &pool,
         &link(&pool).await,
-        &mark_read,
+        &batch,
         vec![Uuid::from_u128(0xa)],
     )
     .await
@@ -234,13 +238,13 @@ async fn rejected_mark_read_restores_the_unread_message_and_thread(pool: PgPool)
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../../../fixtures", scripts("gmail_ops_label_revert"))
 )]
-async fn rejected_single_message_operation_clears_its_marker(pool: PgPool) {
+async fn rejected_single_message_operation_reverts_its_message(pool: PgPool) {
     let batch = ModifyMessageLabelsBatchPayload::from(ModifyMessageLabelsPayload {
         db_message_id: Uuid::from_u128(0xc),
         provider_message_id: "msg-c".to_string(),
         labels_to_add: vec![],
         labels_to_remove: vec!["INBOX".to_string()],
-        pending_write_id: Some(Uuid::from_u128(0xf1)),
+        pending_write_id: Some(ARCHIVE),
     });
 
     revert_db_changes(
@@ -259,8 +263,8 @@ async fn rejected_single_message_operation_clears_its_marker(pool: PgPool) {
     assert_eq!(
         pending_markers(&pool).await,
         vec![
-            (Uuid::from_u128(0xa), Uuid::from_u128(0xf1)),
-            (Uuid::from_u128(0xb), Uuid::from_u128(0xf2)),
+            (Uuid::from_u128(0xa), ARCHIVE),
+            (Uuid::from_u128(0xb), ARCHIVE),
         ]
     );
 }

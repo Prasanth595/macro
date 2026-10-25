@@ -158,7 +158,7 @@ async fn archive_sends_gmail_only_the_messages_still_in_the_inbox(
 
 async fn pending_markers(pool: &Pool<Postgres>) -> anyhow::Result<Vec<(Uuid, String, Uuid)>> {
     Ok(sqlx::query!(
-        "SELECT message_id, provider_label_id, write_id FROM email_gmail_pending_label_writes ORDER BY message_id"
+        "SELECT message_id, provider_label_id, write_id FROM email_gmail_pending_label_writes ORDER BY message_id, seq"
     )
     .fetch_all(pool)
     .await?
@@ -457,7 +457,6 @@ async fn staged_inbox_change_marks_the_messages_it_changed_in_the_same_transacti
         .expect("the thread has messages");
 
     assert_eq!(staged.changed_ids, vec![first]);
-    assert!(staged.inbox_visible);
     assert_inbox_state(&repo, thread, false).await?;
     assert_eq!(
         pending_markers(&pool).await?,

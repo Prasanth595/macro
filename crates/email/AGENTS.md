@@ -74,7 +74,9 @@ tools — hexagonal, heavily feature-gated.
   the change and marks the changed provider messages (exactly what
   `commit_thread_label_write` enqueues) in one transaction holding the thread's
   label-write lock. The enqueue carries the write's id; a group that can't be
-  queued hands its markers back to the write they were taken from.
+  queued goes back through `EmailRepo::revert_staged_label_change`, which
+  restores the state an older write still on its way left (or the original),
+  never a newer write's change.
 - Sender discovery authorizes the inbox first. Gmail aliases use the sender
   provider; Outlook exposes its verified primary address without a Gmail lookup.
 - Outlook links have no system label rows. Move a thread in or out of the inbox

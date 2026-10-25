@@ -608,6 +608,7 @@ async fn resync_without_gmail_labels_removes_stored_labels_except_pending_ones(
         link_id,
         &[message_id],
         "UNREAD",
+        true,
         Uuid::now_v7(),
     )
     .await?;
@@ -671,12 +672,13 @@ async fn resync_keeps_labels_with_a_pending_gmail_write(
         .await?;
     messages::update::update_message_read_status(&mut tx, message_id, link_id, false).await?;
     tx.commit().await?;
-    for label in ["INBOX", "UNREAD"] {
+    for (label, present) in [("INBOX", false), ("UNREAD", true)] {
         labels::pending_writes::mark_pending_label_writes(
             &pool,
             link_id,
             &[message_id],
             label,
+            present,
             write_id,
         )
         .await?;
@@ -711,7 +713,9 @@ async fn resync_keeps_labels_with_a_pending_gmail_write(
     assert!(!stored.inbox_visible);
 
     // Once the writes finish, a re-sync follows Gmail again.
-    labels::pending_writes::clear_pending_label_writes(&pool, &[message_id], write_id).await?;
+    let mut tx = pool.begin().await?;
+    labels::pending_writes::confirm_pending_label_writes(&mut tx, &[message_id], write_id).await?;
+    tx.commit().await?;
     let mut resync = synced.build(link_id, thread_db_id);
     resync.is_read = true;
     insert_message(&pool, thread_db_id, &mut resync, link_id, true).await?;

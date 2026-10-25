@@ -456,35 +456,25 @@ impl EmailRepo for EmailPgRepo {
         .await
     }
 
-    async fn abandon_pending_label_writes(
-        &self,
-        message_ids: &[Uuid],
-        write_id: Uuid,
-    ) -> Result<(), Self::Err> {
-        email_db_client::labels::pending_writes::abandon_pending_label_writes(
-            &self.pool,
-            message_ids,
-            write_id,
-        )
-        .await?;
-        Ok(())
-    }
-
-    async fn set_thread_inbox_state(
+    async fn revert_staged_label_change(
         &self,
         thread_id: Uuid,
         link_id: Uuid,
-        message_ids: &[Uuid],
+        provider_label_id: &str,
         add: bool,
-        inbox_visible: bool,
+        write_id: Uuid,
+        provider_message_ids: &[Uuid],
+        local_message_ids: &[Uuid],
     ) -> Result<(), Self::Err> {
-        label::set_thread_inbox_state(
+        label::revert_staged_label_change(
             &self.pool,
             thread_id,
             link_id,
-            message_ids,
+            provider_label_id,
             add,
-            inbox_visible,
+            write_id,
+            provider_message_ids,
+            local_message_ids,
         )
         .await
     }

@@ -84,8 +84,6 @@ pub struct StagedLabelChange {
     pub messages: Vec<SimpleMessage>,
     /// The messages that gained or lost the label.
     pub changed_ids: Vec<Uuid>,
-    /// The thread's inbox visibility before the change.
-    pub inbox_visible: bool,
 }
 
 /// The most threads one bulk archive request may change.

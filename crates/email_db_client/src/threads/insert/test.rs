@@ -430,6 +430,7 @@ async fn whole_thread_resync_recomputes_thread_state_from_stored_labels(
         link_id,
         &[message_id],
         "INBOX",
+        false,
         Uuid::now_v7(),
     )
     .await?;

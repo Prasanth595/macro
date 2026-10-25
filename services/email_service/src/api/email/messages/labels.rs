@@ -198,6 +198,7 @@ pub async fn handler(
             link.id,
             &provider_message_ids,
             &provider_label_id,
+            is_adding,
             pending_write_id,
         )
         .await
@@ -285,12 +286,12 @@ pub async fn handler(
     // Publish semantic macro.email events, rolled up to one per affected
     // thread (the batch may span several threads in the same inbox).
     let actor = Some(link.macro_id.clone());
-    for thread_id in thread_ids {
+    for thread_id in &thread_ids {
         let event = EmailMacroEvent::thread_label_change(
             link.id,
             link.macro_id.clone(),
             actor.clone(),
-            thread_id,
+            *thread_id,
             LabelRef {
                 label_id: label.id,
                 provider_label_id: provider_label_id.clone(),
@@ -312,6 +313,7 @@ pub async fn handler(
     };
     let provider_message_ids: Vec<Uuid> = provider_messages.iter().map(|(id, _)| *id).collect();
 
+    let mut failed_ids = Vec::new();
     if !provider_messages.is_empty()
         && ctx
             .sqs_client
@@ -328,27 +330,58 @@ pub async fn handler(
             })
             .is_err()
     {
-        // Gmail never learns about this change, so inbox sync may restore
-        // Gmail's labels, unless an earlier write is still on its way.
-        email_db_client::labels::pending_writes::abandon_pending_label_writes(
+        // Gmail never learns about this change.
+        failed_ids = revert_unsent_write(
             &ctx.db,
+            link.id,
+            &thread_ids,
             &provider_message_ids,
             pending_write_id,
         )
         .await
         .inspect_err(|e| {
-            tracing::error!(error=?e, "Failed to abandon pending label write markers");
+            tracing::error!(error=?e, "Failed to revert label write after enqueue failure");
         })
-        .ok();
+        .unwrap_or_default();
     }
 
     Ok((
         StatusCode::OK,
         Json(UpdateLabelBatchResponse {
-            successful_ids: message_db_ids,
-            failed_ids: vec![],
+            successful_ids: message_db_ids
+                .into_iter()
+                .filter(|id| !failed_ids.contains(id))
+                .collect(),
+            failed_ids,
             missing_ids,
         }),
     )
         .into_response())
+}
+
+/// Puts the labels of a write Gmail will never receive back in the state
+/// Gmail will end up with, and derives the threads' state again, holding the
+/// threads' label-write lock. Returns the messages put back.
+async fn revert_unsent_write(
+    db: &sqlx::PgPool,
+    link_id: Uuid,
+    thread_ids: &[Uuid],
+    message_ids: &[Uuid],
+    write_id: Uuid,
+) -> anyhow::Result<Vec<Uuid>> {
+    let mut tx = db.begin().await?;
+    email_db_client::labels::pending_writes::lock_thread_label_writes(&mut tx, thread_ids).await?;
+    let restored = email_db_client::labels::pending_writes::abandon_pending_label_writes(
+        &mut tx,
+        link_id,
+        message_ids,
+        write_id,
+    )
+    .await?;
+    for thread_id in thread_ids {
+        email_db_client::threads::update::update_thread_metadata(&mut tx, *thread_id, link_id)
+            .await?;
+    }
+    tx.commit().await?;
+    Ok(restored)
 }

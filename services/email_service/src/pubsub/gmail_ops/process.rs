@@ -98,12 +98,39 @@ async fn inner_process_message(
                 reason: FailureReason::DatabaseQueryFailed,
                 source,
             }),
+            OperationError::WaitingForNewerWrite => wait_in_retry_queue(ctx, data).await,
         };
         return Err(prefix_error_source(processing_error, operation_name));
     }
 
     tracing::debug!(operation_name, "Successfully processed Gmail operation");
     Ok(())
+}
+
+/// Moves an operation waiting for a newer label write to the retry queue,
+/// whose receive limit outlasts the newer write's own retries.
+async fn wait_in_retry_queue(
+    ctx: &GmailOpsContext,
+    data: &GmailOpsPubsubMessage,
+) -> ProcessingError {
+    let waiting = || DetailedError {
+        reason: FailureReason::NewerLabelWritePending,
+        source: anyhow!("a newer label write on its messages is still on its way"),
+    };
+    if ctx.retry_worker {
+        return ProcessingError::Retryable(waiting());
+    }
+    if let Err(enqueue_error) = ctx
+        .sqs_client
+        .enqueue_gmail_ops_retry_notification(data.clone())
+        .await
+    {
+        return ProcessingError::Retryable(DetailedError {
+            reason: FailureReason::SqsEnqueueFailed,
+            source: enqueue_error.context("Failed to enqueue gmail ops retry message"),
+        });
+    }
+    ProcessingError::NonRetryable(waiting())
 }
 
 /// Extracts the message from the SQS message body.

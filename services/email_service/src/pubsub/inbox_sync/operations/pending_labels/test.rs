@@ -35,8 +35,9 @@ async fn a_write_staged_during_the_read_is_not_trusted_from_it(pool: PgPool) {
     let read = read_around(&pool, MESSAGE, async {
         sqlx::query!(
             r#"
-            INSERT INTO email_gmail_pending_label_writes (message_id, provider_label_id, write_id, expires_at)
-            VALUES ($1, 'STARRED', $2, now() + interval '12 hours')
+            INSERT INTO email_gmail_pending_label_writes
+                (message_id, provider_label_id, write_id, label_present, label_present_before, expires_at)
+            VALUES ($1, 'STARRED', $2, true, false, now() + interval '12 hours')
             "#,
             MESSAGE,
             Uuid::from_u128(0xf9),

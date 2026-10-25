@@ -45,6 +45,8 @@ pub enum FailureReason {
     GmailApiRateLimited,
     /// Gmail failed with a server or network error.
     GmailApiUnavailable,
+    /// A newer label write on the same messages has not finished yet.
+    NewerLabelWritePending,
     OutdatedHistoryId,
     AttachmentParsingFailed,
     DSSUploadFailed,

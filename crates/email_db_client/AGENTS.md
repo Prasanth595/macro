@@ -56,9 +56,12 @@ Parsed message responses expose the draft generation captured in the same SQL sn
 - `insert_message_with_tx` leaves labels with an unexpired
   `email_gmail_pending_label_writes` marker, and the read and starred flags
   they drive, in their local state when it re-syncs a stored message.
-- A marker row belongs to its newest write; abandoning that write hands the
-  row back to the write it took over. Code that stages or undoes a Gmail label
-  write takes `lock_thread_label_writes` for its threads first.
+- `email_gmail_pending_label_writes` keeps one row per write on a message's
+  label. Only the newest row's write sends; older ones wait, so abandoning a
+  write can put the label back for the next older write (`label_present`) or
+  the state before the first (`label_present_before`). Code that stages,
+  confirms or abandons a Gmail label write takes `lock_thread_label_writes` for
+  its threads first.
 - Quote and alias camelCase columns to Rust field names; check
   `crates/macro_db_client/migrations/` for real column spelling, don't guess.
 

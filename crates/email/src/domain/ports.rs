@@ -424,14 +424,13 @@ pub trait EmailRepo: Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 
     /// Atomically stage a label change on an already-authorized thread for
-    /// Gmail: read which messages gain or lose the label and the thread's inbox
-    /// visibility, apply the change to every message with the read, starred
-    /// and inbox flags it drives, and mark the changed messages that have a
-    /// provider id — exactly those a Gmail write sends — as waiting on
-    /// `write_id`, so inbox sync keeps their local state until Gmail confirms
-    /// it. Label writes on one thread take turns, so each reads the state the
-    /// one before it left. `None`, with nothing changed, when the thread has
-    /// no messages.
+    /// Gmail: read which messages gain or lose the label, apply the change to
+    /// every message with the read, starred and inbox flags it drives, and
+    /// mark the changed messages that have a provider id — exactly those a
+    /// Gmail write sends — as waiting on `write_id`, so inbox sync keeps their
+    /// local state until Gmail confirms it. Label writes on one thread take
+    /// turns, so each reads the state the one before it left. `None`, with
+    /// nothing changed, when the thread has no messages.
     fn stage_thread_label_change(
         &self,
         thread_id: Uuid,
@@ -441,26 +440,22 @@ pub trait EmailRepo: Send + Sync + 'static {
         write_id: Uuid,
     ) -> impl Future<Output = Result<Option<StagedLabelChange>, Self::Err>> + Send;
 
-    /// Give up `write_id`'s pending markers on `message_ids` because Gmail
-    /// will never apply them: each goes back to the write it took over, which
-    /// may still be on its way to Gmail.
-    fn abandon_pending_label_writes(
-        &self,
-        message_ids: &[Uuid],
-        write_id: Uuid,
-    ) -> impl Future<Output = Result<(), Self::Err>> + Send;
-
-    /// Atomically change INBOX assignments and the thread's visibility.
-    /// The message IDs belong to the authorized thread/inbox. Visibility is
-    /// separate from `add` so an enqueue failure can restore the prior flag
-    /// while reverting only the assignments changed by that operation.
-    fn set_thread_inbox_state(
+    /// Atomically undo a staged label change Gmail will never receive.
+    /// `provider_message_ids` go back to the state Gmail will end up with: the
+    /// next older write's, which may still be on its way, or the one before
+    /// the oldest write; a newer write keeps its own. `local_message_ids`
+    /// (Macro-only drafts) lose the change. The thread's state is derived
+    /// again, all while holding the thread's label-write lock.
+    #[expect(clippy::too_many_arguments, reason = "the parts of one staged change")]
+    fn revert_staged_label_change(
         &self,
         thread_id: Uuid,
         link_id: Uuid,
-        message_ids: &[Uuid],
+        provider_label_id: &str,
         add: bool,
-        inbox_visible: bool,
+        write_id: Uuid,
+        provider_message_ids: &[Uuid],
+        local_message_ids: &[Uuid],
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 
     /// Update the read status for a batch of messages, verified by link_id.
