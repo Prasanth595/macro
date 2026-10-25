@@ -23,11 +23,11 @@ export function createThreadActionAdapter(
     toHeaderLinkId
   );
   const read = createThreadReadAdapter(threadId, threadSource, toHeaderLinkId);
-  const currentUserEmail = useInboxEmail(() => threadSource()?.link_id);
+  const viewerEmail = useInboxEmail(() => threadSource()?.link_id);
 
   const getSenderEmail = (): string | undefined => {
     const thread = threadSource();
-    return thread ? selectThreadSender(thread, currentUserEmail()) : undefined;
+    return thread ? selectThreadSender(thread, viewerEmail()) : undefined;
   };
 
   const blockSender = () => {
