@@ -274,6 +274,32 @@ it.each(providers)(
     expect(composeContext.drafts.saveDraft).toHaveBeenCalledOnce();
   }
 );
+it.each(providers)(
+  'Delete still deletes a %s draft and frees the composer when its host cannot leave',
+  async (provider) => {
+    const composeContext = providerContext(provider);
+    const navigation = new Error('navigation failed');
+    const goBack = vi.fn(() => {
+      throw navigation;
+    });
+    const root = mountEmailComposer(composeContext, { goBack });
+    root.edit('Discard this draft');
+    await vi.advanceTimersByTimeAsync(600);
+
+    root.state.context.onDelete?.();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(composeContext.drafts.deleteDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ draftId: 'draft' })
+    );
+    expect(root.state.context.disabled()).toBe(false);
+    expect(goBack).toHaveBeenCalledOnce();
+    expect(composeContext.notices.reportError).toHaveBeenCalledWith(navigation);
+    root.dispose();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(composeContext.drafts.saveDraft).toHaveBeenCalledOnce();
+  }
+);
 it('waits for the saved draft ID, prevents duplicate sends, and does not recreate the sent draft on disposal', async () => {
   const pending = Promise.withResolvers<PersistedEmailIdentity>();
   const composeContext = createComposeContext();
