@@ -24,7 +24,7 @@ describe('ApiKeyInput', () => {
 
     expect(input.type).toBe('password');
     expect(input.placeholder).toBe('sk-ant-••••••••••••');
-    expect(input.autocomplete).toBe('off');
+    expect(input.autocomplete).toBe('new-password');
     fireEvent.input(input, { target: { value: 'sk-ant-api03-new' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 

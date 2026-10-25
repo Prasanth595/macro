@@ -849,8 +849,12 @@ provider. The key is saved after the agent (`PUT /auth/agents/{id}/api-key`).
 
 - Every turn of an agent with a usable key runs on it: never admitted against
   or counted toward the person's Macro usage, and recorded against the key
-  (`ai_usage.agent_api_key_id`). Tools, opening lines and summaries still use
-  Macro's keys.
+  (`ai_usage.agent_api_key_id`). Such turns skip the quick opening line, which
+  runs on Macro's model; tools that call models and context summaries still
+  run on Macro's keys and count.
+- Only the agent's own sessions spend its key: the owner's for a personal
+  agent, a current member's for a team agent. Anyone else's session of it
+  runs on their Macro usage.
 - The session's model list is the key's provider's models, whatever the
   person's plan, and another provider's model cannot be picked.
 - Keys are part of the Premium and Max plans (and enterprise teams), checked
@@ -859,7 +863,7 @@ provider. The key is saved after the agent (`PUT /auth/agents/{id}/api-key`).
   downgrade stays (and can be removed) but the agent runs on Macro usage.
 - A key stops counting while the agent no longer fits it (moved to another
   provider's model or another harness); the editor says the saved key isn't
-  used with this model.
+  used, and offers **Remove key** under Where it runs.
 
 ### Quota manual checks
 

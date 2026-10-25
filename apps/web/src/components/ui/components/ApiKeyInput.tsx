@@ -48,7 +48,7 @@ export function ApiKeyInput(props: ApiKeyInputProps) {
     <InputGroup size={local.size ?? 'md'} class={cn('min-w-0', local.class)}>
       <InputGroup.Input
         type="password"
-        autocomplete="off"
+        autocomplete="new-password"
         spellcheck={false}
         class="ph-no-capture font-mono"
         placeholder={placeholder()}

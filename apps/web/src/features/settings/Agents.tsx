@@ -1259,6 +1259,26 @@ function AgentEditorPage(props: {
                     </div>
                   </WhereItRunsOption>
                 </fieldset>
+                <Show when={!keyProvider() ? savedApiKey() : undefined}>
+                  {(saved) => (
+                    <div class="mt-3 flex items-center justify-between gap-3 text-xs text-ink-muted">
+                      <span>
+                        This agent has a saved{' '}
+                        {apiKeyProviderName(saved().provider)} API key it
+                        doesn’t use here.
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy()}
+                        onClick={() => setRemovingApiKey(true)}
+                      >
+                        Remove key
+                      </Button>
+                    </div>
+                  )}
+                </Show>
               </AgentFormSection>
 
               <AgentFormSection
