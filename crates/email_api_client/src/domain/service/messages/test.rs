@@ -22,6 +22,15 @@ enum MessageCall {
 #[derive(Clone, Default)]
 struct MessageClient {
     call: Arc<Mutex<Option<MessageCall>>>,
+    /// When set, per-message label writes answer from it instead of failing.
+    label_writes: Option<LabelWrites>,
+}
+
+/// Records per-message label writes in order; listed ids answer with an error.
+#[derive(Clone, Default)]
+struct LabelWrites {
+    written: Arc<Mutex<Vec<String>>>,
+    errors: Vec<(String, EmailApiError)>,
 }
 
 impl MessageClient {
@@ -118,6 +127,14 @@ impl MailboxMessageClient for MessageClient {
         labels_to_add: &[String],
         labels_to_remove: &[String],
     ) -> Result<(), EmailApiError> {
+        if let Some(writes) = &self.label_writes {
+            writes.written.lock().unwrap().push(message_id.to_string());
+            return writes
+                .errors
+                .iter()
+                .find(|(id, _)| id == message_id)
+                .map_or(Ok(()), |(_, error)| Err(error.clone()));
+        }
         Err(self.record(
             access_token,
             MessageCall::ModifyLabels(
@@ -273,28 +290,114 @@ async fn message_reads_use_correct_operation_kinds_and_forward_parameters() {
 }
 
 #[tokio::test]
-async fn label_writes_on_several_messages_use_one_batch_request() {
+async fn label_writes_on_ten_or_more_messages_use_one_batch_request() {
+    let message_ids: Vec<String> = (0..10).map(|index| format!("message-{index}")).collect();
     assert_call(
         ApiOperationKind::BatchModifyMessageLabels,
-        |_| {
-            MessageCall::BatchModifyLabels(
-                vec!["message-1".into(), "message-2".into()],
-                vec![],
-                vec!["INBOX".into()],
-            )
-        },
+        |_| MessageCall::BatchModifyLabels(message_ids.clone(), vec![], vec!["INBOX".into()]),
         async |service, link_id| {
             service
-                .modify_message_labels(
-                    link_id,
-                    &["message-1".into(), "message-2".into()],
-                    &[],
-                    &["INBOX".into()],
-                )
+                .modify_message_labels(link_id, &message_ids, &[], &["INBOX".into()])
                 .await
         },
     )
     .await;
+}
+
+fn label_write_service(
+    writes: LabelWrites,
+    calls: super::super::test_support::CallLog,
+) -> EmailApiClientServiceImpl<MessageClient, FakeTokenSource, FakeGate> {
+    EmailApiClientServiceImpl::new(
+        MessageClient {
+            label_writes: Some(writes),
+            ..Default::default()
+        },
+        FakeTokenSource::new(calls.clone(), Ok(AccessToken::new("token"))),
+        FakeGate::new(calls, Ok(())),
+    )
+}
+
+#[tokio::test]
+async fn label_writes_on_few_messages_go_out_one_request_each_skipping_deleted_messages() {
+    let calls = call_log();
+    let writes = LabelWrites {
+        errors: vec![("message-2".into(), EmailApiError::NotFound)],
+        ..Default::default()
+    };
+    let written = writes.written.clone();
+    let link_id = Uuid::new_v4();
+
+    label_write_service(writes, calls.clone())
+        .modify_message_labels(
+            link_id,
+            &["message-1".into(), "message-2".into(), "message-3".into()],
+            &["TRASH".into()],
+            &[],
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        *written.lock().unwrap(),
+        ["message-1", "message-2", "message-3"]
+    );
+    // Each write takes its own permit, so the gate counts its quota and slot.
+    assert_eq!(
+        *calls.lock().unwrap(),
+        [None, Some(EmailApiError::NotFound), None]
+            .into_iter()
+            .flat_map(|provider_error| [
+                Call::Acquire(link_id, ApiOperationKind::ModifyMessageLabels),
+                Call::Token(link_id, TokenFreshness::Cached),
+                Call::Finish(link_id, provider_error),
+            ])
+            .collect::<Vec<_>>()
+    );
+}
+
+#[tokio::test]
+async fn separate_label_writes_stop_at_the_first_failure() {
+    let rate_limited = EmailApiError::RateLimited {
+        retry_after: None,
+        origin: crate::domain::models::RateLimitOrigin::Provider { concurrency: true },
+    };
+    let writes = LabelWrites {
+        errors: vec![("message-2".into(), rate_limited.clone())],
+        ..Default::default()
+    };
+    let written = writes.written.clone();
+
+    let result = label_write_service(writes, call_log())
+        .modify_message_labels(
+            Uuid::new_v4(),
+            &["message-1".into(), "message-2".into(), "message-3".into()],
+            &["TRASH".into()],
+            &[],
+        )
+        .await;
+
+    assert_eq!(result, Err(rate_limited));
+    assert_eq!(*written.lock().unwrap(), ["message-1", "message-2"]);
+}
+
+#[tokio::test]
+async fn a_lone_label_write_on_a_deleted_message_fails() {
+    let writes = LabelWrites {
+        errors: vec![("message-1".into(), EmailApiError::NotFound)],
+        ..Default::default()
+    };
+
+    let result = label_write_service(writes, call_log())
+        .modify_message_labels(
+            Uuid::new_v4(),
+            &["message-1".into()],
+            &["TRASH".into()],
+            &[],
+        )
+        .await;
+
+    assert_eq!(result, Err(EmailApiError::NotFound));
 }
 
 #[tokio::test]

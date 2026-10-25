@@ -7,10 +7,11 @@ use models_email::service;
 use models_email::service::link::Link;
 use uuid::Uuid;
 
-/// Modifies labels for a batch of messages in one Gmail request. Gmail
-/// applies the batch as a whole, so a permanent failure reverts every message
-/// in it; transient errors (5xx, network) and rate limits keep the optimistic
-/// DB changes for the retry.
+/// Modifies labels for a batch of messages: one Gmail batch request from ten
+/// messages up, one request per message below that. A permanent failure
+/// reverts every message in the batch, and a message Gmail no longer has is
+/// skipped; transient errors (5xx, network) and rate limits keep the
+/// optimistic DB changes for the retry, which resends the whole batch.
 #[tracing::instrument(
     skip(ctx, link, payload),
     fields(

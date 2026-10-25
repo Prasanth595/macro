@@ -261,7 +261,7 @@ pub async fn handler(
         }
     }
 
-    // One Gmail write for the whole batch (drafts have no provider_id, skip them)
+    // One label write for the whole batch (drafts have no provider_id, skip them)
     let (labels_to_add, labels_to_remove) = if is_adding {
         (vec![provider_label_id.clone()], Vec::new())
     } else {

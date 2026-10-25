@@ -22,7 +22,7 @@ pub enum GmailOpsOperation {
     /// decodes this form, so producers send it until label write batches are
     /// enabled (see [`label_write_operations`]).
     ModifyMessageLabels(ModifyMessageLabelsPayload),
-    /// Add or remove the same labels on messages with one Gmail request
+    /// Add or remove the same labels on up to 1,000 messages in Gmail
     ModifyMessageLabelsBatch(ModifyMessageLabelsBatchPayload),
     /// Delete a label from Gmail
     DeleteLabel(DeleteLabelPayload),
@@ -75,7 +75,7 @@ impl From<ModifyMessageLabelsPayload> for ModifyMessageLabelsBatchPayload {
 }
 
 impl ModifyMessageLabelsBatchPayload {
-    /// Splits a label write into payloads that each fit one Gmail request.
+    /// Splits a label write into payloads within Gmail's batch request limit.
     pub fn chunked(
         messages: Vec<GmailMessageRef>,
         labels_to_add: Vec<String>,
