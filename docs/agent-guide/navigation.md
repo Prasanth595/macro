@@ -163,7 +163,10 @@ Account-only splits (Home, Tasks, Projects, Channels, Mail, Calendar, and the
 other workspaces) show **Sign in to view this page** with Login and Sign Up
 once the session is confirmed signed out, never an indefinite loader. While
 identity is unresolved they keep their loading skeleton. Public Drive document
-links stay readable signed out; see the documents guide.
+links stay readable signed out; see the documents guide. Login and Sign Up,
+here and in the signed-out banner and Drive prompt, store the page URL in
+`sessionStorage` (`redirectUrl`), and signing in returns to it; a new account
+that goes through onboarding lands on Home instead.
 
 Search-result locations use pane-local namespaces: `channels` (message/thread),
 `email-detail` (message), `markdown-detail` (node), `pdf-detail` (page and highlight
