@@ -10430,6 +10430,7 @@ export const queryDatabasesResponse = zod
                         'number',
                         'boolean',
                         'date',
+                        'dateRange',
                         'select',
                         'entity',
                         'row',
@@ -10533,6 +10534,25 @@ export const queryDatabasesResponse = zod
                               .describe('A date-time.'),
                           })
                           .describe('A date-time.'),
+                        zod
+                          .object({
+                            type: zod.enum(['dateRange']),
+                            value: zod
+                              .object({
+                                end: zod.iso
+                                  .datetime({})
+                                  .describe(
+                                    'Where it ends; never before the start.'
+                                  ),
+                                start: zod.iso
+                                  .datetime({})
+                                  .describe('Where it starts.'),
+                              })
+                              .describe(
+                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                              ),
+                          })
+                          .describe('A span from one date-time to another.'),
                         zod
                           .object({
                             type: zod.enum(['options']),

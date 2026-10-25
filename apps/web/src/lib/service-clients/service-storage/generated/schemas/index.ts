@@ -1954,6 +1954,8 @@ export * from './sqlCellOneOfFive';
 export * from './sqlCellOneOfFiveType';
 export * from './sqlCellOneOfNine';
 export * from './sqlCellOneOfNineType';
+export * from './sqlCellOneOfOnefive';
+export * from './sqlCellOneOfOnefiveType';
 export * from './sqlCellOneOfOneone';
 export * from './sqlCellOneOfOneoneType';
 export * from './sqlCellOneOfOnethree';

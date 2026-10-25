@@ -41458,6 +41458,21 @@
           },
           {
             "type": "object",
+            "description": "A span from one date-time to another.",
+            "required": ["value", "type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["dateRange"]
+              },
+              "value": {
+                "$ref": "#/components/schemas/DateRange",
+                "description": "A span from one date-time to another."
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "The selected option ids; one for single-select columns.",
             "required": ["value", "type"],
             "properties": {
@@ -41617,7 +41632,16 @@
       "SqlOutcomeKind": {
         "type": "string",
         "description": "The value kind of a result column.",
-        "enum": ["text", "number", "boolean", "date", "select", "entity", "row"]
+        "enum": [
+          "text",
+          "number",
+          "boolean",
+          "date",
+          "dateRange",
+          "select",
+          "entity",
+          "row"
+        ]
       },
       "SqlSelectOption": {
         "type": "object",
