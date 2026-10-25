@@ -89,7 +89,8 @@ never the not-found page; a draft in compose stays open there. Keep editing
 after the switch and check that no "This draft changed while saving" notice
 appears. Once a new compose's first save is confirmed, the URL carries its
 draft (`s0.email-compose.draft` for the first pane): reloading reopens it with
-its From, including after a From switch.
+its From, including after a From switch. The draft stays in the URL across
+further reloads, even while an offline edit is still queued.
 
 Opening an attachment opens it in a split from its Drive copy, except a
 calendar file: it opens its event (see the calendar invitations section of the

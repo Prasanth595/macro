@@ -246,13 +246,14 @@ export function createEmailComposer(props: EmailComposerOptions) {
   const currentDraftId = session.draftId;
   const [sentDraftId, setSentDraftId] = createSignal<string>();
   const currentThreadId = session.threadId;
-  // A reload can reopen only a draft the server confirmed; until a newer
-  // identity is confirmed, the host keeps the last one.
+  // A reload reopens the draft this composer opened, which this device can
+  // read even while its save is queued. A draft the composer creates or moves
+  // to is recorded only once the server confirms it.
   const confirmedDraftId = createMemo<string | undefined>((previous) => {
     const identity = session.identity();
     if (identity.kind === 'none') return undefined;
     return session.serverConfirmed() ? identity.draftId : previous;
-  }, undefined);
+  }, initialDraftId);
   createEffect(
     on(confirmedDraftId, (draftId) => props.host?.recordDraft?.(draftId))
   );
