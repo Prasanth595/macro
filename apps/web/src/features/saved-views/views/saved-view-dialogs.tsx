@@ -1,13 +1,12 @@
 import { fireAndForget } from '@core/util/fireAndForget';
-import type { ManagedDialogProps } from '@ui';
+import { Dialog, type ManagedDialogProps } from '@ui';
 import { type Accessor, createEffect, type JSX, on, onCleanup } from 'solid-js';
 import {
-  SavedViewCreateDialog,
-  SavedViewDeleteDialog,
-  SavedViewRenameDialog,
-  SavedViewShareDialog,
+  CreateSavedViewForm,
+  DeleteSavedViewConfirmation,
+  RenameSavedViewForm,
+  ShareSavedViewForm,
 } from '../components/saved-view-dialog';
-import type { SavedViewsSource } from '../context/saved-views-source';
 import type { SavedView } from '../core/saved-view';
 import {
   savedViewErrorMessage,
@@ -18,7 +17,7 @@ import {
 import { toSavedView } from '../queries/saved-views';
 
 type Scope = ManagedDialogProps & {
-  source: SavedViewsSource;
+  refresh: () => Promise<unknown>;
   viewerId: Accessor<string | undefined>;
   isCurrent: () => boolean;
 };
@@ -57,7 +56,7 @@ export function CreateSavedViewDialog(
   }
 ) {
   const lifetime = createDialogLifetime(props);
-  const mutation = useCreateSavedView({ refresh: props.source.refresh });
+  const mutation = useCreateSavedView({ refresh: props.refresh });
   const save = async (name: string, sharedTeamId: string | null) => {
     if (!lifetime.current() || mutation.isPending) return;
     const result = await mutation.mutateAsync({
@@ -72,12 +71,21 @@ export function CreateSavedViewDialog(
     }
   };
   return (
-    <SavedViewCreateDialog
-      {...props}
-      pending={mutation.isPending}
-      error={savedViewErrorMessage(mutation.error)}
-      onSave={(name, team) => fireAndForget(save(name, team), 'saved-views')}
-    />
+    <Dialog
+      open={props.open}
+      position="center"
+      class="w-110"
+      onOpenChange={(open) => {
+        if (!mutation.isPending) props.onOpenChange(open);
+      }}
+    >
+      <CreateSavedViewForm
+        {...props}
+        pending={mutation.isPending}
+        error={savedViewErrorMessage(mutation.error)}
+        onSave={(name, team) => fireAndForget(save(name, team), 'saved-views')}
+      />
+    </Dialog>
   );
 }
 
@@ -88,7 +96,7 @@ export function RenameSavedViewDialog(
   }
 ) {
   const lifetime = createDialogLifetime(props, props.record.ownerId);
-  const mutation = useUpdateSavedView({ refresh: props.source.refresh });
+  const mutation = useUpdateSavedView({ refresh: props.refresh });
   const save = async (name: string) => {
     if (!lifetime.current() || mutation.isPending) return;
     const result = await mutation.mutateAsync({
@@ -103,13 +111,22 @@ export function RenameSavedViewDialog(
     }
   };
   return (
-    <SavedViewRenameDialog
-      {...props}
-      name={props.record.name}
-      pending={mutation.isPending}
-      error={savedViewErrorMessage(mutation.error)}
-      onSave={(name) => fireAndForget(save(name), 'saved-views')}
-    />
+    <Dialog
+      open={props.open}
+      position="center"
+      class="w-110"
+      onOpenChange={(open) => {
+        if (!mutation.isPending) props.onOpenChange(open);
+      }}
+    >
+      <RenameSavedViewForm
+        {...props}
+        name={props.record.name}
+        pending={mutation.isPending}
+        error={savedViewErrorMessage(mutation.error)}
+        onSave={(name) => fireAndForget(save(name), 'saved-views')}
+      />
+    </Dialog>
   );
 }
 
@@ -121,7 +138,7 @@ export function ShareSavedViewDialog(
   }
 ) {
   const lifetime = createDialogLifetime(props, props.record.ownerId);
-  const mutation = useUpdateSavedView({ refresh: props.source.refresh });
+  const mutation = useUpdateSavedView({ refresh: props.refresh });
   const save = async (sharedTeamId: string | null) => {
     if (!lifetime.current() || mutation.isPending) return;
     const result = await mutation.mutateAsync({
@@ -137,13 +154,22 @@ export function ShareSavedViewDialog(
     }
   };
   return (
-    <SavedViewShareDialog
-      {...props}
-      sharedTeamId={props.record.sharedTeamId}
-      pending={mutation.isPending}
-      error={savedViewErrorMessage(mutation.error)}
-      onSave={(team) => fireAndForget(save(team), 'saved-views')}
-    />
+    <Dialog
+      open={props.open}
+      position="center"
+      class="w-110"
+      onOpenChange={(open) => {
+        if (!mutation.isPending) props.onOpenChange(open);
+      }}
+    >
+      <ShareSavedViewForm
+        {...props}
+        sharedTeamId={props.record.sharedTeamId}
+        pending={mutation.isPending}
+        error={savedViewErrorMessage(mutation.error)}
+        onSave={(team) => fireAndForget(save(team), 'saved-views')}
+      />
+    </Dialog>
   );
 }
 
@@ -154,7 +180,7 @@ export function DeleteSavedViewDialog(
   }
 ) {
   const lifetime = createDialogLifetime(props, props.record.ownerId);
-  const mutation = useDeleteSavedView({ refresh: props.source.refresh });
+  const mutation = useDeleteSavedView({ refresh: props.refresh });
   const remove = async () => {
     if (!lifetime.current() || mutation.isPending) return;
     const result = await mutation.mutateAsync({
@@ -173,7 +199,7 @@ export function DeleteSavedViewDialog(
     }
   };
   return (
-    <SavedViewDeleteDialog
+    <DeleteSavedViewConfirmation
       {...props}
       pending={mutation.isPending}
       error={savedViewErrorMessage(mutation.error)}

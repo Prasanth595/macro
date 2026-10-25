@@ -17,7 +17,10 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js';
-import type { SavedViewsSource } from '../context/saved-views-source';
+import type {
+  SavedViewSource,
+  SavedViewsSource,
+} from '../context/saved-views-source';
 import type { SavedView } from '../core/saved-view';
 
 export function toSavedView(view: SavedViewFieldsFragment): SavedView {
@@ -31,11 +34,38 @@ export function toSavedView(view: SavedViewFieldsFragment): SavedView {
   };
 }
 
-/** Shared GraphQL definitions, independent of the feature that interprets config. */
-export function createSavedViewsSource(options: {
+/** Revalidate server-side access when returning to a view or changing accounts. */
+function revalidateSavedViewQuery(
+  viewerId: Accessor<string | undefined>,
+  refresh: () => Promise<unknown>
+) {
+  let lastViewer = viewerId();
+  createEffect(
+    on(viewerId, (viewer) => {
+      if (!viewer) return;
+      if (lastViewer && lastViewer !== viewer)
+        fireAndForget(refresh(), 'saved-views');
+      lastViewer = viewer;
+    })
+  );
+  onMount(() => {
+    const foreground = () => {
+      if (document.visibilityState !== 'visible') return;
+      fireAndForget(refresh(), 'saved-views');
+    };
+    window.addEventListener('focus', foreground);
+    document.addEventListener('visibilitychange', foreground);
+    onCleanup(() => {
+      window.removeEventListener('focus', foreground);
+      document.removeEventListener('visibilitychange', foreground);
+    });
+  });
+}
+
+/** Cursor-paginated definitions, independent of any selected view. */
+export function useSavedViews(options: {
   graphql: Accessor<Client>;
   viewerId: Accessor<string | undefined>;
-  selectedId: Accessor<string | undefined>;
   kind: string;
 }): SavedViewsSource {
   const client = createMemo(options.graphql);
@@ -72,49 +102,10 @@ export function createSavedViewsSource(options: {
     keepPreviousData: false,
     requestPolicy: 'cache-and-network',
   }));
-  const detail = createLiveQuery(
-    SavedViewDocument,
-    () => {
-      const id = options.selectedId();
-      return id && options.viewerId() ? { id } : undefined;
-    },
-    () => ({
-      client: client(),
-      requestPolicy: 'cache-and-network',
-      keepPreviousData: false,
-    })
-  );
   const refresh = async () => {
     await list.refetch({ requestPolicy: 'network-only' });
   };
-  const refreshDetail = async () => {
-    if (options.selectedId())
-      await detail.refetch({ requestPolicy: 'network-only' });
-  };
-  let lastViewer = options.viewerId();
-  createEffect(
-    on(options.viewerId, (viewer) => {
-      if (!viewer) return;
-      if (lastViewer && lastViewer !== viewer) {
-        fireAndForget(refresh(), 'saved-views');
-        fireAndForget(refreshDetail(), 'saved-views');
-      }
-      lastViewer = viewer;
-    })
-  );
-  onMount(() => {
-    const foreground = () => {
-      if (document.visibilityState !== 'visible') return;
-      fireAndForget(refresh(), 'saved-views');
-      fireAndForget(refreshDetail(), 'saved-views');
-    };
-    window.addEventListener('focus', foreground);
-    document.addEventListener('visibilitychange', foreground);
-    onCleanup(() => {
-      window.removeEventListener('focus', foreground);
-      document.removeEventListener('visibilitychange', foreground);
-    });
-  });
+  revalidateSavedViewQuery(options.viewerId, refresh);
   return {
     items: () =>
       list.data?.viewerId === options.viewerId() ? list.data?.items : undefined,
@@ -124,16 +115,43 @@ export function createSavedViewsSource(options: {
     loadingMore: () => list.isFetchingNextPage,
     loadMore: () => list.fetchNextPage(),
     refresh,
-    detail: () =>
+  };
+}
+
+/** One authorized definition, including views outside the loaded list pages. */
+export function useSavedView(options: {
+  graphql: Accessor<Client>;
+  viewerId: Accessor<string | undefined>;
+  id: Accessor<string | undefined>;
+}): SavedViewSource {
+  const client = createMemo(options.graphql);
+  const detail = createLiveQuery(
+    SavedViewDocument,
+    () => {
+      const id = options.id();
+      return id && options.viewerId() ? { id } : undefined;
+    },
+    () => ({
+      client: client(),
+      requestPolicy: 'cache-and-network',
+      keepPreviousData: false,
+    })
+  );
+  const refresh = async () => {
+    if (options.id()) await detail.refetch({ requestPolicy: 'network-only' });
+  };
+  revalidateSavedViewQuery(options.viewerId, refresh);
+  return {
+    data: () =>
       detail.data?.user.id === options.viewerId()
         ? detail.data?.user.savedView
           ? toSavedView(detail.data.user.savedView)
           : null
         : undefined,
-    detailViewerId: () => detail.data?.user.id,
-    detailLoading: () =>
+    viewerId: () => detail.data?.user.id,
+    loading: () =>
       detail.isPending || detail.data?.user.id !== options.viewerId(),
-    detailError: () => detail.error,
-    refreshDetail,
+    error: () => detail.error,
+    refresh,
   };
 }

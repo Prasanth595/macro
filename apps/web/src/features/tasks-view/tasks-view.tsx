@@ -1,7 +1,10 @@
 import { ViewBreadcrumbs, ViewShell } from '@app/components/view-shell';
 import { openProject } from '@app/features/projects/open-project';
 import { ProjectsTab } from '@app/features/projects/projects';
-import { createSavedViewsSource } from '@app/features/saved-views/queries/saved-views';
+import {
+  useSavedView,
+  useSavedViews,
+} from '@app/features/saved-views/queries/saved-views';
 import { ViewTour, ViewTourAction } from '@app/features/tours/ViewTour';
 import { SplitRouter, useNavigate, useParams } from '@app/lib/split-router';
 import { UrqlProvider } from '@app/lib/urql-solid/context';
@@ -207,13 +210,15 @@ export function TasksView(props: TasksViewProps) {
       <ListEntityMetadataQueryProvider>
         <TasksViewProvider
           initialState={props.initialState}
-          savedViewsSource={(selectedId) =>
-            createSavedViewsSource({
+          savedViewsSource={() =>
+            useSavedViews({
               graphql: getGraphqlSoupClient,
               viewerId,
-              selectedId,
               kind: 'tasks',
             })
+          }
+          savedViewSource={(id) =>
+            useSavedView({ graphql: getGraphqlSoupClient, viewerId, id })
           }
           savedViewTeam={() => {
             if (!queryReadyGate(teamQuery)) return;

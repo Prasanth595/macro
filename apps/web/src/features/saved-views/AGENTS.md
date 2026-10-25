@@ -7,12 +7,12 @@ Reusable named filter definitions. The first consumer is main Tasks; the generic
 ## Start here
 
 - `core/saved-view.ts`: resource vocabulary, without transport or UI types.
-- `context/saved-views-source.ts`: injectable read-only contract.
-- `queries/saved-views.ts`: GraphQL live reads and cursor paging.
+- `context/saved-views-source.ts`: independent list and detail read contracts.
+- `queries/saved-views.ts`: `useSavedViews` for cursor paging and `useSavedView` for one definition; compose them at the host.
 - `primitives/create-saved-view-draft.ts`: confirmed baseline versus temporary edits.
 - `queries/saved-view-actions.ts`: independent create, update, and delete hooks using native mutation state, authoritative confirmation, and cursor reconciliation.
-- `views/saved-view-dialogs.tsx`: focused action dialogs that own their mutation hooks and guard their lifetimes.
-- `components/`: presentational forms, compound list, shared styled context/overflow items, and mobile picker.
+- `views/saved-view-dialogs.tsx`: action dialogs own mutation hooks, dialog shells, and lifetime checks.
+- `components/`: presentational forms/confirmation, compound list, shared styled context/overflow items, and mobile picker.
 
 ## Boundaries
 
@@ -24,6 +24,7 @@ Reusable named filter definitions. The first consumer is main Tasks; the generic
 - Mount picker menus inside the drawer portal scope, close menus before opening dialogs, then close the drawer and restore focus before opening another dialog.
 - Bind deferred picker actions to the opening account and discard them after an account change.
 - Validate the response viewer before exposing cached reads after an account change.
+- Keep list and detail hooks independent; pass mutation dialogs a refresh callback, not an aggregate read source.
 
 ## Checks
 

@@ -8,7 +8,7 @@ import {
   on,
   onCleanup,
 } from 'solid-js';
-import type { SavedViewsSource } from '../../saved-views/context/saved-views-source';
+import type { SavedViewSource } from '../../saved-views/context/saved-views-source';
 import type { SavedView } from '../../saved-views/core/saved-view';
 import { createSavedViewDraft } from '../../saved-views/primitives/create-saved-view-draft';
 import {
@@ -42,7 +42,7 @@ export function taskSavedViewTitle(view: TaskSavedViewSelection): string {
 
 /** Owns the selected filter draft, not mutations or dialog state. */
 export function createTaskSavedViews(options: {
-  source: SavedViewsSource;
+  source: SavedViewSource;
   selectedId: Accessor<string | undefined>;
   viewerId: Accessor<string | undefined>;
   taskId: Accessor<string | undefined>;
@@ -152,9 +152,9 @@ export function createTaskSavedViews(options: {
           options.selectedId(),
           options.viewerId(),
           creating(),
-          options.source.detail(),
-          options.source.detailError(),
-          options.source.detailViewerId(),
+          options.source.data(),
+          options.source.error(),
+          options.source.viewerId(),
         ] as const,
       ([id, viewer, isNew, record, loadError, detailViewer]) => {
         if (!id || isNew) return;
@@ -176,7 +176,7 @@ export function createTaskSavedViews(options: {
       if (!active()) return;
       reset();
       if (id === undefined)
-        fireAndForget(options.source.refreshDetail(), 'saved-views');
+        fireAndForget(options.source.refresh(), 'saved-views');
     })
   );
   createEffect(
@@ -246,7 +246,7 @@ export function createTaskSavedViews(options: {
   const selectedRevision = () => {
     const id = options.selectedId();
     const local = draft.record();
-    const remote = options.source.detail();
+    const remote = options.source.data();
     return Math.max(
       local && local.id === id ? local.revision : 0,
       remote && remote.id === id ? remote.revision : 0
@@ -314,9 +314,9 @@ export function createTaskSavedViews(options: {
   };
   const reload = async () => {
     const request = checkpoint();
-    await options.source.refreshDetail();
+    await options.source.refresh();
     if (!request.isCurrent()) return;
-    const record = options.source.detail();
+    const record = options.source.data();
     if (record?.id !== options.selectedId()) return;
     if (!record) return;
     const decoded = decodeTaskSavedView(record.config);
@@ -330,7 +330,6 @@ export function createTaskSavedViews(options: {
     reset();
   };
   return {
-    source: options.source,
     view,
     tagBindings,
     capture,

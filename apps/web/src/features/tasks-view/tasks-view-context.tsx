@@ -6,7 +6,10 @@ import {
   listOwnedSlotName,
 } from '@app/components/list';
 import { setSidebarSectionCollapsed } from '@app/components/view-shell';
-import type { SavedViewsSource } from '@app/features/saved-views/context/saved-views-source';
+import type {
+  SavedViewSource,
+  SavedViewsSource,
+} from '@app/features/saved-views/context/saved-views-source';
 import { normalizeFacetSelection } from '@app/features/soup';
 import { createTagFacetContext } from '@app/features/soup/filters/facets/tag-facet';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
@@ -95,10 +98,11 @@ export type TasksViewProviderProps = ContextProviderProps & {
   /** Host-owned task creation, including scope and permissions for embedded views. */
   onCreateTask?: (options?: TaskCreateOptions) => void;
   savedViewTeam?: Accessor<{ id: string; name: string } | undefined>;
-  /** Main Tasks supplies the generic source; embedded lists leave it out. */
-  savedViewsSource?: (
+  /** Main Tasks supplies independent queries; embedded lists leave them out. */
+  savedViewsSource?: () => SavedViewsSource;
+  savedViewSource?: (
     selectedId: Accessor<string | undefined>
-  ) => SavedViewsSource;
+  ) => SavedViewSource;
 };
 
 export type TasksListActivationMetadata = {
@@ -115,6 +119,7 @@ export type TasksViewContext = {
   scopeKey?: string;
   state: Store<TasksViewState>;
   savedViews?: TaskSavedViews;
+  savedViewsList?: SavedViewsSource;
   savedViewTeam?: Accessor<{ id: string; name: string } | undefined>;
   facetContext: Accessor<TaskFacetContext>;
   createTask?: TasksViewProviderProps['onCreateTask'];
@@ -280,10 +285,11 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
       tags.set(option, property);
     return { tagPropertyDefinitionByOptionId: tags, viewerId: userId() };
   };
-  const savedViewsSource = props.savedViewsSource?.(() => tabSearch.savedView);
-  if (savedViewsSource) {
+  const savedViewsList = props.savedViewsSource?.();
+  const savedView = props.savedViewSource?.(() => tabSearch.savedView);
+  if (savedView) {
     savedViews = createTaskSavedViews({
-      source: savedViewsSource,
+      source: savedView,
       selectedId: () => tabSearch.savedView,
       viewerId: userId,
       taskId: () => routeParams.taskId,
@@ -499,6 +505,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   return {
     scopeKey: props.scopeKey,
     savedViews,
+    savedViewsList,
     savedViewTeam: props.savedViewTeam,
     facetContext,
     get createTask() {
