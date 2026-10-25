@@ -8,8 +8,8 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 
 - `tasks-view-context.tsx`: filter state, router integration, and list source ownership.
 - `filters/task-saved-view.ts`: strict versioned capture, decode, and materialization.
-- `primitives/create-task-saved-views.ts`: task filter capture, transient drafts, explicit saves, and navigation lifecycle; generic write state lives in saved-views primitives.
-- `views/task-saved-views.tsx`: sidebar/mobile selection, task filter summaries, and imperative metadata/delete dialog composition.
+- `primitives/create-task-saved-views.ts`: one selection-state union, task filter drafts, and scoped completion checkpoints; no mutation or dialog state.
+- `views/task-saved-views.tsx`: compound sidebar/mobile lists, filter summaries, direct imperative action dialogs, and the inline save hook.
 - `queries/use-tasks-query.ts`: shared list, board, Gantt, and search filtering.
 
 ## Gotchas
@@ -25,6 +25,7 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 - Keep sidebar actions targeted to their own record; Rename and Share preserve unsaved filters, while Duplicate starts with a prefilled private copy.
 - Keep the selected-view overflow menu beside its name on desktop and mobile; keep draft save/reset actions separate.
 - Close the selected-view menu before opening a dialog, discard deferred actions after account or selection changes, and close dialogs after account, saved-view, or built-in-tab navigation.
+- Keep mobile action dialogs owned outside the drawer so closing its content does not dispose the dialog.
 - Honor confirmed deletion when the same account selects the target while deletion is pending; never apply completion to another account.
 
 ## Checks

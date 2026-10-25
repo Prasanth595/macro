@@ -8,73 +8,57 @@ import BookmarkIcon from '@phosphor/bookmark-simple.svg';
 import DotsIcon from '@phosphor/dots-three.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import UsersIcon from '@phosphor/users.svg';
-import { Button, Dropdown } from '@ui';
-import { createSignal, For, type JSX, onCleanup, Show } from 'solid-js';
+import { Dropdown } from '@ui';
+import { createSignal, type JSX, onCleanup, Show } from 'solid-js';
 import type { SavedView } from '../core/saved-view';
 
-export function SavedViewList(props: {
-  items: readonly SavedView[] | undefined;
-  loading: boolean;
-  failed: boolean;
+function Root(props: {
   open: boolean;
-  hasMore: boolean;
-  loadingMore: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: () => void;
-  onRetry: () => void;
-  onLoadMore: () => void;
-  row: (view: SavedView) => JSX.Element;
+  children: JSX.Element;
 }) {
   return (
     <CollapsibleSection.Root
       open={props.open}
       onOpenChange={props.onOpenChange}
     >
-      <CollapsibleSection.Header>
-        <CollapsibleSection.Trigger>
-          <span class="min-w-0 truncate">Saved views</span>
-          <CollapsibleSection.Indicator />
-        </CollapsibleSection.Trigger>
-        <CollapsibleSection.Action
-          label="New saved view"
-          onClick={props.onCreate}
-        >
-          <PlusIcon class="size-3.5" />
-        </CollapsibleSection.Action>
-      </CollapsibleSection.Header>
-      <CollapsibleSection.Content>
-        <ViewSidebar.Nav aria-label="Saved task views">
-          <For each={props.items}>{props.row}</For>
-        </ViewSidebar.Nav>
-        <Show when={props.loading && !props.items}>
-          <p class="px-3 py-2 text-xs text-ink-muted" role="status">
-            Loading views…
-          </p>
-        </Show>
-        <Show when={!props.loading && props.items?.length === 0}>
-          <p class="px-3 py-2 text-xs text-ink-muted">
-            Save a set of filters to return to it.
-          </p>
-        </Show>
-        <Show when={props.failed}>
-          <Button size="sm" variant="ghost" onClick={props.onRetry}>
-            Retry loading views
-          </Button>
-        </Show>
-        <Show when={props.hasMore}>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={props.loadingMore}
-            onClick={props.onLoadMore}
-          >
-            Load more views
-          </Button>
-        </Show>
-      </CollapsibleSection.Content>
+      {props.children}
     </CollapsibleSection.Root>
   );
 }
+
+function Header(props: { onCreate: () => void }) {
+  return (
+    <CollapsibleSection.Header>
+      <CollapsibleSection.Trigger>
+        <span class="min-w-0 truncate">Saved views</span>
+        <CollapsibleSection.Indicator />
+      </CollapsibleSection.Trigger>
+      <CollapsibleSection.Action
+        label="New saved view"
+        onClick={props.onCreate}
+      >
+        <PlusIcon class="size-3.5" />
+      </CollapsibleSection.Action>
+    </CollapsibleSection.Header>
+  );
+}
+
+function Content(props: { children: JSX.Element }) {
+  return (
+    <CollapsibleSection.Content>{props.children}</CollapsibleSection.Content>
+  );
+}
+
+function Items(props: { children: JSX.Element }) {
+  return (
+    <ViewSidebar.Nav aria-label="Saved task views">
+      {props.children}
+    </ViewSidebar.Nav>
+  );
+}
+
+export const SavedViewList = { Root, Header, Content, Items };
 
 /** A row accepts its consumer's menus without owning CRUD or viewer state. */
 export function SavedViewListRow(props: {
@@ -82,7 +66,7 @@ export function SavedViewListRow(props: {
   selected: boolean;
   onSelect: () => void;
   scopeKey: string | undefined;
-  menu: (context: boolean, defer: (action: () => void) => void) => JSX.Element;
+  menu: (defer: (action: () => void) => void) => JSX.Element;
 }) {
   const [menuAnchor, setMenuAnchor] = createSignal<HTMLElement>();
   let pending: { scopeKey: string | undefined; run: () => void } | undefined;
@@ -148,7 +132,7 @@ export function SavedViewListRow(props: {
               portalScope="local"
               onCloseAutoFocus={finishMenuClose}
             >
-              {props.menu(false, defer)}
+              {props.menu(defer)}
             </Dropdown.Content>
           </Dropdown>
         </div>
@@ -156,8 +140,11 @@ export function SavedViewListRow(props: {
       <ContextMenu.Portal
         mount={menuAnchor()?.closest<HTMLElement>('.portal-scope') ?? undefined}
       >
-        <ContextMenuContent class="min-w-44" onCloseAutoFocus={finishMenuClose}>
-          {props.menu(true, defer)}
+        <ContextMenuContent
+          class="min-w-44 p-0"
+          onCloseAutoFocus={finishMenuClose}
+        >
+          {props.menu(defer)}
         </ContextMenuContent>
       </ContextMenu.Portal>
     </ContextMenu>

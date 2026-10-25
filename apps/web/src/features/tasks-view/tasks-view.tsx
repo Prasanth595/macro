@@ -4,6 +4,7 @@ import { ProjectsTab } from '@app/features/projects/projects';
 import { createSavedViewsSource } from '@app/features/saved-views/queries/saved-views';
 import { ViewTour, ViewTourAction } from '@app/features/tours/ViewTour';
 import { SplitRouter, useNavigate, useParams } from '@app/lib/split-router';
+import { UrqlProvider } from '@app/lib/urql-solid/context';
 import { projectDetailRoute } from '@app/routes/routes';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -30,7 +31,6 @@ import { TasksContent, TasksLoading } from './tasks-content';
 import { TasksViewProvider, useTasksView } from './tasks-view-context';
 import { tasksTour } from './tour';
 import type { TasksViewStateOptions } from './types';
-import { TaskSavedViewStatus } from './views/task-saved-views';
 
 export type TasksViewProps = {
   /** Explicit navigation state. When present, it wins over entry restoration. */
@@ -96,21 +96,28 @@ function TasksViewRoot() {
   const navigate = useNavigate();
   const layout = useSplitLayout();
   const [listElement, setListElement] = createSignal<HTMLDivElement>();
+  const savedViewReady = () => {
+    const kind = savedViews?.view().kind;
+    return kind !== 'loading' && kind !== 'unavailable';
+  };
+  const unavailable = () => {
+    const view = savedViews?.view();
+    return view?.kind === 'unavailable' ? view.message : undefined;
+  };
 
   onMount(() => panel.handle.setDisplayName('Tasks'));
 
   const taskList = () => (
     <>
       <TasksHeader onSearchEscape={() => listElement()?.focus()} />
-      <TaskSavedViewStatus />
       <ViewTour tour={tasksTour} actions={<ImportLinearAction />} />
       <ViewShell.Content>
         <Show
-          when={savedViews?.ready() ?? true}
+          when={savedViewReady()}
           fallback={
-            <Show when={savedViews?.unavailable()} fallback={<TasksLoading />}>
+            <Show when={unavailable()} fallback={<TasksLoading />}>
               <div class="flex h-full flex-col items-center justify-center gap-3 p-6 text-sm text-ink-muted">
-                <p role="alert">{savedViews?.unavailable()}</p>
+                <p role="alert">{unavailable()}</p>
                 <Button onClick={() => setTab('my-tasks')}>
                   Return to Tasks
                 </Button>
@@ -144,7 +151,7 @@ function TasksViewRoot() {
                     when={
                       state.tab === 'projects' &&
                       projectsEnabled() &&
-                      !savedViews?.active()
+                      !state.savedViewActive
                     }
                     fallback={taskList()}
                   >
@@ -196,27 +203,29 @@ export function TasksView(props: TasksViewProps) {
   const viewerId = useUserId();
   const teamQuery = useCurrentTeamQuery();
   return (
-    <ListEntityMetadataQueryProvider>
-      <TasksViewProvider
-        initialState={props.initialState}
-        savedViewsSource={(selectedId) =>
-          createSavedViewsSource({
-            graphql: getGraphqlSoupClient,
-            viewerId,
-            selectedId,
-            kind: 'tasks',
-          })
-        }
-        savedViewTeam={() => {
-          if (!queryReadyGate(teamQuery)) return;
-          const team = teamQuery.data?.team;
-          return team ? { id: team.id, name: team.name } : undefined;
-        }}
-      >
-        <TasksViewBreadcrumbs>
-          <TasksViewRoot />
-        </TasksViewBreadcrumbs>
-      </TasksViewProvider>
-    </ListEntityMetadataQueryProvider>
+    <UrqlProvider client={getGraphqlSoupClient}>
+      <ListEntityMetadataQueryProvider>
+        <TasksViewProvider
+          initialState={props.initialState}
+          savedViewsSource={(selectedId) =>
+            createSavedViewsSource({
+              graphql: getGraphqlSoupClient,
+              viewerId,
+              selectedId,
+              kind: 'tasks',
+            })
+          }
+          savedViewTeam={() => {
+            if (!queryReadyGate(teamQuery)) return;
+            const team = teamQuery.data?.team;
+            return team ? { id: team.id, name: team.name } : undefined;
+          }}
+        >
+          <TasksViewBreadcrumbs>
+            <TasksViewRoot />
+          </TasksViewBreadcrumbs>
+        </TasksViewProvider>
+      </ListEntityMetadataQueryProvider>
+    </UrqlProvider>
   );
 }

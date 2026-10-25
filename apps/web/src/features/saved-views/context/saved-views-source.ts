@@ -1,11 +1,5 @@
-import type { Result } from 'neverthrow';
 import type { Accessor } from 'solid-js';
-import type {
-  CreateSavedView,
-  SavedView,
-  SavedViewError,
-  UpdateSavedView,
-} from '../core/saved-view';
+import type { SavedView } from '../core/saved-view';
 
 /** Undefined data means loading; a null detail means the view is unavailable. */
 export type SavedViewsSource = {
@@ -22,14 +16,4 @@ export type SavedViewsSource = {
   detailError: Accessor<unknown>;
   detailLoading: Accessor<boolean>;
   refreshDetail: () => Promise<unknown>;
-  create: (
-    input: CreateSavedView
-  ) => Promise<Result<SavedView, SavedViewError>>;
-  update: (
-    input: UpdateSavedView
-  ) => Promise<Result<SavedView, SavedViewError>>;
-  delete: (input: {
-    id: string;
-    expectedRevision: number;
-  }) => Promise<Result<void, SavedViewError>>;
 };

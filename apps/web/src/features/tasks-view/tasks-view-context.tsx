@@ -316,7 +316,10 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
       tagSetsReady,
       isGroupExpanded,
       facetContext,
-      enabled: () => savedViews?.ready() ?? true,
+      enabled: () => {
+        const kind = savedViews?.view().kind;
+        return kind !== 'loading' && kind !== 'unavailable';
+      },
       board: () => state.layout === 'board',
     })
   );
@@ -452,7 +455,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
 
   const setTab = (tab: TasksTab) => {
     if (tab === 'projects' && !projectsEnabled()) return;
-    const leavingSavedView = savedViews?.active() ?? false;
+    const leavingSavedView = state.savedViewActive;
     if (leavingSavedView) savedViews?.leave();
     if (persistedState.tab === tab && !leavingSavedView) {
       closeTask();

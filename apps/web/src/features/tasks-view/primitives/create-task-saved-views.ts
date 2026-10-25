@@ -1,5 +1,4 @@
 import { fireAndForget } from '@core/util/fireAndForget';
-import { ok } from 'neverthrow';
 import {
   type Accessor,
   batch,
@@ -7,14 +6,10 @@ import {
   createMemo,
   createSignal,
   on,
+  onCleanup,
 } from 'solid-js';
-import { v4 as uuid } from 'uuid';
 import type { SavedViewsSource } from '../../saved-views/context/saved-views-source';
-import type {
-  SavedView,
-  UpdateSavedView,
-} from '../../saved-views/core/saved-view';
-import { createSavedViewCrud } from '../../saved-views/primitives/create-saved-view-crud';
+import type { SavedView } from '../../saved-views/core/saved-view';
 import { createSavedViewDraft } from '../../saved-views/primitives/create-saved-view-draft';
 import {
   DEFAULT_TASK_FACET_SELECTION,
@@ -30,15 +25,22 @@ import {
 } from '../filters/task-saved-view';
 import type { TasksViewState, TaskTab } from '../types';
 
-export type SavedViewForm = {
-  mode: 'create' | 'duplicate' | 'rename' | 'share';
-  id: string;
-  name: string;
-  sharedTeamId: string | null;
-  record?: SavedView;
-  config?: TaskSavedViewConfig;
-};
+export type TaskSavedViewSelection =
+  | { kind: 'default'; changed: boolean }
+  | { kind: 'new' }
+  | { kind: 'loading' }
+  | { kind: 'unavailable'; message: string }
+  | { kind: 'saved'; record: SavedView; dirty: boolean };
 
+export function taskSavedViewTitle(view: TaskSavedViewSelection): string {
+  return view.kind === 'saved'
+    ? view.record.name
+    : view.kind === 'new'
+      ? 'New view'
+      : 'Saved view';
+}
+
+/** Owns the selected filter draft, not mutations or dialog state. */
 export function createTaskSavedViews(options: {
   source: SavedViewsSource;
   selectedId: Accessor<string | undefined>;
@@ -67,17 +69,6 @@ export function createTaskSavedViews(options: {
     const result = capture();
     return result.isOk() ? result.value : undefined;
   });
-  const changedFromBase = () => {
-    const base = captureTaskSavedView({
-      tab: options.state.tab,
-      facets: DEFAULT_TASK_FACET_SELECTION,
-      context: options.facetContext(),
-    });
-    const definition = current();
-    return Boolean(
-      definition && base.isOk() && !taskSavedViewsEqual(definition, base.value)
-    );
-  };
   const draft = createSavedViewDraft({ current, equal: taskSavedViewsEqual });
   const apply = (
     definition: TaskSavedViewConfig,
@@ -92,7 +83,6 @@ export function createTaskSavedViews(options: {
   const reset = () => {
     const baseline = draft.baseline();
     if (baseline) apply(baseline);
-    crud.clear();
   };
   const installRecord = (record: SavedView) => {
     const previous = draft.record();
@@ -104,29 +94,21 @@ export function createTaskSavedViews(options: {
       return;
     }
     setUnavailable(undefined);
-    if (
-      previous?.id === record.id &&
-      (draft.dirty() || crud.saving() || crud.editing())
-    )
-      return;
+    if (previous?.id === record.id && draft.dirty()) return;
     draft.install(record, decoded.value);
     apply(decoded.value);
   };
-  let navigationEpoch = 0;
+  let draftOwner = {};
+  let disposed = false;
+  onCleanup(() => {
+    disposed = true;
+  });
   let priorSelection: string | undefined;
   let priorViewer: string | undefined;
   createEffect(
     on(
-      () =>
-        [
-          options.selectedId(),
-          options.viewerId(),
-          creating(),
-          options.source.detail(),
-          options.source.detailError(),
-          options.source.detailViewerId(),
-        ] as const,
-      ([id, viewer, isNew, record, loadError, detailViewer]) => {
+      () => [options.selectedId(), options.viewerId(), creating()] as const,
+      ([id, viewer, isNew]) => {
         const accountChanged =
           priorViewer !== undefined && viewer !== priorViewer;
         if (accountChanged) {
@@ -145,11 +127,10 @@ export function createTaskSavedViews(options: {
         priorSelection = id;
         priorViewer = viewer;
         if (changed) {
-          navigationEpoch += 1;
+          draftOwner = {};
           options.setActive(Boolean(id));
           if (!keepConfirmed) draft.install(undefined, undefined);
           setUnavailable(undefined);
-          crud.clear();
           options.clearSearch();
         }
         if (!id) {
@@ -160,8 +141,23 @@ export function createTaskSavedViews(options: {
               DEFAULT_TASK_FACET_SELECTION
             );
           }
-          return;
         }
+      }
+    )
+  );
+  createEffect(
+    on(
+      () =>
+        [
+          options.selectedId(),
+          options.viewerId(),
+          creating(),
+          options.source.detail(),
+          options.source.detailError(),
+          options.source.detailViewerId(),
+        ] as const,
+      ([id, viewer, isNew, record, loadError, detailViewer]) => {
+        if (!id || isNew) return;
         if (detailViewer !== undefined && detailViewer !== viewer) return;
         if (loadError || record === null) {
           setUnavailable(
@@ -169,60 +165,72 @@ export function createTaskSavedViews(options: {
           );
           return;
         }
-        if (!viewer || record?.id !== id) return;
-        installRecord(record);
+        if (viewer && record?.id === id) installRecord(record);
       }
     )
   );
   createEffect(
     on(options.taskId, (id, previous) => {
       if (id === previous) return;
-      navigationEpoch += 1;
+      draftOwner = {};
       if (!active()) return;
       reset();
       if (id === undefined)
         fireAndForget(options.source.refreshDetail(), 'saved-views');
     })
   );
-
   createEffect(
     on(
       () => options.state.tab,
       (tab, previous) => {
-        if (tab === previous || active()) return;
-        navigationEpoch += 1;
-        crud.clear();
+        if (previous !== undefined && tab !== previous) draftOwner = {};
       }
     )
   );
 
-  const ready = () =>
-    !active() ||
-    Boolean(
-      options.viewerId() &&
-        !unavailable() &&
-        (creating() || draft.record()?.id === options.selectedId())
-    );
-  const owned = () => draft.record()?.ownerId === options.viewerId();
+  const view = createMemo<TaskSavedViewSelection>(() => {
+    const message = unavailable();
+    if (active() && message) return { kind: 'unavailable', message };
+    if (creating()) return { kind: 'new' };
+    if (!options.selectedId()) {
+      const base = captureTaskSavedView({
+        tab: options.state.tab,
+        facets: DEFAULT_TASK_FACET_SELECTION,
+        context: options.facetContext(),
+      });
+      const definition = current();
+      return {
+        kind: 'default',
+        changed: Boolean(
+          definition &&
+            base.isOk() &&
+            !taskSavedViewsEqual(definition, base.value)
+        ),
+      };
+    }
+    const record = draft.record();
+    return options.viewerId() && record && record.id === options.selectedId()
+      ? { kind: 'saved', record, dirty: draft.dirty() }
+      : { kind: 'loading' };
+  });
   const select = (id: string) => {
     setCreating(false);
     options.navigate(id);
   };
   const leave = () => {
-    navigationEpoch += 1;
+    draftOwner = {};
     batch(() => {
       setCreating(false);
       options.setActive(false);
       options.apply('my-tasks', DEFAULT_TASK_FACET_SELECTION);
       draft.install(undefined, undefined);
       setTagBindings(new Map());
-      crud.clear();
       setUnavailable(undefined);
       options.navigate(undefined);
     });
   };
   const start = () => {
-    navigationEpoch += 1;
+    draftOwner = {};
     batch(() => {
       setCreating(true);
       options.setActive(true);
@@ -232,166 +240,96 @@ export function createTaskSavedViews(options: {
       const result = capture();
       if (result.isOk()) draft.install(undefined, result.value);
       setUnavailable(undefined);
-      crud.clear();
     });
     options.navigate(undefined);
   };
-  const prepareForm = (
-    mode: SavedViewForm['mode'],
-    record = draft.record()
-  ): SavedViewForm | undefined => {
-    if (crud.saving()) return;
-    crud.clear();
-    if (mode === 'create') {
-      return { mode, id: uuid(), name: '', sharedTeamId: null };
-    }
-    if (!record) return;
-    if (mode !== 'duplicate' && record.ownerId !== options.viewerId()) return;
-    const definition =
-      mode === 'duplicate' && record.id === draft.record()?.id
-        ? capture()
-        : decodeTaskSavedView(record.config);
-    if (definition.isErr()) {
-      crud.fail(definition.error);
-      return;
-    }
+  /** Binds a completion to this draft, including leaving and returning to the same view. */
+  const checkpoint = () => {
+    const owner = draftOwner;
+    const viewer = options.viewerId();
+    const id = options.selectedId();
+    const task = options.taskId();
+    const tab = options.state.tab;
+    const isNew = creating();
+    const snapshot = current();
+    const isCurrent = () =>
+      !disposed &&
+      owner === draftOwner &&
+      viewer === options.viewerId() &&
+      id === options.selectedId() &&
+      task === options.taskId() &&
+      tab === options.state.tab &&
+      isNew === creating();
+    const accept = (record: SavedView) => {
+      if (!isCurrent()) return;
+      const previous = draft.record();
+      if (previous?.id === record.id && previous.revision > record.revision)
+        return;
+      const decoded = decodeTaskSavedView(record.config);
+      if (decoded.isErr()) {
+        setUnavailable(decoded.error);
+        return;
+      }
+      setUnavailable(undefined);
+      return decoded.value;
+    };
     return {
-      mode,
-      id: mode === 'duplicate' ? uuid() : record.id,
-      name:
-        mode === 'duplicate'
-          ? `${record.name.slice(0, 113)} (copy)`
-          : record.name,
-      sharedTeamId: mode === 'duplicate' ? null : record.sharedTeamId,
-      record,
-      config: definition.value,
+      isCurrent,
+      created(record: SavedView) {
+        const definition = accept(record);
+        if (!definition) return false;
+        const visible = current();
+        const preserveEdits =
+          snapshot &&
+          taskSavedViewsEqual(snapshot, definition) &&
+          (!visible || !taskSavedViewsEqual(snapshot, visible));
+        const facets = preserveEdits
+          ? withTaskTabFilters(options.state.tab, options.state.facets)
+          : undefined;
+        batch(() => {
+          setCreating(true);
+          draft.install(record, definition);
+          apply(definition, facets);
+          options.navigate(record.id);
+        });
+        return true;
+      },
+      updated(record: SavedView) {
+        const definition = accept(record);
+        if (!definition || options.selectedId() !== record.id) return false;
+        draft.install(record, definition);
+        return true;
+      },
     };
   };
-  const scope = () =>
-    JSON.stringify([
-      options.viewerId(),
-      creating() ? 'new' : options.selectedId(),
-      navigationEpoch,
-      draft.record()?.revision,
-    ]);
-  let savedMetadata: SavedViewForm | undefined;
-  const crud = createSavedViewCrud({
-    source: options.source,
-    viewerId: options.viewerId,
-    selectedId: options.selectedId,
-    scope,
-    onDeleted: leave,
-    onSaved: (record, mode) => {
-      const confirmed = decodeTaskSavedView(record.config);
-      if (confirmed.isErr()) {
-        crud.fail(confirmed.error);
-        return false;
-      }
-      batch(() => {
-        if (mode === 'create') {
-          apply(
-            confirmed.value,
-            savedMetadata?.mode === 'duplicate'
-              ? undefined
-              : withTaskTabFilters(options.state.tab, options.state.facets)
-          );
-          setCreating(true);
-          draft.install(record, confirmed.value);
-          options.navigate(record.id);
-        } else if (options.selectedId() === record.id) {
-          draft.install(record, confirmed.value);
-        }
-      });
-      return true;
-    },
-  });
-  const save = async (
-    name?: string,
-    team?: string | null,
-    metadata?: SavedViewForm
-  ) => {
-    if (crud.saving()) return false;
-    const definition = metadata?.config ? ok(metadata.config) : capture();
-    if (definition.isErr()) {
-      crud.fail(definition.error);
-      return false;
-    }
-    const record = metadata?.record ?? draft.record();
-    const targetName = (name ?? metadata?.name ?? record?.name ?? '').trim();
-    if (!targetName) {
-      crud.fail('Give this view a name.');
-      return false;
-    }
-    savedMetadata = metadata;
-    if (metadata?.mode === 'create' || metadata?.mode === 'duplicate') {
-      return crud.save({
-        mode: 'create',
-        input: {
-          id: metadata.id,
-          name: targetName,
-          config: definition.value,
-          sharedTeamId: team === undefined ? metadata.sharedTeamId : team,
-        },
-      });
-    }
-    if (!record) return false;
-    const input: UpdateSavedView = {
-      id: record.id,
-      name: targetName,
-      config: definition.value,
-      expectedRevision: record.revision,
-    };
-    // Only an explicit sharing edit changes the selected team.
+  const deleted = (record: SavedView, viewer: string) => {
     if (
-      metadata?.mode !== 'rename' &&
-      team !== undefined &&
-      team !== record.sharedTeamId
+      !disposed &&
+      options.viewerId() === viewer &&
+      options.selectedId() === record.id
     )
-      input.sharedTeamId = team;
-    return crud.save({ mode: 'update', input, record });
+      leave();
   };
   const reload = async () => {
-    const requestScope = scope();
+    const request = checkpoint();
     await options.source.refreshDetail();
-    if (scope() !== requestScope) return;
+    if (!request.isCurrent()) return;
     const record = options.source.detail();
-    if (!record || record.id !== options.selectedId()) return;
-    const decoded = decodeTaskSavedView(record.config);
-    if (decoded.isErr()) {
-      setUnavailable(decoded.error);
-      return;
-    }
-    draft.install(record, decoded.value);
-    reset();
+    if (record?.id !== options.selectedId()) return;
+    if (record && request.updated(record)) reset();
   };
   return {
     source: options.source,
-    selectedId: options.selectedId,
-    active,
-    creating,
-    ready,
-    unavailable,
-    error: crud.error,
-    conflict: crud.conflict,
-    saving: crud.saving,
-    record: draft.record,
-    dirty: draft.dirty,
-    owned,
-    changedFromBase,
-    current,
+    view,
     tagBindings,
-    title: () =>
-      creating() ? 'New view' : (draft.record()?.name ?? 'Saved view'),
+    capture,
+    checkpoint,
     select,
-    leave,
     start,
+    leave,
     reset,
-    save,
-    remove: crud.remove,
     reload,
-    prepareForm,
-    clearError: crud.clear,
-    holdEditing: crud.hold,
+    deleted,
   };
 }
 

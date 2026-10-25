@@ -15,7 +15,7 @@ const toPill = (tab: TaskTabItem): PillTabItem<TasksTab> => ({
 });
 
 export function TasksMobileTabs(props: { leading?: JSX.Element }) {
-  const { state, setTab, projectsEnabled, savedViews } = useTasksView();
+  const { state, setTab, projectsEnabled } = useTasksView();
   const items = (): PillTabItem<TasksTab>[] =>
     TASK_TABS.filter((tab) => tab.id !== 'projects' || projectsEnabled()).map(
       toPill
@@ -39,7 +39,7 @@ export function TasksMobileTabs(props: { leading?: JSX.Element }) {
           )
         }
         items={items()}
-        value={savedViews?.active() ? undefined : state.tab}
+        value={state.savedViewActive ? undefined : state.tab}
         onChange={setTab}
       />
     </div>

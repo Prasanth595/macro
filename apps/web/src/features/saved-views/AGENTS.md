@@ -7,12 +7,12 @@ Reusable named filter definitions. The first consumer is main Tasks; the generic
 ## Start here
 
 - `core/saved-view.ts`: resource vocabulary, without transport or UI types.
-- `context/saved-views-source.ts`: injectable read/write contract.
-- `queries/saved-views.ts`: GraphQL live reads, cursor paging, and authoritative writes.
+- `context/saved-views-source.ts`: injectable read-only contract.
+- `queries/saved-views.ts`: GraphQL live reads and cursor paging.
 - `primitives/create-saved-view-draft.ts`: confirmed baseline versus temporary edits.
-- `primitives/create-saved-view-crud.ts`: account-scoped writes, owner checks, pending/error/conflict state.
-- `views/use-saved-view-dialogs.tsx`: imperative form and deletion dialogs with managed lifetimes.
-- `components/`: composable list rows and menu slots, shared padded context/overflow actions, mobile picker, and create/duplicate/rename/share dialogs.
+- `queries/saved-view-actions.ts`: independent create, update, and delete hooks using native mutation state, authoritative confirmation, and cursor reconciliation.
+- `views/saved-view-dialogs.tsx`: focused action dialogs that own their mutation hooks and guard their lifetimes.
+- `components/`: presentational forms, compound list, shared styled context/overflow items, and mobile picker.
 
 ## Boundaries
 

@@ -42,7 +42,7 @@ const TASK_NAV_ITEMS = [
 ] satisfies { id: TasksTab; label: string; icon: typeof NoteIcon }[];
 
 export function TasksNavigation(props: { onNavigate?: () => void }) {
-  const { state, setTab, projectsEnabled, savedViews } = useTasksView();
+  const { state, setTab, projectsEnabled } = useTasksView();
 
   return (
     <ViewSidebar.Nav aria-label="Task views">
@@ -53,7 +53,7 @@ export function TasksNavigation(props: { onNavigate?: () => void }) {
       >
         {(item) => (
           <ViewSidebar.Item
-            active={!savedViews?.active() && state.tab === item.id}
+            active={!state.savedViewActive && state.tab === item.id}
             onClick={() => {
               setTab(item.id);
               props.onNavigate?.();
