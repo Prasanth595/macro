@@ -28,6 +28,45 @@ impl SQS {
         self
     }
 
+    /// Send Gmail label writes as `ModifyMessageLabelsBatch` messages. Enable
+    /// only once every gmail_ops worker decodes them; workers released before
+    /// the batch form delete it. Off, each message is its own operation.
+    pub fn gmail_label_write_batches(mut self, enabled: bool) -> Self {
+        self.gmail_label_write_batches = enabled;
+        self
+    }
+
+    /// The gmail_ops queue messages for one label write, in the format this
+    /// client is configured for.
+    fn gmail_label_write_messages(
+        &self,
+        link_id: Uuid,
+        messages: Vec<(Uuid, String)>,
+        labels_to_add: Vec<String>,
+        labels_to_remove: Vec<String>,
+    ) -> Vec<models_email::gmail::gmail_ops::GmailOpsPubsubMessage> {
+        use models_email::gmail::gmail_ops::{
+            GmailMessageRef, GmailOpsPubsubMessage, label_write_operations,
+        };
+
+        let messages = messages
+            .into_iter()
+            .map(|(db_message_id, provider_message_id)| GmailMessageRef {
+                db_message_id,
+                provider_message_id,
+            })
+            .collect();
+        label_write_operations(
+            messages,
+            labels_to_add,
+            labels_to_remove,
+            self.gmail_label_write_batches,
+        )
+        .into_iter()
+        .map(|operation| GmailOpsPubsubMessage { link_id, operation })
+        .collect()
+    }
+
     pub fn email_crm_cleanup_queue(mut self, email_crm_cleanup_queue: &str) -> Self {
         self.email_crm_cleanup_queue = Some(email_crm_cleanup_queue.to_string());
         self
@@ -194,28 +233,15 @@ impl EmailMessageEnqueuer for SQS {
         labels_to_add: Vec<String>,
         labels_to_remove: Vec<String>,
     ) -> Result<(), Self::Err> {
-        use models_email::gmail::gmail_ops::{
-            GmailMessageRef, GmailOpsOperation, GmailOpsPubsubMessage,
-            ModifyMessageLabelsBatchPayload,
-        };
-
-        let messages = messages
-            .into_iter()
-            .map(|(db_message_id, provider_message_id)| GmailMessageRef {
-                db_message_id,
-                provider_message_id,
-            })
-            .collect();
+        let messages =
+            self.gmail_label_write_messages(link_id, messages, labels_to_add, labels_to_remove);
+        if !self.gmail_label_write_batches {
+            return self.enqueue_gmail_ops_notifications_batch(messages).await;
+        }
         // A full batch is ~100 KB, so each goes out alone rather than in an
         // SQS batch whose 256 KB cap is shared by all its entries.
-        for payload in
-            ModifyMessageLabelsBatchPayload::chunked(messages, labels_to_add, labels_to_remove)
-        {
-            self.enqueue_gmail_ops_notification(GmailOpsPubsubMessage {
-                link_id,
-                operation: GmailOpsOperation::ModifyMessageLabelsBatch(payload),
-            })
-            .await?;
+        for message in messages {
+            self.enqueue_gmail_ops_notification(message).await?;
         }
         Ok(())
     }
@@ -380,3 +406,6 @@ pub struct SFSDeleteMessage {
     /// The ID of the item in SFS
     pub sfs_id: Uuid,
 }
+
+#[cfg(test)]
+mod test;

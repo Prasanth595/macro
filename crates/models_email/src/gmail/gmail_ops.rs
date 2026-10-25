@@ -18,9 +18,9 @@ pub struct GmailOpsPubsubMessage {
 #[derive(Debug, Deserialize, Serialize, Clone, Display)]
 #[serde(rename_all = "snake_case")]
 pub enum GmailOpsOperation {
-    /// Add or remove labels from one message in Gmail. Producers enqueue
-    /// `ModifyMessageLabelsBatch`; this form stays decodable so queued and
-    /// retrying messages from earlier releases still drain.
+    /// Add or remove labels from one message in Gmail. Every released worker
+    /// decodes this form, so producers send it until label write batches are
+    /// enabled (see [`label_write_operations`]).
     ModifyMessageLabels(ModifyMessageLabelsPayload),
     /// Add or remove the same labels on messages with one Gmail request
     ModifyMessageLabelsBatch(ModifyMessageLabelsBatchPayload),
@@ -90,6 +90,35 @@ impl ModifyMessageLabelsBatchPayload {
             })
             .collect()
     }
+}
+
+/// The gmail_ops operations that carry one label write. Workers released
+/// before `ModifyMessageLabelsBatch` existed delete it as undecodable, so
+/// `batches` may be set only once every worker decodes it; otherwise each
+/// message goes out as its own `ModifyMessageLabels`.
+pub fn label_write_operations(
+    messages: Vec<GmailMessageRef>,
+    labels_to_add: Vec<String>,
+    labels_to_remove: Vec<String>,
+    batches: bool,
+) -> Vec<GmailOpsOperation> {
+    if batches {
+        return ModifyMessageLabelsBatchPayload::chunked(messages, labels_to_add, labels_to_remove)
+            .into_iter()
+            .map(GmailOpsOperation::ModifyMessageLabelsBatch)
+            .collect();
+    }
+    messages
+        .into_iter()
+        .map(|message| {
+            GmailOpsOperation::ModifyMessageLabels(ModifyMessageLabelsPayload {
+                db_message_id: message.db_message_id,
+                provider_message_id: message.provider_message_id,
+                labels_to_add: labels_to_add.clone(),
+                labels_to_remove: labels_to_remove.clone(),
+            })
+        })
+        .collect()
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
