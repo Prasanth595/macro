@@ -816,9 +816,18 @@ for Premium, `AI_USAGE_MAX_INCLUDED_ALLOWANCE_CENTS`, and
 used up and no credits or usage billing cover the request, sending a message
 answers HTTP 402 and the app opens the **AI usage limit** dialog (title
 `You've used this month's included AI`, or the spending-limit / failed-charge
-variants). It shows **Monthly limit**, the message `Add additional credits to
-keep going.`, and an `Open usage settings` button. Credit purchases live in
-Settings → Usage; subscription changes live in Settings → Billing.
+variants). It shows **Monthly limit** and an `Open usage settings` button.
+When the viewer is the payer and Auto-Reload is off or suspended, it says
+`Turn on auto-reload to keep going.`, lists the saved thresholds (defaults:
+reload to $100 below $10, no monthly limit), and offers **Turn on auto-reload**,
+which enables it with those thresholds in one click. Enabling reloads right
+away when the balance is low; on success the dialog closes with an
+`Auto-reload is on` toast and the user resends. If the card on file can't be
+charged, the dialog says so and the button becomes **Add payment method**
+(Stripe billing portal, returning to Settings → Usage). Team members who don't
+pay see `Add additional credits to keep going.` instead. Credit purchases and
+Auto-Reload thresholds live in Settings → Usage; subscription changes live in
+Settings → Billing.
 
 The free plan is a hard cap: when its monthly allowance is used up, requests
 answer 402 with code `ai_free_allowance_exhausted`. The dialog title is
