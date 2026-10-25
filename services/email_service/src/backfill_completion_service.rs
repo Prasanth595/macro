@@ -37,7 +37,7 @@ pub async fn incr_completed_threads(
             .await
             .map_err(|e| {
                 ProcessingError::Retryable(DetailedError {
-                    reason: FailureReason::RedisQueryFailed,
+                    reason: FailureReason::DatabaseQueryFailed,
                     source: e.context("Failed to increment completed thread count"),
                 })
             })?;
@@ -85,7 +85,7 @@ pub async fn incr_completed_messages(
     .await
     .map_err(|e| {
         ProcessingError::Retryable(DetailedError {
-            reason: FailureReason::RedisQueryFailed,
+            reason: FailureReason::DatabaseQueryFailed,
             source: e.context(format!(
                 "Handle completed message for {} failed",
                 p.message_provider_id

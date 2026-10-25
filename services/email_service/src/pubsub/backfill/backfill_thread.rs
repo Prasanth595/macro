@@ -36,8 +36,8 @@ pub async fn backfill_thread(
     })?;
 
     // If the thread already exists: recovery jobs refresh it (backfilling any
-    // messages that arrived in the sync gap), other jobs skip it and update
-    // redis counters.
+    // messages that arrived in the sync gap), other jobs skip it and count it
+    // as complete.
     if let Some(existing_thread_db_id) = existing_threads.get(&thread_provider_id) {
         if p.refresh_existing {
             return refresh_existing_thread(ctx, scope, link, *existing_thread_db_id).await;
@@ -76,9 +76,8 @@ pub async fn backfill_thread(
 /// replies that arrived during a sync gap are recovered.
 ///
 /// Job accounting matches the fresh-thread path: with nothing missing the
-/// thread completes immediately (like the skip path); otherwise its redis
-/// progress counter is initialized to the missing count and the enqueued
-/// messages complete it.
+/// thread completes immediately (like the skip path); otherwise its message
+/// count is started at the missing count and the enqueued messages complete it.
 async fn refresh_existing_thread(
     ctx: &PubSubContext,
     scope: &JobScopedPayload<BackfillThreadPayload>,
@@ -122,7 +121,7 @@ async fn refresh_existing_thread(
     enqueue_backfill_messages(ctx, scope, link, thread_db_id, missing_message_ids).await
 }
 
-/// Initializes the thread's redis progress counter and enqueues one
+/// Starts counting the thread's messages and enqueues one
 /// BackfillMessage per message id.
 async fn enqueue_backfill_messages(
     ctx: &PubSubContext,
@@ -144,9 +143,9 @@ async fn enqueue_backfill_messages(
     .await
     .map_err(|e| {
         ProcessingError::Retryable(DetailedError {
-            reason: FailureReason::RedisQueryFailed,
+            reason: FailureReason::DatabaseQueryFailed,
             source: e.context(format!(
-                "Failed to create entry in redis for thread {}",
+                "Failed to start counting messages for thread {}",
                 &p.thread_provider_id
             )),
         })

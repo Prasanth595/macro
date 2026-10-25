@@ -188,7 +188,8 @@ pub async fn release_init_lease(
     Ok(released.rows_affected() == 1)
 }
 
-/// Atomically publish initialization and transition the leased job in progress.
+/// Atomically publish initialization and transition the leased job in progress,
+/// counting its progress in Postgres from here on.
 #[tracing::instrument(skip(pool), err)]
 pub async fn finalize_initialization(
     pool: &PgPool,
@@ -214,6 +215,8 @@ pub async fn finalize_initialization(
             initialized_at = now(),
             init_lease_token = NULL,
             init_lease_expires_at = NULL,
+            completed_threads = 0,
+            priority_threads = 0,
             updated_at = now()
         WHERE id = $1
           AND status = 'Init'

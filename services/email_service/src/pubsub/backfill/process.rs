@@ -160,12 +160,12 @@ struct JobContextNoToken {
 }
 
 /// Shared prefetch for DB-only job-scoped handlers: loads the backfill
-/// job, short-circuits on cancellation (also cleaning up the job-level
-/// redis progress key), and loads the link. Returns `Ok(None)` when the
-/// parent backfill job is failed or cancelled, and normally when it is
-/// complete. Completion follow-up operations may opt into running after the
-/// terminal transition. Variant-specific cancellation cleanup (e.g.
-/// per-thread progress keys) belongs at the call site, not here.
+/// job, short-circuits on cancellation (also dropping the job's progress),
+/// and loads the link. Returns `Ok(None)` when the parent backfill job is
+/// failed or cancelled, and normally when it is complete. Completion
+/// follow-up operations may opt into running after the terminal transition.
+/// Variant-specific cancellation cleanup (e.g. per-thread progress keys)
+/// belongs at the call site, not here.
 async fn fetch_job_context_no_token<P>(
     ctx: &PubSubContext,
     scope: &JobScopedPayload<P>,

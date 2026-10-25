@@ -145,15 +145,7 @@ async fn initialize_backfill(
         return Ok(());
     }
 
-    ctx.redis_client
-        .init_backfill_job_progress(scope.job_id, total_threads)
-        .await
-        .map_err(|e| {
-            ProcessingError::Retryable(DetailedError {
-                reason: FailureReason::RedisQueryFailed,
-                source: e.context("Failed to create entry in redis for job"),
-            })
-        })?;
+    crate::backfill_progress::fence_redis_counting(&ctx.redis_client, scope.job_id).await;
 
     if !email_db_client::backfill::job::update::finalize_initialization(
         &ctx.db,

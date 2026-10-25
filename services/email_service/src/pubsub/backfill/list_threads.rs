@@ -146,7 +146,7 @@ pub async fn list_threads(
 
 /// The priority first pass (see [`ListThreadsPayload::priority_pass`]). Does a
 /// single CATEGORY_PERSONAL-filtered listing of up to `PRIORITY_PASS_THREAD_LIMIT`
-/// threads, enqueues a BackfillThread for each, bumps the job's redis total to
+/// threads, enqueues a BackfillThread for each, bumps the job's thread total to
 /// account for the normal sweep re-covering these same threads, then hands off
 /// to the normal sweep. Unlike the normal pass it does not paginate and does
 /// not touch `threads_retrieved_count` (that counter drives the normal sweep's
@@ -196,7 +196,7 @@ async fn list_priority_threads(
             .await
             .map_err(|e| {
                 ProcessingError::Retryable(DetailedError {
-                    reason: FailureReason::RedisQueryFailed,
+                    reason: FailureReason::DatabaseQueryFailed,
                     source: e.context("Failed to bump total_threads for priority pass"),
                 })
             })?;
