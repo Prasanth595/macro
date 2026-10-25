@@ -80,7 +80,11 @@ pub enum RateLimitOrigin {
     /// Refused by local quota policy before any provider call was made.
     Local,
     /// The provider itself throttled the request.
-    Provider,
+    Provider {
+        /// The provider refused because the mailbox had too many requests in
+        /// flight at once, rather than for a quota.
+        concurrency: bool,
+    },
 }
 
 impl From<RateLimitRefusal> for EmailApiError {

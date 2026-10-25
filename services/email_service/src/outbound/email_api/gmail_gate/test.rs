@@ -243,7 +243,7 @@ async fn a_gmail_rate_limit_pauses_live_work_briefly_and_backfill_longer() {
         throttled,
         Some(&EmailApiError::RateLimited {
             retry_after: None,
-            origin: RateLimitOrigin::Provider,
+            origin: RateLimitOrigin::Provider { concurrency: false },
         }),
     )
     .await;
@@ -265,7 +265,7 @@ async fn a_gmail_rate_limit_pauses_live_work_briefly_and_backfill_longer() {
         permit,
         Some(&EmailApiError::RateLimited {
             retry_after: Some(Duration::from_secs(3_600)),
-            origin: RateLimitOrigin::Provider,
+            origin: RateLimitOrigin::Provider { concurrency: false },
         }),
     )
     .await;
@@ -277,6 +277,104 @@ async fn a_gmail_rate_limit_pauses_live_work_briefly_and_backfill_longer() {
             .await,
     );
     assert!(delay > Duration::from_secs(59) && delay <= MAX_COOLDOWN);
+    cleanup(&connection, link_id).await;
+}
+
+#[tokio::test]
+#[ignore = "requires local Redis on port 6379; uses only unique mailbox keys"]
+async fn a_concurrency_429_lowers_the_mailbox_cap_until_it_recovers() {
+    let connection = connection().await;
+    let live = RedisGmailRequestGate::new(connection.clone(), RateBudget::Live);
+    let mut backfill = RedisGmailRequestGate::new(connection.clone(), RateBudget::Backfill);
+    backfill.wait = Duration::ZERO;
+    let link_id = Uuid::now_v7();
+    let [_, _, cooldown, _, backfill_cooldown, limit] = keys(link_id);
+    let concurrency_429 = EmailApiError::RateLimited {
+        retry_after: None,
+        origin: RateLimitOrigin::Provider { concurrency: true },
+    };
+
+    let first = live
+        .acquire(link_id, ApiOperationKind::GetMessage)
+        .await
+        .unwrap();
+    let second = live
+        .acquire(link_id, ApiOperationKind::GetMessage)
+        .await
+        .unwrap();
+    live.finish(first, Some(&concurrency_429)).await;
+    // Requests already in flight under the old cap don't lower it again.
+    live.finish(second, Some(&concurrency_429)).await;
+    let _: () = redis::cmd("DEL")
+        .arg(&cooldown)
+        .arg(&backfill_cooldown)
+        .query_async(&mut connection.clone())
+        .await
+        .unwrap();
+
+    let backfill_permit = backfill
+        .acquire(link_id, ApiOperationKind::GetMessage)
+        .await
+        .unwrap();
+    assert!(
+        backfill
+            .acquire(link_id, ApiOperationKind::GetMessage)
+            .await
+            .is_err(),
+        "backfill keeps one of the three slots Gmail allows"
+    );
+    let mut permits = vec![backfill_permit];
+    for _ in 0..2 {
+        permits.push(
+            live.acquire(link_id, ApiOperationKind::GetMessage)
+                .await
+                .unwrap(),
+        );
+    }
+    assert_eq!(
+        refusal_delay(live.acquire(link_id, ApiOperationKind::GetMessage).await),
+        Duration::from_secs(1),
+        "the mailbox's cap fell from five to three"
+    );
+
+    // Two minutes later the cap is back at five.
+    let rewind = r#"
+        redis.call('HINCRBY', KEYS[1], 'at', -120000)
+        return 1
+    "#;
+    let _: i32 = redis::Script::new(rewind)
+        .key(&limit)
+        .invoke_async(&mut connection.clone())
+        .await
+        .unwrap();
+    for _ in 0..2 {
+        permits.push(
+            live.acquire(link_id, ApiOperationKind::GetMessage)
+                .await
+                .unwrap(),
+        );
+    }
+    cleanup(&connection, link_id).await;
+
+    let permit = live
+        .acquire(link_id, ApiOperationKind::GetMessage)
+        .await
+        .unwrap();
+    live.finish(
+        permit,
+        Some(&EmailApiError::RateLimited {
+            retry_after: None,
+            origin: RateLimitOrigin::Provider { concurrency: false },
+        }),
+    )
+    .await;
+    let learned: Option<u32> = redis::cmd("HGET")
+        .arg(&limit)
+        .arg("cap")
+        .query_async(&mut connection.clone())
+        .await
+        .unwrap();
+    assert_eq!(learned, None, "a quota 429 leaves the cap alone");
     cleanup(&connection, link_id).await;
 }
 

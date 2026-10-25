@@ -15,10 +15,16 @@ use uuid::Uuid;
 
 // Gmail answers 429 "Too many concurrent requests for user" above an
 // unpublished per-user limit that every client of the mailbox shares; it was
-// 91% of our Gmail rate limits. Backfill may hold three of the five slots, so
-// sync and user writes always keep two.
+// 91% of our Gmail rate limits. Backfill leaves two of the mailbox's slots to
+// sync and user writes.
 const CONCURRENT_REQUESTS: u32 = 5;
-const BACKFILL_CONCURRENT_REQUESTS: u32 = 3;
+const LIVE_RESERVED_REQUESTS: u32 = 2;
+// Gmail's real limit may be lower, and other clients of the mailbox use it
+// too. After that 429, the mailbox's cap drops to three quarters, at most once
+// a second so requests already in flight don't count twice, then rises by one
+// a minute back to five.
+const LEARNED_CAP_HOLD_MS: u32 = 1_000;
+const LEARNED_CAP_INCREASE_MS: u32 = 60_000;
 // Gmail allows 250 quota units per user per second (moving average) and, under
 // this project's grandfathered quota, 15,000 per minute. A ten-second window
 // enforces both: 2,300 units averages 230 a second and caps a minute at 13,800.
@@ -82,8 +88,13 @@ end
 local cooldown = redis.call('PTTL', KEYS[3])
 if ARGV[12] == '1' then cooldown = math.max(cooldown, redis.call('PTTL', KEYS[5])) end
 if cooldown > 0 then return refuse(cooldown, false) end
+local cap = tonumber(ARGV[2])
+local learned = redis.call('HMGET', KEYS[6], 'cap', 'at')
+if learned[1] then
+    cap = math.min(cap, tonumber(learned[1]) + math.floor((now - tonumber(learned[2])) / tonumber(ARGV[13])))
+end
 redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
-if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[2]) then return refuse(tonumber(ARGV[7]), true) end
+if redis.call('ZCARD', KEYS[1]) >= cap - tonumber(ARGV[14]) then return refuse(tonumber(ARGV[7]), true) end
 local second = tonumber(clock[1])
 local window = tonumber(ARGV[5])
 local limit = tonumber(ARGV[3])
@@ -127,6 +138,22 @@ for i = 2, 3 do
         redis.call('SET', KEYS[i], '1', 'PX', delay)
     end
 end
+if ARGV[4] == '1' then
+    local clock = redis.call('TIME')
+    local now = tonumber(clock[1]) * 1000 + math.floor(tonumber(clock[2]) / 1000)
+    local default = tonumber(ARGV[5])
+    local increase = tonumber(ARGV[7])
+    local learned = redis.call('HMGET', KEYS[4], 'cap', 'at')
+    if not learned[2] or now - tonumber(learned[2]) >= tonumber(ARGV[6]) then
+        local cap = default
+        if learned[1] then
+            cap = math.min(cap, tonumber(learned[1]) + math.floor((now - tonumber(learned[2])) / increase))
+        end
+        cap = math.max(1, math.floor(cap * 3 / 4))
+        redis.call('HSET', KEYS[4], 'cap', cap, 'at', now)
+        redis.call('PEXPIRE', KEYS[4], (default - cap) * increase)
+    end
+end
 return 1
 "#;
 
@@ -148,10 +175,11 @@ pub enum RateBudget {
 }
 
 impl RateBudget {
+    /// The in-flight slots left to others, and the quota units per window.
     fn limits(self) -> (u32, u32) {
         match self {
-            Self::Live => (CONCURRENT_REQUESTS, UNITS_PER_WINDOW),
-            Self::Backfill => (BACKFILL_CONCURRENT_REQUESTS, BACKFILL_UNITS_PER_WINDOW),
+            Self::Live => (0, UNITS_PER_WINDOW),
+            Self::Backfill => (LIVE_RESERVED_REQUESTS, BACKFILL_UNITS_PER_WINDOW),
         }
     }
 
@@ -196,7 +224,7 @@ impl RedisGmailRequestGate {
     }
 }
 
-fn keys(link_id: Uuid) -> [String; 5] {
+fn keys(link_id: Uuid) -> [String; 6] {
     // Hash tags colocate the Lua keys in Redis Cluster.
     let scope = format!("gmail:{{{link_id}}}");
     [
@@ -205,20 +233,35 @@ fn keys(link_id: Uuid) -> [String; 5] {
         format!("{scope}:cooldown"),
         format!("{scope}:waiting"),
         format!("{scope}:backfill_cooldown"),
+        format!("{scope}:limit"),
     ]
 }
 
-/// The pauses a finished request imposes: on every caller, and on backfill alone.
-fn cooldowns(error: Option<&EmailApiError>) -> (Duration, Duration) {
+/// What a finished request tells the gate about the mailbox.
+#[derive(Default)]
+struct Outcome {
+    /// Pause for every caller.
+    cooldown: Duration,
+    /// Pause for backfill alone.
+    backfill_cooldown: Duration,
+    /// Gmail refused it for too many requests in flight.
+    concurrency_limited: bool,
+}
+
+fn outcome(error: Option<&EmailApiError>) -> Outcome {
     match error {
         Some(EmailApiError::RateLimited {
-            origin: RateLimitOrigin::Provider,
+            origin: RateLimitOrigin::Provider { concurrency },
             retry_after,
         }) => {
             let cooldown = retry_after.unwrap_or(DEFAULT_COOLDOWN).min(MAX_COOLDOWN);
-            (cooldown, cooldown.max(BACKFILL_COOLDOWN))
+            Outcome {
+                cooldown,
+                backfill_cooldown: cooldown.max(BACKFILL_COOLDOWN),
+                concurrency_limited: *concurrency,
+            }
         }
-        _ => (Duration::ZERO, Duration::ZERO),
+        _ => Outcome::default(),
     }
 }
 
@@ -244,8 +287,7 @@ impl ProviderRequestGate for RedisGmailRequestGate {
                         // Drop cannot wait. Without a runtime, the lease frees the slot.
                         if let Ok(runtime) = tokio::runtime::Handle::try_current() {
                             runtime.spawn(async move {
-                                gate.release(link_id, permit, (Duration::ZERO, Duration::ZERO))
-                                    .await
+                                gate.release(link_id, permit, Outcome::default()).await
                             });
                         }
                     },
@@ -262,7 +304,7 @@ impl ProviderRequestGate for RedisGmailRequestGate {
     }
 
     async fn finish(&self, permit: RequestPermit, error: Option<&EmailApiError>) {
-        self.release(permit.link_id(), permit.id(), cooldowns(error))
+        self.release(permit.link_id(), permit.id(), outcome(error))
             .await;
         permit.disarm();
     }
@@ -277,8 +319,15 @@ impl RedisGmailRequestGate {
         cost: u32,
         wait: Duration,
     ) -> redis::RedisResult<Admission> {
-        let [inflight, window, cooldown, waiting, backfill_cooldown] = keys(link_id);
-        let (concurrent_requests, units_per_window) = self.budget.limits();
+        let [
+            inflight,
+            window,
+            cooldown,
+            waiting,
+            backfill_cooldown,
+            limit,
+        ] = keys(link_id);
+        let (reserved_requests, units_per_window) = self.budget.limits();
         let waiters = if self.wait.is_zero() {
             0
         } else {
@@ -290,8 +339,9 @@ impl RedisGmailRequestGate {
             .key(cooldown)
             .key(waiting)
             .key(backfill_cooldown)
+            .key(limit)
             .arg(permit.to_string())
-            .arg(concurrent_requests)
+            .arg(CONCURRENT_REQUESTS)
             .arg(units_per_window)
             .arg(cost)
             .arg(WINDOW_SECONDS)
@@ -302,6 +352,8 @@ impl RedisGmailRequestGate {
             .arg(wait.as_millis().to_string())
             .arg(WAITER_LEASE_MARGIN_MS)
             .arg(u8::from(self.budget == RateBudget::Backfill))
+            .arg(LEARNED_CAP_INCREASE_MS)
+            .arg(reserved_requests)
             .invoke_async(&mut self.connection.clone())
             .await?;
         let delay = Duration::from_millis(delay);
@@ -341,20 +393,20 @@ impl RedisGmailRequestGate {
         }
     }
 
-    async fn release(
-        &self,
-        link_id: Uuid,
-        permit: Uuid,
-        (cooldown, backfill_cooldown): (Duration, Duration),
-    ) {
-        let [inflight, _, cooldown_key, _, backfill_cooldown_key] = keys(link_id);
+    async fn release(&self, link_id: Uuid, permit: Uuid, outcome: Outcome) {
+        let [inflight, _, cooldown_key, _, backfill_cooldown_key, limit] = keys(link_id);
         let result: redis::RedisResult<i32> = redis::Script::new(FINISH)
             .key(inflight)
             .key(cooldown_key)
             .key(backfill_cooldown_key)
+            .key(limit)
             .arg(permit.to_string())
-            .arg(cooldown.as_millis().to_string())
-            .arg(backfill_cooldown.as_millis().to_string())
+            .arg(outcome.cooldown.as_millis().to_string())
+            .arg(outcome.backfill_cooldown.as_millis().to_string())
+            .arg(u8::from(outcome.concurrency_limited))
+            .arg(CONCURRENT_REQUESTS)
+            .arg(LEARNED_CAP_HOLD_MS)
+            .arg(LEARNED_CAP_INCREASE_MS)
             .invoke_async(&mut self.connection.clone())
             .await;
         if result.is_err() {

@@ -39,7 +39,7 @@ impl MailboxLabelClient for TokenCheckingLabels {
     ) -> Result<Label, EmailApiError> {
         Err(EmailApiError::RateLimited {
             retry_after: None,
-            origin: RateLimitOrigin::Provider,
+            origin: RateLimitOrigin::Provider { concurrency: false },
         })
     }
 
@@ -241,7 +241,7 @@ async fn a_provider_rate_limit_is_reported_to_the_gate_when_releasing_admission(
     );
     let throttled = EmailApiError::RateLimited {
         retry_after: None,
-        origin: RateLimitOrigin::Provider,
+        origin: RateLimitOrigin::Provider { concurrency: false },
     };
 
     let result = service.create_label(Uuid::nil(), "Receipts").await;

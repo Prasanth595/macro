@@ -45,7 +45,7 @@ fn a_gmail_rate_limit_without_retry_after_is_deferred_too() {
     let throttled = retryable(map_email_api_error(
         EmailApiError::RateLimited {
             retry_after: None,
-            origin: RateLimitOrigin::Provider,
+            origin: RateLimitOrigin::Provider { concurrency: false },
         },
         "Failed to fetch message",
     ));

@@ -27,7 +27,7 @@ fn processing_error_policy_covers_every_variant() {
         (
             EmailApiError::RateLimited {
                 retry_after: Some(Duration::from_secs(5)),
-                origin: RateLimitOrigin::Provider,
+                origin: RateLimitOrigin::Provider { concurrency: false },
             },
             true,
             FailureReason::GmailApiRateLimited,
