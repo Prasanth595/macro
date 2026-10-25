@@ -59,7 +59,11 @@ async function selectMenu(name: string) {
 
 let menuStyles: HTMLStyleElement;
 // The chart's virtual rows need a viewport with room for them.
+// Times read in New York, whatever the machine's zone.
+const systemTimeZone = process.env.TZ;
+
 beforeEach(() => {
+  process.env.TZ = 'America/New_York';
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   // JSDOM reports an empty animation name; presence expects CSS's default none.
   menuStyles = document.createElement('style');
@@ -82,6 +86,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
 });
 afterEach(() => {
+  process.env.TZ = systemTimeZone;
   cleanup();
   menuStyles.remove();
   vi.unstubAllGlobals();

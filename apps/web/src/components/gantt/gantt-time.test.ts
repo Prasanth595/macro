@@ -15,17 +15,20 @@ import {
   snapGanttInstant,
 } from './gantt-time';
 
-// These run with TZ=America/New_York: clocks spring forward on 2026-03-08
-// and fall back on 2026-11-01.
+// These run in New York: clocks spring forward on 2026-03-08 and fall back
+// on 2026-11-01.
+const systemTimeZone = process.env.TZ;
 const october9 = toGanttDay('2026-10-09')!;
 const march8 = toGanttDay('2026-03-08')!;
 const november1 = toGanttDay('2026-11-01')!;
 
 beforeEach(() => {
+  process.env.TZ = 'America/New_York';
   vi.useFakeTimers({ now: new Date(2026, 9, 21, 12) });
 });
 afterEach(() => {
   vi.useRealTimers();
+  process.env.TZ = systemTimeZone;
 });
 
 describe('local time positions', () => {
@@ -82,14 +85,15 @@ describe('snapping by zoom', () => {
 });
 
 describe('rescheduling a timed range', () => {
-  const times = {
+  // Built per test, once the test's time zone is set.
+  const times = () => ({
     start: new Date(2026, 9, 9, 9),
     end: new Date(2026, 9, 13, 17),
-  };
+  });
 
   it('moves by whole days keeping both times, across a clock change', () => {
     expect(
-      rescheduledGanttTimes(times, 'move', october9, october9 + 2.4, 'day')
+      rescheduledGanttTimes(times(), 'move', october9, october9 + 2.4, 'day')
     ).toEqual({
       start: new Date(2026, 9, 11, 9),
       end: new Date(2026, 9, 15, 17),
@@ -111,7 +115,7 @@ describe('rescheduling a timed range', () => {
   it('moves by snapped quarter hours keeping the duration', () => {
     // Ten minutes later snaps the start to 9:15.
     const moved = rescheduledGanttTimes(
-      times,
+      times(),
       'move',
       october9,
       october9 + 10 / 1440,
@@ -122,7 +126,7 @@ describe('rescheduling a timed range', () => {
       end: new Date(2026, 9, 13, 17, 15),
     });
     expect(
-      rescheduledGanttTimes(times, 'move', october9, october9 + 3 / 24, 60)
+      rescheduledGanttTimes(times(), 'move', october9, october9 + 3 / 24, 60)
     ).toEqual({
       start: new Date(2026, 9, 9, 12),
       end: new Date(2026, 9, 13, 20),
@@ -131,26 +135,26 @@ describe('rescheduling a timed range', () => {
 
   it('resizes one edge, stopping a step short of the other', () => {
     expect(
-      rescheduledGanttTimes(times, 'end', october9, october9 - 1.1, 15)
-    ).toEqual({ start: times.start, end: new Date(2026, 9, 12, 14, 30) });
+      rescheduledGanttTimes(times(), 'end', october9, october9 - 1.1, 15)
+    ).toEqual({ start: times().start, end: new Date(2026, 9, 12, 14, 30) });
     expect(
-      rescheduledGanttTimes(times, 'start', october9, october9 + 9, 15)
-    ).toEqual({ start: new Date(2026, 9, 13, 16, 45), end: times.end });
+      rescheduledGanttTimes(times(), 'start', october9, october9 + 9, 15)
+    ).toEqual({ start: new Date(2026, 9, 13, 16, 45), end: times().end });
     expect(
-      rescheduledGanttTimes(times, 'end', october9, october9 - 9, 60)
-    ).toEqual({ start: times.start, end: new Date(2026, 9, 9, 10) });
+      rescheduledGanttTimes(times(), 'end', october9, october9 - 9, 60)
+    ).toEqual({ start: times().start, end: new Date(2026, 9, 9, 10) });
   });
 
   it('resizes by whole days without passing the other end', () => {
     expect(
-      rescheduledGanttTimes(times, 'end', october9, october9 - 2, 'day')
-    ).toEqual({ start: times.start, end: new Date(2026, 9, 11, 17) });
+      rescheduledGanttTimes(times(), 'end', october9, october9 - 2, 'day')
+    ).toEqual({ start: times().start, end: new Date(2026, 9, 11, 17) });
     expect(
-      rescheduledGanttTimes(times, 'end', october9, october9 - 9, 'day')
-    ).toEqual({ start: times.start, end: new Date(2026, 9, 9, 17) });
+      rescheduledGanttTimes(times(), 'end', october9, october9 - 9, 'day')
+    ).toEqual({ start: times().start, end: new Date(2026, 9, 9, 17) });
     expect(
-      rescheduledGanttTimes(times, 'start', october9, october9 + 9, 'day')
-    ).toEqual({ start: new Date(2026, 9, 13, 9), end: times.end });
+      rescheduledGanttTimes(times(), 'start', october9, october9 + 9, 'day')
+    ).toEqual({ start: new Date(2026, 9, 13, 9), end: times().end });
   });
 });
 
