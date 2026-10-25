@@ -28,14 +28,13 @@ pub struct BackfillJobProgress {
 
 /// Makes workers from before the move to Postgres fail this job's operations
 /// retryably instead of counting them in Redis. Call before the job is
-/// initialized; best effort, since it only matters while such workers run.
-pub async fn fence_redis_counting(redis: &RedisClient, job_id: Uuid) {
-    if let Err(error) = redis.fence_backfill_job_progress(job_id).await {
-        tracing::warn!(error = ?error, %job_id, "failed to fence Redis backfill progress");
-    }
+/// initialized.
+pub async fn fence_redis_counting(redis: &RedisClient, job_id: Uuid) -> anyhow::Result<()> {
+    redis.fence_backfill_job_progress(job_id).await
 }
 
 /// Adds the priority pass's extra BackfillThread messages to the job's total.
+#[tracing::instrument(skip(db, redis), fields(store = tracing::field::Empty), err)]
 pub async fn add_priority_threads(
     db: &PgPool,
     redis: &RedisClient,
@@ -43,28 +42,38 @@ pub async fn add_priority_threads(
     count: i32,
 ) -> anyhow::Result<()> {
     if progress::add_priority_threads(db, job_id, count).await? {
+        tracing::Span::current().record("store", "postgres");
         return Ok(());
     }
+    tracing::Span::current().record("store", "redis");
     redis.add_to_total_threads(job_id, count).await
 }
 
 /// Counts one completed thread.
+#[tracing::instrument(skip(db, redis), fields(store = tracing::field::Empty), err)]
 pub async fn incr_completed_threads(
     db: &PgPool,
     redis: &RedisClient,
     job_id: Uuid,
 ) -> anyhow::Result<BackfillJobProgress> {
     match progress::incr_completed_threads(db, job_id).await? {
-        Some(progress) => Ok(BackfillJobProgress {
-            completed_threads: progress.completed_threads,
-            total_threads: progress.total_threads,
-            job_complete: progress.completed_threads >= progress.total_threads,
-        }),
-        None => redis.incr_completed_threads(job_id).await,
+        Some(progress) => {
+            tracing::Span::current().record("store", "postgres");
+            Ok(BackfillJobProgress {
+                completed_threads: progress.completed_threads,
+                total_threads: progress.total_threads,
+                job_complete: progress.completed_threads >= progress.total_threads,
+            })
+        }
+        None => {
+            tracing::Span::current().record("store", "redis");
+            redis.incr_completed_threads(job_id).await
+        }
     }
 }
 
 /// Starts counting the messages being backfilled for one thread.
+#[tracing::instrument(skip(db, redis), fields(store = tracing::field::Empty), err)]
 pub async fn init_thread_progress(
     db: &PgPool,
     redis: &RedisClient,
@@ -74,8 +83,10 @@ pub async fn init_thread_progress(
     total_messages: i32,
 ) -> anyhow::Result<()> {
     if progress::init_thread_progress(db, job_id, thread_id, total_messages).await? {
+        tracing::Span::current().record("store", "postgres");
         return Ok(());
     }
+    tracing::Span::current().record("store", "redis");
     redis
         .init_backfill_thread_progress(job_id, thread_provider_id, total_messages)
         .await
@@ -84,6 +95,7 @@ pub async fn init_thread_progress(
 /// Counts one processed message and returns whether it completed its thread.
 /// A message whose thread is tracked nowhere completed earlier and was
 /// redelivered, so it doesn't complete the thread again.
+#[tracing::instrument(skip(db, redis), fields(store = tracing::field::Empty), err)]
 pub async fn incr_completed_messages(
     db: &PgPool,
     redis: &RedisClient,
@@ -92,8 +104,12 @@ pub async fn incr_completed_messages(
     thread_provider_id: &str,
 ) -> anyhow::Result<bool> {
     match progress::incr_completed_messages(db, job_id, thread_id).await? {
-        Some(thread_complete) => Ok(thread_complete),
+        Some(thread_complete) => {
+            tracing::Span::current().record("store", "postgres");
+            Ok(thread_complete)
+        }
         None => {
+            tracing::Span::current().record("store", "redis");
             redis
                 .incr_completed_messages(job_id, thread_provider_id)
                 .await

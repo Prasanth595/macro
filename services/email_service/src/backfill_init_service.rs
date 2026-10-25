@@ -145,7 +145,14 @@ async fn initialize_backfill(
         return Ok(());
     }
 
-    crate::backfill_progress::fence_redis_counting(&ctx.redis_client, scope.job_id).await;
+    crate::backfill_progress::fence_redis_counting(&ctx.redis_client, scope.job_id)
+        .await
+        .map_err(|e| {
+            ProcessingError::Retryable(DetailedError {
+                reason: FailureReason::RedisQueryFailed,
+                source: e.context("Failed to fence Redis backfill progress"),
+            })
+        })?;
 
     if !email_db_client::backfill::job::update::finalize_initialization(
         &ctx.db,

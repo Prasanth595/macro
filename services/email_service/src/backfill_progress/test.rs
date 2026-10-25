@@ -104,7 +104,7 @@ async fn fenced_jobs_reject_redis_counting() {
     let redis = redis_client();
     let job_id = Uuid::now_v7();
 
-    fence_redis_counting(&redis, job_id).await;
+    fence_redis_counting(&redis, job_id).await.unwrap();
 
     assert!(redis.add_to_total_threads(job_id, 1).await.is_err());
     assert!(redis.incr_completed_threads(job_id).await.is_err());
