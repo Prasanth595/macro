@@ -26,9 +26,11 @@ const Gated = withAuth(
     mountView();
     return <div />;
   },
-  () => {
-    mountPending();
-    return <div />;
+  {
+    pending: () => {
+      mountPending();
+      return <div />;
+    },
   }
 );
 
@@ -66,6 +68,32 @@ it('sends a signed-out visitor from Sign Up to sign-up and back to the page', ()
   expect(consumePostLoginRedirect()).toBe(
     `${window.location.origin}${projectPath}?referral_code=r1`
   );
+});
+
+it('shows a signed-out visitor the route’s own signed-out face instead of the sign-in prompt', () => {
+  const WithFace = withAuth<{ id: string }>(
+    () => {
+      mountView();
+      return <div />;
+    },
+    {
+      pending: () => {
+        mountPending();
+        return <div />;
+      },
+      signedOut: (props) => <p>Read-only {props.id}</p>,
+    }
+  );
+  render(() => <WithFace id="p1" />);
+
+  expect(mountPending).toHaveBeenCalledOnce();
+  setAuthenticated(false);
+  expect(screen.getByText('Read-only p1')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Login' })).toBeNull();
+  expect(mountView).not.toHaveBeenCalled();
+  setAuthenticated(true);
+  expect(mountView).toHaveBeenCalledOnce();
+  expect(screen.queryByText('Read-only p1')).toBeNull();
 });
 
 it('waits for identity before mounting the view or the sign-in actions', () => {
