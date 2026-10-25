@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 
 use collab_surface::domain::models::{CollabSurface, SurfaceState};
+use macro_sync_service_jwt::DocumentPermissionToken;
 use model_entity::Entity;
 use uuid::Uuid;
 
@@ -66,6 +67,14 @@ impl OwnedSurfaceService for FakeSurfaces {
         _update: Vec<u8>,
     ) -> Result<collab_surface::domain::models::SurfaceUpdate, CollabSurfaceError> {
         unreachable!("initiative descriptions are edited through sync-service sessions")
+    }
+
+    async fn owned_surface_reader_token(
+        &self,
+        _parent: Entity<'static>,
+        _id: Uuid,
+    ) -> Result<Option<DocumentPermissionToken>, CollabSurfaceError> {
+        unreachable!("the adapter mints no reader grants")
     }
 
     async fn retire_surface(&self, id: Uuid) -> Result<(), CollabSurfaceError> {

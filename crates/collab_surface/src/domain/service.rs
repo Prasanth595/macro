@@ -339,6 +339,15 @@ where
     }
 
     #[tracing::instrument(err, skip(self))]
+    async fn owned_surface_reader_token(
+        &self,
+        parent: Entity<'static>,
+        id: Uuid,
+    ) -> Result<Option<DocumentPermissionToken>, CollabSurfaceError> {
+        todo!("reader grants for {parent:?} {id}")
+    }
+
+    #[tracing::instrument(err, skip(self))]
     async fn retire_surface(&self, id: Uuid) -> Result<(), CollabSurfaceError> {
         self.repo
             .soft_delete(id)
