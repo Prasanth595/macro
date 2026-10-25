@@ -1,5 +1,5 @@
 import { cn } from '@ui';
-import { createMemo, createSignal, createUniqueId, Show } from 'solid-js';
+import { createSignal, createUniqueId, Show } from 'solid-js';
 import { useCompose } from '../context/compose-context';
 import { subjectLimitHint } from '../core/subject-limit';
 
@@ -22,13 +22,13 @@ export function ComposeSubject(props: {
     ctx.isMobile() && !editing() && ctx.subject().length > 0;
 
   const limitHintId = createUniqueId();
-  const limitHint = createMemo(() => {
+  const limitHint = () => {
     const inboxId = ctx.selectedInboxId?.();
     const sender = ctx
       .fromInboxes?.()
       .find((option) => option.inboxId === inboxId);
     return subjectLimitHint(ctx.subject(), sender?.provider);
-  });
+  };
 
   const blurOnEscape = (
     e: KeyboardEvent & { currentTarget: HTMLInputElement }

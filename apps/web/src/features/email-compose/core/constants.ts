@@ -1,3 +1,5 @@
+import { match } from 'ts-pattern';
+
 export const MACRO_EMAIL_SIGNATURE = '-- Sent with Macro';
 
 export const MAX_ATTACHMENTS_BYTES_SIZE = 18_000_000;
@@ -14,7 +16,10 @@ export function attachmentLimitBytes(provider?: 'GMAIL' | 'OUTLOOK'): number {
 export function subjectLimitChars(
   provider?: 'GMAIL' | 'OUTLOOK'
 ): number | undefined {
-  return provider === 'OUTLOOK' ? 255 : undefined;
+  return match(provider)
+    .with('OUTLOOK', () => 255)
+    .with('GMAIL', undefined, () => undefined)
+    .exhaustive();
 }
 
 // Stable id for the compose "To" input so the create gesture can focus it

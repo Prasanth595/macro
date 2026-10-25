@@ -3,7 +3,7 @@ import ChevronDown from '@phosphor/caret-down.svg';
 import CaretRight from '@phosphor/caret-right.svg';
 import { Button, cn } from '@ui';
 import type { Accessor } from 'solid-js';
-import { createMemo, createUniqueId, Show } from 'solid-js';
+import { createUniqueId, Show } from 'solid-js';
 import { FromInboxSelector } from '../components/from-inbox-selector';
 import { RecipientDropRow } from '../components/recipient-drop-row';
 import type { EmailInbox } from '../context/compose-capabilities';
@@ -64,11 +64,11 @@ export function ReplyEnvelope(props: ReplyEnvelopeProps) {
     return `${action} ${getRecipientDisplayName(first)}${suffix}`;
   };
   const limitHintId = createUniqueId();
-  const limitHint = createMemo(() => {
+  const limitHint = () => {
     const inboxId = props.activeInboxId();
     const inbox = props.inboxes().find((inbox) => inbox.id === inboxId);
     return subjectLimitHint(props.subject(), inbox?.provider);
-  });
+  };
   const LimitHint = (hint: { class: string }) => (
     <Show when={limitHint()}>
       {(text) => (
