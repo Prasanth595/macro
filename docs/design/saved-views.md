@@ -86,12 +86,16 @@ service, and PostgreSQL adapter. Put authorization and write policy in the
 service. Both the existing REST adapter and a new GraphQL adapter call it.
 Transport handlers must not retain independent owner or membership policy.
 
-Keep reusable frontend CRUD actions and draft behavior in `features/saved-views`.
-Compose list rows and menus through slots, and open metadata
-and delete dialogs through the shared imperative dialog system. Keep Task filters,
-filter summaries, navigation, and rendering in `features/tasks-view`; the Task
-controller must not own generic CRUD or dialog state. Do not make the generic
-feature import Tasks or CRM components.
+Keep separate create, update, and delete mutation hooks and draft behavior in
+`features/saved-views`; the read source owns only queries and pagination. Compose
+the list through compound components and reuse styled menu items across its
+context and overflow menus. Open focused create, rename, share, and delete dialogs
+through the shared imperative dialog system; duplication reuses creation with a
+prefilled private copy. Keep Task filters, filter summaries, navigation, and
+rendering in `features/tasks-view`; the Task draft controller must not own generic
+CRUD or dialog state. Bind asynchronous completion to its originating draft and
+account rather than a navigation counter. Do not make the generic feature import
+Tasks or CRM components.
 
 ## Stored filter contract
 
