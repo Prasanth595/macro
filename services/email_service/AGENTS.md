@@ -109,6 +109,10 @@ the gateway `/email` prefix.
   gmail_ops and inbox sync code with fake Gmail and SQS. Add a test there for a
   new race between writes and syncs; its ignored `randomized_shard_*` tests run
   the seeded simulation (`SIM_SEEDS`, `SIM_OVERLAP`, see `sim/test.rs`).
+- Local stacks run debug workers on tokio's 2 MiB worker stacks, where every
+  awaited future takes its own stack slot. Pass a Gmail call through a helper
+  as a `BoxFuture`, and box an operation the dispatch awaits in several arms;
+  a `label_write_sim` test runs the label paths on 1.5 MiB worker stacks.
 - gmail_ops moves transient Gmail failures to the retry queue like rate limits;
   the primary queue dead-letters after three receives.
 - Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
