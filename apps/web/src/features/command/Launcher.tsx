@@ -152,7 +152,7 @@ function matchesLauncherSearch(item: CreatableBlock, query: string) {
 
 const createBlock = async (spec: {
   blockName: BlockName | BlockAlias;
-  createFn: () => Promise<string | undefined>;
+  createFn: (span?: Span) => Promise<string | undefined>;
   loading?: boolean;
   shouldInsert?: boolean;
   openCreated?: OpenCreatedItem;
@@ -176,7 +176,7 @@ const createBlock = async (spec: {
       ).split
     : undefined;
 
-  const id = await createFn();
+  const id = await createFn(span);
   if (!id) {
     span?.setAttr('error', true);
     span?.end();
@@ -228,6 +228,24 @@ const createBlock = async (spec: {
 
 const reportCreateBlockError = (error: unknown) =>
   Telemetry.error(error, { surface: 'launcher' });
+
+/** Traces a creation in `doc.create`, ended here because no block resumes it. */
+const createTracedBlock = (
+  spec: Omit<Parameters<typeof createBlock>[0], 'span'>,
+  source: string
+) => {
+  const span = startDocumentSpan('doc.create');
+  span.setAttr('doc.type', spec.blockName);
+  span.setAttr('doc.source', source);
+  span
+    .run(() => createBlock({ ...spec, span }))
+    .catch((error) => {
+      span.error(error);
+      reportCreateBlockError(error);
+    })
+    .finally(() => endTrackedDocumentSpan(span));
+};
+
 const createComponent = (spec: {
   componentId: string;
   shouldInsert?: boolean;
@@ -326,36 +344,45 @@ export function runCreateAction(
       return;
     case 'psd':
       if (!isFeatureEnabled(enablePsdEditor)) return;
-      createBlock({
-        blockName: 'psd',
-        loading: true,
-        createFn: () =>
-          createPsdDocument({ projectId: options.projectId, source }),
-        shouldInsert,
-        openCreated,
-      }).catch(reportCreateBlockError);
+      createTracedBlock(
+        {
+          blockName: 'psd',
+          loading: true,
+          createFn: (span) =>
+            createPsdDocument({ projectId: options.projectId, source, span }),
+          shouldInsert,
+          openCreated,
+        },
+        source
+      );
       return;
     case 'fig':
       if (!isFeatureEnabled(enableFigViewer)) return;
-      createBlock({
-        blockName: 'fig',
-        loading: true,
-        createFn: () =>
-          createFigDocument({ projectId: options.projectId, source }),
-        shouldInsert,
-        openCreated,
-      }).catch(reportCreateBlockError);
+      createTracedBlock(
+        {
+          blockName: 'fig',
+          loading: true,
+          createFn: (span) =>
+            createFigDocument({ projectId: options.projectId, source, span }),
+          shouldInsert,
+          openCreated,
+        },
+        source
+      );
       return;
     case 'ai':
       if (!isFeatureEnabled(enableAiEditor)) return;
-      createBlock({
-        blockName: 'ai',
-        loading: true,
-        createFn: () =>
-          createAiDocument({ projectId: options.projectId, source }),
-        shouldInsert,
-        openCreated,
-      }).catch(reportCreateBlockError);
+      createTracedBlock(
+        {
+          blockName: 'ai',
+          loading: true,
+          createFn: (span) =>
+            createAiDocument({ projectId: options.projectId, source, span }),
+          shouldInsert,
+          openCreated,
+        },
+        source
+      );
       return;
     case 'canvas':
       createBlock({
@@ -501,23 +528,30 @@ export function runCreateAction(
       }).catch(reportCreateBlockError);
       return;
     case 'code':
-      createBlock({
-        blockName: 'code',
-        loading: true,
-        createFn: async () => {
-          const result = await createCodeFileFromText({
-            code: 'print("Hello, World!")',
-            extension: 'py',
-            title: 'New Code File',
-            projectId: options.projectId,
-            source,
-          });
-          if (result.isErr()) return;
-          return result.value.documentId ?? undefined;
+      createTracedBlock(
+        {
+          blockName: 'code',
+          loading: true,
+          createFn: async (span) => {
+            const result = await createCodeFileFromText({
+              code: 'print("Hello, World!")',
+              extension: 'py',
+              title: 'New Code File',
+              projectId: options.projectId,
+              source,
+              span,
+            });
+            if (result.isErr()) {
+              toast.failure('Could not create the code file');
+              return;
+            }
+            return result.value.documentId ?? undefined;
+          },
+          shouldInsert,
+          openCreated,
         },
-        shouldInsert,
-        openCreated,
-      }).catch(reportCreateBlockError);
+        source
+      );
       return;
     case 'routine':
       createComponent({ componentId: 'routine-compose', asPopover: true });

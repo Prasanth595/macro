@@ -4,10 +4,11 @@
  */
 
 import { analytics } from '@app/lib/analytics';
+import { runInDocumentSpan } from '@block-md/observability';
 import { PsdEngine } from '@core/psd-engine/client';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { contentHash } from '@core/util/hash';
-import { Telemetry } from '@macro-inc/observability';
+import { type Span, Telemetry } from '@macro-inc/observability';
 import { invalidateUserQuota } from '@queries/auth';
 import { postNewHistoryItem } from '@queries/history/history';
 import { setPreviewOnCreate } from '@queries/preview/preview';
@@ -24,6 +25,8 @@ export async function createPsdDocument(args: {
   projectId?: string;
   /** UI surface the creation originated from, for analytics. */
   source?: string;
+  /** Parent of the create, upload, and cleanup requests. */
+  span?: Span;
 }): Promise<string | undefined> {
   const title = args.title ?? 'Untitled image';
   const bytes = await PsdEngine.blank(
@@ -32,23 +35,32 @@ export async function createPsdDocument(args: {
     true
   );
   const sha = await contentHash(bytes);
-  const created = await storageServiceClient.createDocument({
-    documentName: title,
-    fileType: 'psd',
-    sha,
-    projectId: args.projectId,
-  });
+  const created = await runInDocumentSpan(args.span, () =>
+    storageServiceClient.createDocument({
+      documentName: title,
+      fileType: 'psd',
+      sha,
+      projectId: args.projectId,
+    })
+  );
   fireAndForget(invalidateUserQuota(), 'create-psd-document');
   if (created.isErr()) return undefined;
   const doc = created.value;
-  const upload = await uploadToPresignedUrl({
-    presignedUrl: doc.presignedUrl,
-    buffer: bytes,
-    sha,
-    type: PSD_MIME,
-  });
-  if (upload.isErr()) return undefined;
   const documentId = doc.metadata.documentId;
+  const upload = await runInDocumentSpan(args.span, () =>
+    uploadToPresignedUrl({
+      presignedUrl: doc.presignedUrl,
+      buffer: bytes,
+      sha,
+      type: PSD_MIME,
+    })
+  );
+  if (upload.isErr()) {
+    await runInDocumentSpan(args.span, () =>
+      storageServiceClient.deleteDocument({ documentId })
+    );
+    return undefined;
+  }
   fireAndForget(
     postNewHistoryItem('document', documentId),
     'create-psd-document'

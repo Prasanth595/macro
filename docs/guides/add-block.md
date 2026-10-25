@@ -292,9 +292,17 @@ was moved onto `crates/docx_engine` the next day; start with a crate.
 - `queries/create-<name>.ts` (`block-psd/queries/create-psd.ts`): create the
   document (`storageServiceClient.createDocument`, then `uploadToPresignedUrl`)
   or the entity through its API, then `postNewHistoryItem`, `setPreviewOnCreate`,
-  `refetchSoupEntity`, and `analytics.track('create_entity', ...)`.
+  `refetchSoupEntity`, and `analytics.track('create_entity', ...)`. If the
+  upload fails, call `storageServiceClient.deleteDocument` before returning, or
+  the document is left with no content and fails to open. Give a document
+  creator an optional `span`, and call `createDocument`, `uploadToPresignedUrl`,
+  and `deleteDocument` through `runInDocumentSpan`. The trace context does not
+  survive the creator's first `await`, so without the span each request starts
+  its own trace.
 - `apps/web/src/features/command/Launcher.tsx`:
-  - a case in `runCreateAction`, behind the flag;
+  - a case in `runCreateAction`, behind the flag, that goes through
+    `createTracedBlock` for a document block and passes the span `createFn`
+    receives to the creator;
   - an entry in `CREATABLE_BLOCKS` with an unused one-letter `hotkey`;
   - the flag subscribed in `useCreateMenuBlocks`, or a flag that resolves after
     mount leaves the menu stale until reload.

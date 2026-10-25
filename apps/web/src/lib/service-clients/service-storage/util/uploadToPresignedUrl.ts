@@ -1,11 +1,39 @@
 import { isTauri } from '@core/util/platform';
 import { platformFetch } from '@core/util/platformFetch';
 import type { ResultError } from '@core/util/result';
-import { err, ok, type Result } from 'neverthrow';
+import { Telemetry } from '@macro-inc/observability';
+import { err, ok, type Result, ResultAsync } from 'neverthrow';
 
-type UploadResult = Result<void, ResultError<'SERVER_ERROR'>[]>;
+type UploadResult = Result<
+  void,
+  ResultError<'SERVER_ERROR' | 'NETWORK_ERROR'>[]
+>;
 
-export async function uploadToPresignedUrl({
+const S3_ERROR_CODE = /<Code>(\w+)<\/Code>/;
+
+/** Rejects when `signal` aborts the upload. */
+export async function uploadToPresignedUrl(
+  request: Parameters<typeof putToPresignedUrl>[0]
+): Promise<UploadResult> {
+  const span = Telemetry.clientSpan('storage.upload');
+  span.setAttr('upload.bytes', request.buffer.byteLength);
+  try {
+    const result = await putToPresignedUrl(request);
+    if (result.isErr()) {
+      // The URL, the transport message, and the S3 body can carry credentials.
+      const [failure] = result.error;
+      span.setAttr('upload.error_code', failure.code);
+      const s3ErrorCode = S3_ERROR_CODE.exec(failure.message)?.[1];
+      if (s3ErrorCode) span.setAttr('upload.s3_error_code', s3ErrorCode);
+      span.error(failure.code);
+    }
+    return result;
+  } finally {
+    span.end();
+  }
+}
+
+async function putToPresignedUrl({
   presignedUrl,
   buffer,
   sha,
@@ -42,15 +70,22 @@ export async function uploadToPresignedUrl({
   }
 
   onProgress?.(null);
-  const response = await platformFetch(presignedUrl, {
-    method: 'PUT',
-    body: blob,
-    headers,
-    signal,
-  });
+  const response = await ResultAsync.fromPromise(
+    platformFetch(presignedUrl, {
+      method: 'PUT',
+      body: blob,
+      headers,
+      signal,
+    }),
+    (error) => String(error)
+  );
+  if (response.isErr()) {
+    signal?.throwIfAborted();
+    return err([{ code: 'NETWORK_ERROR', message: response.error }]);
+  }
 
-  if (!response.ok) {
-    const message = await response.text();
+  if (!response.value.ok) {
+    const message = await response.value.text();
     return err([{ code: 'SERVER_ERROR', message: message }]);
   }
 
@@ -86,10 +121,11 @@ function uploadWithXhr({
         resolve(err([{ code: 'SERVER_ERROR', message: xhr.responseText }]));
       }
     };
-    // Mirror fetch, which rejects on network failure and abort.
     xhr.onerror = () => {
       settle();
-      reject(new TypeError('Failed to upload file'));
+      resolve(
+        err([{ code: 'NETWORK_ERROR', message: 'Failed to upload file' }])
+      );
     };
     xhr.onabort = () => {
       settle();
