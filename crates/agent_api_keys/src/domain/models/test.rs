@@ -20,6 +20,9 @@ fn keys_parse_only_for_their_own_provider() {
         (ModelProvider::OpenAi, "sk-ant-api03-abc"),
         (ModelProvider::OpenAi, "crsr_abc"),
         (ModelProvider::OpenAi, "sk-two words"),
+        (ModelProvider::Anthropic, "sk-ant-api03-abc;rm"),
+        (ModelProvider::OpenAi, "sk-proj-abc\u{0}"),
+        (ModelProvider::OpenAi, &format!("sk-{}", "a".repeat(501))),
     ] {
         assert!(
             ProviderApiKey::parse(provider, rejected).is_err(),

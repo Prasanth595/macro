@@ -11,7 +11,7 @@ fn agent(harness: &str, model: &str) -> KeyedAgent {
     KeyedAgent {
         bot_id: BOT.parse().expect("uuid"),
         owner: AgentOwner::User(
-            MacroUserIdStr::try_from("macro|owner@example.com".to_owned()).expect("user id"),
+            MacroUserIdStr::try_from(OWNER.to_owned()).expect("user id"),
         ),
         harness: harness.to_owned(),
         model: model.to_owned(),
@@ -31,6 +31,7 @@ fn encrypted() -> EncryptedProviderApiKey {
 struct FakeRepo {
     stored: Mutex<Option<(ModelProvider, String)>>,
     agent: Mutex<Option<KeyedAgent>>,
+    team_members: Mutex<Vec<String>>,
 }
 
 #[async_trait::async_trait]
@@ -76,6 +77,21 @@ impl AgentKeyRepo for FakeRepo {
                 encrypted: encrypted(),
             }))
     }
+
+    async fn is_team_member(&self, user: &MacroUserIdStr<'_>, _team_id: Uuid) -> Result<bool> {
+        Ok(self
+            .team_members
+            .lock()
+            .expect("lock")
+            .iter()
+            .any(|member| member == user.as_ref()))
+    }
+}
+
+const OWNER: &str = "macro|owner@example.com";
+
+fn user(id: &str) -> MacroUserIdStr<'static> {
+    MacroUserIdStr::try_from(id.to_owned()).expect("user id")
 }
 
 #[derive(Default)]
@@ -201,7 +217,7 @@ async fn turns_run_on_the_key_only_while_the_agent_and_plan_still_fit_it() {
 
     *service.repo.agent.lock().expect("lock") = Some(keyed);
     let key = service
-        .usable_key(bot)
+        .usable_key(bot, &user(OWNER))
         .await
         .expect("read")
         .expect("usable");
@@ -209,7 +225,7 @@ async fn turns_run_on_the_key_only_while_the_agent_and_plan_still_fit_it() {
 
     *service.repo.agent.lock().expect("lock") = Some(agent("in-memory", "openai/gpt-6-astra"));
     assert_eq!(
-        service.usable_provider(bot).await.expect("read"),
+        service.usable_provider(bot, &user(OWNER)).await.expect("read"),
         None,
         "an agent moved to another provider's model runs on Macro usage"
     );
@@ -218,7 +234,7 @@ async fn turns_run_on_the_key_only_while_the_agent_and_plan_still_fit_it() {
         Some(agent("in-memory", "anthropic/claude-sonnet-5-5"));
     *service.plans.0.lock().expect("lock") = false;
     assert!(
-        service.usable_key(bot).await.expect("read").is_none(),
+        service.usable_key(bot, &user(OWNER)).await.expect("read").is_none(),
         "a downgraded owner keeps the key but turns do not run on it"
     );
     assert!(
@@ -229,5 +245,46 @@ async fn turns_run_on_the_key_only_while_the_agent_and_plan_still_fit_it() {
             .key
             .is_some(),
         "the key is still shown, so it can be removed"
+    );
+}
+
+#[tokio::test]
+async fn only_the_agents_owner_or_its_team_spends_its_key() {
+    let service = service(true);
+    let bot: Uuid = BOT.parse().expect("uuid");
+    let personal = agent("in-memory", "anthropic/claude-sonnet-5-5");
+    service.set(&personal, "sk-ant-api03-abc").await.expect("saved");
+
+    *service.repo.agent.lock().expect("lock") = Some(personal);
+    assert!(
+        service
+            .usable_key(bot, &user("macro|someone-else@example.com"))
+            .await
+            .expect("read")
+            .is_none(),
+        "someone else's session of a personal agent runs on Macro usage"
+    );
+
+    let team = KeyedAgent {
+        owner: AgentOwner::Team(Uuid::nil()),
+        ..agent("in-memory", "anthropic/claude-sonnet-5-5")
+    };
+    *service.repo.agent.lock().expect("lock") = Some(team);
+    *service.repo.team_members.lock().expect("lock") = vec!["macro|member@example.com".to_owned()];
+    assert!(
+        service
+            .usable_provider(bot, &user("macro|member@example.com"))
+            .await
+            .expect("read")
+            .is_some(),
+        "a member's session of a team agent runs on the team's key"
+    );
+    assert!(
+        service
+            .usable_provider(bot, &user("macro|outsider@example.com"))
+            .await
+            .expect("read")
+            .is_none(),
+        "a non-member never spends the team's key"
     );
 }

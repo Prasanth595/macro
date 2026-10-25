@@ -260,6 +260,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "cursor_api_key",
+ "lazy-regex",
  "macro_db_migrator",
  "macro_user_id",
  "macro_uuid",

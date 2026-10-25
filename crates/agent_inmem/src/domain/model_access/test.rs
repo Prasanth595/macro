@@ -103,15 +103,20 @@ fn an_agents_key_replaces_the_plan_with_its_providers_models() {
     assert_eq!(keyed.models(&supported), ["anthropic/claude-sonnet-5-5"]);
     assert!(!keyed.allows(FREE_MODEL));
     assert_eq!(
-        keyed.default_model("anthropic/claude-sonnet-5-5"),
+        keyed.default_model("anthropic/claude-sonnet-5-5", &supported),
         "anthropic/claude-sonnet-5-5",
         "a free plan does not clamp a model the agent's key pays for"
+    );
+    assert_eq!(
+        keyed.default_model("openai/gpt-6-astra", &supported),
+        "anthropic/claude-sonnet-5-5",
+        "a model saved before the key moves to one the key can run"
     );
 
     let plan = SessionModels::new(ModelAccess::Free, None);
     assert_eq!(plan.models(&supported), [FREE_MODEL]);
     assert_eq!(
-        plan.default_model("anthropic/claude-sonnet-5-5"),
+        plan.default_model("anthropic/claude-sonnet-5-5", &supported),
         FREE_MODEL
     );
 }

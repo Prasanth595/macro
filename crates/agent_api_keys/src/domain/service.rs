@@ -3,9 +3,11 @@ mod test;
 
 use macro_uuid::Uuid;
 
+use macro_user_id::user_id::MacroUserIdStr;
+
 use super::models::{
-    AgentKeyError, AgentKeyView, KeyedAgent, ModelProvider, ProviderApiKey, StoredAgentKey,
-    UsableAgentKey,
+    AgentKeyError, AgentKeyView, AgentOwner, KeyedAgent, ModelProvider, ProviderApiKey,
+    StoredAgentKey, UsableAgentKey,
 };
 use super::ports::{AgentKeyCipher, AgentKeyRepo, AgentKeys, KeyPlans, Result};
 
@@ -70,17 +72,28 @@ impl<Repo: AgentKeyRepo, Cipher: AgentKeyCipher, Plans: KeyPlans>
         self.view(agent).await
     }
 
-    /// The stored key, when the agent can run on it now.
-    async fn usable(&self, bot_id: Uuid) -> Result<Option<StoredAgentKey>> {
+    /// The stored key, when the agent can run on it now in a session `user`
+    /// owns.
+    async fn usable(&self, bot_id: Uuid, user: &MacroUserIdStr<'_>) -> Result<Option<StoredAgentKey>> {
         let Some(stored) = self.repo.stored(bot_id).await? else {
             return Ok(None);
         };
         if stored.agent.key_provider() != Some(stored.provider)
+            || !self.owns_key(&stored.agent.owner, user).await?
             || !self.plans.allows_keys(&stored.agent.owner).await?
         {
             return Ok(None);
         }
         Ok(Some(stored))
+    }
+
+    /// Whether `user` may spend a key `owner` holds: their own, or that of a
+    /// team they are currently a member of.
+    async fn owns_key(&self, owner: &AgentOwner, user: &MacroUserIdStr<'_>) -> Result<bool> {
+        match owner {
+            AgentOwner::User(owner) => Ok(owner.as_ref() == user.as_ref()),
+            AgentOwner::Team(team_id) => self.repo.is_team_member(user, *team_id).await,
+        }
     }
 }
 
@@ -88,12 +101,20 @@ impl<Repo: AgentKeyRepo, Cipher: AgentKeyCipher, Plans: KeyPlans>
 impl<Repo: AgentKeyRepo, Cipher: AgentKeyCipher, Plans: KeyPlans> AgentKeys
     for AgentKeyService<Repo, Cipher, Plans>
 {
-    async fn usable_provider(&self, bot_id: Uuid) -> Result<Option<ModelProvider>> {
-        Ok(self.usable(bot_id).await?.map(|stored| stored.provider))
+    async fn usable_provider(
+        &self,
+        bot_id: Uuid,
+        user: &MacroUserIdStr<'_>,
+    ) -> Result<Option<ModelProvider>> {
+        Ok(self.usable(bot_id, user).await?.map(|stored| stored.provider))
     }
 
-    async fn usable_key(&self, bot_id: Uuid) -> Result<Option<UsableAgentKey>> {
-        let Some(stored) = self.usable(bot_id).await? else {
+    async fn usable_key(
+        &self,
+        bot_id: Uuid,
+        user: &MacroUserIdStr<'_>,
+    ) -> Result<Option<UsableAgentKey>> {
+        let Some(stored) = self.usable(bot_id, user).await? else {
             return Ok(None);
         };
         let key = self

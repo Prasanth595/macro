@@ -74,12 +74,18 @@ impl SessionModels {
     }
 
     /// Keep a persisted/default model the session may run. Without a key, an
-    /// inaccessible one becomes the free model; with one, the agent's model
-    /// already matches the key, which only fits an agent on its provider.
+    /// inaccessible one becomes the free model; with one, a model from
+    /// another provider (saved before the key) becomes the first `supported`
+    /// model the key can run.
     #[must_use]
-    pub fn default_model(self, configured: &str) -> &str {
+    pub fn default_model<'a>(self, configured: &'a str, supported: &[&'a str]) -> &'a str {
         match self.agent_key {
-            Some(_) => configured,
+            Some(_) if self.allows(configured) => configured,
+            Some(_) => supported
+                .iter()
+                .copied()
+                .find(|model| self.allows(model))
+                .unwrap_or(configured),
             None => self.access.default_model(configured),
         }
     }

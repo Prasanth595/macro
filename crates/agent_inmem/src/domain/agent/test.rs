@@ -499,6 +499,7 @@ impl agent_api_keys::domain::AgentKeys for OneAgentKey {
     async fn usable_provider(
         &self,
         _bot_id: macro_uuid::Uuid,
+        _user: &MacroUserIdStr<'_>,
     ) -> agent_api_keys::domain::Result<Option<agent_api_keys::domain::ModelProvider>> {
         Ok(self.0)
     }
@@ -506,6 +507,7 @@ impl agent_api_keys::domain::AgentKeys for OneAgentKey {
     async fn usable_key(
         &self,
         bot_id: macro_uuid::Uuid,
+        _user: &MacroUserIdStr<'_>,
     ) -> agent_api_keys::domain::Result<Option<agent_api_keys::domain::UsableAgentKey>> {
         Ok(self
             .0

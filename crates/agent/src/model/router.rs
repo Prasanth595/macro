@@ -487,7 +487,9 @@ impl ModelRouter<MeteredHttpClient> {
     /// instead of the deployment's key, for a turn an agent's own key pays for.
     ///
     /// Only the native Anthropic and OpenAI clients can be rekeyed; any other
-    /// provider is [`AgentError::UnknownModel`].
+    /// provider is [`AgentError::UnknownModel`]. The rebuilt client keeps its
+    /// own plain copy of the key as a header value, so drop the router with
+    /// the turn that needed it.
     pub fn with_provider_api_key(&self, provider: &str, api_key: &str) -> Result<Self, AgentError> {
         let http = ReqwestClient::builder()
             .retry(reqwest::retry::never())

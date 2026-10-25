@@ -268,12 +268,12 @@ impl AgentState {
             .access(&self.owner)
             .await
             .map_err(model_access_error)?;
-        let Some(bot) = self.agent_bot() else {
+        let (Some(bot), Some(user)) = (self.agent_bot(), self.owner.as_user()) else {
             return Ok(SessionModels::new(access, None));
         };
         let agent_key = self
             .agent_keys
-            .usable_provider(bot)
+            .usable_provider(bot, user)
             .await
             .inspect_err(
                 |error| tracing::error!(error = ?error, "could not read the agent's API key"),
@@ -287,10 +287,10 @@ impl AgentState {
     /// session's agent has a usable one. A key for a provider other than
     /// `model`'s refuses the turn rather than quietly billing Macro.
     async fn turn_agent_key(&self, model: &str) -> Result<Option<UsableAgentKey>, AcpError> {
-        let Some(bot) = self.agent_bot() else {
+        let (Some(bot), Some(user)) = (self.agent_bot(), self.owner.as_user()) else {
             return Ok(None);
         };
-        let key = self.agent_keys.usable_key(bot).await.map_err(|error| {
+        let key = self.agent_keys.usable_key(bot, user).await.map_err(|error| {
             tracing::error!(error = ?error, "could not read the agent's API key");
             AcpError::new(-32603, "The agent's API key could not be read")
                 .data(serde_json::json!({ "code": "agent_api_key_unavailable", "retryable": true }))
@@ -647,7 +647,11 @@ pub async fn serve(state: Arc<AgentState>, acp: AcpChannel) -> Result<(), AcpErr
                         .get(&state.session_id)
                         .map(|session| session.model.clone())
                     {
-                        state.set_model(access.default_model(&model).to_owned());
+                        state.set_model(
+                            access
+                                .default_model(&model, state.engine.supported_models())
+                                .to_owned(),
+                        );
                     }
                     let acp_id = SessionId::new(macro_uuid::generate_uuid_v7().to_string());
                     state.bind_acp_session(acp_id.clone(), false);
@@ -676,7 +680,11 @@ pub async fn serve(state: Arc<AgentState>, acp: AcpChannel) -> Result<(), AcpErr
                         .get(&state.session_id)
                         .map(|session| session.model.clone())
                     {
-                        state.set_model(access.default_model(&model).to_owned());
+                        state.set_model(
+                            access
+                                .default_model(&model, state.engine.supported_models())
+                                .to_owned(),
+                        );
                     }
                     // Kept when the state already belongs to this ACP id -
                     // either this process served the session, or a cold
@@ -965,10 +973,15 @@ async fn run_turn(
         identity,
         instructions,
     } = state.turn_input(&prompt);
+    // The turn already holds the key, so its provider decides the models
+    // without asking for the key again.
     let access = tokio::select! {
         biased;
         _ = cancel.cancelled() => return Ok(StopReason::Cancelled),
-        result = state.session_models() => result?,
+        result = state.model_access.access(&state.owner) => SessionModels::new(
+            result.map_err(model_access_error)?,
+            agent_key.as_ref().map(|key| key.key.provider()),
+        ),
     };
     if !access.allows(&model) {
         return Err(model_access_error(ModelAccessError::Forbidden));

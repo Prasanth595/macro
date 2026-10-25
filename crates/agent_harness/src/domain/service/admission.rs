@@ -72,8 +72,11 @@ where
         if kind != AgentKind::InMemory {
             return false;
         }
+        let Ok(owner) = session.owner_user() else {
+            return false;
+        };
         self.agent_keys
-            .usable_provider(session.bot_id.as_uuid())
+            .usable_provider(session.bot_id.as_uuid(), owner)
             .await
             .inspect_err(
                 |error| tracing::error!(error = ?error, "could not read the agent's API key"),

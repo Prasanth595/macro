@@ -149,4 +149,15 @@ impl AgentKeyRepo for PgAgentKeyRepo {
         })
         .transpose()
     }
+
+    async fn is_team_member(&self, user: &MacroUserIdStr<'_>, team_id: Uuid) -> Result<bool> {
+        sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM team_user WHERE user_id = $1 AND team_id = $2) AS "member!""#,
+            user.as_ref(),
+            team_id,
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(storage)
+    }
 }

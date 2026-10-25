@@ -1,3 +1,4 @@
+use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
 
 use super::models::{
@@ -44,6 +45,9 @@ pub trait AgentKeyRepo: Send + Sync + 'static {
     /// The agent's key with the agent as it is configured now, for a live,
     /// undeleted agent.
     async fn stored(&self, bot_id: Uuid) -> Result<Option<StoredAgentKey>>;
+
+    /// Whether `user` is currently a member of `team_id`.
+    async fn is_team_member(&self, user: &MacroUserIdStr<'_>, team_id: Uuid) -> Result<bool>;
 }
 
 /// Whether an agent owner's plan includes agents' own API keys.
@@ -53,18 +57,29 @@ pub trait KeyPlans: Send + Sync + 'static {
     async fn allows_keys(&self, owner: &AgentOwner) -> Result<bool>;
 }
 
-/// What the in-memory runtime asks before a turn of an agent.
+/// What the in-memory runtime asks before a turn of an agent in a session
+/// owned by `user`.
 ///
 /// A key counts only while the agent is an in-memory agent whose model's
-/// provider matches the key, and its owner's plan includes keys; otherwise
-/// the agent runs on Macro usage as if it had none.
+/// provider matches the key, its owner's plan includes keys, and the session
+/// is its owner's: the person's own for a personal agent, a current member's
+/// for a team agent. Otherwise the agent runs on Macro usage as if it had
+/// none, so nobody else spends a person's or a team's key.
 #[async_trait::async_trait]
 pub trait AgentKeys: Send + Sync + 'static {
     /// The provider of the key the agent's turns run on, without decrypting.
-    async fn usable_provider(&self, bot_id: Uuid) -> Result<Option<ModelProvider>>;
+    async fn usable_provider(
+        &self,
+        bot_id: Uuid,
+        user: &MacroUserIdStr<'_>,
+    ) -> Result<Option<ModelProvider>>;
 
     /// The key the agent's next turn runs on, decrypted for that turn.
-    async fn usable_key(&self, bot_id: Uuid) -> Result<Option<UsableAgentKey>>;
+    async fn usable_key(
+        &self,
+        bot_id: Uuid,
+        user: &MacroUserIdStr<'_>,
+    ) -> Result<Option<UsableAgentKey>>;
 }
 
 /// A deployment where no agent has a key: every turn runs on Macro usage.
@@ -73,11 +88,19 @@ pub struct NoAgentKeys;
 
 #[async_trait::async_trait]
 impl AgentKeys for NoAgentKeys {
-    async fn usable_provider(&self, _bot_id: Uuid) -> Result<Option<ModelProvider>> {
+    async fn usable_provider(
+        &self,
+        _bot_id: Uuid,
+        _user: &MacroUserIdStr<'_>,
+    ) -> Result<Option<ModelProvider>> {
         Ok(None)
     }
 
-    async fn usable_key(&self, _bot_id: Uuid) -> Result<Option<UsableAgentKey>> {
+    async fn usable_key(
+        &self,
+        _bot_id: Uuid,
+        _user: &MacroUserIdStr<'_>,
+    ) -> Result<Option<UsableAgentKey>> {
         Ok(None)
     }
 }

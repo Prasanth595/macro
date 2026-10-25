@@ -8,7 +8,7 @@ use zeroize::Zeroizing;
 
 /// A model provider an agent can bring its own key for.
 ///
-/// The string form is both the `cursor_configs.provider` value and the
+/// The string form is both the `agent_api_keys.provider` value and the
 /// provider segment of a routed model id (`anthropic/claude-opus-5-5`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModelProvider {
@@ -58,7 +58,7 @@ impl ModelProvider {
     }
 
     /// The prefix every key this provider mints starts with. The table's
-    /// `cursor_configs_key_prefix` check names the same values.
+    /// `agent_api_keys_key_prefix` check names the same values.
     const fn key_prefix(self) -> &'static str {
         match self {
             Self::Anthropic => "sk-ant-",
@@ -86,15 +86,19 @@ impl ProviderApiKey {
         let trimmed = supplied
             .trim()
             .trim_matches(|character| character == '"' || character == '\'');
-        let secret = trimmed
-            .strip_prefix(provider.key_prefix())
-            .ok_or(MalformedProviderApiKey)?;
-        let another_providers_key = ModelProvider::ALL.into_iter().any(|other| {
-            other != provider
-                && other.key_prefix().len() > provider.key_prefix().len()
-                && trimmed.starts_with(other.key_prefix())
-        });
-        if secret.is_empty() || another_providers_key || secret.contains(char::is_whitespace) {
+        // OpenAI's `sk-` also prefixes Anthropic's `sk-ant-`, so an OpenAI
+        // key must not be an Anthropic one. The length cap keeps a stray
+        // paste a 400 rather than a KMS failure.
+        let well_formed = match provider {
+            ModelProvider::Anthropic => {
+                lazy_regex::regex_is_match!(r"\Ask-ant-[A-Za-z0-9_-]{1,500}\z", trimmed)
+            }
+            ModelProvider::OpenAi => {
+                lazy_regex::regex_is_match!(r"\Ask-[A-Za-z0-9_-]{1,500}\z", trimmed)
+                    && !lazy_regex::regex_is_match!(r"\Ask-ant-", trimmed)
+            }
+        };
+        if !well_formed {
             return Err(MalformedProviderApiKey);
         }
         Ok(Self {
