@@ -3,46 +3,42 @@ import { EntityMetadata } from '@components/app/side-panel/EntityMetadata';
 import { InlineTitleEditor } from '@core/component/InlineTitleEditor';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { PropertyValuePill } from '@property/component/PropertyValuePill';
-import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
-import { EntityPropertiesSection } from '@property/side-panel/properties/EntityPropertiesSection';
+import type { PropertySaveFn } from '@property/core/context';
+import type { Property } from '@property/types';
 import { createSignal, For, type JSX, Match, Show, Switch } from 'solid-js';
-import {
-  type ProjectSource,
-  type ProjectsContext,
-  useProjectsContext,
-} from '../context/projects-context';
-import {
-  canEditProject,
-  type ProjectDetail,
-  type ProjectSection,
-} from '../core/project';
-import { AddProjectTasks } from './add-project-tasks';
-import {
-  ProjectTasksList,
-  type ProjectTasksListProps,
-} from './project-tasks-list';
+import type { ProjectDetail, ProjectSection } from '../core/project';
 
-const PROJECT_PROPERTY_ORDER = [
-  SYSTEM_PROPERTY_IDS.STATUS,
-  SYSTEM_PROPERTY_IDS.PRIORITY,
-  SYSTEM_PROPERTY_IDS.ASSIGNEES,
-  SYSTEM_PROPERTY_IDS.DUE_DATE,
-];
+export type WorkspaceProject = Pick<
+  ProjectDetail,
+  'id' | 'name' | 'ownerId' | 'updatedAt'
+> &
+  Partial<Pick<ProjectDetail, 'createdAt'>>;
 
-/** Native project content inside the same detail layout used by tasks. */
+/** Present only when the viewer may change the project; without it every control is read-only. */
+export type ProjectEditor = {
+  rename(name: string): Promise<void>;
+  saveProperty: PropertySaveFn;
+};
+
+/**
+ * Project content inside the same detail layout used by tasks. It knows
+ * nothing about who is viewing; hosts fill the account-backed parts.
+ */
 export function ProjectWorkspace(props: {
-  project: ProjectDetail;
-  source: ProjectSource;
-  commands: ReturnType<ProjectsContext['createCommands']>;
+  project: WorkspaceProject;
+  /** Status, Priority, Assignees and Due date, in composer order. */
+  properties: readonly Property[];
   section: ProjectSection;
-  onOpenTask: ProjectTasksListProps['onOpenTask'];
-  onCreateTask: NonNullable<ProjectTasksListProps['onCreateTask']>;
-  discussion: JSX.Element;
+  editor?: ProjectEditor;
+  onRefresh?(): void;
+  refreshFailed?: boolean;
+  /** Draws the side panel's Properties section, when the host has one. */
+  propertiesPanel?: () => JSX.Element;
   description: JSX.Element;
+  discussion: JSX.Element;
+  tasks: JSX.Element;
 }) {
-  const definitions = useProjectsContext().createPropertyDefinitionsSource();
   const [error, setError] = createSignal<string>();
-  const canEdit = () => canEditProject(props.project);
   const run = async (action: () => Promise<void>) => {
     setError(undefined);
     try {
@@ -63,28 +59,18 @@ export function ProjectWorkspace(props: {
           updatedAt={props.project.updatedAt}
         />
       </SidePanel.Footer>
-      <SidePanel.Section
-        id="properties"
-        title="Properties"
-        defaultOpen
-        order={1}
-      >
-        <Show when={props.project.id} keyed>
-          {(projectId) => (
-            <EntityPropertiesSection
-              entityId={projectId}
-              entityType="INITIATIVE"
-              canEdit={canEdit()}
-              documentName={props.project.name}
-              showTags={false}
-              defaultProperties={() => [...definitions.properties()]}
-              requiredPropertyDefinitionIds={PROJECT_PROPERTY_ORDER}
-              pinnedPropertyDefinitionOrder={PROJECT_PROPERTY_ORDER}
-              onPropertiesChanged={props.source.refresh}
-            />
-          )}
-        </Show>
-      </SidePanel.Section>
+      <Show when={props.propertiesPanel}>
+        {(panel) => (
+          <SidePanel.Section
+            id="properties"
+            title="Properties"
+            defaultOpen
+            order={1}
+          >
+            {panel()()}
+          </SidePanel.Section>
+        )}
+      </Show>
       <div class="flex size-full min-h-0 min-w-0 flex-col overflow-hidden">
         <Show when={error()}>
           {(message) => (
@@ -93,7 +79,7 @@ export function ProjectWorkspace(props: {
             </p>
           )}
         </Show>
-        <Show when={props.source.error()}>
+        <Show when={props.refreshFailed}>
           <p role="status" class="px-6 py-2 text-sm text-ink-muted">
             Could not refresh this project.
           </p>
@@ -104,45 +90,39 @@ export function ProjectWorkspace(props: {
               <div class="h-full overflow-y-auto px-6 pb-8 pt-12 touch:pt-6">
                 <div class="mx-auto max-w-3xl">
                   <Show
-                    when={canEdit()}
+                    when={props.editor}
                     fallback={
                       <h1 class="text-2xl font-semibold">
                         {props.project.name}
                       </h1>
                     }
                   >
-                    <InlineTitleEditor
-                      value={props.project.name}
-                      placeholder="Project name"
-                      ariaLabel="Project name"
-                      class="w-full text-2xl"
-                      onRename={(name) =>
-                        fireAndForget(
-                          run(() =>
-                            props.commands.rename(props.project.id, name)
-                          ),
-                          'projects'
-                        )
-                      }
-                    />
+                    {(editor) => (
+                      <InlineTitleEditor
+                        value={props.project.name}
+                        placeholder="Project name"
+                        ariaLabel="Project name"
+                        class="w-full text-2xl"
+                        onRename={(name) =>
+                          fireAndForget(
+                            run(() => editor().rename(name)),
+                            'projects'
+                          )
+                        }
+                      />
+                    )}
                   </Show>
                   <div
                     class="mb-6 mt-3 flex flex-wrap items-center gap-2"
                     aria-label="Project properties"
                   >
-                    <For each={props.source.properties()}>
+                    <For each={props.properties}>
                       {(property) => (
                         <PropertyValuePill
                           property={property}
-                          canEdit={canEdit()}
-                          onSave={(property, value) =>
-                            props.commands.saveProperty(
-                              props.project.id,
-                              property,
-                              value
-                            )
-                          }
-                          onRefresh={props.source.refresh}
+                          canEdit={props.editor !== undefined}
+                          onSave={props.editor?.saveProperty}
+                          onRefresh={props.onRefresh}
                           entitySelfFilter={{
                             blockId: props.project.id,
                             entityType: 'INITIATIVE',
@@ -158,19 +138,7 @@ export function ProjectWorkspace(props: {
                 </div>
               </div>
             </Match>
-            <Match when={props.section === 'tasks'}>
-              <ProjectTasksList
-                projectId={props.project.id}
-                projectName={props.project.name}
-                onOpenTask={props.onOpenTask}
-                onCreateTask={canEdit() ? props.onCreateTask : undefined}
-                addTasksAction={
-                  <Show when={canEdit()}>
-                    <AddProjectTasks project={props.project} />
-                  </Show>
-                }
-              />
-            </Match>
+            <Match when={props.section === 'tasks'}>{props.tasks}</Match>
           </Switch>
         </div>
       </div>
