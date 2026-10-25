@@ -24,6 +24,14 @@ export function endDocumentSpan(documentId: string): void {
   span.end();
 }
 
+/** Context does not survive a native `await`, so start each request inside the span. */
+export function runInDocumentSpan<T>(
+  span: Span | undefined,
+  operation: () => T
+): T {
+  return span ? span.run(operation) : operation();
+}
+
 export function endTrackedDocumentSpan(span: Span): void {
   for (const [documentId, candidate] of documentSpans) {
     if (candidate === span) documentSpans.delete(documentId);

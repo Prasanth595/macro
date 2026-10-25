@@ -3,10 +3,11 @@
  */
 
 import { analytics } from '@app/lib/analytics';
+import { runInDocumentSpan } from '@block-md/observability';
 import { FigEngine } from '@core/fig-engine/client';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { contentHash } from '@core/util/hash';
-import { Telemetry } from '@macro-inc/observability';
+import { type Span, Telemetry } from '@macro-inc/observability';
 import { invalidateUserQuota } from '@queries/auth';
 import { postNewHistoryItem } from '@queries/history/history';
 import { setPreviewOnCreate } from '@queries/preview/preview';
@@ -20,28 +21,36 @@ export async function createFigDocument(args: {
   projectId?: string;
   /** UI surface the creation originated from, for analytics. */
   source?: string;
+  /** Parent of the create, upload, and cleanup requests. */
+  span?: Span;
 }): Promise<string | undefined> {
   const title = args.title ?? 'Untitled design';
   const bytes = await FigEngine.blank(title);
   const sha = await contentHash(bytes);
-  const created = await storageServiceClient.createDocument({
-    documentName: title,
-    fileType: 'fig',
-    sha,
-    projectId: args.projectId,
-  });
+  const created = await runInDocumentSpan(args.span, () =>
+    storageServiceClient.createDocument({
+      documentName: title,
+      fileType: 'fig',
+      sha,
+      projectId: args.projectId,
+    })
+  );
   fireAndForget(invalidateUserQuota(), 'create-fig-document');
   if (created.isErr()) return undefined;
   const doc = created.value;
   const documentId = doc.metadata.documentId;
-  const upload = await uploadToPresignedUrl({
-    presignedUrl: doc.presignedUrl,
-    buffer: bytes,
-    sha,
-    type: FIG_MIME,
-  });
+  const upload = await runInDocumentSpan(args.span, () =>
+    uploadToPresignedUrl({
+      presignedUrl: doc.presignedUrl,
+      buffer: bytes,
+      sha,
+      type: FIG_MIME,
+    })
+  );
   if (upload.isErr()) {
-    await storageServiceClient.deleteDocument({ documentId });
+    await runInDocumentSpan(args.span, () =>
+      storageServiceClient.deleteDocument({ documentId })
+    );
     return undefined;
   }
   fireAndForget(

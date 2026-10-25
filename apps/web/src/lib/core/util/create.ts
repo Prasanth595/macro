@@ -1,9 +1,10 @@
 import { analytics } from '@app/lib/analytics';
 import { DEFAULT_CHAT_NAME } from '@block-chat/definition';
 import type { CodeFileExtension } from '@block-code/util/languageSupport';
+import { runInDocumentSpan } from '@block-md/observability';
 import { PaywallKey, usePaywallState } from '@core/constant/PaywallState';
 import { fireAndForget } from '@core/util/fireAndForget';
-import { Telemetry } from '@macro-inc/observability';
+import { type Span, Telemetry } from '@macro-inc/observability';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { invalidateUserQuota } from '@queries/auth';
 import { postNewHistoryItem } from '@queries/history/history';
@@ -303,6 +304,7 @@ export async function createCodeFileFromText({
   title,
   source,
   projectId,
+  span,
 }: {
   code: string;
   projectId?: string;
@@ -311,6 +313,8 @@ export async function createCodeFileFromText({
   language?: string;
   /** UI surface the creation originated from, for analytics. */
   source?: string;
+  /** Parent of the create, upload, and cleanup requests. */
+  span?: Span;
 }) {
   const encoder = new TextEncoder();
   const buffer = encoder.encode(code);
@@ -348,12 +352,14 @@ export async function createCodeFileFromText({
 
   const mimeType = 'text/plain';
 
-  const maybeCode = await storageServiceClient.createDocument({
-    projectId,
-    documentName: title ?? 'New Code File',
-    fileType: finalExtension,
-    sha: sha,
-  });
+  const maybeCode = await runInDocumentSpan(span, () =>
+    storageServiceClient.createDocument({
+      projectId,
+      documentName: title ?? 'New Code File',
+      fileType: finalExtension,
+      sha: sha,
+    })
+  );
 
   fireAndForget(invalidateUserQuota(), 'create-entity');
 
@@ -364,16 +370,20 @@ export async function createCodeFileFromText({
   if (maybeCode.isErr())
     return err([{ code: 'SERVER_ERROR', message: maybeCode.error[0].message }]);
   const document = maybeCode.value;
-  const uploadResult = await uploadToPresignedUrl({
-    presignedUrl: document.presignedUrl,
-    buffer,
-    sha,
-    type: mimeType,
-  });
+  const uploadResult = await runInDocumentSpan(span, () =>
+    uploadToPresignedUrl({
+      presignedUrl: document.presignedUrl,
+      buffer,
+      sha,
+      type: mimeType,
+    })
+  );
   if (uploadResult.isErr()) {
-    await storageServiceClient.deleteDocument({
-      documentId: document.metadata.documentId,
-    });
+    await runInDocumentSpan(span, () =>
+      storageServiceClient.deleteDocument({
+        documentId: document.metadata.documentId,
+      })
+    );
     return err([{ code: 'SERVER_ERROR', message: 'Failed to upload file' }]);
   }
   fireAndForget(

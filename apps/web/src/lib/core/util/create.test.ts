@@ -1,3 +1,4 @@
+import type { Span } from '@macro-inc/observability';
 import { ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -25,14 +26,14 @@ vi.mock('@core/util/platformFetch', () => ({
 
 import { createCodeFileFromText } from './create';
 
+const createdDocument = ok({
+  metadata: { documentId: 'code-doc', documentVersionId: 1 },
+  presignedUrl: 'https://s3.example.com/code-doc',
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.createDocument.mockResolvedValue(
-    ok({
-      metadata: { documentId: 'code-doc', documentVersionId: 1 },
-      presignedUrl: 'https://s3.example.com/code-doc',
-    })
-  );
+  mocks.createDocument.mockResolvedValue(createdDocument);
   mocks.deleteDocument.mockResolvedValue(ok({ success: true }));
 });
 
@@ -80,5 +81,47 @@ describe('createCodeFileFromText', () => {
 
     expect(result._unsafeUnwrap()).toEqual({ documentId: 'code-doc' });
     expect(mocks.deleteDocument).not.toHaveBeenCalled();
+  });
+
+  it('starts the create, upload, and cleanup requests inside the given span', async () => {
+    let active = false;
+    const span = {
+      run<T>(operation: () => T): T {
+        active = true;
+        try {
+          return operation();
+        } finally {
+          active = false;
+        }
+      },
+    } as Span;
+    const requests: [string, boolean][] = [];
+    mocks.createDocument.mockImplementationOnce(() => {
+      requests.push(['create', active]);
+      return Promise.resolve(createdDocument);
+    });
+    mocks.platformFetch.mockImplementationOnce(() => {
+      requests.push(['upload', active]);
+      return Promise.resolve(
+        new Response('<Code>AccessDenied</Code>', { status: 403 })
+      );
+    });
+    mocks.deleteDocument.mockImplementationOnce(() => {
+      requests.push(['delete', active]);
+      return Promise.resolve(ok({ success: true }));
+    });
+
+    await createCodeFileFromText({
+      code: 'print("Hello, World!")',
+      extension: 'py',
+      title: 'New Code File',
+      span,
+    });
+
+    expect(requests).toEqual([
+      ['create', true],
+      ['upload', true],
+      ['delete', true],
+    ]);
   });
 });

@@ -152,7 +152,7 @@ function matchesLauncherSearch(item: CreatableBlock, query: string) {
 
 const createBlock = async (spec: {
   blockName: BlockName | BlockAlias;
-  createFn: () => Promise<string | undefined>;
+  createFn: (span?: Span) => Promise<string | undefined>;
   loading?: boolean;
   shouldInsert?: boolean;
   openCreated?: OpenCreatedItem;
@@ -176,7 +176,7 @@ const createBlock = async (spec: {
       ).split
     : undefined;
 
-  const id = await createFn();
+  const id = await createFn(span);
   if (!id) {
     span?.setAttr('error', true);
     span?.end();
@@ -348,8 +348,8 @@ export function runCreateAction(
         {
           blockName: 'psd',
           loading: true,
-          createFn: () =>
-            createPsdDocument({ projectId: options.projectId, source }),
+          createFn: (span) =>
+            createPsdDocument({ projectId: options.projectId, source, span }),
           shouldInsert,
           openCreated,
         },
@@ -362,8 +362,8 @@ export function runCreateAction(
         {
           blockName: 'fig',
           loading: true,
-          createFn: () =>
-            createFigDocument({ projectId: options.projectId, source }),
+          createFn: (span) =>
+            createFigDocument({ projectId: options.projectId, source, span }),
           shouldInsert,
           openCreated,
         },
@@ -376,8 +376,8 @@ export function runCreateAction(
         {
           blockName: 'ai',
           loading: true,
-          createFn: () =>
-            createAiDocument({ projectId: options.projectId, source }),
+          createFn: (span) =>
+            createAiDocument({ projectId: options.projectId, source, span }),
           shouldInsert,
           openCreated,
         },
@@ -532,13 +532,14 @@ export function runCreateAction(
         {
           blockName: 'code',
           loading: true,
-          createFn: async () => {
+          createFn: async (span) => {
             const result = await createCodeFileFromText({
               code: 'print("Hello, World!")',
               extension: 'py',
               title: 'New Code File',
               projectId: options.projectId,
               source,
+              span,
             });
             if (result.isErr()) {
               toast.failure('Could not create the code file');
