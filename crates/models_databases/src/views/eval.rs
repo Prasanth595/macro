@@ -12,14 +12,15 @@
 #[cfg(test)]
 mod test;
 
+use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use crate::ids::{ColumnId, OptionId};
 use crate::ops::{CellValue, OptionRef};
 
 use super::{
-    Conjunction, DateOperator, FilterCondition, FilterGroup, FilterNode, FilterTest,
-    NumberOperator, PresenceOperator, SetOperator, TextOperator,
+    Conjunction, DateOperator, DateRangeOperator, FilterCondition, FilterGroup, FilterNode,
+    FilterTest, NumberOperator, PresenceOperator, SetOperator, TextOperator,
 };
 
 /// Whether `cells` pass `group`. A group without conditions passes.
@@ -59,7 +60,10 @@ fn is_empty(value: &CellValue) -> bool {
         CellValue::Options(options) => options.is_empty(),
         CellValue::Entities(references) => references.is_empty(),
         CellValue::Rows(rows) => rows.is_empty(),
-        CellValue::Number(_) | CellValue::Boolean(_) | CellValue::Date(_) => false,
+        CellValue::Number(_)
+        | CellValue::Boolean(_)
+        | CellValue::Date(_)
+        | CellValue::DateRange(_) => false,
     }
 }
 
@@ -100,6 +104,20 @@ fn condition_holds(condition: &FilterCondition, cells: &HashMap<ColumnId, CellVa
                 DateOperator::After => date > value,
                 DateOperator::OnOrBefore => date <= value,
                 DateOperator::OnOrAfter => date >= value,
+            }
+        }
+        FilterTest::DateRange { operator, value } => {
+            let CellValue::DateRange(range) = cell else {
+                return false;
+            };
+            let ordering = range.compare_to(*value);
+            match operator {
+                DateRangeOperator::Contains => ordering == Ordering::Equal,
+                DateRangeOperator::DoesNotContain => ordering != Ordering::Equal,
+                DateRangeOperator::EndsBefore => ordering == Ordering::Less,
+                DateRangeOperator::EndsOnOrAfter => ordering != Ordering::Less,
+                DateRangeOperator::StartsAfter => ordering == Ordering::Greater,
+                DateRangeOperator::StartsOnOrBefore => ordering != Ordering::Greater,
             }
         }
         FilterTest::Checkbox { checked } => {

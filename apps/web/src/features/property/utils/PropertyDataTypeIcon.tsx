@@ -14,6 +14,7 @@ import TaskIcon from '@icon/system/regular/list-checks.svg';
 import PencilIcon from '@icon/system/regular/pencil.svg';
 import SimpleTagIcon from '@icon/system/regular/tag-simple.svg';
 import UserCircleIcon from '@icon/system/regular/user-circle.svg';
+import CalendarDotsIcon from '@icon/system/regular/calendar-dots.svg';
 import type { Component } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { twMerge } from 'tailwind-merge';
@@ -55,6 +56,7 @@ export const PropertyDataTypeIcon: Component<{
       .with('NUMBER', () => CalculatorIcon)
       .with('BOOLEAN', () => CheckSquareIcon)
       .with('DATE', () => CalendarBlankIcon)
+      .with('DATE_RANGE', () => CalendarDotsIcon)
       .with('LINK', () => LinkIcon)
       .with('SELECT_STRING', () => ListBulletIcon)
       .with('SELECT_NUMBER', () => ListBulletIcon)

@@ -4,8 +4,9 @@
 mod test;
 
 use models_databases::views::{
-    Conjunction, DatabaseView, DateOperator, FilterCondition, FilterGroup, FilterNode, FilterTest,
-    NumberOperator, PresenceOperator, SetOperator, SortDirection, TextOperator, ViewProblem,
+    Conjunction, DatabaseView, DateOperator, DateRangeOperator, FilterCondition, FilterGroup,
+    FilterNode, FilterTest, NumberOperator, PresenceOperator, SetOperator, SortDirection,
+    TextOperator, ViewProblem,
 };
 
 use crate::catalog::{Catalog, Table};
@@ -174,6 +175,23 @@ fn condition_filter(table: &Table, condition: &FilterCondition) -> Filter {
             },
             Value::Date(*value),
         ),
+        FilterTest::DateRange { operator, value } => {
+            let date = Value::Date(*value);
+            match operator {
+                DateRangeOperator::Contains => compare(ComparisonOperator::Equal, date),
+                DateRangeOperator::DoesNotContain => {
+                    or_empty(compare(ComparisonOperator::NotEqual, date))
+                }
+                DateRangeOperator::EndsBefore => compare(ComparisonOperator::Less, date),
+                DateRangeOperator::EndsOnOrAfter => {
+                    compare(ComparisonOperator::GreaterOrEqual, date)
+                }
+                DateRangeOperator::StartsAfter => compare(ComparisonOperator::Greater, date),
+                DateRangeOperator::StartsOnOrBefore => {
+                    compare(ComparisonOperator::LessOrEqual, date)
+                }
+            }
+        }
         FilterTest::Checkbox { checked: true } => {
             compare(ComparisonOperator::Equal, Value::Bool(true))
         }

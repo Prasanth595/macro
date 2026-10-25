@@ -2,6 +2,7 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import CaretDownIcon from '@icon/system/regular/caret-down.svg';
 import { Popover } from '@kobalte/core/popover';
 import { Tooltip } from '@kobalte/core/tooltip';
+import { PropertyDateRangeSelector } from '@property/editors/selectors/PropertyDateRangeSelector';
 import { PropertyDateSelector } from '@property/editors/selectors/PropertyDateSelector';
 import { Checkbox } from '@ui/components/Checkbox';
 import { Dropdown } from '@ui/components/Dropdown';
@@ -25,6 +26,7 @@ import {
 } from '../../../observability/ui-operation';
 import { useOptionEditing } from '../context/option-editing';
 import { fromCellDate, toCellDate } from '../core/cell-date';
+import { cellTimeRange, toCellTimeRange } from '../core/cell-date-range';
 import {
   type DatabaseEntityType,
   type DatabaseMention,
@@ -153,7 +155,9 @@ export function GridCell(props: GridCellProps) {
   const isBoolean = () =>
     props.column.dataType === 'BOOLEAN' && !props.column.isMultiSelect;
   const isDate = () =>
-    props.column.dataType === 'DATE' && !props.column.isMultiSelect;
+    (props.column.dataType === 'DATE' ||
+      props.column.dataType === 'DATE_RANGE') &&
+    !props.column.isMultiSelect;
   const hasPopupEditor = () =>
     isOptionColumn(props.column) || (isDate() && editable());
   const startsEditing = Boolean(
@@ -1119,7 +1123,7 @@ function SelectCell(props: GridCellProps) {
   );
 }
 
-/** Date cells edit through the shared property date selector. */
+/** Date and date-range cells edit through the shared property selectors. */
 function DateCell(props: GridCellProps) {
   const opening = createEditorMeasurement(() => props.column.dataType);
   let openingEvent: Event | undefined;
@@ -1228,18 +1232,35 @@ function DateCell(props: GridCellProps) {
           }}
           onCloseAutoFocus={keys.onCloseAutoFocus}
         >
-          <PropertyDateSelector
-            property={{ displayName: props.column.name }}
-            selectedDate={fromCellDate(props.value)}
-            initialQuery={query()}
-            onSelectDate={(date) =>
-              fireAndForget(
-                props.onWrite(date ? toCellDate(date) : null),
-                'database'
-              )
+          <Show
+            when={props.column.dataType === 'DATE_RANGE'}
+            fallback={
+              <PropertyDateSelector
+                property={{ displayName: props.column.name }}
+                selectedDate={fromCellDate(props.value)}
+                initialQuery={query()}
+                onSelectDate={(date) =>
+                  fireAndForget(
+                    props.onWrite(date ? toCellDate(date) : null),
+                    'database'
+                  )
+                }
+                onClose={() => setOpen(false)}
+              />
             }
-            onClose={() => setOpen(false)}
-          />
+          >
+            <PropertyDateRangeSelector
+              label={props.column.name}
+              selectedRange={cellTimeRange(props.value) ?? null}
+              onSelectRange={(range) =>
+                fireAndForget(
+                  props.onWrite(range ? toCellTimeRange(range) : null),
+                  'database'
+                )
+              }
+              onClose={() => setOpen(false)}
+            />
+          </Show>
         </Dropdown.Content>
       </Dropdown>
     </Show>

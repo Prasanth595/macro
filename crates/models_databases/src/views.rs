@@ -193,6 +193,13 @@ pub enum FilterTest {
         /// The date-time compared against.
         value: DateTime<Utc>,
     },
+    /// A date-range column.
+    DateRange {
+        /// How the cell's range stands to the date-time.
+        operator: DateRangeOperator,
+        /// The date-time compared against.
+        value: DateTime<Utc>,
+    },
     /// A checkbox column. An unchecked box and an empty cell are the same.
     Checkbox {
         /// Whether the box is checked.
@@ -288,6 +295,27 @@ pub enum DateOperator {
     OnOrAfter,
 }
 
+/// How a date-range cell stands to a date-time.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema, specta::Type,
+)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum DateRangeOperator {
+    /// The range includes it, at either end or between.
+    Contains,
+    /// The range does not include it, an empty cell included.
+    DoesNotContain,
+    /// The range ends strictly before it.
+    EndsBefore,
+    /// The range ends at it or after.
+    EndsOnOrAfter,
+    /// The range starts strictly after it.
+    StartsAfter,
+    /// The range starts at it or before.
+    StartsOnOrBefore,
+}
+
 /// How a cell's options or references relate to a set of them. The first
 /// two fit a column holding one value, the last three one holding several.
 #[derive(
@@ -354,9 +382,35 @@ pub enum ViewLayout {
         /// Whether a lane with no cards is hidden.
         hide_empty_lanes: bool,
     },
+    /// Bars on a calendar, one per row, spanning its date-range cell. Rows
+    /// with an empty range are listed apart as undated.
+    #[serde(rename_all = "camelCase")]
+    Timeline {
+        /// The date-range column whose cells are the bars.
+        #[schema(value_type = Uuid)]
+        range: ColumnId,
+        /// The column a bar is labelled by, of any type. Removing it labels
+        /// the bars by the table's first remaining column.
+        #[schema(value_type = Uuid)]
+        title: ColumnId,
+        /// The single-select or single-person column whose values group the
+        /// bars, if any; moving a bar to another group sets this column.
+        #[serde(default)]
+        #[schema(value_type = Option<Uuid>, required = true)]
+        group_by: Option<ColumnId>,
+        /// The columns a bar shows after its title, in order.
+        #[serde(default)]
+        #[schema(value_type = Vec<Uuid>)]
+        bar_fields: Vec<ColumnId>,
+        /// The select or tag column whose options color the bars, if any.
+        #[serde(default)]
+        #[schema(value_type = Option<Uuid>, required = true)]
+        color_by: Option<ColumnId>,
+    },
 }
 
-/// A layout as an op asks for it: a board may leave its card title out.
+/// A layout as an op asks for it: a board or timeline may leave its title
+/// out.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, specta::Type)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -389,13 +443,52 @@ pub enum RequestedLayout {
         /// Whether a lane with no cards is hidden.
         hide_empty_lanes: bool,
     },
+    /// Bars on a calendar, one per row, spanning its date-range cell.
+    #[serde(rename_all = "camelCase")]
+    Timeline {
+        /// The date-range column whose cells are the bars.
+        #[schema(value_type = Uuid)]
+        range: ColumnId,
+        /// The column a bar is labelled by. Left out, a timeline keeps the
+        /// title it has, and a new timeline takes the table's first column.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schema(value_type = Option<Uuid>, nullable = false)]
+        #[specta(optional)]
+        title: Option<ColumnId>,
+        /// The single-select or single-person column grouping the bars, if
+        /// any.
+        #[serde(default)]
+        #[schema(value_type = Option<Uuid>, required = true)]
+        group_by: Option<ColumnId>,
+        /// The columns a bar shows after its title, in order.
+        #[serde(default)]
+        #[schema(value_type = Vec<Uuid>)]
+        bar_fields: Vec<ColumnId>,
+        /// The select or tag column whose options color the bars, if any.
+        #[serde(default)]
+        #[schema(value_type = Option<Uuid>, required = true)]
+        color_by: Option<ColumnId>,
+    },
 }
 
 impl RequestedLayout {
-    /// The layout to store: a board without a title takes `default_title`,
-    /// or answers `None` when there is none to take.
+    /// The layout to store: a board or timeline without a title takes
+    /// `default_title`, or answers `None` when there is none to take.
     pub fn with_default_title(self, default_title: Option<ColumnId>) -> Option<ViewLayout> {
         match self {
+            RequestedLayout::Timeline {
+                range,
+                title,
+                group_by,
+                bar_fields,
+                color_by,
+            } => Some(ViewLayout::Timeline {
+                range,
+                title: title.or(default_title)?,
+                group_by,
+                bar_fields,
+                color_by,
+            }),
             RequestedLayout::Table { columns } => Some(ViewLayout::Table { columns }),
             RequestedLayout::Board {
                 group_by,
@@ -418,6 +511,19 @@ impl From<ViewLayout> for RequestedLayout {
     fn from(layout: ViewLayout) -> Self {
         match layout {
             ViewLayout::Table { columns } => RequestedLayout::Table { columns },
+            ViewLayout::Timeline {
+                range,
+                title,
+                group_by,
+                bar_fields,
+                color_by,
+            } => RequestedLayout::Timeline {
+                range,
+                title: Some(title),
+                group_by,
+                bar_fields,
+                color_by,
+            },
             ViewLayout::Board {
                 group_by,
                 title,
@@ -610,6 +716,28 @@ impl ViewLayout {
                     .collect(),
             }),
             ViewLayout::Board { group_by, .. } if *group_by == column => None,
+            ViewLayout::Timeline { range, .. } if *range == column => None,
+            ViewLayout::Timeline {
+                range,
+                title,
+                group_by,
+                bar_fields,
+                color_by,
+            } => Some(ViewLayout::Timeline {
+                range: *range,
+                title: if *title == column {
+                    next_title?
+                } else {
+                    *title
+                },
+                group_by: group_by.filter(|group_by| *group_by != column),
+                bar_fields: bar_fields
+                    .iter()
+                    .copied()
+                    .filter(|field| *field != column)
+                    .collect(),
+                color_by: color_by.filter(|color_by| *color_by != column),
+            }),
             ViewLayout::Board {
                 group_by,
                 title,
@@ -662,15 +790,39 @@ impl ViewLayout {
     pub fn group_by(&self) -> Option<ColumnId> {
         match self {
             ViewLayout::Board { group_by, .. } => Some(*group_by),
+            ViewLayout::Table { .. } | ViewLayout::Timeline { .. } => None,
+        }
+    }
+
+    /// The column a board's cards or a timeline's bars are titled by.
+    pub fn title(&self) -> Option<ColumnId> {
+        match self {
+            ViewLayout::Board { title, .. } | ViewLayout::Timeline { title, .. } => Some(*title),
             ViewLayout::Table { .. } => None,
         }
     }
 
-    /// The board's card title column, for a board.
-    pub fn title(&self) -> Option<ColumnId> {
+    /// The layout once `column` changes type: a timeline stops grouping and
+    /// coloring by it. `None` when the layout cannot do without it: a board
+    /// grouped by it, or a timeline spanning it.
+    pub fn retyping(&self, column: ColumnId) -> Option<ViewLayout> {
         match self {
-            ViewLayout::Board { title, .. } => Some(*title),
-            ViewLayout::Table { .. } => None,
+            ViewLayout::Board { group_by, .. } if *group_by == column => None,
+            ViewLayout::Timeline { range, .. } if *range == column => None,
+            ViewLayout::Timeline {
+                range,
+                title,
+                group_by,
+                bar_fields,
+                color_by,
+            } => Some(ViewLayout::Timeline {
+                range: *range,
+                title: *title,
+                group_by: group_by.filter(|group_by| *group_by != column),
+                bar_fields: bar_fields.clone(),
+                color_by: color_by.filter(|color_by| *color_by != column),
+            }),
+            other => Some(other.clone()),
         }
     }
 }

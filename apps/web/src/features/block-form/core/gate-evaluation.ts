@@ -52,6 +52,7 @@ export function presentValue(
       { type: 'number' },
       { type: 'boolean' },
       { type: 'date' },
+      { type: 'date_range' },
       (scalar) => scalar
     )
     .exhaustive(() => undefined);
@@ -75,6 +76,7 @@ function conditionPasses(
           { type: 'number' },
           { type: 'boolean' },
           { type: 'date' },
+          { type: 'date_range' },
           { type: 'options' },
           { type: 'entities' },
           { type: 'rows' },
@@ -122,6 +124,21 @@ function conditionPasses(
         .with('onOrAfter', () => actual >= bound)
         .exhaustive(() => false);
     })
+    .with({ kind: 'dateRange' }, ({ operator, value: expected }) => {
+      if (value.type !== 'date_range') return false;
+      const start = Date.parse(value.value.start);
+      const end = Date.parse(value.value.end);
+      const bound = Date.parse(expected);
+      if ([start, end, bound].some(Number.isNaN)) return false;
+      return match(operator)
+        .with('contains', () => start <= bound && bound <= end)
+        .with('doesNotContain', () => bound < start || end < bound)
+        .with('endsBefore', () => end < bound)
+        .with('endsOnOrAfter', () => end >= bound)
+        .with('startsAfter', () => start > bound)
+        .with('startsOnOrBefore', () => start <= bound)
+        .exhaustive();
+    })
     .with(
       { kind: 'checkbox' },
       ({ checked }) => value.type === 'boolean' && value.value === checked
@@ -144,6 +161,7 @@ function conditionPasses(
           { type: 'number' },
           { type: 'boolean' },
           { type: 'date' },
+          { type: 'date_range' },
           { type: 'link' },
           { type: 'options' },
           () => undefined

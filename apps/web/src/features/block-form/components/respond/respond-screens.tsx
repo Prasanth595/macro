@@ -184,6 +184,12 @@ export function AnswerValue(props: {
       .with({ type: 'date' }, (date) => (
         <span>{displayDate(date.value, props.widget !== 'date')}</span>
       ))
+      .with({ type: 'date_range' }, (range) => (
+        <span>
+          {displayDate(range.value.start, false)} –{' '}
+          {displayDate(range.value.end, false)}
+        </span>
+      ))
       .with({ type: 'link' }, (link) => (
         <span class="flex flex-col">
           <For each={link.value}>

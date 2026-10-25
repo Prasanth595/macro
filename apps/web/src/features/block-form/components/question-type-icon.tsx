@@ -15,6 +15,7 @@ import TextAa from '@icon/system/regular/text-aa.svg';
 import TextAlignLeft from '@icon/system/regular/text-align-left.svg';
 import UploadSimple from '@icon/system/regular/upload-simple.svg';
 import User from '@icon/system/regular/user.svg';
+import CalendarDots from '@icon/system/regular/calendar-dots.svg';
 import type { Component, JSX } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import type { QuestionTypeId } from '../core/question-types';
@@ -32,6 +33,7 @@ const ICONS: Record<
   file: UploadSimple,
   datetime: Calendar,
   date: CalendarBlank,
+  'date-range': CalendarDots,
   url: Link,
   checkbox: CheckSquareOffset,
   person: User,

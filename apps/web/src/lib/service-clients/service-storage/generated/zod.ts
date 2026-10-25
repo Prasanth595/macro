@@ -5327,6 +5327,13 @@ export const applyCrmPipelineOpsBody = zod
                                       .describe('A date-time.'),
                                     zod
                                       .object({
+                                        type: zod.enum(['date_range']),
+                                      })
+                                      .describe(
+                                        'A span from one date-time to another.'
+                                      ),
+                                    zod
+                                      .object({
                                         type: zod.enum(['link']),
                                       })
                                       .describe('A URL.'),
@@ -5523,6 +5530,13 @@ export const applyCrmPipelineOpsBody = zod
                                 type: zod.enum(['date']),
                               })
                               .describe('A date-time.'),
+                            zod
+                              .object({
+                                type: zod.enum(['date_range']),
+                              })
+                              .describe(
+                                'A span from one date-time to another.'
+                              ),
                             zod
                               .object({
                                 type: zod.enum(['link']),
@@ -5780,6 +5794,27 @@ export const applyCrmPipelineOpsBody = zod
                                         .describe('A date-time.'),
                                       zod
                                         .object({
+                                          type: zod.enum(['date_range']),
+                                          value: zod
+                                            .object({
+                                              end: zod.iso
+                                                .datetime({})
+                                                .describe(
+                                                  'Where it ends; never before the start.'
+                                                ),
+                                              start: zod.iso
+                                                .datetime({})
+                                                .describe('Where it starts.'),
+                                            })
+                                            .describe(
+                                              'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                            ),
+                                        })
+                                        .describe(
+                                          'A span of time; its end may not come before its start.'
+                                        ),
+                                      zod
+                                        .object({
                                           type: zod.enum(['link']),
                                           value: zod
                                             .array(zod.string())
@@ -5956,6 +5991,29 @@ export const applyCrmPipelineOpsBody = zod
                                                   .describe('A date-time.'),
                                               })
                                               .describe('A date-time.'),
+                                            zod
+                                              .object({
+                                                type: zod.enum(['date_range']),
+                                                value: zod
+                                                  .object({
+                                                    end: zod.iso
+                                                      .datetime({})
+                                                      .describe(
+                                                        'Where it ends; never before the start.'
+                                                      ),
+                                                    start: zod.iso
+                                                      .datetime({})
+                                                      .describe(
+                                                        'Where it starts.'
+                                                      ),
+                                                  })
+                                                  .describe(
+                                                    'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                                  ),
+                                              })
+                                              .describe(
+                                                'A span of time; its end may not come before its start.'
+                                              ),
                                             zod
                                               .object({
                                                 type: zod.enum(['link']),
@@ -6154,6 +6212,31 @@ export const applyCrmPipelineOpsBody = zod
                                                           ),
                                                       })
                                                       .describe('A date-time.'),
+                                                    zod
+                                                      .object({
+                                                        type: zod.enum([
+                                                          'date_range',
+                                                        ]),
+                                                        value: zod
+                                                          .object({
+                                                            end: zod.iso
+                                                              .datetime({})
+                                                              .describe(
+                                                                'Where it ends; never before the start.'
+                                                              ),
+                                                            start: zod.iso
+                                                              .datetime({})
+                                                              .describe(
+                                                                'Where it starts.'
+                                                              ),
+                                                          })
+                                                          .describe(
+                                                            'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                                          ),
+                                                      })
+                                                      .describe(
+                                                        'A span of time; its end may not come before its start.'
+                                                      ),
                                                     zod
                                                       .object({
                                                         type: zod.enum([
@@ -6445,9 +6528,45 @@ export const applyCrmPipelineOpsBody = zod
                                   .describe(
                                     'Cards in lanes, one per option of a single-select column or per\nperson of a single-person column, plus one for empty cells.'
                                   ),
+                                zod
+                                  .object({
+                                    barFields: zod
+                                      .array(zod.uuid())
+                                      .optional()
+                                      .describe(
+                                        'The columns a bar shows after its title, in order.'
+                                      ),
+                                    colorBy: zod
+                                      .uuid()
+                                      .nullable()
+                                      .describe(
+                                        'The select or tag column whose options color the bars, if any.'
+                                      ),
+                                    groupBy: zod
+                                      .uuid()
+                                      .nullable()
+                                      .describe(
+                                        'The single-select or single-person column grouping the bars, if\nany.'
+                                      ),
+                                    kind: zod.enum(['timeline']),
+                                    range: zod
+                                      .uuid()
+                                      .describe(
+                                        'The date-range column whose cells are the bars.'
+                                      ),
+                                    title: zod
+                                      .uuid()
+                                      .optional()
+                                      .describe(
+                                        "The column a bar is labelled by. Left out, a timeline keeps the\ntitle it has, and a new timeline takes the table's first column."
+                                      ),
+                                  })
+                                  .describe(
+                                    'Bars on a calendar, one per row, spanning its date-range cell.'
+                                  ),
                               ])
                               .describe(
-                                'A layout as an op asks for it: a board may leave its card title out.'
+                                'A layout as an op asks for it: a board or timeline may leave its title\nout.'
                               ),
                             name: zod.string().describe('Its name.'),
                             query: zod
@@ -6561,6 +6680,32 @@ export const applyCrmPipelineOpsBody = zod
                                                         })
                                                         .describe(
                                                           'A date column.'
+                                                        ),
+                                                      zod
+                                                        .object({
+                                                          kind: zod.enum([
+                                                            'dateRange',
+                                                          ]),
+                                                          operator: zod
+                                                            .enum([
+                                                              'contains',
+                                                              'doesNotContain',
+                                                              'endsBefore',
+                                                              'endsOnOrAfter',
+                                                              'startsAfter',
+                                                              'startsOnOrBefore',
+                                                            ])
+                                                            .describe(
+                                                              'How a date-range cell stands to a date-time.'
+                                                            ),
+                                                          value: zod.iso
+                                                            .datetime({})
+                                                            .describe(
+                                                              'The date-time compared against.'
+                                                            ),
+                                                        })
+                                                        .describe(
+                                                          'A date-range column.'
                                                         ),
                                                       zod
                                                         .object({
@@ -6817,10 +6962,46 @@ export const applyCrmPipelineOpsBody = zod
                               .describe(
                                 'Cards in lanes, one per option of a single-select column or per\nperson of a single-person column, plus one for empty cells.'
                               ),
+                            zod
+                              .object({
+                                barFields: zod
+                                  .array(zod.uuid())
+                                  .optional()
+                                  .describe(
+                                    'The columns a bar shows after its title, in order.'
+                                  ),
+                                colorBy: zod
+                                  .uuid()
+                                  .nullable()
+                                  .describe(
+                                    'The select or tag column whose options color the bars, if any.'
+                                  ),
+                                groupBy: zod
+                                  .uuid()
+                                  .nullable()
+                                  .describe(
+                                    'The single-select or single-person column grouping the bars, if\nany.'
+                                  ),
+                                kind: zod.enum(['timeline']),
+                                range: zod
+                                  .uuid()
+                                  .describe(
+                                    'The date-range column whose cells are the bars.'
+                                  ),
+                                title: zod
+                                  .uuid()
+                                  .optional()
+                                  .describe(
+                                    "The column a bar is labelled by. Left out, a timeline keeps the\ntitle it has, and a new timeline takes the table's first column."
+                                  ),
+                              })
+                              .describe(
+                                'Bars on a calendar, one per row, spanning its date-range cell.'
+                              ),
                           ])
                           .optional()
                           .describe(
-                            'A layout as an op asks for it: a board may leave its card title out.'
+                            'A layout as an op asks for it: a board or timeline may leave its title\nout.'
                           ),
                         name: zod.string().optional().describe('Its new name.'),
                         query: zod
@@ -6927,6 +7108,32 @@ export const applyCrmPipelineOpsBody = zod
                                                         ),
                                                     })
                                                     .describe('A date column.'),
+                                                  zod
+                                                    .object({
+                                                      kind: zod.enum([
+                                                        'dateRange',
+                                                      ]),
+                                                      operator: zod
+                                                        .enum([
+                                                          'contains',
+                                                          'doesNotContain',
+                                                          'endsBefore',
+                                                          'endsOnOrAfter',
+                                                          'startsAfter',
+                                                          'startsOnOrBefore',
+                                                        ])
+                                                        .describe(
+                                                          'How a date-range cell stands to a date-time.'
+                                                        ),
+                                                      value: zod.iso
+                                                        .datetime({})
+                                                        .describe(
+                                                          'The date-time compared against.'
+                                                        ),
+                                                    })
+                                                    .describe(
+                                                      'A date-range column.'
+                                                    ),
                                                   zod
                                                     .object({
                                                       checked: zod
@@ -7476,6 +7683,41 @@ export const applyCrmPipelineOpsResponse = zod
                                   .describe(
                                     'Cards in lanes: one lane per option of a single-select column, or\none per person a single-person column names, plus one for cards\nwith an empty cell. A multi-valued column cannot group a board: a\ncard is in exactly one lane, so a card in several would need a place\nin each.'
                                   ),
+                                zod
+                                  .object({
+                                    barFields: zod
+                                      .array(zod.uuid())
+                                      .optional()
+                                      .describe(
+                                        'The columns a bar shows after its title, in order.'
+                                      ),
+                                    colorBy: zod
+                                      .uuid()
+                                      .nullable()
+                                      .describe(
+                                        'The select or tag column whose options color the bars, if any.'
+                                      ),
+                                    groupBy: zod
+                                      .uuid()
+                                      .nullable()
+                                      .describe(
+                                        'The single-select or single-person column whose values group the\nbars, if any; moving a bar to another group sets this column.'
+                                      ),
+                                    kind: zod.enum(['timeline']),
+                                    range: zod
+                                      .uuid()
+                                      .describe(
+                                        'The date-range column whose cells are the bars.'
+                                      ),
+                                    title: zod
+                                      .uuid()
+                                      .describe(
+                                        "The column a bar is labelled by, of any type. Removing it labels\nthe bars by the table's first remaining column."
+                                      ),
+                                  })
+                                  .describe(
+                                    'Bars on a calendar, one per row, spanning its date-range cell. Rows\nwith an empty range are listed apart as undated.'
+                                  ),
                               ])
                               .describe('How a view draws its rows.'),
                             name: zod
@@ -7599,6 +7841,32 @@ export const applyCrmPipelineOpsResponse = zod
                                                         })
                                                         .describe(
                                                           'A date column.'
+                                                        ),
+                                                      zod
+                                                        .object({
+                                                          kind: zod.enum([
+                                                            'dateRange',
+                                                          ]),
+                                                          operator: zod
+                                                            .enum([
+                                                              'contains',
+                                                              'doesNotContain',
+                                                              'endsBefore',
+                                                              'endsOnOrAfter',
+                                                              'startsAfter',
+                                                              'startsOnOrBefore',
+                                                            ])
+                                                            .describe(
+                                                              'How a date-range cell stands to a date-time.'
+                                                            ),
+                                                          value: zod.iso
+                                                            .datetime({})
+                                                            .describe(
+                                                              'The date-time compared against.'
+                                                            ),
+                                                        })
+                                                        .describe(
+                                                          'A date-range column.'
                                                         ),
                                                       zod
                                                         .object({
@@ -7864,6 +8132,41 @@ export const applyCrmPipelineOpsResponse = zod
                                   .describe(
                                     'Cards in lanes: one lane per option of a single-select column, or\none per person a single-person column names, plus one for cards\nwith an empty cell. A multi-valued column cannot group a board: a\ncard is in exactly one lane, so a card in several would need a place\nin each.'
                                   ),
+                                zod
+                                  .object({
+                                    barFields: zod
+                                      .array(zod.uuid())
+                                      .optional()
+                                      .describe(
+                                        'The columns a bar shows after its title, in order.'
+                                      ),
+                                    colorBy: zod
+                                      .uuid()
+                                      .nullable()
+                                      .describe(
+                                        'The select or tag column whose options color the bars, if any.'
+                                      ),
+                                    groupBy: zod
+                                      .uuid()
+                                      .nullable()
+                                      .describe(
+                                        'The single-select or single-person column whose values group the\nbars, if any; moving a bar to another group sets this column.'
+                                      ),
+                                    kind: zod.enum(['timeline']),
+                                    range: zod
+                                      .uuid()
+                                      .describe(
+                                        'The date-range column whose cells are the bars.'
+                                      ),
+                                    title: zod
+                                      .uuid()
+                                      .describe(
+                                        "The column a bar is labelled by, of any type. Removing it labels\nthe bars by the table's first remaining column."
+                                      ),
+                                  })
+                                  .describe(
+                                    'Bars on a calendar, one per row, spanning its date-range cell. Rows\nwith an empty range are listed apart as undated.'
+                                  ),
                               ])
                               .describe('How a view draws its rows.'),
                             name: zod
@@ -7987,6 +8290,32 @@ export const applyCrmPipelineOpsResponse = zod
                                                         })
                                                         .describe(
                                                           'A date column.'
+                                                        ),
+                                                      zod
+                                                        .object({
+                                                          kind: zod.enum([
+                                                            'dateRange',
+                                                          ]),
+                                                          operator: zod
+                                                            .enum([
+                                                              'contains',
+                                                              'doesNotContain',
+                                                              'endsBefore',
+                                                              'endsOnOrAfter',
+                                                              'startsAfter',
+                                                              'startsOnOrBefore',
+                                                            ])
+                                                            .describe(
+                                                              'How a date-range cell stands to a date-time.'
+                                                            ),
+                                                          value: zod.iso
+                                                            .datetime({})
+                                                            .describe(
+                                                              'The date-time compared against.'
+                                                            ),
+                                                        })
+                                                        .describe(
+                                                          'A date-range column.'
                                                         ),
                                                       zod
                                                         .object({
@@ -8452,6 +8781,27 @@ export const getCrmPipelineRowsResponse = zod
                       ),
                     zod
                       .object({
+                        type: zod.enum(['DateRange']),
+                        value: zod
+                          .object({
+                            end: zod.iso
+                              .datetime({})
+                              .describe(
+                                'Where it ends; never before the start.'
+                              ),
+                            start: zod.iso
+                              .datetime({})
+                              .describe('Where it starts.'),
+                          })
+                          .describe(
+                            'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                          ),
+                      })
+                      .describe(
+                        'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
+                      ),
+                    zod
+                      .object({
                         type: zod.enum(['SelectOption']),
                         value: zod
                           .array(zod.uuid())
@@ -8641,6 +8991,28 @@ export const queryCrmPipelineRowsBody = zod
                                 .describe('A date column.'),
                               zod
                                 .object({
+                                  kind: zod.enum(['dateRange']),
+                                  operator: zod
+                                    .enum([
+                                      'contains',
+                                      'doesNotContain',
+                                      'endsBefore',
+                                      'endsOnOrAfter',
+                                      'startsAfter',
+                                      'startsOnOrBefore',
+                                    ])
+                                    .describe(
+                                      'How a date-range cell stands to a date-time.'
+                                    ),
+                                  value: zod.iso
+                                    .datetime({})
+                                    .describe(
+                                      'The date-time compared against.'
+                                    ),
+                                })
+                                .describe('A date-range column.'),
+                              zod
+                                .object({
                                   checked: zod
                                     .boolean()
                                     .describe('Whether the box is checked.'),
@@ -8815,6 +9187,27 @@ export const queryCrmPipelineRowsResponse = zod
                       })
                       .describe(
                         'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                      ),
+                    zod
+                      .object({
+                        type: zod.enum(['DateRange']),
+                        value: zod
+                          .object({
+                            end: zod.iso
+                              .datetime({})
+                              .describe(
+                                'Where it ends; never before the start.'
+                              ),
+                            start: zod.iso
+                              .datetime({})
+                              .describe('Where it starts.'),
+                          })
+                          .describe(
+                            'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                          ),
+                      })
+                      .describe(
+                        'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                       ),
                     zod
                       .object({
@@ -9058,6 +9451,7 @@ export const getCrmPipelineTableResponse = zod
                       .enum([
                         'BOOLEAN',
                         'DATE',
+                        'DATE_RANGE',
                         'NUMBER',
                         'STRING',
                         'SELECT_NUMBER',
@@ -9339,6 +9733,41 @@ export const getCrmPipelineTableResponse = zod
                   .describe(
                     'Cards in lanes: one lane per option of a single-select column, or\none per person a single-person column names, plus one for cards\nwith an empty cell. A multi-valued column cannot group a board: a\ncard is in exactly one lane, so a card in several would need a place\nin each.'
                   ),
+                zod
+                  .object({
+                    barFields: zod
+                      .array(zod.uuid())
+                      .optional()
+                      .describe(
+                        'The columns a bar shows after its title, in order.'
+                      ),
+                    colorBy: zod
+                      .uuid()
+                      .nullable()
+                      .describe(
+                        'The select or tag column whose options color the bars, if any.'
+                      ),
+                    groupBy: zod
+                      .uuid()
+                      .nullable()
+                      .describe(
+                        'The single-select or single-person column whose values group the\nbars, if any; moving a bar to another group sets this column.'
+                      ),
+                    kind: zod.enum(['timeline']),
+                    range: zod
+                      .uuid()
+                      .describe(
+                        'The date-range column whose cells are the bars.'
+                      ),
+                    title: zod
+                      .uuid()
+                      .describe(
+                        "The column a bar is labelled by, of any type. Removing it labels\nthe bars by the table's first remaining column."
+                      ),
+                  })
+                  .describe(
+                    'Bars on a calendar, one per row, spanning its date-range cell. Rows\nwith an empty range are listed apart as undated.'
+                  ),
               ])
               .describe('How a view draws its rows.'),
             name: zod
@@ -9444,6 +9873,28 @@ export const getCrmPipelineTableResponse = zod
                                             ),
                                         })
                                         .describe('A date column.'),
+                                      zod
+                                        .object({
+                                          kind: zod.enum(['dateRange']),
+                                          operator: zod
+                                            .enum([
+                                              'contains',
+                                              'doesNotContain',
+                                              'endsBefore',
+                                              'endsOnOrAfter',
+                                              'startsAfter',
+                                              'startsOnOrBefore',
+                                            ])
+                                            .describe(
+                                              'How a date-range cell stands to a date-time.'
+                                            ),
+                                          value: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'The date-time compared against.'
+                                            ),
+                                        })
+                                        .describe('A date-range column.'),
                                       zod
                                         .object({
                                           checked: zod
@@ -10439,6 +10890,7 @@ export const getDatabaseResponse = zod
                               .enum([
                                 'BOOLEAN',
                                 'DATE',
+                                'DATE_RANGE',
                                 'NUMBER',
                                 'STRING',
                                 'SELECT_NUMBER',
@@ -10734,6 +11186,41 @@ export const getDatabaseResponse = zod
                           .describe(
                             'Cards in lanes: one lane per option of a single-select column, or\none per person a single-person column names, plus one for cards\nwith an empty cell. A multi-valued column cannot group a board: a\ncard is in exactly one lane, so a card in several would need a place\nin each.'
                           ),
+                        zod
+                          .object({
+                            barFields: zod
+                              .array(zod.uuid())
+                              .optional()
+                              .describe(
+                                'The columns a bar shows after its title, in order.'
+                              ),
+                            colorBy: zod
+                              .uuid()
+                              .nullable()
+                              .describe(
+                                'The select or tag column whose options color the bars, if any.'
+                              ),
+                            groupBy: zod
+                              .uuid()
+                              .nullable()
+                              .describe(
+                                'The single-select or single-person column whose values group the\nbars, if any; moving a bar to another group sets this column.'
+                              ),
+                            kind: zod.enum(['timeline']),
+                            range: zod
+                              .uuid()
+                              .describe(
+                                'The date-range column whose cells are the bars.'
+                              ),
+                            title: zod
+                              .uuid()
+                              .describe(
+                                "The column a bar is labelled by, of any type. Removing it labels\nthe bars by the table's first remaining column."
+                              ),
+                          })
+                          .describe(
+                            'Bars on a calendar, one per row, spanning its date-range cell. Rows\nwith an empty range are listed apart as undated.'
+                          ),
                       ])
                       .describe('How a view draws its rows.'),
                     name: zod
@@ -10844,6 +11331,30 @@ export const getDatabaseResponse = zod
                                                     ),
                                                 })
                                                 .describe('A date column.'),
+                                              zod
+                                                .object({
+                                                  kind: zod.enum(['dateRange']),
+                                                  operator: zod
+                                                    .enum([
+                                                      'contains',
+                                                      'doesNotContain',
+                                                      'endsBefore',
+                                                      'endsOnOrAfter',
+                                                      'startsAfter',
+                                                      'startsOnOrBefore',
+                                                    ])
+                                                    .describe(
+                                                      'How a date-range cell stands to a date-time.'
+                                                    ),
+                                                  value: zod.iso
+                                                    .datetime({})
+                                                    .describe(
+                                                      'The date-time compared against.'
+                                                    ),
+                                                })
+                                                .describe(
+                                                  'A date-range column.'
+                                                ),
                                               zod
                                                 .object({
                                                   checked: zod
@@ -11363,6 +11874,13 @@ export const applyDatabaseOpsBody = zod
                                       .describe('A date-time.'),
                                     zod
                                       .object({
+                                        type: zod.enum(['date_range']),
+                                      })
+                                      .describe(
+                                        'A span from one date-time to another.'
+                                      ),
+                                    zod
+                                      .object({
                                         type: zod.enum(['link']),
                                       })
                                       .describe('A URL.'),
@@ -11559,6 +12077,13 @@ export const applyDatabaseOpsBody = zod
                                 type: zod.enum(['date']),
                               })
                               .describe('A date-time.'),
+                            zod
+                              .object({
+                                type: zod.enum(['date_range']),
+                              })
+                              .describe(
+                                'A span from one date-time to another.'
+                              ),
                             zod
                               .object({
                                 type: zod.enum(['link']),
@@ -11816,6 +12341,27 @@ export const applyDatabaseOpsBody = zod
                                         .describe('A date-time.'),
                                       zod
                                         .object({
+                                          type: zod.enum(['date_range']),
+                                          value: zod
+                                            .object({
+                                              end: zod.iso
+                                                .datetime({})
+                                                .describe(
+                                                  'Where it ends; never before the start.'
+                                                ),
+                                              start: zod.iso
+                                                .datetime({})
+                                                .describe('Where it starts.'),
+                                            })
+                                            .describe(
+                                              'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                            ),
+                                        })
+                                        .describe(
+                                          'A span of time; its end may not come before its start.'
+                                        ),
+                                      zod
+                                        .object({
                                           type: zod.enum(['link']),
                                           value: zod
                                             .array(zod.string())
@@ -11992,6 +12538,29 @@ export const applyDatabaseOpsBody = zod
                                                   .describe('A date-time.'),
                                               })
                                               .describe('A date-time.'),
+                                            zod
+                                              .object({
+                                                type: zod.enum(['date_range']),
+                                                value: zod
+                                                  .object({
+                                                    end: zod.iso
+                                                      .datetime({})
+                                                      .describe(
+                                                        'Where it ends; never before the start.'
+                                                      ),
+                                                    start: zod.iso
+                                                      .datetime({})
+                                                      .describe(
+                                                        'Where it starts.'
+                                                      ),
+                                                  })
+                                                  .describe(
+                                                    'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                                  ),
+                                              })
+                                              .describe(
+                                                'A span of time; its end may not come before its start.'
+                                              ),
                                             zod
                                               .object({
                                                 type: zod.enum(['link']),
@@ -12190,6 +12759,31 @@ export const applyDatabaseOpsBody = zod
                                                           ),
                                                       })
                                                       .describe('A date-time.'),
+                                                    zod
+                                                      .object({
+                                                        type: zod.enum([
+                                                          'date_range',
+                                                        ]),
+                                                        value: zod
+                                                          .object({
+                                                            end: zod.iso
+                                                              .datetime({})
+                                                              .describe(
+                                                                'Where it ends; never before the start.'
+                                                              ),
+                                                            start: zod.iso
+                                                              .datetime({})
+                                                              .describe(
+                                                                'Where it starts.'
+                                                              ),
+                                                          })
+                                                          .describe(
+                                                            'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                                          ),
+                                                      })
+                                                      .describe(
+                                                        'A span of time; its end may not come before its start.'
+                                                      ),
                                                     zod
                                                       .object({
                                                         type: zod.enum([
@@ -12481,9 +13075,45 @@ export const applyDatabaseOpsBody = zod
                                   .describe(
                                     'Cards in lanes, one per option of a single-select column or per\nperson of a single-person column, plus one for empty cells.'
                                   ),
+                                zod
+                                  .object({
+                                    barFields: zod
+                                      .array(zod.uuid())
+                                      .optional()
+                                      .describe(
+                                        'The columns a bar shows after its title, in order.'
+                                      ),
+                                    colorBy: zod
+                                      .uuid()
+                                      .nullable()
+                                      .describe(
+                                        'The select or tag column whose options color the bars, if any.'
+                                      ),
+                                    groupBy: zod
+                                      .uuid()
+                                      .nullable()
+                                      .describe(
+                                        'The single-select or single-person column grouping the bars, if\nany.'
+                                      ),
+                                    kind: zod.enum(['timeline']),
+                                    range: zod
+                                      .uuid()
+                                      .describe(
+                                        'The date-range column whose cells are the bars.'
+                                      ),
+                                    title: zod
+                                      .uuid()
+                                      .optional()
+                                      .describe(
+                                        "The column a bar is labelled by. Left out, a timeline keeps the\ntitle it has, and a new timeline takes the table's first column."
+                                      ),
+                                  })
+                                  .describe(
+                                    'Bars on a calendar, one per row, spanning its date-range cell.'
+                                  ),
                               ])
                               .describe(
-                                'A layout as an op asks for it: a board may leave its card title out.'
+                                'A layout as an op asks for it: a board or timeline may leave its title\nout.'
                               ),
                             name: zod.string().describe('Its name.'),
                             query: zod
@@ -12597,6 +13227,32 @@ export const applyDatabaseOpsBody = zod
                                                         })
                                                         .describe(
                                                           'A date column.'
+                                                        ),
+                                                      zod
+                                                        .object({
+                                                          kind: zod.enum([
+                                                            'dateRange',
+                                                          ]),
+                                                          operator: zod
+                                                            .enum([
+                                                              'contains',
+                                                              'doesNotContain',
+                                                              'endsBefore',
+                                                              'endsOnOrAfter',
+                                                              'startsAfter',
+                                                              'startsOnOrBefore',
+                                                            ])
+                                                            .describe(
+                                                              'How a date-range cell stands to a date-time.'
+                                                            ),
+                                                          value: zod.iso
+                                                            .datetime({})
+                                                            .describe(
+                                                              'The date-time compared against.'
+                                                            ),
+                                                        })
+                                                        .describe(
+                                                          'A date-range column.'
                                                         ),
                                                       zod
                                                         .object({
@@ -12853,10 +13509,46 @@ export const applyDatabaseOpsBody = zod
                               .describe(
                                 'Cards in lanes, one per option of a single-select column or per\nperson of a single-person column, plus one for empty cells.'
                               ),
+                            zod
+                              .object({
+                                barFields: zod
+                                  .array(zod.uuid())
+                                  .optional()
+                                  .describe(
+                                    'The columns a bar shows after its title, in order.'
+                                  ),
+                                colorBy: zod
+                                  .uuid()
+                                  .nullable()
+                                  .describe(
+                                    'The select or tag column whose options color the bars, if any.'
+                                  ),
+                                groupBy: zod
+                                  .uuid()
+                                  .nullable()
+                                  .describe(
+                                    'The single-select or single-person column grouping the bars, if\nany.'
+                                  ),
+                                kind: zod.enum(['timeline']),
+                                range: zod
+                                  .uuid()
+                                  .describe(
+                                    'The date-range column whose cells are the bars.'
+                                  ),
+                                title: zod
+                                  .uuid()
+                                  .optional()
+                                  .describe(
+                                    "The column a bar is labelled by. Left out, a timeline keeps the\ntitle it has, and a new timeline takes the table's first column."
+                                  ),
+                              })
+                              .describe(
+                                'Bars on a calendar, one per row, spanning its date-range cell.'
+                              ),
                           ])
                           .optional()
                           .describe(
-                            'A layout as an op asks for it: a board may leave its card title out.'
+                            'A layout as an op asks for it: a board or timeline may leave its title\nout.'
                           ),
                         name: zod.string().optional().describe('Its new name.'),
                         query: zod
@@ -12963,6 +13655,32 @@ export const applyDatabaseOpsBody = zod
                                                         ),
                                                     })
                                                     .describe('A date column.'),
+                                                  zod
+                                                    .object({
+                                                      kind: zod.enum([
+                                                        'dateRange',
+                                                      ]),
+                                                      operator: zod
+                                                        .enum([
+                                                          'contains',
+                                                          'doesNotContain',
+                                                          'endsBefore',
+                                                          'endsOnOrAfter',
+                                                          'startsAfter',
+                                                          'startsOnOrBefore',
+                                                        ])
+                                                        .describe(
+                                                          'How a date-range cell stands to a date-time.'
+                                                        ),
+                                                      value: zod.iso
+                                                        .datetime({})
+                                                        .describe(
+                                                          'The date-time compared against.'
+                                                        ),
+                                                    })
+                                                    .describe(
+                                                      'A date-range column.'
+                                                    ),
                                                   zod
                                                     .object({
                                                       checked: zod
@@ -13516,6 +14234,41 @@ export const applyDatabaseOpsResponse = zod
                                   .describe(
                                     'Cards in lanes: one lane per option of a single-select column, or\none per person a single-person column names, plus one for cards\nwith an empty cell. A multi-valued column cannot group a board: a\ncard is in exactly one lane, so a card in several would need a place\nin each.'
                                   ),
+                                zod
+                                  .object({
+                                    barFields: zod
+                                      .array(zod.uuid())
+                                      .optional()
+                                      .describe(
+                                        'The columns a bar shows after its title, in order.'
+                                      ),
+                                    colorBy: zod
+                                      .uuid()
+                                      .nullable()
+                                      .describe(
+                                        'The select or tag column whose options color the bars, if any.'
+                                      ),
+                                    groupBy: zod
+                                      .uuid()
+                                      .nullable()
+                                      .describe(
+                                        'The single-select or single-person column whose values group the\nbars, if any; moving a bar to another group sets this column.'
+                                      ),
+                                    kind: zod.enum(['timeline']),
+                                    range: zod
+                                      .uuid()
+                                      .describe(
+                                        'The date-range column whose cells are the bars.'
+                                      ),
+                                    title: zod
+                                      .uuid()
+                                      .describe(
+                                        "The column a bar is labelled by, of any type. Removing it labels\nthe bars by the table's first remaining column."
+                                      ),
+                                  })
+                                  .describe(
+                                    'Bars on a calendar, one per row, spanning its date-range cell. Rows\nwith an empty range are listed apart as undated.'
+                                  ),
                               ])
                               .describe('How a view draws its rows.'),
                             name: zod
@@ -13639,6 +14392,32 @@ export const applyDatabaseOpsResponse = zod
                                                         })
                                                         .describe(
                                                           'A date column.'
+                                                        ),
+                                                      zod
+                                                        .object({
+                                                          kind: zod.enum([
+                                                            'dateRange',
+                                                          ]),
+                                                          operator: zod
+                                                            .enum([
+                                                              'contains',
+                                                              'doesNotContain',
+                                                              'endsBefore',
+                                                              'endsOnOrAfter',
+                                                              'startsAfter',
+                                                              'startsOnOrBefore',
+                                                            ])
+                                                            .describe(
+                                                              'How a date-range cell stands to a date-time.'
+                                                            ),
+                                                          value: zod.iso
+                                                            .datetime({})
+                                                            .describe(
+                                                              'The date-time compared against.'
+                                                            ),
+                                                        })
+                                                        .describe(
+                                                          'A date-range column.'
                                                         ),
                                                       zod
                                                         .object({
@@ -13904,6 +14683,41 @@ export const applyDatabaseOpsResponse = zod
                                   .describe(
                                     'Cards in lanes: one lane per option of a single-select column, or\none per person a single-person column names, plus one for cards\nwith an empty cell. A multi-valued column cannot group a board: a\ncard is in exactly one lane, so a card in several would need a place\nin each.'
                                   ),
+                                zod
+                                  .object({
+                                    barFields: zod
+                                      .array(zod.uuid())
+                                      .optional()
+                                      .describe(
+                                        'The columns a bar shows after its title, in order.'
+                                      ),
+                                    colorBy: zod
+                                      .uuid()
+                                      .nullable()
+                                      .describe(
+                                        'The select or tag column whose options color the bars, if any.'
+                                      ),
+                                    groupBy: zod
+                                      .uuid()
+                                      .nullable()
+                                      .describe(
+                                        'The single-select or single-person column whose values group the\nbars, if any; moving a bar to another group sets this column.'
+                                      ),
+                                    kind: zod.enum(['timeline']),
+                                    range: zod
+                                      .uuid()
+                                      .describe(
+                                        'The date-range column whose cells are the bars.'
+                                      ),
+                                    title: zod
+                                      .uuid()
+                                      .describe(
+                                        "The column a bar is labelled by, of any type. Removing it labels\nthe bars by the table's first remaining column."
+                                      ),
+                                  })
+                                  .describe(
+                                    'Bars on a calendar, one per row, spanning its date-range cell. Rows\nwith an empty range are listed apart as undated.'
+                                  ),
                               ])
                               .describe('How a view draws its rows.'),
                             name: zod
@@ -14027,6 +14841,32 @@ export const applyDatabaseOpsResponse = zod
                                                         })
                                                         .describe(
                                                           'A date column.'
+                                                        ),
+                                                      zod
+                                                        .object({
+                                                          kind: zod.enum([
+                                                            'dateRange',
+                                                          ]),
+                                                          operator: zod
+                                                            .enum([
+                                                              'contains',
+                                                              'doesNotContain',
+                                                              'endsBefore',
+                                                              'endsOnOrAfter',
+                                                              'startsAfter',
+                                                              'startsOnOrBefore',
+                                                            ])
+                                                            .describe(
+                                                              'How a date-range cell stands to a date-time.'
+                                                            ),
+                                                          value: zod.iso
+                                                            .datetime({})
+                                                            .describe(
+                                                              'The date-time compared against.'
+                                                            ),
+                                                        })
+                                                        .describe(
+                                                          'A date-range column.'
                                                         ),
                                                       zod
                                                         .object({
@@ -14518,6 +15358,7 @@ export const listDatabaseColumnCastsResponseItem = zod
       .enum([
         'BOOLEAN',
         'DATE',
+        'DATE_RANGE',
         'NUMBER',
         'STRING',
         'SELECT_NUMBER',
@@ -14621,6 +15462,11 @@ export const convertDatabaseColumnBody = zod
           .describe('A date-time.'),
         zod
           .object({
+            type: zod.enum(['date_range']),
+          })
+          .describe('A span from one date-time to another.'),
+        zod
+          .object({
             type: zod.enum(['link']),
           })
           .describe('A URL.'),
@@ -14718,6 +15564,25 @@ export const convertDatabaseColumnResponse = zod
                     value: zod.iso.datetime({}).describe('A date-time.'),
                   })
                   .describe('A date-time.'),
+                zod
+                  .object({
+                    type: zod.enum(['date_range']),
+                    value: zod
+                      .object({
+                        end: zod.iso
+                          .datetime({})
+                          .describe('Where it ends; never before the start.'),
+                        start: zod.iso
+                          .datetime({})
+                          .describe('Where it starts.'),
+                      })
+                      .describe(
+                        'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                      ),
+                  })
+                  .describe(
+                    'A span of time; its end may not come before its start.'
+                  ),
                 zod
                   .object({
                     type: zod.enum(['link']),
@@ -14867,6 +15732,7 @@ export const inferDatabaseColumnTypeBody = zod
       .enum([
         'BOOLEAN',
         'DATE',
+        'DATE_RANGE',
         'NUMBER',
         'STRING',
         'SELECT_NUMBER',
@@ -15026,6 +15892,7 @@ export const inferDatabaseColumnTypeResponse = zod
                   .enum([
                     'BOOLEAN',
                     'DATE',
+                    'DATE_RANGE',
                     'NUMBER',
                     'STRING',
                     'SELECT_NUMBER',
@@ -15234,6 +16101,27 @@ export const getDatabaseRowHistoryResponse = zod
                       .describe('A date-time.'),
                     zod
                       .object({
+                        type: zod.enum(['date_range']),
+                        value: zod
+                          .object({
+                            end: zod.iso
+                              .datetime({})
+                              .describe(
+                                'Where it ends; never before the start.'
+                              ),
+                            start: zod.iso
+                              .datetime({})
+                              .describe('Where it starts.'),
+                          })
+                          .describe(
+                            'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                          ),
+                      })
+                      .describe(
+                        'A span of time; its end may not come before its start.'
+                      ),
+                    zod
+                      .object({
                         type: zod.enum(['link']),
                         value: zod
                           .array(zod.string())
@@ -15374,6 +16262,27 @@ export const getDatabaseRowHistoryResponse = zod
                         value: zod.iso.datetime({}).describe('A date-time.'),
                       })
                       .describe('A date-time.'),
+                    zod
+                      .object({
+                        type: zod.enum(['date_range']),
+                        value: zod
+                          .object({
+                            end: zod.iso
+                              .datetime({})
+                              .describe(
+                                'Where it ends; never before the start.'
+                              ),
+                            start: zod.iso
+                              .datetime({})
+                              .describe('Where it starts.'),
+                          })
+                          .describe(
+                            'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                          ),
+                      })
+                      .describe(
+                        'A span of time; its end may not come before its start.'
+                      ),
                     zod
                       .object({
                         type: zod.enum(['link']),
@@ -16290,6 +17199,23 @@ export const createTaskHandlerBody = zod
                     value: zod.iso.datetime({}),
                   })
                   .describe('Date and time value'),
+                zod
+                  .object({
+                    type: zod.enum(['date_range']),
+                    value: zod
+                      .object({
+                        end: zod.iso
+                          .datetime({})
+                          .describe('Where it ends; never before the start.'),
+                        start: zod.iso
+                          .datetime({})
+                          .describe('Where it starts.'),
+                      })
+                      .describe(
+                        'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                      ),
+                  })
+                  .describe('Date range value'),
                 zod
                   .object({
                     type: zod.enum(['number']),
@@ -20080,6 +21006,13 @@ export const getFormResponse = zod
                               .describe('A date-time.'),
                             zod
                               .object({
+                                type: zod.enum(['date_range']),
+                              })
+                              .describe(
+                                'A span from one date-time to another.'
+                              ),
+                            zod
+                              .object({
                                 type: zod.enum(['link']),
                               })
                               .describe('A URL.'),
@@ -20190,7 +21123,7 @@ export const getFormResponse = zod
                               'checkboxes',
                             ])
                             .describe(
-                              'How a question is asked. Each column kind takes a few, the first its\ndefault; kinds asked one way only (numbers, checkboxes, entity and row\npickers) take none.'
+                              'How a question is asked. Each column kind takes a few, the first its\ndefault; kinds asked one way only (numbers, checkboxes, date ranges,\nentity and row pickers) take none.'
                             ),
                         ]),
                       })
@@ -20295,6 +21228,28 @@ export const getFormResponse = zod
                                           ),
                                       })
                                       .describe('A date column.'),
+                                    zod
+                                      .object({
+                                        kind: zod.enum(['dateRange']),
+                                        operator: zod
+                                          .enum([
+                                            'contains',
+                                            'doesNotContain',
+                                            'endsBefore',
+                                            'endsOnOrAfter',
+                                            'startsAfter',
+                                            'startsOnOrBefore',
+                                          ])
+                                          .describe(
+                                            'How a date-range cell stands to a date-time.'
+                                          ),
+                                        value: zod.iso
+                                          .datetime({})
+                                          .describe(
+                                            'The date-time compared against.'
+                                          ),
+                                      })
+                                      .describe('A date-range column.'),
                                     zod
                                       .object({
                                         checked: zod
@@ -20645,6 +21600,13 @@ export const collaborateFormResponse = zod
                                   .describe('A date-time.'),
                                 zod
                                   .object({
+                                    type: zod.enum(['date_range']),
+                                  })
+                                  .describe(
+                                    'A span from one date-time to another.'
+                                  ),
+                                zod
+                                  .object({
                                     type: zod.enum(['link']),
                                   })
                                   .describe('A URL.'),
@@ -20757,7 +21719,7 @@ export const collaborateFormResponse = zod
                                   'checkboxes',
                                 ])
                                 .describe(
-                                  'How a question is asked. Each column kind takes a few, the first its\ndefault; kinds asked one way only (numbers, checkboxes, entity and row\npickers) take none.'
+                                  'How a question is asked. Each column kind takes a few, the first its\ndefault; kinds asked one way only (numbers, checkboxes, date ranges,\nentity and row pickers) take none.'
                                 ),
                             ]),
                           })
@@ -20864,6 +21826,28 @@ export const collaborateFormResponse = zod
                                               ),
                                           })
                                           .describe('A date column.'),
+                                        zod
+                                          .object({
+                                            kind: zod.enum(['dateRange']),
+                                            operator: zod
+                                              .enum([
+                                                'contains',
+                                                'doesNotContain',
+                                                'endsBefore',
+                                                'endsOnOrAfter',
+                                                'startsAfter',
+                                                'startsOnOrBefore',
+                                              ])
+                                              .describe(
+                                                'How a date-range cell stands to a date-time.'
+                                              ),
+                                            value: zod.iso
+                                              .datetime({})
+                                              .describe(
+                                                'The date-time compared against.'
+                                              ),
+                                          })
+                                          .describe('A date-range column.'),
                                         zod
                                           .object({
                                             checked: zod
@@ -21155,7 +22139,7 @@ export const putFormLayoutBody = zod
                               'checkboxes',
                             ])
                             .describe(
-                              'How a question is asked. Each column kind takes a few, the first its\ndefault; kinds asked one way only (numbers, checkboxes, entity and row\npickers) take none.'
+                              'How a question is asked. Each column kind takes a few, the first its\ndefault; kinds asked one way only (numbers, checkboxes, date ranges,\nentity and row pickers) take none.'
                             ),
                         ]),
                       })
@@ -21264,6 +22248,28 @@ export const putFormLayoutBody = zod
                                           ),
                                       })
                                       .describe('A date column.'),
+                                    zod
+                                      .object({
+                                        kind: zod.enum(['dateRange']),
+                                        operator: zod
+                                          .enum([
+                                            'contains',
+                                            'doesNotContain',
+                                            'endsBefore',
+                                            'endsOnOrAfter',
+                                            'startsAfter',
+                                            'startsOnOrBefore',
+                                          ])
+                                          .describe(
+                                            'How a date-range cell stands to a date-time.'
+                                          ),
+                                        value: zod.iso
+                                          .datetime({})
+                                          .describe(
+                                            'The date-time compared against.'
+                                          ),
+                                      })
+                                      .describe('A date-range column.'),
                                     zod
                                       .object({
                                         checked: zod
@@ -21511,6 +22517,13 @@ export const putFormLayoutResponse = zod
                                   .describe('A date-time.'),
                                 zod
                                   .object({
+                                    type: zod.enum(['date_range']),
+                                  })
+                                  .describe(
+                                    'A span from one date-time to another.'
+                                  ),
+                                zod
+                                  .object({
                                     type: zod.enum(['link']),
                                   })
                                   .describe('A URL.'),
@@ -21623,7 +22636,7 @@ export const putFormLayoutResponse = zod
                                   'checkboxes',
                                 ])
                                 .describe(
-                                  'How a question is asked. Each column kind takes a few, the first its\ndefault; kinds asked one way only (numbers, checkboxes, entity and row\npickers) take none.'
+                                  'How a question is asked. Each column kind takes a few, the first its\ndefault; kinds asked one way only (numbers, checkboxes, date ranges,\nentity and row pickers) take none.'
                                 ),
                             ]),
                           })
@@ -21730,6 +22743,28 @@ export const putFormLayoutResponse = zod
                                               ),
                                           })
                                           .describe('A date column.'),
+                                        zod
+                                          .object({
+                                            kind: zod.enum(['dateRange']),
+                                            operator: zod
+                                              .enum([
+                                                'contains',
+                                                'doesNotContain',
+                                                'endsBefore',
+                                                'endsOnOrAfter',
+                                                'startsAfter',
+                                                'startsOnOrBefore',
+                                              ])
+                                              .describe(
+                                                'How a date-range cell stands to a date-time.'
+                                              ),
+                                            value: zod.iso
+                                              .datetime({})
+                                              .describe(
+                                                'The date-time compared against.'
+                                              ),
+                                          })
+                                          .describe('A date-range column.'),
                                         zod
                                           .object({
                                             checked: zod
@@ -22149,6 +23184,25 @@ export const submitFormResponseBody = zod
                   .describe('A date-time.'),
                 zod
                   .object({
+                    type: zod.enum(['date_range']),
+                    value: zod
+                      .object({
+                        end: zod.iso
+                          .datetime({})
+                          .describe('Where it ends; never before the start.'),
+                        start: zod.iso
+                          .datetime({})
+                          .describe('Where it starts.'),
+                      })
+                      .describe(
+                        'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                      ),
+                  })
+                  .describe(
+                    'A span of time; its end may not come before its start.'
+                  ),
+                zod
+                  .object({
                     type: zod.enum(['link']),
                     value: zod
                       .array(zod.string())
@@ -22345,6 +23399,25 @@ export const getMyFormResponseResponse = zod
                     value: zod.iso.datetime({}).describe('A date-time.'),
                   })
                   .describe('A date-time.'),
+                zod
+                  .object({
+                    type: zod.enum(['date_range']),
+                    value: zod
+                      .object({
+                        end: zod.iso
+                          .datetime({})
+                          .describe('Where it ends; never before the start.'),
+                        start: zod.iso
+                          .datetime({})
+                          .describe('Where it starts.'),
+                      })
+                      .describe(
+                        'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                      ),
+                  })
+                  .describe(
+                    'A span of time; its end may not come before its start.'
+                  ),
                 zod
                   .object({
                     type: zod.enum(['link']),
@@ -22552,6 +23625,25 @@ export const editMyFormResponseBody = zod
                     value: zod.iso.datetime({}).describe('A date-time.'),
                   })
                   .describe('A date-time.'),
+                zod
+                  .object({
+                    type: zod.enum(['date_range']),
+                    value: zod
+                      .object({
+                        end: zod.iso
+                          .datetime({})
+                          .describe('Where it ends; never before the start.'),
+                        start: zod.iso
+                          .datetime({})
+                          .describe('Where it starts.'),
+                      })
+                      .describe(
+                        'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                      ),
+                  })
+                  .describe(
+                    'A span of time; its end may not come before its start.'
+                  ),
                 zod
                   .object({
                     type: zod.enum(['link']),
@@ -24002,6 +25094,23 @@ export const createInitiativeBody = zod
                   .describe('Date and time value'),
                 zod
                   .object({
+                    type: zod.enum(['date_range']),
+                    value: zod
+                      .object({
+                        end: zod.iso
+                          .datetime({})
+                          .describe('Where it ends; never before the start.'),
+                        start: zod.iso
+                          .datetime({})
+                          .describe('Where it starts.'),
+                      })
+                      .describe(
+                        'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                      ),
+                  })
+                  .describe('Date range value'),
+                zod
+                  .object({
                     type: zod.enum(['number']),
                     value: zod.number(),
                   })
@@ -24517,6 +25626,7 @@ export const getItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -24658,6 +25768,27 @@ export const getItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -24871,6 +26002,7 @@ export const getItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -25012,6 +26144,27 @@ export const getItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -25151,6 +26304,7 @@ export const getItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -25292,6 +26446,27 @@ export const getItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -25422,6 +26597,7 @@ export const getItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -25563,6 +26739,27 @@ export const getItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -25753,6 +26950,7 @@ export const getItemsSoupResponse = zod
                                     .enum([
                                       'BOOLEAN',
                                       'DATE',
+                                      'DATE_RANGE',
                                       'NUMBER',
                                       'STRING',
                                       'SELECT_NUMBER',
@@ -25894,6 +27092,27 @@ export const getItemsSoupResponse = zod
                                         })
                                         .describe(
                                           'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                        ),
+                                      zod
+                                        .object({
+                                          type: zod.enum(['DateRange']),
+                                          value: zod
+                                            .object({
+                                              end: zod.iso
+                                                .datetime({})
+                                                .describe(
+                                                  'Where it ends; never before the start.'
+                                                ),
+                                              start: zod.iso
+                                                .datetime({})
+                                                .describe('Where it starts.'),
+                                            })
+                                            .describe(
+                                              'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                            ),
+                                        })
+                                        .describe(
+                                          'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                         ),
                                       zod
                                         .object({
@@ -26465,6 +27684,7 @@ export const getItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -26606,6 +27826,27 @@ export const getItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -26833,6 +28074,7 @@ export const getItemsSoupResponse = zod
                                     .enum([
                                       'BOOLEAN',
                                       'DATE',
+                                      'DATE_RANGE',
                                       'NUMBER',
                                       'STRING',
                                       'SELECT_NUMBER',
@@ -26974,6 +28216,27 @@ export const getItemsSoupResponse = zod
                                         })
                                         .describe(
                                           'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                        ),
+                                      zod
+                                        .object({
+                                          type: zod.enum(['DateRange']),
+                                          value: zod
+                                            .object({
+                                              end: zod.iso
+                                                .datetime({})
+                                                .describe(
+                                                  'Where it ends; never before the start.'
+                                                ),
+                                              start: zod.iso
+                                                .datetime({})
+                                                .describe('Where it starts.'),
+                                            })
+                                            .describe(
+                                              'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                            ),
+                                        })
+                                        .describe(
+                                          'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                         ),
                                       zod
                                         .object({
@@ -27149,6 +28412,7 @@ export const getItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -27290,6 +28554,27 @@ export const getItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -27469,6 +28754,7 @@ export const getItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -27610,6 +28896,27 @@ export const getItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -27794,6 +29101,7 @@ export const getItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -27935,6 +29243,27 @@ export const getItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -28145,6 +29474,7 @@ export const getItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -28286,6 +29616,27 @@ export const getItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -29172,6 +30523,7 @@ export const postItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -29313,6 +30665,27 @@ export const postItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -29526,6 +30899,7 @@ export const postItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -29667,6 +31041,27 @@ export const postItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -29806,6 +31201,7 @@ export const postItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -29947,6 +31343,27 @@ export const postItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -30077,6 +31494,7 @@ export const postItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -30218,6 +31636,27 @@ export const postItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -30408,6 +31847,7 @@ export const postItemsSoupResponse = zod
                                     .enum([
                                       'BOOLEAN',
                                       'DATE',
+                                      'DATE_RANGE',
                                       'NUMBER',
                                       'STRING',
                                       'SELECT_NUMBER',
@@ -30549,6 +31989,27 @@ export const postItemsSoupResponse = zod
                                         })
                                         .describe(
                                           'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                        ),
+                                      zod
+                                        .object({
+                                          type: zod.enum(['DateRange']),
+                                          value: zod
+                                            .object({
+                                              end: zod.iso
+                                                .datetime({})
+                                                .describe(
+                                                  'Where it ends; never before the start.'
+                                                ),
+                                              start: zod.iso
+                                                .datetime({})
+                                                .describe('Where it starts.'),
+                                            })
+                                            .describe(
+                                              'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                            ),
+                                        })
+                                        .describe(
+                                          'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                         ),
                                       zod
                                         .object({
@@ -31120,6 +32581,7 @@ export const postItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -31261,6 +32723,27 @@ export const postItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -31488,6 +32971,7 @@ export const postItemsSoupResponse = zod
                                     .enum([
                                       'BOOLEAN',
                                       'DATE',
+                                      'DATE_RANGE',
                                       'NUMBER',
                                       'STRING',
                                       'SELECT_NUMBER',
@@ -31629,6 +33113,27 @@ export const postItemsSoupResponse = zod
                                         })
                                         .describe(
                                           'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                        ),
+                                      zod
+                                        .object({
+                                          type: zod.enum(['DateRange']),
+                                          value: zod
+                                            .object({
+                                              end: zod.iso
+                                                .datetime({})
+                                                .describe(
+                                                  'Where it ends; never before the start.'
+                                                ),
+                                              start: zod.iso
+                                                .datetime({})
+                                                .describe('Where it starts.'),
+                                            })
+                                            .describe(
+                                              'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                            ),
+                                        })
+                                        .describe(
+                                          'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                         ),
                                       zod
                                         .object({
@@ -31804,6 +33309,7 @@ export const postItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -31945,6 +33451,27 @@ export const postItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -32124,6 +33651,7 @@ export const postItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -32265,6 +33793,27 @@ export const postItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -32449,6 +33998,7 @@ export const postItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -32590,6 +34140,27 @@ export const postItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -32800,6 +34371,7 @@ export const postItemsSoupResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -32941,6 +34513,27 @@ export const postItemsSoupResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -33306,6 +34899,7 @@ export const postItemsSoupAstResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -33447,6 +35041,27 @@ export const postItemsSoupAstResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -33660,6 +35275,7 @@ export const postItemsSoupAstResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -33801,6 +35417,27 @@ export const postItemsSoupAstResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -33940,6 +35577,7 @@ export const postItemsSoupAstResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -34081,6 +35719,27 @@ export const postItemsSoupAstResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -34211,6 +35870,7 @@ export const postItemsSoupAstResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -34352,6 +36012,27 @@ export const postItemsSoupAstResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -34542,6 +36223,7 @@ export const postItemsSoupAstResponse = zod
                                     .enum([
                                       'BOOLEAN',
                                       'DATE',
+                                      'DATE_RANGE',
                                       'NUMBER',
                                       'STRING',
                                       'SELECT_NUMBER',
@@ -34683,6 +36365,27 @@ export const postItemsSoupAstResponse = zod
                                         })
                                         .describe(
                                           'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                        ),
+                                      zod
+                                        .object({
+                                          type: zod.enum(['DateRange']),
+                                          value: zod
+                                            .object({
+                                              end: zod.iso
+                                                .datetime({})
+                                                .describe(
+                                                  'Where it ends; never before the start.'
+                                                ),
+                                              start: zod.iso
+                                                .datetime({})
+                                                .describe('Where it starts.'),
+                                            })
+                                            .describe(
+                                              'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                            ),
+                                        })
+                                        .describe(
+                                          'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                         ),
                                       zod
                                         .object({
@@ -35256,6 +36959,7 @@ export const postItemsSoupAstResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -35397,6 +37101,27 @@ export const postItemsSoupAstResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -35624,6 +37349,7 @@ export const postItemsSoupAstResponse = zod
                                     .enum([
                                       'BOOLEAN',
                                       'DATE',
+                                      'DATE_RANGE',
                                       'NUMBER',
                                       'STRING',
                                       'SELECT_NUMBER',
@@ -35765,6 +37491,27 @@ export const postItemsSoupAstResponse = zod
                                         })
                                         .describe(
                                           'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                        ),
+                                      zod
+                                        .object({
+                                          type: zod.enum(['DateRange']),
+                                          value: zod
+                                            .object({
+                                              end: zod.iso
+                                                .datetime({})
+                                                .describe(
+                                                  'Where it ends; never before the start.'
+                                                ),
+                                              start: zod.iso
+                                                .datetime({})
+                                                .describe('Where it starts.'),
+                                            })
+                                            .describe(
+                                              'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                            ),
+                                        })
+                                        .describe(
+                                          'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                         ),
                                       zod
                                         .object({
@@ -35940,6 +37687,7 @@ export const postItemsSoupAstResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -36081,6 +37829,27 @@ export const postItemsSoupAstResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -36260,6 +38029,7 @@ export const postItemsSoupAstResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -36401,6 +38171,27 @@ export const postItemsSoupAstResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -36585,6 +38376,7 @@ export const postItemsSoupAstResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -36726,6 +38518,27 @@ export const postItemsSoupAstResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -36936,6 +38749,7 @@ export const postItemsSoupAstResponse = zod
                                 .enum([
                                   'BOOLEAN',
                                   'DATE',
+                                  'DATE_RANGE',
                                   'NUMBER',
                                   'STRING',
                                   'SELECT_NUMBER',
@@ -37077,6 +38891,27 @@ export const postItemsSoupAstResponse = zod
                                     })
                                     .describe(
                                       'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                    ),
+                                  zod
+                                    .object({
+                                      type: zod.enum(['DateRange']),
+                                      value: zod
+                                        .object({
+                                          end: zod.iso
+                                            .datetime({})
+                                            .describe(
+                                              'Where it ends; never before the start.'
+                                            ),
+                                          start: zod.iso
+                                            .datetime({})
+                                            .describe('Where it starts.'),
+                                        })
+                                        .describe(
+                                          'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                        ),
+                                    })
+                                    .describe(
+                                      'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                     ),
                                   zod
                                     .object({
@@ -37742,6 +39577,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -37883,6 +39719,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -38102,6 +39959,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -38243,6 +40101,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -38384,6 +40263,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -38525,6 +40405,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -38659,6 +40560,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -38800,6 +40702,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -39001,6 +40924,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                           .enum([
                                             'BOOLEAN',
                                             'DATE',
+                                            'DATE_RANGE',
                                             'NUMBER',
                                             'STRING',
                                             'SELECT_NUMBER',
@@ -39146,6 +41070,29 @@ export const postItemsSoupAstGroupedResponse = zod
                                               })
                                               .describe(
                                                 'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                              ),
+                                            zod
+                                              .object({
+                                                type: zod.enum(['DateRange']),
+                                                value: zod
+                                                  .object({
+                                                    end: zod.iso
+                                                      .datetime({})
+                                                      .describe(
+                                                        'Where it ends; never before the start.'
+                                                      ),
+                                                    start: zod.iso
+                                                      .datetime({})
+                                                      .describe(
+                                                        'Where it starts.'
+                                                      ),
+                                                  })
+                                                  .describe(
+                                                    'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                                  ),
+                                              })
+                                              .describe(
+                                                'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                               ),
                                             zod
                                               .object({
@@ -39770,6 +41717,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -39911,6 +41859,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -40146,6 +42115,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                           .enum([
                                             'BOOLEAN',
                                             'DATE',
+                                            'DATE_RANGE',
                                             'NUMBER',
                                             'STRING',
                                             'SELECT_NUMBER',
@@ -40291,6 +42261,29 @@ export const postItemsSoupAstGroupedResponse = zod
                                               })
                                               .describe(
                                                 'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                              ),
+                                            zod
+                                              .object({
+                                                type: zod.enum(['DateRange']),
+                                                value: zod
+                                                  .object({
+                                                    end: zod.iso
+                                                      .datetime({})
+                                                      .describe(
+                                                        'Where it ends; never before the start.'
+                                                      ),
+                                                    start: zod.iso
+                                                      .datetime({})
+                                                      .describe(
+                                                        'Where it starts.'
+                                                      ),
+                                                  })
+                                                  .describe(
+                                                    'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                                  ),
+                                              })
+                                              .describe(
+                                                'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                               ),
                                             zod
                                               .object({
@@ -40476,6 +42469,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -40617,6 +42611,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -40798,6 +42813,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -40939,6 +42955,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -41141,6 +43178,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -41282,6 +43320,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -41494,6 +43553,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -41635,6 +43695,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -41852,6 +43933,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -41993,6 +44075,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -42212,6 +44315,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -42353,6 +44457,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -42494,6 +44619,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -42635,6 +44761,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -42769,6 +44916,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -42910,6 +45058,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -43111,6 +45280,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                           .enum([
                                             'BOOLEAN',
                                             'DATE',
+                                            'DATE_RANGE',
                                             'NUMBER',
                                             'STRING',
                                             'SELECT_NUMBER',
@@ -43256,6 +45426,29 @@ export const postItemsSoupAstGroupedResponse = zod
                                               })
                                               .describe(
                                                 'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                              ),
+                                            zod
+                                              .object({
+                                                type: zod.enum(['DateRange']),
+                                                value: zod
+                                                  .object({
+                                                    end: zod.iso
+                                                      .datetime({})
+                                                      .describe(
+                                                        'Where it ends; never before the start.'
+                                                      ),
+                                                    start: zod.iso
+                                                      .datetime({})
+                                                      .describe(
+                                                        'Where it starts.'
+                                                      ),
+                                                  })
+                                                  .describe(
+                                                    'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                                  ),
+                                              })
+                                              .describe(
+                                                'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                               ),
                                             zod
                                               .object({
@@ -43880,6 +46073,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -44021,6 +46215,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -44256,6 +46471,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                           .enum([
                                             'BOOLEAN',
                                             'DATE',
+                                            'DATE_RANGE',
                                             'NUMBER',
                                             'STRING',
                                             'SELECT_NUMBER',
@@ -44401,6 +46617,29 @@ export const postItemsSoupAstGroupedResponse = zod
                                               })
                                               .describe(
                                                 'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                              ),
+                                            zod
+                                              .object({
+                                                type: zod.enum(['DateRange']),
+                                                value: zod
+                                                  .object({
+                                                    end: zod.iso
+                                                      .datetime({})
+                                                      .describe(
+                                                        'Where it ends; never before the start.'
+                                                      ),
+                                                    start: zod.iso
+                                                      .datetime({})
+                                                      .describe(
+                                                        'Where it starts.'
+                                                      ),
+                                                  })
+                                                  .describe(
+                                                    'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                                  ),
+                                              })
+                                              .describe(
+                                                'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                               ),
                                             zod
                                               .object({
@@ -44586,6 +46825,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -44727,6 +46967,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -44908,6 +47169,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -45049,6 +47311,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -45251,6 +47534,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -45392,6 +47676,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({
@@ -45604,6 +47909,7 @@ export const postItemsSoupAstGroupedResponse = zod
                                       .enum([
                                         'BOOLEAN',
                                         'DATE',
+                                        'DATE_RANGE',
                                         'NUMBER',
                                         'STRING',
                                         'SELECT_NUMBER',
@@ -45745,6 +48051,27 @@ export const postItemsSoupAstGroupedResponse = zod
                                           })
                                           .describe(
                                             'Date\/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}'
+                                          ),
+                                        zod
+                                          .object({
+                                            type: zod.enum(['DateRange']),
+                                            value: zod
+                                              .object({
+                                                end: zod.iso
+                                                  .datetime({})
+                                                  .describe(
+                                                    'Where it ends; never before the start.'
+                                                  ),
+                                                start: zod.iso
+                                                  .datetime({})
+                                                  .describe('Where it starts.'),
+                                              })
+                                              .describe(
+                                                'A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.'
+                                              ),
+                                          })
+                                          .describe(
+                                            'Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}'
                                           ),
                                         zod
                                           .object({

@@ -75,6 +75,9 @@ keeps the meeting link last. Start an empty form by adding a section, then its q
   (keeps the column), **Required**, and the ⋯ menu (Move up / Move down / Move
   to section / **Delete column and answers…**, which confirms with the row
   count).
+- A **Time range** question (Numbers & dates) asks for a start and an end day
+  with two date fields; the answer counts once both are set, and an end before
+  the start is refused. Gates test it with the database's range tests.
 - Required questions show a **Required** badge below their answer preview.
   Selecting the question puts its Required switch at the bottom right, with
   duplicate, remove, and more actions on the left.

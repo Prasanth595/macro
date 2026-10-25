@@ -34,6 +34,70 @@ function textOf(value: FormCellValue | undefined): string {
   return value?.type === 'text' ? value.value : '';
 }
 
+/**
+ * A start and an end day. The answer holds a range only once both are
+ * picked; a backwards range is kept so its problem can be shown.
+ */
+function DateRangeField(props: {
+  id: string;
+  value: FormCellValue | undefined;
+  invalid: boolean;
+  disabled: boolean;
+  required: boolean;
+  describedBy: string | undefined;
+  onChange: (value: FormCellValue | undefined) => void;
+}) {
+  const stored = () =>
+    props.value?.type === 'date_range' ? props.value.value : undefined;
+  const [start, setStart] = createSignal(
+    dateInputFromInstant(stored()?.start ?? '')
+  );
+  const [end, setEnd] = createSignal(dateInputFromInstant(stored()?.end ?? ''));
+  const update = (nextStart: string, nextEnd: string) => {
+    setStart(nextStart);
+    setEnd(nextEnd);
+    const startInstant = instantFromDateInput(nextStart);
+    const endInstant = instantFromDateInput(nextEnd);
+    props.onChange(
+      startInstant && endInstant
+        ? {
+            type: 'date_range',
+            value: { start: startInstant, end: endInstant },
+          }
+        : undefined
+    );
+  };
+  const input = (
+    label: string,
+    value: () => string,
+    onValue: (value: string) => void,
+    id?: string
+  ) => (
+    <input
+      id={id}
+      type="date"
+      aria-label={id ? undefined : label}
+      value={value()}
+      disabled={props.disabled}
+      aria-describedby={props.describedBy}
+      aria-invalid={props.invalid}
+      aria-required={props.required}
+      class={cn(
+        'h-10 w-full max-w-44 rounded-md border bg-input px-3 text-sm text-ink outline-none placeholder:text-ink-placeholder focus:border-edge-focus disabled:opacity-60',
+        props.invalid ? 'border-failure' : 'border-edge-muted'
+      )}
+      onChange={(event) => onValue(event.currentTarget.value)}
+    />
+  );
+  return (
+    <div class="flex flex-wrap items-center gap-2">
+      {input('Start date', start, (value) => update(value, end()), props.id)}
+      <span class="text-sm text-ink-muted">to</span>
+      {input('End date', end, (value) => update(start(), value))}
+    </div>
+  );
+}
+
 function ChoiceList(props: {
   name: string;
   column: FormColumn;
@@ -426,6 +490,17 @@ export function QuestionField(props: {
               {props.column.name}. {props.question.helpText} {props.problem}
             </Checkbox.Description>
           </Checkbox>
+        </Match>
+        <Match when={kind().type === 'date_range'}>
+          <DateRangeField
+            id={id()}
+            value={props.value}
+            invalid={invalid()}
+            disabled={props.disabled}
+            required={props.question.required}
+            describedBy={describedBy()}
+            onChange={props.onChange}
+          />
         </Match>
         <Match when={kind().type === 'date' && props.widget === 'date'}>
           <input

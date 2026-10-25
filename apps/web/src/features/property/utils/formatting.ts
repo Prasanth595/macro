@@ -1,6 +1,12 @@
 import { getPropertyOptionLabel } from '@entity/utils/task-properties';
+import {
+  addDays,
+  differenceInCalendarDays,
+  differenceInDays,
+  differenceInMinutes,
+} from 'date-fns';
 import { NUMBER_DECIMAL_PLACES } from '../constants';
-import type { Property, PropertyOptionValue } from '../types';
+import type { DateRangeValue, Property, PropertyOptionValue } from '../types';
 
 type PropertyValueUnion = string | number | Date | boolean;
 
@@ -37,6 +43,45 @@ const DATE_FORMAT = new Intl.DateTimeFormat('en-US', {
 export function formatDate(value: Date | string): string {
   const date = typeof value === 'string' ? new Date(value) : value;
   return DATE_FORMAT.format(date);
+}
+
+const DATE_TIME_FORMAT = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+});
+
+/**
+ * A time range, compact where its ends share a day, month or year: all day
+ * `Oct 9 – 13, 2026`; timed `Oct 9, 9:00 AM – 5:00 PM` or
+ * `Oct 9, 9:00 AM – Oct 13, 5:00 PM`.
+ */
+export function formatTimeRange(range: DateRangeValue): string {
+  return (range.allDay ? DATE_FORMAT : DATE_TIME_FORMAT).formatRange(
+    range.start,
+    range.end
+  );
+}
+
+const plural = (count: number, unit: string) =>
+  `${count} ${unit}${count === 1 ? '' : 's'}`;
+
+/**
+ * How long a time range lasts: all day counts its days, both ends included
+ * (`5 days`); timed counts whole days, hours and minutes (`4 days 8 hrs`).
+ */
+export function formatTimeRangeDuration(range: DateRangeValue): string {
+  if (range.allDay)
+    return plural(differenceInCalendarDays(range.end, range.start) + 1, 'day');
+  const days = differenceInDays(range.end, range.start);
+  const minutes = differenceInMinutes(range.end, addDays(range.start, days));
+  const parts = [
+    days && plural(days, 'day'),
+    Math.floor(minutes / 60) && plural(Math.floor(minutes / 60), 'hr'),
+    minutes % 60 && plural(minutes % 60, 'min'),
+  ].filter((part) => typeof part === 'string');
+  return parts.length ? parts.join(' ') : plural(0, 'min');
 }
 
 /**

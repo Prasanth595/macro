@@ -26,6 +26,8 @@ vi.mock('@property/utils/focus', () => ({
   // Like the real helper, focus after the menu has taken focus on open.
   useSearchInputFocus: (input: () => HTMLElement | undefined) =>
     setTimeout(() => input()?.focus(), 100),
+  useAutoFocus: (element: () => HTMLElement | undefined) =>
+    setTimeout(() => element()?.focus(), 100),
 }));
 
 const column: DatabaseViewColumn = {
@@ -1510,6 +1512,75 @@ describe('grid cell', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.getByRole('button').textContent).toContain('one, two');
     expect(onWrite).not.toHaveBeenCalled();
+  });
+
+  describe('time-range cells', () => {
+    const trip: DatabaseViewColumn = {
+      ...column,
+      id: 'trip',
+      name: 'Trip',
+      dataType: 'DATE_RANGE',
+    };
+    /** A day of the shown month; days of the months around it are disabled. */
+    const day = (label: string) =>
+      screen
+        .getAllByRole('gridcell')
+        .find(
+          (cell) => cell.textContent === label && !cell.hasAttribute('disabled')
+        );
+
+    it('picks a start and an end day from the keyboard-focused calendar, storing each complete range', async () => {
+      const onWrite = vi.fn(async () => true);
+      render(() => (
+        <GridCell
+          column={trip}
+          value="2026-03-02T00:00:00.000Z/2026-03-03T00:00:00.000Z"
+          canEdit
+          onWrite={onWrite}
+          onAddOption={vi.fn(async () => true)}
+        />
+      ));
+      const trigger = screen.getByRole('button', { name: /^Trip: Mar 2/ });
+      trigger.focus();
+      await userEvent.keyboard('{Enter}');
+      await waitFor(() => expect(document.activeElement).toBe(day('2')));
+      await userEvent.click(day('16')!);
+      await userEvent.click(day('20')!);
+      expect(onWrite.mock.calls).toEqual([
+        ['2026-03-16T00:00:00.000Z/2026-03-16T00:00:00.000Z'],
+        ['2026-03-16T00:00:00.000Z/2026-03-20T00:00:00.000Z'],
+      ]);
+      expect(day('20')).toBeTruthy();
+    });
+
+    it('stores a timed range as its two instants', async () => {
+      const onWrite = vi.fn(async () => true);
+      render(() => (
+        <GridCell
+          column={trip}
+          value="2026-03-02T00:00:00.000Z/2026-03-03T00:00:00.000Z"
+          canEdit
+          onWrite={onWrite}
+          onAddOption={vi.fn(async () => true)}
+        />
+      ));
+      await userEvent.click(
+        screen.getByRole('button', { name: /^Trip: Mar 2/ })
+      );
+      await userEvent.click(
+        await screen.findByRole('switch', { name: 'All day' })
+      );
+      expect(onWrite).toHaveBeenLastCalledWith(
+        `${new Date(2026, 2, 2, 9).toISOString()}/${new Date(2026, 2, 3, 17).toISOString()}`
+      );
+
+      fireEvent.change(screen.getByLabelText('End time'), {
+        target: { value: '18:30' },
+      });
+      expect(onWrite).toHaveBeenLastCalledWith(
+        `${new Date(2026, 2, 2, 9).toISOString()}/${new Date(2026, 2, 3, 18, 30).toISOString()}`
+      );
+    });
   });
 
   describe('date cells', () => {
