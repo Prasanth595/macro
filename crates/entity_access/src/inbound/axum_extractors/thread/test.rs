@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::{
-    Router,
+    Json, Router,
     body::{Body, to_bytes},
     extract::FromRef,
     http::{Request, StatusCode, header},
@@ -154,6 +154,10 @@ async fn edit_handler(access: EditExtractor) -> &'static str {
     receipt_auth_name(access.entity_access_receipt.auth())
 }
 
+async fn view_permission_handler(access: ViewExtractor) -> Json<EntityPermission> {
+    Json(*access.entity_access_receipt.entity_permission())
+}
+
 fn receipt_auth_name(auth: &EntityAccessAuth) -> &'static str {
     match auth {
         EntityAccessAuth::Authenticated(_) => "authenticated",
@@ -205,6 +209,34 @@ async fn anonymous_public_access_returns_unauthenticated_receipt() {
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response_body(response).await, "unauthenticated");
     assert_eq!(state.entity_access.calls(), [expected_call(None)]);
+}
+
+#[tokio::test]
+async fn a_public_edit_link_gives_a_signed_out_caller_view() {
+    let state = TestState::new(Some(AccessLevel::Edit));
+    let response = Router::new()
+        .route("/threads/{thread_id}", get(view_permission_handler))
+        .with_state(state)
+        .oneshot(request().body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response_body(response).await,
+        r#"{"type":"access_level","access_level":"view"}"#
+    );
+}
+
+#[tokio::test]
+async fn a_public_edit_link_refuses_a_signed_out_caller_on_edit_routes() {
+    let state = TestState::new(Some(AccessLevel::Edit));
+    let response = edit_router(state)
+        .oneshot(request().body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
