@@ -41,7 +41,8 @@ the gateway `/email` prefix.
 
 ## Checks
 
-- `cargo test -p email_service` (`SQLX_OFFLINE` unset).
+- `cargo test -p email_service` (`SQLX_OFFLINE` unset; the `label_write_sim`
+  tests also need Redis, at `REDIS_URI` or `redis://127.0.0.1:6379`).
 - `just check` (from this directory) runs `cargo check` with `SQLX_OFFLINE=true`.
 - Local SQS: `just create-localstack` / `create-queues` before running
   `pubsub_workers` locally; queue names are in the `justfile`.
@@ -104,6 +105,10 @@ the gateway `/email` prefix.
   A permanent failure puts back what the older writes or the original state
   say. Markers expire after 12 hours, which must outlast an operation's
   redelivery through the gmail_ops queues.
+- `pubsub::label_write_sim` wires one mailbox to the production label-write,
+  gmail_ops and inbox sync code with fake Gmail and SQS. Add a test there for a
+  new race between writes and syncs; its ignored `randomized_shard_*` tests run
+  the seeded simulation (`SIM_SEEDS`, `SIM_OVERLAP`, see `sim/test.rs`).
 - gmail_ops moves transient Gmail failures to the retry queue like rate limits;
   the primary queue dead-letters after three receives.
 - Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
