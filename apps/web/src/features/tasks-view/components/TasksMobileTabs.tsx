@@ -29,15 +29,13 @@ export function TasksMobileTabs(props: { leading?: JSX.Element }) {
         contentClass="px-(--mobile-chrome-gutter)"
         leading={
           props.leading ?? (
-            <>
-              <TaskSavedViewsPicker />
-              <Show when={state.tab !== 'projects'}>
-                <TaskSaveViewButton />
-                <TasksFilterDrawer />
-              </Show>
-            </>
+            <Show when={state.tab !== 'projects'}>
+              <TaskSaveViewButton />
+              <TasksFilterDrawer />
+            </Show>
           )
         }
+        trailing={<TaskSavedViewsPicker />}
         items={items()}
         value={state.savedViewActive ? undefined : state.tab}
         onChange={setTab}

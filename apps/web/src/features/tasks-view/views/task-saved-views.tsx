@@ -279,7 +279,7 @@ export function TaskSavedViewsList(props: {
 }
 
 export function TaskSavedViewsPicker() {
-  const { savedViews } = useTasksView();
+  const { savedViews, state } = useTasksView();
   const viewerId = useUserId();
   // The drawer closes before its action opens a dialog; retain the outer owner.
   const owner = getOwner();
@@ -287,6 +287,7 @@ export function TaskSavedViewsPicker() {
     <Show when={savedViews}>
       {(views) => (
         <SavedViewPicker
+          active={state.savedViewActive ?? false}
           scopeKey={viewerId()}
           label={
             views().view().kind === 'default'

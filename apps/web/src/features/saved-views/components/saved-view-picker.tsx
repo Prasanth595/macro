@@ -1,11 +1,12 @@
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
-import BookmarkIcon from '@phosphor/bookmark-simple.svg';
-import { Button } from '@ui';
+import { PillButton } from '@components/app/mobile/PillTabs';
+import CaretDownIcon from '@phosphor/caret-down.svg';
 import { createSignal, type JSX, onCleanup } from 'solid-js';
 
 /** Restores the picker focus before opening a row's next dialog or view. */
 export function SavedViewPicker(props: {
   label: string;
+  active: boolean;
   scopeKey: string | undefined;
   children: (onAction: (action: () => void) => void) => JSX.Element;
 }) {
@@ -46,13 +47,13 @@ export function SavedViewPicker(props: {
     >
       <MobileDrawer.Trigger
         ref={setTrigger}
-        as={Button}
-        size="icon-md"
-        variant="outline"
-        depth={3}
-        label={props.label}
+        as={PillButton}
+        active={props.active}
+        class="flex max-w-64 items-center gap-1.5"
+        aria-label={props.label}
       >
-        <BookmarkIcon class="size-4" />
+        <span class="truncate">{props.label}</span>
+        <CaretDownIcon class="size-3.5 shrink-0" />
       </MobileDrawer.Trigger>
       <MobileDrawer.Portal>
         <MobileDrawer.Overlay />
