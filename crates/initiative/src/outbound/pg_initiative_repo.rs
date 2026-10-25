@@ -3,6 +3,7 @@
 mod create;
 mod list;
 mod members;
+mod names;
 mod share;
 
 #[cfg(test)]
@@ -120,12 +121,12 @@ impl InitiativeRepo for PgInitiativeRepo {
 
     #[tracing::instrument(err, skip(self))]
     async fn task_names(&self, ids: Vec<String>) -> Result<HashMap<String, String>, Self::Err> {
-        todo!("names of {ids:?}")
+        names::task_names(&self.pool, &ids).await
     }
 
     #[tracing::instrument(err, skip(self))]
     async fn profile_names(&self, ids: Vec<String>) -> Result<Vec<ProfileName>, Self::Err> {
-        todo!("profile names of {ids:?}")
+        names::profile_names(&self.pool, &ids).await
     }
 }
 

@@ -344,7 +344,7 @@ where
         &self,
         receipt: EntityAccessReceipt<ViewAccessLevel>,
     ) -> Result<InitiativeOverview, InitiativeError> {
-        todo!("overview of {receipt:?}")
+        self.read_overview(receipt).await
     }
 
     #[tracing::instrument(err, skip_all)]
@@ -352,7 +352,8 @@ where
         &self,
         receipt: EntityAccessReceipt<ViewAccessLevel>,
     ) -> Result<DescriptionReader, InitiativeError> {
-        todo!("description reader for {receipt:?}")
+        let id = initiative_id_from_receipt(&receipt)?;
+        self.description_surfaces.reader(id).await
     }
 
     #[tracing::instrument(err, skip_all)]

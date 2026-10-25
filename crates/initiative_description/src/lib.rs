@@ -70,7 +70,20 @@ where
 
     #[tracing::instrument(skip(self), err)]
     async fn reader(&self, initiative: InitiativeId) -> Result<DescriptionReader, InitiativeError> {
-        todo!("reader for {initiative}")
+        let grant = self
+            .surfaces
+            .owned_surface_reader_token(
+                EntityType::Initiative.with_entity_string(initiative.to_string()),
+                initiative.as_uuid(),
+            )
+            .await
+            .map_err(map_surface_error)?;
+        Ok(match grant {
+            None => DescriptionReader::Empty,
+            Some(grant) => DescriptionReader::Live {
+                token: grant.into_inner(),
+            },
+        })
     }
 }
 
