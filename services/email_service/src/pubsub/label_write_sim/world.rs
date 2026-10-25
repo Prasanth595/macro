@@ -95,32 +95,31 @@ pub struct World {
     pub label_ids: BTreeMap<String, Uuid>,
 }
 
-/// Runs `test` on its own thread and runtime with a 64 MiB stack, connected
-/// to `pool`'s database: the production futures the harness drives nest
-/// deeply enough to overflow a test thread's stack in debug builds.
-pub fn on_large_stack<F, Fut>(pool: &PgPool, test: F)
+/// Runs `test` on a runtime of its own, connected to `pool`'s database, with
+/// two worker threads of `worker_stack` bytes of stack each, as the email
+/// workers have. Tasks `test` spawns run on those threads.
+pub fn on_worker_stacks<F, Fut>(pool: &PgPool, worker_stack: usize, test: F)
 where
     F: FnOnce(PgPool) -> Fut + Send + 'static,
     Fut: std::future::Future<Output = ()>,
 {
     let options = pool.connect_options().as_ref().clone();
-    let outcome = std::thread::Builder::new()
-        .stack_size(64 << 20)
-        .spawn(move || {
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("test runtime")
-                .block_on(async move {
-                    let pool = sqlx::postgres::PgPoolOptions::new()
-                        .connect_with(options)
-                        .await
-                        .expect("test database");
-                    test(pool).await;
-                });
-        })
-        .expect("test thread")
-        .join();
+    let outcome = std::thread::spawn(move || {
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .thread_stack_size(worker_stack)
+            .enable_all()
+            .build()
+            .expect("test runtime")
+            .block_on(async move {
+                let pool = sqlx::postgres::PgPoolOptions::new()
+                    .connect_with(options)
+                    .await
+                    .expect("test database");
+                test(pool).await;
+            });
+    })
+    .join();
     if let Err(panic) = outcome {
         std::panic::resume_unwind(panic);
     }

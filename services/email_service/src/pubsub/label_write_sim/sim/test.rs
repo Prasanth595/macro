@@ -12,7 +12,7 @@
 //! `SIM_START` picks the first seed, `SIM_TRACE=1` prints every seed's trace
 //! and `SIM_VERBOSE=1` the traces of violating seeds.
 
-use super::super::world::{World, on_large_stack};
+use super::super::world::World;
 use super::{Config, Sim, Stats};
 use sqlx::PgPool;
 use std::collections::BTreeMap;
@@ -141,19 +141,17 @@ async fn run_seeds(pool: PgPool, shard: u32, start: u64, seeds: u64, config: Con
 
 #[sqlx::test(migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS")]
 async fn fifty_random_seeds_keep_gmail_the_database_and_the_user_in_agreement(pool: PgPool) {
-    on_large_stack(&pool, |pool| async move {
-        let config = Config {
-            steps: 30,
-            overlap: false,
-        };
-        let summary = run_seeds(pool, 50, 1_000_000, 50, config).await;
-        assert_eq!(
-            summary.clean,
-            summary.seeds,
-            "{}",
-            summary.render(config, 1_000_000)
-        );
-    });
+    let config = Config {
+        steps: 30,
+        overlap: false,
+    };
+    let summary = run_seeds(pool, 50, 1_000_000, 50, config).await;
+    assert_eq!(
+        summary.clean,
+        summary.seeds,
+        "{}",
+        summary.render(config, 1_000_000)
+    );
 }
 
 async fn run_shard(pool: PgPool, shard: u32) {
@@ -177,31 +175,23 @@ async fn run_shard(pool: PgPool, shard: u32) {
 #[sqlx::test(migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS")]
 #[ignore = "seeded simulation, configured by SIM_* environment variables"]
 async fn randomized_shard_1(pool: PgPool) {
-    on_large_stack(&pool, |pool| async move {
-        run_shard(pool, 1).await;
-    });
+    run_shard(pool, 1).await;
 }
 
 #[sqlx::test(migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS")]
 #[ignore = "seeded simulation, configured by SIM_* environment variables"]
 async fn randomized_shard_2(pool: PgPool) {
-    on_large_stack(&pool, |pool| async move {
-        run_shard(pool, 2).await;
-    });
+    run_shard(pool, 2).await;
 }
 
 #[sqlx::test(migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS")]
 #[ignore = "seeded simulation, configured by SIM_* environment variables"]
 async fn randomized_shard_3(pool: PgPool) {
-    on_large_stack(&pool, |pool| async move {
-        run_shard(pool, 3).await;
-    });
+    run_shard(pool, 3).await;
 }
 
 #[sqlx::test(migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS")]
 #[ignore = "seeded simulation, configured by SIM_* environment variables"]
 async fn randomized_shard_4(pool: PgPool) {
-    on_large_stack(&pool, |pool| async move {
-        run_shard(pool, 4).await;
-    });
+    run_shard(pool, 4).await;
 }
