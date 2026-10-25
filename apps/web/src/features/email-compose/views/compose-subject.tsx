@@ -81,6 +81,7 @@ export function ComposeSubject(props: {
                   setEditing(true);
                   requestAnimationFrame(() => textareaRef?.focus());
                 }}
+                aria-describedby={limitHint() ? limitHintId : undefined}
               >
                 <span class="truncate">{ctx.subject()}</span>
               </button>
