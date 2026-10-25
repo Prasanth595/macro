@@ -114,10 +114,10 @@ impl Sim<'_> {
             .iter()
             .flat_map(|write| write.ids.iter().cloned())
             .collect();
-        let outcome = if writes.iter().any(|write| write.reply == Reply::Ok) {
-            OpStatus::Applied
-        } else if writes.iter().any(|write| write.reply == Reply::Rejected) {
+        let outcome = if writes.iter().any(|write| write.reply == Reply::Rejected) {
             OpStatus::Rejected
+        } else if writes.iter().any(|write| write.reply == Reply::Ok) {
+            OpStatus::Applied
         } else if writes.is_empty() {
             OpStatus::Skipped
         } else {
@@ -130,21 +130,29 @@ impl Sim<'_> {
             );
             OpStatus::Skipped
         };
+        let superseded = |sim: &Self, id: &String| {
+            sim.latest_seq(id, &track.label)
+                .is_some_and(|latest| latest > track.seq)
+        };
         if outcome == OpStatus::Rejected {
-            let rejected: Vec<String> = sent_ids.iter().cloned().collect();
+            // Below ten messages Gmail gets one request per message and the
+            // operation stops at the first rejection, which reverts every
+            // message it was sending, tried or not.
+            let rejected: Vec<String> = in_op
+                .iter()
+                .filter(|id| sent_ids.contains(*id) || !superseded(self, id))
+                .cloned()
+                .collect();
             self.set_entries(lineage, &rejected, EntryState::Rejected);
         }
         if outcome == OpStatus::Skipped {
             self.stats.skipped_superseded += 1;
         }
         for id in &in_op {
-            if sent_ids.contains(id) {
+            if sent_ids.contains(id) || outcome == OpStatus::Rejected {
                 continue;
             }
-            let superseded = self
-                .latest_seq(id, &track.label)
-                .is_some_and(|latest| latest > track.seq);
-            if !superseded {
+            if !superseded(self, id) {
                 self.violate(
                     "write-dropped",
                     format!(
@@ -210,7 +218,11 @@ impl Sim<'_> {
             if !marker.live {
                 continue;
             }
-            let owner = self.lineage_by_write.get(&marker.write_id).copied();
+            let provider_id = provider_by_db[&marker.message_id].clone();
+            let owner = self
+                .lineage_by_write
+                .get(&(marker.write_id, provider_id))
+                .copied();
             let in_flight = owner.is_some_and(|lineage| queued_lineages.contains(&lineage));
             if !in_flight {
                 let status = owner.map(|lineage| self.ops[&lineage].status);
@@ -263,8 +275,18 @@ impl Sim<'_> {
             }
         }
         let ids: Vec<Uuid> = self.world.message_ids.values().copied().collect();
+        let provider_by_db: HashMap<Uuid, String> = self
+            .world
+            .message_ids
+            .iter()
+            .map(|(provider, db)| (*db, provider.clone()))
+            .collect();
         for marker in wiring::markers(&self.world.db, &ids).await {
-            let owner = self.lineage_by_write.get(&marker.write_id).copied();
+            let provider_id = provider_by_db[&marker.message_id].clone();
+            let owner = self
+                .lineage_by_write
+                .get(&(marker.write_id, provider_id))
+                .copied();
             let dead =
                 owner.is_some_and(|lineage| self.ops[&lineage].status == OpStatus::DeadLettered);
             if marker.live && !dead {

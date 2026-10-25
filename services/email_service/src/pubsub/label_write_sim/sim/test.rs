@@ -8,7 +8,8 @@
 //! ```
 //!
 //! `SIM_OVERLAP=1` holds one operation at its Gmail call while 1–3 other
-//! steps run. `SIM_NO_REJECT=1` turns permanent Gmail rejections into 503s.
+//! steps run. `SIM_BATCHES=1` has producers send label write batches instead
+//! of one operation per message. `SIM_NO_REJECT=1` turns permanent Gmail rejections into 503s.
 //! `SIM_START` picks the first seed, `SIM_TRACE=1` prints every seed's trace
 //! and `SIM_VERBOSE=1` the traces of violating seeds.
 
@@ -89,11 +90,12 @@ impl Summary {
         let mut out = String::new();
         let _ = writeln!(
             out,
-            "seeds={}..{} steps={} overlap={} clean={} violating={}",
+            "seeds={}..{} steps={} overlap={} batches={} clean={} violating={}",
             start,
             start + self.seeds,
             config.steps,
             config.overlap,
+            config.label_write_batches,
             self.clean,
             self.seeds - self.clean
         );
@@ -123,7 +125,7 @@ impl Summary {
 }
 
 async fn run_seeds(pool: PgPool, shard: u32, start: u64, seeds: u64, config: Config) -> Summary {
-    let mut world = World::new(pool, shard).await;
+    let mut world = World::new(pool, shard, config.label_write_batches).await;
     let mut summary = Summary::default();
     for seed in start..start + seeds {
         world.reset().await;
@@ -139,13 +141,13 @@ async fn run_seeds(pool: PgPool, shard: u32, start: u64, seeds: u64, config: Con
     summary
 }
 
-#[sqlx::test(migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS")]
-async fn fifty_random_seeds_keep_gmail_the_database_and_the_user_in_agreement(pool: PgPool) {
+async fn fifty_random_seeds(pool: PgPool, shard: u32, label_write_batches: bool) {
     let config = Config {
         steps: 30,
         overlap: false,
+        label_write_batches,
     };
-    let summary = run_seeds(pool, 50, 1_000_000, 50, config).await;
+    let summary = run_seeds(pool, shard, 1_000_000, 50, config).await;
     assert_eq!(
         summary.clean,
         summary.seeds,
@@ -154,12 +156,23 @@ async fn fifty_random_seeds_keep_gmail_the_database_and_the_user_in_agreement(po
     );
 }
 
+#[sqlx::test(migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS")]
+async fn fifty_random_seeds_keep_gmail_the_database_and_the_user_in_agreement(pool: PgPool) {
+    fifty_random_seeds(pool, 50, false).await;
+}
+
+#[sqlx::test(migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS")]
+async fn fifty_random_seeds_agree_with_label_write_batches(pool: PgPool) {
+    fifty_random_seeds(pool, 51, true).await;
+}
+
 async fn run_shard(pool: PgPool, shard: u32) {
     let seeds = env_number("SIM_SEEDS", 50);
     let start = env_number("SIM_START", u64::from(shard) * 1_000_000);
     let config = Config {
         steps: env_number("SIM_STEPS", 30) as usize,
         overlap: env_number("SIM_OVERLAP", 0) == 1,
+        label_write_batches: env_number("SIM_BATCHES", 0) == 1,
     };
     let started = std::time::Instant::now();
     let summary = run_seeds(pool, shard, start, seeds, config).await;

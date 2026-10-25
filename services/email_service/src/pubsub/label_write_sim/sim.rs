@@ -157,6 +157,9 @@ impl Violation {
 pub struct Config {
     pub steps: usize,
     pub overlap: bool,
+    /// Producers send label write batches rather than one operation per
+    /// message.
+    pub label_write_batches: bool,
 }
 
 pub struct Sim<'w> {
@@ -168,7 +171,9 @@ pub struct Sim<'w> {
     cells: BTreeMap<(String, String), Vec<Entry>>,
     ops: BTreeMap<u64, OpTrack>,
     lineage_by_body: HashMap<String, u64>,
-    lineage_by_write: HashMap<Uuid, u64>,
+    /// The lineage carrying each write to each provider message: with label
+    /// write batches off, one write is an operation per message.
+    lineage_by_write: HashMap<(Uuid, String), u64>,
     next_lineage: u64,
     action_seq: u64,
     next_message: u64,
@@ -326,7 +331,10 @@ impl<'w> Sim<'w> {
                 });
         }
         if let Some(write_id) = op.write_id {
-            self.lineage_by_write.insert(write_id, lineage);
+            for (_, provider_id) in &op.messages {
+                self.lineage_by_write
+                    .insert((write_id, provider_id.clone()), lineage);
+            }
         }
         self.lineage_by_body.insert(body.to_string(), lineage);
         self.ops.insert(
@@ -866,6 +874,17 @@ impl<'w> Sim<'w> {
     /// Delivers the earliest message on `queue` (moving the clock to it)
     /// with Gmail answering `reply`. Returns false when the queue is empty.
     pub async fn deliver_from(&mut self, queue: Queue, reply: Reply, enqueue_fails: bool) -> bool {
+        self.deliver_answering(queue, &[reply], enqueue_fails).await
+    }
+
+    /// Like [`Self::deliver_from`], with Gmail answering the delivery's
+    /// writes with `replies` in order and accepting any after them.
+    pub async fn deliver_answering(
+        &mut self,
+        queue: Queue,
+        replies: &[Reply],
+        enqueue_fails: bool,
+    ) -> bool {
         let Some(index) = (0..self.queued.len())
             .filter(|index| self.queued[*index].queue == queue)
             .min_by_key(|index| (self.queued[*index].visible_at, *index))
@@ -874,11 +893,16 @@ impl<'w> Sim<'w> {
         };
         self.now = self.now.max(self.queued[index].visible_at);
         self.prepare(&Step::Deliver {
-            reply,
+            reply: replies[0],
             gate_refuses: false,
             enqueue_fails,
         })
         .await;
+        self.world
+            .gmail
+            .lock()
+            .next_writes
+            .extend(replies[1..].iter().copied());
         if let Some(delivery) = self.begin_delivery(index) {
             Self::run_delivery(self.world, &delivery).await;
             self.finish_delivery(delivery);

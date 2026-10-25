@@ -93,6 +93,9 @@ pub struct World {
     /// Provider thread id → database id.
     pub thread_ids: BTreeMap<String, Uuid>,
     pub label_ids: BTreeMap<String, Uuid>,
+    /// Whether producers send label writes as batches or, as they do by
+    /// default, one single-message operation per changed message.
+    pub label_write_batches: bool,
 }
 
 /// Runs `test` on a runtime of its own, connected to `pool`'s database, with
@@ -172,7 +175,7 @@ pub fn initial_gmail() -> GmailState {
 }
 
 impl World {
-    pub async fn new(db: PgPool, shard: u32) -> World {
+    pub async fn new(db: PgPool, shard: u32, label_write_batches: bool) -> World {
         let gmail = FakeGmail::start(initial_gmail()).await;
         let sqs = FakeSqs::start().await;
         let services_url = start_catch_all().await;
@@ -191,6 +194,7 @@ impl World {
             &services_url,
             link_id,
             queues,
+            label_write_batches,
         )
         .await;
         world.seed(shard).await;
@@ -206,6 +210,7 @@ impl World {
         services_url: &str,
         link_id: Uuid,
         queues: Queues,
+        label_write_batches: bool,
     ) -> World {
         let redis_url =
             std::env::var("REDIS_URI").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
@@ -219,6 +224,7 @@ impl World {
             .gmail_inbox_sync_retry_queue(&queues.sync_retry)
             .gmail_ops_queue(&queues.ops)
             .gmail_ops_retry_queue(&queues.ops_retry)
+            .gmail_label_write_batches(label_write_batches)
             .email_backfill_queue(&format!("{services_url}/queue/backfill"))
             .email_link_manager_queue(&format!("{services_url}/queue/link-manager"))
             .sfs_uploader_queue(&format!("{services_url}/queue/sfs"));
@@ -333,6 +339,7 @@ impl World {
             message_ids: BTreeMap::new(),
             thread_ids: BTreeMap::new(),
             label_ids: BTreeMap::new(),
+            label_write_batches,
         }
     }
 
