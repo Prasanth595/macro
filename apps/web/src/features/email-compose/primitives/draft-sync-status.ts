@@ -7,12 +7,16 @@ import {
   createSignal,
   onCleanup,
 } from 'solid-js';
-import type { EmailDraftStorage } from '../context/compose-capabilities';
+import type {
+  EmailConnectivity,
+  EmailDraftStorage,
+} from '../context/compose-capabilities';
 import type { DraftSyncViewState } from '../core/local-draft';
 
 /** Recovery reads only metadata; file blobs are restored once when opening a draft. */
 export function createDraftSyncStatus(options: {
   drafts: EmailDraftStorage;
+  connectivity: EmailConnectivity;
   draftId: Accessor<string | undefined>;
   localSaveState: Accessor<'saving' | 'saved' | 'failed'>;
   retry(): Promise<unknown>;
@@ -74,8 +78,17 @@ export function createDraftSyncStatus(options: {
         canKeepEditing: false,
       };
     }
-    // Saving is silent; only failures that need the user surface here.
-    if (!failed) return;
+    if (!failed) {
+      // Saving is silent online. Offline, edits wait on this device.
+      if (!draft || draft.acknowledgedRevision >= draft.revision) return;
+      if (!options.connectivity.looksOffline()) return;
+      return {
+        message: 'Saved on this device; waiting to sync',
+        detail: 'Changes stay on this device until you are back online.',
+        failed: false,
+        canKeepEditing: false,
+      };
+    }
     return {
       message:
         disk === 'failed'
