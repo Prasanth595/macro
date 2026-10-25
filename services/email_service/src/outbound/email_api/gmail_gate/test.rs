@@ -29,7 +29,8 @@ fn refusal_delay(result: Result<RequestPermit, RateLimitRefusal>) -> Duration {
 async fn backfill_leaves_two_of_five_in_flight_slots_to_live_work() {
     let connection = connection().await;
     let live = RedisGmailRequestGate::new(connection.clone(), RateBudget::Live);
-    let backfill = RedisGmailRequestGate::new(connection.clone(), RateBudget::Backfill);
+    let mut backfill = RedisGmailRequestGate::new(connection.clone(), RateBudget::Backfill);
+    backfill.wait = Duration::ZERO;
     let link_id = Uuid::now_v7();
 
     let mut backfill_permits = Vec::new();
@@ -83,10 +84,138 @@ async fn backfill_leaves_two_of_five_in_flight_slots_to_live_work() {
 
 #[tokio::test]
 #[ignore = "requires local Redis on port 6379; uses only unique mailbox keys"]
+async fn twelve_refused_backfill_requests_wait_for_room_and_the_rest_defer() {
+    let connection = connection().await;
+    let backfill = RedisGmailRequestGate::new(connection.clone(), RateBudget::Backfill);
+    let link_id = Uuid::now_v7();
+    let mut permits = Vec::new();
+    for _ in 0..3 {
+        permits.push(
+            backfill
+                .acquire(link_id, ApiOperationKind::GetMessage)
+                .await
+                .unwrap(),
+        );
+    }
+
+    let waiters: Vec<Uuid> = (0..12).map(|_| Uuid::now_v7()).collect();
+    for &waiter in &waiters {
+        assert_eq!(
+            backfill
+                .admit(link_id, waiter, 5, BACKFILL_WAIT)
+                .await
+                .unwrap(),
+            Admission::Wait(Duration::from_millis(50))
+        );
+    }
+    let deferred = Uuid::now_v7();
+    assert_eq!(
+        backfill
+            .admit(link_id, deferred, 5, BACKFILL_WAIT)
+            .await
+            .unwrap(),
+        Admission::Refused(Duration::from_secs(1))
+    );
+
+    backfill.finish(permits.remove(0), None).await;
+    assert_eq!(
+        backfill
+            .wait_for_room(link_id, waiters[0], 5, Duration::from_millis(50))
+            .await
+            .unwrap(),
+        Admission::Admitted
+    );
+    // The admitted waiter gave up its place.
+    assert_eq!(
+        backfill
+            .admit(link_id, deferred, 5, BACKFILL_WAIT)
+            .await
+            .unwrap(),
+        Admission::Wait(Duration::from_millis(50))
+    );
+    cleanup(&connection, link_id).await;
+}
+
+#[tokio::test]
+#[ignore = "requires local Redis on port 6379; uses only unique mailbox keys"]
+async fn a_backfill_request_takes_a_slot_freed_while_it_waits() {
+    let connection = connection().await;
+    let backfill = RedisGmailRequestGate::new(connection.clone(), RateBudget::Backfill);
+    let link_id = Uuid::now_v7();
+    let mut permits = Vec::new();
+    for _ in 0..3 {
+        permits.push(
+            backfill
+                .acquire(link_id, ApiOperationKind::GetMessage)
+                .await
+                .unwrap(),
+        );
+    }
+
+    let mut waiting = tokio::spawn({
+        let backfill = backfill.clone();
+        async move {
+            backfill
+                .acquire(link_id, ApiOperationKind::GetMessage)
+                .await
+        }
+    });
+    assert!(
+        tokio::time::timeout(Duration::from_millis(300), &mut waiting)
+            .await
+            .is_err(),
+        "a full mailbox holds the backfill request instead of refusing it"
+    );
+    backfill.finish(permits.remove(0), None).await;
+    let admitted = tokio::time::timeout(Duration::from_secs(5), waiting)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(admitted.is_ok());
+    cleanup(&connection, link_id).await;
+}
+
+#[tokio::test]
+#[ignore = "requires local Redis on port 6379; uses only unique mailbox keys"]
+async fn a_backfill_request_defers_once_its_wait_runs_out() {
+    let connection = connection().await;
+    let mut backfill = RedisGmailRequestGate::new(connection.clone(), RateBudget::Backfill);
+    backfill.wait = Duration::from_millis(200);
+    let link_id = Uuid::now_v7();
+    let mut permits = Vec::new();
+    for _ in 0..3 {
+        permits.push(
+            backfill
+                .acquire(link_id, ApiOperationKind::GetMessage)
+                .await
+                .unwrap(),
+        );
+    }
+
+    assert_eq!(
+        refusal_delay(
+            backfill
+                .acquire(link_id, ApiOperationKind::GetMessage)
+                .await
+        ),
+        Duration::from_secs(1)
+    );
+    let waiting: u32 = redis::cmd("ZCARD")
+        .arg(&keys(link_id)[3])
+        .query_async(&mut connection.clone())
+        .await
+        .unwrap();
+    assert_eq!(waiting, 0, "a request that stops waiting leaves its place");
+    cleanup(&connection, link_id).await;
+}
+
+#[tokio::test]
+#[ignore = "requires local Redis on port 6379; uses only unique mailbox keys"]
 async fn a_gmail_rate_limit_pauses_every_caller_for_the_capped_cooldown() {
     let connection = connection().await;
     let live = RedisGmailRequestGate::new(connection.clone(), RateBudget::Live);
-    let backfill = RedisGmailRequestGate::new(connection.clone(), RateBudget::Backfill);
+    let mut backfill = RedisGmailRequestGate::new(connection.clone(), RateBudget::Backfill);
+    backfill.wait = Duration::ZERO;
     let link_id = Uuid::now_v7();
 
     let throttled = live
@@ -151,7 +280,8 @@ async fn a_gmail_rate_limit_pauses_every_caller_for_the_capped_cooldown() {
 async fn quota_units_are_refused_until_the_oldest_second_leaves_the_window() {
     let connection = connection().await;
     let live = RedisGmailRequestGate::new(connection.clone(), RateBudget::Live);
-    let backfill = RedisGmailRequestGate::new(connection.clone(), RateBudget::Backfill);
+    let mut backfill = RedisGmailRequestGate::new(connection.clone(), RateBudget::Backfill);
+    backfill.wait = Duration::ZERO;
     let link_id = Uuid::now_v7();
     let fill = r#"
         local clock = redis.call('TIME')

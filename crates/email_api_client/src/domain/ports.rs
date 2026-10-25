@@ -319,7 +319,8 @@ pub trait ProviderRateLimiter: Send + Sync + 'static {
 /// permit until it completes. A permit dropped unfinished releases itself, and
 /// a crashed process's permits expire on their own.
 pub trait ProviderRequestGate: Send + Sync + 'static {
-    /// Admits one operation, or reports when the mailbox may try again.
+    /// Admits one operation, or reports when the mailbox may try again. An
+    /// adapter may hold the caller briefly for room before refusing.
     fn acquire(
         &self,
         link_id: Uuid,

@@ -31,6 +31,19 @@ const BACKFILL_UNITS_PER_WINDOW: u32 = 1_800;
 const PERMIT_MS: u32 = 90_000;
 // Google asks clients to wait at least a second before retrying a 429.
 const BUSY_RETRY_MS: u32 = 1_000;
+// A refused backfill request defers its SQS message, and deferred work comes
+// back in waves that leave backfill's slots idle. Up to twelve refused backfill
+// requests per mailbox, about a second of work for its three slots, wait for
+// room instead, so a freed slot is taken at once. The rest still defer, which
+// keeps one mailbox from tying up the workers other mailboxes need.
+const BACKFILL_WAITERS: u32 = 12;
+// Well inside the backfill queue's 60-second visibility timeout.
+const BACKFILL_WAIT: Duration = Duration::from_secs(20);
+// How often a waiting request checks for a free slot. Reads take about 200 ms,
+// and with several waiters polling a freed slot idles a few milliseconds.
+const WAIT_POLL_MS: u32 = 50;
+// A waiter's place outlives its sleep by this much, so a crashed waiter frees it.
+const WAITER_LEASE_MARGIN_MS: u32 = 1_000;
 // Gmail sends no Retry-After with its rate limits. The concurrency and
 // per-second limits behind 97% of them clear within Google's one-second
 // minimum, and a longer pause stalls every caller for the mailbox.
@@ -41,13 +54,32 @@ const DEFAULT_COOLDOWN: Duration = Duration::from_secs(1);
 const MAX_COOLDOWN: Duration = Duration::from_secs(60);
 const UNAVAILABLE_RETRY_AFTER: Duration = Duration::from_secs(5);
 
+// Returns {delay, waiting}: {0, 0} admits the request, {delay, 1} keeps it
+// waiting for room and {delay, 0} refuses it.
 const ACQUIRE: &str = r#"
 local clock = redis.call('TIME')
 local now = tonumber(clock[1]) * 1000 + math.floor(tonumber(clock[2]) / 1000)
+local waiters = tonumber(ARGV[8])
+local function refuse(delay, busy)
+    local wait = delay
+    if busy then wait = tonumber(ARGV[9]) end
+    if waiters > 0 then
+        redis.call('ZREMRANGEBYSCORE', KEYS[4], '-inf', now)
+        if wait <= tonumber(ARGV[10]) and
+            (redis.call('ZSCORE', KEYS[4], ARGV[1]) or redis.call('ZCARD', KEYS[4]) < waiters) then
+            local lease = wait + tonumber(ARGV[11])
+            redis.call('ZADD', KEYS[4], now + lease, ARGV[1])
+            if redis.call('PTTL', KEYS[4]) < lease then redis.call('PEXPIRE', KEYS[4], lease) end
+            return {wait, 1}
+        end
+        redis.call('ZREM', KEYS[4], ARGV[1])
+    end
+    return {delay, 0}
+end
 local cooldown = redis.call('PTTL', KEYS[3])
-if cooldown > 0 then return cooldown end
+if cooldown > 0 then return refuse(cooldown, false) end
 redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
-if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[2]) then return tonumber(ARGV[7]) end
+if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[2]) then return refuse(tonumber(ARGV[7]), true) end
 local second = tonumber(clock[1])
 local window = tonumber(ARGV[5])
 local limit = tonumber(ARGV[3])
@@ -70,16 +102,17 @@ if used + cost > limit then
     for _, entry in ipairs(live) do
         used = used - entry[2]
         if used + cost <= limit then
-            return math.max(1, (entry[1] + window) * 1000 - now)
+            return refuse(math.max(1, (entry[1] + window) * 1000 - now), false)
         end
     end
-    return window * 1000
+    return refuse(window * 1000, false)
 end
 redis.call('ZADD', KEYS[1], now + tonumber(ARGV[6]), ARGV[1])
 redis.call('PEXPIRE', KEYS[1], ARGV[6])
 redis.call('HINCRBY', KEYS[2], clock[1], cost)
 redis.call('EXPIRE', KEYS[2], window + 1)
-return 0
+if waiters > 0 then redis.call('ZREM', KEYS[4], ARGV[1]) end
+return {0, 0}
 "#;
 
 const FINISH: &str = r#"
@@ -115,6 +148,21 @@ impl RateBudget {
             Self::Backfill => (BACKFILL_CONCURRENT_REQUESTS, BACKFILL_UNITS_PER_WINDOW),
         }
     }
+
+    /// Live callers handle their own retries, so only backfill waits.
+    fn wait(self) -> Duration {
+        match self {
+            Self::Live => Duration::ZERO,
+            Self::Backfill => BACKFILL_WAIT,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum Admission {
+    Admitted,
+    Wait(Duration),
+    Refused(Duration),
 }
 
 /// Caps in-flight Gmail requests and quota units per mailbox, and pauses the
@@ -128,22 +176,28 @@ impl RateBudget {
 pub struct RedisGmailRequestGate {
     connection: ConnectionManager,
     budget: RateBudget,
+    wait: Duration,
 }
 
 impl RedisGmailRequestGate {
     /// Creates a gate that admits requests within the selected budget.
     pub fn new(connection: ConnectionManager, budget: RateBudget) -> Self {
-        Self { connection, budget }
+        Self {
+            connection,
+            budget,
+            wait: budget.wait(),
+        }
     }
 }
 
-fn keys(link_id: Uuid) -> [String; 3] {
+fn keys(link_id: Uuid) -> [String; 4] {
     // Hash tags colocate the Lua keys in Redis Cluster.
     let scope = format!("gmail:{{{link_id}}}");
     [
         format!("{scope}:inflight"),
         format!("{scope}:window"),
         format!("{scope}:cooldown"),
+        format!("{scope}:waiting"),
     ]
 }
 
@@ -164,23 +218,13 @@ impl ProviderRequestGate for RedisGmailRequestGate {
         operation: ApiOperationKind,
     ) -> Result<RequestPermit, RateLimitRefusal> {
         let permit = Uuid::now_v7();
-        let [inflight, window, cooldown] = keys(link_id);
-        let (concurrent_requests, units_per_window) = self.budget.limits();
-        let delay: redis::RedisResult<u64> = redis::Script::new(ACQUIRE)
-            .key(inflight)
-            .key(window)
-            .key(cooldown)
-            .arg(permit.to_string())
-            .arg(concurrent_requests)
-            .arg(units_per_window)
-            .arg(gmail_operation(operation).cost())
-            .arg(WINDOW_SECONDS)
-            .arg(PERMIT_MS)
-            .arg(BUSY_RETRY_MS)
-            .invoke_async(&mut self.connection.clone())
-            .await;
-        match delay {
-            Ok(0) => {
+        let cost = gmail_operation(operation).cost();
+        let admission = match self.admit(link_id, permit, cost, self.wait).await {
+            Ok(Admission::Wait(delay)) => self.wait_for_room(link_id, permit, cost, delay).await,
+            admission => admission,
+        };
+        match admission {
+            Ok(Admission::Admitted) => {
                 let gate = self.clone();
                 Ok(RequestPermit::new(
                     link_id,
@@ -195,7 +239,9 @@ impl ProviderRequestGate for RedisGmailRequestGate {
                     },
                 ))
             }
-            Ok(delay) => Err(RateLimitRefusal::new(Some(Duration::from_millis(delay)))),
+            Ok(Admission::Wait(delay) | Admission::Refused(delay)) => {
+                Err(RateLimitRefusal::new(Some(delay)))
+            }
             Err(error) => {
                 tracing::warn!(%link_id, %error, "Gmail request admission is unavailable");
                 Err(RateLimitRefusal::new(Some(UNAVAILABLE_RETRY_AFTER)))
@@ -211,8 +257,78 @@ impl ProviderRequestGate for RedisGmailRequestGate {
 }
 
 impl RedisGmailRequestGate {
+    /// Runs one admission check. `wait` is how much longer the request may wait for room.
+    async fn admit(
+        &self,
+        link_id: Uuid,
+        permit: Uuid,
+        cost: u32,
+        wait: Duration,
+    ) -> redis::RedisResult<Admission> {
+        let [inflight, window, cooldown, waiting] = keys(link_id);
+        let (concurrent_requests, units_per_window) = self.budget.limits();
+        let waiters = if self.wait.is_zero() {
+            0
+        } else {
+            BACKFILL_WAITERS
+        };
+        let (delay, waits): (u64, u8) = redis::Script::new(ACQUIRE)
+            .key(inflight)
+            .key(window)
+            .key(cooldown)
+            .key(waiting)
+            .arg(permit.to_string())
+            .arg(concurrent_requests)
+            .arg(units_per_window)
+            .arg(cost)
+            .arg(WINDOW_SECONDS)
+            .arg(PERMIT_MS)
+            .arg(BUSY_RETRY_MS)
+            .arg(waiters)
+            .arg(WAIT_POLL_MS)
+            .arg(wait.as_millis().to_string())
+            .arg(WAITER_LEASE_MARGIN_MS)
+            .invoke_async(&mut self.connection.clone())
+            .await?;
+        let delay = Duration::from_millis(delay);
+        Ok(match (delay.is_zero(), waits == 1) {
+            (true, _) => Admission::Admitted,
+            (false, true) => Admission::Wait(delay),
+            (false, false) => Admission::Refused(delay),
+        })
+    }
+
+    /// Holds a refused request until it is admitted or its wait runs out.
+    #[tracing::instrument(
+        name = "gmail.request_gate.wait",
+        skip(self, cost),
+        fields(admitted),
+        err
+    )]
+    async fn wait_for_room(
+        &self,
+        link_id: Uuid,
+        permit: Uuid,
+        cost: u32,
+        mut delay: Duration,
+    ) -> redis::RedisResult<Admission> {
+        let deadline = tokio::time::Instant::now() + self.wait;
+        loop {
+            tokio::time::sleep(delay).await;
+            let wait = deadline.saturating_duration_since(tokio::time::Instant::now());
+            match self.admit(link_id, permit, cost, wait).await? {
+                Admission::Wait(next) => delay = next,
+                admission => {
+                    tracing::Span::current()
+                        .record("admitted", matches!(admission, Admission::Admitted));
+                    return Ok(admission);
+                }
+            }
+        }
+    }
+
     async fn release(&self, link_id: Uuid, permit: Uuid, cooldown: Duration) {
-        let [inflight, _, cooldown_key] = keys(link_id);
+        let [inflight, _, cooldown_key, _] = keys(link_id);
         let result: redis::RedisResult<i32> = redis::Script::new(FINISH)
             .key(inflight)
             .key(cooldown_key)
