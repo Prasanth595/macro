@@ -31,7 +31,7 @@ import {
   type LexicalEditor,
   type LexicalNode,
 } from 'lexical';
-import type { ReplyType } from '../core/reply-type';
+import { FORWARDED_MESSAGE_HEADER, type ReplyType } from '../core/reply-type';
 import { TOGGLE_APPEND_EMAIL_THREAD_COMMAND } from './email-editor-commands';
 import { flattenConsecutiveParagraphs } from './flatten-consecutive-paragraphs';
 
@@ -63,7 +63,7 @@ function buildHeaderDescriptor(
 
   if (replyType === 'forward') {
     const lines: string[] = [];
-    lines.push('---------- Forwarded message ----------');
+    lines.push(FORWARDED_MESSAGE_HEADER);
     const fromName = replyingTo.from?.name ?? replyingTo.from?.email ?? '';
     const fromEmail = replyingTo.from?.email ?? '';
     lines.push(`From: ${fromName} <${fromEmail}>`);

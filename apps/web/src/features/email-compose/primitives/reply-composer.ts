@@ -435,6 +435,7 @@ export function createReplyComposer(
     });
     restoreEnvelope(snapshot);
     setRestoredBodyHtml(snapshot.bodyHtml ?? plainTextToHtml(''));
+    if (snapshot.bodyHtml) form.restoreReplyType(snapshot.bodyHtml);
     const currentEditor = editor();
     if (currentEditor && snapshot.bodyHtml) {
       setEditorStateFromHtml(currentEditor, snapshot.bodyHtml);
@@ -454,6 +455,9 @@ export function createReplyComposer(
 
   const initialHtml = () =>
     restoredBodyHtml() ?? restoredSnapshot?.bodyHtml ?? props.preloadedHtml;
+  // The editor may load a local copy that is newer than the thread's draft.
+  const loadedHtml = untrack(initialHtml);
+  if (loadedHtml) form.restoreReplyType(loadedHtml);
   const [editorConnected, setEditorConnected] = createSignal(false);
   const handleEditorConnect = () => {
     const currentEditor = editor();

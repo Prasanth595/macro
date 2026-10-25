@@ -1,5 +1,5 @@
-import { $createParagraphNode, $createTextNode, $getRoot } from 'lexical';
 import type { LexicalEditor } from 'lexical';
+import { $createParagraphNode, $createTextNode, $getRoot } from 'lexical';
 import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { message } from '../../email-message/tests/messages';
@@ -32,7 +32,11 @@ const parent = message('parent', {
 const teammate: EmailRecipient = {
   kind: 'custom',
   id: 'teammate@example.com',
-  data: { id: 'teammate@example.com', email: 'teammate@example.com', invalid: false },
+  data: {
+    id: 'teammate@example.com',
+    email: 'teammate@example.com',
+    invalid: false,
+  },
 };
 const providers = ['GMAIL', 'OUTLOOK'] as const;
 
@@ -52,7 +56,9 @@ function inboxContext(provider: EmailInbox['provider']) {
 
 /** The message card's Reply and Forward buttons. */
 function cardActions(initial?: ReplyType) {
-  const [replyType, setReplyType] = createSignal<ReplyType | undefined>(initial);
+  const [replyType, setReplyType] = createSignal<ReplyType | undefined>(
+    initial
+  );
   return {
     replyType,
     clear: () => setReplyType(undefined),
@@ -64,22 +70,33 @@ function cardActions(initial?: ReplyType) {
   };
 }
 
-/** A forward saved from a real editor, as the thread's draft slot returns it. */
-function savedForward() {
-  const editor = createEmailEditor('FYI, see below');
+/** A draft saved from a real editor, as the thread's draft slot returns it. */
+function savedDraft(
+  replyType: ReplyType,
+  text: string,
+  quoted = parent,
+  overrides: Parameters<typeof message>[1] = {}
+) {
+  const editor = createEmailEditor(text);
   registerToggleAppendedThread(editor);
   editor.dispatchCommand(TOGGLE_APPEND_EMAIL_THREAD_COMMAND, {
-    replyingTo: parent,
-    replyType: 'forward',
+    replyingTo: quoted,
+    replyType,
     visible: true,
   });
   return message('draft', {
     is_draft: true,
     replying_to_id: 'parent',
     from: { email: 'me@example.com' },
+    body_html_sanitized: prepareEmailBody(editor)!.bodyHtml,
+    ...overrides,
+  });
+}
+
+function savedForward() {
+  return savedDraft('forward', 'FYI, see below', parent, {
     to: [{ email: 'teammate@example.com' }],
     subject: 'Fwd: Numbers',
-    body_html_sanitized: prepareEmailBody(editor)!.bodyHtml,
   });
 }
 
@@ -117,9 +134,14 @@ it.each(providers)(
       new Error('provider rejected the forward')
     );
     const actions = cardActions();
-    const reply = mountReplyComposer(context, () => parent, {}, {
-      replyRequest: actions,
-    });
+    const reply = mountReplyComposer(
+      context,
+      () => parent,
+      {},
+      {
+        replyRequest: actions,
+      }
+    );
     try {
       await actions.click('forward');
       reply.form.setRecipients('to', [teammate]);
@@ -149,9 +171,14 @@ it.each(providers)(
   async (provider) => {
     const context = inboxContext(provider);
     const actions = cardActions();
-    const reply = mountReplyComposer(context, () => parent, {}, {
-      replyRequest: actions,
-    });
+    const reply = mountReplyComposer(
+      context,
+      () => parent,
+      {},
+      {
+        replyRequest: actions,
+      }
+    );
     try {
       await actions.click('forward');
       reply.form.setRecipients('to', [teammate]);
@@ -174,9 +201,14 @@ it.each(providers)(
   async (provider) => {
     const context = inboxContext(provider);
     const actions = cardActions();
-    const reply = mountReplyComposer(context, () => parent, {}, {
-      replyRequest: actions,
-    });
+    const reply = mountReplyComposer(
+      context,
+      () => parent,
+      {},
+      {
+        replyRequest: actions,
+      }
+    );
     try {
       reply.toggleQuotedText();
       await actions.click('forward');
@@ -269,9 +301,14 @@ it.each(providers)(
       persistence: 'committed' as const,
     }));
     const actions = cardActions();
-    const reply = mountReplyComposer(context, () => parent, {}, {
-      replyRequest: actions,
-    });
+    const reply = mountReplyComposer(
+      context,
+      () => parent,
+      {},
+      {
+        replyRequest: actions,
+      }
+    );
     try {
       restore?.({
         draftId: 'draft',
@@ -304,9 +341,14 @@ it.each(providers)(
       await input.onUndone();
     });
     const actions = cardActions();
-    const reply = mountReplyComposer(context, () => parent, {}, {
-      replyRequest: actions,
-    });
+    const reply = mountReplyComposer(
+      context,
+      () => parent,
+      {},
+      {
+        replyRequest: actions,
+      }
+    );
     try {
       await actions.click('forward');
       reply.form.setRecipients('to', [teammate]);
@@ -319,12 +361,57 @@ it.each(providers)(
       await vi.advanceTimersByTimeAsync(0);
       await vi.advanceTimersByTimeAsync(0);
 
+      await actions.click('forward');
       await reply.sendEmail();
 
+      expect(context.notices.feedback.failure).not.toHaveBeenCalled();
       expect(context.delivery.sendMessage).toHaveBeenCalledTimes(2);
       const sent = delivered(context, 1);
       expect(sent.to).toEqual(['teammate@example.com']);
       expect(sent.body.match(/Forwarded message/g)).toHaveLength(1);
+    } finally {
+      reply.dispose();
+    }
+  }
+);
+
+it.each(providers)(
+  'keeps a reopened %s reply that quotes a forwarded message a reply',
+  async (provider) => {
+    const context = inboxContext(provider);
+    const forwardedToMe = message('parent', {
+      ...parent,
+      body_html_sanitized:
+        '<p>Passing this along</p><div class="gmail_quote"><div class="gmail_attr">---------- Forwarded message ----------<br>From: Bob</div><p>Bob wrote this</p></div>',
+    });
+    const draft = savedDraft('reply', 'Thanks, noted', forwardedToMe, {
+      to: [{ email: 'ada@example.com' }],
+      cc: [{ email: 'teammate@example.com' }],
+      subject: 'Re: Numbers',
+    });
+    const reply = mountReplyComposer(
+      context,
+      () => forwardedToMe,
+      {
+        draft,
+        preloadedHtml: decodeBase64Utf8(draft.body_html_sanitized ?? ''),
+      },
+      { replyRequest: cardActions('reply') }
+    );
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      await reply.sendEmail();
+
+      expect(context.delivery.sendMessage).toHaveBeenCalledOnce();
+      const sent = delivered(context);
+      const { message: sentMessage } = vi.mocked(context.delivery.sendMessage)
+        .mock.calls[0][0];
+      expect(sent.to).toEqual(['ada@example.com']);
+      expect(sentMessage.cc?.map((contact) => contact.email)).toEqual([
+        'teammate@example.com',
+      ]);
+      expect(sent.body).toContain('wrote:');
+      expect(sent.body).toContain('Bob wrote this');
     } finally {
       reply.dispose();
     }
