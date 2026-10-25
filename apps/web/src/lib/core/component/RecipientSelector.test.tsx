@@ -1,5 +1,12 @@
 import type { WithCustomUserInput } from '@core/user';
-import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@solidjs/testing-library';
+import userEvent from '@testing-library/user-event';
 import { createSignal, type JSX } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RecipientSelector } from './RecipientSelector';
@@ -71,14 +78,16 @@ describe('RecipientSelector typed addresses', () => {
     expect(emails()).toEqual(['a@example.com', 'b@example.com']);
   });
 
-  it('keeps a just-picked suggestion when an address is typed right after it', async () => {
+  it('keeps an address typed straight after picking a suggestion', async () => {
+    const user = userEvent.setup();
     const { input, emails } = renderSelector();
-    fireEvent.input(input, { target: { value: 'bob@example.com' } });
+    await user.type(input, 'bob@example.com');
     await screen.findByRole('listbox');
-    fireEvent.keyDown(input, { key: 'Enter' });
-    fireEvent.input(input, { target: { value: 'carol@example.com,' } });
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    expect(emails()).toEqual(['bob@example.com', 'carol@example.com']);
+    await user.keyboard('{Enter}carol@example.com,');
+    await waitFor(() =>
+      expect(emails()).toEqual(['bob@example.com', 'carol@example.com'])
+    );
+    expect(input.value).toBe('');
   });
 
   it('leaves text until a separator ends a complete address', () => {

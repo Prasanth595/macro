@@ -29,7 +29,6 @@ import HashIcon from '@phosphor/hash.svg';
 import PaperPlaneTiltIcon from '@phosphor/paper-plane-tilt.svg';
 import RobotIcon from '@phosphor/robot.svg';
 import XIcon from '@phosphor/x.svg';
-import { debounce } from '@solid-primitives/scheduled';
 import { Avatar, cn, Layer } from '@ui';
 import * as EmailValidator from 'email-validator';
 import {
@@ -387,16 +386,6 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
     )
   );
 
-  let pendingSelection: CombinedRecipientItem[] | undefined;
-  const debouncedHandleChange = debounce((value: CombinedRecipientItem[]) => {
-    pendingSelection = undefined;
-    handleChange(value);
-  }, 100);
-  const scheduleChange = (value: CombinedRecipientItem[]) => {
-    pendingSelection = value;
-    debouncedHandleChange(value);
-  };
-
   const [isOpen, setIsOpen] = createSignal(false);
   const [suppressOpenUntilInputChange, setSuppressOpenUntilInputChange] =
     createSignal(Boolean(props.focusOnMount));
@@ -671,17 +660,9 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
       );
     if (emails.length === 0 || !emails.every((e) => EmailValidator.validate(e)))
       return false;
-    const current =
-      pendingSelection ?? (props.selectedOptions as CombinedRecipientItem[]);
-    const currentEmails = new Set(
-      current.flatMap((option) => {
-        const email = getRecipientOptionEmail(option);
-        return email ? [email.toLowerCase()] : [];
-      })
-    );
     const known = recipients().raw;
     const added = emails
-      .filter((email) => !currentEmails.has(email.toLowerCase()))
+      .filter((email) => !selectedEmails().has(email.toLowerCase()))
       .map(
         (email) =>
           known.find(
@@ -696,9 +677,10 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
           })
       );
     if (added.length === 0) return false;
-    debouncedHandleChange.clear();
-    pendingSelection = undefined;
-    handleChange([...current, ...added]);
+    handleChange([
+      ...(props.selectedOptions as CombinedRecipientItem[]),
+      ...added,
+    ]);
     return true;
   };
 
@@ -746,7 +728,7 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
           visibleOptionKeys().has(getRecipientOptionValue(option))
         }
         value={props.selectedOptions as CombinedRecipientItem[]}
-        onChange={scheduleChange}
+        onChange={handleChange}
         onInputChange={onInputChange}
         shouldFocusWrap
         placeholder={
