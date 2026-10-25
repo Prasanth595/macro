@@ -276,7 +276,7 @@ Undo-restored editor disabled. Each send owns its mentions, completion target,
 and undo handle; sending again must preserve the earlier notification's undo
 action. Standalone compose marks completion before its navigation callback, so
 disposal cannot autosave or resend the successful message. Discard navigates
-first instead: it pauses autosave and cancels the pending edit, leaves, then
+first instead. It pauses autosave and cancels the pending edit, leaves, then
 finishes the in-flight save, the local flush, and the deletion in the
 background. A queued write can wait out the mutation queue's request and
 delivery timeouts, and the optimistic delete empties a draft-only thread

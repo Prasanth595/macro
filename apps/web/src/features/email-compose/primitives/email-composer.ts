@@ -1112,9 +1112,9 @@ export function createEmailComposer(props: EmailComposerOptions) {
     setDiscarding(true);
     autosave.cancel();
     // A standalone draft owns its thread, so nothing is left to show. Leave
-    // before the delete: a queued save or delete can take minutes, and the
+    // first, because a queued save or delete can take minutes and the
     // optimistic delete empties a draft-only thread around this composer.
-    // Discarding pauses autosave, so disposal cannot save the draft again.
+    // Discarding keeps autosave paused, so disposal cannot save it again.
     props.host?.goBack?.();
     try {
       // A first save may still be creating the draft. Delete its returned ID
