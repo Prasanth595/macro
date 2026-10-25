@@ -75,15 +75,41 @@ fn refused_operations_come_back_within_seconds_while_a_burst_drains() {
 }
 
 #[test]
+fn gmail_concurrency_limits_retry_on_the_gate_schedule() {
+    let concurrency = RateLimitOrigin::Provider { concurrency: true };
+    let longest: Vec<u64> = (1..=5)
+        .map(|retry| retry_delay(retry, concurrency, None, |range| *range.end()).as_secs())
+        .collect();
+    assert_eq!(longest, [2, 3, 5, 7, 11]);
+    for retry in 1..=101 {
+        assert_eq!(
+            retry_delay(retry, concurrency, None, |range| *range.start()),
+            retry_delay(retry, RateLimitOrigin::Local, None, |range| *range.start()),
+            "retry {retry}"
+        );
+        assert_eq!(
+            retry_delay(retry, concurrency, None, |range| *range.end()),
+            retry_delay(retry, RateLimitOrigin::Local, None, |range| *range.end()),
+            "retry {retry}"
+        );
+    }
+}
+
+#[test]
 fn a_mailbox_that_stays_saturated_takes_hours_to_use_up_the_deliveries() {
-    let busy = Some(Duration::from_secs(1));
-    let shortest: Duration = (1..=101)
-        .map(|retry| retry_delay(retry, RateLimitOrigin::Local, busy, |range| *range.start()))
-        .sum();
-    assert!(
-        shortest > Duration::from_secs(90 * 60),
-        "101 refusals in a row waited only {shortest:?}"
-    );
+    let cases = [
+        (RateLimitOrigin::Local, Some(Duration::from_secs(1))),
+        (RateLimitOrigin::Provider { concurrency: true }, None),
+    ];
+    for (origin, retry_after) in cases {
+        let shortest: Duration = (1..=101)
+            .map(|retry| retry_delay(retry, origin, retry_after, |range| *range.start()))
+            .sum();
+        assert!(
+            shortest > Duration::from_secs(90 * 60),
+            "101 {origin:?} rate limits in a row waited only {shortest:?}"
+        );
+    }
 }
 
 #[test]
