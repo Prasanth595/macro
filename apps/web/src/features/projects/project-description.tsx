@@ -5,12 +5,15 @@ import { createMemo, createSignal, onCleanup, Show, Suspense } from 'solid-js';
 import { ProjectDescriptionSkeleton } from './components/project-skeletons';
 import { createProductionProjectDescriptionSession } from './queries/production-project-description';
 
+type OpenDescriptionSession = typeof createProductionProjectDescriptionSession;
+
 function DescriptionSession(props: {
   projectId: string;
   canEdit: boolean;
+  openSession: OpenDescriptionSession;
   onRetry(): void;
 }) {
-  const session = createProductionProjectDescriptionSession(props.projectId);
+  const session = props.openSession(props.projectId);
   onCleanup(session.dispose);
   return (
     <>
@@ -43,6 +46,8 @@ function DescriptionSession(props: {
 export function ProjectDescription(props: {
   projectId: string;
   canEdit: boolean;
+  /** Opens the surface; defaults to a member's session, which ensures it exists. */
+  openSession?: OpenDescriptionSession;
 }) {
   const [attempt, setAttempt] = createSignal(0);
   // Project refreshes keep the same session; only a new project or retry reopens.
@@ -62,6 +67,9 @@ export function ProjectDescription(props: {
           <DescriptionSession
             projectId={identity.projectId}
             canEdit={props.canEdit}
+            openSession={
+              props.openSession ?? createProductionProjectDescriptionSession
+            }
             onRetry={() => setAttempt((attempt) => attempt + 1)}
           />
         )}
