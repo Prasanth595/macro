@@ -222,9 +222,11 @@ so invitees can open those links. A public booking link stays available when
 the flag request gets no answer, for example when a browser blocks it.
 
 Calendar connections live in **Settings → Calendar** (`/app/settings/calendar`).
-Connected calendars offers Connect account (the existing Google consent flow),
-Connect calendar for accounts missing calendar permission, and Disconnect with
-confirmation. When the only linked account lacks calendar permission, the Google
+Connected calendars offers Connect account (pick Gmail or Outlook / Microsoft 365,
+then consent), Connect calendar for accounts missing calendar permission (consent
+again for that account at its own provider with its address preselected, as
+Settings → Email's Enable calendar does), and Disconnect with confirmation. When
+the only linked account lacks calendar permission, the Google
 Calendar row shows just a filled Connect button for it, with no account list or
 visibility note. Disconnect removes calendar access/data, not the Gmail connection.
 Settings → Calendar lists only the viewer's own inboxes. The **Enable calendar**
@@ -666,7 +668,13 @@ three characters of its title in a composer that offers event mentions (message,
 document composers; spreadsheet and database cells and typed reference fields do not): where calendar search is on
 (`enable-calendar-search-ui`), the menu lists matches under `Calendar events` (all of them in
 one list on phones), one row per event with when it starts, and picking one inserts the same
-chip a paste does, pinned to the found instance of a repeating event.
+chip a paste does, pinned to the found instance of a repeating event. Events someone shared
+with a channel you belong to, and that are on none of your calendars, follow your own events
+in that list without a marker, as documents shared that way sit beside your own; their chip
+names the shared event, so it opens for whoever can already see it. Posting it elsewhere does
+not share it on (only someone holding the event on their own calendar can), so people without
+access see `No Access`, like any other mention they cannot open; clicking it (a tap on a phone,
+which opens a sheet) shows `You don't have access to this event`.
 A calendar event mentioned in a channel message opens the calendar focused on the viewer's
 own copy of the meeting. When a person holds the event on their own calendar and posts the
 mention, it is shared read-only with the channel's current members: a member without a copy of
@@ -721,7 +729,9 @@ it by posting the chip. It asks whether to share with the channel, and a yes in 
 writes the same channel grant. Private and confidential events are never shared this way.
 Every calendar mention's hover card shows the schedule, location, organizer and attendee
 count, plus the first lines of the event description (its links open), and no last-updated
-byline. When the mention names someone else's copy of a meeting the viewer also holds (a shared
+byline. A mention of a meeting that was deleted or cancelled reads `Deleted`; clicking it (a tap
+on a phone, which opens a sheet) shows `This event was deleted or cancelled.`, like a shared
+event's card, instead of doing nothing. When the mention names someone else's copy of a meeting the viewer also holds (a shared
 event they added or were invited to, or a meeting someone else mentioned), the card says how:
 `Your copy is on your calendar` for a snapshot, `You're invited · on your calendar` when the
 viewer's copy is a guest's, and `On your calendar` otherwise (the viewer organizes it, or it sits

@@ -347,6 +347,12 @@ the shimmer.
   whose turn is still running (the agent is working, writing code, or stopping)
   shows the same three-dot working wave as the transcript in place of the
   leading icon; the row's accessible name appends `Starting` or `Working`.
+  The row follows each turn without a reload: it turns Working when a turn
+  starts and clears when the last turn ends. Each session update re-reads the
+  row from the primary database after the list refetch, which corrects a
+  stale replica read at that point; a later replica-backed refetch from
+  another trigger can still briefly restore an older row until the next
+  session update.
   Sessions with a linked PR show
   **#<number>** beneath the title (icon colored by open / merged / closed; no
   status word). Clicking it opens the synced
@@ -1377,8 +1383,15 @@ it points right when collapsed and down when expanded. Individual results start
 collapsed. Existing rich result views retain their own content and controls;
 when a result view provides its own disclosure, use that control rather than
 adding a second nested disclosure. Counts come from structured responses,
-edits show additions/deletions, and other tools show their outcome. A call cut
-off when its turn ends reads **Stopped**.
+edits show additions/deletions, and other tools show their outcome. A Macro
+tool call keeps the same label and icon as its successful row in every state,
+never the tool's code name: while it runs its text shimmers; a call cut off when
+its turn ends reads **Stopped**; a failed call is faded with **Failed** on the
+right (for example **Add to calendar · Failed**), and when the tool gave a
+reason, **Failed** carries a caret that opens it. Only a call whose arguments do
+not fit the tool (still arriving, or malformed) keeps the summary row with the
+tool's name. Labels stay in the present tense (**Fetch**, **Load tools**) until
+a result arrives.
 
 Only tools with a supported result view can expand. Unknown tools, unsupported
 drafts, and payloads that do not fit their renderer stay as summary rows with
@@ -1670,7 +1683,9 @@ message highlight; incoming output does not repeat the search jump.
 - New messages and growing streamed replies follow while within 50px of the end.
   Scroll up to read history without being pulled back by subsequent output.
 - Far above the end, scroll downward to reveal **Scroll to bottom**. Clicking it
-  returns to latest and resumes following. The right-edge custom scrollbar is also
+  returns to latest and resumes following. On touch devices the round **Jump to
+  latest** button above the composer replaces it and shows whenever the transcript
+  is away from the end. The right-edge custom scrollbar is also
   drag-seekable, like channels.
 - Select mounted transcript text to use **Reply to selection**. Streaming updates
   retain message-row identity; scrolling a row outside the virtual window can
