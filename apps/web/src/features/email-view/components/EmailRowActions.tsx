@@ -67,6 +67,8 @@ export function EmailStarAction(props: {
 export function EmailRowActions(props: {
   archived: boolean;
   canArchive: boolean;
+  /** False for archived threads with no received mail, which stay archived. */
+  canUnarchive: boolean;
   pending: boolean;
   onArchive: () => void;
   onCommands: () => void;
@@ -74,23 +76,25 @@ export function EmailRowActions(props: {
 }) {
   return (
     <EmailActionGroup onFocus={props.onFocus}>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        label={props.archived ? 'Unarchive email' : 'Archive email'}
-        hotkey={
-          props.archived
-            ? TOKENS.entity.action.markNotDone
-            : TOKENS.entity.action.markDone
-        }
-        class="text-ink-extra-muted"
-        disabled={!props.canArchive || props.pending}
-        onClick={props.onArchive}
-      >
-        <Show when={props.archived} fallback={<CheckIcon class="size-4" />}>
-          <ArrowCounterClockwiseIcon class="size-4" />
-        </Show>
-      </Button>
+      <Show when={!props.archived || props.canUnarchive}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          label={props.archived ? 'Unarchive email' : 'Archive email'}
+          hotkey={
+            props.archived
+              ? TOKENS.entity.action.markNotDone
+              : TOKENS.entity.action.markDone
+          }
+          class="text-ink-extra-muted"
+          disabled={!props.canArchive || props.pending}
+          onClick={props.onArchive}
+        >
+          <Show when={props.archived} fallback={<CheckIcon class="size-4" />}>
+            <ArrowCounterClockwiseIcon class="size-4" />
+          </Show>
+        </Button>
+      </Show>
       <Button
         variant="ghost"
         size="icon-sm"

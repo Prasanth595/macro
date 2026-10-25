@@ -53,6 +53,7 @@ import {
   Switch,
 } from 'solid-js';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
+import { canMarkNotDone } from '../../next-soup/actions/can-mark-not-done';
 import {
   persistSoupNavigationTouchHighlight,
   soupNavigationTouchHighlight,
@@ -400,6 +401,7 @@ export function EmailList(props: EmailListProps) {
       <EmailRowActions
         archived={archived()}
         canArchive={entityActionViewContext().supportsMarkDone}
+        canUnarchive={canMarkNotDone(props.row.entity)}
         pending={rowActionState.isPending(props.row.rowId)}
         onFocus={() => focusActionRow(props.row)}
         onArchive={() =>
