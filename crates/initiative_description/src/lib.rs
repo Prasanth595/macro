@@ -9,6 +9,7 @@ use collab_surface::domain::models::CollabSurfaceError;
 use collab_surface::domain::ports::OwnedSurfaceService;
 use initiative::domain::models::{InitiativeError, InitiativeId};
 use initiative::domain::ports::InitiativeDescriptionSurfaces;
+use initiative::domain::reads::DescriptionReader;
 use model_entity::EntityType;
 
 #[cfg(test)]
@@ -65,6 +66,11 @@ where
             .retire_surface(initiative.as_uuid())
             .await
             .map_err(map_surface_error)
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn reader(&self, initiative: InitiativeId) -> Result<DescriptionReader, InitiativeError> {
+        todo!("reader for {initiative}")
     }
 }
 

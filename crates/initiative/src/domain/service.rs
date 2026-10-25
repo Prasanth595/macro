@@ -33,7 +33,7 @@ use crate::domain::models::{
     MAX_INITIATIVE_NAME_GRAPHEMES, UpdateInitiativeRepoArgs, UpdateInitiativeRequest,
 };
 use crate::domain::ports::{InitiativeDescriptionSurfaces, InitiativeRepo, InitiativeService};
-use crate::domain::reads::InitiativeRead;
+use crate::domain::reads::{DescriptionReader, InitiativeOverview, InitiativeRead};
 use crate::domain::resources::InitiativeResources;
 
 /// Concrete initiative service backed by an [`InitiativeRepo`] and the description surface
@@ -337,6 +337,22 @@ where
     ) -> Result<String, InitiativeError> {
         let id = initiative_id_from_receipt(&receipt)?;
         self.description_surfaces.read(id).await
+    }
+
+    #[tracing::instrument(err, skip_all)]
+    async fn overview(
+        &self,
+        receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> Result<InitiativeOverview, InitiativeError> {
+        todo!("overview of {receipt:?}")
+    }
+
+    #[tracing::instrument(err, skip_all)]
+    async fn description_reader(
+        &self,
+        receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> Result<DescriptionReader, InitiativeError> {
+        todo!("description reader for {receipt:?}")
     }
 
     #[tracing::instrument(err, skip_all)]

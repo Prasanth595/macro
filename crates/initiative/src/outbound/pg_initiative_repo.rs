@@ -8,6 +8,7 @@ mod share;
 #[cfg(test)]
 mod test;
 
+use std::collections::HashMap;
 use std::str::FromStr;
 
 use macro_user_id::cowlike::CowLike;
@@ -27,6 +28,7 @@ use crate::domain::models::{
     InitiativeList, UpdateInitiativeRepoArgs,
 };
 use crate::domain::ports::InitiativeRepo;
+use crate::domain::reads::ProfileName;
 
 const DETAIL_ACCESS_WITHOUT_ACTOR: AccessLevel = AccessLevel::View;
 
@@ -114,6 +116,16 @@ impl InitiativeRepo for PgInitiativeRepo {
     #[tracing::instrument(err, skip(self))]
     async fn delete(&self, id: InitiativeId) -> Result<(), Self::Err> {
         create::delete(&self.pool, id).await
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn task_names(&self, ids: Vec<String>) -> Result<HashMap<String, String>, Self::Err> {
+        todo!("names of {ids:?}")
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn profile_names(&self, ids: Vec<String>) -> Result<Vec<ProfileName>, Self::Err> {
+        todo!("profile names of {ids:?}")
     }
 }
 

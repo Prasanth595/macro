@@ -393,6 +393,20 @@ impl InitiativeService for FakeInitiativeService {
         Ok(String::new())
     }
 
+    async fn overview(
+        &self,
+        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> Result<crate::domain::reads::InitiativeOverview, InitiativeError> {
+        unreachable!("no route reads an overview")
+    }
+
+    async fn description_reader(
+        &self,
+        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> Result<crate::domain::reads::DescriptionReader, InitiativeError> {
+        unreachable!("no route reads a description grant")
+    }
+
     async fn update(
         &self,
         _receipt: EntityAccessReceipt<EditAccessLevel>,
