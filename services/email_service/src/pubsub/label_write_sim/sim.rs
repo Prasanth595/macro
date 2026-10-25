@@ -86,6 +86,8 @@ struct OpTrack {
     label: String,
     value: bool,
     status: OpStatus,
+    /// Messages Gmail accepted this write for, over all its deliveries.
+    accepted: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -206,6 +208,8 @@ pub struct Stats {
 pub enum Source {
     Sync(usize),
     Resync(usize),
+    /// The earliest message already on the queue.
+    Queued(Queue),
 }
 
 pub struct Paused {
@@ -345,6 +349,7 @@ impl<'w> Sim<'w> {
                 label,
                 value,
                 status: OpStatus::Queued,
+                accepted: BTreeSet::new(),
             },
         );
         Some(lineage)
@@ -941,10 +946,16 @@ impl<'w> Sim<'w> {
         at: PauseAt,
     ) -> Option<Paused> {
         self.prepare(&Step::Wait { seconds: 0 }).await;
-        let (Source::Sync(message) | Source::Resync(message)) = source;
-        let queued = self.sync_message(message, matches!(source, Source::Resync(_)));
-        self.queued.push(queued);
-        let index = self.queued.len() - 1;
+        let index = match source {
+            Source::Sync(message) | Source::Resync(message) => {
+                let queued = self.sync_message(message, matches!(source, Source::Resync(_)));
+                self.queued.push(queued);
+                self.queued.len() - 1
+            }
+            Source::Queued(queue) => (0..self.queued.len())
+                .filter(|index| self.queued[*index].queue == queue)
+                .min_by_key(|index| (self.queued[*index].visible_at, *index))?,
+        };
         self.now = self.now.max(self.queued[index].visible_at);
         let delivery = self.begin_delivery(index)?;
         let pause = self.world.gmail.pause_next(kind, None, at);

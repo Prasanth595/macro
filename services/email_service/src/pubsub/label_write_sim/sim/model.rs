@@ -76,12 +76,17 @@ impl Sim<'_> {
             })
             .collect();
         self.stats.gmail_writes += writes.len() as u64;
-        for write in &writes {
+        for (index, write) in writes.iter().enumerate() {
             if write.reply != Reply::Ok {
                 continue;
             }
+            // Only the first write can be the one Gmail applied while later
+            // steps ran; any per-message write after it was sent later.
+            let cutoff = match index {
+                0 => applied_before.unwrap_or(u64::MAX),
+                _ => u64::MAX,
+            };
             for id in &write.ids {
-                let cutoff = applied_before.unwrap_or(u64::MAX);
                 let newer = self.cells[&(id.clone(), track.label.clone())]
                     .iter()
                     .filter(|entry| entry.state != EntryState::Rejected && entry.seq <= cutoff)
@@ -107,9 +112,19 @@ impl Sim<'_> {
                 }
             }
         }
+        let accepted_now = writes
+            .iter()
+            .filter(|write| write.reply == Reply::Ok)
+            .flat_map(|write| write.ids.iter().cloned());
+        self.ops
+            .get_mut(&lineage)
+            .unwrap()
+            .accepted
+            .extend(accepted_now);
         if !deleted || resent {
             return;
         }
+        let accepted = self.ops[&lineage].accepted.clone();
         let sent_ids: BTreeSet<String> = writes
             .iter()
             .flat_map(|write| write.ids.iter().cloned())
@@ -135,11 +150,12 @@ impl Sim<'_> {
                 .is_some_and(|latest| latest > track.seq)
         };
         if outcome == OpStatus::Rejected {
-            // Below ten messages Gmail gets one request per message and the
-            // operation stops at the first rejection, which reverts every
-            // message it was sending, tried or not.
+            // A rejection reverts the messages Gmail hasn't accepted: the
+            // rejected one, and below ten messages those not sent yet that no
+            // newer write took over.
             let rejected: Vec<String> = in_op
                 .iter()
+                .filter(|id| !accepted.contains(*id))
                 .filter(|id| sent_ids.contains(*id) || !superseded(self, id))
                 .cloned()
                 .collect();
@@ -149,7 +165,7 @@ impl Sim<'_> {
             self.stats.skipped_superseded += 1;
         }
         for id in &in_op {
-            if sent_ids.contains(id) || outcome == OpStatus::Rejected {
+            if sent_ids.contains(id) || accepted.contains(id) || outcome == OpStatus::Rejected {
                 continue;
             }
             if !superseded(self, id) {

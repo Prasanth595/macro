@@ -463,11 +463,11 @@ async fn single_message_writes_each_settle_their_own_message(pool: PgPool) {
 }
 
 /// With batches on, a write to fewer than ten messages goes to Gmail one
-/// request per message, so Gmail can reject one after accepting those before
-/// it. The rejection reverts the batch and clears every marker, which lets the
-/// next syncs take Gmail's state for each message.
+/// request per message. When Gmail rejects one after accepting another, only
+/// the messages it hasn't accepted go back, so the database already agrees
+/// with Gmail and no marker is left.
 #[sqlx::test(migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS")]
-async fn a_rejection_partway_through_a_batch_leaves_no_marker_behind(pool: PgPool) {
+async fn a_rejection_partway_through_a_batch_keeps_what_gmail_accepted(pool: PgPool) {
     let mut world = World::new(pool, 917, true).await;
     let sim = &mut Sim::new(&mut world, 1);
     sim.act(Action::Archive(T1, true), false).await.unwrap();
@@ -481,13 +481,89 @@ async fn a_rejection_partway_through_a_batch_leaves_no_marker_behind(pool: PgPoo
             .filter(|m| !gmail_has(sim, *m, INBOX)),
     );
     assert_eq!(live_markers(sim).await, 0);
+    assert_t1_inbox_is_all_but(sim, accepted).await;
 
     sync_thread(sim, T1).await;
+    assert_t1_inbox_is_all_but(sim, accepted).await;
+    assert!(in_inbox(sim, T1).await);
+    assert!(sim.world.flag_mismatches().await.is_empty());
+}
+
+/// Seeds 4000735 and 8000641: with batches on, Gmail accepts a write's first
+/// message and the next one is rate limited. The retry doesn't send the
+/// accepted message again, and when Gmail rejects it, only the messages Gmail
+/// never accepted go back.
+#[sqlx::test(migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS")]
+async fn a_rejected_retry_keeps_the_messages_gmail_accepted_before_it(pool: PgPool) {
+    let mut world = World::new(pool, 918, true).await;
+    let sim = &mut Sim::new(&mut world, 1);
+    sim.act(Action::Archive(T1, true), false).await.unwrap();
+    sim.deliver_answering(Queue::Ops, &[Reply::Ok, Reply::RateLimited], false)
+        .await;
+    let accepted = only(
+        T1_MESSAGES
+            .into_iter()
+            .filter(|m| !gmail_has(sim, *m, INBOX)),
+    );
+    assert_eq!(live_markers(sim).await, 2);
+    assert_eq!(sim.queue_len(Queue::OpsRetry), 1);
+
+    let requests_before = sim.world.gmail.lock().log.len();
+    sim.deliver_answering(Queue::OpsRetry, &[Reply::Rejected], false)
+        .await;
+    let resent: Vec<String> = sim.world.gmail.lock().log[requests_before..]
+        .iter()
+        .flat_map(|request| request.ids.clone())
+        .collect();
+    assert!(!resent.contains(&MESSAGES[accepted].0.to_string()));
+    assert_eq!(live_markers(sim).await, 0);
+    assert_t1_inbox_is_all_but(sim, accepted).await;
+
+    sync_thread(sim, T1).await;
+    assert_t1_inbox_is_all_but(sim, accepted).await;
+    assert!(in_inbox(sim, T1).await);
+    assert!(sim.world.flag_mismatches().await.is_empty());
+}
+
+/// Seed 7000286: with batches on, an archive of a three-message thread is held
+/// after Gmail applies its first message. The user unarchives the thread and
+/// that write reaches Gmail first. When the archive resumes, it leaves the
+/// other two messages to the unarchive.
+#[sqlx::test(migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS")]
+async fn a_resumed_older_write_skips_messages_a_newer_write_took_over(pool: PgPool) {
+    let mut world = World::new(pool, 919, true).await;
+    let sim = &mut Sim::new(&mut world, 1);
+    sim.act(Action::Archive(T1, true), false).await.unwrap();
+    let paused = sim
+        .start_paused(Source::Queued(Queue::Ops), Kind::Write, PauseAt::AfterApply)
+        .await
+        .unwrap();
+    sim.act(Action::Archive(T1, false), false).await.unwrap();
+    sim.deliver_all(Queue::Ops, Reply::Ok).await;
+    let requests_before = sim.world.gmail.lock().log.len();
+    sim.finish_paused(paused).await;
+
+    assert_eq!(sim.world.gmail.lock().log.len(), requests_before);
     for message in T1_MESSAGES {
-        assert_eq!(db_has(sim, message, INBOX).await, message != accepted);
+        assert!(gmail_has(sim, message, INBOX));
+        assert!(db_has(sim, message, INBOX).await);
+    }
+    assert_eq!(live_markers(sim).await, 0);
+    sync_thread(sim, T1).await;
+    for message in T1_MESSAGES {
+        assert!(db_has(sim, message, INBOX).await);
     }
     assert!(in_inbox(sim, T1).await);
     assert!(sim.world.flag_mismatches().await.is_empty());
+}
+
+/// Every message of t1 but `archived` is in the inbox, in the database and at
+/// Gmail.
+async fn assert_t1_inbox_is_all_but(sim: &Sim<'_>, archived: usize) {
+    for message in T1_MESSAGES {
+        assert_eq!(db_has(sim, message, INBOX).await, message != archived);
+        assert_eq!(gmail_has(sim, message, INBOX), message != archived);
+    }
 }
 
 const T1_MESSAGES: [usize; 3] = [M1A, M1B, M1C];
