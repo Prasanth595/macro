@@ -6,10 +6,10 @@ This crate owns saved-view definitions, revisions, effective team sharing, and l
 
 ## Start here
 
-- `src/domain.rs`: authorization, membership-lifetime validation, optimistic writes, bounded visible pagination, and storage/membership ports.
+- `src/domain.rs`: authorization, current-membership validation, optimistic writes, bounded visible pagination, and storage/membership ports.
 - `src/pgsql.rs`: primary-backed SQLx queries, owner/revision guards, and per-ID transaction locks. Physical deletes leave permanent ID-only tombstones; never purge them or bypass the create lock. Deletion triggers must not acquire that lock after locking a row; creation rechecks tombstones after INSERT to catch legacy deletes.
 - `src/storage.rs`: legacy REST PATCH payload and excluded-default storage.
 
 ## Checks
 
-Run `cargo test -p saved_views` with a local migrated MacroDB and `SQLX_OFFLINE` unset. Run `nix develop --command just prepare_db` after changing SQL or migrations. Never query `team_user` from this crate; the Teams-owned evidence adapter belongs at composition. For migration checks, use a fresh local database because existing local deployments have applied earlier uncommitted versions. Run concurrent-index migrations with `PGOPTIONS="-c lock_timeout=2s"`; the membership backfill commits in batches, and the final constraint validates before `SET NOT NULL`.
+Run `cargo test -p saved_views` with a local migrated MacroDB and `SQLX_OFFLINE` unset. Run `nix develop --command just prepare_db` after changing SQL or migrations. Never query `team_user` from this crate; the Teams-owned evidence adapter belongs at composition. For migration checks, use a fresh disposable local database. Run each concurrent-index migration separately with `PGOPTIONS="-c lock_timeout=2s"`. Owner departure disables sharing; owner rejoining restores it.

@@ -6,6 +6,6 @@ INSERT INTO "User" (id, email, name, macro_user_id) VALUES
 ('macro|viewer@example.com', 'viewer@example.com', 'Viewer', 'a2222222-2222-2222-2222-222222222222');
 INSERT INTO team (id, name, owner_id) VALUES
 ('11111111-1111-1111-1111-111111111111', 'Team', 'macro|owner@example.com');
-INSERT INTO team_user (team_id, user_id, team_role, membership_id) VALUES
-('11111111-1111-1111-1111-111111111111', 'macro|owner@example.com', 'owner', 'aaaaaaaa-aaaa-7aaa-aaaa-aaaaaaaaaaaa'),
-('11111111-1111-1111-1111-111111111111', 'macro|viewer@example.com', 'member', 'bbbbbbbb-bbbb-7bbb-bbbb-bbbbbbbbbbbb');
+INSERT INTO team_user (team_id, user_id, team_role) VALUES
+('11111111-1111-1111-1111-111111111111', 'macro|owner@example.com', 'owner'),
+('11111111-1111-1111-1111-111111111111', 'macro|viewer@example.com', 'member');

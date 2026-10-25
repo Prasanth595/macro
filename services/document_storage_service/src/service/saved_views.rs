@@ -3,7 +3,7 @@ use saved_views::{
     PgViewStorage,
     domain::{MembershipPort, SavedViewService},
 };
-use std::collections::HashMap;
+use std::collections::HashSet;
 use teams::{domain::membership::TeamMembershipEvidence, outbound::team_repo::TeamRepositoryImpl};
 use uuid::Uuid;
 
@@ -16,11 +16,11 @@ impl MembershipPort for Membership {
         self.0.viewer_teams(viewer).await
     }
 
-    async fn lifetimes(
+    async fn current_members(
         &self,
         pairs: &[(Uuid, String)],
-    ) -> Result<HashMap<(Uuid, String), Uuid>, Self::Err> {
-        self.0.lifetimes(pairs).await
+    ) -> Result<HashSet<(Uuid, String)>, Self::Err> {
+        self.0.current_members(pairs).await
     }
 }
 

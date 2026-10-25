@@ -29,10 +29,6 @@ pub struct View {
     #[serde(skip)]
     #[schema(ignore)]
     pub shared_team_id: Option<Uuid>,
-    /// Owner's membership lifetime when sharing was enabled.
-    #[serde(skip)]
-    #[schema(ignore)]
-    pub shared_owner_membership_id: Option<Uuid>,
 }
 
 impl View {
@@ -47,7 +43,6 @@ impl View {
             updated_at: now,
             revision: 1,
             shared_team_id: None,
-            shared_owner_membership_id: None,
         }
     }
 }

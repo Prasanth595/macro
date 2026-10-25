@@ -27,7 +27,7 @@ main Tasks screen.
 | Capture | Save view appears left of Filters when filters differ from the built-in defaults. |
 | Mobile | Full creation, browsing, editing, and management support. |
 | Initial surfaces | Main Tasks only; not project or CRM embedded task lists. |
-| Owner departure | Team sharing stops when the owner leaves and does not revive after rejoining. |
+| Owner departure | Team sharing stops while the owner is absent and resumes if they rejoin the shared team. |
 
 No saved-view defaults, ordering customization, individual recipients, public
 links, presentation settings, new task filter categories, or CRM migration are
@@ -98,7 +98,7 @@ or CRM components.
 Keep the existing JSON `config` column. New consumers use a versioned envelope:
 
 - `kind`: a stable consumer identifier, initially `tasks`.
-- `version`: the consumer's definition version, currently `2` for Tasks.
+- `version`: the consumer's definition version, initially `1` for Tasks.
 - `filters`: that consumer's declarative filter definition.
 
 The backend validates generic write bounds and stores the configuration without
@@ -111,14 +111,14 @@ compiled Soup AST. A compiled AST bakes in the current user, requires reverse
 parsing to restore editable controls, and couples persisted definitions to query
 transport details. Reuse the existing compiler at execution time instead.
 
-### Task definition v2
+### Task definition v1
 
 The proposed shape below uses explanatory UUID placeholders, not real IDs:
 
 ```json
 {
   "kind": "tasks",
-  "version": 2,
+  "version": 1,
   "filters": {
     "statusOptionIds": ["<in-progress-option-uuid>"],
     "priorityOptionIds": [],
@@ -147,11 +147,8 @@ The proposed shape below uses explanatory UUID placeholders, not real IDs:
   whatever default statuses a future client chooses.
 - Capturing My Tasks with an additional assignee uses normal OR matching: tasks
   assigned to either person. Created by me follows the same rule for creators.
-  This intentionally replaces the separate, intersecting scope condition in v1.
-- The decoder upgrades v1 definitions by merging their scope's viewer reference
-  into the matching person facet. New writes use v2; no database migration is needed.
-  This can broaden a legacy definition that combined scope with other people,
-  as explicitly chosen for consistent normal-filter behavior.
+- Accept only this final definition format. Earlier experimental Scope-based
+  configurations are not deployed contracts and have no upgrade path.
 
 Materialization always uses the All Tasks tab and restores every restriction as
 an editable facet. Viewer references resolve at query time. The same definition
@@ -187,53 +184,37 @@ Every result query still uses the viewer's existing entity permissions. A shared
 All Tasks view can include the viewer's private tasks; team sharing controls who
 can open the definition, not which entities it selects.
 
-### Permanent revocation needs membership identity
+### Sharing follows current membership
 
-Simply storing a team ID and checking membership is insufficient: leaving and
-rejoining would resurrect the old share. Deleting a share on membership deletion
-also has a problem: [team removal](../../crates/teams/src/domain/team_service.rs)
-commits that deletion before fallible billing, channel, and role operations,
-and can compensate by restoring membership.
+A share stores only a nullable `shared_team_id`. Both its owner and its viewer
+must currently belong to that team. Owner-only writes and item permissions remain
+independent of this visibility check.
 
-Recommended design:
+Leaving immediately makes the share ineffective; rejoining the same team restores
+it. A failed membership removal that restores membership has the same effect.
+This follows the existing current-membership sharing pattern, replacing the
+earlier proposed permanent-revocation policy. It needs no membership-lifetime
+column or changes to Teams' join, removal, or compensation flows.
 
-1. Give each `team_user` membership lifetime an internal UUID. Existing rows
-   receive one through an additive migration. Genuine joins generate a fresh UUID.
-2. Preserve that UUID in the internal removal receipt and restore the same UUID
-   during compensation. Do not add it to public team DTOs.
-3. Store nullable `shared_team_id` and `shared_owner_membership_id` on a view.
-   Sharing records the owner's current membership lifetime.
-4. A team share is effective only while the owner's current membership UUID
-   matches the stored UUID and the viewer currently belongs to the same team.
-5. Unsharing clears both fields. A deleted team makes the view private, not
-   deleted. An expired share remains private in API responses and the UI.
+Unsharing explicitly clears `shared_team_id`. A deleted team makes the view
+private, not deleted. When an owner is absent, API responses hide the ineffective
+share without clearing the stored team association.
 
-This makes absence revoke access immediately, successful compensation restore
-prior sharing, and a genuine rejoin leave old shares private. No cascade-delete
-of definitions, destructive share cleanup, or restoration of stale grant
-snapshots is needed. The owner must deliberately share again.
-
-The Teams-owned port supplies authoritative membership evidence; saved-view
-storage owns definition persistence. Do not query or mutate `team_user` directly
-from a GraphQL resolver or add saved-view SQL to team handlers. Listing must apply
-effective visibility before its public pagination limit, with batched membership
-evidence rather than per-row service calls. Recheck the viewer alongside each
-owner in that batch; the initial team list only narrows candidate selection.
-
-**Implementation checkpoint:** audit every membership insertion and compensation
-path. Removal rollback currently uses `ON CONFLICT DO NOTHING`; it must distinguish
-an idempotent same-lifetime restore from a different, newer membership. Join
-rollbacks must likewise delete only their own lifetime: both invite-acceptance
-rollback and direct-join rollback currently remove by user/team alone. A
-conflicting new lifetime must never be overwritten or deleted. Settle these
-concurrency behaviors before implementing sharing.
+The Teams-owned port supplies authoritative current-membership evidence;
+saved-view storage owns definition persistence. Do not query or mutate
+`team_user` directly from GraphQL resolvers or saved-view storage. Listing applies
+visibility before its public pagination limit, with batched membership checks
+rather than per-row service calls. Recheck the viewer alongside each owner in
+that batch; the initial team list only narrows candidate selection.
 
 ## Persistence and GraphQL
 
 Add an internal integer revision, starting at one, to `saved_view`. All writes,
-including legacy REST writes, advance it. Add indexes supporting owner/kind and
-shared-team/kind listing with stable created-time/ID ordering. Existing rows
-remain private and retain their configuration.
+including existing REST writes, advance it. Add owner and shared-team indexes
+with stable created-time/ID ordering; keep optional kind filtering without
+speculative kind-specific indexes. Existing rows remain private and retain their
+configuration. Consolidate unpublished migrations into the minimum safe final
+set, retaining separate concurrent-index statements and lock timeouts.
 
 Expose reads under the authenticated `user`, following the
 [GraphQL field guide](../guides/add-graphql-field.md):
@@ -247,9 +228,8 @@ Expose reads under the authenticated `user`, following the
 | `deleteSavedView` | ID and expected revision; returns the deleted ID. |
 
 The normalized output object has `id: ID!`, owner ID, name, config, effective
-shared team ID, revision, and timestamps. Internal membership tokens never leave
-the server. Generate the GraphQL envelope types and SDL; the frontend-owned JSON
-schema is not a second handwritten GraphQL DTO.
+shared team ID, revision, and timestamps. Generate the GraphQL envelope types and
+SDL; the frontend-owned JSON schema is not a second handwritten GraphQL DTO.
 
 Updates distinguish omission from clearing. Omitted fields stay unchanged;
 private sharing is explicit. A submitted config replaces the whole definition.
@@ -360,7 +340,7 @@ a configuration failure never executes a partially decoded query.
 Implement in focused slices, with behavior checks alongside each slice:
 
 1. Versioned Task definition codec and generic saved-view domain/storage design;
-   additive membership-lifetime and revision migrations, including rollback rules.
+   additive team-sharing and revision migrations with current-membership checks.
 2. GraphQL adapter, viewer reads, service wiring, generated contracts, and mutation
    cache policy. Preserve existing REST/CRM behavior.
 3. Reusable frontend queries/drafts and the main Tasks desktop/mobile integration.
@@ -369,16 +349,17 @@ Implement in focused slices, with behavior checks alongside each slice:
    multiple viewers, revision conflicts, missing filters, and navigation in the
    local app before rollout.
 
-Deploy the additive database and backend GraphQL changes before enabling the
-frontend consumer. Do not add a REST fallback when the new schema is unavailable.
-Reuse existing tracing across writes and filter loading without logging names,
-configuration contents, or person identifiers.
+Deploy the additive database changes and upgrade all backend writers before
+enabling the frontend consumer, so concurrent REST writes advance revisions.
+Do not add a REST fallback when the new schema is unavailable. Reuse existing
+tracing across writes and filter loading without logging names, configuration
+contents, or person identifiers.
 
 ### Points for design review
 
 - Consumer-owned, versioned filter definitions are recommended over storing a
   compiled Soup AST or the entire Task view state.
-- Permanent owner-departure revocation adds a membership-lifetime UUID to Teams;
-  this is the main backend scope expansion and needs the rollback audit above.
+- Team visibility follows current owner and viewer membership, matching existing
+  sharing patterns rather than introducing membership lifetimes.
 - Cross-client changes revalidate rather than using a new realtime subscription.
 - No existing CRM views are migrated or reinterpreted in this feature.

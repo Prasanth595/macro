@@ -600,14 +600,6 @@ impl TeamRepository for MockTeamRepository {
         }
     }
 
-    fn rollback_add_user_to_team(
-        &self,
-        _: &TeamMember<'_>,
-    ) -> impl Future<Output = Result<(), TeamError>> + Send {
-        *self.remove_user_calls.lock().unwrap() += 1;
-        async { Ok(()) }
-    }
-
     fn rollback_remove_user_from_team(
         &self,
         _: &TeamMember<'_>,
@@ -1745,7 +1737,6 @@ fn make_invite(email: &str, invite_id: uuid::Uuid, team_id: uuid::Uuid) -> TeamI
 
 fn make_team_member(team_id: uuid::Uuid, user_id: &str, role: TeamRole) -> TeamMember<'static> {
     TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: MacroUserIdStr::parse_from_str(user_id)
             .unwrap()
@@ -1774,7 +1765,6 @@ fn make_accepted_invite(
 ) -> AcceptedTeamInvite<'static> {
     AcceptedTeamInvite {
         member: TeamMember {
-            membership_id: uuid::Uuid::now_v7(),
             team_id,
             user_id: user_id.clone().into_owned(),
             role: TeamRole::Member,
@@ -1818,7 +1808,6 @@ fn make_enterprise_domain_join_team_repository(
 ) -> MockTeamRepository {
     let mark_sent_calls = Arc::new(Mutex::new(Vec::new()));
     let member = TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: user_id.clone().into_owned(),
         role: TeamRole::Member,
@@ -1858,7 +1847,6 @@ fn make_enterprise_remove_user_repository(
     team_repository.team_payment_status = false;
     team_repository.stripe_customer_id = Some("cus_enterprise_sentinel".parse().unwrap());
     team_repository.removed_member = Some(TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: user_id.clone().into_owned(),
         role,
@@ -4058,7 +4046,6 @@ fn build_crm_enable_service(
     let members = member_ids
         .iter()
         .map(|id| TeamMember {
-            membership_id: uuid::Uuid::now_v7(),
             team_id,
             user_id: MacroUserIdStr::parse_from_str(id).unwrap().into_owned(),
             role: TeamRole::Member,
@@ -5409,7 +5396,6 @@ async fn test_remove_user_from_team_decrements_customer_seat_count() {
 
     let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
     team_repo.removed_member = Some(TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: member_id.clone().into_owned(),
         role: TeamRole::Member,
@@ -5473,7 +5459,6 @@ async fn remove_user_from_team_releases_open_seat_before_returning() {
 
     let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
     team_repo.removed_member = Some(TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: member_id.clone().into_owned(),
         role: TeamRole::Member,
@@ -5567,7 +5552,6 @@ async fn remove_user_from_team_restores_snapshotted_roles_when_release_fails() {
 
     let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
     team_repo.removed_member = Some(TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: member_id.clone().into_owned(),
         role: TeamRole::Member,
@@ -5666,7 +5650,6 @@ async fn remove_user_from_team_does_not_release_seat_when_role_removal_fails() {
 
     let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
     team_repo.removed_member = Some(TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: member_id.clone().into_owned(),
         role: TeamRole::Member,
@@ -5864,7 +5847,6 @@ async fn remove_user_from_team_role_read_failure_leaves_membership_unchanged() {
     let mark_sent_calls: Arc<Mutex<Vec<Vec<uuid::Uuid>>>> = Arc::new(Mutex::new(Vec::new()));
     let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
     team_repo.removed_member = Some(TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: member_id.clone().into_owned(),
         role: TeamRole::Member,
@@ -5921,7 +5903,6 @@ async fn team_analytics_remove_user_from_team_emits_left_event_with_team_id() {
 
     let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
     team_repo.removed_member = Some(TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: member_id.clone().into_owned(),
         role: TeamRole::Admin,
@@ -6013,7 +5994,6 @@ async fn test_remove_user_from_team_rolls_back_remove_when_customer_decrement_fa
 
     let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
     team_repo.removed_member = Some(TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: member_id.clone().into_owned(),
         role: TeamRole::Member,
@@ -6159,7 +6139,6 @@ async fn test_remove_user_from_team_rolls_back_customer_and_remove_when_channel_
 
     let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
     team_repo.removed_member = Some(TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: member_id.clone().into_owned(),
         role: TeamRole::Member,
@@ -6223,7 +6202,6 @@ async fn team_analytics_remove_user_from_team_does_not_emit_when_remove_is_rolle
 
     let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
     team_repo.removed_member = Some(TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: member_id.clone().into_owned(),
         role: TeamRole::Member,
@@ -7709,7 +7687,6 @@ async fn try_join_team_by_domain_free_team_adds_sixth_member_without_billing_or_
     let user_id = MacroUserIdStr::parse_from_str("macro|member@example.com").unwrap();
     let mark_sent_calls = Arc::new(Mutex::new(Vec::new()));
     let member = TeamMember {
-        membership_id: uuid::Uuid::now_v7(),
         team_id,
         user_id: user_id.clone().into_owned(),
         role: TeamRole::Member,

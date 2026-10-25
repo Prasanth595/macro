@@ -1,10 +1,15 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            DELETE FROM team_user\n            WHERE team_id = $1 AND user_id = $2\n            RETURNING team_role AS \"team_role!: TeamRole\", plan AS \"plan!: SeatPlan\", membership_id\n            ",
+  "query": "\n            SELECT user_id, \n                team_role as \"team_role!: TeamRole\",\n                plan as \"plan!: SeatPlan\"\n            FROM team_user\n            WHERE team_id = $1\n            AND user_id = $2\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
         "name": "team_role!: TeamRole",
         "type_info": {
           "Custom": {
@@ -20,7 +25,7 @@
         }
       },
       {
-        "ordinal": 1,
+        "ordinal": 2,
         "name": "plan!: SeatPlan",
         "type_info": {
           "Custom": {
@@ -33,11 +38,6 @@
             }
           }
         }
-      },
-      {
-        "ordinal": 2,
-        "name": "membership_id",
-        "type_info": "Uuid"
       }
     ],
     "parameters": {
@@ -52,5 +52,5 @@
       false
     ]
   },
-  "hash": "64b6046385999df6d13dfa93b13c3ab3c40d47b3027c13e76dc037c776cb2183"
+  "hash": "738436737088d0f56a421383c30abe459fd6bdd04a1d1b511ca4e6b813916aa7"
 }

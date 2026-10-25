@@ -65,13 +65,13 @@ impl crate::domain::ViewRepository for PgViewStorage {
 
     #[tracing::instrument(skip(self), err)]
     async fn get(&self, id: Uuid) -> Result<Option<View>, Self::Err> {
-        sqlx::query_as!(View, "SELECT id, user_id, name, config, created_at, updated_at, revision, shared_team_id, shared_owner_membership_id FROM saved_view WHERE id = $1", id)
+        sqlx::query_as!(View, "SELECT id, user_id, name, config, created_at, updated_at, revision, shared_team_id FROM saved_view WHERE id = $1", id)
             .fetch_optional(&self.pool).await
     }
 
     async fn legacy_list(&self, viewer: &str) -> Result<Vec<View>, Self::Err> {
         sqlx::query_as!(View,
-            "SELECT id, user_id, name, config, created_at, updated_at, revision, shared_team_id, shared_owner_membership_id FROM saved_view WHERE user_id = $1",
+            "SELECT id, user_id, name, config, created_at, updated_at, revision, shared_team_id FROM saved_view WHERE user_id = $1",
             viewer
         ).fetch_all(&self.pool).await
     }
@@ -89,10 +89,10 @@ impl crate::domain::ViewRepository for PgViewStorage {
             return Ok(None);
         }
         sqlx::query!(
-            "INSERT INTO saved_view (id, user_id, name, config, created_at, updated_at, shared_team_id, shared_owner_membership_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING",
+            "INSERT INTO saved_view (id, user_id, name, config, created_at, updated_at, shared_team_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING",
             view.id, view.user_id, view.name, view.config, view.created_at, view.updated_at,
-            view.shared_team_id, view.shared_owner_membership_id,
+            view.shared_team_id,
         ).execute(&mut *tx).await?;
         // A legacy delete can commit while INSERT waits on the old row. Check
         // again in a fresh statement snapshot before making a replacement live.
@@ -106,7 +106,7 @@ impl crate::domain::ViewRepository for PgViewStorage {
             tx.rollback().await?;
             return Ok(None);
         }
-        let created = sqlx::query_as!(View, "SELECT id, user_id, name, config, created_at, updated_at, revision, shared_team_id, shared_owner_membership_id FROM saved_view WHERE id = $1", view.id)
+        let created = sqlx::query_as!(View, "SELECT id, user_id, name, config, created_at, updated_at, revision, shared_team_id FROM saved_view WHERE id = $1", view.id)
             .fetch_optional(&mut *tx).await?;
         tx.commit().await?;
         Ok(created)
@@ -121,15 +121,23 @@ impl crate::domain::ViewRepository for PgViewStorage {
         after: Option<crate::domain::Cursor>,
         limit: i64,
     ) -> Result<Vec<View>, Self::Err> {
-        sqlx::query_as!(View,
-            "SELECT id, user_id, name, config, created_at, updated_at, revision, shared_team_id, shared_owner_membership_id
+        sqlx::query_as!(
+            View,
+            "SELECT id, user_id, name, config, created_at, updated_at, revision, shared_team_id
              FROM saved_view
              WHERE (user_id = $1 OR shared_team_id = ANY($2::uuid[]))
                AND ($3::text IS NULL OR config->>'kind' = $3)
                AND ($4::timestamptz IS NULL OR (created_at, id) > ($4, $5))
              ORDER BY created_at, id LIMIT $6",
-            viewer, team_ids, kind, after.map(|c| c.created_at), after.map(|c| c.id), limit
-        ).fetch_all(&self.pool).await
+            viewer,
+            team_ids,
+            kind,
+            after.map(|c| c.created_at),
+            after.map(|c| c.id),
+            limit
+        )
+        .fetch_all(&self.pool)
+        .await
     }
 
     #[tracing::instrument(skip_all, fields(view_id = %id, revision), err)]
@@ -140,14 +148,22 @@ impl crate::domain::ViewRepository for PgViewStorage {
         revision: i64,
         changes: crate::domain::ViewChanges<'_>,
     ) -> Result<Option<View>, Self::Err> {
-        sqlx::query_as!(View,
+        sqlx::query_as!(
+            View,
             "UPDATE saved_view SET name = COALESCE($4, name), config = COALESCE($5, config),
-                shared_team_id = $6, shared_owner_membership_id = $7,
+                shared_team_id = $6,
                 revision = revision + 1, updated_at = NOW()
              WHERE id = $1 AND user_id = $2 AND revision = $3
-             RETURNING id, user_id, name, config, created_at, updated_at, revision, shared_team_id, shared_owner_membership_id",
-            id, owner, revision, changes.name, changes.config, changes.shared_team_id, changes.shared_owner_membership_id
-        ).fetch_optional(&self.pool).await
+             RETURNING id, user_id, name, config, created_at, updated_at, revision, shared_team_id",
+            id,
+            owner,
+            revision,
+            changes.name,
+            changes.config,
+            changes.shared_team_id
+        )
+        .fetch_optional(&self.pool)
+        .await
     }
 
     #[tracing::instrument(skip_all, fields(view_id = %id, revision), err)]

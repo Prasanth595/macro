@@ -1,5 +1,6 @@
 use super::*;
 use std::{
+    collections::HashMap,
     convert::Infallible,
     sync::{Arc, Mutex},
 };
@@ -82,7 +83,6 @@ impl ViewRepository for MemoryRepo {
             view.config = config.clone()
         }
         view.shared_team_id = changes.shared_team_id;
-        view.shared_owner_membership_id = changes.shared_owner_membership_id;
         view.revision += 1;
         Ok(Some(view.clone()))
     }
@@ -138,7 +138,7 @@ impl ViewRepository for MemoryRepo {
 
 #[derive(Clone, Default)]
 struct MemoryMembers {
-    current: Arc<Mutex<HashMap<(Uuid, String), Uuid>>>,
+    current: Arc<Mutex<HashSet<(Uuid, String)>>>,
     batches: Arc<Mutex<Vec<usize>>>,
     revoke_viewer_on_discovery: bool,
     revoke_on_second_batch: Option<&'static str>,
@@ -148,30 +148,31 @@ impl MembershipPort for MemoryMembers {
     async fn viewer_teams(&self, viewer: &str) -> Result<Vec<Uuid>, Self::Err> {
         let mut current = self.current.lock().unwrap();
         let teams = current
-            .keys()
+            .iter()
             .filter(|(_, user)| user == viewer)
             .map(|(team, _)| *team)
             .collect();
         if self.revoke_viewer_on_discovery && viewer == "viewer" {
-            current.retain(|(_, user), _| user != viewer);
+            current.retain(|(_, user)| user != viewer);
         }
         Ok(teams)
     }
-    async fn lifetimes(
+    async fn current_members(
         &self,
         pairs: &[(Uuid, String)],
-    ) -> Result<HashMap<(Uuid, String), Uuid>, Self::Err> {
+    ) -> Result<HashSet<(Uuid, String)>, Self::Err> {
         let mut batches = self.batches.lock().unwrap();
         batches.push(pairs.len());
         let mut current = self.current.lock().unwrap();
         if batches.len() == 2
             && let Some(user) = self.revoke_on_second_batch
         {
-            current.retain(|(_, member), _| member != user);
+            current.retain(|(_, member)| member != user);
         }
         Ok(pairs
             .iter()
-            .filter_map(|p| current.get(p).map(|id| (p.clone(), *id)))
+            .filter(|p| current.contains(*p))
+            .cloned()
             .collect())
     }
 }
@@ -257,21 +258,20 @@ async fn owner_only_writes_revision_conflicts_and_retries() {
 }
 
 #[tokio::test]
-async fn expired_share_never_revives_and_list_pages_only_visible_views() {
+async fn owner_rejoining_restores_share_and_list_pages_only_visible_views() {
     let repo = MemoryRepo::default();
     let members = MemoryMembers::default();
     let team = Uuid::now_v7();
-    let first_lifetime = Uuid::now_v7();
     members
         .current
         .lock()
         .unwrap()
-        .insert((team, "owner".into()), first_lifetime);
+        .insert((team, "owner".into()));
     members
         .current
         .lock()
         .unwrap()
-        .insert((team, "viewer".into()), Uuid::now_v7());
+        .insert((team, "viewer".into()));
     let service = SavedViewService::new(repo.clone(), members.clone());
     for i in 0..105 {
         let id = Uuid::now_v7();
@@ -286,12 +286,7 @@ async fn expired_share_never_revives_and_list_pages_only_visible_views() {
             .await
             .unwrap();
         if i < 103 {
-            repo.0
-                .lock()
-                .unwrap()
-                .get_mut(&view.id)
-                .unwrap()
-                .shared_owner_membership_id = Some(Uuid::now_v7());
+            repo.0.lock().unwrap().get_mut(&view.id).unwrap().user_id = "absent".into();
         }
     }
     let first = service
@@ -322,11 +317,11 @@ async fn expired_share_never_revives_and_list_pages_only_visible_views() {
         .current
         .lock()
         .unwrap()
-        .insert((team, "owner".into()), Uuid::now_v7());
-    assert!(matches!(
-        service.get("viewer", first.views[0].id).await,
-        Err(Error::NotFound)
-    ));
+        .insert((team, "owner".into()));
+    assert_eq!(
+        service.get("viewer", first.views[0].id).await.unwrap().id,
+        first.views[0].id
+    );
     assert!(
         members
             .batches
@@ -375,12 +370,12 @@ async fn revocation_during_discovery_blocks_both_detail_and_list() {
         .current
         .lock()
         .unwrap()
-        .insert((team, "owner".into()), Uuid::now_v7());
+        .insert((team, "owner".into()));
     members
         .current
         .lock()
         .unwrap()
-        .insert((team, "viewer".into()), Uuid::now_v7());
+        .insert((team, "viewer".into()));
     let service = SavedViewService::new(repo, members.clone());
     let view = service
         .create(
@@ -400,7 +395,7 @@ async fn revocation_during_discovery_blocks_both_detail_and_list() {
         .current
         .lock()
         .unwrap()
-        .insert((team, "viewer".into()), Uuid::now_v7());
+        .insert((team, "viewer".into()));
     assert!(
         service
             .list("viewer", None, None, 10)
@@ -421,17 +416,16 @@ async fn later_batches_recheck_accumulated_shared_views() {
                 ..Default::default()
             };
             let team = Uuid::now_v7();
-            let owner_lifetime = Uuid::now_v7();
             members
                 .current
                 .lock()
                 .unwrap()
-                .insert((team, "owner".into()), owner_lifetime);
+                .insert((team, "owner".into()));
             members
                 .current
                 .lock()
                 .unwrap()
-                .insert((team, "viewer".into()), Uuid::now_v7());
+                .insert((team, "viewer".into()));
             let mut personal_id = Uuid::nil();
             let created_at = chrono::Utc::now();
             for index in 0..count {
@@ -442,15 +436,12 @@ async fn later_batches_recheck_accumulated_shared_views() {
                 );
                 view.created_at = created_at + chrono::Duration::seconds(index);
                 view.shared_team_id = Some(team);
-                view.shared_owner_membership_id = Some(if index == 0 {
-                    owner_lifetime
-                } else {
-                    Uuid::now_v7()
-                });
+                if index > 0 {
+                    view.user_id = "absent".into();
+                }
                 if index == 1 {
                     view.user_id = "viewer".into();
                     view.shared_team_id = None;
-                    view.shared_owner_membership_id = None;
                     personal_id = view.id;
                 }
                 repo.0.lock().unwrap().insert(view.id, view);

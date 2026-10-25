@@ -1,8 +1,8 @@
 //! Primary-backed batched membership evidence for dependent domain services.
-use std::{collections::HashMap, future::Future};
+use std::{collections::HashSet, future::Future};
 use uuid::Uuid;
 
-/// Internal team membership lifetime reader; never exposes tokens in public team DTOs.
+/// Internal current team membership reader for dependent domains.
 pub trait TeamMembershipEvidence: Send + Sync {
     /// Error returned by the Teams adapter.
     type Err: std::error::Error + Send + Sync + 'static;
@@ -11,9 +11,9 @@ pub trait TeamMembershipEvidence: Send + Sync {
         &self,
         viewer: &str,
     ) -> impl Future<Output = Result<Vec<Uuid>, Self::Err>> + Send;
-    /// Current lifetimes keyed by team and user, in one primary-backed batch.
-    fn lifetimes(
+    /// Current `(team, user)` pairs from one primary-backed batch.
+    fn current_members(
         &self,
         pairs: &[(Uuid, String)],
-    ) -> impl Future<Output = Result<HashMap<(Uuid, String), Uuid>, Self::Err>> + Send;
+    ) -> impl Future<Output = Result<HashSet<(Uuid, String)>, Self::Err>> + Send;
 }

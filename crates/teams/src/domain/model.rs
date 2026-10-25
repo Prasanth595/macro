@@ -263,10 +263,6 @@ pub struct PatchTeamMemberPlanRequest {
 #[derive(Debug, Clone, serde::Serialize)]
 #[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
 pub struct TeamMember<'a> {
-    /// Identity of this membership lifetime; internal to the team service.
-    #[serde(skip)]
-    #[cfg_attr(feature = "axum", schema(ignore))]
-    pub membership_id: uuid::Uuid,
     /// The id of the team
     pub team_id: uuid::Uuid,
     /// The user id of the team member
@@ -283,7 +279,6 @@ impl TeamMember<'_> {
     /// Detach the member from any borrowed user id.
     pub fn into_owned(self) -> TeamMember<'static> {
         TeamMember {
-            membership_id: self.membership_id,
             team_id: self.team_id,
             user_id: self.user_id.into_owned(),
             role: self.role,

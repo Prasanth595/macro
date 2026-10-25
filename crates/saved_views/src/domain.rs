@@ -1,10 +1,7 @@
 //! Saved-view policy and persistence ports. Configurations belong to their consumers.
 use crate::View;
 use serde_json::Value;
-use std::{
-    collections::{HashMap, HashSet},
-    future::Future,
-};
+use std::{collections::HashSet, future::Future};
 use uuid::Uuid;
 
 /// Requested sharing change, separate from an omitted update.
@@ -29,7 +26,7 @@ pub struct Update {
     pub share: ShareChange,
 }
 
-/// Validated field changes and resolved sharing evidence for a conditional write.
+/// Validated field changes and requested sharing for a conditional write.
 #[derive(Debug)]
 pub struct ViewChanges<'a> {
     /// Replacement name; omission preserves the stored name.
@@ -38,8 +35,6 @@ pub struct ViewChanges<'a> {
     pub config: Option<&'a Value>,
     /// Resolved team association, or no team for a private definition.
     pub shared_team_id: Option<Uuid>,
-    /// Owner membership lifetime associated with the resolved team.
-    pub shared_owner_membership_id: Option<Uuid>,
 }
 
 /// Visibility and pagination position ordered by creation time then ID.
@@ -113,11 +108,11 @@ pub trait MembershipPort: Send + Sync {
         &self,
         viewer: &str,
     ) -> impl Future<Output = Result<Vec<Uuid>, Self::Err>> + Send;
-    /// Current lifetime identities for a batch of `(team, user)` keys.
-    fn lifetimes(
+    /// Current memberships for a batch of `(team, user)` keys.
+    fn current_members(
         &self,
         pairs: &[(Uuid, String)],
-    ) -> impl Future<Output = Result<HashMap<(Uuid, String), Uuid>, Self::Err>> + Send;
+    ) -> impl Future<Output = Result<HashSet<(Uuid, String)>, Self::Err>> + Send;
 }
 
 /// Caller-meaningful saved-view failures.
@@ -195,32 +190,29 @@ impl<R: ViewRepository, M: MembershipPort> SavedViewService<R, M> {
             }
         }
         let pairs: Vec<_> = pairs.into_iter().collect();
-        let lifetimes = self
+        let current_members = self
             .membership
-            .lifetimes(&pairs)
+            .current_members(&pairs)
             .await
             .map_err(|e| Error::Internal(rootcause::Report::new(e).into_dynamic()))?;
         Ok(views
             .into_iter()
             .filter_map(|mut v| {
                 let shared = v.shared_team_id.and_then(|team| {
-                    (lifetimes.contains_key(&(team, viewer.to_owned()))
-                        && v.shared_owner_membership_id.is_some()
-                        && lifetimes.get(&(team, v.user_id.clone()))
-                            == v.shared_owner_membership_id.as_ref())
+                    (current_members.contains(&(team, viewer.to_owned()))
+                        && current_members.contains(&(team, v.user_id.clone())))
                     .then_some(team)
                 });
                 if v.user_id != viewer && shared.is_none() {
                     return None;
                 }
                 v.shared_team_id = shared;
-                v.shared_owner_membership_id = None;
                 Some(v)
             })
             .collect())
     }
 
-    /// Read an authorized definition; an expired share is private even for the owner.
+    /// Read an authorized definition; an inactive share is private even for the owner.
     #[tracing::instrument(name = "saved_view.get", skip_all, fields(view_id = %id), err)]
     pub async fn get(&self, viewer: &str, id: Uuid) -> Result<View, Error> {
         let view = self
@@ -326,24 +318,19 @@ impl<R: ViewRepository, M: MembershipPort> SavedViewService<R, M> {
             return self.get(viewer, id).await;
         }
         Self::validate(&name, &config)?;
-        let membership_id = if let Some(team) = team {
-            let evidence = self
+        if let Some(team) = team {
+            let members = self
                 .membership
-                .lifetimes(&[(team, viewer.to_owned())])
+                .current_members(&[(team, viewer.to_owned())])
                 .await
                 .map_err(|e| Error::Internal(rootcause::Report::new(e).into_dynamic()))?;
-            Some(
-                *evidence
-                    .get(&(team, viewer.to_owned()))
-                    .ok_or(Error::NotMember)?,
-            )
-        } else {
-            None
-        };
+            if !members.contains(&(team, viewer.to_owned())) {
+                return Err(Error::NotMember);
+            }
+        }
         let mut view = View::new(viewer.to_owned(), name, config);
         view.id = id;
         view.shared_team_id = team;
-        view.shared_owner_membership_id = membership_id;
         let created = self
             .repo
             .create(&view)
@@ -381,23 +368,19 @@ impl<R: ViewRepository, M: MembershipPort> SavedViewService<R, M> {
             change.name.as_deref().unwrap_or(&current.name),
             change.config.as_ref().unwrap_or(&current.config),
         )?;
-        let (team, lifetime) = match change.share {
-            ShareChange::Unchanged => (current.shared_team_id, current.shared_owner_membership_id),
-            ShareChange::Private => (None, None),
+        let team = match change.share {
+            ShareChange::Unchanged => current.shared_team_id,
+            ShareChange::Private => None,
             ShareChange::Team(team) => {
-                let evidence = self
+                let members = self
                     .membership
-                    .lifetimes(&[(team, viewer.to_owned())])
+                    .current_members(&[(team, viewer.to_owned())])
                     .await
                     .map_err(|e| Error::Internal(rootcause::Report::new(e).into_dynamic()))?;
-                (
-                    Some(team),
-                    Some(
-                        *evidence
-                            .get(&(team, viewer.to_owned()))
-                            .ok_or(Error::NotMember)?,
-                    ),
-                )
+                if !members.contains(&(team, viewer.to_owned())) {
+                    return Err(Error::NotMember);
+                }
+                Some(team)
             }
         };
         let saved = self
@@ -410,7 +393,6 @@ impl<R: ViewRepository, M: MembershipPort> SavedViewService<R, M> {
                     name: change.name.as_deref(),
                     config: change.config.as_ref(),
                     shared_team_id: team,
-                    shared_owner_membership_id: lifetime,
                 },
             )
             .await

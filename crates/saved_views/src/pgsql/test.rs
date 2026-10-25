@@ -35,7 +35,6 @@ async fn conditional_writes_and_legacy_patch(pool: PgPool) -> Result<(), sqlx::E
                 name: Some("Stolen"),
                 config: None,
                 shared_team_id: None,
-                shared_owner_membership_id: None,
             }
         )
         .await?
@@ -62,7 +61,6 @@ async fn conditional_writes_and_legacy_patch(pool: PgPool) -> Result<(), sqlx::E
                 name: None,
                 config: None,
                 shared_team_id: None,
-                shared_owner_membership_id: None,
             }
         )
         .await?
@@ -77,7 +75,6 @@ async fn conditional_writes_and_legacy_patch(pool: PgPool) -> Result<(), sqlx::E
                 name: None,
                 config: Some(&serde_json::json!({"kind":"tasks"})),
                 shared_team_id: None,
-                shared_owner_membership_id: None,
             }
         )
         .await?
@@ -106,9 +103,6 @@ async fn kind_and_cursor_candidates(pool: PgPool) -> Result<(), sqlx::Error> {
         id: uuid::Uuid::now_v7(),
         name: "B".into(),
         shared_team_id: Some(team),
-        shared_owner_membership_id: Some(
-            uuid::Uuid::parse_str("aaaaaaaa-aaaa-7aaa-aaaa-aaaaaaaaaaaa").unwrap(),
-        ),
         ..first.clone()
     };
     repo.create(&second).await?;
@@ -156,10 +150,8 @@ async fn deleting_shared_team_revokes_share_without_deleting_definition(
 ) -> Result<(), sqlx::Error> {
     let repo = PgViewStorage::new(pool.clone());
     let team = uuid::Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap();
-    let membership = uuid::Uuid::parse_str("aaaaaaaa-aaaa-7aaa-aaaa-aaaaaaaaaaaa").unwrap();
     let view = View {
         shared_team_id: Some(team),
-        shared_owner_membership_id: Some(membership),
         ..View::new(
             "macro|owner@example.com".into(),
             "Shared".into(),
@@ -173,7 +165,6 @@ async fn deleting_shared_team_revokes_share_without_deleting_definition(
 
     let remaining = repo.get(view.id).await?.unwrap();
     assert_eq!(remaining.shared_team_id, None);
-    assert_eq!(remaining.shared_owner_membership_id, Some(membership));
     assert!(
         repo.candidates("macro|viewer@example.com", &[team], None, None, 10)
             .await?
