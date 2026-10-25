@@ -133,22 +133,24 @@ async fn enqueue_backfill_messages(
 ) -> Result<(), ProcessingError> {
     let p = &scope.payload;
 
-    ctx.redis_client
-        .init_backfill_thread_progress(
-            scope.job_id,
-            &p.thread_provider_id,
-            message_ids.len() as i32,
-        )
-        .await
-        .map_err(|e| {
-            ProcessingError::Retryable(DetailedError {
-                reason: FailureReason::RedisQueryFailed,
-                source: e.context(format!(
-                    "Failed to create entry in redis for thread {}",
-                    &p.thread_provider_id
-                )),
-            })
-        })?;
+    crate::backfill_progress::init_thread_progress(
+        &ctx.db,
+        &ctx.redis_client,
+        scope.job_id,
+        thread_db_id,
+        &p.thread_provider_id,
+        message_ids.len() as i32,
+    )
+    .await
+    .map_err(|e| {
+        ProcessingError::Retryable(DetailedError {
+            reason: FailureReason::RedisQueryFailed,
+            source: e.context(format!(
+                "Failed to create entry in redis for thread {}",
+                &p.thread_provider_id
+            )),
+        })
+    })?;
 
     for message_id in message_ids {
         let new_payload = BackfillMessagePayload {

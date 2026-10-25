@@ -191,10 +191,7 @@ async fn fetch_job_context_no_token<P>(
         BackfillJobStatus::Cancelled | BackfillJobStatus::Failed
     ) || (backfill_job.status == BackfillJobStatus::Complete && !allow_complete)
     {
-        let _ = ctx
-            .redis_client
-            .delete_backfill_job_progress(scope.job_id)
-            .await;
+        crate::backfill_progress::clear_job(&ctx.db, &ctx.redis_client, scope.job_id).await;
         return Ok(None);
     }
 

@@ -187,15 +187,19 @@ async fn list_priority_threads(
         // after this only non-retryable enqueues remain, so a retry can't
         // double-bump.
         if !threads.is_empty() {
-            ctx.redis_client
-                .add_to_total_threads(scope.job_id, threads.len() as i32)
-                .await
-                .map_err(|e| {
-                    ProcessingError::Retryable(DetailedError {
-                        reason: FailureReason::RedisQueryFailed,
-                        source: e.context("Failed to bump total_threads for priority pass"),
-                    })
-                })?;
+            crate::backfill_progress::add_priority_threads(
+                &ctx.db,
+                &ctx.redis_client,
+                scope.job_id,
+                threads.len() as i32,
+            )
+            .await
+            .map_err(|e| {
+                ProcessingError::Retryable(DetailedError {
+                    reason: FailureReason::RedisQueryFailed,
+                    source: e.context("Failed to bump total_threads for priority pass"),
+                })
+            })?;
         }
 
         for thread in &threads {

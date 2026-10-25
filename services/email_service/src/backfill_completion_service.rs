@@ -32,16 +32,15 @@ pub async fn incr_completed_threads(
     link: &Link,
     job_id: Uuid,
 ) -> Result<(), ProcessingError> {
-    let progress = ctx
-        .redis_client
-        .incr_completed_threads(job_id)
-        .await
-        .map_err(|e| {
-            ProcessingError::Retryable(DetailedError {
-                reason: FailureReason::RedisQueryFailed,
-                source: e.context("Failed to increment completed thread count"),
-            })
-        })?;
+    let progress =
+        crate::backfill_progress::incr_completed_threads(&ctx.db, &ctx.redis_client, job_id)
+            .await
+            .map_err(|e| {
+                ProcessingError::Retryable(DetailedError {
+                    reason: FailureReason::RedisQueryFailed,
+                    source: e.context("Failed to increment completed thread count"),
+                })
+            })?;
 
     if progress.job_complete {
         tracing::info!(
@@ -76,19 +75,23 @@ pub async fn incr_completed_messages(
     job_id: Uuid,
     p: &BackfillMessagePayload,
 ) -> Result<(), ProcessingError> {
-    let thread_backfill_complete = ctx
-        .redis_client
-        .incr_completed_messages(job_id, &p.thread_provider_id)
-        .await
-        .map_err(|e| {
-            ProcessingError::Retryable(DetailedError {
-                reason: FailureReason::RedisQueryFailed,
-                source: e.context(format!(
-                    "Handle completed message for {} failed",
-                    p.message_provider_id
-                )),
-            })
-        })?;
+    let thread_backfill_complete = crate::backfill_progress::incr_completed_messages(
+        &ctx.db,
+        &ctx.redis_client,
+        job_id,
+        p.thread_db_id,
+        &p.thread_provider_id,
+    )
+    .await
+    .map_err(|e| {
+        ProcessingError::Retryable(DetailedError {
+            reason: FailureReason::RedisQueryFailed,
+            source: e.context(format!(
+                "Handle completed message for {} failed",
+                p.message_provider_id
+            )),
+        })
+    })?;
 
     if thread_backfill_complete {
         handle_thread_completed(ctx, link, job_id, p).await?;

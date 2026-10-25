@@ -1,19 +1,8 @@
+use crate::backfill_progress::BackfillJobProgress;
 use crate::util::redis::RedisClient;
 use anyhow::Context;
 use redis::AsyncCommands;
 use uuid::Uuid;
-
-/// Snapshot of a backfill job's thread progress after an increment.
-pub struct BackfillJobProgress {
-    /// Number of threads completed so far, including this increment.
-    pub completed_threads: i32,
-    /// The job's target thread total — the denominator for progress. Reflects
-    /// the Redis counter, which the priority pass may have bumped above the raw
-    /// mailbox size; `completed_threads` is inflated to match, so the ratio holds.
-    pub total_threads: i32,
-    /// Whether every thread in the job has now been processed.
-    pub job_complete: bool,
-}
 
 impl RedisClient {
     fn job_status_key(job_id: Uuid) -> String {
