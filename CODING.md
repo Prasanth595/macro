@@ -25,7 +25,7 @@ files; the [style guide](docs/development/style-guide.md) indexes them.
 - Use native APIs and existing libraries. No polyfills, no homemade crypto.
 - Keep types and traits small.
 - Name things for what they are. No jargon or slang.
-- Compatibility only at deployed boundaries (migrations, persisted formats).
+- Keep compatibility only at deployed boundaries; reject obsolete unreleased formats instead of adding upgrade paths.
 
 ## Correctness
 
