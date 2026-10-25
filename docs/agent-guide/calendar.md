@@ -222,9 +222,11 @@ so invitees can open those links. A public booking link stays available when
 the flag request gets no answer, for example when a browser blocks it.
 
 Calendar connections live in **Settings → Calendar** (`/app/settings/calendar`).
-Connected calendars offers Connect account (the existing Google consent flow),
-Connect calendar for accounts missing calendar permission, and Disconnect with
-confirmation. When the only linked account lacks calendar permission, the Google
+Connected calendars offers Connect account (pick Gmail or Outlook / Microsoft 365,
+then consent), Connect calendar for accounts missing calendar permission (consent
+again for that account at its own provider with its address preselected, as
+Settings → Email's Enable calendar does), and Disconnect with confirmation. When
+the only linked account lacks calendar permission, the Google
 Calendar row shows just a filled Connect button for it, with no account list or
 visibility note. Disconnect removes calendar access/data, not the Gmail connection.
 Settings → Calendar lists only the viewer's own inboxes. The **Enable calendar**
@@ -554,7 +556,7 @@ notified only when someone besides you is on it.
 With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
 whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
 organizer lets guests invite. It opens an editor anchored to the button (on phones, a bottom
-sheet stacked over the dimmed event details, showing one bright handle): the current guests are listed under `Invited` without a remove control, the picker
+sheet stacked over the dimmed event details, showing one bright handle; a tap on the dimmed details closes only this sheet and presses nothing under it): the current guests are listed under `Invited` without a remove control, the picker
 adds people, each new guest has an `Optional` checkbox, a recurring event offers `This
 event` / `All events` (`All events` by default, like the editor's recurring edits), and
 `Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape closes. The new guests appear at
@@ -666,7 +668,13 @@ three characters of its title in a composer that offers event mentions (message,
 document composers; spreadsheet and database cells and typed reference fields do not): where calendar search is on
 (`enable-calendar-search-ui`), the menu lists matches under `Calendar events` (all of them in
 one list on phones), one row per event with when it starts, and picking one inserts the same
-chip a paste does, pinned to the found instance of a repeating event.
+chip a paste does, pinned to the found instance of a repeating event. Events someone shared
+with a channel you belong to, and that are on none of your calendars, follow your own events
+in that list without a marker, as documents shared that way sit beside your own; their chip
+names the shared event, so it opens for whoever can already see it. Posting it elsewhere does
+not share it on (only someone holding the event on their own calendar can), so people without
+access see `No Access`, like any other mention they cannot open; clicking it (a tap on a phone,
+which opens a sheet) shows `You don't have access to this event`.
 A calendar event mentioned in a channel message opens the calendar focused on the viewer's
 own copy of the meeting. When a person holds the event on their own calendar and posts the
 mention, it is shared read-only with the channel's current members: a member without a copy of
@@ -721,7 +729,9 @@ it by posting the chip. It asks whether to share with the channel, and a yes in 
 writes the same channel grant. Private and confidential events are never shared this way.
 Every calendar mention's hover card shows the schedule, location, organizer and attendee
 count, plus the first lines of the event description (its links open), and no last-updated
-byline. When the mention names someone else's copy of a meeting the viewer also holds (a shared
+byline. A mention of a meeting that was deleted or cancelled reads `Deleted`; clicking it (a tap
+on a phone, which opens a sheet) shows `This event was deleted or cancelled.`, like a shared
+event's card, instead of doing nothing. When the mention names someone else's copy of a meeting the viewer also holds (a shared
 event they added or were invited to, or a meeting someone else mentioned), the card says how:
 `Your copy is on your calendar` for a snapshot, `You're invited · on your calendar` when the
 viewer's copy is a guest's, and `On your calendar` otherwise (the viewer organizes it, or it sits
@@ -731,7 +741,9 @@ adds the event or is invited, and switches to that line and `Open` in place. Ope
 sheet (`Open`, the title, or Open in New Split) closes it, since the native apps keep the
 pane behind the opened one mounted. When Calendar opens on an event its loaded week doesn't
 have yet, such as a copy added a moment ago while Calendar was closed, it syncs once and then
-shows the event's details.
+shows the event's details. The agent reads a mentioned event, including one only shared with
+the viewer, with `ReadCalendarEvent`: the same fields, plus how the viewer holds it (their own,
+invited, a snapshot, or only shared with them) and their join request.
 
 ## Scheduling — `/app/scheduling`
 
@@ -1262,8 +1274,10 @@ works there, and `Download .ics`, which saves the file without adding it to Driv
 card falls back to the saved invitation (the event matches nothing on your calendars, as with
 a forwarded event), its status line reads `Saved invitation.` in the dialog; the card in the
 email adds that the original email or invitation attachment has more options. The card
-stays put while the thread refreshes, and `Open in calendar` closes the dialog before the
-calendar opens, including when Calendar is already open in another split. A calendar file with
+stays put while the thread refreshes. Close, Escape, or dismissing the phone drawer returns
+focus to the attachment chip; `Open in calendar` closes the dialog before the calendar opens,
+including when Calendar is already open in another split, without pulling focus back to the
+email. A calendar file with
 no card (nothing Macro could read) downloads directly, and an Outlook cloud-reference `.ics`
 opens its Outlook page like any other reference attachment.
 Related recurring components are grouped behind their own disclosure. Only mail synced
@@ -1291,7 +1305,9 @@ error; offline responses are not sent. Cancellation and response/proposal notifi
 do not offer RSVP or Join. Disconnected, ambiguous, and syncing states explain why an
 action is unavailable.
 
-`Open in calendar` focuses the current occurrence, even if its date changed.
+`Open in calendar` focuses the current occurrence, even if its date changed. It retargets a
+Calendar split that is already open; otherwise a click replaces the email with Calendar and a
+shift-click opens Calendar in a new split beside it, from the inline card and the `.ics` dialog.
 `View your day` opens a compact agenda without changing the active split; Close returns
 focus to its trigger. Busy overlapping events are labeled, while cancelled, declined,
 and free events do not count as conflicts. Calendar 12/24-hour preferences apply to
