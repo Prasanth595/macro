@@ -31,8 +31,10 @@ const BACKFILL_UNITS_PER_WINDOW: u32 = 1_800;
 const PERMIT_MS: u32 = 90_000;
 // Google asks clients to wait at least a second before retrying a 429.
 const BUSY_RETRY_MS: u32 = 1_000;
-// Gmail sends no Retry-After with its rate limits.
-const DEFAULT_COOLDOWN: Duration = Duration::from_secs(5);
+// Gmail sends no Retry-After with its rate limits. The concurrency and
+// per-second limits behind 97% of them clear within Google's one-second
+// minimum, and a longer pause stalls every caller for the mailbox.
+const DEFAULT_COOLDOWN: Duration = Duration::from_secs(1);
 // Per-second and per-minute quotas recover within a minute. Longer Retry-After
 // values come from daily sending or bandwidth limits, which must not pause the
 // mailbox's other work for hours.

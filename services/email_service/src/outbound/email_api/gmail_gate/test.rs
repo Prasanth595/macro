@@ -119,7 +119,7 @@ async fn a_gmail_rate_limit_pauses_every_caller_for_the_capped_cooldown() {
     )
     .await;
     let delay = refusal_delay(backfill.acquire(link_id, ApiOperationKind::GetThread).await);
-    assert!(delay > Duration::from_secs(4) && delay <= DEFAULT_COOLDOWN);
+    assert!(delay > Duration::from_millis(500) && delay <= DEFAULT_COOLDOWN);
 
     assert!(
         live.acquire(link_id, ApiOperationKind::SendMessage)
