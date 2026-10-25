@@ -7,7 +7,6 @@ import {
 } from '@app/features/saved-views/queries/saved-views';
 import { ViewTour, ViewTourAction } from '@app/features/tours/ViewTour';
 import { SplitRouter, useNavigate, useParams } from '@app/lib/split-router';
-import { UrqlProvider } from '@app/lib/urql-solid/context';
 import { projectDetailRoute } from '@app/routes/routes';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -206,31 +205,29 @@ export function TasksView(props: TasksViewProps) {
   const viewerId = useUserId();
   const teamQuery = useCurrentTeamQuery();
   return (
-    <UrqlProvider client={getGraphqlSoupClient}>
-      <ListEntityMetadataQueryProvider>
-        <TasksViewProvider
-          initialState={props.initialState}
-          savedViewsSource={() =>
-            useSavedViews({
-              graphql: getGraphqlSoupClient,
-              viewerId,
-              kind: 'tasks',
-            })
-          }
-          savedViewSource={(id) =>
-            useSavedView({ graphql: getGraphqlSoupClient, viewerId, id })
-          }
-          savedViewTeam={() => {
-            if (!queryReadyGate(teamQuery)) return;
-            const team = teamQuery.data?.team;
-            return team ? { id: team.id, name: team.name } : undefined;
-          }}
-        >
-          <TasksViewBreadcrumbs>
-            <TasksViewRoot />
-          </TasksViewBreadcrumbs>
-        </TasksViewProvider>
-      </ListEntityMetadataQueryProvider>
-    </UrqlProvider>
+    <ListEntityMetadataQueryProvider>
+      <TasksViewProvider
+        initialState={props.initialState}
+        savedViewsSource={() =>
+          useSavedViews({
+            graphql: getGraphqlSoupClient,
+            viewerId,
+            kind: 'tasks',
+          })
+        }
+        savedViewSource={(id) =>
+          useSavedView({ graphql: getGraphqlSoupClient, viewerId, id })
+        }
+        savedViewTeam={() => {
+          if (!queryReadyGate(teamQuery)) return;
+          const team = teamQuery.data?.team;
+          return team ? { id: team.id, name: team.name } : undefined;
+        }}
+      >
+        <TasksViewBreadcrumbs>
+          <TasksViewRoot />
+        </TasksViewBreadcrumbs>
+      </TasksViewProvider>
+    </ListEntityMetadataQueryProvider>
   );
 }

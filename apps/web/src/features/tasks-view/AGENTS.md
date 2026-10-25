@@ -2,7 +2,7 @@
 
 ## Scope
 
-Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvider`; only `TasksView` mounts saved-view sources.
+Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvider`; only `TasksView` mounts saved-view sources, without a feature-local GraphQL provider.
 
 ## Start here
 

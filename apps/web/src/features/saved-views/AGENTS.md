@@ -10,7 +10,7 @@ Reusable named filter definitions. The first consumer is main Tasks; the generic
 - `context/saved-views-source.ts`: independent list and detail read contracts.
 - `queries/saved-views.ts`: `useSavedViews` for cursor paging and `useSavedView` for one definition; compose them at the host.
 - `primitives/create-saved-view-draft.ts`: confirmed baseline versus temporary edits.
-- `queries/saved-view-actions.ts`: independent create, update, and delete hooks using native mutation state, authoritative confirmation, and cursor reconciliation.
+- `queries/saved-view-actions.ts`: independent create, update, and delete hooks using the shared GraphQL client, native mutation state, authoritative confirmation, and cursor reconciliation.
 - `views/saved-view-dialogs.tsx`: action dialogs own mutation hooks, dialog shells, and lifetime checks.
 - `components/`: presentational forms/confirmation, compound list, shared styled context/overflow items, and mobile picker.
 
@@ -25,6 +25,7 @@ Reusable named filter definitions. The first consumer is main Tasks; the generic
 - Bind deferred picker actions to the opening account and discard them after an account change.
 - Validate the response viewer before exposing cached reads after an account change.
 - Keep list and detail hooks independent; pass mutation dialogs a refresh callback, not an aggregate read source.
+- Resolve mutation clients with `getGraphqlSoupClient` inside reactive options; do not require a feature-local `UrqlProvider`.
 
 ## Checks
 
