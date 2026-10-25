@@ -896,7 +896,7 @@ function AgentEditorPage(props: {
         : 'Agent API keys are part of the Premium and Max plans.';
     if (saved && saved.provider !== provider.id)
       return `The saved ${apiKeyProviderName(saved.provider)} key isn’t used with this model.`;
-    return `Optional. Every turn of this agent runs on this key instead of Macro usage, billed by ${provider.name}.`;
+    return 'Bill usage to your own API key.';
   };
   const apiKeyField = () => (
     <Show when={keyProvider()}>
