@@ -205,6 +205,7 @@ vi.mock('@core/mobile/isTouchDevice', () => ({
 vi.mock('@app/features/routines/queries/entities', () => ({}));
 vi.mock('@ui', () => ({
   createVariants: () => () => '',
+  EmptyStatePanel: (props: { title: string }) => <p>{props.title}</p>,
 }));
 
 beforeEach(() => {
@@ -675,6 +676,16 @@ describe('project registration', () => {
       });
     }
   );
+
+  it('takes a signed-out visitor from a legacy project link to the project', async () => {
+    state.authenticated = () => false;
+    state.enabled = () => true;
+    const component = resolveComponent(routes[3][0]);
+    render(() => <Suspense>{component.element()}</Suspense>);
+
+    expect(await screen.findByText('Project detail')).toBeTruthy();
+    expect(screen.queryByText('Sign in to view this page')).toBeNull();
+  });
 
   it('closes a disabled composer popover instead of replacing its background split', () => {
     state.isPopover = true;
