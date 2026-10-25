@@ -140,8 +140,7 @@ Saved views are available on main Tasks, not inside Project or CRM task lists.
 
 Verify creation without early persistence, explicit save/reset, copy versus owner-only editing, desktop/mobile metadata dialogs, and returning from task detail. Repeat with another teammate, a removed/rejoined owner, an unavailable tag, and a stale revision.
 
-The backend-free browser regression exercises the shared list/dialog and real draft controller at desktop, phone, and tablet widths, including keyboard navigation inside the mobile picker and focus after opening Rename, Share, Duplicate, or Delete:
-`bunx playwright test --config src/features/tasks-view/browser-test/saved-views.playwright.config.ts` from `apps/web`.
+Exercise these flows at desktop, phone, and tablet widths. Check keyboard navigation inside the mobile picker and focus after opening and closing Rename, Share, Duplicate, or Delete. These dialogs use the shared imperative dialog host and must close when their owning account or view changes.
 
 ## Gantt layout
 

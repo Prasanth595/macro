@@ -30,10 +30,7 @@ import { TasksContent, TasksLoading } from './tasks-content';
 import { TasksViewProvider, useTasksView } from './tasks-view-context';
 import { tasksTour } from './tour';
 import type { TasksViewStateOptions } from './types';
-import {
-  TaskSavedViewDialogs,
-  TaskSavedViewStatus,
-} from './views/task-saved-views';
+import { TaskSavedViewStatus } from './views/task-saved-views';
 
 export type TasksViewProps = {
   /** Explicit navigation state. When present, it wins over entry restoration. */
@@ -190,7 +187,6 @@ function TasksViewRoot() {
           </ViewShell.Main>
         </ViewShell.Root>
       </SplitPanel.Body>
-      <TaskSavedViewDialogs />
     </SplitPanel.Root>
   );
 }

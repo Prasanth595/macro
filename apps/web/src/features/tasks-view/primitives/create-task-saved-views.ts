@@ -11,10 +11,10 @@ import {
 import { v4 as uuid } from 'uuid';
 import type { SavedViewsSource } from '../../saved-views/context/saved-views-source';
 import type {
-  CreateSavedView,
   SavedView,
   UpdateSavedView,
 } from '../../saved-views/core/saved-view';
+import { createSavedViewCrud } from '../../saved-views/primitives/create-saved-view-crud';
 import { createSavedViewDraft } from '../../saved-views/primitives/create-saved-view-draft';
 import {
   DEFAULT_TASK_FACET_SELECTION,
@@ -30,7 +30,7 @@ import {
 } from '../filters/task-saved-view';
 import type { TasksViewState, TaskTab } from '../types';
 
-type SavedViewForm = {
+export type SavedViewForm = {
   mode: 'create' | 'duplicate' | 'rename' | 'share';
   id: string;
   name: string;
@@ -38,10 +38,6 @@ type SavedViewForm = {
   record?: SavedView;
   config?: TaskSavedViewConfig;
 };
-
-type SavedViewWrite =
-  | { mode: 'create'; input: CreateSavedView }
-  | { mode: 'update'; input: UpdateSavedView };
 
 export function createTaskSavedViews(options: {
   source: SavedViewsSource;
@@ -60,12 +56,6 @@ export function createTaskSavedViews(options: {
     ReadonlyMap<string, string>
   >(new Map());
   const [unavailable, setUnavailable] = createSignal<string>();
-  const [error, setError] = createSignal<string>();
-  const [conflict, setConflict] = createSignal(false);
-  const [saving, setSaving] = createSignal(false);
-  const [form, setForm] = createSignal<SavedViewForm>();
-  const [deletionRecord, setDeletionRecord] = createSignal<SavedView>();
-  const deleting = () => Boolean(deletionRecord());
   const active = () => creating() || Boolean(options.selectedId());
   const capture = () =>
     captureTaskSavedView({
@@ -102,8 +92,7 @@ export function createTaskSavedViews(options: {
   const reset = () => {
     const baseline = draft.baseline();
     if (baseline) apply(baseline);
-    setError(undefined);
-    setConflict(false);
+    crud.clear();
   };
   const installRecord = (record: SavedView) => {
     const previous = draft.record();
@@ -117,7 +106,7 @@ export function createTaskSavedViews(options: {
     setUnavailable(undefined);
     if (
       previous?.id === record.id &&
-      (draft.dirty() || saving() || form() || deleting())
+      (draft.dirty() || crud.saving() || crud.editing())
     )
       return;
     draft.install(record, decoded.value);
@@ -160,9 +149,7 @@ export function createTaskSavedViews(options: {
           options.setActive(Boolean(id));
           if (!keepConfirmed) draft.install(undefined, undefined);
           setUnavailable(undefined);
-          setError(undefined);
-          setForm(undefined);
-          setDeletionRecord(undefined);
+          crud.clear();
           options.clearSearch();
         }
         if (!id) {
@@ -204,8 +191,7 @@ export function createTaskSavedViews(options: {
       (tab, previous) => {
         if (tab === previous || active()) return;
         navigationEpoch += 1;
-        setForm(undefined);
-        setError(undefined);
+        crud.clear();
       }
     )
   );
@@ -230,9 +216,7 @@ export function createTaskSavedViews(options: {
       options.apply('my-tasks', DEFAULT_TASK_FACET_SELECTION);
       draft.install(undefined, undefined);
       setTagBindings(new Map());
-      setForm(undefined);
-      setDeletionRecord(undefined);
-      setError(undefined);
+      crud.clear();
       setUnavailable(undefined);
       options.navigate(undefined);
     });
@@ -248,17 +232,18 @@ export function createTaskSavedViews(options: {
       const result = capture();
       if (result.isOk()) draft.install(undefined, result.value);
       setUnavailable(undefined);
-      setError(undefined);
-      setForm(undefined);
+      crud.clear();
     });
     options.navigate(undefined);
   };
-  const openForm = (mode: SavedViewForm['mode'], record = draft.record()) => {
-    if (saving()) return;
-    setError(undefined);
+  const prepareForm = (
+    mode: SavedViewForm['mode'],
+    record = draft.record()
+  ): SavedViewForm | undefined => {
+    if (crud.saving()) return;
+    crud.clear();
     if (mode === 'create') {
-      setForm({ mode, id: uuid(), name: '', sharedTeamId: null });
-      return;
+      return { mode, id: uuid(), name: '', sharedTeamId: null };
     }
     if (!record) return;
     if (mode !== 'duplicate' && record.ownerId !== options.viewerId()) return;
@@ -267,10 +252,10 @@ export function createTaskSavedViews(options: {
         ? capture()
         : decodeTaskSavedView(record.config);
     if (definition.isErr()) {
-      setError(definition.error);
+      crud.fail(definition.error);
       return;
     }
-    setForm({
+    return {
       mode,
       id: mode === 'duplicate' ? uuid() : record.id,
       name:
@@ -280,48 +265,7 @@ export function createTaskSavedViews(options: {
       sharedTeamId: mode === 'duplicate' ? null : record.sharedTeamId,
       record,
       config: definition.value,
-    });
-  };
-  const writeRequest = (
-    config: TaskSavedViewConfig,
-    name?: string,
-    team?: string | null
-  ): SavedViewWrite | undefined => {
-    const metadata = form();
-    const record = metadata?.record ?? draft.record();
-    const targetName = (name ?? metadata?.name ?? record?.name ?? '').trim();
-    if (!targetName) {
-      setError('Give this view a name.');
-      return;
-    }
-    const mode = metadata?.mode;
-    if (mode === 'create' || mode === 'duplicate') {
-      if (!metadata) return;
-      return {
-        mode: 'create',
-        input: {
-          id: metadata.id,
-          name: targetName,
-          config,
-          sharedTeamId: team === undefined ? metadata.sharedTeamId : team,
-        },
-      };
-    }
-    if (!record || record.ownerId !== options.viewerId()) return;
-    const input: UpdateSavedView = {
-      id: record.id,
-      name: targetName,
-      config,
-      expectedRevision: record.revision,
     };
-    // A filter/name save must not renew an expired sharing lifetime.
-    if (
-      metadata?.mode !== 'rename' &&
-      team !== undefined &&
-      team !== record.sharedTeamId
-    )
-      input.sharedTeamId = team;
-    return { mode: 'update', input };
   };
   const scope = () =>
     JSON.stringify([
@@ -330,88 +274,81 @@ export function createTaskSavedViews(options: {
       navigationEpoch,
       draft.record()?.revision,
     ]);
-  const save = async (name?: string, sharedTeamId?: string | null) => {
-    if (saving()) return;
-    const metadata = form();
+  let savedMetadata: SavedViewForm | undefined;
+  const crud = createSavedViewCrud({
+    source: options.source,
+    viewerId: options.viewerId,
+    selectedId: options.selectedId,
+    scope,
+    onDeleted: leave,
+    onSaved: (record, mode) => {
+      const confirmed = decodeTaskSavedView(record.config);
+      if (confirmed.isErr()) {
+        crud.fail(confirmed.error);
+        return false;
+      }
+      batch(() => {
+        if (mode === 'create') {
+          apply(
+            confirmed.value,
+            savedMetadata?.mode === 'duplicate'
+              ? undefined
+              : withTaskTabFilters(options.state.tab, options.state.facets)
+          );
+          setCreating(true);
+          draft.install(record, confirmed.value);
+          options.navigate(record.id);
+        } else if (options.selectedId() === record.id) {
+          draft.install(record, confirmed.value);
+        }
+      });
+      return true;
+    },
+  });
+  const save = async (
+    name?: string,
+    team?: string | null,
+    metadata?: SavedViewForm
+  ) => {
+    if (crud.saving()) return false;
     const definition = metadata?.config ? ok(metadata.config) : capture();
     if (definition.isErr()) {
-      setError(definition.error);
-      return;
+      crud.fail(definition.error);
+      return false;
     }
-    const request = writeRequest(definition.value, name, sharedTeamId);
-    if (!request) return;
-    const requestScope = scope();
-    const requestViewer = options.viewerId();
-    setSaving(true);
-    setError(undefined);
-    const result =
-      request.mode === 'create'
-        ? await options.source.create(request.input)
-        : await options.source.update(request.input);
-    setSaving(false);
-    if (scope() !== requestScope) {
-      if (
-        result.isOk() &&
-        options.viewerId() === requestViewer &&
-        options.selectedId() === request.input.id
-      )
-        fireAndForget(options.source.refreshDetail(), 'saved-views');
-      return;
+    const record = metadata?.record ?? draft.record();
+    const targetName = (name ?? metadata?.name ?? record?.name ?? '').trim();
+    if (!targetName) {
+      crud.fail('Give this view a name.');
+      return false;
     }
-    if (result.isErr()) {
-      setConflict(result.error.code === 'CONFLICT');
-      setError(result.error.message);
-      return;
+    savedMetadata = metadata;
+    if (metadata?.mode === 'create' || metadata?.mode === 'duplicate') {
+      return crud.save({
+        mode: 'create',
+        input: {
+          id: metadata.id,
+          name: targetName,
+          config: definition.value,
+          sharedTeamId: team === undefined ? metadata.sharedTeamId : team,
+        },
+      });
     }
-    const confirmed = decodeTaskSavedView(result.value.config);
-    if (confirmed.isErr()) {
-      setError(confirmed.error);
-      return;
-    }
-    batch(() => {
-      setForm(undefined);
-      if (request.mode === 'create') {
-        apply(
-          confirmed.value,
-          metadata?.mode === 'duplicate'
-            ? undefined
-            : withTaskTabFilters(options.state.tab, options.state.facets)
-        );
-        setCreating(true);
-        draft.install(result.value, confirmed.value);
-        options.navigate(result.value.id);
-      } else if (options.selectedId() === result.value.id) {
-        draft.install(result.value, confirmed.value);
-      }
-      setConflict(false);
-    });
-  };
-  const remove = async () => {
-    const record = deletionRecord();
-    if (!record || record.ownerId !== options.viewerId() || saving()) return;
-    const requestScope = scope();
-    const requestViewer = options.viewerId();
-    setSaving(true);
-    const result = await options.source.delete({
+    if (!record) return false;
+    const input: UpdateSavedView = {
       id: record.id,
+      name: targetName,
+      config: definition.value,
       expectedRevision: record.revision,
-    });
-    setSaving(false);
+    };
+    // Only an explicit sharing edit changes the selected team.
     if (
-      result.isOk() &&
-      options.viewerId() === requestViewer &&
-      options.selectedId() === record.id
-    ) {
-      leave();
-      return;
-    }
-    if (scope() !== requestScope) return;
-    if (result.isErr()) {
-      setError(result.error.message);
-      setConflict(result.error.code === 'CONFLICT');
-      return;
-    }
-    setDeletionRecord(undefined);
+      metadata?.mode !== 'rename' &&
+      team !== undefined &&
+      team !== record.sharedTeamId
+    )
+      input.sharedTeamId = team;
+    return crud.save({ mode: 'update', input, record });
   };
   const reload = async () => {
     const requestScope = scope();
@@ -429,21 +366,20 @@ export function createTaskSavedViews(options: {
   };
   return {
     source: options.source,
+    selectedId: options.selectedId,
     active,
     creating,
     ready,
     unavailable,
-    error,
-    conflict,
-    saving,
+    error: crud.error,
+    conflict: crud.conflict,
+    saving: crud.saving,
     record: draft.record,
     dirty: draft.dirty,
     owned,
     changedFromBase,
     current,
     tagBindings,
-    form,
-    deleting,
     title: () =>
       creating() ? 'New view' : (draft.record()?.name ?? 'Saved view'),
     select,
@@ -451,19 +387,11 @@ export function createTaskSavedViews(options: {
     start,
     reset,
     save,
-    remove,
+    remove: crud.remove,
     reload,
-    saveAs: () => openForm('create'),
-    duplicate: (record?: SavedView) => openForm('duplicate', record),
-    rename: (record?: SavedView) => openForm('rename', record),
-    share: (record?: SavedView) => openForm('share', record),
-    closeForm: () => setForm(undefined),
-    confirmDelete: (record = draft.record()) => {
-      if (!record || record.ownerId !== options.viewerId() || saving()) return;
-      setError(undefined);
-      setDeletionRecord(record);
-    },
-    cancelDelete: () => setDeletionRecord(undefined),
+    prepareForm,
+    clearError: crud.clear,
+    holdEditing: crud.hold,
   };
 }
 

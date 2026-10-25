@@ -5,19 +5,88 @@ import { useUserId } from '@core/context/user';
 import { writeClipboardData } from '@core/util/dataTransfer';
 import { fireAndForget } from '@core/util/fireAndForget';
 import DotsIcon from '@phosphor/dots-three.svg';
-import { Button, ConfirmDialog, Dropdown } from '@ui';
-import { For, onCleanup, Show } from 'solid-js';
-import { SavedViewDialog } from '../../saved-views/components/saved-view-dialog';
-import { SavedViewList } from '../../saved-views/components/saved-view-list';
+import { Button, Dropdown } from '@ui';
+import { createEffect, For, on, onCleanup, Show } from 'solid-js';
+import {
+  SavedViewList,
+  SavedViewListRow,
+} from '../../saved-views/components/saved-view-list';
 import { SavedViewMenuItems } from '../../saved-views/components/saved-view-menu';
 import { SavedViewPicker } from '../../saved-views/components/saved-view-picker';
+import type { SavedView } from '../../saved-views/core/saved-view';
+import { useSavedViewDialogs } from '../../saved-views/views/use-saved-view-dialogs';
 import { materializeTaskSavedView } from '../filters/task-saved-view';
 import { useTaskFilters } from '../filters/use-task-filters';
+import type { SavedViewForm } from '../primitives/create-task-saved-views';
 import { tasksTabSearch, tasksTabSearchCodec } from '../tasks-tab-search';
 import { useTasksView } from '../tasks-view-context';
 
+function useTaskSavedViewDialogs() {
+  const { state, savedViews, savedViewTeam } = useTasksView();
+  const viewerId = useUserId();
+  const filters = useTaskFilters();
+  const dialogs = useSavedViewDialogs<SavedViewForm>({
+    team: () => savedViewTeam?.(),
+    pending: () => savedViews?.saving() ?? false,
+    error: () => savedViews?.error(),
+    summary: (form) => {
+      const config = form.config ?? savedViews?.current();
+      const selection = config ? materializeTaskSavedView(config) : state;
+      return (
+        <>
+          <For each={filters.groups()}>
+            {(group) => (
+              <Show when={(selection.facets[group.id] ?? []).length}>
+                <p>
+                  {group.label}:{' '}
+                  {(selection.facets[group.id] ?? [])
+                    .map(
+                      (id) =>
+                        group.options.find((option) => option.id === id)
+                          ?.label ?? 'Unavailable option'
+                    )
+                    .join(', ')}
+                </p>
+              </Show>
+            )}
+          </For>
+          <Show when={state.search.trim()}>
+            <p>Search text is not included.</p>
+          </Show>
+        </>
+      );
+    },
+    save: (form, name, team) =>
+      savedViews?.save(name, team, form) ?? Promise.resolve(false),
+    remove: (record) => savedViews?.remove(record) ?? Promise.resolve(false),
+    holdEditing: () => savedViews?.holdEditing() ?? (() => {}),
+  });
+  createEffect(
+    on(
+      () => [viewerId(), savedViews?.selectedId()] as const,
+      (_next, previous) => {
+        if (previous) dialogs.close();
+      }
+    )
+  );
+  return {
+    form: (mode: SavedViewForm['mode'], record?: SavedView) => {
+      const form = savedViews?.prepareForm(mode, record);
+      if (form) dialogs.form(form);
+    },
+    delete: (record?: SavedView) => {
+      const target = record ?? savedViews?.record();
+      if (target && target.ownerId === viewerId() && !savedViews?.saving()) {
+        savedViews?.clearError();
+        dialogs.delete(target);
+      }
+    },
+  };
+}
+
 export function TaskSavedViewsList(props: {
   onAction?: (action: () => void) => void;
+  dialogs?: ReturnType<typeof useTaskSavedViewDialogs>;
 }) {
   const {
     savedViews,
@@ -26,6 +95,8 @@ export function TaskSavedViewsList(props: {
     setSidebarSectionOpen,
   } = useTasksView();
   const viewerId = useUserId();
+  const localDialogs = useTaskSavedViewDialogs();
+  const dialogs = props.dialogs ?? localDialogs;
   const run = (action: () => void) =>
     props.onAction ? props.onAction(action) : action();
   return (
@@ -33,24 +104,41 @@ export function TaskSavedViewsList(props: {
       {(views) => (
         <SavedViewList
           items={views().source.items()}
-          selectedId={views().record()?.id}
           loading={views().source.loading()}
           failed={Boolean(views().source.error())}
           open={isSidebarSectionOpen('saved-views')}
           onOpenChange={(open) => setSidebarSectionOpen('saved-views', open)}
           hasMore={views().source.hasMore()}
           loadingMore={views().source.loadingMore()}
-          viewerId={viewerId()}
-          canShare={Boolean(savedViewTeam?.())}
-          saving={views().saving()}
-          onRename={(view) => run(() => views().rename(view))}
-          onShare={(view) => run(() => views().share(view))}
-          onDuplicate={(view) => run(() => views().duplicate(view))}
-          onCopyLink={(view) =>
-            fireAndForget(copySavedViewLink(view.id), 'saved-views')
-          }
-          onDelete={(view) => run(() => views().confirmDelete(view))}
-          onSelect={(id) => run(() => views().select(id))}
+          row={(view) => (
+            <SavedViewListRow
+              view={view}
+              selected={view.id === views().record()?.id}
+              scopeKey={viewerId()}
+              onSelect={() => run(() => views().select(view.id))}
+              menu={(context, defer) => (
+                <SavedViewMenuItems
+                  context={context}
+                  owned={view.ownerId === viewerId()}
+                  canShare={Boolean(savedViewTeam?.() || view.sharedTeamId)}
+                  disabled={views().saving()}
+                  onRename={() =>
+                    defer(() => run(() => dialogs.form('rename', view)))
+                  }
+                  onShare={() =>
+                    defer(() => run(() => dialogs.form('share', view)))
+                  }
+                  onDuplicate={() =>
+                    defer(() => run(() => dialogs.form('duplicate', view)))
+                  }
+                  onCopyLink={() =>
+                    fireAndForget(copySavedViewLink(view.id), 'saved-views')
+                  }
+                  onDelete={() => defer(() => run(() => dialogs.delete(view)))}
+                />
+              )}
+            />
+          )}
           onCreate={() => run(() => views().start())}
           onRetry={() => fireAndForget(views().source.refresh(), 'saved-views')}
           onLoadMore={() =>
@@ -65,6 +153,7 @@ export function TaskSavedViewsList(props: {
 export function TaskSavedViewsPicker() {
   const { savedViews } = useTasksView();
   const viewerId = useUserId();
+  const dialogs = useTaskSavedViewDialogs();
   return (
     <Show when={savedViews}>
       {(views) => (
@@ -72,7 +161,9 @@ export function TaskSavedViewsPicker() {
           scopeKey={viewerId()}
           label={views().active() ? views().title() : 'Saved views'}
         >
-          {(onAction) => <TaskSavedViewsList onAction={onAction} />}
+          {(onAction) => (
+            <TaskSavedViewsList onAction={onAction} dialogs={dialogs} />
+          )}
         </SavedViewPicker>
       )}
     </Show>
@@ -96,12 +187,17 @@ async function copySavedViewLink(id: string) {
 
 export function TaskSaveViewButton() {
   const { savedViews } = useTasksView();
+  const dialogs = useTaskSavedViewDialogs();
   return (
     <Show
       when={savedViews && !savedViews.active() && savedViews.changedFromBase()}
     >
       <HeaderActionGroup label="Save task filters">
-        <Button size="md" variant="ghost" onClick={() => savedViews?.saveAs()}>
+        <Button
+          size="md"
+          variant="ghost"
+          onClick={() => dialogs.form('create')}
+        >
           Save view
         </Button>
       </HeaderActionGroup>
@@ -112,6 +208,7 @@ export function TaskSaveViewButton() {
 export function TaskSavedViewMenu() {
   const { savedViews, savedViewTeam } = useTasksView();
   const viewerId = useUserId();
+  const dialogs = useTaskSavedViewDialogs();
   let trigger: HTMLButtonElement | undefined;
   let menuOpen = false;
   let disposed = false;
@@ -180,14 +277,14 @@ export function TaskSavedViewMenu() {
                 savedViewTeam?.() || savedViews?.record()?.sharedTeamId
               )}
               disabled={savedViews?.saving()}
-              onRename={() => defer(() => savedViews?.rename())}
-              onShare={() => defer(() => savedViews?.share())}
-              onDuplicate={() => defer(() => savedViews?.duplicate())}
+              onRename={() => defer(() => dialogs.form('rename'))}
+              onShare={() => defer(() => dialogs.form('share'))}
+              onDuplicate={() => defer(() => dialogs.form('duplicate'))}
               onCopyLink={() => {
                 const id = savedViews?.record()?.id;
                 if (id) fireAndForget(copySavedViewLink(id), 'saved-views');
               }}
-              onDelete={() => defer(() => savedViews?.confirmDelete())}
+              onDelete={() => defer(() => dialogs.delete())}
             />
           </Dropdown.Content>
         </Dropdown>
@@ -198,6 +295,7 @@ export function TaskSavedViewMenu() {
 
 export function TaskSavedViewActions() {
   const { savedViews } = useTasksView();
+  const dialogs = useTaskSavedViewDialogs();
   return (
     <Show
       when={
@@ -239,7 +337,7 @@ export function TaskSavedViewActions() {
           <Button
             size="md"
             variant="ghost"
-            onClick={() => savedViews?.saveAs()}
+            onClick={() => dialogs.form('create')}
           >
             Save view
           </Button>
@@ -252,98 +350,11 @@ export function TaskSavedViewActions() {
   );
 }
 
-export function TaskSavedViewDialogs() {
-  const { state, savedViews, savedViewTeam } = useTasksView();
-  const filters = useTaskFilters();
-  return (
-    <>
-      <Show when={savedViews?.form()} keyed>
-        {(form) => {
-          const selection = () => {
-            const config = form.config ?? savedViews?.current();
-            return config ? materializeTaskSavedView(config) : state;
-          };
-          return (
-            <SavedViewDialog
-              mode={form.mode}
-              name={form.name}
-              sharedTeamId={form.sharedTeamId}
-              team={savedViewTeam?.()}
-              pending={savedViews?.saving() ?? false}
-              error={savedViews?.error()}
-              onClose={() => savedViews?.closeForm()}
-              onSave={(name, team) =>
-                fireAndForget(
-                  savedViews?.save(name, team) ?? Promise.resolve(),
-                  'saved-views'
-                )
-              }
-              summary={
-                <>
-                  <For each={filters.groups()}>
-                    {(group) => (
-                      <Show when={(selection().facets[group.id] ?? []).length}>
-                        <p>
-                          {group.label}:{' '}
-                          {(selection().facets[group.id] ?? [])
-                            .map(
-                              (id) =>
-                                group.options.find((option) => option.id === id)
-                                  ?.label ?? 'Unavailable option'
-                            )
-                            .join(', ')}
-                        </p>
-                      </Show>
-                    )}
-                  </For>
-                  <Show when={state.search.trim()}>
-                    <p>Search text is not included.</p>
-                  </Show>
-                </>
-              }
-            />
-          );
-        }}
-      </Show>
-      <ConfirmDialog
-        open={savedViews?.deleting() ?? false}
-        onOpenChange={(open) => {
-          if (!open) savedViews?.cancelDelete();
-        }}
-        title="Delete saved view?"
-        body={
-          <>
-            <p>
-              This removes the view for you and anyone it is shared with. Tasks
-              are not deleted.
-            </p>
-            <Show when={savedViews?.error()}>
-              <p role="alert">{savedViews?.error()}</p>
-            </Show>
-          </>
-        }
-        confirmLabel="Delete view"
-        tone="danger"
-        pending={savedViews?.saving()}
-        onConfirm={() =>
-          fireAndForget(
-            savedViews?.remove() ?? Promise.resolve(),
-            'saved-views'
-          )
-        }
-      />
-    </>
-  );
-}
-
 export function TaskSavedViewStatus() {
   const { savedViews } = useTasksView();
+  const dialogs = useTaskSavedViewDialogs();
   return (
-    <Show
-      when={
-        savedViews?.error() && !savedViews?.form() && !savedViews?.deleting()
-      }
-    >
+    <Show when={savedViews?.error()}>
       <div
         class="flex flex-wrap items-center gap-2 px-4 py-2 text-sm text-failure-ink"
         role="alert"
@@ -366,7 +377,7 @@ export function TaskSavedViewStatus() {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => savedViews?.duplicate()}
+          onClick={() => dialogs.form('duplicate')}
         >
           Duplicate
         </Button>

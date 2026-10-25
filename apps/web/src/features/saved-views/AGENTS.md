@@ -10,7 +10,9 @@ Reusable named filter definitions. The first consumer is main Tasks; the generic
 - `context/saved-views-source.ts`: injectable read/write contract.
 - `queries/saved-views.ts`: GraphQL live reads, cursor paging, and authoritative writes.
 - `primitives/create-saved-view-draft.ts`: confirmed baseline versus temporary edits.
-- `components/`: props-only list, shared padded context/overflow actions, mobile picker, and create/duplicate/rename/share dialogs.
+- `primitives/create-saved-view-crud.ts`: account-scoped writes, owner checks, pending/error/conflict state.
+- `views/use-saved-view-dialogs.tsx`: imperative form and deletion dialogs with managed lifetimes.
+- `components/`: composable list rows and menu slots, shared padded context/overflow actions, mobile picker, and create/duplicate/rename/share dialogs.
 
 ## Boundaries
 
@@ -19,7 +21,7 @@ Reusable named filter definitions. The first consumer is main Tasks; the generic
 - Share definitions, not access to their matching entities; the backend owns authorization.
 - Rebuild loaded cursor chains after confirmed membership changes; never invent permission state or splice a full page.
 - Keep consumer edits on failed saves; only confirmed writes replace the baseline.
-- Mount picker menus inside the drawer portal scope, then close the drawer and restore focus before opening another dialog.
+- Mount picker menus inside the drawer portal scope, close menus before opening dialogs, then close the drawer and restore focus before opening another dialog.
 - Bind deferred picker actions to the opening account and discard them after an account change.
 - Validate the response viewer before exposing cached reads after an account change.
 
@@ -29,7 +31,6 @@ Run from `apps/web`:
 
 - `bun run test src/features/saved-views src/features/tasks-view`
 - `bun run type-check`
-- `bunx playwright test --config src/features/tasks-view/browser-test/saved-views.playwright.config.ts`
 - `bun run gen-graphql` after schema or document changes.
 
 ## Related

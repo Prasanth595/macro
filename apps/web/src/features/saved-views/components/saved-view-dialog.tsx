@@ -1,8 +1,8 @@
-import { Button, Checkbox, Dialog, Input } from '@ui';
+import { Button, Checkbox, Dialog, Input, type ManagedDialogProps } from '@ui';
 import { createSignal, type JSX, Show } from 'solid-js';
 import { match } from 'ts-pattern';
 
-export function SavedViewDialog(props: {
+export type SavedViewDialogProps = ManagedDialogProps & {
   name: string;
   sharedTeamId: string | null;
   team?: { id: string; name: string };
@@ -11,8 +11,9 @@ export function SavedViewDialog(props: {
   pending: boolean;
   error?: string;
   onSave: (name: string, sharedTeamId: string | null) => void;
-  onClose: () => void;
-}) {
+};
+
+export function SavedViewDialog(props: SavedViewDialogProps) {
   const [name, setName] = createSignal(props.name);
   const [shared, setShared] = createSignal(Boolean(props.sharedTeamId));
   const labels = () =>
@@ -30,11 +31,11 @@ export function SavedViewDialog(props: {
       .exhaustive();
   return (
     <Dialog
-      open
+      open={props.open}
       position="center"
       class="w-110"
       onOpenChange={(open) => {
-        if (!open && !props.pending) props.onClose();
+        if (!props.pending) props.onOpenChange(open);
       }}
     >
       <form
@@ -97,7 +98,7 @@ export function SavedViewDialog(props: {
           <Button
             variant="ghost"
             disabled={props.pending}
-            onClick={props.onClose}
+            onClick={() => props.onOpenChange(false)}
           >
             Cancel
           </Button>

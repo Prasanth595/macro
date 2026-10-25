@@ -8,8 +8,8 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 
 - `tasks-view-context.tsx`: filter state, router integration, and list source ownership.
 - `filters/task-saved-view.ts`: strict versioned capture, decode, and materialization.
-- `primitives/create-task-saved-views.ts`: transient drafts, explicit saves, conflicts, and navigation lifecycle.
-- `views/task-saved-views.tsx`: sidebar/mobile selection, metadata editing, and management.
+- `primitives/create-task-saved-views.ts`: task filter capture, transient drafts, explicit saves, and navigation lifecycle; generic write state lives in saved-views primitives.
+- `views/task-saved-views.tsx`: sidebar/mobile selection, task filter summaries, and imperative metadata/delete dialog composition.
 - `queries/use-tasks-query.ts`: shared list, board, Gantt, and search filtering.
 
 ## Gotchas
@@ -33,7 +33,6 @@ Run from `apps/web`:
 
 - `bun run test src/features/tasks-view`
 - `bun run type-check`
-- `bunx playwright test --config src/features/tasks-view/browser-test/saved-views.playwright.config.ts`
 
 ## Related
 
