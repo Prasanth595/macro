@@ -64,10 +64,15 @@ function typeSubject(value: string) {
   return field;
 }
 
-function overLimitHint(field: HTMLElement) {
-  if (field.getAttribute('aria-invalid') !== 'true') return undefined;
-  const id = field.getAttribute('aria-describedby');
+function describedHint(element: HTMLElement) {
+  const id = element.getAttribute('aria-describedby');
   return id ? document.getElementById(id)?.textContent?.trim() : undefined;
+}
+
+function overLimitHint(field: HTMLElement) {
+  return field.getAttribute('aria-invalid') === 'true'
+    ? describedHint(field)
+    : undefined;
 }
 
 describe('ComposeSubject provider subject limit', () => {
@@ -87,10 +92,14 @@ describe('ComposeSubject provider subject limit', () => {
     }
   });
 
-  it('flags a long Outlook subject typed on mobile', () => {
+  it('flags a long Outlook subject typed on mobile, also after the field collapses', () => {
     const root = renderSubject('outlook', true);
     try {
-      expect(overLimitHint(typeSubject('a'.repeat(300)))).toBeTruthy();
+      const field = typeSubject('a'.repeat(300));
+      expect(overLimitHint(field)).toBeTruthy();
+
+      field.blur();
+      expect(describedHint(screen.getByRole('button'))).toBeTruthy();
     } finally {
       root.dispose();
     }
