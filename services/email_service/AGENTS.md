@@ -100,9 +100,11 @@ the gateway `/email` prefix.
 - Rate-limited gmail_ops and inbox-sync operations back off with jitter
   (`pubsub/rate_limit_backoff.rs`): the primary worker delays the retry-queue
   send, and retry workers extend the message's visibility. A Gmail 429 backs
-  off from 15–30 s; a request-gate refusal waits the gate's `retry_after` plus
-  a backoff that starts under a second. Attempts are numbered from SQS's
-  `ApproximateReceiveCount`, which `sqs_worker` requests on every receive.
+  off from 15–30 s, doubling; a request-gate refusal waits the gate's
+  `retry_after` plus 0.5–2 s, growing by half per attempt, so refused work
+  keeps returning within seconds while a burst drains. Attempts are numbered
+  from SQS's `ApproximateReceiveCount`, which `sqs_worker` requests on every
+  receive.
   Delays are capped at 300 s so the retry queue's 100 deliveries end within
   the 12-hour expiry of pending label write markers; keep that bound when
   changing the cap or `maxReceiveCount`.

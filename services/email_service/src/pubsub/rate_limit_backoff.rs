@@ -11,11 +11,15 @@ mod test;
 /// Longest delay before the first retry after Gmail itself rate-limited an
 /// operation; each later retry doubles it.
 pub(crate) const PROVIDER_BACKOFF: Duration = Duration::from_secs(30);
+const PROVIDER_GROWTH: f64 = 2.0;
 /// Longest wait past the request gate's `retry_after` before the first retry
-/// of an operation the gate refused; each later retry doubles it. No Gmail
-/// request was made, so it starts small, but it grows so a mailbox that stays
-/// saturated does not use up the retry queue's deliveries within minutes.
-const GATE_BACKOFF: Duration = Duration::from_secs(1);
+/// of an operation the gate refused; each later retry grows it by half. No
+/// Gmail request was made and a slot frees up as soon as one finishes, so
+/// refused work keeps coming back within seconds while a burst drains. It
+/// still grows, so a mailbox that stays saturated takes hours, not minutes,
+/// to use up the retry queue's deliveries.
+const GATE_BACKOFF: Duration = Duration::from_secs(2);
+const GATE_GROWTH: f64 = 1.5;
 /// Longest any retry waits, including for a longer Retry-After. The gate
 /// likewise pauses a mailbox for at most a minute. At most 101 waits (the
 /// hand-off to the retry queue plus its 100 deliveries) of this length add up
@@ -43,10 +47,12 @@ pub(crate) fn next_retry_delay(
     })
 }
 
-/// Exponential backoff with equal jitter, at least half of `retry`'s ceiling
-/// (1 for the first retry), so operations rate-limited together come back
-/// spread out. A Gmail rate limit waits at least its Retry-After; a gate
-/// refusal waits out the gate's pause first and adds a smaller backoff.
+/// Exponential backoff with jitter below `retry`'s ceiling (1 for the first
+/// retry), so operations rate-limited together come back spread out. A Gmail
+/// rate limit waits at least half the ceiling and its Retry-After. A gate
+/// refusal waits out the gate's pause first and adds at least a quarter of a
+/// smaller, slower-growing ceiling, spreading the refused work across the
+/// time slots take to free up.
 fn retry_delay(
     retry: u32,
     origin: RateLimitOrigin,
@@ -56,9 +62,13 @@ fn retry_delay(
     let retry_after = retry_after.unwrap_or_default();
     let delay = match origin {
         RateLimitOrigin::Provider { .. } => {
-            jitter(backoff(PROVIDER_BACKOFF, retry)).max(retry_after)
+            let ceiling = ceiling(PROVIDER_BACKOFF, PROVIDER_GROWTH, retry);
+            jitter(ceiling / 2..=ceiling).max(retry_after)
         }
-        RateLimitOrigin::Local => retry_after.saturating_add(jitter(backoff(GATE_BACKOFF, retry))),
+        RateLimitOrigin::Local => {
+            let ceiling = ceiling(GATE_BACKOFF, GATE_GROWTH, retry);
+            retry_after.saturating_add(jitter(ceiling / 4..=ceiling))
+        }
     };
     let delay = delay.min(MAX_DELAY);
     // SQS counts whole seconds; rounding down would retry before Retry-After.
@@ -68,10 +78,8 @@ fn retry_delay(
     Duration::from_secs(seconds.max(1))
 }
 
-fn backoff(base: Duration, retry: u32) -> RangeInclusive<Duration> {
-    let ceiling = 2u32
-        .checked_pow(retry.saturating_sub(1))
-        .and_then(|factor| base.checked_mul(factor))
-        .map_or(MAX_DELAY, |backoff| backoff.min(MAX_DELAY));
-    ceiling / 2..=ceiling
+fn ceiling(base: Duration, growth: f64, retry: u32) -> Duration {
+    let exponent = i32::try_from(retry.saturating_sub(1)).unwrap_or(i32::MAX);
+    Duration::try_from_secs_f64(base.as_secs_f64() * growth.powi(exponent))
+        .map_or(MAX_DELAY, |ceiling| ceiling.min(MAX_DELAY))
 }

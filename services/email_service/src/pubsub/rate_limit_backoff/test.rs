@@ -41,10 +41,11 @@ fn gate_refusals_wait_about_the_gates_retry_after() {
     let busy = Some(Duration::from_secs(1));
     let paused = Some(Duration::from_secs(5));
     let expected = [
-        (1, busy, 2, 2),
-        (1, paused, 6, 6),
-        (4, busy, 5, 9),
-        (10, busy, 151, 300),
+        (1, busy, 2, 3),
+        (1, paused, 6, 7),
+        (4, busy, 3, 8),
+        (10, busy, 21, 78),
+        (15, busy, 76, 300),
     ];
     for (retry, retry_after, min_secs, max_secs) in expected {
         assert_eq!(
@@ -60,6 +61,29 @@ fn gate_refusals_wait_about_the_gates_retry_after() {
             "retry {retry}, retry_after {retry_after:?}"
         );
     }
+}
+
+#[test]
+fn refused_operations_come_back_within_seconds_while_a_burst_drains() {
+    let busy = Some(Duration::from_secs(1));
+    let longest: Vec<u64> = (1..=5)
+        .map(|retry| {
+            retry_delay(retry, RateLimitOrigin::Local, busy, |range| *range.end()).as_secs()
+        })
+        .collect();
+    assert_eq!(longest, [3, 4, 6, 8, 12]);
+}
+
+#[test]
+fn a_mailbox_that_stays_saturated_takes_hours_to_use_up_the_deliveries() {
+    let busy = Some(Duration::from_secs(1));
+    let shortest: Duration = (1..=101)
+        .map(|retry| retry_delay(retry, RateLimitOrigin::Local, busy, |range| *range.start()))
+        .sum();
+    assert!(
+        shortest > Duration::from_secs(90 * 60),
+        "101 refusals in a row waited only {shortest:?}"
+    );
 }
 
 #[test]
