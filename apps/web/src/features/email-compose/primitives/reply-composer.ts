@@ -50,6 +50,7 @@ import {
   convertContactInfoToEmailRecipient,
   convertEmailRecipientToContactInfo,
 } from '../core/recipient-conversion';
+import type { ReplyType } from '../core/reply-type';
 import { partitionByAttachmentLimit } from './attachment-limit';
 import { createAttachmentLinkOffer } from './attachment-links';
 import {
@@ -71,6 +72,7 @@ import type { EmailFormContextValue, FormAccessKey } from './email-form-types';
 import { createEmailSendSchedule } from './email-send-schedule';
 import { addUserMentionToCc } from './mention-to-cc';
 import {
+  appendedThreadKind,
   clearEmailBody,
   hasDraftContent,
   prepareEmailBody,
@@ -525,40 +527,65 @@ export function createReplyComposer(
     on(form.editRevision, () => scheduleDraftSave(), { defer: true })
   );
 
+  // A forward carries the forwarded message and a reply never does, so a
+  // kind change swaps whichever thread the other kind appended.
+  const matchAppendedThread = (
+    currentEditor: LexicalEditor,
+    message: EmailMessage,
+    rt: ReplyType,
+    kindChanged: boolean
+  ) => {
+    const forwarding = rt === 'forward';
+    const appended = kindChanged
+      ? appendedThreadKind(currentEditor, message.db_id)
+      : undefined;
+    if (appended && (appended === 'forward') !== forwarding) {
+      currentEditor.dispatchCommand(TOGGLE_APPEND_EMAIL_THREAD_COMMAND, {
+        replyingTo: message,
+        replyType: rt,
+        visible: false,
+      });
+      if (!forwarding) form.setReplyAppended(false);
+    }
+    if (!forwarding || !form.replyAppended()) return;
+    if (appendedThreadKind(currentEditor, message.db_id)) return;
+    setQuoteCollapsed(true);
+    currentEditor.dispatchCommand(TOGGLE_APPEND_EMAIL_THREAD_COMMAND, {
+      replyingTo: message,
+      replyType: rt,
+      visible: true,
+      isPersonal: ctx.isPersonalReply(),
+    });
+  };
+
   // The mounted composer owns focus, editor commands, and their cleanup.
+  let shownReplyType: ReplyType | undefined;
   createEffect(() => {
     const rt = form.replyType();
     if (!editorConnected()) return;
+    // A loaded body already matches its kind; only later changes swap threads.
+    const kindChanged = shownReplyType !== undefined && shownReplyType !== rt;
+    shownReplyType = rt;
     // Later reply-type changes are the user's, and always take focus.
     const takeFocus = mountFocus;
     mountFocus = true;
     untrack(() => {
       setComposerExpanded(false);
       if (rt === 'forward') {
-        setQuoteCollapsed(true);
         if (takeFocus) focus.forward();
-        const message = replyTarget;
-        const currentEditor = editor();
-        if (message && currentEditor && form.replyAppended()) {
-          // The editor's lazy command registration completes after this batch.
-          const timer = setTimeout(
-            () =>
-              currentEditor.dispatchCommand(
-                TOGGLE_APPEND_EMAIL_THREAD_COMMAND,
-                {
-                  replyingTo: message,
-                  replyType: rt,
-                  visible: true,
-                  isPersonal: ctx.isPersonalReply(),
-                }
-              ),
-            0
-          );
-          onCleanup(() => clearTimeout(timer));
-        }
       } else if (takeFocus) {
         focus.reply();
       }
+      const message = replyTarget;
+      const currentEditor = editor();
+      if (!message || !currentEditor) return;
+      if (!kindChanged && (rt !== 'forward' || !form.replyAppended())) return;
+      // The editor's lazy command registration completes after this batch.
+      const timer = setTimeout(
+        () => matchAppendedThread(currentEditor, message, rt, kindChanged),
+        0
+      );
+      onCleanup(() => clearTimeout(timer));
     });
   });
 

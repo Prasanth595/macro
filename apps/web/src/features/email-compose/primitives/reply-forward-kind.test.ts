@@ -417,3 +417,39 @@ it.each(providers)(
     }
   }
 );
+
+it.each(providers)(
+  'drops a %s forward newer than the thread draft when Reply is clicked',
+  async (provider) => {
+    const context = inboxContext(provider);
+    // The thread still holds the saved reply; the editor loads the newer
+    // local copy, which became a forward.
+    const draft = savedDraft('reply', 'FYI, see below', parent, {
+      to: [{ email: 'ada@example.com' }],
+      subject: 'Re: Numbers',
+    });
+    const localCopy = decodeBase64Utf8(
+      savedForward().body_html_sanitized ?? ''
+    );
+    const actions = cardActions();
+    const reply = mountReplyComposer(
+      context,
+      () => parent,
+      { draft, preloadedHtml: localCopy },
+      { replyRequest: actions }
+    );
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      await actions.click('reply');
+      await reply.sendEmail();
+
+      expect(context.delivery.sendMessage).toHaveBeenCalledOnce();
+      const sent = delivered(context);
+      expect(sent.to).toEqual(['ada@example.com']);
+      expect(sent.body).toContain('FYI, see below');
+      expect(sent.body).not.toContain('Forwarded message');
+    } finally {
+      reply.dispose();
+    }
+  }
+);

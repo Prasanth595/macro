@@ -8,7 +8,7 @@ import { convertDocumentMentionsToLinks } from '@core/component/LexicalMarkdown/
 import { staticFileReferenceEndpoint } from '@core/constant/servers';
 import { formatEmailDate } from '@core/util/date';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
-import { $createQuoteNode } from '@lexical/rich-text';
+import { $createQuoteNode, $isQuoteNode } from '@lexical/rich-text';
 import { $dfsIterator } from '@lexical/utils';
 import { sanitizeEmailHtml } from '@macro-inc/email-renderer';
 import type { DocumentMentionInfo } from '@macro-inc/lexical-core';
@@ -260,6 +260,25 @@ function removeAppendedThread(
     },
     { discrete: true }
   );
+}
+
+/** Whether the appended thread forwards or quotes, read from its header. */
+export function appendedThreadKind(
+  editor: LexicalEditor,
+  replyingToId: string
+): 'forward' | 'reply' | undefined {
+  return editor.read(() => {
+    for (const node of $findPreviousEmailNode(replyingToId)) {
+      if (!node) continue;
+      const header = node
+        .getChildren()
+        .filter((child) => !$isQuoteNode(child))
+        .map((child) => child.getTextContent())
+        .join('');
+      return header.includes(FORWARDED_MESSAGE_HEADER) ? 'forward' : 'reply';
+    }
+    return undefined;
+  });
 }
 
 export function registerToggleAppendedThread(editor: LexicalEditor) {
