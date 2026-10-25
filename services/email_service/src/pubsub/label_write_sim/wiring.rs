@@ -48,17 +48,21 @@ pub async fn gmail_api(
     )
 }
 
-fn gate_keys(link_id: Uuid) -> [String; 3] {
+fn gate_keys(link_id: Uuid) -> [String; 6] {
     let scope = format!("gmail:{{{link_id}}}");
     [
         format!("{scope}:inflight"),
         format!("{scope}:window"),
         format!("{scope}:cooldown"),
+        format!("{scope}:waiting"),
+        format!("{scope}:backfill_cooldown"),
+        format!("{scope}:limit"),
     ]
 }
 
-/// Clears the request gate's in-flight, window and cooldown state, so each
-/// simulated step starts admitted regardless of wall-clock time.
+/// Clears the request gate's state, including the concurrency limit it learns
+/// from a Gmail 429, so each simulated step starts admitted regardless of
+/// wall-clock time.
 pub async fn reset_admission(redis: &mut redis::aio::MultiplexedConnection, link_id: Uuid) {
     let _: () = redis::cmd("DEL")
         .arg(&gate_keys(link_id))
@@ -70,7 +74,7 @@ pub async fn reset_admission(redis: &mut redis::aio::MultiplexedConnection, link
 /// Makes the real gate refuse the next request locally, as after a Gmail 429
 /// on another worker.
 pub async fn refuse_admission(redis: &mut redis::aio::MultiplexedConnection, link_id: Uuid) {
-    let [_, _, cooldown] = gate_keys(link_id);
+    let [_, _, cooldown, ..] = gate_keys(link_id);
     let _: () = redis::cmd("SET")
         .arg(cooldown)
         .arg("1")
