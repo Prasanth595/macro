@@ -27,6 +27,7 @@ import {
 import type { MessageOperationSourceFactory } from '../../email-message/context/message-operation-source';
 import {
   operationBlocksEditing,
+  operationBlocksInboxSwitch,
   operationBlocksSending,
   operationSending,
 } from '../../email-message/core/message-operation';
@@ -312,6 +313,9 @@ export function createReplyComposer(
   const deliveryBlocked = () =>
     operationSource?.needsReload?.() ||
     operationBlocksSending(currentOperation());
+  const inboxSwitchBlocked = () =>
+    operationSource?.needsReload?.() ||
+    operationBlocksInboxSwitch(currentOperation());
   function operationBlocked() {
     return (
       operationSource?.needsReload?.() ||
@@ -885,7 +889,7 @@ export function createReplyComposer(
   const saveSelectedInbox = async (inboxId: string, senderEmail?: string) => {
     if (
       restoring() ||
-      (!draftTransfer?.pending() && deliveryBlocked()) ||
+      (!draftTransfer?.pending() && inboxSwitchBlocked()) ||
       submitting() ||
       pendingDeletion() ||
       movingInbox() ||
