@@ -27,6 +27,7 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 - Close the selected-view menu before opening a dialog, discard deferred actions after account or selection changes, and close dialogs after account, saved-view, or built-in-tab navigation.
 - Keep mobile action dialogs owned outside the drawer so closing its content does not dispose the dialog.
 - Honor confirmed deletion when the same account selects the target while deletion is pending; never apply completion to another account.
+- Keep malformed mutation responses separate from selected-view availability, preserve ordinary-create facets, and reject creation completions after the selected revision changes.
 
 ## Checks
 

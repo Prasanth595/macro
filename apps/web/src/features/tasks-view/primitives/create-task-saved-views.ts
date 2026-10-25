@@ -243,6 +243,15 @@ export function createTaskSavedViews(options: {
     });
     options.navigate(undefined);
   };
+  const selectedRevision = () => {
+    const id = options.selectedId();
+    const local = draft.record();
+    const remote = options.source.detail();
+    return Math.max(
+      local && local.id === id ? local.revision : 0,
+      remote && remote.id === id ? remote.revision : 0
+    );
+  };
   /** Binds a completion to this draft, including leaving and returning to the same view. */
   const checkpoint = () => {
     const owner = draftOwner;
@@ -251,7 +260,7 @@ export function createTaskSavedViews(options: {
     const task = options.taskId();
     const tab = options.state.tab;
     const isNew = creating();
-    const snapshot = current();
+    const revision = selectedRevision();
     const isCurrent = () =>
       !disposed &&
       owner === draftOwner &&
@@ -266,26 +275,18 @@ export function createTaskSavedViews(options: {
       if (previous?.id === record.id && previous.revision > record.revision)
         return;
       const decoded = decodeTaskSavedView(record.config);
-      if (decoded.isErr()) {
-        setUnavailable(decoded.error);
-        return;
-      }
-      setUnavailable(undefined);
-      return decoded.value;
+      return decoded.isOk() ? decoded.value : undefined;
     };
     return {
       isCurrent,
       created(record: SavedView) {
+        if (selectedRevision() !== revision) return false;
         const definition = accept(record);
         if (!definition) return false;
-        const visible = current();
-        const preserveEdits =
-          snapshot &&
-          taskSavedViewsEqual(snapshot, definition) &&
-          (!visible || !taskSavedViewsEqual(snapshot, visible));
-        const facets = preserveEdits
-          ? withTaskTabFilters(options.state.tab, options.state.facets)
-          : undefined;
+        const facets = withTaskTabFilters(
+          options.state.tab,
+          options.state.facets
+        );
         batch(() => {
           setCreating(true);
           draft.install(record, definition);
@@ -295,8 +296,9 @@ export function createTaskSavedViews(options: {
         return true;
       },
       updated(record: SavedView) {
+        if (options.selectedId() !== record.id) return false;
         const definition = accept(record);
-        if (!definition || options.selectedId() !== record.id) return false;
+        if (!definition) return false;
         draft.install(record, definition);
         return true;
       },
@@ -316,7 +318,16 @@ export function createTaskSavedViews(options: {
     if (!request.isCurrent()) return;
     const record = options.source.detail();
     if (record?.id !== options.selectedId()) return;
-    if (record && request.updated(record)) reset();
+    if (!record) return;
+    const decoded = decodeTaskSavedView(record.config);
+    if (decoded.isErr()) {
+      setUnavailable(decoded.error);
+      return;
+    }
+    if (record.revision < (draft.record()?.revision ?? 0)) return;
+    setUnavailable(undefined);
+    draft.install(record, decoded.value);
+    reset();
   };
   return {
     source: options.source,

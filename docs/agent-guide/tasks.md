@@ -141,6 +141,7 @@ Saved views are available on main Tasks, not inside Project or CRM task lists.
 Verify creation without early persistence, explicit save/reset, copy versus owner-only editing, desktop/mobile metadata dialogs, and returning from task detail. Repeat with another teammate, a removed/rejoined owner, an unavailable tag, and a stale revision.
 
 Exercise these flows at desktop, phone, and tablet widths. Check keyboard navigation inside the mobile picker and focus after opening and closing Rename, Share, Duplicate, or Delete. These focused dialogs use the shared imperative dialog host and must close when their owning account or view changes; the mobile drawer closes before the dialog opens. Delay a save while navigating or editing filters, and delay a deletion while selecting its target: stale saves must not change the new selection, later filter edits must survive, and confirmed deletion must clear its selected target.
+Also return a malformed definition from create or from another row's update: the selected view must remain accessible. Advance the selected view's revision while a duplicate saves; completion must not navigate away. Ordinary creation retains current facets even if its confirmed definition differs.
 
 ## Gantt layout
 

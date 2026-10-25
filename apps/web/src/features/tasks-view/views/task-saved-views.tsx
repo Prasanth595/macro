@@ -6,7 +6,7 @@ import { writeClipboardData } from '@core/util/dataTransfer';
 import { fireAndForget } from '@core/util/fireAndForget';
 import DotsIcon from '@phosphor/dots-three.svg';
 import { Button, Dropdown, openDialog } from '@ui';
-import { For, getOwner, type Owner, onCleanup, Show } from 'solid-js';
+import { batch, For, getOwner, type Owner, onCleanup, Show } from 'solid-js';
 import { v4 as uuid } from 'uuid';
 import {
   SavedViewList,
@@ -97,7 +97,16 @@ function useCreateTaskSavedViewDialog(owner = getOwner()) {
         submitLabel: record ? 'Duplicate' : 'Save view',
         team: savedViewTeam?.(),
         summary: <TaskSavedViewSummary config={config} />,
-        onCreated: request.created,
+        onCreated: (created: SavedView) => {
+          const decoded = decodeTaskSavedView(created.config);
+          if (decoded.isErr()) {
+            toast.failure(decoded.error);
+            return;
+          }
+          batch(() => {
+            if (request.created(created) && record) savedViews.reset();
+          });
+        },
       }),
       { owner }
     );
