@@ -12,15 +12,14 @@
 #[cfg(test)]
 mod test;
 
-use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use crate::ids::{ColumnId, OptionId};
 use crate::ops::{CellValue, OptionRef};
 
 use super::{
-    Conjunction, DateOperator, DateRangeOperator, FilterCondition, FilterGroup, FilterNode,
-    FilterTest, NumberOperator, PresenceOperator, SetOperator, TextOperator,
+    Conjunction, DateOperator, FilterCondition, FilterGroup, FilterNode, FilterTest,
+    NumberOperator, PresenceOperator, SetOperator, TextOperator,
 };
 
 /// Whether `cells` pass `group`. A group without conditions passes.
@@ -110,15 +109,7 @@ fn condition_holds(condition: &FilterCondition, cells: &HashMap<ColumnId, CellVa
             let CellValue::DateRange(range) = cell else {
                 return false;
             };
-            let ordering = range.compare_to(*value);
-            match operator {
-                DateRangeOperator::Contains => ordering == Ordering::Equal,
-                DateRangeOperator::DoesNotContain => ordering != Ordering::Equal,
-                DateRangeOperator::EndsBefore => ordering == Ordering::Less,
-                DateRangeOperator::EndsOnOrAfter => ordering != Ordering::Less,
-                DateRangeOperator::StartsAfter => ordering == Ordering::Greater,
-                DateRangeOperator::StartsOnOrBefore => ordering != Ordering::Greater,
-            }
+            operator.holds(range, *value)
         }
         FilterTest::Checkbox { checked } => {
             matches!(cell, CellValue::Boolean(held) if held == checked)

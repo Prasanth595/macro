@@ -6,8 +6,8 @@ use crate::DateRange;
 use crate::ids::{OptionId, RowId};
 use crate::ops::{EntityKind, EntityRef, OptionRef};
 use crate::views::{
-    Conjunction, DateOperator, FilterCondition, FilterNode, FilterTest, NumberOperator,
-    PresenceOperator, SetOperator, TextOperator,
+    Conjunction, DateOperator, DateRangeOperator, FilterCondition, FilterNode, FilterTest,
+    NumberOperator, PresenceOperator, SetOperator, TextOperator,
 };
 
 const TEAM: ColumnId = ColumnId::from_uuid(Uuid::from_u128(0x7ea));
@@ -598,6 +598,47 @@ fn date_range_tests_read_the_range_against_the_date() {
             test: range(DateRangeOperator::StartsOnOrBefore),
             cell: in_october(),
             expected: false,
+        },
+    ]);
+}
+
+#[test]
+fn date_range_tests_read_a_timed_range_against_the_whole_day() {
+    let range = |operator| FilterTest::DateRange {
+        operator,
+        value: september_first(),
+    };
+    // A 1 PM to 5 PM meeting on September 1.
+    let meeting = || {
+        Some(CellValue::DateRange(DateRange {
+            start: Utc.with_ymd_and_hms(2026, 9, 1, 13, 0, 0).unwrap(),
+            end: Utc.with_ymd_and_hms(2026, 9, 1, 17, 0, 0).unwrap(),
+        }))
+    };
+    run(vec![
+        Case {
+            name: "contains its day",
+            test: range(DateRangeOperator::Contains),
+            cell: meeting(),
+            expected: true,
+        },
+        Case {
+            name: "starts on or before its day",
+            test: range(DateRangeOperator::StartsOnOrBefore),
+            cell: meeting(),
+            expected: true,
+        },
+        Case {
+            name: "does not start after its own day",
+            test: range(DateRangeOperator::StartsAfter),
+            cell: meeting(),
+            expected: false,
+        },
+        Case {
+            name: "ends on or after its day",
+            test: range(DateRangeOperator::EndsOnOrAfter),
+            cell: meeting(),
+            expected: true,
         },
     ]);
 }

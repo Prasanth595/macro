@@ -8,6 +8,7 @@ mod lanes;
 #[cfg(test)]
 mod test;
 
+use crate::DateRange;
 pub use crate::ids::ViewId;
 use crate::ids::{ColumnId, DatabaseId, OptionId, RowId, TableId};
 use crate::position::Position;
@@ -195,9 +196,9 @@ pub enum FilterTest {
     },
     /// A date-range column.
     DateRange {
-        /// How the cell's range stands to the date-time.
+        /// How the cell's range stands to the day.
         operator: DateRangeOperator,
-        /// The date-time compared against.
+        /// The start of the day compared against.
         value: DateTime<Utc>,
     },
     /// A checkbox column. An unchecked box and an empty cell are the same.
@@ -295,25 +296,43 @@ pub enum DateOperator {
     OnOrAfter,
 }
 
-/// How a date-range cell stands to a date-time.
+/// How a date-range cell stands to a day: the whole day starting at the
+/// test's date-time, so a range from 1 PM to 5 PM contains its day.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema, specta::Type,
 )]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum DateRangeOperator {
-    /// The range includes it, at either end or between.
+    /// The range overlaps the day.
     Contains,
-    /// The range does not include it, an empty cell included.
+    /// The range does not overlap the day, an empty cell included.
     DoesNotContain,
-    /// The range ends strictly before it.
+    /// The range ends before the day starts.
     EndsBefore,
-    /// The range ends at it or after.
+    /// The range ends on the day or after.
     EndsOnOrAfter,
-    /// The range starts strictly after it.
+    /// The range starts after the day ends.
     StartsAfter,
-    /// The range starts at it or before.
+    /// The range starts on the day or before.
     StartsOnOrBefore,
+}
+
+impl DateRangeOperator {
+    /// Whether `range` stands to the day starting at `day` as the operator
+    /// asks.
+    pub fn holds(self, range: &DateRange, day: DateTime<Utc>) -> bool {
+        let next = day + chrono::Duration::days(1);
+        let overlaps = range.end >= day && range.start < next;
+        match self {
+            DateRangeOperator::Contains => overlaps,
+            DateRangeOperator::DoesNotContain => !overlaps,
+            DateRangeOperator::EndsBefore => range.end < day,
+            DateRangeOperator::EndsOnOrAfter => range.end >= day,
+            DateRangeOperator::StartsAfter => range.start >= next,
+            DateRangeOperator::StartsOnOrBefore => range.start < next,
+        }
+    }
 }
 
 /// How a cell's options or references relate to a set of them. The first

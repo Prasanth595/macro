@@ -128,16 +128,19 @@ function conditionPasses(
       if (value.type !== 'date_range') return false;
       const start = Date.parse(value.value.start);
       const end = Date.parse(value.value.end);
-      const bound = Date.parse(expected);
-      if ([start, end, bound].some(Number.isNaN)) return false;
+      // The test is of the whole day starting at `expected`.
+      const day = Date.parse(expected);
+      if ([start, end, day].some(Number.isNaN)) return false;
+      const nextDay = day + 24 * 60 * 60 * 1000;
+      const overlaps = end >= day && start < nextDay;
       return match(operator)
-        .with('contains', () => start <= bound && bound <= end)
-        .with('doesNotContain', () => bound < start || end < bound)
-        .with('endsBefore', () => end < bound)
-        .with('endsOnOrAfter', () => end >= bound)
-        .with('startsAfter', () => start > bound)
-        .with('startsOnOrBefore', () => start <= bound)
-        .exhaustive();
+        .with('contains', () => overlaps)
+        .with('doesNotContain', () => !overlaps)
+        .with('endsBefore', () => end < day)
+        .with('endsOnOrAfter', () => end >= day)
+        .with('startsAfter', () => start >= nextDay)
+        .with('startsOnOrBefore', () => start < nextDay)
+        .exhaustive(() => false);
     })
     .with(
       { kind: 'checkbox' },

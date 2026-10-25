@@ -67,8 +67,9 @@ function instant(value: string): string {
 }
 
 /**
- * A range from the grid's `start/end`, or one date for a one-day range. A
- * range that ends before it starts is refused, as the service would.
+ * A range from the grid's `start/end`, or one date for a one-day range, sent
+ * as RFC 3339 instants. A range that ends before it starts is refused, as
+ * the service would.
  */
 function dateRange(value: string): Result<CellValue, DatabaseCellFailure> {
   const [start, end = start, ...rest] = value
@@ -85,7 +86,13 @@ function dateRange(value: string): Result<CellValue, DatabaseCellFailure> {
     endTime < startTime
   )
     return err({ kind: 'not-a-date-range' });
-  return ok({ type: 'date_range', value: { start, end } });
+  return ok({
+    type: 'date_range',
+    value: {
+      start: new Date(startTime).toISOString(),
+      end: new Date(endTime).toISOString(),
+    },
+  });
 }
 
 /**

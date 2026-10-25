@@ -311,8 +311,9 @@ whole-day ranges) turns times on, starting at 9:00 AM – 5:00 PM, with a time
 field under each end; an end before the start is refused with an inline
 message. The footer also shows the duration (`5 days`, `4 days 8 hrs`) and
 **Clear**, which empties the range and closes; Delete on the cell empties it
-too. Range filters test a date: contains, does not contain, starts after, starts
-on or before, ends before, ends on or after. Properties of type **Time range**
+too. Range filters test a whole day: contains (the range overlaps that day),
+does not contain, starts after, starts on or before, ends before, ends on or
+after, so a 1 PM to 5 PM range contains its day. Properties of type **Time range**
 edit with the same calendar.
 Invalid numbers remain in the editor for correction.
 Drag across table cells to select a rectangle, or Shift-click another cell to

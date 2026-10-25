@@ -54,7 +54,8 @@ export function GanttCursorTooltip() {
           {gantt.scale() === 'hour'
             ? cursorTime(guide().day)
             : formatGanttDay(
-                guide().edge === 'end'
+                // An end on a day boundary is exclusive; a timed end is in its day.
+                guide().edge === 'end' && Number.isInteger(guide().day)
                   ? guide().day - 1
                   : Math.floor(guide().day),
                 false

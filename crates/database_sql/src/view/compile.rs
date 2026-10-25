@@ -175,20 +175,29 @@ fn condition_filter(table: &Table, condition: &FilterCondition) -> Filter {
             },
             Value::Date(*value),
         ),
+        // The test is of a whole day: a range compared to the day's first
+        // instant tells whether it ends before it, and compared to its last
+        // whether it starts after it.
         FilterTest::DateRange { operator, value } => {
-            let date = Value::Date(*value);
+            let first = Value::Date(*value);
+            let last =
+                Value::Date(*value + chrono::Duration::days(1) - chrono::Duration::microseconds(1));
             match operator {
-                DateRangeOperator::Contains => compare(ComparisonOperator::Equal, date),
-                DateRangeOperator::DoesNotContain => {
-                    or_empty(compare(ComparisonOperator::NotEqual, date))
-                }
-                DateRangeOperator::EndsBefore => compare(ComparisonOperator::Less, date),
+                DateRangeOperator::Contains => Filter::And(vec![
+                    compare(ComparisonOperator::GreaterOrEqual, first),
+                    compare(ComparisonOperator::LessOrEqual, last),
+                ]),
+                DateRangeOperator::DoesNotContain => or_empty(Filter::Or(vec![
+                    compare(ComparisonOperator::Less, first),
+                    compare(ComparisonOperator::Greater, last),
+                ])),
+                DateRangeOperator::EndsBefore => compare(ComparisonOperator::Less, first),
                 DateRangeOperator::EndsOnOrAfter => {
-                    compare(ComparisonOperator::GreaterOrEqual, date)
+                    compare(ComparisonOperator::GreaterOrEqual, first)
                 }
-                DateRangeOperator::StartsAfter => compare(ComparisonOperator::Greater, date),
+                DateRangeOperator::StartsAfter => compare(ComparisonOperator::Greater, last),
                 DateRangeOperator::StartsOnOrBefore => {
-                    compare(ComparisonOperator::LessOrEqual, date)
+                    compare(ComparisonOperator::LessOrEqual, last)
                 }
             }
         }

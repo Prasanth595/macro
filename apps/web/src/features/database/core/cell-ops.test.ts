@@ -151,19 +151,25 @@ describe('grid values as time ranges', () => {
     expect(cellValue(column('DATE_RANGE'), '2026-03-01 / 2026-03-05')).toEqual(
       ok({
         type: 'date_range',
-        value: { start: '2026-03-01T00:00:00Z', end: '2026-03-05T00:00:00Z' },
+        value: {
+          start: '2026-03-01T00:00:00.000Z',
+          end: '2026-03-05T00:00:00.000Z',
+        },
       })
     );
     expect(cellValue(column('DATE_RANGE'), '2026-03-01')).toEqual(
       ok({
         type: 'date_range',
-        value: { start: '2026-03-01T00:00:00Z', end: '2026-03-01T00:00:00Z' },
+        value: {
+          start: '2026-03-01T00:00:00.000Z',
+          end: '2026-03-01T00:00:00.000Z',
+        },
       })
     );
     expect(cellValue(column('DATE_RANGE'), '')).toEqual(ok({ type: 'clear' }));
   });
 
-  it('writes a timed interval as its two instants', () => {
+  it('writes a timed interval as its two instants in UTC', () => {
     expect(
       cellValue(
         column('DATE_RANGE'),
@@ -187,8 +193,8 @@ describe('grid values as time ranges', () => {
       ok({
         type: 'date_range',
         value: {
-          start: '2026-03-01T09:00:00-05:00',
-          end: '2026-03-01T17:00:00-05:00',
+          start: '2026-03-01T14:00:00.000Z',
+          end: '2026-03-01T22:00:00.000Z',
         },
       })
     );
