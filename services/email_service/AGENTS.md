@@ -74,6 +74,8 @@ the gateway `/email` prefix.
   requeue or redeliver a rate-limited message, never drop it. Backfill sends
   rate-limited work back as a new, delayed message (`pubsub/backfill/deferral.rs`);
   waiting out the visibility timeout would spend the queue's 20 deliveries.
+  Inbox sync releases the upload claims of a refused attachment fetch and
+  requeues the upsert, because a claimed attachment is never offered again.
 - Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
   Skip the bad address with a WARN that omits it (the parse error echoes it)
   instead of failing the step; see `pubsub::util::build_contact_connections`.
