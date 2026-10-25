@@ -8,10 +8,28 @@ use std::collections::HashSet;
 use chrono::{DateTime, Utc};
 use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::{Entity, EntityType};
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
 
 use crate::domain::models::{Favorite, FavoriteFilter};
 use crate::domain::ports::FavoritesRepo;
+
+/// Remove an entity from every user's favorites inside the transaction that
+/// deletes the entity. `favorite.entity_id` is polymorphic text, so no foreign
+/// key reaps these rows when an entity is hard-deleted.
+pub async fn delete_entity_favorites_in(
+    transaction: &mut Transaction<'_, Postgres>,
+    entity: &Entity<'_>,
+) -> Result<(), sqlx::Error> {
+    let entity_type: &str = entity.entity_type.into();
+    sqlx::query!(
+        r#"DELETE FROM favorite WHERE entity_type = $1 AND entity_id = $2"#,
+        entity_type,
+        entity.entity_id.as_ref(),
+    )
+    .execute(transaction.as_mut())
+    .await?;
+    Ok(())
+}
 
 /// Postgres-backed favorites repository.
 #[derive(Debug, Clone)]

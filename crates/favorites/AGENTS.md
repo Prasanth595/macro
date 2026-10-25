@@ -26,7 +26,8 @@ hexagonal architecture pattern.
 - Depends on: `entity_access` (ports), `macro_authorization` (inbound),
   `model-entity`, `cowlike`.
 - Used by: `graphql_favorite`, `ai_tools`, `complete_graph`, `soup`,
-  `document_storage_service`, `authentication_service`.
+  `document_storage_service`, `authentication_service`, and `agent_session`
+  (`pg_favorites_repo::delete_entity_favorites_in` when a session is deleted).
 
 ## Recipes
 

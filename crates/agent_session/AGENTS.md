@@ -34,7 +34,8 @@ consumer talks to.
 ## Boundaries
 
 - Depends on: `agent_runtime_protocol`, `agent_fold`, `teams`,
-  `macro_authorization`.
+  `macro_authorization`, and `favorites` (Postgres adapter only, to drop a
+  deleted session from every user's favorites in the delete transaction).
 - Used by: `agent_harness`, `agent_inmem`, `agent_egress`, `agent_trigger`,
   `agent_changes`, `agent_session_realtime`, `ai_tools` (coding-agent
   toolset), `complete_graph`, `webhook`, `search_service`, `soup_realtime`,
