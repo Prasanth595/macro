@@ -719,7 +719,7 @@ export type FilterTest =
   | {
       operator: DateRangeOperator;
       /**
-       * The date-time compared against.
+       * The start of the day compared against.
        */
       value: string;
       kind: 'dateRange';
@@ -777,7 +777,8 @@ export type NumberOperator =
  */
 export type DateOperator = 'before' | 'after' | 'onOrBefore' | 'onOrAfter';
 /**
- * How a date-range cell stands to a date-time.
+ * How a date-range cell stands to a day: the whole day starting at the
+ * test's date-time, so a range from 1 PM to 5 PM contains its day.
  */
 export type DateRangeOperator =
   | 'contains'

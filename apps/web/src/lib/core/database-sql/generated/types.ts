@@ -481,19 +481,22 @@ export type DateRange = {
   end: string;
 };
 
-/**  How a date-range cell stands to a date-time. */
+/**
+ *  How a date-range cell stands to a day: the whole day starting at the
+ *  test's date-time, so a range from 1 PM to 5 PM contains its day.
+ */
 export type DateRangeOperator =
-  /**  The range includes it, at either end or between. */
+  /**  The range overlaps the day. */
   | 'contains'
-  /**  The range does not include it, an empty cell included. */
+  /**  The range does not overlap the day, an empty cell included. */
   | 'doesNotContain'
-  /**  The range ends strictly before it. */
+  /**  The range ends before the day starts. */
   | 'endsBefore'
-  /**  The range ends at it or after. */
+  /**  The range ends on the day or after. */
   | 'endsOnOrAfter'
-  /**  The range starts strictly after it. */
+  /**  The range starts after the day ends. */
   | 'startsAfter'
-  /**  The range starts at it or before. */
+  /**  The range starts on the day or before. */
   | 'startsOnOrBefore';
 
 /**
@@ -619,9 +622,9 @@ export type FilterTest =
   /**  A date-range column. */
   | {
       kind: 'dateRange';
-      /**  How the cell's range stands to the date-time. */
+      /**  How the cell's range stands to the day. */
       operator: DateRangeOperator;
-      /**  The date-time compared against. */
+      /**  The start of the day compared against. */
       value: string;
     }
   /**  A checkbox column. An unchecked box and an empty cell are the same. */

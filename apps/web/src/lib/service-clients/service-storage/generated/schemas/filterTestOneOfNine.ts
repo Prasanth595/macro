@@ -13,8 +13,8 @@ import type { FilterTestOneOfNineKind } from './filterTestOneOfNineKind';
  */
 export type FilterTestOneOfNine = {
   kind: FilterTestOneOfNineKind;
-  /** How the cell's range stands to the date-time. */
+  /** How the cell's range stands to the day. */
   operator: DateRangeOperator;
-  /** The date-time compared against. */
+  /** The start of the day compared against. */
   value: string;
 };

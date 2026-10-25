@@ -6696,12 +6696,12 @@ export const applyCrmPipelineOpsBody = zod
                                                               'startsOnOrBefore',
                                                             ])
                                                             .describe(
-                                                              'How a date-range cell stands to a date-time.'
+                                                              "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                                             ),
                                                           value: zod.iso
                                                             .datetime({})
                                                             .describe(
-                                                              'The date-time compared against.'
+                                                              'The start of the day compared against.'
                                                             ),
                                                         })
                                                         .describe(
@@ -7123,12 +7123,12 @@ export const applyCrmPipelineOpsBody = zod
                                                           'startsOnOrBefore',
                                                         ])
                                                         .describe(
-                                                          'How a date-range cell stands to a date-time.'
+                                                          "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                                         ),
                                                       value: zod.iso
                                                         .datetime({})
                                                         .describe(
-                                                          'The date-time compared against.'
+                                                          'The start of the day compared against.'
                                                         ),
                                                     })
                                                     .describe(
@@ -7857,12 +7857,12 @@ export const applyCrmPipelineOpsResponse = zod
                                                               'startsOnOrBefore',
                                                             ])
                                                             .describe(
-                                                              'How a date-range cell stands to a date-time.'
+                                                              "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                                             ),
                                                           value: zod.iso
                                                             .datetime({})
                                                             .describe(
-                                                              'The date-time compared against.'
+                                                              'The start of the day compared against.'
                                                             ),
                                                         })
                                                         .describe(
@@ -8306,12 +8306,12 @@ export const applyCrmPipelineOpsResponse = zod
                                                               'startsOnOrBefore',
                                                             ])
                                                             .describe(
-                                                              'How a date-range cell stands to a date-time.'
+                                                              "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                                             ),
                                                           value: zod.iso
                                                             .datetime({})
                                                             .describe(
-                                                              'The date-time compared against.'
+                                                              'The start of the day compared against.'
                                                             ),
                                                         })
                                                         .describe(
@@ -9002,12 +9002,12 @@ export const queryCrmPipelineRowsBody = zod
                                       'startsOnOrBefore',
                                     ])
                                     .describe(
-                                      'How a date-range cell stands to a date-time.'
+                                      "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                     ),
                                   value: zod.iso
                                     .datetime({})
                                     .describe(
-                                      'The date-time compared against.'
+                                      'The start of the day compared against.'
                                     ),
                                 })
                                 .describe('A date-range column.'),
@@ -9886,12 +9886,12 @@ export const getCrmPipelineTableResponse = zod
                                               'startsOnOrBefore',
                                             ])
                                             .describe(
-                                              'How a date-range cell stands to a date-time.'
+                                              "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                             ),
                                           value: zod.iso
                                             .datetime({})
                                             .describe(
-                                              'The date-time compared against.'
+                                              'The start of the day compared against.'
                                             ),
                                         })
                                         .describe('A date-range column.'),
@@ -11364,12 +11364,12 @@ export const getDatabaseResponse = zod
                                                       'startsOnOrBefore',
                                                     ])
                                                     .describe(
-                                                      'How a date-range cell stands to a date-time.'
+                                                      "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                                     ),
                                                   value: zod.iso
                                                     .datetime({})
                                                     .describe(
-                                                      'The date-time compared against.'
+                                                      'The start of the day compared against.'
                                                     ),
                                                 })
                                                 .describe(
@@ -13263,12 +13263,12 @@ export const applyDatabaseOpsBody = zod
                                                               'startsOnOrBefore',
                                                             ])
                                                             .describe(
-                                                              'How a date-range cell stands to a date-time.'
+                                                              "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                                             ),
                                                           value: zod.iso
                                                             .datetime({})
                                                             .describe(
-                                                              'The date-time compared against.'
+                                                              'The start of the day compared against.'
                                                             ),
                                                         })
                                                         .describe(
@@ -13690,12 +13690,12 @@ export const applyDatabaseOpsBody = zod
                                                           'startsOnOrBefore',
                                                         ])
                                                         .describe(
-                                                          'How a date-range cell stands to a date-time.'
+                                                          "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                                         ),
                                                       value: zod.iso
                                                         .datetime({})
                                                         .describe(
-                                                          'The date-time compared against.'
+                                                          'The start of the day compared against.'
                                                         ),
                                                     })
                                                     .describe(
@@ -14428,12 +14428,12 @@ export const applyDatabaseOpsResponse = zod
                                                               'startsOnOrBefore',
                                                             ])
                                                             .describe(
-                                                              'How a date-range cell stands to a date-time.'
+                                                              "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                                             ),
                                                           value: zod.iso
                                                             .datetime({})
                                                             .describe(
-                                                              'The date-time compared against.'
+                                                              'The start of the day compared against.'
                                                             ),
                                                         })
                                                         .describe(
@@ -14877,12 +14877,12 @@ export const applyDatabaseOpsResponse = zod
                                                               'startsOnOrBefore',
                                                             ])
                                                             .describe(
-                                                              'How a date-range cell stands to a date-time.'
+                                                              "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                                             ),
                                                           value: zod.iso
                                                             .datetime({})
                                                             .describe(
-                                                              'The date-time compared against.'
+                                                              'The start of the day compared against.'
                                                             ),
                                                         })
                                                         .describe(
@@ -21261,12 +21261,12 @@ export const getFormResponse = zod
                                             'startsOnOrBefore',
                                           ])
                                           .describe(
-                                            'How a date-range cell stands to a date-time.'
+                                            "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                           ),
                                         value: zod.iso
                                           .datetime({})
                                           .describe(
-                                            'The date-time compared against.'
+                                            'The start of the day compared against.'
                                           ),
                                       })
                                       .describe('A date-range column.'),
@@ -21859,12 +21859,12 @@ export const collaborateFormResponse = zod
                                                 'startsOnOrBefore',
                                               ])
                                               .describe(
-                                                'How a date-range cell stands to a date-time.'
+                                                "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                               ),
                                             value: zod.iso
                                               .datetime({})
                                               .describe(
-                                                'The date-time compared against.'
+                                                'The start of the day compared against.'
                                               ),
                                           })
                                           .describe('A date-range column.'),
@@ -22281,12 +22281,12 @@ export const putFormLayoutBody = zod
                                             'startsOnOrBefore',
                                           ])
                                           .describe(
-                                            'How a date-range cell stands to a date-time.'
+                                            "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                           ),
                                         value: zod.iso
                                           .datetime({})
                                           .describe(
-                                            'The date-time compared against.'
+                                            'The start of the day compared against.'
                                           ),
                                       })
                                       .describe('A date-range column.'),
@@ -22776,12 +22776,12 @@ export const putFormLayoutResponse = zod
                                                 'startsOnOrBefore',
                                               ])
                                               .describe(
-                                                'How a date-range cell stands to a date-time.'
+                                                "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day."
                                               ),
                                             value: zod.iso
                                               .datetime({})
                                               .describe(
-                                                'The date-time compared against.'
+                                                'The start of the day compared against.'
                                               ),
                                           })
                                           .describe('A date-range column.'),

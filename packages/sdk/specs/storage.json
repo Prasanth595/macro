@@ -27177,7 +27177,7 @@
       },
       "DateRangeOperator": {
         "type": "string",
-        "description": "How a date-range cell stands to a date-time.",
+        "description": "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day.",
         "enum": [
           "contains",
           "doesNotContain",
@@ -30113,12 +30113,12 @@
               },
               "operator": {
                 "$ref": "#/components/schemas/DateRangeOperator",
-                "description": "How the cell's range stands to the date-time."
+                "description": "How the cell's range stands to the day."
               },
               "value": {
                 "type": "string",
                 "format": "date-time",
-                "description": "The date-time compared against."
+                "description": "The start of the day compared against."
               }
             }
           },

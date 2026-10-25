@@ -60,8 +60,8 @@ What a column's cell must be, by the kind of value the column holds.
 | Name | Type | Description |
 | ------ | ------ | ------ |
 | `kind` | `"dateRange"` | - |
-| `operator` | [`DateRangeOperator`](DateRangeOperator.md) | How the cell's range stands to the date-time. |
-| `value` | `string` | The date-time compared against. |
+| `operator` | [`DateRangeOperator`](DateRangeOperator.md) | How the cell's range stands to the day. |
+| `value` | `string` | The start of the day compared against. |
 
 ***
 

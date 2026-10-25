@@ -5300,7 +5300,8 @@ export type DateRange = {
 };
 
 /**
- * How a date-range cell stands to a date-time.
+ * How a date-range cell stands to a day: the whole day starting at the
+ * test's date-time, so a range from 1 PM to 5 PM contains its day.
  */
 export type DateRangeOperator = 'contains' | 'doesNotContain' | 'endsBefore' | 'endsOnOrAfter' | 'startsAfter' | 'startsOnOrBefore';
 
@@ -6801,11 +6802,11 @@ export type FilterTest = {
 } | {
     kind: 'dateRange';
     /**
-     * How the cell's range stands to the date-time.
+     * How the cell's range stands to the day.
      */
     operator: DateRangeOperator;
     /**
-     * The date-time compared against.
+     * The start of the day compared against.
      */
     value: string;
 } | {
