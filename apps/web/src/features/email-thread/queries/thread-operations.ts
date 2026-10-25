@@ -1,4 +1,4 @@
-import { throwOnErr } from '@core/util/result';
+import { thrownResultErrorHasCode, throwOnErr } from '@core/util/result';
 import { refreshEmailThreadCache } from '@queries/email/cache-cleanup';
 import { emailKeys } from '@queries/email/keys';
 import { emailClient } from '@service-email/client';
@@ -27,8 +27,10 @@ export function useThreadOperations(
       previous = { thread, pending };
       return operations;
     },
-    // Keep an open thread current after actions from another window or client.
-    refetchInterval: 5000,
+    // Keep an open thread current after actions from another window or
+    // client. A deleted thread never comes back, so stop asking for it.
+    refetchInterval: (query) =>
+      thrownResultErrorHasCode(query.state.error, 'NOT_FOUND') ? false : 5000,
   }));
   return query;
 }
