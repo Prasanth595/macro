@@ -55,7 +55,9 @@ Parsed message responses expose the draft generation captured in the same SQL sn
   message; the destination draft inbox is only the query access scope.
 - `insert_message_with_tx` leaves labels with an unexpired
   `email_gmail_pending_label_writes` marker, and the read and starred flags
-  they drive, in their local state when it re-syncs a stored message.
+  they drive, in their local state when it re-syncs a stored message. Given a
+  `ResyncSnapshot` from before the Gmail fetch, it changes only labels where
+  Gmail disagrees with that snapshot, so a write made during the fetch stays.
 - `email_gmail_pending_label_writes` keeps one row per write on a message's
   label. Only the newest row's write sends; older ones wait, so abandoning a
   write can put the label back for the next older write (`label_present`) or

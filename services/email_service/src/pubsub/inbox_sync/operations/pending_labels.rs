@@ -1,4 +1,5 @@
 use email_db_client::labels::pending_writes::pending_provider_label_ids;
+use email_db_client::messages::insert::ResyncSnapshot;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -7,7 +8,7 @@ mod test;
 
 /// A read of Gmail's labels for a message, with the labels that had a
 /// pending Macro write just before and just after it.
-pub(super) struct PendingAroundRead<T> {
+pub(in crate::pubsub) struct PendingAroundRead<T> {
     pub value: T,
     before: Vec<String>,
     after: Vec<String>,
@@ -26,16 +27,10 @@ impl<T> PendingAroundRead<T> {
         );
         labels
     }
-
-    /// Whether a write stopped being pending during the read, so Gmail may
-    /// have applied it after answering.
-    pub fn write_settled_during_read(&self) -> bool {
-        self.before.iter().any(|label| !self.after.contains(label))
-    }
 }
 
 /// Runs `read` between two reads of the message's pending label writes.
-pub(super) async fn read_around<T>(
+pub(in crate::pubsub) async fn read_around<T>(
     db: &PgPool,
     message_id: Uuid,
     read: impl Future<Output = T>,
@@ -48,4 +43,28 @@ pub(super) async fn read_around<T>(
         before,
         after,
     })
+}
+
+/// Runs `read`, a Gmail fetch of a stored message that is about to be
+/// re-synced, after reading its stored labels and between two reads of its
+/// pending label writes.
+pub(in crate::pubsub) async fn resync_around<T>(
+    db: &PgPool,
+    message_id: Uuid,
+    read: impl Future<Output = T>,
+) -> anyhow::Result<(T, ResyncSnapshot)> {
+    let stored_labels = email_db_client::labels::get::fetch_message_labels(db, message_id)
+        .await?
+        .into_iter()
+        .map(|label| label.provider_label_id)
+        .collect();
+    let read = read_around(db, message_id, read).await?;
+    let pending_labels = read.untrusted_labels();
+    Ok((
+        read.value,
+        ResyncSnapshot {
+            stored_labels,
+            pending_labels,
+        },
+    ))
 }

@@ -58,6 +58,7 @@ pub async fn insert_thread_and_messages(
                 link_id,
                 recipient_map.remove(provider_id).unwrap(),
                 false,
+                None,
             )
             .await?;
         }

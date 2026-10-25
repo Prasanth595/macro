@@ -96,7 +96,7 @@ async fn oversized_provider_values_do_not_block_the_message_insert(
     let mut message = message_with_oversized_fields(link_id, thread_db_id);
     let message_db_id = message.db_id;
 
-    insert_message(&pool, thread_db_id, &mut message, link_id, false).await?;
+    insert_message(&pool, thread_db_id, &mut message, link_id, false, None).await?;
 
     let inserted = sqlx::query!(
         r#"SELECT from_name FROM email_messages WHERE id = $1"#,
@@ -383,7 +383,7 @@ async fn resyncing_an_unchanged_message_writes_nothing(pool: Pool<Postgres>) -> 
         body: "parent body",
     }
     .build(link_id, thread_db_id);
-    insert_message(&pool, thread_db_id, &mut parent, link_id, true).await?;
+    insert_message(&pool, thread_db_id, &mut parent, link_id, true, None).await?;
 
     let body = large_body();
     let reply = SyncedMessage {
@@ -397,7 +397,7 @@ async fn resyncing_an_unchanged_message_writes_nothing(pool: Pool<Postgres>) -> 
     };
     let mut first_sync = reply.build(link_id, thread_db_id);
     let reply_id = first_sync.db_id;
-    insert_message(&pool, thread_db_id, &mut first_sync, link_id, true).await?;
+    insert_message(&pool, thread_db_id, &mut first_sync, link_id, true, None).await?;
 
     let replying_to = sqlx::query_scalar!(
         r#"SELECT replying_to_id FROM email_messages WHERE id = $1"#,
@@ -413,7 +413,7 @@ async fn resyncing_an_unchanged_message_writes_nothing(pool: Pool<Postgres>) -> 
 
     // The full ingest path: message upsert, recipients, labels and the replying_to update.
     let mut resync = reply.build(link_id, thread_db_id);
-    insert_message(&pool, thread_db_id, &mut resync, link_id, true).await?;
+    insert_message(&pool, thread_db_id, &mut resync, link_id, true, None).await?;
 
     assert_eq!(
         row_versions(&pool, reply_id).await?,
@@ -469,7 +469,7 @@ async fn changed_flag_updates_the_row_without_rewriting_body_toast(
     };
     let mut first_sync = synced.build(link_id, thread_db_id);
     let message_id = first_sync.db_id;
-    insert_message(&pool, thread_db_id, &mut first_sync, link_id, false).await?;
+    insert_message(&pool, thread_db_id, &mut first_sync, link_id, false, None).await?;
     let from_contact_id = from_contact_id(&pool, message_id).await?;
 
     let mut tx = pool.begin().await?;
@@ -538,7 +538,7 @@ async fn resync_with_changed_labels_and_recipients_replaces_only_the_changes(
     };
     let mut first_sync = synced.build(link_id, thread_db_id);
     let message_id = first_sync.db_id;
-    insert_message(&pool, thread_db_id, &mut first_sync, link_id, false).await?;
+    insert_message(&pool, thread_db_id, &mut first_sync, link_id, false, None).await?;
     let before = row_versions(&pool, message_id).await?;
 
     let mut resync = SyncedMessage {
@@ -547,7 +547,7 @@ async fn resync_with_changed_labels_and_recipients_replaces_only_the_changes(
         ..synced
     }
     .build(link_id, thread_db_id);
-    insert_message(&pool, thread_db_id, &mut resync, link_id, false).await?;
+    insert_message(&pool, thread_db_id, &mut resync, link_id, false, None).await?;
     let after = row_versions(&pool, message_id).await?;
 
     assert_eq!(after.message, before.message);
@@ -595,7 +595,7 @@ async fn resync_without_gmail_labels_removes_stored_labels_except_pending_ones(
     let mut first_sync = synced.build(link_id, thread_db_id);
     first_sync.is_read = true;
     let message_id = first_sync.db_id;
-    insert_message(&pool, thread_db_id, &mut first_sync, link_id, true).await?;
+    insert_message(&pool, thread_db_id, &mut first_sync, link_id, true, None).await?;
 
     // Marked unread in Macro, not yet in Gmail.
     let mut tx = pool.begin().await?;
@@ -620,7 +620,7 @@ async fn resync_without_gmail_labels_removes_stored_labels_except_pending_ones(
     }
     .build(link_id, thread_db_id);
     resync.is_read = true;
-    insert_message(&pool, thread_db_id, &mut resync, link_id, true).await?;
+    insert_message(&pool, thread_db_id, &mut resync, link_id, true, None).await?;
 
     let labels: Vec<String> = row_versions(&pool, message_id)
         .await?
@@ -661,7 +661,7 @@ async fn resync_keeps_labels_with_a_pending_gmail_write(
     let mut first_sync = synced.build(link_id, thread_db_id);
     first_sync.is_read = true;
     let message_id = first_sync.db_id;
-    insert_message(&pool, thread_db_id, &mut first_sync, link_id, true).await?;
+    insert_message(&pool, thread_db_id, &mut first_sync, link_id, true, None).await?;
 
     // Archived and marked unread in Macro; Gmail has not applied either yet.
     let write_id = Uuid::now_v7();
@@ -686,7 +686,7 @@ async fn resync_keeps_labels_with_a_pending_gmail_write(
 
     let mut stale_resync = synced.build(link_id, thread_db_id);
     stale_resync.is_read = true;
-    insert_message(&pool, thread_db_id, &mut stale_resync, link_id, true).await?;
+    insert_message(&pool, thread_db_id, &mut stale_resync, link_id, true, None).await?;
 
     let labels_after = |versions: RowVersions| -> Vec<String> {
         versions
@@ -718,7 +718,7 @@ async fn resync_keeps_labels_with_a_pending_gmail_write(
     tx.commit().await?;
     let mut resync = synced.build(link_id, thread_db_id);
     resync.is_read = true;
-    insert_message(&pool, thread_db_id, &mut resync, link_id, true).await?;
+    insert_message(&pool, thread_db_id, &mut resync, link_id, true, None).await?;
 
     assert_eq!(
         labels_after(row_versions(&pool, message_id).await?),
@@ -737,5 +737,75 @@ async fn resync_keeps_labels_with_a_pending_gmail_write(
     assert!(stored.is_read);
     assert!(stored.inbox_visible);
 
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("links", "threads"))
+)]
+async fn resync_keeps_a_write_made_and_confirmed_while_gmail_was_fetched(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let link_id = Uuid::parse_str(LINK_ID)?;
+    let thread_db_id = Uuid::parse_str(THREAD_ID)?;
+    seed_labels(&pool, link_id).await?;
+    let synced = SyncedMessage {
+        provider_id: "fetched-before-the-write",
+        global_id: "<fetched-before-the-write@macro.com>",
+        in_reply_to: None,
+        to: &["user1@macro.com"],
+        cc: &[],
+        labels: &["INBOX"],
+        body: "body",
+    };
+    let mut first_sync = synced.build(link_id, thread_db_id);
+    first_sync.is_read = true;
+    let message_id = first_sync.db_id;
+    insert_message(&pool, thread_db_id, &mut first_sync, link_id, true, None).await?;
+    let snapshot = ResyncSnapshot {
+        stored_labels: vec!["INBOX".to_string()],
+        pending_labels: vec![],
+    };
+
+    // While the re-sync's fetch is in flight, the user marks the message
+    // unread and Gmail confirms it, so no marker is left.
+    let mut tx = pool.begin().await?;
+    labels::insert::insert_message_labels_batch(&mut *tx, &vec![message_id], "UNREAD", link_id)
+        .await?;
+    messages::update::update_message_read_status(&mut tx, message_id, link_id, false).await?;
+    tx.commit().await?;
+
+    // Gmail answered before the write, after the user archived it in Gmail.
+    let mut resync = SyncedMessage {
+        labels: &[],
+        ..synced
+    }
+    .build(link_id, thread_db_id);
+    resync.is_read = true;
+    insert_message(
+        &pool,
+        thread_db_id,
+        &mut resync,
+        link_id,
+        true,
+        Some(&snapshot),
+    )
+    .await?;
+
+    let labels: Vec<String> = row_versions(&pool, message_id)
+        .await?
+        .labels
+        .into_iter()
+        .map(|(label, _)| label)
+        .collect();
+    assert_eq!(labels, ["UNREAD"]);
+    let is_read = sqlx::query_scalar!(
+        "SELECT is_read FROM email_messages WHERE id = $1",
+        message_id
+    )
+    .fetch_one(&pool)
+    .await?;
+    assert!(!is_read);
     Ok(())
 }

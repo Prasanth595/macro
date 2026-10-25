@@ -24,7 +24,6 @@ async fn a_write_gmail_confirms_during_the_read_is_not_trusted_from_it(pool: PgP
     .unwrap();
 
     assert_eq!(read.untrusted_labels(), vec!["INBOX".to_string()]);
-    assert!(read.write_settled_during_read());
 }
 
 #[sqlx::test(
@@ -53,5 +52,28 @@ async fn a_write_staged_during_the_read_is_not_trusted_from_it(pool: PgPool) {
         read.untrusted_labels(),
         vec!["INBOX".to_string(), "STARRED".to_string()]
     );
-    assert!(!read.write_settled_during_read());
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../../../fixtures", scripts("gmail_ops_label_revert"))
+)]
+async fn a_resync_snapshot_has_the_labels_stored_before_the_fetch(pool: PgPool) {
+    let (fetched, snapshot) = resync_around(&pool, MESSAGE, async {
+        sqlx::query!(
+            "INSERT INTO email_message_labels (message_id, label_id) VALUES ($1, $2)",
+            MESSAGE,
+            Uuid::from_u128(0xc1),
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        "fetched"
+    })
+    .await
+    .unwrap();
+
+    assert_eq!(fetched, "fetched");
+    assert!(snapshot.stored_labels.is_empty());
+    assert_eq!(snapshot.pending_labels, vec!["INBOX".to_string()]);
 }

@@ -22,6 +22,7 @@ use email_api_client::domain::models::{EmailApiError, MessageWithCalendarParts};
 use email_db_client::attachments::provider::upload_filters::{
     attachment_is_document, attachment_is_media,
 };
+use email_db_client::messages::insert::ResyncSnapshot;
 use email_db_client::threads;
 use email_utils::{dedupe_emails, is_macro_notification_sender};
 use filter_ast::Expr;
@@ -130,9 +131,9 @@ pub async fn upsert_message(
     let existing_message_was_draft = existing_message.as_ref().map(|message| message.is_draft);
     let message_already_exists = existing_message.is_some();
 
-    let fetched = match &existing_message {
+    let (fetched, resync) = match &existing_message {
         Some(existing) => {
-            let read = pending_labels::read_around(
+            let (fetched, snapshot) = pending_labels::resync_around(
                 &ctx.db,
                 existing.db_id,
                 fetch_provider_message(ctx, link, payload),
@@ -141,19 +142,12 @@ pub async fn upsert_message(
             .map_err(|e| {
                 ProcessingError::Retryable(DetailedError {
                     reason: FailureReason::DatabaseQueryFailed,
-                    source: anyhow::Error::from(e)
-                        .context("Failed to get pending label writes from db"),
+                    source: e.context("Failed to read the stored message before its re-sync"),
                 })
             })?;
-            // The re-sync keeps only labels still pending when it writes, so
-            // Gmail's answer must postdate any write that settled meanwhile.
-            if read.write_settled_during_read() {
-                fetch_provider_message(ctx, link, payload).await?
-            } else {
-                read.value?
-            }
+            (fetched?, Some(snapshot))
         }
-        None => fetch_provider_message(ctx, link, payload).await?,
+        None => (fetch_provider_message(ctx, link, payload).await?, None),
     };
     let Some(fetched) = fetched else {
         tracing::debug!(provider_message_id = %payload.provider_message_id, link_id = %link.id,
@@ -252,7 +246,14 @@ pub async fn upsert_message(
     if let Some(thread_db_id) = thread_provider_to_db_map.get(&provider_thread_id) {
         // Retryable: a concurrent delete can drop the thread after the lookup
         // above, and the redelivery then takes the whole-thread branch below.
-        process_and_insert_message(&ctx.db, link.id, *thread_db_id, &mut message).await?;
+        process_and_insert_message(
+            &ctx.db,
+            link.id,
+            *thread_db_id,
+            &mut message,
+            resync.as_ref(),
+        )
+        .await?;
     } else {
         // Propagated verbatim: fetch_and_insert_thread already routed provider
         // errors through handle_operation_error (retry queue vs redelivery),
@@ -721,17 +722,25 @@ async fn process_and_insert_message(
     link_id: Uuid,
     thread_db_id: Uuid,
     message: &mut Message,
+    resync: Option<&ResyncSnapshot>,
 ) -> result::Result<(), ProcessingError> {
     process_message_pre_insert(message).await;
 
-    email_db_client::messages::insert::insert_message(db, thread_db_id, message, link_id, true)
-        .await
-        .map_err(|e| {
-            ProcessingError::Retryable(DetailedError {
-                reason: FailureReason::DatabaseQueryFailed,
-                source: e.context("Failed to insert message".to_string()),
-            })
+    email_db_client::messages::insert::insert_message(
+        db,
+        thread_db_id,
+        message,
+        link_id,
+        true,
+        resync,
+    )
+    .await
+    .map_err(|e| {
+        ProcessingError::Retryable(DetailedError {
+            reason: FailureReason::DatabaseQueryFailed,
+            source: e.context("Failed to insert message".to_string()),
         })
+    })
 }
 
 /// Notify downstream services about new message in a user's inbox
