@@ -74,7 +74,11 @@ impl<Repo: AgentKeyRepo, Cipher: AgentKeyCipher, Plans: KeyPlans>
 
     /// The stored key, when the agent can run on it now in a session `user`
     /// owns.
-    async fn usable(&self, bot_id: Uuid, user: &MacroUserIdStr<'_>) -> Result<Option<StoredAgentKey>> {
+    async fn usable(
+        &self,
+        bot_id: Uuid,
+        user: &MacroUserIdStr<'_>,
+    ) -> Result<Option<StoredAgentKey>> {
         let Some(stored) = self.repo.stored(bot_id).await? else {
             return Ok(None);
         };
@@ -106,7 +110,10 @@ impl<Repo: AgentKeyRepo, Cipher: AgentKeyCipher, Plans: KeyPlans> AgentKeys
         bot_id: Uuid,
         user: &MacroUserIdStr<'_>,
     ) -> Result<Option<ModelProvider>> {
-        Ok(self.usable(bot_id, user).await?.map(|stored| stored.provider))
+        Ok(self
+            .usable(bot_id, user)
+            .await?
+            .map(|stored| stored.provider))
     }
 
     async fn usable_key(

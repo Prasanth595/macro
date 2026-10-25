@@ -290,11 +290,15 @@ impl AgentState {
         let (Some(bot), Some(user)) = (self.agent_bot(), self.owner.as_user()) else {
             return Ok(None);
         };
-        let key = self.agent_keys.usable_key(bot, user).await.map_err(|error| {
-            tracing::error!(error = ?error, "could not read the agent's API key");
-            AcpError::new(-32603, "The agent's API key could not be read")
+        let key =
+            self.agent_keys
+                .usable_key(bot, user)
+                .await
+                .map_err(|error| {
+                    tracing::error!(error = ?error, "could not read the agent's API key");
+                    AcpError::new(-32603, "The agent's API key could not be read")
                 .data(serde_json::json!({ "code": "agent_api_key_unavailable", "retryable": true }))
-        })?;
+                })?;
         match key {
             Some(key) if ModelProvider::of_model(model) != Some(key.key.provider()) => {
                 let provider = key.key.provider().display_name();

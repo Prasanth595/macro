@@ -10,9 +10,7 @@ const BOT: &str = "00000000-0000-0000-0000-0000000000b0";
 fn agent(harness: &str, model: &str) -> KeyedAgent {
     KeyedAgent {
         bot_id: BOT.parse().expect("uuid"),
-        owner: AgentOwner::User(
-            MacroUserIdStr::try_from(OWNER.to_owned()).expect("user id"),
-        ),
+        owner: AgentOwner::User(MacroUserIdStr::try_from(OWNER.to_owned()).expect("user id")),
         harness: harness.to_owned(),
         model: model.to_owned(),
     }
@@ -225,7 +223,10 @@ async fn turns_run_on_the_key_only_while_the_agent_and_plan_still_fit_it() {
 
     *service.repo.agent.lock().expect("lock") = Some(agent("in-memory", "openai/gpt-6-astra"));
     assert_eq!(
-        service.usable_provider(bot, &user(OWNER)).await.expect("read"),
+        service
+            .usable_provider(bot, &user(OWNER))
+            .await
+            .expect("read"),
         None,
         "an agent moved to another provider's model runs on Macro usage"
     );
@@ -234,7 +235,11 @@ async fn turns_run_on_the_key_only_while_the_agent_and_plan_still_fit_it() {
         Some(agent("in-memory", "anthropic/claude-sonnet-5-5"));
     *service.plans.0.lock().expect("lock") = false;
     assert!(
-        service.usable_key(bot, &user(OWNER)).await.expect("read").is_none(),
+        service
+            .usable_key(bot, &user(OWNER))
+            .await
+            .expect("read")
+            .is_none(),
         "a downgraded owner keeps the key but turns do not run on it"
     );
     assert!(
@@ -253,7 +258,10 @@ async fn only_the_agents_owner_or_its_team_spends_its_key() {
     let service = service(true);
     let bot: Uuid = BOT.parse().expect("uuid");
     let personal = agent("in-memory", "anthropic/claude-sonnet-5-5");
-    service.set(&personal, "sk-ant-api03-abc").await.expect("saved");
+    service
+        .set(&personal, "sk-ant-api03-abc")
+        .await
+        .expect("saved");
 
     *service.repo.agent.lock().expect("lock") = Some(personal);
     assert!(
