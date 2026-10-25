@@ -1,3 +1,4 @@
+import 'fake-indexeddb/auto';
 import {
   createMemoryHistory,
   createMemoryPaneStore,
@@ -8,6 +9,8 @@ import {
   SplitRouter,
   type SplitRoutes,
 } from '@app/lib/split-router';
+import { readEmailDraft } from '@queries/email/draft-queue';
+import { saveLocalDraft } from '@queries/email/local-drafts';
 import { cleanup, render } from '@solidjs/testing-library';
 import { createEffect, createRoot, For, onCleanup, onMount } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -17,12 +20,22 @@ import {
   createComposeRouteDraft,
 } from './compose-route-draft';
 import type {
+  EmailComposeContext,
   EmailInbox,
   PersistedEmailIdentity,
   SaveEmailDraft,
 } from './context/compose-capabilities';
 import { createComposeContext } from './tests/capabilities';
 import { mountEmailComposer } from './tests/composer';
+
+vi.mock('@app/lib/analytics', () => ({
+  analytics: { track: vi.fn(), posthog: { captureException: vi.fn() } },
+}));
+vi.mock('@queries/client', () => ({
+  queryClient: {
+    getQueryData: () => ({ authenticated: true, id: 'owner' }),
+  },
+}));
 
 let route: ReturnType<typeof createComposeRouteDraft> | undefined;
 let mounts = 0;
@@ -211,5 +224,88 @@ it.each([
     expect(history.entries()).toHaveLength(1);
     expect(mounts).toBe(1);
     composer.dispose();
+  }
+);
+
+function reloadComposeRoute(history: MemoryHistory): MemoryHistory {
+  const { path, search } = history.entries()[history.index()]!;
+  cleanup();
+  return renderComposeRoute(`${path}${search}`);
+}
+
+/** Reads the route's draft from this device the way the compose view does. */
+async function reopenFromRoute(context: EmailComposeContext) {
+  const compose = route!;
+  const draftId = compose.draftId();
+  const saved = draftId ? await readEmailDraft(draftId) : undefined;
+  return {
+    persistence: saved?.persistence,
+    composer: mountEmailComposer(
+      context,
+      { recordDraft: compose.record },
+      {
+        draftId,
+        draft: saved?.draft,
+        draftPersistence: saved?.persistence,
+        localDraft: saved?.local,
+      }
+    ),
+  };
+}
+
+it.each([
+  ['Outlook', outlook, gmail],
+  ['Gmail', gmail, outlook],
+] as const)(
+  'reopens a queued %s draft from its route after two reloads, before the server confirms it',
+  async (_provider, from, primary) => {
+    vi.useRealTimers();
+    const draftId = `${from.id}-draft`;
+    const context = createComposeContext();
+    context.accounts.inboxes = () => [primary, from];
+    context.accounts.primaryId = () => primary.id;
+    context.drafts.saveLocalDraft = (input) =>
+      saveLocalDraft({ ...input, senderEmail: from.email_address });
+    const queued = Promise.withResolvers<void>();
+    context.drafts.saveDraft = vi.fn(async (input) => {
+      queued.resolve();
+      return {
+        draftId: input.draft.db_id ?? draftId,
+        threadId: input.draft.thread_db_id ?? 'thread',
+        inboxId: input.inboxId ?? from.id,
+        persistence: 'queued' as const,
+      };
+    });
+    let history = renderComposeRoute('/component/email-compose');
+    const opened = mountEmailComposer(
+      context,
+      { recordDraft: route!.record },
+      {
+        draft: message(draftId, {
+          is_draft: true,
+          link_id: from.id,
+          from: { email: from.email_address },
+        }),
+      }
+    );
+    await routeShows(route!)(draftId);
+    opened.edit('Edited offline');
+    await queued.promise;
+    await opened.state.flushLocal();
+    opened.dispose();
+
+    context.drafts.saveDraft = vi.fn(() => new Promise<never>(() => {}));
+    history = reloadComposeRoute(history);
+    const firstReload = await reopenFromRoute(context);
+    expect(firstReload.persistence).toBe('queued');
+    firstReload.composer.dispose();
+
+    reloadComposeRoute(history);
+    const secondReload = await reopenFromRoute(context);
+    expect(route!.draftId()).toBe(draftId);
+    expect(secondReload.composer.state.context.fromAddress?.()).toBe(
+      from.email_address
+    );
+    secondReload.composer.dispose();
   }
 );
