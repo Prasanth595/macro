@@ -231,10 +231,12 @@ export function updateDraftThread(
           ...previous.facts,
           isRead: true,
           isSignal: previous.facts.preview ? isSignal : false,
-          latestInboundMessageTs:
-            previous.macroDraft && hasReceivedMail
-              ? draft.updatedAt
-              : previous.facts.latestInboundMessageTs,
+          inboxVisible: previous.macroDraft
+            ? fresh.facts.inboxVisible
+            : previous.facts.inboxVisible,
+          latestInboundMessageTs: previous.macroDraft
+            ? fresh.facts.latestInboundMessageTs
+            : previous.facts.latestInboundMessageTs,
           latestNonSpamMessageTs: previous.macroDraft
             ? draft.updatedAt
             : previous.facts.latestNonSpamMessageTs,
