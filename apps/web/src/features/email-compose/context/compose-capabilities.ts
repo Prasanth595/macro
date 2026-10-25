@@ -425,7 +425,7 @@ export interface EmailComposeHost {
   showDraft?: (id: string) => void;
   /** A From switch moved the draft to a new id and thread; the old ones are gone. */
   showMovedDraft?: (moved: { draftId: string; threadId: string }) => void;
-  /** The server-confirmed draft a reload should reopen, or undefined when there is none. */
+  /** The draft a reload should reopen, or undefined when there is none. */
   recordDraft?: (draftId: string | undefined) => void;
   goBack?: () => void;
   registerBack?: (handler: () => boolean) => void;

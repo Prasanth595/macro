@@ -288,9 +288,11 @@ Existing message/thread model fields retain their established snake_case spellin
 this cleanup does not rename generated schemas or persisted URLs. In particular,
 the host still reads/writes the existing `draftID` compose route parameter.
 Those parameters live only in memory, so the compose route also records the
-composer's server-confirmed draft in its `email-compose.draft` pane search,
-replacing the current history entry, and reopens that draft ahead of
-`draftID` (`compose-route-draft.ts`). A From switch that moves a draft keeps
+composer's draft in its `email-compose.draft` pane search, replacing the
+current history entry, and reopens that draft ahead of `draftID`
+(`compose-route-draft.ts`). It records the draft the composer opened right
+away, since this device can read it while a save is queued, and records a draft
+the composer creates or moves to only once the server confirms it. A From switch that moves a draft keeps
 the compose route in place, while a thread route follows the moved draft to
 its new thread (`compose-host-adapter.ts`).
 
