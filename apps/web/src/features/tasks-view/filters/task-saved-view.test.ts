@@ -75,7 +75,7 @@ describe('Task saved-view definitions', () => {
   it('enforces the person limit including viewer-relative filters', () => {
     const assignees = [
       { type: 'viewer' },
-      ...Array.from({ length: 99 }, (_, index) => ({
+      ...Array.from({ length: 100 }, (_, index) => ({
         type: 'user',
         id: `macro|person-${index}@example.com`,
       })),
@@ -98,6 +98,36 @@ describe('Task saved-view definitions', () => {
         },
       }).isErr()
     ).toBe(true);
+  });
+
+  it('keeps 100 selected people when a built-in tab adds the viewer', () => {
+    for (const [tab, facet] of [
+      ['my-tasks', 'assignees'],
+      ['created-by-me', 'created-by'],
+    ] as const) {
+      const captured = captureTaskSavedView({
+        tab,
+        facets: {
+          [facet]: Array.from(
+            { length: 100 },
+            (_, index) => `macro|person-${index}@example.com`
+          ),
+        },
+        context: { tagPropertyDefinitionByOptionId: new Map() },
+      });
+      expect(captured.isOk()).toBe(true);
+      if (captured.isErr()) continue;
+      const restored = materializeTaskSavedView(captured.value);
+      expect(restored.facets[facet]).toHaveLength(101);
+      expect(restored.facets[facet]).toContain(TASK_VIEWER);
+      const recaptured = captureTaskSavedView({
+        ...restored,
+        context: { tagPropertyDefinitionByOptionId: restored.tagBindings },
+      });
+      expect(recaptured.isOk()).toBe(true);
+      if (recaptured.isErr()) continue;
+      expect(taskSavedViewsEqual(captured.value, recaptured.value)).toBe(true);
+    }
   });
 
   it('does not silently accept an unknown filter or version', () => {

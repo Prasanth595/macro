@@ -31,8 +31,9 @@ const filtersSchema = z
   .object({
     statusOptionIds: ids,
     priorityOptionIds: ids,
-    assignees: z.array(person).max(100),
-    creators: z.array(person).max(100),
+    // Built-in tabs can add the viewer to 100 explicitly selected people.
+    assignees: z.array(person).max(101),
+    creators: z.array(person).max(101),
     tags: z
       .array(
         z
