@@ -681,8 +681,16 @@ task accessible. Opening an associated task extends the breadcrumb trail; choose
 the project breadcrumb to return, or Projects to restore the collection and its
 filters, groups, and scroll position. Project URLs retain identity and section:
 `/app/component/initiative-view~<project-id>~overview` (or `tasks`).
-Projects need an account to open, even with a Public link: signed out, both
-that URL and `/app/tasks/projects/<project-id>/overview` show **Sign in to view
+Signed out, a project whose link is Public opens read-only at that URL and at
+`/app/tasks/projects/<project-id>/overview` (or `tasks`). The visitor sees the
+name, Status, Priority, Assignees and Due date with owner and assignee names,
+the live description (or **No description**), and **Sign in to view
+comments.** in place of discussions. Tasks lists the project's tasks the
+visitor may view with their properties; one opens read-only under the project
+breadcrumb at `.../task/<task-id>`, and a Public task link `/app/task/<task-id>`
+opens the same way on its own. Nothing is editable even when the link grants
+edit: no rename, property pickers, Share, Tasks sidebar or New task, and the
+top bar offers Login. A private or missing project shows **Sign in to view
 this page** with Login and Sign Up, never an indefinite loader.
 Project properties live in the shared floating information panel and honor
 project access. Editors can rename the project; its owner can delete it.

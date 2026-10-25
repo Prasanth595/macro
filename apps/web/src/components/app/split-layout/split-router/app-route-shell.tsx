@@ -24,7 +24,7 @@ export function usePageViewTracking(pageTitle: string) {
   });
 }
 
-function SignedOutRoute() {
+export function SignedOutRoute() {
   return (
     <EmptyStatePanel
       centered

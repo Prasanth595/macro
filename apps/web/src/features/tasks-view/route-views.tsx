@@ -30,6 +30,7 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import { onMount, Show } from 'solid-js';
 import { TasksDetailView } from './components/TasksDetailView';
 import { projectDetailSearch } from './project-detail-search';
+import { PublicTasksRouteView } from './public/public-tasks-route-view';
 import { TasksView } from './tasks-view';
 import { TasksViewSkeleton } from './tasks-view-skeleton';
 
@@ -42,21 +43,24 @@ function TasksLegacyRouteView() {
   );
 }
 
-export const TasksRouteView = withAuth(() => {
-  const params = useParams<{ taskId?: string; projectId?: string }>();
-  return (
-    <AppView
-      id="tasks"
-      detailDesktopOnly
-      detailRequested={() =>
-        typeof params.taskId === 'string' && !params.projectId
-      }
-      detailFallback={<TasksLegacyRouteView />}
-    >
-      <TasksView />
-    </AppView>
-  );
-}, { pending: TasksViewSkeleton });
+export const TasksRouteView = withAuth(
+  () => {
+    const params = useParams<{ taskId?: string; projectId?: string }>();
+    return (
+      <AppView
+        id="tasks"
+        detailDesktopOnly
+        detailRequested={() =>
+          typeof params.taskId === 'string' && !params.projectId
+        }
+        detailFallback={<TasksLegacyRouteView />}
+      >
+        <TasksView />
+      </AppView>
+    );
+  },
+  { pending: TasksViewSkeleton, signedOut: PublicTasksRouteView }
+);
 
 function DisabledProjectRoute() {
   const navigate = useNavigate();

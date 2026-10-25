@@ -147,8 +147,10 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   [Bots walkthrough](../../docs/agent-guide/settings.md#bots).
 - Label the notification permission toast **Enable Desktop Notifications** in
   the desktop app and keep its Enable action on the native notification provider.
-- Keep signed-out Drive document routes on the shared detail viewer without
-  mounting private list/sidebar sources; let document access checks decide visibility.
+- Keep signed-out Drive document routes on the shared detail viewer, and
+  signed-out Tasks routes on `PublicTasksRouteView`, without mounting private
+  list/sidebar sources; let access checks decide visibility. The Tasks visitor
+  face never offers editing, whatever the link grants.
 - Gate account-only queries, comment readers, and account WebSockets on confirmed
   authentication; keep public document loading independent of those services
   and distinguish unresolved identity from confirmed sign-out in UI prompts.
