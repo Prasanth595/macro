@@ -103,12 +103,15 @@ the gateway `/email` prefix.
   newest on; an operation with a newer write still on its way waits in the
   retry queue (`NewerLabelWritePending`) and sends if that write is rejected.
   A permanent failure puts back what the older writes or the original state
-  say. Markers expire after 12 hours, which must outlast an operation's
-  redelivery through the gmail_ops queues.
+  say. Both label write forms carry the write's `pendingWriteId`; with batches
+  off, each message's operation settles only that message's markers. Markers
+  expire after 12 hours, which must outlast an operation's redelivery through
+  the gmail_ops queues.
 - `pubsub::label_write_sim` wires one mailbox to the production label-write,
   gmail_ops and inbox sync code with fake Gmail and SQS. Add a test there for a
   new race between writes and syncs; its ignored `randomized_shard_*` tests run
-  the seeded simulation (`SIM_SEEDS`, `SIM_OVERLAP`, see `sim/test.rs`).
+  the seeded simulation (`SIM_SEEDS`, `SIM_OVERLAP`, `SIM_BATCHES`, see
+  `sim/test.rs`). Scenarios run in both label write forms (`scenario!`).
 - Local stacks run debug workers on tokio's 2 MiB worker stacks, where every
   awaited future takes its own stack slot. Pass a Gmail call through a helper
   as a `BoxFuture`, and box an operation the dispatch awaits in several arms;
