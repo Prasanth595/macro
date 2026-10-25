@@ -40,6 +40,7 @@ import {
   graphqlSoupSessionActive,
 } from '@service-storage/graphql-soup';
 import { type OperationResult, stringifyDocument } from '@urql/core';
+import { match } from 'ts-pattern';
 import { pipe, subscribe } from 'wonka';
 
 /** What the fold needs: the agent and the raw rows. */
@@ -301,11 +302,10 @@ async function readSignedOutLog(
   if (result.isOk()) {
     return { bot: result.value.bot, rows: result.value.entries };
   }
-  const refused = result.error.some(
-    (error) =>
-      error.code === 'UNAUTHORIZED' ||
-      error.code === 'FORBIDDEN' ||
-      error.code === 'NOT_FOUND'
+  const refused = result.error.some((error) =>
+    match(error.code)
+      .with('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', () => true)
+      .otherwise(() => false)
   );
   throw new AgentSessionLogUnavailable(
     sessionId,
@@ -314,11 +314,8 @@ async function readSignedOutLog(
 }
 
 function fetchSignedOutLog(sessionId: string): SessionLogWatch {
-  let rejectFetched!: (error: AgentSessionLogUnavailable) => void;
-  const fetched = new Promise<SessionLogSnapshot>((resolve, reject) => {
-    rejectFetched = reject;
-    readSignedOutLog(sessionId).then(resolve, reject);
-  });
+  const stopped = Promise.withResolvers<never>();
+  const fetched = Promise.race([readSignedOutLog(sessionId), stopped.promise]);
   // A rejection nobody has awaited yet must not be reported as unhandled.
   fetched.catch(() => undefined);
   return {
@@ -326,7 +323,7 @@ function fetchSignedOutLog(sessionId: string): SessionLogWatch {
     cacheMiss: () => 'no_cache',
     fetched,
     stop: () => {
-      rejectFetched(new AgentSessionLogUnavailable(sessionId, 'failed'));
+      stopped.reject(new AgentSessionLogUnavailable(sessionId, 'failed'));
     },
   };
 }

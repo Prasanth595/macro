@@ -6,7 +6,7 @@
 
 import type { AgentSessionLogEntryDto } from '@service-agent-harness/generated/schemas';
 import type { AgentSessionLogQuery } from '@service-storage/graphql/generated/graphql';
-import { CombinedError, type OperationResult } from '@urql/core';
+import type { OperationResult } from '@urql/core';
 import { err, ok } from 'neverthrow';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeSubject, type Source } from 'wonka';
@@ -276,22 +276,6 @@ describe('watchAgentSessionLog', () => {
   });
 
   describe('signed out', () => {
-    /** What the GraphQL `user` root answers a caller with no account. */
-    const unauthenticated = () => {
-      const result = {
-        data: null,
-        error: new CombinedError({
-          graphQLErrors: [
-            { message: 'authentication required', path: ['user'] },
-          ],
-        }),
-        stale: false,
-        hasNext: false,
-      } as unknown as Result<AgentSessionLogQuery>;
-      metadata.set(result, { source: 'live-network' });
-      return result;
-    };
-
     beforeEach(() => {
       soup.sessionActive = false;
     });
@@ -304,13 +288,13 @@ describe('watchAgentSessionLog', () => {
         })
       );
       const watch = watchAgentSessionLog(SESSION);
-      query.next(unauthenticated());
 
       expect(await watch.fetched).toEqual({
         bot: { id: 'bot-id', name: 'Agent', handle: 'agent' },
         rows: [row(1), row(2)],
       });
       expect(await watch.cached).toBeUndefined();
+      expect(client.query).not.toHaveBeenCalled();
     });
 
     it('reports a session the harness refuses as inaccessible', async () => {
@@ -318,39 +302,41 @@ describe('watchAgentSessionLog', () => {
         err([{ code: 'UNAUTHORIZED', message: 'Unauthorized access' }])
       );
       const watch = watchAgentSessionLog(SESSION);
-      query.next(unauthenticated());
 
       await expect(watch.fetched).rejects.toMatchObject({
         reason: 'inaccessible',
       });
     });
 
-    it('fails a read stopped before the harness answers, whatever it answers later', async () => {
-      let answer!: (result: unknown) => void;
-      harness.getLog.mockReturnValue(
-        new Promise((resolve) => {
-          answer = resolve;
-        })
-      );
-      const watch = watchAgentSessionLog(SESSION);
-      const failed = vi.fn();
-      watch.fetched.catch(failed);
-
-      watch.stop();
-      await settle();
-      expect(failed).toHaveBeenCalledOnce();
-
-      answer(
+    it.each([
+      [
+        'a log',
         ok({
           bot: { id: 'bot-id', name: 'Agent', handle: 'agent' },
           entries: [row(1)],
-        })
-      );
-      await settle();
-      await expect(watch.fetched).rejects.toBeInstanceOf(
-        AgentSessionLogUnavailable
-      );
-      await expect(watch.fetched).rejects.toMatchObject({ reason: 'failed' });
-    });
+        }),
+      ],
+      ['a refusal', err([{ code: 'NOT_FOUND', message: 'Not found' }])],
+    ])(
+      'fails a read stopped before the harness answers, even with %s later',
+      async (_, late) => {
+        let answer!: (result: unknown) => void;
+        harness.getLog.mockReturnValue(
+          new Promise((resolve) => {
+            answer = resolve;
+          })
+        );
+        const watch = watchAgentSessionLog(SESSION);
+
+        watch.stop();
+        await expect(watch.fetched).rejects.toBeInstanceOf(
+          AgentSessionLogUnavailable
+        );
+
+        answer(late);
+        await settle();
+        await expect(watch.fetched).rejects.toMatchObject({ reason: 'failed' });
+      }
+    );
   });
 });
