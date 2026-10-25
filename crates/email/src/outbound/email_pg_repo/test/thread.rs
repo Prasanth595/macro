@@ -451,6 +451,7 @@ async fn test_insert_thread_new(pool: Pool<Postgres>) -> anyhow::Result<()> {
         link_id,
         inbox_visible: false,
         is_read: true,
+        has_received_mail: false,
         latest_inbound_message_ts: None,
         latest_outbound_message_ts: None,
         latest_non_spam_message_ts: None,
@@ -474,6 +475,7 @@ async fn test_insert_thread_new(pool: Pool<Postgres>) -> anyhow::Result<()> {
     assert_eq!(fetched.db_id, new_id);
     assert!(!fetched.inbox_visible);
     assert!(fetched.is_read);
+    assert!(!fetched.has_received_mail);
 
     Ok(())
 }
@@ -493,6 +495,7 @@ async fn test_insert_thread_conflict_with_provider_id(pool: Pool<Postgres>) -> a
         link_id,
         inbox_visible: true,
         is_read: false,
+        has_received_mail: true,
         latest_inbound_message_ts: Some(now),
         latest_outbound_message_ts: None,
         latest_non_spam_message_ts: None,

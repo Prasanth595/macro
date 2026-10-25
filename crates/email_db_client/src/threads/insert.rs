@@ -70,9 +70,11 @@ pub async fn insert_thread_and_messages(
         }
 
         // Messages were inserted with per-message metadata updates disabled and
-        // insert_thread precomputes the other thread columns, so is_signal
-        // must be synced here or new threads would stay noise.
+        // insert_thread precomputes the other thread columns, so is_signal and
+        // has_received_mail must be synced here or new threads would stay noise
+        // and sent-only threads would offer unarchive.
         super::update::sync_thread_signal_flag(&mut tx, thread_id).await?;
+        super::update::sync_thread_received_mail(&mut tx, thread_id).await?;
 
         Ok(thread_id)
     }

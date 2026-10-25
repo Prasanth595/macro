@@ -55,6 +55,10 @@ Parsed message responses expose the draft generation captured in the same SQL sn
   message; the destination draft inbox is only the query access scope.
 - Quote and alias camelCase columns to Rust field names; check
   `crates/macro_db_client/migrations/` for real column spelling, don't guess.
+- A Macro draft (no provider id, or a live `email_mailbox_drafts` row) puts its
+  thread in the inbox only when `email_threads.has_received_mail` is true.
+  `recompute_thread_metadata` and the email crate's
+  `thread_mail_projections_by_ids` restate this rule; change both together.
 
 ## Related
 
