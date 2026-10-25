@@ -401,6 +401,43 @@ fn signed_in_and_internal_callers_keep_their_grant() {
 }
 
 #[test]
+fn try_new_for_user_caps_only_the_caller_with_no_account() {
+    let edit_grant = EntityPermission::AccessLevel {
+        access_level: AccessLevel::Edit,
+    };
+
+    let signed_in = EntityAccessReceipt::<EditAccessLevel>::try_new_for_user(
+        Some(user_id()),
+        document(),
+        edit_grant,
+    )
+    .unwrap();
+    assert!(matches!(
+        signed_in.auth(),
+        EntityAccessAuth::Authenticated(user) if user == &user_id()
+    ));
+    assert_eq!(signed_in.entity_permission(), &edit_grant);
+
+    let signed_out =
+        EntityAccessReceipt::<ViewAccessLevel>::try_new_for_user(None, document(), edit_grant)
+            .unwrap();
+    assert!(matches!(
+        signed_out.auth(),
+        EntityAccessAuth::Unauthenticated
+    ));
+    assert_eq!(
+        signed_out.entity_permission(),
+        &EntityPermission::AccessLevel {
+            access_level: AccessLevel::View
+        }
+    );
+    assert!(matches!(
+        EntityAccessReceipt::<EditAccessLevel>::try_new_for_user(None, document(), edit_grant),
+        Err(AccessError::Unauthorized)
+    ));
+}
+
+#[test]
 fn channel_view_only_satisfies_only_view_only_requirement() {
     let permission = EntityPermission::ChannelViewOnly;
 

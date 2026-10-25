@@ -20,7 +20,8 @@ use tower::ServiceExt;
 use super::*;
 use crate::{
     domain::models::{
-        BotAccessScope, EditAccessLevel, EntityAccessAuth, EntityPermission, ViewAccessLevel,
+        AccessLevel, BotAccessScope, EditAccessLevel, EntityAccessAuth, EntityPermission,
+        ViewAccessLevel,
     },
     inbound::axum_extractors::test_support::{
         AccessCall, BOT_ACTING_USER_ID, BOT_ACTING_USER_ORGANIZATION_ID, BOT_ID, BOT_TEAM_ID,

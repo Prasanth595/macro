@@ -951,7 +951,7 @@ async fn malformed_json_and_invalid_body_are_distinguished() {
     ));
 
     let invalid_body = EditExtractor::from_request(
-        json_request(r#"{"name":42,"projectId":"project-1"}"#),
+        bearer_request(r#"{"name":42,"projectId":"project-1"}"#, "valid"),
         &state,
     )
     .await;

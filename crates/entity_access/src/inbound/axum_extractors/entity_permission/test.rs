@@ -338,7 +338,7 @@ async fn handler(
     extractor: EntityPermissionExtractor<FakeEntityAccessService, FakeAuthorizationService>,
 ) -> Json<Value> {
     let receipt = extractor.entity_access_receipt;
-    let auth = match receipt.auth {
+    let auth = match receipt.auth() {
         EntityAccessAuth::Authenticated(user_id) => json!({ "authenticated": user_id.to_string() }),
         EntityAccessAuth::Bot(bot_auth) => json!({ "bot": bot_auth }),
         EntityAccessAuth::Unauthenticated => json!("unauthenticated"),
@@ -347,9 +347,9 @@ async fn handler(
 
     Json(json!({
         "auth": auth,
-        "entity_id": receipt.entity.entity_id,
-        "entity_type": receipt.entity.entity_type.to_string(),
-        "permission": receipt.entity_permission,
+        "entity_id": receipt.entity().entity_id,
+        "entity_type": receipt.entity().entity_type.to_string(),
+        "permission": receipt.entity_permission(),
     }))
 }
 
