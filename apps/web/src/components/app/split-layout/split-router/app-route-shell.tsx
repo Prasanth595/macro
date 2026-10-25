@@ -38,7 +38,7 @@ function SignedOutRoute() {
 
 /**
  * Renders `View` once signed in; `Pending`, if given, draws while sign-in is
- * confirmed. A confirmed sign-out offers sign-in rather than loading forever.
+ * confirmed. A confirmed sign-out shows Login and Sign Up.
  */
 export function withAuth<P extends object>(
   View: Component<P>,
