@@ -2,6 +2,7 @@ use crate::pubsub::gmail_ops::email_api_error::is_permanent_mutation_error;
 use crate::pubsub::gmail_ops::operations::OperationError;
 use crate::pubsub::gmail_ops::worker::GmailOpsContext;
 use anyhow::Context;
+use email_api_client::domain::service::SEPARATE_LABEL_WRITES_BELOW;
 use email_db_client::labels::pending_writes::{self, LabelWriteTurn};
 use futures::future::BoxFuture;
 use models_email::gmail::gmail_ops::{GmailMessageRef, ModifyMessageLabelsBatchPayload};
@@ -13,13 +14,14 @@ use uuid::Uuid;
 #[cfg(test)]
 mod test;
 
-/// Modifies labels for a batch of messages: one Gmail batch request from ten
-/// messages up, one request per message below that. A message whose newer
-/// write is still on its way makes the whole operation wait for it, and one
-/// whose newer write was confirmed is left out. A permanent failure reverts
-/// every message sent, and a message Gmail no longer has is skipped;
+/// Modifies labels for a batch of messages. A message whose newer write is
+/// still on its way makes the operation wait for it, and one whose newer write
+/// was confirmed is left out. From ten messages up the batch is one Gmail
+/// request, which a permanent failure reverts as a whole. Below ten, each
+/// message is its own request and is settled as Gmail answers it (see
+/// [`send_one_at_a_time`]). A message Gmail no longer has is skipped;
 /// transient errors (5xx, network) and rate limits keep the optimistic DB
-/// changes for the retry, which resends the whole batch.
+/// changes for the retry.
 ///
 /// Boxed so this large future lives on the heap rather than in the frames
 /// that await it: unoptimized builds give every awaited future its own stack
@@ -53,10 +55,12 @@ async fn modify_message_labels_unboxed(
         return send(ctx, link, payload, &messages).await;
     };
 
-    let turns = label_write_turns(&ctx.db, payload, write_id)
-        .await
-        .context("Failed to read the label write's turn")
-        .map_err(OperationError::Database)?;
+    let message_ids: Vec<Uuid> = payload
+        .messages
+        .iter()
+        .map(|message| message.db_message_id)
+        .collect();
+    let turns = label_write_turns(&ctx.db, payload, &message_ids, write_id).await?;
     let ids_with = |turn: LabelWriteTurn| -> Vec<Uuid> {
         payload
             .messages
@@ -65,15 +69,7 @@ async fn modify_message_labels_unboxed(
             .filter(|id| turns.get(id).copied().unwrap_or(LabelWriteTurn::Superseded) == turn)
             .collect()
     };
-    let superseded = ids_with(LabelWriteTurn::Superseded);
-    if !superseded.is_empty() {
-        let mut tx = begin_locked(&ctx.db, link.id, &superseded).await?;
-        pending_writes::abandon_pending_label_writes(&mut tx, link.id, &superseded, write_id)
-            .await
-            .context("Failed to drop superseded pending label writes")
-            .map_err(OperationError::Database)?;
-        commit(tx).await?;
-    }
+    abandon_superseded(ctx, link, &ids_with(LabelWriteTurn::Superseded), write_id).await?;
 
     let waiting = ids_with(LabelWriteTurn::Wait);
     if !waiting.is_empty() {
@@ -93,30 +89,161 @@ async fn modify_message_labels_unboxed(
         tracing::info!("Newer label writes took over every message, skipping Gmail");
         return Ok(());
     }
+    if messages.len() < SEPARATE_LABEL_WRITES_BELOW {
+        return send_one_at_a_time(ctx, link, payload, write_id, &messages).await;
+    }
     send(ctx, link, payload, &messages).await
 }
 
 async fn label_write_turns(
     db: &PgPool,
     payload: &ModifyMessageLabelsBatchPayload,
+    message_ids: &[Uuid],
     write_id: Uuid,
-) -> Result<std::collections::HashMap<Uuid, LabelWriteTurn>, sqlx::Error> {
-    let db_message_ids: Vec<Uuid> = payload
-        .messages
-        .iter()
-        .map(|message| message.db_message_id)
-        .collect();
+) -> Result<std::collections::HashMap<Uuid, LabelWriteTurn>, OperationError> {
     let provider_label_ids: Vec<String> = payload
         .labels_to_add
         .iter()
         .chain(&payload.labels_to_remove)
         .cloned()
         .collect();
-    pending_writes::label_write_turns(db, &db_message_ids, &provider_label_ids, write_id).await
+    pending_writes::label_write_turns(db, message_ids, &provider_label_ids, write_id)
+        .await
+        .context("Failed to read the label write's turn")
+        .map_err(OperationError::Database)
 }
 
-/// Sends `messages` to Gmail and records the outcome. Boxed for the reason
-/// given on [`modify_message_labels`]: the operation awaits it in two places.
+/// Drops the write's rows on messages a newer write has taken over.
+async fn abandon_superseded(
+    ctx: &GmailOpsContext,
+    link: &Link,
+    message_ids: &[Uuid],
+    write_id: Uuid,
+) -> Result<(), OperationError> {
+    if message_ids.is_empty() {
+        return Ok(());
+    }
+    let mut tx = begin_locked(&ctx.db, link.id, message_ids).await?;
+    pending_writes::abandon_pending_label_writes(&mut tx, link.id, message_ids, write_id)
+        .await
+        .context("Failed to drop superseded pending label writes")
+        .map_err(OperationError::Database)?;
+    commit(tx).await
+}
+
+/// Clears the write's markers on messages Gmail accepted it for. Inbox sync
+/// applies Gmail's labels to them again; failing here retries the operation
+/// rather than leaving sync off those labels until the markers expire.
+async fn confirm(
+    ctx: &GmailOpsContext,
+    link: &Link,
+    message_ids: &[Uuid],
+    write_id: Uuid,
+) -> Result<(), OperationError> {
+    let mut tx = begin_locked(&ctx.db, link.id, message_ids).await?;
+    pending_writes::confirm_pending_label_writes(&mut tx, message_ids, write_id)
+        .await
+        .context("Failed to confirm pending label writes")
+        .map_err(OperationError::Database)?;
+    commit(tx).await
+}
+
+/// Sends `messages` one Gmail request each, settling each message as Gmail
+/// answers it. Before each request after the first, the message's turn is
+/// read again: a message a newer write took over meanwhile is skipped, and
+/// one with a newer write still on its way makes the rest wait. A permanent
+/// rejection reverts the rejected message and those not sent yet; messages
+/// Gmail accepted keep their change. A retry finds the accepted messages
+/// settled and doesn't send them again. Boxed for the reason given on
+/// [`modify_message_labels`].
+fn send_one_at_a_time<'a>(
+    ctx: &'a GmailOpsContext,
+    link: &'a Link,
+    payload: &'a ModifyMessageLabelsBatchPayload,
+    write_id: Uuid,
+    messages: &'a [&'a GmailMessageRef],
+) -> BoxFuture<'a, Result<(), OperationError>> {
+    Box::pin(send_one_at_a_time_unboxed(
+        ctx, link, payload, write_id, messages,
+    ))
+}
+
+async fn send_one_at_a_time_unboxed(
+    ctx: &GmailOpsContext,
+    link: &Link,
+    payload: &ModifyMessageLabelsBatchPayload,
+    write_id: Uuid,
+    messages: &[&GmailMessageRef],
+) -> Result<(), OperationError> {
+    // As in a batch request, a message Gmail no longer has counts as written
+    // when the write has others.
+    let skip_missing = messages.len() > 1;
+    for (index, message) in messages.iter().enumerate() {
+        let message_id = message.db_message_id;
+        if index > 0 {
+            let turns = label_write_turns(&ctx.db, payload, &[message_id], write_id).await?;
+            match turns
+                .get(&message_id)
+                .copied()
+                .unwrap_or(LabelWriteTurn::Superseded)
+            {
+                LabelWriteTurn::Send => {}
+                LabelWriteTurn::Superseded => {
+                    abandon_superseded(ctx, link, &[message_id], write_id).await?;
+                    continue;
+                }
+                LabelWriteTurn::Wait => {
+                    tracing::info!(
+                        db_message_id = %message_id,
+                        "A newer label write on this message is still on its way, waiting for it"
+                    );
+                    return Err(OperationError::WaitingForNewerWrite);
+                }
+            }
+        }
+        let result = ctx
+            .email_api
+            .modify_one_message_labels(
+                link.id,
+                &message.provider_message_id,
+                &payload.labels_to_add,
+                &payload.labels_to_remove,
+                skip_missing,
+            )
+            .await;
+        match result {
+            Ok(()) => confirm(ctx, link, &[message_id], write_id).await?,
+            Err(error) if is_permanent_mutation_error(&error) => {
+                let unaccepted: Vec<Uuid> = messages[index..]
+                    .iter()
+                    .map(|message| message.db_message_id)
+                    .collect();
+                tracing::error!(
+                    error = ?error,
+                    db_message_ids = ?unaccepted,
+                    "Permanent Gmail error modifying labels, reverting the messages Gmail hasn't accepted"
+                );
+                revert_db_changes(&ctx.db, link, payload, unaccepted)
+                    .await
+                    .map_err(OperationError::Database)?;
+                return Err(OperationError::Gmail(error));
+            }
+            Err(error) => {
+                tracing::warn!(
+                    error = ?error,
+                    db_message_id = %message_id,
+                    "Retryable Gmail error modifying labels, preserving optimistic database changes"
+                );
+                return Err(OperationError::Gmail(error));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Sends `messages` to Gmail in one call and records the outcome. Boxed for
+/// the reason given on [`modify_message_labels`]: the operation awaits it in
+/// two places.
 fn send<'a>(
     ctx: &'a GmailOpsContext,
     link: &'a Link,
@@ -152,16 +279,8 @@ async fn send_unboxed(
 
     match result {
         Ok(()) => {
-            // Inbox sync applies Gmail's labels to these messages again.
-            // Failing here retries the operation rather than leaving sync off
-            // those labels until the markers expire.
             if let Some(write_id) = payload.pending_write_id {
-                let mut tx = begin_locked(&ctx.db, link.id, &db_message_ids).await?;
-                pending_writes::confirm_pending_label_writes(&mut tx, &db_message_ids, write_id)
-                    .await
-                    .context("Failed to confirm pending label writes")
-                    .map_err(OperationError::Database)?;
-                commit(tx).await?;
+                confirm(ctx, link, &db_message_ids, write_id).await?;
             }
             Ok(())
         }

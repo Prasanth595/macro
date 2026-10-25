@@ -96,6 +96,14 @@ async fn unarchive_b(pool: &PgPool) {
     tx.commit().await.unwrap();
 }
 
+fn message_ids(payload: &ModifyMessageLabelsBatchPayload) -> Vec<Uuid> {
+    payload
+        .messages
+        .iter()
+        .map(|message| message.db_message_id)
+        .collect()
+}
+
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../../../fixtures", scripts("gmail_ops_label_revert"))
@@ -107,7 +115,9 @@ async fn an_older_write_waits_for_a_newer_one_and_sends_once_gmail_rejects_it(po
         false,
         vec![message(0xa), message(0xb), message(0xc)],
     );
-    let turns = label_write_turns(&pool, &archive, ARCHIVE).await.unwrap();
+    let turns = label_write_turns(&pool, &archive, &message_ids(&archive), ARCHIVE)
+        .await
+        .unwrap();
     assert_eq!(turns[&Uuid::from_u128(0xa)], LabelWriteTurn::Send);
     assert_eq!(turns[&Uuid::from_u128(0xb)], LabelWriteTurn::Wait);
 
@@ -122,7 +132,9 @@ async fn an_older_write_waits_for_a_newer_one_and_sends_once_gmail_rejects_it(po
 
     // B is archived again, and the archive now sends it with the others.
     assert!(messages_with_label(&pool, "INBOX").await.is_empty());
-    let turns = label_write_turns(&pool, &archive, ARCHIVE).await.unwrap();
+    let turns = label_write_turns(&pool, &archive, &message_ids(&archive), ARCHIVE)
+        .await
+        .unwrap();
     assert!(turns.values().all(|turn| *turn == LabelWriteTurn::Send));
     assert_eq!(thread_state(&pool).await, (false, true));
 }
@@ -140,7 +152,9 @@ async fn a_confirmed_newer_write_supersedes_the_older_one(pool: PgPool) {
     tx.commit().await.unwrap();
 
     let archive = inbox_write(ARCHIVE, false, vec![message(0xa), message(0xb)]);
-    let turns = label_write_turns(&pool, &archive, ARCHIVE).await.unwrap();
+    let turns = label_write_turns(&pool, &archive, &message_ids(&archive), ARCHIVE)
+        .await
+        .unwrap();
     assert_eq!(turns[&Uuid::from_u128(0xa)], LabelWriteTurn::Send);
     assert_eq!(turns[&Uuid::from_u128(0xb)], LabelWriteTurn::Superseded);
 }
