@@ -136,7 +136,7 @@ pub async fn upsert_message(
             let (fetched, snapshot) = pending_labels::resync_around(
                 &ctx.db,
                 existing.db_id,
-                fetch_provider_message(ctx, link, payload),
+                Box::pin(fetch_provider_message(ctx, link, payload)),
             )
             .await
             .map_err(|e| {

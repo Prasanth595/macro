@@ -29,7 +29,7 @@ pub async fn backfill_message(
         )
         .await
         .map_err(|e| map_db_error(e, "Failed to look up the stored message"))?;
-    let fetch = ctx.email_api.get_message(link.id, &p.message_provider_id);
+    let fetch = Box::pin(ctx.email_api.get_message(link.id, &p.message_provider_id));
     let (fetched, resync) = match &stored {
         Some(stored) => {
             let (fetched, snapshot) = pending_labels::resync_around(&ctx.db, stored.db_id, fetch)

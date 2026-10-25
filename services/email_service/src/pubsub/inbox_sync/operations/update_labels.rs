@@ -98,8 +98,10 @@ pub async fn update_labels(
     let provider_labels = pending_labels::read_around(
         &ctx.db,
         db_message.db_id,
-        ctx.email_api
-            .get_message_label_ids(link.id, &payload.provider_message_id),
+        Box::pin(
+            ctx.email_api
+                .get_message_label_ids(link.id, &payload.provider_message_id),
+        ),
     )
     .await
     .map_err(|e| {

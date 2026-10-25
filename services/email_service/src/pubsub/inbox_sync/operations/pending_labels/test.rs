@@ -8,18 +8,22 @@ const MESSAGE: Uuid = Uuid::from_u128(0xa);
     fixtures(path = "../../../../../fixtures", scripts("gmail_ops_label_revert"))
 )]
 async fn a_write_gmail_confirms_during_the_read_is_not_trusted_from_it(pool: PgPool) {
-    let read = read_around(&pool, MESSAGE, async {
-        // gmail_ops applies the archive and clears its marker while Gmail's
-        // answer, still showing INBOX, is on its way.
-        sqlx::query!(
-            "DELETE FROM email_gmail_pending_label_writes WHERE message_id = $1",
-            MESSAGE
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-        vec!["INBOX".to_string()]
-    })
+    let read = read_around(
+        &pool,
+        MESSAGE,
+        Box::pin(async {
+            // gmail_ops applies the archive and clears its marker while Gmail's
+            // answer, still showing INBOX, is on its way.
+            sqlx::query!(
+                "DELETE FROM email_gmail_pending_label_writes WHERE message_id = $1",
+                MESSAGE
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+            vec!["INBOX".to_string()]
+        }),
+    )
     .await
     .unwrap();
 
@@ -31,7 +35,7 @@ async fn a_write_gmail_confirms_during_the_read_is_not_trusted_from_it(pool: PgP
     fixtures(path = "../../../../../fixtures", scripts("gmail_ops_label_revert"))
 )]
 async fn a_write_staged_during_the_read_is_not_trusted_from_it(pool: PgPool) {
-    let read = read_around(&pool, MESSAGE, async {
+    let read = read_around(&pool, MESSAGE, Box::pin(async {
         sqlx::query!(
             r#"
             INSERT INTO email_gmail_pending_label_writes
@@ -44,7 +48,7 @@ async fn a_write_staged_during_the_read_is_not_trusted_from_it(pool: PgPool) {
         .execute(&pool)
         .await
         .unwrap();
-    })
+    }))
     .await
     .unwrap();
 
@@ -59,17 +63,21 @@ async fn a_write_staged_during_the_read_is_not_trusted_from_it(pool: PgPool) {
     fixtures(path = "../../../../../fixtures", scripts("gmail_ops_label_revert"))
 )]
 async fn a_resync_snapshot_has_the_labels_stored_before_the_fetch(pool: PgPool) {
-    let (fetched, snapshot) = resync_around(&pool, MESSAGE, async {
-        sqlx::query!(
-            "INSERT INTO email_message_labels (message_id, label_id) VALUES ($1, $2)",
-            MESSAGE,
-            Uuid::from_u128(0xc1),
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-        "fetched"
-    })
+    let (fetched, snapshot) = resync_around(
+        &pool,
+        MESSAGE,
+        Box::pin(async {
+            sqlx::query!(
+                "INSERT INTO email_message_labels (message_id, label_id) VALUES ($1, $2)",
+                MESSAGE,
+                Uuid::from_u128(0xc1),
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+            "fetched"
+        }),
+    )
     .await
     .unwrap();
 

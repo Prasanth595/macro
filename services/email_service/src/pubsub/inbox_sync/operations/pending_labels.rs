@@ -1,5 +1,6 @@
 use email_db_client::labels::pending_writes::pending_provider_label_ids;
 use email_db_client::messages::insert::ResyncSnapshot;
+use futures::future::BoxFuture;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -30,10 +31,15 @@ impl<T> PendingAroundRead<T> {
 }
 
 /// Runs `read` between two reads of the message's pending label writes.
+///
+/// `read` is boxed: a Gmail read is a large future, and an unoptimized build
+/// gives a future passed by value a stack slot in every frame it passes
+/// through and another where it is awaited, enough to overflow a worker
+/// thread's stack on the inbox sync path in a local build.
 pub(in crate::pubsub) async fn read_around<T>(
     db: &PgPool,
     message_id: Uuid,
-    read: impl Future<Output = T>,
+    read: BoxFuture<'_, T>,
 ) -> Result<PendingAroundRead<T>, sqlx::Error> {
     let before = pending_provider_label_ids(db, message_id).await?;
     let value = read.await;
@@ -47,11 +53,12 @@ pub(in crate::pubsub) async fn read_around<T>(
 
 /// Runs `read`, a Gmail fetch of a stored message that is about to be
 /// re-synced, after reading its stored labels and between two reads of its
-/// pending label writes.
+/// pending label writes. `read` is boxed for the reason given on
+/// [`read_around`].
 pub(in crate::pubsub) async fn resync_around<T>(
     db: &PgPool,
     message_id: Uuid,
-    read: impl Future<Output = T>,
+    read: BoxFuture<'_, T>,
 ) -> anyhow::Result<(T, ResyncSnapshot)> {
     let stored_labels = email_db_client::labels::get::fetch_message_labels(db, message_id)
         .await?
