@@ -154,7 +154,7 @@ export function createPipelineViews(
         .with({ layout: 'timeline', range: { kind: 'new-column' } }, () =>
           newTimelineWithTimeRangeColumn({ ...creation, column: uuidv7() })
         )
-        .exhaustive();
+        .exhaustive(() => created({ kind: 'table', columns: [] }));
       return inOrder(listKey, () => apply(ops).andThen(lastView)).map(
         (view) => {
           upsert(view);

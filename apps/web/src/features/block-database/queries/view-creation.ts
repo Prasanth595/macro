@@ -48,7 +48,7 @@ export function prepareViewCreation(
     .with({ layout: 'timeline' }, ({ range }) =>
       timelineLayout(range.kind === 'column' ? range.columnId : dates, columns)
     )
-    .exhaustive();
+    .exhaustive((): ViewLayout => ({ kind: 'table', columns: [] }));
   const view: DatabaseView = {
     ...current,
     id,
