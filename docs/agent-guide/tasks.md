@@ -126,7 +126,7 @@ the optimistic tag. Repeat with an existing assignment and with removal.
 Saved views are available on main Tasks, not inside Project or CRM task lists.
 
 - Desktop: use the **Saved views** sidebar section. Its icon-only **+** remains available while collapsed or empty.
-- Mobile: the bookmark button beside the filter control opens the shared Views drawer. Creation, selection, editing, and deletion work there too.
+- Mobile: the **Saved views** pill follows the built-in task tabs and uses the same mobile pill component. It shows the selected view's name and active styling, and opens the shared Views drawer. Creation, selection, editing, and deletion work there too.
 - **+** starts an unsaved view without person restrictions and with explicit open-status filters. Configure filters, then choose **Save view** and provide a name.
 - **Save view** appears immediately left of Filters when filters differ from the built-in tab defaults. It captures current filters and status, but excludes text search, sort, grouping, and layout. My Tasks adds **Me (each viewer)** to Assignee; Created by me adds it to Created by. Additional people in the same filter use OR matching.
 - Saved views use the normal Assignee and Created by filters, not a separate Scope control. **Me (each viewer)** stays relative; a named person stays fixed. Removing Me removes that restriction.
@@ -134,7 +134,7 @@ Saved views are available on main Tasks, not inside Project or CRM task lists.
 - **Rename** and **Share** edit metadata without saving temporary filter changes. **Duplicate** opens a private copy with a prefilled “(copy)” name; duplicating the selected view includes its temporary filters. Sidebar actions on another view do not change the current selection unless a duplicate is saved.
 - The optional **Share with team** checkbox shares only the filter definition. Each teammate still sees only permitted items. Both the owner and viewer must currently belong to that team; leaving disables access and rejoining restores it.
 - Leaving the view or opening task detail discards temporary edits. The return breadcrumb retains the saved-view identity and reloads its saved filters.
-- An unavailable, deleted, or unsupported view shows an explicit unavailable state, not All Tasks under the old name. Unknown tag/person labels retain their filters until deliberately removed.
+- An unavailable or deleted view shows an explicit unavailable state, not All Tasks under the old name. An authorized but invalid view also shows its stored filters and validation errors. **Keep saved view** returns to Tasks without modifying it. **Recreate view** opens a separate unsaved draft with the valid entries; unsupported formats explicitly fall back to default filters. Review and save the new draft separately. Unknown tag/person labels retain their filters until deliberately removed.
 - A conflicting save retains the draft and offers **Reload saved view** or **Duplicate**. A network failure also retains the name and sharing inputs.
 - Copy links use the existing split search codec, for example `/app/component/tasks?s0.tasks.savedView=<uuid>`.
 
@@ -142,6 +142,7 @@ Verify creation without early persistence, explicit save/reset, copy versus owne
 
 Exercise these flows at desktop, phone, and tablet widths. Check keyboard navigation inside the mobile picker and focus after opening and closing Rename, Share, Duplicate, or Delete. These focused dialogs use the shared imperative dialog host and must close when their owning account or view changes; the mobile drawer closes before the dialog opens. Delay a save while navigating or editing filters, and delay a deletion while selecting its target: stale saves must not change the new selection, later filter edits must survive, and confirmed deletion must clear its selected target.
 Also return a malformed definition from create or from another row's update: the selected view must remain accessible. Advance the selected view's revision while a duplicate saves; completion must not navigate away. Ordinary creation retains current facets even if its confirmed definition differs.
+Verify invalid definitions with a mix of valid and invalid entries, an unsupported field, conflicting tag bindings, and an unknown version. No partial filter set may execute until **Recreate view** is chosen. Check that recreation preserves valid entries, shows omissions, and leaves the original definition unchanged even after saving the new view. Permission failures must not expose stored filters or offer recreation.
 
 ## Gantt layout
 

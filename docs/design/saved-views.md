@@ -25,7 +25,7 @@ main Tasks screen.
 | Navigation | Leaving discards temporary edits without a confirmation prompt. |
 | Creation | The section's icon-only `+` starts an unsaved view; configure before creating. |
 | Capture | Save view appears left of Filters when filters differ from the built-in defaults. |
-| Mobile | Full creation, browsing, editing, and management support. |
+| Mobile | Shared pill tab after the built-in tabs, with full creation, browsing, editing, and management support. |
 | Initial surfaces | Main Tasks only; not project or CRM embedded task lists. |
 | Owner departure | Team sharing stops while the owner is absent and resumes if they rejoin the shared team. |
 
@@ -176,6 +176,14 @@ without issuing a broader query. Missing person or tag labels use an unavailable
 label while retaining their exact filter IDs. Owners can explicitly remove such
 conditions; loading them must not silently remove them. A missing authenticated
 viewer blocks relative-filter execution.
+
+For an authorized but invalid definition, show its stored filter groups and
+field-specific validation errors, including conflicting tag bindings. Keep the
+original unchanged. **Keep saved view** returns to Tasks; **Recreate view** opens
+a separate, unsaved draft containing valid entries from the recognized v1 format.
+List the omitted entries or fields before this action. Unsupported envelopes use
+default task filters instead of guessing their meaning, with an explicit warning.
+Recreation never writes automatically and never silently changes the original.
 
 For dirty-state comparison, deduplicate and order set-valued filters. Reordering
 a selection alone is not a change. One Task codec owns capture, validation,

@@ -24,10 +24,12 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 - Show Save view before Filters only when built-in filters differ from defaults; exclude search and presentation from that comparison.
 - Keep sidebar actions targeted to their own record; Rename and Share preserve unsaved filters, while Duplicate starts with a prefilled private copy.
 - Keep the selected-view overflow menu beside its name on desktop and mobile; keep draft save/reset actions separate.
+- Place the saved-view picker after built-in mobile tabs and use the shared pill button for its trigger.
 - Close the selected-view menu before opening a dialog, discard deferred actions after account or selection changes, and close dialogs after account, saved-view, or built-in-tab navigation.
 - Keep mobile action dialogs owned outside the drawer so closing its content does not dispose the dialog.
 - Honor confirmed deletion when the same account selects the target while deletion is pending; never apply completion to another account.
 - Keep malformed mutation responses separate from selected-view availability, preserve ordinary-create facets, and reject creation completions after the selected revision changes.
+- Keep invalid definitions non-executable; show authorized stored filters and issues, and recreate only through an explicit separate draft without modifying the original.
 
 ## Checks
 

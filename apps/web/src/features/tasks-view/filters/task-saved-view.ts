@@ -94,6 +94,100 @@ export function decodeTaskSavedView(
   return ok(canonical(parsed.data));
 }
 
+export type TaskSavedViewIssue = {
+  path: string[];
+  message: string;
+};
+
+export type TaskSavedViewInspection = {
+  filters: Record<string, unknown> | undefined;
+  issues: TaskSavedViewIssue[];
+  recovered: TaskSavedViewConfig | undefined;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Explains invalid data without applying it; recovery requires an explicit new draft. */
+export function inspectTaskSavedView(value: unknown): TaskSavedViewInspection {
+  const parsed = schema.safeParse(value);
+  const issues: TaskSavedViewIssue[] = parsed.success
+    ? []
+    : parsed.error.issues.flatMap((issue) =>
+        issue.code === 'unrecognized_keys'
+          ? issue.keys.map((key) => ({
+              path: [...issue.path.map(String), key],
+              message: 'This field is not supported.',
+            }))
+          : [{ path: issue.path.map(String), message: issue.message }]
+      );
+  const filters =
+    isRecord(value) && isRecord(value.filters) ? value.filters : undefined;
+  if (
+    !isRecord(value) ||
+    value.kind !== 'tasks' ||
+    value.version !== 1 ||
+    !filters
+  )
+    return { filters, issues, recovered: undefined };
+
+  const recover = <T>(
+    values: unknown,
+    item: z.ZodType<T>,
+    limit: number
+  ): T[] =>
+    Array.isArray(values)
+      ? uniqueSorted(
+          values.flatMap((value) => {
+            const parsed = item.safeParse(value);
+            return parsed.success ? [parsed.data] : [];
+          }),
+          JSON.stringify
+        ).slice(0, limit)
+      : [];
+  const tags = recover(
+    filters.tags,
+    filtersSchema.shape.tags.element,
+    Number.POSITIVE_INFINITY
+  );
+  const definitions = new Map<string, Set<string>>();
+  for (const tag of tags) {
+    const ids = definitions.get(tag.optionId) ?? new Set<string>();
+    ids.add(tag.propertyDefinitionId);
+    definitions.set(tag.optionId, ids);
+  }
+  const conflicting = new Set(
+    [...definitions].filter(([, ids]) => ids.size > 1).map(([id]) => id)
+  );
+  if (Array.isArray(filters.tags)) {
+    filters.tags.forEach((tag, index) => {
+      const parsed = filtersSchema.shape.tags.element.safeParse(tag);
+      if (parsed.success && conflicting.has(parsed.data.optionId))
+        issues.push({
+          path: ['filters', 'tags', String(index)],
+          message: 'This tag has conflicting property definitions.',
+        });
+    });
+  }
+  return {
+    filters,
+    issues,
+    recovered: canonical({
+      kind: 'tasks',
+      version: 1,
+      filters: {
+        statusOptionIds: recover(filters.statusOptionIds, identifier, 100),
+        priorityOptionIds: recover(filters.priorityOptionIds, identifier, 100),
+        assignees: recover(filters.assignees, person, 101),
+        creators: recover(filters.creators, person, 101),
+        tags: tags
+          .filter((tag) => !conflicting.has(tag.optionId))
+          .slice(0, 100),
+      },
+    }),
+  };
+}
+
 const optionId = (id: string, options: typeof TASK_STATUS_OPTIONS): string =>
   options.find((option) => option.id === id)?.propertyOptionId ?? id;
 

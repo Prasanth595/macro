@@ -4,9 +4,18 @@ import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import { writeClipboardData } from '@core/util/dataTransfer';
 import { fireAndForget } from '@core/util/fireAndForget';
+import { Telemetry } from '@macro-inc/observability';
 import DotsIcon from '@phosphor/dots-three.svg';
 import { Button, Dropdown, openDialog } from '@ui';
-import { batch, For, getOwner, type Owner, onCleanup, Show } from 'solid-js';
+import {
+  batch,
+  createMemo,
+  For,
+  getOwner,
+  type Owner,
+  onCleanup,
+  Show,
+} from 'solid-js';
 import { v4 as uuid } from 'uuid';
 import {
   SavedViewList,
@@ -26,8 +35,15 @@ import {
   RenameSavedViewDialog,
   ShareSavedViewDialog,
 } from '../../saved-views/views/saved-view-dialogs';
+import { TaskSavedViewError } from '../components/TaskSavedViewError';
+import {
+  TASK_PRIORITY_OPTIONS,
+  TASK_STATUS_OPTIONS,
+  TASK_VIEWER,
+} from '../filters/task-facets';
 import {
   decodeTaskSavedView,
+  inspectTaskSavedView,
   materializeTaskSavedView,
   type TaskSavedViewConfig,
 } from '../filters/task-saved-view';
@@ -534,5 +550,119 @@ export function TaskSavedViewActions() {
         )}
       </Show>
     </>
+  );
+}
+
+/** Keeps unreadable definitions intact while offering an explicit new draft. */
+export function TaskSavedViewFailure() {
+  const { savedViews, setTab } = useTasksView();
+  const filters = useTaskFilters();
+  const problem = () => {
+    const view = savedViews?.view();
+    return view?.kind === 'unavailable' ? view : undefined;
+  };
+  const inspection = createMemo(() => {
+    const record = problem()?.record;
+    return record ? inspectTaskSavedView(record.config) : undefined;
+  });
+  const fields: Record<string, { id: string; label: string }> = {
+    statusOptionIds: { id: 'status', label: 'Status' },
+    priorityOptionIds: { id: 'priority', label: 'Priority' },
+    assignees: { id: 'assignees', label: 'Assignee' },
+    creators: { id: 'created-by', label: 'Created by' },
+    tags: { id: 'tags', label: 'Tags' },
+  };
+  const pathLabel = (path: string[]) =>
+    path
+      .map((part) => (/^\d+$/.test(part) ? `#${Number(part) + 1}` : part))
+      .join(' → ');
+  const valueLabel = (key: string, value: unknown) => {
+    let id: string | undefined;
+    if (typeof value === 'string') id = value;
+    else if (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value)
+    ) {
+      if ('type' in value && value.type === 'viewer') id = TASK_VIEWER;
+      else if ('id' in value && typeof value.id === 'string') id = value.id;
+      else if ('optionId' in value && typeof value.optionId === 'string')
+        id = value.optionId;
+    }
+    if (id !== undefined) {
+      const known =
+        key === 'statusOptionIds'
+          ? TASK_STATUS_OPTIONS.find((option) => option.propertyOptionId === id)
+          : key === 'priorityOptionIds'
+            ? TASK_PRIORITY_OPTIONS.find(
+                (option) => option.propertyOptionId === id
+              )
+            : undefined;
+      if (known) return known.label;
+      const group = filters
+        .groups()
+        .find((group) => group.id === fields[key]?.id);
+      const label = group?.options.find((option) => option.id === id)?.label;
+      return label ?? id;
+    }
+    return JSON.stringify(value) ?? 'Missing filter definition';
+  };
+  const details = createMemo(() => {
+    const inspected = inspection();
+    const record = problem()?.record;
+    if (!inspected || !record) return;
+    const keys = new Set([
+      ...Object.keys(inspected.filters ?? {}),
+      ...inspected.issues
+        .filter((issue) => issue.path[0] === 'filters' && issue.path.length > 1)
+        .map((issue) => issue.path[1]),
+    ]);
+    return {
+      filters: [...keys].map((key) => {
+        const value = inspected.filters?.[key];
+        return {
+          label: fields[key]?.label ?? key,
+          values: (Array.isArray(value) ? value : [value]).map((value) =>
+            valueLabel(key, value)
+          ),
+          issues: inspected.issues
+            .filter(
+              (issue) => issue.path[0] === 'filters' && issue.path[1] === key
+            )
+            .map(
+              (issue) =>
+                `${pathLabel(issue.path.slice(2))}${issue.path.length > 2 ? ': ' : ''}${issue.message}`
+            ),
+        };
+      }),
+      issues: inspected.issues
+        .filter((issue) => issue.path[0] !== 'filters' || issue.path.length < 2)
+        .map(
+          (issue) =>
+            `${pathLabel(issue.path)}${issue.path.length ? ': ' : ''}${issue.message}`
+        ),
+      source: JSON.stringify(record.config, null, 2),
+      recoverable: inspected.recovered !== undefined,
+    };
+  });
+  return (
+    <TaskSavedViewError
+      message={problem()?.message ?? 'This saved view is unavailable.'}
+      details={details()}
+      onKeep={() => setTab('my-tasks')}
+      onRecreate={() => {
+        const record = problem()?.record;
+        if (!record) return;
+        const recovered = inspection()?.recovered;
+        const span = Telemetry.span('saved_view.recreate');
+        span.setAttr('saved_view.id', record.id);
+        span.setAttr('saved_view.recovery_uses_defaults', !recovered);
+        try {
+          span.run(() => savedViews?.start(recovered));
+        } finally {
+          span.end();
+        }
+      }}
+    />
   );
 }

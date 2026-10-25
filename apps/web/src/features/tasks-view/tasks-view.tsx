@@ -18,7 +18,6 @@ import { ListEntityMetadataQueryProvider } from '@entity';
 import { queryReadyGate } from '@queries/gate';
 import { useCurrentTeamQuery } from '@queries/team/teams';
 import { getGraphqlSoupClient } from '@service-storage/graphql-soup';
-import { Button } from '@ui';
 import {
   createSignal,
   onMount,
@@ -33,6 +32,7 @@ import { TasksContent, TasksLoading } from './tasks-content';
 import { TasksViewProvider, useTasksView } from './tasks-view-context';
 import { tasksTour } from './tour';
 import type { TasksViewStateOptions } from './types';
+import { TaskSavedViewFailure } from './views/task-saved-views';
 
 export type TasksViewProps = {
   /** Explicit navigation state. When present, it wins over entry restoration. */
@@ -93,8 +93,7 @@ function ImportLinearAction() {
 
 function TasksViewRoot() {
   const panel = useSplitPanelOrThrow();
-  const { state, setState, projectsEnabled, savedViews, setTab } =
-    useTasksView();
+  const { state, setState, projectsEnabled, savedViews } = useTasksView();
   const navigate = useNavigate();
   const layout = useSplitLayout();
   const [listElement, setListElement] = createSignal<HTMLDivElement>();
@@ -118,12 +117,7 @@ function TasksViewRoot() {
           when={savedViewReady()}
           fallback={
             <Show when={unavailable()} fallback={<TasksLoading />}>
-              <div class="flex h-full flex-col items-center justify-center gap-3 p-6 text-sm text-ink-muted">
-                <p role="alert">{unavailable()}</p>
-                <Button onClick={() => setTab('my-tasks')}>
-                  Return to Tasks
-                </Button>
-              </div>
+              <TaskSavedViewFailure />
             </Show>
           }
         >
