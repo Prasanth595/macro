@@ -18,7 +18,7 @@ const view: SavedView = {
   sharedTeamId: null,
   config: {
     kind: 'tasks',
-    version: 2,
+    version: 1,
     filters: {
       statusOptionIds: [],
       priorityOptionIds: [],

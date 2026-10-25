@@ -31,9 +31,8 @@ const filtersSchema = z
   .object({
     statusOptionIds: ids,
     priorityOptionIds: ids,
-    // A v1 view can add its scoped viewer to 100 explicitly selected people.
-    assignees: z.array(person).max(101),
-    creators: z.array(person).max(101),
+    assignees: z.array(person).max(100),
+    creators: z.array(person).max(100),
     tags: z
       .array(
         z
@@ -49,18 +48,10 @@ const filtersSchema = z
 const schema = z
   .object({
     kind: z.literal('tasks'),
-    version: z.literal(2),
+    version: z.literal(1),
     filters: filtersSchema,
   })
   .strict();
-const legacySchema = schema.extend({
-  version: z.literal(1),
-  filters: filtersSchema.extend({
-    scope: z.enum(['all', 'assigned-to-viewer', 'created-by-viewer']),
-    assignees: z.array(person).max(100),
-    creators: z.array(person).max(100),
-  }),
-});
 
 export type TaskSavedViewConfig = z.infer<typeof schema>;
 
@@ -74,7 +65,7 @@ function canonical(config: TaskSavedViewConfig): TaskSavedViewConfig {
   const filters = config.filters;
   return {
     kind: 'tasks',
-    version: 2,
+    version: 1,
     filters: {
       statusOptionIds: uniqueSorted(filters.statusOptionIds, String),
       priorityOptionIds: uniqueSorted(filters.priorityOptionIds, String),
@@ -89,7 +80,7 @@ function canonical(config: TaskSavedViewConfig): TaskSavedViewConfig {
 export function decodeTaskSavedView(
   value: unknown
 ): Result<TaskSavedViewConfig, string> {
-  const parsed = z.union([schema, legacySchema]).safeParse(value);
+  const parsed = schema.safeParse(value);
   if (!parsed.success)
     return err('This view contains unsupported or invalid task filters.');
   const definitions = new Map<string, string>();
@@ -99,27 +90,7 @@ export function decodeTaskSavedView(
       return err('This view contains conflicting tag filters.');
     definitions.set(tag.optionId, tag.propertyDefinitionId);
   }
-  const { filters } = parsed.data;
-  const normalized = canonical({
-    kind: 'tasks',
-    version: 2,
-    filters: {
-      ...filters,
-      assignees:
-        parsed.data.version === 1 &&
-        parsed.data.filters.scope === 'assigned-to-viewer'
-          ? [...filters.assignees, { type: 'viewer' }]
-          : filters.assignees,
-      creators:
-        parsed.data.version === 1 &&
-        parsed.data.filters.scope === 'created-by-viewer'
-          ? [...filters.creators, { type: 'viewer' }]
-          : filters.creators,
-    },
-  });
-  if (!schema.safeParse(normalized).success)
-    return err('This view contains too many task filters.');
-  return ok(normalized);
+  return ok(canonical(parsed.data));
 }
 
 const optionId = (id: string, options: typeof TASK_STATUS_OPTIONS): string =>
@@ -178,7 +149,7 @@ export function captureTaskSavedView(input: {
     );
   return decodeTaskSavedView({
     kind: 'tasks',
-    version: 2,
+    version: 1,
     filters: {
       statusOptionIds: (input.facets.status ?? []).map((id) =>
         optionId(id, TASK_STATUS_OPTIONS)

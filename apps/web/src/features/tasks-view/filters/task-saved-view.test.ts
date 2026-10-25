@@ -10,7 +10,7 @@ import {
 
 const definition = {
   kind: 'tasks',
-  version: 2,
+  version: 1,
   filters: {
     statusOptionIds: [PROPERTY_OPTION_IDS.STATUS.IN_PROGRESS],
     priorityOptionIds: [],
@@ -46,53 +46,57 @@ describe('Task saved-view definitions', () => {
     expect(taskSavedViewsEqual(decoded.value, captured.value)).toBe(true);
   });
 
-  it('converts legacy scopes into ordinary person alternatives', () => {
-    for (const [scope, field] of [
-      ['assigned-to-viewer', 'assignees'],
-      ['created-by-viewer', 'creators'],
-    ] as const) {
-      const decoded = decodeTaskSavedView({
+  it('rejects malformed or unsupported definitions without dropping conditions', () => {
+    for (const value of [
+      null,
+      'not a definition',
+      {},
+      { ...definition, version: 2 },
+      {
         ...definition,
-        version: 1,
+        filters: { ...definition.filters, scope: 'assigned-to-viewer' },
+      },
+      {
+        ...definition,
         filters: {
           ...definition.filters,
-          scope,
-          [field]: [{ type: 'user', id: 'macro|owner@example.com' }],
+          assignees: [{ type: 'viewer', id: 'extra' }],
         },
-      });
-      expect(decoded.isOk()).toBe(true);
-      if (decoded.isErr()) continue;
-      expect(decoded.value.version).toBe(2);
-      expect(decoded.value.filters).not.toHaveProperty('scope');
-      expect(decoded.value.filters[field]).toEqual([
-        { type: 'user', id: 'macro|owner@example.com' },
-        { type: 'viewer' },
-      ]);
+      },
+      {
+        ...definition,
+        filters: { ...definition.filters, statusOptionIds: ['invalid-id'] },
+      },
+    ]) {
+      expect(decodeTaskSavedView(value).isErr()).toBe(true);
     }
   });
 
-  it('keeps the largest legacy person selection readable and saveable', () => {
-    const decoded = decodeTaskSavedView({
-      ...definition,
-      version: 1,
-      filters: {
-        ...definition.filters,
-        scope: 'assigned-to-viewer',
-        assignees: Array.from({ length: 100 }, (_, index) => ({
-          type: 'user',
-          id: `macro|person-${index}@example.com`,
-        })),
-      },
-    });
-    expect(decoded.isOk()).toBe(true);
-    if (decoded.isErr()) return;
-    expect(decoded.value.filters.assignees).toHaveLength(101);
-    const restored = materializeTaskSavedView(decoded.value);
+  it('enforces the person limit including viewer-relative filters', () => {
+    const assignees = [
+      { type: 'viewer' },
+      ...Array.from({ length: 99 }, (_, index) => ({
+        type: 'user',
+        id: `macro|person-${index}@example.com`,
+      })),
+    ];
     expect(
-      captureTaskSavedView({
-        ...restored,
-        context: { tagPropertyDefinitionByOptionId: restored.tagBindings },
+      decodeTaskSavedView({
+        ...definition,
+        filters: { ...definition.filters, assignees },
       }).isOk()
+    ).toBe(true);
+    expect(
+      decodeTaskSavedView({
+        ...definition,
+        filters: {
+          ...definition.filters,
+          assignees: [
+            ...assignees,
+            { type: 'user', id: 'macro|overflow@example.com' },
+          ],
+        },
+      }).isErr()
     ).toBe(true);
   });
 
