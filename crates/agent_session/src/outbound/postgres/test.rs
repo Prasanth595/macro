@@ -1624,6 +1624,47 @@ async fn delete_removes_the_session_grants(pool: PgPool) {
     assert_eq!(entity_row_count(&pool, unregistered.id).await, 0);
 }
 
+/// `favorite.entity_id` is polymorphic text as well, so a deleted session has
+/// to leave every user's favorites without touching other saved sessions.
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn delete_removes_the_session_from_every_users_favorites(pool: PgPool) {
+    let repo = test_repo(&pool);
+    let bot_id = create_test_bot(&pool).await;
+    let viewer = "macro|agent-session-favoriter@example.com";
+    insert_user(&pool, viewer).await;
+    let deleted = create_session(&repo, new_session(bot_id, None, None)).await;
+    let kept = create_session(&repo, new_session(bot_id, None, None)).await;
+    for (user, session) in [(OWNER, deleted.id), (viewer, deleted.id), (OWNER, kept.id)] {
+        sqlx::query!(
+            r#"
+            INSERT INTO favorite (user_id, entity_type, entity_id)
+            VALUES ($1, 'agent_session', $2)
+            "#,
+            user,
+            session.as_uuid().to_string(),
+        )
+        .execute(&pool)
+        .await
+        .expect("favorite the session");
+    }
+
+    AgentSessionRepo::delete(&repo, deleted.id)
+        .await
+        .expect("delete agent session");
+
+    let remaining = sqlx::query_scalar!(
+        r#"
+        SELECT user_id || ' ' || entity_id AS "favorite!"
+        FROM favorite
+        WHERE entity_type = 'agent_session'
+        "#,
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("list favorited sessions");
+    assert_eq!(remaining, vec![format!("{OWNER} {}", kept.id.as_uuid())]);
+}
+
 fn cursor_external(agent: &str) -> ExternalSession {
     ExternalSession {
         provider: "cursor".to_string(),

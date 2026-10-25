@@ -1247,6 +1247,16 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
         .await
         .context("failed to delete agent session history rows")?;
 
+        // And for favorites, which every user who saved the session holds.
+        sqlx::query!(
+            r#"DELETE FROM favorite WHERE entity_type = $1 AND entity_id = $2"#,
+            EntityType::AgentSession.as_ref(),
+            id.as_uuid().to_string(),
+        )
+        .execute(&mut *transaction)
+        .await
+        .context("failed to delete agent session favorites")?;
+
         // A session old enough to have owned a dedicated channel leaves it
         // behind: it holds the history that channel renders, and is not this
         // operation's to destroy.

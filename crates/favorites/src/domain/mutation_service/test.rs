@@ -170,7 +170,8 @@ impl FavoritesAuthorizer for FakeAuthorizer {
 /// receipts through the same requirement check as the real service.
 #[derive(Clone)]
 struct ResolvedAccess {
-    permission: EntityPermission,
+    /// `None` when the entity does not exist.
+    permission: Option<EntityPermission>,
 }
 
 impl EntityAccessService for ResolvedAccess {
@@ -181,13 +182,14 @@ impl EntityAccessService for ResolvedAccess {
         entity_id: &str,
         entity_type: EntityType,
     ) -> Result<EntityAccessReceipt<T>, AccessError> {
+        let permission = self.permission.ok_or(AccessError::NotFound("entity"))?;
         EntityAccessReceipt::try_new_authenticated_user(
             MacroUserIdStr(user_id.clone().into_owned()),
             AccessEntity {
                 entity_id: entity_id.to_string(),
                 entity_type,
             },
-            self.permission,
+            permission,
         )
     }
     async fn generate_bot_entity_access_receipt<T: RequiredPermission>(
@@ -359,6 +361,7 @@ async fn every_supported_interactive_entity_can_be_added_and_removed() {
         EntityType::ForeignEntity,
         EntityType::CrmCompany,
         EntityType::CrmContact,
+        EntityType::AgentSession,
     ] {
         let favorites = Arc::new(FakeFavoritesService::default());
         let authorizer = Arc::new(FakeAuthorizer::default());
@@ -399,11 +402,20 @@ async fn entity_access_authorizes_each_entity_kind_with_its_own_view_permission(
                 role: ParticipantRole::Member,
             },
         ),
+        // A viewer of a session's originating channel inherits View on it.
+        (
+            EntityType::AgentSession,
+            EntityPermission::AccessLevel {
+                access_level: AccessLevel::View,
+            },
+        ),
     ] {
         let favorites = Arc::new(FakeFavoritesService::default());
         let service = FavoritesMutationServiceImpl::new(
             favorites.clone(),
-            Arc::new(ResolvedAccess { permission }),
+            Arc::new(ResolvedAccess {
+                permission: Some(permission),
+            }),
         );
 
         let result = service
@@ -423,6 +435,29 @@ async fn entity_access_authorizes_each_entity_kind_with_its_own_view_permission(
             vec![ServiceCall::Add(entity_type, "entity-1".to_string())]
         );
     }
+}
+
+#[tokio::test]
+async fn adding_an_agent_session_before_it_exists_reports_not_found() {
+    let favorites = Arc::new(FakeFavoritesService::default());
+    let service = FavoritesMutationServiceImpl::new(
+        favorites.clone(),
+        Arc::new(ResolvedAccess { permission: None }),
+    );
+
+    let result = service
+        .set_favorite(
+            actor(),
+            EntityType::AgentSession.with_entity_string("session-1".to_string()),
+            true,
+        )
+        .await;
+
+    assert!(
+        matches!(result, Err(FavoritesError::NotFound)),
+        "got {result:?}"
+    );
+    assert!(favorites.calls().is_empty());
 }
 
 #[tokio::test]
