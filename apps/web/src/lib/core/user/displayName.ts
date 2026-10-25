@@ -320,3 +320,13 @@ export function seedMockDisplayNames(
     });
   }
 }
+
+export function rememberDisplayNames(
+  _people: Array<{
+    id: string;
+    firstName?: string | null;
+    lastName?: string | null;
+  }>
+) {
+  throw new Error('not implemented');
+}
