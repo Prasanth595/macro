@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use rootcause::Report;
 use uuid::Uuid;
 
+use super::copies::{CopyChange, CopyRefusal};
 use super::ics::{CalendarEventExport, CalendarEventIcs, EventSnapshot};
 use super::join_requests::{CalendarJoinRequest, CalendarJoinRequestStatus};
 use super::meeting_links::{
@@ -21,9 +22,9 @@ use super::models::{
     CalendarReminderDispatchMessage, CalendarReminderFiring, CalendarReminderSweepSummary,
     CalendarSyncStatus, DisconnectedCalendar, DueCalendarReminder, EventDetails,
     GoogleCalendarSyncSnapshot, GoogleEventSyncBatch, GoogleScopeSet, GoogleSyncPlan,
-    GoogleWatchChannel, GoogleWatchConfig, GuestPolicy, OccurrenceListing, OccurrenceRange,
-    OwnedInbox, ProviderCalendar, ProviderCalendarTarget, StoredGoogleCalendar, TeamOutOfOffice,
-    VisibleCalendar,
+    GoogleWatchChannel, GoogleWatchConfig, GuestPolicy, MeetingCopy, OccurrenceListing,
+    OccurrenceRange, OwnedInbox, ProviderCalendar, ProviderCalendarTarget, StoredGoogleCalendar,
+    TeamOutOfOffice, VisibleCalendar,
 };
 
 /// Classification supplied by provider adapters to backfill policy.
@@ -406,6 +407,22 @@ pub enum ProviderImportOutcome {
     Refused(CalendarProviderError),
 }
 
+/// Confirms which copy of a meeting a caller changes when the meeting is on
+/// several of the requester's own inboxes, for callers that must name it.
+pub trait CalendarCopyConfirmation: Send + Sync + 'static {
+    /// `Some` refusal, listing each copy, when `event_id` is one of several
+    /// inboxes' copies of its meeting and `inbox` does not name the inbox
+    /// holding it (see [`crate::domain::copies::check_copy`]); `None` to go
+    /// ahead.
+    fn confirm_copy(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+        inbox: Option<&str>,
+        change: CopyChange,
+    ) -> impl Future<Output = Result<Option<CopyRefusal>, CalendarMutationError>> + Send;
+}
+
 /// Inbound service port for querying calendar occurrence projections.
 pub trait CalendarOccurrenceService: Send + Sync + 'static {
     /// Return occurrences visible to a requester in a bounded viewport.
@@ -454,6 +471,15 @@ pub trait CalendarOccurrenceService: Send + Sync + 'static {
         &self,
         requester_id: &str,
     ) -> impl Future<Output = Result<Option<String>, Report>> + Send;
+
+    /// Every copy of `event_id`'s meeting the requester holds through one of
+    /// their own inboxes, so a caller can tell when one meeting sits on
+    /// several of them.
+    fn meeting_copies(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<MeetingCopy>, Report>> + Send;
 
     /// Render an event the requester can see — their own, or one shared with
     /// a channel they belong to — as an iCalendar document, with its title.
@@ -568,6 +594,16 @@ pub trait CalendarRepository: Send + Sync + 'static {
         items: Vec<CalendarMentionRequestItem>,
         now: DateTime<Utc>,
     ) -> impl Future<Output = Result<Vec<CalendarMentionPreview>, Report>> + Send;
+
+    /// Every copy of `event_id`'s meeting (same iCalendar UID) the requester
+    /// holds through an inbox they own or have linked, ordered by inbox.
+    /// Cancelled copies are left out, and an event they hold no copy of
+    /// yields none.
+    fn meeting_copies(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<MeetingCopy>, Report>> + Send;
 
     /// Series content of an event the requester can see, for export or
     /// copying, with how they see it: the requester's own projection of the

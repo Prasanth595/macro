@@ -6,6 +6,7 @@ import {
   type SearchSoupQueryArgs,
   useSearchSoupQuery,
 } from '@queries/soup/search';
+import type { CalendarEventSearchScope } from '@service-search/generated/models';
 import { createLazyMemo } from '@solid-primitives/memo';
 import type { Accessor } from 'solid-js';
 import type { CalendarEventMentionItem } from '../../../../utils/mentionsUtils';
@@ -70,9 +71,23 @@ export function calendarEventMentionItems(
   return items;
 }
 
+function calendarEventResults(
+  results: readonly WithSearch<EntityData>[]
+): CalendarEventEntity[] {
+  return results.filter(
+    (
+      entity
+    ): entity is WithSearch<Extract<EntityData, { type: 'calendar_event' }>> =>
+      entity.type === 'calendar_event'
+  );
+}
+
 /**
  * Calendar events for the mention menu, through the same unified search the
- * calendar's own search uses, and only where that search is offered.
+ * calendar's own search uses, and only where that search is offered. Events
+ * shared with the viewer's channels follow the viewer's own, as documents
+ * shared that way appear beside their own; mentioning one inserts the shared
+ * event, which opens for whoever can already see it.
  */
 export function useCalendarEventMention(
   options: UseCalendarEventMentionOptions
@@ -82,30 +97,37 @@ export function useCalendarEventMention(
   const enabled = () =>
     options.enabled() && calendarSearch() && term().length >= MIN_QUERY_LENGTH;
 
-  const args = createLazyMemo(
-    (): SearchSoupQueryArgs => ({
-      params: { cursor: null, page_size: 10 },
-      body: {
-        match_type: 'partial',
-        search_on: 'name',
-        query: term(),
-        filters: CALENDAR_ONLY_SEARCH_FILTERS,
-      },
-    })
+  const searchArgs = (scope?: CalendarEventSearchScope) =>
+    createLazyMemo(
+      (): SearchSoupQueryArgs => ({
+        params: { cursor: null, page_size: 10 },
+        body: {
+          match_type: 'partial',
+          search_on: 'name',
+          query: term(),
+          filters: CALENDAR_ONLY_SEARCH_FILTERS,
+          calendar_event_scope: scope,
+        },
+      })
+    );
+  // Nothing tells a viewer they lost access to an event, so each search asks
+  // again when shown, keeping the earlier answer on screen until it lands.
+  const searchOptions = () => ({ enabled: enabled(), staleTime: 0 });
+  const own = useSearchSoupQuery(searchArgs(), searchOptions);
+  const shared = useSearchSoupQuery(
+    searchArgs('shared_with_you'),
+    searchOptions
   );
-  const search = useSearchSoupQuery(args, () => ({ enabled: enabled() }));
 
   const events = createLazyMemo((): CalendarEventMentionItem[] => {
-    if (!enabled() || !queryReadyGate(search)) return [];
-    return calendarEventMentionItems(
-      search.data.filter(
-        (
-          entity
-        ): entity is WithSearch<
-          Extract<EntityData, { type: 'calendar_event' }>
-        > => entity.type === 'calendar_event'
-      )
-    );
+    if (!enabled() || !queryReadyGate(own)) return [];
+    // Shared events only ever follow the viewer's own, so a late answer
+    // appends below what is already listed instead of reordering it.
+    const sharedEvents = queryReadyGate(shared) ? shared.data : [];
+    return calendarEventMentionItems([
+      ...calendarEventResults(own.data),
+      ...calendarEventResults(sharedEvents),
+    ]);
   });
 
   return { events };

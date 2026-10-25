@@ -5363,7 +5363,8 @@
           "provider_rejected",
           "retryable",
           "persist_failed",
-          "macro_call_failed"
+          "macro_call_failed",
+          "copy_choice_required"
         ]
       },
       "CalendarOccurrence": {
