@@ -147,7 +147,10 @@ impl OutlookApiClientRepository {
             let mailbox = self.mailbox.ok_or_else(invalid_response)?;
             let permit = gate
                 .acquire(mailbox)
-                .instrument(tracing::info_span!("outlook.graph_admission"))
+                .instrument(tracing::info_span!(
+                    "outlook.graph_admission",
+                    link_id = %mailbox.link_id
+                ))
                 .await?;
             Some((mailbox, permit))
         } else {
