@@ -280,7 +280,8 @@ first instead. It pauses autosave and cancels the pending edit, leaves, then
 finishes the in-flight save, the local flush, and the deletion in the
 background. A queued write can wait out the mutation queue's request and
 delivery timeouts, and the optimistic delete empties a draft-only thread
-around the composer, so leaving cannot wait on either.
+around the composer, so leaving cannot wait on either. A host that fails to
+leave is reported, and the deletion still runs.
 
 The send notice follows each queued send through `EmailDelivery.watchSend`,
 which reads the device outbox. Undo stays on offer until the deadline the server
