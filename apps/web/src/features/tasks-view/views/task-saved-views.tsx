@@ -63,7 +63,7 @@ function useTaskSavedViewDialogs() {
   });
   createEffect(
     on(
-      () => [viewerId(), savedViews?.selectedId()] as const,
+      () => [viewerId(), savedViews?.selectedId(), state.tab] as const,
       (_next, previous) => {
         if (previous) dialogs.close();
       }
