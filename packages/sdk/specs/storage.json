@@ -15050,6 +15050,146 @@
         }
       }
     },
+    "/initiatives/{initiative_id}/description/token": {
+      "post": {
+        "tags": ["initiative"],
+        "summary": "Grant the caller read-only access to the project description, signed in or\nnot. Never creates the description.",
+        "operationId": "create_initiative_description_token",
+        "parameters": [
+          {
+            "name": "initiative_id",
+            "in": "path",
+            "description": "Initiative identifier.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescriptionReader"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The caller may not view the initiative",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/initiatives/{initiative_id}/overview": {
+      "get": {
+        "tags": ["initiative"],
+        "summary": "Read a project page the caller can view, signed in or not.",
+        "operationId": "get_initiative_overview",
+        "parameters": [
+          {
+            "name": "initiative_id",
+            "in": "path",
+            "description": "Initiative identifier.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The caller may not view the initiative",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/instructions": {
       "get": {
         "tags": ["instructions::get_instructions"],
@@ -26489,6 +26629,37 @@
           }
         ]
       },
+      "DescriptionReader": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "No one has opened or written the description, so there is nothing to sync.",
+            "required": ["state"],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": ["empty"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Connect to the description's sync session read-only with this grant.",
+            "required": ["token", "state"],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": ["live"]
+              },
+              "token": {
+                "type": "string",
+                "description": "Sync-service connection token."
+              }
+            }
+          }
+        ],
+        "description": "How a reader connects to a project description without changing it."
+      },
       "DirectAccess": {
         "type": "object",
         "description": "A direct user grant; inherited grants are deliberately not editable here.",
@@ -32231,6 +32402,110 @@
           }
         }
       },
+      "InitiativeOverview": {
+        "type": "object",
+        "description": "What a project page shows a reader who may not change it.",
+        "required": ["summary", "ownerId", "tasks", "people", "description"],
+        "properties": {
+          "description": {
+            "$ref": "#/components/schemas/DescriptionReader",
+            "description": "How to read the description."
+          },
+          "ownerId": {
+            "$ref": "#/components/schemas/MacroUserIdStr",
+            "description": "Owner of the initiative."
+          },
+          "people": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileName"
+            },
+            "description": "Profile names of the owner and of every assignee shown."
+          },
+          "summary": {
+            "$ref": "#/components/schemas/InitiativePageRow",
+            "description": "Identity, canonical properties and visible task progress."
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskOverview"
+            },
+            "description": "Visible tasks in id order."
+          }
+        }
+      },
+      "InitiativePageRow": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/InitiativeSummary",
+            "description": "Existing initiative identity and timestamps."
+          },
+          {
+            "type": "object",
+            "required": [
+              "userAccessLevel",
+              "properties",
+              "taskCount",
+              "completedTaskCount"
+            ],
+            "properties": {
+              "completedTaskCount": {
+                "type": "integer",
+                "format": "int32",
+                "description": "Number of visible tasks whose status is completed.",
+                "minimum": 0
+              },
+              "properties": {
+                "$ref": "#/components/schemas/InitiativePropertySnapshot",
+                "description": "Canonical property values."
+              },
+              "taskCount": {
+                "type": "integer",
+                "format": "int32",
+                "description": "Number of associated tasks the caller may view.",
+                "minimum": 0
+              },
+              "userAccessLevel": {
+                "$ref": "#/components/schemas/AccessLevel",
+                "description": "Verified effective access for the caller."
+              }
+            }
+          }
+        ],
+        "description": "A project row with caller-specific permissions, properties and visible task progress."
+      },
+      "InitiativePropertySnapshot": {
+        "type": "object",
+        "description": "Snapshot of canonical property values, never a second writable store.",
+        "required": ["assignees", "completed"],
+        "properties": {
+          "assignees": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Assigned user ids, independent of sharing membership."
+          },
+          "completed": {
+            "type": "boolean",
+            "description": "Whether the canonical task status represents completion."
+          },
+          "dueDate": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Due timestamp, or unset."
+          },
+          "priority": {
+            "type": ["string", "null"],
+            "description": "Priority option id, or unset."
+          },
+          "status": {
+            "type": ["string", "null"],
+            "description": "Status option id, or unset."
+          }
+        }
+      },
       "InitiativeSummary": {
         "type": "object",
         "description": "List-row view of an initiative.",
@@ -35470,6 +35745,25 @@
           "sha": {
             "type": "string",
             "description": "The sha of the item"
+          }
+        }
+      },
+      "ProfileName": {
+        "type": "object",
+        "description": "A user's name from their own profile, never from the reader's contacts.\nA part the profile leaves unset is null.",
+        "required": ["id"],
+        "properties": {
+          "firstName": {
+            "type": ["string", "null"],
+            "description": "First name, if set."
+          },
+          "id": {
+            "type": "string",
+            "description": "User id."
+          },
+          "lastName": {
+            "type": ["string", "null"],
+            "description": "Last name, if set."
           }
         }
       },
@@ -40986,6 +41280,25 @@
           "include_cbm_atm_nc": {
             "type": ["boolean", "null"],
             "description": "Include tasks that are created by me, assigned to me, and not completed,\neven when they do not match other document filters."
+          }
+        }
+      },
+      "TaskOverview": {
+        "type": "object",
+        "description": "A visible task as a project page lists it.",
+        "required": ["id", "name", "properties"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Task id."
+          },
+          "name": {
+            "type": "string",
+            "description": "Task name; empty when the task has none."
+          },
+          "properties": {
+            "$ref": "#/components/schemas/InitiativePropertySnapshot",
+            "description": "Canonical property values."
           }
         }
       },

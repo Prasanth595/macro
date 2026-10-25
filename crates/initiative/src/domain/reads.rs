@@ -30,8 +30,12 @@ pub(super) fn page_size(limit: Option<u16>) -> Result<usize, InitiativeError> {
 #[serde(rename_all = "camelCase")]
 pub struct InitiativePropertySnapshot {
     /// Status option id, or unset.
+    // System option ids are not RFC 4122 UUIDs, so generated clients that
+    // validate `uuid` would reject them.
+    #[cfg_attr(feature = "inbound", schema(value_type = Option<String>))]
     pub status: Option<Uuid>,
     /// Priority option id, or unset.
+    #[cfg_attr(feature = "inbound", schema(value_type = Option<String>))]
     pub priority: Option<Uuid>,
     /// Assigned user ids, independent of sharing membership.
     pub assignees: Vec<String>,

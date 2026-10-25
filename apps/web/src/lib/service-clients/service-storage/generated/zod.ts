@@ -24428,6 +24428,186 @@ export const updateInitiativeResponse = zod
   );
 
 /**
+ * @summary Grant the caller read-only access to the project description, signed in or
+not. Never creates the description.
+ */
+export const createInitiativeDescriptionTokenParams = zod.object({
+  initiative_id: zod.string().describe('Initiative identifier.'),
+});
+
+export const createInitiativeDescriptionTokenResponse = zod
+  .union([
+    zod
+      .object({
+        state: zod.enum(['empty']),
+      })
+      .describe(
+        'No one has opened or written the description, so there is nothing to sync.'
+      ),
+    zod
+      .object({
+        state: zod.enum(['live']),
+        token: zod.string().describe('Sync-service connection token.'),
+      })
+      .describe(
+        "Connect to the description's sync session read-only with this grant."
+      ),
+  ])
+  .describe(
+    'How a reader connects to a project description without changing it.'
+  );
+
+/**
+ * @summary Read a project page the caller can view, signed in or not.
+ */
+export const getInitiativeOverviewParams = zod.object({
+  initiative_id: zod.string().describe('Initiative identifier.'),
+});
+
+export const getInitiativeOverviewResponseSummaryCompletedTaskCountMin = 0;
+
+export const getInitiativeOverviewResponseSummaryTaskCountMin = 0;
+
+export const getInitiativeOverviewResponse = zod
+  .object({
+    description: zod
+      .union([
+        zod
+          .object({
+            state: zod.enum(['empty']),
+          })
+          .describe(
+            'No one has opened or written the description, so there is nothing to sync.'
+          ),
+        zod
+          .object({
+            state: zod.enum(['live']),
+            token: zod.string().describe('Sync-service connection token.'),
+          })
+          .describe(
+            "Connect to the description's sync session read-only with this grant."
+          ),
+      ])
+      .describe(
+        'How a reader connects to a project description without changing it.'
+      ),
+    ownerId: zod.string(),
+    people: zod
+      .array(
+        zod
+          .object({
+            firstName: zod.string().nullish().describe('First name, if set.'),
+            id: zod.string().describe('User id.'),
+            lastName: zod.string().nullish().describe('Last name, if set.'),
+          })
+          .describe(
+            "A user's name from their own profile, never from the reader's contacts.\nA part the profile leaves unset is null."
+          )
+      )
+      .describe('Profile names of the owner and of every assignee shown.'),
+    summary: zod
+      .object({
+        id: zod
+          .uuid()
+          .describe(
+            'Opaque identifier for an initiative. Minted as UUIDv7 in application code.'
+          ),
+        name: zod.string().describe('Display name.'),
+        updatedAt: zod.iso
+          .datetime({})
+          .describe('When the initiative was last updated.'),
+      })
+      .describe('List-row view of an initiative.')
+      .and(
+        zod.object({
+          completedTaskCount: zod
+            .number()
+            .min(getInitiativeOverviewResponseSummaryCompletedTaskCountMin)
+            .describe('Number of visible tasks whose status is completed.'),
+          properties: zod
+            .object({
+              assignees: zod
+                .array(zod.string())
+                .describe(
+                  'Assigned user ids, independent of sharing membership.'
+                ),
+              completed: zod
+                .boolean()
+                .describe(
+                  'Whether the canonical task status represents completion.'
+                ),
+              dueDate: zod.iso
+                .datetime({})
+                .nullish()
+                .describe('Due timestamp, or unset.'),
+              priority: zod
+                .string()
+                .nullish()
+                .describe('Priority option id, or unset.'),
+              status: zod
+                .string()
+                .nullish()
+                .describe('Status option id, or unset.'),
+            })
+            .describe(
+              'Snapshot of canonical property values, never a second writable store.'
+            ),
+          taskCount: zod
+            .number()
+            .min(getInitiativeOverviewResponseSummaryTaskCountMin)
+            .describe('Number of associated tasks the caller may view.'),
+          userAccessLevel: zod
+            .enum(['view', 'comment', 'edit', 'owner'])
+            .describe('Ordered from least to most access top -> bottom'),
+        })
+      )
+      .describe(
+        'A project row with caller-specific permissions, properties and visible task progress.'
+      ),
+    tasks: zod
+      .array(
+        zod
+          .object({
+            id: zod.string().describe('Task id.'),
+            name: zod
+              .string()
+              .describe('Task name; empty when the task has none.'),
+            properties: zod
+              .object({
+                assignees: zod
+                  .array(zod.string())
+                  .describe(
+                    'Assigned user ids, independent of sharing membership.'
+                  ),
+                completed: zod
+                  .boolean()
+                  .describe(
+                    'Whether the canonical task status represents completion.'
+                  ),
+                dueDate: zod.iso
+                  .datetime({})
+                  .nullish()
+                  .describe('Due timestamp, or unset.'),
+                priority: zod
+                  .string()
+                  .nullish()
+                  .describe('Priority option id, or unset.'),
+                status: zod
+                  .string()
+                  .nullish()
+                  .describe('Status option id, or unset.'),
+              })
+              .describe(
+                'Snapshot of canonical property values, never a second writable store.'
+              ),
+          })
+          .describe('A visible task as a project page lists it.')
+      )
+      .describe('Visible tasks in id order.'),
+  })
+  .describe('What a project page shows a reader who may not change it.');
+
+/**
  * @summary Gets the instructions document for the current user
  */
 export const getInstructionsHandlerResponse = zod.object({

@@ -14,9 +14,11 @@ properties, and activity.
 - `src/domain/assignees.rs`, `src/domain/history.rs`, `src/domain/activity.rs`:
   assignment policy, change history, and activity recording.
 - `src/outbound/pg_initiative_repo.rs` (+ `create.rs`, `list.rs`, `members.rs`,
-  `share.rs`): the Postgres adapter, split by operation.
+  `names.rs`, `share.rs`): the Postgres adapter, split by operation.
 - `src/inbound/toolset/`: AI toolset surface (lifecycle, reads, sharing).
-- `src/inbound/axum_router/`: REST surface (create/get/list/update/delete).
+- `src/inbound/axum_router/`: REST surface (create/get/list/update/delete, plus
+  the read-only `overview` and `description/token` that admit signed-out
+  callers through a Public link).
 - `fixtures/initiative_test_data.sql`: seed data for repo tests.
 
 ## Scope
@@ -44,6 +46,14 @@ properties, and activity.
 ## Checks
 
 - `cargo test -p initiative --all-features` (`SQLX_OFFLINE` unset).
+
+## Gotchas
+
+- A read-only page names people through `InitiativeRepo::profile_names`, the
+  user's own profile. Never use contact-derived names there: the reader may be
+  signed out or a stranger.
+- `overview` and `description_reader` never ensure the description surface. A
+  description no one has opened reads as `empty`.
 
 ## Related
 

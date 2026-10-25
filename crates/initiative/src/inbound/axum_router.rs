@@ -5,8 +5,10 @@ mod test;
 
 pub mod create;
 pub mod delete;
+pub mod description;
 pub mod get;
 pub mod list;
+pub mod overview;
 pub mod update;
 
 use std::str::FromStr;
@@ -28,7 +30,9 @@ use serde::{Deserialize, Serialize};
 
 pub use self::{
     create::create_initiative_handler, delete::delete_initiative_handler,
-    get::get_initiative_handler, list::list_initiatives_handler, update::update_initiative_handler,
+    description::create_initiative_description_token_handler, get::get_initiative_handler,
+    list::list_initiatives_handler, overview::get_initiative_overview_handler,
+    update::update_initiative_handler,
 };
 use crate::domain::{
     models::{InitiativeBasic, InitiativeError, InitiativeId},
@@ -114,6 +118,14 @@ where
             routing::get(get_initiative_handler::<S, Eas, Auth>)
                 .patch(update_initiative_handler::<S, Eas, Auth>)
                 .delete(delete_initiative_handler::<S, Eas, Auth>),
+        )
+        .route(
+            "/{initiative_id}/overview",
+            routing::get(get_initiative_overview_handler::<S, Eas, Auth>),
+        )
+        .route(
+            "/{initiative_id}/description/token",
+            routing::post(create_initiative_description_token_handler::<S, Eas, Auth>),
         )
         .layer(middleware::from_fn_with_state(
             state.clone(),
