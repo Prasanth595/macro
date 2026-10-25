@@ -1115,7 +1115,12 @@ export function createEmailComposer(props: EmailComposerOptions) {
     // first, because a queued save or delete can take minutes and the
     // optimistic delete empties a draft-only thread around this composer.
     // Discarding keeps autosave paused, so disposal cannot save it again.
-    props.host?.goBack?.();
+    // A host that cannot leave must not keep the draft from being deleted.
+    try {
+      props.host?.goBack?.();
+    } catch (error) {
+      props.notices.reportError(error);
+    }
     try {
       // A first save may still be creating the draft. Delete its returned ID
       // after it settles so discard cannot leave an orphan behind.
