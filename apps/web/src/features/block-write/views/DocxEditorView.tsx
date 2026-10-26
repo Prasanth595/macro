@@ -75,6 +75,8 @@ export type DocxEditorViewProps = {
   footer?: (comments: DocxComments) => JSX.Element;
   onDownload: (bytes: Uint8Array) => void;
   onError?: (error: unknown) => void;
+  /** Typing or pasting while the document is read-only. */
+  onEditAttempt?: () => void;
   /** Test hook: the mounted editor. */
   onReady?: (editor: DocxEditor) => void;
 };
@@ -442,6 +444,7 @@ export function DocxEditorView(props: DocxEditorViewProps) {
                 inputRef={(el) => {
                   input = el;
                 }}
+                onEditAttempt={props.onEditAttempt}
                 overlay={(g) => (
                   <>
                     {findHighlights(g)}

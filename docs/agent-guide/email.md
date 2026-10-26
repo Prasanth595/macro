@@ -88,10 +88,15 @@ the send button's pending state. Switching the sender
 inbox copies the draft and attachments into the destination; wait for completion
 before sending. If the copy is interrupted, use retry or keep the original.
 
-Opening an attachment opens it in a split from its Drive copy, except a
-calendar file: it opens its event (see the calendar invitations section of the
-calendar guide), or downloads when Macro could not read one, and creates no
-Drive file.
+Opening an attachment opens it in a split, except a calendar file: it opens
+its event (see the calendar invitations section of the calendar guide), or
+downloads when Macro could not read one, and creates no Drive file. A Word
+attachment is the sender's file and cannot be edited. The first open shows
+that file. Typing, or **Save a copy**, saves a copy into Drive (with any
+edits already on the file) and opens that copy. Opening the attachment again
+asks which file to open: a Drive copy already saved, the edits still on the
+attachment when nothing has been saved yet, or **Fresh copy** (the original
+bytes, saved to Drive). The document menu (**…**) includes **Download .docx**.
 
 Imported Outlook attachments keep their provider identity, including inline
 images. Cloud-reference attachment chips open the original Outlook message.

@@ -3,11 +3,13 @@ import {
   ResponsiveBlockToolbar,
   ResponsivePermissionsBadge,
 } from '@components/app/ResponsiveBlockToolbar';
+import type { FileOperation } from '@components/app/split-layout/components/SplitFileMenu';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
 } from '@components/app/split-layout/components/SplitHeader';
 import { BlockItemSplitLabel } from '@components/app/split-layout/components/SplitLabel';
+import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useBlockId } from '@core/block';
 import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
 import { BlockLiveIndicators } from '@core/component/LiveIndicators';
@@ -29,12 +31,27 @@ import {
 } from '@core/signal/permissions';
 import { getDisplayName, tryMacroId } from '@core/user';
 import { useBlockDocumentName } from '@core/util/currentBlockDocumentName';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { downloadFile } from '@filesystem/download';
 import IconShared from '@icon/share.svg';
+import DownloadIcon from '@phosphor/download-simple.svg';
+import {
+  emailAttachmentForDocumentOptions,
+  saveEditedAttachmentCopy,
+} from '@queries/email/attachment-copies';
 import { useMessageRootsQuery } from '@queries/messages/document-messages';
-import { Badge } from '@ui';
-import { createMemo, Match, onMount, Show, Switch } from 'solid-js';
+import { useQuery } from '@tanstack/solid-query';
+import { Badge, Button, Dialog, Panel } from '@ui';
+import {
+  createMemo,
+  createSignal,
+  Match,
+  onMount,
+  Show,
+  Switch,
+} from 'solid-js';
 import type { DocxBlockData } from './definition';
+import type { DocxEditor } from './primitives/create-docx-editor';
 import {
   buildDocxSeed,
   connectDocxSync,
@@ -60,6 +77,16 @@ export default function DocxBlock(props: { share?: string }) {
   const documentId = useBlockId();
   const name = useBlockDocumentName('Document');
   const canEdit = useCanEdit();
+  const { replaceSplit } = useSplitLayout();
+  const attachment = useQuery(() =>
+    emailAttachmentForDocumentOptions(documentId)
+  );
+  const attachmentId = () =>
+    attachment.isSuccess ? attachment.data : undefined;
+  const locked = () => !!attachmentId();
+  const [editor, setEditor] = createSignal<DocxEditor>();
+  const [saveOpen, setSaveOpen] = createSignal(false);
+  const [saving, setSaving] = createSignal(false);
   const canComment = useCanComment();
   const isOwner = useIsDocumentOwner();
   const userId = useUserId();
@@ -97,6 +124,62 @@ export default function DocxBlock(props: { share?: string }) {
       error instanceof Error ? error.message : 'Something went wrong'
     );
   };
+  const downloadBytes = (bytes: Uint8Array) =>
+    downloadFile(
+      new Blob([bytes.slice().buffer], { type: DOCX_MIME }),
+      fileName()
+    );
+  const download = () => {
+    const current = editor();
+    if (!current) {
+      toast.failure('The document is still opening.');
+      return;
+    }
+    fireAndForget(
+      current
+        .idle()
+        .then(() => current.save())
+        .then(downloadBytes)
+        .catch((error: unknown) => {
+          console.error(error);
+          toast.failure('Failed to download file');
+        }),
+      'docx-download'
+    );
+  };
+  const saveCopy = async () => {
+    const id = attachmentId();
+    const current = editor();
+    if (!id || saving()) return;
+    if (!current) {
+      toast.failure('The document is still opening.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const bytes = await current.idle().then(() => current.save());
+      const savedId = await saveEditedAttachmentCopy(id, bytes, fileName());
+      setSaveOpen(false);
+      replaceSplit({ content: { type: 'write', id: savedId } });
+    } catch (error) {
+      console.error(error);
+      toast.failure('Failed to save a copy to Drive. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const ops: FileOperation[] = [
+    { op: 'rename' },
+    { op: 'copy' },
+    { op: 'moveToProject' },
+    {
+      group: 'file',
+      label: 'Download .docx',
+      icon: DownloadIcon,
+      action: download,
+    },
+    { op: 'delete' },
+  ];
 
   return (
     <DocumentBlockContainer>
@@ -131,12 +214,7 @@ export default function DocxBlock(props: { share?: string }) {
           id={documentId}
           itemType="document"
           name={name()}
-          ops={[
-            { op: 'rename' },
-            { op: 'copy' },
-            { op: 'moveToProject' },
-            { op: 'delete' },
-          ]}
+          ops={ops}
           tools={[
             {
               group: 'sharing',
@@ -148,7 +226,31 @@ export default function DocxBlock(props: { share?: string }) {
             },
           ]}
         />
-        <Show when={data()} keyed>
+        <Show when={locked()}>
+          <div class="flex items-center gap-3 border-b border-edge-muted px-4 py-2 text-sm">
+            <p class="min-w-0 flex-1 text-ink-muted">
+              This file came from an email. Save a copy to your Drive to edit
+              it.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={saving()}
+              onClick={() => setSaveOpen(true)}
+            >
+              Save a copy
+            </Button>
+          </div>
+        </Show>
+        <Show
+          when={attachment.isFetched && data()}
+          keyed
+          fallback={
+            <Show when={!attachment.isFetched}>
+              <div class="p-6 text-sm text-ink-muted">Opening document…</div>
+            </Show>
+          }
+        >
           {(loaded) => {
             const session = createDocxSession({
               documentId,
@@ -202,7 +304,11 @@ export default function DocxBlock(props: { share?: string }) {
                     <DocxEditorView
                       doc={doc}
                       original={original}
-                      canEdit={!!doc && canEdit()}
+                      canEdit={!!doc && canEdit() && !locked()}
+                      onEditAttempt={() => {
+                        if (locked()) setSaveOpen(true);
+                      }}
+                      onReady={setEditor}
                       canComment={() => !!doc && canComment()}
                       fileName={fileName()}
                       peers={session.peers}
@@ -239,14 +345,7 @@ export default function DocxBlock(props: { share?: string }) {
                           />
                         </>
                       )}
-                      onDownload={(bytes) =>
-                        downloadFile(
-                          new Blob([bytes.slice().buffer], {
-                            type: DOCX_MIME,
-                          }),
-                          fileName()
-                        )
-                      }
+                      onDownload={downloadBytes}
                       onError={reportError}
                     />
                   )}
@@ -255,6 +354,44 @@ export default function DocxBlock(props: { share?: string }) {
             );
           }}
         </Show>
+        <Dialog
+          open={saveOpen()}
+          onOpenChange={setSaveOpen}
+          position="center"
+          class="w-120"
+        >
+          <Panel depth={2} class="rounded-xl">
+            <Panel.Header class="px-6">
+              <Dialog.Title class="text-sm font-semibold">
+                Save a copy to Drive
+              </Dialog.Title>
+            </Panel.Header>
+            <Panel.Body class="flex flex-col gap-4 px-6 pb-6">
+              <Dialog.Description class="text-sm text-ink-muted">
+                An email attachment can't be edited. Saving a copy puts{' '}
+                {fileName()} in your Drive, with the changes already on this
+                file.
+              </Dialog.Description>
+              <div class="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setSaveOpen(false)}
+                  disabled={saving()}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  disabled={saving()}
+                  onClick={() => {
+                    fireAndForget(saveCopy(), 'docx-save-copy');
+                  }}
+                >
+                  {saving() ? 'Saving…' : 'Save a copy'}
+                </Button>
+              </div>
+            </Panel.Body>
+          </Panel>
+        </Dialog>
       </div>
     </DocumentBlockContainer>
   );

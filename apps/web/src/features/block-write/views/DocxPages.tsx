@@ -231,6 +231,8 @@ export type DocxPagesProps = {
   onFindNext?: (forward: boolean) => void;
   /** Called with the input element once mounted (focus management). */
   inputRef?: (input: HTMLTextAreaElement) => void;
+  /** A read-only document: typing or pasting asks the host to make it editable. */
+  onEditAttempt?: () => void;
   /**
    * The document's id: content copied from the same document pastes back
    * with its pictures, links and list numbering.
@@ -618,6 +620,16 @@ export function DocxPages(props: DocxPagesProps) {
     }
     const action = keyAction(event, isMac);
     if (!action) return;
+    if (
+      !props.editable &&
+      action.kind !== 'find' &&
+      action.kind !== 'findNext' &&
+      action.kind !== 'page'
+    ) {
+      event.preventDefault();
+      props.onEditAttempt?.();
+      return;
+    }
     event.preventDefault();
     switch (action.kind) {
       case 'ops':
@@ -661,6 +673,11 @@ export function DocxPages(props: DocxPagesProps) {
   }
 
   function onInput(event: InputEvent) {
+    if (!props.editable) {
+      input.value = '';
+      props.onEditAttempt?.();
+      return;
+    }
     if (composing() !== null || event.isComposing) return;
     const value = input.value;
     input.value = '';
@@ -681,7 +698,10 @@ export function DocxPages(props: DocxPagesProps) {
 
   function onPaste(event: ClipboardEvent) {
     event.preventDefault();
-    if (!props.editable) return;
+    if (!props.editable) {
+      props.onEditAttempt?.();
+      return;
+    }
     const html = event.clipboardData?.getData('text/html') ?? '';
     const text = event.clipboardData?.getData('text/plain') ?? '';
     const rich = html ? readClipboardHtml(html, documentId()) : undefined;

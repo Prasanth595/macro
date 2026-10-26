@@ -30,6 +30,12 @@ export const emailKeys = createQueryKeys('email', {
   scheduledMessages: (linkIds: string[]) => ({
     queryKey: [{ linkIds }],
   }),
+  attachmentCopies: (attachmentId: string) => ({
+    queryKey: [attachmentId],
+  }),
+  documentAttachment: (documentId: string) => ({
+    queryKey: [documentId],
+  }),
   previews: (params: {
     view: PreviewViewStandardLabel;
     limit?: number;

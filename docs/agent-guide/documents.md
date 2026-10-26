@@ -2915,9 +2915,15 @@ updates live and shows each collaborator's caret with their name
   name rather than to the agent. Its comments are written into the file, so
   they appear as `In the document` cards and travel with the download.
 - `Download .docx` exports the current collaborative state with every edit,
-  including headers, footers and tracked changes. Macro comment threads are
-  not written into the file; Word comments (including the agent's
+  including headers, footers and tracked changes. The same download is in
+  the title's file menu (**…**), labelled **Download .docx**. Macro comment
+  threads are not written into the file; Word comments (including the agent's
   `addComment` ones) are.
+- A Word file opened from an email attachment is read-only. The banner
+  **Save a copy** (or the first attempt to type) saves the current file,
+  including tracked changes, into Drive and opens that copy. The attachment
+  itself stays unchanged. See the email guide for the choice offered the
+  next time the attachment is opened.
 - The stored upload is not rewritten yet. Search, the PDF export and AI
   `ReadContent` still see the original file.
 - **Ask Macro**, in the header beside **Share**, opens a new agent session in

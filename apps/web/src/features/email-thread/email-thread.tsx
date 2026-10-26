@@ -20,6 +20,7 @@ import { createEmailComposeHost } from '../email-compose/compose-host-adapter';
 import { convertContactInfoToEmailRecipient } from '../email-compose/core/recipient-conversion';
 import {
   createEmailAttachmentOpener,
+  createSavedDocumentOpener,
   downloadEmailAttachment,
 } from '../email-message/attachment-action-adapter';
 import type { CalendarInvitation } from '../email-message/core/calendar-invitation';
@@ -136,6 +137,7 @@ export function EmailThread(props: EmailThreadProps) {
         />
       ),
       openAttachment: createEmailAttachmentOpener(),
+      openSavedDocument: createSavedDocumentOpener(),
       downloadAttachment: (attachment: EmailAttachment) => {
         fireAndForget(downloadEmailAttachment(attachment), 'email-attachment');
       },

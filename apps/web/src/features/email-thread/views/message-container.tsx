@@ -131,6 +131,7 @@ export function MessageContainer(props: MessageContainerProps) {
       }}
       onFocus={scrollFocusedCardIntoView}
       onOpenAttachment={rendering.openAttachment}
+      onOpenSavedDocument={rendering.openSavedDocument}
       onDownloadAttachment={rendering.downloadAttachment}
       onReply={
         context.permissions().isOwner

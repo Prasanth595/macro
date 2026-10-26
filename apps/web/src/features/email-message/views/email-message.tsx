@@ -1,3 +1,4 @@
+import { AttachmentCopyMenu } from '@app/features/email-message/components/attachment-copy-menu';
 import { EmailAttachmentPill } from '@app/features/email-message/components/attachment-pill';
 import { CollapsedMessage } from '@app/features/email-message/components/collapsed-message';
 import { EmailMessageTopBar } from '@app/features/email-message/components/email-message-top-bar';
@@ -5,14 +6,21 @@ import { MessageCard } from '@app/features/email-message/components/message-card
 import type { EmailMessage } from '@app/features/email-message/core/email-message';
 import { EmailMessageBody } from '@app/features/email-message/views/email-message-body';
 import { ImageGalleryPreview } from '@core/component/ImageGalleryPreview';
+import { toast } from '@core/component/Toast/Toast';
 import { VideoPreview } from '@core/component/VideoPreview';
+import { fireAndForget } from '@core/util/fireAndForget';
 import CaretRight from '@phosphor/caret-right.svg';
+import {
+  createFreshAttachmentCopy,
+  loadDocxAttachmentOpenContext,
+} from '@queries/email/attachment-copies';
 import { Key } from '@solid-primitives/keyed';
 import type { JSX } from 'solid-js';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { CalendarFilePreview } from '../components/calendar-file-preview';
 import { CalendarInviteCard } from '../components/calendar-invite-card';
 import type { EmailMessageAction } from '../components/message-actions';
+import { isDocxAttachment, planAttachmentOpen } from '../core/attachment-open';
 import {
   type CalendarInvitation,
   groupCalendarInvitations,
@@ -50,6 +58,11 @@ export interface EmailMessageViewProps {
   onFocus?: (element: HTMLElement) => void;
   onReply?: (action: EmailMessageAction) => void;
   onOpenAttachment?: (attachment: EmailAttachment) => void;
+  /** Open a Drive document saved from an attachment. */
+  onOpenSavedDocument?: (
+    attachment: EmailAttachment,
+    documentId: string
+  ) => void;
   onDownloadAttachment?: (attachment: EmailAttachment) => void;
   children?: JSX.Element;
 }
@@ -71,6 +84,12 @@ export function EmailMessageView(props: EmailMessageViewProps) {
   const [calendarFile, setCalendarFile] = createSignal<EmailAttachment>();
   // Closing the dialog returns focus to the chip that opened it.
   let calendarFileChip: HTMLElement | undefined;
+  const [copyMenu, setCopyMenu] = createSignal<{
+    attachment: EmailAttachment;
+    anchor: HTMLElement;
+    copies: { documentId: string; name: string }[];
+    includeCurrent: boolean;
+  }>();
   const openAttachment = (attachment: EmailAttachment, chip: HTMLElement) => {
     if (
       invitationGroups().length > 0 &&
@@ -81,7 +100,51 @@ export function EmailMessageView(props: EmailMessageViewProps) {
       setCalendarFile(attachment);
       return;
     }
+    if (
+      attachment.db_id &&
+      props.onOpenSavedDocument &&
+      isDocxAttachment(attachment.filename, attachment.mime_type)
+    ) {
+      fireAndForget(
+        chooseAttachment(attachment, chip),
+        'email-attachment-open'
+      );
+      return;
+    }
     props.onOpenAttachment?.(attachment);
+  };
+  const chooseAttachment = async (
+    attachment: EmailAttachment,
+    chip: HTMLElement
+  ) => {
+    try {
+      const context = await loadDocxAttachmentOpenContext(attachment.db_id);
+      const plan = planAttachmentOpen({
+        isDocx: true,
+        copies: context.copies,
+        hasLiveCopy: context.hasLiveCopy,
+      });
+      if (plan.kind === 'open-original') {
+        props.onOpenAttachment?.(attachment);
+        return;
+      }
+      setCopyMenu({
+        attachment,
+        anchor: chip,
+        copies: plan.copies,
+        includeCurrent: plan.includeCurrent,
+      });
+    } catch (error) {
+      console.error('Failed to open attachment', error);
+      toast.failure('Failed to get attachment. Please try again.');
+    }
+  };
+  const openFreshCopy = async (attachment: EmailAttachment) => {
+    const documentId = await createFreshAttachmentCopy(
+      attachment.db_id,
+      attachment.filename ?? 'Document.docx'
+    );
+    props.onOpenSavedDocument?.(attachment, documentId);
   };
   // A card action that opens the calendar closes the dialog first, so it
   // neither covers the destination nor pulls focus back to the email.
@@ -277,6 +340,40 @@ export function EmailMessageView(props: EmailMessageViewProps) {
                 )}
               </Key>
             </div>
+          </Show>
+          <Show when={copyMenu()}>
+            {(menu) => (
+              <AttachmentCopyMenu
+                anchor={menu().anchor}
+                fileName={menu().attachment.filename ?? 'Document.docx'}
+                copies={menu().copies}
+                includeCurrent={menu().includeCurrent}
+                onOpenCurrent={() => {
+                  const attachment = menu().attachment;
+                  setCopyMenu(undefined);
+                  props.onOpenAttachment?.(attachment);
+                }}
+                onOpenCopy={(documentId) => {
+                  const attachment = menu().attachment;
+                  setCopyMenu(undefined);
+                  props.onOpenSavedDocument?.(attachment, documentId);
+                }}
+                onFreshCopy={() => {
+                  const attachment = menu().attachment;
+                  setCopyMenu(undefined);
+                  fireAndForget(
+                    openFreshCopy(attachment).catch((error: unknown) => {
+                      console.error('Failed to save a fresh copy', error);
+                      toast.failure(
+                        'Failed to save a copy to Drive. Please try again.'
+                      );
+                    }),
+                    'email-attachment-fresh-copy'
+                  );
+                }}
+                onClose={() => setCopyMenu(undefined)}
+              />
+            )}
           </Show>
 
           {/* Draft attachments */}

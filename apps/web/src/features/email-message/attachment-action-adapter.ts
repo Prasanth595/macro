@@ -14,7 +14,10 @@ import type { FileType } from '@service-storage/generated/schemas/fileType';
 import { ResultAsync } from 'neverthrow';
 import { type EmailAttachment, isCalendarFile } from './core/email-message';
 
-function attachmentBlockName(attachment: EmailAttachment) {
+function attachmentBlockName(attachment: {
+  filename?: string | null;
+  mime_type?: string | null;
+}) {
   const fileType = Object.values(FileTypeMap).findLast(
     (type) => type.mime === attachment.mime_type
   )?.extension;
@@ -101,4 +104,18 @@ export function createEmailAttachmentOpener() {
   };
 
   return openAttachment;
+}
+
+/** Open a Drive document saved from an attachment, in that file's viewer. */
+export function createSavedDocumentOpener() {
+  const { openWithSplit } = useSplitLayout();
+  return (
+    attachment: { filename?: string | null; mime_type?: string | null },
+    documentId: string
+  ) => {
+    openWithSplit(
+      { type: attachmentBlockName(attachment), id: documentId },
+      { preferNewSplit: true }
+    );
+  };
 }
