@@ -74,6 +74,7 @@ fn overview(record_type: PipelineRecordType) -> PipelineOverview {
 
 fn entry(id: Uuid) -> PipelineEntryView {
     PipelineEntryView {
+        currencies: Default::default(),
         entry_id: RowId::new(),
         record: PipelineRecord {
             id,
@@ -495,6 +496,7 @@ async fn an_export_writes_people_as_emails_and_reimports() {
         });
     workflows.overview.fields.push(currency);
     workflows.exported = vec![PipelineEntryView {
+        currencies: Default::default(),
         entry_id: RowId::new(),
         record: PipelineRecord {
             id: Uuid::now_v7(),

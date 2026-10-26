@@ -430,6 +430,9 @@ pub struct ToolEntry {
     /// Its filled-in fields by name: text, a number, true/false, a date, or a
     /// list when a field holds several values. People are macro| user ids.
     pub fields: BTreeMap<String, serde_json::Value>,
+    /// Currency codes keyed by monetary field name, including renamed fields.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub currencies: BTreeMap<String, String>,
 }
 
 impl From<&PipelineEntryView> for ToolEntry {
@@ -437,6 +440,7 @@ impl From<&PipelineEntryView> for ToolEntry {
         Self {
             entry_id: entry.entry_id.into_uuid(),
             record: (&entry.record).into(),
+            currencies: entry.currencies.clone(),
             fields: entry
                 .fields
                 .iter()

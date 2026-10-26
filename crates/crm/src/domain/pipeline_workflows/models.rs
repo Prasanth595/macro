@@ -1,5 +1,7 @@
 //! What the pipeline workflows take and return.
 
+use std::collections::BTreeMap;
+
 use databases::domain::models::{RowId, TableDetail, TableVersion};
 use entity_access::domain::models::AccessError;
 use models_databases::EntityKind;
@@ -78,6 +80,8 @@ pub struct PipelineEntryView {
     pub record: PipelineRecord,
     /// Its other fields that hold a value, in column order.
     pub fields: Vec<(String, FieldValue)>,
+    /// Denominations by monetary field name, resolved through stable column roles.
+    pub currencies: BTreeMap<String, String>,
 }
 
 /// Which entries to read, and how to order them.
@@ -200,6 +204,10 @@ pub struct FieldChange {
     pub before: Option<FieldValue>,
     /// Its value after.
     pub after: Option<FieldValue>,
+    /// Denomination of the previous amount, when this is a monetary field.
+    pub before_currency: Option<String>,
+    /// Denomination of the saved amount, when this is a monetary field.
+    pub after_currency: Option<String>,
 }
 
 /// An updated entry.

@@ -294,7 +294,9 @@ sets the denomination per entry. Existing amounts and new rows default to **USD*
 no conversion is performed. Amounts display their currency code. Summary sums,
 averages and extrema keep currencies separate; agent `FindPipelineEntries`
 totals carry a currency code for the same reason. Outcome and currency options
-are fixed. Changing an amount's name preserves its currency association.
+are fixed. Changing an amount's name preserves its currency association. Agent
+result cards show the currency beside each displayed amount, including the old
+and new currencies when updating a monetary value.
 
 A pipeline page uses the database page's styling with one table and no table
 tabs. Its header shows the name, edited in place by editors, a **Pipeline

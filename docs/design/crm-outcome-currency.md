@@ -38,6 +38,10 @@ the amount is renamed. Imports without currency use USD; invalid currencies must
 the row rather than silently losing the supplied denomination. Totals group by
 currency and never convert or combine different denominations.
 
+Agent entry results include currency codes keyed by monetary field name, and
+updates include the before/after denomination. Compact tool cards retain the
+code beside each displayed amount even when the separate currency column is omitted.
+
 ## Storage and rollout
 
 CRM owns the stable Outcome and amount/currency column identities; the shared

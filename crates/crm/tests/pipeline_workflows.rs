@@ -731,6 +731,10 @@ async fn outcomes_persist_and_mixed_currency_totals_stay_separate(pool: PgPool) 
         .unwrap();
     assert_eq!(field(&added.added[1], "Outcome"), labels("Open").as_ref());
     assert_eq!(
+        added.added[0].currencies.get("Revenue").map(String::as_str),
+        Some("EUR")
+    );
+    assert_eq!(
         field(&added.added[1], "Revenue currency"),
         labels("USD").as_ref()
     );
@@ -856,4 +860,48 @@ async fn outcomes_persist_and_mixed_currency_totals_stay_separate(pool: PgPool) 
         assert!(field("Outcome").required);
         assert!(field("Revenue currency").required);
     }
+    let changed = workflows
+        .update(
+            &owner,
+            id,
+            vec![EntryUpdate {
+                target: EntryTarget::Entry(added.added[0].entry_id),
+                set: vec![set("Contract value", "250"), set("Revenue currency", "USD")],
+            }],
+            None,
+        )
+        .await
+        .unwrap();
+    let amount = changed.updated[0]
+        .changes
+        .iter()
+        .find(|change| change.field == "Contract value")
+        .unwrap();
+    assert_eq!(amount.before_currency.as_deref(), Some("EUR"));
+    assert_eq!(amount.after_currency.as_deref(), Some("USD"));
+    let reloaded = workflows
+        .find(
+            &owner,
+            id,
+            EntryQuery {
+                limit: 50,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    let entry = reloaded
+        .entries
+        .iter()
+        .find(|entry| entry.entry_id == added.added[0].entry_id)
+        .unwrap();
+    assert_eq!(
+        entry.currencies.get("Contract value").map(String::as_str),
+        Some("USD")
+    );
+    #[cfg(feature = "ai_tools")]
+    assert_eq!(
+        crm::inbound::toolset::pipelines::ToolEntry::from(entry).currencies,
+        entry.currencies
+    );
 }

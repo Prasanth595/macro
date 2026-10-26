@@ -12,6 +12,33 @@ use super::{
     FieldKind, FieldValue, OptionCounts, PipelineEntryView, PipelineField, PipelineOverview,
     PipelineRecord, fields,
 };
+use crate::domain::pipelines::Pipeline;
+
+/// Resolve denominations by stable field identities, including renamed amounts.
+pub(super) fn currencies(
+    pipeline: &Pipeline,
+    fields: &[PipelineField],
+    cells: &HashMap<ColumnId, PropertyValue>,
+) -> BTreeMap<String, String> {
+    pipeline
+        .commercial_fields
+        .money
+        .iter()
+        .filter_map(|pair| {
+            let amount = fields.iter().find(|field| field.id == pair.amount)?;
+            let currency = fields.iter().find(|field| field.id == pair.currency)?;
+            let code = match cells
+                .get(&currency.id)
+                .and_then(|value| fields::field_value(currency, value))
+            {
+                Some(FieldValue::Labels(labels)) => labels.into_iter().next(),
+                _ => None,
+            }
+            .unwrap_or_else(|| "USD".into());
+            Some((amount.name.clone(), code))
+        })
+        .collect()
+}
 
 /// The record a primary cell references.
 pub(super) fn record_id(cell: Option<&PropertyValue>) -> Option<Uuid> {
@@ -55,6 +82,7 @@ pub(super) fn entry_view(
         entry_id: row.row_id,
         record,
         fields: field_values(&overview.fields, &row.cells),
+        currencies: currencies(&overview.pipeline.pipeline, &overview.fields, &row.cells),
     }
 }
 
