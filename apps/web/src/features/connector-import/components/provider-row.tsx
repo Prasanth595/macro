@@ -1,5 +1,5 @@
-import CheckCircleIcon from '@phosphor/check-circle.svg';
-import SparkleIcon from '@phosphor/sparkle.svg';
+import CheckCircleIcon from '@icon/system/regular/check-circle.svg';
+import SparkleIcon from '@icon/system/regular/sparkle.svg';
 import { Button } from '@ui';
 import { Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';

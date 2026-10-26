@@ -9,7 +9,7 @@ import {
 import { COMMENT_LINK_PARAM } from '@core/messages/comment-link';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { Button, Tooltip } from '@ui';
 import {

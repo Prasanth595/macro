@@ -5,7 +5,7 @@ import {
   Permissions,
 } from '@core/component/SharePermissions';
 import { fireAndForget } from '@core/util/fireAndForget';
-import CircleIcon from '@phosphor/circle.svg';
+import CircleIcon from '@icon/system/regular/circle.svg';
 import { Property as PropertyUI } from '@property';
 import { Modals } from '@property/component/modal';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';

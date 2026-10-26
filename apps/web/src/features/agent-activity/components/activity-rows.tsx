@@ -1,8 +1,8 @@
 import { TextShimmer } from '@app/features/block-agent/ui';
-import CheckIcon from '@phosphor/check.svg';
-import SpinnerIcon from '@phosphor/spinner-gap.svg';
-import WarningIcon from '@phosphor/warning-circle.svg';
-import XIcon from '@phosphor/x.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import SpinnerIcon from '@icon/system/regular/spinner-gap.svg';
+import WarningIcon from '@icon/system/regular/warning-circle.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import { Key } from '@solid-primitives/keyed';
 import { createSignal, Match, Show, Switch } from 'solid-js';
 

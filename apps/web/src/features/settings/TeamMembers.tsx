@@ -9,15 +9,15 @@ import { debouncedDependent } from '@core/util/debounce';
 import { fuzzyFilter } from '@core/util/fuzzy';
 import { getWebOrigin } from '@core/util/webOrigin';
 import { formatRelativeTimestamp } from '@entity';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import EnvelopeIcon from '@icon/system/regular/envelope.svg';
+import LinkIcon from '@icon/system/regular/link.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
+import TrashIcon from '@icon/system/regular/trash.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import type { CollectionNode } from '@kobalte/core';
 import { Select } from '@kobalte/core/select';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import CheckIcon from '@phosphor/check.svg';
-import EnvelopeIcon from '@phosphor/envelope.svg';
-import LinkIcon from '@phosphor/link.svg';
-import PlusIcon from '@phosphor/plus.svg';
-import TrashIcon from '@phosphor/trash.svg';
-import XIcon from '@phosphor/x.svg';
 import { useAiBillingSummaryQuery } from '@queries/auth';
 import {
   useDeleteTeamInviteMutation,

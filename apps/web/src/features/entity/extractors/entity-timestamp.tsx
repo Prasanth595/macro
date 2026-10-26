@@ -1,5 +1,5 @@
 import type { DateValue } from '@core/util/date';
-import PaperclipIcon from '@phosphor/paperclip.svg';
+import PaperclipIcon from '@icon/system/regular/paperclip.svg';
 import { Show } from 'solid-js';
 import { ScheduledBadge } from '../components/Badges';
 import { type EntityData, isEmailEntity } from '../types/entity';

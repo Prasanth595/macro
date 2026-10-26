@@ -16,7 +16,7 @@ import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component
 import { useIsAuthenticated } from '@core/context/user';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { ListEntityMetadataQueryProvider } from '@entity';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import { useFavoritesData } from '@queries/favorites/favorites';
 import {
   createContext,

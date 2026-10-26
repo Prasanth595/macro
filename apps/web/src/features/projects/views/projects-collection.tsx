@@ -31,8 +31,8 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { compareDateDesc } from '@core/util/date';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { EntitySelectionToolbarModal } from '@entity/EntitySelectionToolbarModal';
-import CalendarIcon from '@phosphor/calendar.svg';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import CalendarIcon from '@icon/system/regular/calendar.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import { PropertyValueIcon } from '@property/component/propertyValue';
 import {
   PROPERTY_OPTION_IDS,
