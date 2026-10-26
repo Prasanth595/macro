@@ -120,3 +120,26 @@ export function channelTimeline(
 export function newestMessageText(channelId: string): string {
   return `Latest update in ${channelId}: the release notes are ready for review.`;
 }
+
+/** The server's answer to a send: the posted message, from the viewer. */
+export function postedMessage(
+  channelId: string,
+  posted: { id: string; content: string }
+): MessageListItem {
+  const created = new Date().toISOString();
+  return message(channelId, 0, {
+    id: posted.id,
+    content: posted.content,
+    sender_id: VIEWER_ID,
+    created_at: created,
+    updated_at: created,
+    reactions: [],
+    state: {
+      root_id: posted.id,
+      created_at: created,
+      updated_at: created,
+      resolved: false,
+      user_id: VIEWER_ID,
+    },
+  });
+}

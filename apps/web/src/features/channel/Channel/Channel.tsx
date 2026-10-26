@@ -32,6 +32,7 @@ import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
 import {
   EntityLoadGate,
+  isEntityLoadFailed,
   toEntityLoadError,
 } from '@core/component/EntityLoadGate';
 import { FindBar } from '@core/component/FindBar';
@@ -52,6 +53,7 @@ import {
   extractUserMentions,
   trimEdgeUserMentions,
 } from '@core/util/taskExtraction';
+import { waitForSignal } from '@core/util/waitForSignal';
 import {
   buildMentionMarkdownString,
   markdownToPlainText,
@@ -116,7 +118,7 @@ import { CHANNEL_TOUR } from '../tour';
 import { isUnifiedInputMode } from '../unified-input-mode';
 import { ActiveCallMessage } from './ActiveCallMessage';
 import { ChannelDropZone } from './ChannelDropZone';
-import { ChannelLoading } from './ChannelLoading';
+import { ChannelLoading, ChannelMessagesLoading } from './ChannelLoading';
 import { createChannelDragState } from './create-channel-drag-state';
 import { createChannelFindBar } from './create-channel-find-bar';
 import { createChannelHotkeys } from './create-channel-hotkeys';
@@ -152,6 +154,9 @@ import {
   type UnifiedReplyTargetSnapshot,
 } from './unified-input-manager';
 import type { UnreadThread } from './unread-thread-navigation';
+
+/** How long a send typed while the channel loads waits for the first page. */
+const FIRST_PAGE_SEND_WAIT_MS = 30_000;
 
 export type ChannelProps = {
   channelId: string;
@@ -241,7 +246,10 @@ export function Channel(props: ChannelProps) {
     targetMessageController.loadAroundMessageId() !== undefined &&
     isMissingMessageError(messagesQuery.error);
   const messagesLoadResult = {
-    data: () => messagesQuery.data,
+    // Gated: the composer outside EntityLoadGate reads this too, and a raw
+    // read would suspend the whole channel while the first page loads.
+    data: () =>
+      queryReadyGate(messagesQuery) ? messagesQuery.data : undefined,
     // Pagination and background-refresh errors should not replace content that
     // has already loaded. Only initial-loading errors belong to the gate.
     error: () =>
@@ -700,9 +708,25 @@ export function Channel(props: ChannelProps) {
     },
   });
 
-  const onSend: ChannelInputProps['onSend'] = (snapshot) => {
+  // The composer mounts before the first page arrives. Sending cancels
+  // in-flight timeline fetches, so a send typed during the load waits for it.
+  const firstPageLoaded = async () => {
+    if (queryReadyGate(messagesQuery)) return true;
+    await waitForSignal(
+      () =>
+        queryReadyGate(messagesQuery) || isEntityLoadFailed(messagesLoadResult),
+      Boolean,
+      FIRST_PAGE_SEND_WAIT_MS
+    );
+    return queryReadyGate(messagesQuery);
+  };
+
+  const onSend: ChannelInputProps['onSend'] = async (snapshot) => {
     const senderId = userId();
     if (!senderId) return;
+    // Throwing keeps the draft in the composer.
+    if (!(await firstPageLoaded()))
+      throw new Error('The channel did not load before sending');
     const payload = buildPostMessageSendPayload({
       snapshot,
     });
@@ -752,28 +776,33 @@ export function Channel(props: ChannelProps) {
       // Only an agent DM has a conversing agent so far.
       hasAgents={!!channel()?.agent_dm}
     >
-      <EntityLoadGate
-        result={messagesLoadResult}
-        loadingFallback={<ChannelLoading />}
-        loadErrorTitle="Unable to load this channel"
-        onRetry={() => fireAndForget(messagesQuery.refetch(), 'channel')}
-      >
-        <DebugSuspense name="Channel.root" fallback={<ChannelLoading />}>
-          <deleteConfirmation.ConfirmationDialog />
-          <StaticMarkdownContext host="channel">
-            <SearchHighlightTermsProvider
-              value={findBar.getSearchTermsForMessage}
-            >
-              <MaybeMessageActionDrawerManager>
-                <ChannelDropZone dragState={dragState}>
-                  <div
-                    class="ph-no-capture relative flex-1 min-h-0 outline-none flex flex-col"
-                    ref={(element) => {
-                      attachMessageListRef(element);
-                      messagesTarget(element);
-                    }}
-                    tabIndex={-1}
-                    data-channel-message-list
+      <DebugSuspense name="Channel.root" fallback={<ChannelLoading />}>
+        <deleteConfirmation.ConfirmationDialog />
+        <StaticMarkdownContext host="channel">
+          <SearchHighlightTermsProvider
+            value={findBar.getSearchTermsForMessage}
+          >
+            <MaybeMessageActionDrawerManager>
+              <ChannelDropZone dragState={dragState}>
+                <div
+                  class="ph-no-capture relative flex-1 min-h-0 outline-none flex flex-col"
+                  ref={(element) => {
+                    attachMessageListRef(element);
+                    messagesTarget(element);
+                  }}
+                  tabIndex={-1}
+                  data-channel-message-list
+                >
+                  {/* Only the list waits for the first page: the composer
+                      below mounts with the request, so it is ready to type
+                      in and its mount cost leaves the open's critical path. */}
+                  <EntityLoadGate
+                    result={messagesLoadResult}
+                    loadingFallback={<ChannelMessagesLoading />}
+                    loadErrorTitle="Unable to load this channel"
+                    onRetry={() =>
+                      fireAndForget(messagesQuery.refetch(), 'channel')
+                    }
                   >
                     <Show when={findBar.isOpen()}>
                       <FindBar
@@ -1029,7 +1058,9 @@ export function Channel(props: ChannelProps) {
                     <DebugSuspense name="Channel.active-call">
                       <ActiveCallMessage channelId={props.channelId} />
                     </DebugSuspense>
-                  </div>
+                  </EntityLoadGate>
+                </div>
+                <Show when={!isEntityLoadFailed(messagesLoadResult)}>
                   <DebugSuspense name="Channel.input">
                     <FloatRegionOrInline region="accessory">
                       <ChannelInputContainer
@@ -1130,6 +1161,9 @@ export function Channel(props: ChannelProps) {
                                   setChannelInputSnapshot(snapshot);
                                 }}
                                 onSend={onSend}
+                                onSendError={() =>
+                                  toast.failure('Failed to send message')
+                                }
                                 onStartCall={
                                   ENABLE_CALLS && !channelCall.isInThisChannel()
                                     ? () =>
@@ -1165,12 +1199,12 @@ export function Channel(props: ChannelProps) {
                       </ChannelInputContainer>
                     </FloatRegionOrInline>
                   </DebugSuspense>
-                </ChannelDropZone>
-              </MaybeMessageActionDrawerManager>
-            </SearchHighlightTermsProvider>
-          </StaticMarkdownContext>
-        </DebugSuspense>
-      </EntityLoadGate>
+                </Show>
+              </ChannelDropZone>
+            </MaybeMessageActionDrawerManager>
+          </SearchHighlightTermsProvider>
+        </StaticMarkdownContext>
+      </DebugSuspense>
     </AgentConversationsProvider>
   );
 }

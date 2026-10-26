@@ -593,6 +593,15 @@ else's message. Check both root messages and thread replies from a Home split:
 an incoming selection must not mark the Home item done or edit the thread root.
 Press `Escape` to clear selection; the parent Home shortcut is then available
 again. Typing `e` in the composer or inline editor should still enter text.
+While a conversation's first page loads, placeholder rows shaped like messages
+(avatars, names, lines, a thread, a date divider) fill the list from the bottom,
+and the composer is already live: type and press Enter during the load, and the
+message sends once the page arrives, without remounting the editor. Before the
+conversation itself mounts (an unresolved link, a route still loading), the same
+rows show above an empty composer in the live composer's place. Throttle the
+timeline request to check that neither the rows nor the composer jump when the
+messages arrive, on desktop and at phone width.
+
 Verify a message link in a fresh browser tab as well as inside an open channel:
 the initial page should center the requested message, including older history.
 On a cold notification open, the destination shows one conversation placeholder
