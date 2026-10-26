@@ -61,6 +61,8 @@ Button materials live in `src/index.css`: fills, hover/pressed colors, borders, 
 
 `buttonAccentVars` in `features/theme/utils/buttonTheme.ts` only chooses contrasting solid-accent text and its inverse state tint from the resolved accent. The root renderer and subtree previews supply those two variables; all mixing remains in CSS. Live color edits also refresh the existing light/dark scope marker. Derived values do not enter persisted theme data.
 
+Neutral button borders use white at 8% opacity in dark mode and black at 12% in light mode. The Create menu's monochrome submit action uses the shared `primary` variant so its background and text contrast stay paired; do not locally override accent colors while leaving the derived accent text unchanged.
+
 This keeps the current button materials without a second JavaScript material recipe. Variants, interaction selectors, and optional finish selection remain in the shared Button recipe. Checks and visual review remain paused.
 
 ## Consumer layout follow-up

@@ -704,7 +704,7 @@ body.tauri-ios {
   --button-primary-pressed: color-mix(in srgb, var(--button-primary-bg) 72%, var(--color-panel));
   --button-primary-ink: var(--color-page);
   --button-focus: var(--color-edge-focus, var(--color-accent));
-  --button-border: oklch(1 0 0 / 12%);
+  --button-border: oklch(1 0 0 / 8%);
 
   --button-secondary-bg: oklch(1 0 0 / 8%);
   --button-secondary-hover: oklch(1 0 0 / 12%);
