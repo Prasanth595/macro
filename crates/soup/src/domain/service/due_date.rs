@@ -27,19 +27,13 @@ fn invalid(message: &'static str) -> SoupErr {
     SoupErr::AstErr(item_filters::ast::ExpandErr::ApiAst(message.into()))
 }
 
-/// A due-date page has no cross-kind merge, CRM scope, or projection leg.
+/// A due-date page has no cross-kind merge or CRM scope.
 pub(super) fn validate_filter(
     ast: Option<&EntityFilterAst>,
     soup_type: SoupType,
-    include_projection: bool,
 ) -> Result<(), SoupErr> {
     if matches!(soup_type, SoupType::UnExpanded) {
         return Err(invalid("due-date sorting requires expanded tasks"));
-    }
-    if include_projection {
-        return Err(invalid(
-            "due-date sorting does not support document projection",
-        ));
     }
     if let Some(ast) = ast {
         if ast.favorites_only == Some(true) {
@@ -158,7 +152,7 @@ where
         {
             req.cursor = req.cursor.map_filter(|ast| resolved.apply(ast));
         }
-        validate_filter(Some(req.cursor.filter()), SoupType::Expanded, false)?;
+        validate_filter(Some(req.cursor.filter()), SoupType::Expanded)?;
         if matches!(req.cursor, Query::Cursor(_)) && req.grouping.group_key.is_none() {
             return Err(invalid("grouped continuation requires a group key"));
         }

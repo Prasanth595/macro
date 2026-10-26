@@ -38,7 +38,7 @@ fn frontend_task_scope_accepts_disabled_non_task_legs() {
         foreign_entity_filter: Some(Arc::new(Expr::val(ForeignEntityLiteral::Id(Uuid::nil())))),
         ..Default::default()
     };
-    assert!(validate_filter(Some(&ast), SoupType::Expanded, false).is_ok());
+    assert!(validate_filter(Some(&ast), SoupType::Expanded).is_ok());
 }
 
 #[test]
@@ -49,9 +49,9 @@ fn nil_exclusions_do_not_hide_active_disjunctions_or_negations() {
         project_filter: Some(Arc::new(Expr::or(nil.clone(), active.clone()))),
         ..Default::default()
     };
-    assert!(validate_filter(Some(&ast), SoupType::Expanded, false).is_err());
+    assert!(validate_filter(Some(&ast), SoupType::Expanded).is_err());
     ast.project_filter = Some(Arc::new(Expr::is_not(nil.clone())));
-    assert!(validate_filter(Some(&ast), SoupType::Expanded, false).is_err());
+    assert!(validate_filter(Some(&ast), SoupType::Expanded).is_err());
     ast.project_filter = Some(Arc::new(Expr::and(nil, active)));
-    assert!(validate_filter(Some(&ast), SoupType::Expanded, false).is_ok());
+    assert!(validate_filter(Some(&ast), SoupType::Expanded).is_ok());
 }

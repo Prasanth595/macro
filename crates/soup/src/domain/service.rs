@@ -1711,7 +1711,7 @@ where
             None
         };
         if matches!(&req.cursor, SoupQuery::DueDate(_)) {
-            due_date::validate_filter(req.entity_ast(), req.soup_type, include_projection)?;
+            due_date::validate_filter(req.entity_ast(), req.soup_type)?;
         }
         let limit = req.limit.clamp(1, 500);
 

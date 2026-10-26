@@ -283,7 +283,6 @@ fn due_date_task_scope_keeps_crm_membership_and_disabled_entity_legs() {
         crate::domain::service::due_date::validate_filter(
             Some(&ast),
             crate::domain::models::SoupType::Expanded,
-            false,
         )
         .is_err()
     );
@@ -298,7 +297,6 @@ fn due_date_task_scope_keeps_crm_membership_and_disabled_entity_legs() {
         crate::domain::service::due_date::validate_filter(
             Some(&scoped),
             crate::domain::models::SoupType::Expanded,
-            false,
         )
         .is_ok()
     );
