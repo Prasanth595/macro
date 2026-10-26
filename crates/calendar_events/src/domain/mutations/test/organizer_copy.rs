@@ -1,7 +1,8 @@
 //! Events organized by a calendar the inbox can write, such as its own
-//! secondary calendar: which copy takes each change once the inbox's
-//! primary calendar holds an invitation to it.
+//! secondary calendar: what a new one lists, and which copy takes each
+//! change once the inbox's primary calendar holds an invitation to it.
 use super::*;
+use crate::domain::models::CalendarProvider;
 
 /// The id Google gives a secondary calendar, which it names as the organizer
 /// of the events made on it.
@@ -256,4 +257,97 @@ async fn an_answer_stays_on_the_invitation() {
 
     assert_eq!(calls.lock().unwrap().as_slice(), ["rsvp:master-id:all"]);
     assert_eq!(written_calendars(&upserts), [INVITATION_CALENDAR]);
+}
+
+fn secondary_calendar(provider: CalendarProvider) -> CalendarCreationTarget {
+    CalendarCreationTarget {
+        provider_calendar_id: SECONDARY.to_string(),
+        is_primary: false,
+        token_identity: CalendarLinkTokenIdentity {
+            provider,
+            ..token_identity()
+        },
+        ..creation_target(false)
+    }
+}
+
+async fn created_attendees(
+    target: CalendarCreationTarget,
+    attendees: Vec<CalendarAttendeeInput>,
+) -> Vec<CalendarAttendeeInput> {
+    let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+    let drafts = provider.created_drafts.clone();
+    service(
+        FakeRepo {
+            creation_target: Some(target),
+            persisted_event_id: Some(Uuid::now_v7()),
+            ..FakeRepo::default()
+        },
+        provider,
+        FakeTokens::ok(),
+    )
+    .create_event(
+        "macro|user",
+        None,
+        None,
+        CalendarEventDraft {
+            attendees,
+            ..draft()
+        },
+    )
+    .await
+    .unwrap();
+    drafts.lock().unwrap()[0].attendees.clone()
+}
+
+fn invitee(email: &str) -> CalendarAttendeeInput {
+    CalendarAttendeeInput {
+        email: email.to_string(),
+        is_optional: false,
+        response_status: None,
+    }
+}
+
+#[tokio::test]
+async fn an_event_of_ones_own_on_a_secondary_calendar_invites_no_one() {
+    let attendees =
+        created_attendees(secondary_calendar(CalendarProvider::Google), Vec::new()).await;
+
+    assert_eq!(attendees, []);
+}
+
+#[tokio::test]
+async fn a_meeting_on_a_secondary_calendar_invites_its_creator_too() {
+    let attendees = created_attendees(
+        secondary_calendar(CalendarProvider::Google),
+        vec![invitee("ada@example.com")],
+    )
+    .await;
+
+    assert_eq!(
+        attendees,
+        [
+            CalendarAttendeeInput {
+                response_status: Some(AttendeeResponseStatus::Accepted),
+                ..invitee("self@example.com")
+            },
+            invitee("ada@example.com"),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn an_outlook_mailbox_organizes_an_event_on_any_of_its_calendars() {
+    // Graph names the mailbox as the organizer of every calendar's events,
+    // and never invites the organizer to its own meeting.
+    let attendees =
+        created_attendees(secondary_calendar(CalendarProvider::Outlook), Vec::new()).await;
+
+    assert_eq!(
+        attendees,
+        [CalendarAttendeeInput {
+            response_status: Some(AttendeeResponseStatus::Accepted),
+            ..invitee("self@example.com")
+        }]
+    );
 }

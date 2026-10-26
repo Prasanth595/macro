@@ -316,7 +316,7 @@ where
         // on the owner's behalf, so it must not gain an organizer guest.
         if draft.out_of_office.is_some() {
             validate_out_of_office_create(&draft, &target)?;
-        } else {
+        } else if invites_creator(&target, &draft) {
             ensure_organizer_attendee(&mut draft.attendees, &target.token_identity.email_address);
         }
         let access_token = self.fetch_token(&target.token_identity).await?;
@@ -749,6 +749,23 @@ fn validate_reminders(reminders: &EventReminders) -> Result<(), CalendarMutation
         }
     }
     Ok(())
+}
+
+/// Whether a new event lists the inbox it is written through as an accepted
+/// guest. On its primary calendar the inbox is the organizer, which every
+/// guest should see. Google names any other calendar as the organizer of the
+/// events made on it, and lists the inbox only as a guest, which invites the
+/// inbox's primary calendar too: as in Google's own client, it joins only a
+/// meeting with other guests, and an event of its own stays on the calendar
+/// it was made on.
+fn invites_creator(target: &CalendarCreationTarget, draft: &CalendarEventDraft) -> bool {
+    target.is_primary
+        || target.token_identity.provider != super::models::CalendarProvider::Google
+        || draft.attendees.iter().any(|attendee| {
+            !attendee
+                .email
+                .eq_ignore_ascii_case(&target.token_identity.email_address)
+        })
 }
 
 fn ensure_organizer_attendee(attendees: &mut Vec<CalendarAttendeeInput>, organizer_email: &str) {
