@@ -96,6 +96,33 @@ it('settles positions in the originating board cache without a stale refetch ove
     client.getQueryData(crmKeys.pipelinePositions('pipeline', 'other').queryKey)
   ).toEqual([]);
 });
+
+it('keeps the saved lane and order when a card move is refused', async () => {
+  const { client, views, applyCrmPipelineOps } = setup();
+  const key = crmKeys.pipelinePositions(pipeline.id, 'view').queryKey;
+  const saved: CardPosition[] = [
+    { row: 'second', lane: { kind: 'option', id: 'lead' }, position: '40' },
+    { row: 'first', lane: { kind: 'option', id: 'lead' }, position: '80' },
+  ];
+  client.setQueryData(key, saved);
+  applyCrmPipelineOps.mockImplementation(() => {
+    expect(client.getQueryData(key)).toEqual(saved);
+    return errAsync([
+      { code: 'INVALID_OP', message: 'Required field missing', refusal: null },
+    ]);
+  });
+
+  const result = await views.moveCard(stored(), {
+    row: 'second',
+    lane: { kind: 'option', id: 'qualified' },
+    before: null,
+    after: null,
+  });
+
+  expect(result.isErr()).toBe(true);
+  expect(client.getQueryData(key)).toEqual(saved);
+});
+
 afterEach(() => {
   for (const client of clients.splice(0)) client.clear();
 });

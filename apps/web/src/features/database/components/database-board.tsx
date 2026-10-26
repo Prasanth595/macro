@@ -498,7 +498,7 @@ function BoardLane(
                 variant="ghost"
                 size="lg"
                 aria-label="New record"
-                class="justify-start rounded-md text-sm text-ink-muted hover:text-ink"
+                class="justify-start"
                 onClick={props.onStartDraft}
               >
                 <PlusIcon class="size-3.5" />
