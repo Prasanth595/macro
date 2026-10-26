@@ -9,7 +9,6 @@ import { Layer } from '@ui/components/Layer';
 import { cn } from '@ui/utils/classname';
 import { createMemo, createSignal, Show } from 'solid-js';
 import { formatLocalDate, parseLocalDate } from '../../utils/calendar-date';
-import { EventComposerPopoverPortal } from './EventComposerPopoverPortal';
 import {
   DAY_TIME_OPTIONS,
   type EventTimeOption,
@@ -27,7 +26,7 @@ function TimeOptionItem(props: CollectionNode<EventTimeOption>) {
   return (
     <Listbox.Item
       item={props}
-      class="group flex cursor-default items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm text-ink outline-none hover:bg-hover data-selected:bg-active data-highlighted:bg-hover"
+      class="group flex cursor-default items-center justify-between gap-3 rounded-lg px-3 py-2 text-base text-ink outline-none hover:bg-hover data-selected:bg-active data-highlighted:bg-hover"
     >
       <Listbox.ItemLabel>{props.rawValue.label}</Listbox.ItemLabel>
       <div class="flex shrink-0 items-center gap-2">
@@ -102,6 +101,7 @@ export function EventTimeInput(props: EventTimeInputProps) {
       gutter={4}
       flip
       slide
+      fitViewport
     >
       {!props.hideLabel && (
         <label for={props.id} class="block text-xxs font-medium text-ink-muted">
@@ -121,7 +121,7 @@ export function EventTimeInput(props: EventTimeInputProps) {
           aria-invalid={props.invalid || undefined}
           aria-expanded={open()}
           aria-haspopup="listbox"
-          class="w-full appearance-none rounded-md border border-edge-muted bg-control py-1.5 pr-7 pl-2 text-xs text-ink outline-none focus:border-accent aria-invalid:border-failure aria-invalid:ring-2 aria-invalid:ring-failure/20 disabled:opacity-50 [&::-webkit-calendar-picker-indicator]:hidden"
+          class="w-full appearance-none rounded-md border border-edge-muted bg-hover py-1.5 pr-7 pl-2 text-base text-ink outline-none enabled:hover:bg-active focus:bg-active aria-expanded:bg-active focus:border-accent aria-invalid:border-failure aria-invalid:ring-2 aria-invalid:ring-failure/20 disabled:opacity-50 [&::-webkit-calendar-picker-indicator]:hidden"
           onFocus={() => {
             props.onFocus?.();
             setDropdownOpen(true);
@@ -145,14 +145,15 @@ export function EventTimeInput(props: EventTimeInputProps) {
         />
         <CaretDownIcon
           aria-hidden="true"
-          class="pointer-events-none absolute top-1/2 right-2 size-3 -translate-y-1/2 text-ink-extra-muted"
+          class="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink-extra-muted"
         />
       </div>
 
-      <EventComposerPopoverPortal>
+      <Popover.Portal>
         <Layer depth={4}>
           <Popover.Content
-            class="menu-surface z-action-menu max-h-64 min-w-[var(--kb-popper-anchor-width)] overflow-y-auto p-1.5 menu-open-animation"
+            data-kb-top-layer
+            class="menu-surface portal-scope z-action-menu max-h-[min(16rem,var(--kb-popper-content-available-height))] max-w-[var(--kb-popper-content-available-width)] min-w-[var(--kb-popper-anchor-width)] overflow-y-auto p-1.5 menu-open-animation"
             style={{
               'z-index': 'calc(var(--z-index-action-menu) + 1)',
             }}
@@ -190,7 +191,7 @@ export function EventTimeInput(props: EventTimeInputProps) {
             />
           </Popover.Content>
         </Layer>
-      </EventComposerPopoverPortal>
+      </Popover.Portal>
     </Popover>
   );
 }

@@ -1,0 +1,49 @@
+import { defineDoc } from '@app/features/ui-gallery/types';
+import { createSignal } from 'solid-js';
+import { type CalendarRange, RangeCalendar } from './Calendar';
+
+// #region demo:range
+function RangeDemo() {
+  const [range, setRange] = createSignal<CalendarRange>({
+    from: new Date(2030, 9, 30),
+    to: new Date(2030, 10, 2),
+  });
+  return (
+    <div class="w-full max-w-2xl menu-surface p-4">
+      <RangeCalendar
+        required
+        fixedWeeks
+        value={range()}
+        onValueChange={setRange}
+      />
+      <div class="mt-2 border-t border-edge-muted pt-2">
+        <span class="block text-xs font-medium text-ink-muted">
+          Selected range
+        </span>
+        <p class="mt-1 text-sm text-ink">
+          {range().from?.toLocaleDateString() ?? 'Select a start date'} →{' '}
+          {range().to?.toLocaleDateString() ?? 'Select an end date'}
+        </p>
+      </div>
+    </div>
+  );
+}
+// #endregion
+
+export default defineDoc({
+  name: 'RangeCalendar',
+  category: 'Inputs',
+  status: 'stable',
+  description:
+    'Compact connected month grids with larger touch dates, adjacent-month dates, month/year drill-down, shared range selection, and keyboard navigation.',
+  exports: ['RangeCalendar'],
+  import: "import { RangeCalendar } from '@ui';",
+  demos: [
+    {
+      id: 'range',
+      title: 'Two connected months',
+      render: RangeDemo,
+      fill: true,
+    },
+  ],
+});

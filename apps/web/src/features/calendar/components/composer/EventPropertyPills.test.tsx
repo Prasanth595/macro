@@ -12,7 +12,6 @@ import { EventDateTimeRangeFields } from './EventDateTimeRangeFields';
 import {
   EventComposerConferencePill,
   EventComposerGuestsPill,
-  EventComposerLocationPill,
 } from './EventPropertyPills';
 import type {
   EventEditorConferenceChoice,
@@ -117,35 +116,6 @@ beforeEach(() => {
 });
 
 describe('composer popovers inside a dialog', () => {
-  it('focuses the location input and preserves changes when reopened', async () => {
-    const user = userEvent.setup();
-    render(() => {
-      const [location, setLocation] = createSignal('');
-      return (
-        <Dialog open>
-          <input aria-label="Title" />
-          <EventComposerLocationPill
-            value={location()}
-            onChange={setLocation}
-          />
-        </Dialog>
-      );
-    });
-    screen.getByLabelText('Title').focus();
-    const trigger = screen.getByRole('button', { name: 'Location' });
-    await user.click(trigger);
-    const input = screen.getByRole('textbox', { name: 'Location' });
-    expect(document.activeElement).toBe(input);
-    await user.type(input, 'Meeting room');
-    await user.click(trigger);
-    expect(trigger.getAttribute('aria-expanded')).toBe('false');
-    await user.click(trigger);
-    expect(
-      (screen.getByRole('textbox', { name: 'Location' }) as HTMLInputElement)
-        .value
-    ).toBe('Meeting room');
-  });
-
   it('selects a nested time without dismissing the date picker or composer', async () => {
     const user = userEvent.setup();
     render(() => {
@@ -157,8 +127,7 @@ describe('composer popovers inside a dialog', () => {
             start={start()}
             end="2026-10-06T10:00"
             allDay={false}
-            onStartChange={setStart}
-            onEndChange={vi.fn()}
+            onRangeChange={setStart}
             onAllDayChange={vi.fn()}
           />
         </Dialog>
@@ -166,7 +135,7 @@ describe('composer popovers inside a dialog', () => {
     });
     screen.getByLabelText('Title').focus();
     const trigger = screen.getByRole('button', {
-      name: 'Edit event start date and time',
+      name: 'Edit event date and time range',
     });
     await user.click(trigger);
     const time = screen.getByLabelText('Start time');

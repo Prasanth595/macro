@@ -30,7 +30,13 @@ import {
   Suspense,
   Switch,
 } from 'solid-js';
+import {
+  CalendarEditorProvider,
+  useCalendarEditor,
+} from '../context/calendar-editor-context';
 import { CALENDAR_TOUR, calendarTour } from '../tour';
+import type { CalendarViewTarget } from '../types';
+import { CalendarEventComposer } from '../views/calendar-event-composer';
 import { CalendarSidebar } from './CalendarSidebar';
 import { Header } from './Header';
 import { Page } from './Page';
@@ -43,6 +49,7 @@ const CALENDAR_SWIPE_EDGE_INSET = 40;
 function CalendarPages() {
   const calendarView = useCalendarView();
   const calendarPager = useCalendarPager();
+  const composer = useCalendarEditor();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const viewportSize = createElementSize(viewport);
   const breakpoints = createSizeBreakpoints(
@@ -112,6 +119,15 @@ function CalendarPages() {
                 event={calendarView.selectedEvent}
                 timeFormat={() => calendarView.displaySettings.timeFormat}
                 onClose={calendarView.closeEventDetails}
+                onEdit={(event) => {
+                  const element = calendarView.selectedEventAnchor();
+                  composer.open({
+                    event,
+                    anchor: element
+                      ? { element, rect: element.getBoundingClientRect() }
+                      : undefined,
+                  });
+                }}
               />
             )}
           </Show>
@@ -136,12 +152,19 @@ function CalendarPages() {
 }
 
 function CalendarPageContent() {
+  const [boundary, setBoundary] = createSignal<HTMLDivElement>();
   return (
     <div
-      ref={tourTarget(CALENDAR_TOUR.grid)}
-      class="calendar-view-content flex min-w-0 min-h-0 flex-1 flex-col"
+      ref={(element) => {
+        setBoundary(element);
+        tourTarget(CALENDAR_TOUR.grid)(element);
+      }}
+      class="calendar-view-content relative flex min-w-0 min-h-0 flex-1"
     >
       <CalendarPages />
+      <Show when={boundary()}>
+        {(element) => <CalendarEventComposer boundary={element()} />}
+      </Show>
     </div>
   );
 }
@@ -201,18 +224,25 @@ function CalendarPagerWorkspace(props: { headerLeading?: JSX.Element }) {
   );
 }
 
-export function Workspace(props: { headerLeading?: JSX.Element }) {
+export function Workspace(
+  props: {
+    editorRequest?: CalendarViewTarget['editorRequest'];
+    headerLeading?: JSX.Element;
+  } = {}
+) {
   const calendarView = useCalendarView();
 
   return (
-    <CalendarPagerContextProvider
-      initialView={calendarView.displaySettings.periodView}
-      showWeekends={() => calendarView.displaySettings.showWeekends}
-      weekStartsOn={() => calendarView.displaySettings.weekStartsOn}
-      onNavigate={calendarView.closeEventDetails}
-      onViewChange={calendarView.setPeriodView}
-    >
-      <CalendarPagerWorkspace headerLeading={props.headerLeading} />
-    </CalendarPagerContextProvider>
+    <CalendarEditorProvider request={props.editorRequest}>
+      <CalendarPagerContextProvider
+        initialView={calendarView.displaySettings.periodView}
+        showWeekends={() => calendarView.displaySettings.showWeekends}
+        weekStartsOn={() => calendarView.displaySettings.weekStartsOn}
+        onNavigate={calendarView.closeEventDetails}
+        onViewChange={calendarView.setPeriodView}
+      >
+        <CalendarPagerWorkspace headerLeading={props.headerLeading} />
+      </CalendarPagerContextProvider>
+    </CalendarEditorProvider>
   );
 }

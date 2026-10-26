@@ -242,7 +242,10 @@ export function CalendarView(props: CalendarViewProps) {
           onPeriodViewChange={setPeriodView}
           onFocusedEventIdChange={setFocusedEventId}
         >
-          <Workspace headerLeading={props.headerLeading} />
+          <Workspace
+            editorRequest={contentTarget().editorRequest}
+            headerLeading={props.headerLeading}
+          />
         </CalendarViewContextProvider>
       </CalendarFocusContextProvider>
     </Show>

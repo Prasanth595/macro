@@ -22,7 +22,6 @@ import { EventGuests } from '@app/features/calendar-view/components/EventGuests'
 import { EventJoinRequests } from '@app/features/calendar-view/components/EventJoinRequests';
 import { EventRsvpSection } from '@app/features/calendar-view/components/EventRsvpSection';
 import { useForwardEventEmail } from '@app/features/calendar-view/components/use-forward-event-email';
-import { useOpenEventComposer } from '@app/features/calendar-view/components/use-open-event-composer';
 import { copyCalendarEventMention } from '@app/features/calendar-view/copy-event-mention';
 import { downloadCalendarEventIcs } from '@app/features/calendar-view/download-event-ics';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
@@ -58,6 +57,7 @@ interface SelectedEventDetailsProps {
   event: Accessor<CalendarEvent | undefined>;
   timeFormat: Accessor<CalendarTimeFormat>;
   onClose: () => void;
+  onEdit: (event: CalendarEvent) => void;
 }
 
 /**
@@ -109,6 +109,7 @@ export function SelectedEventDetails(props: SelectedEventDetailsProps) {
                   event={currentEvent()}
                   timeFormat={props.timeFormat()}
                   defaultReminders={defaultReminders(currentEvent())}
+                  onEdit={props.onEdit}
                   onOpenChange={(open) => {
                     if (!open) props.onClose();
                   }}
@@ -126,6 +127,7 @@ export function SelectedEventDetails(props: SelectedEventDetailsProps) {
               event={currentEvent()}
               timeFormat={props.timeFormat()}
               defaultReminders={defaultReminders(currentEvent())}
+              onEdit={props.onEdit}
               onOpenChange={(open) => {
                 if (!open) props.onClose();
               }}
@@ -142,6 +144,7 @@ interface EventDetailsOverlayProps {
   timeFormat: CalendarTimeFormat;
   defaultReminders?: EventReminderOverride[];
   onOpenChange: (open: boolean) => void;
+  onEdit: (event: CalendarEvent) => void;
 }
 
 function EveryoneElseDeclinedNotice(props: {
@@ -186,7 +189,6 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
   const [notesOpen, setNotesOpen] = createSignal(false);
   let content: HTMLDivElement | undefined;
   const { openWithSplit } = useSplitLayout();
-  const openEventComposer = useOpenEventComposer();
   const deleteDialog = useDeleteEventDialog({
     event: () => props.event,
     onDeleted: () => props.onOpenChange(false),
@@ -198,7 +200,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
   const canEdit = () => canEditCalendarEvent(props.event);
   const canDelete = () => canDeleteCalendarEvent(props.event);
   const openEditor = () => {
-    openEventComposer({ event: props.event });
+    props.onEdit(props.event);
     props.onOpenChange(false);
   };
   const forwardEventEmail = useForwardEventEmail();
@@ -490,7 +492,6 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
   const [notesOpen, setNotesOpen] = createSignal(false);
   let openingDocument = false;
   const { openWithSplit } = useSplitLayout();
-  const openEventComposer = useOpenEventComposer();
   const deleteDialog = useDeleteEventDialog({
     event: () => props.event,
     onDeleted: () => props.onOpenChange(false),
@@ -502,7 +503,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
   const canEdit = () => canEditCalendarEvent(props.event);
   const canDelete = () => canDeleteCalendarEvent(props.event);
   const openEditor = () => {
-    openEventComposer({ event: props.event });
+    props.onEdit(props.event);
     props.onOpenChange(false);
   };
   const forwardEventEmail = useForwardEventEmail();

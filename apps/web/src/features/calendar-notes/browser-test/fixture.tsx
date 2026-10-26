@@ -200,6 +200,7 @@ function Fixture() {
               event={() => (selected() ? event() : undefined)}
               timeFormat={() => '12-hour'}
               onClose={() => setSelected(false)}
+              onEdit={() => setMessage('Edit event')}
             />
           )}
         </Show>

@@ -120,7 +120,9 @@ afterEach(() => {
 it('takes typing into an unlocked description', async () => {
   const user = userEvent.setup();
   const form = showForm(false);
-  const description = await screen.findByLabelText('Description');
+  const description = await screen.findByRole('textbox', {
+    name: 'Description',
+  });
 
   await user.click(description);
   await user.keyboard(' and notes');
@@ -133,9 +135,9 @@ it('takes typing into an unlocked description', async () => {
 it('refuses typing into a locked description', async () => {
   const user = userEvent.setup();
   const form = showForm(true);
-  const description = await screen.findByLabelText('Description');
+  const description = screen.getByRole('group', { name: 'Description' });
 
-  expect(description.getAttribute('contenteditable')).toBe('false');
+  expect(screen.queryByRole('textbox', { name: 'Description' })).toBeNull();
   await user.click(description);
   await user.keyboard(' and notes');
 
@@ -147,7 +149,7 @@ it('refuses typing into a locked description', async () => {
 it('shows the event’s description again when its details lock after an edit', async () => {
   const user = userEvent.setup();
   const form = showForm(false);
-  await user.click(await screen.findByLabelText('Description'));
+  await user.click(await screen.findByRole('textbox', { name: 'Description' }));
   await user.keyboard(' and notes');
   await waitFor(() =>
     expect(form.controller().state().description).toContain('notes')
@@ -156,8 +158,8 @@ it('shows the event’s description again when its details lock after an edit', 
   form.controller().resetDetails();
   form.setLocked(true);
 
-  const description = await screen.findByLabelText('Description');
+  const description = screen.getByRole('group', { name: 'Description' });
   await waitFor(() => expect(description.textContent).toBe('Agenda'));
-  expect(description.getAttribute('contenteditable')).toBe('false');
+  expect(screen.queryByRole('textbox', { name: 'Description' })).toBeNull();
   expect(form.controller().isDirty()).toBe(false);
 });

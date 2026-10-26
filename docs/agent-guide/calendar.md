@@ -93,12 +93,22 @@ calendar should open Meet with the work account. Search results without loaded
 calendar account metadata and other conferencing providers keep their original URL.
 
 Event composer dropdown triggers and date/time inputs use the theme control
-surface, so they blend with the dialog instead of using the darker page fill.
-Their menus stay inside the composer's portal scope. Verify that calendar,
-recurrence, Guests, conferencing, Location, and Notifications open on the first
+surface, so they blend with the editor instead of using the darker page fill.
+Property menus stay inside the composer's portal scope; date and time pickers
+portal globally. Verify that calendar, recurrence, Guests, conferencing, Location,
+and Notifications open on the first
 click from the title field and accept changes without closing the composer.
-Open the start/end date picker and its nested time list; selecting a time keeps
-the date picker open. Escape dismisses the active menu before the composer.
+Open the single **from → to** date-range trigger. Its rounded glass popover contains
+connected month panels with subtle dividers, a live selection summary, start/end time
+selectors, and All day. Single-day events show one month and update both dates on
+each date click, preserving their times. For multi-day events, desktop and tablet
+show two consecutive months, stacking when constrained; phones show one month.
+Choose a start day, then an end day. An unfinished multi-day selection updates the
+summary without changing the event. Complete ranges update without an Apply step.
+Time dropdowns stay outside the picker, without clipping or changing its dimensions.
+Start/end time controls use a filled background with hover and focus feedback.
+Time selection keeps the date picker open. Escape dismisses the active time list,
+then the date picker, before the composer.
 Moving the start date or time moves the end with it, keeping the event's length
 (all-day dates keep their day count), until the end is picked in the same edit;
 after that the end stays put, and a start past it shows the end-before-start
@@ -196,12 +206,199 @@ an agent reply appears, and messages remain in the saved history; starting a
 new session from the same meeting link must start a separate chat thread.
 
 
-Calendar event creation and editing open in a bottom sheet on touch devices,
-with scrollable content above the keyboard. When the form outgrows the sheet, as
-it does with the custom repeat builder open, the sheet scrolls down to the
-footer: Cancel and `Create event` or `Save`, plus `This event`/`All events` when
-editing a recurring event. Desktop retains the centered dialog.
-Dismissing a changed event still asks before discarding the draft.
+Desktop calendar selections and editing from event details open a non-modal popover
+beside the event or selected slot, with an 8px gap. It flips and slides inside the
+calendar boundary, follows the visible draft/event, and retains its last anchor
+when the grid page is recycled. Move to sidebar transfers the same draft and
+controller into the inset, rounded right sidebar, using
+the shared menu surface. Explicit New → Event requests open the popover,
+which is up to 400px wide and fits within the calendar pane. Both desktop surfaces
+leave the calendar interactive.
+Use the left-aligned presentation button in the editor header to switch surfaces:
+**Move to sidebar** shows a right-panel icon; **Move to popover** shows overlapping
+windows. The close button stays on the right. Editor field values use `text-base`
+(15px at the default root size), and the title uses `text-lg` (18px), on both
+desktop and mobile. Row icons are 20px on desktop and 24px on mobile;
+date-picker captions and helper text stay smaller. For a
+same-day event, the editable trigger and selection summary show the date once,
+without a from/to arrow; the picker keeps separate Start time and End time
+controls. Multi-day events keep both dates and the range arrow.
+Both transfer actions retain the draft, selected range, guests, recurrence, and save
+scope; neither action dismisses or recreates the draft. Transfers are disabled
+while a save is pending.
+Drag the desktop editor by the grip or empty space in its header. The actual editor
+moves without remounting its form. While dragging from the sidebar, its layout slot
+stays reserved and the editor becomes shorter with a scrollable body. Releasing
+turns it into a popover at the drop position and releases the sidebar slot. Popovers
+can also be repositioned by dragging. Escape, pointer cancellation, or window blur
+restores the original presentation and position. Dragging is disabled during saves;
+header buttons and form controls do not start a drag. Dropped editors stay within
+the calendar and viewport, including after resizing. Mobile retains its full-screen
+sheet without a drag handle.
+Create and edit place the event type directly under the title. Creation uses
+selectable Event and Out of office pills with their corresponding icons. Existing events keep their provider type as plain
+read-only content.
+The selected calendar's color swatch sits beside the title, aligned with the property icons. Keep an 8px
+icon-to-value gap for the title and property rows on every screen size. Calendar
+options and the selected calendar trigger show their color swatches. Description
+stays directly beneath the title and event-type pills. Align editable title text with
+the description, location, and selector text. Editable description and location use the same
+rounded containers and horizontal text padding as the selectors. Description stays
+roomy; Location is capped at 288px on desktop and fills the value column on phones.
+Align the description placeholder and first text line with selector typography
+and vertical text position, including multiline descriptions and touch sizing.
+The remaining icon-led rows follow the details popover's order:
+date/time, recurrence, meeting link, direct location input, notifications,
+calendar, then guests. Field gaps are compact: 8px on desktop and 12px on phones.
+Center each row icon on its first selector, including touch-sized selectors and
+rows with extra controls below, rather than on the combined row height.
+Permission-locked values are plain read-only content, not control-shaped pills
+or disabled inputs. Property dropdown selectors fit their content on desktop,
+without overflowing the value column, and fill that column on phones. They retain
+taller triggers and 12px rounded corners. The similarly sized date-range trigger shows
+**from → to** and opens both dates and times together in the popover or phone sheet.
+Event-type pills stay compact, wrap on narrow screens, and support keyboard selection.
+Triggers omit focus outlines and rings, retaining background feedback for keyboard focus; touch
+triggers keep a 44px minimum height. The custom-repeat
+action sits below its selector.
+The popover has no visible `New event` heading. The date-range trigger remains
+available in every editor presentation; its picker contains date, time, and All day
+controls. Fully locked ranges appear as plain text; a partially locked range keeps
+the locked endpoint unchanged while allowing the other endpoint to be edited.
+All-day dates include the selected last day; saving still uses an exclusive end.
+The date picker portals globally outside the editor/sidebar at depth 4. Single-day
+events select one date: each click moves both endpoints together and preserves
+their times. Multi-day events retain connected range selection. Both modes preserve
+locked endpoints. Same-day events show one month and the start/end times; multi-day
+events show two connected months on desktop/tablet. Phones always show one navigable
+month, with range selection only for multi-day events.
+Desktop month grids use compact 28px dates and tighter padding; touch dates keep
+36px targets. Month panels remain side by side when there is room in the window,
+regardless of sidebar width.
+On wide screens, start/end times and All day sit in a column to the right of the
+calendars. Phones and narrow windows keep both time inputs side by side below.
+Time dropdowns portal globally outside the picker so they cannot be clipped or
+resize it. They remain viewport-bound and independently scrollable; selecting a
+time or pressing Escape dismisses only the time dropdown.
+Adjacent-month dates remain visible and muted. Each month heading opens a month/year
+chooser with a month grid, year-grid drill-down, paging, and This month. Navigating
+these controls changes only the displayed months, never the selected event dates.
+The chooser and its controls use background-only keyboard focus, without outlines
+or rings. It opens with the current month focused. Arrow keys work immediately,
+including after reopening. All date navigation stays within years 1000 through
+9999: the chooser clamps linked panels, arrows disable at the boundary, and keyboard
+navigation cannot reach unsupported dates. Browsing never changes the event range.
+The Selected range label is small secondary text with compact spacing below the
+calendar, without introductory “choose a start day” instructions.
+The primary Create event
+and Save actions use the CTA button style and keep their dimensions while showing
+a loading spinner.
+
+Scrolling, paging, changing period, and outside clicks that do not select a
+calendar range leave the active draft unchanged. Clicking or dragging another
+empty timeslot immediately replaces an untouched draft. For a changed draft,
+the shared `confirmDialog` offers `Keep editing` or `Discard`: keeping preserves
+the original draft, while discarding opens the newly selected range. A pending
+save cannot be replaced. External create/edit requests retain caller lifecycle
+callbacks and are single-use: a workspace remount must not reopen a draft after
+it was saved or dismissed.
+The draft event preview comes from the live controller rather than FullCalendar's
+transient selection. Returning to its date after paging restores the preview with
+its current title, dates, and calendar color.
+
+Custom repeat rules open in a separate `Custom recurrence` dialog. Changes remain
+local until `Done`; Cancel or Escape preserves the prior choice and rule.
+`Edit custom rule` reopens an existing custom rule. Blank end dates and invalid
+intervals or occurrence counts cannot be applied.
+
+On phones, creation and editing fill the same bottom sheet, retaining date/time
+controls and the shared layout. Custom recurrence uses a nested sheet.
+Close, Cancel, Escape, and mobile sheet dismissal use the shared `confirmDialog`
+before discarding a changed draft. A pending save cannot be dismissed. Split-router
+`useBeforeLeave` belongs to the calendar-owned composer, outside its loading and
+form branches. It confirms before leaving any unsaved creation draft, including
+an untouched selected slot while the editor is loading; existing edits prompt only
+when changed. Keep editing retains the draft and current route; Discard permits
+navigation. Reloading also protects unsaved new events. Clean timeslot replacement
+remains immediate.
+
+Verify a click and a multi-slot drag in Week and Month. Opening or reopening a new
+desktop event must focus Title before typing, even while its position is resolving.
+Enter a title, description,
+guest, location, and custom recurrence; confirm date and time controls remain
+visible in the popover. Change the selected calendar and
+confirm the menu, trigger, and title swatches match. Check title, description, and
+location text alignment and 8px icon-to-value gaps on desktop, tablet, and phone.
+Verify the popover sits beside the event/slot and stays inside the calendar after
+scrolling, navigating weeks, changing period, and resizing. Test a right-edge
+selection to confirm the popover flips left. In a short calendar pane (including a
+360px-high window), open the global date picker and verify month navigation,
+dates, and both time selectors remain reachable within the window. The picker
+scrolls internally when necessary. Check one month for a same-day range and two
+for a multi-day desktop range, including expanding across a month boundary.
+Verify both months remain side by side and the time inputs sit to their right
+when the window is wide enough, including from the sidebar. On phones and narrow
+windows, check that time inputs stay side by side below the calendars.
+Check the range summary after each day click.
+Resize a non-touch window to verify constrained month panels stack without overflow.
+Check visible adjacent-month dates and the compact, secondary Selected range label.
+Use either month's heading to select a year and month; confirm the panels remain
+consecutive and the event dates do not change. Test arrow-key navigation and Enter
+in the month/year grid. Escape must dismiss only that chooser, leaving the date
+picker and event editor open.
+Move from popover to sidebar and back with a dirty draft; check title, description,
+guests, dates, recurrence, and edit scope. Both directions must retain the draft
+without prompting for discard, and both transfer controls must disable during save.
+Drag from the sidebar header and verify its layout slot stays reserved until drop,
+only one editor exists, its height shrinks, and its form nodes and values survive.
+Drag the 400px-wide popover to the calendar's right edge. Check that the docking
+preview highlights above the overlapping editor without intercepting pointer input.
+Releasing restores the full-height sidebar and reserves grid space only after drop.
+Drag away from the edge to keep a floating popover, or drop a dragged sidebar back
+on its right edge to keep it docked.
+Drop, resize the window, and open the nested date picker. Confirm the popover stays
+inside the calendar and all controls remain reachable. Repeat with Escape, pointer
+cancellation, and window blur; each must clear the preview and restore the original
+position and presentation without a discard prompt. Check header buttons, pending
+saves, and phone sheets never start a drag.
+For a multi-day event, select a range across the month boundary and check that
+both months highlight the covered days. Confirm its first click leaves the prior
+range unchanged. On a phone, navigate between months to select the same range.
+For a single-day event, click different dates and confirm both endpoints move
+together on every click, including across months and with keyboard selection.
+Check start/end times, midnight rollover, and All day saving. Open each time
+dropdown and select an option beyond the date picker's bounds; verify the picker
+does not resize or scroll and Escape closes only the active time dropdown.
+Check the actual description placeholder and first text line when empty, filled,
+and multiline, not just the outer container edges.
+Cancel a new custom rule and changes to an existing rule; confirm neither changes
+the event. Scroll the original slot away, navigate several weeks, and change
+period; confirm the draft stays open.
+Return to the draft's dates and confirm its event preview reappears. Change the
+draft's title, dates, and calendar and verify the preview follows those edits.
+Move a populated draft to the sidebar and verify its title, guests, description,
+location, dates, custom recurrence, and recurring edit scope survive. Verify the
+sidebar keeps its 12px insets after calendar navigation and outside clicks. Check
+both event-type pills update the form, remain unavailable while saving, and sit
+below the title on desktop, tablet, and phone.
+Click or drag another empty slot: verify immediate replacement for a clean draft,
+then both `Keep editing` and `Discard` for a dirty draft. Check that Discard opens
+the newly selected range. Verify explicit dismissal separately.
+Switch app-sidebar tabs with both an untouched new draft and an edited draft.
+Delay editor loading and repeat before its fields appear. Verify Keep editing
+stays in Calendar without changing the draft, while Discard allows navigation.
+Exercise the popover and sidebar separately through the actual app sidebar, not
+only direct router calls, including a destination already open in another pane.
+Verify this in the authenticated app; mocked-data tests do not establish that
+its sidebar navigation protects drafts.
+Repeat from `New → Event` and on a phone. Open each nested
+menu or dialog and press Escape: dismiss the top layer first, not the editor.
+Edit an existing recurring event and check both recurring scopes. Intentional
+repeat-rule changes require `All events`; `This event` stays
+unavailable until the original rule is restored. Moving a single occurrence's
+date without editing the rule still allows `This event`. Do not save test events
+to shared dev data. Call-link retry behavior remains
+owned by the shared event editor.
 
 On phones, event details use inset round action buttons and a transparent RSVP
 footer. Answering a recurring invitation opens a rounded glass sheet: choose
@@ -461,7 +658,7 @@ does not silently send the invitation from another connected inbox.
 Failed calendar or account queries show `Could not load your calendars.` with
 `Try again`, rather than offering consent or presenting the failure as backfill.
 
-`New event` opens the compact composer with All day in the date/time fields.
+`New → Event` opens the shared desktop editor popover, with All day in the date/time fields.
 The meeting-link selector lists `Macro call`, `Google Meet`, then `No meeting link`
 for new events, defaulting to `Macro call` when quick calls are enabled. Keeping
 that selection creates the Macro call together with the event in one save, so the
@@ -503,10 +700,10 @@ Desktop event details stay inside the visible calendar grid, including Home
 previews and narrow splits. They overlap wide Day-view events when needed and
 shrink to fit the pane; long details scroll while the RSVP row stays visible.
 
-The `New event` composer (also opened by dragging a range on the grid) has an `Event kind`
-pill choosing between `Event` and `Out of office`. Picking `Out of office` hides the guests,
-conferencing, and location pills and the description field (Google rejects them on this
-type), forces a timed (not all-day) range, restricts the calendar
+The event type control above the title chooses between `Event` and `Out of office`.
+Picking `Out of office` hides the guests, conferencing, and location controls and
+the description field (Google rejects them for this event type). Google stores a
+full-day timed range when All day is selected. The form restricts the calendar
 pill to primary calendars, and shows a `Decline meetings` pill (`Don't decline meetings` /
 `Decline new meetings` / `Decline all meetings`) plus, when declining, an optional
 `Decline message` pill; a warning note discloses the away/auto-decline effect before saving.

@@ -1,4 +1,5 @@
 import type { OutOfOfficeProperties } from '@service-calendar/generated/schemas/outOfOfficeProperties';
+import type { CalendarUpdateScope } from '@service-email/client';
 import type { GuestPolicy } from '@service-storage/generated/schemas/guestPolicy';
 import { type Accessor, batch, createMemo, createSignal } from 'solid-js';
 import { DEFAULT_GUEST_POLICY } from '../../types';
@@ -169,6 +170,8 @@ export function createCalendarEventFormController(
     cloneValue(options.initialValue)
   );
   const [state, setState] = createSignal(cloneValue(options.initialValue));
+  // Save policy belongs to the draft, not a disposable popover or sidebar form.
+  const [editScope, setEditScope] = createSignal<CalendarUpdateScope>('all');
 
   const [initialGuests, setInitialGuests] = createSignal(
     initialGuestOptions(options.initialValue.guests, options.guestOptions())
@@ -185,6 +188,7 @@ export function createCalendarEventFormController(
     recurrenceTimeZone: options.recurrenceTimeZone,
     isEdit: options.isEdit,
   });
+  const [recurrenceTouched, setRecurrenceTouched] = createSignal(false);
 
   const isOutOfOffice = () => state().eventType === 'out_of_office';
   const eventKind = () => eventKindOf(state().eventType);
@@ -276,6 +280,12 @@ export function createCalendarEventFormController(
 
   const effectiveRecurrenceLines = () =>
     recurrence.recurrenceLines() ?? initialValue().recurrenceLines;
+  const hasRecurrenceEdits = () =>
+    recurrenceTouched() &&
+    !recurrenceLinesEqual(
+      initialValue().recurrenceLines,
+      effectiveRecurrenceLines()
+    );
 
   const value = createMemo<EventEditorInitialValues>(() => {
     const reminders = reminderUpdate();
@@ -439,6 +449,12 @@ export function createCalendarEventFormController(
     );
   };
 
+  const setDateRange = (start: string, end: string) => {
+    if (start === state().start && end === state().end) return;
+    endChosen = true;
+    replaceState({ ...state(), start, end });
+  };
+
   const setEnd = (end: string) => {
     if (end === state().end) return;
     endChosen = true;
@@ -490,11 +506,13 @@ export function createCalendarEventFormController(
   };
 
   const changeRecurrenceChoice = (choice: string) => {
+    setRecurrenceTouched(true);
     recurrence.changeRecurrenceChoice(choice);
     notifyChange();
   };
 
   const setCustomConfig: typeof recurrence.setCustomConfig = (next) => {
+    setRecurrenceTouched(true);
     recurrence.setCustomConfig(next);
     notifyChange();
   };
@@ -548,6 +566,7 @@ export function createCalendarEventFormController(
 
   const canSave = () =>
     recurrence.canSave() &&
+    !(editScope() === 'this_event' && hasRecurrenceEdits()) &&
     !conferenceError() &&
     (!options.defaultCalendarId ||
       availableCalendarOptions().some(
@@ -639,6 +658,8 @@ export function createCalendarEventFormController(
       setInitialGuests(guests);
       setSelectedGuestsState(guests);
       setReminderEdits(undefined);
+      setRecurrenceTouched(false);
+      setEditScope('all');
       recurrence.replaceInitialValues(cloned);
     });
   };
@@ -646,6 +667,14 @@ export function createCalendarEventFormController(
   return {
     state,
     value,
+    editScope,
+    setEditScope: (scope: CalendarUpdateScope) => {
+      if (scope === 'this_event' && hasRecurrenceEdits()) return;
+      setEditScope(scope);
+      if (scope === 'this_event')
+        setField('guestPolicy', initialValue().guestPolicy);
+    },
+    hasRecurrenceEdits,
     calendarOptions: availableCalendarOptions,
     guestOptions: options.guestOptions,
     initialGuests,
@@ -659,6 +688,7 @@ export function createCalendarEventFormController(
     setReminderMinutes,
     setField,
     setStart,
+    setDateRange,
     setEnd,
     setAllDay,
     eventKind,

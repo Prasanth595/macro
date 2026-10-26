@@ -1,14 +1,13 @@
+import { isMobile } from '@core/mobile/isMobile';
 import { Popover } from '@kobalte/core/popover';
 import ArrowRightIcon from '@phosphor/arrow-right.svg';
-import CalendarBlankIcon from '@phosphor/calendar-blank.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
-import { Calendar } from '@ui/components/Calendar';
+import { type CalendarRange, RangeCalendar } from '@ui/components/Calendar';
 import { Layer } from '@ui/components/Layer';
 import { ToggleSwitch } from '@ui/components/ToggleSwitch';
 import { cn } from '@ui/utils/classname';
-import { createSignal, createUniqueId } from 'solid-js';
+import { createSignal, createUniqueId, Show } from 'solid-js';
 import { formatLocalDate, parseLocalDate } from '../../utils/calendar-date';
-import { EventComposerPopoverPortal } from './EventComposerPopoverPortal';
 import { dateLabelFormatter, EventTimeInput } from './EventDateTimeInputs';
 import {
   DAY_TIME_OPTIONS,
@@ -24,223 +23,324 @@ import {
   withLocalTime,
 } from './event-time-options';
 
-interface EventDateTimeDropdownProps {
-  id: string;
-  label: 'Start' | 'End';
-  value: string;
-  allDay: boolean;
-  /**
-   * Range start the offered times are measured from, present on the end
-   * field: its options carry the duration they produce and roll into the
-   * following day past midnight.
-   */
-  anchorStart?: string;
-  onDateChange: (value: string) => void;
-  onTimeChange: (value: string) => void;
-  fieldDisabled?: boolean;
-  invalid?: boolean;
-  describedBy?: string;
-  placement: 'bottom-start' | 'bottom-end';
-}
-
-function EventDateTimeDropdown(props: EventDateTimeDropdownProps) {
-  const [open, setOpen] = createSignal(false);
-  const parts = () => splitLocalDateTime(props.value);
-  const selectedDate = () => parseLocalDate(parts().date);
-  const label = () => {
-    const date = selectedDate();
-    const dateLabel = date
-      ? dateLabelFormatter.format(date)
-      : `${props.label} date`;
-    if (props.allDay) return dateLabel;
-    return `${dateLabel} ${formatTimeValue(parts().time) ?? 'Time'}`;
-  };
-  const anchor = () => {
-    const start = props.anchorStart;
-    if (!start || !withinEndTimeWindow(start, props.value)) return undefined;
-    return start;
-  };
-  const timeOptions = () => {
-    const start = anchor();
-    return start
-      ? endTimeOptions(splitLocalDateTime(start).time)
-      : DAY_TIME_OPTIONS;
-  };
-  const selectedTimeId = () => {
-    const start = anchor();
-    return selectedTimeOptionId(
-      parts().time,
-      start ? dayOffsetBetween(start, props.value) : 0
-    );
-  };
-  const changeTime = (option: EventTimeOption) => {
-    const start = anchor();
-    props.onTimeChange(
-      start
-        ? endValueFor(start, option)
-        : withLocalTime(props.value, option.value)
-    );
-  };
-
-  return (
-    <Popover
-      open={open() && !props.fieldDisabled}
-      onOpenChange={(nextOpen) => setOpen(!props.fieldDisabled && nextOpen)}
-      placement={props.placement}
-      gutter={4}
-      flip
-      slide
-    >
-      <Popover.Trigger
-        disabled={props.fieldDisabled}
-        aria-label={`Edit event ${props.label.toLowerCase()} date and time`}
-        aria-invalid={props.invalid || undefined}
-        aria-describedby={props.describedBy}
-        class={cn(
-          'group inline-flex h-7 w-fit max-w-48 min-w-0 items-center justify-between gap-1.5 rounded-lg border border-edge-muted bg-control px-2 py-1 text-left text-xs leading-tight text-ink-muted hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:ring-accent/10 data-expanded:bg-hover data-expanded:text-ink disabled:pointer-events-none disabled:opacity-50',
-          open() && 'bg-hover text-ink',
-          props.invalid &&
-            'border-failure text-failure hover:text-failure focus-visible:text-failure data-expanded:text-failure'
-        )}
-      >
-        <CalendarBlankIcon
-          class={cn(
-            'size-3.5 shrink-0',
-            props.invalid
-              ? 'text-failure'
-              : 'text-ink-extra-muted group-hover:text-ink-muted group-focus-visible:text-ink-muted'
-          )}
-        />
-        <span class="min-w-0 flex-1 truncate">{label()}</span>
-        <CaretDownIcon
-          class={cn(
-            'size-3 shrink-0',
-            props.invalid
-              ? 'text-failure'
-              : 'text-ink-extra-muted group-hover:text-ink-muted group-focus-visible:text-ink-muted'
-          )}
-        />
-      </Popover.Trigger>
-
-      <EventComposerPopoverPortal>
-        <Layer depth={3}>
-          <Popover.Content
-            class="menu-surface portal-scope z-action-menu w-72 max-w-[calc(100vw-1rem)] menu-open-animation"
-            on:keydown={(event: KeyboardEvent) => {
-              if (event.key !== 'Escape') return;
-              event.preventDefault();
-              event.stopPropagation();
-              setOpen(false);
-            }}
-            onOpenAutoFocus={(event) => event.preventDefault()}
-            onCloseAutoFocus={(event) => event.preventDefault()}
-          >
-            <Popover.Title class="px-3 pt-3 text-xs font-medium text-ink">
-              {props.label} {props.allDay ? 'date' : 'date and time'}
-            </Popover.Title>
-            <div class="p-3">
-              <Calendar
-                required
-                fixedWeeks
-                value={selectedDate()}
-                onValueChange={(date) => {
-                  if (!date || props.fieldDisabled) return;
-                  props.onDateChange(formatLocalDate(date));
-                }}
-              />
-            </div>
-
-            <div class="border-t border-edge p-3">
-              <div class={cn(props.allDay && 'opacity-50')}>
-                <EventTimeInput
-                  id={props.id}
-                  label={`${props.label} time`}
-                  value={parts().time}
-                  options={timeOptions()}
-                  selectedId={selectedTimeId()}
-                  onChange={changeTime}
-                  disabled={props.fieldDisabled || props.allDay}
-                />
-              </div>
-            </div>
-          </Popover.Content>
-        </Layer>
-      </EventComposerPopoverPortal>
-    </Popover>
-  );
-}
-
 export interface EventDateTimeRangeFieldsProps {
   start: string;
   end: string;
   allDay: boolean;
-  onStartChange: (value: string) => void;
-  onEndChange: (value: string) => void;
+  onRangeChange: (start: string, end: string) => void;
+  /** Let the owner preserve duration when only the start time changes. */
+  onStartChange?: (start: string) => void;
   onAllDayChange: (allDay: boolean) => void;
   startDisabled?: boolean;
   endDisabled?: boolean;
   allDayDisabled?: boolean;
+  startReadOnly?: boolean;
+  endReadOnly?: boolean;
+  allDayReadOnly?: boolean;
   invalid?: boolean;
   describedBy?: string;
 }
 
-/** Separate start/end date-time dropdowns joined by a directional arrow. */
+/** One date-range trigger with connected months and both endpoint times. */
 export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
   const fieldId = createUniqueId();
+  const [open, setOpen] = createSignal(false);
+  // Multi-day selections stay local until both dates are chosen.
+  const [selection, setSelection] = createSignal<CalendarRange>();
+  const startParts = () => splitLocalDateTime(props.start);
+  const endParts = () => splitLocalDateTime(props.end);
+  const startDate = () => parseLocalDate(startParts().date);
+  const endDate = () => parseLocalDate(endParts().date);
+  const [month, setMonth] = createSignal(startDate() ?? new Date());
+  const singleDay = () => startParts().date === endParts().date;
+  const singleMonth = () => isMobile() || singleDay();
+  const canStart = () => !props.startReadOnly && !props.startDisabled;
+  const canEnd = () => !props.endReadOnly && !props.endDisabled;
+  const canAllDay = () => !props.allDayReadOnly && !props.allDayDisabled;
+  const editable = () => canStart() || canEnd() || canAllDay();
+  const readOnly = () =>
+    props.startReadOnly && props.endReadOnly && props.allDayReadOnly;
+  const label = (value: string, fallback: string) => {
+    const parts = splitLocalDateTime(value);
+    const date = parseLocalDate(parts.date);
+    const dateLabel = date ? dateLabelFormatter.format(date) : fallback;
+    return props.allDay
+      ? dateLabel
+      : `${dateLabel} ${formatTimeValue(parts.time) ?? 'Time'}`;
+  };
+  const currentRange = (): CalendarRange =>
+    selection() ?? {
+      from: startDate() ?? null,
+      to: endDate() ?? null,
+    };
+  const rangeDayLabel = (date: Date | null, fallback: string) =>
+    date ? dateLabelFormatter.format(date) : fallback;
+  const rangeLabel = () =>
+    singleDay()
+      ? rangeDayLabel(startDate() ?? null, 'Date')
+      : `${label(props.start, 'Start date')} → ${label(props.end, 'End date')}`;
+  const changeOpen = (next: boolean) => {
+    if (next) setMonth(startDate() ?? new Date());
+    setSelection(undefined);
+    setOpen(next && editable());
+  };
+  const publishRange = (start: string, end: string) => {
+    setSelection(undefined);
+    props.onRangeChange(
+      canStart() ? start : props.start,
+      canEnd() ? end : props.end
+    );
+  };
+  const dateValue = (value: string, date: Date) =>
+    props.allDay
+      ? formatLocalDate(date)
+      : withLocalDate(value, formatLocalDate(date));
+  const changeRange = (range: CalendarRange) => {
+    if (!canStart() && !canEnd()) return;
+    if (singleDay() || !canStart() || !canEnd()) {
+      // Move a single-day event together, without changing locked endpoints.
+      const day = range.to ?? range.from;
+      if (!day) return;
+      publishRange(dateValue(props.start, day), dateValue(props.end, day));
+      return;
+    }
+    if (!range.from || !range.to) {
+      setSelection(range);
+      return;
+    }
+    publishRange(
+      dateValue(props.start, range.from),
+      dateValue(props.end, range.to)
+    );
+  };
+  const anchor = () =>
+    !props.allDay && withinEndTimeWindow(props.start, props.end)
+      ? props.start
+      : undefined;
+  const endOptions = () =>
+    anchor() ? endTimeOptions(startParts().time) : DAY_TIME_OPTIONS;
+  const endTimeId = () =>
+    selectedTimeOptionId(
+      endParts().time,
+      anchor() ? dayOffsetBetween(props.start, props.end) : 0
+    );
+  const changeEndTime = (option: EventTimeOption) => {
+    if (!canEnd() || props.allDay) return;
+    publishRange(
+      props.start,
+      anchor()
+        ? endValueFor(props.start, option)
+        : withLocalTime(props.end, option.value)
+    );
+  };
 
   return (
-    <div class="flex w-full items-center justify-between gap-3">
-      <div class="flex min-w-0 items-center gap-2">
-        <EventDateTimeDropdown
-          id={`composer-start-time-${fieldId}`}
-          label="Start"
-          value={props.start}
-          allDay={props.allDay}
-          onDateChange={(date) =>
-            props.onStartChange(
-              props.allDay ? date : withLocalDate(props.start, date)
-            )
-          }
-          onTimeChange={props.onStartChange}
-          fieldDisabled={props.startDisabled}
-          invalid={props.invalid}
-          describedBy={props.describedBy}
-          placement="bottom-start"
-        />
-        <ArrowRightIcon
-          aria-label="to"
+    <Show
+      when={!readOnly()}
+      fallback={
+        <span
+          aria-label="Event date and time range"
+          class="select-text text-base text-ink-muted"
+        >
+          {label(props.start, 'Start date')} → {label(props.end, 'End date')}
+          {props.allDay ? ' · All day' : ''}
+        </span>
+      }
+    >
+      <Popover
+        modal
+        open={open() && editable()}
+        onOpenChange={changeOpen}
+        placement="bottom-start"
+        gutter={4}
+        flip
+        slide
+        overlap
+        fitViewport
+      >
+        <Popover.Trigger
+          disabled={!editable()}
+          aria-label="Edit event date and time range"
+          aria-invalid={props.invalid || undefined}
+          aria-describedby={props.describedBy}
+          title={rangeLabel()}
           class={cn(
-            'size-3.5 shrink-0 text-ink-extra-muted',
-            props.invalid && 'text-failure'
+            'group inline-flex h-9 w-full min-w-0 max-w-full items-center gap-1.5 rounded-xl border border-edge-muted bg-control px-2 py-2 text-left text-base leading-tight text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:outline-none focus-visible:ring-0 data-expanded:bg-hover data-expanded:text-ink sm:w-fit touch:min-h-[44px]',
+            props.invalid &&
+              'border-failure text-failure hover:text-failure focus-visible:text-failure data-expanded:text-failure'
           )}
-        />
-        <EventDateTimeDropdown
-          id={`composer-end-time-${fieldId}`}
-          label="End"
-          value={props.end}
-          allDay={props.allDay}
-          anchorStart={props.allDay ? undefined : props.start}
-          onDateChange={(date) =>
-            props.onEndChange(
-              props.allDay ? date : withLocalDate(props.end, date)
-            )
-          }
-          onTimeChange={props.onEndChange}
-          fieldDisabled={props.endDisabled}
-          invalid={props.invalid}
-          describedBy={props.describedBy}
-          placement="bottom-end"
-        />
-      </div>
-      <ToggleSwitch
-        checked={props.allDay}
-        disabled={props.allDayDisabled}
-        onChange={props.onAllDayChange}
-        size="sm"
-        label="All day"
-        labelClass="whitespace-nowrap text-xs text-ink-muted"
-        class="shrink-0"
-      />
-    </div>
+        >
+          <Show
+            when={singleDay()}
+            fallback={
+              <>
+                <span class="min-w-0 flex-1 truncate">
+                  {label(props.start, 'Start date')}
+                </span>
+                <ArrowRightIcon
+                  aria-label="to"
+                  class="size-4 shrink-0 text-ink-extra-muted"
+                />
+                <span class="min-w-0 flex-1 truncate">
+                  {label(props.end, 'End date')}
+                </span>
+              </>
+            }
+          >
+            <span class="min-w-0 flex-1 truncate">{rangeLabel()}</span>
+          </Show>
+          <CaretDownIcon class="size-4 shrink-0 text-ink-extra-muted" />
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Layer depth={4}>
+            <Popover.Content
+              class={cn(
+                'portal-scope z-action-menu flex max-h-[var(--kb-popper-content-available-height)] max-w-[var(--kb-popper-content-available-width,calc(100vw-1rem))] min-w-0 flex-col overflow-hidden menu-surface menu-open-animation',
+                isMobile() ? 'w-80' : singleMonth() ? 'w-[29rem]' : 'w-[46rem]'
+              )}
+              onKeyDown={(event) => {
+                if (event.key !== 'Escape') return;
+                event.preventDefault();
+                event.stopPropagation();
+                changeOpen(false);
+              }}
+              onCloseAutoFocus={(event) => event.preventDefault()}
+            >
+              <div class="@container min-h-0 overflow-y-auto overscroll-contain">
+                <Popover.Title class="px-3 pt-3 text-xs font-medium text-ink">
+                  Event date and time
+                </Popover.Title>
+                <div class="grid @md:grid-cols-[minmax(0,1fr)_10rem]">
+                  <div class="px-3 pb-3 pt-2">
+                    <RangeCalendar
+                      required
+                      fixedWeeks
+                      numberOfMonths={singleMonth() ? 1 : 2}
+                      month={month()}
+                      onMonthChange={setMonth}
+                      value={currentRange()}
+                      disabled={() => !canStart() && !canEnd()}
+                      onValueChange={changeRange}
+                    />
+                    <div
+                      role="status"
+                      class="mt-2 border-t border-edge-muted pt-2"
+                    >
+                      <span class="block text-xs font-medium text-ink-muted">
+                        Selected range
+                      </span>
+                      <p class="mt-1 text-sm text-ink">
+                        {rangeDayLabel(
+                          currentRange().from,
+                          'Select a start date'
+                        )}
+                        <Show when={!singleDay()}>
+                          {' → '}
+                          {rangeDayLabel(
+                            currentRange().to,
+                            'Select an end date'
+                          )}
+                        </Show>
+                      </p>
+                    </div>
+                  </div>
+                  <div class="border-t border-edge p-3 @md:border-l @md:border-t-0">
+                    <div class="grid grid-cols-2 gap-3 @md:grid-cols-1">
+                      <Show
+                        when={!props.startReadOnly}
+                        fallback={
+                          <div class="text-base text-ink-muted">
+                            <span class="block text-xxs font-medium">
+                              Start
+                            </span>
+                            <span
+                              aria-label="Start date and time"
+                              class="select-text"
+                            >
+                              {label(props.start, 'Start date')}
+                            </span>
+                          </div>
+                        }
+                      >
+                        <div>
+                          <EventTimeInput
+                            id={`composer-start-time-${fieldId}`}
+                            label="Start time"
+                            value={startParts().time}
+                            onChange={(option) => {
+                              if (!canStart() || props.allDay) return;
+                              const start = withLocalTime(
+                                props.start,
+                                option.value
+                              );
+                              if (props.onStartChange) {
+                                setSelection(undefined);
+                                props.onStartChange(start);
+                              } else {
+                                publishRange(start, props.end);
+                              }
+                            }}
+                            disabled={!canStart() || props.allDay}
+                          />
+                        </div>
+                      </Show>
+                      <Show
+                        when={!props.endReadOnly}
+                        fallback={
+                          <div class="text-base text-ink-muted">
+                            <span class="block text-xxs font-medium">End</span>
+                            <span
+                              aria-label="End date and time"
+                              class="select-text"
+                            >
+                              {label(props.end, 'End date')}
+                            </span>
+                          </div>
+                        }
+                      >
+                        <div>
+                          <EventTimeInput
+                            id={`composer-end-time-${fieldId}`}
+                            label="End time"
+                            value={endParts().time}
+                            options={endOptions()}
+                            selectedId={endTimeId()}
+                            onChange={changeEndTime}
+                            disabled={!canEnd() || props.allDay}
+                          />
+                        </div>
+                      </Show>
+                    </div>
+                    <div class="mt-3">
+                      <Show
+                        when={!props.allDayReadOnly}
+                        fallback={
+                          <span class="select-text text-base text-ink-muted">
+                            {props.allDay ? 'All day' : 'Timed event'}
+                          </span>
+                        }
+                      >
+                        <ToggleSwitch
+                          checked={props.allDay}
+                          disabled={!canAllDay()}
+                          onChange={(allDay) => {
+                            if (!canAllDay()) return;
+                            setSelection(undefined);
+                            props.onAllDayChange(allDay);
+                          }}
+                          size="sm"
+                          label="All day"
+                          labelClass="whitespace-nowrap text-base text-ink-muted"
+                        />
+                      </Show>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Popover.Content>
+          </Layer>
+        </Popover.Portal>
+      </Popover>
+    </Show>
   );
 }

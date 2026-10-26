@@ -152,7 +152,6 @@ vi.mock('@app/signal/splitLayout', () => {
     globalSplitManager: () => (state.managerPublished ? manager : undefined),
   };
 });
-vi.mock('@block-calendar/components/EventComposerSplit', () => ({}));
 vi.mock('@block-channel/component/Compose', () => ({}));
 vi.mock('@block-md/component/ComposeSkill', () => ({}));
 vi.mock('@block-md/component/ComposeTask', () => ({

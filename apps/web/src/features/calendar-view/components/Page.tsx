@@ -31,7 +31,6 @@ import {
   timeGridScroller,
 } from '@app/features/calendar/utils/time-grid-scroller';
 import { mergeCalendarOverlays } from '@app/features/calendar-team/core/merge';
-import { useOpenEventComposer } from '@app/features/calendar-view/components/use-open-event-composer';
 import { useQuickCallsFlag } from '@app/features/meetings/use-quick-calls-flag';
 import { toast } from '@core/component/Toast/Toast';
 import { ScrollIndicators } from '@core/component/VerticalScrollIndicators';
@@ -65,6 +64,8 @@ import {
   calendarFocusTargetId,
   useCalendarFocus,
 } from '../calendar-focus-target';
+import { useCalendarEditor } from '../context/calendar-editor-context';
+import { calendarSelectionAnchor } from '../primitives/calendar-editor-anchor';
 import { CalendarLoadingSkeleton } from './CalendarLoadingSkeleton';
 
 interface CalendarScrollTarget {
@@ -208,7 +209,7 @@ export function Page(props: {
   // Keep the settings object independent of route-period changes. Otherwise
   // reading any grid setting also subscribes FullCalendar to the whole object.
   const initialView = untrack(() => calendarView.displaySettings.periodView);
-  const openEventComposer = useOpenEventComposer();
+  const composer = useCalendarEditor();
   const quickCalls = useQuickCallsFlag();
   const calendarsQuery = useVisibleCalendarsQuery();
   const firstWritableCalendar = createMemo(() =>
@@ -222,6 +223,18 @@ export function Page(props: {
     selectionColor() ??
     firstWritableCalendar()?.color ??
     DEFAULT_CALENDAR_SOURCE.color;
+  const draftPreview = createMemo(() => {
+    const preview = composer.preview();
+    if (!preview) return;
+    const time = preview.time;
+    return {
+      title: preview.title,
+      color: preview.color ?? effectiveSelectionColor(),
+      start: time.kind === 'allDay' ? time.startDate : time.startsAt,
+      end: time.kind === 'allDay' ? time.endDate : time.endsAt,
+      allDay: time.kind === 'allDay',
+    };
+  });
   const isActive = () => pager.isActive(props.id);
   const useNarrowWeekdayHeaders = () =>
     props.useNarrowDayHeaders && !isMobile();
@@ -253,32 +266,43 @@ export function Page(props: {
     () => new Map(visibleEvents().map((event) => [event.id, event]))
   );
   const updateEventTime = useUpdateCalendarEventMutation();
+  let latestSelection: DateSelectArg | undefined;
   const handleSelect = (selection: DateSelectArg) => {
     if (!isActive()) return;
-    // The press that closes open event details also hits the grid. FullCalendar
-    // selects on mouseup, after the details have already closed, so that
-    // gesture must not open a new event.
     if (consumeSuppressedCalendarDateSelection()) {
       selection.view.calendar.unselect();
       return;
     }
+    latestSelection = selection;
     const calendar = firstWritableCalendar();
-    setSelectionColor(calendar?.color ?? DEFAULT_CALENDAR_SOURCE.color);
-    openEventComposer({
-      initialValues: {
-        ...calendarSelectionToEditorInitialValues(
-          selection,
-          quickCalls().enabled && !quickCalls().loading
-        ),
-        ...(calendar ? { calendarId: calendar.id } : {}),
-      },
-      onCalendarChange: (_calendarId: string, color: string) =>
-        setSelectionColor(color),
-      onClose: () => {
+    const anchor = calendarSelectionAnchor(selection);
+    const openSelection = async () => {
+      const opened = await composer.replace({
+        anchor,
+        initialValues: {
+          ...calendarSelectionToEditorInitialValues(
+            selection,
+            quickCalls().enabled && !quickCalls().loading
+          ),
+          ...(calendar ? { calendarId: calendar.id } : {}),
+        },
+        onCalendarChange: (_calendarId, color) => setSelectionColor(color),
+        onClose: () => {
+          // A replaced draft must not clear the newly selected range.
+          if (latestSelection === selection) selection.view.calendar.unselect();
+          setSelectionColor(undefined);
+        },
+      });
+      if (!opened) {
         selection.view.calendar.unselect();
-        setSelectionColor(undefined);
-      },
-    });
+        return;
+      }
+      selection.view.calendar.unselect();
+      setSelectionColor(calendar?.color ?? DEFAULT_CALENDAR_SOURCE.color);
+      calendarView.closeEventDetails();
+    };
+    fireAndForget(openSelection(), 'calendar-event-selection');
+    // The grid mirror is decoration only; the draft survives page recycling.
   };
 
   const handleDatesSet = ({ end, start }: DatesSetArg) => {
@@ -343,6 +367,7 @@ export function Page(props: {
     >
       <CalendarGrid
         initialDate={props.initialDate}
+        draft={draftPreview()}
         events={visibleEvents()}
         eventsById={eventsById()}
         settings={{
@@ -393,7 +418,13 @@ function CalendarPageHost(props: {
   const pager = useCalendarPager();
   const calendarView = useCalendarView();
   const calendarFocus = useCalendarFocus();
+  const composer = useCalendarEditor();
   const isActive = () => pager.isActive(props.id);
+
+  createEffect(() => {
+    const element = props.grid.draftElement();
+    if (isActive()) composer.setPreviewAnchor(element);
+  });
 
   // A block navigation request pages this calendar instance to one occurrence
   // and opens its details once FullCalendar has mounted the target chip.

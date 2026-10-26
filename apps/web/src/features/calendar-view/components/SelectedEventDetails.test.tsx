@@ -32,12 +32,6 @@ vi.mock('@queries/calendar/mutations', () => ({
   }),
 }));
 vi.mock(
-  '@app/features/calendar-view/components/use-open-event-composer',
-  () => ({
-    useOpenEventComposer: () => mocks.openComposer,
-  })
-);
-vi.mock(
   '@app/features/calendar-view/components/use-forward-event-email',
   () => ({
     useForwardEventEmail: () => vi.fn(),
@@ -149,6 +143,7 @@ function showDetails(selected: CalendarEvent) {
         event={selection}
         timeFormat={() => '12-hour'}
         onClose={() => setSelection(undefined)}
+        onEdit={mocks.openComposer}
       />
       <ImperativeDialogHost />
     </>

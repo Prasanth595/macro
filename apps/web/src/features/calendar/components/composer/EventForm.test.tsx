@@ -2,7 +2,13 @@
  * @vitest-environment jsdom
  */
 
-import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@solidjs/testing-library';
 import userEvent from '@testing-library/user-event';
 import { type ComponentProps, createMemo } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -142,26 +148,15 @@ it('keeps a guest the organizer does not let modify to their own reminders', asy
   });
 
   await user.type(screen.getByLabelText('Title'), 'ab');
-  expect(screen.getByLabelText('Title')).toHaveProperty(
-    'value',
-    'Customer demo'
-  );
-  expect(screen.getByRole('button', { name: 'Location' })).toHaveProperty(
-    'disabled',
-    true
-  );
-  expect(screen.getByLabelText('Repeats')).toHaveProperty('disabled', true);
-  expect(
-    screen.getByRole('button', { name: /Video conferencing/ })
-  ).toHaveProperty('disabled', true);
-  // Read-only on every edit, the kind and calendar no longer open their one
-  // value as a list once the details are locked.
-  for (const name of ['Event kind', 'Calendar']) {
-    const pill = screen.getByLabelText(name);
-    expect(pill).toHaveProperty('disabled', true);
-    await user.click(pill);
-    expect(screen.queryByRole('listbox')).toBeNull();
+  expect(screen.getByLabelText('Title').textContent).toBe('Customer demo');
+  expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull();
+  for (const name of ['Location', 'Repeats', 'Meeting link', 'Calendar']) {
+    const field = screen.getByRole('group', { name });
+    expect(within(field).queryByRole('textbox')).toBeNull();
+    expect(within(field).queryByRole('combobox')).toBeNull();
+    expect(within(field).queryByRole('button')).toBeNull();
   }
+  expect(screen.getByLabelText('Event type').textContent).toContain('Event');
   expect(
     screen.getByText('Only the organizer can change this event.')
   ).toBeTruthy();
@@ -202,16 +197,27 @@ it('offers no guest permissions without the organizer’s rights', () => {
 it('describes the read-only repeat rule while an edit targets one occurrence', async () => {
   const user = userEvent.setup();
   showForm({ isEdit: true, showRecurringEditNotice: true });
-  const repeats = screen.getByLabelText('Repeats');
+  const repeats = within(
+    screen.getByRole('group', { name: 'Repeats' })
+  ).getByRole('button');
   expect(repeats.getAttribute('aria-describedby')).toBeNull();
 
   await user.click(screen.getByRole('radio', { name: 'This event' }));
-  expect(repeats.getAttribute('aria-readonly')).toBe('true');
-  const reasonId = repeats.getAttribute('aria-describedby');
+  expect(
+    within(screen.getByRole('group', { name: 'Repeats' })).queryByRole('button')
+  ).toBeNull();
+  const value = within(
+    screen.getByRole('group', { name: 'Repeats' })
+  ).getByText('Does not repeat');
+  const reasonId = value.getAttribute('aria-describedby');
   expect(reasonId && document.getElementById(reasonId)).toBeTruthy();
 
   await user.click(screen.getByRole('radio', { name: 'All events' }));
-  expect(repeats.getAttribute('aria-describedby')).toBeNull();
+  expect(
+    within(screen.getByRole('group', { name: 'Repeats' }))
+      .getByRole('button')
+      .getAttribute('aria-describedby')
+  ).toBeNull();
   expect(reasonId && document.getElementById(reasonId)).toBeNull();
 });
 
@@ -250,29 +256,18 @@ it('returns guest permissions to the stored ones when an edit targets one occurr
 it('moves the end with the start until the end is picked', async () => {
   const user = userEvent.setup();
   showForm();
-  const start = screen.getByRole('button', {
-    name: 'Edit event start date and time',
-  });
-  const end = screen.getByRole('button', {
-    name: 'Edit event end date and time',
-  });
-  const pickTime = async (
-    trigger: HTMLElement,
-    label: string,
-    value: string
-  ) => {
-    await user.click(trigger);
-    fireEvent.input(screen.getByLabelText(label), { target: { value } });
-    await user.keyboard('{Escape}');
-  };
+  await user.click(
+    screen.getByRole('button', { name: 'Edit event date and time range' })
+  );
+  const start = screen.getByLabelText('Start time', { exact: true });
+  const end = screen.getByLabelText('End time', { exact: true });
+  fireEvent.input(start, { target: { value: '14:00' } });
+  expect(start).toHaveProperty('value', '14:00');
+  expect(end).toHaveProperty('value', '15:00');
 
-  await pickTime(start, 'Start time', '14:00');
-  expect(start.textContent).toContain('2:00');
-  expect(end.textContent).toContain('3:00');
-
-  await pickTime(end, 'End time', '17:00');
-  await pickTime(start, 'Start time', '15:00');
-  expect(end.textContent).toContain('5:00');
+  fireEvent.input(end, { target: { value: '17:00' } });
+  fireEvent.input(start, { target: { value: '15:00' } });
+  expect(end).toHaveProperty('value', '17:00');
   expect(
     screen.queryByText('End time must be after the start time.')
   ).toBeNull();

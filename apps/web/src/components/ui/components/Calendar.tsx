@@ -1,4 +1,5 @@
 import CorvuCalendar, {
+  type RootRangeProps as CorvuCalendarRootRangeProps,
   type RootSingleProps as CorvuCalendarRootSingleProps,
 } from '@corvu/calendar';
 import ArrowDownIcon from '@phosphor/arrow-down.svg';
@@ -19,6 +20,11 @@ import {
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import { cn } from '../utils/classname';
 import { Button } from './Button';
+import {
+  CalendarMonthPicker,
+  MAX_CALENDAR_YEAR,
+  MIN_CALENDAR_YEAR,
+} from './CalendarMonthPicker';
 import { Dropdown } from './Dropdown';
 
 const formatWeekdayLong = new Intl.DateTimeFormat(undefined, {
@@ -105,68 +111,247 @@ export function Calendar(props: CalendarProps) {
             </div>
           </div>
 
-          <CorvuCalendar.Table class="mt-2 w-full table-fixed border-collapse">
-            <thead>
-              <tr>
-                <Index each={calendar.weekdays}>
-                  {(weekday) => (
-                    <CorvuCalendar.HeadCell
-                      abbr={formatWeekdayLong(weekday())}
-                      class="h-7 text-center text-[10px] font-medium text-ink-extra-muted"
-                    >
-                      {formatWeekdayNarrow(weekday())}
-                    </CorvuCalendar.HeadCell>
-                  )}
-                </Index>
-              </tr>
-            </thead>
-            <tbody>
-              <Index each={calendar.weeks}>
-                {(week) => (
-                  <tr>
-                    <Index each={week()}>
-                      {(day) => (
-                        <CorvuCalendar.Cell
-                          class="p-0 text-center data-highlighted-range:bg-active data-highlighted-range-start:rounded-l-md data-highlighted-range-end:rounded-r-md"
-                          data-highlighted-range={
-                            isDateInRange(day(), local.highlightedRange)
-                              ? ''
-                              : undefined
-                          }
-                          data-highlighted-range-end={
-                            isRangeEnd(day(), local.highlightedRange)
-                              ? ''
-                              : undefined
-                          }
-                          data-highlighted-range-start={
-                            isRangeStart(day(), local.highlightedRange)
-                              ? ''
-                              : undefined
-                          }
-                        >
-                          <CorvuCalendar.CellTrigger
-                            day={day()}
-                            month={calendar.month}
-                            data-highlighted-range={
-                              isDateInRange(day(), local.highlightedRange)
-                                ? ''
-                                : undefined
-                            }
-                            class="mx-auto flex size-7 items-center justify-center rounded-md text-xs text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:ring focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-30 data-today:border data-today:border-accent data-today:font-semibold data-highlighted-range:text-ink data-selected:bg-accent! data-selected:text-surface!"
-                          >
-                            {day().getDate()}
-                          </CorvuCalendar.CellTrigger>
-                        </CorvuCalendar.Cell>
-                      )}
-                    </Index>
-                  </tr>
-                )}
-              </Index>
-            </tbody>
-          </CorvuCalendar.Table>
+          <CalendarMonthGrid
+            month={calendar.month}
+            weeks={calendar.weeks}
+            weekdays={calendar.weekdays}
+            highlightedRange={local.highlightedRange}
+          />
         </div>
       )}
     </CorvuCalendar>
+  );
+}
+
+export type CalendarRange = { from: Date | null; to: Date | null };
+
+export type RangeCalendarProps = Omit<
+  CorvuCalendarRootRangeProps,
+  'children' | 'mode'
+> & { class?: string };
+
+/**
+ * Connected month grids with Corvu's shared range selection and keyboard navigation.
+ * @do Keep incomplete ranges local until both dates are selected.
+ * @do Keep event times separate when changing the selected dates.
+ * @dont Build disconnected calendars for the two range endpoints.
+ */
+export function RangeCalendar(props: RangeCalendarProps) {
+  const [local, calendarProps] = splitProps(props, ['class']);
+  const fallback = calendarProps.value?.from ?? new Date();
+  const numberOfMonths = () => calendarProps.numberOfMonths ?? 2;
+  const earliestMonth = new Date(MIN_CALENDAR_YEAR, 0, 1);
+  const latestMonth = () =>
+    new Date(MAX_CALENDAR_YEAR, 12 - numberOfMonths(), 1);
+  const boundMonth = (month: Date) => {
+    const start = new Date(month.getFullYear(), month.getMonth(), 1);
+    return start < earliestMonth
+      ? earliestMonth
+      : start > latestMonth()
+        ? latestMonth()
+        : month;
+  };
+  const [month, setMonth] = createSignal(
+    calendarProps.initialMonth ?? fallback
+  );
+  const changeMonth = (next: Date) => {
+    const bounded = boundMonth(next);
+    if (calendarProps.month === undefined) setMonth(bounded);
+    calendarProps.onMonthChange?.(bounded);
+  };
+  return (
+    <CorvuCalendar
+      mode="range"
+      {...calendarProps}
+      numberOfMonths={numberOfMonths()}
+      month={boundMonth(calendarProps.month ?? month())}
+      onMonthChange={changeMonth}
+      disabled={(day) =>
+        day.getFullYear() < MIN_CALENDAR_YEAR ||
+        day.getFullYear() > MAX_CALENDAR_YEAR ||
+        (calendarProps.disabled?.(day) ?? false)
+      }
+      initialFocusedDay={calendarProps.initialFocusedDay ?? fallback}
+    >
+      {(calendar) => (
+        <div class={cn('@container w-full min-w-0 text-ink', local.class)}>
+          <div
+            class={cn(
+              'grid',
+              calendar.numberOfMonths > 1 &&
+                'divide-y divide-edge-muted @lg:grid-cols-2 @lg:divide-x @lg:divide-y-0'
+            )}
+          >
+            <Index each={calendar.months}>
+              {(shown, index) => (
+                <div
+                  class={cn(
+                    'min-w-0',
+                    calendar.numberOfMonths > 1 &&
+                      'first:pb-3 last:pt-3 @lg:first:pb-0 @lg:first:pr-3 @lg:last:pt-0 @lg:last:pl-3'
+                  )}
+                >
+                  <div class="flex min-h-7 items-center gap-1">
+                    <CorvuCalendar.Label index={index} class="min-w-0 flex-1">
+                      <CalendarMonthPicker
+                        month={shown().month}
+                        onChange={(selectedMonth) => {
+                          const firstMonth = new Date(selectedMonth);
+                          firstMonth.setMonth(
+                            selectedMonth.getMonth() - index,
+                            1
+                          );
+                          calendar.setMonth(boundMonth(firstMonth));
+                        }}
+                      />
+                    </CorvuCalendar.Label>
+                    <Show when={index === calendar.numberOfMonths - 1}>
+                      <div class="flex shrink-0 items-center gap-0.5">
+                        <CorvuCalendar.Nav
+                          action="prev-month"
+                          aria-label="Go to previous month"
+                          disabled={
+                            new Date(
+                              calendar.month.getFullYear(),
+                              calendar.month.getMonth(),
+                              1
+                            ) <= earliestMonth
+                          }
+                          class="flex size-7 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:ring-0 disabled:opacity-30 touch:size-9"
+                        >
+                          <CaretLeftIcon class="size-3" />
+                        </CorvuCalendar.Nav>
+                        <CorvuCalendar.Nav
+                          action="next-month"
+                          aria-label="Go to next month"
+                          disabled={
+                            new Date(
+                              calendar.month.getFullYear(),
+                              calendar.month.getMonth(),
+                              1
+                            ) >= latestMonth()
+                          }
+                          class="flex size-7 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:ring-0 disabled:opacity-30 touch:size-9"
+                        >
+                          <CaretRightIcon class="size-3" />
+                        </CorvuCalendar.Nav>
+                      </div>
+                    </Show>
+                  </div>
+                  <CalendarMonthGrid
+                    range
+                    index={index}
+                    month={shown().month}
+                    weeks={shown().weeks}
+                    weekdays={calendar.weekdays}
+                    highlightedRange={
+                      calendar.value.from && calendar.value.to
+                        ? {
+                            start: calendar.value.from,
+                            end: offsetDate(calendar.value.to, 1),
+                          }
+                        : undefined
+                    }
+                  />
+                </div>
+              )}
+            </Index>
+          </div>
+        </div>
+      )}
+    </CorvuCalendar>
+  );
+}
+
+function CalendarMonthGrid(props: {
+  month: Date;
+  weeks: Date[][];
+  weekdays: Date[];
+  index?: number;
+  highlightedRange?: HighlightedRange;
+  range?: boolean;
+}) {
+  return (
+    <CorvuCalendar.Table
+      index={props.index}
+      class={cn(
+        'mt-2 w-full table-fixed border-collapse',
+        props.range && 'mt-1.5 border-separate border-spacing-y-0.5'
+      )}
+    >
+      <thead>
+        <tr>
+          <Index each={props.weekdays}>
+            {(weekday) => (
+              <CorvuCalendar.HeadCell
+                abbr={formatWeekdayLong(weekday())}
+                class={cn(
+                  'h-7 text-center text-[10px] font-medium text-ink-extra-muted',
+                  props.range && 'h-6 text-xxs touch:h-8 touch:text-xs'
+                )}
+              >
+                {formatWeekdayNarrow(weekday())}
+              </CorvuCalendar.HeadCell>
+            )}
+          </Index>
+        </tr>
+      </thead>
+      <tbody>
+        <Index each={props.weeks}>
+          {(week) => (
+            <tr>
+              <Index each={week()}>
+                {(day) => (
+                  <CorvuCalendar.Cell
+                    class={cn(
+                      'p-0 text-center data-highlighted-range:bg-active data-highlighted-range-start:rounded-l-md data-highlighted-range-end:rounded-r-md',
+                      props.range &&
+                        'data-highlighted-range:bg-accent/10 data-highlighted-range-start:rounded-l-xl data-highlighted-range-end:rounded-r-xl'
+                    )}
+                    data-highlighted-range={
+                      isDateInRange(day(), props.highlightedRange)
+                        ? ''
+                        : undefined
+                    }
+                    data-highlighted-range-start={
+                      isRangeStart(day(), props.highlightedRange)
+                        ? ''
+                        : undefined
+                    }
+                    data-highlighted-range-end={
+                      isRangeEnd(day(), props.highlightedRange) ? '' : undefined
+                    }
+                  >
+                    <CorvuCalendar.CellTrigger
+                      day={day()}
+                      month={props.month}
+                      data-outside-month={
+                        day().getMonth() !== props.month.getMonth()
+                          ? ''
+                          : undefined
+                      }
+                      data-highlighted-range={
+                        isDateInRange(day(), props.highlightedRange)
+                          ? ''
+                          : undefined
+                      }
+                      class={cn(
+                        'mx-auto flex size-7 items-center justify-center rounded-md text-xs text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:ring focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-30 data-today:border data-today:border-accent data-today:font-semibold data-highlighted-range:text-ink',
+                        props.range
+                          ? 'size-7 rounded-lg text-xs touch:size-9 touch:text-sm data-outside-month:text-ink-extra-muted data-range-start:bg-accent! data-range-start:text-surface! data-range-end:bg-accent! data-range-end:text-surface!'
+                          : 'data-selected:bg-accent! data-selected:text-surface!'
+                      )}
+                    >
+                      {day().getDate()}
+                    </CorvuCalendar.CellTrigger>
+                  </CorvuCalendar.Cell>
+                )}
+              </Index>
+            </tr>
+          )}
+        </Index>
+      </tbody>
+    </CorvuCalendar.Table>
   );
 }
 
