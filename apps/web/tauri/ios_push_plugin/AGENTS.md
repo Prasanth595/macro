@@ -28,6 +28,11 @@ and owns durable notification-tap delivery across cold launches/WebView reloads.
   consuming the intent. A hidden bootstrap must never wait for foregrounding.
   Failed tap delivery releases the cover only after frontend bootstrap; keep
   the intent available for a replacement listener.
+- Request provisional authorization at launch only while undecided, and never
+  prompt from registration. `check_permissions` reports provisional as
+  `granted` with `provisional: true`: the frontend registers the token and still
+  offers the full-alert prompt. Older web bundles ignore the flag and treat
+  quiet delivery as fully enabled.
 - Gate new frontend commands on `__MACRO_IOS_NOTIFICATION_LAUNCH__`; older native
   binaries retain the existing push behavior when receiving an OTA web bundle.
   Pass `launchAware: true` when watching. Older web bundles omit that flag and
