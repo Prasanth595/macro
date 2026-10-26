@@ -215,8 +215,10 @@ desktop and mobile. **Set up file types** creates the team's single-select
 **File type** property with Contract, Proposal, Invoice and Notes. Team members
 use **Manage types** to add, rename or remove types; removing one leaves its files
 Unclassified. Types are document properties, so a file linked to several records
-keeps the same type everywhere within the team. Missing or unreadable values
-show **Type unavailable**, distinct from Unclassified.
+keeps the same type everywhere within the team. Once type data has loaded,
+undefined or unmatched classifications show **Type unavailable**; files with no
+assigned type show **Unclassified**. Files stay ungrouped while type data is
+loading, when there is no team, or when the type catalog cannot be loaded.
 
 **Add file** offers **Existing file** and **New note**. Select a file you can edit
 and a type, or leave **Keep current type** to preserve its classification. A new
