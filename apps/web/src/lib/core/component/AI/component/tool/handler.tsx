@@ -106,7 +106,6 @@ import {
   readPhotoshopDocumentHandler,
 } from './DesignDocument';
 import { discoverConnectorsHandler } from './DiscoverConnectors';
-import { displayResultsHandler } from './DisplayResults';
 import { editDocumentHandler } from './EditDocument';
 import { editTagHandler } from './EditTag';
 import {
@@ -183,6 +182,7 @@ import { sendConfirmedEmailHandler } from './SendConfirmedEmail';
 import { sendEmailHandler } from './SendEmail';
 import { setFavoriteHandler } from './SetFavorite';
 import { setSenderPolicyHandler } from './SetSenderPolicy';
+import { displayResultsHandler, showHandler } from './Show';
 import {
   calculateSpreadsheetHandler,
   editSpreadsheetHandler,
@@ -296,6 +296,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   UpdateSharing: updateSharingHandler,
   BashCodeExecution: bashCodeExecutionHandler,
   DisplayResults: displayResultsHandler,
+  Show: showHandler,
   DiscoverConnectors: discoverConnectorsHandler,
   ContentSearch: contentSearchHandler,
   CreateDocument: createDocumentHandler,

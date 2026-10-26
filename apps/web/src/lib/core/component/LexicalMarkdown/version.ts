@@ -36,5 +36,6 @@
  * Version 8.0 - Oct 2026. Added BookingLinkMentionNode for Macro `/app/book/…` URLs.
  * Version 9.0 - Oct 2026. Added AgentActivityNode: the steps of an agent's reply between two passages, with a snapshot of its rows and live rendering where the session is readable.
  * Version 9.1 - Oct 2026. Markdown m-link payloads preserve explicit unlinking; bare URLs import as links.
+ * Version 9.2 - Oct 2026. AgentActivityNode rows carry an optional `card`: an item the step created, changed or sent (projects, channels, routines, forms and initiatives among them, with an optional `summary` of what happened), or a view the agent composed.
  */
-export const MARKDOWN_VERSION_COUNTER = 9.1;
+export const MARKDOWN_VERSION_COUNTER = 9.2;

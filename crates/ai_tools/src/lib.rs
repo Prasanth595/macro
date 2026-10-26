@@ -14,7 +14,6 @@ pub mod ai_operations;
 mod build_context;
 pub mod crm_csv_files;
 mod deferred;
-mod display_results;
 pub mod email_attachments;
 mod import_channels;
 mod import_jobs;
@@ -26,6 +25,7 @@ pub mod search;
 mod search_tools;
 mod self_knowledge;
 pub mod serde_utils;
+mod show;
 mod subagent;
 mod tool_context;
 pub mod user_tool_review;
@@ -44,7 +44,6 @@ use cognition::inbound::toolset::cognition_toolset;
 use crm::inbound::toolset::{crm_toolset, pipelines::pipeline_toolset};
 use databases::inbound::toolset::{databases_read_only_toolset, databases_toolset};
 use databases_sql::toolset::{QueryDatabase, databases_sql_toolset};
-use display_results::DisplayResults;
 use documents::inbound::toolset::document_toolset;
 use email::inbound::toolset::{email_toolset, mcp_toolset as email_mcp_toolset};
 use favorites::inbound::toolset::favorites_toolset;
@@ -57,6 +56,8 @@ use properties::inbound::toolset::properties_toolset;
 use schemas::read;
 use search_tools::{LoadTools, SearchTools};
 use self_knowledge::SelfKnowledge;
+use show::Show;
+pub use show::view_problems;
 use skills::inbound::toolset::skill_toolset;
 use soup::inbound::toolset::{ListEntities, SoupToolContext};
 use std::sync::Arc;
@@ -217,7 +218,7 @@ pub enum AiHost {
     AgentSession,
     /// The channel-mention bot: no composer, so `CreateCalendarEvent`
     /// executes directly in the agent loop and `SendEmail` is omitted. Replies
-    /// contain text only, so this host also omits `DisplayResults`.
+    /// contain text only, so this host also omits `Show`.
     ChannelBot,
     /// The MCP server: like [`AiHost::ChannelBot`] for user tools — MCP
     /// clients apply their own confirmation policy from tool annotations —
@@ -233,7 +234,6 @@ pub const EAGER_TOOLS: &[&str] = &[
     "BashCodeExecution",
     "ContentSearch",
     "CreateDocument",
-    "DisplayResults",
     "DiscoverConnectors",
     "EditDocument",
     "GetThread",
@@ -253,6 +253,7 @@ pub const EAGER_TOOLS: &[&str] = &[
     "SelfKnowledge",
     "SendChannelMessage",
     "ShareWithChannel",
+    "Show",
     "Subagent",
     "TextEditorCodeExecution",
     "WebFetch",
@@ -315,9 +316,7 @@ fn tools_for_inner(host: AiHost, code_mode_direct: bool) -> ToolSetWithPrompt {
         AiHost::Mcp => toolset,
     };
     let toolset = match host {
-        AiHost::Chat | AiHost::AgentSession => {
-            toolset.add_tool::<DisplayResults, ToolServiceContext>()
-        }
+        AiHost::Chat | AiHost::AgentSession => toolset.add_tool::<Show, ToolServiceContext>(),
         AiHost::ChannelBot | AiHost::Mcp => toolset,
     };
     // A direct upload needs a client that can PUT the bytes itself; in-app

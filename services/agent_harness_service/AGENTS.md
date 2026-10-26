@@ -111,9 +111,10 @@ hostnames and internally rewrites cognition paths. `PREVIEW_DOMAIN` and
 `PREVIEW_SSH_HOST` remain infrastructure-generated Doppler settings. Legacy
 `MCP_PUBLIC_URL`, `MCP_CLIENT_PUBLIC_URL`, `PREVIEW_APP_ORIGIN`, and
 `PREVIEW_CONTROL_HOSTS` values are retained only for old-image rollback; new
-code does not read them. `POSTHOG_API_KEY` and `POSTHOG_HOST` drive
-feature flags and the MCP and integration analytics; when the key is unset,
-analytics are off.
+code does not read them. `POSTHOG_API_KEY` and `POSTHOG_HOST` gate
+code mode on the public MCP (`ai-code-mode`) and drive the MCP and integration
+analytics; agent sessions use code mode without them, and when the key is
+unset, analytics are off.
 In deployed configs, `DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY`
 is cognition's Secrets Manager reference; AI tools resolve the separate
 `DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY_SECRET_NAME` reference.

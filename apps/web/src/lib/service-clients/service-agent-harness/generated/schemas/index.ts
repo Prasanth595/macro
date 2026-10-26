@@ -6,6 +6,10 @@
  */
 
 export * from './accessLevel';
+export * from './activityItem';
+export * from './activityItemAction';
+export * from './activityItemTitle';
+export * from './activityItemType';
 export * from './agentAction';
 export * from './agentActionId';
 export * from './agentActionOneOf';
@@ -158,6 +162,7 @@ export * from './elicitationAnswerOneOfSevenAction';
 export * from './elicitationContentValue';
 export * from './elicitationRequestId';
 export * from './executionActivity';
+export * from './executionActivityItem';
 export * from './executionId';
 export * from './executionRecord';
 export * from './executionRecordActingAs';
