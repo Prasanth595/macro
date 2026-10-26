@@ -26,10 +26,6 @@ maybe_env_vars! {
     /// when unset. Loopback `http` redirect URIs are always allowed and do not
     /// need to be listed.
     pub struct McpAllowedRedirectHosts;
-    /// OpenAI domain verification token for ChatGPT Apps Directory submission.
-    /// Served at /.well-known/openai-apps-challenge. Optional; uses placeholder
-    /// when unset.
-    pub struct OpenaiDomainVerificationToken;
 }
 
 /// Hosts trusted to receive an MCP authorization code when
@@ -89,6 +85,9 @@ env_vars! {
     pub struct KafkaBrokers;
     /// Secrets Manager secret name for the shared MCP credential encryption key.
     pub struct McpCredentialsKeySecretName;
+    /// OpenAI domain verification token for the ChatGPT Apps Directory,
+    /// served at `/.well-known/openai-apps-challenge`.
+    pub struct OpenaiDomainVerificationToken;
 }
 
 /// The configuration parameters for the MCP server.
@@ -154,6 +153,7 @@ pub struct Config {
     pub document_permission_jwt: DocumentPermissionJwt,
     pub kafka_brokers: KafkaBrokers,
     pub mcp_credentials_key_secret_name: McpCredentialsKeySecretName,
+    pub openai_domain_verification_token: OpenaiDomainVerificationToken,
 }
 
 impl Config {
