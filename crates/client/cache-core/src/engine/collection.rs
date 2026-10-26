@@ -1,5 +1,10 @@
 //! Durable, caller-scoped exhaustive membership evidence.
 //! Scope identifiers include the caller's contract and profile version.
+//!
+//! # Host ownership contract
+//! The host must keep one engine writer for the storage lifetime.
+//! Retire an engine before another engine changes or resets its storage.
+//! Independent engines over shared mutable storage require atomic catalog fencing.
 use super::*;
 use crate::predicate::reconciliation::{PredicateMembership, predicate_membership};
 use crate::value::CacheValue;
