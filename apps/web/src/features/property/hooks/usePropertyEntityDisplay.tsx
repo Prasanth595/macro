@@ -5,7 +5,7 @@ import { UserIcon } from '@core/component/UserIcon';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { enableProjects } from '@core/constant/featureFlags';
 import { useChannelName } from '@core/context/channels';
-import { useUserId } from '@core/context/user';
+import { useIsAuthenticated, useUserId } from '@core/context/user';
 import ProjectIcon from '@phosphor/stack.svg';
 import { isAccessiblePreviewItem, useItemPreview } from '@queries/preview';
 import type { EntityType } from '@service-properties/generated/schemas/entityType';
@@ -73,9 +73,14 @@ export function usePropertyEntityDisplay(
   const projectsFlag = createMemo(() =>
     entityType() === 'INITIATIVE' ? useFeatureFlag(enableProjects) : undefined
   );
-  // Until Projects is enabled, a project stays the generic "Project" label.
+  const authenticated = createMemo(() =>
+    entityType() === 'INITIATIVE' ? useIsAuthenticated() : undefined
+  );
+  const signedOut = createMemo(() => authenticated()?.() === false);
+  // Until Projects is enabled, a project stays the generic "Project" label, as
+  // it does for a signed-out visitor, whose identity query would never start.
   const projectSource = createMemo(() => {
-    if (!projectsFlag()?.().enabled) return;
+    if (!projectsFlag()?.().enabled || signedOut()) return;
     return untrack(() => {
       const userId = useUserId();
       return useProjectIdentityQuery(entityId, userId);
