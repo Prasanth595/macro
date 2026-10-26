@@ -87,7 +87,14 @@ test.describe('phone', () => {
       .getByRole('textbox', { name: 'File name' })
       .fill('October invoice');
     await dialog.getByRole('button', { name: /^File type / }).click();
-    await page.getByRole('option', { name: 'Invoice', exact: true }).click();
+    const invoice = page.getByRole('option', { name: 'Invoice', exact: true });
+    expect(
+      await invoice.evaluate((option) =>
+        Boolean(option.closest('[data-corvu-drawer-content]'))
+      )
+    ).toBe(true);
+    await invoice.tap();
+    await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Create and attach' }).click();
     await expect(dialog.getByRole('alert')).toContainText(
       'The file was created'
