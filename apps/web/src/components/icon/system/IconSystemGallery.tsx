@@ -1,6 +1,6 @@
-import { Button, Input, Tabs } from '@ui';
 import { macroDarkTheme } from '@app/features/theme/themes/macro-dark';
 import { macroLightTheme } from '@app/features/theme/themes/macro-light';
+import { Button, Input, Tabs } from '@ui';
 import {
   type Component,
   type ComponentProps,
