@@ -1,5 +1,5 @@
 use super::*;
-use crate::domain::models::{ConnectToken, PipedreamAccount};
+use crate::domain::models::{ConnectToken, ConnectorOverlay, PipedreamAccount};
 use macro_user_id::cowlike::CowLike;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -89,6 +89,37 @@ impl PipedreamConnect for FakePipedream {
     }
 }
 
+struct NoOverlays;
+
+impl ConnectorOverlays for NoOverlays {
+    async fn overlays(&self) -> anyhow::Result<Vec<ConnectorOverlay>> {
+        Ok(Vec::new())
+    }
+
+    async fn overlay(&self, _app_slug: &str) -> anyhow::Result<Option<ConnectorOverlay>> {
+        Ok(None)
+    }
+}
+
+struct SentryOverlay;
+
+impl ConnectorOverlays for SentryOverlay {
+    async fn overlays(&self) -> anyhow::Result<Vec<ConnectorOverlay>> {
+        Ok(vec![sentry_overlay()])
+    }
+
+    async fn overlay(&self, app_slug: &str) -> anyhow::Result<Option<ConnectorOverlay>> {
+        Ok((app_slug == "sentry").then(sentry_overlay))
+    }
+}
+
+fn sentry_overlay() -> ConnectorOverlay {
+    ConnectorOverlay {
+        app_slug: "sentry".to_owned(),
+        server_url: "https://mcp.sentry.dev/mcp".to_owned(),
+    }
+}
+
 fn account(id: &str, external_user_id: Option<&str>, app_slug: &str) -> PipedreamAccount {
     PipedreamAccount {
         id: id.to_owned(),
@@ -110,6 +141,7 @@ async fn completing_verifies_and_stores_the_connected_app() {
 
     let record = complete_pipedream_connection(
         &store,
+        &NoOverlays,
         &pd,
         &user("macro|user-1@example.com"),
         "apn_1",
@@ -142,6 +174,7 @@ async fn completing_rejects_accounts_owned_by_someone_else() {
 
     let err = complete_pipedream_connection(
         &store,
+        &NoOverlays,
         &pd,
         &user("macro|user-1@example.com"),
         "apn_1",
@@ -161,6 +194,7 @@ async fn completing_rejects_unknown_accounts() {
 
     let err = complete_pipedream_connection(
         &store,
+        &NoOverlays,
         &pd,
         &user("macro|user-1@example.com"),
         "apn_missing",
@@ -194,6 +228,7 @@ async fn reconnecting_keeps_name_and_enabled_state_but_swaps_the_account() {
 
     let record = complete_pipedream_connection(
         &store,
+        &NoOverlays,
         &pd,
         &user("macro|user-1@example.com"),
         "apn_new",
@@ -218,6 +253,7 @@ async fn explicit_server_name_wins() {
 
     let record = complete_pipedream_connection(
         &store,
+        &NoOverlays,
         &pd,
         &user("macro|user-1@example.com"),
         "apn_1",
@@ -262,4 +298,39 @@ async fn disconnect_of_unknown_app_is_a_quiet_noop() {
         .unwrap();
 
     assert!(pd.deleted.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn completing_an_overlaid_app_is_refused_and_its_account_deleted() {
+    let store = FakeStore::default();
+    let mut pd = FakePipedream::default();
+    pd.accounts.insert(
+        "apn_1".into(),
+        account("apn_1", Some("macro|user-1@example.com"), "sentry"),
+    );
+
+    let err = complete_pipedream_connection(
+        &store,
+        &SentryOverlay,
+        &pd,
+        &user("macro|user-1@example.com"),
+        "apn_1",
+        None,
+    )
+    .await
+    .unwrap_err();
+
+    assert!(matches!(
+        err,
+        PipedreamConnectError::Overlaid { ref server_url, .. }
+            if server_url == "https://mcp.sentry.dev/mcp"
+    ));
+    assert_eq!(*pd.deleted.lock().unwrap(), vec!["apn_1".to_owned()]);
+    assert!(
+        store
+            .list(&user("macro|user-1@example.com"))
+            .await
+            .unwrap()
+            .is_empty()
+    );
 }

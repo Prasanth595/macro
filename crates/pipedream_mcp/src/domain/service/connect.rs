@@ -7,7 +7,7 @@
 //! any local record is written.
 
 use crate::domain::models::{MacroUserIdStr, PipedreamConnection};
-use crate::domain::ports::{ConnectionStore, PipedreamConnect};
+use crate::domain::ports::{ConnectionStore, ConnectorOverlays, PipedreamConnect};
 
 #[cfg(test)]
 mod test;
@@ -18,6 +18,15 @@ pub enum PipedreamConnectError {
     /// The account doesn't exist, or wasn't connected for this user.
     #[error("connected account not found for this user")]
     NotFound,
+    /// The app is overlaid: it connects through the native MCP stack at
+    /// `server_url`, never through Pipedream.
+    #[error("{app_slug} connects through its own MCP server, not Pipedream")]
+    Overlaid {
+        /// The overlaid app.
+        app_slug: String,
+        /// The MCP server to connect instead.
+        server_url: String,
+    },
     /// Anything else.
     #[error(transparent)]
     Internal(#[from] anyhow::Error),
@@ -29,9 +38,13 @@ pub enum PipedreamConnectError {
 /// (accounts are minted for our user IDs via the Connect token), then
 /// upserts the app record. Reconnecting an app the user already has simply
 /// points its record at the new account.
-#[tracing::instrument(skip(store, pipedream), err)]
-pub async fn complete_pipedream_connection<S, P>(
+///
+/// An overlaid app is refused and its new Pipedream account deleted, so no
+/// Pipedream grant for it outlives the attempt.
+#[tracing::instrument(skip(store, overlays, pipedream), err)]
+pub async fn complete_pipedream_connection<S, O, P>(
     store: &S,
+    overlays: &O,
     pipedream: &P,
     user_id: &MacroUserIdStr<'static>,
     account_id: &str,
@@ -39,6 +52,7 @@ pub async fn complete_pipedream_connection<S, P>(
 ) -> Result<PipedreamConnection, PipedreamConnectError>
 where
     S: ConnectionStore,
+    O: ConnectorOverlays,
     P: PipedreamConnect,
     anyhow::Error: From<S::Err>,
 {
@@ -52,6 +66,16 @@ where
     // someone else's account (or a stale/foreign ID).
     if account.external_user_id.as_deref() != Some(user_id.as_ref()) {
         return Err(PipedreamConnectError::NotFound);
+    }
+
+    if let Some(overlay) = overlays.overlay(&account.app_slug).await? {
+        if let Err(error) = pipedream.delete_account(&account.id).await {
+            tracing::warn!(error = ?error, account_id = %account.id, "failed to delete Pipedream account for an overlaid app");
+        }
+        return Err(PipedreamConnectError::Overlaid {
+            app_slug: overlay.app_slug,
+            server_url: overlay.server_url,
+        });
     }
 
     let existing = store
