@@ -1389,6 +1389,15 @@ function mapGraphqlNotificationMetadata(
             reminderId: metadata.reminderReminderId,
             description: metadata.reminderDescription,
             scheduledFor: metadata.reminderScheduledFor,
+            ...(metadata.reminderChannelId
+              ? { channelId: metadata.reminderChannelId }
+              : {}),
+            ...(metadata.reminderMessageId
+              ? { messageId: metadata.reminderMessageId }
+              : {}),
+            ...(metadata.reminderThreadId
+              ? { threadId: metadata.reminderThreadId }
+              : {}),
           },
         }) satisfies NotifEventMember<'reminder'>
     )

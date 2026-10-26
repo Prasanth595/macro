@@ -6,6 +6,7 @@ import {
 import { AgentConversationsProvider } from '@app/features/agent-conversations/agent-conversations-provider';
 import { AgentDmComposer } from '@app/features/agent-dms/agent-dm-composer';
 import { openChatWithInput } from '@app/features/chat/ChatWithAgentButton';
+import { openChannelMessageReminder } from '@app/features/reminders/channel-message-reminder';
 import { createActivityTracker } from '@channel/activity-tracker';
 import { useStartChannelCall } from '@channel/Call/use-start-channel-call';
 import { DebugSuspense } from '@channel/DebugSuspense';
@@ -493,6 +494,12 @@ export function Channel(props: ChannelProps) {
     },
     onEdit: ({ message }) => {
       messageEditor.start(message);
+    },
+    onCreateReminder: (ctx) => {
+      openChannelMessageReminder({
+        channelId: props.channelId,
+        message: ctx.message,
+      });
     },
     onCreateTask: (ctx) => {
       const trimmedMarkdown = trimEdgeUserMentions(ctx.message.content);

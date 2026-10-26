@@ -384,8 +384,13 @@ export const storageExcluded = [
   'upsertUserDocumentViewLocation',
 ] as const satisfies readonly (keyof StorageSdk)[];
 
-export const storageBacklog =
-  [] as const satisfies readonly (keyof StorageSdk)[];
+export const storageBacklog = [
+  // Channel-message reminders. Wrap them when a channel message handle exists;
+  // the routes address a channel and a message, not a reminder id.
+  'getChannelMessageReminder',
+  'removeChannelMessageReminder',
+  'setChannelMessageReminder',
+] as const satisfies readonly (keyof StorageSdk)[];
 
 export const unfurlExcluded = [
   'proxyRequestHandler',
