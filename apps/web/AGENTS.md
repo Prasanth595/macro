@@ -30,7 +30,8 @@ Discussion link scrolling has a backend-free browser regression:
 Phone sheets stacked on each other (Connect email over Settings, Add guests,
 RSVP scope and the delete confirmation over event details) have a backend-free
 browser regression for backdrop taps that must not press what the scrim covers,
-and for taps inside the top sheet that must still press its own controls:
+including mixed pointerdown/pointerup dismissal, and for taps inside the top
+sheet that must still press its own controls:
 `bunx playwright test --config src/components/app/mobile/browser-test/playwright.config.ts`.
 
 Composer typeahead menus choosing the side with room for their full list
@@ -43,7 +44,12 @@ phone browser coverage in `features/calendar-notes`:
 `bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.
 The browser fixture uses the real event details popover and mobile drawer over
 sample data; keep notes aligned with those existing surfaces and preserve their
-dialog open guards. Optional note sharing uses existing team memberships.
+dialog open guards. Open the existing document Share dialog for note access,
+keep labeled Options controls visible beside truncated titles without redundant
+hover tooltips, and use existing team memberships for optional note sharing.
+Include linked meetings in Markdown side-panel References, behind the same flag;
+reuse the shared single-line ReferenceRow with the title and date inline, and
+resolve meeting details and opening targets through authorized calendar previews.
 Gate event notes and document Share meeting-link controls with
 `enable-calendar-meeting-notes` before mounting their query sources; it defaults
 on in dev and uses PostHog in production.
@@ -134,6 +140,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
 
+- Share URL recognition with `packages/lexical-core/utils/auto-link.ts`; preserve explicit unlink markers when saving and rendering messages. See `packages/lexical-core/README.md` at the repository root.
 - Empty human DMs use the shared centered conversations graphic and explain email delivery to nonusers; keep this state out of agent DMs, loading/error states, and populated timelines.
 - Enable persisted email/calendar review controls only for the review’s saved acting account; historical reviews fall back to the session owner. Require session edit access on desktop and mobile.
 - Email draft reads compare server generations before choosing cached delivery state over a restored working copy; only a definitive first-submission rejection permits local send recovery without server cancellation.
@@ -250,6 +257,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   feature-specific query orchestration with its owning feature.
 - Refresh the channel list's bounded unread edge when opening a conversation,
   including an empty unread result after a read on another device.
+- Keep channel rail and title menus on `CHANNEL_ACTION_VIEW_CONTEXT`, including
+  the shared desktop `Open in new split` action and its mobile/capacity guards.
 - Route supported move, trash, restore, permanent-delete, duplicate, and share-policy
   writes through `queries/storage/entity-mutations` when GraphQL Soup is enabled;
   never retry failed GraphQL writes through REST. Preserve non-owner history removal
