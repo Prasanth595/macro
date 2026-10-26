@@ -92,6 +92,13 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   `InvalidInput`.
   `ViewerCapabilities::set_guest_policy` is therefore Google-only, and
   `organize` is the organizer signal clients read instead.
+- Sharing an event into a channel writes an `entity_access` row on the
+  sharer's copy. The `calendar_event_entity_access_cleanup` trigger deletes it
+  with the event row, which covers every way a copy goes away: a delete
+  through Macro, a sync tombstone or removal, a disabled calendar, and the
+  `email_links` cascade when the inbox is removed. A cancelled, private or
+  confidential row keeps its grants, since readers skip them and the row can
+  come back. Removing one source, or cancelling one occurrence, leaves the row.
 - A channel-shared event reaches a member's calendar as a snapshot, not a
   seat: `copy_shared_event` (`src/domain/mutations/copy.rs`) imports it under
   the meeting's iCalendar UID with no join link, behind the same
@@ -155,7 +162,32 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   if the reply names its inbox (an answer asks first when the user is a guest
   through several inboxes); a change whose effect differs by copy (details,
   guests, permissions, deleting) goes to the only copy allowed to make it, with
-  the reason, or the agent asks.
+  the reason, or the agent asks, and guests are added from the copy the user
+  organizes. The agent must never choose between the user's inboxes itself,
+  whatever they look like: the SDK's CalendarNamespace overview, the delete
+  and update docs and the DeleteCalendarEvent and UpdateCalendarEvent
+  descriptions state the ask rule first. `domain::copies::check_copy` enforces it: such a change on a meeting
+  the user holds through several of their own inboxes (`meeting_copies`) is
+  refused, listing each copy and ending with the question to ask word for
+  word, until `inbox` names the addressed copy's inbox. The route cannot tell
+  an inbox the user chose from one the agent picked, so the wording is the
+  only guard against a guess. UpdateCalendarEvent and DeleteCalendarEvent check
+  every call; the update, invite-guests and delete routes check agent runs and
+  any request naming `inbox` through `CalendarCopyConfirmation`, answering 409
+  `copy_choice_required`. An agent run is a token with `agent_id` (in-app code
+  mode) or a request carrying `x-macro-code-execution`, which
+  `code_execution`'s bootstrap sets on every code-mode program's SDK requests,
+  public MCP clients' included. Code-mode agents never see the calendar tools
+  (`agent_code_mode::covered_by_code_sdk`), so the routes and the SDK docs are
+  what reach them; the web, which opens one copy, sends no `inbox` and is not
+  checked.
+- Copies of one meeting pair by `calendar_meeting_uid(ical_uid)`, not the raw
+  UID: Exchange gives a meeting it imports from an invitation its own UID that
+  wraps the original after `vCal-Uid`, and the SQL function unwraps it, so an
+  Outlook copy of a Google meeting pairs with its Google copies in
+  `meeting_copies`, the mention preview, `event_export` and email invitation
+  matching (`pg/invitations.rs`), where an Outlook inbox's invitation card
+  resolves to that inbox's own copy and answers as it.
 - Preserve the conservative OOO refresh hint on write outcomes and sync reports;
   its contract is in [team sharing](../../docs/design/calendar-team-sharing.md).
 - The team out-of-office overlay (`src/outbound/pg_team/ooo.rs`) starts from

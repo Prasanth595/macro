@@ -9,6 +9,7 @@ import {
   createToolRenderer,
   type RenderContext,
   type ToolRenderContext,
+  useToolError,
 } from './ToolRenderer';
 
 /*
@@ -117,6 +118,7 @@ function WorkspaceImportTool(
 ) {
   const [isExpanded, setIsExpanded] = createSignal(false);
   const hasResponse = () => ctx.response !== undefined;
+  const error = () => useToolError();
   const source = () =>
     match(ctx.source)
       .with('notion', () => 'Notion')
@@ -144,7 +146,9 @@ function WorkspaceImportTool(
     >
       <div class="flex min-w-0 flex-1 items-center justify-between gap-3 overflow-hidden">
         <div class="min-w-0 flex-1 truncate">{label()}</div>
-        <Show when={ctx.tool.data.action === 'plan' && !hasResponse()}>
+        <Show
+          when={ctx.tool.data.action === 'plan' && !hasResponse() && !error()}
+        >
           <WorkspaceScanProgress source={ctx.source} />
         </Show>
         <Tool.ResultToggle

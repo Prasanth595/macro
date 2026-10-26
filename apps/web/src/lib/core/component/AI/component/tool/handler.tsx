@@ -193,6 +193,7 @@ import { getTeamAvailabilityHandler } from './TeamAvailability';
 import { textEditorCodeExecutionHandler } from './TextEditorCodeExecution';
 import {
   type RenderContext,
+  type ToolEnding,
   ToolErrorContext,
   type ToolHandler,
   type ToolHandlerMap,
@@ -366,6 +367,10 @@ type ToolProps = {
     json: unknown;
     name: string;
   };
+  /** The tool's reason for a call that failed. */
+  error?: string;
+  /** The turn ended before the call returned. */
+  stopped?: boolean;
   part_index: number;
   chat_id: string;
   message_id: string;
@@ -457,7 +462,14 @@ export function RenderTool(props: ToolProps) {
       }
     >
       <ToolErrorContext.Provider
-        value={() => (props.isComplete && !response() ? 'failed' : undefined)}
+        value={(): ToolEnding | undefined => {
+          if (props.error !== undefined) {
+            return { kind: 'failed', reason: props.error };
+          }
+          if (props.stopped) return { kind: 'stopped' };
+          if (props.isComplete && !response()) return { kind: 'failed' };
+          return undefined;
+        }}
       >
         <Show
           when={isToolShown(tool.name, databasesEnabled().enabled)}
@@ -470,6 +482,9 @@ export function RenderTool(props: ToolProps) {
             renderContext={{
               isStreaming: props.renderContext.renderContext.isStreaming,
               grouped: props.renderContext.renderContext.grouped,
+              running:
+                !props.isComplete &&
+                props.renderContext.renderContext.isStreaming,
               followedBy: props.renderContext.renderContext.followedBy,
             }}
           />
