@@ -1,5 +1,5 @@
 import { DEBUG_SETTING_KEYS, useDebugSetting } from '@app/lib/debugSettings';
-import CaretRightIcon from '@phosphor/caret-right.svg';
+import CaretRightIcon from '@icon/system/regular/caret-right.svg';
 import { For, Show } from 'solid-js';
 import { IntegrationRow, SettingsSurface } from '../primitives';
 import { LeftoverRow } from './leftover-row';
@@ -31,7 +31,7 @@ export function ConnectedView(props: { model: ConnectionsModel }) {
             <SettingsSurface class="overflow-hidden">
               <button
                 type="button"
-                class="h-full w-full text-left outline-none hover:bg-ink/6 focus-visible:bg-ink/6"
+                class="h-full w-full text-left outline-none not-touch:hover:overlay-hover focus-visible:overlay-hover"
                 onClick={() => view.openProvider(provider.id)}
               >
                 <IntegrationRow

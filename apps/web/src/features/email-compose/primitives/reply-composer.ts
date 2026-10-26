@@ -141,7 +141,11 @@ export type ReplyComposerOptions = {
    * undo-send restore. The parent latches the seed key on it so the input
    * stops remounting on later draft versions. */
   onEngaged?: () => void;
-  sideEffectOnSend?: (newMessageId: string | null) => void | Promise<void>;
+  sideEffectOnSend?: (
+    newMessageId: string | null,
+    /** Offline sends wait on this device, so the thread cannot show them yet. */
+    sent?: { queuedOffline: boolean }
+  ) => void | Promise<void>;
   onMarkDone?: (opts?: {
     silent?: boolean;
     onUndoHandle?: (handle: EmailUndoHandle) => void;
@@ -561,11 +565,15 @@ export function createReplyComposer(
   let sendOperationVersion = 0;
   const [pendingDeletion, setPendingDeletion] = createSignal(false);
 
+  // A reloaded draft keeps its quoted thread as plain blocks (the server
+  // strips the editor's markers), so only the saved body knows it is there.
+  const appendsQuotedThread = () => !!replyTarget && !form.replyAppended();
+
   function collectDraft(forDelivery = false) {
     if (!forDelivery) $removeAllWatermarkNodes(editor());
     const prepared = prepareEmailBody(
       editor(),
-      forDelivery && replyTarget
+      forDelivery && replyTarget && appendsQuotedThread()
         ? {
             replyType: form.replyType(),
             replyingTo: replyTarget,
@@ -911,7 +919,7 @@ export function createReplyComposer(
     );
     try {
       return persistence.confirmed(
-        await autosave.save(captureSave(false, true), { acknowledge: false })
+        await autosave.save(captureSave(false, true))
       );
     } finally {
       cleanupWatermark();
@@ -1112,41 +1120,21 @@ export function createReplyComposer(
         },
       });
     };
+    // Send Later schedules the saved draft; only immediate sends use the outbox.
     const scheduleAction = schedule.action();
-    const queuedLater =
-      scheduleAction === 'schedule' &&
-      !!props.delivery.queueActive?.(sendingInbox()?.id);
-    const selectedTime = queuedLater ? schedule.selectedTime() : undefined;
-    if (
-      queuedLater &&
-      (!selectedTime ||
-        !Number.isFinite(selectedTime.getTime()) ||
-        selectedTime.getTime() <= Date.now())
-    ) {
-      props.notices.feedback.alert('Choose a future send time.');
-      return;
-    }
-    const sendTime = selectedTime?.toISOString();
     if (scheduleAction === 'unavailable') {
       props.notices.feedback.alert(
         `This email is scheduled for ${schedule.confirmedTime()?.toLocaleString()}. Choose a new time to update it, or cancel the schedule to edit.`
       );
       return;
     }
-    if (
-      (scheduleAction === 'schedule' && !queuedLater) ||
-      scheduleAction === 'update'
-    ) {
+    if (scheduleAction === 'schedule' || scheduleAction === 'update') {
       const result = await schedule.submit();
       if (result === 'scheduled') {
         const scheduledDraftId = savedDraftId();
         rememberCurrentReply();
-        try {
-          resetState();
-          clearDraftState();
-        } catch (error) {
-          props.notices.reportError(error);
-        }
+        // The scheduled draft stays in the thread with its "Scheduled for"
+        // bar, as a reload shows it; clearing it hid it until a refresh.
         void Promise.resolve(
           props.sideEffectOnSend?.(scheduledDraftId ?? null)
         ).catch(props.notices.reportError);
@@ -1182,10 +1170,7 @@ export function createReplyComposer(
           (form.attachments.list().length === 0 || session.serverConfirmed())
         )
           await autosave.saveLocal(captureSave(willMarkDone));
-        else
-          await autosave.save(captureSave(willMarkDone), {
-            acknowledge: false,
-          });
+        else await autosave.save(captureSave(willMarkDone));
       } catch (error) {
         props.notices.reportError(error);
         if (session.isStale(epochBeforeSave)) return;
@@ -1219,11 +1204,7 @@ export function createReplyComposer(
       // Remember by draft so sends in separate composers cannot replace each other.
       rememberCurrentReply();
 
-      if (
-        scheduling() ||
-        (schedule.action() !== 'send' &&
-          !(queuedLater && schedule.selectedTime()?.toISOString() === sendTime))
-      ) {
+      if (scheduling() || schedule.action() !== 'send') {
         return;
       }
 
@@ -1240,7 +1221,7 @@ export function createReplyComposer(
 
       const prepared = prepareEmailBody(
         currentEditor,
-        replyingTo
+        replyingTo && appendsQuotedThread()
           ? {
               replyType: form.replyType(),
               replyingTo,
@@ -1258,7 +1239,6 @@ export function createReplyComposer(
 
       setSendPhase('sending');
       const pendingSend = props.delivery.sendMessage({
-        sendTime,
         expectedLocalVersion,
         clientHandles: {
           draftId: currentDraftId!,
@@ -1364,13 +1344,11 @@ export function createReplyComposer(
             });
           },
         });
+      // The outbox delivers an online send right away; offline it waits on this device.
+      const offline = props.connectivity.looksOffline();
       try {
         const toastId = props.notices.feedback.success(
-          result.sendAttemptId
-            ? result.persistence === 'queued'
-              ? 'Email queued to send'
-              : 'Email sending'
-            : 'Email sent',
+          offline ? 'Email queued to send' : 'Email sent',
           {
             actions: draftId
               ? [
@@ -1419,9 +1397,12 @@ export function createReplyComposer(
       }
       try {
         // Presentation refresh must not keep a successfully sent or undone reply disabled.
-        void Promise.resolve(props.sideEffectOnSend?.(draftId ?? null)).catch(
-          props.notices.reportError
-        );
+        void Promise.resolve(
+          props.sideEffectOnSend?.(draftId ?? null, {
+            // Send and mark done already leaves the thread.
+            queuedOffline: offline && !markDone,
+          })
+        ).catch(props.notices.reportError);
       } catch (error) {
         props.notices.reportError(error);
       }
@@ -1471,6 +1452,7 @@ export function createReplyComposer(
         try {
           await deleteDraftForDiscard(props.drafts, {
             draftId,
+            draftGeneration: draftGeneration(),
             threadId: savedDraftThreadId(),
             inboxId: activeInboxId(),
           });
@@ -1758,7 +1740,6 @@ export function createReplyComposer(
     retryDraft,
     flushLocal: autosave.flushLocal,
     localSaveState: autosave.localSaveState,
-    acknowledgeSaved: autosave.acknowledgeSaved,
     onContentChange: handleChange,
     handleUserMention,
     scrollContainer,

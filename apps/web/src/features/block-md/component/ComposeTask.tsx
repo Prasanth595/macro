@@ -29,13 +29,13 @@ import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { onElementConnect } from '@core/util/onElementConnect';
 import { buildSimpleEntityUrl } from '@core/util/url';
+import ArrowSquareOutIcon from '@icon/system/regular/arrow-square-out.svg';
+import ArrowsOutIcon from '@icon/system/regular/arrows-out.svg';
+import PaperclipIcon from '@icon/system/regular/paperclip.svg';
+import SplitIcon from '@icon/system/regular/square-half.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import { mergeRegister } from '@lexical/utils';
 import { Telemetry } from '@macro-inc/observability';
-import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
-import ArrowsOutIcon from '@phosphor/arrows-out.svg';
-import PaperclipIcon from '@phosphor/paperclip.svg';
-import SplitIcon from '@phosphor/square-half.svg';
-import XIcon from '@phosphor/x.svg';
 import { Modals } from '@property/component/modal';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { PropertiesProvider } from '@property/context/PropertiesContext';
@@ -1142,7 +1142,9 @@ export function ComposeTask(props: ComposeTaskProps) {
         </div>
       </Show>
 
-      <EntityComposer.Footer class="items-center">
+      {/* The team switch, Create More and Create Task need about 400px; a
+          phone is narrower, so the actions wrap to their own row. */}
+      <EntityComposer.Footer class="flex-wrap items-center">
         <Show when={team()}>
           {(team) => (
             <Tooltip label={sharingHint()} tabIndex={0}>

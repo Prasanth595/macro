@@ -11,10 +11,10 @@ import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { useTouchOutsideToDismissKeyboard } from '@core/mobile/useTouchOutsideToDismissKeyboard';
+import DotsThree from '@icon/system/regular/dots-three.svg';
+import Paperclip from '@icon/system/regular/paperclip.svg';
+import Trash from '@icon/system/regular/trash.svg';
 import { ToggleButton as KToggleButton } from '@kobalte/core/toggle-button';
-import DotsThree from '@phosphor/dots-three.svg';
-import Paperclip from '@phosphor/paperclip.svg';
-import Trash from '@phosphor/trash.svg';
 import { isIOS } from '@solid-primitives/platform';
 import { Button, cn, SendButton, Surface, Tooltip } from '@ui';
 import type { LexicalEditor } from 'lexical';
@@ -171,7 +171,6 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
     drafts: composeContext.drafts,
     draftId: state.savedDraftId,
     localSaveState: state.localSaveState,
-    acknowledgeSaved: state.acknowledgeSaved,
     retry: state.retryDraft,
     discard: state.deleteDraftAndReset,
   });
@@ -535,7 +534,6 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
         </Show>
         <Show when={isMobileCompose()}>
           <MobileReplyToolbar
-            status={<SyncStatus />}
             onBack={requestClose}
             attachRef={(element) =>
               fileSelector(element, () => ({
@@ -573,6 +571,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
             }
           />
         </Show>
+        <SyncStatus />
         <ReplyEnvelope
           fields={state.recipients}
           values={form.recipients}
@@ -790,7 +789,6 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
               class="shrink-0 flex min-w-0 justify-end pt-1.5"
             >
               <div class="flex shrink-0 items-center gap-1">
-                <SyncStatus />
                 <Button
                   onClick={deleteDraftAndReset}
                   tooltip={savedDraftId() ? 'Delete draft' : 'Discard'}

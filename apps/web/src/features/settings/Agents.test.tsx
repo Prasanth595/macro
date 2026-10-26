@@ -90,11 +90,31 @@ const agentMocks = vi.hoisted(() => ({
   currentUserId: 'macro|user@example.com',
   currentTeam: { team: { id: 'team-1' } } as { team: { id: string } } | null,
   isTeamOwner: false,
+  isTeamAdmin: false,
 }));
 
 const avatarMocks = vi.hoisted(() => ({ upload: vi.fn() }));
 vi.mock('@queries/agents/avatar', () => ({
   useUploadAgentAvatarMutation: () => ({ mutateAsync: avatarMocks.upload }),
+}));
+
+const apiKeyMocks = vi.hoisted(() => ({
+  query: {
+    isSuccess: true,
+    data: undefined as
+      | {
+          key?: { provider: string; updatedAt: string } | null;
+          planAllows: boolean;
+        }
+      | undefined,
+  },
+  save: vi.fn(),
+  remove: vi.fn(),
+}));
+vi.mock('@queries/agents/agent-api-key', () => ({
+  useAgentApiKeyQuery: () => apiKeyMocks.query,
+  saveAgentApiKey: apiKeyMocks.save,
+  removeAgentApiKey: apiKeyMocks.remove,
 }));
 
 vi.mock('@queries/auth/cursor-api-key', () => ({
@@ -196,6 +216,7 @@ vi.mock('@queries/team/teams', () => ({
     isSuccess: true,
   }),
   useIsTeamOwner: () => () => agentMocks.isTeamOwner,
+  useIsTeamAdmin: () => () => agentMocks.isTeamAdmin,
 }));
 
 vi.mock('@core/context/user', () => ({
@@ -283,6 +304,9 @@ beforeAll(() => {
 
 beforeEach(() => {
   avatarMocks.upload.mockReset();
+  apiKeyMocks.query.data = undefined;
+  apiKeyMocks.save.mockReset();
+  apiKeyMocks.remove.mockReset();
   avatarMocks.upload.mockResolvedValue('https://static.example/avatar.png');
   updateSearchParams({ createAgent: undefined });
   setSearchParams.mockClear();
@@ -292,12 +316,13 @@ beforeEach(() => {
   };
   agentMocks.query.data = [];
   agentMocks.query.isError = false;
-  agentMocks.create.mockResolvedValue(undefined);
+  agentMocks.create.mockResolvedValue({ bot: { id: 'created-agent' } });
   agentMocks.delete.mockResolvedValue(undefined);
   agentMocks.update.mockResolvedValue(undefined);
   agentMocks.currentUserId = 'macro|user@example.com';
   agentMocks.currentTeam = { team: { id: 'team-1' } };
   agentMocks.isTeamOwner = false;
+  agentMocks.isTeamAdmin = false;
   harnessMocks.query.data = [];
   pipedreamMocks.enabled = true;
   pipedreamMocks.connected = [];
@@ -918,9 +943,12 @@ describe('Agents', () => {
     expect(
       within(dialog).getByText('Only the agent creator can make it private.')
     ).toBeTruthy();
+    expect(
+      within(dialog).queryByRole('button', { name: 'Delete agent' })
+    ).toBeNull();
   });
 
-  it('lets the creator privatize and the team owner delete a team agent', () => {
+  it('lets the creator privatize and admins delete a team agent from its editor', async () => {
     agentMocks.query.data = [
       {
         bot: {
@@ -954,10 +982,44 @@ describe('Agents', () => {
 
     agentMocks.currentUserId = 'macro|team-owner@example.com';
     agentMocks.isTeamOwner = true;
-    render(() => <Agents {...agentsPageProps} />);
+    const ownerView = render(() => <Agents {...agentsPageProps} />);
     expect(
       screen.getByRole('button', { name: 'Delete Bug fixer' })
     ).toBeTruthy();
+    ownerView.unmount();
+
+    agentMocks.isTeamOwner = false;
+    agentMocks.isTeamAdmin = true;
+    render(() => <Agents {...agentsPageProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Bug fixer' }));
+    const editor = screen.getByRole('region', { name: 'Edit agent' });
+    fireEvent.click(
+      within(editor).getByRole('button', { name: 'Delete agent' })
+    );
+    expect(agentMocks.delete).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Cancel',
+      })
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Edit agent' })).toBeTruthy();
+
+    fireEvent.click(
+      within(editor).getByRole('button', { name: 'Delete agent' })
+    );
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Delete agent',
+      })
+    );
+    await waitFor(() => {
+      expect(agentMocks.delete).toHaveBeenCalledWith({
+        agentId: 'agent-1',
+        channelIds: [],
+      });
+      expect(screen.queryByRole('region', { name: 'Edit agent' })).toBeNull();
+    });
   });
 
   it('confirms before deleting a created agent', async () => {
@@ -1181,6 +1243,109 @@ describe('Agents', () => {
       expect(agentMocks.toastSuccess).toHaveBeenCalledWith('Agent created');
       expect(screen.queryByRole('dialog')).toBeNull();
     });
+  });
+
+  it("saves a new agent's API key after the agent, for its model's provider", async () => {
+    render(() => <Agents {...agentsPageProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
+
+    const dialog = screen.getByRole('region', { name: /^(New|Edit) agent$/ });
+    fireEvent.input(within(dialog).getByLabelText('Name'), {
+      target: { value: 'Bug fixer' },
+    });
+    fireEvent.input(within(dialog).getByLabelText('Anthropic API key'), {
+      target: { value: 'sk-ant-api03-abc' },
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Create agent' })
+    );
+
+    await waitFor(() => {
+      expect(apiKeyMocks.save).toHaveBeenCalledWith(
+        'created-agent',
+        'sk-ant-api03-abc'
+      );
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it("removes an agent's saved API key, and locks the field on a free plan", async () => {
+    agentMocks.query.data = [
+      {
+        bot: {
+          id: 'agent-1',
+          kind: 'owned',
+          owner: { type: 'user', user_id: 'macro|user@example.com' },
+          name: 'Bug fixer',
+          handle: 'bug-fixer',
+          has_agent: true,
+          created_at: '2026-08-27T12:00:00Z',
+          updated_at: '2026-08-27T12:00:00Z',
+        },
+        instructions: 'Fix the root cause.',
+        harness: 'in-memory',
+        default_model: Model.sonnet55,
+        channel_scope: 'all',
+        channel_ids: [],
+      },
+    ];
+    apiKeyMocks.query.data = {
+      key: { provider: 'anthropic', updatedAt: '2026-10-20T12:00:00Z' },
+      planAllows: true,
+    };
+
+    render(() => <Agents {...agentsPageProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Bug fixer' }));
+    const dialog = screen.getByRole('region', { name: /^(New|Edit) agent$/ });
+    const field = within(dialog).getByLabelText(
+      'Anthropic API key'
+    ) as HTMLInputElement;
+    expect(field.placeholder).toBe('sk-ant-••••••••••••');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Save changes' })
+    );
+    await waitFor(() => {
+      expect(apiKeyMocks.remove).toHaveBeenCalledWith('agent-1');
+    });
+  });
+
+  it('locks the API key field when the plan does not include agent keys', () => {
+    apiKeyMocks.query.data = { key: null, planAllows: false };
+    agentMocks.query.data = [
+      {
+        bot: {
+          id: 'agent-1',
+          kind: 'owned',
+          owner: { type: 'user', user_id: 'macro|user@example.com' },
+          name: 'Bug fixer',
+          handle: 'bug-fixer',
+          has_agent: true,
+          created_at: '2026-08-27T12:00:00Z',
+          updated_at: '2026-08-27T12:00:00Z',
+        },
+        instructions: 'Fix the root cause.',
+        harness: 'in-memory',
+        default_model: Model.sonnet55,
+        channel_scope: 'all',
+        channel_ids: [],
+      },
+    ];
+
+    render(() => <Agents {...agentsPageProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Bug fixer' }));
+    const dialog = screen.getByRole('region', { name: /^(New|Edit) agent$/ });
+
+    expect(
+      (within(dialog).getByLabelText('Anthropic API key') as HTMLInputElement)
+        .disabled
+    ).toBe(true);
+    expect(
+      within(dialog).getByText(
+        'Agent API keys are part of the Premium and Max plans.'
+      )
+    ).toBeTruthy();
   });
 
   it('offers Cursor and saves the model chosen from its dropdown', async () => {

@@ -82,7 +82,8 @@ After onboarding, an eligible desktop app user sees **Enable Desktop
 Notifications**. Select **Enable** to request permission through the native
 notification provider; macOS uses its system permission dialog. The web prompt
 continues to say **Enable Browser Notifications** and uses browser permissions.
-Select **Hide** to dismiss the prompt.
+Select **Hide** to dismiss the prompt. It waits in the same region as other
+prompts, one card at a time.
 
 ### Notification snoozes
 
@@ -146,7 +147,17 @@ another team are told to leave it first. Team admins and owners also see
 **Reset link** (the old link stops working and a new one is copied) and
 **Turn off**, each behind a confirmation. Anyone who may invite can copy the
 link or create the first one. Below it, **Invite by email** sends invitations
-as before.
+as before. Each email says what joining gives: **Pro is included** when joining
+grants a Pro seat (an enterprise team, or one with a subscription), otherwise
+**Free to join**. Examples: [desktop](media/team-invite-email/desktop.png) and
+[mobile](media/team-invite-email/mobile.png).
+An unanswered invite gets up to two reminder emails, with subjects starting
+**Reminder:**, 3 days after the last email and 4 days after that. Invites more
+than 14 days old, already-members, and invites whose sender left the team get none.
+**Pending invites** on **Team → Members** lists each invite with when it was
+last sent, for owners and admins, who can **Resend**, copy the invite link,
+or cancel it. Resend unlocks an hour after the last email, the email's rate
+limit; re-inviting the address from **Invite** follows the same rule.
 
 Under **Team → Members** (**Invite settings**), owners/admins can turn
 **Auto-join on domain** off and can restrict invitations to admins with
@@ -188,11 +199,13 @@ settings split that shares the layout, or steps back to the previous view when
 it is the only split (Home when there is none). Leave settings by picking any
 other rail item; there is no separate back or fullscreen control.
 
-Settings pages use raised composer cards with glass in dark mode, soft shadows
-in light mode, and subtle row separators. Integrations uses the same content
-width and side padding as the other settings pages. Section
-headings sit above the cards, with more space between major sections and compact
-spacing within each group. Controls share rounded shapes. Nested rows share one surface instead of adding another box or shadow.
+Settings cards use the email composer's raised surface (`SettingsSurface`) with
+subtle row separators: a fine beveled edge and small ambient shadow on desktop,
+the composer card on touch. Integrations uses the same content width and side
+padding as the other settings pages. Section headings sit above the cards, with
+more space between major sections and compact spacing within each group.
+Controls share rounded shapes. Nested rows share one surface instead of adding
+another box or shadow; never hand-build a flat card.
 The compact sidebar uses the shared workspace width.
 
 When a newer version is ready, an **Update available** button (a download icon
@@ -236,7 +249,8 @@ Left nav (feature and platform gates still apply):
   only General shows, with pending invitations or **Create Team**. Search
   finds these by `invite`, `members`, `teammates`, `slack`, and similar terms;
   results name their group, e.g. **Team · Members**.
-- **Blocks**: Email, Calendar, Agents, CRM.
+- **Blocks**: Email, Calendar, Agents, CRM. On touch devices, where the Agents
+  sidebar is hidden, **Routines** (`/app/settings/routines`) follows Agents.
 - **Personal**: Account, Appearance, Notifications, Keyboard shortcuts, Usage, Billing, Desktop App, Mobile App.
 - **Workspace**: Tags, Integrations (personal Gmail/GitHub accounts and agent tools).
 - **Developer**: Runtimes, MCP server, API Keys, Bots.
@@ -264,6 +278,15 @@ The previews use the saved themes; System follows the device and exposes both
 per-mode theme selectors. Light or Dark shows its own theme selector. Each selector
 retains theme search, editing, copying, custom theme creation, and importing
 themes from the clipboard.
+
+The default Macro Dark theme uses a neutral `#0E0E0E` outer background and
+`#121212` inset content panels. The app rail follows the outer background;
+text and accent colors retain their existing palette.
+
+Macro Light uses `#F5F5F5` outside `#FCFCFC` content panels, white controls,
+`#E4E4E4` frame borders, and `#EDEDED` button borders. Its controls use
+`#2E2E2E` ink. Macro Light and Macro Dark share the same muted blue accent
+(`oklch(0.7 0.12 250deg)`); light mode does not switch the accent to orange.
 
 ### Theme mentions
 
@@ -534,11 +557,13 @@ Provider Back returns to the combined integrations overview; navigation
 is local to each mounted Integrations page.
 
 Macro agents and external AI clients using Macro's MCP server can run
-`ImportNotionPage` and the shared import ledger tools against the user's
+`ImportNotionPage`, `ImportFromNotion`, `ImportFromLinear`, `ImportFromJira`
+and the shared import ledger tools against the user's
 connections saved in Macro.
 Verify a Notion import returns a document and a repeated import returns the
-existing document; Linear imports recorded with `CreateImportEntity` should
-appear in `ListImportEntities`. These calls must not report that import tracking
+existing document. For Linear/Jira workspace imports, verify planning writes no
+Macro tasks before approval, source-specific reviews show task/project totals,
+and an approved import preserves task fields, comments, labels and relationships. These calls must not report that import tracking
 is unavailable.
 On hosts without Pipedream credentials, saved Pipedream accounts must not hide
 native Notion, Linear, or Slack connections when selecting import tools.
@@ -564,6 +589,10 @@ available when `pipedream-mcp` is disabled.
 Open Settings with the rail's gear button or `Ctrl+;`; leave it by picking any other rail item.
 
 `Agents` → `New agent` (or edit an existing agent) opens a full-page form. The
+edit form offers `Delete agent` to the agent's creator, the team owner, and
+team admins for team agents. Confirming removes it from channels and returns
+to the agent list; Cancel keeps the edit form open. Other team members can edit
+the agent but cannot delete it. The
 `Instructions` field is a Lexical contenteditable textbox, not a textarea. It
 supports Markdown headings, lists, emphasis, code, links, and the normal `@`
 mention picker; select text to open the formatting menu. Saved instructions

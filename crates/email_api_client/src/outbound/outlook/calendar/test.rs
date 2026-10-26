@@ -342,6 +342,7 @@ async fn retrying_an_acknowledged_creation_adopts_the_assigned_id_without_reinvi
         reminders: None,
         conference: None,
         out_of_office: None,
+        guest_policy: None,
     };
     let first = api.create_event("token", &target, &draft).await.unwrap();
     let replay = api.create_event("token", &target, &draft).await.unwrap();
@@ -412,6 +413,47 @@ fn custom_zones_do_not_poison_timed_calendar_pages_and_sequence_tracks_invitatio
     assert_eq!(projection.event.sequence, 3);
     assert!(
         matches!(projection.event.time,EventTime::Timed {time_zone:Some(ref zone),..} if zone=="Etc/UTC")
+    );
+}
+
+#[test]
+fn the_organizer_of_a_created_event_holds_it_while_guests_have_not_answered() {
+    let mut value = event("created");
+    value["organizer"] = json!({"emailAddress":{"address":"Owner@Example.com","name":"Owner"}});
+    value["attendees"] = json!([
+        {
+            "emailAddress":{"address":"owner@example.com","name":"Owner"},
+            "type":"required",
+            "status":{"response":"none","time":"0001-01-01T00:00:00Z"}
+        },
+        {
+            "emailAddress":{"address":"ada@example.com","name":"Ada"},
+            "type":"required",
+            "status":{"response":"none","time":"0001-01-01T00:00:00Z"}
+        }
+    ]);
+
+    let projection = normalize::projection(&target(), value, vec![]).unwrap();
+
+    assert_eq!(
+        projection
+            .event
+            .attendees
+            .iter()
+            .map(|attendee| (
+                attendee.email.as_str(),
+                attendee.is_organizer,
+                attendee.response_status
+            ))
+            .collect::<Vec<_>>(),
+        [
+            ("owner@example.com", true, AttendeeResponseStatus::Accepted),
+            (
+                "ada@example.com",
+                false,
+                AttendeeResponseStatus::NeedsAction
+            ),
+        ]
     );
 }
 
