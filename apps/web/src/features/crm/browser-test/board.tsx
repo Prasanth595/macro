@@ -1,7 +1,7 @@
 import '@app/index.css';
 import { loadDatabaseSqlWasm } from '@core/database-sql/wasm-module';
-import BuildingIcon from '@phosphor/buildings.svg';
-import UserIcon from '@phosphor/user.svg';
+import BuildingIcon from '@icon/system/regular/buildings.svg';
+import UserIcon from '@icon/system/regular/user.svg';
 import { queryReadyGate } from '@queries/gate';
 import type { CardPosition } from '@service-storage/generated/schemas/cardPosition';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
