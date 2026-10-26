@@ -273,6 +273,36 @@ describe('composer layout', () => {
     expect(input.compactStates).not.toContain(true);
   });
 
+  it('does not remount a compact probe while typing more into an already wrapped draft', async () => {
+    const input = setup('a'.repeat(33));
+    await flushMeasurements();
+    expect(input.isCompact()).toBe(false);
+    const measure = vi.mocked(Range.prototype.getBoundingClientRect);
+    measure.mockClear();
+
+    input.setText('a'.repeat(40));
+    await flushMeasurements();
+    expect(input.isCompact()).toBe(false);
+    expect(measure).not.toHaveBeenCalled();
+    expect(document.querySelectorAll('[data-lexical-editor]')).toHaveLength(1);
+  });
+
+  it('does not keep measuring after the layout has settled', async () => {
+    const input = setup('short draft');
+    await flushMeasurements();
+    expect(input.isCompact()).toBe(true);
+    const measure = vi.mocked(Range.prototype.getBoundingClientRect);
+    measure.mockClear();
+
+    for (let i = 0; i < 10; i++) {
+      vi.advanceTimersToNextFrame();
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+    expect(measure).not.toHaveBeenCalled();
+    expect(input.isCompact()).toBe(true);
+  });
+
   it('tracks draft changes while collapsed and expands when auto mode resumes', async () => {
     const input = setup();
     input.setMode('collapsed');

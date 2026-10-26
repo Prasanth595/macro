@@ -550,9 +550,9 @@ export function ChannelInput(props: ChannelInputProps) {
   const { isCompact: oneLineInput } = createComposerLayout(lexicalEditor(), {
     container: layout,
     mode: () =>
-      isReplyInput(inputState.view()) ||
-      inputState.view().showFormatRibbon ||
-      inputState.view().attachments?.length
+      isReplyInput(props.input) ||
+      inputState.showFormatRibbon() ||
+      attachmentTracker.attachments().length
         ? 'expanded'
         : 'auto',
   });

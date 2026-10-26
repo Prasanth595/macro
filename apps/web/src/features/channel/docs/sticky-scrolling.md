@@ -21,7 +21,10 @@ ResizeObserver measurements also run in the current frame: delaying them with
 This applies to the list's geometry measurements. The composer's compact versus
 expanded layout decision runs in the next animation frame when triggered by a
 resize, so it cannot resize an already-measured ancestor during observer
-delivery. Draft edits still measure in a microtask before paint.
+delivery. Draft edits still measure in a microtask before paint. Wrapping is
+read from the live compact editor; an isolated probe is used only when the
+composer is already expanded, and further typing into wrapped text does not
+remeasure.
 
 The list exposes three navigation operations: `scrollToLatest`, `scrollToMessage`,
 and `scrollToElement`. Message navigation can include keyboard intent for pagination.

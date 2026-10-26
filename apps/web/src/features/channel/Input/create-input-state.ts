@@ -26,6 +26,7 @@ export type InputState = {
   view: Accessor<InputData>;
   snapshot: Accessor<InputSnapshot>;
   commands: InputCommands;
+  showFormatRibbon: Accessor<boolean>;
   setValue: (value: string) => void;
   setIsDraggedOver: (value: boolean) => void;
   reset: () => void;
@@ -58,6 +59,7 @@ export function createInputState(options: CreateInputStateOptions): InputState {
     view: view.view,
     snapshot: view.snapshot,
     commands,
+    showFormatRibbon: view.showFormatRibbon,
     setValue: view.setValue,
     setIsDraggedOver: view.setIsDraggedOver,
     reset: () => {

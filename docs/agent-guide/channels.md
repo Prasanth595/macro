@@ -321,7 +321,10 @@ With a wrapping draft present, repeatedly narrow and widen the desktop split
 and window, then scroll the message history. The composer should settle into
 the matching layout without `ResizeObserver loop completed with undelivered
 notifications` errors. Resize-triggered wrapping measurements run in the next
-animation frame; draft edits still measure before their first paint.
+animation frame; draft edits still measure before their first paint. Typing
+into a compact one-line draft or adding to already-wrapped text must stay
+responsive — wrapping is read from the live compact editor, and an isolated
+probe is used only when the composer is already expanded.
 
 On Android, tap `@` on the software keyboard in an empty channel composer or
 after a space: the mentions menu should open above the keyboard. Type a name to
