@@ -21,7 +21,8 @@ use crate::domain::ports::{
     SurfaceInitializer,
 };
 use crate::domain::token::{
-    access_level_for, encode_service_surface_token, encode_surface_token, surface_access_level,
+    access_level_for, encode_reader_surface_token, encode_service_surface_token,
+    encode_surface_token, surface_access_level,
 };
 
 /// Upper bound on initial markdown, mirroring the lexical-service request cap.
@@ -336,6 +337,29 @@ where
         self.initializer
             .update(&session_id, &token, &expected_revision, &update)
             .await
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn owned_surface_reader_token(
+        &self,
+        parent: Entity<'static>,
+        id: Uuid,
+    ) -> Result<Option<DocumentPermissionToken>, CollabSurfaceError> {
+        if surface_ownership(parent.entity_type) != Some(SurfaceOwnership::ParentDomain) {
+            return Err(CollabSurfaceError::AccessDenied);
+        }
+        let Some(surface) = self.get_optional(id).await? else {
+            return Ok(None);
+        };
+        verify_receipt_matches_parent(&surface, &parent)?;
+        if surface.state != SurfaceState::Ready {
+            return Ok(None);
+        }
+        self.refuse_document_id(surface.id).await?;
+        Ok(Some(encode_reader_surface_token(
+            surface.id.to_string(),
+            &self.jwt_secret,
+        )?))
     }
 
     #[tracing::instrument(err, skip(self))]

@@ -126,6 +126,10 @@ use initiative::domain::models::{
     CreateInitiativeRequest, InitialPropertyValue, InitiativeDetail, InitiativeId, InitiativeList,
     InitiativeSummary, UpdateInitiativeRequest,
 };
+use initiative::domain::reads::{
+    DescriptionReader, InitiativeOverview, InitiativePageRow, InitiativePropertySnapshot,
+    ProfileName, TaskOverview,
+};
 use model::document::response::{
     CreateDocumentRequest, CreateDocumentResponse, CreateDocumentResponseData,
     DocumentResponseMetadata,
@@ -466,6 +470,8 @@ use utoipa::OpenApi;
         initiative::inbound::axum_router::get::get_initiative_handler,
         initiative::inbound::axum_router::update::update_initiative_handler,
         initiative::inbound::axum_router::delete::delete_initiative_handler,
+        initiative::inbound::axum_router::overview::get_initiative_overview_handler,
+        initiative::inbound::axum_router::description::create_initiative_description_token_handler,
         // databases
         databases_sql::inbound::axum_router::query_databases_handler,
         databases::inbound::axum_router::list_databases_handler,
@@ -772,6 +778,12 @@ use utoipa::OpenApi;
             CreateInitiativeRequest,
             InitialPropertyValue,
             UpdateInitiativeRequest,
+            InitiativeOverview,
+            InitiativePageRow,
+            InitiativePropertySnapshot,
+            TaskOverview,
+            ProfileName,
+            DescriptionReader,
             CollabSurfaceResponse,
             CollabSurfaceTokenResponse,
             EnsureCollabSurfaceRequest,

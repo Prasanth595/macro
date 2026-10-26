@@ -15,14 +15,18 @@ and discovery belong to the parent.
 - **A field managed by its parent domain**, such as an initiative description:
   use `OwnedSurfaceService` through the feature's domain port. The owning domain
   authorizes callers and chooses the surface id before calling
-  `ensure_owned_surface`, `owned_surface_markdown`, or `retire_surface`.
+  `ensure_owned_surface`, `owned_surface_markdown`, `owned_surface_reader_token`,
+  or `retire_surface`.
 - **A surface managed through the public API**, such as a channel's shared input:
   use `CollabSurfaceService` with an access receipt for the parent. Surface reads,
   connection tokens, and deletion derive their permissions from that parent.
 
 Check `surface_ownership` and the parent's access resolution when adding a new
 parent type. Parents marked `ParentDomain` use their domain's creation and
-retirement paths; the public API still provides connection tokens. Keep the
+retirement paths; the public API still provides connection tokens to signed-in
+callers. A reader the domain authorized without a session, such as a signed-out
+visitor through a Public link, gets a View-only grant from
+`owned_surface_reader_token` through the domain's own route. Keep the
 trusted `OwnedSurfaceService` behind domain authorization, with adapters supplied
 by the composition root.
 

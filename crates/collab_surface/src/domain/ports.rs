@@ -258,6 +258,18 @@ pub trait OwnedSurfaceService: Send + Sync + 'static {
         update: Vec<u8>,
     ) -> impl Future<Output = Result<SurfaceUpdate, CollabSurfaceError>> + Send;
 
+    /// A read-only sync-service grant on surface `id`, naming no user, for a
+    /// reader `parent`'s domain has authorized. `None` while the surface was
+    /// never ensured, is pending, or was retired; nothing reaches sync-service
+    /// then, so a later ensure still succeeds. Refuses a parent whose domain
+    /// does not own its surfaces, a parent that is not the surface's, and an
+    /// id that names a document.
+    fn owned_surface_reader_token(
+        &self,
+        parent: Entity<'static>,
+        id: Uuid,
+    ) -> impl Future<Output = Result<Option<DocumentPermissionToken>, CollabSurfaceError>> + Send;
+
     /// Soft-delete a surface for the domain that owns it. Idempotent.
     fn retire_surface(
         &self,

@@ -11,15 +11,15 @@ use std::{
 
 #[derive(Debug, Default)]
 pub(super) struct FakeResources {
-    denied: HashSet<String>,
+    pub(super) denied: HashSet<String>,
     /// Every project's tasks, from their Project property.
-    tasks: Vec<String>,
-    values: HashMap<String, InitiativePropertySnapshot>,
-    fail_initialization: bool,
+    pub(super) tasks: Vec<String>,
+    pub(super) values: HashMap<String, InitiativePropertySnapshot>,
+    pub(super) fail_initialization: bool,
     /// Every entity id passed to `view`, in call order.
-    checked: Arc<Mutex<Vec<String>>>,
+    pub(super) checked: Arc<Mutex<Vec<String>>>,
     /// Every entity id whose receipt reached `properties`, in call order.
-    read_properties: Arc<Mutex<Vec<String>>>,
+    pub(super) read_properties: Arc<Mutex<Vec<String>>>,
 }
 
 impl InitiativeResources for FakeResources {

@@ -553,6 +553,8 @@
   "storage.deleteInitiative": "Delete Initiative",
   "storage.getInitiative": "Get Initiative",
   "storage.updateInitiative": "Update Initiative",
+  "storage.createInitiativeDescriptionToken": "Create Initiative Description Token",
+  "storage.getInitiativeOverview": "Get Initiative Overview",
   "storage.getInstructionsHandler": "Get Instructions",
   "storage.createInstructionsHandler": "Create Instructions",
   "storage.getItemsSoup": "Get Items Soup",

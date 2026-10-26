@@ -300,6 +300,10 @@ export const storageExcluded = [
   'checkActiveCall',
   'createChannelScopedBot',
   'createCollabSurfaceToken',
+  // The signed-out web visitor reads a Public project page and its
+  // description grant; the SDK's getInitiative covers signed-in reads.
+  'createInitiativeDescriptionToken',
+  'getInitiativeOverview',
   'createInstructionsHandler',
   'createViewHandler',
   // Declining a ringing call is a live-device session flow, like leaving.

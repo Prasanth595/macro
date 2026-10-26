@@ -116,3 +116,29 @@ pub fn encode_service_surface_token(
     )
     .map_err(|e| CollabSurfaceError::Internal(rootcause::Report::new(e).into_dynamic()))
 }
+
+/// Sign a read-only sync-service grant for `surface_id` that names no user,
+/// for a reader the owning domain authorized, possibly signed out. Unlike
+/// [`encode_service_surface_token`] it is handed to the caller, so it is
+/// View-only and lives for a session.
+pub(crate) fn encode_reader_surface_token(
+    surface_id: String,
+    jwt_secret: &str,
+) -> Result<DocumentPermissionToken, CollabSurfaceError> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock before unix epoch")
+        .as_secs() as usize;
+
+    macro_sync_service_jwt::encode(
+        &DocumentPermissionsToken {
+            user_id: None,
+            document_id: surface_id,
+            access_level: AccessLevel::View,
+            exp: now + TOKEN_TTL_SECS,
+            iss: ISSUER.to_string(),
+        },
+        jwt_secret,
+    )
+    .map_err(|e| CollabSurfaceError::Internal(rootcause::Report::new(e).into_dynamic()))
+}

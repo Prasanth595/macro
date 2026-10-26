@@ -1,6 +1,9 @@
 //! Read-use-case policy, pagination and visibility.
 
-use std::{cmp::Ordering, collections::HashMap};
+use std::{
+    cmp::Ordering,
+    collections::{BTreeSet, HashMap},
+};
 
 use chrono::{DateTime, Utc};
 use entity_access::domain::models::{
@@ -14,8 +17,9 @@ use crate::domain::{
     models::{InitiativeError, InitiativeId},
     ports::{InitiativeDescriptionSurfaces, InitiativeRepo, InitiativeService},
     reads::{
-        InitiativePage, InitiativePageRequest, InitiativePageRow, InitiativeRead, InitiativeSort,
-        InitiativeTasksPage, InitiativeTasksRequest, MAX_CURSOR_LENGTH, page_size as limit,
+        InitiativeOverview, InitiativePage, InitiativePageRequest, InitiativePageRow,
+        InitiativePropertySnapshot, InitiativeRead, InitiativeSort, InitiativeTasksPage,
+        InitiativeTasksRequest, MAX_CURSOR_LENGTH, TaskOverview, page_size as limit,
     },
 };
 
@@ -118,6 +122,37 @@ impl CursorPosition {
     }
 }
 
+/// The project row of a read: its own properties, and progress over its visible tasks only.
+fn page_row(
+    read: &InitiativeRead,
+    properties: &HashMap<String, InitiativePropertySnapshot>,
+) -> InitiativePageRow {
+    let detail = read.detail();
+    let tasks = read.task_receipts();
+    let completed_task_count = tasks
+        .iter()
+        .filter(|task| {
+            properties
+                .get(&task.entity().entity_id)
+                .is_some_and(|value| value.completed)
+        })
+        .count();
+    InitiativePageRow {
+        initiative: crate::domain::models::InitiativeSummary {
+            id: detail.id,
+            name: detail.name.clone(),
+            updated_at: detail.updated_at,
+        },
+        user_access_level: detail.user_access_level,
+        properties: properties
+            .get(&detail.id.to_string())
+            .cloned()
+            .unwrap_or_default(),
+        task_count: u32::try_from(tasks.len()).unwrap_or(u32::MAX),
+        completed_task_count: u32::try_from(completed_task_count).unwrap_or(u32::MAX),
+    }
+}
+
 fn order(left: &Position, right: &Position, sort: InitiativeSort, descending: bool) -> Ordering {
     if sort == InitiativeSort::Due {
         match (left.due_date, right.due_date) {
@@ -140,37 +175,66 @@ impl<R: InitiativeRepo, S: InitiativeDescriptionSurfaces> InitiativeServiceImpl<
         &self,
         read: &InitiativeRead,
     ) -> Result<InitiativePageRow, InitiativeError> {
-        let detail = read.detail();
-        let tasks = read.task_receipts();
-        let mut properties = self
-            .resources
+        Ok(page_row(read, &self.read_properties(read).await?))
+    }
+
+    /// Canonical properties of the project and its visible tasks, keyed by entity id.
+    async fn read_properties(
+        &self,
+        read: &InitiativeRead,
+    ) -> Result<HashMap<String, InitiativePropertySnapshot>, InitiativeError> {
+        self.resources
             .properties(
                 std::iter::once(read.receipt())
-                    .chain(tasks)
+                    .chain(read.task_receipts())
                     .cloned()
                     .collect(),
             )
-            .await?;
-        let completed_task_count = tasks
+            .await
+    }
+
+    pub(super) async fn read_overview(
+        &self,
+        receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> Result<InitiativeOverview, InitiativeError> {
+        let read = self.read(receipt).await?;
+        let detail = read.detail();
+        let properties = self.read_properties(&read).await?;
+        let summary = page_row(&read, &properties);
+        let mut names = self
+            .repo
+            .task_names(detail.task_ids.clone())
+            .await
+            .map_err(Into::into)?;
+        let tasks: Vec<TaskOverview> = detail
+            .task_ids
             .iter()
-            .filter(|task| {
-                properties
-                    .get(&task.entity().entity_id)
-                    .is_some_and(|value| value.completed)
+            .map(|id| TaskOverview {
+                id: id.clone(),
+                name: names.remove(id).unwrap_or_default(),
+                properties: properties.get(id).cloned().unwrap_or_default(),
             })
-            .count();
-        Ok(InitiativePageRow {
-            initiative: crate::domain::models::InitiativeSummary {
-                id: detail.id,
-                name: detail.name.clone(),
-                updated_at: detail.updated_at,
-            },
-            user_access_level: detail.user_access_level,
-            properties: properties
-                .remove(&detail.id.to_string())
-                .unwrap_or_default(),
-            task_count: u32::try_from(tasks.len()).unwrap_or(u32::MAX),
-            completed_task_count: u32::try_from(completed_task_count).unwrap_or(u32::MAX),
+            .collect();
+        let people: BTreeSet<String> = std::iter::once(detail.owner_id.as_ref().to_string())
+            .chain(summary.properties.assignees.iter().cloned())
+            .chain(
+                tasks
+                    .iter()
+                    .flat_map(|task| task.properties.assignees.iter().cloned()),
+            )
+            .collect();
+        let people = self
+            .repo
+            .profile_names(people.into_iter().collect())
+            .await
+            .map_err(Into::into)?;
+        let description = self.description_surfaces.reader(detail.id).await?;
+        Ok(InitiativeOverview {
+            owner_id: detail.owner_id.clone(),
+            summary,
+            tasks,
+            people,
+            description,
         })
     }
 

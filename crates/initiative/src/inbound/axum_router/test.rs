@@ -31,6 +31,10 @@ use crate::domain::{
         InitiativeList, InitiativeSummary, MAX_INITIATIVE_NAME_GRAPHEMES, UpdateInitiativeRequest,
     },
     ports::InitiativeService,
+    reads::{
+        DescriptionReader, InitiativeOverview, InitiativePageRow, InitiativePropertySnapshot,
+        ProfileName, TaskOverview,
+    },
 };
 
 const USER_ID: &str = "macro|initiative-router@macro.com";
@@ -91,6 +95,37 @@ fn sample_detail() -> InitiativeDetail {
     }
 }
 
+fn sample_overview(description: DescriptionReader) -> InitiativeOverview {
+    InitiativeOverview {
+        summary: InitiativePageRow {
+            initiative: InitiativeSummary {
+                id: existing_id(),
+                name: "Launch".to_string(),
+                updated_at: now(),
+            },
+            user_access_level: AccessLevel::View,
+            properties: InitiativePropertySnapshot {
+                assignees: vec![USER_ID.to_string()],
+                ..InitiativePropertySnapshot::default()
+            },
+            task_count: 1,
+            completed_task_count: 0,
+        },
+        owner_id: user(),
+        tasks: vec![TaskOverview {
+            id: "task-1".to_string(),
+            name: "Write the brief".to_string(),
+            properties: InitiativePropertySnapshot::default(),
+        }],
+        people: vec![ProfileName {
+            id: USER_ID.to_string(),
+            first_name: Some("Olive".to_string()),
+            last_name: None,
+        }],
+        description,
+    }
+}
+
 fn sample_list() -> InitiativeList {
     InitiativeList {
         initiatives: vec![InitiativeSummary {
@@ -130,6 +165,12 @@ impl FakeEntityAccessService {
     fn without_initiative_access() -> Self {
         Self {
             initiative_access: None,
+        }
+    }
+
+    fn viewing() -> Self {
+        Self {
+            initiative_access: Some(AccessLevel::View),
         }
     }
 }
@@ -265,14 +306,33 @@ enum ServiceCall {
     Get,
     Update,
     Delete,
+    Overview,
+    DescriptionReader,
 }
 
 #[derive(Clone, Default)]
 struct FakeInitiativeService {
     calls: Arc<Mutex<Vec<ServiceCall>>>,
+    description_grant: Option<String>,
 }
 
 impl FakeInitiativeService {
+    fn with_description_grant(grant: &str) -> Self {
+        Self {
+            description_grant: Some(grant.to_string()),
+            ..Self::default()
+        }
+    }
+
+    fn description(&self) -> DescriptionReader {
+        match &self.description_grant {
+            None => DescriptionReader::Empty,
+            Some(token) => DescriptionReader::Live {
+                token: token.clone(),
+            },
+        }
+    }
+
     fn calls(&self) -> Vec<ServiceCall> {
         self.calls.lock().expect("call log poisoned").clone()
     }
@@ -391,6 +451,22 @@ impl InitiativeService for FakeInitiativeService {
         _receipt: EntityAccessReceipt<ViewAccessLevel>,
     ) -> Result<String, InitiativeError> {
         Ok(String::new())
+    }
+
+    async fn overview(
+        &self,
+        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> Result<InitiativeOverview, InitiativeError> {
+        self.record(ServiceCall::Overview);
+        Ok(sample_overview(self.description()))
+    }
+
+    async fn description_reader(
+        &self,
+        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> Result<DescriptionReader, InitiativeError> {
+        self.record(ServiceCall::DescriptionReader);
+        Ok(self.description())
     }
 
     async fn update(
@@ -685,6 +761,150 @@ async fn list_without_credentials_is_401() {
     .await;
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+fn signed_out_get(path: String) -> axum::http::Request<axum::body::Body> {
+    axum::http::Request::get(path)
+        .body(axum::body::Body::empty())
+        .expect("request should build")
+}
+
+fn signed_out_post(path: String) -> axum::http::Request<axum::body::Body> {
+    axum::http::Request::post(path)
+        .body(axum::body::Body::empty())
+        .expect("request should build")
+}
+
+#[tokio::test]
+async fn a_signed_out_reader_gets_the_overview_of_a_public_initiative() {
+    let service = FakeInitiativeService::default();
+    let response = send(
+        build_router(service.clone(), FakeEntityAccessService::viewing()),
+        signed_out_get(format!("/{}/overview", existing_id())),
+    )
+    .await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        read_json(response).await,
+        serde_json::json!({
+            "summary": {
+                "id": existing_id().to_string(),
+                "name": "Launch",
+                "updatedAt": "2026-09-15T12:00:00Z",
+                "userAccessLevel": "view",
+                "properties": {
+                    "status": null,
+                    "priority": null,
+                    "assignees": [USER_ID],
+                    "dueDate": null,
+                    "completed": false,
+                },
+                "taskCount": 1,
+                "completedTaskCount": 0,
+            },
+            "ownerId": USER_ID,
+            "tasks": [{
+                "id": "task-1",
+                "name": "Write the brief",
+                "properties": {
+                    "status": null,
+                    "priority": null,
+                    "assignees": [],
+                    "dueDate": null,
+                    "completed": false,
+                },
+            }],
+            "people": [{ "id": USER_ID, "firstName": "Olive", "lastName": null }],
+            "description": { "state": "empty" },
+        })
+    );
+    assert_eq!(service.calls(), vec![ServiceCall::Overview]);
+}
+
+#[tokio::test]
+async fn a_signed_out_reader_of_a_description_never_opened_gets_nothing_to_read() {
+    let service = FakeInitiativeService::default();
+    let response = send(
+        build_router(service.clone(), FakeEntityAccessService::viewing()),
+        signed_out_post(format!("/{}/description/token", existing_id())),
+    )
+    .await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        read_json(response).await,
+        serde_json::json!({ "state": "empty" })
+    );
+    assert_eq!(service.calls(), vec![ServiceCall::DescriptionReader]);
+}
+
+#[tokio::test]
+async fn a_signed_out_reader_of_a_live_description_gets_its_grant() {
+    let service = FakeInitiativeService::with_description_grant("grant");
+    let response = send(
+        build_router(service.clone(), FakeEntityAccessService::viewing()),
+        signed_out_post(format!("/{}/description/token", existing_id())),
+    )
+    .await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        read_json(response).await,
+        serde_json::json!({ "state": "live", "token": "grant" })
+    );
+    assert_eq!(service.calls(), vec![ServiceCall::DescriptionReader]);
+}
+
+#[tokio::test]
+async fn a_signed_out_reader_of_a_private_initiative_is_401() {
+    let service = FakeInitiativeService::with_description_grant("grant");
+    for request in [
+        signed_out_get(format!("/{}/overview", existing_id())),
+        signed_out_post(format!("/{}/description/token", existing_id())),
+    ] {
+        let response = send(
+            build_router(
+                service.clone(),
+                FakeEntityAccessService::without_initiative_access(),
+            ),
+            request,
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            read_json(response).await,
+            serde_json::json!({
+                "message": "User does not have access to the requested resource"
+            })
+        );
+    }
+    assert!(service.calls().is_empty());
+}
+
+#[tokio::test]
+async fn reads_of_a_missing_initiative_are_404() {
+    let service = FakeInitiativeService::with_description_grant("grant");
+    for request in [
+        signed_out_get(format!("/{}/overview", unknown_id())),
+        signed_out_post(format!("/{}/description/token", unknown_id())),
+    ] {
+        let response = send(
+            build_router(service.clone(), FakeEntityAccessService::viewing()),
+            request,
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(
+            read_json(response).await,
+            serde_json::json!({
+                "message": format!("initiative with id \"{}\" was not found", unknown_id())
+            })
+        );
+    }
+    assert!(service.calls().is_empty());
 }
 
 #[tokio::test]

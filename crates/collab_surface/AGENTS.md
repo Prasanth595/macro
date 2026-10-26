@@ -43,12 +43,13 @@ table.
   `crates/initiative_description/src/lib.rs` for the pattern).
 - Wire a new feature onto an existing surface kind: the feature's domain port
   → `OwnedSurfaceService` methods (`ensure_owned_surface`,
-  `owned_surface_markdown`, `retire_surface`) → its cleanup path for
-  retirement.
+  `owned_surface_markdown`, `owned_surface_reader_token`, `retire_surface`) →
+  its cleanup path for retirement.
 
 ## Checks
 
-- `cargo test -p collab_surface` (`SQLX_OFFLINE` unset; exercises
+- `cargo test -p collab_surface --all-features` (`SQLX_OFFLINE` unset; without
+  `--all-features` the domain tests are compiled out; exercises
   `src/outbound/pg_collab_surface_repo/test.rs` against MacroDB).
 
 ## Gotchas

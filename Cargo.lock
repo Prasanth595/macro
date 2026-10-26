@@ -10639,6 +10639,7 @@ dependencies = [
  "chrono",
  "collab_surface",
  "initiative",
+ "macro_sync_service_jwt",
  "model-entity",
  "rootcause",
  "tokio",

@@ -5294,6 +5294,19 @@ export type DeleteUnthreadedPdfAnchorRequest = {
 };
 
 /**
+ * How a reader connects to a project description without changing it.
+ */
+export type DescriptionReader = {
+    state: 'empty';
+} | {
+    state: 'live';
+    /**
+     * Sync-service connection token.
+     */
+    token: string;
+};
+
+/**
  * A direct user grant; inherited grants are deliberately not editable here.
  */
 export type DirectAccess = {
@@ -8724,6 +8737,80 @@ export type InitiativeList = {
 };
 
 /**
+ * What a project page shows a reader who may not change it.
+ */
+export type InitiativeOverview = {
+    /**
+     * How to read the description.
+     */
+    description: DescriptionReader;
+    /**
+     * Owner of the initiative.
+     */
+    ownerId: MacroUserIdStr;
+    /**
+     * Profile names of the owner and of every assignee shown.
+     */
+    people: Array<ProfileName>;
+    /**
+     * Identity, canonical properties and visible task progress.
+     */
+    summary: InitiativePageRow;
+    /**
+     * Visible tasks in id order.
+     */
+    tasks: Array<TaskOverview>;
+};
+
+/**
+ * A project row with caller-specific permissions, properties and visible task progress.
+ */
+export type InitiativePageRow = InitiativeSummary & {
+    /**
+     * Number of visible tasks whose status is completed.
+     */
+    completedTaskCount: number;
+    /**
+     * Canonical property values.
+     */
+    properties: InitiativePropertySnapshot;
+    /**
+     * Number of associated tasks the caller may view.
+     */
+    taskCount: number;
+    /**
+     * Verified effective access for the caller.
+     */
+    userAccessLevel: AccessLevel;
+};
+
+/**
+ * Snapshot of canonical property values, never a second writable store.
+ */
+export type InitiativePropertySnapshot = {
+    /**
+     * Assigned user ids, independent of sharing membership.
+     */
+    assignees: Array<string>;
+    /**
+     * Whether the canonical task status represents completion.
+     */
+    completed: boolean;
+    /**
+     * Due timestamp, or unset.
+     */
+    dueDate?: string | null;
+    /**
+     * Priority option id, or unset.
+     */
+    priority?: string | null;
+    /**
+     * Status option id, or unset.
+     */
+    status?: string | null;
+};
+
+/**
  * List-row view of an initiative.
  */
 export type InitiativeSummary = {
@@ -10639,6 +10726,25 @@ export type PresignedUrl = {
      * The sha of the item
      */
     sha: string;
+};
+
+/**
+ * A user's name from their own profile, never from the reader's contacts.
+ * A part the profile leaves unset is null.
+ */
+export type ProfileName = {
+    /**
+     * First name, if set.
+     */
+    firstName?: string | null;
+    /**
+     * User id.
+     */
+    id: string;
+    /**
+     * Last name, if set.
+     */
+    lastName?: string | null;
 };
 
 export type Project = {
@@ -14068,6 +14174,24 @@ export type TaskFilters = {
      * even when they do not match other document filters.
      */
     include_cbm_atm_nc?: boolean | null;
+};
+
+/**
+ * A visible task as a project page lists it.
+ */
+export type TaskOverview = {
+    /**
+     * Task id.
+     */
+    id: string;
+    /**
+     * Task name; empty when the task has none.
+     */
+    name: string;
+    /**
+     * Canonical property values.
+     */
+    properties: InitiativePropertySnapshot;
 };
 
 /**
@@ -21707,6 +21831,66 @@ export type UpdateInitiativeResponses = {
 };
 
 export type UpdateInitiativeResponse = UpdateInitiativeResponses[keyof UpdateInitiativeResponses];
+
+export type CreateInitiativeDescriptionTokenData = {
+    body?: never;
+    path: {
+        /**
+         * Initiative identifier.
+         */
+        initiative_id: string;
+    };
+    query?: never;
+    url: '/initiatives/{initiative_id}/description/token';
+};
+
+export type CreateInitiativeDescriptionTokenErrors = {
+    400: ErrorResponse;
+    /**
+     * The caller may not view the initiative
+     */
+    401: ErrorResponse;
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type CreateInitiativeDescriptionTokenError = CreateInitiativeDescriptionTokenErrors[keyof CreateInitiativeDescriptionTokenErrors];
+
+export type CreateInitiativeDescriptionTokenResponses = {
+    200: DescriptionReader;
+};
+
+export type CreateInitiativeDescriptionTokenResponse = CreateInitiativeDescriptionTokenResponses[keyof CreateInitiativeDescriptionTokenResponses];
+
+export type GetInitiativeOverviewData = {
+    body?: never;
+    path: {
+        /**
+         * Initiative identifier.
+         */
+        initiative_id: string;
+    };
+    query?: never;
+    url: '/initiatives/{initiative_id}/overview';
+};
+
+export type GetInitiativeOverviewErrors = {
+    400: ErrorResponse;
+    /**
+     * The caller may not view the initiative
+     */
+    401: ErrorResponse;
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type GetInitiativeOverviewError = GetInitiativeOverviewErrors[keyof GetInitiativeOverviewErrors];
+
+export type GetInitiativeOverviewResponses = {
+    200: InitiativeOverview;
+};
+
+export type GetInitiativeOverviewResponse = GetInitiativeOverviewResponses[keyof GetInitiativeOverviewResponses];
 
 export type GetInstructionsHandlerData = {
     body?: never;
