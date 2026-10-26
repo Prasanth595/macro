@@ -820,9 +820,11 @@ export type ImportOutcome =
 
 /**  What an import plan proposes, once it is ready to approve. */
 export type ImportPlan = {
-  /**  Objects to copy as they are. */
+  /**  The workspace the import reads. */
+  source?: ImportWorkspace;
+  /**  Objects to copy as they are; projects for Linear and Jira. */
   copy: number;
-  /**  Data sources whose rows become tasks. */
+  /**  Data sources whose rows become tasks; issues for Linear and Jira. */
   taskLists: number;
   /**  Objects to leave in the source workspace. */
   skipped: number;
@@ -837,13 +839,18 @@ export type ImportSettlement =
 
 /**  The final report of an approved workspace import, with no page content. */
 export type ImportSettlement_Deserialize = {
+  /**  The workspace the import read. */
+  source?: ImportWorkspace;
   /**  How the write ended. */
   outcome: ImportOutcome;
   /**  Why it failed, or what went wrong in a completed write. */
   error: string | null;
   /**  Objects written into Macro. */
   imported: number;
-  /**  Objects the plan copies, as they are or as task lists. */
+  /**
+   *  Objects the plan copies: as they are or as task lists from Notion,
+   *  projects and issues from Linear or Jira.
+   */
   planned: number;
   /**  Planned documents. */
   documents: number;
@@ -851,11 +858,11 @@ export type ImportSettlement_Deserialize = {
   databases: number;
   /**  Rows those databases hold. */
   databaseRows: number;
-  /**  Planned task lists. */
+  /**  Planned task lists; issues that become tasks for Linear and Jira. */
   taskLists: number;
-  /**  Tasks those task lists become. */
+  /**  Tasks those task lists or issues become. */
   taskRows: number;
-  /**  Objects left in Notion. */
+  /**  Objects left in the source workspace. */
   skipped: number;
   /**  Planned objects that were not written. */
   notWritten: number;
@@ -875,13 +882,18 @@ export type ImportSettlement_Deserialize = {
 
 /**  The final report of an approved workspace import, with no page content. */
 export type ImportSettlement_Serialize = {
+  /**  The workspace the import read. */
+  source: ImportWorkspace;
   /**  How the write ended. */
   outcome: ImportOutcome;
   /**  Why it failed, or what went wrong in a completed write. */
   error?: string | null;
   /**  Objects written into Macro. */
   imported: number;
-  /**  Objects the plan copies, as they are or as task lists. */
+  /**
+   *  Objects the plan copies: as they are or as task lists from Notion,
+   *  projects and issues from Linear or Jira.
+   */
   planned: number;
   /**  Planned documents. */
   documents: number;
@@ -889,11 +901,11 @@ export type ImportSettlement_Serialize = {
   databases: number;
   /**  Rows those databases hold. */
   databaseRows: number;
-  /**  Planned task lists. */
+  /**  Planned task lists; issues that become tasks for Linear and Jira. */
   taskLists: number;
-  /**  Tasks those task lists become. */
+  /**  Tasks those task lists or issues become. */
   taskRows: number;
-  /**  Objects left in Notion. */
+  /**  Objects left in the source workspace. */
   skipped: number;
   /**  Planned objects that were not written. */
   notWritten: number;
@@ -910,6 +922,18 @@ export type ImportSettlement_Serialize = {
   /**  Objects left for the owner to handle by hand, at most [`MAX_IMPORT_ITEMS`]. */
   handItems: ImportItem_Serialize[];
 };
+
+/**
+ *  The workspace an import reads. Events stored before Linear and Jira
+ *  imports existed are Notion's.
+ */
+export type ImportWorkspace =
+  /**  Notion pages and databases. */
+  | 'notion'
+  /**  Linear projects and issues. */
+  | 'linear'
+  /**  Jira projects, epics and issues. */
+  | 'jira';
 
 /**  Review item state, shared with notification consumers. */
 export type ItemStatus =
