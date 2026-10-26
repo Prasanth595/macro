@@ -64,7 +64,6 @@ import { buildSimpleEntityUrl } from '@core/util/url';
 import { useCopyLink } from '@core/util/useCopyLink';
 import { OwnerLabel } from '@entity/owner/owner-display';
 import IconShared from '@icon/share.svg';
-import { Dialog } from '@kobalte/core/dialog';
 import ChevronDownIcon from '@icon/system/regular/caret-down.svg';
 import IconComment from '@icon/system/regular/chat-teardrop.svg';
 import CheckIcon from '@icon/system/regular/check.svg';
@@ -75,6 +74,7 @@ import IconEdit from '@icon/system/regular/pencil.svg';
 import UserCircle from '@icon/system/regular/user-circle.svg';
 import UsersIcon from '@icon/system/regular/users.svg';
 import IconX from '@icon/system/regular/x.svg';
+import { Dialog } from '@kobalte/core/dialog';
 import { updateAgentSessionSharePermissions } from '@queries/agent-session/share-permissions';
 import {
   setCallRecordTeamShareCache,
