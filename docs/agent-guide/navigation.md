@@ -324,6 +324,11 @@ Desktop app navigation panels have **Hide navigation** at the right end of their
 48px title bar. It hides only that split's navigation; **Show navigation** (the
 hamburger) appears before the main header's title/breadcrumbs, including when a
 document, email, or conversation is open. Home's filter sits beside its label.
+Every desktop view title (the navigation panel's label, and Home's top bar while
+its navigation is hidden) is followed by a **Switch view** caret. Its menu lists
+the rail's apps in rail order, then the More apps, with a check on the current
+one. Choosing one replaces the view in that split, not the active split; Shift
+opens it in a new split. Touch devices omit it and keep the dock.
 The split's **Close** control aligns with the navigation icons when expanded and
 appears immediately before the hamburger when collapsed. Both use 16px icons in
 24px desktop buttons. Close remains hidden when the split cannot be closed.
