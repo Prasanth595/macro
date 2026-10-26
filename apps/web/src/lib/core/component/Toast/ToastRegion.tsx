@@ -1,10 +1,49 @@
 import { UploadProgressIndicator } from '@core/component/UploadProgress/UploadProgressIndicator';
 import { isMobile } from '@core/mobile/isMobile';
 import { Toast } from '@kobalte/core/toast';
-import { Show } from 'solid-js';
+import { createSignal, onCleanup, Show } from 'solid-js';
 import { Portal } from 'solid-js/web';
 
+const PROMPT_HOLDERS = '[role=dialog],[role=alertdialog],[data-holds-prompts]';
+
+/**
+ * Whether a popover, dialog, drawer, or a surface marked data-holds-prompts is
+ * open; a holder in an inert (background) pane does not count. Don't move this
+ * into a `body:has()` selector: while one is in the stylesheet, Chrome restyles
+ * the whole document on every element insertion, so typing in composers lags.
+ */
+function createPromptsHeld() {
+  const isHeld = () =>
+    document.querySelector('[role=dialog],[role=alertdialog]') !== null ||
+    Array.from(document.querySelectorAll('[data-holds-prompts]')).some(
+      (holder) => !holder.closest('[inert]')
+    );
+  const [held, setHeld] = createSignal(isHeld());
+  const touchesHolder = (node: Node) =>
+    node instanceof Element &&
+    (node.matches(PROMPT_HOLDERS) ||
+      node.querySelector(PROMPT_HOLDERS) !== null);
+  const observer = new MutationObserver((records) => {
+    const changed = records.some(
+      (record) =>
+        record.type === 'attributes' ||
+        Array.from(record.addedNodes).some(touchesHolder) ||
+        Array.from(record.removedNodes).some(touchesHolder)
+    );
+    if (changed) setHeld(isHeld());
+  });
+  observer.observe(document.body, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['role', 'data-holds-prompts', 'inert'],
+  });
+  onCleanup(() => observer.disconnect());
+  return held;
+}
+
 export function ToastRegion() {
+  const promptsHeld = createPromptsHeld();
   return (
     <Portal>
       {/*
@@ -32,7 +71,7 @@ export function ToastRegion() {
           limit={1}
           pauseOnInteraction={false}
           swipeDirection="right"
-          class="in-[body:has([role=dialog],[role=alertdialog],[data-holds-prompts]:not([inert],[inert]_*))]:hidden"
+          classList={{ hidden: promptsHeld() }}
         >
           <Toast.List class="flex flex-col gap-2" />
         </Toast.Region>
@@ -79,7 +118,7 @@ export function ToastRegion() {
           limit={1}
           pauseOnInteraction={false}
           swipeDirection="left"
-          class="in-[body:has([role=dialog],[role=alertdialog],[data-holds-prompts]:not([inert],[inert]_*))]:hidden"
+          classList={{ hidden: promptsHeld() }}
         >
           <Toast.List class="flex flex-col gap-2" />
         </Toast.Region>
