@@ -1,7 +1,7 @@
 import { Tool } from '@core/component/AI/component/tool/Tool';
 import Buildings from '@icon/system/regular/buildings.svg';
+import Kanban from '@icon/system/regular/kanban.svg';
 import User from '@icon/system/regular/user.svg';
-import Kanban from '@phosphor/kanban.svg';
 import { For, Show } from 'solid-js';
 
 type Pipeline = {
