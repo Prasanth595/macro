@@ -18,8 +18,8 @@ event contract (schema, sanitization, delivery semantics).
   deletion side effects (owned-entity transfer, seat release).
 - `src/inbound/axum_router.rs` / `src/inbound/toolset.rs`: HTTP routes and AI
   tool surface.
-- `src/outbound/team_repo.rs`: the Postgres repository and primary-backed batched current-membership evidence.
-- `src/domain/team_repo.rs`: `TeamRepository` exposes current memberships in exact `(team, user)` batches; reuse `get_user_teams` for viewer teams.
+- `src/outbound/team_repo.rs`: the Postgres repository; reads use the supplied pool.
+- `src/domain/team_repo.rs`: reuse `get_user_teams` for viewer teams and `get_all_team_members` for team membership, including owners.
 
 ## Scope
 

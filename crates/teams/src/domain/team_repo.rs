@@ -205,12 +205,6 @@ pub trait TeamRepository: Clone + Send + Sync + 'static {
         user_id: &MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<Vec<Team>, TeamError>> + Send;
 
-    /// Returns current `(team, user)` memberships from one primary-backed batch.
-    fn current_members(
-        &self,
-        pairs: &[(uuid::Uuid, String)],
-    ) -> impl Future<Output = Result<HashSet<(uuid::Uuid, String)>, TeamError>> + Send;
-
     /// Gets all team invites for a user (by email)
     fn get_user_team_invites(
         &self,

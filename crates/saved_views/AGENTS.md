@@ -6,7 +6,7 @@ This crate owns saved-view definitions, revisions, effective team sharing, and l
 
 ## Start here
 
-- `src/domain.rs`: authorization, current-membership validation, optimistic writes, bounded visible pagination, and storage/membership ports.
+- `src/domain.rs`: authorization, current-membership validation, optimistic writes, bounded visible pagination, and storage/membership ports. Validate the viewer and owner against one primary-backed member list per distinct team in each candidate batch; recheck previously collected views on later batches.
 - `src/pgsql.rs`: primary-backed SQLx queries, owner/revision guards, and per-ID transaction locks. Physical deletes leave permanent ID-only tombstones; never purge them or bypass the create lock. Deletion triggers must not acquire that lock after locking a row; creation rechecks tombstones after INSERT to catch legacy deletes.
 - `src/storage.rs`: legacy REST PATCH payload and excluded-default storage.
 

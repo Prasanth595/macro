@@ -28,11 +28,14 @@ impl MembershipPort for Membership {
             .collect())
     }
 
-    async fn current_members(
-        &self,
-        pairs: &[(Uuid, String)],
-    ) -> Result<HashSet<(Uuid, String)>, Self::Err> {
-        self.0.current_members(pairs).await
+    async fn team_members(&self, team: Uuid) -> Result<HashSet<String>, Self::Err> {
+        Ok(self
+            .0
+            .get_all_team_members(&team)
+            .await?
+            .into_iter()
+            .map(|member| member.user_id.to_string())
+            .collect())
     }
 }
 

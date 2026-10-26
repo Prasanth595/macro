@@ -216,13 +216,14 @@ private, not deleted. When an owner is absent, API responses hide the ineffectiv
 share without clearing the stored team association.
 
 The Teams-owned `TeamRepository` supplies authoritative current memberships:
-reuse `get_user_teams` for candidates and `current_members` for exact batched
-checks through the saved-view membership adapter. Saved-view storage owns
-definition persistence. Do not query or mutate
-`team_user` directly from GraphQL resolvers or saved-view storage. Listing applies
-visibility before its public pagination limit, with batched membership checks
-rather than per-row service calls. Recheck the viewer alongside each owner in
-that batch; the initial team list only narrows candidate selection.
+reuse `get_user_teams` for candidates and `get_all_team_members` for each distinct
+team through the saved-view membership adapter. The saved-view domain checks
+that each view's owner and viewer are both in that team's member list, including
+team owners. Saved-view storage owns definition persistence. Do not query or
+mutate `team_user` directly from GraphQL resolvers or saved-view storage. Listing
+applies visibility before its public pagination limit and fetches one member list
+per team in each candidate batch, not per view. Recheck previously collected views
+on later batches; the initial team list only narrows candidate selection.
 
 ## Persistence and GraphQL
 

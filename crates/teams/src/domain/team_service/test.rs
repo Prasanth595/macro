@@ -680,13 +680,6 @@ impl TeamRepository for MockTeamRepository {
         async move { Ok(teams) }
     }
 
-    async fn current_members(
-        &self,
-        _: &[(uuid::Uuid, String)],
-    ) -> Result<HashSet<(uuid::Uuid, String)>, TeamError> {
-        unimplemented!()
-    }
-
     fn get_user_team_invites(
         &self,
         _: &MacroUserIdStr<'_>,

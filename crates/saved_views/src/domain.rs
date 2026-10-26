@@ -1,7 +1,10 @@
 //! Saved-view policy and persistence ports. Configurations belong to their consumers.
 use crate::View;
 use serde_json::Value;
-use std::{collections::HashSet, future::Future};
+use std::{
+    collections::{HashMap, HashSet},
+    future::Future,
+};
 use uuid::Uuid;
 
 /// Requested sharing change, separate from an omitted update.
@@ -108,11 +111,11 @@ pub trait MembershipPort: Send + Sync {
         &self,
         viewer: &str,
     ) -> impl Future<Output = Result<Vec<Uuid>, Self::Err>> + Send;
-    /// Current memberships for a batch of `(team, user)` keys.
-    fn current_members(
+    /// All current members of a team, including its owner.
+    fn team_members(
         &self,
-        pairs: &[(Uuid, String)],
-    ) -> impl Future<Output = Result<HashSet<(Uuid, String)>, Self::Err>> + Send;
+        team: Uuid,
+    ) -> impl Future<Output = Result<HashSet<String>, Self::Err>> + Send;
 }
 
 /// Caller-meaningful saved-view failures.
@@ -179,29 +182,27 @@ impl<R: ViewRepository, M: MembershipPort> SavedViewService<R, M> {
         views: Vec<View>,
         viewer_teams: &HashSet<Uuid>,
     ) -> Result<Vec<View>, Error> {
-        let mut pairs = HashSet::new();
-        for view in &views {
-            if let Some(team) = view
-                .shared_team_id
-                .filter(|team| viewer_teams.contains(team))
-            {
-                pairs.insert((team, view.user_id.clone()));
-                pairs.insert((team, viewer.to_owned()));
-            }
+        let teams: HashSet<_> = views
+            .iter()
+            .filter_map(|view| view.shared_team_id)
+            .filter(|team| viewer_teams.contains(team))
+            .collect();
+        let mut team_members = HashMap::new();
+        for team in teams {
+            let members = self
+                .membership
+                .team_members(team)
+                .await
+                .map_err(|e| Error::Internal(rootcause::Report::new(e).into_dynamic()))?;
+            team_members.insert(team, members);
         }
-        let pairs: Vec<_> = pairs.into_iter().collect();
-        let current_members = self
-            .membership
-            .current_members(&pairs)
-            .await
-            .map_err(|e| Error::Internal(rootcause::Report::new(e).into_dynamic()))?;
         Ok(views
             .into_iter()
             .filter_map(|mut v| {
-                let shared = v.shared_team_id.and_then(|team| {
-                    (current_members.contains(&(team, viewer.to_owned()))
-                        && current_members.contains(&(team, v.user_id.clone())))
-                    .then_some(team)
+                let shared = v.shared_team_id.filter(|team| {
+                    team_members.get(team).is_some_and(|members| {
+                        members.contains(viewer) && members.contains(&v.user_id)
+                    })
                 });
                 if v.user_id != viewer && shared.is_none() {
                     return None;
@@ -321,10 +322,10 @@ impl<R: ViewRepository, M: MembershipPort> SavedViewService<R, M> {
         if let Some(team) = team {
             let members = self
                 .membership
-                .current_members(&[(team, viewer.to_owned())])
+                .team_members(team)
                 .await
                 .map_err(|e| Error::Internal(rootcause::Report::new(e).into_dynamic()))?;
-            if !members.contains(&(team, viewer.to_owned())) {
+            if !members.contains(viewer) {
                 return Err(Error::NotMember);
             }
         }
@@ -374,10 +375,10 @@ impl<R: ViewRepository, M: MembershipPort> SavedViewService<R, M> {
             ShareChange::Team(team) => {
                 let members = self
                     .membership
-                    .current_members(&[(team, viewer.to_owned())])
+                    .team_members(team)
                     .await
                     .map_err(|e| Error::Internal(rootcause::Report::new(e).into_dynamic()))?;
-                if !members.contains(&(team, viewer.to_owned())) {
+                if !members.contains(viewer) {
                     return Err(Error::NotMember);
                 }
                 Some(team)
