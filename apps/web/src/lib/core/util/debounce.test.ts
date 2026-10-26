@@ -61,3 +61,25 @@ it('drops a commit still waiting for idle time when the source changes', () => {
   expect(value()).toBe('ab');
   dispose();
 });
+
+it('runs each commit inside wrapCommit with the idle wait', () => {
+  const wrapped: number[] = [];
+  const { setSource, value, dispose } = createRoot((dispose) => {
+    const [source, setSource] = createSignal('');
+    const value = idleDebouncedDependent(source, 60, {
+      wrapCommit: (commit, idleWaitMs) => {
+        commit();
+        wrapped.push(idleWaitMs);
+      },
+    });
+    return { setSource, value, dispose };
+  });
+
+  setSource('a');
+  vi.advanceTimersByTime(60);
+  expect(wrapped).toHaveLength(0);
+  runIdle();
+  expect(value()).toBe('a');
+  expect(wrapped).toHaveLength(1);
+  dispose();
+});
