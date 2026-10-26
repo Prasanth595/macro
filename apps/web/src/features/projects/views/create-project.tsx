@@ -74,7 +74,7 @@ export function CreateProject(props: {
                 disabled={composer.pending()}
                 onClick={() => props.onContinueInSplit?.(composer.snapshot())}
               >
-                <ArrowsOutIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+                <ArrowsOutIcon class="size-4 shrink-0 pointer-events-none" />
               </Button>
             </Show>
           </div>
@@ -109,7 +109,7 @@ export function CreateProject(props: {
             disabled={composer.pending()}
             onClick={props.onClose}
           >
-            <XIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+            <XIcon class="size-4 shrink-0 pointer-events-none" />
           </Button>
         </EntityComposer.Header>
         <EntityComposer.Main class="min-h-28 justify-between">
