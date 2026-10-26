@@ -61,8 +61,11 @@ this family has no matching drawing.
 
 Prefer one recognizable silhouette and only the detail needed to identify its
 action. Chat variants share one bubble, task variants one checked square,
-people variants two figures. The CRM icon retains its stepped building silhouette. Calendar dots,
-extra signal arcs, repeated windows, and decorative tool details are omitted.
+people variants two figures. The CRM icon retains its stepped building silhouette.
+Office glyphs use two sparse rows of windows and a baseline to avoid a face-like
+appearance. Keep the selected calendar header open around its binding posts,
+quote heads closed with trailing tails, and the filter recognizable as a funnel.
+Calendar dots, extra signal arcs, and decorative tool details are omitted.
 Keep meaningful distinctions such as mute slashes, warning marks, file-type
 symbols, and ordered-list numbers. The shared `../share.svg` also appears in the
 gallery and follows the same theme-aware stroke rules.
@@ -124,3 +127,11 @@ and navigation buttons to check emphasis without a size or position jump.
 After changing geometry, update its bold/active counterparts and inspect them
 together. Test the real app on a standard-density display as well as Retina;
 SVG portability alone does not verify Windows rendering.
+
+## Small-size review
+
+Compare altered silhouettes in light and dark at 14, 16, 20, and 24 px, including
+filled and bold counterparts. Review selected calendar glyphs with a countdown
+badge to ensure the binding header remains recognizable.
+
+![Icon silhouette comparison](../../../../../../docs/agent-guide/images/icon-feedback.png)
