@@ -97,7 +97,7 @@ order, and drop any that would be empty:
 ## Why
 
 The problem or goal, with the evidence: the bug and how it shows up, numbers
-measured. Link GitHub issues or Macro tasks. Follow the Privacy section below.
+measured. Link GitHub issues or Macro tasks. Follow the Privacy section above.
 
 ## How it works
 
