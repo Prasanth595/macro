@@ -195,7 +195,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
           <Layer depth={4}>
             <Popover.Content
               class={cn(
-                'portal-scope z-action-menu flex max-h-[var(--kb-popper-content-available-height)] max-w-[var(--kb-popper-content-available-width,calc(100vw-1rem))] min-w-0 flex-col overflow-hidden rounded-2xl border border-edge bg-menu-glass glass menu-open-animation',
+                'portal-scope z-action-menu flex max-h-[var(--kb-popper-content-available-height)] max-w-[var(--kb-popper-content-available-width,calc(100vw-1rem))] min-w-0 flex-col overflow-hidden menu-surface menu-open-animation',
                 isMobile() ? 'w-80' : singleMonth() ? 'w-[29rem]' : 'w-[46rem]'
               )}
               onKeyDown={(event) => {

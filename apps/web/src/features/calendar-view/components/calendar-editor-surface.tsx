@@ -106,7 +106,7 @@ function DesktopEditorSurface(props: CalendarEditorSurfaceProps) {
               as="aside"
               aria-label={label()}
               data-dragging={drag.dragging() ? '' : undefined}
-              class="fixed z-modal flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-edge-muted glass bg-menu-glass text-ink outline-none"
+              class="fixed z-modal flex min-h-0 min-w-0 flex-col overflow-hidden outline-none menu-surface"
               style={{ opacity: 0, 'pointer-events': 'none' }}
               onOpenAutoFocus={focusEditorTitle}
               onInteractOutside={(event) => event.preventDefault()}
