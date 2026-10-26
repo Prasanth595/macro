@@ -158,6 +158,7 @@ export function EventReplacementDialog(props: {
                           </p>
                           <div class="flex flex-wrap gap-2">
                             <Button
+                              variant="ghost"
                               disabled={state.pending()}
                               onClick={() =>
                                 fireAndForget(
@@ -169,6 +170,7 @@ export function EventReplacementDialog(props: {
                               Check progress
                             </Button>
                             <Button
+                              variant="accent"
                               disabled={state.pending()}
                               onClick={() =>
                                 fireAndForget(

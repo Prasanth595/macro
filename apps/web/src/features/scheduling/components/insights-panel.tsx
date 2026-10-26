@@ -491,6 +491,7 @@ export function InsightsPanel(props: {
         <ListHeader title={props.headerTitle}>
           <HeaderActionGroup label="Insights actions">
             <Button
+              variant="ghost"
               size="icon-md"
               label="Download CSV"
               onClick={download}

@@ -152,6 +152,7 @@ export function NotificationStackRow(props: {
             </span>
             <Show when={canMarkDone()}>
               <Button
+                variant="ghost"
                 onClick={handleMarkAsDone}
                 tooltip={'Mark done'}
                 class="text-ink-muted hover:text-accent hover:bg-accent/10 hidden group-hover/notif:grid p-0 place-items-center size-5"

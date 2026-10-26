@@ -68,6 +68,7 @@ export function BoardLaneHeader(props: {
         </Show>
         <Show when={props.onAdd}>
           <Button
+            variant="ghost"
             size="icon-xs"
             label={`Add record to ${props.label}`}
             tooltipDisabled
@@ -189,6 +190,7 @@ function LaneColor(props: { option: EditableOption; children: JSX.Element }) {
       onOpenChange={() => setError('')}
     >
       <Popover.Trigger
+        variant="ghost"
         as={Button}
         size="icon-xs"
         label={`Change ${props.option.option.label} color`}

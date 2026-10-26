@@ -66,6 +66,7 @@ export function CreateProject(props: {
           <div class="flex-1 flex items-center">
             <Show when={props.onContinueInSplit}>
               <Button
+                variant="ghost"
                 tabIndex={-1}
                 aria-label="Continue editing in split"
                 tooltip="Continue editing in split"
@@ -101,6 +102,7 @@ export function CreateProject(props: {
             </Button>
           </Show>
           <Button
+            variant="ghost"
             tabIndex={-1}
             aria-label="Close"
             tooltip="Close"

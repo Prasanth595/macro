@@ -74,7 +74,7 @@ export function MarkupToolbar() {
               when={showDelete()}
               fallback={
                 <div class="invisible">
-                  <Button size="icon-sm">
+                  <Button variant="ghost" size="icon-sm">
                     <Cancel />
                   </Button>
                 </div>

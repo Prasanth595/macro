@@ -56,6 +56,7 @@ export function ChannelBotRow(props: {
       <div class="absolute right-3 top-1/2 -translate-y-1/2">
         <Item.Actions>
           <Button
+            variant="ghost"
             size="icon-sm"
             label="Copy webhook URL"
             onClick={props.onCopyWebhook}
@@ -64,6 +65,7 @@ export function ChannelBotRow(props: {
           </Button>
           <Show when={props.editable}>
             <Button
+              variant="danger"
               size="icon-sm"
               label={`Remove ${props.bot.name}`}
               disabled={props.removing}

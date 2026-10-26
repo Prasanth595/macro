@@ -967,6 +967,7 @@ function NonUserEntityChip(props: {
         <Show when={props.canEdit && props.onRemove}>
           <div class="border-l border-edge-muted" />
           <Button
+            variant="ghost"
             type="button"
             size="icon-sm"
             class="flex w-6 p-1 h-full shrink-0 rounded-none text-ink-muted not-disabled:hover:text-failure-ink"

@@ -123,6 +123,7 @@ export function CreateCompanyModal(props: {
                   />
                 </EntityComposer.Title>
                 <Button
+                  variant="ghost"
                   tabIndex={-1}
                   aria-label="Close"
                   tooltip="Close"

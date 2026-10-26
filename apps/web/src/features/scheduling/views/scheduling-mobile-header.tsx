@@ -45,6 +45,7 @@ export function SchedulingMobileHeader(props: {
         <div class="flex h-10 min-w-0 items-center gap-2">
           <HeaderIsland class="gap-0 px-1">
             <Button
+              variant="ghost"
               square
               size="sm"
               class="p-1 touch:active:bg-transparent"

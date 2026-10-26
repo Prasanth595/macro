@@ -127,6 +127,7 @@ export function MeetingMediaSetup(props: {
         <div class="absolute inset-x-0 bottom-4 flex justify-center">
           <div class="flex items-center gap-1 rounded-xl border border-edge-muted bg-panel p-1 shadow-sm">
             <Button
+              variant="ghost"
               size="icon-lg"
               class="size-12"
               label={
@@ -149,6 +150,7 @@ export function MeetingMediaSetup(props: {
               </Show>
             </Button>
             <Button
+              variant="ghost"
               size="icon-lg"
               class="size-12"
               label={
@@ -167,6 +169,7 @@ export function MeetingMediaSetup(props: {
               </Show>
             </Button>
             <Button
+              variant="ghost"
               size="icon-lg"
               class="size-12"
               disabled={props.disabled || uploading()}

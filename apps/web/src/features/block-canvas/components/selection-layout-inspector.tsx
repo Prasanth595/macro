@@ -123,6 +123,7 @@ export function SelectionLayoutInspector(props: {
             onScrub={() => props.onScrub('height')}
           />
           <Button
+            variant="ghost"
             size="icon-sm"
             label="Lock aspect ratio"
             aria-pressed={props.lockAspectRatio}

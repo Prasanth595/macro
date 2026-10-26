@@ -25,6 +25,7 @@ export function EmailThreadControls(props: {
               accent closed envelope that re-marks the thread read. */}
         <Show when={props.isOwnThread}>
           <Button
+            variant="ghost"
             size="icon-md"
             label={props.isUnread ? 'Mark as read' : 'Mark as unread'}
             hotkey={
@@ -47,6 +48,7 @@ export function EmailThreadControls(props: {
         </Show>
         <Show when={props.isOwnThread && props.canToggleDone}>
           <Button
+            variant="ghost"
             size="icon-md"
             label={props.isDone ? 'Mark as not done' : 'Mark done'}
             hotkey={

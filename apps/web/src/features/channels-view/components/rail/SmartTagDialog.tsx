@@ -87,6 +87,7 @@ function SmartTagDialog(props: SmartTagDialogProps & ManagedDialogProps) {
               </Dialog.Title>
             </div>
             <Button
+              variant="ghost"
               type="button"
               label="Close"
               size="icon-composer"

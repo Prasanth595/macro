@@ -31,6 +31,7 @@ function _NotificationsButton(props: {
   return (
     <div class="relative p-0 flex" tabIndex={-1}>
       <Button
+        variant="ghost"
         class={cn(
           'px-1',
           drawerControl.isOpen() &&

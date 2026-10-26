@@ -235,7 +235,7 @@ export function MobileSettingsSheet(props: MobileSettingsSheetProps) {
                         <p class="text-sm text-ink-muted">
                           This settings page couldn’t load.
                         </p>
-                        <Button onClick={reset}>Try again</Button>
+                        <Button variant="ghost" onClick={reset}>Try again</Button>
                       </div>
                     )}
                   >
@@ -260,7 +260,7 @@ export function MobileSettingsSheet(props: MobileSettingsSheetProps) {
                             <p role="status" class="text-sm text-ink-muted">
                               This settings section is unavailable.
                             </p>
-                            <Button onClick={() => navigate()}>
+                            <Button variant="ghost" onClick={() => navigate()}>
                               Back to settings
                             </Button>
                           </div>

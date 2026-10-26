@@ -192,6 +192,7 @@ function HeaderTrailing(props: {
       </span>
       <Show when={props.canMarkDone}>
         <Button
+          variant="ghost"
           onClick={(e) => {
             e.stopPropagation();
             props.onMarkAsDone();

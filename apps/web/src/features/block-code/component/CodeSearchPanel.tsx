@@ -179,6 +179,7 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
       <div class="flex min-w-0 items-center gap-1">
         <Show when={canReplace()}>
           <Button
+            variant="ghost"
             size="icon-sm"
             tooltip={replaceOpen() ? 'Hide replace' : 'Show replace'}
             onClick={() => setReplaceOpen(!replaceOpen())}
@@ -229,6 +230,7 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
         </span>
 
         <Button
+          variant="ghost"
           size="icon-sm"
           tooltip="Previous match"
           shortcut="shift+enter"
@@ -237,6 +239,7 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
           <CaretUp />
         </Button>
         <Button
+          variant="ghost"
           size="icon-sm"
           tooltip="Next match"
           shortcut="enter"
@@ -244,7 +247,7 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
         >
           <CaretDown />
         </Button>
-        <Button size="icon-sm" tooltip="Close find" onClick={close}>
+        <Button variant="ghost" size="icon-sm" tooltip="Close find" onClick={close}>
           <X />
         </Button>
       </div>
@@ -267,6 +270,7 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
             />
           </Surface>
           <Button
+            variant="ghost"
             size="icon-sm"
             tooltip="Replace"
             onClick={() => replaceNext(props.view)}
@@ -274,6 +278,7 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
             <ReplaceIcon />
           </Button>
           <Button
+            variant="ghost"
             size="icon-sm"
             tooltip="Replace all"
             onClick={() => replaceAll(props.view)}

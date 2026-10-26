@@ -674,6 +674,7 @@ function BoardCard(props: {
           >
             <KanbanHandle label={`Drag ${title()}`}>
               <Button
+                variant="ghost"
                 size="icon-xs"
                 label={`Drag ${title()}`}
                 tooltipDisabled
@@ -712,6 +713,7 @@ function BoardCard(props: {
           <KanbanBoard.CardActions>
             <Show when={props.renderCell}>
               <Button
+                variant="ghost"
                 size="icon-xs"
                 label={`Open ${title()}`}
                 tooltipDisabled

@@ -325,6 +325,7 @@ function Action(props: JSX.ButtonHTMLAttributes<HTMLButtonElement>) {
   const [local, rest] = splitProps(props, ['children', 'class']);
   return (
     <Button
+      variant="outline"
       type="button"
       {...rest}
       class={cn(

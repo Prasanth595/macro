@@ -953,6 +953,7 @@ export function SpreadsheetEditor(props: {
           >
             <span>Calculation is unavailable: {error()}</span>
             <Button
+              variant="ghost"
               size="sm"
               label="Retry calculation"
               onClick={() => {
@@ -1324,6 +1325,7 @@ export function SpreadsheetEditor(props: {
           when={editable() && props.store.rowCount() < SPREADSHEET_MAX_ROWS}
         >
           <Button
+            variant="ghost"
             size="sm"
             class="max-sm:hidden touch:min-h-[44px]"
             label={`Add ${Math.min(100, SPREADSHEET_MAX_ROWS - props.store.rowCount())} rows`}
@@ -1342,6 +1344,7 @@ export function SpreadsheetEditor(props: {
           }
         >
           <Button
+            variant="ghost"
             size="sm"
             class="max-sm:hidden touch:min-h-[44px]"
             label="Add 26 columns"

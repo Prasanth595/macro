@@ -48,6 +48,7 @@ export function ToolButton(props: { tool: BlockTool }) {
 
   return (
     <Button
+      variant="ghost"
       onClick={props.tool.action}
       label={label()}
       hotkey={props.tool.hotkeyToken}

@@ -423,6 +423,7 @@ export function CanvasView(props: {
                   <Show when={selectedImage()}>
                     <div class="flex flex-col gap-2 p-3">
                       <Button
+                        variant="ghost"
                         size="sm"
                         disabled={imageActionsDisabled()}
                         onClick={() =>
@@ -436,6 +437,7 @@ export function CanvasView(props: {
                         Copy image
                       </Button>
                       <Button
+                        variant="ghost"
                         size="sm"
                         disabled={imageActionsDisabled()}
                         onClick={() =>

@@ -59,6 +59,10 @@ The existing theme renderer supplies Button materials at the root and in theme p
 - Task composer and inline document/task properties use secondary `xs` pills, including tags and Add property. Keep size configurable in shared property/tag helpers; other property consumers retain their existing variants and sizes.
 - Kanban Load more actions use outline styling, both within a task column and below the board.
 
+## Caller variant audit
+
+Omitted variants were reviewed by action role without changing Button's global default. Utility, navigation, dismiss, and local remove actions now use ghost; final submit actions use accent; neutral launchers and pagination use outline. Permanent membership removals use danger. Caller-controlled pass-through wrappers and unconditional ButtonGroup inheritance remain intact. Header actions explicitly use ghost because their group frame disappears on touch devices. Existing sizes and handlers are unchanged by the variant audit. Checks and browser verification remain paused.
+
 ## Development and validation
 
 The dev server runs from this worktree on port 3007 with HTTPS disabled and the existing hosted development API proxy enabled. Known hosted API and WebSocket requests use same-origin `/__macro_dev/` forwarding; backend CORS policies remain unchanged. It reuses the existing local dependency directory; no dependencies were downloaded. Start it with:

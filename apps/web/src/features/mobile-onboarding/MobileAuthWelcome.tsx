@@ -34,6 +34,7 @@ export function MobileAuthWelcome() {
               Create new account
             </Button>
             <Button
+              variant="outline"
               size="xl"
               class="border border-edge-muted"
               onClick={() => navigate('/login')}

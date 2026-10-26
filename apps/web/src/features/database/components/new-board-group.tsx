@@ -122,7 +122,7 @@ export function NewBoardGroup(props: {
             </p>
           </Show>
           <div class="mt-3 flex items-center justify-end gap-2">
-            <Button size="sm" disabled={pending()} onClick={cancel}>
+            <Button variant="ghost" size="sm" disabled={pending()} onClick={cancel}>
               Cancel
             </Button>
             <Button

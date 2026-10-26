@@ -35,6 +35,7 @@ function EmailReminderStatusContent(props: {
   const action = makeCreateReminderAction({ onEmailSaved: props.onSaved });
   return (
     <Button
+      variant="ghost"
       size="icon-md"
       label={label()}
       hotkey={TOKENS.entity.action.createReminder}

@@ -126,6 +126,7 @@ function SplitBackButton() {
   if (!context) return null;
   return (
     <Button
+      variant="ghost"
       square
       size="sm"
       class="p-1 touch:active:bg-transparent"
@@ -163,6 +164,7 @@ function _SplitSpotlightButton() {
   return (
     <Show when={canSpotlight(layout.manager)}>
       <Button
+        variant="ghost"
         class="p-1 hidden"
         label={
           context.handle.isSpotLight() ? 'Minimize Split' : 'Spotlight Split'
@@ -343,6 +345,7 @@ export function ListNavigationButtons(props: {
     <HeaderActionGroup label="Item navigation">
       <div class={cn('flex items-center touch:gap-0.5', props.class)}>
         <Button
+          variant="ghost"
           size="icon-md"
           label="Previous item"
           hotkey={TOKENS.entity.step.start}
@@ -353,6 +356,7 @@ export function ListNavigationButtons(props: {
           <CaretUp class="size-4" />
         </Button>
         <Button
+          variant="ghost"
           size="icon-md"
           label="Next item"
           hotkey={TOKENS.entity.step.end}

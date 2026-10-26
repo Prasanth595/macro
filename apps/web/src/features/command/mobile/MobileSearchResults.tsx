@@ -349,6 +349,7 @@ function MobileFullTextResults(props: {
           Search failed. Please try again.
         </p>
         <Button
+          variant="ghost"
           onClick={() => fireAndForget(search.refetch(), 'mobile-search')}
         >
           Retry

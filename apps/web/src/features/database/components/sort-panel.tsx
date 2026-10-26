@@ -126,6 +126,7 @@ export function SortPanel(props: {
                     }
                   />
                   <Button
+                    variant="ghost"
                     size="icon-sm"
                     label="Remove sort"
                     tooltipDisabled

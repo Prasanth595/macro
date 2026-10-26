@@ -93,6 +93,7 @@ export function RecordPanel(props: RecordPanelProps) {
           </span>
         </Show>
         <Button
+          variant="ghost"
           size="icon-sm"
           label="Previous record"
           tooltipDisabled
@@ -102,6 +103,7 @@ export function RecordPanel(props: RecordPanelProps) {
           <ArrowUpIcon />
         </Button>
         <Button
+          variant="ghost"
           size="icon-sm"
           label="Next record"
           tooltipDisabled
@@ -156,7 +158,7 @@ export function RecordPanel(props: RecordPanelProps) {
           class="flex items-center gap-3 border-t border-warning/20 bg-warning/5 px-5 py-3 text-xs text-ink-muted"
         >
           <span class="flex-1">{props.saveError}</span>
-          <Button size="xs" disabled={props.pending} onClick={props.onRetry}>
+          <Button variant="ghost" size="xs" disabled={props.pending} onClick={props.onRetry}>
             Retry
           </Button>
         </div>

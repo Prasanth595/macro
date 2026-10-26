@@ -96,7 +96,7 @@ export function AddProjectTasks(props: { project: ProjectDetail }) {
                 event.stopPropagation();
             }}
           >
-            <Button size="sm" disabled={saving()} onClick={close}>
+            <Button variant="ghost" size="sm" disabled={saving()} onClick={close}>
               Cancel
             </Button>
             <Button

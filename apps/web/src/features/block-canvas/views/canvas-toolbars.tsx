@@ -102,6 +102,7 @@ export function CanvasHistoryControls(props: {
     <Show when={hasHistory()}>
       <div class="flex items-center" role="group" aria-label="Canvas history">
         <Button
+          variant="ghost"
           size="icon-xs"
           label="Undo"
           hotkey={TOKENS.canvas.undo}
@@ -114,6 +115,7 @@ export function CanvasHistoryControls(props: {
           <Undo />
         </Button>
         <Button
+          variant="ghost"
           size="icon-xs"
           label="Redo"
           hotkey={TOKENS.canvas.redo}

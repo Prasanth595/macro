@@ -91,6 +91,7 @@ function List(props: ComponentProps<typeof Tabs.List>) {
     <div class="flex min-w-0 items-center">
       <Show when={left() || right()}>
         <Button
+          variant="ghost"
           size="icon-sm"
           label="Scroll tabs left"
           class="shrink-0 rounded-full"
@@ -143,6 +144,7 @@ function List(props: ComponentProps<typeof Tabs.List>) {
       </Tabs.List>
       <Show when={left() || right()}>
         <Button
+          variant="ghost"
           size="icon-sm"
           label="Scroll tabs right"
           class="shrink-0 rounded-full"

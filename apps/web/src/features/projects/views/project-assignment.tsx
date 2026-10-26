@@ -67,6 +67,7 @@ export function ProjectAssignment(props: {
           onEscape={close}
         />
         <Button
+          variant="ghost"
           class="justify-start"
           disabled={commands.pending()}
           onClick={() => fireAndForget(assign(), 'projects')}
@@ -77,6 +78,7 @@ export function ProjectAssignment(props: {
           <For each={source.rows()}>
             {(row) => (
               <Button
+                variant="ghost"
                 class="w-full justify-start"
                 disabled={commands.pending() || !canEditProject(row.project)}
                 onClick={() =>
@@ -101,7 +103,7 @@ export function ProjectAssignment(props: {
           <p role="alert" class="text-sm text-failure">
             Could not load projects.
           </p>
-          <Button onClick={() => fireAndForget(source.refresh(), 'projects')}>
+          <Button variant="ghost" onClick={() => fireAndForget(source.refresh(), 'projects')}>
             Try again
           </Button>
         </Show>
@@ -116,6 +118,7 @@ export function ProjectAssignment(props: {
         </Show>
         <Show when={source.hasMore()}>
           <Button
+            variant="outline"
             disabled={source.loadingMore()}
             onClick={() => fireAndForget(source.loadMore(), 'projects')}
           >
@@ -135,7 +138,7 @@ export function ProjectAssignment(props: {
           </p>
         </Show>
         <div class="flex justify-end">
-          <Button disabled={commands.pending()} onClick={close}>
+          <Button variant="ghost" disabled={commands.pending()} onClick={close}>
             Cancel
           </Button>
         </div>

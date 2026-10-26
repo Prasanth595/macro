@@ -373,6 +373,7 @@ export function ComposeSkill(props: ComposeSkillProps) {
         <div class="flex-1 flex items-center">
           <Show when={splitPanel?.handle.isPopover()}>
             <Button
+              variant="ghost"
               onMouseDown={handleContinueInSplit}
               disabled={isCreating()}
               tabIndex={-1}
@@ -385,6 +386,7 @@ export function ComposeSkill(props: ComposeSkillProps) {
         </div>
         <Show when={splitPanel?.handle.isPopover()}>
           <Button
+            variant="ghost"
             onMouseDown={handleClose}
             tabIndex={-1}
             tooltip="Close"

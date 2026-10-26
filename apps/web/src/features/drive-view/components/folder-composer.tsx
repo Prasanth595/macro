@@ -190,6 +190,7 @@ export function FolderComposer(props: {
                             : entry.file.name}
                         </span>
                         <Button
+                          variant="ghost"
                           size="icon-sm"
                           aria-label={`Remove ${entry.file.name}`}
                           tooltip="Remove"

@@ -50,6 +50,7 @@ export function SpreadsheetGoalSeekDialog(props: {
         <div class="mb-4 flex items-center justify-between">
           <Dialog.Title class="text-sm font-semibold">Goal Seek</Dialog.Title>
           <Button
+            variant="ghost"
             type="button"
             label="Close Goal Seek"
             size="icon-sm"
@@ -122,7 +123,7 @@ export function SpreadsheetGoalSeekDialog(props: {
               </Button>
             }
           >
-            <Button type="button" size="sm" onClick={props.onEdit}>
+            <Button variant="ghost" type="button" size="sm" onClick={props.onEdit}>
               Change cells
             </Button>
             <Button type="submit" size="sm" variant="accent">

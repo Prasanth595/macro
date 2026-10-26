@@ -527,6 +527,7 @@ export function ProjectsCollection(props: {
             />
           </label>
           <Button
+            variant="ghost"
             size="sm"
             onClick={() => {
               collection.setDueAfter('');
@@ -651,6 +652,7 @@ export function ProjectsCollection(props: {
                   >
                     <span>Projects couldn’t be loaded.</span>
                     <Button
+                      variant="ghost"
                       onClick={() =>
                         fireAndForget(collection.refresh(), 'projects')
                       }
@@ -665,7 +667,7 @@ export function ProjectsCollection(props: {
                       {filtered() ? 'No matching projects' : 'No projects yet'}
                     </span>
                     <Show when={!filtered()}>
-                      <Button onClick={() => props.onCreate()}>
+                      <Button variant="outline" onClick={() => props.onCreate()}>
                         New project
                       </Button>
                     </Show>
@@ -767,6 +769,7 @@ export function ProjectsCollection(props: {
                                 class="flex justify-center py-2"
                               >
                                 <Button
+                                  variant="outline"
                                   disabled={collection.loadingMore()}
                                   onClick={() =>
                                     list.activate.key(more().id, {

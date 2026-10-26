@@ -124,6 +124,7 @@ function PipelineEntryCard(props: {
         <Show when={props.onOpenPipeline}>
           {(open) => (
             <Button
+              variant="ghost"
               size="icon-sm"
               label={`Open ${props.entry.pipeline.name}`}
               onClick={() => open()()}

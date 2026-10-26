@@ -167,6 +167,7 @@ export function ComposeDocument(props: ComposeDocumentProps) {
         <div class="flex-1 flex items-center">
           <Show when={panel.handle.isPopover()}>
             <Button
+              variant="ghost"
               onMouseDown={() =>
                 fireAndForget(submit(true), 'compose-document')
               }
@@ -180,6 +181,7 @@ export function ComposeDocument(props: ComposeDocumentProps) {
           </Show>
         </div>
         <Button
+          variant="ghost"
           onClick={() => panel.handle.close()}
           tabIndex={-1}
           tooltip="Close"

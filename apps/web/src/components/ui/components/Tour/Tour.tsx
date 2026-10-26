@@ -586,6 +586,7 @@ function TourPrevious(props: TourButtonProps) {
   const [local, others] = splitProps(props, ['children']);
   return (
     <Button
+      variant="ghost"
       size="icon-sm"
       label="Previous step"
       disabled={tour.isFirst()}
@@ -606,6 +607,7 @@ function TourNext(props: TourButtonProps & { doneLabel?: JSX.Element }) {
     local.children === undefined && !(tour.isLast() && local.doneLabel);
   return (
     <Button
+      variant="accent"
       size="icon-sm"
       label={iconOnly() ? 'Next step' : undefined}
       {...others}
@@ -627,6 +629,7 @@ function TourClose(props: TourButtonProps) {
   // Text children name the button; only the icon form needs a label.
   return (
     <Button
+      variant="ghost"
       size="icon-sm"
       label={local.children === undefined ? 'Dismiss tour' : undefined}
       {...others}

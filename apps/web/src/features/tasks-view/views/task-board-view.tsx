@@ -195,6 +195,7 @@ export function TaskBoardView(props: {
         >
           Could not load all tasks.
           <Button
+            variant="ghost"
             size="sm"
             onClick={() => fireAndForget(read(source.refresh), 'tasks-view')}
           >
@@ -206,6 +207,7 @@ export function TaskBoardView(props: {
         <div role="alert" class="px-4 py-2 text-sm text-failure">
           Could not load task properties. Moving tasks is unavailable.
           <Button
+            variant="ghost"
             size="sm"
             onClick={() =>
               fireAndForget(read(props.data.retryDefinitions), 'tasks-view')

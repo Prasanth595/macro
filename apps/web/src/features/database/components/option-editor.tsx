@@ -169,7 +169,7 @@ export function OptionEditor(props: {
                 >
                   Delete
                 </Button>
-                <Button size="xs" onClick={() => setConfirming(false)}>
+                <Button variant="ghost" size="xs" onClick={() => setConfirming(false)}>
                   Cancel
                 </Button>
               </div>
