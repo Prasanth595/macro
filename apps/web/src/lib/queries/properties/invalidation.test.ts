@@ -42,6 +42,16 @@ it('updates individual and batched readers together, including GraphQL observers
   });
   try {
     await Promise.all([single.refetch(), batch.refetch()]);
+    value = 'Proposal';
+    await invalidateEntityPropertyReads(
+      client,
+      'DOCUMENT',
+      'shared',
+      'queries'
+    );
+    expect(single.getCurrentResult().data).toBe('Proposal');
+    expect(batch.getCurrentResult().data).toBe('Proposal');
+    expect(graphql).not.toHaveBeenCalled();
     value = 'Invoice';
     await invalidateEntityPropertyReads(client, 'DOCUMENT', 'shared');
     expect(single.getCurrentResult().data).toBe('Invoice');

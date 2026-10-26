@@ -166,6 +166,7 @@ import {
   useDeleteEntityPropertyMutation,
   useEntityPropertiesQuery,
 } from './entity';
+import { registerEntityPropertyReader } from './invalidation';
 
 let testQueryClient: QueryClient;
 let mutation: ReturnType<typeof useBulkSaveEntityPropertiesMutation>;
@@ -838,6 +839,61 @@ describe('useBulkSaveEntityPropertiesMutation dispositions', () => {
 
     expect(testQueryClient.invalidateQueries).toHaveBeenCalledTimes(4);
   });
+
+  it.each(['delete', 'options'] as const)(
+    'refreshes a newly active GraphQL reader when the flag changes during a REST %s write',
+    async (action) => {
+      graphqlSoupEnabledMock.mockReturnValue(false);
+      const started = Promise.withResolvers<void>();
+      const finish = Promise.withResolvers<void>();
+      let saved = 'before';
+      let visible = saved;
+      deleteEntityPropertyMock.mockImplementation(async () => {
+        started.resolve();
+        await finish.promise;
+        saved = 'after';
+        return ok(undefined);
+      });
+      bulkUpdateEntityPropertyOptionsMock.mockImplementation(async () => {
+        started.resolve();
+        await finish.promise;
+        saved = 'after';
+        return ok({
+          properties: [{ property_id: 'status-def', option_ids: ['doing'] }],
+        });
+      });
+      const pending =
+        action === 'delete'
+          ? deleteMutation.mutateAsync({
+              entityPropertyId: 'assignment-1',
+              entityType: 'TASK',
+              entityId: 'task-1',
+            })
+          : bulkOptionsMutation.mutateAsync({
+              entityId: 'task-1',
+              entityType: 'TASK',
+              properties: [
+                { property, currentOptionIds: [], nextOptionIds: ['doing'] },
+              ],
+            });
+      await started.promise;
+      graphqlSoupEnabledMock.mockReturnValue(true);
+      const stop = registerEntityPropertyReader(testQueryClient, {
+        entityId: 'task-1',
+        refetch: async () => {
+          visible = saved;
+        },
+      });
+      try {
+        expect(visible).toBe('before');
+        finish.resolve();
+        await pending;
+        expect(visible).toBe('after');
+      } finally {
+        stop();
+      }
+    }
+  );
 
   it('invalidates REST after a failed attachment write', async () => {
     graphqlEntityPropertyMutationMock.mockResolvedValue({

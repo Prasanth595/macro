@@ -27,6 +27,14 @@ function refreshReaders(client: QueryClient, entityId?: string) {
     .map((reader) => reader.refetch());
 }
 
+/** Refresh non-TanStack readers after a write outside their mutation cache. */
+export function refetchEntityPropertyReaders(
+  client: QueryClient,
+  entityId: string
+) {
+  return Promise.all(refreshReaders(client, entityId));
+}
+
 /** An option edit can change labels or clear values on many source entities. */
 export function invalidateAllPropertyReads(client: QueryClient) {
   return Promise.all([
@@ -39,7 +47,8 @@ export function invalidateAllPropertyReads(client: QueryClient) {
 export function invalidateEntityPropertyReads(
   client: QueryClient,
   entityType: EntityType,
-  entityId: string
+  entityId: string,
+  readers: 'all' | 'queries' = 'all'
 ) {
   return Promise.all([
     client.invalidateQueries({
@@ -49,6 +58,8 @@ export function invalidateEntityPropertyReads(
       queryKey: propertiesKeys.entityBatch._def,
       predicate: ({ queryKey }) => queryKey.includes(entityId),
     }),
-    ...refreshReaders(client, entityId),
+    // GraphQL writes reconcile their own normalized records, including queued
+    // offline mutations. A network read here can replace them with stale data.
+    ...(readers === 'all' ? refreshReaders(client, entityId) : []),
   ]);
 }

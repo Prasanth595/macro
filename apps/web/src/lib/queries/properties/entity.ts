@@ -52,7 +52,10 @@ import {
   type BulkUpdateEntityPropertyOptionsParams,
   bulkEntityPropertyOptionsKey,
 } from './in-flight-options';
-import { invalidateEntityPropertyReads } from './invalidation';
+import {
+  invalidateEntityPropertyReads,
+  refetchEntityPropertyReaders,
+} from './invalidation';
 import { propertiesKeys } from './keys';
 import {
   type EntityPropertyOptionSelection,
@@ -224,12 +227,14 @@ export function useEntityPropertiesQuery(
 
 async function invalidatePropertiesForEntity(
   entityType: EntityType | PropertyTargetEntityType,
-  entityId: string
+  entityId: string,
+  readers: 'all' | 'queries'
 ) {
   const invalidate = invalidateEntityPropertyReads(
     queryClient,
     entityType,
-    entityId
+    entityId,
+    readers
   );
   if (entityType !== 'INITIATIVE') {
     await invalidate;
@@ -426,12 +431,17 @@ export function useDeleteEntityPropertyMutation(
         if (!result.data) throw new Error('Property removal returned no data');
         return;
       }
-      await throwOnErr(
-        async () =>
-          await propertiesServiceClient.deleteEntityProperty({
-            entity_property_id: vars.entityPropertyId,
-          })
-      );
+      try {
+        await throwOnErr(
+          async () =>
+            await propertiesServiceClient.deleteEntityProperty({
+              entity_property_id: vars.entityPropertyId,
+            })
+        );
+      } finally {
+        // Bind this refresh to the transport used, even if the flag changes.
+        await refetchEntityPropertyReaders(queryClient, vars.entityId);
+      }
     },
     ...withCallbacks<void, Error, DeleteEntityPropertyParams>(
       {
@@ -440,7 +450,8 @@ export function useDeleteEntityPropertyMutation(
           fireAndForget(refreshCrmAssociatedSoupQueries(), 'entity-properties');
           return invalidatePropertiesForEntity(
             variables.entityType,
-            variables.entityId
+            variables.entityId,
+            'queries'
           );
         },
         onError(error, variables) {
@@ -448,7 +459,8 @@ export function useDeleteEntityPropertyMutation(
           toast.failure('Failed to delete property');
           return invalidatePropertiesForEntity(
             variables.entityType,
-            variables.entityId
+            variables.entityId,
+            'queries'
           );
         },
       },
@@ -479,14 +491,16 @@ function useRestAddEntityPropertyMutation(
         onSuccess: (_data, variables) =>
           invalidatePropertiesForEntity(
             variables.entityType,
-            variables.entityId
+            variables.entityId,
+            'all'
           ),
         onError(error, variables) {
           console.error('Failed to add property', error);
           toast.failure('Failed to add property');
           return invalidatePropertiesForEntity(
             variables.entityType,
-            variables.entityId
+            variables.entityId,
+            'all'
           );
         },
       },
@@ -514,7 +528,8 @@ export function useAddEntityPropertyMutation(
     onSuccess: async (variables, context) => {
       await invalidatePropertiesForEntity(
         variables.entityType,
-        variables.entityId
+        variables.entityId,
+        'queries'
       );
       await callbacks?.onSuccess?.(
         undefined,
@@ -528,7 +543,8 @@ export function useAddEntityPropertyMutation(
       toast.failure('Failed to add property');
       await invalidatePropertiesForEntity(
         variables.entityType,
-        variables.entityId
+        variables.entityId,
+        'queries'
       );
       await callbacks?.onError?.(error, variables, context, undefined as never);
     },
@@ -623,7 +639,8 @@ function entityPropertyOptionCallbacks(
         invalidateSoupEntity(variables.entityId);
         return invalidatePropertiesForEntity(
           variables.entityType,
-          variables.entityId
+          variables.entityId,
+          variables.entityType === 'INITIATIVE' ? 'queries' : 'all'
         );
       },
       onError: (error, variables, context) => {
@@ -633,7 +650,8 @@ function entityPropertyOptionCallbacks(
         toast.failure(failureMessage);
         return invalidatePropertiesForEntity(
           variables.entityType,
-          variables.entityId
+          variables.entityId,
+          variables.entityType === 'INITIATIVE' ? 'queries' : 'all'
         );
       },
     },
@@ -765,29 +783,34 @@ export function useBulkUpdateEntityPropertyOptionsMutation(
       ) {
         return updateGraphqlEntityPropertyOptions(variables);
       }
-      const response = await throwOnErr(async () =>
-        propertiesServiceClient.bulkUpdateEntityPropertyOptions({
-          entity_type: toPropertyTargetEntityType(variables.entityType),
-          entity_id: variables.entityId,
-          body: {
-            properties: variables.properties.map((update) => {
-              const deltas = getEntityPropertyOptionDeltas(
-                update.currentOptionIds,
-                update.nextOptionIds
-              );
-              return {
-                property_id: getPropertyDefinitionId(update.property),
-                add_option_ids: deltas.addOptionIds,
-                remove_option_ids: deltas.removeOptionIds,
-              };
-            }),
-          },
-        })
-      );
-      return response.properties.map((property) => ({
-        propertyDefinitionId: property.property_id,
-        optionIds: property.option_ids,
-      }));
+      try {
+        const response = await throwOnErr(async () =>
+          propertiesServiceClient.bulkUpdateEntityPropertyOptions({
+            entity_type: toPropertyTargetEntityType(variables.entityType),
+            entity_id: variables.entityId,
+            body: {
+              properties: variables.properties.map((update) => {
+                const deltas = getEntityPropertyOptionDeltas(
+                  update.currentOptionIds,
+                  update.nextOptionIds
+                );
+                return {
+                  property_id: getPropertyDefinitionId(update.property),
+                  add_option_ids: deltas.addOptionIds,
+                  remove_option_ids: deltas.removeOptionIds,
+                };
+              }),
+            },
+          })
+        );
+        return response.properties.map((property) => ({
+          propertyDefinitionId: property.property_id,
+          optionIds: property.option_ids,
+        }));
+      } finally {
+        // GraphQL handles its own optimism; only REST writes need this read.
+        await refetchEntityPropertyReaders(queryClient, variables.entityId);
+      }
     },
     ...withCallbacks<
       EntityPropertyOptionSelection[],
@@ -840,7 +863,8 @@ export function useBulkUpdateEntityPropertyOptionsMutation(
           invalidateSoupEntity(variables.entityId);
           return invalidatePropertiesForEntity(
             variables.entityType,
-            variables.entityId
+            variables.entityId,
+            'queries'
           );
         },
         onError: (error, variables, context) => {
@@ -854,7 +878,8 @@ export function useBulkUpdateEntityPropertyOptionsMutation(
           );
           return invalidatePropertiesForEntity(
             variables.entityType,
-            variables.entityId
+            variables.entityId,
+            'queries'
           );
         },
       },
@@ -944,10 +969,11 @@ const CRM_ASSOCIATION_PROPERTY_IDS: readonly string[] = [
 ];
 
 function invalidatePropertySaveCaches(
-  item: BulkSaveEntityPropertiesParams['properties'][number]
+  item: BulkSaveEntityPropertiesParams['properties'][number],
+  readers: 'all' | 'queries'
 ): void {
   fireAndForget(
-    invalidatePropertiesForEntity(item.entityType, item.entityId),
+    invalidatePropertiesForEntity(item.entityType, item.entityId, readers),
     'entity-properties'
   );
   invalidateSoupEntity(item.entityId);
@@ -1051,7 +1077,7 @@ function useRestBulkSaveEntityPropertiesMutation(
         onSettled: (_data, _error, variables) => {
           batch(() => {
             for (const item of variables.properties) {
-              invalidatePropertySaveCaches(item);
+              invalidatePropertySaveCaches(item, 'all');
             }
           });
         },
@@ -1107,7 +1133,7 @@ export function useBulkSaveEntityPropertiesMutation(
         onSettled: async (error, variables, context) => {
           batch(() => {
             for (const item of variables.properties) {
-              invalidatePropertySaveCaches(item);
+              invalidatePropertySaveCaches(item, 'queries');
             }
           });
           await callbacks?.onSettled?.(
