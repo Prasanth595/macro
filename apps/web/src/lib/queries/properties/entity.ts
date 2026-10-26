@@ -52,6 +52,7 @@ import {
   type BulkUpdateEntityPropertyOptionsParams,
   bulkEntityPropertyOptionsKey,
 } from './in-flight-options';
+import { invalidateEntityPropertyReads } from './invalidation';
 import { propertiesKeys } from './keys';
 import {
   type EntityPropertyOptionSelection,
@@ -225,9 +226,11 @@ async function invalidatePropertiesForEntity(
   entityType: EntityType | PropertyTargetEntityType,
   entityId: string
 ) {
-  const invalidate = queryClient.invalidateQueries({
-    queryKey: propertiesKeys.entity({ entityType, entityId }).queryKey,
-  });
+  const invalidate = invalidateEntityPropertyReads(
+    queryClient,
+    entityType,
+    entityId
+  );
   if (entityType !== 'INITIATIVE') {
     await invalidate;
     return;

@@ -836,7 +836,7 @@ describe('useBulkSaveEntityPropertiesMutation dispositions', () => {
       optimisticOptionIds: ['doing'],
     });
 
-    expect(testQueryClient.invalidateQueries).toHaveBeenCalledTimes(2);
+    expect(testQueryClient.invalidateQueries).toHaveBeenCalledTimes(4);
   });
 
   it('invalidates REST after a failed attachment write', async () => {
@@ -901,7 +901,7 @@ describe('useBulkSaveEntityPropertiesMutation dispositions', () => {
       })
     ).rejects.toThrow('bulk failed');
 
-    expect(testQueryClient.invalidateQueries).toHaveBeenCalledTimes(3);
+    expect(testQueryClient.invalidateQueries).toHaveBeenCalledTimes(6);
   });
 
   it('keeps the existing TanStack lifecycle when GraphQL Soup is disabled', async () => {
