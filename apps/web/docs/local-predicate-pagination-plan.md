@@ -153,7 +153,7 @@ type EntityFilterCacheResult =
   | { kind: 'stale-cursor'; revision: CacheRevision };
 ```
 
-A stale cursor means the engine generation or query changed; native engines that predate row positions also return it after any write. It is a recoverable control-flow result: clear the local page chain and reevaluate it at the reported current revision, one page deeper than the chain that was displayed. It is not a user-visible error and must not silently continue from the stale boundary.
+A stale cursor means the engine generation or query changed; native engines that predate row positions also return it after any write. It is a recoverable control-flow result: reevaluate the chain at the reported current revision, one page deeper than the chain that was displayed. It is not a user-visible error and must not silently continue from the stale boundary.
 
 ## Keyset semantics
 
@@ -223,10 +223,10 @@ The exact generation representation should reuse the cache host's replacement li
 Behavior:
 
 - initial local evaluation replaces the entire local chain;
-- local `fetchNextPage` evaluates with the last page's local cursor and appends only after revision checks pass; when a cache write has moved the cursor, it re-evaluates the list one page deeper instead;
+- local `fetchNextPage` evaluates with the last page's local cursor and appends only when the page and the displayed chain share a revision; when a cache write raced the page, it re-reads the list through the page's last row instead (one page deeper on engines without row positions);
 - duplicate concurrent next-page calls share or reject behind one in-flight promise;
 - a filter, sort, limit, or feature-option change invalidates the chain and starts again from the initial page;
-- a revision or generation change re-evaluates the chain at the depth already loaded (`mail-depth.ts` follows the index cursor past the per-request limit), so a cache write never collapses a scrolled Mail list to its first page; the `graphql_cache.soup_local_evaluation` span records `evaluation.depth` and `evaluation.depth_requests`;
+- a revision or generation change re-reads the chain through its last loaded row, so a cache write never collapses a scrolled Mail list to its first page, and mail arriving above never pushes its last row off. Native engines that predate `endCursor` re-read as many rows instead (`mail-depth.ts` follows the index cursor past the per-request limit). The `graphql_cache.soup_local_evaluation` span records `evaluation.edge` (`through` or `count`), `evaluation.depth` (rows read) and `evaluation.depth_requests`;
 - local pages are flattened in order with defensive key deduplication at the page boundary;
 - `hasNextPage` comes from the authoritative chain: local `nextCursor` while local, urql while network;
 - `isFetchingNextPage` combines local and urql fetch state;

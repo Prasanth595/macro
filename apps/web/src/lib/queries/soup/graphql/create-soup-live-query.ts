@@ -19,9 +19,10 @@ import { isResponseFreeNetworkError } from '../../../core/util/request-error';
 import { querySnapshot } from '../../../graphql-cache/exchange/live-query';
 import { normalizedCacheResultMetadata } from '../../../graphql-cache/exchange/normalized-cache-exchange';
 import { selectRecords } from '../../../graphql-cache/exchange/record-selection';
-import type {
-  CacheRevision,
-  EntityFilterCacheResult,
+import {
+  type CacheRevision,
+  type EntityFilterCacheResult,
+  MAX_MAIL_THROUGH_ROWS,
 } from '../../../graphql-cache/protocol';
 import {
   ChannelListItemFieldsFragmentDoc,
@@ -94,10 +95,16 @@ export function createSoupLiveQuery(
   const pendingDeleteIds = usePendingGraphqlSoupDeleteIds();
   const offline = createBrowserOfflineSignal();
   const [fetchingMailPage, setFetchingMailPage] = createSignal(false);
-  // How many rows a local Mail page must cover: the rows the user has loaded
-  // so far. Cache writes re-evaluate the page; evaluating only the first page
-  // would collapse a scrolled list and lose its position.
+  // Where a local Mail page must end: at the last row the user has loaded so
+  // far. Cache writes re-evaluate the page; evaluating only the first page
+  // would collapse a scrolled list and lose its position. Engines that report
+  // `endCursor` read through the last row's position, which stays put when
+  // mail arrives above it, and at least as many rows as are loaded. Native
+  // engines that predate it read as many rows.
   const [localMailDepth, setLocalMailDepth] = createSignal(0);
+  const [localMailThrough, setLocalMailThrough] = createSignal<string | null>(
+    null
+  );
   // The last local Mail evaluation for this input succeeded, so cache writes
   // keep the page current; incomplete or failed ones leave the network page.
   const [localMailCurrent, setLocalMailCurrent] = createSignal(false);
@@ -141,6 +148,8 @@ export function createSoupLiveQuery(
       nextCursor: string | null;
       revision: CacheRevision;
       optimistic: boolean;
+      /** Position of the page's last row; null when the engine reports none. */
+      edge: string | null;
     };
   };
   type UnpersistedPage = {
@@ -639,15 +648,18 @@ export function createSoupLiveQuery(
       previousInitialInput = input;
       setLocalProjection(undefined);
       setLocalMailDepth(0);
+      setLocalMailThrough(null);
       setLocalMailCurrent(false);
     }
     const depth = Math.max(localMailDepth(), definition?.records.length ?? 0);
+    const through = localMailThrough();
     const existing = untrack(localProjection);
     if (
       existing?.mail &&
       existing.input === input &&
       existing.generation === cacheGeneration &&
       existing.mail.revision === revision &&
+      existing.mail.edge === through &&
       (existing.displayedKeys.size >= depth || existing.mail.nextCursor == null)
     )
       return;
@@ -700,10 +712,27 @@ export function createSoupLiveQuery(
             let result: EntityFilterCacheResult;
             if (mailRequest) {
               const wanted = Math.max(limit, depth);
-              const read = await readMailDepth(host, mailRequest, wanted);
-              span.setAttr('evaluation.depth', wanted);
-              span.setAttr('evaluation.depth_requests', read.requests);
-              result = read.result;
+              const window =
+                through === null
+                  ? undefined
+                  : await host.entityFilter({
+                      ...mailRequest,
+                      limit: Math.min(wanted, MAX_MAIL_THROUGH_ROWS),
+                      mail: { ...mailRequest.mail, through },
+                    });
+              // A position from an earlier engine generation reads by count.
+              const byPosition = window && window.kind !== 'stale-cursor';
+              if (byPosition) {
+                result = window;
+                span.setAttr('evaluation.depth_requests', 1);
+              } else {
+                const read = await readMailDepth(host, mailRequest, wanted);
+                result = read.result;
+                span.setAttr('evaluation.depth_requests', read.requests);
+              }
+              span.setAttr('evaluation.edge', byPosition ? 'through' : 'count');
+              if (result.kind === 'mail-page')
+                span.setAttr('evaluation.depth', result.keys.length);
             } else {
               result = await host.entityFilter({
                 filters,
@@ -767,11 +796,15 @@ export function createSoupLiveQuery(
                         nextCursor: result.nextCursor,
                         revision: result.revision,
                         optimistic: result.optimistic,
+                        edge: result.endCursor ?? null,
                       },
                     }
                   : {}),
                 records: reconciledRecords,
               });
+              // The next evaluation reads through this one's last row.
+              if (result.kind === 'mail-page')
+                setLocalMailThrough(result.endCursor ?? null);
               // The filter, fragments, and final revision agree. A newer coherent
               // page is valid even if hydration advanced past the initial read.
               // Publish both result kinds' watermarks: the Mail guard avoids a
@@ -968,17 +1001,19 @@ export function createSoupLiveQuery(
           limit: initial.limit ?? 20,
           mail: { view: initial.emailView, cursor: local.mail.nextCursor },
         });
-        // A cache write since the page was evaluated moved the cursor. Ask
-        // for a deeper page at the new revision instead of dropping back to
-        // the first one, which would collapse the list.
-        const deepen = () =>
+        // A cache write raced the page. Read the list again at the new
+        // revision, through the page's last row (or one page deeper on
+        // engines without positions) instead of dropping back to the first
+        // page, which would collapse the list.
+        const deepen = (through: string | null) =>
           batch(() => {
             setLocalMailDepth(local.displayedKeys.size + (initial.limit ?? 20));
+            setLocalMailThrough(through);
             setLocalEvaluationTrigger((value) => value + 1);
           });
         if (displayLocalProjection() !== local) return;
         if (result.kind === 'stale-cursor') {
-          deepen();
+          deepen(null);
           return;
         }
         if (result.kind !== 'mail-page') return;
@@ -995,13 +1030,15 @@ export function createSoupLiveQuery(
           result.revision !== local.mail.revision ||
           selected.kind === 'stale'
         ) {
-          deepen();
+          deepen(result.endCursor ?? null);
           return;
         }
         const records = selected.records;
-        // Together, so the evaluation sees the new depth already displayed.
+        const through = result.endCursor ?? null;
+        // Together, so the evaluation sees the new edge already displayed.
         batch(() => {
           setLocalMailDepth(keys.length);
+          setLocalMailThrough(through);
           setLocalProjection({
             ...local,
             displayedKeys: new Set(keys),
@@ -1011,6 +1048,7 @@ export function createSoupLiveQuery(
               // Pending writes shown on earlier pages are still pending.
               optimistic:
                 (local.mail?.optimistic ?? false) || result.optimistic,
+              edge: through,
             },
             records,
           });
