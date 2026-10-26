@@ -159,10 +159,10 @@ async fn board_moves_share_stage_validation_and_keep_failed_moves_unchanged(pool
     .unwrap();
     let row = inserted(&write(&s, &a, &p, vec![insert(&p, company)]).await.unwrap());
     let view = ViewId::new();
-    write(&s, &a, &p, vec![serde_json::from_value(json!({
+    let create_view: DatabaseOp = serde_json::from_value(json!({
         "kind":"view", "table":p.table_id, "view":view,
         "change":{"kind":"create", "view":{"name":"Stages", "query":{"filter":null,"sort":[]}, "layout":{"kind":"board", "groupBy":stage,"title":p.primary_column_id,"lanes":[],"cardFields":[],"hideEmptyLanes":false}}}
-    })).unwrap()]).await.unwrap();
+    })).unwrap();
     let moving = DatabaseOp::View {
         table: p.table_id,
         view,
@@ -173,6 +173,23 @@ async fn board_moves_share_stage_validation_and_keep_failed_moves_unchanged(pool
             after: None,
         },
     };
+    // A view created in this batch must use its new grouping column too.
+    assert!(
+        write(&s, &a, &p, vec![create_view.clone(), moving.clone()])
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("Revenue")
+    );
+    assert!(
+        s.table(access(&a, p.id, EntityType::CrmPipeline, OWNER).await)
+            .await
+            .unwrap()
+            .views
+            .iter()
+            .all(|stored| stored.id != view)
+    );
+    write(&s, &a, &p, vec![create_view]).await.unwrap();
     assert!(
         write(&s, &a, &p, vec![moving.clone()])
             .await
