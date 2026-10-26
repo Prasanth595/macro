@@ -1391,6 +1391,21 @@ export type PipedreamConnectionResponse = {
 };
 
 /**
+ * A catalog app that connects through its own MCP server instead of
+ * Pipedream.
+ */
+export type PipedreamOverlayResponse = {
+    /**
+     * Pipedream app name slug, as it appears in the catalog.
+     */
+    app_slug: string;
+    /**
+     * The MCP server to authorize with the native MCP OAuth flow.
+     */
+    server_url: string;
+};
+
+/**
  * Response from creating a Pipedream Connect token.
  */
 export type PipedreamTokenResponse = {
@@ -3192,6 +3207,7 @@ export type CompletePipedreamMcpConnectionData = {
 export type CompletePipedreamMcpConnectionErrors = {
     401: string;
     404: ErrorResponse;
+    409: ErrorResponse;
     500: ErrorResponse;
     501: ErrorResponse;
 };
@@ -3269,6 +3285,26 @@ export type UpdatePipedreamMcpConnectionResponses = {
 };
 
 export type UpdatePipedreamMcpConnectionResponse = UpdatePipedreamMcpConnectionResponses[keyof UpdatePipedreamMcpConnectionResponses];
+
+export type ListPipedreamMcpOverlaysData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/pipedream/mcp/overlays';
+};
+
+export type ListPipedreamMcpOverlaysErrors = {
+    401: string;
+    500: ErrorResponse;
+};
+
+export type ListPipedreamMcpOverlaysError = ListPipedreamMcpOverlaysErrors[keyof ListPipedreamMcpOverlaysErrors];
+
+export type ListPipedreamMcpOverlaysResponses = {
+    200: Array<PipedreamOverlayResponse>;
+};
+
+export type ListPipedreamMcpOverlaysResponse = ListPipedreamMcpOverlaysResponses[keyof ListPipedreamMcpOverlaysResponses];
 
 export type CreatePipedreamMcpTokenData = {
     body?: never;

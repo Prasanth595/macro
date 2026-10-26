@@ -40,6 +40,7 @@ import type {
   PipedreamCatalogResponse,
   PipedreamCompleteRequest,
   PipedreamConnectionResponse,
+  PipedreamOverlayResponse,
   PipedreamTokenResponse,
   PipedreamUpdateRequest,
   ProjectionStateResponse,
@@ -2351,7 +2352,8 @@ export const browsePipedreamMcpCatalog = async (
 
 /**
  * Verifies with Pipedream that the account exists and was connected for
-the authenticated user before persisting anything.
+the authenticated user before persisting anything. An overlaid app is
+refused with 409: it connects through its own MCP server instead.
  * @summary Register a connected account reported by the Pipedream Connect UI.
  */
 export type completePipedreamMcpConnectionResponse200 = {
@@ -2367,6 +2369,11 @@ export type completePipedreamMcpConnectionResponse401 = {
 export type completePipedreamMcpConnectionResponse404 = {
   data: ErrorResponse;
   status: 404;
+};
+
+export type completePipedreamMcpConnectionResponse409 = {
+  data: ErrorResponse;
+  status: 409;
 };
 
 export type completePipedreamMcpConnectionResponse500 = {
@@ -2386,6 +2393,7 @@ export type completePipedreamMcpConnectionResponseSuccess =
 export type completePipedreamMcpConnectionResponseError = (
   | completePipedreamMcpConnectionResponse401
   | completePipedreamMcpConnectionResponse404
+  | completePipedreamMcpConnectionResponse409
   | completePipedreamMcpConnectionResponse500
   | completePipedreamMcpConnectionResponse501
 ) & {
@@ -2616,6 +2624,65 @@ export const deletePipedreamMcpConnection = async (
     status: res.status,
     headers: res.headers,
   } as deletePipedreamMcpConnectionResponse;
+};
+
+/**
+ * Clients connect these with the native MCP OAuth flow against
+`server_url`; Pipedream refuses to complete a connection for them.
+ * @summary List the catalog apps that connect through their own MCP server.
+ */
+export type listPipedreamMcpOverlaysResponse200 = {
+  data: PipedreamOverlayResponse[];
+  status: 200;
+};
+
+export type listPipedreamMcpOverlaysResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type listPipedreamMcpOverlaysResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type listPipedreamMcpOverlaysResponseSuccess =
+  listPipedreamMcpOverlaysResponse200 & {
+    headers: Headers;
+  };
+export type listPipedreamMcpOverlaysResponseError = (
+  | listPipedreamMcpOverlaysResponse401
+  | listPipedreamMcpOverlaysResponse500
+) & {
+  headers: Headers;
+};
+
+export type listPipedreamMcpOverlaysResponse =
+  | listPipedreamMcpOverlaysResponseSuccess
+  | listPipedreamMcpOverlaysResponseError;
+
+export const getListPipedreamMcpOverlaysUrl = () => {
+  return `/pipedream/mcp/overlays`;
+};
+
+export const listPipedreamMcpOverlays = async (
+  options?: RequestInit
+): Promise<listPipedreamMcpOverlaysResponse> => {
+  const res = await fetch(getListPipedreamMcpOverlaysUrl(), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: listPipedreamMcpOverlaysResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listPipedreamMcpOverlaysResponse;
 };
 
 /**
