@@ -33,6 +33,10 @@ omits the key. A pipeline has its own path, `/app/companies/pipeline/<uuid>`;
 older `sN.crm.tab=pipeline:<uuid>` URLs and shared `crmView` links that show a
 pipeline redirect there. Choosing Companies, People, an activity tab, a pipeline,
 or a list updates the URL, and browser Back and Forward restore it.
+Ordinary sidebar and Go To navigation also resumes Customers' last location and
+captured entry state within the current account session, including an open
+pipeline or record. Direct links and new-split actions keep their requested
+destination; reload and account changes clear the remembered location.
 
 The four activity tabs show CRM-linked content, not the whole app: Tasks and
 Calls require a Companies or Contacts reference; Notes are linked Markdown
@@ -381,3 +385,5 @@ properties. `Prepare export` fetches every page and shows a count and three-row 
 it does not download. `Download CSV` saves the prepared snapshot using the selected
 columns. Changing scope requires preparing again. Cancel stops preparation. CSV uses UTF-8,
 quoted fields, original date timestamps and spreadsheet formula escaping.
+
+The existing CRM New menus use icons and muted descriptions for Company, Contact, and Pipeline. Pipeline availability and permissions are unchanged.

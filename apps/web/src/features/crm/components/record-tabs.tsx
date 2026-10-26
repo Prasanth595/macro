@@ -1,10 +1,10 @@
 import { HeaderIsland } from '@components/app/split-layout/components/HeaderIsland';
 import { getIconConfig } from '@core/component/EntityIcon';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import CheckIcon from '@phosphor/check.svg';
-import SquaresFourIcon from '@phosphor/squares-four.svg';
-import UsersIcon from '@phosphor/users.svg';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import SquaresFourIcon from '@icon/system/regular/squares-four.svg';
+import UsersIcon from '@icon/system/regular/users.svg';
 import { Dropdown, Tabs } from '@ui';
 import { type Component, For, type JSX, Show } from 'solid-js';
 import {
