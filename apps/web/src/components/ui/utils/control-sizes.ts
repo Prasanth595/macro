@@ -12,8 +12,8 @@ export type LabeledControlSize = keyof typeof labeledControlFrames;
 export const labeledControlContents = {
   xs: 'px-2 py-0.5 text-xs',
   sm: 'px-2 py-0.5 text-sm',
-  md: 'px-2 py-0.5 text-base',
-  lg: 'px-4 py-1 text-lg',
+  md: 'px-2 py-0.5 text-sm',
+  lg: 'px-4 py-1 text-base',
   xl: 'px-4 py-2 text-xl',
 } as const satisfies Record<LabeledControlSize, string>;
 
@@ -29,7 +29,7 @@ export const labeledControlSizes = {
 export const iconControlSizes = {
   xs: 'size-6 min-h-0 shrink-0 aspect-square p-0 text-xs',
   sm: 'size-7 min-h-0 shrink-0 aspect-square p-0 text-sm',
-  md: 'size-8 min-h-0 shrink-0 aspect-square p-0 text-base',
-  lg: 'size-10 min-h-0 shrink-0 aspect-square p-0 text-lg',
+  md: 'size-8 min-h-0 shrink-0 aspect-square p-0 text-sm',
+  lg: 'size-10 min-h-0 shrink-0 aspect-square p-0 text-base',
   xl: 'size-12 min-h-0 shrink-0 aspect-square p-0 text-xl',
 } as const;
