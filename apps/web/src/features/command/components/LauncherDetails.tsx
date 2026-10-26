@@ -1,5 +1,5 @@
-import { t } from '@app/lib/i18n';
 import { WorkspaceTexture } from '@app/components/WorkspaceTexture';
+import { t } from '@app/lib/i18n';
 import { ENTITY_ICON_CONFIGS } from '@core/component/EntityIcon';
 import { cn, Hotkey } from '@ui';
 import { createEffect, createUniqueId, For, on, Show } from 'solid-js';

@@ -43,12 +43,14 @@ function placeholders(message: Message): string[] {
 
 describe('resolveInterfaceLanguage', () => {
   it('prefers the person, then the team, then the browser, then English', () => {
-    expect(resolveInterfaceLanguage(Language.ja, Language.de, Language.fr)).toBe(
-      'ja'
-    );
+    expect(
+      resolveInterfaceLanguage(Language.ja, Language.de, Language.fr)
+    ).toBe('ja');
     expect(resolveInterfaceLanguage(null, Language.de, Language.fr)).toBe('de');
     expect(resolveInterfaceLanguage(null, null, Language.fr)).toBe('fr');
-    expect(resolveInterfaceLanguage(undefined, undefined, undefined)).toBe('en');
+    expect(resolveInterfaceLanguage(undefined, undefined, undefined)).toBe(
+      'en'
+    );
   });
 });
 
@@ -131,38 +133,45 @@ describe('translations', () => {
   // mistakes that would show wrong text.
   it.each(
     LANGUAGES.filter(({ code }) => code !== 'en').map(({ code }) => code)
-  )('%s only translates English messages, with their placeholders and plural forms', (code) => {
-    const translation = translationFor(code);
-    const categories = new Intl.PluralRules(code).resolvedOptions()
-      .pluralCategories;
-    const stray: string[] = [];
-    const mismatched: string[] = [];
-    const wrongForms: string[] = [];
-    for (const [namespace, messages] of Object.entries(translation)) {
-      for (const [message, translated] of Object.entries(messages ?? {})) {
-        const key = `${namespace}.${message}`;
-        const english = (
-          en[namespace as keyof typeof en] as
-            | Record<string, Message>
-            | undefined
-        )?.[message];
-        if (english === undefined || translated === undefined) {
-          stray.push(key);
-          continue;
+  )(
+    '%s only translates English messages, with their placeholders and plural forms',
+    (code) => {
+      const translation = translationFor(code);
+      const categories = new Intl.PluralRules(code).resolvedOptions()
+        .pluralCategories;
+      const stray: string[] = [];
+      const mismatched: string[] = [];
+      const wrongForms: string[] = [];
+      for (const [namespace, messages] of Object.entries(translation)) {
+        for (const [message, translated] of Object.entries(messages ?? {})) {
+          const key = `${namespace}.${message}`;
+          const english = (
+            en[namespace as keyof typeof en] as
+              | Record<string, Message>
+              | undefined
+          )?.[message];
+          if (english === undefined || translated === undefined) {
+            stray.push(key);
+            continue;
+          }
+          if (
+            placeholders(translated).join() !== placeholders(english).join()
+          ) {
+            mismatched.push(key);
+          }
+          // A plural message stays plural, with exactly the language's forms.
+          const forms =
+            typeof translated === 'string'
+              ? []
+              : Object.keys(translated).sort();
+          const expected =
+            typeof english === 'string' ? [] : [...categories].sort();
+          if (forms.join() !== expected.join()) wrongForms.push(key);
         }
-        if (placeholders(translated).join() !== placeholders(english).join()) {
-          mismatched.push(key);
-        }
-        // A plural message stays plural, with exactly the language's forms.
-        const forms =
-          typeof translated === 'string' ? [] : Object.keys(translated).sort();
-        const expected =
-          typeof english === 'string' ? [] : [...categories].sort();
-        if (forms.join() !== expected.join()) wrongForms.push(key);
       }
+      expect(stray).toEqual([]);
+      expect(mismatched).toEqual([]);
+      expect(wrongForms).toEqual([]);
     }
-    expect(stray).toEqual([]);
-    expect(mismatched).toEqual([]);
-    expect(wrongForms).toEqual([]);
-  });
+  );
 });

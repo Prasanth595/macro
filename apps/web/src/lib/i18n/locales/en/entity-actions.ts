@@ -102,7 +102,8 @@ export default {
   },
   toastAddedSomeToFavorites: {
     one: 'Added {{succeeded}} of {{count}} item to favorites; {{failed}} failed',
-    other: 'Added {{succeeded}} of {{count}} items to favorites; {{failed}} failed',
+    other:
+      'Added {{succeeded}} of {{count}} items to favorites; {{failed}} failed',
   },
   toastRemovedFromFavorites: 'Removed from favorites',
   toastRemovedCountFromFavorites: {
@@ -111,7 +112,8 @@ export default {
   },
   toastRemovedSomeFromFavorites: {
     one: 'Removed {{succeeded}} of {{count}} item from favorites; {{failed}} failed',
-    other: 'Removed {{succeeded}} of {{count}} items from favorites; {{failed}} failed',
+    other:
+      'Removed {{succeeded}} of {{count}} items from favorites; {{failed}} failed',
   },
   toastFavoritesUpdateFailed: 'Failed to update favorites',
   toastMuted: 'Muted notifications',
@@ -145,7 +147,8 @@ export default {
   },
   toastMarkedDonePartialUnsaved: {
     one: 'Marked {{completed}} of {{count}} item as done. Some changes could not be saved.',
-    other: 'Marked {{completed}} of {{count}} items as done. Some changes could not be saved.',
+    other:
+      'Marked {{completed}} of {{count}} items as done. Some changes could not be saved.',
   },
   toastMarkDoneUnsaved:
     'Some changes could not be saved. Undo will reverse the accepted changes.',

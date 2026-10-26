@@ -3,7 +3,7 @@ import {
   DEFAULT_LANGUAGE,
   interfaceLanguage,
   LANGUAGES,
-  Language,
+  type Language,
   nativeLanguageName,
   t,
 } from '@app/lib/i18n';

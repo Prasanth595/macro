@@ -15,12 +15,18 @@ function userLanguageQueryOptions() {
   });
 }
 
-/** The interface language the current user picked; `null` follows the team. */
+/**
+ * The interface language the current user picked; `null` follows the team's,
+ * else the browser's.
+ */
 export function useUserLanguageQuery() {
   return useQuery(userLanguageQueryOptions);
 }
 
-/** Sets the user's own language, or clears it (`null`) to follow the team. */
+/**
+ * Sets the user's own language, or clears it (`null`) to follow the team's,
+ * else the browser's.
+ */
 export function useSetUserLanguageMutation() {
   return useMutation(() => ({
     mutationFn: (language: Language | null) =>

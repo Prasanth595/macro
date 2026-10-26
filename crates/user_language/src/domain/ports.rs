@@ -11,7 +11,7 @@ pub trait UserLanguageRepo: Send + Sync + 'static {
     type Err: std::error::Error + Send + Sync + 'static;
 
     /// The user's language. The outer `None` means the user does not exist;
-    /// the inner `None` means they follow their team.
+    /// the inner `None` means they follow their team's, else their browser's.
     fn get_language(
         &self,
         user_id: &MacroUserIdStr<'_>,
@@ -27,13 +27,15 @@ pub trait UserLanguageRepo: Send + Sync + 'static {
 
 /// Inbound service port: the user language API used by drivers (HTTP).
 pub trait UserLanguageService: Send + Sync + 'static {
-    /// The user's language, or `None` when they follow their team.
+    /// The user's language, or `None` when they follow their team's, else
+    /// their browser's.
     fn get_language(
         &self,
         user_id: &MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<Option<Language>, UserLanguageError>> + Send;
 
-    /// Set the user's language, or clear it to follow their team.
+    /// Set the user's language, or clear it to follow their team's, else their
+    /// browser's.
     fn set_language(
         &self,
         user_id: &MacroUserIdStr<'_>,
