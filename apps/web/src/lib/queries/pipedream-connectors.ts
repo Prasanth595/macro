@@ -29,6 +29,7 @@ import {
   useMutation,
   useQuery,
 } from '@tanstack/solid-query';
+import { ResultAsync } from 'neverthrow';
 import { type Accessor, createMemo } from 'solid-js';
 
 const KEYS = {
@@ -310,10 +311,7 @@ export async function connectPipedreamApp(args: {
     span.setAttr('connector.native', isTauri());
     try {
       const overlay =
-        cachedOverlay ??
-        (
-          await queryClient.ensureQueryData(pipedreamOverlaysQueryOptions())
-        ).find((candidate) => candidate.app_slug === args.appSlug);
+        cachedOverlay ?? (await lookUpOverlay(args.appSlug, span));
       span.setAttr('connector.overlaid', overlay !== undefined);
       const outcome = overlay
         ? await connectOverlaidApp(overlay, args, popup, span)
@@ -327,6 +325,26 @@ export async function connectPipedreamApp(args: {
       throw error;
     }
   });
+}
+
+/**
+ * The overlay for `appSlug`, or none when the overlay list cannot be read: a
+ * backend without the overlay route still connects through Pipedream, and
+ * one with it refuses overlaid apps there itself.
+ */
+async function lookUpOverlay(
+  appSlug: string,
+  span: Span
+): Promise<PipedreamOverlayResponse | undefined> {
+  const overlays = await ResultAsync.fromPromise(
+    queryClient.ensureQueryData(pipedreamOverlaysQueryOptions()),
+    () => ({ kind: 'overlays-unavailable' as const })
+  );
+  if (overlays.isErr()) {
+    span.setAttr('connector.overlays_unavailable', true);
+    return undefined;
+  }
+  return overlays.value.find((overlay) => overlay.app_slug === appSlug);
 }
 
 const OVERLAY_AUTH_POLL_MS = 2000;

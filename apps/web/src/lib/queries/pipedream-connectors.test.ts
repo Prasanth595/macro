@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   reservePopup: vi.fn(),
   assignUrl: vi.fn(),
   overlays: [] as { app_slug: string; server_url: string }[],
+  overlaysUnavailable: false,
   cachedOverlays: undefined as
     | { app_slug: string; server_url: string }[]
     | undefined,
@@ -38,7 +39,10 @@ vi.mock('@queries/client', () => ({
     invalidateQueries: mocks.invalidate,
     getQueryData: (key: readonly unknown[]) =>
       key[1] === 'overlays' ? mocks.cachedOverlays : { id: mocks.userId },
-    ensureQueryData: async () => mocks.overlays,
+    ensureQueryData: async () => {
+      if (mocks.overlaysUnavailable) throw new Error('404');
+      return mocks.overlays;
+    },
     fetchQuery: mocks.fetchServers,
   },
 }));
@@ -58,6 +62,7 @@ beforeEach(() => {
   mocks.native = false;
   mocks.userId = 'user-one';
   mocks.overlays = [];
+  mocks.overlaysUnavailable = false;
   mocks.cachedOverlays = undefined;
   mocks.token.mockImplementation(async () => ok({ token: 'fixture' }));
   mocks.open.mockImplementation(() => ({ close: mocks.close }));
@@ -219,5 +224,15 @@ describe('overlaid apps connect through their own MCP server', () => {
       'https://sentry.io/oauth/authorize?x=1'
     );
     expect(mocks.token).not.toHaveBeenCalled();
+  });
+});
+
+describe('a backend without overlays', () => {
+  it('connects through Pipedream when the overlay list cannot be read', async () => {
+    mocks.overlaysUnavailable = true;
+    const { pending, event } = await connect();
+    event({ type: 'close' });
+    expect(await pending).toBe('closed');
+    expect(mocks.token).toHaveBeenCalledOnce();
   });
 });
