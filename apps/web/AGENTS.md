@@ -248,6 +248,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   reply transitions preserve the card's focus target and return to natural height.
 - Shared server-state queries and mutations live in `src/lib/queries`; keep
   feature-specific query orchestration with its owning feature.
+- Keep CRM contacts explicitly included in the auxiliary GraphQL backfill;
+  bump its checkpoint version when changing the hydration input contract.
 - Refresh the channel list's bounded unread edge when opening a conversation,
   including an empty unread result after a read on another device.
 - Route supported move, trash, restore, permanent-delete, duplicate, and share-policy
