@@ -1,4 +1,4 @@
-import CalendarIcon from '@phosphor/calendar-blank.svg';
+import CalendarIcon from '@icon/system/regular/calendar-blank.svg';
 import { Key } from '@solid-primitives/keyed';
 import { Button, Checkbox } from '@ui';
 import { Show } from 'solid-js';
