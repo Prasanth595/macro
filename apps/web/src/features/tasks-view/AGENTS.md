@@ -23,7 +23,7 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 - Keep embedded Project/CRM task consumers free of saved-view management.
 - Show Save view before Filters when built-in filters, layout, or sort differ from defaults; exclude text search and grouping.
 - Keep sidebar actions targeted to their own record; Edit combines naming and sharing without saving temporary settings, and Duplicate starts with a prefilled private copy and warns before omitting unsupported settings.
-- Show the saved-view bookmark before its topbar name and an unframed ghost overflow button after it on desktop and mobile; keep draft save/reset actions separate.
+- Show the saved-view bookmark and ghost overflow beside its topbar name on desktop; on mobile, use the picker for its name and menu, with a separate action row only for unsaved changes.
 - Place the saved-view picker after Filters and before built-in mobile tabs, using the shared pill button for its trigger.
 - Show one local New view draft row after creation starts; prefill its save dialog with New view, replace the row on confirmed save, and remove it on cancellation or navigation without adding fake cached records.
 - Close the selected-view menu before opening a dialog, discard deferred actions after account or selection changes, and close dialogs after account, saved-view, or built-in-tab navigation.

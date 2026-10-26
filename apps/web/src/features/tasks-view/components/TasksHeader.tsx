@@ -60,7 +60,7 @@ export function TaskViewBreadcrumbItem() {
 
 export function TasksHeader(props: TasksHeaderProps) {
   const panel = useSplitPanelOrThrow();
-  const { state, setState, projectsEnabled, savedViews } = useTasksView();
+  const { state, setState, projectsEnabled } = useTasksView();
   let focusSearch: (() => void) | undefined;
   useViewControlHotkeys({
     scopeId: panel.splitHotkeyScope,
@@ -108,18 +108,9 @@ export function TasksHeader(props: TasksHeaderProps) {
       <ViewShell.Header>
         <div class="flex min-w-0 flex-col @max-[720px]/view-shell:gap-3">
           <TasksMobileTabs />
-          <Show when={state.savedViewActive}>
-            <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <div class="flex min-w-0 items-center gap-1">
-                <BookmarkIcon class="mr-1 size-4 shrink-0" aria-hidden="true" />
-                <span class="truncate text-sm font-medium">
-                  {savedViews && taskSavedViewTitle(savedViews.view())}
-                </span>
-                <TaskSavedViewMenu />
-              </div>
-              <TaskSavedViewActions />
-            </div>
-          </Show>
+          <div class="flex min-w-0 flex-wrap items-center gap-2 empty:hidden">
+            <TaskSavedViewActions />
+          </div>
         </div>
       </ViewShell.Header>
     </Show>

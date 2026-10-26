@@ -323,9 +323,9 @@ empty, collapsed, loading, or in an error state. Rows show the name, active stat
 and a team-sharing indicator where applicable. Use the existing sidebar and
 control primitives.
 
-The main pane displays the selected view's bookmark icon before its name and its
-unframed ghost overflow button immediately after it on desktop and mobile, plus
-the normal Task controls.
+The desktop main pane displays the selected view's bookmark icon before its name
+and its unframed ghost overflow button immediately after it, plus the normal Task
+controls.
 Provide matching sidebar context/overflow and selected-view overflow menus with
 Edit, Duplicate, Copy link, and confirmed Delete.
 Wrap menu items in the existing padded groups. Non-owners get only actions they
@@ -366,16 +366,18 @@ for the visible search results.
 
 Tasks currently has navigation pills and a filter drawer, not a mobile sidebar.
 Add a Views picker using the shared `MobileDrawer`; include the named list,
-active saved-view name, and the section's `+`. Preserve the built-in navigation
-and existing mobile list-only behavior.
+active saved-view name, and the section's `+`. Keep the active name in the picker
+pill without repeating a title/menu row below the tabs; show a separate action row
+only for unsaved changes. Preserve the built-in navigation and existing mobile
+list-only behavior.
 
 Show Save view left of the mobile filter trigger under the same changed-settings
 condition. Render a list on mobile but preserve the stored desktop layout.
-Provide management through each saved-view row's visible overflow
-button and the overflow menu beside the selected view's name. Use existing dialog/drawer
-conventions for naming, sharing, conflicts, and delete confirmation. Keep row
-menus inside the drawer's portal scope for keyboard access. Finish drawer closure
-and restore its trigger focus before opening an action's dialog. Discard queued
+Provide management through each saved-view row's visible overflow button in the
+picker. Use existing dialog/drawer conventions for naming, sharing, conflicts,
+and delete confirmation. Keep row menus inside the drawer's portal scope for
+keyboard access. Finish drawer closure and restore its trigger focus before
+opening an action's dialog. Discard queued
 actions when the account changes. No hover-only controls or desktop-only
 management actions.
 
