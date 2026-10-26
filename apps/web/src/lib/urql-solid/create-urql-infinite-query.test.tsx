@@ -276,6 +276,42 @@ describe('createUrqlInfiniteQuery', () => {
     expect(fake.executions[0]?.unsubscribed).toBe(false);
   });
 
+  it('retries a failed continuation with the same cursor and retains loaded rows', async () => {
+    const fake = makeFakeClient();
+    const query = createRoot((dispose) => {
+      disposals.push(dispose);
+      return createUrqlInfiniteQuery<Page, Variables, string | null, string[]>(
+        () => ({
+          query: DOCUMENT,
+          client: fake.client,
+          initialPageParam: null,
+          variables: (cursor) => ({ cursor }),
+          getNextPageParam: (lastPage) => lastPage.nextCursor,
+          select: ({ pages }) => pages.flatMap((page) => page.values),
+        })
+      );
+    });
+    fake.executions[0]?.next({ values: ['first'], nextCursor: 'cursor-1' });
+
+    const nextPage = query.fetchNextPage();
+    const failure = new CombinedError({ networkError: new Error('offline') });
+    fake.executions[1]?.fail(failure);
+    await nextPage;
+    expect(query.data).toEqual(['first']);
+    expect(query.isFetchNextPageError).toBe(true);
+
+    const retry = query.fetchNextPage();
+    expect(fake.executions).toHaveLength(3);
+    expect(fake.executions[2]?.variables).toEqual({ cursor: 'cursor-1' });
+    fake.executions[2]?.next({ values: ['second'], nextCursor: null });
+    await retry;
+
+    expect(query.data).toEqual(['first', 'second']);
+    expect(query.error).toBeNull();
+    expect(query.isFetchNextPageError).toBe(false);
+    expect(query.hasNextPage).toBe(false);
+  });
+
   it('does not traverse retained page data on resets and option changes', () => {
     const fake = makeFakeClient();
     const [enabled, setEnabled] = createSignal(true);
