@@ -24,6 +24,7 @@ use soup_filter_projection::{
 use std::collections::HashSet;
 
 mod channels;
+pub mod collection;
 mod database_rows;
 mod direct_patch;
 pub mod live_query;

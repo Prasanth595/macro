@@ -6267,6 +6267,7 @@ dependencies = [
  "predicate-index",
  "serde",
  "serde_json",
+ "sha2",
  "soup-filter-projection",
  "thiserror 2.0.18",
  "uuid",

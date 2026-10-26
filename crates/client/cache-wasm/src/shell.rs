@@ -28,10 +28,11 @@ use predicate_index::RecordKey;
 use serde::{Deserialize, Serialize};
 use soup_filter_cache_adapter::{
     SoupFilterCompileOutcome, authoritative_projection_mutations,
+    collection::{self, CollectionCoverageRequest, CollectionCoverageResponse},
     compile_current_filter_request as compile_filter_request, dirty_projection_mutations,
-    mail::ProjectionError as MailProjectionError, notification_deletion_updates,
-    notification_projection_updates, optimistic_notification_updates,
-    optimistic_projection_mutations,
+    mail::ProjectionError as MailProjectionError,
+    notification_deletion_updates, notification_projection_updates,
+    optimistic_notification_updates, optimistic_projection_mutations,
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -338,6 +339,7 @@ fn unwrap_storage(storage: BrowserStorage) -> TursoStorage {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct JsEntityFilterRequest {
     live_query: Option<soup_filter_cache_adapter::live_query::LiveQueryRequest>,
+    collection: Option<collection::CollectionReadRequest>,
     filters: serde_json::Value,
     sort_method: String,
     sort_direction: String,
@@ -376,6 +378,18 @@ enum JsEntityFilterResult {
     Incomplete {
         revision: String,
     },
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct JsCollectionCoverageResult {
+    #[serde(flatten)]
+    response: CollectionCoverageResponse,
+    revision_advanced: bool,
+    changed: Vec<String>,
+    affected_ops: Vec<String>,
+    reset: bool,
+    search_changed_buckets: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -1452,6 +1466,30 @@ impl CacheEngine {
         })
     }
 
+    /// Applies one durable Soup collection coverage step.
+    #[wasm_bindgen(js_name = collectionCoverage)]
+    pub fn collection_coverage(&self, request: JsValue) -> js_sys::Promise {
+        let state = self.state.clone();
+        future_to_promise(async move {
+            let request: CollectionCoverageRequest =
+                serde_wasm_bindgen::from_value(request).map_err(err_js)?;
+            let mut state = state.lock().await;
+            state.ensure_callable()?;
+            let before = state.engine_mut()?.current_revision();
+            let result = collection::apply_coverage(state.engine_mut()?, request).await;
+            let response = state.engine_result(result)?;
+            let revision_advanced = state.engine_mut()?.current_revision() != before;
+            to_js(&JsCollectionCoverageResult {
+                response,
+                revision_advanced,
+                changed: vec![],
+                affected_ops: vec![],
+                reset: false,
+                search_changed_buckets: vec![],
+            })
+        })
+    }
+
     /// Evaluates one exact current-profile GraphQL Soup filter request.
     #[wasm_bindgen(js_name = entityFilter)]
     pub fn entity_filter(&self, request: JsValue) -> js_sys::Promise {
@@ -1461,12 +1499,23 @@ impl CacheEngine {
             state.ensure_callable()?;
             let request: JsEntityFilterRequest =
                 serde_wasm_bindgen::from_value(request).map_err(err_js)?;
+            if request.collection.is_some()
+                && (request.live_query.is_none()
+                    || request.baseline.is_some()
+                    || request.mail.is_some())
+            {
+                return Err(err_js(
+                    "collection reads require liveQuery without baseline or mail",
+                ));
+            }
             if let Some(live) = &request.live_query {
                 if live.release {
                     state.engine_mut()?.release_live_query(&live.id);
                     return to_js(&JsEntityFilterResult::Unsupported);
                 }
-                if request.mail.is_some() || request.baseline.is_none() {
+                if request.collection.is_none()
+                    && (request.mail.is_some() || request.baseline.is_none())
+                {
                     return Err(err_js(
                         "live queries require a reconciled baseline and do not accept mail cursors",
                     ));
@@ -1492,6 +1541,7 @@ impl CacheEngine {
                 })?;
                 return to_js(&result);
             }
+            let filters = request.filters.as_object().cloned();
             let outcome = compile_filter_request(
                 request.filters,
                 &request.sort_method,
@@ -1500,6 +1550,41 @@ impl CacheEngine {
             )
             .map_err(err_js)?;
             let result = match outcome {
+                SoupFilterCompileOutcome::Supported(query) if request.collection.is_some() => {
+                    let collection = request.collection.unwrap();
+                    let filters =
+                        filters.ok_or_else(|| err_js("collection filters must be an object"))?;
+                    let live = request.live_query.unwrap();
+                    let schema = state.engine_mut()?.schema_snapshot();
+                    let selection = state
+                        .selections
+                        .get(&schema, live.document, live.fragment_name)
+                        .map_err(err_js)?;
+                    let since = live
+                        .since
+                        .map(|revision| revision.parse::<cache_core::revision::CacheRevision>())
+                        .transpose()
+                        .map_err(err_js)?;
+                    let result = collection::read_collection(
+                        state.engine_mut()?,
+                        &live.id,
+                        cache_core::engine::live_query::LiveQuerySpec {
+                            query,
+                            baseline: vec![],
+                            selection,
+                        },
+                        &collection.user_id,
+                        &filters,
+                        since,
+                    )
+                    .await;
+                    match state.engine_result(result)? {
+                        Some(update) => return to_js(&JsEntityFilterResult::LiveQuery { update }),
+                        None => JsEntityFilterResult::Incomplete {
+                            revision: state.engine_mut()?.current_revision().to_string(),
+                        },
+                    }
+                }
                 SoupFilterCompileOutcome::Unsupported => JsEntityFilterResult::Unsupported,
                 SoupFilterCompileOutcome::Supported(query) if request.baseline.is_some() => {
                     let baseline = request.baseline.unwrap();
@@ -2237,6 +2322,8 @@ impl CacheEngine {
         future_to_promise(async move {
             let mut state = state.lock().await;
             state.ensure_callable()?;
+            let result = state.engine_mut()?.invalidate_collection_coverage().await;
+            state.engine_result(result)?;
             let mut projections = dirty_projection_mutations(&keys);
             projections.extend(soup_filter_cache_adapter::mail::dirty_updates(&keys));
             projections.extend(

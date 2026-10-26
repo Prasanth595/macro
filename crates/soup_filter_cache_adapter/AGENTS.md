@@ -13,6 +13,8 @@ understand. Runs both natively (Tauri) and compiled to wasm (web).
 
 - `src/lib.rs`: the GraphQL `Document`/`Selection` → `ValidatedIndexQuery`
   compile path (`compile_soup_flat_v4`) and crate-level docs.
+- `src/collection.rs`: shared coverage request/response types, document scope IDs,
+  and exhaustive collection read delegation to `cache-core`.
 - `src/live_query.rs`: reactive query registration/re-evaluation.
 - `src/direct_patch.rs`, `src/notifications.rs`: optimistic local mutation
   and notification projection updates applied without a server round-trip.
@@ -39,6 +41,12 @@ understand. Runs both natively (Tauri) and compiled to wasm (web).
 - Add a filterable/projectable field: `item_filter_index`/`predicate_index`
   (if the vocabulary is new) → `soup_filter_projection` (wire encoding) →
   the matching `src/<kind>.rs` here (projection + optimistic patch).
+- Coverage scopes bind to `soup-flat-v6` and the collection contract version;
+  pass only filter input to exact scope IDs, not sort, grouping, or cursors.
+  Append only nonempty `GraphqlSoupDocument:` keys in batches of at most 500.
+
+- Generate the backend-free collection browser fixture with
+  `cargo run -p soup-filter-cache-adapter --example collection_coverage_fixtures`.
 
 ## Checks
 

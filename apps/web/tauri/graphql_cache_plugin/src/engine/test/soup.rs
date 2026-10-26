@@ -496,3 +496,95 @@ fn native_filter_rejects_malformed_requests_and_preserves_unsupported() {
         .is_err()
     );
 }
+
+#[test]
+fn native_collection_coverage_dispatch_and_read_constraints() {
+    use soup_filter_cache_adapter::collection::{
+        CollectionCoverageRequest, CollectionCoverageScope,
+    };
+
+    let handle = spawn_handle();
+    write_data(
+        &handle,
+        "query { user { id } }",
+        json!({"user": {"id": VIEWER}}),
+        Some(VIEWER),
+    );
+    let generation = block_on(handle.current_storage_generation())
+        .unwrap()
+        .parse()
+        .unwrap();
+    let started = block_on(
+        handle.collection_coverage(CollectionCoverageRequest::Begin {
+            user_id: VIEWER.into(),
+            storage_generation: generation,
+            scope: CollectionCoverageScope::Documents {},
+        }),
+    )
+    .unwrap();
+    let wire = serde_json::to_value(&started).unwrap();
+    assert_eq!(wire["kind"], "started");
+    assert_eq!(wire["revisionAdvanced"], false);
+    assert_eq!(wire["changed"], json!([]));
+    assert_eq!(wire["affectedOps"], json!([]));
+    assert_eq!(wire["searchChangedBuckets"], json!([]));
+    assert_eq!(wire["reset"], false);
+    assert_eq!(
+        wire.as_object()
+            .unwrap()
+            .keys()
+            .filter(|key| *key == "revision")
+            .count(),
+        1
+    );
+    let scan_id = wire["scanId"].as_str().unwrap().parse().unwrap();
+    let complete = block_on(
+        handle.collection_coverage(CollectionCoverageRequest::Complete {
+            user_id: VIEWER.into(),
+            storage_generation: generation,
+            scan_id,
+        }),
+    )
+    .unwrap();
+    assert_eq!(serde_json::to_value(complete).unwrap()["kind"], "committed");
+
+    let collection_request = || {
+        serde_json::from_value::<EntityFilterRequest>(json!({
+        "filters": {
+            "calendarEventFilter": {"literal": {"id": id(0)}},
+            "documentFilter": {"literal": {"owner": VIEWER}},
+            "projectFilter": {"literal": {"projectId": id(0)}},
+            "chatFilter": {"literal": {"chatId": id(0)}},
+            "emailFilter": {"tree": {"literal": {"threadId": id(0)}}},
+            "channelFilter": {"literal": {"channelId": id(0)}},
+            "channelThreadFilter": {"literal": {"threadId": id(0)}},
+            "callFilter": {"literal": {"callId": id(0)}},
+            "crmCompanyFilter": {"literal": {"id": id(0)}},
+            "foreignEntityFilter": {"literal": {"id": id(0)}}
+        }, "sortMethod": "UPDATED_AT", "sortDirection": "DESC",
+        "limit": 10, "collection": { "userId": VIEWER },
+        "liveQuery": {"id": "collection-sub", "document": "fragment Row on GraphqlSoupDocument { id }", "fragmentName": "Row"}
+    })).unwrap()
+    };
+    assert_eq!(
+        evaluate(&handle, collection_request())["kind"],
+        "live-query"
+    );
+    let mut missing_live = collection_request();
+    missing_live.live_query = None;
+    assert!(block_on(handle.entity_filter(missing_live)).is_err());
+    let mut baseline = collection_request();
+    baseline.baseline = Some(vec![]);
+    assert!(block_on(handle.entity_filter(baseline)).is_err());
+    let mut mail = collection_request();
+    mail.mail = request("ALL", None, 10, None).mail;
+    assert!(block_on(handle.entity_filter(mail)).is_err());
+    let mut release = collection_request();
+    release.live_query.as_mut().unwrap().release = true;
+    assert_eq!(evaluate(&handle, release)["kind"], "unsupported");
+    block_on(handle.invalidate(vec![])).unwrap();
+    assert_eq!(
+        evaluate(&handle, collection_request())["kind"],
+        "incomplete"
+    );
+}

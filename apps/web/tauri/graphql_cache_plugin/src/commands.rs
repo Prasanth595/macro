@@ -27,6 +27,9 @@ use cache_core::query_inspection::{CachedQueryInstance, CachedQueryVariant};
 use cache_core::search::{SearchPage, SearchRequest};
 use cache_turso::TursoFileDatabase;
 use serde::{Deserialize, Serialize};
+use soup_filter_cache_adapter::collection::{
+    CollectionCoverageRequest, CollectionCoverageResponse,
+};
 use tauri::{AppHandle, Manager, Runtime, State};
 
 #[cfg(test)]
@@ -207,6 +210,31 @@ pub async fn graphql_cache_entity_filter(
     request: EntityFilterRequest,
 ) -> Result<EntityFilterResult, String> {
     engine_handle(&state)?.entity_filter(request).await
+}
+
+/// Applies one durable Soup collection coverage step and broadcasts revision changes.
+#[tauri::command]
+pub async fn graphql_cache_collection_coverage<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, CacheState>,
+    request: CollectionCoverageRequest,
+) -> Result<crate::engine::CollectionCoverageResultWire, String> {
+    let result = engine_handle(&state)?.collection_coverage(request).await?;
+    if result.revision_advanced {
+        let revision = match &result.response {
+            CollectionCoverageResponse::Started { revision, .. }
+            | CollectionCoverageResponse::Committed { revision }
+            | CollectionCoverageResponse::Incomplete { revision } => revision,
+            CollectionCoverageResponse::Unsupported => return Ok(result),
+        };
+        emit_cache_changed_with_search_changes(
+            &app,
+            revision,
+            false,
+            Some(&std::collections::BTreeSet::new()),
+        );
+    }
+    Ok(result)
 }
 
 /// Answers a calendar viewport from the native range index.

@@ -26,6 +26,9 @@ GraphQL response shape for callers. A concrete `Storage` impl (e.g.
   used to select which cached records satisfy a query.
 - `src/search.rs`: disposable Quick Access projection (version 3); email matches subjects and all embedded senders, never snippets or bodies.
 - `src/queue.rs`: the optimistic mutation queue.
+- `src/engine/collection.rs`: opaque durable collection scans and exhaustive selected reads.
+  Hosts supply versioned scope IDs and member prefixes; completion never deletes normalized records.
+  `invalidate_collection_coverage` durably fences scans and completed scopes.
 - `tests/`: the primary spec for engine behavior — one file per concern
   (optimistic updates, calendar range, search, subscriptions, fuzz).
 
@@ -70,3 +73,7 @@ GraphQL response shape for callers. A concrete `Storage` impl (e.g.
 ## Related
 
 - Docs: `apps/web/docs/graphql-normalized-cache-plan.md`
+- Collection candidate fences run before ordinary authoritative writes and queue settlement.
+  Collection metadata requires one engine writer per stored cache. Browser coordinator
+  ownership and the native shared-engine mutex enforce that host boundary; independent
+  engines writing the same storage need catalog compare-and-swap before using coverage.

@@ -12,6 +12,33 @@ wasm_bindgen_test_configure!(run_in_dedicated_worker);
 mod mail_projection;
 
 #[wasm_bindgen_test]
+fn collection_coverage_result_has_flat_write_effect() {
+    let response = JsCollectionCoverageResult {
+        response: CollectionCoverageResponse::Committed {
+            revision: "42".into(),
+        },
+        revision_advanced: true,
+        changed: vec![],
+        affected_ops: vec![],
+        reset: false,
+        search_changed_buckets: vec![],
+    };
+    let result = to_js(&response).unwrap();
+    let json = js_sys::JSON::stringify(&result)
+        .unwrap()
+        .as_string()
+        .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        value,
+        serde_json::json!({
+            "kind": "committed", "revision": "42", "revisionAdvanced": true,
+            "changed": [], "affectedOps": [], "reset": false, "searchChangedBuckets": []
+        })
+    );
+}
+
+#[wasm_bindgen_test]
 fn read_response_conversion_preserves_json_and_revision_strings() {
     let data = serde_json::json!({
         "text": "line\n\"quoted\" 🙂",

@@ -184,6 +184,11 @@ impl Default for LiveQueries {
 }
 
 impl LiveQueries {
+    pub(super) fn is_complete(&self, id: &str) -> bool {
+        self.views
+            .peek(id)
+            .is_some_and(|view| view.rows.len() == view.membership.keys.len())
+    }
     pub(super) fn advance(&mut self, revision: CacheRevision) {
         self.journal.push_back((revision, None));
         if self.journal.len() > JOURNAL_CAPACITY {
@@ -251,6 +256,17 @@ impl<S: PredicateIndexStorage> Engine<S> {
         spec: LiveQuerySpec,
         since: Option<CacheRevision>,
     ) -> Result<LiveQueryUpdate, EngineError<S::Error>> {
+        self.read_live_query_with_membership(id, spec, since, None)
+            .await
+    }
+
+    pub(super) async fn read_live_query_with_membership(
+        &mut self,
+        id: &str,
+        spec: LiveQuerySpec,
+        since: Option<CacheRevision>,
+        exact: Option<PredicateReconciliation>,
+    ) -> Result<LiveQueryUpdate, EngineError<S::Error>> {
         if id.len() > 128 || id.is_empty() {
             return Err(RecordSelectionError::InvalidKey.into());
         }
@@ -265,7 +281,9 @@ impl<S: PredicateIndexStorage> Engine<S> {
                 .changes_since(view.revision, self.revision)
         });
         let reset = old.as_ref().is_none_or(|view| Some(view.revision) != since);
-        let membership = if let (Some(old), Some(changes)) = (&old, &changes)
+        let membership = if let Some(exact) = exact {
+            exact
+        } else if let (Some(old), Some(changes)) = (&old, &changes)
             && changes.projections.is_empty()
         {
             old.membership.clone()

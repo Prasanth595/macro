@@ -44,6 +44,9 @@ wasm-bindgen shell exposing `cache-core` + `cache-turso` + `turso-opfs` as a
   (see `crates/client/turso-opfs/README.md` for the `wasm-bindgen-test` pattern
   this crate also follows).
 
+- Soup collection coverage uses `collectionCoverage(request)` and returns the adapter's tagged response flattened with `revisionAdvanced`, empty `changed`, `affectedOps`, and `searchChangedBuckets`, plus `reset: false`.
+- Collection reads use `entityFilter` with `collection: { userId }` and `liveQuery`, without `baseline` or `mail`. External `invalidateKeys` durably revokes coverage before projection invalidation.
+
 ## Gotchas
 
 - Email send persistence and cancellation belong to the frontend email journal, not the normalized cache or its mutation queue.

@@ -29,6 +29,9 @@ use cache_core::search::{SearchPage, SearchRequest};
 use cache_core::value::EntityKey;
 use cache_turso::{TursoStorage, TursoStorageCloseOutcome};
 use serde::Serialize;
+use soup_filter_cache_adapter::collection::{
+    self, CollectionCoverageRequest, CollectionCoverageResponse,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -82,6 +85,25 @@ pub struct WriteResultWire {
     /// Stable caller identity on settlement.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mutation_uuid: Option<String>,
+}
+
+/// Flat coverage response with the cache write-effect fields expected by webviews.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollectionCoverageResultWire {
+    /// The scan outcome and its revision, if supported.
+    #[serde(flatten)]
+    pub response: CollectionCoverageResponse,
+    /// Whether this step advanced the cache revision.
+    pub revision_advanced: bool,
+    /// Coverage does not alter normalized records.
+    pub changed: Vec<String>,
+    /// Coverage does not alter registered operations.
+    pub affected_ops: Vec<String>,
+    /// Coverage does not reset cache identity.
+    pub reset: bool,
+    /// Coverage does not alter search projections.
+    pub search_changed_buckets: Vec<String>,
 }
 
 /// Internal hydration result used to fan out changes before returning only
@@ -623,6 +645,26 @@ impl EngineHandle {
         .await
     }
 
+    /// Applies a Soup collection coverage step under the engine mutex.
+    pub async fn collection_coverage(
+        &self,
+        request: CollectionCoverageRequest,
+    ) -> Result<CollectionCoverageResultWire, String> {
+        let mut state = self.inner.lock().await;
+        let before = state.engine.current_revision();
+        let response = collection::apply_coverage(&mut state.engine, request)
+            .await
+            .map_err(|error| error.to_string())?;
+        Ok(CollectionCoverageResultWire {
+            revision_advanced: state.engine.current_revision() != before,
+            response,
+            changed: vec![],
+            affected_ops: vec![],
+            reset: false,
+            search_changed_buckets: vec![],
+        })
+    }
+
     /// Recovers cached query variables without materializing each variant.
     pub async fn inspect_query_variants(
         &self,
@@ -1007,6 +1049,10 @@ impl EngineHandle {
     ) -> Result<AffectedOperationsResultWire, String> {
         let mut state = self.inner.lock().await;
         let EngineState { engine, ops, .. } = &mut *state;
+        engine
+            .invalidate_collection_coverage()
+            .await
+            .map_err(|error| error.to_string())?;
         let projections = soup::invalidation_projections(engine, &keys).await?;
         let keys: Vec<EntityKey<'static>> =
             keys.into_iter().map(|key| EntityKey(key.into())).collect();

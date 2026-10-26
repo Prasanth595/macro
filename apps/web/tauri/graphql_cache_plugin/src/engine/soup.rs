@@ -20,6 +20,8 @@ use soup_filter_cache_adapter::{
 pub struct EntityFilterRequest {
     /// Optional engine-owned row projection and delta cursor.
     pub live_query: Option<soup_filter_cache_adapter::live_query::LiveQueryRequest>,
+    /// Optional exhaustive collection read, requiring liveQuery without baseline or mail.
+    pub collection: Option<soup_filter_cache_adapter::collection::CollectionReadRequest>,
     /// GraphQL Soup filter AST; policy/validation belongs to the Soup adapter.
     pub filters: Value,
     /// Requested Soup sort method.
@@ -112,6 +114,11 @@ pub(super) async fn filter(
     generation: &str,
     request: EntityFilterRequest,
 ) -> Result<EntityFilterResult, String> {
+    if request.collection.is_some()
+        && (request.live_query.is_none() || request.baseline.is_some() || request.mail.is_some())
+    {
+        return Err("collection reads require liveQuery without baseline or mail".into());
+    }
     if let Some(live) = &request.live_query {
         if live.release {
             engine.release_live_query(&live.id);
@@ -119,7 +126,7 @@ pub(super) async fn filter(
                 PredicateFilterResult::Unsupported,
             ));
         }
-        if request.mail.is_some() || request.baseline.is_none() {
+        if request.collection.is_none() && (request.mail.is_some() || request.baseline.is_none()) {
             return Err(
                 "live queries require a reconciled baseline and do not accept mail cursors".into(),
             );
@@ -139,6 +146,7 @@ pub(super) async fn filter(
         .map(EntityFilterResult::Mail)
         .map_err(|error| error.to_string());
     }
+    let filters = request.filters.as_object().cloned();
     let outcome = compile_filter_request(
         request.filters,
         &request.sort_method,
@@ -147,6 +155,43 @@ pub(super) async fn filter(
     )
     .map_err(|error| error.to_string())?;
     let result = match outcome {
+        SoupFilterCompileOutcome::Supported(query) if request.collection.is_some() => {
+            let collection = request.collection.unwrap();
+            let filters = filters.ok_or("collection filters must be an object")?;
+            let live = request.live_query.unwrap();
+            let selection = selections
+                .get(engine.schema(), live.document, live.fragment_name)
+                .map_err(|error| error.to_string())?;
+            let since = live
+                .since
+                .map(|revision| revision.parse::<cache_core::revision::CacheRevision>())
+                .transpose()
+                .map_err(|error| error.to_string())?;
+            let update = soup_filter_cache_adapter::collection::read_collection(
+                engine,
+                &live.id,
+                cache_core::engine::live_query::LiveQuerySpec {
+                    query,
+                    baseline: vec![],
+                    selection,
+                },
+                &collection.user_id,
+                &filters,
+                since,
+            )
+            .await
+            .map_err(|error| error.to_string())?;
+            match update {
+                Some(update) => {
+                    return Ok(EntityFilterResult::Live(LiveQueryResult::LiveQuery {
+                        update,
+                    }));
+                }
+                None => PredicateFilterResult::Incomplete {
+                    revision: engine.current_revision().to_string(),
+                },
+            }
+        }
         SoupFilterCompileOutcome::Unsupported => PredicateFilterResult::Unsupported,
         SoupFilterCompileOutcome::Supported(query) if request.baseline.is_some() => {
             let baseline = request.baseline.unwrap();

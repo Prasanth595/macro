@@ -12,6 +12,7 @@ indexmap = { workspace = true }
 item-filter-index = { path = "../item_filter_index" }
 predicate-index = { path = "../predicate_index" }
 serde_json = { workspace = true }
+sha2 = { workspace = true }
 serde = { workspace = true }
 soup-filter-projection = { path = "../soup_filter_projection", default-features = false }
 thiserror = { workspace = true }

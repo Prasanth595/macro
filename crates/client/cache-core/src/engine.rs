@@ -3,6 +3,7 @@
 //! Tauri) expose over RPC.
 
 mod calendar;
+pub mod collection;
 #[cfg(test)]
 mod test;
 
@@ -370,6 +371,7 @@ pub struct Engine<S: Storage> {
     /// Compact durable catalogs are loaded lazily for text search. Empty
     /// queries use the storage index directly and do not populate this map.
     search_catalogs: SearchCatalogs,
+    collection_epoch: u64,
 }
 
 impl<S: Storage> Engine<S> {
@@ -400,6 +402,7 @@ impl<S: Storage> Engine<S> {
             optimistic: Vec::new(),
             optimistic_hydrated: false,
             search_catalogs: SearchCatalogs::default(),
+            collection_epoch: 0,
         }
     }
 
@@ -1723,6 +1726,14 @@ impl<S: Storage> Engine<S> {
         } else {
             true
         };
+        self.fence_collection_candidates(
+            to_persist.iter().map(|(key, _)| key.clone()).chain(
+                projections.iter().map(|projection| {
+                    EntityKey(projection.record_key().as_str().to_owned().into())
+                }),
+            ),
+        )
+        .await?;
         self.storage
             .put_batch_with_projections(to_persist, projections)
             .await
@@ -2627,6 +2638,14 @@ impl<S: Storage> Engine<S> {
         let mut settled_bases = self.load_bases(&candidates).await?;
         settled_bases.extend(staged);
         let after = effective_records(&settled_bases, &replacement, &candidates);
+        self.fence_collection_candidates(
+            entries.iter().map(|(key, _)| key.clone()).chain(
+                projections.iter().map(|projection| {
+                    EntityKey(projection.record_key().as_str().to_owned().into())
+                }),
+            ),
+        )
+        .await?;
         if !self
             .storage
             .complete_mutation_with_shadow(
@@ -2936,6 +2955,7 @@ impl<S: Storage> Engine<S> {
     /// and returns every local active operation for re-execution.
     pub fn external_reset(&mut self) -> Result<Revisioned<BTreeSet<OpId>>, EngineError<S::Error>> {
         self.ensure_revision_can_advance()?;
+        self.collection_epoch = self.collection_epoch.wrapping_add(1);
         self.hot.clear();
         self.live_queries = live_query::LiveQueries::default();
         self.query_watches = watch_query::QueryWatches::default();
@@ -2975,6 +2995,7 @@ impl<S: Storage> Engine<S> {
         &mut self,
         keys: impl IntoIterator<Item = &'k EntityKey<'static>>,
     ) -> BTreeSet<OpId> {
+        self.collection_epoch = self.collection_epoch.wrapping_add(1);
         let mut affected = BTreeSet::new();
         for key in keys {
             self.hot.pop(key);
@@ -2999,6 +3020,7 @@ impl<S: Storage> Engine<S> {
     ) -> Result<Revisioned<BTreeSet<OpId>>, EngineError<S::Error>> {
         self.ensure_revision_can_advance()?;
         let affected = self.deps.ops_for_keys(keys.iter());
+        self.invalidate_collection_coverage().await?;
         self.storage
             .delete_batch(keys)
             .await
@@ -3016,6 +3038,7 @@ impl<S: Storage> Engine<S> {
     pub async fn clear(&mut self) -> Result<CacheRevision, EngineError<S::Error>> {
         self.ensure_revision_can_advance()?;
         self.storage.clear().await.map_err(EngineError::Storage)?;
+        self.collection_epoch = 0;
         self.hot.clear();
         self.live_queries = live_query::LiveQueries::default();
         self.query_watches = watch_query::QueryWatches::default();
@@ -3108,6 +3131,12 @@ impl<S: PredicateIndexStorage> Engine<S> {
         projections: Vec<ProjectionMutation>,
     ) -> Result<CacheRevision, EngineError<S::Error>> {
         self.ensure_revision_can_advance()?;
+        self.fence_collection_candidates(
+            projections
+                .iter()
+                .map(|projection| EntityKey(projection.record_key().as_str().to_owned().into())),
+        )
+        .await?;
         self.storage
             .put_batch_with_projections(Vec::new(), projections)
             .await
@@ -3123,6 +3152,12 @@ impl<S: PredicateIndexStorage> Engine<S> {
         projections: Vec<ProjectionMutation>,
     ) -> Result<Revisioned<BTreeSet<OpId>>, EngineError<S::Error>> {
         self.ensure_revision_can_advance()?;
+        self.fence_collection_candidates(
+            projections
+                .iter()
+                .map(|projection| EntityKey(projection.record_key().as_str().to_owned().into())),
+        )
+        .await?;
         self.storage
             .put_batch_with_projections(Vec::new(), projections)
             .await
@@ -3157,6 +3192,7 @@ impl<S: PredicateIndexStorage> Engine<S> {
     ) -> Result<Revisioned<BTreeSet<OpId>>, EngineError<S::Error>> {
         self.ensure_revision_can_advance()?;
         let affected = self.deps.ops_for_keys(keys.iter());
+        self.invalidate_collection_coverage().await?;
         self.storage
             .delete_batch_with_projection_changes(keys, projections)
             .await

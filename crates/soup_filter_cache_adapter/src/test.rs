@@ -847,7 +847,9 @@ fn invalid_sort_direction_is_rejected_at_the_soup_boundary() {
     assert_eq!(error.to_string(), "invalid entity-filter sort direction");
 }
 
-fn production_documents_filters(document_filter: serde_json::Value) -> serde_json::Value {
+pub(super) fn production_documents_filters(
+    document_filter: serde_json::Value,
+) -> serde_json::Value {
     const NIL_ID: &str = "00000000-0000-0000-0000-000000000000";
     serde_json::json!({
         "calendarEventFilter": { "literal": { "id": NIL_ID } },
@@ -1032,7 +1034,7 @@ fn production_my_tasks_importance_and_status_filter_compiles_locally() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn differential_document(
+pub(super) fn differential_document(
     id: &str,
     owner: &str,
     is_email_attachment: bool,
