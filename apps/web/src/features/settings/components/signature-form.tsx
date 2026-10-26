@@ -1,4 +1,4 @@
-import DownloadIcon from '@phosphor-icons/core/regular/download-simple.svg?component-solid';
+import DownloadIcon from '@icon/system/regular/download-simple.svg?component-solid';
 import { ToggleSwitch } from '@ui';
 import { Show } from 'solid-js';
 
