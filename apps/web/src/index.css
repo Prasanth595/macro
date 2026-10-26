@@ -695,6 +695,22 @@ body.tauri-ios {
   --sidepanel-label-width: 5.5rem;
 }
 
+/* Shared neutral borders. Focus, status, and glass edges stay independent. */
+:root,
+[data-theme-light] {
+  --border-primary: oklch(1 0 0 / 16%);
+  --border-secondary: oklch(1 0 0 / 12%);
+  --border-tertiary: oklch(1 0 0 / 8%);
+  --divider: oklch(1 0 0 / 4%);
+}
+
+[data-theme-light='true'] {
+  --border-primary: oklch(0 0 0 / 16%);
+  --border-secondary: oklch(0 0 0 / 12%);
+  --border-tertiary: oklch(0 0 0 / 8%);
+  --divider: oklch(0 0 0 / 4%);
+}
+
 /* Shared Button roles. Other app colors keep their current meaning. */
 /* Reset on each theme scope so previews resolve their own palette inputs. */
 :root,
@@ -704,7 +720,6 @@ body.tauri-ios {
   --button-primary-pressed: color-mix(in srgb, var(--button-primary-bg) 72%, var(--color-panel));
   --button-primary-ink: var(--color-page);
   --button-focus: var(--color-edge-focus, var(--color-accent));
-  --button-border: oklch(1 0 0 / 8%);
 
   --button-secondary-bg: oklch(1 0 0 / 8%);
   --button-secondary-hover: oklch(1 0 0 / 12%);
@@ -736,7 +751,6 @@ body.tauri-ios {
 
 [data-theme-light='true'] {
   --button-primary-bg: color-mix(in oklch, black 90%, var(--color-panel));
-  --button-border: oklch(0 0 0 / 12%);
 
   /* White neutral faces retain black shading for hover and pressed states. */
   --button-secondary-bg: white;
@@ -753,11 +767,15 @@ body.tauri-ios {
   --button-success-pressed: oklch(from var(--color-success) l c h / 32%);
 
   --button-shadow: 0 2px 1px -1px oklch(0 0 0 / 5%);
-  --button-raised-shadow: 0 0 0 1px var(--color-edge-frame), inset 0 1px 0 oklch(1 0 0 / 90%), inset 0 0 0 1px oklch(1 0 0 / 60%), 0 1px 2px oklch(0 0 0 / 6%);
+  --button-raised-shadow: 0 0 0 1px var(--border-secondary), inset 0 1px 0 oklch(1 0 0 / 90%), inset 0 0 0 1px oklch(1 0 0 / 60%), 0 1px 2px oklch(0 0 0 / 6%);
   --button-outline-highlight: oklch(1 0 0 / 75%);
   --button-gradient-raised: linear-gradient(180deg, transparent, oklch(0 0 0 / 8%));
 }
 @theme inline {
+  --color-border-primary: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
+  --color-border-tertiary: var(--border-tertiary);
+  --color-divider: var(--divider);
   --color-button-primary-bg: var(--button-primary-bg);
   --color-button-primary-hover: var(--button-primary-hover);
   --color-button-primary-pressed: var(--button-primary-pressed);
@@ -779,7 +797,6 @@ body.tauri-ios {
   --color-button-success-bg: var(--button-success-bg);
   --color-button-success-hover: var(--button-success-hover);
   --color-button-success-pressed: var(--button-success-pressed);
-  --color-button-border: var(--button-border);
   --color-button-focus: var(--button-focus);
   --color-button-outline-highlight: var(--button-outline-highlight);
   --shadow-button: var(--button-shadow);

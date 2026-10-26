@@ -28,8 +28,8 @@ import {
 import { createVariants, type VariantProps } from '../utils/variants';
 const buttonFrames = {
   primary: 'bg-button-primary-bg text-button-primary-ink border-transparent shadow-button',
-  secondary: 'bg-button-secondary-bg text-ink border-transparent shadow-button',
-  outline: 'bg-transparent text-ink border-button-border bg-none shadow-none',
+  secondary: 'bg-button-secondary-bg text-ink border-border-secondary shadow-button',
+  outline: 'bg-transparent text-ink border-border-secondary bg-none shadow-none',
   ghost: 'bg-button-tertiary-bg text-ink-muted border-transparent bg-none shadow-none',
   accent: 'bg-accent text-button-accent-ink border-transparent shadow-button',
   danger: 'bg-button-danger-bg text-failure border-transparent shadow-button',
@@ -112,7 +112,7 @@ export type ButtonClassOptions = {
 
 const raisedBorderButtonStyles = cn(
   raisedButtonStyles,
-  'not-data-disabled:active:border-button-border aria-pressed:border-button-border aria-expanded:border-button-border'
+  'not-data-disabled:active:border-border-secondary aria-pressed:border-border-secondary aria-expanded:border-border-secondary'
 );
 
 const buttonFinishes: Partial<
@@ -126,7 +126,7 @@ const buttonFinishes: Partial<
     raised: raisedButtonStyles,
     'gradient-raised': gradientRaisedButtonStyles,
     'glass-outline': cn(
-      'border-button-border/50',
+      'border-border-secondary/50',
       outlineReflectionStyles
     ),
   },

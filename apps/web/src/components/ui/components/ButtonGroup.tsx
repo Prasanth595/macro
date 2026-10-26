@@ -37,7 +37,7 @@ export type ButtonGroupProps = Omit<ComponentProps<'div'>, 'size'> & {
 export const buttonGroupVariants =
   'inline-flex items-stretch justify-center rounded-full border data-[orientation=horizontal]:flex-row data-[orientation=vertical]:flex-col has-[[data-slot=input-group-control]:focus-visible]:ring-2 has-[[data-slot=input-group-control]:focus-visible]:ring-button-focus';
 export const buttonGroupDividerVariants =
-  'shrink-0 self-stretch bg-edge-divider data-[orientation=horizontal]:w-px data-[orientation=vertical]:h-px';
+  'shrink-0 self-stretch bg-divider data-[orientation=horizontal]:w-px data-[orientation=vertical]:h-px';
 
 export function ButtonGroup(props: ButtonGroupProps) {
   const [local, rest] = splitProps(props, [

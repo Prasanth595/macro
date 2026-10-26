@@ -51,7 +51,7 @@ Group controls explicitly instead of relying on descendant selectors:
 
 ## Theme integration
 
-Use the app's semantic tokens without an additional prefix. Existing `ink`, `ink-muted`, `accent`, `link`, `success`, and `failure` roles remain the palette inputs. New `button-*` roles describe Button-specific fills, edges, and finishes.
+Use the app's semantic tokens without an additional prefix. Existing `ink`, `ink-muted`, `accent`, `link`, `success`, and `failure` roles remain the palette inputs. New `button-*` roles describe Button-specific fills and finishes; neutral borders use shared roles instead of a button-only token.
 
 Button uses the app's existing typography scale: labeled and icon sizes map `xs` → `text-xs`, `sm` → `text-sm`, `md` → `text-sm` (14px), `lg` → `text-base` (15px), and `xl` → `text-xl`. No per-button font token remapping or global type-scale changes are introduced. Labeled buttons combine minimum height with vertical padding: xs/sm/md use `py-0.5`, lg uses `py-1`, and xl uses `py-2`. Their minimum heights are 24/28/32/40/48px, respectively; icon variants use matching square dimensions with zero padding. Content can increase labeled height; do not clamp labeled buttons with a fixed height. Explicit glyph sizing and the app's 36px minimum touch target remain independent.
 
@@ -61,7 +61,9 @@ Button materials live in `src/index.css`: fills, hover/pressed colors, borders, 
 
 `buttonAccentVars` in `features/theme/utils/buttonTheme.ts` only chooses contrasting solid-accent text and its inverse state tint from the resolved accent. The root renderer and subtree previews supply those two variables; all mixing remains in CSS. Live color edits also refresh the existing light/dark scope marker. Derived values do not enter persisted theme data.
 
-Neutral button borders use white at 8% opacity in dark mode and black at 12% in light mode. The Create menu's monochrome submit action uses the shared `primary` variant so its background and text contrast stay paired; do not locally override accent colors while leaving the derived accent text unchanged.
+Shared neutral borders use `border-primary`, `border-secondary`, `border-tertiary`, and `divider`: 16%, 12%, 8%, and 4% opacity respectively, white in dark mode and black in light mode. Use `border-border-secondary` on ordinary secondary/outline Buttons and the shared ButtonGroup frame, and `bg-divider` on group separators. The optional light raised perimeter also uses the secondary role. These CSS tokens reset on every theme scope and stay independent of text colors; existing `edge-*` consumers, focus, status, and glass treatments are unchanged. This replaces the button-only 4% dark-border experiment without broadening the migration to unrelated controls.
+
+The Create menu's monochrome submit action uses the shared `primary` variant so its background and text contrast stay paired; do not locally override accent colors while leaving the derived accent text unchanged.
 
 This keeps the current button materials without a second JavaScript material recipe. Variants, interaction selectors, and optional finish selection remain in the shared Button recipe. Checks and visual review remain paused.
 
