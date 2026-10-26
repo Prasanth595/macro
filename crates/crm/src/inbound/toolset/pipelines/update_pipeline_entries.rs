@@ -25,7 +25,7 @@ pub struct ToolEntryUpdate {
     pub entry_id: Option<Uuid>,
     /// The tracked record's id.
     #[schemars(
-        description = "Instead of entryId: the CRM company or contact id the entry tracks. Refused if the record has several entries in this pipeline; then use entryId."
+        description = "Outcome is Open, Won or Lost independently of Stage. Monetary fields have a separate currency field (e.g. Revenue currency); set its three-letter option code with the amount. New entries default to Open and USD. Instead of entryId: the CRM company or contact id the entry tracks. Refused if the record has several entries in this pipeline; then use entryId."
     )]
     #[serde(default)]
     pub record_id: Option<Uuid>,

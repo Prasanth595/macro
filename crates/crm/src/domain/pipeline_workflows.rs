@@ -40,10 +40,10 @@ use super::{
 
 pub use fields::{FieldInput, FieldKind, FieldValue, NewFieldKind, PipelineField};
 pub use models::{
-    AddedEntries, EntryAddition, EntryQuery, EntryTarget, EntryUpdate, FieldChange, FoundEntries,
-    MAX_SCANNED_ROWS, NewField, NewPipeline, OptionCounts, PipelineEdit, PipelineEntryView,
-    PipelineOverview, RecordEntries, RecordTarget, RemovedEntries, UpdatedEntries, UpdatedEntry,
-    WorkflowError,
+    AddedEntries, EntryAddition, EntryQuery, EntryTarget, EntryUpdate, FieldChange, FieldTotal,
+    FoundEntries, MAX_SCANNED_ROWS, NewField, NewPipeline, OptionCounts, PipelineEdit,
+    PipelineEntryView, PipelineOverview, RecordEntries, RecordTarget, RemovedEntries,
+    UpdatedEntries, UpdatedEntry, WorkflowError,
 };
 pub use records::PipelineRecord;
 

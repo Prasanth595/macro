@@ -106,6 +106,17 @@ pub struct OptionCounts {
     pub empty: usize,
 }
 
+/// A number total, grouped by denomination for monetary fields.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldTotal {
+    /// The field being summarized.
+    pub field: String,
+    /// Currency code for money, absent for ordinary numeric fields.
+    pub currency: Option<String>,
+    /// Sum of matching values in this denomination.
+    pub sum: f64,
+}
+
 /// The entries a query matched.
 #[derive(Debug, Clone)]
 pub struct FoundEntries {
@@ -121,7 +132,7 @@ pub struct FoundEntries {
     /// Matched entries per option of each single-select field.
     pub counts: Vec<OptionCounts>,
     /// Sum of each number field over the matched entries.
-    pub totals: Vec<(String, f64)>,
+    pub totals: Vec<FieldTotal>,
 }
 
 /// A record's entries in one pipeline.

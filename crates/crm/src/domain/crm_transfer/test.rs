@@ -40,6 +40,7 @@ fn overview(record_type: PipelineRecordType) -> PipelineOverview {
     PipelineOverview {
         pipeline: AccessiblePipeline {
             pipeline: Pipeline {
+                commercial_fields: Default::default(),
                 id: Uuid::now_v7(),
                 team_id: Uuid::now_v7(),
                 user_id: "macro|me@example.com".into(),
@@ -475,6 +476,24 @@ async fn new_contacts_at_one_new_domain_share_one_new_company() {
 #[tokio::test]
 async fn an_export_writes_people_as_emails_and_reimports() {
     let mut workflows = Workflows::new(overview(PipelineRecordType::Company));
+    let currency = PipelineField {
+        options: vec![
+            (OptionId::new(), "EUR".into()),
+            (OptionId::new(), "USD".into()),
+        ],
+        ..field("Revenue currency", FieldKind::Select)
+    };
+    workflows
+        .overview
+        .pipeline
+        .pipeline
+        .commercial_fields
+        .money
+        .push(crate::domain::pipeline_commercial::MoneyColumn {
+            amount: workflows.overview.fields[3].id,
+            currency: currency.id,
+        });
+    workflows.overview.fields.push(currency);
     workflows.exported = vec![PipelineEntryView {
         entry_id: RowId::new(),
         record: PipelineRecord {
@@ -488,7 +507,11 @@ async fn an_export_writes_people_as_emails_and_reimports() {
                 "Owner".into(),
                 FieldValue::References(vec!["macro|jane@macro.com".into()]),
             ),
-            ("Revenue".into(), FieldValue::Number(48000.0)),
+            ("Revenue".into(), FieldValue::Number(48000.1234)),
+            (
+                "Revenue currency".into(),
+                FieldValue::Labels(vec!["EUR".into()]),
+            ),
         ],
     }];
     let pipeline = workflows.overview.pipeline.pipeline.id;
@@ -496,13 +519,28 @@ async fn an_export_writes_people_as_emails_and_reimports() {
         CrmTransferServiceImpl::new(Arc::new(workflows), Records::default(), Files::default());
     let export = service.export_pipeline(&viewer(), pipeline).await.unwrap();
     assert_eq!((export.rows, export.complete), (1, true));
-    let saved = service.files.saved.lock().unwrap();
+    let saved = service.files.saved.lock().unwrap().clone();
     assert_eq!(saved[0].0, "Deals");
     assert_eq!(
         saved[0].1,
-        "Company,Domain,Stage,Owner,Revenue,Proposal\n'=Acme,acme.com,Lead,jane@macro.com,48000,\n"
+        "Company,Domain,Stage,Owner,Revenue,Proposal,Revenue currency\n'=Acme,acme.com,Lead,jane@macro.com,48000.1234,,EUR\n"
     );
     let table = parse_csv(&saved[0].1).unwrap();
     let rows = record_rows(&table, PipelineRecordType::Company).unwrap();
     assert_eq!(rows.rows[0].name, "=Acme");
+    service
+        .import_to_pipeline(&viewer(), pipeline, CsvInput::Text(saved[0].1.clone()))
+        .await
+        .unwrap();
+    let added = service.workflows.added.lock().unwrap();
+    assert!(
+        added[0]
+            .set
+            .contains(&("Revenue".into(), FieldInput::One("48000.1234".into())))
+    );
+    assert!(
+        added[0]
+            .set
+            .contains(&("Revenue currency".into(), FieldInput::One("EUR".into())))
+    );
 }

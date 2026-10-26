@@ -14,7 +14,7 @@ to stage transitions through the same pipeline operation boundary. No additional
 closing requirements are introduced here.
 
 Existing rows start Open, except exact case-insensitive `Closed won` and
-`Closed lost` stage labels seed Won and Lost once. Stage names, option IDs and
+`Closed lost` labels in the Stage field seed Won and Lost once. Stage names, option IDs and
 values remain intact. `closed_stage_ids` cannot distinguish a win from a loss
 and does not define Outcome. Existing user fields with reserved names are kept
 under an unambiguous legacy name.
@@ -25,13 +25,16 @@ Each existing numeric Amount or Revenue field gets a paired currency select,
 initially named `<amount name> currency`. A new pipeline starts with Revenue
 and Revenue currency. Stable column IDs associate the two; renaming an amount
 does not change its currency association. Other numeric fields remain numbers.
+The pair cannot be deleted or converted to another type; unused fields can be
+hidden in a view. Amount fields can be renamed.
 Each row chooses its own currency for each amount. Currency options are fixed
 supported three-letter codes; USD is the documented default for existing values
 and new rows. This is a denomination assumption, never an exchange conversion.
 
 Display uses the currency code with locale number formatting. CSV stores the
 numeric amount and its currency in separate columns, and agents read/write the
-same fields. Imports without currency use USD; invalid currencies must fail
+same fields. `ListPipelines` names each amount's `currencyField`, including after
+the amount is renamed. Imports without currency use USD; invalid currencies must fail
 the row rather than silently losing the supplied denomination. Totals group by
 currency and never convert or combine different denominations.
 

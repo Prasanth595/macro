@@ -298,10 +298,13 @@ pub struct ToolField {
     /// Whether the user cannot write it.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub read_only: bool,
+    /// For monetary amounts, the field that stores this entry's currency code.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency_field: Option<String>,
 }
 
-impl From<&PipelineField> for ToolField {
-    fn from(field: &PipelineField) -> Self {
+impl ToolField {
+    fn for_pipeline(field: &PipelineField, overview: &PipelineOverview) -> Self {
         Self {
             name: field.name.clone(),
             field_type: field.kind.into(),
@@ -311,8 +314,27 @@ impl From<&PipelineField> for ToolField {
                 .iter()
                 .map(|(_, label)| label.clone())
                 .collect(),
-            required: field.required,
+            required: field.required
+                || overview
+                    .pipeline
+                    .pipeline
+                    .commercial_fields
+                    .is_system_select(field.id),
             read_only: !field.writable,
+            currency_field: overview
+                .pipeline
+                .pipeline
+                .commercial_fields
+                .money
+                .iter()
+                .find(|pair| pair.amount == field.id)
+                .and_then(|pair| {
+                    overview
+                        .fields
+                        .iter()
+                        .find(|other| other.id == pair.currency)
+                })
+                .map(|currency| currency.name.clone()),
         }
     }
 }
@@ -363,7 +385,11 @@ impl From<&PipelineOverview> for ToolPipeline {
                 AccessLevel::Owner => ToolPipelineAccess::Owner,
             },
             shared_with_team: pipeline.sharing == PipelineSharing::Team,
-            fields: overview.fields.iter().map(ToolField::from).collect(),
+            fields: overview
+                .fields
+                .iter()
+                .map(|field| ToolField::for_pipeline(field, overview))
+                .collect(),
             version: overview.version.0,
         }
     }
