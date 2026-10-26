@@ -33,6 +33,10 @@ const tabIconSizes: Record<TabsSize, { square: string; labeled: string }> = {
   xl: { square: 'size-6', labeled: 'size-5' },
 };
 
+function tabContentClasses(size: TabsSize) {
+  return cn(labeledControlContents[size], size === 'md' && 'px-3');
+}
+
 /**
  * Desktop always renders separate pills. Touch keeps the treatment each
  * surface already had: a sliding pill, a bordered inset track, divided
@@ -210,7 +214,7 @@ function PillOption<T extends string>(props: {
       <KSegmentedControl.ItemLabel
         class={cn(
           'flex min-w-0 flex-1 self-stretch items-center justify-center gap-2 font-medium whitespace-nowrap select-none',
-          !square() && labeledControlContents[props.size]
+          !square() && tabContentClasses(props.size)
         )}
       >
         <OptionContent
@@ -303,7 +307,7 @@ function TouchPill<T extends string>(props: TabsProps<T>) {
             <KSegmentedControl.ItemLabel
               class={cn(
                 'flex min-w-0 flex-1 self-stretch items-center gap-1.5 rounded-full font-medium whitespace-nowrap select-none text-ink-extra-muted hover:text-ink data-checked:text-ink transition-colors duration-120 motion-reduce:transition-none',
-                !(props.iconOnly && option.icon !== undefined) && labeledControlContents[size()],
+                !(props.iconOnly && option.icon !== undefined) && tabContentClasses(size()),
                 (props.fullWidth || (props.iconOnly && option.icon !== undefined)) && 'justify-center'
               )}
             >
@@ -349,7 +353,7 @@ function TouchInset<T extends string>(props: TabsProps<T>) {
                 <KSegmentedControl.ItemLabel
                   class={cn(
                     'flex min-w-0 flex-1 self-stretch items-center gap-1.5 rounded-full font-medium whitespace-nowrap text-ink-extra-muted ring-inset hover:text-ink data-checked:bg-surface data-checked:text-ink data-checked:ring data-checked:ring-edge-muted data-checked:shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
-                    !(props.iconOnly && option.icon !== undefined) && labeledControlContents[size()],
+                    !(props.iconOnly && option.icon !== undefined) && tabContentClasses(size()),
                     (props.fullWidth || (props.iconOnly && option.icon !== undefined)) && 'justify-center'
                   )}
                   // Keep a focused input focused while switching.
@@ -401,7 +405,7 @@ function TouchSegmented<T extends string>(props: TabsProps<T>) {
             <KSegmentedControl.ItemLabel
               class={cn(
                 'flex min-w-0 flex-1 self-stretch items-center justify-center gap-1.5',
-                !(props.iconOnly && option.icon !== undefined) && labeledControlContents[size()]
+                !(props.iconOnly && option.icon !== undefined) && tabContentClasses(size())
               )}
             >
               <OptionContent
