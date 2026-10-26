@@ -59,7 +59,8 @@ navigate.
 On iOS, Macro requests provisional authorization at launch, so
 **Settings → Apps → Macro → Notifications** exists before any prompt, and a
 signed-in device registers for pushes that arrive quietly in Notification
-Center. The in-app **Mobile notifications** switch and enable prompt stay off
+Center. A quiet push counts as delivered, so those users get no email digest
+for it. The in-app **Mobile notifications** switch and enable prompt stay off
 until full alerts are allowed; turning either on shows the system prompt.
 Verify on a fresh install: the Settings row appears without a prompt, the in-app
 prompt still appears, and upgrading from Settings or from a quiet notification's
