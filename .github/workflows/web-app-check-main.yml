@@ -396,6 +396,9 @@ jobs:
     - name: Sign-up Browser Tests
       run: just test-signup-browser
       working-directory: apps/web
+    - name: Channel Open Browser Budget
+      run: just test-channel-browser
+      working-directory: apps/web
     - name: Teardown Nix
       if: always()
       uses: './.github/actions/teardown-nix'
