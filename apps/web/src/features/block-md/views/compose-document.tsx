@@ -230,7 +230,7 @@ export function ComposeDocument(props: ComposeDocumentProps) {
           ref={(button) => {
             submitButton = button;
           }}
-          variant="strong"
+          variant="accent"
           onClick={() => fireAndForget(submit(), 'compose-document')}
           disabled={!title().trim() || isCreating()}
           hasContent={!!title().trim()}
