@@ -347,8 +347,10 @@ Preserve the normal Task-detail route composition and split behavior.
 
 A missing, deleted, unshared, or inaccessible view shows an unavailable state
 with a return-to-Tasks action. Do not fall back to All Tasks under the saved
-view's name. A list failure retains already loaded rows with a retry action;
-a configuration failure never executes a partially decoded query.
+view's name. A list failure retains already loaded rows with a retry action.
+Unsupported or malformed filter conditions are skipped with the danger banner;
+if none apply, show unfiltered tasks. Duplication warns before saving a copy that
+omits these conditions and leaves the original unchanged.
 
 ## Delivery and review boundaries
 
