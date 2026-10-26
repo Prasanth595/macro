@@ -21,8 +21,8 @@ import {
   registerRootEventListener,
 } from '@core/component/LexicalMarkdown/plugins';
 import {
+  $extractTitleFromNode,
   $getSelectedCheckboxes,
-  $parseCheckboxNodes,
   CONVERT_CHECKBOXES_TO_TASKS,
   isCheckboxToTaskPluginEnabled,
 } from '@core/component/LexicalMarkdown/plugins/checkbox-to-task';
@@ -227,9 +227,9 @@ export function MarkdownPopup(props: {
         // Empty items create no task, so they don't count toward "N tasks".
         setSelectedCheckboxCount(
           $isRangeSelection(lexicalSelection)
-            ? $parseCheckboxNodes(
-                $getSelectedCheckboxes(lexicalSelection)
-              ).filter((checkbox) => checkbox.title.trim()).length
+            ? $getSelectedCheckboxes(lexicalSelection).filter(
+                $extractTitleFromNode
+              ).length
             : 0
         );
       });
