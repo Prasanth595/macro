@@ -1530,7 +1530,7 @@ describe('Agents', () => {
     render(() => <Agents {...agentsPageProps} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
     const dialog = screen.getByRole('region', { name: /^(New|Edit) agent$/ });
-    expect(within(dialog).getByText('Claude Sonnet 4.5')).toBeTruthy();
+    expect(within(dialog).getByText('Sonnet 5.5')).toBeTruthy();
 
     fireEvent.click(within(dialog).getByRole('radio', { name: 'In Cursor' }));
     expect(
@@ -1740,9 +1740,13 @@ describe('Agents', () => {
       'textContent',
       'retired-model (saved, unavailable)'
     );
+    fireEvent.keyDown(defaultModel, { key: 'Enter' });
+    fireEvent.input(screen.getByRole('textbox', { name: 'Search models' }), {
+      target: { value: 'retired' },
+    });
     expect(
-      modelOptions(defaultModel).getByRole('menuitem', {
-        name: 'retired-model (saved, unavailable)',
+      screen.getByRole('menuitem', {
+        name: /^retired-model \(saved, unavailable\)/,
       })
     ).toBeTruthy();
   });
