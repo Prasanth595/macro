@@ -419,7 +419,7 @@ export function EntityPropertiesSection(props: EntityPropertiesSectionProps) {
                 filteredProperties().length > 0 && 'mt-2'
               )}
             >
-              <AddPropertyButton class="m-px gap-1.5" />
+              <AddPropertyButton size="xs" class="m-px gap-1.5" />
             </div>
           </Show>
           <Modals />

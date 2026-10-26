@@ -83,7 +83,7 @@ This keeps the current button materials without a second JavaScript material rec
 - Folder creation keeps expand and close as ghost utility actions; the final Create Folder action retains its accent treatment.
 - Search clear/close buttons use ghost `icon-xs` controls with 14px desktop icons; the Button touch minimum remains unchanged.
 - View-sidebar Show/Hide controls use ghost styling with no persistent active fill while the sidebar is open.
-- Size the icon-only Add tag trigger with `buttonClasses({ variant: 'outline', size: 'icon-sm' })`; do not combine a labeled badge size with a narrower width override.
+- Keep side-panel Add tags, Add property, and duplicate Dismiss / Dismiss all actions at `xs` (24px minimum height, `text-xs`); use `icon-xs` for the icon-only Add tags trigger. Let the shared size recipe own height, padding, and typography instead of fixed-height overrides. Preserve the shared touch minimum and other property/tag consumers' sizes.
 - Task composer and inline document/task properties use secondary `xs` pills, including tags and Add property. Keep size configurable in shared property/tag helpers; other property consumers retain their existing variants and sizes.
 - Property value and tag pills group the leading icon/value with a 4px gap; carets retain their separate trailing spacing. Add property uses the same compact gap. Existing pill padding is preserved. The task composer attachment row stays inside the clipped main area without a negative left margin; button sizes and hit areas are unchanged.
 - Kanban Load more actions use outline styling, both within a task column and below the board.

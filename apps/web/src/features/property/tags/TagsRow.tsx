@@ -157,7 +157,7 @@ export function TagsRow(props: {
               docTags={docTags}
               triggerClass={badgeTriggerClasses({
                 variant: 'outline',
-                size: 'sm',
+                size: 'xs',
                 class: 'm-px gap-1.5',
               })}
               triggerLabel="Add tags"
@@ -171,7 +171,7 @@ export function TagsRow(props: {
               docTags={docTags}
               triggerClass={buttonClasses({
                 variant: 'outline',
-                size: 'icon-sm',
+                size: 'icon-xs',
                 class: 'm-px',
               })}
               triggerLabel="Add tags"
