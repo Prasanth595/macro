@@ -2,7 +2,7 @@
  * Existing tab ids match the legacy mail view (`important` is Signal).
  * Favorites extends that list; entity action capabilities use `${view}-${tab}`.
  * Focus comes last so the Signal/Noise pair keeps its position and hotkeys;
- * the sidebar draws it above them.
+ * the Inbox tabs and the touch layouts draw it before them.
  */
 export const EMAIL_TAB_IDS = [
   'important',
@@ -21,7 +21,7 @@ export const EMAIL_TAB_IDS = [
 
 export type EmailTab = (typeof EMAIL_TAB_IDS)[number];
 
-const EMAIL_TAB_LABELS = {
+export const EMAIL_TAB_LABELS = {
   important: 'Signal',
   noise: 'Noise',
   favorites: 'Favorites',
@@ -50,7 +50,17 @@ export const EMAIL_TABS: readonly EmailTabItem[] = EMAIL_TAB_IDS.map((id) => ({
 
 export const DEFAULT_EMAIL_TAB: EmailTab = 'important';
 
-/** Drawn first in the sidebar, above the Signal/Noise pair. */
+/** The views behind the desktop sidebar's Inbox item, as the header's tabs. */
+export const EMAIL_INBOX_TAB_IDS = [
+  'focus',
+  'important',
+  'noise',
+] as const satisfies readonly EmailTab[];
+
+export const isEmailInboxTab = (tab: EmailTab) =>
+  (EMAIL_INBOX_TAB_IDS as readonly EmailTab[]).includes(tab);
+
+/** Leads the mobile pills and the touch sidebar, above the Signal/Noise pair. */
 export const EMAIL_FOCUS_TAB: EmailTabItem = {
   id: 'focus',
   label: EMAIL_TAB_LABELS.focus,

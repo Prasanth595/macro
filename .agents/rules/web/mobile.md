@@ -51,8 +51,33 @@ read their code, and follow that pattern rather than inventing a new one.
 - Phone drawers have a handle and no X; drag, backdrop, or Escape dismiss,
   and focus returns to the opener. No submenus at phone width: drill in
   place with a back row.
+- A backdrop tap only dismisses: `MobileDrawer` swallows the rest of that tap,
+  so it never presses what the scrim covered, even when the sheet unmounts as
+  it closes (a `<Show>` around it, or `openDialog`). Don't add per-sheet
+  delays or click guards for it.
+- A sheet opened from another sheet stacks on it under its own scrim, which
+  shares the sheets' layer (as Dialog's does), so the sheet beneath dims with
+  the page and only the top sheet's handle stands out. Open it under the
+  sheet's owner (in its component tree, or `openDialog` with `owner`, as
+  `useAddInboxFlow` does): a dialog mounted elsewhere starts its own dismiss
+  stack, so its Cancel, Escape or Back also closes the sheet beneath.
 - Overlays are Kobalte or corvu layers or handle Escape: Android Back sends
   Escape to the top layer. Own back stacks use `useAndroidBackNavigation`.
+- Persistent prompts (`toast.custom` with `persistent`) go to the prompt
+  region (`useKeyedPersistentToasts` does it), which hides while a popover,
+  dialog, or drawer is open, or while a presented pane carries
+  `data-holds-prompts`. Mark a full-frame touch view with it when its last
+  controls sit right above the dock, as the email composer, email thread and
+  search results do; on desktop, where the prompt sits in the bottom-right
+  corner, mark a composer docked at the bottom of its pane (channel and agent
+  composers, a call's control bar, desktop only) or the view around it (email
+  thread and composer). A composer's typeahead and picker menus (`@`, `:`,
+  `/`, skills, snippets, tags, GIFs) open above it and hold prompts while
+  open, on every device; give a new one the same attribute on its root, and
+  pass `floatWithSelection` its `fullHeight` (content cap plus panel padding)
+  so it picks the side with room for its whole list instead of shrinking
+  below the caret when its first render is short.
+  A prompt in the transient region would cover a sheet's controls.
 
 ## Keyboard and focus
 

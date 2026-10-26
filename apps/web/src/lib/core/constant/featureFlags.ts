@@ -177,14 +177,6 @@ export const enableGantt = defineFlag({
   env: 'ENABLE_GANTT',
 });
 
-// Claude Cloud: the built-in @claude mention and agent assignee, its Runtimes
-// connection card, and harness/model discovery. Off until PostHog enables it,
-// including in dev; override locally with VITE_CLAUDE_CLOUD.
-export const claudeCloud = defineFlag({
-  key: 'claude-cloud',
-  env: 'CLAUDE_CLOUD',
-});
-
 export const ENABLE_PDF_MODIFICATION_DATA_AUTOSAVE = defineFlag({
   env: 'ENABLE_PDF_MODIFICATION_DATA_AUTOSAVE',
   default: true,
@@ -626,6 +618,15 @@ export const enableCalendarUi = defineFlag({
   default: onInDev,
 });
 
+// Calendar meeting notes and document-side meeting-link management. On in dev;
+// production uses PostHog's internal-user rollout. This is a UI rollout, not
+// an authorization check: saved meeting grants remain enforced by the service.
+export const enableCalendarMeetingNotes = defineFlag({
+  key: 'enable-calendar-meeting-notes',
+  env: 'ENABLE_CALENDAR_MEETING_NOTES',
+  default: onInDev,
+});
+
 // Calendar event search UI: the Search view's Calendar type (and calendar
 // rows) plus the in-calendar keyword search. A sub-feature of the calendar UI
 // — opening a hit needs the calendar block — so it only takes effect where
@@ -701,6 +702,18 @@ export const enableCalendarTeamSharing = defineFlag({
 export const enableCalendarGuestInvites = defineFlag({
   key: 'enable-calendar-guest-invites',
   env: 'ENABLE_CALENDAR_GUEST_INVITES',
+  default: onInDev,
+});
+
+// Adding a channel-shared event to your own calendar: the "Add to calendar"
+// action on a shared event's mention card. On in dev only until a real Google
+// import has passed on dev; there is no PostHog flag yet, so it stays off in
+// production. "Download .ics" beside it is not gated. Override with
+// VITE_ENABLE_CALENDAR_ADD_SHARED_EVENT. The agent's AddSharedCalendarEvent
+// tool reads the server switch ENABLE_CALENDAR_ADD_SHARED_EVENT instead.
+export const enableCalendarAddSharedEvent = defineFlag({
+  key: 'enable-calendar-add-shared-event',
+  env: 'ENABLE_CALENDAR_ADD_SHARED_EVENT',
   default: onInDev,
 });
 

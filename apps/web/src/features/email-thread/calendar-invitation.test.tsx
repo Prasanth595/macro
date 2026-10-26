@@ -58,6 +58,7 @@ vi.mock('./calendar-invitation-day', () => ({
 }));
 vi.mock('@ui', async () => ({
   ...(await vi.importActual('@app/components/ui/components/Avatar')),
+  ...(await vi.importActual('@app/components/ui/components/Tabs')),
   Button: (props: JSX.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button {...props} />
   ),
@@ -99,6 +100,7 @@ const wire: InvitationResolution = {
     status: 'confirmed',
     isReadOnly: false,
     guestPolicy: DEFAULT_GUEST_POLICY,
+    isSnapshot: false,
     viewerCan: NO_VIEWER_CAPABILITIES,
     time,
     transparency: 'opaque',
@@ -128,14 +130,14 @@ describe('email invitation production host', () => {
       />
     ));
     expect(
-      screen.getByRole('button', { name: 'Yes' }).getAttribute('aria-pressed')
-    ).toBe('true');
+      (screen.getByRole('radio', { name: 'Yes' }) as HTMLInputElement).checked
+    ).toBe(true);
     setFailed(true);
     expect(
       screen.getByRole('heading', { name: 'Current product review' })
     ).toBeTruthy();
     expect(screen.getByText('Last response: Yes')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Yes' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Yes' })).toBeNull();
     expect(
       screen.getByText(/Calendar unavailable. Showing last-known/)
     ).toBeTruthy();
@@ -143,8 +145,8 @@ describe('email invitation production host', () => {
     expect(queryState.refetch).toHaveBeenCalled();
     setFailed(false);
     expect(
-      screen.getByRole('button', { name: 'Yes' }).getAttribute('aria-pressed')
-    ).toBe('true');
+      (screen.getByRole('radio', { name: 'Yes' }) as HTMLInputElement).checked
+    ).toBe(true);
   });
   it.each(['counter', 'request'] as const)(
     'opens the displayed proposal or newer snapshot day for %s',
@@ -194,4 +196,45 @@ it('shows the saved invitation without calendar state when the calendar UI is of
   expect(screen.queryByText(/Calendar unavailable/)).toBeNull();
   expect(screen.getByText(/Saved invitation/)).toBeTruthy();
   expect(screen.queryByRole('group', { name: 'Your response' })).toBeNull();
+});
+
+it('leaves before opening the calendar so a dialog around the card can close first', () => {
+  queryState.failed = () => false;
+  queryState.data = { [`message:${invitationFixture.id}`]: wire };
+  const order: string[] = [];
+  render(() => (
+    <EmailCalendarInvitation
+      threadId="thread"
+      messageId="message"
+      invitation={invitationFixture}
+      hour12
+      openCalendar={(target) => order.push(`open ${target.eventId}`)}
+      onNavigate={() => order.push('leave')}
+    />
+  ));
+  // The mocked Button forwards `label` as an attribute, not an accessible name.
+  const open = document.querySelector('button[label="Open in calendar"]');
+  if (!open) throw new Error('Open in calendar is missing');
+  fireEvent.click(open);
+  expect(order).toEqual(['leave', 'open event']);
+});
+
+it('asks for a new split when Open in calendar is shift-clicked', () => {
+  queryState.failed = () => false;
+  queryState.data = { [`message:${invitationFixture.id}`]: wire };
+  const opened: (boolean | undefined)[] = [];
+  render(() => (
+    <EmailCalendarInvitation
+      threadId="thread"
+      messageId="message"
+      invitation={invitationFixture}
+      hour12
+      openCalendar={(target) => opened.push(target.openInNewSplit)}
+    />
+  ));
+  const open = document.querySelector('button[label="Open in calendar"]');
+  if (!open) throw new Error('Open in calendar is missing');
+  fireEvent.click(open);
+  fireEvent.click(open, { shiftKey: true });
+  expect(opened).toEqual([false, true]);
 });

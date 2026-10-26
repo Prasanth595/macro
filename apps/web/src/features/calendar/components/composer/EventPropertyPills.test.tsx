@@ -265,6 +265,30 @@ describe('EventComposerGuestsPill for a guest who may only add guests', () => {
       screen.getByText('Only the organizer can invite guests.')
     ).toBeTruthy();
   });
+
+  it('names a hidden guest list instead of claiming there are no guests', async () => {
+    const user = userEvent.setup();
+    render(() => (
+      <EventComposerGuestsPill
+        options={() => []}
+        selected={[]}
+        onChange={vi.fn()}
+        readOnly
+        readOnlyReason="Guests cannot be added while the organizer hides the guest list."
+        guestListHidden
+      />
+    ));
+
+    const pill = screen.getByRole('button', { name: 'Guest list hidden' });
+    expect(pill.textContent).toContain('Guest list hidden');
+    await user.click(pill);
+    expect(
+      screen.getByText(
+        'Guests cannot be added while the organizer hides the guest list.'
+      )
+    ).toBeTruthy();
+    expect(screen.queryByText('No guests')).toBeNull();
+  });
 });
 
 describe('EventComposerConferencePill', () => {
@@ -322,6 +346,24 @@ describe('EventComposerConferencePill', () => {
     await user.click(trigger);
     await user.click(screen.getByRole('option', { name: 'Macro call' }));
     expect(trigger.textContent).toContain('Macro call');
+  });
+
+  it('keeps its selection to itself while the form around it changes', async () => {
+    const onChange = vi.fn();
+    const [edits, setEdits] = createSignal(0);
+    render(() => (
+      <EventComposerConferencePill
+        value="macro"
+        // The real provider arrives through the selected calendar, which the
+        // composer rereads on every edit even when the answer is the same.
+        provider={edits() >= 0 ? 'google_meet' : null}
+        macroCallsEnabled
+        canKeepExisting={false}
+        onChange={onChange}
+      />
+    ));
+    setEdits(1);
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it('does not offer a new Macro call when calls are unavailable', async () => {
