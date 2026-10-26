@@ -68,9 +68,9 @@ const soupPropertyToPropertyMock = vi.hoisted(() => vi.fn());
 const rollbackMock = vi.hoisted(() => vi.fn());
 const optimisticUpdateSoupEntityMock = vi.hoisted(() => vi.fn());
 const invalidateSoupEntityMock = vi.hoisted(() => vi.fn());
-const refreshTaskDeadlineQueriesMock = vi.hoisted(() => vi.fn(async () => {}));
-vi.mock('../soup/task-deadlines', () => ({
-  refreshTaskDeadlineQueries: refreshTaskDeadlineQueriesMock,
+const refreshDatePropertyQueriesMock = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock('../soup/property-dates', () => ({
+  refreshDatePropertyQueries: refreshDatePropertyQueriesMock,
 }));
 const graphqlSoupEnabledMock = vi.hoisted(() => vi.fn(() => true));
 const toastFailureMock = vi.hoisted(() => vi.fn());
@@ -824,6 +824,7 @@ describe('useBulkSaveEntityPropertiesMutation dispositions', () => {
       { input: buildGraphqlEntitySoupInput('INITIATIVE', 'initiative-1')! },
       { requestPolicy: 'network-only' }
     );
+    expect(refreshDatePropertyQueriesMock).toHaveBeenCalledOnce();
   });
 
   it('invalidates REST projections after delete and option writes', async () => {
@@ -842,7 +843,7 @@ describe('useBulkSaveEntityPropertiesMutation dispositions', () => {
 
     expect(testQueryClient.invalidateQueries).toHaveBeenCalledTimes(2);
     expect(invalidateSoupEntityMock).toHaveBeenCalledWith('task-1');
-    expect(refreshTaskDeadlineQueriesMock).toHaveBeenCalledOnce();
+    expect(refreshDatePropertyQueriesMock).toHaveBeenCalledOnce();
   });
 
   it('invalidates REST after a failed attachment write', async () => {

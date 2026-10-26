@@ -29,6 +29,7 @@ import { type Accessor, createMemo } from 'solid-js';
 import { sortTasks } from '../constants';
 import {
   type DateBucketBoundaries,
+  TASK_DUE_DATE_BUCKETS,
   taskDueDatePredicate,
 } from '../core/task-due-date';
 import type { TaskFacetContext } from '../filters/task-facets';
@@ -380,7 +381,11 @@ export function useTasksDataSource(
         );
         const taskGroup: SoupGroup<TaskEntityWithProperties> = {
           id: group.key,
-          label: group.label,
+          label:
+            state.groupBy === 'due_date'
+              ? (TASK_DUE_DATE_BUCKETS.find((bucket) => bucket.id === group.key)
+                  ?.label ?? group.label)
+              : group.label,
           entities,
           count: group.totalCount,
         };

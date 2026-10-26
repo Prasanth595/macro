@@ -453,14 +453,17 @@ describe('createGraphqlGroupedSoupQueries', () => {
   });
 });
 
-it('discards a loaded cursor when frozen deadline boundaries change with the same bin keys', async () => {
+it('discards loaded cursors when date ranges change with the same bucket keys', async () => {
   const [field, setField] = createSignal<GroupByField>({
-    type: 'deadline',
-    boundaries: {
-      today: '2026-10-21T00:00:00Z',
-      tomorrow: '2026-10-22T00:00:00Z',
-      day_two: '2026-10-23T00:00:00Z',
-      day_eight: '2026-10-29T00:00:00Z',
+    type: 'property',
+    propertyDefinitionId: 'review-date-property',
+    bucketing: {
+      type: 'date_ranges',
+      ranges: [
+        { key: 'a', start: null, end: '2026-10-22T00:00:00Z' },
+        { key: 'b', start: '2026-10-22T00:00:00Z', end: null },
+      ],
+      missingValueBucketKey: 'no_review_date',
     },
   });
   const { fake, grouped } = setup({ groupByField: field });
@@ -475,24 +478,30 @@ it('discards a loaded cursor when frozen deadline boundaries change with the sam
   await load;
   expect(entityIds(a)).toEqual(['a-1', 'a-2']);
   setField({
-    type: 'deadline',
-    boundaries: {
-      today: '2026-10-22T00:00:00Z',
-      tomorrow: '2026-10-23T00:00:00Z',
-      day_two: '2026-10-24T00:00:00Z',
-      day_eight: '2026-10-30T00:00:00Z',
+    type: 'property',
+    propertyDefinitionId: 'review-date-property',
+    bucketing: {
+      type: 'date_ranges',
+      ranges: [
+        { key: 'a', start: null, end: '2026-10-23T00:00:00Z' },
+        { key: 'b', start: '2026-10-23T00:00:00Z', end: null },
+      ],
+      missingValueBucketKey: 'no_review_date',
     },
   });
   expect(fake.executions[1].unsubscribed).toBe(true);
   expect(fake.executions[2].variables.input).toMatchObject({
     initial: {
       groupBy: {
-        field: 'DEADLINE',
-        deadlineBoundaries: {
-          today: '2026-10-22T00:00:00Z',
-          tomorrow: '2026-10-23T00:00:00Z',
-          dayTwo: '2026-10-24T00:00:00Z',
-          dayEight: '2026-10-30T00:00:00Z',
+        field: 'PROPERTY',
+        propertyDefinitionId: 'review-date-property',
+        bucketing: {
+          type: 'DATE_RANGES',
+          ranges: [
+            { key: 'a', start: null, end: '2026-10-23T00:00:00Z' },
+            { key: 'b', start: '2026-10-23T00:00:00Z', end: null },
+          ],
+          missingValueBucketKey: 'no_review_date',
         },
       },
     },

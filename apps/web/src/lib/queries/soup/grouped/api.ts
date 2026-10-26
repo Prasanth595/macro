@@ -72,8 +72,6 @@ export function serializeGroupByField(
   switch (field.type) {
     case 'date':
       return 'date';
-    case 'deadline':
-      return { deadline: field.boundaries };
     case 'entity_type':
       return 'entity_type';
     case 'project':
@@ -83,6 +81,13 @@ export function serializeGroupByField(
         property: {
           property_definition_id: field.propertyDefinitionId,
           ...(field.entityType && { entity_type: field.entityType }),
+          ...(field.bucketing && {
+            bucketing: {
+              type: field.bucketing.type,
+              ranges: field.bucketing.ranges,
+              missing_value_bucket_key: field.bucketing.missingValueBucketKey,
+            },
+          }),
         },
       };
   }
@@ -141,6 +146,16 @@ export function resolveGroupMetaForKey(
       return;
     })
     .with({ type: 'property' }, (propertyGroupBy) => {
+      if (propertyGroupBy.bucketing) {
+        const { ranges, missingValueBucketKey } = propertyGroupBy.bucketing;
+        const order = ranges.findIndex((range) => range.key === key);
+        if (order === -1 && key !== missingValueBucketKey) return;
+        return {
+          key,
+          label: key,
+          displayOrder: order === -1 ? ranges.length : order,
+        };
+      }
       if (key === NOT_SET_GROUP_KEY) {
         return { key, label: 'Not Set', displayOrder: Number.MAX_SAFE_INTEGER };
       }
@@ -161,22 +176,6 @@ export function resolveGroupMetaForKey(
       return;
     })
     .with({ type: 'date' }, () => undefined)
-    .with({ type: 'deadline' }, () => {
-      const order = [
-        'overdue',
-        'today',
-        'tomorrow',
-        'next_7_days',
-        'later',
-        'no_due_date',
-      ];
-      const label = key.replaceAll('_', ' ');
-      return {
-        key,
-        label: label.charAt(0).toUpperCase() + label.slice(1),
-        displayOrder: order.indexOf(key),
-      };
-    })
     .exhaustive(() => undefined);
 }
 
@@ -235,6 +234,14 @@ export function makeGroupComparator(
   groupBy: GroupByField | undefined
 ): (a: GroupMeta, b: GroupMeta) => number {
   if (groupBy?.type === 'property') {
+    if (groupBy.bucketing) {
+      const { ranges, missingValueBucketKey } = groupBy.bucketing;
+      const order = [
+        ...ranges.map((range) => range.key),
+        missingValueBucketKey,
+      ];
+      return (a, b) => keyRank(order, a.key) - keyRank(order, b.key);
+    }
     if (groupBy.propertyDefinitionId === SYSTEM_PROPERTY_IDS.STATUS) {
       return (a, b) => {
         const diff =
@@ -286,6 +293,8 @@ export function computeGroupKeysForItem(
       return [projectId ?? NOT_SET_GROUP_KEY];
     })
     .with({ type: 'property' }, (propertyGroupBy) => {
+      // Date buckets use authoritative server membership, including unloaded rows.
+      if (propertyGroupBy.bucketing) return;
       if (!hasProperties(item)) return;
 
       const properties = item.data.properties;
@@ -315,6 +324,5 @@ export function computeGroupKeysForItem(
       return;
     })
     .with({ type: 'date' }, () => undefined)
-    .with({ type: 'deadline' }, () => undefined)
     .exhaustive(() => undefined);
 }

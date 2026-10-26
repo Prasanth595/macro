@@ -91,7 +91,7 @@ const nonTaskTargets = {
   cthf: literal('ThreadId', NIL_UUID),
   ef: literal('ThreadId', NIL_UUID),
   fef: literal('id', NIL_UUID),
-  pf: literal('pid', NIL_UUID),
+  pf: literal('pids', NIL_UUID),
 };
 
 export const taskGroupByField = (
@@ -106,7 +106,33 @@ export const taskGroupByField = (
     case 'due_date':
       if (!calendar)
         throw new Error('Due-date grouping requires date-bucket boundaries');
-      return { type: 'deadline', boundaries: calendar.boundaries };
+      return {
+        type: 'property',
+        propertyDefinitionId: SYSTEM_PROPERTY_IDS.DUE_DATE,
+        bucketing: {
+          type: 'date_ranges',
+          ranges: [
+            { key: 'overdue', start: null, end: calendar.boundaries.today },
+            {
+              key: 'today',
+              start: calendar.boundaries.today,
+              end: calendar.boundaries.tomorrow,
+            },
+            {
+              key: 'tomorrow',
+              start: calendar.boundaries.tomorrow,
+              end: calendar.boundaries.day_two,
+            },
+            {
+              key: 'next_7_days',
+              start: calendar.boundaries.day_two,
+              end: calendar.boundaries.day_eight,
+            },
+            { key: 'later', start: calendar.boundaries.day_eight, end: null },
+          ],
+          missingValueBucketKey: 'no_due_date',
+        },
+      };
     case 'project':
       return { type: 'project' };
     case 'status':
@@ -157,17 +183,13 @@ export function buildTaskQuery(
 ): SoupAstItemsQueryArgs {
   const primarySort = options.sort[0];
   const requestedSort = primarySort?.id ?? 'updated_at';
-  const serverSort =
+  const featureSort =
     (options.searching || options.nameContains) &&
     requestedSort.startsWith('due_date_')
       ? 'updated_at'
       : requestedSort;
-
-  let sortDirection: 'asc' | 'desc' = 'desc';
-
-  if (primarySort?.reversed && !serverSort.startsWith('due_date_'))
-    sortDirection = 'asc';
-
+  const sortsByDueDate = featureSort.startsWith('due_date_');
+  const sortDirection = primarySort?.reversed ? 'asc' : 'desc';
   const compiledFacets = compileFacets(
     options.facets,
     TASK_FACETS,
@@ -206,10 +228,8 @@ export function buildTaskQuery(
     params: {
       expand: true,
       limit: 100,
-      sort_method: serverSort,
-      sort_direction: serverSort.startsWith('due_date_')
-        ? undefined
-        : sortDirection,
+      sort_method: featureSort,
+      sort_direction: sortsByDueDate ? undefined : sortDirection,
     },
     body,
     groupBy:

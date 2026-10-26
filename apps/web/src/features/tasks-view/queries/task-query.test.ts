@@ -126,9 +126,33 @@ it('combines an exclusive overdue bound with status independently and freezes de
     calendar,
   });
   expect(query.params.sort_method).toBe('due_date_earliest');
-  expect(query.groupBy).toEqual({
-    type: 'deadline',
-    boundaries: calendar.boundaries,
+  expect(query.params.sort_direction).toBeUndefined();
+  expect(query.groupBy).toMatchObject({
+    type: 'property',
+    propertyDefinitionId: '00000001-0000-0000-0000-000000000004',
+    bucketing: {
+      type: 'date_ranges',
+      missingValueBucketKey: 'no_due_date',
+      ranges: [
+        { key: 'overdue', start: null, end: calendar.boundaries.today },
+        {
+          key: 'today',
+          start: calendar.boundaries.today,
+          end: calendar.boundaries.tomorrow,
+        },
+        {
+          key: 'tomorrow',
+          start: calendar.boundaries.tomorrow,
+          end: calendar.boundaries.day_two,
+        },
+        {
+          key: 'next_7_days',
+          start: calendar.boundaries.day_two,
+          end: calendar.boundaries.day_eight,
+        },
+        { key: 'later', start: calendar.boundaries.day_eight, end: null },
+      ],
+    },
   });
   expect(JSON.stringify(query.body.propf)).toContain(
     '2026-11-01T04:00:00.000Z'
@@ -157,3 +181,27 @@ it('negates date presence and keeps due sorting out of scoped text search', () =
   });
   expect(query.params.sort_method).toBe('updated_at');
 });
+
+it.each(['due_date_earliest', 'due_date_latest'] as const)(
+  'uses the supported %s wire contract for flat and grouped task requests',
+  (sort) => {
+    for (const groupBy of ['none', 'due_date'] as const) {
+      const query = buildTaskQuery({
+        ...options,
+        groupBy,
+        calendar,
+        sort: [{ id: sort }],
+      });
+      expect(query.params).toEqual({
+        expand: true,
+        limit: 100,
+        sort_method: sort,
+        sort_direction: undefined,
+      });
+      // Exclude the project entity itself, not children of a nil parent.
+      expect(query.body.pf).toEqual({
+        l: { pids: '00000000-0000-0000-0000-000000000000' },
+      });
+    }
+  }
+);

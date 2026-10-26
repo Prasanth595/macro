@@ -513,7 +513,9 @@ describe('makeGraphqlSoupInput', () => {
 it('maps open-ended property date ranges and explicit no-date negation', () => {
   const propertyDefinitionId = '00000001-0000-0000-0000-000000000004';
   const range = makeGraphqlSoupInput({
-    params: { sort_method: 'due_date_earliest' },
+    params: {
+      sort_method: 'due_date_earliest',
+    },
     body: {
       propf: {
         l: {
@@ -566,3 +568,25 @@ it('maps open-ended property date ranges and explicit no-date negation', () => {
     })
   ).toThrow('date range requires at least one bound');
 });
+
+it.each([
+  ['due_date_earliest', 'DUE_DATE_EARLIEST'],
+  ['due_date_latest', 'DUE_DATE_LATEST'],
+] as const)(
+  'maps %s consistently for flat and grouped requests',
+  (sort, expected) => {
+    const params = { sort_method: sort };
+    const body = { df: { l: { dst: 'task' } } };
+    const flat = makeGraphqlSoupInput({ params, body });
+    const grouped = makeGraphqlGroupedSoupInput({
+      params,
+      body,
+      groupBy: {
+        type: 'property',
+        propertyDefinitionId: '00000001-0000-0000-0000-000000000002',
+      },
+    });
+    expect(flat.initial?.sortMethod).toBe(expected);
+    expect(grouped.initial?.sortMethod).toBe(expected);
+  }
+);

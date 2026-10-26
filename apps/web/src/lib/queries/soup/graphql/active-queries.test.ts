@@ -1,12 +1,22 @@
 import type { QueryRevalidation } from '@graphql-cache/exchange/optimistic';
+import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
+import { queryClient } from '@queries/client';
 import { type Client, gql } from '@urql/core';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
+import { soupKeys } from '../keys';
+import { refreshDatePropertyQueries } from '../property-dates';
+
 import {
   getActiveGraphqlSoupRevalidations,
   refreshActiveGraphqlSoupQueries,
   registerActiveGraphqlSoupQuery,
   registerGraphqlSoupRevalidations,
 } from './active-queries';
+
+vi.mock('@queries/client', async () => {
+  const { QueryClient } = await import('@tanstack/solid-query');
+  return { queryClient: new QueryClient() };
+});
 
 function register(query: Parameters<typeof registerActiveGraphqlSoupQuery>[0]) {
   const unregister = registerActiveGraphqlSoupQuery(query);
@@ -293,3 +303,39 @@ describe('active GraphQL Soup queries', () => {
     expect(unbodied).not.toHaveBeenCalled();
   });
 });
+
+it.each([undefined, SYSTEM_PROPERTY_IDS.DUE_DATE])(
+  'refreshes due-date sorting without a property filter after a date edit (%s)',
+  async (definitionId) => {
+    onTestFinished(() => queryClient.clear());
+    const dueKey = soupKeys.astItems({
+      params: { sort_method: 'due_date_earliest' },
+      body: { df: { l: { dst: 'task' } } },
+    }).queryKey;
+    const ordinaryKey = soupKeys.astItems({
+      params: { sort_method: 'updated_at' },
+      body: { df: { l: { dst: 'task' } } },
+    }).queryKey;
+    queryClient.setQueryData(dueKey, []);
+    queryClient.setQueryData(ordinaryKey, []);
+    const dueRefresh = vi.fn(async () => {});
+    const ordinaryRefresh = vi.fn(async () => {});
+    register({
+      isEnabled: () => true,
+      refresh: dueRefresh,
+      body: () => ({ params: { sort_method: 'due_date_earliest' } }),
+    });
+    register({
+      isEnabled: () => true,
+      refresh: ordinaryRefresh,
+      body: () => ({ params: { sort_method: 'updated_at' } }),
+    });
+
+    await refreshDatePropertyQueries(definitionId);
+
+    expect(queryClient.getQueryState(dueKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(ordinaryKey)?.isInvalidated).toBe(false);
+    expect(dueRefresh).toHaveBeenCalledOnce();
+    expect(ordinaryRefresh).not.toHaveBeenCalled();
+  }
+);

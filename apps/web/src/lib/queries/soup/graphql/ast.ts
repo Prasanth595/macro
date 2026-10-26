@@ -857,15 +857,6 @@ export function makeGraphqlSoupInput(args: {
 function makeGraphqlGroupByInput(groupBy: GroupByField): GraphqlGroupByInput {
   return match(groupBy)
     .with({ type: 'date' }, () => ({ field: 'DATE' as const }))
-    .with({ type: 'deadline' }, ({ boundaries }) => ({
-      field: 'DEADLINE' as const,
-      deadlineBoundaries: {
-        today: boundaries.today,
-        tomorrow: boundaries.tomorrow,
-        dayTwo: boundaries.day_two,
-        dayEight: boundaries.day_eight,
-      },
-    }))
     .with({ type: 'entity_type' }, () => ({
       field: 'ENTITY_TYPE' as const,
     }))
@@ -874,6 +865,13 @@ function makeGraphqlGroupByInput(groupBy: GroupByField): GraphqlGroupByInput {
       field: 'PROPERTY' as const,
       propertyDefinitionId: field.propertyDefinitionId,
       entityType: field.entityType,
+      ...(field.bucketing && {
+        bucketing: {
+          type: 'DATE_RANGES' as const,
+          ranges: field.bucketing.ranges,
+          missingValueBucketKey: field.bucketing.missingValueBucketKey,
+        },
+      }),
     }))
     .exhaustive(() => ({ field: 'ENTITY_TYPE' as const }));
 }

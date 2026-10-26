@@ -37,7 +37,7 @@ import {
   optimisticUpdateSoupEntity,
   type SoupTransaction,
 } from '../soup/cache';
-import { refreshTaskDeadlineQueries } from '../soup/task-deadlines';
+import { refreshDatePropertyQueries } from '../soup/property-dates';
 import { type MutationCallbacks, withCallbacks } from '../utils';
 import {
   type AddEntityPropertyInput,
@@ -437,10 +437,8 @@ export function useDeleteEntityPropertyMutation(
           // The removed row may have been a Companies or Contacts value.
           fireAndForget(refreshCrmAssociatedSoupQueries(), 'entity-properties');
           invalidateSoupEntity(variables.entityId);
-          // Deletion carries an assignment ID, not its definition; it can clear a deadline.
-          if (variables.entityType === 'TASK') {
-            fireAndForget(refreshTaskDeadlineQueries(), 'entity-properties');
-          }
+          // Deletion carries an assignment ID, not its definition; it can clear any date.
+          fireAndForget(refreshDatePropertyQueries(), 'entity-properties');
           return invalidatePropertiesForEntity(
             variables.entityType,
             variables.entityId
@@ -954,8 +952,11 @@ function invalidatePropertySaveCaches(
     'entity-properties'
   );
   invalidateSoupEntity(item.entityId);
-  if (getPropertyDefinitionId(item.property) === SYSTEM_PROPERTY_IDS.DUE_DATE) {
-    fireAndForget(refreshTaskDeadlineQueries(), 'entity-properties');
+  if (item.apiValues.valueType === 'DATE') {
+    fireAndForget(
+      refreshDatePropertyQueries(getPropertyDefinitionId(item.property)),
+      'entity-properties'
+    );
   }
   // CRM record lists resolve membership on the server, not from these rows.
   if (

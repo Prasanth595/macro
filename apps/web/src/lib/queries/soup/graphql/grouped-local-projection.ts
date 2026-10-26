@@ -21,7 +21,6 @@ export function localSoupGroupKeys(
     match(input.groupBy.field)
       // Entity type cannot change for a normalized identity. Retain its server key.
       .with('ENTITY_TYPE', () => undefined)
-      .with('DEADLINE', () => undefined)
       .with('PROJECT', () => {
         if ('projectId' in item) return [item.projectId ?? ''];
         if (item.__typename === 'GraphqlSoupProject')
@@ -29,6 +28,7 @@ export function localSoupGroupKeys(
         return undefined;
       })
       .with('PROPERTY', () => {
+        if (input.groupBy.bucketing) return undefined;
         if (!('properties' in item)) return undefined;
         const entityType = match(item)
           .with({ __typename: 'GraphqlSoupDocument' }, (item) =>
@@ -159,7 +159,7 @@ export function projectLocalGroupedSoup(
       oldKeys.set(key, [...(oldKeys.get(key) ?? []), bin.key]);
     }
   const previousKeys = (key: string, item: SoupItemFieldsFragment) =>
-    input.groupBy.field === 'PROPERTY'
+    input.groupBy.field === 'PROPERTY' && !input.groupBy.bucketing
       ? untrustedKeys.has(key)
         ? undefined
         : localSoupGroupKeys(item, input, now)
