@@ -106,7 +106,9 @@ export function TasksHeader(props: TasksHeaderProps) {
       }
     >
       <ViewShell.Header>
-        <TasksMobileTabs />
+        <div class="flex min-w-0 flex-col">
+          <TasksMobileTabs />
+        </div>
       </ViewShell.Header>
     </Show>
   );
