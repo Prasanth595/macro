@@ -72,6 +72,13 @@ impl EmailPreviewServiceReadOnly for NoopEmailPreviewService {
 struct NoopCommsService;
 
 impl ChannelListService for NoopCommsService {
+    async fn get_channel_property_candidates(
+        &self,
+        _req: channels::domain::models::ChannelPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, rootcause::Report> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn get_channels(
         &self,
         req: GetChannelsRequest,
@@ -141,6 +148,13 @@ impl RecordingCommsService {
 }
 
 impl ChannelListService for RecordingCommsService {
+    async fn get_channel_property_candidates(
+        &self,
+        _req: channels::domain::models::ChannelPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, rootcause::Report> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn get_channels(
         &self,
         req: GetChannelsRequest,

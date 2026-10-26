@@ -228,6 +228,13 @@ impl EntityAccessService for FakeEntityAccessService {
 struct FakeCrmService;
 
 impl CrmService for FakeCrmService {
+    async fn get_company_property_candidates(
+        &self,
+        _request: crate::domain::companies_repo::CompanyPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, crate::domain::model::CrmError> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn list_contacts_for_soup(
         &self,
         _user_id: &str,

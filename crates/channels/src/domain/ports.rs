@@ -42,6 +42,11 @@ pub type ChannelPictureAccess = EntityAccessReceipt<MemberParticipantRole>;
 /// Repository for channel list persistence and query data.
 #[cfg(feature = "list")]
 pub trait ChannelListRepo: Send + Sync + 'static {
+    /// Select authorized channel identities before property sorting or grouping.
+    fn get_channel_property_candidates(
+        &self,
+        req: super::models::ChannelPropertyCandidateRequest,
+    ) -> impl Future<Output = Result<models_grouping::CandidatePage, rootcause::Report>> + Send;
     /// Fetch channels visible to a user with their active participants.
     fn get_user_channels_with_participants(
         &self,
@@ -88,6 +93,11 @@ pub trait ChannelListUserRepo: Send + Sync + 'static {
 /// Service for legacy channel list APIs.
 #[cfg(feature = "list")]
 pub trait ChannelListService: Send + Sync + 'static {
+    /// Select authorized channel identities before property sorting or grouping.
+    fn get_channel_property_candidates(
+        &self,
+        req: super::models::ChannelPropertyCandidateRequest,
+    ) -> impl Future<Output = Result<models_grouping::CandidatePage, rootcause::Report>> + Send;
     /// Fetch channels visible to a user, enriched for list display.
     fn get_channels(
         &self,

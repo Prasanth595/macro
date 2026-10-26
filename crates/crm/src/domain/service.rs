@@ -19,6 +19,11 @@ use entity_access::domain::models::{EditAccessLevel, MemberTeamRole, ViewAccessL
 /// The CrmService exposes operations over CRM records (companies, their
 /// domains and contacts).
 pub trait CrmService: Clone + Send + Sync + 'static {
+    /// Select date-property candidates with the ordinary team and hidden-company policy.
+    fn get_company_property_candidates(
+        &self,
+        request: super::companies_repo::CompanyPropertyCandidateRequest,
+    ) -> impl Future<Output = Result<models_grouping::CandidatePage, CrmError>> + Send;
     /// List the viewer's accessible contacts, collapsed by normalized email.
     /// Team-scoped bot receipts remain restricted to their authorized team.
     fn list_contacts_for_soup(
@@ -966,6 +971,24 @@ where
             })
     }
 
+    #[tracing::instrument(skip_all, err)]
+    async fn get_company_property_candidates(
+        &self,
+        request: super::companies_repo::CompanyPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, CrmError> {
+        if request.access.receipt().acting_user_id() != Some(request.selection.viewer()) {
+            return Err(CrmError::InvalidRequest(
+                "property query viewer does not match team receipt".into(),
+            ));
+        }
+        if request.hidden == Some(true) && !request.access.include_hidden() {
+            return Err(CrmError::AdminRoleRequired);
+        }
+        self.companies_repository
+            .get_company_property_candidates(request)
+            .await
+    }
+
     #[tracing::instrument(skip(self, access), err)]
     #[allow(clippy::too_many_arguments)]
     async fn list_companies_for_soup(
@@ -1121,6 +1144,13 @@ where
 pub struct NoOpCrmService;
 
 impl CrmService for NoOpCrmService {
+    async fn get_company_property_candidates(
+        &self,
+        _request: crate::domain::companies_repo::CompanyPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, crate::domain::model::CrmError> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn list_contacts_for_soup(
         &self,
         _user_id: &str,

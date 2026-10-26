@@ -29,6 +29,13 @@ const CHANNEL: Uuid = Uuid::from_u128(0xc4a);
 struct FakeCrm;
 
 impl CrmService for FakeCrm {
+    async fn get_company_property_candidates(
+        &self,
+        _request: crm::domain::companies_repo::CompanyPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, crm::domain::model::CrmError> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn resolve_association(
         &self,
         user_id: &str,
@@ -242,6 +249,13 @@ struct ReferencingComms {
 }
 
 impl ChannelListService for ReferencingComms {
+    async fn get_channel_property_candidates(
+        &self,
+        _req: channels::domain::models::ChannelPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, rootcause::Report> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn get_channels(
         &self,
         _req: GetChannelsRequest,

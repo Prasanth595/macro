@@ -74,6 +74,13 @@ where
     Users: ChannelListUserRepo,
     Frec: AggregateFrecencyStorage,
 {
+    #[tracing::instrument(err, skip_all)]
+    async fn get_channel_property_candidates(
+        &self,
+        req: super::models::ChannelPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, rootcause::Report> {
+        self.channels.get_channel_property_candidates(req).await
+    }
     #[tracing::instrument(err, skip(self))]
     async fn get_channels(
         &self,

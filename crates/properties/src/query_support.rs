@@ -15,6 +15,9 @@ use sqlx::{Postgres, QueryBuilder};
 use std::collections::BTreeSet;
 use uuid::Uuid;
 
+mod filters;
+pub use filters::push_property_filter;
+
 /// Resolve a bucket from a DATE value and the source's bound `date_range_config` CTE.
 /// The value expression must be trusted SQL; caller keys and bounds live only in the JSON bind.
 pub fn date_range_group_key_sql(value_expression: &str) -> String {

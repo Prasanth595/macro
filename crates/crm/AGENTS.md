@@ -66,6 +66,7 @@ tools/HTTP/GraphQL surfaces over them.
 - The Sales migration (`SALES_BACKFILL.md`) is forward-only and additive —
   its down migration refuses to erase completion or user edits; never revert
   it to undo a bad migration, only the application code that reads it.
+- Keep company DATE-property candidates on the ordinary team, hidden-company, and CRM-enabled gates before counts and pagination; match the property-query viewer to the team receipt in the domain service.
 
 ## Related
 

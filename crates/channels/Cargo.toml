@@ -43,6 +43,8 @@ kafka_consumer = [
 list = [
   "dep:filter_ast",
   "dep:frecency",
+  "dep:models_grouping",
+  "dep:properties",
   "dep:model-entity",
   "dep:recursion",
   "dep:rootcause",
@@ -67,6 +69,7 @@ outbound = [
   "dep:sqlx",
   "dep:static_file_service_client",
   "entity_access/ports",
+  "properties/outbound",
   "list",
   "macro_user_id/sqlx",
   "ports",
@@ -130,6 +133,8 @@ model_file_type = { path = "../model_file_type" }
 model_notifications = { path = "../model_notifications", optional = true }
 model_owner = { path = "../model_owner" }
 models_pagination = { path = "../models_pagination" }
+models_grouping = { path = "../models_grouping", optional = true }
+properties = { path = "../properties", default-features = false, features = ["ports"], optional = true }
 models_permissions = { path = "../models_permissions", optional = true }
 non_empty = { path = "../non_empty", optional = true }
 notification_hex = { path = "../notification", package = "notification", optional = true }

@@ -1,6 +1,8 @@
 /// Silent historical persistence and transaction-aware activity updates.
 pub mod historical;
 #[cfg(feature = "list")]
+mod property_candidates;
+#[cfg(feature = "list")]
 mod references;
 
 #[cfg(test)]
@@ -1477,6 +1479,12 @@ impl PgChannelsRepo {
 
 #[cfg(feature = "list")]
 impl ChannelListRepo for PgChannelsRepo {
+    async fn get_channel_property_candidates(
+        &self,
+        req: crate::domain::models::ChannelPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, rootcause::Report> {
+        self.query_channel_property_candidates(req).await
+    }
     async fn get_reference_sources(
         &self,
         targets: &[crate::domain::models::ReferenceTarget],

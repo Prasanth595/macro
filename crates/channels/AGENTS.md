@@ -67,6 +67,7 @@ DMs, and the shared message store other domains discuss things on.
   user's notifications (`= ANY(ARRAY(...))`). A per-channel `EXISTS` or plain
   `IN` walks every candidate channel's notification history; that was ~24% of
   the prod read replica's buffer hits.
+- Keep DATE-property candidate selection in `pg_channels_repo/property_candidates.rs` on the channel list's access/filter predicates before counts and pagination; derive its viewer from `AuthorizedPropertyQuery`.
 
 ## Related
 

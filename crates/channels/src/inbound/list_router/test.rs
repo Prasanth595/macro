@@ -65,6 +65,13 @@ struct FakeChannelListService {
 }
 
 impl ChannelListService for FakeChannelListService {
+    async fn get_channel_property_candidates(
+        &self,
+        _req: crate::domain::models::ChannelPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, rootcause::Report> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn get_channels(
         &self,
         request: GetChannelsRequest,

@@ -30,6 +30,13 @@ struct ContactListCall {
 }
 
 impl CompaniesRepository for StubRepo {
+    async fn get_company_property_candidates(
+        &self,
+        _request: crate::domain::companies_repo::CompanyPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, crate::domain::model::CrmError> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn list_contacts_for_soup(
         &self,
         scope: CrmContactListScope<'_>,

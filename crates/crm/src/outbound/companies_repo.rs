@@ -5,6 +5,7 @@ pub(crate) mod test;
 
 mod association;
 mod contact_listing;
+mod property_candidates;
 
 use crate::domain::{
     companies_repo::{CompaniesRepository, CrmCompanyListSort, CrmCompanySoupCursor},
@@ -250,6 +251,13 @@ impl CompaniesRepositoryImpl {
 }
 
 impl CompaniesRepository for CompaniesRepositoryImpl {
+    async fn get_company_property_candidates(
+        &self,
+        request: crate::domain::companies_repo::CompanyPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, CrmError> {
+        self.query_company_property_candidates(request).await
+    }
+
     #[tracing::instrument(skip_all, err)]
     async fn list_contacts_for_soup(
         &self,

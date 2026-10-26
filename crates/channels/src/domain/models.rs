@@ -17,6 +17,17 @@ use uuid::Uuid;
 
 pub use bot_id::BotId;
 
+/// Authorized DATE-property selection over the complete channel filter.
+#[cfg(feature = "list")]
+#[derive(Debug)]
+pub struct ChannelPropertyCandidateRequest {
+    /// Viewer-bound property selection authorized by the properties service.
+    pub selection: properties::AuthorizedPropertyQuery,
+    /// Full channel predicate, evaluated before date ordering and limits.
+    pub filter: LiteralTree<ChannelLiteral>,
+    /// Full property predicate, including its entity scope.
+    pub properties: LiteralTree<item_filters::ast::properties::PropertiesLiteral>,
+}
 /// Actor identity for channel mutations.
 pub type Sender = ChannelSender<'static>;
 

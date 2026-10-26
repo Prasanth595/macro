@@ -42,9 +42,29 @@ pub struct CrmCompanySoupCursor {
     pub last_id: uuid::Uuid,
 }
 
+/// An authorized selected-property query over the ordinary company listing scope.
+#[derive(Debug)]
+pub struct CompanyPropertyCandidateRequest {
+    /// Team visibility proof, also used for the hidden-company policy.
+    pub access: super::auth::CrmTeamReceipt<entity_access::domain::models::MemberTeamRole>,
+    /// Viewer-bound immutable date selection.
+    pub selection: properties::AuthorizedPropertyQuery,
+    /// Optional ID restriction from ordinary company filters.
+    pub company_ids: Vec<uuid::Uuid>,
+    /// Hidden-company selection; defaults to visible companies only.
+    pub hidden: Option<bool>,
+    /// Full property predicate, evaluated before counts and pagination.
+    pub properties:
+        item_filters::ast::LiteralTree<item_filters::ast::properties::PropertiesLiteral>,
+}
 /// The CompaniesRepository defines persistence operations for CRM
 /// companies and their associated domains.
 pub trait CompaniesRepository: Clone + Send + Sync + 'static {
+    /// Select authorized company identities before date ordering or grouping.
+    fn get_company_property_candidates(
+        &self,
+        request: CompanyPropertyCandidateRequest,
+    ) -> impl Future<Output = Result<models_grouping::CandidatePage, CrmError>> + Send;
     /// List authorized contacts across enabled teams. Apply visibility and
     /// predicates before choosing one record per lowercased full email (latest
     /// interaction, then highest ID). Deduplicate before seeking/limiting. An
