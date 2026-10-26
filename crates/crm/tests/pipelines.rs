@@ -29,6 +29,9 @@ use uuid::Uuid;
 const OWNER: &str = "macro|pipeline-owner@macro.com";
 const MEMBER: &str = "macro|pipeline-member@macro.com";
 const OUTSIDER: &str = "macro|pipeline-outsider@macro.com";
+
+#[path = "pipelines/row_links.rs"]
+mod row_links;
 type Access = EntityAccessServiceImpl<PgAccessRepository>;
 type DatabaseService = PgDatabasesService<NoOpTableEventPublisher, NoopMacroEventBroker, Access>;
 type Service = PipelineServiceImpl<
@@ -676,6 +679,11 @@ async fn migration_rollback_preserves_records_and_grants(pool: PgPool) {
     )
     .await
     .unwrap();
+    // Unwind the newer reference table before testing the older rollback.
+    sqlx::query!("DROP TABLE crm_database_row_links")
+        .execute(&pool)
+        .await
+        .unwrap();
     // Execute the actual rollback DDL in this disposable test database.
     sqlx::raw_sql(include_str!(
         "../../macro_db_client/migrations/20261007172434_crm_pipeline_entities.down.sql"

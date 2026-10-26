@@ -10,6 +10,7 @@ import type {
 } from '../../../generated/storage/types.gen';
 import { Lazy, MacroNotFoundError, paginate, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
+import type { DatabaseRow } from '../databases/row';
 import { MacroEntity } from '../entity';
 import {
   type SharePermissionOptions,
@@ -17,6 +18,7 @@ import {
 } from '../sharing/permissions';
 import { Team } from '../teams/team';
 import { User } from '../users/user';
+import { linkedDatabaseRows } from './linked-row';
 
 /** A CRM pipeline with its own sharing boundary and backing table. */
 export class CrmPipeline extends MacroEntity<AccessiblePipeline> {
@@ -233,6 +235,41 @@ export class PipelineTable extends MacroEntity<TableDetail> {
 
 /** One pipeline row. */
 export class PipelineRow extends MacroEntity<StorageRow> {
+  /** Current readable source rows linked to this particular entry. */
+  async linkedRows() {
+    return linkedDatabaseRows(
+      this.client,
+      unwrap(
+        await this.client.storage.getCrmEntryLinkedRows({
+          path: { id: this.pipeline.id, row_id: this.id },
+        }),
+      ),
+    );
+  }
+
+  /** Link a readable source without changing its cells or permissions. */
+  async linkRow(row: DatabaseRow): Promise<void> {
+    unwrap(
+      await this.client.storage.linkCrmEntryRow({
+        path: { id: this.pipeline.id, row_id: this.id },
+        body: {
+          databaseId: row.table.database.id,
+          tableId: row.table.id,
+          rowId: row.id,
+        },
+      }),
+    );
+  }
+
+  /** Remove only this entry's link, retaining the source and other targets. */
+  async unlinkRow(row: DatabaseRow): Promise<void> {
+    unwrap(
+      await this.client.storage.unlinkCrmEntryRow({
+        path: { id: this.pipeline.id, row_id: this.id, source_row_id: row.id },
+      }),
+    );
+  }
+
   /** Serialize identity within its pipeline. */
   override toJSON() {
     return { ...super.toJSON(), pipelineId: this.pipeline.id };

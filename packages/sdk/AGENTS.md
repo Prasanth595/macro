@@ -20,6 +20,8 @@ enforced by the ordinary backend APIs.
 - `src/entities/sharing/`, `messages/`: scoped access requests and message threads.
 - `src/entities/databases/query.ts`: SQL statements, typed table/row references and version guards.
 - `src/entities/crm/pipeline.ts`: pipeline-authorized table/row handles.
+- Company and PipelineRow `linkedRows`, `linkRow`, and `unlinkRow` preserve source
+  database permissions and use DatabaseRow handles; previews omit unavailable sources.
 - `services.ts`, `openapi-ts.config.ts`: generated service contract inputs.
 
 ## Boundaries

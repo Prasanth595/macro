@@ -382,6 +382,12 @@ Re-exports [Interpolation](../mentions/type-aliases/Interpolation.md)
 
 ***
 
+### LinkedDatabaseRow
+
+Re-exports [LinkedDatabaseRow](../entities/crm/linked-row/interfaces/LinkedDatabaseRow.md)
+
+***
+
 ### ListenOptions
 
 Re-exports [ListenOptions](../events/receiver/interfaces/ListenOptions.md)

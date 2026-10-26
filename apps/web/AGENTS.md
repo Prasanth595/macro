@@ -1,4 +1,7 @@
 ## Development Commands
+- CRM linked database rows use the shared database record-panel slot and source
+  cell rendering; verify company/deal isolation and relation labels with the CRM
+  browser fixture.
 - Use `bun` as the package manager and script runner (`bun run build`, `bunx tsc`).
 - `bun run test`: run tests 
 - `bun run check`: check typescript changes 

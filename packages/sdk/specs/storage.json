@@ -6024,6 +6024,99 @@
         }
       }
     },
+    "/crm/companies/{company_id}/linked-rows": {
+      "get": {
+        "tags": ["crm::inbound::row_links"],
+        "summary": "Read authorized live previews of a company's linked database rows.",
+        "operationId": "get_crm_company_linked_rows",
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkedRows"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["crm::inbound::row_links"],
+        "summary": "Link a readable database row to an editable company.",
+        "operationId": "link_crm_company_row",
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkedRowReference"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/crm/companies/{company_id}/linked-rows/{source_row_id}": {
+      "delete": {
+        "tags": ["crm::inbound::row_links"],
+        "summary": "Unlink a source without changing its cells or sharing.",
+        "operationId": "unlink_crm_company_row",
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "source_row_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/crm/companies/{company_id}/name": {
       "put": {
         "tags": ["crm::inbound::axum_router::set_company_name"],
@@ -6493,6 +6586,126 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/crm/pipelines/{id}/entries/{row_id}/linked-rows": {
+      "get": {
+        "tags": ["crm::inbound::row_links"],
+        "summary": "Read the rows linked to this entry, independently of its company and stage.",
+        "operationId": "get_crm_entry_linked_rows",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "row_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkedRows"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["crm::inbound::row_links"],
+        "summary": "Link a readable database row to an editable entry.",
+        "operationId": "link_crm_entry_row",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "row_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkedRowReference"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/crm/pipelines/{id}/entries/{row_id}/linked-rows/{source_row_id}": {
+      "delete": {
+        "tags": ["crm::inbound::row_links"],
+        "summary": "Remove this entry's link only, retaining every other target's references.",
+        "operationId": "unlink_crm_entry_row",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "row_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "source_row_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
           }
         }
       }
@@ -32607,6 +32820,62 @@
         "type": "string",
         "description": "Defines who can access an item through its share link.",
         "enum": ["PUBLIC", "TEAM"]
+      },
+      "LinkedRowReference": {
+        "type": "object",
+        "description": "An existing row in a Macro database app, never a CRM backing database.",
+        "required": ["databaseId", "tableId", "rowId"],
+        "properties": {
+          "databaseId": {
+            "$ref": "#/components/schemas/DatabaseId",
+            "description": "Source database entity."
+          },
+          "rowId": {
+            "$ref": "#/components/schemas/RowId",
+            "description": "Stable source identity."
+          },
+          "tableId": {
+            "$ref": "#/components/schemas/TableId",
+            "description": "Source table."
+          }
+        },
+        "additionalProperties": false
+      },
+      "LinkedRowTable": {
+        "type": "object",
+        "description": "Live source metadata and cells, emitted only after source authorization.",
+        "required": ["databaseName", "table", "rows"],
+        "properties": {
+          "databaseName": {
+            "type": "string",
+            "description": "Current database name."
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageRow"
+            },
+            "description": "Only linked rows the viewer can currently read."
+          },
+          "table": {
+            "$ref": "#/components/schemas/TableDetail",
+            "description": "Current table name and field definitions, including select labels."
+          }
+        }
+      },
+      "LinkedRows": {
+        "type": "object",
+        "description": "At most 100 references per target; missing/inaccessible sources are omitted.",
+        "required": ["tables"],
+        "properties": {
+          "tables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LinkedRowTable"
+            },
+            "description": "Readable rows grouped by source table."
+          }
+        }
       },
       "ListDatabaseWebhooksResponse": {
         "type": "object",

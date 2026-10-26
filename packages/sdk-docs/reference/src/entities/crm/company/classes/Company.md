@@ -183,6 +183,36 @@ its contacts. Reversible with [unhide](#unhide).
 
 ***
 
+### linkedRows()
+
+> **linkedRows**(): `Promise`\<[`LinkedDatabaseRow`](../../linked-row/interfaces/LinkedDatabaseRow.md)[]\>
+
+Current linked rows; inaccessible, trashed and deleted sources are omitted.
+
+#### Returns
+
+`Promise`\<[`LinkedDatabaseRow`](../../linked-row/interfaces/LinkedDatabaseRow.md)[]\>
+
+***
+
+### linkRow()
+
+> **linkRow**(`row`): `Promise`\<`void`\>
+
+Link an existing readable row. Its cells and permissions stay unchanged.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `row` | [`DatabaseRow`](../../../databases/row/classes/DatabaseRow.md) |
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### messageThreadById()
 
 > **messageThreadById**(`id`): [`MessageThread`](../../../messages/thread/classes/MessageThread.md)
@@ -375,6 +405,24 @@ Remove this entity from the user's favorites. Returns this handle for chaining.
 > **unhide**(): `Promise`\<`void`\>
 
 Un-hide the company, restoring it and its contacts to CRM listings.
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
+### unlinkRow()
+
+> **unlinkRow**(`row`): `Promise`\<`void`\>
+
+Remove this company's reference only; the source row remains.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `row` | [`DatabaseRow`](../../../databases/row/classes/DatabaseRow.md) |
 
 #### Returns
 

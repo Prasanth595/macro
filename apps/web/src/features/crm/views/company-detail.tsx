@@ -77,6 +77,12 @@ export function Company(props: {
             <Match when={section() === 'overview'}>
               <RecordOverview>
                 <CompanyHeader company={company()} />
+                <Show when={company()}>
+                  <context.LinkedRows
+                    target={{ type: 'company', companyId: props.companyId }}
+                    canEdit
+                  />
+                </Show>
                 <Show when={pipelinesEnabled()}>
                   <context.PipelineEntries
                     record={{ type: 'company', id: props.companyId }}

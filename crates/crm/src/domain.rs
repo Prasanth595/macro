@@ -52,3 +52,7 @@ pub mod pipeline_workflows;
 /// CRM pipelines and their lifecycle.
 #[cfg(feature = "ports")]
 pub mod pipelines;
+
+/// Explicit company and pipeline-entry references to Macro database rows.
+#[cfg(feature = "ports")]
+pub mod row_links;

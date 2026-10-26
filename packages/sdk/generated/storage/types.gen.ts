@@ -8933,6 +8933,52 @@ export type LeaveCallResponse = {
 export type LinkShare = 'PUBLIC' | 'TEAM';
 
 /**
+ * An existing row in a Macro database app, never a CRM backing database.
+ */
+export type LinkedRowReference = {
+    /**
+     * Source database entity.
+     */
+    databaseId: DatabaseId;
+    /**
+     * Stable source identity.
+     */
+    rowId: RowId;
+    /**
+     * Source table.
+     */
+    tableId: TableId;
+};
+
+/**
+ * Live source metadata and cells, emitted only after source authorization.
+ */
+export type LinkedRowTable = {
+    /**
+     * Current database name.
+     */
+    databaseName: string;
+    /**
+     * Only linked rows the viewer can currently read.
+     */
+    rows: Array<StorageRow>;
+    /**
+     * Current table name and field definitions, including select labels.
+     */
+    table: TableDetail;
+};
+
+/**
+ * At most 100 references per target; missing/inaccessible sources are omitted.
+ */
+export type LinkedRows = {
+    /**
+     * Readable rows grouped by source table.
+     */
+    tables: Array<LinkedRowTable>;
+};
+
+/**
  * A database's webhooks.
  */
 export type ListDatabaseWebhooksResponse = {
@@ -18028,6 +18074,52 @@ export type SetCompanyHiddenResponses = {
 
 export type SetCompanyHiddenResponse = SetCompanyHiddenResponses[keyof SetCompanyHiddenResponses];
 
+export type GetCrmCompanyLinkedRowsData = {
+    body?: never;
+    path: {
+        company_id: string;
+    };
+    query?: never;
+    url: '/crm/companies/{company_id}/linked-rows';
+};
+
+export type GetCrmCompanyLinkedRowsResponses = {
+    200: LinkedRows;
+};
+
+export type GetCrmCompanyLinkedRowsResponse = GetCrmCompanyLinkedRowsResponses[keyof GetCrmCompanyLinkedRowsResponses];
+
+export type LinkCrmCompanyRowData = {
+    body: LinkedRowReference;
+    path: {
+        company_id: string;
+    };
+    query?: never;
+    url: '/crm/companies/{company_id}/linked-rows';
+};
+
+export type LinkCrmCompanyRowResponses = {
+    204: void;
+};
+
+export type LinkCrmCompanyRowResponse = LinkCrmCompanyRowResponses[keyof LinkCrmCompanyRowResponses];
+
+export type UnlinkCrmCompanyRowData = {
+    body?: never;
+    path: {
+        company_id: string;
+        source_row_id: string;
+    };
+    query?: never;
+    url: '/crm/companies/{company_id}/linked-rows/{source_row_id}';
+};
+
+export type UnlinkCrmCompanyRowResponses = {
+    204: void;
+};
+
+export type UnlinkCrmCompanyRowResponse = UnlinkCrmCompanyRowResponses[keyof UnlinkCrmCompanyRowResponses];
+
 export type SetCrmCompanyNameData = {
     body: SetCompanyNameRequest;
     path: {
@@ -18233,6 +18325,55 @@ export type GetCrmPipelineResponses = {
 };
 
 export type GetCrmPipelineResponse = GetCrmPipelineResponses[keyof GetCrmPipelineResponses];
+
+export type GetCrmEntryLinkedRowsData = {
+    body?: never;
+    path: {
+        id: string;
+        row_id: string;
+    };
+    query?: never;
+    url: '/crm/pipelines/{id}/entries/{row_id}/linked-rows';
+};
+
+export type GetCrmEntryLinkedRowsResponses = {
+    200: LinkedRows;
+};
+
+export type GetCrmEntryLinkedRowsResponse = GetCrmEntryLinkedRowsResponses[keyof GetCrmEntryLinkedRowsResponses];
+
+export type LinkCrmEntryRowData = {
+    body: LinkedRowReference;
+    path: {
+        id: string;
+        row_id: string;
+    };
+    query?: never;
+    url: '/crm/pipelines/{id}/entries/{row_id}/linked-rows';
+};
+
+export type LinkCrmEntryRowResponses = {
+    204: void;
+};
+
+export type LinkCrmEntryRowResponse = LinkCrmEntryRowResponses[keyof LinkCrmEntryRowResponses];
+
+export type UnlinkCrmEntryRowData = {
+    body?: never;
+    path: {
+        id: string;
+        row_id: string;
+        source_row_id: string;
+    };
+    query?: never;
+    url: '/crm/pipelines/{id}/entries/{row_id}/linked-rows/{source_row_id}';
+};
+
+export type UnlinkCrmEntryRowResponses = {
+    204: void;
+};
+
+export type UnlinkCrmEntryRowResponse = UnlinkCrmEntryRowResponses[keyof UnlinkCrmEntryRowResponses];
 
 export type RenameCrmPipelineData = {
     body: RenamePipeline;

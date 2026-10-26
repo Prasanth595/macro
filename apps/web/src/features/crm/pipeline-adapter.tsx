@@ -46,6 +46,7 @@ import {
   type PipelineViews,
   usePipelineTableQuery,
 } from './queries/pipeline-views';
+import { CrmLinkedRows } from './row-links-adapter';
 import { AddPipelineRecordDialog } from './views/add-pipeline-record';
 
 /** Pipelines supply their own identity and owner to the existing share dialog. */
@@ -182,6 +183,14 @@ function PipelineRecords(props: {
           }
           boardPositions={boardPositions}
           onComposeRecord={setComposing}
+          renderRecordDetails={(rowId) => (
+            <div class="mt-5 border-t border-edge-muted pt-4">
+              <CrmLinkedRows
+                target={{ type: 'entry', pipelineId: props.pipeline.id, rowId }}
+                canEdit={canEdit()}
+              />
+            </div>
+          )}
           renderTextEditor={(editor) => <DatabaseTextEditor {...editor} />}
           renderTextValue={(value) => <DatabaseTextValue value={value} />}
           renderMentionPicker={(picker) => (

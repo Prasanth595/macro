@@ -12,3 +12,7 @@ pub mod toolset;
 /// Pipeline routes.
 #[cfg(feature = "axum")]
 pub mod pipelines;
+
+/// Company and pipeline-entry database row link routes.
+#[cfg(feature = "axum")]
+pub mod row_links;

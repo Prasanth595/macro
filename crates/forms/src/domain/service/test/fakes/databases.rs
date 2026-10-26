@@ -826,6 +826,15 @@ impl DatabaseMetadataReads for FakeDatabases {
 }
 
 impl DatabaseRowReads for FakeDatabases {
+    async fn row_values(
+        &self,
+        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+        _table_id: TableId,
+        _rows: &[RowId],
+    ) -> Result<Vec<::databases::domain::storage::StorageRow>, DatabaseError> {
+        unreachable!("Forms use operation-shaped cell reads")
+    }
+
     async fn cells_of_rows(
         &self,
         receipt: EntityAccessReceipt<ViewAccessLevel>,

@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO crm_database_row_links\n               (company_id, pipeline_id, entry_row_id, source_database_id, source_table_id, source_row_id)\n               VALUES ($1, $2, $3, $4, $5, $6)\n               ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0ef2dda3d171eed22fc1ec8d321e060aad7ec8c769fb668c842f557f9944289c"
+}

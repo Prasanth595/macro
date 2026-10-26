@@ -125,6 +125,8 @@ export type DatabaseRecordsViewProps = {
   /** Opens what a record's title mentions, such as a pipeline row's company, in place of editing it. */
   onOpenTitleMention?: (id: string, type: DatabaseEntityType) => void;
   renderRelationCell?: (props: RelationCellProps) => JSX.Element;
+  /** Additional record content supplied by a host, keyed by saved row identity. */
+  renderRecordDetails?: (rowId: string) => JSX.Element;
   relationTables?: { id: string; name: string }[];
   columnCasts?: DatabaseColumnCastsSource;
   onCellFocus?: (cell: DatabaseCellFocus | undefined) => void;
@@ -643,6 +645,7 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
               onClose={records.closeRecord}
               onNavigate={records.navigate}
               returnFocus={records.returnFocus()}
+              details={props.renderRecordDetails?.(row().rowId)}
               onRequestDelete={() => records.requestDelete(row().rowId)}
             />
           )}

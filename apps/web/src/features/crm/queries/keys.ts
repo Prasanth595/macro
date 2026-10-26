@@ -1,7 +1,9 @@
 import { createQueryKeys } from '@lukemorales/query-key-factory';
+import type { RowLinkTarget } from '../core/row-links';
 
 export const crmKeys = createQueryKeys('crm', {
   lists: null,
+  linkedRows: (target: RowLinkTarget) => [target],
   activityScope: (userId: string | undefined) => [userId],
   pipelines: (teamId: string | undefined) => [teamId],
   pipelineTable: (id: string) => [id],

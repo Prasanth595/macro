@@ -4,6 +4,7 @@ use super::*;
 use crate::domain::journal::cell_value;
 use crate::domain::models::Column;
 use crate::domain::ports::DatabaseRowReads;
+use crate::domain::storage::StorageRow;
 use models_databases::{CellValue, CellWrite};
 
 impl<Repository, Definitions, Cells, Events, Access, Broker>
@@ -59,6 +60,40 @@ where
     Access: AccessDirectory,
     Broker: MacroEventBroker,
 {
+    #[tracing::instrument(name = "database.rows.values", skip(self, receipt, rows), fields(table_id = %table_id, rows = rows.len()), err)]
+    async fn row_values(
+        &self,
+        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        table_id: TableId,
+        rows: &[RowId],
+    ) -> Result<Vec<StorageRow>, DatabaseError> {
+        let (table_rows, columns) = self.readable_table(&receipt, table_id).await?;
+        let wanted: Vec<_> = table_rows
+            .into_iter()
+            .map(|row| row.id)
+            .filter(|row| rows.contains(row))
+            .collect();
+        let mut stored = self.cells.cells(&wanted).await.map_err(repository_error)?;
+        Ok(wanted
+            .into_iter()
+            .map(|row_id| {
+                let cells = stored.remove(&row_id).unwrap_or_default();
+                StorageRow {
+                    row_id,
+                    cells: columns
+                        .iter()
+                        .filter_map(|column| {
+                            cells
+                                .get(&column.property_definition_id)
+                                .cloned()
+                                .map(|value| (column.id, value))
+                        })
+                        .collect(),
+                }
+            })
+            .collect())
+    }
+
     #[tracing::instrument(skip(self, receipt, rows), fields(rows = rows.len()), err)]
     async fn cells_of_rows(
         &self,

@@ -26,3 +26,7 @@ pub mod unfurl_resolver;
 /// Atomic pipeline storage over the databases domain writer.
 #[cfg(feature = "outbound")]
 pub mod pipelines;
+
+/// Persistence for explicit CRM references to database rows.
+#[cfg(feature = "outbound")]
+pub mod row_links;

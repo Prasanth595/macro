@@ -5,9 +5,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { errAsync, okAsync } from 'neverthrow';
 import { Suspense } from 'solid-js';
 import { afterEach, expect, it, vi } from 'vitest';
+import { relatedRowIds } from '../../database/core/database-relations';
 import { createDatabaseApiSource } from '../../database/queries/api-source';
+import { databasePropertyCell } from '../../database/queries/property-cell';
 import type { Pipeline } from '../core/pipeline';
-import { createPipelineApi, pipelineCell } from './pipeline-data';
+import { createPipelineApi } from './pipeline-data';
 
 const pipeline: Pipeline = {
   id: 'pipeline',
@@ -231,9 +233,9 @@ it('maps single and multiple entity values without leaking transport objects int
       },
     ],
   };
-  expect(pipelineCell(value, column)).toBe('one');
+  expect(databasePropertyCell(value, column)).toBe('one');
   expect(
-    pipelineCell(value, {
+    databasePropertyCell(value, {
       ...column,
       definition: {
         ...column.definition,
@@ -241,12 +243,34 @@ it('maps single and multiple entity values without leaking transport objects int
       },
     })
   ).toBe('["one"]');
-  expect(pipelineCell(undefined, column)).toBeNull();
+  expect(databasePropertyCell(undefined, column)).toBeNull();
 });
 
 it('shows a value type from a newer server as an empty cell', () => {
   const fromNewerServer = JSON.parse('{"type":"Rating","value":4}');
-  expect(pipelineCell(fromNewerServer, table.columns[0])).toBeNull();
+  expect(databasePropertyCell(fromNewerServer, table.columns[0])).toBeNull();
+});
+
+it('preserves every related row even when its property definition is single-value', () => {
+  const column = table.columns[0];
+  const cell = databasePropertyCell(
+    {
+      type: 'EntityReference',
+      value: ['line-1', 'line-2'].map((id) => ({
+        entity_id: id,
+        entity_type: 'DATABASE_ROW',
+        specific_message_id: null,
+      })),
+    },
+    {
+      ...column,
+      column: {
+        ...column.column,
+        config: { kind: 'link', database_id: 'billing', table_id: 'items' },
+      },
+    }
+  );
+  expect(relatedRowIds(cell)).toEqual(['line-1', 'line-2']);
 });
 
 it('forwards the complete query and retained row request to the pipeline endpoint', async () => {

@@ -248,6 +248,7 @@ export { CalendarNote } from './entities/calendar/note';
 export { ChannelActivity } from './entities/channels/activity';
 export { ChannelPicture } from './entities/channels/picture';
 export { ChatGeneration, ChatMessage } from './entities/chats/generation';
+export type { LinkedDatabaseRow } from './entities/crm/linked-row';
 export {
   CrmPipeline,
   PipelineColumn,

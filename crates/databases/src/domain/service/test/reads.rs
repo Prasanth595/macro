@@ -9,6 +9,35 @@ fn view(database_id: DatabaseId) -> EntityAccessReceipt<ViewAccessLevel> {
 }
 
 #[tokio::test]
+async fn row_values_preserves_property_values_and_empty_rows_under_column_ids() {
+    let seeded = seeded().await;
+    let empty = insert_names(&seeded, &[""]).await[0];
+    seeded.world.lock().unwrap().cells.remove(&empty);
+    let rows = seeded
+        .service
+        .row_values(
+            view(seeded.database_id),
+            seeded.table_id,
+            &[seeded.row_id, empty, RowId::new()],
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        rows.iter().map(|row| row.row_id).collect::<Vec<_>>(),
+        vec![seeded.row_id, empty]
+    );
+    assert_eq!(
+        rows[0].cells[&seeded.name_column.id],
+        PropertyValue::Str("Sam".into())
+    );
+    assert_eq!(
+        rows[0].cells[&seeded.plus_ones_column.id],
+        PropertyValue::Num(2.0)
+    );
+    assert!(rows[1].cells.is_empty());
+}
+
+#[tokio::test]
 async fn cells_of_rows_answers_each_row_of_the_table_as_ops_name_its_cells() {
     let seeded = seeded().await;
     let going = option_id(
@@ -119,6 +148,13 @@ async fn reads_of_a_trashed_database_or_a_table_it_lacks_are_not_found() {
     assert!(matches!(
         seeded
             .service
+            .row_values(view(seeded.database_id), other_table, &[seeded.row_id])
+            .await,
+        Err(DatabaseError::NotFound)
+    ));
+    assert!(matches!(
+        seeded
+            .service
             .row_count(view(seeded.database_id), other_table)
             .await,
         Err(DatabaseError::NotFound)
@@ -132,6 +168,13 @@ async fn reads_of_a_trashed_database_or_a_table_it_lacks_are_not_found() {
     ));
 
     seeded.world.lock().unwrap().databases[0].trashed_at = Some(Utc::now());
+    assert!(matches!(
+        seeded
+            .service
+            .row_values(view(seeded.database_id), seeded.table_id, &[seeded.row_id])
+            .await,
+        Err(DatabaseError::NotFound)
+    ));
     assert!(matches!(
         seeded
             .service
