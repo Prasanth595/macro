@@ -6,18 +6,9 @@ import type { EntityActionListState } from './entity-action-context';
 export const makeCopyAction = () => {
   const bulkCopyMutation = createBulkCopyDssEntityMutation();
 
+  // The types the copy mutation duplicates; it rejects any other.
   const canExecute = (entity: EntityData): boolean => {
-    return (
-      entity.type !== 'database' &&
-      entity.type !== 'form' &&
-      entity.type !== 'agent_session' &&
-      entity.type !== 'channel' &&
-      entity.type !== 'email' &&
-      entity.type !== 'channel_message' &&
-      entity.type !== 'channel_thread' &&
-      entity.type !== 'foreign' &&
-      entity.type !== 'routine'
-    );
+    return entity.type === 'document' || entity.type === 'chat';
   };
 
   const execute = async (entities: EntityData[]) => {

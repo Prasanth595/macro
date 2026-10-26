@@ -6,15 +6,13 @@ import { restoreSoupFocus } from '../utils';
 import type { EntityActionListState } from './entity-action-context';
 
 export const makeMoveToProjectAction = () => {
+  // The types the move mutation supports; it rejects any other.
   const canExecute = (entity: EntityData): boolean => {
     return (
-      entity.type !== 'database' &&
-      entity.type !== 'form' &&
-      entity.type !== 'agent_session' &&
-      entity.type !== 'channel' &&
-      entity.type !== 'channel_message' &&
-      entity.type !== 'channel_thread' &&
-      entity.type !== 'foreign'
+      entity.type === 'document' ||
+      entity.type === 'chat' ||
+      entity.type === 'project' ||
+      entity.type === 'email'
     );
   };
 
