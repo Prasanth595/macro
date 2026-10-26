@@ -9,7 +9,7 @@ import {
   type TaskFacetContext,
 } from './task-facets';
 
-const PERSON_SCHEMA = z.discriminatedUnion('type', [
+const personSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('viewer') }).strict(),
   z
     .object({
@@ -22,38 +22,38 @@ const PERSON_SCHEMA = z.discriminatedUnion('type', [
     })
     .strict(),
 ]);
-const IDENTIFIER_SCHEMA = z
+const identifierSchema = z
   .string()
   .guid()
   .transform((id) => id.toLowerCase());
-const IDS_SCHEMA = z.array(IDENTIFIER_SCHEMA).max(100);
-const FILTERS_SCHEMA = z
+const idsSchema = z.array(identifierSchema).max(100);
+const filtersSchema = z
   .object({
-    statusOptionIds: IDS_SCHEMA,
-    priorityOptionIds: IDS_SCHEMA,
+    statusOptionIds: idsSchema,
+    priorityOptionIds: idsSchema,
     // Built-in tabs can add the viewer to 100 explicitly selected people.
-    assignees: z.array(PERSON_SCHEMA).max(101),
-    creators: z.array(PERSON_SCHEMA).max(101),
+    assignees: z.array(personSchema).max(101),
+    creators: z.array(personSchema).max(101),
     tags: z
       .array(
         z
           .object({
-            propertyDefinitionId: IDENTIFIER_SCHEMA,
-            optionId: IDENTIFIER_SCHEMA,
+            propertyDefinitionId: identifierSchema,
+            optionId: identifierSchema,
           })
           .strict()
       )
       .max(100),
   })
   .strict();
-const TASK_SAVED_VIEW_SCHEMA = z
+const taskSavedViewSchema = z
   .object({
     kind: z.literal('tasks'),
     version: z.literal(1),
-    filters: FILTERS_SCHEMA,
+    filters: filtersSchema,
   })
   .strict();
-const READABLE_TASK_SAVED_VIEW_SCHEMA = TASK_SAVED_VIEW_SCHEMA.pick({
+const readableTaskSavedViewSchema = taskSavedViewSchema.pick({
   kind: true,
   version: true,
 })
@@ -67,7 +67,7 @@ const SAVED_TASK_FACET_IDS: readonly string[] = [
   'tags',
 ];
 
-export type TaskSavedViewConfig = z.infer<typeof TASK_SAVED_VIEW_SCHEMA>;
+export type TaskSavedViewConfig = z.infer<typeof taskSavedViewSchema>;
 
 function uniqueSorted<T>(values: T[], key: (value: T) => string): T[] {
   return [...new Map(values.map((value) => [key(value), value])).entries()]
@@ -94,7 +94,7 @@ function canonical(config: TaskSavedViewConfig): TaskSavedViewConfig {
 export function decodeTaskSavedView(
   value: unknown
 ): Result<TaskSavedViewConfig, string> {
-  const parsed = TASK_SAVED_VIEW_SCHEMA.safeParse(value);
+  const parsed = taskSavedViewSchema.safeParse(value);
   if (!parsed.success)
     return err('This view contains unsupported or invalid task filters.');
   const definitions = new Map<string, string>();
@@ -119,7 +119,7 @@ export type TaskSavedViewRead = {
 
 /** Applies understood filters and reports anything omitted from the saved definition. */
 export function readTaskSavedView(value: unknown): TaskSavedViewRead {
-  const parsed = TASK_SAVED_VIEW_SCHEMA.safeParse(value);
+  const parsed = taskSavedViewSchema.safeParse(value);
   const issues: TaskSavedViewIssue[] = parsed.success
     ? []
     : parsed.error.issues.flatMap((issue) =>
@@ -130,7 +130,7 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
             }))
           : [{ path: issue.path.map(String), message: issue.message }]
       );
-  const readable = READABLE_TASK_SAVED_VIEW_SCHEMA.safeParse(value);
+  const readable = readableTaskSavedViewSchema.safeParse(value);
   if (!readable.success)
     return {
       issues,
@@ -164,7 +164,7 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
       : [];
   const tags = readEntries(
     filters.tags,
-    FILTERS_SCHEMA.shape.tags.element,
+    filtersSchema.shape.tags.element,
     Number.POSITIVE_INFINITY
   );
   const definitions = new Map<string, Set<string>>();
@@ -178,7 +178,7 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
   );
   if (Array.isArray(filters.tags)) {
     filters.tags.forEach((tag, index) => {
-      const parsed = FILTERS_SCHEMA.shape.tags.element.safeParse(tag);
+      const parsed = filtersSchema.shape.tags.element.safeParse(tag);
       if (parsed.success && conflicting.has(parsed.data.optionId))
         issues.push({
           path: ['filters', 'tags', String(index)],
@@ -194,16 +194,16 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
       filters: {
         statusOptionIds: readEntries(
           filters.statusOptionIds,
-          IDENTIFIER_SCHEMA,
+          identifierSchema,
           100
         ),
         priorityOptionIds: readEntries(
           filters.priorityOptionIds,
-          IDENTIFIER_SCHEMA,
+          identifierSchema,
           100
         ),
-        assignees: readEntries(filters.assignees, PERSON_SCHEMA, 101),
-        creators: readEntries(filters.creators, PERSON_SCHEMA, 101),
+        assignees: readEntries(filters.assignees, personSchema, 101),
+        creators: readEntries(filters.creators, personSchema, 101),
         tags: tags
           .filter((tag) => !conflicting.has(tag.optionId))
           .slice(0, 100),
