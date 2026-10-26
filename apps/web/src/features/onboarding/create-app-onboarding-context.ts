@@ -34,6 +34,7 @@ import {
   useCreateTeamWithInvitesMutation,
   useUserTeamsQuery,
 } from '@queries/team/teams';
+import { createRoutineSuggestionsWarmup } from '../routine-suggestions/queries/routine-suggestions';
 import { applyWorkspaceAccent } from './apply-workspace-accent';
 import type {
   OnboardingContext,
@@ -94,6 +95,7 @@ export function createAppOnboardingContext(): OnboardingContext {
   const billingPortal = useCreateBillingPortalMutation();
   const completeOnboarding = useCompleteOnboardingMutation();
   const completeTutorial = useCompleteTutorialMutation();
+  const warmRoutineSuggestions = createRoutineSuggestionsWarmup();
   const connectTool = createOnboardingToolConnect();
 
   const viewer = () => toViewerState(userInfo);
@@ -281,6 +283,9 @@ export function createAppOnboardingContext(): OnboardingContext {
       // from the successful PATCH; a racing refetch isn't a completion check.
       await completeOnboarding.mutateAsync({ skipped });
       await completeTutorial.mutateAsync();
+      // Start suggesting routines from the freshly connected inbox now, so
+      // the sidebars have them by the time the user opens one.
+      fireAndForget(warmRoutineSuggestions(), 'onboarding');
       return { t: 'completed' };
     },
     repairTutorial: async () => {

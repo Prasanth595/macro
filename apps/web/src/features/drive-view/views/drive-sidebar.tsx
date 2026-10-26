@@ -6,6 +6,7 @@ import {
 import { ConnectorImportSidebar } from '@app/features/connector-import/connector-import';
 import { FavoriteContextMenu } from '@app/features/favorites/FavoriteContextMenu';
 import { FavoriteIcon } from '@app/features/favorites/FavoriteIcon';
+import { SidebarRoutineSuggestions } from '@app/features/routine-suggestions/routine-suggestions';
 import { useFavoriteDisplayName } from '@app/util/favorites';
 import { fireAndForget } from '@core/util/fireAndForget';
 import FolderIcon from '@phosphor/folder.svg';
@@ -250,6 +251,7 @@ export function DriveSidebar() {
         <DriveCreateMenu />
       </ViewSidebar.Primary>
       <ViewSidebar.Content>
+        <SidebarRoutineSuggestions surface="files" />
         <DriveSidebarContent />
         <DriveImportPromotion />
       </ViewSidebar.Content>

@@ -116,6 +116,22 @@ function aiProjectionQueryOptions(
   });
 }
 
+/**
+ * Starts materializing a projection without subscribing to it, e.g. right
+ * after sign-up so the result is ready by the time a view asks. A warm cache
+ * is left as is. Resolves once the server accepted the request.
+ */
+export async function warmAIProjection(
+  opts: Omit<CreateAIProjectionOptions<z.ZodType>, 'enabled'>
+): Promise<void> {
+  await throwOnErr(
+    async () =>
+      await cognitionApiServiceClient.upsertAiProjection(
+        buildProjectionRequest({ ...opts, awaitGeneration: false })
+      )
+  );
+}
+
 function toProjectionState(
   message: ProjectionUpdatedMessage
 ): ProjectionStateResponse {

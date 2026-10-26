@@ -36,6 +36,10 @@ Composer typeahead menus choosing the side with room for their full list
 phone screen and below one near the top, have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/LexicalMarkdown/directive/browser-test/playwright.config.ts`.
 
+Suggested routines (sidebar card, modal, one-click enable, edit before enabling,
+and the phone sheet) have a backend-free browser regression:
+`bunx playwright test --config src/features/routine-suggestions/browser-test/playwright.config.ts`.
+
 Meeting-note creation, linking, optional team access, retry, and unlinking have desktop and
 phone browser coverage in `features/calendar-notes`:
 `bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.
