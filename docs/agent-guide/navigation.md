@@ -595,8 +595,10 @@ while editable fields appear below it. **Content type** defaults to **Auto**;
 the strongest candidate starts a draft even when the scores are close. Field
 extraction uses Cloudflare Clairic when its Workers AI account/token are configured,
 with Nemotron as the fallback for missing configuration, provider errors, timeouts,
-or unusable results. Clairic selects text from the draft and computes typed dates;
-it does not rewrite prose. Only complete, valid suggestions enter the editable form.
+or unusable results. Clairic selects text from the draft; it does not rewrite prose.
+Nemotron separately extracts structured temporal expressions and exact source
+spans for tasks and events. Rust resolves these against the request time and
+timezone, including this/next calendar-week semantics. Only complete, valid suggestions enter the editable form.
 Absent Clairic values remain empty; uncertain nonempty values and outgoing body
 spans that end early use the existing fallback. Manual edits retain precedence.
 Bug reports and prioritized problems count as tasks. **Cmd/Ctrl+Shift+Right** cycles through
@@ -668,11 +670,13 @@ Select **Auto** to resume detection; manually edited fields remain yours.
 submits only the currently displayed, complete action. There is no queued send
 while inference is pending. Email and message modes show their outgoing body
 and resolved recipients. Email uses the Email Composer's inbox picker, recipient
-chips with address completion, subject control, rich Markdown editor, and HTML
+chips with address completion, separate Cc/Bcc controls, subject control, rich Markdown editor, and HTML
 preparation for delivery. Task creation uses the task composer's rich title,
 Markdown description, and editable property pills, including Due date.
 Calendar uses the event composer's date/time popovers and calendar, guest, and
-location pills. All these controls preserve manual edits during inference.
+location and recurrence pills, including the shared custom recurrence builder.
+Manual recurrence choices, including Does not repeat, survive later predictions.
+All these controls preserve manual edits during inference.
 The submit shortcut is shown beside the
 action label in its button. Ambiguous names require a specific selection. Calendar
 shows the absolute date, time, timezone, calendar, and invitees. For example,
@@ -681,10 +685,12 @@ invitation; inviting John requires an explicit invitation request or guest edit.
 Bare hours use a reasonable default (1–7 PM, 8–11 AM, 12 noon). For example,
 “call with Julia tomorrow at 7” becomes 7 PM tomorrow for one hour. An assumption
 cue beneath the date/time range draws attention to the inferred AM/PM; editing the start
-time removes that cue. The model identifies ambiguous clock phrases and interprets
-explicit AM/PM and day parts; the application validates timestamps and supplies
-a one-hour end when absent or equal to the start. Extraction suggestions remain
+time removes that cue. The temporal model identifies clock facts, explicit AM/PM and day parts;
+Rust resolves them, marks assumed AM/PM, validates timestamps and supplies
+a one-hour end when absent. Explicit equal or reversed ends remain unresolved. Extraction suggestions remain
 editable and require review, particularly when using the preview Clairic model.
+This flow creates new emails/events/tasks; replying, forwarding and updating
+existing entities remain follow-up scope.
 Relative starts such as “in 30 minutes” do not set the event's duration;
 “in 30 minutes for 15 minutes” creates a 15-minute event. An ISO date such as
 “2026-10-10 at 7pm” still uses the default one-hour duration.

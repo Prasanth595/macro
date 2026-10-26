@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { createInferenceSource } from './inference';
 
 const { extract } = vi.hoisted(() => ({ extract: vi.fn() }));
-vi.mock('@service-cognition/universal-input', () => ({
+vi.mock('@service-agent-harness/universal-input', () => ({
   universalInputClient: { extract },
 }));
 beforeEach(() => {
@@ -68,4 +68,43 @@ it('adapts raw extracted search fields without reinterpreting the keyword phrase
     channels: { from: ['Julia'], in: ['sales'] },
   });
   expect(result.suggestions).not.toHaveProperty('search_from');
+});
+
+it('adapts recurrence into the shared calendar editor config and retains copies', async () => {
+  extract.mockResolvedValue({
+    revision: 4,
+    intent: 'calendar',
+    suggestions: {
+      recurrence: {
+        frequency: 'WEEKLY',
+        interval: 2,
+        by_day: ['MO'],
+        monthly_by_day: null,
+        ends: { kind: 'after', count: 5 },
+      },
+    },
+  });
+  const result = await createInferenceSource().extract(
+    'Meet every other Monday five times',
+    'calendar',
+    4
+  );
+  expect(result.suggestions.recurrence).toEqual({
+    frequency: 'WEEKLY',
+    interval: 2,
+    byDay: ['MO'],
+    ends: { kind: 'after', count: 5 },
+  });
+  extract.mockResolvedValue({
+    revision: 5,
+    intent: 'email',
+    suggestions: { cc: ['Julia'], bcc: ['investor@example.org'] },
+  });
+  const email = await createInferenceSource().extract(
+    'email John cc Julia bcc investor@example.org',
+    'email',
+    5
+  );
+  expect(email.suggestions.cc).toEqual(['Julia']);
+  expect(email.suggestions.bcc).toEqual(['investor@example.org']);
 });

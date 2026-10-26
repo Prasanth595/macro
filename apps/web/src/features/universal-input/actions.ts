@@ -48,6 +48,7 @@ import {
   exportCalendarDescription,
   sanitizeCalendarDescription,
 } from '../calendar/utils/calendar-description';
+import { buildRecurrenceLines } from '../calendar/utils/recurrence';
 import { authoredMentions } from '../channel/Input/message-payload';
 import { searchNeedsKeywords } from '../next-soup/core/search-filters';
 import { compileSearchQuery } from '../next-soup/core/search-query';
@@ -55,6 +56,7 @@ import { createGlobalSearchOpener } from '../next-soup/open-search';
 import type { InputCapabilities } from './context/capabilities';
 import type { InputFields, Submission } from './core/input';
 import { type Recipient, resolveRecipients } from './core/recipients';
+import { parseRecurrenceDraft } from './core/recurrence';
 import { resolveSearchFilters } from './core/search';
 import { createInputChat } from './queries/create-chat';
 import { createTaskFieldSource } from './queries/task-field-source';
@@ -179,9 +181,32 @@ export function createInputActions(
       return 'Attached context is supported for AI. Remove it or choose AI.';
     if (!selectedInbox(input.fields))
       return 'Connect or choose an email account';
-    const unresolved = recipients(input.fields).unresolved;
+    const unresolved = [
+      ...recipients(input.fields).unresolved,
+      ...resolveRecipients(input.fields.cc, people(), true).unresolved,
+      ...resolveRecipients(input.fields.bcc, people(), true).unresolved,
+    ];
     if (unresolved.length)
       return `Choose a specific recipient for ${unresolved.join(', ')}`;
+  };
+  const validateCalendar = (fields: InputFields) => {
+    if (fields.recurrence && !parseRecurrenceDraft(fields.recurrence))
+      return 'Choose valid recurrence settings';
+    if (!selectedCalendar(fields))
+      return 'Connect or choose a writable calendar';
+    if (resolveRecipients(fields.guests, people(), true).unresolved.length)
+      return 'Choose an email address for each guest';
+  };
+  const validateMessage = (fields: InputFields) => {
+    const resolved = recipients(fields, true);
+    if (resolved.unresolved.length)
+      return `Choose a specific recipient for ${resolved.unresolved.join(', ')}`;
+    if (!resolved.recipients.length) return 'Choose at least one recipient';
+    if (
+      resolved.recipients.some((p) => p.kind === 'channel') &&
+      resolved.recipients.length !== 1
+    )
+      return 'Choose one channel, or a group of people';
   };
   const validate: InputCapabilities['validate'] = (input) => {
     if (input.intent === 'search') {
@@ -202,27 +227,18 @@ export function createInputActions(
     }
     if (attachmentCount() && input.intent !== 'ai')
       return 'Attached context is supported for AI. Remove it or choose AI.';
-    if (input.intent === 'calendar') {
-      if (!selectedCalendar(input.fields))
-        return 'Connect or choose a writable calendar';
+    if (input.intent === 'calendar') return validateCalendar(input.fields);
+    if (input.intent === 'email') {
+      const problem = validateEmailDraft(input);
+      if (problem) return problem;
       if (
-        resolveRecipients(input.fields.guests, people(), true).unresolved.length
+        ![input.fields.recipients, input.fields.cc, input.fields.bcc].some(
+          (value) => resolveRecipients(value, people(), true).recipients.length
+        )
       )
-        return 'Choose an email address for each guest';
+        return 'Choose a recipient';
     }
-    if (input.intent === 'email') return validateEmailDraft(input);
-    if (input.intent === 'message') {
-      const resolved = recipients(input.fields, true);
-      if (resolved.unresolved.length)
-        return `Choose a specific recipient for ${resolved.unresolved.join(', ')}`;
-      if (!resolved.recipients.length) return 'Choose at least one recipient';
-      if (
-        input.intent === 'message' &&
-        resolved.recipients.some((p) => p.kind === 'channel') &&
-        resolved.recipients.length !== 1
-      )
-        return 'Choose one channel, or a group of people';
-    }
+    if (input.intent === 'message') return validateMessage(input.fields);
     if (
       input.intent === 'ai' &&
       agents().enabled &&
@@ -246,6 +262,12 @@ export function createInputActions(
         email: p.email!,
         name: p.label,
       })),
+      cc: resolveRecipients(input.fields.cc, people(), true).recipients.map(
+        (p) => ({ email: p.email!, name: p.label })
+      ),
+      bcc: resolveRecipients(input.fields.bcc, people(), true).recipients.map(
+        (p) => ({ email: p.email!, name: p.label })
+      ),
       body_text: body?.bodyText ?? input.fields.body,
       body_html:
         body?.bodyHtml ??
@@ -383,6 +405,7 @@ export function createInputActions(
         };
       })
       .with('calendar', async () => {
+        const recurrence = parseRecurrenceDraft(f.recurrence);
         const calendar = selectedCalendar(f)!;
         const event = await createEvent.mutateAsync({
           title: f.title,
@@ -398,6 +421,13 @@ export function createInputActions(
             endsAt: new Date(f.end).toISOString(),
             timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           },
+          recurrenceLines: recurrence
+            ? buildRecurrenceLines(
+                recurrence,
+                false,
+                Intl.DateTimeFormat().resolvedOptions().timeZone
+              )
+            : undefined,
           location: f.location || undefined,
           attendees: resolveRecipients(f.guests, people(), true).recipients.map(
             (p) => ({ email: p.email! })

@@ -31,6 +31,14 @@ fn answer(kind: &str, value: Value) -> Value {
     json!({"type": kind, "value": value, "confidence": 0.99, "p_null": 0.01})
 }
 fn response(mut answers: Value) -> Value {
+    if answers.get("subject").is_some() {
+        let fields = answers.as_object_mut().unwrap();
+        for field in ["cc", "bcc"] {
+            fields
+                .entry(field)
+                .or_insert_with(|| answer("list", json!([])));
+        }
+    }
     if answers.get("query").is_some() {
         let fields = answers.as_object_mut().unwrap();
         fields
@@ -77,18 +85,24 @@ fn usage() -> UsageContext {
 
 #[tokio::test]
 async fn extracts_email_with_intent_specific_schema_raw_draft_and_metered_usage() {
-    let draft = "email Julia\nCan we reschedule tomorrow?\nLet the investors know.";
+    let draft = "email Julia cc Sam bcc investor@example.org\nCan we reschedule tomorrow?\nLet the investors know.";
     let (server, extractor, recorder) = provider(response(json!({
         "subject": answer("text", json!("reschedule tomorrow")),
         "body": answer("text", json!("Can we reschedule tomorrow?\nLet the investors know.")),
-        "recipients": answer("list", json!(["Julia"]))
+        "recipients": answer("list", json!(["Julia"])),
+        "cc": answer("list", json!(["Sam"])), "bcc": answer("list", json!(["investor@example.org"]))
     })))
     .await;
     let fields = extractor
         .extract(&input(InputIntent::Email, draft), usage())
         .await
         .unwrap();
+    let InputSuggestions::Email(fields) = fields else {
+        panic!("wrong intent");
+    };
     assert_eq!(fields.recipients, ["Julia"]);
+    assert_eq!(fields.cc, ["Sam"]);
+    assert_eq!(fields.bcc, ["investor@example.org"]);
     assert_eq!(
         fields.body.as_deref(),
         Some("Can we reschedule tomorrow?\nLet the investors know.")
@@ -96,9 +110,8 @@ async fn extracts_email_with_intent_specific_schema_raw_draft_and_metered_usage(
     let requests = server.received_requests().await.unwrap();
     let body: Value = serde_json::from_slice(&requests[0].body).unwrap();
     assert_eq!(body["state"], draft);
-    assert_eq!(body["reference_date"], "2026-10-23");
     let schema = body["fields"].as_object().unwrap();
-    assert_eq!(schema.len(), 3);
+    assert_eq!(schema.len(), 5);
     assert_eq!(schema["recipients"]["type"], "list");
     assert_eq!(schema["recipients"]["items"], "text");
     assert_eq!(schema["body"]["type"], "text");
@@ -118,39 +131,27 @@ async fn extracts_email_with_intent_specific_schema_raw_draft_and_metered_usage(
 }
 
 #[tokio::test]
-async fn extracts_computed_calendar_times_without_inventing_guest_invitations() {
+async fn extracts_event_content_without_requesting_temporal_fields() {
+    let draft = "Call Julia tomorrow at 7";
     let (server, extractor, _) = provider(response(json!({
         "title": answer("text", json!("Call Julia")), "body": answer("text", Value::Null),
-        "start": answer("datetime", json!("2026-10-24T19:00:00")),
-        "end": answer("datetime", json!("2026-10-24T20:00:00")),
         "location": answer("text", Value::Null), "guests": answer("list", json!([]))
     })))
     .await;
     let fields = extractor
-        .extract(
-            &input(InputIntent::Calendar, "Call Julia tomorrow at 7"),
-            usage(),
-        )
+        .extract(&input(InputIntent::Calendar, draft), usage())
         .await
         .unwrap();
-    assert_eq!(fields.start.as_deref(), Some("2026-10-24T19:00:00"));
+    let InputSuggestions::Calendar(fields) = fields else {
+        panic!("wrong intent");
+    };
+    assert!(fields.start.is_none());
     assert!(fields.guests.is_empty());
     let requests = server.received_requests().await.unwrap();
     let body: Value = serde_json::from_slice(&requests[0].body).unwrap();
-    assert_eq!(body["fields"]["start"]["type"], "datetime");
+    assert!(body["fields"].get("start").is_none());
+    assert!(body["fields"].get("end").is_none());
     assert_eq!(body["fields"]["guests"]["type"], "list");
-    assert!(
-        body["fields"]["start"]["instructions"]
-            .as_str()
-            .unwrap()
-            .contains("tomorrow is Saturday 2026-10-24")
-    );
-    assert!(
-        body["fields"]["start"]["instructions"]
-            .as_str()
-            .unwrap()
-            .contains("prefer PM for 1 through 7")
-    );
 }
 
 #[tokio::test]
@@ -176,6 +177,9 @@ async fn task_property_lists_map_to_catalog_names_without_requesting_nested_obje
         },
     ];
     let fields = extractor.extract(&request, usage()).await.unwrap();
+    let InputSuggestions::Task(fields) = fields else {
+        panic!("wrong intent");
+    };
     assert_eq!(
         fields.body.as_deref(),
         Some("On mobile the button does nothing")
@@ -207,6 +211,9 @@ async fn absent_answers_do_not_use_provider_guesses() {
         .extract(&input(InputIntent::Search, "Keep this"), usage())
         .await
         .unwrap();
+    let InputSuggestions::Search(fields) = fields else {
+        panic!("wrong intent");
+    };
     assert!(fields.query.is_none());
 }
 
@@ -392,6 +399,9 @@ async fn extracts_search_fields_without_reparsing_keyword_prepositions() {
         .extract(&input(InputIntent::Search, draft), usage())
         .await
         .unwrap();
+    let InputSuggestions::Search(fields) = fields else {
+        panic!("wrong intent");
+    };
     assert_eq!(fields.query.as_deref(), Some("growth in 2026"));
     assert_eq!(fields.search_scope.as_deref(), Some("messages"));
     assert_eq!(fields.search_in, ["sales"]);

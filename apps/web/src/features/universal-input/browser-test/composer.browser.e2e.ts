@@ -472,3 +472,117 @@ test('Command K still searches, opens its selected result, and closes the modal'
   );
   await expect(search).not.toBeVisible();
 });
+
+test('uses shared copy-recipient controls and preserves a manual Bcc through inference', async ({
+  page,
+}) => {
+  await page.goto('/?copies');
+  const input = page.getByRole('textbox', { name: 'Your input', exact: true });
+  await input.fill('Email John that I’ll be late');
+  await expect(
+    page.getByText('julia@example.com', { exact: true })
+  ).toBeVisible();
+  const bcc = page.getByRole('combobox', { name: 'Bcc', exact: true });
+  await expect(bcc).toBeVisible();
+  await bcc.fill('private@example.org');
+  await bcc.press('Enter');
+  await input.fill('Email John that I’ll be late with a changed thought');
+  const send = page.getByRole('button', { name: 'Send email', exact: true });
+  await expect(send).toBeEnabled();
+  await send.click();
+  const submission = page.getByTestId('last-submission');
+  await expect(submission).toContainText('julia@example.com');
+  await expect(submission).toContainText('investor@example.org');
+  await expect(submission).toContainText('private@example.org');
+});
+
+test('uses the shared recurrence selector and preserves a manual one-off choice', async ({
+  page,
+}) => {
+  await page.goto('/?recurrence');
+  const input = page.getByRole('textbox', { name: 'Your input', exact: true });
+  await input.fill('Call John at 3pm tomorrow');
+  await expect(
+    page.getByRole('button', { name: 'Create event', exact: true })
+  ).toBeEnabled();
+  const repeats = page.getByRole('button', { name: /Repeats/ });
+  await expect(repeats).toBeVisible();
+  await repeats.click();
+  await page
+    .getByRole('option', { name: 'Does not repeat', exact: true })
+    .click();
+  await input.fill('Call John at 3pm tomorrow about the launch');
+  const create = page.getByRole('button', {
+    name: 'Create event',
+    exact: true,
+  });
+  await expect(create).toBeEnabled();
+  await create.click();
+  await expect(page.getByTestId('last-submission')).toContainText(
+    '"recurrence":""'
+  );
+});
+
+test('keeps a manual weekly rule visible and submitted after moving the event start day', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page
+    .getByRole('textbox', { name: 'Your input', exact: true })
+    .fill('Call John at 3pm tomorrow');
+  const create = page.getByRole('button', {
+    name: 'Create event',
+    exact: true,
+  });
+  await expect(create).toBeEnabled();
+  const repeats = page.getByRole('button', { name: /^Repeats/ });
+  await repeats.click();
+  await page
+    .getByRole('option', { name: 'Weekly on Saturday', exact: true })
+    .click();
+  await page
+    .getByRole('button', {
+      name: 'Edit event start date and time',
+      exact: true,
+    })
+    .click();
+  await page.getByRole('gridcell', { name: '11', exact: true }).click();
+  await page.getByLabel('Start time', { exact: true }).press('Escape');
+  await expect(repeats).toContainText('Custom');
+  await expect(
+    page.getByRole('button', { name: 'SA', exact: true })
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page.getByRole('button', { name: 'SU', exact: true })
+  ).toHaveAttribute('aria-pressed', 'false');
+  await expect(create).toBeEnabled();
+  await create.click();
+  await expect(page.getByTestId('last-submission')).toContainText('SA');
+});
+
+test('keeps a partially typed Cc address while inference updates unrelated fields', async ({
+  page,
+}) => {
+  await page.goto('/?copies&extract-delay=300');
+  const input = page.getByRole('textbox', { name: 'Your input', exact: true });
+  await input.fill('Email John that I’ll be late');
+  const send = page.getByRole('button', { name: 'Send email', exact: true });
+  await expect(send).toBeEnabled();
+  const cc = page.getByRole('combobox', { name: 'Cc', exact: true });
+  const before = Number(
+    await page.getByTestId('extraction-count').textContent()
+  );
+  await cc.pressSequentially('private', { delay: 80 });
+  await expect(page.getByTestId('extraction-count')).not.toHaveText(
+    String(before)
+  );
+  await expect(cc).toHaveValue('private');
+  await cc.pressSequentially('@example.org', { delay: 80 });
+  await expect(cc).toHaveValue('private@example.org');
+  await cc.press('Enter');
+  await expect(send).toBeEnabled();
+  await send.click();
+  await expect(page.getByTestId('last-submission')).toContainText(
+    'private@example.org'
+  );
+});

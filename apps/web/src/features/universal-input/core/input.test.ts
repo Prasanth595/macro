@@ -123,3 +123,48 @@ it('uses the shared email validator for inferred external recipients', () => {
     expect(resolveRecipients(address, [], true).unresolved).toEqual([address]);
   }
 });
+
+it('preserves manually removed recurrence and copy recipients through subsequent predictions', () => {
+  const config = {
+    frequency: 'WEEKLY' as const,
+    interval: 1,
+    byDay: ['MO' as const],
+    ends: { kind: 'never' as const },
+  };
+  const previous = fieldsSchema.parse({
+    recurrence: '',
+    cc: '',
+    bcc: 'private@example.org',
+  });
+  expect(
+    applySuggestions(previous, ['recurrence', 'cc', 'bcc'], {
+      recurrence: config,
+      cc: ['Julia'],
+      bcc: ['another@example.org'],
+      recipients: [],
+      guests: [],
+    })
+  ).toMatchObject({ recurrence: '', cc: '', bcc: 'private@example.org' });
+  expect(
+    applySuggestions(previous, [], {
+      recurrence: config,
+      recipients: [],
+      guests: [],
+    }).recurrence
+  ).toBe(JSON.stringify(config));
+});
+
+it('allows email delivery to copy recipients without requiring To', () => {
+  expect(
+    missingFields({
+      intent: 'email',
+      text: 'Send the update',
+      id: 'id',
+      fields: fieldsSchema.parse({
+        subject: 'Update',
+        body: 'Hello',
+        bcc: 'private@example.org',
+      }),
+    })
+  ).toBeUndefined();
+});

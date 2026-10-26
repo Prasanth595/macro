@@ -1,15 +1,30 @@
 import { MarkdownTextarea } from '@core/component/LexicalMarkdown/component/core/MarkdownTextarea';
 import { format, isValid, parseISO } from 'date-fns';
-import { createMemo, createUniqueId, onCleanup, Show } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  createUniqueId,
+  on,
+  onCleanup,
+  Show,
+} from 'solid-js';
 import { EventDateTimeRangeFields } from '../../calendar/components/composer/EventDateTimeRangeFields';
 import {
   EventComposerCalendarPill,
   EventComposerGuestsPill,
   EventComposerLocationPill,
+  EventComposerRecurrencePill,
 } from '../../calendar/components/composer/EventPropertyPills';
 import { EventTitleInput } from '../../calendar/components/composer/EventTitleInput';
-import { guestEmail } from '../../calendar/components/composer/event-form-model';
+import {
+  createEventEditorState,
+  type EventEditorInitialValues,
+  guestEmail,
+} from '../../calendar/components/composer/event-form-model';
+import { RecurrenceBuilder } from '../../calendar/components/composer/RecurrenceBuilder';
+import { buildRecurrenceLines } from '../../calendar/utils/recurrence';
 import type { InputDisplay } from '../context/capabilities';
+import { parseRecurrenceDraft } from '../core/recurrence';
 import type { UniversalInputController } from '../primitives/universal-input';
 import {
   composerRecipientOptions,
@@ -40,6 +55,51 @@ export function CalendarDraft(props: {
       (person) => person.kind !== 'custom'
     )
   );
+  const recurrenceValues = (): EventEditorInitialValues => {
+    const fields = s.fields();
+    const config = parseRecurrenceDraft(fields.recurrence);
+    return {
+      title: fields.title,
+      description: fields.body,
+      allDay: false,
+      start: fields.start,
+      end: fields.end,
+      guests: fields.guests,
+      location: fields.location,
+      conference: 'none',
+      recurrenceLines: config
+        ? buildRecurrenceLines(
+            config,
+            false,
+            Intl.DateTimeFormat().resolvedOptions().timeZone
+          )
+        : [],
+    };
+  };
+  const repetition = createEventEditorState({
+    initialValues: recurrenceValues(),
+    state: recurrenceValues,
+    recurrenceTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  });
+  createEffect(
+    on(
+      [() => s.fields().recurrence, () => s.fields().start.slice(0, 10)],
+      ([, day], previous) => {
+        // Reclassify a fixed manual rule against the new start day so the pill
+        // cannot describe a recomputed preset while submission retains the old rule.
+        if (
+          day !== previous?.[1] ||
+          !s.draft().edited.calendar.includes('recurrence')
+        )
+          repetition.replaceInitialValues(recurrenceValues());
+      }
+    )
+  );
+  const saveRepetition = () => {
+    const config = repetition.recurrenceConfig();
+    const value = config ? JSON.stringify(config) : '';
+    if (value !== s.fields().recurrence) s.edit('recurrence', value);
+  };
   const assumption = () => {
     const phrase = s.fields().start_assumption;
     if (s.draft().edited.calendar.includes('start') || !phrase) return;
@@ -114,6 +174,16 @@ export function CalendarDraft(props: {
           onChange={(id) => s.edit('calendarId', id)}
           disabled={s.sending()}
         />
+        <EventComposerRecurrencePill
+          options={repetition.recurrenceOptions()}
+          value={repetition.selectedRecurrenceOption()}
+          onChange={(value) => {
+            if (value === repetition.recurrenceChoice()) return;
+            repetition.changeRecurrenceChoice(value);
+            saveRepetition();
+          }}
+          disabled={s.sending()}
+        />
         <EventComposerGuestsPill
           options={options}
           selected={guests()}
@@ -128,6 +198,18 @@ export function CalendarDraft(props: {
           disabled={s.sending()}
         />
       </div>
+      <Show when={repetition.recurrenceChoice() === 'custom'}>
+        <RecurrenceBuilder
+          value={repetition.customConfig()}
+          start={repetition.startForRecurrence()}
+          allDay={false}
+          disabled={s.sending()}
+          onChange={(value) => {
+            repetition.setCustomConfig(value);
+            saveRepetition();
+          }}
+        />
+      </Show>
     </div>
   );
 }

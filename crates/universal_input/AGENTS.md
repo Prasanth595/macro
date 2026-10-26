@@ -3,12 +3,14 @@
 Read-only intent classification and editable field extraction for Command K.
 
 - `src/domain.rs` owns admission, draft bounds, verbatim note preservation,
-  and event timestamp validation/defaults. Providers interpret natural language;
+  and event timestamp validation/defaults. `domain/temporal` resolves typed, source-backed
+  temporal expressions against the request clock and timezone. Providers interpret natural language;
   domain validation must not re-parse it with regexes. `domain/fallback.rs` owns provider failover policy.
 - `src/outbound.rs` implements the field-extraction port through the shared
-  model router; `outbound/clairic.rs` implements Cloudflare typed extraction.
-- HTTP transport and provider configuration are wired by
-  `services/agent_harness_service/src/cognition`.
+  model router; `outbound/clairic.rs` implements Cloudflare typed content extraction,
+  and `outbound/temporal.rs` extracts temporal facts with Nemotron.
+- `src/inbound/axum_router.rs` owns authenticated HTTP routes. The harness root
+  composes providers and mounts the router under `/universal_input`.
 - Suggestions contain display text, never authorized entity identifiers.
   Submission and permission checks belong to the destination services.
 - Keep all public API documented; the crate denies missing documentation.

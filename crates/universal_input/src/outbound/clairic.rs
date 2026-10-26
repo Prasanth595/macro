@@ -115,7 +115,7 @@ impl FieldExtractor for ClairicFieldExtractor {
         let request = ExtractionRequest::new(input)?;
         // AI needs no extraction; Clairic requires at least one field.
         if request.fields.is_empty() {
-            return Ok(InputSuggestions::default());
+            return Ok(InputSuggestions::Ai(crate::domain::AiSuggestions::default()));
         }
         let mut headers = reqwest::header::HeaderMap::new();
         macro_tower_layers::inject_trace_headers(&mut headers);
@@ -161,8 +161,6 @@ impl FieldExtractor for ClairicFieldExtractor {
 #[serde(rename_all = "snake_case")]
 enum FieldType {
     Text,
-    Date,
-    Datetime,
     List,
 }
 
@@ -179,29 +177,11 @@ struct FieldSpec {
 struct ExtractionRequest<'a> {
     model: &'static str,
     state: &'a str,
-    reference_date: String,
     fields: BTreeMap<String, FieldSpec>,
 }
 
 impl<'a> ExtractionRequest<'a> {
     fn new(input: &'a ExtractInputRequest) -> Result<Self, InputError> {
-        let zone = input
-            .time_zone
-            .parse::<chrono_tz::Tz>()
-            .map_err(|_| InputError::InvalidTimeZone)?;
-        let local = input.reference_time.with_timezone(&zone);
-        // Keep context out of state: text answers must come from the actual draft.
-        let tomorrow = local
-            .date_naive()
-            .succ_opt()
-            .ok_or(InputError::Extraction)?;
-        let calendar = format!(
-            "Reference local calendar: today is {}; tomorrow is {}. Current local time: {}. Time zone: {}.",
-            local.format("%A %Y-%m-%d"),
-            tomorrow.format("%A %Y-%m-%d"),
-            local.format("%H:%M"),
-            input.time_zone
-        );
         let mut fields = BTreeMap::new();
         for &name in input.intent.extraction_fields() {
             let guidance = input
@@ -227,9 +207,9 @@ impl<'a> ExtractionRequest<'a> {
                 continue;
             }
             let kind = match name {
-                "start" | "end" => FieldType::Datetime,
-                "due_date" => FieldType::Date,
-                "recipients" | "guests" | "search_from" | "search_in" => FieldType::List,
+                "recipients" | "cc" | "bcc" | "guests" | "search_from" | "search_in" => {
+                    FieldType::List
+                }
                 _ => FieldType::Text,
             };
             fields.insert(
@@ -237,18 +217,13 @@ impl<'a> ExtractionRequest<'a> {
                 FieldSpec {
                     kind,
                     items: (kind == FieldType::List).then_some(FieldType::Text),
-                    instructions: if matches!(kind, FieldType::Date | FieldType::Datetime) {
-                        format!("{guidance}\n{calendar}")
-                    } else {
-                        guidance.to_owned()
-                    },
+                    instructions: guidance.to_owned(),
                 },
             );
         }
         Ok(Self {
             model: "clairic",
             state: &input.text,
-            reference_date: local.format("%Y-%m-%d").to_string(),
             fields,
         })
     }
@@ -320,15 +295,6 @@ impl Answer {
                         .is_some_and(|s| !s.is_empty() && draft.contains(s))
                 })
             }),
-            FieldType::Date => self
-                .value
-                .as_str()
-                .is_some_and(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok()),
-            FieldType::Datetime => self.value.as_str().is_some_and(|s| {
-                chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M").is_ok()
-                    || chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f").is_ok()
-                    || chrono::DateTime::parse_from_rfc3339(s).is_ok()
-            }),
         };
         if !valid {
             return Err(InputError::Extraction);
@@ -378,10 +344,10 @@ impl ExtractionResponse {
             && let Some(body) = fields.get("body").and_then(Value::as_str)
             && !input.text.trim_end().ends_with(body.trim_end())
         {
-            // Outgoing bodies exclude only a leading addressing instruction. A span that
-            // stops early would silently drop later sentences; let the fallback extract it.
+            // A span ending early could discard later sentences or routing metadata.
+            // Let the generative fallback separate those instead of accepting truncation.
             return Err(InputError::Extraction);
         }
-        serde_json::from_value(Value::Object(fields)).map_err(|_| InputError::Extraction)
+        super::decode_suggestions(input.intent, Value::Object(fields))
     }
 }

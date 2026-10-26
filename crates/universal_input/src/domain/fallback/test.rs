@@ -35,7 +35,11 @@ async fn successful_primary_never_calls_fallback_including_valid_empty_answers()
     let extractor = FallbackFieldExtractor::new(
         Some(Extractor {
             calls: primary_calls.clone(),
-            result: || Ok(InputSuggestions::default()),
+            result: || {
+                Ok(InputSuggestions::Email(
+                    super::super::EmailSuggestions::default(),
+                ))
+            },
         }),
         Extractor {
             calls: fallback_calls.clone(),
@@ -65,16 +69,19 @@ async fn failed_primary_calls_fallback_once_with_the_same_attribution() {
         Extractor {
             calls: fallback_calls.clone(),
             result: || {
-                Ok(InputSuggestions {
+                Ok(InputSuggestions::Email(super::super::EmailSuggestions {
                     body: Some("Are you free?".into()),
                     ..Default::default()
-                })
+                }))
             },
         },
     );
     let usage = UsageContext::system(AiFeature::DynamicCompletionsApi);
     let result = extractor.extract(&request(), usage.clone()).await.unwrap();
-    assert_eq!(result.body.as_deref(), Some("Are you free?"));
+    let InputSuggestions::Email(fields) = result else {
+        panic!("wrong intent");
+    };
+    assert_eq!(fields.body.as_deref(), Some("Are you free?"));
     for calls in [&primary_calls, &fallback_calls] {
         let calls = calls.lock().unwrap();
         assert_eq!(calls.len(), 1);
@@ -91,7 +98,11 @@ async fn absent_primary_uses_existing_extractor() {
         None,
         Extractor {
             calls: calls.clone(),
-            result: || Ok(InputSuggestions::default()),
+            result: || {
+                Ok(InputSuggestions::Email(
+                    super::super::EmailSuggestions::default(),
+                ))
+            },
         },
     );
     extractor

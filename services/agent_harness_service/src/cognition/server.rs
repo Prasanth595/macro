@@ -1070,29 +1070,6 @@ pub async fn build(
     .with_auth_completed_hook(pipedream_auth_hook)
     .with_disconnected_hook(pipedream_disconnected_hook);
 
-    let universal_input = Arc::new(universal_input::domain::UniversalInputService::new(
-        config
-            .typesafe_api_key
-            .value()
-            .map(jev::outbound::TypesafeJev::new)
-            .transpose()
-            .context("invalid TYPESAFE_API_KEY")?
-            .map(|provider| {
-                jev::domain::JevClassifier::new(provider, tool_service_context.recorder.clone())
-            }),
-        universal_input::domain::FallbackFieldExtractor::new(
-            universal_input::outbound::clairic::ClairicFieldExtractor::from_config(
-                &config.cloudflare_account_id,
-                &config.cloudflare_api_token,
-                tool_service_context.recorder.clone(),
-            )?,
-            universal_input::outbound::AgentFieldExtractor::new(
-                tool_service_context.recorder.clone(),
-            ),
-        ),
-        tool_service_context.admission.clone(),
-    ));
-
     let cancellation = tokio_util::sync::CancellationToken::new();
     super::refresh::start(
         db.clone(),
@@ -1101,7 +1078,6 @@ pub async fn build(
         event_broker_tracker.clone(),
     );
     let router = api::build_router(ApiContext {
-        universal_input,
         db: db.clone(),
         email_service_client_external,
         sqs_client: Arc::new(sqs_client),

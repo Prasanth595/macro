@@ -5,6 +5,7 @@ export function ComposeFieldRow(props: {
   label: string;
   compact?: boolean;
   children: JSX.Element;
+  trailing?: JSX.Element;
 }) {
   return (
     <div
@@ -24,6 +25,7 @@ export function ComposeFieldRow(props: {
         {props.label}
       </span>
       <div class="min-w-0 flex-1">{props.children}</div>
+      {props.trailing}
     </div>
   );
 }

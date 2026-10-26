@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { searchFiltersSchema } from '../../next-soup/core/search-filters';
+import { recurrenceConfigSchema } from './recurrence';
 
 export const intentSchema = z.enum([
   'ai',
@@ -35,6 +36,8 @@ export const fieldsSchema = z.object({
   body: z.string().default(''),
   subject: z.string().default(''),
   recipients: z.string().default(''),
+  cc: z.string().default(''),
+  bcc: z.string().default(''),
   query: z.string().default(''),
   searchFilters: z.string().default(''),
   start: z.string().default(''),
@@ -43,6 +46,7 @@ export const fieldsSchema = z.object({
   due_date: z.string().default(''),
   location: z.string().default(''),
   guests: z.string().default(''),
+  recurrence: z.string().default(''),
   calendarId: z.string().default(''),
   inboxId: z.string().default(''),
   taskProperties: z.string().default(''),
@@ -62,6 +66,8 @@ export const suggestionsSchema = z.object({
   body: z.string().nullish(),
   subject: z.string().nullish(),
   recipients: z.array(z.string()).default([]),
+  cc: z.array(z.string()).optional(),
+  bcc: z.array(z.string()).optional(),
   query: z.string().nullish(),
   searchFilters: searchFiltersSchema.nullish(),
   start: z.string().nullish(),
@@ -70,6 +76,7 @@ export const suggestionsSchema = z.object({
   due_date: z.string().nullish(),
   location: z.string().nullish(),
   guests: z.array(z.string()).default([]),
+  recurrence: recurrenceConfigSchema.nullish(),
   properties: z
     .array(z.object({ name: z.string(), values: z.array(z.string()) }))
     .optional(),
@@ -124,14 +131,11 @@ export function applySuggestions(
   for (const key of Object.keys(suggestions) as (keyof Suggestions)[]) {
     if (edited.includes(key)) continue;
     const value = suggestions[key];
-    next[key] =
-      key === 'properties' || key === 'searchFilters'
-        ? JSON.stringify(value ?? [])
-        : Array.isArray(value)
-          ? value.join(', ')
-          : typeof value === 'string'
-            ? value
-            : '';
+    if (key === 'recurrence') next[key] = value ? JSON.stringify(value) : '';
+    else if (key === 'properties' || key === 'searchFilters')
+      next[key] = JSON.stringify(value ?? []);
+    else if (Array.isArray(value)) next[key] = value.join(', ');
+    else next[key] = typeof value === 'string' ? value : '';
   }
   return next;
 }
@@ -163,7 +167,9 @@ export function missingFields(input: Submission): string | undefined {
   if (['note', 'task', 'calendar'].includes(input.intent) && !f.title.trim())
     return 'Add a title';
   if (['email', 'message'].includes(input.intent)) {
-    if (!f.recipients.trim()) return 'Choose a recipient';
+    const addresses =
+      input.intent === 'email' ? [f.recipients, f.cc, f.bcc] : [f.recipients];
+    if (!addresses.some((value) => value.trim())) return 'Choose a recipient';
     if (!f.body.trim()) return 'Add the outgoing message';
   }
   if (input.intent === 'email' && !f.subject.trim()) return 'Add a subject';

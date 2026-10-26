@@ -14,7 +14,10 @@ mod test;
 
 mod fallback;
 pub use fallback::FallbackFieldExtractor;
+mod suggestions;
 mod typed_guidance;
+pub use suggestions::*;
+pub mod temporal;
 
 /// Domain-owned guidance for how the inference port interprets a draft.
 pub const FIELD_EXTRACTION_GUIDANCE: &str = include_str!("domain/extract_fields_prompt.txt");
@@ -45,18 +48,10 @@ impl InputIntent {
         match self {
             Self::Ai => &[],
             Self::Search => &["query", "search_scope", "search_from", "search_in"],
-            Self::Email => &["subject", "body", "recipients"],
+            Self::Email => &["subject", "body", "recipients", "cc", "bcc"],
             Self::Note => &["title"],
-            Self::Task => &["title", "body", "due_date", "properties"],
-            Self::Calendar => &[
-                "title",
-                "body",
-                "start",
-                "end",
-                "start_assumption",
-                "location",
-                "guests",
-            ],
+            Self::Task => &["title", "body", "properties"],
+            Self::Calendar => &["title", "body", "location", "guests"],
             Self::Message => &["body", "recipients"],
         }
     }
@@ -172,56 +167,14 @@ pub struct InputPropertySuggestion {
     pub values: Vec<String>,
 }
 
-/// Suggestions are text, never authorized recipient, channel or calendar IDs.
-#[derive(Debug, Default, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct InputSuggestions {
-    /// Suggested note, task, or event title.
-    pub title: Option<String>,
-    /// Suggested Markdown content or outgoing message body.
-    pub body: Option<String>,
-    /// Suggested outgoing email subject.
-    pub subject: Option<String>,
-    /// Person or channel names for the client to resolve.
-    #[serde(default)]
-    pub recipients: Vec<String>,
-    /// Terms to find existing Macro content.
-    pub query: Option<String>,
-    /// Verbatim noun naming the requested search category, such as messages or tasks.
-    pub search_scope: Option<String>,
-    /// Explicit sender, speaker, or task-creator names for the client to resolve.
-    #[serde(default)]
-    pub search_from: Vec<String>,
-    /// Explicit channel names for the client to resolve.
-    #[serde(default)]
-    pub search_in: Vec<String>,
-    /// Local wall-clock values, interpreted in the request's IANA timezone.
-    pub start: Option<String>,
-    /// Verbatim clock phrase whose missing AM/PM required an editable assumption.
-    pub start_assumption: Option<String>,
-    /// Event end as a local wall-clock value in the request's timezone.
-    pub end: Option<String>,
-    /// Task deadline as a local ISO date.
-    pub due_date: Option<String>,
-    /// Human-readable event venue or meeting URL.
-    pub location: Option<String>,
-    /// Only populated when an invitation was explicitly requested.
-    #[serde(default)]
-    pub guests: Vec<String>,
-    /// Display names/values that the client resolves against available task fields.
-    #[serde(default)]
-    pub properties: Vec<InputPropertySuggestion>,
-}
-
-/// Validated field suggestions for a particular destination and draft revision.
+/// Validated suggestions for a particular client draft revision.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ExtractInputResponse {
     /// Revision echoed from the extraction request.
     pub revision: u32,
-    /// Destination echoed from the extraction request.
-    pub intent: InputIntent,
-    /// Editable fields after domain normalization and source-preservation rules.
-    pub suggestions: InputSuggestions,
+    /// Destination and applicable editable fields, encoded together.
+    #[serde(flatten)]
+    pub suggestion: InputSuggestions,
 }
 
 /// Input validation, admission, and provider failures exposed by inference.
@@ -353,38 +306,40 @@ impl<C: YesNoClassifier, E: FieldExtractor> UniversalInputService<C, E> {
                 UsageContext::new(AiFeature::DynamicCompletionsApi, user),
             )
             .await?;
-        if input.intent == InputIntent::Note {
-            suggestions.body = Some(input.text.clone());
+        if suggestions.intent() != input.intent {
+            return Err(InputError::Extraction);
         }
-        if input.intent == InputIntent::Email && suggestions.subject.is_none() {
-            suggestions.subject = suggestions.body.as_deref().and_then(|body| {
-                body.lines()
-                    .map(str::trim)
-                    .find(|line| !line.is_empty())
-                    .map(|line| line.chars().take(80).collect())
-            });
-        }
-        // Validate extracted values without reinterpreting the draft's language.
-        let missing_end = suggestions.end.is_none();
-        normalize_event_times(&mut suggestions, zone);
-        if input.intent == InputIntent::Calendar {
-            if missing_end || suggestions.end.is_some() {
-                suggestions.end = event_end(&suggestions, zone);
+        match &mut suggestions {
+            InputSuggestions::Note(fields) => fields.body = Some(input.text.clone()),
+            InputSuggestions::Email(fields) if fields.subject.is_none() => {
+                fields.subject = fields.body.as_deref().and_then(|body| {
+                    body.lines()
+                        .map(str::trim)
+                        .find(|line| !line.is_empty())
+                        .map(|line| line.chars().take(80).collect())
+                });
             }
-            normalize_event_times(&mut suggestions, zone);
-            suggestions.start_assumption = suggestions.start_assumption.filter(|phrase| {
-                suggestions.start.is_some() && !phrase.is_empty() && input.text.contains(phrase)
-            });
+            InputSuggestions::Calendar(fields) => {
+                let missing_end = fields.end.is_none();
+                normalize_event_times(fields, zone);
+                if missing_end || fields.end.is_some() {
+                    fields.end = event_end(fields, zone);
+                }
+                normalize_event_times(fields, zone);
+                fields.start_assumption = fields.start_assumption.take().filter(|phrase| {
+                    fields.start.is_some() && !phrase.is_empty() && input.text.contains(phrase)
+                });
+            }
+            _ => {}
         }
         Ok(ExtractInputResponse {
             revision: input.revision,
-            intent: input.intent,
-            suggestions,
+            suggestion: suggestions,
         })
     }
 }
 
-fn event_end(fields: &InputSuggestions, zone: chrono_tz::Tz) -> Option<String> {
+fn event_end(fields: &CalendarSuggestions, zone: chrono_tz::Tz) -> Option<String> {
     let start = NaiveDateTime::parse_from_str(fields.start.as_deref()?, "%Y-%m-%dT%H:%M").ok()?;
     if let Some(end) = fields.end.as_deref() {
         let end = NaiveDateTime::parse_from_str(end, "%Y-%m-%dT%H:%M").ok()?;
@@ -403,7 +358,7 @@ fn event_end(fields: &InputSuggestions, zone: chrono_tz::Tz) -> Option<String> {
     Some(end.format("%Y-%m-%dT%H:%M").to_string())
 }
 
-fn normalize_event_times(fields: &mut InputSuggestions, zone: chrono_tz::Tz) {
+fn normalize_event_times(fields: &mut CalendarSuggestions, zone: chrono_tz::Tz) {
     for value in [&mut fields.start, &mut fields.end] {
         *value = value
             .as_deref()

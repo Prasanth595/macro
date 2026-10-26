@@ -1,7 +1,9 @@
 //! Tool-free extraction adapters for Clairic and the shared model router.
 pub mod clairic;
+pub mod temporal;
 use crate::domain::{
-    ExtractInputRequest, FIELD_EXTRACTION_GUIDANCE, FieldExtractor, InputError, InputSuggestions,
+    ExtractInputRequest, FIELD_EXTRACTION_GUIDANCE, FieldExtractor, InputError, InputIntent,
+    InputSuggestions,
 };
 use agent::{Message, complete_with_history_and_params};
 use ai_usage::{UsageContext, UsageRecorder};
@@ -28,7 +30,7 @@ fn extraction_schema(input: &ExtractInputRequest) -> Value {
         .iter()
         .map(|field| {
             let schema = match *field {
-                "recipients" | "guests" | "search_from" | "search_in" => {
+                "recipients" | "cc" | "bcc" | "guests" | "search_from" | "search_in" => {
                     json!({"type": "array", "items": {"type": "string"}})
                 }
                 "properties" => json!({"type": "array", "items": {
@@ -47,6 +49,11 @@ fn extraction_schema(input: &ExtractInputRequest) -> Value {
     json!({"type": "object", "additionalProperties": false, "required": fields, "properties": properties})
 }
 
+fn decode_suggestions(intent: InputIntent, fields: Value) -> Result<InputSuggestions, InputError> {
+    serde_json::from_value(json!({"intent": intent, "suggestions": fields}))
+        .map_err(|_| InputError::Extraction)
+}
+
 impl FieldExtractor for AgentFieldExtractor {
     async fn extract(
         &self,
@@ -60,11 +67,7 @@ impl FieldExtractor for AgentFieldExtractor {
             input.intent.extraction_guidance(),
             schema
         );
-        let zone = input
-            .time_zone
-            .parse::<chrono_tz::Tz>()
-            .map_err(|_| InputError::InvalidTimeZone)?;
-        let prompt = json!({"draft": input.text, "intent": input.intent, "reference_time": input.reference_time, "reference_local_time": input.reference_time.with_timezone(&zone).format("%A %Y-%m-%dT%H:%M").to_string(), "time_zone": input.time_zone, "property_definitions": input.property_definitions}).to_string();
+        let prompt = json!({"draft": input.text, "intent": input.intent, "property_definitions": input.property_definitions}).to_string();
         let result = complete_with_history_and_params(
             EXTRACTION_MODEL,
             &system,
@@ -81,6 +84,9 @@ impl FieldExtractor for AgentFieldExtractor {
         )
         .await
         .map_err(|_| InputError::Extraction)?;
-        serde_json::from_str(&result).map_err(|_| InputError::Extraction)
+        decode_suggestions(
+            input.intent,
+            serde_json::from_str(&result).map_err(|_| InputError::Extraction)?,
+        )
     }
 }

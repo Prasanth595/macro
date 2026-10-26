@@ -523,6 +523,16 @@ export function UniversalInputFixture(
           body:
             intent === 'email' || intent === 'message' ? 'I’ll be late' : text,
           subject: 'Running late',
+          cc: params.has('copies') ? ['julia@example.com'] : [],
+          bcc: params.has('copies') ? ['investor@example.org'] : [],
+          recurrence: params.has('recurrence')
+            ? {
+                frequency: 'WEEKLY' as const,
+                interval: 1,
+                byDay: ['MO' as const],
+                ends: { kind: 'never' as const },
+              }
+            : null,
           recipients:
             intent === 'email' || intent === 'message' ? ['John'] : [],
           start_assumption: text.includes('at 7') ? 'at 7' : null,

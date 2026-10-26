@@ -25,6 +25,8 @@ import type { Sdk as StorageSdk } from '../../generated/storage/sdk.gen';
 import type { Sdk as UnfurlSdk } from '../../generated/unfurl/sdk.gen';
 
 export const agentHarnessExcluded = [
+  'classify', // Command K inference is app-internal.
+  'extract', // Command K inference is app-internal.
   'loadAgentModelsHandler',
   'discoverAgentCapabilitiesHandler',
   'previewAgentSessions',
@@ -158,13 +160,10 @@ export const cognitionExcluded = [
   'addMcpServer',
   'browsePipedreamMcpCatalog',
   'callTool',
-  // Speculative Command K inference prepares app-owned, editable drafts.
-  'classify',
   'completePipedreamMcpConnection',
   'createPipedreamMcpToken',
   'deletePipedreamMcpConnection',
   'deleteMcpServer',
-  'extract',
   'getBatchPreview',
   'getChatHistoryBatchMessagesHandler',
   'getChatPermissions',

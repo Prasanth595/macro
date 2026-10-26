@@ -102,16 +102,19 @@ async fn preserves_valid_extracted_times_instead_of_reparsing_the_draft() {
     ] {
         let mut input = request();
         input.text = text.into();
-        let response = service(InputSuggestions {
+        let response = service(InputSuggestions::Calendar(CalendarSuggestions {
             start: Some(start.into()),
             end: Some(end.into()),
             ..Default::default()
-        })
+        }))
         .extract(user(), input)
         .await
         .unwrap();
-        assert_eq!(response.suggestions.start.as_deref(), Some(start), "{text}");
-        assert_eq!(response.suggestions.end.as_deref(), Some(end), "{text}");
+        let InputSuggestions::Calendar(fields) = response.suggestion else {
+            panic!("wrong suggestion variant");
+        };
+        assert_eq!(fields.start.as_deref(), Some(start), "{text}");
+        assert_eq!(fields.end.as_deref(), Some(end), "{text}");
     }
 }
 
@@ -124,15 +127,18 @@ async fn defaults_missing_or_zero_length_ends_but_rejects_invalid_or_reversed_en
         (Some("2026-10-10T18:00"), None),
         (Some("not a date"), None),
     ] {
-        let response = service(InputSuggestions {
+        let response = service(InputSuggestions::Calendar(CalendarSuggestions {
             start: Some("2026-10-10T19:00".into()),
             end: end.map(str::to_owned),
             ..Default::default()
-        })
+        }))
         .extract(user(), request())
         .await
         .unwrap();
-        assert_eq!(response.suggestions.end.as_deref(), expected);
+        let InputSuggestions::Calendar(fields) = response.suggestion else {
+            panic!("wrong suggestion variant");
+        };
+        assert_eq!(fields.end.as_deref(), expected);
     }
 }
 
@@ -142,26 +148,32 @@ async fn does_not_truncate_extracted_bodies_or_reinterpret_guest_negation() {
     input.intent = InputIntent::Email;
     input.text = "email Julia about the report that failed".into();
     let body = "Can we discuss the report that failed?";
-    let response = service(InputSuggestions {
+    let response = service(InputSuggestions::Email(EmailSuggestions {
         body: Some(body.into()),
         ..Default::default()
-    })
+    }))
     .extract(user(), input)
     .await
     .unwrap();
-    assert_eq!(response.suggestions.body.as_deref(), Some(body));
-    assert_eq!(response.suggestions.subject.as_deref(), Some(body));
+    let InputSuggestions::Email(fields) = response.suggestion else {
+        panic!("wrong suggestion variant");
+    };
+    assert_eq!(fields.body.as_deref(), Some(body));
+    assert_eq!(fields.subject.as_deref(), Some(body));
 
     let mut input = request();
     input.text = "Invite Julia but don't invite Alex".into();
-    let response = service(InputSuggestions {
+    let response = service(InputSuggestions::Calendar(CalendarSuggestions {
         guests: vec!["Julia".into()],
         ..Default::default()
-    })
+    }))
     .extract(user(), input)
     .await
     .unwrap();
-    assert_eq!(response.suggestions.guests, ["Julia"]);
+    let InputSuggestions::Calendar(fields) = response.suggestion else {
+        panic!("wrong suggestion variant");
+    };
+    assert_eq!(fields.guests, ["Julia"]);
 }
 
 #[tokio::test]
@@ -170,14 +182,17 @@ async fn notes_preserve_the_entire_source_without_requesting_a_body_from_the_mod
     input.intent = InputIntent::Note;
     input.text = "# Research\n\n- First finding\n- Second finding".into();
     let text = input.text.clone();
-    let response = service(InputSuggestions {
+    let response = service(InputSuggestions::Note(NoteSuggestions {
         title: Some("Research".into()),
         ..Default::default()
-    })
+    }))
     .extract(user(), input)
     .await
     .unwrap();
-    assert_eq!(response.suggestions.body.as_deref(), Some(text.as_str()));
+    let InputSuggestions::Note(fields) = response.suggestion else {
+        panic!("wrong suggestion variant");
+    };
+    assert_eq!(fields.body.as_deref(), Some(text.as_str()));
 }
 
 #[test]
@@ -209,7 +224,7 @@ async fn validates_field_catalog_bounds_before_inference_and_preserves_property_
         })
         .collect();
     assert!(matches!(
-        service(InputSuggestions::default())
+        service(InputSuggestions::Calendar(CalendarSuggestions::default()))
             .extract(user(), input)
             .await,
         Err(InputError::InvalidProperties)
@@ -221,23 +236,26 @@ async fn validates_field_catalog_bounds_before_inference_and_preserves_property_
         name: "Priority".into(),
         options: vec!["Urgent".into()],
     }];
-    let response = service(InputSuggestions {
+    let response = service(InputSuggestions::Task(TaskSuggestions {
         properties: vec![InputPropertySuggestion {
             name: "Priority".into(),
             values: vec!["Urgent".into()],
         }],
         ..Default::default()
-    })
+    }))
     .extract(user(), input)
     .await
     .unwrap();
-    assert_eq!(response.suggestions.properties[0].name, "Priority");
-    assert_eq!(response.suggestions.properties[0].values, ["Urgent"]);
+    let InputSuggestions::Task(fields) = response.suggestion else {
+        panic!("wrong suggestion variant");
+    };
+    assert_eq!(fields.properties[0].name, "Priority");
+    assert_eq!(fields.properties[0].values, ["Urgent"]);
 }
 
 #[tokio::test]
 async fn returns_seven_independent_scores_and_the_draft_revision() {
-    let response = service(InputSuggestions::default())
+    let response = service(InputSuggestions::Calendar(CalendarSuggestions::default()))
         .classify(
             user(),
             ClassifyInputRequest {
@@ -258,7 +276,7 @@ async fn admission_prevents_provider_calls() {
     let calls = Arc::new(AtomicUsize::new(0));
     let service = UniversalInputService::new(
         Some(Classifier(calls.clone())),
-        Extractor(InputSuggestions::default()),
+        Extractor(InputSuggestions::Calendar(CalendarSuggestions::default())),
         Arc::new(Denied),
     );
     assert!(matches!(
@@ -282,7 +300,7 @@ async fn admission_prevents_provider_calls() {
 
 #[tokio::test]
 async fn rejects_empty_and_oversized_drafts_before_inference() {
-    let service = service(InputSuggestions::default());
+    let service = service(InputSuggestions::Calendar(CalendarSuggestions::default()));
     for text in [" ".into(), "a".repeat(16_001)] {
         assert!(matches!(
             service
@@ -297,7 +315,7 @@ async fn rejects_empty_and_oversized_drafts_before_inference() {
 async fn extraction_is_available_without_jev_configuration() {
     let service = UniversalInputService::<Classifier, _>::new(
         None,
-        Extractor(InputSuggestions::default()),
+        Extractor(InputSuggestions::Calendar(CalendarSuggestions::default())),
         Arc::new(DisabledAiAdmissionService),
     );
     assert!(matches!(
@@ -317,20 +335,20 @@ async fn extraction_is_available_without_jev_configuration() {
 
 #[tokio::test]
 async fn keeps_valid_local_event_times_and_never_adds_attendees() {
-    let response = service(InputSuggestions {
+    let response = service(InputSuggestions::Calendar(CalendarSuggestions {
         title: Some("Call John".into()),
         start: Some("2026-10-10T15:00".into()),
         end: Some("2026-10-10T16:00".into()),
         ..Default::default()
-    })
+    }))
     .extract(user(), request())
     .await
     .unwrap();
-    assert_eq!(
-        response.suggestions.start.as_deref(),
-        Some("2026-10-10T15:00")
-    );
-    assert!(response.suggestions.guests.is_empty());
+    let InputSuggestions::Calendar(fields) = response.suggestion else {
+        panic!("wrong suggestion variant");
+    };
+    assert_eq!(fields.start.as_deref(), Some("2026-10-10T15:00"));
+    assert!(fields.guests.is_empty());
     assert_eq!(response.revision, 7);
 }
 
@@ -339,20 +357,23 @@ async fn rejects_invalid_timezones_and_ambiguous_or_nonexistent_wall_times() {
     let mut input = request();
     input.time_zone = "Not/AZone".into();
     assert!(matches!(
-        service(InputSuggestions::default())
+        service(InputSuggestions::Calendar(CalendarSuggestions::default()))
             .extract(user(), input)
             .await,
         Err(InputError::InvalidTimeZone)
     ));
     for start in ["2026-03-08T02:30", "2026-11-01T01:30", "not a date"] {
-        let response = service(InputSuggestions {
+        let response = service(InputSuggestions::Calendar(CalendarSuggestions {
             start: Some(start.into()),
             ..Default::default()
-        })
+        }))
         .extract(user(), request())
         .await
         .unwrap();
-        assert!(response.suggestions.start.is_none());
+        let InputSuggestions::Calendar(fields) = response.suggestion else {
+            panic!("wrong suggestion variant");
+        };
+        assert!(fields.start.is_none());
     }
 }
 
@@ -365,22 +386,19 @@ async fn normalizes_seconds_and_offsets_to_the_users_local_event_time() {
         "2026-10-10T23:00:00Z",
         " 2026-10-10T19:00 ",
     ] {
-        let response = service(InputSuggestions {
+        let response = service(InputSuggestions::Calendar(CalendarSuggestions {
             start: Some(start.into()),
             end: Some("2026-10-11T00:00:00Z".into()),
             ..Default::default()
-        })
+        }))
         .extract(user(), request())
         .await
         .unwrap();
-        assert_eq!(
-            response.suggestions.start.as_deref(),
-            Some("2026-10-10T19:00")
-        );
-        assert_eq!(
-            response.suggestions.end.as_deref(),
-            Some("2026-10-10T20:00")
-        );
+        let InputSuggestions::Calendar(fields) = response.suggestion else {
+            panic!("wrong suggestion variant");
+        };
+        assert_eq!(fields.start.as_deref(), Some("2026-10-10T19:00"));
+        assert_eq!(fields.end.as_deref(), Some("2026-10-10T20:00"));
     }
 }
 
@@ -392,30 +410,54 @@ async fn revalidates_end_times_computed_across_daylight_saving_transitions() {
     ] {
         let mut input = request();
         input.text = "Call Julia".into();
-        let response = service(InputSuggestions {
+        let response = service(InputSuggestions::Calendar(CalendarSuggestions {
             start: Some(start.into()),
             ..Default::default()
-        })
+        }))
         .extract(user(), input)
         .await
         .unwrap();
+        let InputSuggestions::Calendar(fields) = response.suggestion else {
+            panic!("wrong suggestion variant");
+        };
 
-        assert_eq!(response.suggestions.start.as_deref(), Some(start));
+        assert_eq!(fields.start.as_deref(), Some(start));
         // The fall-back result is 01:30 EST. Returning it without its offset
         // would let the browser select 01:30 EDT and shorten the event by an hour.
-        assert_eq!(response.suggestions.end.as_deref(), expected_end);
+        assert_eq!(fields.end.as_deref(), expected_end);
     }
 }
 
 #[tokio::test]
 async fn rejects_an_extracted_ambiguous_end_without_replacing_it_with_a_default() {
-    let response = service(InputSuggestions {
+    let response = service(InputSuggestions::Calendar(CalendarSuggestions {
         start: Some("2026-11-01T00:00".into()),
         end: Some("2026-11-01T01:30".into()),
         ..Default::default()
-    })
+    }))
     .extract(user(), request())
     .await
     .unwrap();
-    assert!(response.suggestions.end.is_none());
+    let InputSuggestions::Calendar(fields) = response.suggestion else {
+        panic!("wrong suggestion variant");
+    };
+    assert!(fields.end.is_none());
+}
+
+#[tokio::test]
+async fn mismatched_provider_variants_are_rejected() {
+    let response = service(InputSuggestions::Email(EmailSuggestions::default()))
+        .extract(user(), request())
+        .await;
+    assert!(matches!(response, Err(InputError::Extraction)));
+}
+
+#[test]
+fn tagged_suggestions_reject_fields_from_other_destinations() {
+    assert!(
+        serde_json::from_value::<InputSuggestions>(serde_json::json!({
+            "intent":"email", "suggestions":{"subject":"Hello", "start":"2026-10-26T18:00"}
+        }))
+        .is_err()
+    );
 }

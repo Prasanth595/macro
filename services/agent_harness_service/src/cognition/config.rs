@@ -74,10 +74,6 @@ maybe_env_vars!(
 #[derive(macro_config::MacroConfig)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct Config {
-    /// Optional account for Clairic field extraction through Workers AI.
-    pub cloudflare_account_id: universal_input::outbound::clairic::CloudflareAccountId,
-    /// Paired Workers AI token. When both are unset, extraction uses Nemotron.
-    pub cloudflare_api_token: universal_input::outbound::clairic::CloudflareApiToken,
     /// Default-off quota admission and prospective usage counting.
     #[macro_config_default(ai_usage::AiUsageEnforcement::Disabled)]
     pub enable_ai_usage_enforcement: ai_usage::AiUsageEnforcement,
@@ -86,7 +82,7 @@ pub struct Config {
     /// service's own policy decides whether it does.
     #[macro_config_default(ai_billing::AiUsageBilling::Disabled)]
     pub enable_ai_usage_billing: ai_billing::AiUsageBilling,
-    /// Optional TypeSafe credential for named decisions and Command K classification.
+    /// Optional TypeSafe credential for named decisions.
     /// Without it, these endpoints respond with 503.
     pub typesafe_api_key: jev::outbound::TypesafeApiKey,
     /// The free plan's hard monthly AI cap, in cents at provider cost.
@@ -204,8 +200,6 @@ impl Config {
     #[cfg(test)]
     pub fn new_empty_for_test() -> Self {
         Config {
-            cloudflare_account_id: universal_input::outbound::clairic::CloudflareAccountId::Unset,
-            cloudflare_api_token: universal_input::outbound::clairic::CloudflareApiToken::Unset,
             enable_ai_usage_enforcement: ai_usage::AiUsageEnforcement::Disabled,
             enable_ai_usage_billing: ai_billing::AiUsageBilling::Disabled,
             typesafe_api_key: jev::outbound::TypesafeApiKey::Unset,
