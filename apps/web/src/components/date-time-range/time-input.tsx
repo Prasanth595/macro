@@ -1,17 +1,18 @@
 import { ScopedPortal } from '@core/component/ScopedPortal';
-import type { CollectionNode } from '@kobalte/core';
-import { Listbox } from '@kobalte/core/listbox';
 import { Popover } from '@kobalte/core/popover';
-import CaretDownIcon from '@icon/system/regular/caret-down.svg';
 import CheckIcon from '@icon/system/regular/check.svg';
+import { Input } from '@ui/components/Input';
 import { Layer } from '@ui/components/Layer';
 import { cn } from '@ui/utils/classname';
-import { createMemo, createSignal, Show } from 'solid-js';
+import { createMemo, createSignal, createUniqueId, For, Show } from 'solid-js';
 import {
+  completedTypedTime,
   DAY_TIME_OPTIONS,
-  resolveTimeOption,
+  formatTimeValue,
+  matchTypedTime,
   selectedTimeOptionId,
   type TimeOption,
+  typedTimeOption,
 } from './time-options';
 
 export const dateLabelFormatter = new Intl.DateTimeFormat(undefined, {
@@ -20,171 +21,234 @@ export const dateLabelFormatter = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 });
 
-function TimeOptionItem(props: CollectionNode<TimeOption>) {
-  return (
-    <Listbox.Item
-      item={props}
-      class="group flex cursor-default items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm text-ink outline-none hover:bg-hover data-selected:bg-active data-highlighted:bg-hover"
-    >
-      <Listbox.ItemLabel>{props.rawValue.label}</Listbox.ItemLabel>
-      <div class="flex shrink-0 items-center gap-2">
-        <Show when={props.rawValue.detail}>
-          {(detail) => (
-            <span class="text-xs text-ink-extra-muted">{detail()}</span>
-          )}
-        </Show>
-        <Listbox.ItemIndicator class="text-accent">
-          <CheckIcon class="size-3.5" />
-        </Listbox.ItemIndicator>
-      </div>
-    </Listbox.Item>
-  );
-}
-
 interface TimeInputProps {
   id: string;
+  /** Accessible name, e.g. `Start time`. */
   label: string;
+  /** `HH:mm`, or empty. */
   value: string;
   /** Selectable times; defaults to every quarter-hour in a day. */
   options?: TimeOption[];
   /** Highlighted option; defaults to `value` on the anchor day. */
   selectedId?: string;
   onChange: (option: TimeOption) => void;
-  /** Called when the native control is cleared; omitted where empty is invalid UI. */
-  onClear?: () => void;
-  onFocus?: () => void;
   disabled?: boolean;
   invalid?: boolean;
-  /** Native time precision in seconds; quarter-hour slots by default. */
-  step?: number;
-  hideLabel?: boolean;
+  describedBy?: string;
   class?: string;
 }
 
+/**
+ * A clock time typed or picked from a list, as Google Calendar's time fields
+ * work: typing `3`, `3p`, `330` or `15:30` jumps the list to that time and
+ * fills in the rest of its label; Enter, Tab or leaving the field commits,
+ * Escape puts the old time back.
+ */
 export function TimeInput(props: TimeInputProps) {
+  const listId = createUniqueId();
   const [open, setOpen] = createSignal(false);
-  let control: HTMLDivElement | undefined;
-  let listbox: HTMLElement | undefined;
+  /** What the user typed, while they are typing; the field shows the value otherwise. */
+  const [typed, setTyped] = createSignal<string>();
+  /** The field's text while typing: `typed` plus any filled-in label. */
+  const [shown, setShown] = createSignal<string>();
+  const [highlightedId, setHighlightedId] = createSignal<string>();
+  /** Whether the arrow keys moved the highlight, making it the choice. */
+  const [navigated, setNavigated] = createSignal(false);
+  let input!: HTMLInputElement;
+  let list: HTMLDivElement | undefined;
 
   const options = createMemo(() => props.options ?? DAY_TIME_OPTIONS);
-  const selectedTime = createMemo(() => [
-    props.selectedId ?? selectedTimeOptionId(props.value),
-  ]);
-  const scrollToSelectedTime = () => {
+  const selectedId = () =>
+    props.selectedId ?? selectedTimeOptionId(props.value);
+  const optionDomId = (option: TimeOption) =>
+    `${listId}-${option.id.replace('|', '-')}`;
+  const highlighted = () =>
+    options().find((option) => option.id === highlightedId());
+  const activeDescendant = () => {
+    const option = open() ? highlighted() : undefined;
+    return option ? optionDomId(option) : undefined;
+  };
+
+  const revealHighlighted = (block: ScrollLogicalPosition) => {
     requestAnimationFrame(() => {
-      listbox
-        ?.querySelector<HTMLElement>('[data-selected]')
-        ?.scrollIntoView({ block: 'center' });
+      list
+        ?.querySelector<HTMLElement>('[data-highlighted]')
+        ?.scrollIntoView({ block });
     });
   };
-  const setDropdownOpen = (nextOpen: boolean) => {
-    if (props.disabled) return;
-    setOpen(nextOpen);
-    if (nextOpen) scrollToSelectedTime();
+
+  const openList = () => {
+    if (props.disabled || open()) return;
+    setHighlightedId(selectedId());
+    setOpen(true);
+    revealHighlighted('center');
   };
-  const selectTime = (values: Set<string>) => {
-    const id = values.values().next().value;
-    if (typeof id !== 'string') return;
-    const option = options().find((candidate) => candidate.id === id);
-    if (option && id !== selectedTime()[0]) props.onChange(option);
+
+  const reset = () => {
+    setTyped(undefined);
+    setShown(undefined);
+    setNavigated(false);
     setOpen(false);
+  };
+
+  const choose = (option: TimeOption | undefined) => {
+    if (option && option.id !== selectedId()) props.onChange(option);
+    reset();
+  };
+
+  /** Commits what the field holds: the time typed, or the one arrowed to. */
+  const commit = () => {
+    const text = typed();
+    if (text !== undefined) {
+      choose(highlighted() ?? typedTimeOption(options(), text));
+    } else {
+      choose(navigated() ? highlighted() : undefined);
+    }
+  };
+
+  const moveHighlight = (step: 1 | -1) => {
+    const all = options();
+    const index = all.findIndex((option) => option.id === highlightedId());
+    const next =
+      index === -1
+        ? step === 1
+          ? 0
+          : all.length - 1
+        : (index + step + all.length) % all.length;
+    const option = all[next];
+    if (!option) return;
+    setHighlightedId(option.id);
+    setNavigated(true);
+    setTyped(undefined);
+    setShown(undefined);
+    revealHighlighted('nearest');
+  };
+
+  const onInput = (event: InputEvent & { currentTarget: HTMLInputElement }) => {
+    const text = event.currentTarget.value;
+    const match = matchTypedTime(options(), text);
+    setTyped(text);
+    setNavigated(false);
+    setHighlightedId(match?.id);
+    if (!open()) setOpen(true);
+    if (match) revealHighlighted('center');
+
+    const filled = event.inputType.startsWith('insert')
+      ? completedTypedTime(text, match)
+      : undefined;
+    setShown(filled ?? text);
+    if (filled) input.setSelectionRange(text.length, filled.length);
+  };
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!open()) openList();
+      else moveHighlight(event.key === 'ArrowDown' ? 1 : -1);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      event.stopPropagation();
+      commit();
+    } else if (event.key === 'Escape') {
+      if (!open() && typed() === undefined) return;
+      event.preventDefault();
+      event.stopPropagation();
+      reset();
+      input.select();
+    }
   };
 
   return (
     <Popover
-      anchorRef={() => control}
+      anchorRef={() => input}
       open={open() && !props.disabled}
-      onOpenChange={setDropdownOpen}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) commit();
+      }}
       placement="bottom-start"
       gutter={4}
       flip
       slide
     >
-      {!props.hideLabel && (
-        <label for={props.id} class="block text-xxs font-medium text-ink-muted">
-          {props.label}
-        </label>
-      )}
-      <div
-        ref={control}
-        class={cn('relative', !props.hideLabel && 'mt-1', props.class)}
-      >
-        <input
-          id={props.id}
-          type="time"
-          step={props.step ?? 900}
-          value={props.value}
-          disabled={props.disabled}
-          aria-invalid={props.invalid || undefined}
-          aria-expanded={open()}
-          aria-haspopup="listbox"
-          class="w-full appearance-none rounded-md border border-edge-muted bg-control py-1.5 pr-7 pl-2 text-xs text-ink outline-none focus:border-accent aria-invalid:border-failure aria-invalid:ring-2 aria-invalid:ring-failure/20 disabled:opacity-50 [&::-webkit-calendar-picker-indicator]:hidden"
-          onFocus={() => {
-            props.onFocus?.();
-            setDropdownOpen(true);
-          }}
-          onClick={() => setDropdownOpen(true)}
-          onInput={(event) => {
-            const value = event.currentTarget.value;
-            if (!value) {
-              props.onClear?.();
-              setOpen(false);
-            } else if (value !== props.value) {
-              props.onChange(resolveTimeOption(options(), value));
-            }
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== 'Escape' || !open()) return;
-            event.preventDefault();
-            event.stopPropagation();
-            setOpen(false);
-          }}
-        />
-        <CaretDownIcon
-          aria-hidden="true"
-          class="pointer-events-none absolute top-1/2 right-2 size-3 -translate-y-1/2 text-ink-extra-muted"
-        />
-      </div>
+      <Input
+        ref={input}
+        id={props.id}
+        type="text"
+        autocomplete="off"
+        spellcheck={false}
+        role="combobox"
+        aria-label={props.label}
+        aria-autocomplete="both"
+        aria-controls={listId}
+        aria-expanded={open()}
+        aria-activedescendant={activeDescendant()}
+        aria-invalid={props.invalid || undefined}
+        aria-describedby={props.describedBy}
+        disabled={props.disabled}
+        value={shown() ?? formatTimeValue(props.value) ?? ''}
+        placeholder="Time"
+        size="sm"
+        class={cn('w-[4.75rem] shrink-0', props.class)}
+        onFocus={() => {
+          openList();
+          input.select();
+        }}
+        onMouseDown={() => {
+          if (document.activeElement === input) openList();
+        }}
+        onInput={onInput}
+        onBlur={commit}
+        on:keydown={onKeyDown}
+      />
 
       <ScopedPortal scope="local">
         <Layer depth={4}>
           <Popover.Content
-            class="menu-surface z-action-menu max-h-64 min-w-[var(--kb-popper-anchor-width)] overflow-y-auto p-1.5 menu-open-animation"
-            style={{
-              'z-index': 'calc(var(--z-index-action-menu) + 1)',
-            }}
+            class="menu-surface z-action-menu max-h-64 min-w-36 overflow-y-auto p-1.5 menu-open-animation"
+            style={{ 'z-index': 'calc(var(--z-index-action-menu) + 1)' }}
             onOpenAutoFocus={(event) => event.preventDefault()}
             onCloseAutoFocus={(event) => event.preventDefault()}
             onInteractOutside={(event) => {
               const target = event.detail.originalEvent.target;
-              if (target instanceof Node && control?.contains(target)) {
+              if (target instanceof Node && input.contains(target)) {
                 event.preventDefault();
               }
             }}
-            on:keydown={(event: KeyboardEvent) => {
-              if (event.key !== 'Escape') return;
-              event.preventDefault();
-              event.stopPropagation();
-              setOpen(false);
-            }}
           >
-            <Popover.Title class="sr-only">
-              Choose {props.label.toLowerCase()}
-            </Popover.Title>
-            <Listbox<TimeOption>
-              ref={(element) => {
-                listbox = element;
-              }}
-              options={options()}
-              optionValue="id"
-              optionTextValue="label"
-              value={selectedTime()}
-              onChange={selectTime}
-              selectionMode="single"
-              disallowEmptySelection
-              shouldFocusWrap
-              renderItem={(item) => <TimeOptionItem {...item} />}
-            />
+            <Popover.Title class="sr-only">Choose {props.label}</Popover.Title>
+            <div ref={list} id={listId} role="listbox" aria-label={props.label}>
+              <For each={options()}>
+                {(option) => (
+                  <div
+                    id={optionDomId(option)}
+                    role="option"
+                    aria-selected={option.id === selectedId()}
+                    data-highlighted={
+                      option.id === highlightedId() ? '' : undefined
+                    }
+                    class="flex cursor-default items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm text-ink hover:bg-hover aria-selected:bg-active data-highlighted:bg-hover"
+                    // Keep focus in the field, so it stays the one place keys go.
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => choose(option)}
+                  >
+                    <span>{option.label}</span>
+                    <span class="flex shrink-0 items-center gap-2">
+                      <Show when={option.detail}>
+                        {(detail) => (
+                          <span class="text-xs text-ink-extra-muted">
+                            {detail()}
+                          </span>
+                        )}
+                      </Show>
+                      <Show when={option.id === selectedId()}>
+                        <CheckIcon class="size-3.5 text-accent" />
+                      </Show>
+                    </span>
+                  </div>
+                )}
+              </For>
+            </div>
           </Popover.Content>
         </Layer>
       </ScopedPortal>

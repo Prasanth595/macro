@@ -201,7 +201,7 @@ it('answers a time range with whole days, or with times once All day is off', as
     />
   ));
   await userEvent.click(
-    screen.getByRole('button', { name: 'Edit Trip start date and time' })
+    screen.getByRole('button', { name: 'Edit Trip start date' })
   );
   await userEvent.click(
     screen

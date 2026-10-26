@@ -301,9 +301,11 @@ the date, and Tab leaves the selector without changing it.
 Time-range cells show their days (`Oct 9 – 13, 2026`) or, with times,
 `Oct 9, 9:00 AM – 5:00 PM` / `Oct 9, 9:00 AM – Oct 13, 5:00 PM`. They open the
 calendar event composer's date/time fields (`components/date-time-range`), with
-focus on the first: **Start** → **End** buttons that each drop down a calendar
-and, with times, a 15-minute time list (an end's times show the duration from
-the start), an **All day** switch, and **Clear**, which empties the range and
+focus on the first, all on one row: a date button per end that drops down a
+calendar, and, with times, a time field beside each (type `3`, `3p`, `330` or
+`15:30` and the 15-minute list jumps there and fills in the rest; Enter, Tab
+or leaving commits, Escape restores; an end's times show the duration from the
+start), an **All day** switch, and an × (**Clear**), which empties the range and
 closes. An empty cell shows **Start date** / **End date** and starts all day;
 the first day picked sets both ends. A new start carries the end along,
 keeping the range's length. Turning All day off gives each end the next full

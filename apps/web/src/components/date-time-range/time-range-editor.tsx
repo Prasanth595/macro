@@ -1,4 +1,5 @@
 import { onElementConnect } from '@core/util/onElementConnect';
+import XIcon from '@phosphor/x.svg';
 import { Button } from '@ui/components/Button';
 import {
   createSignal,
@@ -20,9 +21,9 @@ import {
 } from './time-range';
 
 /**
- * Edits a stored time range in a menu or popover: Start → End fields, All
- * day, and Clear. Every change that leaves a complete range in order saves at
- * once; one ending before it starts is shown, never saved. The host closes
+ * Edits a stored time range in a menu or popover, on one row: Start → End
+ * fields, All day, and a Clear icon. Every change that leaves a complete range
+ * in order saves at once; one ending before it starts is shown, never saved. The host closes
  * it, and should give its content `portal-scope` and visible overflow so the
  * fields' date and time lists open inside it.
  */
@@ -79,8 +80,8 @@ export function TimeRangeEditor(props: {
       class="flex min-w-0 flex-col gap-2 p-3"
       // Keep keys from the host menu's own handling: it would take Escape
       // from an open date list (the list closes on it, then the menu) and
-      // arrow keys from the fields. Tab still moves on from the fields, though
-      // not out of a time input's own parts or the date and time lists.
+      // arrow keys from the fields. Tab moves on from the buttons through the
+      // host; from a time field the browser moves it, after the field commits.
       onKeyDown={(event) => {
         const target = event.target;
         if (
@@ -111,16 +112,24 @@ export function TimeRangeEditor(props: {
         onAllDayChange={(allDay) => change(withAllDay(value(), allDay))}
         invalid={backwards()}
         describedBy={backwards() ? errorId : undefined}
+        trailing={
+          <Show when={props.range || value().start}>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              label={`Clear ${props.subject}`}
+              tooltip="Clear"
+              onClick={clear}
+            >
+              <XIcon />
+            </Button>
+          </Show>
+        }
       />
       <Show when={backwards()}>
         <p id={errorId} role="alert" class="text-xs text-failure">
           The end can’t be before the start.
         </p>
-      </Show>
-      <Show when={props.range || value().start}>
-        <Button size="sm" variant="ghost" class="self-end" onClick={clear}>
-          Clear
-        </Button>
       </Show>
     </div>
   );

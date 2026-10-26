@@ -1544,12 +1544,14 @@ describe('grid cell', () => {
       return onWrite;
     };
     const field = (end: 'start' | 'end') =>
-      screen.getByRole('button', { name: `Edit Trip ${end} date and time` });
+      screen.getByRole('button', { name: `Edit Trip ${end} date` });
+    const time = (end: 'start' | 'end') =>
+      screen.getByRole('combobox', { name: `Trip ${end} time` });
     // The open menu hides the rest of the page from the accessibility tree.
     const cell = () =>
       screen.getByRole('button', { name: /^Trip: /, hidden: true });
 
-    it('opens on the start field and keeps the menu open while picking days in its date lists', async () => {
+    it('opens on the start field and keeps the menu open while picking days', async () => {
       const onWrite = renderTrip(
         '2026-03-02T00:00:00.000Z/2026-03-03T00:00:00.000Z'
       );
@@ -1573,7 +1575,7 @@ describe('grid cell', () => {
       expect(cell().getAttribute('aria-expanded')).toBe('true');
     });
 
-    it('turns off All day at the next full hour and picks a time from the nested list', async () => {
+    it('turns off All day at the next full hour, then picks and types times', async () => {
       vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 2, 1, 14, 20) });
       const onWrite = renderTrip(
         '2026-03-02T00:00:00.000Z/2026-03-03T00:00:00.000Z'
@@ -1586,13 +1588,19 @@ describe('grid cell', () => {
         `${new Date(2026, 2, 2, 15).toISOString()}/${new Date(2026, 2, 3, 16).toISOString()}`
       );
 
-      await userEvent.click(field('end'));
-      await userEvent.click(screen.getByLabelText('End time'));
+      await userEvent.click(time('end'));
       await userEvent.click(screen.getByRole('option', { name: '6:30 PM' }));
       expect(onWrite).toHaveBeenLastCalledWith(
         `${new Date(2026, 2, 2, 15).toISOString()}/${new Date(2026, 2, 3, 18, 30).toISOString()}`
       );
-      expect(field('end').getAttribute('aria-expanded')).toBe('true');
+
+      // A typed start keeps the range's length.
+      await userEvent.click(time('start'));
+      await userEvent.keyboard('9a{Enter}');
+      expect(onWrite).toHaveBeenLastCalledWith(
+        `${new Date(2026, 2, 2, 9).toISOString()}/${new Date(2026, 2, 3, 12, 30).toISOString()}`
+      );
+      expect((time('start') as HTMLInputElement).value).toBe('9:00 AM');
       expect(cell().getAttribute('aria-expanded')).toBe('true');
       vi.useRealTimers();
     });
@@ -1621,7 +1629,7 @@ describe('grid cell', () => {
         '2026-03-16T00:00:00.000Z/2026-03-16T00:00:00.000Z'
       );
 
-      await userEvent.click(screen.getByRole('button', { name: 'Clear' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Clear Trip' }));
       expect(onWrite).toHaveBeenLastCalledWith(null);
       await waitFor(() =>
         expect(cell().getAttribute('aria-expanded')).toBe('false')
