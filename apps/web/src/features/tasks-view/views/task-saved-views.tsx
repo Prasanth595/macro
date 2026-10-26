@@ -4,18 +4,11 @@ import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import { writeClipboardData } from '@core/util/dataTransfer';
 import { fireAndForget } from '@core/util/fireAndForget';
-import { Telemetry } from '@macro-inc/observability';
 import DotsIcon from '@phosphor/dots-three.svg';
+import WarningIcon from '@phosphor/warning-circle.svg';
 import { Button, Dropdown, openDialog } from '@ui';
-import {
-  batch,
-  createMemo,
-  For,
-  getOwner,
-  type Owner,
-  onCleanup,
-  Show,
-} from 'solid-js';
+import { ok } from 'neverthrow';
+import { batch, For, getOwner, type Owner, onCleanup, Show } from 'solid-js';
 import { v4 as uuid } from 'uuid';
 import {
   SavedViewList,
@@ -35,16 +28,10 @@ import {
   RenameSavedViewDialog,
   ShareSavedViewDialog,
 } from '../../saved-views/views/saved-view-dialogs';
-import { TaskSavedViewError } from '../components/TaskSavedViewError';
-import {
-  TASK_PRIORITY_OPTIONS,
-  TASK_STATUS_OPTIONS,
-  TASK_VIEWER,
-} from '../filters/task-facets';
 import {
   decodeTaskSavedView,
-  inspectTaskSavedView,
   materializeTaskSavedView,
+  readTaskSavedView,
   type TaskSavedViewConfig,
 } from '../filters/task-saved-view';
 import { useTaskFilters } from '../filters/use-task-filters';
@@ -91,7 +78,7 @@ function useCreateTaskSavedViewDialog(owner = getOwner()) {
     const definition =
       record &&
       !(selection.kind === 'saved' && selection.record.id === record.id)
-        ? decodeTaskSavedView(record.config)
+        ? ok(readTaskSavedView(record.config).config)
         : savedViews.capture();
     if (definition.isErr()) {
       toast.failure(definition.error);
@@ -553,116 +540,62 @@ export function TaskSavedViewActions() {
   );
 }
 
-/** Keeps unreadable definitions intact while offering an explicit new draft. */
+/** Missing or unauthorized definitions never fall back to an unfiltered list. */
 export function TaskSavedViewFailure() {
   const { savedViews, setTab } = useTasksView();
-  const filters = useTaskFilters();
-  const problem = () => {
+  const message = () => {
     const view = savedViews?.view();
-    return view?.kind === 'unavailable' ? view : undefined;
+    return view?.kind === 'unavailable' ? view.message : undefined;
   };
-  const inspection = createMemo(() => {
-    const record = problem()?.record;
-    return record ? inspectTaskSavedView(record.config) : undefined;
-  });
-  const fields: Record<string, { id: string; label: string }> = {
-    statusOptionIds: { id: 'status', label: 'Status' },
-    priorityOptionIds: { id: 'priority', label: 'Priority' },
-    assignees: { id: 'assignees', label: 'Assignee' },
-    creators: { id: 'created-by', label: 'Created by' },
-    tags: { id: 'tags', label: 'Tags' },
-  };
-  const pathLabel = (path: string[]) =>
-    path
-      .map((part) => (/^\d+$/.test(part) ? `#${Number(part) + 1}` : part))
-      .join(' → ');
-  const valueLabel = (key: string, value: unknown) => {
-    let id: string | undefined;
-    if (typeof value === 'string') id = value;
-    else if (
-      typeof value === 'object' &&
-      value !== null &&
-      !Array.isArray(value)
-    ) {
-      if ('type' in value && value.type === 'viewer') id = TASK_VIEWER;
-      else if ('id' in value && typeof value.id === 'string') id = value.id;
-      else if ('optionId' in value && typeof value.optionId === 'string')
-        id = value.optionId;
-    }
-    if (id !== undefined) {
-      const known =
-        key === 'statusOptionIds'
-          ? TASK_STATUS_OPTIONS.find((option) => option.propertyOptionId === id)
-          : key === 'priorityOptionIds'
-            ? TASK_PRIORITY_OPTIONS.find(
-                (option) => option.propertyOptionId === id
-              )
-            : undefined;
-      if (known) return known.label;
-      const group = filters
-        .groups()
-        .find((group) => group.id === fields[key]?.id);
-      const label = group?.options.find((option) => option.id === id)?.label;
-      return label ?? id;
-    }
-    return JSON.stringify(value) ?? 'Missing filter definition';
-  };
-  const details = createMemo(() => {
-    const inspected = inspection();
-    const record = problem()?.record;
-    if (!inspected || !record) return;
-    const keys = new Set([
-      ...Object.keys(inspected.filters ?? {}),
-      ...inspected.issues
-        .filter((issue) => issue.path[0] === 'filters' && issue.path.length > 1)
-        .map((issue) => issue.path[1]),
-    ]);
-    return {
-      filters: [...keys].map((key) => {
-        const value = inspected.filters?.[key];
-        return {
-          label: fields[key]?.label ?? key,
-          values: (Array.isArray(value) ? value : [value]).map((value) =>
-            valueLabel(key, value)
-          ),
-          issues: inspected.issues
-            .filter(
-              (issue) => issue.path[0] === 'filters' && issue.path[1] === key
-            )
-            .map(
-              (issue) =>
-                `${pathLabel(issue.path.slice(2))}${issue.path.length > 2 ? ': ' : ''}${issue.message}`
-            ),
-        };
-      }),
-      issues: inspected.issues
-        .filter((issue) => issue.path[0] !== 'filters' || issue.path.length < 2)
-        .map(
-          (issue) =>
-            `${pathLabel(issue.path)}${issue.path.length ? ': ' : ''}${issue.message}`
-        ),
-      source: JSON.stringify(record.config, null, 2),
-      recoverable: inspected.recovered !== undefined,
-    };
-  });
   return (
-    <TaskSavedViewError
-      message={problem()?.message ?? 'This saved view is unavailable.'}
-      details={details()}
-      onKeep={() => setTab('my-tasks')}
-      onRecreate={() => {
-        const record = problem()?.record;
-        if (!record) return;
-        const recovered = inspection()?.recovered;
-        const span = Telemetry.span('saved_view.recreate');
-        span.setAttr('saved_view.id', record.id);
-        span.setAttr('saved_view.recovery_uses_defaults', !recovered);
-        try {
-          span.run(() => savedViews?.start(recovered));
-        } finally {
-          span.end();
-        }
-      }}
-    />
+    <div class="flex h-full flex-col items-center justify-center gap-4 p-6 text-sm">
+      <p role="alert">{message()}</p>
+      <Button onClick={() => setTab('my-tasks')}>Return to Tasks</Button>
+    </div>
+  );
+}
+
+export function TaskSavedViewWarning() {
+  const { savedViews } = useTasksView();
+  const issues = () => {
+    const view = savedViews?.view();
+    return view?.kind === 'saved' ? view.issues : [];
+  };
+  const labels: Record<string, string> = {
+    statusOptionIds: 'Status',
+    priorityOptionIds: 'Priority',
+    assignees: 'Assignee',
+    creators: 'Created by',
+    tags: 'Tags',
+    kind: 'View type',
+    version: 'View version',
+    filters: 'Filters',
+  };
+  const skipped = () =>
+    [
+      ...new Set(
+        issues().map(({ path }) => {
+          const field = path[0] === 'filters' ? (path[1] ?? path[0]) : path[0];
+          return labels[field] ?? field ?? 'Saved definition';
+        })
+      ),
+    ].join(', ');
+  return (
+    <Show when={issues().length}>
+      <div
+        role="alert"
+        class="flex shrink-0 gap-2 border-b border-failure/30 bg-failure-bg px-4 py-3 text-sm text-failure-ink"
+      >
+        <WarningIcon class="mt-0.5 size-4 shrink-0" />
+        <div class="min-w-0">
+          <p class="font-medium">Some saved filters could not be applied.</p>
+          <p>
+            Only supported filters are active. If none apply, all tasks are
+            shown.
+          </p>
+          <p class="break-words">Skipped: {skipped()}.</p>
+        </div>
+      </div>
+    </Show>
   );
 }

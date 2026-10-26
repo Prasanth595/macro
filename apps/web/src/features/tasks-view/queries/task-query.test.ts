@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   captureTaskSavedView,
   materializeTaskSavedView,
+  readTaskSavedView,
 } from '../filters/task-saved-view';
 import { type BuildTaskQueryOptions, buildTaskQuery } from './task-query';
 import { buildTaskSearchRequest } from './task-search';
@@ -184,6 +185,86 @@ describe('saved task filter execution', () => {
       }
     }
   });
+  it('applies supported saved filters while omitting malformed entries and conflicting bindings', () => {
+    const { config, issues } = readTaskSavedView({
+      kind: 'tasks',
+      version: 1,
+      filters: {
+        statusOptionIds: ['invalid'],
+        priorityOptionIds: [],
+        assignees: [{ type: 'viewer' }, { type: 'robot' }],
+        creators: [],
+        tags: [
+          {
+            optionId: '20000000-0000-4000-8000-000000000001',
+            propertyDefinitionId: '10000000-0000-4000-8000-000000000001',
+          },
+          {
+            optionId: '20000000-0000-4000-8000-000000000001',
+            propertyDefinitionId: '10000000-0000-4000-8000-000000000002',
+          },
+        ],
+        futureFilter: ['unsupported'],
+      },
+    });
+    const restored = materializeTaskSavedView(config);
+    const query = buildTaskQuery({ ...options, ...restored });
+    const search = buildTaskSearchRequest({
+      ...restored,
+      userId: 'user',
+      query: 'review',
+      matchType: 'partial',
+    });
+    expect(query.body.df).toEqual({ l: { dst: 'task' } });
+    expect(query.body.propf).toEqual({
+      l: { pd: '00000001-0000-0000-0000-000000000001', v: { er: 'user' } },
+    });
+    expect(search.body.filters?.property_filters?.[0]?.entity_ids).toEqual([
+      'user',
+    ]);
+    expect(config.filters.tags).toEqual([]);
+    expect(issues.map(({ path }) => path.join('.'))).toEqual(
+      expect.arrayContaining([
+        'filters.statusOptionIds.0',
+        'filters.assignees.1.type',
+        'filters.tags.0',
+        'filters.tags.1',
+        'filters.futureFilter',
+      ])
+    );
+  });
+
+  it.each([
+    null,
+    {
+      kind: 'tasks',
+      version: 99,
+      filters: { assignees: [{ type: 'viewer' }] },
+    },
+    {
+      kind: 'tasks',
+      version: 1,
+      filters: {
+        statusOptionIds: ['invalid'],
+        priorityOptionIds: [],
+        assignees: [{ type: 'robot' }],
+        creators: [],
+        tags: [],
+      },
+    },
+  ])(
+    'shows unfiltered tasks when no saved filters can be applied: %j',
+    (value) => {
+      const { config, issues } = readTaskSavedView(value);
+      const restored = materializeTaskSavedView(config);
+      const query = buildTaskQuery({ ...options, ...restored });
+      expect(query.body.df).toEqual({ l: { dst: 'task' } });
+      expect(query.body.propf).toBeUndefined();
+      expect(Object.values(restored.facets).flat()).toEqual([]);
+      expect(issues.length).toBeGreaterThan(0);
+    }
+  );
+
   it('resolves relative people separately for every viewer in lists and searches', () => {
     for (const viewer of ['macro|a@example.com', 'macro|b@example.com']) {
       const facets = { assignees: ['@viewer'], 'created-by': ['@viewer'] };

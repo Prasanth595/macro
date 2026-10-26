@@ -32,7 +32,10 @@ import { TasksContent, TasksLoading } from './tasks-content';
 import { TasksViewProvider, useTasksView } from './tasks-view-context';
 import { tasksTour } from './tour';
 import type { TasksViewStateOptions } from './types';
-import { TaskSavedViewFailure } from './views/task-saved-views';
+import {
+  TaskSavedViewFailure,
+  TaskSavedViewWarning,
+} from './views/task-saved-views';
 
 export type TasksViewProps = {
   /** Explicit navigation state. When present, it wins over entry restoration. */
@@ -112,7 +115,7 @@ function TasksViewRoot() {
     <>
       <TasksHeader onSearchEscape={() => listElement()?.focus()} />
       <ViewTour tour={tasksTour} actions={<ImportLinearAction />} />
-      <ViewShell.Content>
+      <ViewShell.Content class="flex flex-col">
         <Show
           when={savedViewReady()}
           fallback={
@@ -121,7 +124,10 @@ function TasksViewRoot() {
             </Show>
           }
         >
-          <TasksContent ref={setListElement} />
+          <TaskSavedViewWarning />
+          <div class="min-h-0 flex-1">
+            <TasksContent ref={setListElement} />
+          </div>
         </Show>
       </ViewShell.Content>
     </>

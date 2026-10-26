@@ -113,8 +113,8 @@ Keep the existing JSON `config` column. New consumers use a versioned envelope:
 
 The backend validates generic write bounds and stores the configuration without
 interpreting Task fields. It can filter lists by `config.kind`. The consumer owns
-a strict, versioned decoder. Existing CRM configurations do not gain mandatory
-new fields or undergo a rewrite.
+a versioned reader that applies supported Task filters and reports skipped conditions.
+Existing CRM configurations do not gain mandatory new fields or undergo a rewrite.
 
 This intentionally stores a consumer-owned definition rather than a fully
 compiled Soup AST. A compiled AST bakes in the current user, requires reverse
@@ -170,20 +170,17 @@ express a condition, block that search with an explicit unsupported state;
 never run it with fewer conditions. Changing layout remains a local preference
 and does not dirty the saved definition.
 
-The decoder must account for every stored condition. Malformed definitions,
-unsupported versions, and unsupported conditions show an unavailable-view state
-without issuing a broader query. Missing person or tag labels use an unavailable
-label while retaining their exact filter IDs. Owners can explicitly remove such
-conditions; loading them must not silently remove them. A missing authenticated
-viewer blocks relative-filter execution.
+Apply supported conditions immediately, omitting unsupported or malformed entries
+and conflicting tag bindings. Show a danger-colored banner above the results that
+explains partial filtering and identifies affected filter groups. If no supported
+conditions remain, show the unfiltered All Tasks list, including closed tasks;
+unknown formats also show this list with the banner. Keep missing or unauthorized
+definitions in the unavailable state, without executing task queries.
 
-For an authorized but invalid definition, show its stored filter groups and
-field-specific validation errors, including conflicting tag bindings. Keep the
-original unchanged. **Keep saved view** returns to Tasks; **Recreate view** opens
-a separate, unsaved draft containing valid entries from the recognized v1 format.
-List the omitted entries or fields before this action. Unsupported envelopes use
-default task filters instead of guessing their meaning, with an explicit warning.
-Recreation never writes automatically and never silently changes the original.
+Reading never modifies the stored definition and never starts a recovery workflow.
+Normal explicit Save changes and Duplicate actions remain available. Missing
+person or tag labels retain their exact filter IDs because these conditions remain
+executable. A missing authenticated viewer blocks relative-filter execution.
 
 For dirty-state comparison, deduplicate and order set-valued filters. Reordering
 a selection alone is not a change. One Task codec owns capture, validation,

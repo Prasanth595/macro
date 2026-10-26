@@ -19,7 +19,9 @@ import {
   captureTaskSavedView,
   decodeTaskSavedView,
   materializeTaskSavedView,
+  readTaskSavedView,
   type TaskSavedViewConfig,
+  type TaskSavedViewIssue,
   taskSavedViewsEqual,
   withTaskTabFilters,
 } from '../filters/task-saved-view';
@@ -29,12 +31,16 @@ export type TaskSavedViewSelection =
   | { kind: 'default'; changed: boolean }
   | { kind: 'new' }
   | { kind: 'loading' }
-  | { kind: 'unavailable'; message: string; record?: SavedView }
-  | { kind: 'saved'; record: SavedView; dirty: boolean };
+  | { kind: 'unavailable'; message: string }
+  | {
+      kind: 'saved';
+      record: SavedView;
+      dirty: boolean;
+      issues: TaskSavedViewIssue[];
+    };
 
 export function taskSavedViewTitle(view: TaskSavedViewSelection): string {
   if (view.kind === 'saved') return view.record.name;
-  if (view.kind === 'unavailable' && view.record) return view.record.name;
   return view.kind === 'new' ? 'New view' : 'Saved view';
 }
 
@@ -55,10 +61,7 @@ export function createTaskSavedViews(options: {
   const [tagBindings, setTagBindings] = createSignal<
     ReadonlyMap<string, string>
   >(new Map());
-  const [unavailable, setUnavailable] = createSignal<{
-    message: string;
-    record?: SavedView;
-  }>();
+  const [unavailable, setUnavailable] = createSignal<string>();
   const active = () => creating() || Boolean(options.selectedId());
   const capture = () =>
     captureTaskSavedView({
@@ -89,15 +92,11 @@ export function createTaskSavedViews(options: {
     const previous = draft.record();
     if (previous?.id === record.id && record.revision < previous.revision)
       return;
-    const decoded = decodeTaskSavedView(record.config);
-    if (decoded.isErr()) {
-      setUnavailable({ message: decoded.error, record });
-      return;
-    }
+    const { config } = readTaskSavedView(record.config);
     setUnavailable(undefined);
     if (previous?.id === record.id && draft.dirty()) return;
-    draft.install(record, decoded.value);
-    apply(decoded.value);
+    draft.install(record, config);
+    apply(config);
   };
   let draftOwner = {};
   let disposed = false;
@@ -161,10 +160,9 @@ export function createTaskSavedViews(options: {
         if (!id || isNew) return;
         if (detailViewer !== undefined && detailViewer !== viewer) return;
         if (loadError || record === null) {
-          setUnavailable({
-            message:
-              'This saved view is unavailable or you no longer have access.',
-          });
+          setUnavailable(
+            'This saved view is unavailable or you no longer have access.'
+          );
           return;
         }
         if (viewer && record?.id === id) installRecord(record);
@@ -192,7 +190,7 @@ export function createTaskSavedViews(options: {
 
   const view = createMemo<TaskSavedViewSelection>(() => {
     const problem = unavailable();
-    if (active() && problem) return { kind: 'unavailable', ...problem };
+    if (active() && problem) return { kind: 'unavailable', message: problem };
     if (creating()) return { kind: 'new' };
     if (!options.selectedId()) {
       const base = captureTaskSavedView({
@@ -212,7 +210,12 @@ export function createTaskSavedViews(options: {
     }
     const record = draft.record();
     return options.viewerId() && record && record.id === options.selectedId()
-      ? { kind: 'saved', record, dirty: draft.dirty() }
+      ? {
+          kind: 'saved',
+          record,
+          dirty: draft.dirty(),
+          issues: readTaskSavedView(record.config).issues,
+        }
       : { kind: 'loading' };
   });
   const select = (id: string) => {
@@ -231,14 +234,13 @@ export function createTaskSavedViews(options: {
       options.navigate(undefined);
     });
   };
-  const start = (definition?: TaskSavedViewConfig) => {
+  const start = () => {
     draftOwner = {};
     batch(() => {
       setCreating(true);
       options.setActive(true);
       setTagBindings(new Map());
-      if (definition) apply(definition);
-      else options.apply('team-tasks', DEFAULT_TASK_FACET_SELECTION);
+      options.apply('team-tasks', DEFAULT_TASK_FACET_SELECTION);
       options.clearSearch();
       const result = capture();
       if (result.isOk()) draft.install(undefined, result.value);
@@ -278,7 +280,13 @@ export function createTaskSavedViews(options: {
       if (previous?.id === record.id && previous.revision > record.revision)
         return;
       const decoded = decodeTaskSavedView(record.config);
-      return decoded.isOk() ? decoded.value : undefined;
+      if (decoded.isOk()) return decoded.value;
+      // Rename/share retain skipped clauses; keep their existing filter baseline.
+      if (
+        previous?.id === record.id &&
+        JSON.stringify(previous.config) === JSON.stringify(record.config)
+      )
+        return draft.baseline();
     };
     return {
       isCurrent,
@@ -322,14 +330,10 @@ export function createTaskSavedViews(options: {
     const record = options.source.data();
     if (record?.id !== options.selectedId()) return;
     if (!record) return;
-    const decoded = decodeTaskSavedView(record.config);
-    if (decoded.isErr()) {
-      setUnavailable({ message: decoded.error, record });
-      return;
-    }
+    const { config } = readTaskSavedView(record.config);
     if (record.revision < (draft.record()?.revision ?? 0)) return;
     setUnavailable(undefined);
-    draft.install(record, decoded.value);
+    draft.install(record, config);
     reset();
   };
   return {

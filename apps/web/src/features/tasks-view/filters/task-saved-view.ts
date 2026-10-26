@@ -99,17 +99,16 @@ export type TaskSavedViewIssue = {
   message: string;
 };
 
-export type TaskSavedViewInspection = {
-  filters: Record<string, unknown> | undefined;
+export type TaskSavedViewRead = {
+  config: TaskSavedViewConfig;
   issues: TaskSavedViewIssue[];
-  recovered: TaskSavedViewConfig | undefined;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** Explains invalid data without applying it; recovery requires an explicit new draft. */
-export function inspectTaskSavedView(value: unknown): TaskSavedViewInspection {
+/** Applies understood filters and reports anything omitted from the saved definition. */
+export function readTaskSavedView(value: unknown): TaskSavedViewRead {
   const parsed = schema.safeParse(value);
   const issues: TaskSavedViewIssue[] = parsed.success
     ? []
@@ -129,9 +128,22 @@ export function inspectTaskSavedView(value: unknown): TaskSavedViewInspection {
     value.version !== 1 ||
     !filters
   )
-    return { filters, issues, recovered: undefined };
+    return {
+      issues,
+      config: {
+        kind: 'tasks',
+        version: 1,
+        filters: {
+          statusOptionIds: [],
+          priorityOptionIds: [],
+          assignees: [],
+          creators: [],
+          tags: [],
+        },
+      },
+    };
 
-  const recover = <T>(
+  const readEntries = <T>(
     values: unknown,
     item: z.ZodType<T>,
     limit: number
@@ -145,7 +157,7 @@ export function inspectTaskSavedView(value: unknown): TaskSavedViewInspection {
           JSON.stringify
         ).slice(0, limit)
       : [];
-  const tags = recover(
+  const tags = readEntries(
     filters.tags,
     filtersSchema.shape.tags.element,
     Number.POSITIVE_INFINITY
@@ -170,16 +182,19 @@ export function inspectTaskSavedView(value: unknown): TaskSavedViewInspection {
     });
   }
   return {
-    filters,
     issues,
-    recovered: canonical({
+    config: canonical({
       kind: 'tasks',
       version: 1,
       filters: {
-        statusOptionIds: recover(filters.statusOptionIds, identifier, 100),
-        priorityOptionIds: recover(filters.priorityOptionIds, identifier, 100),
-        assignees: recover(filters.assignees, person, 101),
-        creators: recover(filters.creators, person, 101),
+        statusOptionIds: readEntries(filters.statusOptionIds, identifier, 100),
+        priorityOptionIds: readEntries(
+          filters.priorityOptionIds,
+          identifier,
+          100
+        ),
+        assignees: readEntries(filters.assignees, person, 101),
+        creators: readEntries(filters.creators, person, 101),
         tags: tags
           .filter((tag) => !conflicting.has(tag.optionId))
           .slice(0, 100),
