@@ -104,8 +104,10 @@ instead. Keyboard list navigation only moves focus; press Enter to open the focu
 
 In the task's Properties side panel, hover or focus a row for **Pin below title**
 or **Unpin from title**. Pinning adds the property to the title row; unpinning keeps
-its saved value and the side-panel row. The title pill's hover menu also offers
-**Unpin**. Status, Priority, and Assignees are pinned by default, with Project when
+its saved value and the side-panel row. The title pill's hover card also offers
+**Unpin** as a filled icon-only button with a gap: beside the value in a row,
+or beside the key above a full-width divider in a column.
+Status, Priority, and Assignees are pinned by default, with Project when
 enabled. Unpinning a default preserves the other pins, and clearing all pins stays
 cleared after reopening. The empty Project placeholder can also be pinned or
 unpinned without creating an assignment; its pin follows the real assignment when
@@ -946,3 +948,18 @@ The desktop `Create` → `Task` modal uses the standard dialog panel, circular
 icon controls, and a pill-shaped `Create Task` button with 16px outer padding.
 The mobile task drawer keeps its layout apart from the wrapping footer described
 above.
+
+## Task status icons
+
+Task rows show a circular status icon: empty for Not started, partially filled
+for In progress or In review, checked for Completed, and crossed for Canceled.
+Task @mention pills use the same live status and update when a task changes.
+Lightweight previews fall back to the task completion flag until status
+properties arrive; missing or unknown status without completion stays empty.
+The navigation and creation icons remain generic task icons.
+
+The backend-free browser fixture exercises the real row icon and document
+mention, including completing and reopening without a reload:
+`bunx playwright test --config src/lib/core/component/LexicalMarkdown/component/decorator/browser-test/playwright.config.ts task-status.browser.e2e.ts`.
+
+![Task status icons in rows and mentions](images/task-status-icons.png)
