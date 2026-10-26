@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   loadMoreContacts: vi.fn(async () => {}),
   calendarEvents:
     [] as import('../../../utils/mentionsUtils').CalendarEventMentionItem[],
+  bookingLinks:
+    [] as import('../../../utils/mentionsUtils').BookingLinkMentionItem[],
 }));
 
 vi.mock('@app/features/crm/record-adapter', () => ({
@@ -94,7 +96,7 @@ vi.mock('./hooks/useEmailSearchMention', () => ({
 }));
 vi.mock('./hooks/useBookingLinkMention', () => ({
   useBookingLinkMention: () => ({
-    bookingLinks: () => [],
+    bookingLinks: () => mocks.bookingLinks,
     isLoading: () => false,
   }),
 }));
@@ -132,6 +134,7 @@ afterEach(() => {
   mocks.hasMoreContacts = false;
   mocks.loadMoreContacts.mockClear();
   mocks.calendarEvents = [];
+  mocks.bookingLinks = [];
   cleanup();
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -382,6 +385,56 @@ it('offers calendar events and picks one', () => {
   expect(screen.getByText('Calendar events')).toBeTruthy();
   fireEvent.click(screen.getByText('Planning'));
   expect(onPick).toHaveBeenCalledWith(mocks.calendarEvents[0]);
+});
+
+it('leads with booking links for a bare mention and with people once a query is typed', async () => {
+  vi.useFakeTimers();
+  Element.prototype.scrollIntoView = vi.fn();
+  mockNoEmails();
+  mocks.bookingLinks = [
+    {
+      kind: 'bookingLink',
+      id: 'team-profile:gab',
+      data: {
+        profileId: 'team-profile',
+        slug: 'gab',
+        title: 'Meet with Gab',
+        durationMinutes: 30,
+        owner: 'Macro',
+      },
+    },
+  ];
+  const gab: IUser = {
+    id: 'macro|gab@macro.com',
+    name: 'Gab',
+    email: 'gab@macro.com',
+  };
+  const onPick = vi.fn();
+  const menu = createMenuOperations();
+  menu.openMenu();
+  render(() => (
+    <MentionsMenu
+      menu={menu}
+      users={() => [gab]}
+      anchor={document.createElement('div')}
+      onPick={onPick}
+    />
+  ));
+  const headings = () =>
+    screen
+      .getAllByText(/^(Booking Links|People)$/)
+      .map((element) => element.textContent);
+
+  expect(headings()).toEqual(['Booking Links', 'People']);
+
+  menu.setSearchTerm('gab');
+  await vi.advanceTimersByTimeAsync(100);
+  expect(headings()).toEqual(['People', 'Booking Links']);
+  fireEvent.keyDown(document, { key: 'Enter' });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(onPick).toHaveBeenCalledWith(
+    expect.objectContaining({ kind: 'user', data: gab })
+  );
 });
 
 it('opens cell pickers without replaying the menu entrance animation', () => {
