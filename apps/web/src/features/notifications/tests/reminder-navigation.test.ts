@@ -182,3 +182,6 @@ describe('reminder notification navigation', () => {
     expect(track).not.toHaveBeenCalled();
   });
 });
+vi.mock('@channel/queries/prefetch-channel-target', () => ({
+  prefetchChannelTarget: vi.fn(async () => {}),
+}));

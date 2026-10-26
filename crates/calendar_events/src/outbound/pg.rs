@@ -32,14 +32,15 @@ use crate::domain::{
         CalendarEvent, CalendarEventMutationTarget, CalendarEventOverride, CalendarEventSource,
         CalendarEventSourceContent, CalendarEventUpsert, CalendarGrantBinding, CalendarGrantIntent,
         CalendarLinkTokenIdentity, CalendarMentionEvent, CalendarMentionPreview,
-        CalendarMentionRequestItem, CalendarOccurrence, CalendarOccurrenceCursor, CalendarProvider,
-        CalendarReminderFiring, CalendarSyncStatus, CalendarWatchRelease, ConferenceProvider,
-        DisconnectedCalendar, DueCalendarReminder, EventDetails, EventReminderOverride,
-        EventReminders, EventStart, EventStatus, EventTime, EventTransparency, EventType,
-        EventVisibility, GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet,
-        GoogleWatchChannel, GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange,
-        OwnedInbox, ProviderCalendar, StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities,
-        VisibleCalendar, is_system_calendar,
+        CalendarMentionRequestItem, CalendarMentionViewerCopy, CalendarOccurrence,
+        CalendarOccurrenceCursor, CalendarProvider, CalendarReminderFiring, CalendarSyncStatus,
+        CalendarWatchRelease, ConferenceProvider, DisconnectedCalendar, DueCalendarReminder,
+        EventDetails, EventReminderOverride, EventReminders, EventStart, EventStatus, EventTime,
+        EventTransparency, EventType, EventVisibility, GOOGLE_CALENDAR_SCOPES,
+        GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel, GuestPolicy, MeetingCopy,
+        OccurrenceException, OccurrenceListing, OccurrenceRange, OwnedInbox, ProviderCalendar,
+        StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities, VisibleCalendar,
+        is_system_calendar,
     },
     ports::{
         CalendarBackfillRepository, CalendarEventChange, CalendarEventWrite,
@@ -414,6 +415,9 @@ struct MentionPreviewRow {
     mention_exists: bool,
     resolved_event_id: Option<Uuid>,
     is_channel_shared: Option<bool>,
+    is_snapshot: Option<bool>,
+    inbox_organizes: Option<bool>,
+    inbox_attends: Option<bool>,
     title: Option<String>,
     description: Option<String>,
     location: Option<String>,
@@ -1297,6 +1301,9 @@ impl CalendarRepository for PgCalendarRepository {
                 (mentioned.id IS NOT NULL) AS "mention_exists!",
                 viewer_event.id AS "resolved_event_id?",
                 viewer_event.is_channel_shared AS "is_channel_shared?",
+                viewer_event.is_snapshot AS "is_snapshot?",
+                viewer_event.inbox_organizes AS "inbox_organizes?",
+                viewer_event.inbox_attends AS "inbox_attends?",
                 COALESCE(occurrence_override.title, viewer_event.title) AS "title?",
                 left(
                     COALESCE(occurrence_override.description, viewer_event.description),
@@ -1331,6 +1338,27 @@ impl CalendarRepository for PgCalendarRepository {
                         false AS is_channel_shared,
                         (candidate.owner_id = $1) AS is_owned,
                         (candidate.id = mentioned.id) AS is_mentioned,
+                        candidate.is_snapshot,
+                        -- The copy's own inbox decides how the requester
+                        -- holds it, as it decides their capabilities: an
+                        -- inbox they own that organizes it or is on it.
+                        COALESCE(
+                            lower(copy_inbox.email_address) = lower(candidate.organizer_email)
+                            OR EXISTS (
+                                SELECT 1
+                                FROM calendar_event_attendees organizer
+                                WHERE organizer.event_id = candidate.id
+                                  AND organizer.is_organizer
+                                  AND lower(organizer.email) = lower(copy_inbox.email_address)
+                            ),
+                            false
+                        ) AS inbox_organizes,
+                        EXISTS (
+                            SELECT 1
+                            FROM calendar_event_attendees guest
+                            WHERE guest.event_id = candidate.id
+                              AND lower(guest.email) = lower(copy_inbox.email_address)
+                        ) AS inbox_attends,
                         candidate.title,
                         candidate.description,
                         candidate.location,
@@ -1344,7 +1372,11 @@ impl CalendarRepository for PgCalendarRepository {
                         candidate.time_zone,
                         candidate.updated_at
                     FROM calendar_events candidate
-                    WHERE candidate.ical_uid = mentioned.ical_uid
+                    LEFT JOIN email_links copy_inbox
+                        ON copy_inbox.id = candidate.source_link_id
+                       AND copy_inbox.macro_id = $1
+                    WHERE calendar_meeting_uid(candidate.ical_uid)
+                        = calendar_meeting_uid(mentioned.ical_uid)
                       AND candidate.status <> 'cancelled'
                       AND (
                             candidate.owner_id = $1
@@ -1361,6 +1393,9 @@ impl CalendarRepository for PgCalendarRepository {
                         true,
                         false,
                         true,
+                        false,
+                        false,
+                        false,
                         mentioned.title,
                         mentioned.description,
                         mentioned.location,
@@ -1443,6 +1478,65 @@ impl CalendarRepository for PgCalendarRepository {
         .map_err(report)?;
 
         rows.into_iter().map(mention_preview_from_row).collect()
+    }
+
+    #[tracing::instrument(skip(self, requester_id), err)]
+    async fn meeting_copies(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> Result<Vec<MeetingCopy>, Report> {
+        // The copy's own inbox decides how the requester holds it, as it
+        // decides their capabilities and the mention preview's `isOwned`.
+        let rows = sqlx::query!(
+            r#"
+            SELECT
+                candidate.id AS "event_id!",
+                copy_inbox.email_address AS "inbox!",
+                COALESCE(
+                    lower(copy_inbox.email_address) = lower(candidate.organizer_email)
+                    OR EXISTS (
+                        SELECT 1
+                        FROM calendar_event_attendees organizer
+                        WHERE organizer.event_id = candidate.id
+                          AND organizer.is_organizer
+                          AND lower(organizer.email) = lower(copy_inbox.email_address)
+                    ),
+                    false
+                ) AS "organizes!",
+                EXISTS (
+                    SELECT 1
+                    FROM calendar_event_attendees guest
+                    WHERE guest.event_id = candidate.id
+                      AND lower(guest.email) = lower(copy_inbox.email_address)
+                ) AS "attends!"
+            FROM calendar_events addressed
+            JOIN calendar_events candidate
+              ON calendar_meeting_uid(candidate.ical_uid)
+               = calendar_meeting_uid(addressed.ical_uid)
+            JOIN email_links copy_inbox
+              ON copy_inbox.id = candidate.source_link_id
+             AND copy_inbox.macro_id = $1
+            WHERE addressed.id = $2
+              AND candidate.owner_id = $1
+              AND candidate.status <> 'cancelled'
+            ORDER BY lower(copy_inbox.email_address), candidate.id
+            "#,
+            requester_id,
+            event_id,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(report)?;
+        Ok(rows
+            .into_iter()
+            .map(|row| MeetingCopy {
+                event_id: row.event_id,
+                inbox: row.inbox,
+                organizes: row.organizes,
+                attends: row.attends,
+            })
+            .collect())
     }
 
     #[tracing::instrument(skip(self, requester_id), err)]
@@ -4545,6 +4639,13 @@ fn mention_preview_from_row(row: MentionPreviewRow) -> Result<CalendarMentionPre
     Ok(CalendarMentionPreview::Accessible(Box::new(
         CalendarMentionEvent {
             viewer_event_id: (!is_channel_shared).then_some(resolved_event_id),
+            viewer_copy: (!is_channel_shared).then(|| {
+                CalendarMentionViewerCopy::classify(
+                    row.is_snapshot.unwrap_or_default(),
+                    row.inbox_organizes.unwrap_or_default(),
+                    row.inbox_attends.unwrap_or_default(),
+                )
+            }),
             title: row.title.unwrap_or_default(),
             description: row
                 .description

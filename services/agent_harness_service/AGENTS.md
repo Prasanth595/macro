@@ -63,7 +63,12 @@ Pulumi stacks; they do not host extra agent processes.
 
 ## Tool contracts
 
-- Internal session tools require a verified acting user plus owner/edit authorization. Keep their restricted prompt/stop route separate from human approval controls.
+- Internal session tools require explicit `acting_as`, resolved by the shared gate, plus existing owner/edit authorization. SDK executions choose one account for the whole program; review decisions use the saved acting account. Keep their restricted prompt/stop route separate from human approval controls.
+- An import review's draft is `{source, excluded, shared, personal}`: the rows the owner left out and the rows whose sharing they flipped, passed to `start_notion_write` as `NotionWriteChoices`.
+- One `ai_tools::ImportJobs` serves the whole process: session tools, public MCP, and `cognition::build` (the `/import/*` routes and the only stalled-Notion-import sweeper) share it, and `main.rs` hands running imports over on shutdown (`ImportJobs::hand_over`).
+- The agent approves a presented review after its account holder says yes in chat by submitting it with `DecideReview`: `Actions::session` reports the turn's prompter from `agent_session.turn_prompter`, and `approvable` refuses an import whose plan is not `ready` for that review.
+- Presenting an import review ties its plan to the review and the session (`attach_notion_review`); the import then produces `import.planned` and `review.settled` for that session itself, in the run's transaction (`crates/import`).
+- The owner connecting an app a session asked for produces an `app.connected` event (`agent_harness::domain::app_connections`).
 
 The composition root wires `PgExternalReplyStore` into the harness and recovers
 unfinished external chat replies alongside conversation recovery every ten seconds.
@@ -76,6 +81,10 @@ session's serialized worker. Internal producers use
 `POST /agent-sessions/internal/notifications`; only internal credentials may
 produce events, independently of public session control.
 
+## Canvas media
+
+- `RenderCanvas` promotes only its explicit top-level `modelMedia` contract to at most two bounded native PNG blocks; pixels are removed from text and structured JSON, nested scene media is never promoted, and this adapter never fetches image URLs.
+
 ## Checks
 
 - `cargo test -p agent_harness_service` (`SQLX_OFFLINE` unset).
@@ -83,8 +92,9 @@ produce events, independently of public session control.
 - `just run-local` — needs `DAYTONA_API_KEY`, `DAYTONA_SNAPSHOT`,
   `GITHUB_TOKEN` in the environment or a local `.env`.
 
-Code-mode credentials sign the authenticated session bot identity for SDK
-message attribution after owner approval, while retaining user authentication.
+Code-mode credentials sign the session bot for SDK attribution and the selected
+user for API authorization; owner approval is required only for cross-account
+access. Lifecycle, runtime provider connections, billing, and memory stay owner-scoped.
 
 ## Configuration and lifecycle
 

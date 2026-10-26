@@ -3,7 +3,12 @@
 ## Scope
 
 Execution credentials carry the authenticated session bot for SDK message
-attribution while retaining the owner's API permissions.
+attribution while using the explicitly selected `acting_as` account's API
+permissions. Credential issuance resolves and approves that selection before
+minting. ExecuteCode requires the originating prompt’s `turn_id`; admission and
+credential approval must reject a replacement turn before adopting its account.
+Saved execution retries must match both actor selection and original
+turn, so a later requester cannot inherit an earlier execution result.
 
 Owns session-authorized code executions, user-scoped executions for the public
 MCP, SDK documentation selection, saved execution records, and durable review
@@ -18,6 +23,13 @@ stacks. Process isolation belongs to
 - `src/domain/user.rs`: `UserCodeMode`, runs as an authenticated user with no
   session, journal or reviews; shares outcome validation with the session path.
 - `src/domain/reviews.rs`: review validation, revisions, claims and outcomes.
+  `decide_for_session` (the `DecideReview` tool, `inbound/reviews.rs`) is the
+  agent deciding on the account holder's word in chat: a turn they prompted,
+  never a System turn (per `ReviewSession::prompter`), and a Submit only once
+  the action is `approvable`.
+  An import review only starts its write: its `review.decided` is quiet, and
+  its `review.settled` comes from the import when the write ends; only an
+  import that could not start settles here.
 - `src/domain/documentation.rs`: Jev selection of generated SDK docs, rendered
   into the per-turn prompt (top four, 48 KiB) or returned for a
   `DescribeCodeTools` `task` (every relevant entity, 32 KiB).
@@ -38,8 +50,14 @@ session presentation. Never replay an uncertain submitted action.
 
 Reviews write `review.decided` and `review.settled` through the injected
 transaction-aware notification writer in the same revision-checked transaction.
-Cards require direct user authentication; `DecideReview` uses the same claim and
-execute path but requires a real owner-prompted turn. `GetReview` reads final
+Reviews persist the immutable acting account. Only that account may edit or
+submit; historical reviews without an acting account use the session owner.
+ACP presentation uses the session owner's transcript capability, independently
+of the account that later sends the email or creates the event. Cards require
+direct user authentication; `DecideReview` requires a real turn prompted by the
+review's acting account, and its Submit waits for `ReviewActions::approvable`
+(default: always), the hook a kind uses to refuse until it is ready. `GetReview`
+reads final
 drafts and outcomes. Legacy notificationId/notificationAttemptAt fields are no
 longer delivery state.
 

@@ -660,6 +660,17 @@ export type AnswerToolApprovalResponse = {
     status: ToolApprovalStatusDto;
 };
 
+/**
+ * Request body for reporting a connected app.
+ */
+export type AppConnectedRequest = {
+    actionId?: null | AgentActionId;
+    /**
+     * The Pipedream app slug the owner connected, e.g. `notion`.
+     */
+    appSlug: string;
+};
+
 export type BotId = string;
 
 /**
@@ -976,7 +987,8 @@ export type CreateReview = {
      * time: {kind: "timed", startsAt: ISO datetime, endsAt: ISO datetime,
      * timeZone?: IANA zone} or {kind: "allDay", startDate: ISO date,
      * endDate: exclusive ISO date}, description?, location?, attendees?:
-     * [{email, isOptional?}]}.
+     * [{email, isOptional?}]}. Import: exactly one draft {source: "notion"},
+     * presenting the plan ImportFromNotion staged.
      * Creating any review only presents these drafts; the user acts separately.
      */
     drafts: Array<unknown>;
@@ -1140,6 +1152,7 @@ export type ExecutionId = string;
  * The full journal is not included in the model's tool result.
  */
 export type ExecutionRecord = {
+    actingAs?: null | ToolActor;
     /**
      * Advisory SDK operation activity, without arguments or response contents.
      */
@@ -1172,6 +1185,10 @@ export type ExecutionRecord = {
      * Overall execution state.
      */
     status: ExecutionStatus;
+    /**
+     * Original turn, preventing another requester from replaying a saved result.
+     */
+    turnId?: string | null;
 };
 
 /**
@@ -1613,11 +1630,11 @@ export type ReviewDecision = {
 };
 
 /**
- * Facts about the most recent owner decision.
+ * Facts about the most recent account-holder decision.
  */
 export type ReviewDecisionContext = {
     /**
-     * Authenticated owner.
+     * Authenticated account holder.
      */
     by: string;
     /**
@@ -1648,7 +1665,7 @@ export type ReviewItem = {
      */
     draft: unknown;
     /**
-     * Whether the owner edited this draft before deciding.
+     * Whether the account holder edited this draft before deciding.
      */
     edited?: boolean;
     /**
@@ -1677,12 +1694,16 @@ export type ReviewItemStatus = 'pending' | 'submitting' | 'completed' | 'dismiss
 /**
  * The component and action used to finish a review.
  */
-export type ReviewKind = 'email' | 'calendar';
+export type ReviewKind = 'email' | 'calendar' | 'import';
 
 /**
  * Full UI record, fetched outside the model context.
  */
 export type ReviewRecord = {
+    /**
+     * Account whose email/calendar the drafts use; historical records use the session owner.
+     */
+    actingUser?: string | null;
     decision?: null | ReviewDecisionContext;
     executionId?: null | ExecutionId;
     /**
@@ -1848,6 +1869,11 @@ export type StartFreshAgentConversationRequest = {
      */
     sessionId: string;
 };
+
+/**
+ * Which authenticated participant's access a tool call requests.
+ */
+export type ToolActor = 'requester' | 'owner';
 
 /**
  * How a person answers a held tool call.
@@ -2415,6 +2441,44 @@ export type GetAgentSessionResponses = {
 };
 
 export type GetAgentSessionResponse = GetAgentSessionResponses[keyof GetAgentSessionResponses];
+
+export type ReportAgentSessionAppConnectedData = {
+    body: AppConnectedRequest;
+    path: {
+        /**
+         * ID of the agent session
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/agent-sessions/{session_id}/app-connections';
+};
+
+export type ReportAgentSessionAppConnectedErrors = {
+    401: string;
+    /**
+     * Not the session's owner, or no edit access
+     */
+    403: string;
+    /**
+     * The session is archived
+     */
+    409: string;
+    /**
+     * The owner has not connected that app
+     */
+    422: string;
+    500: string;
+};
+
+export type ReportAgentSessionAppConnectedError = ReportAgentSessionAppConnectedErrors[keyof ReportAgentSessionAppConnectedErrors];
+
+export type ReportAgentSessionAppConnectedResponses = {
+    /**
+     * The session continues once it is idle
+     */
+    202: unknown;
+};
 
 export type SetAgentSessionArchivedData = {
     body: SetAgentSessionArchivedRequest;

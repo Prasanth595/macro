@@ -21,8 +21,8 @@ use utoipa::{IntoParams, ToSchema};
 mod test;
 
 /// Hook invoked after an OAuth flow completes and the credentials are saved.
-/// Hosts use this to react to a connection the moment it exists (e.g. start
-/// import gather jobs); implementations must be quick or spawn.
+/// Hosts use this to react to a connection the moment it exists (e.g. record
+/// analytics); implementations must be quick or spawn.
 pub type McpAuthCompletedHook = Arc<
     dyn Fn(McpServerRecord) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync,
 >;
@@ -584,8 +584,6 @@ where
         .exchange_authorization_code(&code, &csrf_state)
         .await?;
 
-    // Let the host react to the brand-new connection (e.g. kick off import
-    // gather jobs) before the user even returns to their original tab.
     if let Some(hook) = &state.on_auth_completed {
         hook(record).await;
     }

@@ -1002,6 +1002,10 @@ pub struct CalendarMentionEvent {
     /// they see it only because it was shared with one of their channels:
     /// that preview is read-only and there is no event of theirs to open.
     pub viewer_event_id: Option<Uuid>,
+    /// How the requester holds the meeting through `viewer_event_id`; absent
+    /// exactly when that is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub viewer_copy: Option<CalendarMentionViewerCopy>,
     /// Display title.
     pub title: String,
     /// Provider description, plain text or HTML, truncated for the preview.
@@ -1034,6 +1038,35 @@ pub struct CalendarMentionEvent {
     /// For a channel-shared preview, the requester's request to join, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub join_request_status: Option<super::join_requests::CalendarJoinRequestStatus>,
+}
+
+/// How a requester holds a mentioned meeting on their own calendar, decided
+/// by the copy's own inbox, the way viewer capabilities decide organizer and
+/// guest.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum CalendarMentionViewerCopy {
+    /// A snapshot of a shared meeting: a private copy that does not update.
+    Snapshot,
+    /// A real invitation: the copy's inbox is a guest, not the organizer.
+    Invitation,
+    /// Any other copy, such as one the requester organizes or a delegated
+    /// inbox's.
+    Event,
+}
+
+impl CalendarMentionViewerCopy {
+    /// Classify a copy from what its row says about the copy's own inbox.
+    pub fn classify(is_snapshot: bool, inbox_organizes: bool, inbox_attends: bool) -> Self {
+        if is_snapshot {
+            Self::Snapshot
+        } else if inbox_attends && !inbox_organizes {
+            Self::Invitation
+        } else {
+            Self::Event
+        }
+    }
 }
 
 /// Inclusive/exclusive viewport range for occurrence queries.
@@ -1345,6 +1378,35 @@ impl CalendarEventPatch {
     pub fn is_empty(&self) -> bool {
         self == &Self::default()
     }
+
+    /// Whether the patch changes the meeting itself rather than only what
+    /// the provider keeps on each copy: reminders and availability.
+    pub fn reaches_meeting(&self) -> bool {
+        let Self {
+            title,
+            description,
+            location,
+            time,
+            attendees,
+            recurrence_lines,
+            visibility,
+            transparency: _,
+            reminders: _,
+            conference,
+            out_of_office,
+            guest_policy,
+        } = self;
+        title.is_some()
+            || description.is_some()
+            || location.is_some()
+            || time.is_some()
+            || attendees.is_some()
+            || recurrence_lines.is_some()
+            || visibility.is_some()
+            || conference.is_some()
+            || out_of_office.is_some()
+            || guest_policy.is_some()
+    }
 }
 
 /// The stored details of an event or one of its occurrences: what every
@@ -1460,6 +1522,20 @@ impl CalendarEventMutationTarget {
             range,
         }
     }
+}
+
+/// One of the requester's own copies of a meeting: the event held through
+/// one of their inboxes under the meeting's iCalendar UID.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MeetingCopy {
+    /// The copy's event id.
+    pub event_id: Uuid,
+    /// Address of the inbox holding the copy.
+    pub inbox: String,
+    /// Whether that inbox organizes the meeting.
+    pub organizes: bool,
+    /// Whether that inbox is on the meeting's guest list.
+    pub attends: bool,
 }
 
 /// A calendar visible to a requester, listed for pickers and filters.

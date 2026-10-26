@@ -25,8 +25,8 @@ use utoipa::{IntoParams, ToSchema};
 mod test;
 
 /// Hook invoked after a connect flow completes and the record is saved.
-/// Hosts use this to react to a connection the moment it exists (e.g. start
-/// import gather jobs); implementations must be quick or spawn.
+/// Hosts use this to react to a connection the moment it exists (e.g. record
+/// analytics); implementations must be quick or spawn.
 pub type PipedreamAuthCompletedHook = Arc<
     dyn Fn(PipedreamConnection) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync,
 >;

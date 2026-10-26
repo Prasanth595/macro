@@ -8,13 +8,16 @@ import CaretDownIcon from '@phosphor/caret-down.svg';
 import CheckIcon from '@phosphor/check.svg';
 import DownloadSimpleIcon from '@phosphor/download-simple.svg';
 import UserPlusIcon from '@phosphor/user-plus.svg';
+import XIcon from '@phosphor/x.svg';
 import { useVisibleCalendarsQuery } from '@queries/calendar/calendars';
 import {
   isAlreadyOnCalendar,
   isCopyRefused,
+  isJoinRequestOpen,
   useCopySharedCalendarEventMutation,
 } from '@queries/calendar/copy';
 import {
+  isJoinRequestDeclined,
   isSharerCannotInvite,
   useRequestToJoinCalendarEventMutation,
 } from '@queries/calendar/join-requests';
@@ -37,8 +40,6 @@ export function SharedEventActions(props: {
   canRequestToJoin: boolean;
   /** The viewer's request to join, if they made one. */
   joinRequestStatus?: CalendarJoinRequestStatus;
-  /** Called once the copy is on the viewer's calendar. */
-  onAdded?: () => void;
 }) {
   const addSharedEvent = useCalendarAddSharedEventFlag();
   const [menuOpen, setMenuOpen] = createSignal(false);
@@ -59,13 +60,14 @@ export function SharedEventActions(props: {
     );
 
   const copy = useCopySharedCalendarEventMutation({
-    onSuccess: () => {
-      toast.success('Added to your calendar');
-      props.onAdded?.();
-    },
+    onSuccess: () => toast.success('Added to your calendar'),
     onError: (error) => {
       if (isAlreadyOnCalendar(error)) {
         toast.failure('This event is already on your calendar');
+      } else if (isJoinRequestOpen(error)) {
+        toast.failure("You've asked to join this event", {
+          subtext: "It reaches your calendar once you're added as a guest.",
+        });
       } else if (isCopyRefused(error)) {
         toast.failure("Google Calendar won't add this event to that calendar", {
           subtext: 'Download the .ics file to add it another way.',
@@ -104,9 +106,14 @@ export function SharedEventActions(props: {
       toast.failure(
         isSharerCannotInvite(error)
           ? "The person who shared this event can't add guests to it"
-          : 'Failed to ask to join the event'
+          : isJoinRequestDeclined(error)
+            ? 'The person who shared this event declined your request'
+            : 'Failed to ask to join the event'
       ),
   });
+  // A declined request stands: the card says so instead of offering to ask
+  // again, and the sharer is never asked twice.
+  const declined = () => props.joinRequestStatus === 'declined';
 
   return (
     <div
@@ -124,6 +131,12 @@ export function SharedEventActions(props: {
           <span class="flex h-5 items-center gap-1 px-1 text-xs text-ink-muted">
             <CheckIcon class="size-3" />
             Invited
+          </span>
+        </Match>
+        <Match when={declined()}>
+          <span class="flex h-5 items-center gap-1 px-1 text-xs text-ink-muted">
+            <XIcon class="size-3" />
+            Declined
           </span>
         </Match>
         <Match when={props.canRequestToJoin}>
@@ -200,11 +213,18 @@ export function SharedEventActions(props: {
         <DownloadSimpleIcon />
         Download .ics
       </Button>
-      <Show when={!props.canRequestToJoin && !requestOutstanding()}>
-        <p class="w-full text-xs text-ink-muted">
-          The person who shared this event can't add guests to it.
-        </p>
-      </Show>
+      <Switch>
+        <Match when={declined()}>
+          <p class="w-full text-xs text-ink-muted">
+            The person who shared this event declined your request to join.
+          </p>
+        </Match>
+        <Match when={!props.canRequestToJoin && !requestOutstanding()}>
+          <p class="w-full text-xs text-ink-muted">
+            The person who shared this event can't add guests to it.
+          </p>
+        </Match>
+      </Switch>
     </div>
   );
 }

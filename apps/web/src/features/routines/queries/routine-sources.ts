@@ -43,6 +43,7 @@ function toRoutine(schedule: ScheduledAction): RoutineSnapshot {
       schedule.kind,
       schedule.trigger,
       schedule.task,
+      schedule.run_visibility,
     ]),
     draft: draftFromSchedule(schedule),
   };
@@ -55,6 +56,7 @@ type DetailCallbacks = {
 
 export function createRoutineDetailSource(
   id: Accessor<string>,
+  userId: Accessor<string | undefined>,
   callbacks: DetailCallbacks
 ): RoutineDetailSource {
   const list = useSchedulesQuery(() => true);
@@ -87,7 +89,9 @@ export function createRoutineDetailSource(
     },
     'duplicate'
   );
-  const history = useScheduleHistoryQuery(id, () => Boolean(raw()));
+  const history = useScheduleHistoryQuery(id, () =>
+    Boolean(raw() && raw()?.owner === userId())
+  );
   onMount(() => {
     fireAndForget(invalidateSchedules(), 'routines');
   });
