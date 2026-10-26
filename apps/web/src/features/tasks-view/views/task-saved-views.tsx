@@ -442,7 +442,7 @@ export function TaskSaveViewButton() {
   return (
     <Show when={visible()}>
       <HeaderActionGroup label="Save task view">
-        <Button size="md" variant="ghost" onClick={() => create()}>
+        <Button size="md" variant="cta" onClick={() => create()}>
           Save view
         </Button>
       </HeaderActionGroup>
@@ -467,11 +467,11 @@ export function TaskSavedViewCreateBanner(props: TaskSavedViewDialogProps) {
     <Show when={visible()}>
       <div
         role="status"
-        class="mx-6 mb-3 flex shrink-0 items-center gap-2 rounded-lg border border-accent/30 bg-accent-bg px-3 py-2 text-sm"
+        class="mb-3 flex shrink-0 items-center gap-2 border-y border-accent/30 bg-accent-bg px-6 py-2 text-sm"
       >
         <InfoIcon class="size-4 shrink-0 text-accent" aria-hidden="true" />
-        <span class="min-w-0 flex-1">Save these filters as a view.</span>
-        <Button size="sm" variant="ghost" onClick={showCreate}>
+        <span class="min-w-0 flex-1">Save these filters as a view</span>
+        <Button size="sm" variant="cta" onClick={showCreate}>
           Save view
         </Button>
         <Show when={creating()}>
@@ -624,7 +624,7 @@ export function TaskSavedViewActions(props: TaskSavedViewDialogProps = {}) {
                 <Show when={selected()?.record.ownerId === viewerId()}>
                   <Button
                     size="md"
-                    variant="ghost"
+                    variant="cta"
                     class="touch:order-last"
                     disabled={update.isPending || !!selected()?.issues.length}
                     title={
@@ -647,7 +647,7 @@ export function TaskSavedViewActions(props: TaskSavedViewDialogProps = {}) {
               </>
             }
           >
-            <Button size="md" variant="ghost" onClick={() => showCreate()}>
+            <Button size="md" variant="cta" onClick={() => showCreate()}>
               Save view
             </Button>
             <Button size="md" variant="ghost" onClick={leaveSavedView}>
