@@ -28,7 +28,7 @@ import {
 import { createVariants, type VariantProps } from '../utils/variants';
 const buttonFrames = {
   primary: 'bg-button-primary-bg text-button-primary-ink border-transparent shadow-button',
-  secondary: 'bg-button-secondary-bg text-ink border-border-secondary shadow-button',
+  secondary: 'bg-button-secondary-bg text-ink border-border-secondary dark-mode:border-transparent shadow-button',
   outline: 'bg-transparent text-ink border-border-secondary bg-none shadow-none',
   ghost: 'bg-button-tertiary-bg text-ink-muted border-transparent bg-none shadow-none',
   accent: 'bg-accent text-button-accent-ink border-transparent shadow-button',
@@ -123,10 +123,10 @@ const buttonFinishes: Partial<
     'gradient-raised': gradientRaisedButtonStyles,
   },
   secondary: {
-    raised: raisedButtonStyles,
+    raised: cn(raisedButtonStyles, 'dark-mode:shadow-button'),
     'gradient-raised': gradientRaisedButtonStyles,
     'glass-outline': cn(
-      'border-border-secondary/50',
+      'border-border-secondary/50 dark-mode:border-transparent dark-mode:before:hidden dark-mode:after:hidden',
       outlineReflectionStyles
     ),
   },
