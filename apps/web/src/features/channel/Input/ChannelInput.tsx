@@ -37,6 +37,7 @@ import ChartBarIcon from '@phosphor/chart-bar-horizontal.svg';
 import GifIcon from '@phosphor/gif.svg';
 import PaperclipIcon from '@phosphor/paperclip.svg';
 import PhoneIcon from '@phosphor/phone.svg';
+import FormatIcon from '@phosphor/text-aa.svg';
 import type { MessageParent } from '@service-storage/messages';
 import { CollapsedInput, ComposerSurface, cn } from '@ui';
 import {
@@ -461,6 +462,18 @@ export function ChannelInput(props: ChannelInputProps) {
             onSelect: () => collapsedInput.attach(),
           },
           ...gif(),
+          {
+            id: 'format',
+            label: inputState.view().showFormatRibbon
+              ? 'Hide formatting'
+              : 'Formatting',
+            icon: <FormatIcon class="size-3.5" />,
+            onSelect: () =>
+              runInEditor(() => commands.toggleFormatRibbon(), {
+                focus: true,
+              }),
+            focusesEditor: true,
+          },
         ],
       },
       {
