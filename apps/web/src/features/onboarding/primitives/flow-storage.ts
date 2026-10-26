@@ -24,45 +24,61 @@ const KEYS = {
   signupDraft: 'onboarding-signup-draft',
 } as const;
 
-function read(storage: Storage, key: string): string | null {
+// Storage is resolved inside the try: reading `window.localStorage` itself
+// throws when the browser blocks it.
+type StorageArea = () => Storage;
+const local: StorageArea = () => localStorage;
+const session: StorageArea = () => sessionStorage;
+
+function read(storage: StorageArea, key: string): string | null {
   try {
-    return storage.getItem(key);
+    return storage().getItem(key);
   } catch {
     return null;
   }
 }
 
-function write(storage: Storage, key: string, value: string | undefined) {
+/** Reports whether the write landed. */
+function write(
+  storage: StorageArea,
+  key: string,
+  value: string | undefined
+): boolean {
   try {
-    if (value === undefined) storage.removeItem(key);
-    else storage.setItem(key, value);
+    if (value === undefined) storage().removeItem(key);
+    else storage().setItem(key, value);
+    return true;
   } catch {
     // Storage blocked: the flow still works, it just can't resume.
+    return false;
   }
 }
 
 function readSession(key: string) {
-  return read(sessionStorage, key);
+  return read(session, key);
 }
 
 function writeSession(key: string, value: string | undefined) {
-  write(sessionStorage, key, value);
+  write(session, key, value);
 }
 
-/** localStorage, with a one-time copy from the old per-tab record. */
+/**
+ * localStorage, falling back to the per-tab record, which older builds wrote
+ * and which still holds progress while localStorage is unavailable.
+ */
 function readStepRaw(): string | null {
-  const saved = read(localStorage, KEYS.step);
+  const saved = read(local, KEYS.step);
   if (saved !== null) return saved;
-  const legacy = read(sessionStorage, KEYS.step);
-  if (legacy === null) return null;
-  write(localStorage, KEYS.step, legacy);
-  write(sessionStorage, KEYS.step, undefined);
+  const legacy = read(session, KEYS.step);
+  if (legacy !== null && write(local, KEYS.step, legacy))
+    write(session, KEYS.step, undefined);
   return legacy;
 }
 
 function writeStep(value: string | undefined) {
-  write(localStorage, KEYS.step, value);
-  write(sessionStorage, KEYS.step, undefined);
+  if (write(local, KEYS.step, value) || value === undefined)
+    write(session, KEYS.step, undefined);
+  else write(session, KEYS.step, value);
 }
 
 function savedStepFor(raw: string | null, userId: string): string | undefined {

@@ -45,9 +45,11 @@ export function routePhoneToMobileSignup(event: MouseEvent) {
 }
 
 function readOnboardingFlowStep(): string | null {
-  for (const storage of [localStorage, sessionStorage]) {
+  // Resolve each store inside the try: reading `window.localStorage` itself
+  // throws when the browser blocks it.
+  for (const storage of [() => localStorage, () => sessionStorage]) {
     try {
-      const value = storage.getItem('onboarding-flow-step');
+      const value = storage().getItem('onboarding-flow-step');
       if (value !== null) return value;
     } catch {
       // This store can be blocked; the other may still hold the step.
