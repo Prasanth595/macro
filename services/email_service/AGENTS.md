@@ -55,6 +55,9 @@ the gateway `/email` prefix.
 - The Gmail delivery adapter freezes approved upload/provider-file IDs before
   loading bytes through the authorized reader; Outlook uses its own coordinator.
 
+- `/email/attachments/{id}/drive_copies` lists and records the caller's Drive
+  copies of an attachment. `/email/attachments/by_document/{document_id}`
+  reports the attachment a document was imported from.
 - Forwarded attachments use the source inbox's provider credentials; the email
   domain rechecks the scheduled actor's access before cross-inbox downloads.
 - Macro's own digest emails are filtered out of Signal/email notifications

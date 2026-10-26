@@ -529,6 +529,15 @@ export type AttachmentDraft = {
     upload_pending?: boolean;
 };
 
+export type AttachmentDriveCopyResponse = {
+    document_id: string;
+    name: string;
+};
+
+export type AttachmentForDocumentResponse = {
+    attachment_id?: string | null;
+};
+
 /**
  * A forwarded attachment linking a draft to an original message's attachment.
  * Data is fetched from Gmail at send time rather than stored in S3.
@@ -1399,6 +1408,10 @@ export type Link = {
     updated_at: string;
 };
 
+export type ListAttachmentDriveCopiesResponse = {
+    copies: Array<AttachmentDriveCopyResponse>;
+};
+
 /**
  * The response returned from the list backfill jobs endpoint
  */
@@ -1635,6 +1648,14 @@ export type RefreshEmailEvent = {
     link_id: string;
     status: BackfillStatus;
     total_threads: number;
+};
+
+export type RegisterAttachmentDriveCopyRequest = {
+    document_id: string;
+};
+
+export type RegisterAttachmentDriveCopyResponse = {
+    document_id: string;
 };
 
 /**
@@ -1955,6 +1976,32 @@ export type ViewerCapabilities = {
     setGuestPolicy: boolean;
 };
 
+export type AttachmentForDocumentData = {
+    body?: never;
+    path: {
+        /**
+         * Document ID.
+         */
+        document_id: string;
+    };
+    query?: never;
+    url: '/email/attachments/by_document/{document_id}';
+};
+
+export type AttachmentForDocumentErrors = {
+    401: ErrorResponse;
+    403: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type AttachmentForDocumentError = AttachmentForDocumentErrors[keyof AttachmentForDocumentErrors];
+
+export type AttachmentForDocumentResponses = {
+    200: AttachmentForDocumentResponse;
+};
+
+export type AttachmentForDocumentResponse2 = AttachmentForDocumentResponses[keyof AttachmentForDocumentResponses];
+
 export type GetAttachmentData = {
     body?: never;
     path: {
@@ -2011,6 +2058,61 @@ export type GetAttachmentDocumentIdResponses = {
 };
 
 export type GetAttachmentDocumentIdResponse2 = GetAttachmentDocumentIdResponses[keyof GetAttachmentDocumentIdResponses];
+
+export type ListAttachmentDriveCopiesData = {
+    body?: never;
+    path: {
+        /**
+         * Attachment ID.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/email/attachments/{id}/drive_copies';
+};
+
+export type ListAttachmentDriveCopiesErrors = {
+    401: ErrorResponse;
+    403: ErrorResponse;
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type ListAttachmentDriveCopiesError = ListAttachmentDriveCopiesErrors[keyof ListAttachmentDriveCopiesErrors];
+
+export type ListAttachmentDriveCopiesResponses = {
+    200: ListAttachmentDriveCopiesResponse;
+};
+
+export type ListAttachmentDriveCopiesResponse2 = ListAttachmentDriveCopiesResponses[keyof ListAttachmentDriveCopiesResponses];
+
+export type RegisterAttachmentDriveCopyData = {
+    body: RegisterAttachmentDriveCopyRequest;
+    path: {
+        /**
+         * Attachment ID.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/email/attachments/{id}/drive_copies';
+};
+
+export type RegisterAttachmentDriveCopyErrors = {
+    400: ErrorResponse;
+    401: ErrorResponse;
+    403: ErrorResponse;
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type RegisterAttachmentDriveCopyError = RegisterAttachmentDriveCopyErrors[keyof RegisterAttachmentDriveCopyErrors];
+
+export type RegisterAttachmentDriveCopyResponses = {
+    200: RegisterAttachmentDriveCopyResponse;
+};
+
+export type RegisterAttachmentDriveCopyResponse2 = RegisterAttachmentDriveCopyResponses[keyof RegisterAttachmentDriveCopyResponses];
 
 export type CancelBackfillGmailData = {
     body: CancelBackfillParams;

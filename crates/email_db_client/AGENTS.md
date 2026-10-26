@@ -16,7 +16,9 @@ cleanup, and backfill.
 
 ## Scope
 
-- Owns: the `sqlx::query!` call sites for email tables.
+- Owns: the `sqlx::query!` call sites for email tables, including
+  `email_attachment_drive_copies` (a viewer's saved Drive copies of an
+  attachment).
 - Not here: email domain/business logic → `crates/email`; provider API calls
   → `email_api_client`. The schema lives in `crates/macro_db_client/migrations/`
   (shared MacroDB), not here.

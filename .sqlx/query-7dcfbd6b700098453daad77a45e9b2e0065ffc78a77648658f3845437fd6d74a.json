@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT c.document_id, d.name\n        FROM email_attachment_drive_copies c\n        INNER JOIN \"Document\" d ON d.id = c.document_id\n        WHERE c.email_attachment_id = $1\n          AND c.owner_id = $2\n          AND d.\"deletedAt\" IS NULL\n        ORDER BY c.created_at ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "document_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "7dcfbd6b700098453daad77a45e9b2e0065ffc78a77648658f3845437fd6d74a"
+}

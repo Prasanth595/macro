@@ -54,6 +54,9 @@ tools — hexagonal, heavily feature-gated.
 - Durable send admission supports Gmail and Outlook; Outlook delivery stays with its provider coordinator.
 - Carry the captured `draft_generation` through every draft mutation; advance it on send acceptance/cancellation under the message lock and preserve attempt tombstones after message deletion.
 
+- A viewer's Drive copies of an email attachment are recorded in
+  `email_attachment_drive_copies`. The attachment document stays the immutable
+  original; registering that document as a copy is refused.
 - Forwarded attachments register through `domain/draft_attachments.rs` and resolve
   bytes through `domain/attachment_access.rs`; scheduled delivery also rechecks
   source inbox access in `domain/forwarded_attachments.rs`, including legacy jobs.

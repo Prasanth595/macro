@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO email_attachment_drive_copies (email_attachment_id, document_id, owner_id)\n        VALUES ($1, $2, $3)\n        ON CONFLICT (email_attachment_id, document_id) DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "babee271202a76808ce976249fa8873636f5fd36a21341457048bc517151ad4c"
+}

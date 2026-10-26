@@ -50,6 +50,58 @@ impl AttachmentReadRepository for EmailPgRepo {
             .await
             .map_err(failed)
     }
+    async fn list_drive_copies(
+        &self,
+        id: Uuid,
+        owner: &str,
+    ) -> Result<Vec<AttachmentDriveCopy>, AttachmentError> {
+        let rows = email_db_client::attachments::drive_copies::list(&self.pool, id, owner)
+            .await
+            .map_err(failed)?;
+        Ok(rows
+            .into_iter()
+            .map(|row| AttachmentDriveCopy {
+                document_id: row.document_id,
+                name: row.name,
+            })
+            .collect())
+    }
+    async fn insert_drive_copy(
+        &self,
+        id: Uuid,
+        document_id: &str,
+        owner: &str,
+    ) -> Result<(), AttachmentError> {
+        email_db_client::attachments::drive_copies::insert(&self.pool, id, document_id, owner)
+            .await
+            .map_err(failed)
+    }
+    async fn owned_document(
+        &self,
+        document_id: &str,
+    ) -> Result<Option<OwnedDocument>, AttachmentError> {
+        Ok(
+            email_db_client::attachments::drive_copies::owned_document(&self.pool, document_id)
+                .await
+                .map_err(failed)?
+                .map(|row| OwnedDocument {
+                    owner: row.owner,
+                    deleted: row.deleted,
+                    email_attachment: row.email_attachment,
+                }),
+        )
+    }
+    async fn email_attachment_for_document(
+        &self,
+        document_id: &str,
+    ) -> Result<Option<Uuid>, AttachmentError> {
+        email_db_client::attachments::drive_copies::email_attachment_for_document(
+            &self.pool,
+            document_id,
+        )
+        .await
+        .map_err(failed)
+    }
 }
 
 impl crate::domain::mailbox::drafts::content::DraftContentRepository for EmailPgRepo {

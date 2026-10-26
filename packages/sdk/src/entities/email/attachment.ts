@@ -61,4 +61,47 @@ export class EmailAttachment extends MacroEntity<EmailAttachmentData> {
     );
     return Document.byId(this.client, document_id);
   }
+
+  /**
+   * Drive documents this user saved from the attachment. The attachment
+   * itself is unchanged and is not one of these documents.
+   */
+  async driveCopies(): Promise<Document[]> {
+    const { copies } = unwrap(
+      await this.client.email.listAttachmentDriveCopies({
+        path: { id: this.id },
+      }),
+    );
+    return copies.map((copy) => Document.byId(this.client, copy.document_id));
+  }
+
+  /**
+   * Remember a Drive document as this user's copy of the attachment.
+   * The document must belong to the caller, and it cannot be an email
+   * attachment itself.
+   */
+  async recordDriveCopy(document: Document): Promise<void> {
+    unwrap(
+      await this.client.email.registerAttachmentDriveCopy({
+        path: { id: this.id },
+        body: { document_id: document.id },
+      }),
+    );
+  }
+
+  /**
+   * The attachment a document was imported from, when this document is
+   * that immutable email file and the caller can read it.
+   */
+  static async fromDocument(
+    client: MacroClient,
+    document: Document,
+  ): Promise<EmailAttachment | null> {
+    const { attachment_id } = unwrap(
+      await client.email.attachmentForDocument({
+        path: { document_id: document.id },
+      }),
+    );
+    return attachment_id ? EmailAttachment.byId(client, attachment_id) : null;
+  }
 }

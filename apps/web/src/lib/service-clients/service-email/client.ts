@@ -29,12 +29,14 @@ import type {
   AddDraftAttachmentResponse,
   ApiMessageOperation,
   ApiPaginatedThreadCursor,
+  AttachmentForDocumentResponse,
   CreateDraftRequest,
   CreateDraftResponse,
   GetAttachmentDocumentIDResponse,
   GetAttachmentResponse,
   GetScheduledResponse,
   GetThreadResponse,
+  ListAttachmentDriveCopiesResponse,
   ListBackfillJobsResponse,
   ListContactsResponse,
   ListEmailFiltersResponse,
@@ -44,6 +46,8 @@ import type {
   ParsedMessage,
   PatchSettingsRequest,
   PatchSettingsResponse,
+  RegisterAttachmentDriveCopyRequest,
+  RegisterAttachmentDriveCopyResponse,
   ResolveMessageOperationRequest,
   ResyncResponse,
   SendMessageRequest,
@@ -565,6 +569,35 @@ export const emailClient = {
         {
           method: 'GET',
         }
+      )
+    ).map((result) => result);
+  },
+  async listAttachmentDriveCopies(id: string) {
+    return (
+      await emailFetch<ListAttachmentDriveCopiesResponse>(
+        `/email/attachments/${id}/drive_copies`,
+        { method: 'GET' }
+      )
+    ).map((result) => result);
+  },
+  async registerAttachmentDriveCopy(id: string, documentId: string) {
+    return (
+      await emailFetch<RegisterAttachmentDriveCopyResponse>(
+        `/email/attachments/${id}/drive_copies`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            document_id: documentId,
+          } satisfies RegisterAttachmentDriveCopyRequest),
+        }
+      )
+    ).map((result) => result);
+  },
+  async attachmentForDocument(documentId: string) {
+    return (
+      await emailFetch<AttachmentForDocumentResponse>(
+        `/email/attachments/by_document/${encodeURIComponent(documentId)}`,
+        { method: 'GET' }
       )
     ).map((result) => result);
   },

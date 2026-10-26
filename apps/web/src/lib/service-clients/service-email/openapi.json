@@ -10,6 +10,66 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/email/attachments/by_document/{document_id}": {
+      "get": {
+        "tags": ["Attachments"],
+        "summary": "The email attachment this document was created from, if it is one.",
+        "operationId": "attachment_for_document",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "description": "Document ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentForDocumentResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/email/attachments/{id}": {
       "get": {
         "tags": ["Attachments"],
@@ -150,6 +210,166 @@
             }
           },
           "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/attachments/{id}/drive_copies": {
+      "get": {
+        "tags": ["Attachments"],
+        "summary": "Drive documents the caller saved from this email attachment.",
+        "operationId": "list_attachment_drive_copies",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Attachment ID.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAttachmentDriveCopiesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Attachments"],
+        "summary": "Record a Drive document as the caller's copy of this email attachment.",
+        "operationId": "register_attachment_drive_copy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Attachment ID.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterAttachmentDriveCopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterAttachmentDriveCopyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
             "description": "",
             "content": {
               "application/json": {
@@ -4832,6 +5052,27 @@
           }
         }
       },
+      "AttachmentDriveCopyResponse": {
+        "type": "object",
+        "required": ["document_id", "name"],
+        "properties": {
+          "document_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "AttachmentForDocumentResponse": {
+        "type": "object",
+        "properties": {
+          "attachment_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          }
+        }
+      },
       "AttachmentForwarded": {
         "type": "object",
         "description": "A forwarded attachment linking a draft to an original message's attachment.\nData is fetched from Gmail at send time rather than stored in S3.",
@@ -6159,6 +6400,18 @@
           }
         }
       },
+      "ListAttachmentDriveCopiesResponse": {
+        "type": "object",
+        "required": ["copies"],
+        "properties": {
+          "copies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentDriveCopyResponse"
+            }
+          }
+        }
+      },
       "ListBackfillJobsResponse": {
         "type": "object",
         "description": "The response returned from the list backfill jobs endpoint",
@@ -6848,6 +7101,24 @@
           }
         ],
         "description": "Payload for the `refresh_email` connection gateway event: identifies the\ninbox that changed and the kind of change."
+      },
+      "RegisterAttachmentDriveCopyRequest": {
+        "type": "object",
+        "required": ["document_id"],
+        "properties": {
+          "document_id": {
+            "type": "string"
+          }
+        }
+      },
+      "RegisterAttachmentDriveCopyResponse": {
+        "type": "object",
+        "required": ["document_id"],
+        "properties": {
+          "document_id": {
+            "type": "string"
+          }
+        }
       },
       "ResolveMessageOperationRequest": {
         "type": "object",

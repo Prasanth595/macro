@@ -1,3 +1,7 @@
+use crate::api::email::attachments::drive_copies::{
+    AttachmentDriveCopyResponse, AttachmentForDocumentResponse, ListAttachmentDriveCopiesResponse,
+    RegisterAttachmentDriveCopyRequest, RegisterAttachmentDriveCopyResponse,
+};
 use crate::api::email::attachments::get::GetAttachmentResponse;
 use crate::api::email::attachments::get_document_id::GetAttachmentDocumentIDResponse;
 use crate::api::email::backfill::cancel::CancelBackfillParams;
@@ -66,6 +70,9 @@ use utoipa::OpenApi;
         health::health_handler,
         email::attachments::get::handler,
         email::attachments::get_document_id::handler,
+        email::attachments::drive_copies::list,
+        email::attachments::drive_copies::register,
+        email::attachments::drive_copies::for_document,
         email::backfill::cancel::handler,
         email::backfill::get::handler,
         email::backfill::get::active_handler,
@@ -168,6 +175,11 @@ use utoipa::OpenApi;
             // Attachment types
             GetAttachmentResponse,
             GetAttachmentDocumentIDResponse,
+            AttachmentDriveCopyResponse,
+            ListAttachmentDriveCopiesResponse,
+            RegisterAttachmentDriveCopyRequest,
+            RegisterAttachmentDriveCopyResponse,
+            AttachmentForDocumentResponse,
             // Link types
             ListLinksResponse,
             Link,

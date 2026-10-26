@@ -1,8 +1,9 @@
 use super::*;
 use crate::domain::models::{EmailErr, EmailFilter, EmailInboxDetails, LinkLabel};
 use entity_access::domain::ports::NoOpEntityAccessService;
+use std::collections::HashMap;
 use std::sync::{
-    Arc,
+    Arc, Mutex,
     atomic::{AtomicUsize, Ordering},
 };
 
@@ -13,6 +14,10 @@ struct Probe {
     document_reads: Arc<AtomicUsize>,
     provider_reads: Arc<AtomicUsize>,
     file_reads: Arc<AtomicUsize>,
+    copy_reads: Arc<AtomicUsize>,
+    documents: Arc<Mutex<HashMap<String, OwnedDocument>>>,
+    copies: Arc<Mutex<Vec<AttachmentDriveCopy>>>,
+    attachment_by_document: Arc<Mutex<HashMap<String, Uuid>>>,
 }
 impl EmailUserRepo for Probe {
     async fn user_sender_filters(&self, _: Uuid) -> Result<Vec<EmailFilter>, EmailErr> {
@@ -62,6 +67,59 @@ impl AttachmentReadRepository for Probe {
     ) -> Result<Option<String>, AttachmentError> {
         self.document_reads.fetch_add(1, Ordering::Relaxed);
         Ok(Some("existing-document".into()))
+    }
+    async fn list_drive_copies(
+        &self,
+        _: Uuid,
+        _: &str,
+    ) -> Result<Vec<AttachmentDriveCopy>, AttachmentError> {
+        self.copy_reads.fetch_add(1, Ordering::Relaxed);
+        Ok(self.copies.lock().expect("copies").clone())
+    }
+    async fn insert_drive_copy(
+        &self,
+        _: Uuid,
+        document_id: &str,
+        _: &str,
+    ) -> Result<(), AttachmentError> {
+        self.copy_reads.fetch_add(1, Ordering::Relaxed);
+        let name = self
+            .documents
+            .lock()
+            .expect("documents")
+            .get(document_id)
+            .map(|_| document_id.to_string())
+            .unwrap_or_else(|| document_id.to_string());
+        self.copies
+            .lock()
+            .expect("copies")
+            .push(AttachmentDriveCopy {
+                document_id: document_id.to_string(),
+                name,
+            });
+        Ok(())
+    }
+    async fn owned_document(
+        &self,
+        document_id: &str,
+    ) -> Result<Option<OwnedDocument>, AttachmentError> {
+        Ok(self
+            .documents
+            .lock()
+            .expect("documents")
+            .get(document_id)
+            .cloned())
+    }
+    async fn email_attachment_for_document(
+        &self,
+        document_id: &str,
+    ) -> Result<Option<Uuid>, AttachmentError> {
+        Ok(self
+            .attachment_by_document
+            .lock()
+            .expect("attachments")
+            .get(document_id)
+            .copied())
     }
 }
 impl AttachmentBytes for Probe {
@@ -139,6 +197,10 @@ fn probe(accessible: bool) -> Probe {
         document_reads: Arc::new(AtomicUsize::new(0)),
         provider_reads: Arc::new(AtomicUsize::new(0)),
         file_reads: Arc::new(AtomicUsize::new(0)),
+        copy_reads: Arc::new(AtomicUsize::new(0)),
+        documents: Arc::new(Mutex::new(HashMap::new())),
+        copies: Arc::new(Mutex::new(Vec::new())),
+        attachment_by_document: Arc::new(Mutex::new(HashMap::new())),
     }
 }
 
@@ -215,4 +277,117 @@ async fn cloud_reference_is_authorized_without_file_or_provider_io() {
     assert_eq!(probe.file_reads.load(Ordering::Relaxed), 0);
     assert_eq!(probe.provider_reads.load(Ordering::Relaxed), 0);
     assert_eq!(probe.document_reads.load(Ordering::Relaxed), 0);
+}
+
+fn service(probe: Probe) -> AttachmentReadService<Probe, Probe, Probe, NoOpEntityAccessService> {
+    AttachmentReadService {
+        repository: probe.clone(),
+        provider: probe.clone(),
+        files: probe,
+        access: NoOpEntityAccessService,
+    }
+}
+
+#[tokio::test]
+async fn drive_copies_require_attachment_access_and_document_ownership() {
+    let denied = probe(false);
+    let outsider = MacroUserIdStr::try_from_email("unrelated@example.com").unwrap();
+    let denied_id = denied.record.attachment.db_id;
+    assert!(matches!(
+        service(denied.clone())
+            .list_drive_copies(&outsider, denied_id)
+            .await,
+        Err(AttachmentError::Forbidden)
+    ));
+    assert_eq!(denied.copy_reads.load(Ordering::Relaxed), 0);
+
+    let probe = probe(true);
+    let actor = MacroUserIdStr::try_from_email("delegate@example.com").unwrap();
+    let id = probe.record.attachment.db_id;
+    let document_id = "drive-copy";
+    probe.documents.lock().expect("documents").insert(
+        document_id.into(),
+        OwnedDocument {
+            owner: actor.to_string(),
+            deleted: false,
+            email_attachment: false,
+        },
+    );
+    let reads = service(probe.clone());
+
+    reads
+        .register_drive_copy(&actor, id, document_id)
+        .await
+        .unwrap();
+    let copies = reads.list_drive_copies(&actor, id).await.unwrap();
+    assert_eq!(copies.len(), 1);
+    assert_eq!(copies[0].document_id, document_id);
+
+    probe.documents.lock().expect("documents").insert(
+        "attachment-doc".into(),
+        OwnedDocument {
+            owner: actor.to_string(),
+            deleted: false,
+            email_attachment: true,
+        },
+    );
+    assert!(matches!(
+        reads
+            .register_drive_copy(&actor, id, "attachment-doc")
+            .await,
+        Err(AttachmentError::Invalid(_))
+    ));
+    probe.documents.lock().expect("documents").insert(
+        "theirs".into(),
+        OwnedDocument {
+            owner: outsider.to_string(),
+            deleted: false,
+            email_attachment: false,
+        },
+    );
+    assert!(matches!(
+        reads.register_drive_copy(&actor, id, "theirs").await,
+        Err(AttachmentError::Forbidden)
+    ));
+}
+
+#[tokio::test]
+async fn attachment_for_document_hides_unlinked_files_and_checks_access() {
+    let denied = probe(false);
+    denied
+        .attachment_by_document
+        .lock()
+        .expect("attachments")
+        .insert("attachment-doc".into(), denied.record.attachment.db_id);
+    let outsider = MacroUserIdStr::try_from_email("unrelated@example.com").unwrap();
+    assert!(matches!(
+        service(denied)
+            .attachment_for_document(&outsider, "attachment-doc")
+            .await,
+        Err(AttachmentError::Forbidden)
+    ));
+
+    let probe = probe(true);
+    let actor = MacroUserIdStr::try_from_email("delegate@example.com").unwrap();
+    let id = probe.record.attachment.db_id;
+    let reads = service(probe.clone());
+    assert_eq!(
+        reads
+            .attachment_for_document(&actor, "plain-doc")
+            .await
+            .unwrap(),
+        None
+    );
+    probe
+        .attachment_by_document
+        .lock()
+        .expect("attachments")
+        .insert("attachment-doc".into(), id);
+    assert_eq!(
+        reads
+            .attachment_for_document(&actor, "attachment-doc")
+            .await
+            .unwrap(),
+        Some(id)
+    );
 }

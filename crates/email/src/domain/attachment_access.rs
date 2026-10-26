@@ -35,6 +35,19 @@ pub struct StoredAttachmentBlob {
     pub size: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AttachmentDriveCopy {
+    pub document_id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OwnedDocument {
+    pub owner: String,
+    pub deleted: bool,
+    pub email_attachment: bool,
+}
+
 pub trait AttachmentReadRepository: EmailUserRepo {
     fn attachment_read_record(
         &self,
@@ -44,6 +57,25 @@ pub trait AttachmentReadRepository: EmailUserRepo {
         &self,
         id: Uuid,
     ) -> impl Future<Output = Result<Option<String>, AttachmentError>> + Send;
+    fn list_drive_copies(
+        &self,
+        id: Uuid,
+        owner: &str,
+    ) -> impl Future<Output = Result<Vec<AttachmentDriveCopy>, AttachmentError>> + Send;
+    fn insert_drive_copy(
+        &self,
+        id: Uuid,
+        document_id: &str,
+        owner: &str,
+    ) -> impl Future<Output = Result<(), AttachmentError>> + Send;
+    fn owned_document(
+        &self,
+        document_id: &str,
+    ) -> impl Future<Output = Result<Option<OwnedDocument>, AttachmentError>> + Send;
+    fn email_attachment_for_document(
+        &self,
+        document_id: &str,
+    ) -> impl Future<Output = Result<Option<Uuid>, AttachmentError>> + Send;
 }
 pub trait AttachmentBytes: Send + Sync + 'static {
     fn bytes(
@@ -141,6 +173,63 @@ impl<R: AttachmentReadRepository, P: AttachmentBytes, S: AttachmentFiles, A: Ent
         }
         let bytes = self.provider.bytes(&record).await?;
         self.files.store_document(&record, bytes).await
+    }
+
+    /// Drive documents this viewer saved from the attachment.
+    pub async fn list_drive_copies(
+        &self,
+        actor: &MacroUserIdStr<'static>,
+        id: Uuid,
+    ) -> Result<Vec<AttachmentDriveCopy>, AttachmentError> {
+        self.authorize(actor, id).await?;
+        self.repository
+            .list_drive_copies(id, &actor.to_string())
+            .await
+    }
+
+    /// Remember a Drive document as this viewer's copy of the attachment.
+    /// The attachment document itself is not a Drive file and cannot be registered.
+    pub async fn register_drive_copy(
+        &self,
+        actor: &MacroUserIdStr<'static>,
+        id: Uuid,
+        document_id: &str,
+    ) -> Result<(), AttachmentError> {
+        self.authorize(actor, id).await?;
+        let document = self
+            .repository
+            .owned_document(document_id)
+            .await?
+            .filter(|document| !document.deleted)
+            .ok_or(AttachmentError::NotFound)?;
+        if document.owner != actor.to_string() {
+            return Err(AttachmentError::Forbidden);
+        }
+        if document.email_attachment {
+            return Err(AttachmentError::Invalid(
+                "Save a separate Drive copy. An email attachment cannot be edited in place.",
+            ));
+        }
+        self.repository
+            .insert_drive_copy(id, document_id, &actor.to_string())
+            .await
+    }
+
+    /// The attachment whose document this is, when the caller can read it.
+    pub async fn attachment_for_document(
+        &self,
+        actor: &MacroUserIdStr<'static>,
+        document_id: &str,
+    ) -> Result<Option<Uuid>, AttachmentError> {
+        let Some(id) = self
+            .repository
+            .email_attachment_for_document(document_id)
+            .await?
+        else {
+            return Ok(None);
+        };
+        self.authorize(actor, id).await?;
+        Ok(Some(id))
     }
 }
 

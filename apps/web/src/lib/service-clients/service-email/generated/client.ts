@@ -13,6 +13,7 @@ import type {
   AddForwardedAttachmentResponse,
   ApiPaginatedThreadCursor,
   ArchiveThreadRequest,
+  AttachmentForDocumentResponse,
   BlockSenderRequest,
   CalendarEvent,
   CalendarMutationApiError,
@@ -40,6 +41,7 @@ import type {
   InitErrorCodeResponse,
   InitResponse,
   InitUserParams,
+  ListAttachmentDriveCopiesResponse,
   ListBackfillJobsResponse,
   ListBlockedResponse,
   ListContactsResponse,
@@ -53,6 +55,8 @@ import type {
   PatchSettingsRequest,
   PatchSettingsResponse,
   PreviewsInboxCursorParams,
+  RegisterAttachmentDriveCopyRequest,
+  RegisterAttachmentDriveCopyResponse,
   RemoveDraftAttachmentParams,
   RemoveForwardedAttachmentParams,
   ResolveMessageOperationRequest,
@@ -78,6 +82,70 @@ import type {
   UpsertScheduledRequest,
   UpsertScheduledResponse,
 } from './schemas';
+
+/**
+ * @summary The email attachment this document was created from, if it is one.
+ */
+export type attachmentForDocumentResponse200 = {
+  data: AttachmentForDocumentResponse;
+  status: 200;
+};
+
+export type attachmentForDocumentResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type attachmentForDocumentResponse403 = {
+  data: ErrorResponse;
+  status: 403;
+};
+
+export type attachmentForDocumentResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type attachmentForDocumentResponseSuccess =
+  attachmentForDocumentResponse200 & {
+    headers: Headers;
+  };
+export type attachmentForDocumentResponseError = (
+  | attachmentForDocumentResponse401
+  | attachmentForDocumentResponse403
+  | attachmentForDocumentResponse500
+) & {
+  headers: Headers;
+};
+
+export type attachmentForDocumentResponse =
+  | attachmentForDocumentResponseSuccess
+  | attachmentForDocumentResponseError;
+
+export const getAttachmentForDocumentUrl = (documentId: string) => {
+  return `/email/attachments/by_document/${documentId}`;
+};
+
+export const attachmentForDocument = async (
+  documentId: string,
+  options?: RequestInit
+): Promise<attachmentForDocumentResponse> => {
+  const res = await fetch(getAttachmentForDocumentUrl(documentId), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: attachmentForDocumentResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as attachmentForDocumentResponse;
+};
 
 /**
  * @summary Get an attachment by ID.
@@ -232,6 +300,155 @@ export const getAttachmentDocumentId = async (
     status: res.status,
     headers: res.headers,
   } as getAttachmentDocumentIdResponse;
+};
+
+/**
+ * @summary Drive documents the caller saved from this email attachment.
+ */
+export type listAttachmentDriveCopiesResponse200 = {
+  data: ListAttachmentDriveCopiesResponse;
+  status: 200;
+};
+
+export type listAttachmentDriveCopiesResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type listAttachmentDriveCopiesResponse403 = {
+  data: ErrorResponse;
+  status: 403;
+};
+
+export type listAttachmentDriveCopiesResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type listAttachmentDriveCopiesResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type listAttachmentDriveCopiesResponseSuccess =
+  listAttachmentDriveCopiesResponse200 & {
+    headers: Headers;
+  };
+export type listAttachmentDriveCopiesResponseError = (
+  | listAttachmentDriveCopiesResponse401
+  | listAttachmentDriveCopiesResponse403
+  | listAttachmentDriveCopiesResponse404
+  | listAttachmentDriveCopiesResponse500
+) & {
+  headers: Headers;
+};
+
+export type listAttachmentDriveCopiesResponse =
+  | listAttachmentDriveCopiesResponseSuccess
+  | listAttachmentDriveCopiesResponseError;
+
+export const getListAttachmentDriveCopiesUrl = (id: string) => {
+  return `/email/attachments/${id}/drive_copies`;
+};
+
+export const listAttachmentDriveCopies = async (
+  id: string,
+  options?: RequestInit
+): Promise<listAttachmentDriveCopiesResponse> => {
+  const res = await fetch(getListAttachmentDriveCopiesUrl(id), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: listAttachmentDriveCopiesResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listAttachmentDriveCopiesResponse;
+};
+
+/**
+ * @summary Record a Drive document as the caller's copy of this email attachment.
+ */
+export type registerAttachmentDriveCopyResponse200 = {
+  data: RegisterAttachmentDriveCopyResponse;
+  status: 200;
+};
+
+export type registerAttachmentDriveCopyResponse400 = {
+  data: ErrorResponse;
+  status: 400;
+};
+
+export type registerAttachmentDriveCopyResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type registerAttachmentDriveCopyResponse403 = {
+  data: ErrorResponse;
+  status: 403;
+};
+
+export type registerAttachmentDriveCopyResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type registerAttachmentDriveCopyResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type registerAttachmentDriveCopyResponseSuccess =
+  registerAttachmentDriveCopyResponse200 & {
+    headers: Headers;
+  };
+export type registerAttachmentDriveCopyResponseError = (
+  | registerAttachmentDriveCopyResponse400
+  | registerAttachmentDriveCopyResponse401
+  | registerAttachmentDriveCopyResponse403
+  | registerAttachmentDriveCopyResponse404
+  | registerAttachmentDriveCopyResponse500
+) & {
+  headers: Headers;
+};
+
+export type registerAttachmentDriveCopyResponse =
+  | registerAttachmentDriveCopyResponseSuccess
+  | registerAttachmentDriveCopyResponseError;
+
+export const getRegisterAttachmentDriveCopyUrl = (id: string) => {
+  return `/email/attachments/${id}/drive_copies`;
+};
+
+export const registerAttachmentDriveCopy = async (
+  id: string,
+  registerAttachmentDriveCopyRequest: RegisterAttachmentDriveCopyRequest,
+  options?: RequestInit
+): Promise<registerAttachmentDriveCopyResponse> => {
+  const res = await fetch(getRegisterAttachmentDriveCopyUrl(id), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(registerAttachmentDriveCopyRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: registerAttachmentDriveCopyResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as registerAttachmentDriveCopyResponse;
 };
 
 /**
