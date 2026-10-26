@@ -422,6 +422,7 @@ interface TeamShareControls {
   accessLevel: AccessLevel | null | undefined;
   /** An independent view grant that is managed under Meeting links. */
   meetingViewAccess?: boolean;
+  meetingAccess?: MeetingAccessState | 'unknown';
   setAccessLevel: (scope: TeamShareScope) => void;
   /** Noun for the copy, e.g. "document" or "chat". */
   itemNoun: string;
@@ -439,8 +440,16 @@ function teamShareOnOwnCard(
 
 function TeamAccessSection(props: { teamShare: TeamShareControls }) {
   const teamShareScope = () => getTeamShareScope(props.teamShare.accessLevel);
-  const onlyMeetingAccess = () =>
-    props.teamShare.meetingViewAccess && teamShareScope() === 'NONE';
+  const label = () => {
+    const scope = teamShareScope();
+    if (scope !== 'NONE') return getTeamShareScopeCopy(scope);
+    if (props.teamShare.meetingViewAccess) return 'View via meeting';
+    if (props.teamShare.meetingAccess === 'loading') return 'Checking…';
+    if (props.teamShare.meetingAccess === 'error')
+      return 'Check meeting access';
+    if (props.teamShare.meetingAccess === 'unknown') return 'Direct: None';
+    return getTeamShareScopeCopy(scope);
+  };
 
   return (
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -466,9 +475,7 @@ function TeamAccessSection(props: { teamShare: TeamShareControls }) {
           aria-label="Team access"
           class="min-w-16.75 py-1 pl-2 pr-1 flex items-center gap-1"
         >
-          {onlyMeetingAccess()
-            ? 'View via meeting'
-            : getTeamShareScopeCopy(teamShareScope())}
+          {label()}
           <ChevronDownIcon class="size-4 text-ink-extra-muted" />
         </Dropdown.Trigger>
         <Dropdown.Content portalScope="local">
@@ -1605,7 +1612,7 @@ export function ShareModal(props: ShareModalProps) {
       }
       if (scope === 'NONE') {
         toast.success(
-          meetingTeamAccess()
+          canManageMeetingLinks()
             ? `Removed direct team access for this ${itemNoun}`
             : `Removed team access for this ${itemNoun}`
         );
@@ -1644,6 +1651,7 @@ export function ShareModal(props: ShareModalProps) {
       ? {
           accessLevel: teamShareAccessLevel(),
           meetingViewAccess: canManageMeetingLinks() && meetingTeamAccess(),
+          meetingAccess: meetingAccessForSharing(),
           setAccessLevel: setTeamShareAccessLevel,
           itemNoun:
             props.blockAlias === 'snippet'
