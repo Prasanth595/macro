@@ -385,6 +385,11 @@ function TaskListBar(props: {
             isSelected={isSelected}
             selectedIds={(group) => props.settings().filters[group]}
             onSelectionChange={setFilterValue}
+            onGroupSelectionChange={(group, ids) =>
+              props.update({
+                filters: { ...props.settings().filters, [group]: [...ids] },
+              })
+            }
             onClear={() =>
               props.update({
                 filters: { status: [], priority: [], assignees: [], due: [] },

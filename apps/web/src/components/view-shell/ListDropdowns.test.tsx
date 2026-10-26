@@ -265,6 +265,89 @@ it.each([false, true])(
   }
 );
 
+it.each([
+  { searchable: false, disabledSelected: false },
+  { searchable: true, disabledSelected: false },
+  { searchable: false, disabledSelected: true },
+  { searchable: true, disabledSelected: true },
+])(
+  'replaces the whole group in one write when persistence is deferred (searchable: $searchable, disabled selected: $disabledSelected)',
+  async ({ searchable, disabledSelected }) => {
+    const initial: Record<'people' | 'scope', string[]> = {
+      people: ['alice', 'carol', 'unavailable'],
+      scope: ['all'],
+    };
+    if (disabledSelected) initial.people.push('disabled');
+    const expectedPeople = disabledSelected ? ['disabled', 'bob'] : ['bob'];
+    const [filters, setFilters] = createSignal(initial);
+    const [open, setOpen] = createSignal(true);
+    let pending = initial;
+    const persist = vi.fn((next: typeof initial) => {
+      pending = next;
+    });
+    render(() => (
+      <ListFilterDropdown<'people' | 'scope', string>
+        open={open()}
+        onOpenChange={setOpen}
+        groups={[
+          {
+            id: 'people',
+            label: 'Assignee',
+            searchPlaceholder: searchable ? 'Search assignees...' : undefined,
+            options: [
+              { id: 'alice', label: 'Alice' },
+              { id: 'bob', label: 'Bob' },
+              { id: 'carol', label: 'Carol' },
+              { id: 'disabled', label: 'Disabled', disabled: true },
+            ],
+          },
+          {
+            id: 'scope',
+            label: 'Files',
+            options: [{ id: 'all', label: 'All files' }],
+          },
+        ]}
+        isSelected={(group, id) => filters()[group].includes(id)}
+        selectedIds={(group) => filters()[group]}
+        onSelectionChange={(group, id, selected) => {
+          const current = filters();
+          persist({
+            ...current,
+            [group]: selected
+              ? [...current[group], id]
+              : current[group].filter((value) => value !== id),
+          });
+        }}
+        onGroupSelectionChange={(group, ids) =>
+          persist({ ...filters(), [group]: [...ids] })
+        }
+      />
+    ));
+    await openSubmenu();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Select only Bob' })
+    );
+
+    // Like Lexical settings, the committed filters stay stale until the write settles.
+    expect(filters()).toEqual(initial);
+    expect(persist).toHaveBeenCalledExactlyOnceWith({
+      people: expectedPeople,
+      scope: ['all'],
+    });
+    setFilters(pending);
+    expect(filters().people).toEqual(expectedPeople);
+    expect(filters().scope).toEqual(['all']);
+    expect(open()).toBe(true);
+    expect(
+      screen
+        .getByRole(searchable ? 'option' : 'menuitemcheckbox', { name: 'Bob' })
+        .getAttribute(searchable ? 'aria-selected' : 'aria-checked')
+    ).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Select only Bob' }));
+    expect(persist).toHaveBeenCalledTimes(1);
+  }
+);
+
 it.each([false, true])(
   'disabled options cannot change selection (searchable: %s)',
   async (searchable) => {

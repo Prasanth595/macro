@@ -101,6 +101,8 @@ when it is already the sole selection. Other filter groups stay unchanged.
 Only also clears persisted selections missing from the current options. Dynamic
 `ListFilterDropdown` callers supply `selectedIds` so hidden values remain known;
 ordinary checkbox and row actions preserve those values.
+Callers with deferred persistence supply `onGroupSelectionChange` to replace a
+whole group's selection in one write, without intermediate per-option writes.
 
 Arrow keys navigate. Space toggles a focused menu row; Enter adds and closes;
 Shift+Enter selects only that option without closing. Searchable filters retain

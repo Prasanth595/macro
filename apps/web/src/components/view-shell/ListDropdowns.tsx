@@ -199,6 +199,11 @@ export type ListFilterDropdownProps<
     optionId: TOptionId,
     selected: boolean
   ) => void;
+  /** Replace a group's selection in one write for deferred persistence. */
+  onGroupSelectionChange?: (
+    groupId: TGroupId,
+    ids: readonly TOptionId[]
+  ) => void;
   onClear?: () => void;
   /**
    * Adds a plain-English box above the groups that resolves a description
@@ -263,16 +268,27 @@ export function ListFilterDropdown<
     ids: readonly string[]
   ) => {
     const current = selectedOptionIds(group);
+    const optionIds = [
+      ...new Set([...current, ...group.options.map((option) => option.id)]),
+    ];
+    const next = optionIds.filter((id) => {
+      if (group.options.find((option) => option.id === id)?.disabled)
+        return current.includes(id);
+      return ids.includes(id);
+    });
+    if (
+      next.length === current.length &&
+      next.every((id) => current.includes(id))
+    )
+      return;
+    if (props.onGroupSelectionChange) {
+      props.onGroupSelectionChange(group.id, next);
+      return;
+    }
     batch(() => {
-      for (const id of new Set([
-        ...current,
-        ...group.options.map((option) => option.id),
-      ])) {
-        const selected = ids.includes(id);
-        if (
-          selected !== current.includes(id) &&
-          !group.options.find((option) => option.id === id)?.disabled
-        )
+      for (const id of optionIds) {
+        const selected = next.includes(id);
+        if (selected !== current.includes(id))
           props.onSelectionChange(group.id, id, selected);
       }
     });
