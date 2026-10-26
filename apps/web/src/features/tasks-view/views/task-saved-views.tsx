@@ -33,18 +33,29 @@ import {
   materializeTaskSavedView,
   readTaskSavedView,
   type TaskSavedViewConfig,
+  type TaskSavedViewIssue,
 } from '../filters/task-saved-view';
 import { useTaskFilters } from '../filters/use-task-filters';
 import { taskSavedViewTitle } from '../primitives/create-task-saved-views';
 import { tasksTabSearch, tasksTabSearchCodec } from '../tasks-tab-search';
 import { useTasksView } from '../tasks-view-context';
 
-function TaskSavedViewSummary(props: { config: TaskSavedViewConfig }) {
+function TaskSavedViewSummary(props: {
+  config: TaskSavedViewConfig;
+  omittedFilters?: TaskSavedViewIssue[];
+}) {
   const { state } = useTasksView();
   const filters = useTaskFilters();
   const selection = () => materializeTaskSavedView(props.config);
   return (
     <>
+      <Show when={props.omittedFilters?.length}>
+        <p role="alert" class="rounded-lg bg-failure-bg p-3 text-failure-ink">
+          Unsupported or invalid filters will not be copied. If none are
+          supported, the copy will be unfiltered. The original view stays
+          unchanged.
+        </p>
+      </Show>
       <For each={filters.groups()}>
         {(group) => (
           <Show when={(selection().facets[group.id] ?? []).length}>
@@ -75,10 +86,11 @@ function useCreateTaskSavedViewDialog(owner = getOwner()) {
   return (record?: SavedView) => {
     if (!savedViews || !savedViewsList) return;
     const selection = savedViews.view();
+    const stored = record ? readTaskSavedView(record.config) : undefined;
     const definition =
-      record &&
-      !(selection.kind === 'saved' && selection.record.id === record.id)
-        ? ok(readTaskSavedView(record.config).config)
+      stored &&
+      !(selection.kind === 'saved' && selection.record.id === record?.id)
+        ? ok(stored.config)
         : savedViews.capture();
     if (definition.isErr()) {
       toast.failure(definition.error);
@@ -99,7 +111,12 @@ function useCreateTaskSavedViewDialog(owner = getOwner()) {
         title: record ? 'Duplicate saved view' : 'Save view',
         submitLabel: record ? 'Duplicate' : 'Save view',
         team: savedViewTeam?.(),
-        summary: <TaskSavedViewSummary config={config} />,
+        summary: (
+          <TaskSavedViewSummary
+            config={config}
+            omittedFilters={stored?.issues}
+          />
+        ),
         onCreated: (created: SavedView) => {
           const decoded = decodeTaskSavedView(created.config);
           if (decoded.isErr()) {
