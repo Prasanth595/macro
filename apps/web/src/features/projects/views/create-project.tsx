@@ -2,7 +2,7 @@ import type { EditorControls } from '@core/component/LexicalMarkdown/builder/typ
 import ArrowsOutIcon from '@phosphor/arrows-out.svg';
 import XIcon from '@phosphor/x.svg';
 import { PropertyValuePill } from '@property/component/PropertyValuePill';
-import { Button, Checkbox, EntityComposer } from '@ui';
+import { Button, EntityComposer, ToggleSwitch } from '@ui';
 import { $getRoot } from 'lexical';
 import { For, onMount, Show } from 'solid-js';
 import { ProjectDescriptionComposer } from '../components/project-description-composer';
@@ -70,11 +70,11 @@ export function CreateProject(props: {
                 tabIndex={-1}
                 aria-label="Continue editing in split"
                 tooltip="Continue editing in split"
-                size="icon-composer"
+                size={"icon-md"}
                 disabled={composer.pending()}
                 onClick={() => props.onContinueInSplit?.(composer.snapshot())}
               >
-                <ArrowsOutIcon />
+                <ArrowsOutIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
               </Button>
             </Show>
           </div>
@@ -87,10 +87,9 @@ export function CreateProject(props: {
           >
             <Button
               tabIndex={-1}
-              size="sm"
-              variant="outline"
-              depth={3}
-              class="bg-surface px-3"
+              tooltip="Clear Draft"
+              size="xs"
+              variant="secondary"
               disabled={composer.pending()}
               onClick={() => {
                 composer.clear();
@@ -106,11 +105,11 @@ export function CreateProject(props: {
             tabIndex={-1}
             aria-label="Close"
             tooltip="Close"
-            size="icon-composer"
+            size={"icon-md"}
             disabled={composer.pending()}
             onClick={props.onClose}
           >
-            <XIcon />
+            <XIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
         </EntityComposer.Header>
         <EntityComposer.Main class="min-h-28 justify-between">
@@ -158,6 +157,8 @@ export function CreateProject(props: {
               <For each={definitions.properties()}>
                 {(property) => (
                   <PropertyValuePill
+                    variant="secondary"
+                    size="xs"
                     property={withProjectPropertyValue(
                       property,
                       composer.drafts().get(property.propertyDefinitionId)
@@ -196,18 +197,18 @@ export function CreateProject(props: {
           )}
         </Show>
         <EntityComposer.Footer class="items-center flex-wrap">
-          <Checkbox
+          <ToggleSwitch
+            class="shrink-0 ml-0.5"
             checked={composer.shareWithTeam()}
             disabled={composer.pending()}
             onChange={composer.setShareWithTeam}
-          >
-            <Checkbox.Control />
-            <Checkbox.Label class="text-xs text-ink-muted font-normal whitespace-nowrap">
-              Share with my team
-            </Checkbox.Label>
-          </Checkbox>
+            label="Share with my team"
+            labelClass="text-xs text-ink-muted font-normal whitespace-nowrap"
+          />
           <EntityComposer.Submit
             type="submit"
+            variant="accent"
+            size="sm"
             class="ml-auto"
             hasContent={Boolean(composer.name().trim())}
             disabled={composer.pending() || !composer.name().trim()}
