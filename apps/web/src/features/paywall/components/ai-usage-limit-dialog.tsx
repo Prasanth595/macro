@@ -98,9 +98,10 @@ export function AiUsageLimitDialogView(props: AiUsageLimitDialogProps) {
                 </p>
                 <Show
                   when={
-                    offer().paymentFailed
+                    offer().error ??
+                    (offer().paymentFailed
                       ? "We couldn't charge your card. Add a payment method, then turn on auto-reload again."
-                      : offer().error
+                      : undefined)
                   }
                 >
                   {(message) => (

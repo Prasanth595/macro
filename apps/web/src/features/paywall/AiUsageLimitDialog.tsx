@@ -13,6 +13,7 @@ import {
   useCreateBillingPortalMutation,
   useUpdateAiAutoReloadMutation,
 } from '@queries/auth';
+import { queryReadyGate } from '@queries/gate';
 import { createSignal, Suspense } from 'solid-js';
 import { isUsageAvailable, monthlyUsagePercent } from '../usage/core/usage';
 import { toUsageSummary } from '../usage/queries/usage-summary';
@@ -39,7 +40,9 @@ export function AiUsageLimitDialog() {
     !usagePreview.beforeLaunch() &&
     isUsageAvailable(PROD_MODE_ENV && !LOCAL_ONLY, aiUsageBilling().enabled);
   const usageSnapshot = () =>
-    usagePreview.withPreview(summary.isSuccess ? summary.data : undefined);
+    usagePreview.withPreview(
+      queryReadyGate(summary) ? summary.data : undefined
+    );
   const freePlan = () =>
     usageLimitCode() === 'ai_free_allowance_exhausted' ||
     usageSnapshot()?.tier === 'free';
@@ -66,13 +69,15 @@ export function AiUsageLimitDialog() {
 
   /** The payer's saved thresholds, when one click can turn Auto-Reload on. */
   const autoReloadSettings = () => {
-    if (usagePreview.active() || !summary.isSuccess) return;
+    if (usagePreview.active() || !queryReadyGate(summary)) return;
     const snapshot = summary.data;
+    // Keep the offer while a failed charge is shown: a declined reload
+    // leaves Auto-Reload active with its invoice still open.
     if (
       snapshot.tier === 'free' ||
       snapshot.unlimited ||
       !snapshot.can_manage_billing ||
-      snapshot.auto_reload?.active
+      (snapshot.auto_reload?.active && !paymentFailed())
     )
       return;
     return toUsageSummary(snapshot).autoReload.settings;
@@ -87,9 +92,10 @@ export function AiUsageLimitDialog() {
         ...settings,
         enabled: true,
       });
-      // Enabling reloads right away when the balance is low; a failed charge
-      // comes back as a suspended reload rather than an error.
-      if (snapshot.auto_reload?.suspended) {
+      // Enabling reloads right away when the balance is low. A failed charge
+      // comes back as a suspended reload, and a declined one as an open
+      // invoice, so only usable credits mean the user can resend.
+      if (snapshot.auto_reload?.suspended || snapshot.remaining_cents <= 0) {
         setPaymentFailed(true);
         return;
       }
