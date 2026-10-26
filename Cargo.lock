@@ -821,6 +821,7 @@ dependencies = [
  "entity_access_db_utils",
  "entity_registry",
  "entity_registry_db_utils",
+ "favorites",
  "genai_telemetry",
  "harness_id",
  "lazy-regex",

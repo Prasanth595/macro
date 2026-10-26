@@ -58,6 +58,7 @@ vi.mock('@core/user', () => ({
 afterEach(() => {
   cleanup();
   unreadFilter.mockReturnValue(false);
+  favorites.current = [];
 });
 
 vi.mock('@solid-primitives/resize-observer', () => ({
@@ -107,6 +108,26 @@ vi.mock('@app/features/soup', () => ({
 }));
 vi.mock('@components/app/split-panel', () => ({
   SplitPanel: { CloseButton: () => null },
+}));
+const favorites = vi.hoisted(() => ({
+  current: [] as { entityType: string; entityId: string; sortOrder: number }[],
+}));
+vi.mock('@queries/favorites/favorites', () => ({
+  useFavoritesData: () => () => ({ favorites: favorites.current }),
+}));
+vi.mock('@app/util/favorites', () => ({
+  useFavoriteDisplayName: (favorite: { entityId: string }) => () =>
+    `Saved ${favorite.entityId}`,
+  favoriteSplitContent: (favorite: { entityId: string }) => ({
+    type: 'agent',
+    id: favorite.entityId,
+  }),
+}));
+vi.mock('@app/features/favorites/FavoriteContextMenu', () => ({
+  FavoriteContextMenu: (props: { children: JSX.Element }) => props.children,
+}));
+vi.mock('@app/features/favorites/FavoriteIcon', () => ({
+  FavoriteIcon: () => null,
 }));
 
 describe('mixed Agents sidebar', () => {
@@ -240,6 +261,80 @@ describe('mixed Agents sidebar', () => {
     ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
     expect(clear).toHaveBeenCalledOnce();
+  });
+
+  it('opens a favorite session in its own mode when loaded and standalone otherwise', () => {
+    const loaded: AgentConversationEntity = {
+      type: 'agent_session',
+      id: 'loaded-session',
+      name: 'Fix build',
+      ownerId: 'me',
+      isArchived: false,
+      botId: 'cursor',
+      status: 'acp_ready',
+    };
+    favorites.current = [
+      {
+        entityType: 'agent_session',
+        entityId: 'unloaded-session',
+        sortOrder: 2,
+      },
+      { entityType: 'document', entityId: 'doc-1', sortOrder: 0 },
+      { entityType: 'agent_session', entityId: 'loaded-session', sortOrder: 1 },
+    ];
+    openWithSplit.mockClear();
+    openWithSplit.mockReturnValueOnce({ status: 'opened' });
+    const open = vi.fn();
+    render(() => (
+      <AgentsSidebar
+        filters={EMPTY_CONVERSATION_FILTERS}
+        grouping="none"
+        onFilterChange={vi.fn()}
+        onClearFilters={vi.fn()}
+        onGroupingChange={vi.fn()}
+        activePage="new"
+        onOpenPage={vi.fn()}
+        conversations={[loaded]}
+        archived={[]}
+        modeForConversation={() => 'code'}
+        activeConversationId={undefined}
+        search=""
+        loading={false}
+        error={false}
+        hasNextPage={false}
+        loadingNextPage={false}
+        onSearchChange={vi.fn()}
+        showUnlistedRuns={false}
+        onShowUnlistedRunsChange={vi.fn()}
+        onOpenConversation={open}
+        onRetry={vi.fn()}
+        onLoadMore={vi.fn()}
+      />
+    ));
+
+    const saved = within(
+      screen.getByRole('navigation', { name: 'Favorite conversations' })
+    );
+    expect(saved.getAllByRole('button').map((row) => row.textContent)).toEqual([
+      'Saved loaded-session',
+      'Saved unloaded-session',
+    ]);
+
+    fireEvent.click(
+      saved.getByRole('button', { name: 'Saved loaded-session' })
+    );
+    expect(open).toHaveBeenCalledWith(loaded, expect.anything());
+    expect(openWithSplit).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      saved.getByRole('button', { name: 'Saved unloaded-session' }),
+      { shiftKey: true }
+    );
+    expect(open).toHaveBeenCalledOnce();
+    expect(openWithSplit).toHaveBeenCalledWith(
+      { type: 'agent', id: 'unloaded-session' },
+      { referredFrom: 'sidebar', preferNewSplit: true }
+    );
   });
 
   it('toggles hidden routine runs and marks the runs it lists', () => {

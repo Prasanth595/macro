@@ -543,8 +543,8 @@ uploading or moving anything.
 ## Favorites
 
 Use an entity's command/context menu to add or remove it from Favorites. Documents, chats,
-projects, email threads, channels, calls, CRM companies, and CRM contacts support
-toggling. Individual channel messages are not favoritable.
+projects, email threads, channels, calls, CRM companies, CRM contacts, and agent sessions
+support toggling. Individual channel messages are not favoritable.
 
 With the GraphQL local cache enabled, cached favorites remain visible when offline
 or when a background refresh fails. Toggle and reorder success while offline means

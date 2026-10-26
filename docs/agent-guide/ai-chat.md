@@ -334,6 +334,11 @@ the shimmer.
 
   Start a conversation with the desktop sidebar's **New** button or **Create → Agent**.
   The empty composer has no New conversation heading.
+  **Favorites**, above Conversations, lists favorited agent sessions in favorite
+  order and appears once one is favorited. A favorite already loaded in the list
+  opens in its own Chat or Code mode; any other opens as a standalone session.
+  Right-click a favorite to open it elsewhere or remove it. Deleting a session
+  removes it from every user's favorites.
   **Conversations** is a mixed list
   of chats and coding sessions, with one search across both. **Group conversations**
   switches between Status (the default), Type, and None, preserving newest-first

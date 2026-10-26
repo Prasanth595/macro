@@ -7,6 +7,8 @@ import {
 } from '@app/components/view-shell';
 import { SidebarCreateButton } from '@app/components/view-shell/SidebarCreateButton';
 import { changeSessionArchiveState } from '@app/features/block-agent/queries/change-session-archive-state';
+import { FavoriteContextMenu } from '@app/features/favorites/FavoriteContextMenu';
+import { FavoriteIcon } from '@app/features/favorites/FavoriteIcon';
 import {
   type EntityActionListState,
   type EntityActionViewContext,
@@ -16,8 +18,14 @@ import {
   MaybeSoupEntityActionDrawerManager,
   SoupEntityContextMenu,
 } from '@app/features/soup';
+import {
+  favoriteSplitContent,
+  useFavoriteDisplayName,
+} from '@app/util/favorites';
+import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { MenuItem } from '@core/component/ContextMenu';
+import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { unreadFilterFn } from '@entity/utils/filter';
@@ -26,10 +34,19 @@ import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import PlugIcon from '@phosphor/plugs-connected.svg';
 import AgentIcon from '@phosphor/sparkle.svg';
 import TrayIcon from '@phosphor/tray.svg';
+import { useFavoritesData } from '@queries/favorites/favorites';
+import type { Favorite } from '@service-storage/generated/schemas/favorite';
 import { Key } from '@solid-primitives/keyed';
 import { cn } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
-import { createEffect, createSignal, type JSX, Show } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  Show,
+} from 'solid-js';
 import {
   activeFilterCount,
   type ConversationFilters,
@@ -171,6 +188,92 @@ function Row(props: {
           onOpen={props.onOpen}
         />
       )}
+    </Show>
+  );
+}
+
+function FavoriteSessionRow(props: {
+  favorite: Favorite;
+  active: boolean;
+  onOpen: (favorite: Favorite, event: MouseEvent) => void;
+}) {
+  const name = useFavoriteDisplayName(props.favorite);
+  return (
+    <FavoriteContextMenu favorite={props.favorite} triggerClass="block">
+      <ViewSidebar.Item
+        active={props.active}
+        title={name()}
+        onClick={(event) => props.onOpen(props.favorite, event)}
+      >
+        <ViewSidebar.Icon>
+          <FavoriteIcon favorite={props.favorite} class="size-4" />
+        </ViewSidebar.Icon>
+        <span class="truncate">{name()}</span>
+      </ViewSidebar.Item>
+    </FavoriteContextMenu>
+  );
+}
+
+function SessionFavorites(props: {
+  loaded: () => AgentConversationEntity[];
+  activeConversationId: string | undefined;
+  onOpenConversation: AgentsSidebarProps['onOpenConversation'];
+}) {
+  const data = useFavoritesData();
+  const layout = useSplitLayout();
+  const [open, setOpen] = createSignal(true);
+  const favorites = createMemo(() =>
+    (data()?.favorites ?? [])
+      .filter((favorite) => favorite.entityType === 'agent_session')
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+  );
+  // Opening in this workspace needs the session's chat or code mode, which
+  // only loaded rows carry; any other favorite opens as a standalone session.
+  const openFavorite = (favorite: Favorite, event: MouseEvent) => {
+    const loaded = props
+      .loaded()
+      .find((conversation) => conversation.id === favorite.entityId);
+    if (loaded) {
+      props.onOpenConversation(loaded, event);
+      return;
+    }
+    const result = layout.openWithSplit(favoriteSplitContent(favorite), {
+      referredFrom: 'sidebar',
+      preferNewSplit: event.shiftKey,
+    });
+    if (result.status === 'reused' && result.owner !== result.sourceOwner) {
+      toast.alert('Content already open');
+    }
+  };
+
+  return (
+    <Show when={favorites().length > 0}>
+      <CollapsibleSection.Root
+        open={open()}
+        onOpenChange={setOpen}
+        class="flex max-h-1/3 min-h-0 shrink-0 flex-col"
+      >
+        <CollapsibleSection.Trigger>
+          <span class="min-w-0 truncate">Favorites</span>
+          <CollapsibleSection.Indicator />
+        </CollapsibleSection.Trigger>
+        <CollapsibleSection.Content class="flex min-h-0 flex-col">
+          <ViewSidebar.Nav
+            aria-label="Favorite conversations"
+            class="min-h-0 overflow-auto"
+          >
+            <For each={favorites()}>
+              {(favorite) => (
+                <FavoriteSessionRow
+                  favorite={favorite}
+                  active={props.activeConversationId === favorite.entityId}
+                  onOpen={openFavorite}
+                />
+              )}
+            </For>
+          </ViewSidebar.Nav>
+        </CollapsibleSection.Content>
+      </CollapsibleSection.Root>
     </Show>
   );
 }
@@ -336,6 +439,11 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
               </ViewSidebar.Item>
             </ViewSidebar.Nav>
           </Show>
+          <SessionFavorites
+            loaded={() => [...props.conversations, ...props.archived]}
+            activeConversationId={props.activeConversationId}
+            onOpenConversation={props.onOpenConversation}
+          />
           <CollapsibleSection.Root
             open={conversationsOpen()}
             onOpenChange={setConversationsOpen}

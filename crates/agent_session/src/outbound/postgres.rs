@@ -50,6 +50,7 @@ use entity_registry_db_utils::{
     EntityRegistryError, NewEntityRecord, OwnedEntityRegistrar, RegisteredEntityType, WriteOutcome,
     delete_entity, touch_updated,
 };
+use favorites::outbound::pg_favorites_repo::delete_entity_favorites_in;
 use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
 use model_owner::Owner;
@@ -1246,6 +1247,13 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
         .execute(&mut *transaction)
         .await
         .context("failed to delete agent session history rows")?;
+
+        delete_entity_favorites_in(
+            &mut transaction,
+            &EntityType::AgentSession.with_entity_string(id.as_uuid().to_string()),
+        )
+        .await
+        .context("failed to delete agent session favorites")?;
 
         // A session old enough to have owned a dedicated channel leaves it
         // behind: it holds the history that channel renders, and is not this
