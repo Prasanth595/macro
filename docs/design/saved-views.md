@@ -215,8 +215,10 @@ Unsharing explicitly clears `shared_team_id`. A deleted team makes the view
 private, not deleted. When an owner is absent, API responses hide the ineffective
 share without clearing the stored team association.
 
-The Teams-owned port supplies authoritative current-membership evidence;
-saved-view storage owns definition persistence. Do not query or mutate
+The Teams-owned `TeamRepository` supplies authoritative current memberships:
+reuse `get_user_teams` for candidates and `current_members` for exact batched
+checks through the saved-view membership adapter. Saved-view storage owns
+definition persistence. Do not query or mutate
 `team_user` directly from GraphQL resolvers or saved-view storage. Listing applies
 visibility before its public pagination limit, with batched membership checks
 rather than per-row service calls. Recheck the viewer alongside each owner in

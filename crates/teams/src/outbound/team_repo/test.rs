@@ -1823,18 +1823,29 @@ async fn test_allow_non_admin_invites_defaults_true_and_toggles(
     fixtures(path = "../../../fixtures", scripts("teams"))
 )]
 async fn membership_evidence_batches_owner_and_viewer(pool: Pool<Postgres>) -> anyhow::Result<()> {
-    use crate::domain::membership::TeamMembershipEvidence;
     let repo = TeamRepositoryImpl::new(pool);
     let team = uuid::Uuid::parse_str("11111111-1111-1111-1111-111111111111")?;
-    assert_eq!(repo.viewer_teams("macro|user2@user.com").await?, vec![team]);
+    let viewer = MacroUserIdStr::parse_from_str("macro|user2@user.com")?;
+    let teams = repo.get_user_teams(&viewer).await?;
+    assert_eq!(
+        teams.iter().map(|team| *team.id()).collect::<Vec<_>>(),
+        vec![team]
+    );
+    assert!(repo.current_members(&[]).await?.is_empty());
+    let other_team = uuid::Uuid::parse_str("22222222-2222-2222-2222-222222222222")?;
     let evidence = repo
         .current_members(&[
             (team, "macro|user@user.com".into()),
             (team, "macro|user2@user.com".into()),
             (team, "macro|absent@example.com".into()),
+            (other_team, "macro|user2@user.com".into()),
+            (team, "macro|user4@user.com".into()),
+            (other_team, "macro|user4@user.com".into()),
+            (team, "macro|user2@user.com".into()),
         ])
         .await?;
-    assert_eq!(evidence.len(), 2);
+    assert_eq!(evidence.len(), 3);
+    assert!(evidence.contains(&(other_team, "macro|user4@user.com".into())));
     assert!(evidence.contains(&(team, "macro|user@user.com".into())));
     assert!(evidence.contains(&(team, "macro|user2@user.com".into())));
     Ok(())

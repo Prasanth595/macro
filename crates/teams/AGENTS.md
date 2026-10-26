@@ -19,7 +19,7 @@ event contract (schema, sanitization, delivery semantics).
 - `src/inbound/axum_router.rs` / `src/inbound/toolset.rs`: HTTP routes and AI
   tool surface.
 - `src/outbound/team_repo.rs`: the Postgres repository and primary-backed batched current-membership evidence.
-- `src/domain/membership.rs`: current-membership evidence for dependent domains; no lifetime identity is persisted.
+- `src/domain/team_repo.rs`: `TeamRepository` exposes current memberships in exact `(team, user)` batches; reuse `get_user_teams` for viewer teams.
 
 ## Scope
 

@@ -1170,6 +1170,31 @@ impl TeamRepository for TeamRepositoryImpl {
         Ok(teams)
     }
 
+    #[tracing::instrument(skip(self, pairs), fields(pair_count = pairs.len()), err)]
+    async fn current_members(
+        &self,
+        pairs: &[(uuid::Uuid, String)],
+    ) -> Result<std::collections::HashSet<(uuid::Uuid, String)>, TeamError> {
+        if pairs.is_empty() {
+            return Ok(std::collections::HashSet::new());
+        }
+        let team_ids: Vec<_> = pairs.iter().map(|(id, _)| *id).collect();
+        let user_ids: Vec<_> = pairs.iter().map(|(_, user)| user.clone()).collect();
+        let rows = sqlx::query!(
+            "SELECT tu.team_id, tu.user_id FROM team_user tu
+             JOIN unnest($1::uuid[], $2::text[]) AS requested(team_id, user_id)
+             ON tu.team_id = requested.team_id AND tu.user_id = requested.user_id",
+            &team_ids,
+            &user_ids,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| (row.team_id, row.user_id))
+            .collect())
+    }
+
     #[tracing::instrument(skip(self), err)]
     async fn get_user_team_invites(
         &self,
@@ -1687,41 +1712,5 @@ impl TeamRepository for TeamRepositoryImpl {
         .await?;
 
         Ok(team_id)
-    }
-}
-
-impl crate::domain::membership::TeamMembershipEvidence for TeamRepositoryImpl {
-    type Err = sqlx::Error;
-
-    #[tracing::instrument(name = "team_membership.viewer_teams", skip_all, err)]
-    async fn viewer_teams(&self, viewer: &str) -> Result<Vec<uuid::Uuid>, Self::Err> {
-        sqlx::query_scalar!("SELECT team_id FROM team_user WHERE user_id = $1", viewer)
-            .fetch_all(&self.pool)
-            .await
-    }
-
-    #[tracing::instrument(skip(self, pairs), fields(pair_count = pairs.len()), err)]
-    async fn current_members(
-        &self,
-        pairs: &[(uuid::Uuid, String)],
-    ) -> Result<std::collections::HashSet<(uuid::Uuid, String)>, Self::Err> {
-        if pairs.is_empty() {
-            return Ok(std::collections::HashSet::new());
-        }
-        let team_ids: Vec<_> = pairs.iter().map(|(id, _)| *id).collect();
-        let user_ids: Vec<_> = pairs.iter().map(|(_, user)| user.clone()).collect();
-        let rows = sqlx::query!(
-            "SELECT tu.team_id, tu.user_id FROM team_user tu
-             JOIN unnest($1::uuid[], $2::text[]) AS requested(team_id, user_id)
-             ON tu.team_id = requested.team_id AND tu.user_id = requested.user_id",
-            &team_ids,
-            &user_ids,
-        )
-        .fetch_all(&self.pool)
-        .await?;
-        Ok(rows
-            .into_iter()
-            .map(|row| (row.team_id, row.user_id))
-            .collect())
     }
 }

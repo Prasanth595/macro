@@ -12,7 +12,7 @@ threads, pins, recents, notifications, folders, activity.
   `folders_query`, `graphql_soup`, `threads`, `annotations`, `history`,
   `pins`, `recents`, `notification`, `instructions`, `internal`.
 - `/databases/query` mounts the `databases_sql` HTTP adapter, sharing the database/access services and the primary Soup reader; SQL authorization stays in its domain service.
-- `src/service/saved_views.rs`: composes primary-backed Teams current-membership evidence and saved-view storage. REST and GraphQL share its owner-only domain policy.
+- `src/service/saved_views.rs`: composes saved-view storage with the primary-backed Teams repository, reusing `get_user_teams` and `current_members`. REST and GraphQL share its owner-only domain policy.
 - `src/api/graphql_soup.rs`: the `/soup/graphql` (+ `/soup/graphql/ws`
   subscriptions) GraphQL API — the frontend's main read path for Home/Recent/
   search ("Soup" items); see `crates/graphql_soup` for resolvers/loaders.
