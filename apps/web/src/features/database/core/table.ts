@@ -96,6 +96,7 @@ export function canEditCell(column: DatabaseViewColumn): boolean {
   );
 }
 
+/** Row context supplies monetary denominations; standalone values remain numbers. */
 export function formatCellValue(
   column: DatabaseViewColumn,
   value: DatabaseCellValue,
@@ -121,8 +122,8 @@ export function formatCellValue(
     if (date) return formatDate(date);
   }
   if (column.dataType === 'NUMBER' && typeof value === 'number') {
-    if (column.currencyColumnId) {
-      const currency = cells?.[column.currencyColumnId] ?? 'USD';
+    if (column.currencyColumnId && cells) {
+      const currency = cells[column.currencyColumnId] ?? 'USD';
       return `${currency} ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(value)}`;
     }
     return formatNumber(value);
