@@ -50,6 +50,9 @@ matches while note searches refresh, and keep event actions usable while notes
 load. Show meeting-derived team viewing in the document's Team access summary;
 keep it distinct from additional direct sharing and keep Unlink stable while
 team access saves.
+Include linked meetings in Markdown side-panel References, behind the same flag;
+reuse the shared single-line ReferenceRow with the title and date inline, and
+resolve meeting details and opening targets through authorized calendar previews.
 Gate event notes and document Share meeting-link controls with
 `enable-calendar-meeting-notes` before mounting their query sources; it defaults
 on in dev and uses PostHog in production.
