@@ -18,7 +18,7 @@ use crate::domain::pipeline_workflows::{EntryAddition, PipelineWorkflowService, 
 pub struct ToolNewEntry {
     /// The record's id.
     #[schemars(
-        description = "Outcome is Open, Won or Lost independently of Stage. Monetary fields have a separate currency field (e.g. Revenue currency); set its three-letter option code with the amount. New entries default to Open and USD. The CRM company or contact id to add (company ids come from ListCompanies). Give this or email."
+        description = "The CRM company or contact id to add (company ids come from ListCompanies). Give this or email."
     )]
     #[serde(default)]
     pub record_id: Option<Uuid>,
@@ -30,7 +30,7 @@ pub struct ToolNewEntry {
     pub email: Option<String>,
     /// Fields to fill in.
     #[schemars(
-        description = "Fields to fill in on the new entry, e.g. [{\"field\": \"Stage\", \"value\": \"Lead\"}, {\"field\": \"Owner\", \"value\": \"me\"}]."
+        description = "Fields to fill in on the new entry, e.g. [{\"field\": \"Stage\", \"value\": \"Lead\"}, {\"field\": \"Owner\", \"value\": \"me\"}]. Outcome is Open, Won or Lost independently of Stage. Monetary fields have a separate currency field (e.g. Revenue currency); set its three-letter option code with the amount. New entries default to Open and USD."
     )]
     #[serde(default)]
     pub set: Vec<ToolFieldValue>,

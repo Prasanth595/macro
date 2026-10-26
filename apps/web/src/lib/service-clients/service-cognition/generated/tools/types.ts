@@ -5034,7 +5034,7 @@ export interface AddToPipeline {
  */
 export interface ToolNewEntry {
   /**
-   * Outcome is Open, Won or Lost independently of Stage. Monetary fields have a separate currency field (e.g. Revenue currency); set its three-letter option code with the amount. New entries default to Open and USD. The CRM company or contact id to add (company ids come from ListCompanies). Give this or email.
+   * The CRM company or contact id to add (company ids come from ListCompanies). Give this or email.
    */
   recordId?: string | null;
   /**
@@ -5042,7 +5042,7 @@ export interface ToolNewEntry {
    */
   email?: string | null;
   /**
-   * Fields to fill in on the new entry, e.g. [{"field": "Stage", "value": "Lead"}, {"field": "Owner", "value": "me"}].
+   * Fields to fill in on the new entry, e.g. [{"field": "Stage", "value": "Lead"}, {"field": "Owner", "value": "me"}]. Outcome is Open, Won or Lost independently of Stage. Monetary fields have a separate currency field (e.g. Revenue currency); set its three-letter option code with the amount. New entries default to Open and USD.
    */
   set?: ToolFieldValue[];
 }
@@ -15723,11 +15723,11 @@ export interface ToolEntryUpdate {
    */
   entryId?: string | null;
   /**
-   * Outcome is Open, Won or Lost independently of Stage. Monetary fields have a separate currency field (e.g. Revenue currency); set its three-letter option code with the amount. New entries default to Open and USD. Instead of entryId: the CRM company or contact id the entry tracks. Refused if the record has several entries in this pipeline; then use entryId.
+   * Instead of entryId: the CRM company or contact id the entry tracks. Refused if the record has several entries in this pipeline; then use entryId.
    */
   recordId?: string | null;
   /**
-   * Fields to set, e.g. [{"field": "Stage", "value": "Negotiation"}, {"field": "Revenue", "value": "48000"}]. Leave value out to empty a field.
+   * Fields to set, e.g. [{"field": "Stage", "value": "Negotiation"}, {"field": "Revenue", "value": "48000"}]. Leave value out to empty an ordinary field; Outcome and currency cannot be empty. Outcome is Open, Won or Lost independently of Stage. Monetary fields have a separate currency field (e.g. Revenue currency); set its three-letter option code with the amount.
    */
   set: ToolFieldValue[];
 }

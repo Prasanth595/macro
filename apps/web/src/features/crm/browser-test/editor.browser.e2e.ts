@@ -105,10 +105,6 @@ test('outcome and currency use the shared editor and totals retain the denominat
   ).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).not.toBeVisible();
-  await page.screenshot({
-    path: '/tmp/crm-3971-outcome-currency.png',
-    fullPage: true,
-  });
 });
 
 test('record and board editors preserve outcome and currency', async ({

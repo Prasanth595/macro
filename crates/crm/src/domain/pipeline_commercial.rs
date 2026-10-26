@@ -15,6 +15,9 @@ use serde::{Deserialize, Serialize};
 
 use super::pipelines::PipelineError;
 
+#[cfg(test)]
+mod test;
+
 /// Supported denominations. Amounts are never converted between these codes.
 pub const CURRENCIES: &[&str] = &[
     "USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CHF", "CNY", "INR", "BRL", "MXN", "SGD", "HKD",
@@ -113,10 +116,16 @@ impl CommercialFields {
         batch: &mut OpBatch,
     ) -> Result<(), PipelineError> {
         // The grouping we validate must still be the grouping used to commit.
-        batch
-            .base_versions
-            .entry(table.table.id)
-            .or_insert(table.table.version);
+        if batch
+            .ops
+            .iter()
+            .any(|op| matches!(op, DatabaseOp::View { .. }))
+        {
+            batch
+                .base_versions
+                .entry(table.table.id)
+                .or_insert(table.table.version);
+        }
         let mut layouts: HashMap<_, RequestedLayout> = table
             .views
             .iter()
