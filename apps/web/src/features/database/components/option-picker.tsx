@@ -232,9 +232,7 @@ export function OptionPicker(props: {
           <p class="px-2 py-1 text-xs text-ink-placeholder">No options</p>
         </Show>
       </div>
-      <Show
-        when={props.column.defaultValue === undefined && props.selected.length}
-      >
+      <Show when={props.column.nullable !== false && props.selected.length}>
         <div class="-mx-1.5 mt-1.5 border-t border-edge-divider px-1.5 pt-1.5">
           <button
             type="button"

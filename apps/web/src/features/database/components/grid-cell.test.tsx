@@ -162,6 +162,7 @@ describe('grid cell', () => {
           column={{
             ...column,
             dataType,
+            defaultValue: dataType === 'SELECT_STRING' ? 'Open' : undefined,
             options: [{ id: 'open', label: 'Open', color: null }],
           }}
           value={
@@ -195,6 +196,7 @@ describe('grid cell', () => {
           dataType: 'SELECT_STRING',
           fixedOptions: true,
           defaultValue: 'Open',
+          nullable: false,
           options: [{ id: 'open', label: 'Open', color: null }],
         }}
         value="Open"

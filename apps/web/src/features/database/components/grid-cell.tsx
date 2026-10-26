@@ -1016,7 +1016,7 @@ function SelectCell(props: GridCellProps) {
       if (isClearCellKey(event)) {
         event.preventDefault();
         event.stopPropagation();
-        if (props.column.defaultValue === undefined)
+        if (props.column.nullable !== false)
           fireAndForget(props.onWrite(null), 'database');
         return;
       }
