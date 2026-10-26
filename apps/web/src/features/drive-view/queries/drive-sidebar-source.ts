@@ -1,26 +1,30 @@
-import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
-  enableForms,
   enableGraphqlSoup,
   isFeatureEnabled,
 } from '@core/constant/featureFlags';
-import { useUserId } from '@core/context/user';
 import { useFavoritesData } from '@queries/favorites/favorites';
 import { useDatabasesQuery } from '@queries/storage/databases';
 import { useFormsQuery } from '@queries/storage/forms';
 import { createGraphqlFoldersQuery } from '@queries/storage/graphql-folders';
 import { useProjectsQuery } from '@queries/storage/projects';
-import { createMemo } from 'solid-js';
+import { type Accessor, createMemo } from 'solid-js';
 import type { DriveSidebarSource } from '../context/drive-source';
 import { selectSidebarDatabases } from './drive-databases';
 import { hiddenFormDatabases } from './drive-forms';
 
-export function createDriveSidebarSource(): DriveSidebarSource {
+type DriveSidebarOptions = {
+  userId: Accessor<string | undefined>;
+  formsEnabled: Accessor<boolean>;
+};
+
+export function createDriveSidebarSource(
+  options: DriveSidebarOptions
+): DriveSidebarSource {
   if (isFeatureEnabled(enableGraphqlSoup)) {
-    return createGraphqlDriveSidebarSource();
+    return createGraphqlDriveSidebarSource(options);
   }
 
-  return createRestDriveSidebarSource();
+  return createRestDriveSidebarSource(options);
 }
 
 function createSidebarFavorites() {
@@ -37,24 +41,24 @@ function createSidebarFavorites() {
   );
 }
 
-function createSidebarDatabases() {
-  const userId = useUserId();
+function createSidebarDatabases(options: DriveSidebarOptions) {
   const databases = useDatabasesQuery();
   const forms = useFormsQuery();
-  const formsFlag = useFeatureFlag(enableForms);
   // Wait for the forms list, which names the databases made for polls.
-  return createMemo(() =>
-    databases.isSuccess && !(formsFlag().enabled && forms.isPending)
-      ? selectSidebarDatabases(
-          databases.data,
-          userId(),
-          hiddenFormDatabases(forms.data ?? [])
-        )
-      : []
-  );
+  return createMemo(() => {
+    if (!databases.isSuccess) return [];
+    if (options.formsEnabled() && forms.isPending) return [];
+    return selectSidebarDatabases(
+      databases.data,
+      options.userId(),
+      forms.isSuccess ? hiddenFormDatabases(forms.data) : new Set()
+    );
+  });
 }
 
-function createGraphqlDriveSidebarSource(): DriveSidebarSource {
+function createGraphqlDriveSidebarSource(
+  options: DriveSidebarOptions
+): DriveSidebarSource {
   const folders = createGraphqlFoldersQuery();
 
   return {
@@ -65,11 +69,13 @@ function createGraphqlDriveSidebarSource(): DriveSidebarSource {
       await folders.refetch({ requestPolicy: 'network-only' });
     },
     favorites: createSidebarFavorites(),
-    databases: createSidebarDatabases(),
+    databases: createSidebarDatabases(options),
   };
 }
 
-function createRestDriveSidebarSource(): DriveSidebarSource {
+function createRestDriveSidebarSource(
+  options: DriveSidebarOptions
+): DriveSidebarSource {
   const projects = useProjectsQuery();
 
   return {
@@ -87,6 +93,6 @@ function createRestDriveSidebarSource(): DriveSidebarSource {
     },
 
     favorites: createSidebarFavorites(),
-    databases: createSidebarDatabases(),
+    databases: createSidebarDatabases(options),
   };
 }
