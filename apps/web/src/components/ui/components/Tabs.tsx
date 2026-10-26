@@ -3,6 +3,12 @@ import { SegmentedControl as KSegmentedControl } from '@kobalte/core/segmented-c
 import { type Component, For, Match, Show, Switch } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { cn } from '../utils/classname';
+import {
+  iconControlSizes,
+  labeledControlFrames,
+  labeledControlContents,
+  type LabeledControlSize,
+} from '../utils/control-sizes';
 import { Layer } from './Layer';
 import { Tooltip } from './Tooltip';
 
@@ -16,8 +22,16 @@ export type TabOption<T extends string> = {
   disabled?: boolean;
 };
 
-/** Pill height matches the Button of the same size. */
-export type TabsSize = 'sm' | 'md' | 'lg';
+/** Button-sized pills; touch treatments keep their own minimum targets. */
+export type TabsSize = LabeledControlSize;
+
+const tabIconSizes: Record<TabsSize, { square: string; labeled: string }> = {
+  xs: { square: 'size-3', labeled: 'size-3' },
+  sm: { square: 'size-3.5', labeled: 'size-3' },
+  md: { square: 'size-4', labeled: 'size-3.5' },
+  lg: { square: 'size-5', labeled: 'size-4' },
+  xl: { square: 'size-6', labeled: 'size-5' },
+};
 
 /**
  * Desktop always renders separate pills. Touch keeps the treatment each
@@ -104,7 +118,7 @@ export function Tabs<T extends string>(props: TabsProps<T>) {
             class={cn(
               'flex min-w-0 items-center',
               props.wrap && 'flex-wrap',
-              props.size === 'sm' ? 'gap-1' : 'gap-1.5',
+              props.size === 'xs' || props.size === 'sm' ? 'gap-1' : 'gap-1.5',
               props.fullWidth && 'w-full'
             )}
           >
@@ -186,34 +200,24 @@ function PillOption<T extends string>(props: {
         'data-checked:border-edge-button data-checked:overlay-active data-checked:text-ink data-checked:shadow-none',
         'has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-edge-focus',
         'data-disabled:pointer-events-none data-disabled:opacity-50',
-        props.size === 'sm' && 'h-6',
-        props.size === 'md' && 'h-8',
-        props.size === 'lg' && 'h-9',
-        square() && 'aspect-square',
-        props.fullWidth && 'flex-1'
+        square() ? iconControlSizes[props.size] : labeledControlFrames[props.size],
+        'touch:min-h-8',
+        square() && 'touch:min-w-8',
+        props.fullWidth && !square() && 'flex-1'
       )}
     >
       <KSegmentedControl.ItemInput class="pointer-events-none absolute inset-0" />
       <KSegmentedControl.ItemLabel
         class={cn(
-          'flex size-full min-w-0 items-center justify-center font-medium whitespace-nowrap select-none',
-          props.size === 'sm' && 'gap-1 px-2 text-xs',
-          props.size === 'md' && 'gap-1.5 px-3 text-sm',
-          props.size === 'lg' && 'gap-2 px-4 text-sm',
-          // Equal-width options are centred, so narrow rails keep whole labels.
-          props.fullWidth && 'px-1.5',
-          square() && 'px-0'
+          'flex min-w-0 flex-1 self-stretch items-center justify-center gap-2 font-medium whitespace-nowrap select-none',
+          !square() && labeledControlContents[props.size]
         )}
       >
         <OptionContent
           option={props.option}
           iconOnly={props.iconOnly}
           // Glyphs match a Button of the same size: smaller beside a label.
-          iconClass={cn(
-            props.size === 'sm' && (square() ? 'size-3.5' : 'size-3'),
-            props.size === 'md' && (square() ? 'size-4' : 'size-3.5'),
-            props.size === 'lg' && (square() ? 'size-5' : 'size-4')
-          )}
+          iconClass={tabIconSizes[props.size][square() ? 'square' : 'labeled']}
         />
       </KSegmentedControl.ItemLabel>
     </KSegmentedControl.Item>
@@ -267,11 +271,12 @@ function Track<T extends string>(props: TabsProps<T>) {
 }
 
 function TouchPill<T extends string>(props: TabsProps<T>) {
+  const size = () => props.size ?? 'md';
   return (
     <div
       class={cn(
-        'relative flex items-center',
-        props.size === 'lg' ? 'h-11' : 'h-8',
+        'relative flex min-h-8 items-center',
+        size() === 'lg' && 'min-h-11',
         props.fullWidth && 'w-full'
       )}
     >
@@ -282,22 +287,30 @@ function TouchPill<T extends string>(props: TabsProps<T>) {
             value={option.value}
             disabled={option.disabled}
             class={cn(
-              'relative z-1 inline-flex h-full min-w-0 items-center rounded-full',
+              'relative z-1 inline-flex min-w-0 items-center rounded-full',
               'has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-edge-focus data-disabled:pointer-events-none data-disabled:opacity-50',
-              props.fullWidth && 'flex-1'
+              props.iconOnly && option.icon !== undefined
+                ? iconControlSizes[size()]
+                : labeledControlFrames[size()],
+              'touch:min-h-8',
+              size() === 'lg' && 'touch:min-h-11',
+              props.iconOnly && option.icon !== undefined && 'touch:min-w-8',
+              props.iconOnly && option.icon !== undefined && size() === 'lg' && 'touch:min-w-11',
+              props.fullWidth && !(props.iconOnly && option.icon !== undefined) && 'flex-1'
             )}
           >
             <KSegmentedControl.ItemInput class="pointer-events-none absolute inset-0" />
             <KSegmentedControl.ItemLabel
               class={cn(
-                'flex h-full items-center gap-1.5 rounded-full px-4 text-xs font-medium whitespace-nowrap select-none text-ink-extra-muted hover:text-ink data-checked:text-ink transition-colors duration-120 motion-reduce:transition-none',
-                props.fullWidth && 'w-full justify-center'
+                'flex min-w-0 flex-1 self-stretch items-center gap-1.5 rounded-full font-medium whitespace-nowrap select-none text-ink-extra-muted hover:text-ink data-checked:text-ink transition-colors duration-120 motion-reduce:transition-none',
+                !(props.iconOnly && option.icon !== undefined) && labeledControlContents[size()],
+                (props.fullWidth || (props.iconOnly && option.icon !== undefined)) && 'justify-center'
               )}
             >
               <OptionContent
                 option={option}
                 iconOnly={props.iconOnly ?? false}
-                iconClass="size-3.5"
+                iconClass={tabIconSizes[size()][props.iconOnly && option.icon !== undefined ? 'square' : 'labeled']}
               />
             </KSegmentedControl.ItemLabel>
           </KSegmentedControl.Item>
@@ -308,6 +321,7 @@ function TouchPill<T extends string>(props: TabsProps<T>) {
 }
 
 function TouchInset<T extends string>(props: TabsProps<T>) {
+  const size = () => props.size ?? 'md';
   return (
     <Layer depth={0}>
       <div
@@ -322,13 +336,21 @@ function TouchInset<T extends string>(props: TabsProps<T>) {
               <KSegmentedControl.Item
                 value={option.value}
                 disabled={option.disabled}
-                class={cn(props.fullWidth && 'flex-1')}
+                class={cn(
+                  'inline-flex min-w-0 items-center rounded-full touch:min-h-8',
+                  props.iconOnly && option.icon !== undefined
+                    ? iconControlSizes[size()]
+                    : labeledControlFrames[size()],
+                  props.iconOnly && option.icon !== undefined && 'touch:min-w-8',
+                  props.fullWidth && !(props.iconOnly && option.icon !== undefined) && 'flex-1'
+                )}
               >
                 <KSegmentedControl.ItemInput class="pointer-events-none absolute inset-0" />
                 <KSegmentedControl.ItemLabel
                   class={cn(
-                    'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap text-ink-extra-muted ring-inset hover:text-ink data-checked:bg-surface data-checked:text-ink data-checked:ring data-checked:ring-edge-muted data-checked:shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
-                    props.fullWidth && 'w-full justify-center'
+                    'flex min-w-0 flex-1 self-stretch items-center gap-1.5 rounded-full font-medium whitespace-nowrap text-ink-extra-muted ring-inset hover:text-ink data-checked:bg-surface data-checked:text-ink data-checked:ring data-checked:ring-edge-muted data-checked:shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
+                    !(props.iconOnly && option.icon !== undefined) && labeledControlContents[size()],
+                    (props.fullWidth || (props.iconOnly && option.icon !== undefined)) && 'justify-center'
                   )}
                   // Keep a focused input focused while switching.
                   onPointerDown={(event) => event.preventDefault()}
@@ -336,7 +358,7 @@ function TouchInset<T extends string>(props: TabsProps<T>) {
                   <OptionContent
                     option={option}
                     iconOnly={props.iconOnly ?? false}
-                    iconClass="size-3.5"
+                    iconClass={tabIconSizes[size()][props.iconOnly && option.icon !== undefined ? 'square' : 'labeled']}
                   />
                 </KSegmentedControl.ItemLabel>
               </KSegmentedControl.Item>
@@ -349,11 +371,11 @@ function TouchInset<T extends string>(props: TabsProps<T>) {
 }
 
 function TouchSegmented<T extends string>(props: TabsProps<T>) {
+  const size = () => props.size ?? 'md';
   return (
     <div
       class={cn(
-        'inline-flex overflow-hidden rounded-full border border-edge-frame',
-        props.size === 'sm' ? 'h-6' : 'h-8',
+        'inline-flex min-h-8 overflow-hidden rounded-full border border-edge-frame',
         props.fullWidth && 'flex w-full'
       )}
     >
@@ -363,20 +385,29 @@ function TouchSegmented<T extends string>(props: TabsProps<T>) {
             value={option.value}
             disabled={option.disabled}
             class={cn(
-              'relative flex h-full items-center justify-center border-r border-edge-divider font-medium outline-none last:border-r-0 has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-edge-focus transition-colors duration-120 motion-reduce:transition-none',
-              props.size === 'sm' ? 'px-2 text-xs' : 'px-3 text-sm',
+              'relative flex items-center justify-center border-r border-edge-divider font-medium outline-none last:border-r-0 has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-edge-focus transition-colors duration-120 motion-reduce:transition-none',
+              props.iconOnly && option.icon !== undefined
+                ? iconControlSizes[size()]
+                : labeledControlFrames[size()],
+              'touch:min-h-8',
+              props.iconOnly && option.icon !== undefined && 'touch:min-w-8',
               option.disabled
                 ? 'opacity-50'
                 : 'text-ink-muted active:overlay-active data-checked:text-ink data-checked:overlay-active',
-              props.fullWidth && 'flex-1'
+              props.fullWidth && !(props.iconOnly && option.icon !== undefined) && 'flex-1'
             )}
           >
             <KSegmentedControl.ItemInput class="pointer-events-none absolute inset-0" />
-            <KSegmentedControl.ItemLabel class="flex items-center gap-1.5">
+            <KSegmentedControl.ItemLabel
+              class={cn(
+                'flex min-w-0 flex-1 self-stretch items-center justify-center gap-1.5',
+                !(props.iconOnly && option.icon !== undefined) && labeledControlContents[size()]
+              )}
+            >
               <OptionContent
                 option={option}
                 iconOnly={props.iconOnly ?? false}
-                iconClass="size-3.5"
+                iconClass={tabIconSizes[size()][props.iconOnly && option.icon !== undefined ? 'square' : 'labeled']}
               />
             </KSegmentedControl.ItemLabel>
           </KSegmentedControl.Item>

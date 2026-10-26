@@ -16,6 +16,7 @@ import { Hotkey } from './Hotkey';
 import { Tooltip } from './ButtonTooltip';
 import { cn } from '../utils/classname';
 import { createButtonActivation } from '../utils/button-activation';
+import { iconControlSizes, labeledControlSizes } from '../utils/control-sizes';
 import {
   gradientRaisedButtonStyles,
   raisedButtonStyles,
@@ -82,16 +83,12 @@ const buttonStyles = createVariants(
       link: cn(buttonFrames.link, 'underline-offset-4 not-data-disabled:hover:text-link-hover not-data-disabled:hover:underline'),
     },
     size: {
-      xs: 'min-h-6 px-2 py-0.5 text-xs',
-      sm: 'min-h-7 px-2 py-0.5 text-sm',
-      md: 'min-h-8 px-2 py-0.5 text-base',
-      lg: 'min-h-10 px-4 py-1 text-lg',
-      xl: 'min-h-12 px-4 py-2 text-xl',
-      'icon-xs': 'size-6 min-h-0 shrink-0 aspect-square p-0 text-xs',
-      'icon-sm': 'size-7 min-h-0 shrink-0 aspect-square p-0 text-sm',
-      'icon-md': 'size-8 min-h-0 shrink-0 aspect-square p-0 text-base',
-      'icon-lg': 'size-10 min-h-0 shrink-0 aspect-square p-0 text-lg',
-      'icon-xl': 'size-12 min-h-0 shrink-0 aspect-square p-0 text-xl',
+      ...labeledControlSizes,
+      'icon-xs': iconControlSizes.xs,
+      'icon-sm': iconControlSizes.sm,
+      'icon-md': iconControlSizes.md,
+      'icon-lg': iconControlSizes.lg,
+      'icon-xl': iconControlSizes.xl,
     },
   },
   { variant: 'primary', size: 'md' }

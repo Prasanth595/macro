@@ -3,8 +3,8 @@ import ChatIcon from '@phosphor/chat-text.svg';
 import CodeIcon from '@phosphor/code.svg';
 import PaperclipIcon from '@phosphor/paperclip.svg';
 import UsersIcon from '@phosphor/users.svg';
-import { createSignal } from 'solid-js';
-import { Tabs } from './Tabs';
+import { createSignal, For } from 'solid-js';
+import { Tabs, type TabsSize } from './Tabs';
 
 // #region demo:view
 function ViewDemo() {
@@ -67,6 +67,46 @@ function IconOnlyDemo() {
 }
 // #endregion
 
+// #region demo:sizes
+function SizeRow(props: { size: TabsSize }) {
+  const [view, setView] = createSignal<'messages' | 'files'>('messages');
+  const [icon, setIcon] = createSignal<'messages' | 'files'>('messages');
+  const options = [
+    { value: 'messages', label: 'Messages', icon: ChatIcon },
+    { value: 'files', label: 'Files', icon: PaperclipIcon },
+  ] as const;
+  return (
+    <div class="flex flex-wrap items-center gap-3">
+      <span class="w-6 font-mono text-xs text-ink-muted">{props.size}</span>
+      <Tabs
+        aria-label={`${props.size} view tabs`}
+        size={props.size}
+        options={options}
+        value={view()}
+        onChange={setView}
+      />
+      <Tabs
+        aria-label={`${props.size} icon tabs`}
+        size={props.size}
+        iconOnly
+        options={options}
+        value={icon()}
+        onChange={setIcon}
+      />
+    </div>
+  );
+}
+
+function SizesDemo() {
+  return (
+    <div class="flex flex-col gap-3">
+      <For each={['xs', 'sm', 'md', 'lg', 'xl'] as const}>
+        {(size) => <SizeRow size={size} />}
+      </For>
+    </div>
+  );
+}
+// #endregion
 // #region demo:value
 function ValueDemo() {
   const [value, setValue] = createSignal<'team' | 'personal'>('team');
@@ -137,6 +177,13 @@ export default defineDoc({
       description:
         'A narrow header collapses labels to icons. Each label stays the accessible name and becomes the tooltip.',
       render: IconOnlyDemo,
+    },
+    {
+      id: 'sizes',
+      title: 'Sizes',
+      description:
+        'Labeled tabs share Button minimum heights, padding, and typography from xs through xl. Icon-only tabs use matching square sizes; touch treatments keep their minimum targets.',
+      render: SizesDemo,
     },
     {
       id: 'value',
