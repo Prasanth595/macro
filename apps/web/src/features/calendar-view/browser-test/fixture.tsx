@@ -4,8 +4,8 @@ import { Button, ImperativeDialogHost } from '@ui';
 import { createSignal, onCleanup, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 import type { CalendarEvent } from '../../calendar/types';
-import { SelectedEventDetails } from '../components/SelectedEventDetails';
 import { macroLightTheme } from '../../theme/themes/macro-light';
+import { SelectedEventDetails } from '../components/SelectedEventDetails';
 
 for (const [token, value] of Object.entries(macroLightTheme.colorTokens)) {
   document.documentElement.style.setProperty(`--color-${token}`, value);
