@@ -25,7 +25,7 @@ import {
   userThemes,
 } from '../signals/themeSignals';
 import type { ThemeColorTokens, ThemeV3 } from '../types/themeTypes';
-import { buttonThemeVars } from './buttonTheme';
+import { buttonAccentVars } from './buttonTheme';
 import { formatOklch } from './colorUtil';
 import { resolveThemeColors } from './resolvedThemeColors';
 import {
@@ -101,12 +101,16 @@ function renderThemeColorToken(token: string, value: string): void {
 /** Applies a color token for an editor drag without updating persisted state. */
 export function previewLiveThemeColorToken(token: string, value: string): void {
   const tokens = { ...themeColorTokens(), [token]: value };
-  const buttonVars = buttonThemeVars(resolveThemeColors(tokens, liveThemeMode()));
+  const colors = resolveThemeColors(tokens, liveThemeMode());
+  const accentVars = buttonAccentVars(colors);
   renderThemeColorToken(token, value);
-  renderButtonThemeVars(buttonVars);
+  document.documentElement.dataset.themeLight = String(
+    colors['surface-0'].l > colors['content-0'].l
+  );
+  renderButtonAccentVars(accentVars);
 }
 
-function renderButtonThemeVars(vars: Record<string, string>): void {
+function renderButtonAccentVars(vars: Record<string, string>): void {
   for (const [name, value] of Object.entries(vars)) {
     document.documentElement.style.setProperty(name, value);
   }
@@ -144,7 +148,7 @@ export function setLiveThemeColorTokens(tokens: ThemeColorTokens): void {
     '--theme-comment-ink-lightness',
     String(colors['content-1'].l)
   );
-  renderButtonThemeVars(buttonThemeVars(colors));
+  renderButtonAccentVars(buttonAccentVars(colors));
   setThemeColorTokens(normalizedTokens);
 }
 

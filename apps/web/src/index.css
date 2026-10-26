@@ -696,6 +696,67 @@ body.tauri-ios {
 }
 
 /* Shared Button roles. Other app colors keep their current meaning. */
+/* Reset on each theme scope so previews resolve their own palette inputs. */
+:root,
+[data-theme-light] {
+  --button-primary-bg: color-mix(in oklch, white 90%, var(--color-panel));
+  --button-primary-hover: color-mix(in srgb, var(--button-primary-bg) 82%, var(--color-panel));
+  --button-primary-pressed: color-mix(in srgb, var(--button-primary-bg) 72%, var(--color-panel));
+  --button-primary-ink: var(--color-page);
+  --button-focus: var(--color-edge-focus, var(--color-accent));
+  --button-border: oklch(1 0 0 / 12%);
+
+  --button-secondary-bg: oklch(1 0 0 / 8%);
+  --button-secondary-hover: oklch(1 0 0 / 12%);
+  --button-secondary-pressed: oklch(1 0 0 / 16%);
+  --button-outline-hover: oklch(1 0 0 / 8%);
+  --button-outline-pressed: oklch(1 0 0 / 10%);
+  --button-tertiary-bg: transparent;
+  --button-tertiary-hover: oklch(1 0 0 / 10%);
+  --button-tertiary-pressed: oklch(1 0 0 / 14%);
+
+  /* JavaScript selects only the contrasting accent ink and its inverse tint. */
+  --button-accent-ink: white;
+  --button-accent-state-mix: black;
+  --button-accent-hover: color-mix(in srgb, var(--color-accent) 82%, var(--button-accent-state-mix));
+  --button-accent-pressed: color-mix(in srgb, var(--color-accent) 72%, var(--button-accent-state-mix));
+  --button-danger-bg: oklch(from var(--color-failure) l c h / 10%);
+  --button-danger-hover: oklch(from var(--color-failure) l c h / 26%);
+  --button-danger-pressed: oklch(from var(--color-failure) l c h / 32%);
+  --button-success-bg: oklch(from var(--color-success) l c h / 8%);
+  --button-success-hover: oklch(from var(--color-success) l c h / 16%);
+  --button-success-pressed: oklch(from var(--color-success) l c h / 22%);
+
+  /* Negative spread keeps the faint contact shadow beneath the button. */
+  --button-shadow: 0 2px 1px -1px oklch(0 0 0 / 10%);
+  --button-raised-shadow: 0 0 0 0.4px oklch(0 0 0 / 16%), inset 0 0.4px 0 oklch(1 0 0 / 4.8%), inset 0 0 0 0.4px oklch(1 0 0 / 3.2%), 0 1px 2px oklch(0 0 0 / 6%);
+  --button-outline-highlight: oklch(1 0 0 / 28%);
+  --button-gradient-raised: linear-gradient(180deg, transparent, oklch(0 0 0 / 12%));
+}
+
+[data-theme-light='true'] {
+  --button-primary-bg: color-mix(in oklch, black 90%, var(--color-panel));
+  --button-border: oklch(0 0 0 / 12%);
+
+  /* White neutral faces retain black shading for hover and pressed states. */
+  --button-secondary-bg: white;
+  --button-secondary-hover: color-mix(in srgb, white, black 4%);
+  --button-secondary-pressed: color-mix(in srgb, white, black 8%);
+  --button-outline-hover: oklch(0 0 0 / 4%);
+  --button-outline-pressed: oklch(0 0 0 / 8%);
+  --button-tertiary-hover: oklch(0 0 0 / 4%);
+  --button-tertiary-pressed: oklch(0 0 0 / 8%);
+
+  --button-danger-bg: oklch(from var(--color-failure) l c h / 20%);
+  --button-success-bg: oklch(from var(--color-success) l c h / 20%);
+  --button-success-hover: oklch(from var(--color-success) l c h / 26%);
+  --button-success-pressed: oklch(from var(--color-success) l c h / 32%);
+
+  --button-shadow: 0 2px 1px -1px oklch(0 0 0 / 5%);
+  --button-raised-shadow: 0 0 0 1px var(--color-edge-frame), inset 0 1px 0 oklch(1 0 0 / 90%), inset 0 0 0 1px oklch(1 0 0 / 60%), 0 1px 2px oklch(0 0 0 / 6%);
+  --button-outline-highlight: oklch(1 0 0 / 75%);
+  --button-gradient-raised: linear-gradient(180deg, transparent, oklch(0 0 0 / 8%));
+}
 @theme inline {
   --color-button-primary-bg: var(--button-primary-bg);
   --color-button-primary-hover: var(--button-primary-hover);

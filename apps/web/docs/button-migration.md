@@ -55,9 +55,11 @@ Use the app's semantic tokens without an additional prefix. Existing `ink`, `ink
 
 Button uses the app's existing typography scale: labeled and icon sizes map `xs` → `text-xs`, `sm` → `text-sm`, `md` → `text-base`, `lg` → `text-lg`, and `xl` → `text-xl`. No per-button font token remapping or global type-scale changes are introduced. Labeled buttons combine minimum height with vertical padding: xs/sm/md use `py-0.5`, lg uses `py-1`, and xl uses `py-2`. Their minimum heights are 24/28/32/40/48px, respectively; icon variants use matching square dimensions with zero padding. Content can increase labeled height; do not clamp labeled buttons with a fixed height. Explicit glyph sizing and the app's 36px minimum touch target remain independent.
 
-Solid-accent ink and state tint derive from the effective resolved accent, including theme previews and edits. Derived values do not enter persisted theme data.
+Button materials live in `src/index.css`: fills, hover/pressed colors, borders, and optional finish shadows use the existing palette inputs and reset at every `[data-theme-light]` scope. Light and dark previews resolve their own materials rather than inheriting a parent theme's computed values. Keep appearance changes in CSS, not in the theme renderer.
 
-The existing theme renderer supplies Button materials at the root and in theme previews. There is no separate Button theme stylesheet, class-targeted material layer, or variant-specific CSS selector. Variants, interaction states, and optional finishes live in the Button recipe.
+`buttonAccentVars` in `features/theme/utils/buttonTheme.ts` only chooses contrasting solid-accent text and its inverse state tint from the resolved accent. The root renderer and subtree previews supply those two variables; all mixing remains in CSS. Live color edits also refresh the existing light/dark scope marker. Derived values do not enter persisted theme data.
+
+This keeps the current button materials without a second JavaScript material recipe. Variants, interaction selectors, and optional finish selection remain in the shared Button recipe. Checks and visual review remain paused.
 
 ## Consumer layout follow-up
 
