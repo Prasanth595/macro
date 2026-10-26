@@ -385,7 +385,7 @@ export function SplitPanel(props: SplitPanelProps) {
                   label="Close split"
                   hotkey={TOKENS.split.close}
                   class={cn(
-                    'absolute top-0 left-0 z-split-panel-chrome size-4 p-0 rounded-none border-0 border-r border-b border-edge-frame bg-panel text-ink-muted/70 hover:bg-hover hover:text-ink',
+                    'absolute top-0 left-0 z-split-panel-chrome origin-top-left scale-[1.15] size-4 p-0 rounded-none border-0 border-r border-b border-edge-frame bg-panel text-ink-muted/70 hover:bg-hover hover:text-ink',
                     props.handle.isSpotLight()
                       ? 'rounded-tl-xl rounded-br-xl'
                       : 'rounded-tl-md rounded-br-md'
