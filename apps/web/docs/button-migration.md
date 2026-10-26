@@ -11,7 +11,7 @@ Copy source: `experiment/tactile-ui-library` at `1080bdfb86`.
 
 1. Update `components/ui/components/Button.tsx` in place. Keep the existing import path and `@ui` export.
 2. Use the lab's semantic materials, explicit icon sizes, optional finishes, loading treatment, and native/headless activation behavior.
-3. Keep ButtonGroup composition through the shared group context. The group owns its frame and buttons inherit its variant and size.
+3. Keep ButtonGroup composition through the shared group context. The group owns a flat frame without automatic elevation, and buttons inherit its variant and size. Individual Button finishes remain opt-in.
 4. Remove the temporary `components/ui/next/` implementation and gallery registration.
 5. Migrate affected callers directly to the new API rather than translating old props in Button.
 6. Keep examples in the existing `Button.docs.tsx` gallery page.

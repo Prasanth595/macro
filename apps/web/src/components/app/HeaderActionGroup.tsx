@@ -4,7 +4,7 @@ import { cn } from '@ui/utils/classname';
 import { type ParentProps, Show } from 'solid-js';
 
 /**
- * A desktop header island: related actions share one elevated frame and
+ * A desktop header island: related actions share one flat frame and
  * their buttons stay flat. Touch renders the actions without a frame, and a
  * nested group reuses its parent's frame. An island with no actions renders
  * nothing, so conditional children need no wrapper.
