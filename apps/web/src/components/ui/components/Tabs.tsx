@@ -71,7 +71,7 @@ export type TabsProps<T extends string> = {
     }
   | {
       /**
-       * One raised pill slides along a filled track, on every device. Only for
+       * One flat pill slides along a filled track, on every device. Only for
        * the agent composer's mode switch, which sits in the composer's tray.
        */
       variant: 'track';
@@ -83,7 +83,7 @@ export type TabsProps<T extends string> = {
 
 /**
  * One inline single choice: switch a view, a section, or a small set of
- * values. On desktop each option is its own pill, the outline Button frame,
+ * values. On desktop each option is its own flat bordered pill,
  * and the selected option takes the pressed fill.
  *
  * @do Use for two to six short options that are all visible at once.
@@ -202,10 +202,9 @@ function PillOption<T extends string>(props: {
       disabled={props.option.disabled}
       class={cn(
         'relative inline-flex min-w-0 shrink-0 rounded-full border text-ink-muted transition-colors duration-120 motion-reduce:transition-none',
-        // Unselected options share the outline Button frame.
-        'bg-control elevated not-touch:not-data-checked:hover:overlay-hover not-touch:not-data-checked:hover:text-ink',
-        // The selected option takes the pressed fill, flat like a pressed Button.
-        'data-checked:border-edge-button data-checked:overlay-active data-checked:text-ink data-checked:shadow-none',
+        // Flat borders keep navigation distinct from raised action controls.
+        'bg-control border-edge-button shadow-none not-touch:not-data-checked:hover:overlay-hover not-touch:not-data-checked:hover:text-ink',
+        'data-checked:overlay-active data-checked:text-ink',
         'has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-edge-focus',
         'data-disabled:pointer-events-none data-disabled:opacity-50',
         square() ? iconControlSizes[props.size] : labeledControlFrames[props.size],
@@ -246,7 +245,7 @@ function Track<T extends string>(props: TabsProps<T>) {
         props.fullWidth && 'w-full'
       )}
     >
-      <KSegmentedControl.Indicator class="pointer-events-none absolute top-0 left-0 z-0 rounded-full bg-panel bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--color-ink)_2%,transparent),transparent)] transition-[transform,width,height] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none dark-mode:bg-active light-mode:border light-mode:border-ink/7 light-mode:bg-none light-mode:shadow-[0_1px_6px_0_color-mix(in_srgb,var(--color-ink)_5%,transparent)]" />
+      <KSegmentedControl.Indicator class="pointer-events-none absolute top-0 left-0 z-0 rounded-full bg-panel transition-[transform,width,height] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none dark-mode:bg-active light-mode:border light-mode:border-ink/7" />
       <For each={props.options}>
         {(option) => (
           <KSegmentedControl.Item
@@ -356,7 +355,7 @@ function TouchInset<T extends string>(props: TabsProps<T>) {
                 <KSegmentedControl.ItemInput class="pointer-events-none absolute inset-0" />
                 <KSegmentedControl.ItemLabel
                   class={cn(
-                    'flex min-w-0 flex-1 self-stretch items-center gap-1.5 rounded-full font-medium whitespace-nowrap text-ink-extra-muted ring-inset hover:text-ink data-checked:bg-surface data-checked:text-ink data-checked:ring data-checked:ring-edge-muted data-checked:shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
+                    'flex min-w-0 flex-1 self-stretch items-center gap-1.5 rounded-full font-medium whitespace-nowrap text-ink-extra-muted ring-inset hover:text-ink data-checked:bg-surface data-checked:text-ink data-checked:ring data-checked:ring-edge-muted',
                     !(props.iconOnly && option.icon !== undefined) && tabContentClasses(size()),
                     (props.fullWidth || (props.iconOnly && option.icon !== undefined)) && 'justify-center'
                   )}

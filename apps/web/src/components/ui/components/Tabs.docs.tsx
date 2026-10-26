@@ -162,7 +162,7 @@ export default defineDoc({
       id: 'view',
       title: 'View tabs',
       description:
-        'Header view tabs sit after the title, left of the controls. Unselected pills share the outline Button frame at the same height as their neighbours.',
+        'Header view tabs sit after the title, left of the controls. Each pill uses a flat border with no raised edge or shadow.',
       render: ViewDemo,
     },
     {
@@ -182,7 +182,7 @@ export default defineDoc({
       id: 'sizes',
       title: 'Sizes',
       description:
-        'Labeled tabs share Button minimum heights, padding, and typography from xs through xl. Icon-only tabs use matching square sizes; touch treatments keep their minimum targets.',
+        'Tabs share Button minimum heights and square icon sizes. Medium labels use 14px text and 12px horizontal padding; large labels use 15px text. Touch treatments retain their minimum targets.',
       render: SizesDemo,
     },
     {
@@ -196,7 +196,7 @@ export default defineDoc({
       id: 'track',
       title: 'Composer mode switch',
       description:
-        '`variant="track"` slides one raised pill along a filled track on every device. It is only for the agent composer\'s Chat/Code switch in the composer tray.',
+        '`variant="track"` slides one flat pill along a filled track on every device. It is only for the agent composer\'s Chat/Code switch in the composer tray.',
       render: TrackDemo,
     },
   ],

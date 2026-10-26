@@ -56,7 +56,8 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
   Button uses the semantic pressed fill for its variant. Mark action toggles with
   `aria-pressed`, and expansion triggers with `aria-expanded`. Do not restyle
   buttons as tabs. The agent composer's Chat/Code switch remains
-  `Tabs variant="track"`, a raised pill sliding along the composer's tray.
+  `Tabs variant="track"`, a flat pill sliding along the composer's tray. Keep all
+  tab treatments flat: use borders and selected fills, not raised edges, gradients, or shadows.
 - **FE-65** Components own their touch treatment. Never branch on
   `isTouchDevice()` to choose a tab component or variant; set `Tabs`' `touch`
   to the style that surface already uses on touch.
