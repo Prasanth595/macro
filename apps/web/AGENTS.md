@@ -267,6 +267,10 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   properties do not prove prior membership. Supply complete prior multi-value
   memberships when adjusting counts: a row loaded in one bin may already be an
   unloaded member of another.
+- Tasks and project-task lists use `loadAll` to drain matching list, group, and
+  search cursors automatically. Keep the initial rows visible during loading and
+  show pagination failures with retry; retry must resume a failed cursor even
+  when the query temporarily reports no next page.
 - Reactive GraphQL reads use `createLiveQuery` for a document and
   `useSoupAstItemsQuery` (backed by `createSoupLiveQuery`) for Soup lists; see
   [choosing a reactive read](docs/graphql-normalized-cache-plan.md#choosing-a-reactive-read).

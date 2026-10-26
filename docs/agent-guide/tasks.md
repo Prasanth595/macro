@@ -50,18 +50,19 @@ wrapping property pills, description, and discussion for Overview; toolbar and
 rows for Tasks. The mobile skeleton uses the same compact insets as the content.
 The description has its own subtle three-line skeleton while its collaborative
 editor initializes; the project title, properties, and discussion stay visible.
-Project task lists automatically fetch all matching pages in every group, without
-per-group `Load More` rows. A failed continuation stops automatic requests and shows
-`Try again` above the list; already fetched group rows remain available.
-With GraphQL Soup enabled, verify a group with more than one page in both the
-regular Tasks list (`Load More`) and a project task list (automatic pagination).
-Both must use the parent Soup query's continuation owner; reaching the last page
-removes the group's paging control without hiding already loaded tasks.
-Refresh a group containing at least 11 tasks while delaying its continuation
-response: every already loaded continuation row should stay mounted, with no
-brief collapse to the first 10 rows. Verify both background and explicit refresh,
-including a changed cursor and a failed later page. Retrying should replace the
-old pages; changing projects or filters must discard the old scope immediately.
+Tasks and project task lists automatically fetch all matching pages, including
+collapsed groups and search results, without `Load More` actions. List, Board,
+and enabled Gantt layouts render the first results while remaining pages load.
+A failed continuation stops automatic requests and shows `Try again` above the
+list; already fetched rows remain available. Retry resumes the failed cursor.
+With GraphQL Soup enabled, verify multiple pages in both the regular Tasks view
+and a project task list. Both use the parent Soup query's continuation owner.
+Changing tabs, filters, grouping, or search discards the previous pagination scope.
+Refresh a group larger than the initial page while delaying its continuation
+response: every already loaded continuation row must stay mounted, with no
+brief collapse to the first page. Verify background and explicit refresh,
+including a changed cursor and a failed later page. Retry replaces the old pages;
+changing projects or filters discards the old scope immediately.
 The sidebar has no Tags section: filter by tag from the `Tags` group of the `Filter` menu,
 and switching tabs clears it like any other filter. On mobile, the tabs
 are pills and the leading sliders button opens one drawer containing Sort, Group, and
@@ -253,13 +254,12 @@ The timeline reuses the list's filtered, sorted, grouped rows and collapsed
 state. Sidebar items fill the list's inset width and share vertical scrolling with
 bars. Compact group headers show the grouping's icon and span both the list and
 calendar; they remain visible when the list is collapsed.
-Pagination remains available in the item list and as a quiet, labeled action at
-the visible calendar's left edge outside the open list, even after horizontal
-panning. Group pagination stays after its group; the global continuation appears
-once after the loaded rows. Loading shows a spinner and disables both actions;
-pagination and group headers do not start range creation.
-The chart contains loaded results, not an implied complete schedule. Selecting
-Gantt persists in `tasks.layout` or `projectTasks.layout`, just like List and Board.
+Matching task pages load automatically, with no list or timeline pagination
+actions. Rows and bars appear as each page arrives; a failed continuation keeps
+loaded rows visible and offers `Try again` above the chart. Group headers do not
+start range creation. Until loading finishes, the chart contains loaded results,
+not an implied complete schedule. Selecting Gantt persists in `tasks.layout` or
+`projectTasks.layout`, just like List and Board.
 
 ## Board layout
 
@@ -293,7 +293,7 @@ Layout, primary sort, sort direction, and grouping are reflected in `tasks.layou
 `tasks.sort`, `tasks.sortReversed`, and `tasks.groupBy` search parameters.
 Explicit URL values override saved preferences; back/forward navigation
 restores the corresponding controls, including the layout.
-Columns are 336px wide. Each column pages independently with **Load more tasks**.
+Columns are 336px wide. Every column loads its remaining task pages automatically.
 Use the horizontal scrollbar to reach more columns. Vertical wheel input over
 empty board background or gaps also scrolls horizontally. A wheel gesture stays
 with its original scroll area until momentum stops, even if another column moves

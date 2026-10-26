@@ -19,7 +19,8 @@ vi.mock('@app/features/soup', async () => ({
   ...(await import('@app/features/soup/collection/transforms')),
   useSearchContext: () => ({ entityPool: () => [] }),
   createSearchState: () => {
-    fixture.searchState();
+    const search = fixture.searchState();
+    if (search) return search;
     return {
       isSearching: () => false,
       usesServiceSearch: () => false,
@@ -52,10 +53,14 @@ vi.mock('@queries/soup/grouped/create-grouped-soup-queries', () => ({
 
 import { useTasksDataSource } from './use-tasks-query';
 
-it.each([false, true])(
-  'loads all group pages only when requested (%s)',
-  async (loadAll) => {
-    const tasks = Array.from({ length: 20 }, (_, index) => ({
+it.each([
+  { loadAll: false, expanded: true },
+  { loadAll: true, expanded: true },
+  { loadAll: true, expanded: false },
+])(
+  'loads all group pages only when requested (loadAll: $loadAll, expanded: $expanded)',
+  async ({ loadAll, expanded }) => {
+    const tasks = Array.from({ length: 30 }, (_, index) => ({
       type: 'document',
       fileType: 'md',
       id: `task-${index}`,
@@ -66,9 +71,9 @@ it.each([false, true])(
       subType: { type: 'task', is_completed: false },
       properties: [],
     })) as unknown as TaskEntityWithProperties[];
-    const [loaded, setLoaded] = createSignal(false);
+    const [loaded, setLoaded] = createSignal(10);
     const fetchNextPage = vi.fn(async () => {
-      setLoaded(true);
+      setLoaded((count) => Math.min(count + 10, tasks.length));
     });
     fixture.query = {
       isLoading: false,
@@ -83,7 +88,7 @@ it.each([false, true])(
             key: 'todo',
             label: 'To do',
             displayOrder: 0,
-            totalCount: 20,
+            totalCount: tasks.length,
             itemIds: tasks.slice(0, 10).map((task) => task.id),
             nextCursor: 'next',
           },
@@ -95,8 +100,8 @@ it.each([false, true])(
         'todo',
         {
           key: 'todo',
-          data: () => ({ entities: loaded() ? tasks.slice(10) : [] }),
-          hasNextPage: () => !loaded(),
+          data: () => ({ entities: tasks.slice(10, loaded()) }),
+          hasNextPage: () => loaded() < tasks.length,
           isFetchingNextPage: () => false,
           fetchNextPage,
           error: () => null,
@@ -118,7 +123,7 @@ it.each([false, true])(
           userId: () => 'viewer',
           tagSets: () => [],
           tagSetsReady: () => true,
-          isGroupExpanded: () => true,
+          isGroupExpanded: () => expanded,
           loadAll,
         }
       );
@@ -126,16 +131,102 @@ it.each([false, true])(
     try {
       await vi.waitFor(() =>
         expect(
-          source.items().filter((row) => row.kind === 'entity')
-        ).toHaveLength(loadAll ? 20 : 10)
+          source.boardRows?.().filter((row) => row.kind === 'entity')
+        ).toHaveLength(loadAll ? tasks.length : 10)
       );
-      expect(fetchNextPage).toHaveBeenCalledTimes(loadAll ? 1 : 0);
+      expect(fetchNextPage).toHaveBeenCalledTimes(loadAll ? 2 : 0);
+      if (!expanded) {
+        expect(source.items().some((row) => row.kind === 'entity')).toBe(false);
+      }
       expect(source.items().some((row) => row.kind === 'load-more')).toBe(
         !loadAll
       );
     } finally {
       cleanup();
       fixture.groupQueries = new Map();
+    }
+  }
+);
+
+it.each([false, true])(
+  'drains every flat task page automatically (service search: %s)',
+  async (serviceSearch) => {
+    const tasks = Array.from(
+      { length: 4 },
+      (_, index): TaskEntityWithProperties => ({
+        type: 'document',
+        fileType: 'md',
+        id: `task-${index}`,
+        name: `Task ${index}`,
+        ownerId: 'viewer',
+        subType: { type: 'task', is_completed: false },
+        properties: [],
+      })
+    );
+    const [loaded, setLoaded] = createSignal(1);
+    const drained = Promise.withResolvers<void>();
+    const fetchNextPage = vi.fn(async () => {
+      setLoaded((count) => count + 1);
+      if (loaded() === tasks.length) drained.resolve();
+    });
+    fixture.query = {
+      isLoading: false,
+      isPending: false,
+      isFetching: false,
+      isPlaceholderData: false,
+      get hasNextPage() {
+        return loaded() < tasks.length;
+      },
+      get data() {
+        return { entities: tasks.slice(0, loaded()) };
+      },
+      fetchNextPage,
+    };
+    if (serviceSearch) {
+      fixture.searchState.mockReturnValueOnce({
+        isSearching: () => true,
+        usesServiceSearch: () => true,
+        isSettling: () => false,
+        isLocalSearchSettling: () => false,
+        data: () => tasks.slice(0, loaded()),
+        hasNextPage: () => loaded() < tasks.length,
+        isFetching: () => false,
+        fetchNextPage,
+        error: () => undefined,
+      });
+    }
+    let cleanup = () => {};
+    const source = createRoot((dispose) => {
+      cleanup = dispose;
+      return useTasksDataSource(
+        {
+          tab: 'team-tasks',
+          search: serviceSearch ? 'Task' : '',
+          facets: {},
+          groupBy: 'none',
+          sort: [],
+        },
+        {
+          userId: () => 'viewer',
+          tagSets: () => [],
+          tagSetsReady: () => true,
+          isGroupExpanded: () => true,
+          loadAll: true,
+        }
+      );
+    });
+    try {
+      await drained.promise;
+      expect(fetchNextPage).toHaveBeenCalledTimes(3);
+      expect(
+        source
+          .items()
+          .flatMap((row) => (row.kind === 'entity' ? [row.entity.id] : []))
+      ).toEqual(tasks.map((task) => task.id));
+      expect(source.hasMore()).toBe(false);
+    } finally {
+      cleanup();
+      fixture.searchState.mockReset();
     }
   }
 );

@@ -10,6 +10,7 @@ import { SplitPanel } from '@components/app/split-panel';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { ListEntityMetadataQueryProvider } from '@entity';
+import { Button } from '@ui/components/Button';
 import {
   createSignal,
   onMount,
@@ -84,7 +85,7 @@ function ImportLinearAction() {
 
 function TasksViewRoot() {
   const panel = useSplitPanelOrThrow();
-  const { state, setState, projectsEnabled } = useTasksView();
+  const { state, setState, projectsEnabled, source } = useTasksView();
   const navigate = useNavigate();
   const layout = useSplitLayout();
   const [listElement, setListElement] = createSignal<HTMLDivElement>();
@@ -95,7 +96,18 @@ function TasksViewRoot() {
     <>
       <TasksHeader onSearchEscape={() => listElement()?.focus()} />
       <ViewTour tour={tasksTour} actions={<ImportLinearAction />} />
-      <ViewShell.Content>
+      <ViewShell.Content class="flex flex-col">
+        <Show when={source.paginationError?.()}>
+          <div
+            role="alert"
+            class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-2 text-sm text-ink-muted"
+          >
+            Some tasks could not be loaded.
+            <Button size="sm" onClick={() => source.retryPagination?.()}>
+              Try again
+            </Button>
+          </div>
+        </Show>
         <TasksContent ref={setListElement} />
       </ViewShell.Content>
     </>

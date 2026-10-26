@@ -62,7 +62,7 @@ export type UseTasksDataSourceOptions = {
   crm?: Accessor<TaskCrmScope>;
   enabled?: Accessor<boolean>;
   networkPaused?: Accessor<boolean>;
-  /** Project lists drain all cursors instead of requiring per-group Load More. */
+  /** Fetch every matching page automatically instead of exposing Load More. */
   loadAll?: boolean;
   board?: Accessor<boolean>;
 };

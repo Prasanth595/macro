@@ -261,6 +261,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
       tagSets,
       tagSetsReady,
       isGroupExpanded,
+      loadAll: true,
       board: () => state.layout === 'board',
     })
   );

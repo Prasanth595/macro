@@ -1,4 +1,4 @@
-import { createRoot, createSignal } from 'solid-js';
+import { createComputed, createRoot, createSignal } from 'solid-js';
 import { afterEach, expect, it, vi } from 'vitest';
 import {
   createAutomaticTaskPagination,
@@ -64,6 +64,55 @@ it('stops after a resolved query failure and resumes only on retry', async () =>
   await vi.waitFor(() => expect(remaining()).toBe(false));
   expect(load).toHaveBeenCalledTimes(2);
 });
+
+it.each([false, true])(
+  'retries a failed cursor even when hasMore becomes false (throws: %s)',
+  async (throws) => {
+    const failure = new Error('Offline');
+    const stopped = Promise.withResolvers<void>();
+    const retried = Promise.withResolvers<void>();
+    const [hasMore, setHasMore] = createSignal(true);
+    let queryError: Error | undefined;
+    const load = vi.fn(async () => {
+      if (load.mock.calls.length === 1) {
+        queryError = failure;
+        setHasMore(false);
+        if (throws) throw failure;
+        return;
+      }
+      queryError = undefined;
+      retried.resolve();
+    });
+    const pagination = createRoot((cleanup) => {
+      dispose = cleanup;
+      const pagination = createAutomaticTaskPagination({
+        enabled: () => true,
+        scope: () => 'tasks',
+        sources: () => [
+          {
+            id: 'group',
+            hasMore: hasMore(),
+            pending: false,
+            load,
+            error: () => queryError,
+          },
+        ],
+      });
+      createComputed(() => {
+        if (pagination.error()) stopped.resolve();
+      });
+      return pagination;
+    });
+
+    await stopped.promise;
+    expect(pagination.error()).toBe(failure);
+    expect(load).toHaveBeenCalledOnce();
+    pagination.retry();
+    await retried.promise;
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(pagination.error()).toBeUndefined();
+  }
+);
 
 it('does not continue fetching when access is lost during a request', async () => {
   const [enabled, setEnabled] = createSignal(true);

@@ -24,6 +24,7 @@ export function createAutomaticTaskPagination(options: {
   const [error, setError] = createSignal<unknown>();
   const [revision, setRevision] = createSignal(0);
   const running = new Map<string, object>();
+  const failed = new Set<string>();
   let scope: string | undefined;
   let generation = 0;
   let disposed = false;
@@ -40,9 +41,15 @@ export function createAutomaticTaskPagination(options: {
       await source.load();
       if (disposed || version !== generation) return;
       const failure = source.error();
-      if (failure) setError(() => failure);
+      if (failure) {
+        failed.add(source.id);
+        setError(() => failure);
+      }
     } catch (failure) {
-      if (!disposed && version === generation) setError(() => failure);
+      if (!disposed && version === generation) {
+        failed.add(source.id);
+        setError(() => failure);
+      }
     } finally {
       if (!disposed && running.get(source.id) === token) {
         running.delete(source.id);
@@ -59,11 +66,19 @@ export function createAutomaticTaskPagination(options: {
       scope = nextScope;
       generation += 1;
       running.clear();
+      failed.clear();
       setError(undefined);
     }
     if (!options.enabled() || error()) return;
     for (const source of options.sources()) {
-      if (!source.hasMore || source.pending || running.has(source.id)) continue;
+      // A failed cursor can temporarily make a query report no next page.
+      if (
+        (!source.hasMore && !failed.has(source.id)) ||
+        source.pending ||
+        running.has(source.id)
+      )
+        continue;
+      failed.delete(source.id);
       const token = {};
       running.set(source.id, token);
       untrack(() =>
