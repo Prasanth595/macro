@@ -54,16 +54,16 @@ export function pipelineViewColumn(
 ): DatabaseViewColumn {
   const id = column.column.id;
   const fields = pipeline.commercialFields;
+  const money = fields?.money ?? [];
   const outcome = fields?.outcome === id;
-  const currency = fields?.money.some((pair) => pair.currency === id) ?? false;
+  const currency = money.some((pair) => pair.currency === id);
   let defaultValue: DatabaseCellValue | undefined;
   if (outcome) defaultValue = 'Open';
   if (currency) defaultValue = 'USD';
   return {
     ...toViewColumn(column),
     primary: id === pipeline.primaryColumnId,
-    currencyColumnId: fields?.money.find((pair) => pair.amount === id)
-      ?.currency,
+    currencyColumnId: money.find((pair) => pair.amount === id)?.currency,
     fixedOptions: outcome || currency,
     nullable: outcome || currency ? false : column.column.nullable,
     defaultValue,

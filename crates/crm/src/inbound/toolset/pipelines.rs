@@ -431,7 +431,7 @@ pub struct ToolEntry {
     /// list when a field holds several values. People are macro| user ids.
     pub fields: BTreeMap<String, serde_json::Value>,
     /// Currency codes keyed by monetary field name, including renamed fields.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub currencies: BTreeMap<String, String>,
 }
 

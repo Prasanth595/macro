@@ -5100,6 +5100,12 @@ export interface ToolEntry {
   fields: {
     [k: string]: unknown;
   };
+  /**
+   * Currency codes keyed by monetary field name, including renamed fields.
+   */
+  currencies?: {
+    [k: string]: string;
+  };
 }
 /**
  * The company or contact an entry tracks.
@@ -15776,6 +15782,14 @@ export interface ToolFieldChange {
   after: {
     [k: string]: unknown;
   };
+  /**
+   * Currency of the previous amount, for monetary fields.
+   */
+  beforeCurrency?: string | null;
+  /**
+   * Currency of the saved amount, for monetary fields.
+   */
+  afterCurrency?: string | null;
 }
 /**
  * Pause/resume or replace the configuration of a routine owned by the authenticated user. ReadRoutine first before replacing configuration. Select an agent to delegate the routine or a model to run as Macro. Does not change ownership. A running routine can be paused but cannot be reconfigured until it finishes.

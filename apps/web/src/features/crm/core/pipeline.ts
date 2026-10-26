@@ -11,7 +11,7 @@ export type Pipeline = {
   /** Stable host roles; absent while an older server is still serving metadata. */
   commercialFields?: {
     outcome?: string | null;
-    money: { amount: string; currency: string }[];
+    money?: { amount: string; currency: string }[];
   };
   sharing: 'private' | 'team';
   grant: 'view' | 'comment' | 'edit' | 'owner';

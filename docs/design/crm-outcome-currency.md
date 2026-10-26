@@ -41,6 +41,7 @@ currency and never convert or combine different denominations.
 Agent entry results include currency codes keyed by monetary field name, and
 updates include the before/after denomination. Compact tool cards retain the
 code beside each displayed amount even when the separate currency column is omitted.
+Older tool results remain readable when that metadata is absent.
 
 ## Storage and rollout
 

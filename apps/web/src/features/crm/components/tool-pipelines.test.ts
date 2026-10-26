@@ -1,7 +1,22 @@
+import { FindPipelineEntriesResponse } from '@service-cognition/generated/tools/schemas';
 import { describe, expect, it } from 'vitest';
 import { entrySummary, formatFieldValue, recordName } from './tool-pipelines';
 
 describe('pipeline tool values', () => {
+  it('parses historical entries without currencies and retains new currency metadata', () => {
+    const schema =
+      FindPipelineEntriesResponse.shape.pipelines.element.shape.entries.element;
+    const historical = {
+      entryId: '00000000-0000-4000-8000-000000000001',
+      record: { id: '00000000-0000-4000-8000-000000000002' },
+      fields: { Revenue: 100 },
+    };
+    expect(schema.safeParse(historical).success).toBe(true);
+    expect(
+      schema.parse({ ...historical, currencies: { Revenue: 'EUR' } }).currencies
+    ).toEqual({ Revenue: 'EUR' });
+  });
+
   it('keeps the denomination with an amount when compact summaries omit its currency column', () => {
     expect(
       entrySummary({
