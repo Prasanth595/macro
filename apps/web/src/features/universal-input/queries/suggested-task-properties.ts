@@ -114,7 +114,7 @@ export function suggestedTaskProperties(
         (): PropertyApiValues => ({ valueType: 'LINK', values: texts })
       )
       .with('TAG', () => undefined)
-      .exhaustive();
+      .exhaustive(() => undefined);
     if (value) values[definition.id] = value;
     else unresolved.push(suggestion.name);
   }
