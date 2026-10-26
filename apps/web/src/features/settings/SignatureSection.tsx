@@ -1,8 +1,10 @@
 import { toast } from '@core/component/Toast/Toast';
 import { isMobile } from '@core/mobile/isMobile';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ThrownResultError } from '@core/util/result';
 import { useEmailSignature } from '@queries/email/link';
 import {
+  traceSignatureMutation,
   useImportGmailSignatureMutation,
   useUpdateEmailSettingsMutation,
 } from '@queries/email/settings';
@@ -13,7 +15,7 @@ import { SignatureForm } from './components/signature-form';
 
 // Keep drafts when navigating away from Email settings. Quill loads on demand.
 const [signatureDrafts, setSignatureDrafts] = createSignal<
-  Record<string, string>
+  Record<string, { html: string }>
 >({});
 export function clearSignatureState(linkId: string): void {
   setSignatureDrafts((prev) => {
@@ -48,9 +50,10 @@ export function SignatureSection(props: { link: EmailLink }) {
   const signature = useEmailSignature(() => props.link.id);
   // Draft lives in the module-level store (keyed by link id) so it survives the
   // settings tab unmounting; `null` means "no unsaved edit".
-  const draft = () => signatureDrafts()[props.link.id] ?? null;
+  const draft = () => signatureDrafts()[props.link.id]?.html ?? null;
+  // A fresh snapshot distinguishes a new edit even when its HTML is identical.
   const setDraft = (html: string) =>
-    setSignatureDrafts((prev) => ({ ...prev, [props.link.id]: html }));
+    setSignatureDrafts((prev) => ({ ...prev, [props.link.id]: { html } }));
 
   const persisted = () => signature() ?? '';
   const isDirty = () => draft() !== null && draft() !== persisted();
@@ -70,11 +73,11 @@ export function SignatureSection(props: { link: EmailLink }) {
   // Updating the links cache can remount this row. Hook callbacks still run
   // after that; callbacks passed to mutate would leave the old draft behind.
   const updateSettings = useUpdateEmailSettingsMutation({
-    onMutate: () => draft(),
+    onMutate: () => signatureDrafts()[props.link.id],
     onSuccess: (data, { linkId, settings }, submittedDraft) => {
       if (settings.signature === undefined) return;
       // A user may reopen settings and start another draft while this finishes.
-      if ((signatureDrafts()[linkId] ?? null) === (submittedDraft ?? null)) {
+      if (signatureDrafts()[linkId] === submittedDraft) {
         clearSignatureState(linkId);
         editorApi?.setContent(data.settings.signature ?? '');
       }
@@ -94,10 +97,10 @@ export function SignatureSection(props: { link: EmailLink }) {
   });
 
   const importGmailSignature = useImportGmailSignatureMutation({
-    onMutate: () => draft(),
+    onMutate: () => signatureDrafts()[props.link.id],
     onSuccess: (result, { linkId }, submittedDraft) => {
       if (result.success) {
-        if ((signatureDrafts()[linkId] ?? null) === (submittedDraft ?? null)) {
+        if (signatureDrafts()[linkId] === submittedDraft) {
           clearSignatureState(linkId);
           editorApi?.setContent(result.settings.signature ?? '');
         }
@@ -120,27 +123,44 @@ export function SignatureSection(props: { link: EmailLink }) {
     const next = draft();
     if (next === null) return;
     setSaveError(null);
-    updateSettings.mutate({
-      linkId: props.link.id,
-      settings: { signature: next },
-    });
+    fireAndForget(
+      traceSignatureMutation('save', props.link.id, (span) =>
+        updateSettings.mutateAsync({
+          span,
+          linkId: props.link.id,
+          settings: { signature: next },
+        })
+      ),
+      'email-signature'
+    );
   };
 
   // Clears the stored signature. Sending an empty string is the backend's
   // "clear" contract; the editor reseeds to empty once the cache updates.
   const removeSignature = () => {
     setSaveError(null);
-    updateSettings.mutate({
-      linkId: props.link.id,
-      settings: { signature: '' },
-    });
+    fireAndForget(
+      traceSignatureMutation('clear', props.link.id, (span) =>
+        updateSettings.mutateAsync({
+          span,
+          linkId: props.link.id,
+          settings: { signature: '' },
+        })
+      ),
+      'email-signature'
+    );
   };
 
   // The backend fetches the Gmail signature and saves it, so on success the
   // editor shows the persisted value and any unsaved draft is discarded.
   const importFromGmail = () => {
     setSaveError(null);
-    importGmailSignature.mutate({ linkId: props.link.id });
+    fireAndForget(
+      traceSignatureMutation('import', props.link.id, (span) =>
+        importGmailSignature.mutateAsync({ linkId: props.link.id, span })
+      ),
+      'email-signature'
+    );
   };
 
   const setOnRepliesForwards = (checked: boolean) => {

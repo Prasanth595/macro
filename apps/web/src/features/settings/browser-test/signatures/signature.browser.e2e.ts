@@ -173,7 +173,12 @@ test('partial and logical margins still require HTML conversion', async ({
   isMobile,
 }) => {
   test.skip(isMobile, 'Signature editing is desktop-only');
-  for (const style of ['margin-top:0', 'margin:0;margin-inline-start:24px']) {
+  for (const style of [
+    'margin-top:0',
+    'margin:0;margin-inline-start:24px',
+    'margin:0!important',
+    'margin:0;margin-left:0!important',
+  ]) {
     await page.getByRole('tab', { name: 'HTML', exact: true }).click();
     const html = page.getByRole('textbox', {
       name: 'Signature HTML for alex@example.com',
@@ -229,17 +234,22 @@ for (const saved of [true, false]) {
   });
 }
 
-test('a finishing clear keeps a newer draft started after settings remounts', async ({
+test('a finishing clear keeps a newer draft even when its text matches', async ({
   page,
   isMobile,
 }) => {
   test.skip(isMobile, 'Signature editing is desktop-only');
+  await page.getByRole('button', { name: 'Clear signature' }).click();
+  await expect(page.getByRole('status')).toHaveText('Signature removed');
   await page.getByRole('tab', { name: 'Rich text' }).click();
-  await page.getByRole('button', { name: 'Continue to rich text' }).click();
   const editor = page.getByRole('textbox', {
     name: 'Signature for alex@example.com',
   });
   await editor.fill('First draft');
+  await page.getByRole('button', { name: 'Save signature' }).click();
+  await expect(page.getByRole('status')).toHaveText('Signature saved');
+  await page.getByRole('tab', { name: 'Rich text' }).click();
+  await editor.fill('Pending draft');
   await page.evaluate(() => window.signatureFixture.holdAccountRefresh());
   await page.getByRole('button', { name: 'Clear signature' }).click();
   // The cache update remounts settings before the mutation's refresh completes.
@@ -247,11 +257,11 @@ test('a finishing clear keeps a newer draft started after settings remounts', as
     page.getByRole('tab', { name: 'Preview', exact: true })
   ).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('tab', { name: 'Rich text' }).click();
-  await page.getByRole('button', { name: 'Continue to rich text' }).click();
   await editor.fill('Newer draft');
+  await editor.fill('Pending draft');
   await page.evaluate(() => window.signatureFixture.releaseAccountRefresh());
   await expect(page.getByRole('status')).toHaveText('Signature removed');
-  await expect(editor).toHaveText('Newer draft');
+  await expect(editor).toHaveText('Pending draft');
   await expect(
     page.getByRole('button', { name: 'Save signature' })
   ).toBeEnabled();
@@ -260,7 +270,7 @@ test('a finishing clear keeps a newer draft started after settings remounts', as
   await expect(
     page
       .getByRole('region', { name: 'Signature preview for alex@example.com' })
-      .getByText('Newer draft')
+      .getByText('Pending draft')
   ).toBeVisible();
 });
 

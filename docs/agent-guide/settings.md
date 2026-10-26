@@ -92,10 +92,15 @@ Save a signature created in Rich text, reopen settings, and confirm Rich text
 editing resumes without a conversion prompt.
 Type an unsaved Rich text draft and clear it, both with and without an existing
 saved signature. Reopen settings and confirm the editor stays empty and the
-composer no longer includes a signature. The backend-free browser suite uses
+composer no longer includes a signature. A delayed clear must preserve a newer
+draft, even if its text matches the old draft. HTML with `!important` styles must
+still ask before conversion to Rich text. The backend-free browser suite uses
 the real form, Quill, settings mutations, account-list remounts, query cache,
 and composer preview with fixture services:
 `bunx playwright test --config src/features/settings/browser-test/signatures/playwright.config.ts`.
+Trace signature actions under `email.signature.save`, `email.signature.clear`,
+or `email.signature.import`; the REST write and `email.settings.refresh` run
+under that action, including the account catalog's durable refresh.
 
 ### Notification permission prompt
 

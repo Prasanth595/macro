@@ -53,6 +53,7 @@ export function requiresHtmlEditing(html: string): boolean {
       return true;
     const hasZeroMargins = element.style.margin === '0px';
     for (const property of element.style) {
+      if (element.style.getPropertyPriority(property)) return true;
       // CSSOM expands the editor's margin:0 into these four physical sides.
       if (
         hasZeroMargins &&
