@@ -1,7 +1,7 @@
 import type { TaskEntityWithProperties } from '@entity/types/entity';
 import type { GroupedSoupPaging } from '@queries/soup/graphql/create-grouped-soup-live-query';
 import type { CreateGroupedSoupQueriesArgs } from '@queries/soup/grouped/create-grouped-soup-queries';
-import { createRoot, createSignal } from 'solid-js';
+import { createComputed, createRoot, createSignal } from 'solid-js';
 import { expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({
@@ -230,6 +230,170 @@ it.each([false, true])(
     }
   }
 );
+
+it.each([false, true])(
+  'keeps loaded tasks visible through continuation failure and retry (service search: %s)',
+  async (serviceSearch) => {
+    const task: TaskEntityWithProperties = {
+      type: 'document',
+      fileType: 'md',
+      id: 'loaded-task',
+      name: 'Loaded task',
+      ownerId: 'viewer',
+      subType: { type: 'task', is_completed: false },
+      properties: [],
+    };
+    const failure = new Error('Offline');
+    const [queryError, setQueryError] = createSignal<Error>();
+    const [pending, setPending] = createSignal(false);
+    const stopped = Promise.withResolvers<void>();
+    const retryStarted = Promise.withResolvers<void>();
+    const finishRetry = Promise.withResolvers<void>();
+    const finished = Promise.withResolvers<void>();
+    const fetchNextPage = vi.fn(async () => {
+      if (fetchNextPage.mock.calls.length === 1) {
+        setQueryError(failure);
+        return;
+      }
+      setPending(true);
+      retryStarted.resolve();
+      await finishRetry.promise;
+      setQueryError(undefined);
+      setPending(false);
+      finished.resolve();
+    });
+    fixture.query = {
+      isLoading: false,
+      isPending: false,
+      isPlaceholderData: false,
+      data: { entities: [task] },
+      get hasNextPage() {
+        return fetchNextPage.mock.calls.length === 0;
+      },
+      get isFetching() {
+        return pending();
+      },
+      get isFetchingNextPage() {
+        return pending();
+      },
+      get isFetchNextPageError() {
+        return Boolean(queryError()) && !pending();
+      },
+      get error() {
+        return queryError();
+      },
+      fetchNextPage,
+    };
+    if (serviceSearch) {
+      fixture.searchState.mockReturnValueOnce({
+        isSearching: () => true,
+        usesServiceSearch: () => true,
+        isSettling: () => false,
+        isLocalSearchSettling: () => false,
+        data: () => [task],
+        hasNextPage: () => fetchNextPage.mock.calls.length === 0,
+        isFetching: pending,
+        isFetchingNextPage: pending,
+        isFetchNextPageError: () => Boolean(queryError()) && !pending(),
+        fetchNextPage,
+        error: queryError,
+      });
+    }
+    let cleanup = () => {};
+    const source = createRoot((dispose) => {
+      cleanup = dispose;
+      const source = useTasksDataSource(
+        {
+          tab: 'team-tasks',
+          search: serviceSearch ? 'Loaded' : '',
+          facets: {},
+          groupBy: 'none',
+          sort: [],
+        },
+        {
+          userId: () => 'viewer',
+          tagSets: () => [],
+          tagSetsReady: () => true,
+          isGroupExpanded: () => true,
+          loadAll: true,
+        }
+      );
+      createComputed(() => {
+        if (source.paginationError?.()) stopped.resolve();
+      });
+      return source;
+    });
+    try {
+      await stopped.promise;
+      expect(source.paginationError?.()).toBe(failure);
+      expect(source.error()).toBeUndefined();
+      expect(source.items()).toHaveLength(1);
+
+      source.retryPagination?.();
+      await retryStarted.promise;
+      expect(source.error()).toBeUndefined();
+      expect(source.items()).toHaveLength(1);
+
+      finishRetry.resolve();
+      await finished.promise;
+      expect(source.error()).toBeUndefined();
+      expect(source.paginationError?.()).toBeUndefined();
+      expect(fetchNextPage).toHaveBeenCalledTimes(2);
+    } finally {
+      finishRetry.resolve();
+      cleanup();
+      fixture.searchState.mockReset();
+    }
+  }
+);
+
+it('keeps non-pagination errors visible when tasks are already loaded', () => {
+  const failure = new Error('Forbidden');
+  fixture.query = {
+    isLoading: false,
+    isPending: false,
+    isPlaceholderData: false,
+    hasNextPage: false,
+    data: {
+      entities: [
+        {
+          type: 'document',
+          fileType: 'md',
+          id: 'loaded-task',
+          name: 'Loaded task',
+          ownerId: 'viewer',
+          subType: { type: 'task', is_completed: false },
+          properties: [],
+        },
+      ],
+    },
+    error: failure,
+  };
+  createRoot((dispose) => {
+    try {
+      const source = useTasksDataSource(
+        {
+          tab: 'team-tasks',
+          search: '',
+          facets: {},
+          groupBy: 'none',
+          sort: [],
+        },
+        {
+          userId: () => 'viewer',
+          tagSets: () => [],
+          tagSetsReady: () => true,
+          isGroupExpanded: () => true,
+          loadAll: true,
+        }
+      );
+      expect(source.items()).toHaveLength(1);
+      expect(source.error()).toBe(failure);
+    } finally {
+      dispose();
+    }
+  });
+});
 
 it('delegates grouped task pagination to the current Soup query owner', async () => {
   const [paging, setPaging] = createSignal<GroupedSoupPaging>();

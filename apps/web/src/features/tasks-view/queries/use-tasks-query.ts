@@ -422,6 +422,14 @@ export function useTasksDataSource(
   };
 
   const error = () => {
+    // Continuation failures use the pagination alert, not the full-view error.
+    // Fetching also covers retries whose observer clears the error flag first.
+    if (options.loadAll && tasks().length > 0) {
+      const pagination = usesServiceSearch()
+        ? search.isFetchNextPageError() || search.isFetchingNextPage()
+        : query.isFetchNextPageError || query.isFetchingNextPage;
+      if (pagination) return undefined;
+    }
     if (!usesServiceSearch()) return query.error ?? undefined;
     return search.error();
   };

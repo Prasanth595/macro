@@ -262,6 +262,8 @@ export function createSearchState(options: CreateSearchStateOptions) {
       !searchQuery.isPlaceholderData &&
       (searchQuery.hasNextPage ?? false),
     isFetchingNextPage: () => queryEnabled() && searchQuery.isFetchingNextPage,
+    isFetchNextPageError: () =>
+      queryEnabled() && searchQuery.isFetchNextPageError,
     fetchNextPage: () => searchQuery.fetchNextPage(),
     refetch: () => searchQuery.refetch(),
     /** Refetches the service results, throwing on failure so a caller (mobile

@@ -69,6 +69,7 @@ export function createScopedTaskSearch(options: {
     error: () => (queryEnabled() ? (query.error ?? undefined) : undefined),
     hasNextPage: () => queryEnabled() && query.hasNextPage,
     isFetchingNextPage: () => queryEnabled() && query.isFetchingNextPage,
+    isFetchNextPageError: () => queryEnabled() && query.isFetchNextPageError,
     fetchNextPage: () => query.fetchNextPage(),
     refetch: () => query.refetch(),
   };
