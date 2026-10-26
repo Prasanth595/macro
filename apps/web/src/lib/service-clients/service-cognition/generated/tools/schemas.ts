@@ -4247,6 +4247,7 @@ export const CreatePipelineResponse = z.object({
         options: z.array(z.string()),
         required: z.boolean(),
         readOnly: z.boolean(),
+        currencyField: z.union([z.string(), z.null()]).optional(),
       })
     ),
     version: z.number().int(),
@@ -6020,6 +6021,7 @@ export const EditPipelineResponse = z.object({
         options: z.array(z.string()),
         required: z.boolean(),
         readOnly: z.boolean(),
+        currencyField: z.union([z.string(), z.null()]).optional(),
       })
     ),
     version: z.number().int(),
@@ -8729,7 +8731,13 @@ export const FindPipelineEntriesResponse = z.object({
       empty: z.number().int().gte(0),
     })
   ),
-  totals: z.array(z.object({ field: z.string(), sum: z.number() })),
+  totals: z.array(
+    z.object({
+      field: z.string(),
+      currency: z.union([z.string(), z.null()]).optional(),
+      sum: z.number(),
+    })
+  ),
   summary: z.string(),
 });
 
@@ -11222,6 +11230,7 @@ export const ListPipelinesResponse = z.object({
           options: z.array(z.string()),
           required: z.boolean(),
           readOnly: z.boolean(),
+          currencyField: z.union([z.string(), z.null()]).optional(),
         })
       ),
       version: z.number().int(),

@@ -13,6 +13,10 @@ import {
   isOptionColumn,
 } from './database-view';
 
+const monetaryFormat = new Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 6,
+});
+
 export type DatabaseRow = {
   rowId: string;
   cells: Record<string, DatabaseCellValue>;
@@ -124,7 +128,7 @@ export function formatCellValue(
   if (column.dataType === 'NUMBER' && typeof value === 'number') {
     if (column.currencyColumnId && cells) {
       const currency = cells[column.currencyColumnId] ?? 'USD';
-      return `${currency} ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(value)}`;
+      return `${currency} ${monetaryFormat.format(value)}`;
     }
     return formatNumber(value);
   }

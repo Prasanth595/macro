@@ -175,3 +175,60 @@ describe('pipeline CSV', () => {
     });
   });
 });
+
+it('round-trips a monetary amount with its currency and refuses unknown denominations', () => {
+  const moneyColumns: DatabaseViewColumn[] = [
+    ...columns,
+    {
+      id: 'currency',
+      name: 'Revenue currency',
+      dataType: 'SELECT_STRING',
+      isMultiSelect: false,
+      writable: true,
+      fixedOptions: true,
+      defaultValue: 'USD',
+      options: [
+        { id: 'eur', label: 'EUR', color: null },
+        { id: 'usd', label: 'USD', color: null },
+      ],
+    },
+  ];
+  const csv = encodePipelineCsv({
+    ...pipeline,
+    columns: moneyColumns,
+    rows: [{ cells: { company: 'acme', revenue: 1234.567, currency: 'EUR' } }],
+    record: () => ({ name: 'Acme', key: 'acme.com' }),
+  });
+  const imported = planPipelineImport(parseDatabaseCsv(csv)._unsafeUnwrap(), {
+    ...pipeline,
+    columns: moneyColumns,
+  })._unsafeUnwrap();
+  expect(imported.rows[0].cells).toContainEqual({
+    column: 'revenue',
+    value: { type: 'number', value: 1234.567 },
+  });
+  expect(imported.rows[0].cells).toContainEqual({
+    column: 'currency',
+    value: { type: 'options', value: [{ label: 'EUR' }] },
+  });
+  const invalid = parseDatabaseCsv(
+    'Company,Domain,Revenue,Revenue currency\nAcme,acme.com,100,ZZZ\nGlobex,globex.com,200,USD'
+  )._unsafeUnwrap();
+  const planned = planPipelineImport(invalid, {
+    ...pipeline,
+    columns: moneyColumns,
+  })._unsafeUnwrap();
+  expect(planned.invalidSystemRows).toBe(1);
+  expect(planned.invalidCells).toBe(0);
+  expect(planned.skipped).toBe(0);
+  expect(planned.rows.map((row) => row.record.key)).toEqual(['globex.com']);
+  expect(
+    planPipelineImport(
+      { ...invalid, rows: invalid.rows.slice(0, 1) },
+      {
+        ...pipeline,
+        columns: moneyColumns,
+      }
+    )._unsafeUnwrapErr()
+  ).toEqual({ kind: 'invalid-system-values' });
+});
