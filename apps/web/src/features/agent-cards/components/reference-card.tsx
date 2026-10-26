@@ -4,7 +4,7 @@ import {
 } from '@core/component/EntityIcon';
 import { useItemPreviewData } from '@core/component/ItemPreview';
 import { formatDate } from '@core/util/date';
-import ArrowUpRight from '@phosphor/arrow-up-right.svg';
+import ArrowUpRight from '@icon/system/regular/arrow-up-right.svg';
 import { isAccessiblePreviewItem } from '@queries/preview/types';
 import type { ItemType } from '@service-storage/client';
 import { type JSX, Show } from 'solid-js';

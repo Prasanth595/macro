@@ -5,8 +5,8 @@ import { PersistedReview } from '@app/features/agent-reviews/views/persisted-rev
 import { WorkingLine } from '@app/features/block-agent/ui/WorkingLine';
 import { useUserId } from '@core/context/user';
 import { getDisplayName, tryMacroId } from '@core/user';
-import CalendarIcon from '@phosphor/calendar-blank.svg';
-import Envelope from '@phosphor/envelope-simple.svg';
+import CalendarIcon from '@icon/system/regular/calendar-blank.svg';
+import Envelope from '@icon/system/regular/envelope-simple.svg';
 import { useAgentSessionQuery } from '@queries/agent-session/session';
 import { queryReadyGate } from '@queries/gate';
 import { Match, Show, Switch } from 'solid-js';

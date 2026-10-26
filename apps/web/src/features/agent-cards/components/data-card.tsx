@@ -8,12 +8,12 @@ import {
 import { availableDisplayModes } from '@app/features/database-query/core/query-chart';
 import { createStatementSource } from '@app/features/database-query/queries/app-query-source';
 import { isFeatureEnabled, showDatabaseSql } from '@core/constant/featureFlags';
+import ChartBar from '@icon/system/regular/chart-bar.svg';
+import Table from '@icon/system/regular/table.svg';
 import {
   DATABASE_QUERY_DISPLAY_MODES,
   type DatabaseQueryDisplayMode,
 } from '@macro-inc/lexical-core/nodes/databaseQueryData';
-import ChartBar from '@phosphor/chart-bar.svg';
-import Table from '@phosphor/table.svg';
 import { useViewerDatabases } from '@queries/storage/databases';
 import { createMemo, type JSX, Match, Show, Switch } from 'solid-js';
 import { Card, CardBody, CardHeader } from './kit/card';

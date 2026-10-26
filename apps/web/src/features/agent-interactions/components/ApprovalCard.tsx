@@ -9,8 +9,8 @@ import {
   Well,
   WellText,
 } from '@app/features/agent-cards/components/kit/parts';
-import CaretRight from '@phosphor/caret-right.svg';
-import ShieldCheck from '@phosphor/shield-check.svg';
+import CaretRight from '@icon/system/regular/caret-right.svg';
+import ShieldCheck from '@icon/system/regular/shield-check.svg';
 import { cn } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import { DEFAULT_ANSWERERS } from '../context/interaction';

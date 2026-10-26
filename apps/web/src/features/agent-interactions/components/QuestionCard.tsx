@@ -6,7 +6,7 @@ import {
 } from '@app/features/agent-cards/components/kit/card';
 import { Tile } from '@app/features/agent-cards/components/kit/parts';
 import { fireAndForget } from '@core/util/fireAndForget';
-import QuestionIcon from '@phosphor/question.svg';
+import QuestionIcon from '@icon/system/regular/question.svg';
 import type { ElicitationOption } from '@service-agent-fold/generated/types';
 import type { ElicitationAnswer } from '@service-agent-harness/generated/schemas';
 import { Button } from '@ui';

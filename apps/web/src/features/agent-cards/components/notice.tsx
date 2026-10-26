@@ -1,6 +1,6 @@
-import Info from '@phosphor/info.svg';
-import WarningCircle from '@phosphor/warning-circle.svg';
-import XCircle from '@phosphor/x-circle.svg';
+import Info from '@icon/system/regular/info.svg';
+import WarningCircle from '@icon/system/regular/warning-circle.svg';
+import XCircle from '@icon/system/regular/x-circle.svg';
 import type { JSX } from 'solid-js';
 import { Card, CardSingle } from './kit/card';
 import { type CardTone, Tile } from './kit/parts';

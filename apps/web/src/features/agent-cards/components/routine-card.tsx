@@ -13,7 +13,7 @@ import { useItemPreviewData } from '@core/component/ItemPreview';
 import { toast } from '@core/component/Toast/Toast';
 import { describeCron, isCronRepresentable, parseCron } from '@core/util/cron';
 import { routineStatus } from '@entity/types/entity';
-import Play from '@phosphor/play.svg';
+import Play from '@icon/system/regular/play.svg';
 import { queryReadyGate } from '@queries/gate';
 import type { ScheduledAction } from '@service-scheduled-action/generated/schemas';
 import { Button, cn } from '@ui';

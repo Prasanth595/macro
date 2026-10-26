@@ -12,8 +12,8 @@ import {
 import { CalendarDraftComposer } from '@core/component/AI/component/tool/calendar/DraftComposer';
 import { EmailDraftComposer } from '@core/component/AI/component/tool/email/DraftComposer';
 import { fireAndForget } from '@core/util/fireAndForget';
-import Envelope from '@phosphor/envelope-simple.svg';
-import NotePencil from '@phosphor/note-pencil.svg';
+import Envelope from '@icon/system/regular/envelope-simple.svg';
+import NotePencil from '@icon/system/regular/note-pencil.svg';
 import type {
   CreateCalendarEvent,
   EmailRecipient,

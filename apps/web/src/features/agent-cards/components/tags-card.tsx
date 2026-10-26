@@ -1,7 +1,7 @@
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
 import { fireAndForget } from '@core/util/fireAndForget';
-import TagIcon from '@phosphor/tag-simple.svg';
+import TagIcon from '@icon/system/regular/tag-simple.svg';
 import { navigateToTag } from '@property/tags/tagNavigation';
 import { queryReadyGate } from '@queries/gate';
 import { useTagsQuery } from '@queries/properties/tags';

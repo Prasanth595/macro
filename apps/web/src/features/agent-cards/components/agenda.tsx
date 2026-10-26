@@ -1,6 +1,6 @@
 import { openCalendarEventSplit } from '@app/features/calendar-view/open-calendar-event';
 import { fireAndForget } from '@core/util/fireAndForget';
-import CalendarBlank from '@phosphor/calendar-blank.svg';
+import CalendarBlank from '@icon/system/regular/calendar-blank.svg';
 import { useCalendarSearchPreviewsQuery } from '@queries/calendar/mention-preview';
 import { queryReadyGate } from '@queries/gate';
 import { cn } from '@ui';
