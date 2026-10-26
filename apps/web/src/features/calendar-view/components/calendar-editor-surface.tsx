@@ -71,6 +71,7 @@ function DesktopEditorSurface(props: CalendarEditorSurfaceProps) {
     surface: () => props.surface,
     pending: () => props.pending,
     onDropFromSidebar: props.onMoveToPopover,
+    onDropToSidebar: props.onMoveToSidebar,
   });
   const moveToSidebar = () => {
     drag.clearDrop();
@@ -100,6 +101,31 @@ function DesktopEditorSurface(props: CalendarEditorSurfaceProps) {
         {/* Local menus belong outside the clipped, scrollable editor. */}
         <div class="portal-scope contents">
           <Layer depth={3}>
+            <Show when={drag.dockPreview()}>
+              {(preview) => (
+                <div
+                  aria-hidden="true"
+                  data-event-editor-dock-target
+                  data-active={preview().active ? '' : undefined}
+                  class="pointer-events-none fixed z-modal flex items-center justify-center rounded-xl border border-dashed px-4 text-center text-sm"
+                  classList={{
+                    'border-accent bg-accent/10 text-accent': preview().active,
+                    'border-edge-muted bg-surface/80 text-ink-muted':
+                      !preview().active,
+                  }}
+                  style={{
+                    left: `${preview().x}px`,
+                    top: `${preview().y}px`,
+                    width: `${preview().width}px`,
+                    height: `${preview().height}px`,
+                  }}
+                >
+                  {preview().active
+                    ? 'Release to dock in sidebar'
+                    : 'Drag to the right edge to dock'}
+                </div>
+              )}
+            </Show>
             {/* Keep the title focusable before asynchronous placement completes. */}
             <KobalteDialog.Content
               ref={setPanel}

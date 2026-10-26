@@ -211,8 +211,8 @@ beside the event or selected slot, with an 8px gap. It flips and slides inside t
 calendar boundary, follows the visible draft/event, and retains its last anchor
 when the grid page is recycled. Move to sidebar transfers the same draft and
 controller into the inset, rounded right sidebar, using
-the event-details glass background. Explicit New → Event requests open the popover,
-which is up to 480px wide and fits within the calendar pane. Both desktop surfaces
+the shared menu surface. Explicit New → Event requests open the popover,
+which is up to 400px wide and fits within the calendar pane. Both desktop surfaces
 leave the calendar interactive.
 Use the left-aligned presentation button in the editor header to switch surfaces:
 **Move to sidebar** shows a right-panel icon; **Move to popover** shows overlapping
@@ -351,11 +351,15 @@ guests, dates, recurrence, and edit scope. Both directions must retain the draft
 without prompting for discard, and both transfer controls must disable during save.
 Drag from the sidebar header and verify its layout slot stays reserved until drop,
 only one editor exists, its height shrinks, and its form nodes and values survive.
+Drag the 400px-wide popover to the calendar's right edge. Check that the docking
+preview highlights, releasing restores the full-height sidebar, and the grid only
+reserves sidebar space after drop. Drag away from the edge to keep a floating
+popover, or drop a dragged sidebar back on its right edge to keep it docked.
 Drop, resize the window, and open the nested date picker. Confirm the popover stays
 inside the calendar and all controls remain reachable. Repeat with Escape, pointer
-cancellation, and window blur; each must restore the sidebar without a discard
-prompt. Reposition a floating editor and cancel another drag to restore its prior
-position. Check header buttons, pending saves, and phone sheets never start a drag.
+cancellation, and window blur; each must clear the preview and restore the original
+position and presentation without a discard prompt. Check header buttons, pending
+saves, and phone sheets never start a drag.
 For a multi-day event, select a range across the month boundary and check that
 both months highlight the covered days. Confirm its first click leaves the prior
 range unchanged. On a phone, navigate between months to select the same range.

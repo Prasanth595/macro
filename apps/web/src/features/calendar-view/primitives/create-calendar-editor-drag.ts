@@ -10,6 +10,7 @@ import {
 import { Telemetry } from '@macro-inc/observability';
 import {
   type Accessor,
+  batch,
   createEffect,
   createSignal,
   on,
@@ -19,7 +20,14 @@ import type { CalendarEditorPresentation } from './create-calendar-editor';
 
 const INSET = 12;
 const THRESHOLD = 5;
+const POPOVER_WIDTH = 400;
+const DOCK_EDGE = 72;
 type Point = { x: number; y: number };
+type DockPreview = Point & {
+  width: number;
+  height: number;
+  active: boolean;
+};
 
 /** Geometry and gestures for the mounted desktop editor, independent of its owner. */
 export function createCalendarEditorDrag(options: {
@@ -31,9 +39,11 @@ export function createCalendarEditorDrag(options: {
   surface: Accessor<CalendarEditorPresentation>;
   pending: Accessor<boolean>;
   onDropFromSidebar: () => void;
+  onDropToSidebar: () => void;
 }) {
   const [dragging, setDragging] = createSignal(false);
   const [dropped, setDropped] = createSignal<Point>();
+  const [dockPreview, setDockPreview] = createSignal<DockPreview>();
   let gesture:
     | {
         pointerId: number;
@@ -62,6 +72,23 @@ export function createCalendarEditorDrag(options: {
         0,
         Math.min(window.innerHeight - INSET, rect.bottom - INSET) - top
       ),
+    };
+  };
+  const previewDock = (event: PointerEvent): DockPreview => {
+    const bounds = area();
+    const right = bounds.left + bounds.width;
+    const bottom = bounds.top + bounds.height;
+    const width = Math.min(POPOVER_WIDTH, bounds.width);
+    return {
+      x: right - width,
+      y: bounds.top,
+      width,
+      height: bounds.height,
+      active:
+        event.clientX >= right - Math.min(DOCK_EDGE, bounds.width / 4) &&
+        event.clientX <= right + INSET &&
+        event.clientY >= bounds.top - INSET &&
+        event.clientY <= bottom + INSET,
     };
   };
   const clamp = (point: Point, panel: HTMLElement): Point => {
@@ -132,14 +159,14 @@ export function createCalendarEditorDrag(options: {
             panel.style.maxHeight = `${Math.min(rect.height, bounds.height)}px`;
             place(panel, clamp({ x: rect.left, y: rect.top }, panel));
           } else if (last) {
-            panel.style.width = `${Math.min(480, bounds.width)}px`;
+            panel.style.width = `${Math.min(POPOVER_WIDTH, bounds.width)}px`;
             panel.style.height = '';
             panel.style.maxHeight = `${bounds.height}px`;
             const next = clamp(last, panel);
             place(panel, next);
             if (next.x !== last.x || next.y !== last.y) setDropped(next);
           } else {
-            panel.style.width = `${Math.min(480, bounds.width)}px`;
+            panel.style.width = `${Math.min(POPOVER_WIDTH, bounds.width)}px`;
             panel.style.height = '';
             panel.style.maxHeight = `${bounds.height}px`;
             const position = async () => {
@@ -200,7 +227,10 @@ export function createCalendarEditorDrag(options: {
     current.span?.end();
     if (current.header.hasPointerCapture(current.pointerId))
       current.header.releasePointerCapture(current.pointerId);
-    setDragging(false);
+    batch(() => {
+      setDockPreview(undefined);
+      setDragging(false);
+    });
   };
   const onPointerDown = (event: PointerEvent) => {
     if (options.pending() || gesture || event.button !== 0 || !event.isPrimary)
@@ -252,6 +282,7 @@ export function createCalendarEditorDrag(options: {
       setDragging(true);
     }
     event.preventDefault();
+    setDockPreview(previewDock(event));
     place(
       panel,
       clamp({ x: current.origin.x + dx, y: current.origin.y + dy }, panel)
@@ -264,10 +295,21 @@ export function createCalendarEditorDrag(options: {
       return;
     }
     const panel = options.panel();
-    const rect = panel?.getBoundingClientRect();
-    if (panel && rect) setDropped(clamp({ x: rect.left, y: rect.top }, panel));
-    finish('dropped');
-    if (panel && options.surface() === 'sidebar') options.onDropFromSidebar();
+    if (!panel) {
+      finish('cancelled');
+      return;
+    }
+    const rect = panel.getBoundingClientRect();
+    const dock = previewDock(event).active;
+    gesture.span?.setAttr('destination', dock ? 'sidebar' : 'popover');
+    batch(() => {
+      setDropped(
+        dock ? undefined : clamp({ x: rect.left, y: rect.top }, panel)
+      );
+      finish('dropped');
+      if (dock) options.onDropToSidebar();
+      else if (options.surface() === 'sidebar') options.onDropFromSidebar();
+    });
   };
   const onCancel = () => finish('cancelled');
   const onKeyDown = (event: KeyboardEvent) => {
@@ -291,6 +333,7 @@ export function createCalendarEditorDrag(options: {
 
   return {
     dragging,
+    dockPreview,
     reserveSlot: () => options.surface() === 'sidebar',
     clearDrop: () => setDropped(undefined),
     onPointerDown,
