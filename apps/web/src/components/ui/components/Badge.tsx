@@ -14,6 +14,7 @@ export const badgeVariants = createVariants(
   {
     variant: {
       ghost: 'bg-transparent text-ink-muted',
+      secondary: 'bg-button-secondary-bg text-ink',
       outline: 'bg-transparent text-ink-muted border-edge-muted',
     },
     size: {

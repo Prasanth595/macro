@@ -998,6 +998,7 @@ export function ComposeTask(props: ComposeTaskProps) {
             <div class={COMPOSER_TITLE_LINE_CLASS}>
               <InlineTagsPill
                 docTags={composerTags}
+                variant="secondary"
                 showPlaceholder
                 class="shrink-0"
                 onActiveChange={handleTitleTagPickerActive}
@@ -1119,7 +1120,7 @@ export function ComposeTask(props: ComposeTaskProps) {
                 )}
               </For>
               <Show when={tagLayoutMode() === 'bottom'}>
-                <InlineTagsPill docTags={composerTags} showPlaceholder />
+                <InlineTagsPill docTags={composerTags} variant="secondary" showPlaceholder />
               </Show>
               <TaskComposerPropertyEditor
                 name={title()}

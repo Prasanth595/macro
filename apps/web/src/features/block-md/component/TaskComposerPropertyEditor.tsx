@@ -30,7 +30,7 @@ export function TaskComposerPropertyEditor(props: {
 
   return (
     <>
-      <AddPropertyButton onClick={() => setOpen(true)} />
+      <AddPropertyButton variant="secondary" onClick={() => setOpen(true)} />
       <Show when={open()}>
         <PropertyEditorDialog
           isOpen={open()}

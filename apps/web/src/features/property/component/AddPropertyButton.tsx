@@ -1,9 +1,10 @@
 import PlusIcon from '@phosphor/plus.svg';
-import { badgeTriggerClasses } from '@ui';
+import { badgeTriggerClasses, type BadgeVariant } from '@ui';
 import { usePropertiesContext } from '../context/PropertiesContext';
 
 export function AddPropertyButton(props: {
   class?: string;
+  variant?: BadgeVariant;
   onClick?: () => void;
 }) {
   const { openPropertySelector } = usePropertiesContext();
@@ -12,7 +13,7 @@ export function AddPropertyButton(props: {
       type="button"
       onClick={() => (props.onClick ?? openPropertySelector)()}
       class={badgeTriggerClasses({
-        variant: 'outline',
+        variant: props.variant ?? 'outline',
         size: 'sm',
         class: props.class,
       })}
