@@ -115,7 +115,7 @@ describe('connector continuation', () => {
     expect(flow.connecting()).toBe('linear');
     decision.answer(true);
     await pending;
-    expect(deps.resume).toHaveBeenCalledExactlyOnceWith('Linear');
+    expect(deps.resume).toHaveBeenCalledExactlyOnceWith(app);
     dispose();
   });
 

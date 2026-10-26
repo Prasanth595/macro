@@ -8,7 +8,7 @@ vi.mock('@app/features/dynamic-ui/DashboardToolView.lazy', () => ({
 }));
 
 import { displayResultsHandler, showHandler } from './Show';
-import { ToolErrorContext } from './ToolRenderer';
+import { type ToolEnding, ToolErrorContext } from './ToolRenderer';
 
 afterEach(cleanup);
 
@@ -27,9 +27,9 @@ const context = {
   },
 };
 
-function show(error?: string) {
+function show(ending?: ToolEnding) {
   return render(() => (
-    <ToolErrorContext.Provider value={() => error}>
+    <ToolErrorContext.Provider value={() => ending}>
       <showHandler.render
         tool={{ id: 'call-1', name: 'Show', data: { view } }}
         {...context}
@@ -58,8 +58,14 @@ it('renders the view of a chat saved before the rename', () => {
 });
 
 it('shows nothing for a call the tool turned back', () => {
-  const rendered = show(
-    'The view was not shown: it does not match the Show schema.'
-  );
+  const rendered = show({
+    kind: 'failed',
+    reason: 'The view was not shown: it does not match the Show schema.',
+  });
+  expect(rendered.container.innerHTML).toBe('');
+});
+
+it('shows nothing for a call its turn stopped, as a channel reply shows none', () => {
+  const rendered = show({ kind: 'stopped' });
   expect(rendered.container.innerHTML).toBe('');
 });
