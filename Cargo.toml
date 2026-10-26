@@ -3,6 +3,7 @@ resolver = "2"
 
 members = [
   "crates/access_requests",
+  "crates/agent_api_keys",
   "crates/routines",
   "crates/activity",
   "crates/agent", "crates/agent_changes", "crates/agent_egress", "crates/folds/agent_fold", "crates/folds/claude_fold", "crates/folds/codex_fold",
@@ -84,6 +85,7 @@ members = [
   "crates/harness_token",
   "crates/harnesses",
   "crates/import",
+  "crates/import_notion",
   "crates/initiative",
   "crates/initiative_description",
   "crates/item_filter_index",

@@ -9,6 +9,10 @@
  */
 
 /**
+ * What the user is on one copy of an event, through the inbox holding it.
+ */
+export type ToolEventRole = 'organizer' | 'guest';
+/**
  * Content of a bash code execution response - either a result or an error
  */
 export type BashCodeExecutionContent =
@@ -426,10 +430,6 @@ export type UserToolResponseForToolCalendarEvent =
   | {
       UserAction: ToolCalendarEvent;
     };
-/**
- * What the user is on one copy of an event, through the inbox holding it.
- */
-export type ToolEventRole = 'organizer' | 'guest';
 /**
  * Channel types an agent may create.
  */
@@ -3598,6 +3598,38 @@ export type AvailabilityUnknownReason =
   | 'invalid_interval'
   | 'conflicting_copies';
 /**
+ * What the tool is asked to do.
+ */
+export type NotionImportAction = 'plan' | 'status' | 'cancel';
+/**
+ * Who a Notion workspace import shares what it writes with.
+ */
+export type NotionSharing = 'team' | 'personal' | 'ai';
+/**
+ * Lifecycle of a discovery run (one per user × source).
+ */
+export type RunStatus =
+  | 'running'
+  | 'ready'
+  | 'importing'
+  | 'completed'
+  | 'failed'
+  | 'dismissed';
+/**
+ * What an imported item is in its source system. Each source has its own
+ * kinds; a Notion database and a Notion page, or a Linear project and a
+ * Linear issue, are tracked and deduplicated separately.
+ */
+export type ImportKind =
+  | 'issue'
+  | 'project'
+  | 'document'
+  | 'page'
+  | 'database'
+  | 'data_source'
+  | 'row'
+  | 'channel';
+/**
  * Provider selected from the persisted calendar account and email binding.
  */
 export type CalendarProvider = 'google' | 'outlook';
@@ -4224,6 +4256,18 @@ export type SessionLinkScope = 'off' | 'public' | 'team';
  * Ordered from least to most access top -> bottom
  */
 export type AccessLevel = 'view' | 'comment' | 'edit' | 'owner';
+/**
+ * How the user holds the event, as its mention card says.
+ */
+export type CalendarEventAccess =
+  | 'on_your_calendar'
+  | 'invited'
+  | 'snapshot'
+  | 'shared_with_you';
+/**
+ * Lifecycle of a request to be added as a guest of a shared event.
+ */
+export type CalendarJoinRequestStatus = 'pending' | 'accepted' | 'declined';
 /**
  * Scene representation requested by a reader.
  */
@@ -4857,6 +4901,137 @@ export type ReadThreadReadContent =
       type: 'itemPreviews';
     };
 
+/**
+ * Add a copy of a calendar event someone shared with one of the user's channels to one of the user's Google calendars, as `Add to calendar` on the event's card does. Use it for a calendar event mention (`blockName` `calendar`) whose meeting is not on the user's calendar; pass the mention's `documentId` as `eventId`.
+ *
+ * The copy is a snapshot, not an invitation: it keeps the real organizer and lists the user, accepted, as its only guest, while the meeting's other guests and its join link stay out. Nobody is notified, and the copy does not change when the organizer changes the meeting. The user can change only its reminders and availability, or delete it. To be added to the meeting itself, the user asks the person who shared it from the event's card.
+ *
+ * Only Google calendars take a copy. When the user has one writable Google calendar the copy goes there; when they have several, ask which one and pass its `calendarId` from ListCalendars. The result is the user's copy, whose `eventId` UpdateCalendarEvent and DeleteCalendarEvent accept.
+ */
+export interface AddSharedCalendarEvent {
+  /**
+   * The shared event's id: the `documentId` of its calendar event mention.
+   */
+  eventId: string;
+  /**
+   * The `calendarId` of a writable Google calendar from ListCalendars. Omit when the user has only one; required when they have several.
+   */
+  calendarId?: string | null;
+}
+/**
+ * A calendar event as returned by the create and update tools.
+ */
+export interface ToolCalendarEvent {
+  /**
+   * Macro calendar event id, used by UpdateCalendarEvent and
+   * DeleteCalendarEvent.
+   */
+  eventId: string;
+  /**
+   * Display title.
+   */
+  title: string;
+  /**
+   * Event start: RFC 3339 UTC instant, or YYYY-MM-DD for all-day events.
+   */
+  start: string;
+  /**
+   * Exclusive event end: RFC 3339 UTC instant, or YYYY-MM-DD for all-day
+   * events.
+   */
+  end: string;
+  /**
+   * Whether the event covers whole days.
+   */
+  isAllDay: boolean;
+  /**
+   * IANA time zone the event was scheduled in, when known.
+   */
+  timeZone?: string | null;
+  /**
+   * Location label, when set.
+   */
+  location?: string | null;
+  /**
+   * Event body, truncated for brevity.
+   */
+  description?: string | null;
+  /**
+   * Event status: confirmed, tentative, or cancelled.
+   */
+  status: string;
+  /**
+   * Whether the event recurs.
+   */
+  isRecurring: boolean;
+  /**
+   * Raw RFC 5545 recurrence properties, when the event recurs.
+   */
+  recurrenceLines: string[];
+  /**
+   * Attendees, capped at 20; `attendee_count` has the full number.
+   */
+  attendees: ToolEventAttendee[];
+  /**
+   * Total number of attendees.
+   */
+  attendeeCount: number;
+  /**
+   * Organizer email address, when known.
+   */
+  organizerEmail?: string | null;
+  /**
+   * Conference join URL, when a conference is attached.
+   */
+  conferenceUrl?: string | null;
+  /**
+   * Join URL of the Macro call created with the event, when
+   * CreateCalendarEvent was asked for one.
+   */
+  macroCallUrl?: string | null;
+  /**
+   * Whether the user's calendar prohibits modifying this event.
+   */
+  isReadOnly: boolean;
+  /**
+   * Calendar the event belongs to, when known.
+   */
+  calendarId?: string | null;
+  /**
+   * Display name of that calendar, when known.
+   */
+  calendarName?: string | null;
+  /**
+   * Connected inbox address the calendar belongs to, when known.
+   */
+  inbox?: string | null;
+  /**
+   * Whether the user organizes this event or is a guest on it, through
+   * that inbox; absent when they are neither.
+   */
+  myRole?: ToolEventRole | null;
+}
+/**
+ * An attendee of a calendar event, as returned by calendar tools.
+ */
+export interface ToolEventAttendee {
+  /**
+   * Attendee email address.
+   */
+  email: string;
+  /**
+   * RSVP state: needs_action, accepted, declined, or tentative.
+   */
+  responseStatus: string;
+  /**
+   * Whether this attendee organized the event.
+   */
+  isOrganizer: boolean;
+  /**
+   * Whether attendance is optional.
+   */
+  isOptional: boolean;
+}
 /**
  * Add companies or contacts to a CRM pipeline as new deals (entries), optionally setting their stage, owner, revenue or other fields. A company pipeline takes companies and a contact pipeline takes contacts (see ListPipelines' `tracks`). A record already in the pipeline is not added again unless allowDuplicates is true (for a second, separate deal); its existing entry is returned in alreadyPresent instead. Returns the new entries with their entryIds and fields as saved.
  */
@@ -7133,120 +7308,6 @@ export interface GuestPolicy {
   canSeeOtherGuests: boolean;
 }
 /**
- * A calendar event as returned by the create and update tools.
- */
-export interface ToolCalendarEvent {
-  /**
-   * Macro calendar event id, used by UpdateCalendarEvent and
-   * DeleteCalendarEvent.
-   */
-  eventId: string;
-  /**
-   * Display title.
-   */
-  title: string;
-  /**
-   * Event start: RFC 3339 UTC instant, or YYYY-MM-DD for all-day events.
-   */
-  start: string;
-  /**
-   * Exclusive event end: RFC 3339 UTC instant, or YYYY-MM-DD for all-day
-   * events.
-   */
-  end: string;
-  /**
-   * Whether the event covers whole days.
-   */
-  isAllDay: boolean;
-  /**
-   * IANA time zone the event was scheduled in, when known.
-   */
-  timeZone?: string | null;
-  /**
-   * Location label, when set.
-   */
-  location?: string | null;
-  /**
-   * Event body, truncated for brevity.
-   */
-  description?: string | null;
-  /**
-   * Event status: confirmed, tentative, or cancelled.
-   */
-  status: string;
-  /**
-   * Whether the event recurs.
-   */
-  isRecurring: boolean;
-  /**
-   * Raw RFC 5545 recurrence properties, when the event recurs.
-   */
-  recurrenceLines: string[];
-  /**
-   * Attendees, capped at 20; `attendee_count` has the full number.
-   */
-  attendees: ToolEventAttendee[];
-  /**
-   * Total number of attendees.
-   */
-  attendeeCount: number;
-  /**
-   * Organizer email address, when known.
-   */
-  organizerEmail?: string | null;
-  /**
-   * Conference join URL, when a conference is attached.
-   */
-  conferenceUrl?: string | null;
-  /**
-   * Join URL of the Macro call created with the event, when
-   * CreateCalendarEvent was asked for one.
-   */
-  macroCallUrl?: string | null;
-  /**
-   * Whether the user's calendar prohibits modifying this event.
-   */
-  isReadOnly: boolean;
-  /**
-   * Calendar the event belongs to, when known.
-   */
-  calendarId?: string | null;
-  /**
-   * Display name of that calendar, when known.
-   */
-  calendarName?: string | null;
-  /**
-   * Connected inbox address the calendar belongs to, when known.
-   */
-  inbox?: string | null;
-  /**
-   * Whether the user organizes this event or is a guest on it, through
-   * that inbox; absent when they are neither.
-   */
-  myRole?: ToolEventRole | null;
-}
-/**
- * An attendee of a calendar event, as returned by calendar tools.
- */
-export interface ToolEventAttendee {
-  /**
-   * Attendee email address.
-   */
-  email: string;
-  /**
-   * RSVP state: needs_action, accepted, declined, or tentative.
-   */
-  responseStatus: string;
-  /**
-   * Whether this attendee organized the event.
-   */
-  isOrganizer: boolean;
-  /**
-   * Whether attendance is optional.
-   */
-  isOptional: boolean;
-}
-/**
  * Create a private or team channel and add its first members. Use `private` for an invite-only channel and `team` for a channel owned by the current user's team. Do not use this for a direct message — those are created separately. Team id is resolved from the current user; do not invent one. Participants accept `macro|<email>` ids from ListTeamMembers or bare emails. Creating a team channel when the user has no team fails; create a private channel instead. Creating a team channel with no participants adds the current user so the channel is valid. Use only when the user asks to create a channel.
  */
 export interface CreateChannel {
@@ -8301,11 +8362,13 @@ export interface DeleteBotResponse {
   summary: string;
 }
 /**
- * Delete an event from the user's calendar. The deletion is written to the calendar provider immediately and attendees are notified, so confirm with the user before deleting — it cannot be undone. Get the `eventId` from ListCalendarEvents.
+ * Delete an event from the user's calendar.
+ *
+ * A meeting on more than one of the user's inboxes is one ListCalendarEvents entry per inbox. Before deleting any of them, ask the user which inbox's copy to delete, then pass that copy's `inbox`. Never choose between the user's inboxes yourself, whatever they look like: a test, secondary or unfamiliar address is still the user's own inbox. Skip the question only when the user already named the inbox, or when only one copy can be deleted (`isReadOnly` false); then delete that copy and say why. Without `inbox` the tool refuses, lists each copy and gives the question to ask. Deleting the copy the user organizes cancels the meeting for every guest. Deleting a copy where they are a guest takes the meeting off that inbox's calendar: on Google it also declines the invitation and tells the organizer, while on Outlook the organizer is not told and still sees the invitation unanswered.
+ *
+ * The deletion is written to the calendar provider immediately and attendees are notified, so confirm with the user before deleting — it cannot be undone. Get the `eventId` from ListCalendarEvents.
  *
  * For recurring events, `scope` controls how much is removed: "all" (default) removes the whole series, "this_event" removes one occurrence, and "this_and_following" ends the series from an occurrence onward. The scoped variants require `recurrenceId` from the targeted occurrence's ListCalendarEvents entry.
- *
- * When the meeting is on several of the user's inboxes (one ListCalendarEvents entry per inbox), ask which inbox's copy to delete unless the user named one or only one copy is writable (`isReadOnly` false), in which case delete that one and say why. Deleting the copy the user organizes cancels the meeting for every guest, while deleting a copy where they are a guest only takes it off that inbox's calendar.
  */
 export interface DeleteCalendarEvent {
   /**
@@ -8316,6 +8379,10 @@ export interface DeleteCalendarEvent {
    * The `calendarId` of the copy to delete, from the `copies` of its ListCalendarEvents entry, for an event synced from more than one calendar. Omit to delete the event's primary copy.
    */
   calendarId?: string | null;
+  /**
+   * The `inbox` of the copy to delete, from its ListCalendarEvents entry. Required when the meeting is on more than one of the user's inboxes: the tool refuses without it and lists each copy. It must be the inbox holding the copy `eventId` names.
+   */
+  inbox?: string | null;
   scope?: DeletionScopeInput;
   /**
    * The `recurrenceId` of the targeted occurrence, from its ListCalendarEvents entry. Required for "this_event" and "this_and_following".
@@ -10721,6 +10788,194 @@ export interface ToolAddedOptions {
   labels: string[];
 }
 /**
+ * Import the user's Notion workspace (or part of it) into Macro: pages become documents in folders mirroring Notion's page tree, databases become Macro databases with their rows and relations, and task-tracker databases become Macro tasks. `plan` reads the workspace through the user's Notion connection, decides per page and database what to do (and, with `sharing` "ai", who sees it), links anything a teammate already imported and shared, and stages a plan without writing anything. Who sees the import: unless the user already said, call `plan` without `sharing` first. A user who is not on a team gets a personal import straight away; tell them so and do not offer team sharing. For a user on a team it answers that `sharing` is required: then ask them in one short question with three options (shared with their team, only them, or let AI decide per page), do not guess, and plan again with their answer. `plan` answers within seconds while planning goes on in the background: present the plan right away with PresentReview (kind "import", drafts [{"source":"notion"}]). The review fills in as Notion is read and each object is decided, and the user approves it there once it is ready; do not wait for planning or check `status` in a loop. Approving that review writes the plan; never import plan items with other tools. End your message after presenting it by asking "Should I kick it off?"; if the user says yes, approve it yourself with DecideReview, submitting the reviewId PresentReview returned. `status` reports progress; `cancel` stops planning or importing. Use this for anything bigger than a single page instead of ImportNotionPage.
+ */
+export interface ImportFromNotion {
+  action: NotionImportAction;
+  /**
+   * For `plan`: Notion page or database URLs (or ids) to import, each
+   * with everything under it. Leave empty to plan everything the
+   * connection can see.
+   */
+  roots?: string[];
+  /**
+   * For `plan`: who sees what the import writes, as the user answered
+   * when asked: `team` shares everything with their team, `personal`
+   * keeps everything visible only to them, `ai` lets the decision model
+   * choose per page. Leave it out for a user who is not on a team.
+   */
+  sharing?: NotionSharing | null;
+}
+/**
+ * The tool's answer.
+ */
+export interface ImportFromNotionResponse {
+  report: NotionImportReport;
+  /**
+   * What happened and what to do next.
+   */
+  message: string;
+}
+/**
+ * Where a Notion workspace import stands.
+ */
+export interface NotionImportReport {
+  /**
+   * The run's state: `running` while planning, `ready` once a plan is
+   * staged, `importing` while writing, `completed`, `failed`, or
+   * `dismissed` when cancelled. Absent before the first run.
+   */
+  status?: RunStatus | null;
+  /**
+   * Why the run failed, when it did.
+   */
+  error?: string | null;
+  /**
+   * What planning has found in Notion so far, while it is `running`.
+   */
+  scanned?: ScanCounts | null;
+  /**
+   * Pages in the plan.
+   */
+  pages: number;
+  /**
+   * Data sources (database tables) in the plan.
+   */
+  dataSources: number;
+  /**
+   * Plan objects the decision model has not answered for yet, while
+   * planning is still `running`.
+   */
+  deciding?: number;
+  /**
+   * Whether the user is on a team. Without one, everything the import
+   * writes stays visible only to them.
+   */
+  onTeam?: boolean;
+  /**
+   * Objects to copy as they are.
+   */
+  copy: number;
+  /**
+   * Data sources whose rows become tasks.
+   */
+  tasks: number;
+  /**
+   * Objects left in Notion.
+   */
+  skip: number;
+  /**
+   * Objects that need handling by hand.
+   */
+  hand: number;
+  /**
+   * Pages written as documents.
+   */
+  documents: number;
+  /**
+   * Data sources written as databases.
+   */
+  databases: number;
+  /**
+   * Rows those databases hold, every one counted while planning.
+   */
+  databaseRows: number;
+  /**
+   * Tasks the task lists become, one per row.
+   */
+  taskRows: number;
+  /**
+   * Plan objects already imported.
+   */
+  imported: number;
+  /**
+   * Plan objects still waiting to be written.
+   */
+  waiting: number;
+  /**
+   * Plan objects being written now.
+   */
+  writing: number;
+  /**
+   * Plan objects waiting for a teammate who is writing the same object
+   * for the team; they link to the teammate's copy once it is written.
+   */
+  waitingOnTeammates?: number;
+  /**
+   * Written plan objects shared with the user's team.
+   */
+  sharedWithTeam?: number;
+  /**
+   * Plan objects a teammate already imported and shared with the team;
+   * they link to that copy and are not counted as copies.
+   */
+  alreadyInMacro?: number;
+  /**
+   * Who imported the objects already in Macro, most first.
+   */
+  alreadyImportedBy?: NotionImporter[];
+  /**
+   * The review the plan is tied to, once presented.
+   */
+  reviewId?: string | null;
+  /**
+   * Objects that need handling by hand, with reasons.
+   */
+  handItems?: NotionReportItem[];
+  /**
+   * Objects that failed to import, with the failure.
+   */
+  failures?: NotionReportItem[];
+}
+/**
+ * What a planning run has found in the source so far.
+ */
+export interface ScanCounts {
+  /**
+   * Pages found.
+   */
+  pages: number;
+  /**
+   * Data sources (database tables) found.
+   */
+  dataSources: number;
+}
+/**
+ * A teammate who already imported some of a plan's objects.
+ */
+export interface NotionImporter {
+  /**
+   * The teammate, by email.
+   */
+  by: string;
+  /**
+   * How many of the plan's objects they imported.
+   */
+  count: number;
+}
+/**
+ * One object a workspace import report calls out.
+ */
+export interface NotionReportItem {
+  /**
+   * The ledger row.
+   */
+  importId: string;
+  /**
+   * The object's title.
+   */
+  title: string;
+  kind: ImportKind;
+  /**
+   * Its Notion URL.
+   */
+  url?: string | null;
+  /**
+   * Why it is called out: the decision model's reason, or the failure.
+   */
+  reason?: string | null;
+}
+/**
  * Import one specific Notion page through Macro's canonical Notion importer. Use this when the user explicitly asks to import a page URL or id. The tool performs deduplication, fetches through the user's connected Notion MCP, normalizes the page, creates the Macro markdown document, and returns its entity id. Do not fetch and recreate the page manually with generic document tools. Notion databases and database-first pages are intentionally not imported.
  */
 export interface ImportNotionPage {
@@ -10995,7 +11250,7 @@ export interface ListBotsResponse {
  *
  * Each entry names the calendar (`calendarName`) and connected inbox (`inbox`) holding that copy of the event, and `myRole` says whether the user organizes it or is a guest there. A meeting on several of the user's inboxes appears once per inbox, each with its own `eventId`, and what the user may do can differ between them. When asking which one the user means, describe each by its inbox and role, never by id; when the user names an inbox, act on the entry whose `inbox` matches.
  *
- * When the user does not name an inbox, choose the copy by what the change does. Reminders belong to one copy only, so set them on one copy without asking and say which inbox you used. Answer an invitation on the copy where the user is a guest; when they are a guest through more than one inbox, ask which inbox answers, since each answers only for itself. Any other change reaches the meeting differently from each copy: the title, time, description, location, recurrence or conference, adding or removing guests, guest permissions, and deleting. Never pick a copy for such a change silently. If only one copy allows it (`viewerCan`, or for deleting, `isReadOnly` false), use that copy and say why (for example, only the copy the user organizes can move the meeting). If more than one can, ask which inbox, saying what the change would do from each, such as deleting the organizer's copy cancelling the meeting for everyone while deleting a guest's copy only takes it off that inbox's calendar.
+ * When the user does not name an inbox, choose the copy by what the change does. Reminders belong to one copy only, so set them on one copy without asking and say which inbox you used. Answer an invitation on the copy where the user is a guest; when they are a guest through more than one inbox, ask which inbox answers, since each answers only for itself. Any other change reaches the meeting differently from each copy: the title, time, description, location, recurrence or conference, adding or removing guests, guest permissions, and deleting. UpdateCalendarEvent and DeleteCalendarEvent refuse such a change on a meeting held by several of the user's inboxes until `inbox` names the inbox of the copy being changed, and the refusal lists each copy. If only one copy allows the change (`viewerCan`, or for deleting, `isReadOnly` false), use that copy with its `inbox` and say why (for example, only the copy the user organizes can move the meeting). If more than one can, ask which inbox, saying what the change would do from each, and never choose between the user's inboxes yourself, whatever they look like. Add guests from the copy the user organizes when there is one: it invites them directly, while a guest's copy invites only as far as the organizer allows. Deleting the organizer's copy cancels the meeting for everyone, while deleting a guest's copy takes the meeting off that inbox's calendar and, on Google, also declines the invitation and tells the organizer.
  */
 export interface ListCalendarEvents {
   /**
@@ -12917,6 +13172,98 @@ export interface EventType {
   questions: Question[];
 }
 /**
+ * Read one calendar event by id: the `documentId` of a calendar event mention (`blockName` `calendar`) in a message, document, or email, or an `eventId` a calendar tool returned. Returns what the mention's preview card shows: title, time, location, description (truncated), organizer, guest count, and whether it repeats. ReadContent and ReadMetadata read documents only; use this tool for calendar events.
+ *
+ * `access` says how the user holds the meeting, as the card does. `on_your_calendar`: their own event (they organize it, or a delegated inbox holds it). `invited`: they are a guest. `snapshot`: a private copy they added of a shared meeting, which doesn't follow the organizer's changes and where an answer or a new guest would never reach the meeting. In these three, `eventId` is the user's copy for UpdateCalendarEvent and DeleteCalendarEvent. `shared_with_you`: someone shared their copy with a channel the user belongs to and the meeting is on none of the user's calendars. The event is then read-only for the user; AddSharedCalendarEvent adds a snapshot of it, and `canRequestToJoin` and `joinRequestStatus` say whether they can ask the person who shared it to add them as a guest, which they do from the event's card. To read one instance of a recurring event, pass the mention's `occurrenceKey` block param.
+ */
+export interface ReadCalendarEvent {
+  /**
+   * Calendar event id: a calendar mention's documentId, or an eventId from a calendar tool.
+   */
+  eventId: string;
+  /**
+   * Occurrence to read for a recurring event: the mention's occurrenceKey block param, or a recurrenceId from ListCalendarEvents. Omit to read the next upcoming instance, else the latest past one, else the series start.
+   */
+  occurrenceKey?: string | null;
+}
+/**
+ * One calendar event, with the fields its mention preview card shows.
+ */
+export interface ReadCalendarEventResponse {
+  access: CalendarEventAccess;
+  /**
+   * The user's own copy of the meeting, for UpdateCalendarEvent and
+   * DeleteCalendarEvent. It can differ from the id that was read, and is
+   * absent for an event that is only shared with the user.
+   */
+  eventId?: string | null;
+  /**
+   * Display title.
+   */
+  title: string;
+  /**
+   * Start of the instance read: RFC 3339 UTC instant, or YYYY-MM-DD for
+   * all-day events.
+   */
+  start: string;
+  /**
+   * Exclusive end: RFC 3339 UTC instant, or YYYY-MM-DD for all-day events.
+   */
+  end: string;
+  /**
+   * Whether the event covers whole days.
+   */
+  isAllDay: boolean;
+  /**
+   * IANA time zone the event was scheduled in, when known.
+   */
+  timeZone?: string | null;
+  /**
+   * Whether the event repeats.
+   */
+  isRecurring: boolean;
+  /**
+   * Key of the instance read: the requested occurrence when it exists,
+   * otherwise the next upcoming one, else the latest past one, else the
+   * series start.
+   */
+  recurrenceId?: string | null;
+  /**
+   * Location label, when set.
+   */
+  location?: string | null;
+  /**
+   * Event body, truncated for brevity.
+   */
+  description?: string | null;
+  /**
+   * Organizer email address, when known.
+   */
+  organizerEmail?: string | null;
+  /**
+   * Organizer display name, when known.
+   */
+  organizerName?: string | null;
+  /**
+   * Number of guests on the event.
+   */
+  attendeeCount: number;
+  /**
+   * For an event shared with the user, whether the person who shared it
+   * can add them as a guest. Always false for an event on their calendar.
+   */
+  canRequestToJoin: boolean;
+  /**
+   * For an event shared with the user, their request to join it, if they
+   * made one.
+   */
+  joinRequestStatus?: CalendarJoinRequestStatus | null;
+  /**
+   * A human-readable summary of the event.
+   */
+  summary: string;
+}
+/**
  * Retrieve the transcript for a specific call record. Use ListEntities with includeTypes: ["call"] first to find the callId. Only the transcript is returned — other metadata (participants, duration, etc.) is already available from ListEntities. In transcript segments, speakerId is the associated user/track, not guaranteed speaker identity; use diarizedSpeakerId to distinguish actual voices, and treat different diarizedSpeakerIds as potentially different speakers even if speakerId is the caller/"you".
  */
 export interface ReadCallRecord {
@@ -13097,9 +13444,14 @@ export interface ToolChannelMessage {
    */
   channelId: string;
   /**
-   * Sender user id.
+   * Sender id: `macro|<email>` for a person, `bot|<id>` for a bot.
    */
   senderId: string;
+  /**
+   * The sender's name as the app shows it, for the same sender as
+   * `senderId`. Absent when a person has no profile name.
+   */
+  senderName?: string | null;
   /**
    * Message content, possibly truncated.
    */
@@ -13172,9 +13524,14 @@ export interface ToolThreadReply {
    */
   threadId: string;
   /**
-   * Sender user id.
+   * Sender id: `macro|<email>` for a person, `bot|<id>` for a bot.
    */
   senderId: string;
+  /**
+   * The sender's name as the app shows it, for the same sender as
+   * `senderId`. Absent when a person has no profile name.
+   */
+  senderName?: string | null;
   /**
    * Reply content, possibly truncated.
    */
@@ -15149,7 +15506,11 @@ export interface UpdateBookingSettings {
   userConfirmation: string;
 }
 /**
- * Update an existing calendar event. Only the supplied fields change; omitted fields keep their current values. The change is written to the calendar provider immediately and attendees are notified of it, so confirm details with the user first. Get the `eventId` from ListCalendarEvents.
+ * Update an existing calendar event.
+ *
+ * A meeting on more than one of the user's inboxes is one ListCalendarEvents entry per inbox. Before changing its details, guests or guest permissions, ask the user which inbox's copy to change, then pass that copy's `inbox`. Never choose between the user's inboxes yourself, whatever they look like: a test, secondary or unfamiliar address is still the user's own inbox. Skip the question only when the user already named the inbox, when only one copy's `viewerCan` allows the change (use it and say why), or when adding guests to a meeting the user organizes from one of the inboxes (add them from that copy and say why). Reminders may go to one copy and an `rsvp` to the copy where the user is a guest, naming the inbox in your reply. Without `inbox` the tool refuses, lists each copy and gives the question to ask. One call changes one copy, so an edit on one copy and an `rsvp` on another take two calls.
+ *
+ * Only the supplied fields change; omitted fields keep their current values. The change is written to the calendar provider immediately and attendees are notified of it, so confirm details with the user first. Get the `eventId` from ListCalendarEvents.
  *
  * `scope` picks how much of a recurring series changes and is always required: "this_event" edits one occurrence (pass the occurrence's `recurrenceId` from ListCalendarEvents) and leaves the rest of the series alone; "all" edits the series itself — with `time` that MOVES EVERY OCCURRENCE, so never use "all" to reschedule a single occurrence. Non-recurring events use "all". There is no this-and-following update: end the series with DeleteCalendarEvent's "this_and_following" and create a new event instead.
  *
@@ -15158,8 +15519,6 @@ export interface UpdateBookingSettings {
  * A guest without modify rights (`viewerCan.editDetails` false while `viewerCan.rsvp` is true) may only change their own `reminders`, add guests where `viewerCan.inviteGuests` allows it, and answer with `rsvp`; changing the title, time, description, location, recurrence or conference fails because the organizer doesn't let guests change the event.
  *
  * `rsvp` sets the user's own response to an invitation and is independent of the field edits — it can be the only thing this call changes. It applies at the same `scope` as the rest of the call and answers as the connected inbox the event's copy belongs to, so it only works when that inbox is an attendee.
- *
- * When the meeting is on several of the user's inboxes, ListCalendarEvents lists one entry per inbox; pick the copy by its rule. Reminders may go to one copy and an `rsvp` to the copy where the user is a guest, naming the inbox in your reply. Any other change goes to the only copy whose `viewerCan` allows it, with the reason, or to the copy the user chooses when more than one could make it. One call changes one copy, so an edit on one copy and an `rsvp` on another take two calls.
  */
 export interface UpdateCalendarEvent {
   /**
@@ -15170,6 +15529,10 @@ export interface UpdateCalendarEvent {
    * The `calendarId` of the copy to update, from the `copies` of its ListCalendarEvents entry, for an event synced from more than one calendar. Omit to update the event's primary copy.
    */
   calendarId?: string | null;
+  /**
+   * The `inbox` of the copy this call changes, from its ListCalendarEvents entry. Required when the meeting is on more than one of the user's inboxes and the call changes anything but `reminders` or `rsvp`: the tool refuses without it and lists each copy. It must be the inbox holding the copy `eventId` names.
+   */
+  inbox?: string | null;
   scope: UpdateScopeInput;
   /**
    * The `recurrenceId` of the targeted occurrence, from its ListCalendarEvents entry. Required for "this_event"; omit for "all".

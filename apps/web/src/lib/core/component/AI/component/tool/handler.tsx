@@ -45,11 +45,13 @@ import {
   manageBotChannelAccessHandler,
 } from './Bots';
 import {
+  addSharedCalendarEventHandler,
   createCalendarEventHandler,
   createConfirmedCalendarEventHandler,
   deleteCalendarEventHandler,
   listCalendarEventsHandler,
   listCalendarsHandler,
+  readCalendarEventHandler,
   updateCalendarEventHandler,
 } from './CalendarTools';
 import {
@@ -118,6 +120,7 @@ import { getThreadHandler } from './GetThread';
 import {
   createImportEntityHandler,
   deleteImportEntityHandler,
+  importFromNotionHandler,
   importNotionPageHandler,
   listImportEntitiesHandler,
 } from './ImportTools';
@@ -188,6 +191,7 @@ import { getTeamAvailabilityHandler } from './TeamAvailability';
 import { textEditorCodeExecutionHandler } from './TextEditorCodeExecution';
 import {
   type RenderContext,
+  type ToolEnding,
   ToolErrorContext,
   type ToolHandler,
   type ToolHandlerMap,
@@ -246,11 +250,14 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   CreateConfirmedCalendarEvent: createConfirmedCalendarEventHandler,
   UpdateCalendarEvent: updateCalendarEventHandler,
   DeleteCalendarEvent: deleteCalendarEventHandler,
+  AddSharedCalendarEvent: addSharedCalendarEventHandler,
   ListCalendarEvents: listCalendarEventsHandler,
   ListCalendars: listCalendarsHandler,
+  ReadCalendarEvent: readCalendarEventHandler,
   GetTeamAvailability: getTeamAvailabilityHandler,
   CreateImportEntity: createImportEntityHandler,
   DeleteImportEntity: deleteImportEntityHandler,
+  ImportFromNotion: importFromNotionHandler,
   ImportNotionPage: importNotionPageHandler,
   GetCompany: getCompanyHandler,
   CreateCompany: createCompanyHandler,
@@ -357,6 +364,10 @@ type ToolProps = {
     json: unknown;
     name: string;
   };
+  /** The tool's reason for a call that failed. */
+  error?: string;
+  /** The turn ended before the call returned. */
+  stopped?: boolean;
   part_index: number;
   chat_id: string;
   message_id: string;
@@ -448,7 +459,14 @@ export function RenderTool(props: ToolProps) {
       }
     >
       <ToolErrorContext.Provider
-        value={() => (props.isComplete && !response() ? 'failed' : undefined)}
+        value={(): ToolEnding | undefined => {
+          if (props.error !== undefined) {
+            return { kind: 'failed', reason: props.error };
+          }
+          if (props.stopped) return { kind: 'stopped' };
+          if (props.isComplete && !response()) return { kind: 'failed' };
+          return undefined;
+        }}
       >
         <Show
           when={isToolShown(tool.name, databasesEnabled().enabled)}
@@ -461,6 +479,9 @@ export function RenderTool(props: ToolProps) {
             renderContext={{
               isStreaming: props.renderContext.renderContext.isStreaming,
               grouped: props.renderContext.renderContext.grouped,
+              running:
+                !props.isComplete &&
+                props.renderContext.renderContext.isStreaming,
               followedBy: props.renderContext.renderContext.followedBy,
             }}
           />

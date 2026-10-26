@@ -51,14 +51,14 @@ export function AgentDmConnections(
       return !!turns && canResumeFrom(reply, turns);
     },
     connect: connectPipedreamApp,
-    resume: async (name) => {
+    resume: async (app) => {
       const senderId = userId();
       if (!senderId) throw new Error('Signed out');
       await send.mutateAsync({
         parent: { type: 'channel', id: props.channelId },
         senderId,
         optimisticId: newMessageId(),
-        message: { content: connectedMessage(name) },
+        message: { content: connectedMessage(app.name) },
       });
     },
     notify: (message) => toast.alert(message),

@@ -9,6 +9,10 @@ import * as schemas from './schemas';
 import type * as types from './types';
 
 type ToolParserMap = {
+  AddSharedCalendarEvent: {
+    call: types.AddSharedCalendarEvent;
+    response: types.ToolCalendarEvent;
+  };
   AddToPipeline: {
     call: types.AddToPipeline;
     response: types.AddToPipelineResponse;
@@ -228,6 +232,10 @@ type ToolParserMap = {
     call: types.ImportCompaniesCsv;
     response: types.ImportCompaniesCsvResponse;
   };
+  ImportFromNotion: {
+    call: types.ImportFromNotion;
+    response: types.ImportFromNotionResponse;
+  };
   ImportNotionPage: {
     call: types.ImportNotionPage;
     response: types.ImportNotionPageResponse;
@@ -355,6 +363,10 @@ type ToolParserMap = {
   ReadBookingSettings: {
     call: types.ReadBookingSettings;
     response: types.BookingSettingsResult;
+  };
+  ReadCalendarEvent: {
+    call: types.ReadCalendarEvent;
+    response: types.ReadCalendarEventResponse;
   };
   ReadCallRecord: {
     call: types.ReadCallRecord;
@@ -528,6 +540,10 @@ type ToolParserMap = {
 };
 
 const toolParserMap = {
+  AddSharedCalendarEvent: {
+    call: schemas.AddSharedCalendarEvent,
+    response: schemas.ToolCalendarEvent,
+  },
   AddToPipeline: {
     call: schemas.AddToPipeline,
     response: schemas.AddToPipelineResponse,
@@ -762,6 +778,10 @@ const toolParserMap = {
     call: schemas.ImportCompaniesCsv,
     response: schemas.ImportCompaniesCsvResponse,
   },
+  ImportFromNotion: {
+    call: schemas.ImportFromNotion,
+    response: schemas.ImportFromNotionResponse,
+  },
   ImportNotionPage: {
     call: schemas.ImportNotionPage,
     response: schemas.ImportNotionPageResponse,
@@ -910,6 +930,10 @@ const toolParserMap = {
   ReadBookingSettings: {
     call: schemas.ReadBookingSettings,
     response: schemas.BookingSettingsResult,
+  },
+  ReadCalendarEvent: {
+    call: schemas.ReadCalendarEvent,
+    response: schemas.ReadCalendarEventResponse,
   },
   ReadCallRecord: {
     call: schemas.ReadCallRecord,
@@ -1115,6 +1139,10 @@ type NamedRawTool = {
 };
 
 type ToolDataMap = {
+  AddSharedCalendarEvent: {
+    call: types.AddSharedCalendarEvent;
+    response: types.ToolCalendarEvent;
+  };
   AddToPipeline: {
     call: types.AddToPipeline;
     response: types.AddToPipelineResponse;
@@ -1334,6 +1362,10 @@ type ToolDataMap = {
     call: types.ImportCompaniesCsv;
     response: types.ImportCompaniesCsvResponse;
   };
+  ImportFromNotion: {
+    call: types.ImportFromNotion;
+    response: types.ImportFromNotionResponse;
+  };
   ImportNotionPage: {
     call: types.ImportNotionPage;
     response: types.ImportNotionPageResponse;
@@ -1461,6 +1493,10 @@ type ToolDataMap = {
   ReadBookingSettings: {
     call: types.ReadBookingSettings;
     response: types.BookingSettingsResult;
+  };
+  ReadCalendarEvent: {
+    call: types.ReadCalendarEvent;
+    response: types.ReadCalendarEventResponse;
   };
   ReadCallRecord: {
     call: types.ReadCallRecord;

@@ -21,7 +21,7 @@ export function createConnectorContinuation(deps: {
     appSlug: string;
     serverName: string;
   }) => Promise<PipedreamConnectOutcome>;
-  resume: (name: string) => Promise<void>;
+  resume: (app: { appSlug: string; name: string }) => Promise<void>;
   notify: (message: string) => void;
 }) {
   const [pending, setPending] = createSignal(false);
@@ -68,7 +68,7 @@ export function createConnectorContinuation(deps: {
         );
         return;
       }
-      await deps.resume(app.name);
+      await deps.resume(app);
       setResumed((apps) => new Set(apps).add(app.appSlug));
     } catch {
       if (!disposed) {

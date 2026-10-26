@@ -54,6 +54,7 @@ function common(
     label: 'Show',
     status,
     muted: status === 'failed',
+    stopped: false,
     trailing: status === 'failed' ? 'Failed' : undefined,
   };
 }

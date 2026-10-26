@@ -25,9 +25,19 @@ It exercises the real resize solver, scroll container, and Lexical layout primit
 Discussion link scrolling has a backend-free browser regression:
 `bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.
 
+Phone sheets stacked on each other (Connect email over Settings, Add guests,
+RSVP scope and the delete confirmation over event details) have a backend-free
+browser regression for backdrop taps that must not press what the scrim covers:
+`bunx playwright test --config src/components/app/mobile/browser-test/playwright.config.ts`.
+
 Persistent prompts stepping aside for popovers, dialogs, drawers and
 `data-holds-prompts` surfaces have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/Toast/browser-test/playwright.config.ts`.
+
+Composer typeahead menus choosing the side with room for their full list
+(`floatWithSelection`'s `fullHeight`), above a composer at the bottom of a
+phone screen and below one near the top, have a backend-free browser regression:
+`bunx playwright test --config src/lib/core/component/LexicalMarkdown/directive/browser-test/playwright.config.ts`.
 
 Meeting-note creation, linking, optional team access, retry, and unlinking have desktop and
 phone browser coverage in `features/calendar-notes`:
@@ -124,6 +134,8 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+
+- Empty human DMs use the shared centered conversations graphic and explain email delivery to nonusers; keep this state out of agent DMs, loading/error states, and populated timelines.
 - Enable persisted email/calendar review controls only for the review’s saved acting account; historical reviews fall back to the session owner. Require session edit access on desktop and mobile.
 - Email draft reads compare server generations before choosing cached delivery state over a restored working copy; only a definitive first-submission rejection permits local send recovery without server cancellation.
 - Compose settings pages with `features/settings/primitives.tsx` so section headings,
@@ -182,10 +194,14 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Passive PR mentions must not retry initial GitHub status failures on remount; preserve confirmed status through refetch errors and keep pending data reads out of their parent Suspense boundary.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
 - Diagnose native full reloads with `native_webview_started`, `native_diagnostic_recovered`, and the shared `frontend_instance_id`; use `reloadApp(reason)` for frontend reloads and keep breadcrumbs content-free. Treat `previous_document_*` checkpoints as last-observed lifecycle evidence, never a crash verdict; clear them on logout. `previous_document_last_*` comes from the native navigation breadcrumb (route and entity type, never ids). See [frontend checkpoints](docs/native-reload-diagnostics.md) and `tauri/src-tauri/README.md`.
+- Pass `$APPLOCALDATA` (Application Support on Apple platforms) as the native HTTP cookie storage directory; the plugin owns the `.cookies` filename. Never use purgeable caches. The location change intentionally requires one new sign-in, without migration. See `tauri/src-tauri/README.md#native-authentication-cookies`.
 - Inline agent steps reuse the session code-execution query for live SDK operation
   names; completed step snapshots come from the shared fold of the tool receipt.
   Session `ExecuteCode` activity uses the same Calling N tools peek window as
   ordinary consecutive tool calls.
+- Compose multiselect filters with `Dropdown.MultiSelectItem` and the shared
+  searchable filters; follow [multiselect dropdowns](../../docs/agent-guide/ui-conventions.md#multiselect-dropdowns)
+  for checkbox, row, Only, keyboard, and touch behavior.
 - All API/network calls live in service-clients.
 - Open projects through `openProject` (`features/projects/open-project.ts`): it
   retargets an already-open project split to the section or comment in place.

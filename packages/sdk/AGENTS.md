@@ -45,6 +45,15 @@ the existing gateway prefixes.
 
 ## Gotchas
 
+- Code mode puts at most 48 KiB of SDK docs in each agent turn; a section
+  larger than that (calendar is about 78 KB) arrives as its namespace class
+  page only. Put rules an agent must follow on the namespace class or the
+  methods it lists, not only on an entity's methods, which agents read only
+  when they request the section.
+- Calendar occurrences carry each copy's `inbox` and `role`; one meeting on
+  several of the user's inboxes is one event per inbox. `update`,
+  `inviteGuests` and `delete` take the copy's `inbox`, and an agent run that
+  omits it on such a meeting is refused with `copy_choice_required`.
 - Calendar notes accept a document handle and the occurrence returned by calendar
   reads. `CalendarNote` owns optional team sharing and unlinking; clearing its team
   sends explicit null and never changes the document's other permissions.

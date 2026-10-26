@@ -131,6 +131,7 @@ import {
   createTargetMessageController,
   type TargetMessageController,
 } from './create-target-message-controller';
+import { DirectMessageEmptyState } from './DirectMessageEmptyState';
 import { buildChannelMessageListMeta } from './message-list-meta';
 import { ScrollToBottomOverlay } from './ScrollToBottomOverlay';
 import {
@@ -173,7 +174,7 @@ export type MessageTimelineStateSnapshot = {
 
 export type ChannelHandle = {
   goToMessage: TargetMessageController['goToMessage'];
-  goToLatest: () => void;
+  goToLatest: (behavior?: ScrollBehavior) => void;
   getMessagesStateSnapshot: () => MessageTimelineStateSnapshot | undefined;
 };
 
@@ -583,7 +584,9 @@ export function Channel(props: ChannelProps) {
 
   // A latest request waits for both the query and the rendered list. Keeping
   // its identity prevents a late response from overriding newer navigation.
-  let pendingLatest: { phase: 'loading' | 'waiting-for-layout' } | undefined;
+  let pendingLatest:
+    | { phase: 'loading' | 'waiting-for-layout'; behavior?: ScrollBehavior }
+    | undefined;
   const cancelLatestNavigation = () => {
     pendingLatest = undefined;
   };
@@ -602,13 +605,16 @@ export function Channel(props: ChannelProps) {
     if (
       latestEntry !== undefined &&
       messageIndex.entryKeys.at(-1) === timelineEntryKey(latestEntry) &&
-      threadListNavigation()?.scrollToLatest()
+      threadListNavigation()?.scrollToLatest(pendingLatest.behavior)
     )
       cancelLatestNavigation();
   };
 
-  const goToLatest: ChannelHandle['goToLatest'] = async () => {
-    const request: NonNullable<typeof pendingLatest> = { phase: 'loading' };
+  const goToLatest: ChannelHandle['goToLatest'] = async (behavior) => {
+    const request: NonNullable<typeof pendingLatest> = {
+      phase: 'loading',
+      behavior,
+    };
     pendingLatest = request;
     try {
       const needsLatestPage =
@@ -758,7 +764,20 @@ export function Channel(props: ChannelProps) {
                           direction="desc"
                         />
                       </Show>
-                      <Show when={messageIndex.entryKeys.length > 0}>
+                      <Show
+                        when={messageIndex.entryKeys.length > 0}
+                        fallback={
+                          <Show
+                            when={
+                              messagesQuery.isSuccess &&
+                              channelType() === ChannelTypeEnum.DirectMessage &&
+                              !agentDm()
+                            }
+                          >
+                            <DirectMessageEmptyState />
+                          </Show>
+                        }
+                      >
                         <div
                           class="relative flex-1 min-h-0"
                           ref={setThreadListContainerEl}
@@ -771,8 +790,8 @@ export function Channel(props: ChannelProps) {
                               triggerBehavior="spring-back"
                             >
                               {/* The newest row shows the agents typing. Their
-                                  rows are made once, here, so a live turn moves
-                                  with that row instead of starting over in it. */}
+                                rows are made once, here, so a live turn moves
+                                with that row instead of starting over in it. */}
                               <AgentTypingProvider
                                 parent={{
                                   type: 'channel',
@@ -1006,7 +1025,6 @@ export function Channel(props: ChannelProps) {
                                 <ScrollToBottomOverlay
                                   scrollState={threadListScrollState}
                                   onScrollToBottom={goToLatest}
-                                  class="touch:top-[calc(var(--mobile-content-inset-top,0)+1rem)]"
                                 />
                               </Show>
                             </Show>
@@ -1085,7 +1103,7 @@ export function Channel(props: ChannelProps) {
                             </Match>
                             <Match when={true}>
                               {/* An agent DM gates only a new message on its
-                                  agent: editing and thread replies stay open. */}
+                                agent: editing and thread replies stay open. */}
                               <AgentDmComposer
                                 channelId={props.channelId}
                                 botId={channel()?.agent_dm?.bot_id}
