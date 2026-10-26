@@ -15,12 +15,14 @@ import CaretDownIcon from '@phosphor/caret-down.svg';
 import CheckIcon from '@phosphor/check.svg';
 import EnvelopeIcon from '@phosphor/envelope.svg';
 import LinkIcon from '@phosphor/link.svg';
+import PaperPlaneTiltIcon from '@phosphor/paper-plane-tilt.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import TrashIcon from '@phosphor/trash.svg';
 import XIcon from '@phosphor/x.svg';
 import { useAiBillingSummaryQuery } from '@queries/auth';
 import {
   useDeleteTeamInviteMutation,
+  useResendTeamInviteMutation,
   useTeamInvitesQuery,
 } from '@queries/team/invites';
 import {
@@ -54,6 +56,7 @@ import {
   SettingsSection,
 } from './primitives';
 import { InviteToTeamDialog, useTeamViewer } from './Team';
+import { canResendInvite } from './teamInviteResend';
 import { canInviteToTeam, canRemoveTeamMember } from './teamMemberPermissions';
 
 const roleOrder: Record<string, number> = {
@@ -243,8 +246,12 @@ function MemberName(props: { memberId: string }) {
 function InviteRow(props: {
   invite: TeamInviteDetails;
   canChange: boolean;
+  resending: boolean;
+  onResend: () => void;
   onCancel: () => void;
 }) {
+  const canResend = () =>
+    canResendInvite(props.invite.last_sent_at, new Date());
   const [copied, setCopied] = createSignal(false);
   let copyResetTimeout: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(copyResetTimeout));
@@ -271,14 +278,32 @@ function InviteRow(props: {
         <div class="min-w-0 flex-1">
           <div class="text-sm text-ink truncate">{props.invite.email}</div>
           <div class="text-xs text-ink-muted">
-            Invited as {props.invite.team_role} ·{' '}
-            {formatRelativeTimestamp(props.invite.created_at, {
+            Invited as {props.invite.team_role} · sent{' '}
+            {formatRelativeTimestamp(props.invite.last_sent_at, {
               condensed: true,
             })}
           </div>
         </div>
       </div>
       <Show when={props.canChange}>
+        <Tooltip
+          label={
+            canResend()
+              ? 'Resend invite'
+              : 'You can resend 2 days after the last email'
+          }
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            class="shrink-0"
+            aria-label="Resend invite"
+            disabled={!canResend() || props.resending}
+            onClick={props.onResend}
+          >
+            <PaperPlaneTiltIcon class="size-4" />
+          </Button>
+        </Tooltip>
         <Tooltip label={copied() ? 'Copied' : 'Copy invite link'}>
           <Button
             variant="ghost"
@@ -319,6 +344,7 @@ export function TeamMembers(props: { team: TeamSummary }) {
   const invitesQuery = useTeamInvitesQuery(() => props.team.id);
 
   const deleteInviteMutation = useDeleteTeamInviteMutation();
+  const resendInviteMutation = useResendTeamInviteMutation();
   const removeUserMutation = useRemoveUserFromTeamMutation();
   const patchTeamMutation = usePatchTeamMutation();
   const toggleAutoJoinMutation = useToggleAutoJoinDomainMutation();
@@ -586,6 +612,16 @@ export function TeamMembers(props: { team: TeamSummary }) {
                   <InviteRow
                     invite={invite}
                     canChange={isOwner() || allowNonAdminInvites()}
+                    resending={
+                      resendInviteMutation.isPending &&
+                      resendInviteMutation.variables?.email === invite.email
+                    }
+                    onResend={() =>
+                      resendInviteMutation.mutate({
+                        teamId: props.team.id,
+                        email: invite.email,
+                      })
+                    }
                     onCancel={() => setShowCancelInviteModal(invite)}
                   />
                 )}
