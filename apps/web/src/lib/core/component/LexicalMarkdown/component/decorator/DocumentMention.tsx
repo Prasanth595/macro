@@ -20,6 +20,7 @@ import { EntityIcon } from '@core/component/EntityIcon';
 import { HoverCard } from '@core/component/HoverCard';
 import { InlineTaskProperties } from '@core/component/InlineTaskProperties';
 import { useItemPreviewData } from '@core/component/ItemPreview';
+import { TaskStatusIcon } from '@core/component/TaskStatusIcon';
 import {
   itemToBlockName,
   resolveBlockAlias,
@@ -232,11 +233,18 @@ function InlinePreview(props: {
           fallback={
             <MentionContainer
               icon={
-                <EntityIcon
-                  targetType={props.blockName as any}
-                  size="fill"
-                  class="animate-pulse"
-                />
+                <Show
+                  when={props.blockName === 'task'}
+                  fallback={
+                    <EntityIcon
+                      targetType={props.blockName as any}
+                      size="fill"
+                      class="animate-pulse"
+                    />
+                  }
+                >
+                  <TaskStatusIcon size="fill" />
+                </Show>
               }
               text={
                 <span
@@ -273,7 +281,17 @@ function InlinePreview(props: {
           fallback={
             <MentionContainer
               icon={
-                <EntityIcon targetType={props.blockName as any} size="fill" />
+                <Show
+                  when={props.blockName === 'task'}
+                  fallback={
+                    <EntityIcon
+                      targetType={props.blockName as any}
+                      size="fill"
+                    />
+                  }
+                >
+                  <TaskStatusIcon size="fill" />
+                </Show>
               }
               text={
                 <span
@@ -813,7 +831,16 @@ export function DocumentMentionStatic(props: DocumentMentionDecoratorProps) {
   }
   return (
     <MentionContainer
-      icon={<EntityIcon targetType={props.blockName as any} size="fill" />}
+      icon={
+        <Show
+          when={props.blockName === 'task'}
+          fallback={
+            <EntityIcon targetType={props.blockName as any} size="fill" />
+          }
+        >
+          <TaskStatusIcon size="fill" />
+        </Show>
+      }
       collapsed={props.collapsed}
       text={
         <span
