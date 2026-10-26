@@ -144,6 +144,7 @@ export function InlineTaskProperties() {
             entityId={blockId}
             entityType={entityType}
             variant="secondary"
+            size="xs"
             showAddButton={documentKind === 'document' && canEdit()}
           />
           <For each={inlineProperties()}>
@@ -156,7 +157,7 @@ export function InlineTaskProperties() {
             )}
           </For>
           <Show when={documentKind === 'document' && canEdit()}>
-            <AddPropertyButton variant="secondary" class="gap-1.5" />
+            <AddPropertyButton variant="secondary" size="xs" class="gap-1.5" />
           </Show>
           <Show when={documentKind === 'task' && state.editor.md.progressStats}>
             {(progressStats) => (

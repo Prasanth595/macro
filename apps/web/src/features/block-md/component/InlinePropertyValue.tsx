@@ -34,6 +34,7 @@ export const InlinePropertyValue: Component<InlinePropertyValueProps> = (
     <PropertyValuePill
       property={props.property}
       variant="secondary"
+      size="xs"
       showLabel={
         props.property.propertyDefinitionId !== SYSTEM_PROPERTY_IDS.STATUS &&
         props.property.propertyDefinitionId !== SYSTEM_PROPERTY_IDS.PRIORITY &&

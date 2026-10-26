@@ -56,7 +56,7 @@ The existing theme renderer supplies Button materials at the root and in theme p
 - Search clear/close buttons use ghost `icon-xs` controls with 14px desktop icons; the Button touch minimum remains unchanged.
 - View-sidebar Show/Hide controls use ghost styling with no persistent active fill while the sidebar is open.
 - Size the icon-only Add tag trigger with `buttonClasses({ variant: 'outline', size: 'icon-sm' })`; do not combine a labeled badge size with a narrower width override.
-- Task composer and inline document/task properties use secondary pills, including tags and Add property. Keep their existing sizes and remove caller-owned outline/background overrides; other property consumers retain their variants.
+- Task composer and inline document/task properties use secondary `xs` pills, including tags and Add property. Keep size configurable in shared property/tag helpers; other property consumers retain their existing variants and sizes.
 - Kanban Load more actions use outline styling, both within a task column and below the board.
 
 ## Development and validation

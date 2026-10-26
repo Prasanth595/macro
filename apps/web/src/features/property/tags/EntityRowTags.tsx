@@ -6,7 +6,7 @@ import PlusIcon from '@phosphor/plus.svg';
 import { useInFlightEntityPropertyOptions } from '@queries/properties/in-flight-options';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import type { SoupProperty } from '@service-storage/generated/schemas/soupProperty';
-import { Button, badgeTriggerClasses, cn, HoverCard, Layer, type BadgeVariant } from '@ui';
+import { Button, badgeTriggerClasses, cn, HoverCard, Layer, type BadgeSize, type BadgeVariant } from '@ui';
 import { createSignal, For, Match, Show, Switch } from 'solid-js';
 import { TagDot } from './TagDot';
 import { type EditableTag, TagEditorDialog } from './TagEditorDialog';
@@ -338,6 +338,7 @@ export function InlineTagsPill(props: {
   docTags: DocTags;
   class?: string;
   variant?: BadgeVariant;
+  size?: BadgeSize;
   showPlaceholder?: boolean;
   showAddButton?: boolean;
   /**
@@ -363,7 +364,7 @@ export function InlineTagsPill(props: {
           onActiveChange={props.onActiveChange}
           triggerClass={badgeTriggerClasses({
             variant: props.variant ?? 'outline',
-            size: 'sm',
+            size: props.size ?? 'sm',
             class: cn(
               // Capped so a long tag label truncates instead of squeezing
               // whatever shares the row with the pill (e.g. a task title).
@@ -456,6 +457,7 @@ export function InlineFetchedEntityTagsPill(props: {
   entityType: EntityType;
   class?: string;
   variant?: BadgeVariant;
+  size?: BadgeSize;
   showAddButton?: boolean;
 }) {
   const docTags = useDocTags(props.entityId, props.entityType);
@@ -464,6 +466,7 @@ export function InlineFetchedEntityTagsPill(props: {
       docTags={docTags}
       class={props.class}
       variant={props.variant}
+      size={props.size}
       showPlaceholder={props.entityType === EntityType.TASK}
       showAddButton={props.showAddButton}
     />
