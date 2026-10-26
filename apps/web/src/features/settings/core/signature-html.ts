@@ -51,9 +51,16 @@ export function requiresHtmlEditing(html: string): boolean {
       )
     )
       return true;
+    const hasZeroMargins = element.style.margin === '0px';
     for (const property of element.style) {
-      // The editor adds this explicitly to match its line spacing in emails.
-      if (property === 'margin' && element.style.margin === '0px') continue;
+      // CSSOM expands the editor's margin:0 into these four physical sides.
+      if (
+        hasZeroMargins &&
+        ['margin-top', 'margin-right', 'margin-bottom', 'margin-left'].includes(
+          property
+        )
+      )
+        continue;
       if (!styles.has(property)) return true;
     }
   }

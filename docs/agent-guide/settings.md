@@ -87,6 +87,8 @@ preview, save, leave settings, and reopen. Confirm the tables, spacing, and imag
 sizes survive in both settings and the new-message preview. Cancel a Rich text
 conversion and verify the saved HTML is unchanged. Check the preview on a phone
 and ensure a wide signature scrolls inside its own preview instead of the page.
+Save a signature created in Rich text, reopen settings, and confirm Rich text
+editing resumes without a conversion prompt.
 The backend-free browser suite uses the real form, Quill, settings mutations,
 query cache, and composer preview with fixture services:
 `bunx playwright test --config src/features/settings/browser-test/signatures/playwright.config.ts`.

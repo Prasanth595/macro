@@ -130,6 +130,60 @@ test('rich text conversion requires consent and cancel leaves HTML untouched', a
   ).toBeDisabled();
 });
 
+test('saved rich text can be reopened and edited without HTML conversion', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'Signature editing is desktop-only');
+  await page.getByRole('button', { name: 'Clear signature' }).click();
+  await expect(page.getByRole('status')).toHaveText('Signature removed');
+  await page.getByRole('tab', { name: 'Rich text' }).click();
+  const editor = page.getByRole('textbox', {
+    name: 'Signature for alex@example.com',
+  });
+  await editor.fill('Alex Morgan');
+  await page.getByRole('button', { name: 'Save signature' }).click();
+  await expect(page.getByRole('status')).toHaveText('Signature saved');
+  const preview = page.getByRole('region', {
+    name: 'Signature preview for alex@example.com',
+  });
+  await expect(preview.locator('p')).toHaveCSS('margin', '0px');
+  await page.getByRole('button', { name: 'Leave settings' }).click();
+  await page.getByRole('button', { name: 'Reopen settings' }).click();
+  await page.getByRole('tab', { name: 'Rich text' }).click();
+  await expect(editor).toBeVisible();
+  await editor.fill('Alex Morgan updated');
+  await page.getByRole('button', { name: 'Save signature' }).click();
+  await expect(preview.getByText('Alex Morgan updated')).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => window.signatureFixture.readState().savedSignature
+    )
+  ).toContain('updated');
+});
+
+test('partial and logical margins still require HTML conversion', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'Signature editing is desktop-only');
+  for (const style of ['margin-top:0', 'margin:0;margin-inline-start:24px']) {
+    await page.getByRole('tab', { name: 'HTML', exact: true }).click();
+    const html = page.getByRole('textbox', {
+      name: 'Signature HTML for alex@example.com',
+    });
+    const source = `<p style="${style}">Custom spacing</p>`;
+    await html.fill(source);
+    await page.getByRole('tab', { name: 'Rich text' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(html).toHaveValue(source);
+  }
+  expect(
+    await page.evaluate(() => window.signatureFixture.readState().patches)
+  ).toEqual([]);
+});
+
 test('pasting a custom signature bypasses Quill conversion', async ({
   page,
   isMobile,
