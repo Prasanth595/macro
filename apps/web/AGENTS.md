@@ -27,7 +27,8 @@ Discussion link scrolling has a backend-free browser regression:
 
 Phone sheets stacked on each other (Connect email over Settings, Add guests,
 RSVP scope and the delete confirmation over event details) have a backend-free
-browser regression for backdrop taps that must not press what the scrim covers:
+browser regression for backdrop taps that must not press what the scrim covers,
+and for taps inside the top sheet that must still press its own controls:
 `bunx playwright test --config src/components/app/mobile/browser-test/playwright.config.ts`.
 
 CRM creation has backend-free desktop/phone coverage for name-only companies,
@@ -137,6 +138,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
 
+- Share URL recognition with `packages/lexical-core/utils/auto-link.ts`; preserve explicit unlink markers when saving and rendering messages. See `packages/lexical-core/README.md` at the repository root.
 - CRM creation accepts name-only companies and full contact email addresses.
   Company selection is explicit; a matching domain only suggests a company.
   Keep the standalone and pipeline forms consistent (see
