@@ -105,7 +105,8 @@ instead. Keyboard list navigation only moves focus; press Enter to open the focu
 In the task's Properties side panel, hover or focus a row for **Pin below title**
 or **Unpin from title**. Pinning adds the property to the title row; unpinning keeps
 its saved value and the side-panel row. The title pill's hover card also offers
-**Unpin** as a filled icon-only button to the right of its value, with a gap.
+**Unpin** as a filled icon-only button with a gap: beside the value in a row,
+or beside the key above a full-width divider in a column.
 Status, Priority, and Assignees are pinned by default, with Project when
 enabled. Unpinning a default preserves the other pins, and clearing all pins stays
 cleared after reopening. The empty Project placeholder can also be pinned or

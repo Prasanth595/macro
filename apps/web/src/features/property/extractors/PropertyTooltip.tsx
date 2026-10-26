@@ -32,12 +32,10 @@ export function PropertyTooltip(props: Props) {
       triggerClass="min-w-0 max-w-full"
       content={
         <div class="min-w-0">
-          <div class="flex min-w-0 items-center gap-4">
-            <div class="min-w-0 flex-1">
-              <CorePropertyTooltip property={props.property} />
-            </div>
-            {trailingAction()}
-          </div>
+          <CorePropertyTooltip
+            property={props.property}
+            trailingAction={trailingAction()}
+          />
           <Show when={actions.toArray().length > 0}>
             <div class="mt-2 border-t border-edge-muted pt-1.5">
               {actions()}
