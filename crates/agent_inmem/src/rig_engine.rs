@@ -838,8 +838,8 @@ fn elapsed_ms(since: tokio::time::Instant) -> u64 {
 }
 
 /// The turn's system prompt, ordered so the longest possible prefix is
-/// cached: the agent-session preamble, the note that an opening line is
-/// already out (see [`opener`]) and the static Macro prompt (how to use the
+/// cached: the agent-session preamble (which notes that an opening line may
+/// already be out, see [`opener`]) and the static Macro prompt (how to use the
 /// product: mentions, tools, terminology), which are the same for every
 /// session of every agent; then the agent's identity, the session's own
 /// instructions when there are any, which session this is, and the owner's
@@ -865,9 +865,6 @@ fn system_prompt(
 ) -> SystemPrompt {
     let mut shared = String::new();
     shared.push_str(&prompt::agent_session::PROMPT.to_string());
-    shared.push('\n');
-    shared.push_str(opener::ALREADY_OPENED);
-    shared.push('\n');
     shared.push_str(&tools_prompt.to_string());
     let mut rest = String::new();
     if let Some(identity) = identity {

@@ -277,11 +277,7 @@ fn sessions_share_everything_before_their_identity() {
     );
     let second = system_prompt(&TOOLS, "", session, None, Some("task B"), None);
 
-    let shared = format!(
-        "{}\n{}\n{TOOLS}",
-        prompt::agent_session::PROMPT,
-        opener::ALREADY_OPENED,
-    );
+    let shared = format!("{}{TOOLS}", prompt::agent_session::PROMPT);
     assert_eq!(first.shared(), Some(shared.as_str()));
     assert_eq!(second.shared(), Some(shared.as_str()));
     let agent_session = format!(
