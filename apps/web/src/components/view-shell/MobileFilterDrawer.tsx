@@ -29,7 +29,7 @@ type MobileFilterDrawerProps = {
   class?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** Active filter chips or other controls beside Clear all. */
+  /** Additional controls beside Clear all, also shown without active filters. */
   footer?: JSX.Element;
 };
 
@@ -101,18 +101,20 @@ function Root(props: MobileFilterDrawerProps) {
               </ScrollContext.Provider>
             </div>
           </div>
-          <Show when={props.activeCount > 0}>
+          <Show when={props.activeCount > 0 || props.footer}>
             <div class="shrink-0 px-6 pt-3 pb-2">
               <div class="flex flex-wrap items-center gap-2">
                 {props.footer}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  class="min-h-10 px-4 text-failure-ink not-touch:not-disabled:hover:text-failure-ink"
-                  onClick={() => props.onClear()}
-                >
-                  Clear all
-                </Button>
+                <Show when={props.activeCount > 0}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-10 px-4 text-failure-ink not-touch:not-disabled:hover:text-failure-ink"
+                    onClick={() => props.onClear()}
+                  >
+                    Clear all
+                  </Button>
+                </Show>
               </div>
             </div>
           </Show>

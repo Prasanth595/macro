@@ -272,19 +272,40 @@ function TaskSavedViewMenuItems(props: {
   );
 }
 
-export function TaskSavedViewsList(props: {
-  onAction?: (action: () => void) => void;
-  dialogOwner?: Owner | null;
-}) {
+export function TaskSavedViewsList() {
   const {
     savedViews,
     savedViewsList,
     startSavedView,
-    selectSavedView,
-    closeTask,
     isSidebarSectionOpen,
     setSidebarSectionOpen,
   } = useTasksView();
+  return (
+    <Show when={savedViews && savedViewsList}>
+      <SavedViewList.Root
+        open={isSidebarSectionOpen('saved-views')}
+        onOpenChange={(open) => setSidebarSectionOpen('saved-views', open)}
+      >
+        <SavedViewList.Header
+          onCreate={() => {
+            setSidebarSectionOpen('saved-views', true);
+            startSavedView();
+          }}
+        />
+        <SavedViewList.Content>
+          <TaskSavedViewRows />
+        </SavedViewList.Content>
+      </SavedViewList.Root>
+    </Show>
+  );
+}
+
+function TaskSavedViewRows(props: {
+  onAction?: (action: () => void) => void;
+  dialogOwner?: Owner | null;
+}) {
+  const { savedViews, savedViewsList, selectSavedView, closeTask } =
+    useTasksView();
   const viewerId = useUserId();
   const owner = props.dialogOwner ?? getOwner();
   const selectedId = () => {
@@ -309,74 +330,61 @@ export function TaskSavedViewsList(props: {
   return (
     <Show when={savedViews && savedViewsList}>
       {(views) => (
-        <SavedViewList.Root
-          open={isSidebarSectionOpen('saved-views')}
-          onOpenChange={(open) => setSidebarSectionOpen('saved-views', open)}
-        >
-          <SavedViewList.Header
-            onCreate={() =>
-              run(() => {
-                setSidebarSectionOpen('saved-views', true);
-                startSavedView();
-              })
-            }
-          />
-          <SavedViewList.Content>
-            <SavedViewList.Items>
-              <Show when={creating()}>
-                <SavedViewList.Draft onSelect={() => run(closeTask)} />
-              </Show>
-              <For each={items()}>
-                {(record) => (
-                  <SavedViewListRow
-                    view={record}
-                    selected={selectedId() === record.id}
-                    scopeKey={viewerId()}
-                    onSelect={() => run(() => selectSavedView(record.id))}
-                    menu={(defer) => (
-                      <TaskSavedViewMenuItems
-                        record={record}
-                        owner={owner}
-                        defer={(action) => defer(() => run(action))}
-                      />
-                    )}
-                  />
-                )}
-              </For>
-            </SavedViewList.Items>
-            <Show when={views().loading() && !items()}>
-              <p class="px-3 py-2 text-xs text-ink-muted" role="status">
-                Loading views…
-              </p>
+        <>
+          <SavedViewList.Items>
+            <Show when={creating()}>
+              <SavedViewList.Draft onSelect={() => run(closeTask)} />
             </Show>
-            <Show
-              when={!creating() && !views().loading() && items()?.length === 0}
+            <For each={items()}>
+              {(record) => (
+                <SavedViewListRow
+                  view={record}
+                  selected={selectedId() === record.id}
+                  scopeKey={viewerId()}
+                  onSelect={() => run(() => selectSavedView(record.id))}
+                  menu={(defer) => (
+                    <TaskSavedViewMenuItems
+                      record={record}
+                      owner={owner}
+                      defer={(action) => defer(() => run(action))}
+                    />
+                  )}
+                />
+              )}
+            </For>
+          </SavedViewList.Items>
+          <Show when={views().loading() && !items()}>
+            <p class="px-3 py-2 text-xs text-ink-muted" role="status">
+              Loading views…
+            </p>
+          </Show>
+          <Show
+            when={!creating() && !views().loading() && items()?.length === 0}
+          >
+            <p class="px-3 py-2 text-xs text-ink-muted">
+              Save a set of filters to return to it.
+            </p>
+          </Show>
+          <Show when={views().error()}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => fireAndForget(views().refresh(), 'saved-views')}
             >
-              <p class="px-3 py-2 text-xs text-ink-muted">
-                Save a set of filters to return to it.
-              </p>
-            </Show>
-            <Show when={views().error()}>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => fireAndForget(views().refresh(), 'saved-views')}
-              >
-                Retry loading views
-              </Button>
-            </Show>
-            <Show when={views().hasMore()}>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={views().loadingMore()}
-                onClick={() => fireAndForget(views().loadMore(), 'saved-views')}
-              >
-                Load more views
-              </Button>
-            </Show>
-          </SavedViewList.Content>
-        </SavedViewList.Root>
+              Retry loading views
+            </Button>
+          </Show>
+          <Show when={views().hasMore()}>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={views().loadingMore()}
+              onClick={() => fireAndForget(views().loadMore(), 'saved-views')}
+            >
+              Load more views
+            </Button>
+          </Show>
+        </>
       )}
     </Show>
   );
@@ -400,7 +408,7 @@ export function TaskSavedViewsPicker() {
           }
         >
           {(onAction) => (
-            <TaskSavedViewsList onAction={onAction} dialogOwner={owner} />
+            <TaskSavedViewRows onAction={onAction} dialogOwner={owner} />
           )}
         </SavedViewPicker>
       )}

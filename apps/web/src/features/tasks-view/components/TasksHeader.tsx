@@ -106,12 +106,7 @@ export function TasksHeader(props: TasksHeaderProps) {
       }
     >
       <ViewShell.Header>
-        <div class="flex min-w-0 flex-col @max-[720px]/view-shell:gap-3">
-          <TasksMobileTabs />
-          <div class="flex min-w-0 flex-wrap items-center gap-2 empty:hidden">
-            <TaskSavedViewActions />
-          </div>
-        </div>
+        <TasksMobileTabs />
       </ViewShell.Header>
     </Show>
   );

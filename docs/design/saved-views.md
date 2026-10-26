@@ -23,9 +23,9 @@ main Tasks screen.
 | Contents | Filters, selected layout, and ordered sorting, including implicit person conditions. No search text, grouping, or scroll state. |
 | Editing | Explicit Save changes, Reset, and Duplicate. |
 | Navigation | Leaving discards temporary edits without a confirmation prompt. |
-| Creation | The section's icon-only `+` starts an unsaved view; configure before creating. |
-| Capture | Save view appears left of Filters when filters, layout, or sort differ from the built-in defaults. |
-| Mobile | Shared pill after Filters and before the built-in tabs, with full creation, browsing, editing, and management support. |
+| Creation | Desktop sidebar `+` starts an unsaved view; mobile creates from changed settings in the filter drawer. |
+| Capture | Save view appears left of Filters on desktop and in the mobile filter drawer when filters, layout, or sort differ from the built-in defaults. |
+| Mobile | Shared picker pill after Filters and before built-in tabs; its drawer browses/manages views, while the filter drawer owns save/create/reset actions. |
 | Initial surfaces | Main Tasks only; not project or CRM embedded task lists. |
 | Owner departure | Team sharing stops while the owner is absent and resumes if they rejoin the shared team. |
 
@@ -97,8 +97,11 @@ and account/task lifecycle. Task actions capture the host request scope before
 writing or reloading, reject stale completions, and explicitly select created
 views. Mutation dialogs receive a refresh callback, not both query sources.
 Compose the list through compound components and reuse styled menu items across
-its context and overflow menus. Starting a new view expands the section and shows
-one local, selected New view row labeled Draft in the sidebar and mobile picker.
+its context and overflow menus. The mobile picker shows rows without a duplicate
+section heading or create button; changed settings expose save/create and reset
+actions inside the filter drawer. Starting a new view from the desktop sidebar
+expands the section and shows one local, selected New view row labeled Draft in
+the sidebar and mobile picker.
 Confirmed creation replaces the draft with the named record, including while the
 list refresh is pending. Canceling the draft or leaving its view removes the row;
 closing only the naming dialog retains it. Draft rows never enter the query cache.

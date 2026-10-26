@@ -5,12 +5,24 @@ import { createMemo, createSignal, For } from 'solid-js';
 import { TASK_GROUP_OPTIONS, TASK_SORT_OPTIONS } from '../constants';
 import { useTaskFilters } from '../filters/use-task-filters';
 import { useTasksView } from '../tasks-view-context';
+import {
+  TaskSavedViewActions,
+  TaskSaveViewButton,
+} from '../views/task-saved-views';
 
 export function TasksFilterDrawer() {
-  const { state, setPrimarySort, setState } = useTasksView();
+  const { state, setPrimarySort, setState, savedViews } = useTasksView();
   const filters = useTaskFilters();
   const [open, setOpen] = createSignal(false);
   const primarySort = () => state.sort[0]?.id ?? 'updated_at';
+  const hasViewChanges = () => {
+    const view = savedViews?.view();
+    return (
+      (view?.kind === 'default' && view.changed) ||
+      view?.kind === 'new' ||
+      (view?.kind === 'saved' && view.dirty)
+    );
+  };
 
   return (
     <MobileFilterDrawer
@@ -20,6 +32,14 @@ export function TasksFilterDrawer() {
       label="Task list controls"
       activeCount={filters.activeCount()}
       onClear={filters.clear}
+      footer={
+        hasViewChanges() ? (
+          <>
+            <TaskSaveViewButton />
+            <TaskSavedViewActions />
+          </>
+        ) : undefined
+      }
     >
       <MobileDrawer.Label id="task-sort-label" class="pt-4">
         Sort
