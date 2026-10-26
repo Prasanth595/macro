@@ -44,7 +44,11 @@ import {
   SettingsSection,
 } from './primitives';
 import { InviteToTeamDialog, useTeamViewer } from './Team';
-import { canInviteToTeam, canRemoveTeamMember } from './teamMemberPermissions';
+import {
+  canInviteToTeam,
+  canRemoveTeamMember,
+  isTeamAdminOrOwner,
+} from './teamMemberPermissions';
 
 const roleOrder: Record<string, number> = {
   [TeamRole.owner]: 0,
@@ -500,7 +504,8 @@ export function TeamMembers(props: { team: TeamSummary }) {
 
         <Show
           when={
-            (isOwner() || allowNonAdminInvites()) &&
+            // Listing and cancelling invites are admin-only on the server.
+            isTeamAdminOrOwner(currentUserRole()) &&
             (invitesQuery.data?.invites?.length ?? 0) > 0
           }
         >
@@ -510,7 +515,7 @@ export function TeamMembers(props: { team: TeamSummary }) {
                 {(invite) => (
                   <TeamInviteRow
                     invite={invite}
-                    canChange={isOwner() || allowNonAdminInvites()}
+                    canChange={isTeamAdminOrOwner(currentUserRole())}
                     resending={
                       resendInviteMutation.isPending &&
                       resendInviteMutation.variables?.email === invite.email

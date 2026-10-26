@@ -164,8 +164,8 @@ An unanswered invite gets up to two reminder emails, with subjects starting
 **Reminder:**, 3 days after the last email and 4 days after that. Invites more
 than 14 days old, already-members, and invites whose sender left the team get none.
 **Pending invites** on **Team → Members** lists each invite with when it was
-last sent. Anyone who may invite can **Resend**, copy the invite link, or
-cancel it. Resend unlocks 2 days after the last email, the email's rate limit;
+last sent, for owners and admins, who can **Resend**, copy the invite link,
+or cancel it. Resend unlocks 2 days after the last email, the email's rate limit;
 re-inviting the address from **Invite** follows the same rule.
 
 Under **Team → Members** (**Invite settings**), owners/admins can turn
