@@ -42,6 +42,8 @@ phone browser coverage in `features/calendar-notes`:
 The browser fixture uses the real event details popover and mobile drawer over
 sample data; keep notes aligned with those existing surfaces and preserve their
 dialog open guards. Optional note sharing uses existing team memberships.
+Include linked meetings in Markdown side-panel References, behind the same flag;
+resolve their titles, occurrence times, and opening targets through calendar previews.
 Gate event notes and document Share meeting-link controls with
 `enable-calendar-meeting-notes` before mounting their query sources; it defaults
 on in dev and uses PostHog in production.

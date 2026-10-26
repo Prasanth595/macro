@@ -3,6 +3,7 @@ import { catchToResult, throwOnErr } from '@core/util/result';
 import { Telemetry } from '@macro-inc/observability';
 import { queryClient } from '@queries/client';
 import { queryReadyGate } from '@queries/gate';
+import type { DocumentNoteLink as CalendarDocumentLink } from '@service-calendar/generated/schemas/documentNoteLink';
 import { calendarNotesClient } from '@service-calendar/notes';
 import { createDebouncedMemo } from '@solid-primitives/memo';
 import { useMutation, useQuery } from '@tanstack/solid-query';
@@ -10,6 +11,7 @@ import { err, ok } from 'neverthrow';
 import type { Accessor } from 'solid-js';
 import type { DocumentNotesSource, NotesSource } from '../context/notes-source';
 import type {
+  DocumentNoteLink,
   MeetingNote,
   NoteCreateFailure,
   NoteFailure,
@@ -197,7 +199,14 @@ export function createNotesSource(
   };
 }
 
-function documentLinksOptions(userId: string | undefined, documentId: string) {
+/** Reference previews are adapted at the calendar API boundary. */
+export type DocumentReference = DocumentNoteLink &
+  Pick<CalendarDocumentLink, 'teamEvent' | 'event' | 'canViewMeeting'>;
+
+export function documentLinksOptions(
+  userId: string | undefined,
+  documentId: string
+) {
   return {
     queryKey: notesKeys.documentLinks(userId, documentId).queryKey,
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
@@ -209,6 +218,8 @@ function documentLinksOptions(userId: string | undefined, documentId: string) {
     enabled: !!userId,
     staleTime: 0,
     gcTime: 0,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   };
 }
 
