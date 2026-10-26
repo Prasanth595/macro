@@ -23,7 +23,12 @@ import { Suspense } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Agents } from './Agents';
-import { chooseSelectOption, selectOptions } from './tests/select-helpers';
+import {
+  chooseModelOption,
+  chooseSelectOption,
+  modelOptions,
+  selectOptions,
+} from './tests/select-helpers';
 
 const agentsPageProps = {
   onCursor: vi.fn(),
@@ -1375,13 +1380,9 @@ describe('Agents', () => {
     expect(cursor).toHaveProperty('checked', true);
 
     const defaultModel = within(dialog).getByLabelText('Default model');
-    expect(selectOptions(defaultModel).getAllByRole('option')).toHaveLength(2);
-    expect(
-      selectOptions(defaultModel)
-        .getByRole('option', { name: 'Cursor Small' })
-        .getAttribute('aria-selected')
-    ).toBe('true');
-    chooseSelectOption(defaultModel, 'Cursor Large');
+    expect(modelOptions(defaultModel).getAllByRole('menuitem')).toHaveLength(2);
+    expect(defaultModel.textContent).toBe('Cursor Small');
+    chooseModelOption(defaultModel, 'Cursor Large');
     expect(defaultModel.textContent).toBe('Cursor Large');
     fireEvent.input(within(dialog).getByLabelText('Name'), {
       target: { value: 'Coding agent' },
@@ -1577,7 +1578,7 @@ describe('Agents', () => {
     const defaultModel = within(dialog).getByLabelText('Default model');
     expect(defaultModel.tagName).toBe('BUTTON');
     expect(defaultModel).toHaveProperty('textContent', 'Codex');
-    expect(selectOptions(defaultModel).getAllByRole('option')).toHaveLength(2);
+    expect(modelOptions(defaultModel).getAllByRole('menuitem')).toHaveLength(2);
   });
 
   it('falls back to the first advertised model when current is absent', () => {
@@ -1623,7 +1624,7 @@ describe('Agents', () => {
       'provider-default (unavailable)'
     );
     expect(
-      selectOptions(defaultModel).getByRole('option', {
+      modelOptions(defaultModel).getByRole('menuitem', {
         name: 'provider-default (unavailable)',
       })
     ).toBeTruthy();
@@ -1740,7 +1741,7 @@ describe('Agents', () => {
       'retired-model (saved, unavailable)'
     );
     expect(
-      selectOptions(defaultModel).getByRole('option', {
+      modelOptions(defaultModel).getByRole('menuitem', {
         name: 'retired-model (saved, unavailable)',
       })
     ).toBeTruthy();

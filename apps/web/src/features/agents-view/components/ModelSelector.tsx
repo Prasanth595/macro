@@ -1,15 +1,10 @@
-import {
-  AgentModelSelector,
-  type AgentModelSelectorProps,
-} from '@app/features/block-agent/ui/AgentModelSelector';
+import type { AgentModelSelectorProps } from '@app/features/block-agent/ui/AgentModelSelector';
 import {
   ModelCatalogPicker,
   type ModelRowProps,
 } from '@core/component/AI/component/input/ModelCatalogPicker';
 import { modelLabel } from '@core/component/AI/constant/model-label';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { Component, JSX } from 'solid-js';
-import { Show } from 'solid-js';
 
 export type ModelChoice = {
   id: string;
@@ -63,32 +58,30 @@ export function ModelSelector(props: {
 export function SessionModelSelector(props: AgentModelSelectorProps) {
   const shown = () => props.changingTo ?? props.model ?? undefined;
   return (
-    <Show when={!isTouchDevice()} fallback={<AgentModelSelector {...props} />}>
-      <ModelSelector
-        onCloseAutoFocus={props.onCloseAutoFocus}
-        model={shown()}
-        label={[
-          modelLabel(
-            shown(),
-            props.options.find((option) => option.id === shown())?.name
-          ),
-          props.effortLabel,
-        ]
-          .filter(Boolean)
-          .join(' · ')}
-        modelRow={props.modelRow}
-        options={props.options.map((option) => ({
-          id: option.id,
-          name: option.name,
-          group: option.group ?? undefined,
-          description: option.description ?? undefined,
-        }))}
-        disabled={props.disabled}
-        pending={props.changingTo !== undefined}
-        onSelect={(id) => {
-          if (id !== props.model) props.onSelect(id);
-        }}
-      />
-    </Show>
+    <ModelSelector
+      onCloseAutoFocus={props.onCloseAutoFocus}
+      model={shown()}
+      label={[
+        modelLabel(
+          shown(),
+          props.options.find((option) => option.id === shown())?.name
+        ),
+        props.effortLabel,
+      ]
+        .filter(Boolean)
+        .join(' · ')}
+      modelRow={props.modelRow}
+      options={props.options.map((option) => ({
+        id: option.id,
+        name: option.name,
+        group: option.group ?? undefined,
+        description: option.description ?? undefined,
+      }))}
+      disabled={props.disabled}
+      pending={props.changingTo !== undefined}
+      onSelect={(id) => {
+        if (id !== props.model) props.onSelect(id);
+      }}
+    />
   );
 }

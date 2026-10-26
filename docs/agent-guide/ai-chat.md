@@ -620,9 +620,9 @@ the shimmer.
   hourly, plus any recovery backlog. Normal completion handling remains immediate.
   The agent form retains sharing, name, `@tag`, runtime, default model, connections,
   channels, instructions, and permission policy.
-  Runtime and short model lists use styled dropdown buttons: open the field and
-  choose an option (or use arrow keys and Enter). Escape dismisses the menu.
-  Large model lists retain the searchable model picker.
+  The runtime list uses a styled dropdown button: open the field and choose an
+  option (or use arrow keys and Enter). Escape dismisses the menu. Default model
+  uses the shared searchable model picker for every runtime, whatever its size.
 - **Session**: the header has the sidebar reopen control, a linked PR status chip,
   favorite, Share, and Side panel. The top-left title uses the same provider icon,
   saved-title precedence, and title menu as `/app/agent/<id>`; click the caret
@@ -1822,14 +1822,15 @@ slide and fade. On touch devices, messages lift into place with a gentle settle;
 the text reaches full opacity early and keeps its final size. History and
 remounted messages stay still; reduced-motion preferences disable the transition.
 
-On phones, the chat model control appears as a provider icon while the software
-keyboard is open. Its accessible name is `Choose model, <model name>`. It opens
-a `Select model` sheet with descriptions, a checkmark for the current choice,
-and a **Done** button. Selecting an available model updates the selection;
-locked models open the upgrade flow. The sheet stays open when the keyboard closes.
+Every model control — production chat, the agent composer, running sessions,
+and the default-model fields in Settings — is the same `ModelCatalogPicker`: a
+searchable popover on desktop and a searchable `Choose a model` bottom sheet on
+touch devices, both with **Suggested** first and the complete provider catalog
+behind **More models**. Tapping or choosing a model applies it and closes the
+menu. Locked models stay listed, dimmed with a lock, and open the upgrade flow.
 
-The compact model menus use the standard menu text size and a 240px width
-(capped to the viewport), consistently in production chat and the agent input.
+On phones, the chat model control appears as a provider icon while the software
+keyboard is open. Its accessible name is `Choose model, <model name>`.
 
 Chat title icons follow the selected model's provider, including the agent
 system's live model. Soup rows use the model included in the list data, with a
