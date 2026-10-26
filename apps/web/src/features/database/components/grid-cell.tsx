@@ -66,6 +66,8 @@ export type DatabaseTextEditorProps = CellTextEditorProps & {
 export type GridCellProps = GridCellEditorOptions & {
   column: DatabaseViewColumn;
   value: DatabaseCellValue;
+  /** Other row values, including the denomination of monetary cells. */
+  rowCells?: Record<string, DatabaseCellValue>;
   emptyLabel?: string;
   /** Text values wrap onto as many lines as they need instead of truncating to one. */
   wrap?: boolean;
@@ -74,8 +76,6 @@ export type GridCellProps = GridCellEditorOptions & {
   renderTextValue?: (value: string) => JSX.Element;
   renderMentionPicker?: (props: DatabaseMentionPickerProps) => JSX.Element;
   renderMentionValue?: (id: string, type: DatabaseEntityType) => JSX.Element;
-  /** Where the cell's popups mount in place of the page body, such as inside a modal dialog. */
-  popupMount?: HTMLElement;
   onMention?: (mention: DatabaseMention) => Promise<boolean>;
   /** Click and Enter open the cell's mention instead of editing it; F2 and typing still edit. */
   onOpenMention?: (id: string, type: DatabaseEntityType) => void;
@@ -414,6 +414,7 @@ export function GridCell(props: GridCellProps) {
               }}
             >
               <TextCell
+                rowCells={props.rowCells}
                 column={props.column}
                 value={props.value}
                 emptyLabel={props.emptyLabel}
@@ -549,6 +550,7 @@ type MentionPreview = {
 function TextCell(props: {
   column: DatabaseViewColumn;
   value: DatabaseCellValue;
+  rowCells?: Record<string, DatabaseCellValue>;
   emptyLabel?: string;
   wrap?: boolean;
   editable: boolean;
@@ -565,7 +567,8 @@ function TextCell(props: {
 }) {
   // Refreshes rebuild row objects; only a changed value may rerun renderers and remount previews.
   const value = createMemo(() => props.value);
-  const formatted = () => formatCellValue(props.column, value());
+  const formatted = () =>
+    formatCellValue(props.column, value(), props.rowCells);
   const hint = () =>
     props.onOpen ? 'Click to open' : props.editable ? 'Click to edit' : '';
   return (
@@ -1013,7 +1016,8 @@ function SelectCell(props: GridCellProps) {
       if (isClearCellKey(event)) {
         event.preventDefault();
         event.stopPropagation();
-        fireAndForget(props.onWrite(null), 'database');
+        if (props.column.defaultValue === undefined)
+          fireAndForget(props.onWrite(null), 'database');
         return;
       }
       if (
@@ -1125,7 +1129,8 @@ function DateCell(props: GridCellProps) {
   let openingEvent: Event | undefined;
   const [open, setOpen] = createSignal(false);
   const [query, setQuery] = createSignal('');
-  const label = () => formatCellValue(props.column, props.value);
+  const label = () =>
+    formatCellValue(props.column, props.value, props.rowCells);
   // The selector mounts on first use; until then the cell is a plain button.
   const [mounted, setMounted] = createSignal(false);
   const edit = (seed?: string, event?: Event) => {

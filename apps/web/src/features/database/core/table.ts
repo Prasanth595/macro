@@ -55,7 +55,7 @@ export function cellTitle(
   const value = rowValue(row, column.id);
   if (value === null || value === '') return 'Unnamed';
   if (column.dataType === 'ENTITY' && !column.relation) return 'Linked record';
-  return formatCellValue(column, value) || 'Unnamed';
+  return formatCellValue(column, value, row.cells) || 'Unnamed';
 }
 
 export function rowTitle(
@@ -98,7 +98,8 @@ export function canEditCell(column: DatabaseViewColumn): boolean {
 
 export function formatCellValue(
   column: DatabaseViewColumn,
-  value: DatabaseCellValue
+  value: DatabaseCellValue,
+  cells?: Record<string, DatabaseCellValue>
 ): string {
   if (value === null || value === '') return '';
   if (column.relation)
@@ -119,8 +120,13 @@ export function formatCellValue(
     const date = fromCellDate(value);
     if (date) return formatDate(date);
   }
-  if (column.dataType === 'NUMBER' && typeof value === 'number')
+  if (column.dataType === 'NUMBER' && typeof value === 'number') {
+    if (column.currencyColumnId) {
+      const currency = cells?.[column.currencyColumnId] ?? 'USD';
+      return `${currency} ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(value)}`;
+    }
     return formatNumber(value);
+  }
   return String(value);
 }
 
