@@ -1,23 +1,23 @@
+import { formatLocalDate, parseLocalDate } from '@core/util/local-date';
 import { addDays, differenceInCalendarDays } from 'date-fns';
 import { minutesInDay, minutesInHour } from 'date-fns/constants';
-import { formatLocalDate, parseLocalDate } from '../../utils/calendar-date';
 
-/** Granularity of every event time picker. */
+/** Granularity of every time picker. */
 const SLOT_MINUTES = 15;
 
 /**
- * Longest event the end picker offers, matching Google Calendar: one slot
+ * Longest range the end picker offers, matching Google Calendar: one slot
  * short of a full day, so a same-start end time is never listed twice.
  */
-const MAX_EVENT_MINUTES = minutesInDay - SLOT_MINUTES;
+const MAX_RANGE_MINUTES = minutesInDay - SLOT_MINUTES;
 
 const timeLabelFormatter = new Intl.DateTimeFormat(undefined, {
   hour: 'numeric',
   minute: '2-digit',
 });
 
-/** One selectable clock time in an event time picker. */
-export interface EventTimeOption {
+/** One selectable clock time in a time picker. */
+export interface TimeOption {
   /** Listbox key, distinguishing clock times that land on different days. */
   id: string;
   /** Canonical `HH:mm` value. */
@@ -65,8 +65,8 @@ export function formatTimeValue(value: string): string | undefined {
   );
 }
 
-/** `30min`, `1h`, `1h 15min` — Google's compact event duration. */
-export function formatEventDuration(minutes: number): string {
+/** `30min`, `1h`, `1h 15min` — Google Calendar's compact duration. */
+export function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / minutesInHour);
   const remainder = minutes % minutesInHour;
   if (hours === 0) return `${remainder}min`;
@@ -85,7 +85,7 @@ function timeOption(minutesOfDay: number, dayOffset: number, detail?: string) {
 }
 
 /** Every quarter-hour in a day, used wherever no start anchors the choice. */
-export const DAY_TIME_OPTIONS: EventTimeOption[] = Array.from(
+export const DAY_TIME_OPTIONS: TimeOption[] = Array.from(
   { length: minutesInDay / SLOT_MINUTES },
   (_, index) => timeOption(index * SLOT_MINUTES, 0)
 );
@@ -95,14 +95,14 @@ export const DAY_TIME_OPTIONS: EventTimeOption[] = Array.from(
  * with the duration it produces. Options past midnight carry the day offset
  * they land on, so the end date follows the chosen time.
  */
-export function endTimeOptions(startTime: string): EventTimeOption[] {
+export function endTimeOptions(startTime: string): TimeOption[] {
   const startMinutes = parseTimeValue(startTime);
   if (startMinutes === undefined) return DAY_TIME_OPTIONS;
 
-  const options: EventTimeOption[] = [];
+  const options: TimeOption[] = [];
   for (
     let duration = SLOT_MINUTES;
-    duration <= MAX_EVENT_MINUTES;
+    duration <= MAX_RANGE_MINUTES;
     duration += SLOT_MINUTES
   ) {
     const total = startMinutes + duration;
@@ -110,7 +110,7 @@ export function endTimeOptions(startTime: string): EventTimeOption[] {
       timeOption(
         total % minutesInDay,
         Math.floor(total / minutesInDay),
-        formatEventDuration(duration)
+        formatDuration(duration)
       )
     );
   }
@@ -124,9 +124,9 @@ export function selectedTimeOptionId(value: string, dayOffset = 0) {
 
 /** The option a typed clock time resolves to within `options`. */
 export function resolveTimeOption(
-  options: EventTimeOption[],
+  options: TimeOption[],
   time: string
-): EventTimeOption {
+): TimeOption {
   return (
     options.find((option) => option.value === time) ?? {
       id: optionId(0, time),
@@ -173,7 +173,7 @@ export function withinEndTimeWindow(start: string, end: string) {
   if (startTime === undefined || endTime === undefined) return false;
   const elapsed =
     dayOffsetBetween(start, end) * minutesInDay + endTime - startTime;
-  return elapsed <= MAX_EVENT_MINUTES;
+  return elapsed <= MAX_RANGE_MINUTES;
 }
 
 /**
@@ -184,7 +184,7 @@ export function withinEndTimeWindow(start: string, end: string) {
  */
 export function endValueFor(
   start: string,
-  option: Pick<EventTimeOption, 'value' | 'dayOffset'>
+  option: Pick<TimeOption, 'value' | 'dayOffset'>
 ) {
   const { date, time } = splitLocalDateTime(start);
   const startDate = parseLocalDate(date);

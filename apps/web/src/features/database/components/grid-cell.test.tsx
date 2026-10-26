@@ -44,6 +44,7 @@ beforeEach(() => {
     '[role="menu"], [role="dialog"] { animation-name: none; }';
   document.head.append(style);
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  Element.prototype.scrollIntoView = vi.fn();
 });
 afterEach(() => {
   cleanup();
@@ -1529,56 +1530,117 @@ describe('grid cell', () => {
           (cell) => cell.textContent === label && !cell.hasAttribute('disabled')
         );
 
-    it('picks a start and an end day from the keyboard-focused calendar, storing each complete range', async () => {
+    const renderTrip = (value: DatabaseCellValue) => {
       const onWrite = vi.fn(async () => true);
       render(() => (
         <GridCell
           column={trip}
-          value="2026-03-02T00:00:00.000Z/2026-03-03T00:00:00.000Z"
+          value={value}
           canEdit
           onWrite={onWrite}
           onAddOption={vi.fn(async () => true)}
         />
       ));
-      const trigger = screen.getByRole('button', { name: /^Trip: Mar 2/ });
-      trigger.focus();
+      return onWrite;
+    };
+    const field = (end: 'start' | 'end') =>
+      screen.getByRole('button', { name: `Edit Trip ${end} date and time` });
+    // The open menu hides the rest of the page from the accessibility tree.
+    const cell = () =>
+      screen.getByRole('button', { name: /^Trip: /, hidden: true });
+
+    it('opens on the start field and keeps the menu open while picking days in its date lists', async () => {
+      const onWrite = renderTrip(
+        '2026-03-02T00:00:00.000Z/2026-03-03T00:00:00.000Z'
+      );
+      cell().focus();
       await userEvent.keyboard('{Enter}');
-      await waitFor(() => expect(document.activeElement).toBe(day('2')));
-      await userEvent.click(day('16')!);
+      await waitFor(() => expect(document.activeElement).toBe(field('start')));
+
+      await userEvent.click(field('end'));
       await userEvent.click(day('20')!);
-      expect(onWrite.mock.calls).toEqual([
-        ['2026-03-16T00:00:00.000Z/2026-03-16T00:00:00.000Z'],
-        ['2026-03-16T00:00:00.000Z/2026-03-20T00:00:00.000Z'],
-      ]);
-      expect(day('20')).toBeTruthy();
+      expect(onWrite).toHaveBeenLastCalledWith(
+        '2026-03-02T00:00:00.000Z/2026-03-20T00:00:00.000Z'
+      );
+      expect(cell().getAttribute('aria-expanded')).toBe('true');
+
+      // A new start carries the end along, keeping the range's days.
+      await userEvent.click(field('start'));
+      await userEvent.click(day('10')!);
+      expect(onWrite).toHaveBeenLastCalledWith(
+        '2026-03-10T00:00:00.000Z/2026-03-28T00:00:00.000Z'
+      );
+      expect(cell().getAttribute('aria-expanded')).toBe('true');
     });
 
-    it('stores a timed range as its two instants', async () => {
-      const onWrite = vi.fn(async () => true);
-      render(() => (
-        <GridCell
-          column={trip}
-          value="2026-03-02T00:00:00.000Z/2026-03-03T00:00:00.000Z"
-          canEdit
-          onWrite={onWrite}
-          onAddOption={vi.fn(async () => true)}
-        />
-      ));
-      await userEvent.click(
-        screen.getByRole('button', { name: /^Trip: Mar 2/ })
+    it('turns off All day at the next full hour and picks a time from the nested list', async () => {
+      vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 2, 1, 14, 20) });
+      const onWrite = renderTrip(
+        '2026-03-02T00:00:00.000Z/2026-03-03T00:00:00.000Z'
       );
+      await userEvent.click(cell());
       await userEvent.click(
         await screen.findByRole('switch', { name: 'All day' })
       );
       expect(onWrite).toHaveBeenLastCalledWith(
-        `${new Date(2026, 2, 2, 9).toISOString()}/${new Date(2026, 2, 3, 17).toISOString()}`
+        `${new Date(2026, 2, 2, 15).toISOString()}/${new Date(2026, 2, 3, 16).toISOString()}`
       );
 
-      fireEvent.change(screen.getByLabelText('End time'), {
-        target: { value: '18:30' },
-      });
+      await userEvent.click(field('end'));
+      await userEvent.click(screen.getByLabelText('End time'));
+      await userEvent.click(screen.getByRole('option', { name: '6:30 PM' }));
       expect(onWrite).toHaveBeenLastCalledWith(
-        `${new Date(2026, 2, 2, 9).toISOString()}/${new Date(2026, 2, 3, 18, 30).toISOString()}`
+        `${new Date(2026, 2, 2, 15).toISOString()}/${new Date(2026, 2, 3, 18, 30).toISOString()}`
+      );
+      expect(field('end').getAttribute('aria-expanded')).toBe('true');
+      expect(cell().getAttribute('aria-expanded')).toBe('true');
+      vi.useRealTimers();
+    });
+
+    it('shows an end before the start without saving it', async () => {
+      const onWrite = renderTrip(
+        '2026-03-10T00:00:00.000Z/2026-03-12T00:00:00.000Z'
+      );
+      await userEvent.click(screen.getByRole('button', { name: /^Trip: Mar/ }));
+      await userEvent.click(field('end'));
+      await userEvent.click(day('4')!);
+      expect(screen.getByRole('alert').textContent).toBe(
+        'The end can’t be before the start.'
+      );
+      expect(onWrite).not.toHaveBeenCalled();
+    });
+
+    it('starts an empty range on the first day picked, and clears a range', async () => {
+      vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 2, 1, 9) });
+      const onWrite = renderTrip(null);
+      await userEvent.click(cell());
+      expect(field('start').textContent).toContain('Start date');
+      await userEvent.click(field('start'));
+      await userEvent.click(day('16')!);
+      expect(onWrite).toHaveBeenLastCalledWith(
+        '2026-03-16T00:00:00.000Z/2026-03-16T00:00:00.000Z'
+      );
+
+      await userEvent.click(screen.getByRole('button', { name: 'Clear' }));
+      expect(onWrite).toHaveBeenLastCalledWith(null);
+      await waitFor(() =>
+        expect(cell().getAttribute('aria-expanded')).toBe('false')
+      );
+      vi.useRealTimers();
+    });
+
+    it('closes a date list on Escape, then the menu', async () => {
+      renderTrip('2026-03-02T00:00:00.000Z/2026-03-03T00:00:00.000Z');
+      await userEvent.click(cell());
+      await userEvent.click(field('end'));
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() =>
+        expect(field('end').getAttribute('aria-expanded')).toBe('false')
+      );
+      expect(cell().getAttribute('aria-expanded')).toBe('true');
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() =>
+        expect(cell().getAttribute('aria-expanded')).toBe('false')
       );
     });
   });

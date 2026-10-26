@@ -1,21 +1,18 @@
-import CalendarBlankIcon from '@icon/system/regular/calendar-blank.svg';
-import CaretDownIcon from '@icon/system/regular/caret-down.svg';
-import CheckIcon from '@icon/system/regular/check.svg';
+import { ScopedPortal } from '@core/component/ScopedPortal';
 import type { CollectionNode } from '@kobalte/core';
 import { Listbox } from '@kobalte/core/listbox';
 import { Popover } from '@kobalte/core/popover';
-import { Calendar } from '@ui/components/Calendar';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
 import { Layer } from '@ui/components/Layer';
 import { cn } from '@ui/utils/classname';
 import { createMemo, createSignal, Show } from 'solid-js';
-import { formatLocalDate, parseLocalDate } from '../../utils/calendar-date';
-import { EventComposerPopoverPortal } from './EventComposerPopoverPortal';
 import {
   DAY_TIME_OPTIONS,
-  type EventTimeOption,
   resolveTimeOption,
   selectedTimeOptionId,
-} from './event-time-options';
+  type TimeOption,
+} from './time-options';
 
 export const dateLabelFormatter = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
@@ -23,7 +20,7 @@ export const dateLabelFormatter = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 });
 
-function TimeOptionItem(props: CollectionNode<EventTimeOption>) {
+function TimeOptionItem(props: CollectionNode<TimeOption>) {
   return (
     <Listbox.Item
       item={props}
@@ -44,27 +41,27 @@ function TimeOptionItem(props: CollectionNode<EventTimeOption>) {
   );
 }
 
-interface EventTimeInputProps {
+interface TimeInputProps {
   id: string;
   label: string;
   value: string;
   /** Selectable times; defaults to every quarter-hour in a day. */
-  options?: EventTimeOption[];
+  options?: TimeOption[];
   /** Highlighted option; defaults to `value` on the anchor day. */
   selectedId?: string;
-  onChange: (option: EventTimeOption) => void;
+  onChange: (option: TimeOption) => void;
   /** Called when the native control is cleared; omitted where empty is invalid UI. */
   onClear?: () => void;
   onFocus?: () => void;
   disabled?: boolean;
   invalid?: boolean;
-  /** Native time precision in seconds. Calendar fields keep quarter-hour slots by default. */
+  /** Native time precision in seconds; quarter-hour slots by default. */
   step?: number;
   hideLabel?: boolean;
   class?: string;
 }
 
-export function EventTimeInput(props: EventTimeInputProps) {
+export function TimeInput(props: TimeInputProps) {
   const [open, setOpen] = createSignal(false);
   let control: HTMLDivElement | undefined;
   let listbox: HTMLElement | undefined;
@@ -149,7 +146,7 @@ export function EventTimeInput(props: EventTimeInputProps) {
         />
       </div>
 
-      <EventComposerPopoverPortal>
+      <ScopedPortal scope="local">
         <Layer depth={4}>
           <Popover.Content
             class="menu-surface z-action-menu max-h-64 min-w-[var(--kb-popper-anchor-width)] overflow-y-auto p-1.5 menu-open-animation"
@@ -174,7 +171,7 @@ export function EventTimeInput(props: EventTimeInputProps) {
             <Popover.Title class="sr-only">
               Choose {props.label.toLowerCase()}
             </Popover.Title>
-            <Listbox<EventTimeOption>
+            <Listbox<TimeOption>
               ref={(element) => {
                 listbox = element;
               }}
@@ -190,85 +187,7 @@ export function EventTimeInput(props: EventTimeInputProps) {
             />
           </Popover.Content>
         </Layer>
-      </EventComposerPopoverPortal>
-    </Popover>
-  );
-}
-
-interface EventDateFieldProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  invalid?: boolean;
-  describedBy?: string;
-  class?: string;
-  portalScope?: 'local';
-  appearance?: 'underline' | 'bare';
-}
-
-/** Compact calendar date selector used by event date/time ranges. */
-export function EventDateField(props: EventDateFieldProps) {
-  const [open, setOpen] = createSignal(false);
-  const [portalSearchRef, setPortalSearchRef] = createSignal<HTMLDivElement>();
-  const selectedDate = () => parseLocalDate(props.value);
-  const portalMount = () => {
-    if (props.portalScope !== 'local') return undefined;
-    return (
-      portalSearchRef()?.closest<HTMLElement>('.portal-scope') ?? undefined
-    );
-  };
-
-  return (
-    <Popover
-      open={open() && !props.disabled}
-      onOpenChange={(next) => setOpen(!props.disabled && next)}
-      placement="bottom-start"
-      gutter={4}
-      flip
-      slide
-    >
-      <Popover.Trigger
-        aria-label={`${props.label} date`}
-        aria-describedby={props.describedBy}
-        aria-invalid={props.invalid || undefined}
-        title={selectedDate() ? dateLabelFormatter.format(selectedDate()) : ''}
-        disabled={props.disabled}
-        class={cn(
-          'flex min-w-0 items-center justify-start gap-1 truncate bg-transparent text-xs font-normal outline-none disabled:cursor-not-allowed',
-          props.appearance === 'bare'
-            ? 'px-0'
-            : 'h-9 border-b border-edge-muted px-1 focus-visible:border-accent',
-          props.invalid && 'border-failure',
-          props.class
-        )}
-      >
-        <CalendarBlankIcon class="size-3 shrink-0 text-ink-extra-muted" />
-        <span class="truncate">
-          {selectedDate() ? dateLabelFormatter.format(selectedDate()) : 'Date'}
-        </span>
-      </Popover.Trigger>
-
-      <div class="hidden" ref={setPortalSearchRef} />
-      <Popover.Portal mount={portalMount()}>
-        <Layer depth={3}>
-          <Popover.Content class="menu-surface z-action-menu w-72 max-w-[calc(100vw-1rem)] p-3 menu-open-animation">
-            <Popover.Title class="sr-only">
-              Choose {props.label.toLowerCase()} date
-            </Popover.Title>
-            <Calendar
-              required
-              fixedWeeks
-              value={selectedDate()}
-              onValueChange={(date) => {
-                if (!date) return;
-                props.onChange(formatLocalDate(date));
-                setOpen(false);
-              }}
-            />
-          </Popover.Content>
-        </Layer>
-      </Popover.Portal>
+      </ScopedPortal>
     </Popover>
   );
 }

@@ -299,22 +299,22 @@ such as `tomorrow`, `3d`, or `feb 17` and press Enter, or pick **Custom date...*
 for a calendar. Typing on a selected date cell starts that search; Delete clears
 the date, and Tab leaves the selector without changing it.
 Time-range cells show their days (`Oct 9 – 13, 2026`) or, with times,
-`Oct 9, 9:00 AM – 5:00 PM` / `Oct 9, 9:00 AM – Oct 13, 5:00 PM`. They open a
-calendar with focus on a day, under a header of **Start** and **End**; the
-highlighted end is the one the next pick (click, or arrows and Enter) sets, and
-clicking either end highlights it. Picking the start moves on to the end; an
-end picked before the start swaps them. The days between the ends form one
-tinted band with the ends as solid circles, previewed while the mouse hovers a
-day. Every complete change saves at once and the calendar stays open until
-Escape or a click outside. The footer's **All day** switch (on for new and
-whole-day ranges) turns times on, starting at 9:00 AM – 5:00 PM, with a time
-field under each end; an end before the start is refused with an inline
-message. The footer also shows the duration (`5 days`, `4 days 8 hrs`) and
-**Clear**, which empties the range and closes; Delete on the cell empties it
+`Oct 9, 9:00 AM – 5:00 PM` / `Oct 9, 9:00 AM – Oct 13, 5:00 PM`. They open the
+calendar event composer's date/time fields (`components/date-time-range`), with
+focus on the first: **Start** → **End** buttons that each drop down a calendar
+and, with times, a 15-minute time list (an end's times show the duration from
+the start), an **All day** switch, and **Clear**, which empties the range and
+closes. An empty cell shows **Start date** / **End date** and starts all day;
+the first day picked sets both ends. A new start carries the end along,
+keeping the range's length. Turning All day off gives each end the next full
+hour, an hour long. An end before the start is shown in red with an inline
+message and never saved. Every other change saves at once; the fields' lists
+open inside the menu, Escape closes an open list and then the menu, and a
+click outside closes it. Delete on the cell empties it
 too. Range filters test a whole day: contains (the range overlaps that day),
 does not contain, starts after, starts on or before, ends before, ends on or
 after, so a 1 PM to 5 PM range contains its day. Properties of type **Time range**
-edit with the same calendar.
+edit with the same fields.
 Invalid numbers remain in the editor for correction.
 Drag across table cells to select a rectangle, or Shift-click another cell to
 extend from the first cell. Delete or Backspace clears editable cells in that
@@ -547,7 +547,7 @@ chart to create a record spanning those days, or at hours zoom those times in
 15-minute steps; it opens once saved.
 Right-clicking a bar, a chip or (drawer open) a record's name, or Shift+F10 /
 the menu key on a focused one, opens its menu: **Open record**, **Edit time
-range…** (the range picker beside the bar), **Rename** (a name field over the
+range…** (the cell's date/time fields beside the bar), **Rename** (a name field over the
 bar; Enter or leaving it saves, Escape cancels), **Move to group** (grouped
 timelines; listed inline on phones), **Remove dates** or, on a chip, **Add
 dates** (all day today), **Duplicate** and **Delete record** (confirmed first).

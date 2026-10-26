@@ -1,3 +1,17 @@
+import { DateTimeRangeFields } from '@app/components/date-time-range/date-time-range-fields';
+import {
+  type DateTimeRangeValue,
+  dateTimeRangeValue,
+  EMPTY_DATE_TIME_RANGE,
+  moveAllDayRange,
+  moveTimedRange,
+  timeRangeFromValue,
+  withAllDay,
+} from '@app/components/date-time-range/time-range';
+import {
+  timeRangeFromInstants,
+  timeRangeToInstants,
+} from '@app/features/database/core/cell-date-range';
 import Paperclip from '@icon/system/regular/paperclip.svg';
 import Spinner from '@icon/system/regular/spinner.svg';
 import UploadSimple from '@icon/system/regular/upload-simple.svg';
@@ -35,66 +49,59 @@ function textOf(value: FormCellValue | undefined): string {
 }
 
 /**
- * A start and an end day. The answer holds a range only once both are
- * picked; a backwards range is kept so its problem can be shown.
+ * A start and an end, all day or with times, as a time-range cell holds
+ * them. The answer holds a range only once both ends are set; a backwards
+ * range is kept so its problem can be shown.
  */
 function DateRangeField(props: {
   id: string;
+  subject: string;
   value: FormCellValue | undefined;
   invalid: boolean;
   disabled: boolean;
-  required: boolean;
   describedBy: string | undefined;
   onChange: (value: FormCellValue | undefined) => void;
 }) {
-  const stored = () =>
-    props.value?.type === 'date_range' ? props.value.value : undefined;
-  const [start, setStart] = createSignal(
-    dateInputFromInstant(stored()?.start ?? '')
+  const stored =
+    props.value?.type === 'date_range'
+      ? timeRangeFromInstants(props.value.value)
+      : undefined;
+  const [range, setRange] = createSignal<DateTimeRangeValue>(
+    stored ? dateTimeRangeValue(stored) : EMPTY_DATE_TIME_RANGE
   );
-  const [end, setEnd] = createSignal(dateInputFromInstant(stored()?.end ?? ''));
-  const update = (nextStart: string, nextEnd: string) => {
-    setStart(nextStart);
-    setEnd(nextEnd);
-    const startInstant = instantFromDateInput(nextStart);
-    const endInstant = instantFromDateInput(nextEnd);
+  const update = (next: DateTimeRangeValue) => {
+    setRange(next);
+    const answer = timeRangeFromValue(next);
     props.onChange(
-      startInstant && endInstant
-        ? {
-            type: 'date_range',
-            value: { start: startInstant, end: endInstant },
-          }
+      answer
+        ? { type: 'date_range', value: timeRangeToInstants(answer) }
         : undefined
     );
   };
-  const input = (
-    label: string,
-    value: () => string,
-    onValue: (value: string) => void,
-    id?: string
-  ) => (
-    <input
-      id={id}
-      type="date"
-      aria-label={id ? undefined : label}
-      value={value()}
-      disabled={props.disabled}
-      aria-describedby={props.describedBy}
-      aria-invalid={props.invalid}
-      aria-required={props.required}
-      class={cn(
-        'h-10 w-full max-w-44 rounded-md border bg-input px-3 text-sm text-ink outline-none placeholder:text-ink-placeholder focus:border-edge-focus disabled:opacity-60',
-        props.invalid ? 'border-failure' : 'border-edge-muted'
-      )}
-      onChange={(event) => onValue(event.currentTarget.value)}
-    />
-  );
   return (
-    <div class="flex flex-wrap items-center gap-2">
-      {input('Start date', start, (value) => update(value, end()), props.id)}
-      <span class="text-sm text-ink-muted">to</span>
-      {input('End date', end, (value) => update(start(), value))}
-    </div>
+    <DateTimeRangeFields
+      id={props.id}
+      subject={props.subject}
+      start={range().start}
+      end={range().end}
+      allDay={range().allDay}
+      onStartChange={(start) =>
+        update(
+          range().allDay
+            ? moveAllDayRange(range(), start)
+            : moveTimedRange(range(), start)
+        )
+      }
+      onEndChange={(end) =>
+        update({ ...range(), start: range().start || end, end })
+      }
+      onAllDayChange={(allDay) => update(withAllDay(range(), allDay))}
+      startDisabled={props.disabled}
+      endDisabled={props.disabled}
+      allDayDisabled={props.disabled}
+      invalid={props.invalid}
+      describedBy={props.describedBy}
+    />
   );
 }
 
@@ -494,10 +501,10 @@ export function QuestionField(props: {
         <Match when={kind().type === 'date_range'}>
           <DateRangeField
             id={id()}
+            subject={props.column.name}
             value={props.value}
             invalid={invalid()}
             disabled={props.disabled}
-            required={props.question.required}
             describedBy={describedBy()}
             onChange={props.onChange}
           />

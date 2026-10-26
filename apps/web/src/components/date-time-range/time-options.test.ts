@@ -4,13 +4,13 @@ import {
   dayOffsetBetween,
   endTimeOptions,
   endValueFor,
-  formatEventDuration,
+  formatDuration,
   parseTimeValue,
   resolveTimeOption,
   selectedTimeOptionId,
   splitLocalDateTime,
   withinEndTimeWindow,
-} from './event-time-options';
+} from './time-options';
 
 describe('DAY_TIME_OPTIONS', () => {
   it('covers every quarter-hour of one day', () => {
@@ -26,20 +26,20 @@ describe('DAY_TIME_OPTIONS', () => {
   });
 });
 
-describe('formatEventDuration', () => {
+describe('formatDuration', () => {
   it('formats sub-hour durations in minutes', () => {
-    expect(formatEventDuration(15)).toBe('15min');
-    expect(formatEventDuration(45)).toBe('45min');
+    expect(formatDuration(15)).toBe('15min');
+    expect(formatDuration(45)).toBe('45min');
   });
 
   it('drops the minutes on whole hours', () => {
-    expect(formatEventDuration(60)).toBe('1h');
-    expect(formatEventDuration(180)).toBe('3h');
+    expect(formatDuration(60)).toBe('1h');
+    expect(formatDuration(180)).toBe('3h');
   });
 
   it('combines both units otherwise', () => {
-    expect(formatEventDuration(75)).toBe('1h 15min');
-    expect(formatEventDuration(1425)).toBe('23h 45min');
+    expect(formatDuration(75)).toBe('1h 15min');
+    expect(formatDuration(1425)).toBe('23h 45min');
   });
 });
 

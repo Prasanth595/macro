@@ -34,14 +34,11 @@ export type {
   CalendarMonthMenuProps,
   CalendarMonthSelectorProps,
   CalendarProps,
-  CalendarRange,
-  RangeCalendarProps,
 } from './components/Calendar';
 export {
   Calendar,
   CalendarMonthMenu,
   formatCalendarMonth,
-  RangeCalendar,
 } from './components/Calendar';
 export { Card, type CardProps } from './components/Card';
 export type { ChatInputProps, ChatInputRows } from './components/ChatInput';

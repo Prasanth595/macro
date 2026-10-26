@@ -1,12 +1,12 @@
+import { TimeRangeEditor } from '@app/components/date-time-range/time-range-editor';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Show } from 'solid-js';
 import { useProperty } from '../../core/context';
 import type { DateRangeProperty, DateRangeValue } from '../../types';
 import { isDateRangeProperty } from '../../utils/typeGuards';
-import { PropertyDateRangeSelector } from '../selectors/PropertyDateRangeSelector';
 import { EditorPopover } from './EditorPopover';
 
-/** Time range picker popover; saves every complete change, or a clear. */
+/** Time range editor popover; saves every complete change, or a clear. */
 export function DateRangeEditor() {
   const ctx = useProperty();
   const property = () => {
@@ -37,14 +37,15 @@ function DateRangeEditorBody(props: { property: DateRangeProperty }) {
   };
 
   return (
-    <EditorPopover>
-      <PropertyDateRangeSelector
-        label={props.property.displayName}
-        selectedRange={props.property.value}
-        onSelectRange={(range) => {
+    // The range fields open their date and time lists inside.
+    <EditorPopover class="portal-scope w-max max-w-[calc(100vw-1rem)] overflow-visible">
+      <TimeRangeEditor
+        subject={props.property.displayName}
+        range={props.property.value ?? undefined}
+        onChange={(range) => {
           fireAndForget(commit(range), 'property-editor');
         }}
-        onClose={() => ctx.closeEditor()}
+        onClear={() => ctx.closeEditor()}
       />
     </EditorPopover>
   );

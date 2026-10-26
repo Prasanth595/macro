@@ -1,3 +1,4 @@
+import { DateTimeRangeFields } from '@app/components/date-time-range/date-time-range-fields';
 /**
  * @vitest-environment jsdom
  */
@@ -8,7 +9,6 @@ import userEvent from '@testing-library/user-event';
 import { Dialog } from '@ui';
 import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventDateTimeRangeFields } from './EventDateTimeRangeFields';
 import {
   EventComposerConferencePill,
   EventComposerGuestsPill,
@@ -153,7 +153,8 @@ describe('composer popovers inside a dialog', () => {
       return (
         <Dialog open>
           <input aria-label="Title" />
-          <EventDateTimeRangeFields
+          <DateTimeRangeFields
+            subject="event"
             start={start()}
             end="2026-10-06T10:00"
             allDay={false}

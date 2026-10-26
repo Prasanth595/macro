@@ -1,8 +1,8 @@
+import { TimeRangeEditor } from '@app/components/date-time-range/time-range-editor';
 import { fireAndForget } from '@core/util/fireAndForget';
 import CaretDownIcon from '@icon/system/regular/caret-down.svg';
 import { Popover } from '@kobalte/core/popover';
 import { Tooltip } from '@kobalte/core/tooltip';
-import { PropertyDateRangeSelector } from '@property/editors/selectors/PropertyDateRangeSelector';
 import { PropertyDateSelector } from '@property/editors/selectors/PropertyDateSelector';
 import { Checkbox } from '@ui/components/Checkbox';
 import { Dropdown } from '@ui/components/Dropdown';
@@ -1222,7 +1222,12 @@ function DateCell(props: GridCellProps) {
           {shown()}
         </Dropdown.Trigger>
         <Dropdown.Content
-          class="flex max-h-96 w-70 flex-col overflow-hidden p-0 text-sm"
+          class={
+            props.column.dataType === 'DATE_RANGE'
+              ? // The range fields open their date and time lists inside.
+                'portal-scope w-max max-w-[calc(100vw-1rem)] overflow-visible p-0 text-sm'
+              : 'flex max-h-96 w-70 flex-col overflow-hidden p-0 text-sm'
+          }
           // A menu's closing animation must not delay Tab into the next cell.
           style={{ animation: 'none' }}
           onKeyDown={(event: KeyboardEvent) => {
@@ -1249,16 +1254,16 @@ function DateCell(props: GridCellProps) {
               />
             }
           >
-            <PropertyDateRangeSelector
-              label={props.column.name}
-              selectedRange={cellTimeRange(props.value) ?? null}
-              onSelectRange={(range) =>
+            <TimeRangeEditor
+              subject={props.column.name}
+              range={cellTimeRange(props.value)}
+              onChange={(range) =>
                 fireAndForget(
                   props.onWrite(range ? toCellTimeRange(range) : null),
                   'database'
                 )
               }
-              onClose={() => setOpen(false)}
+              onClear={() => setOpen(false)}
             />
           </Show>
         </Dropdown.Content>
