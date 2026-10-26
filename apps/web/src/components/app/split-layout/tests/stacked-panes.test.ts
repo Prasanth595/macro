@@ -1,6 +1,10 @@
 import { createMobileSearchEntry } from '@app/features/command/mobile/create-mobile-search-entry';
 import { SearchState } from '@app/features/command/mobile/mobileSearchState';
 import {
+  buildTaggedItemsQuery,
+  navigateToTag,
+} from '@app/features/property/tags/tagNavigation';
+import {
   createMemoryHistory,
   createMemoryPaneStore,
   createSplitRouter,
@@ -351,6 +355,24 @@ describe('stacked panes', () => {
       expect(SearchState.query()).toBe('teo update');
       expect(SearchState.category()).toBe('email');
       expect(SearchState.mode()).toBe('full-text');
+    }
+  );
+
+  it.each([true, false])(
+    'delivers state supplied with an open to the new entry (stacked: %s)',
+    (stacked) => {
+      const { manager } = setup('/home', stacked);
+      const tag = { optionId: 'option-1', propertyDefinitionId: 'tags-1' };
+
+      navigateToTag(manager.openWithSplit, tag, {
+        handle: manager.activeSplit(),
+      });
+
+      const search = manager.activeSplit()!;
+      expect(search.content().id).toBe('search');
+      expect(search.currentEntryState()?.['search.filters']).toEqual(
+        buildTaggedItemsQuery(tag)
+      );
     }
   );
 
