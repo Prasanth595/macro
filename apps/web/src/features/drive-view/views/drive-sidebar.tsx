@@ -8,6 +8,7 @@ import { FavoriteContextMenu } from '@app/features/favorites/FavoriteContextMenu
 import { FavoriteIcon } from '@app/features/favorites/FavoriteIcon';
 import { useFavoriteDisplayName } from '@app/util/favorites';
 import { fireAndForget } from '@core/util/fireAndForget';
+import DatabaseIcon from '@icon/system/regular/database.svg';
 import FolderIcon from '@icon/system/regular/folder.svg';
 import SearchIcon from '@icon/system/regular/magnifying-glass.svg';
 import UploadIcon from '@icon/system/regular/upload-simple.svg';
@@ -46,7 +47,7 @@ function DriveFavorite(props: { favorite: Favorite; onNavigate?: () => void }) {
 
 /** Also used by the narrow-layout navigation menu. */
 export function DriveSidebarContent(props: { onNavigate?: () => void }) {
-  const { state, sidebar } = useDriveView();
+  const { state, sidebar, actions } = useDriveView();
 
   const [folderSearch, setFolderSearch] = createSignal('');
 
@@ -96,6 +97,37 @@ export function DriveSidebarContent(props: { onNavigate?: () => void }) {
                     favorite={favorite}
                     onNavigate={props.onNavigate}
                   />
+                )}
+              </For>
+            </ViewSidebar.Nav>
+          </CollapsibleSection.Content>
+        </CollapsibleSection.Root>
+      </Show>
+      <Show when={sidebar.databases().length > 0}>
+        <CollapsibleSection.Root
+          open={state.value().databasesOpen}
+          onOpenChange={state.setDatabasesOpen}
+        >
+          <CollapsibleSection.Trigger>
+            <span class="min-w-0 truncate">Databases</span>
+            <CollapsibleSection.Indicator />
+          </CollapsibleSection.Trigger>
+          <CollapsibleSection.Content>
+            <ViewSidebar.Nav aria-label="Databases">
+              <For each={sidebar.databases()}>
+                {(database) => (
+                  <ViewSidebar.Item
+                    title={database.name}
+                    onClick={(event) => {
+                      actions.openEntity(database, event);
+                      props.onNavigate?.();
+                    }}
+                  >
+                    <ViewSidebar.Icon>
+                      <DatabaseIcon class="size-4" />
+                    </ViewSidebar.Icon>
+                    <span class="truncate">{database.name}</span>
+                  </ViewSidebar.Item>
                 )}
               </For>
             </ViewSidebar.Nav>

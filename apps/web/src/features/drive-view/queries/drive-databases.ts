@@ -41,3 +41,30 @@ export function selectDriveDatabases(
     ];
   });
 }
+
+/** The viewer's own databases for the sidebar, alphabetical. */
+export function selectSidebarDatabases(
+  listed: readonly ListedDatabase[],
+  userId: string | undefined,
+  hidden: ReadonlySet<string>
+): DatabaseEntity[] {
+  if (!userId) return [];
+  return listed
+    .flatMap(({ database, grant }): DatabaseEntity[] =>
+      database.trashed_at ||
+      hidden.has(database.id) ||
+      database.owner_id !== userId
+        ? []
+        : [
+            {
+              type: 'database',
+              id: database.id,
+              name: database.name,
+              ownerId: database.owner_id,
+              createdAt: database.created_at,
+              grant,
+            },
+          ]
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
