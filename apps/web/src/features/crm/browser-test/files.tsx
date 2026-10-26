@@ -7,7 +7,7 @@ import { UserContextProvider } from '@core/context/user';
 import type { DocumentEntity } from '@entity';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { Button } from '@ui';
-import { createSignal } from 'solid-js';
+import { createSignal, For } from 'solid-js';
 import { render } from 'solid-js/web';
 import { type CrmContext, CrmProvider } from '../context/crm-context';
 import type { ItemListSource } from '../context/crm-sources';
@@ -51,13 +51,20 @@ function Fixture() {
   const [created, setCreated] = createSignal(0);
   const [opened, setOpened] = createSignal('');
   const [failLink, setFailLink] = createSignal(false);
+  const [readState, setReadState] = createSignal<
+    'ready' | 'catalog-loading' | 'values-loading' | 'no-team' | 'catalog-error'
+  >('ready');
   const source: FileTypesSource = {
     sessionKey: () => 'viewer:team',
-    data: catalog,
-    pending: () => false,
-    error: () => false,
+    data: () =>
+      readState() === 'ready' || readState() === 'values-loading'
+        ? catalog()
+        : undefined,
+    pending: () =>
+      readState() === 'catalog-loading' || readState() === 'no-team',
+    error: () => readState() === 'catalog-error',
     refresh: async () => {},
-    canManage: () => true,
+    canManage: () => readState() !== 'no-team',
     initialize: async () => {
       setCatalog({
         definitionId: 'file-type',
@@ -106,8 +113,8 @@ function Fixture() {
       setValues((current) => new Map(current).set(id, type));
     },
     classifications: () => ({
-      data: values,
-      pending: () => false,
+      data: () => (readState() === 'ready' ? values() : undefined),
+      pending: () => readState() !== 'ready',
       error: () => false,
       refresh: async () => {},
     }),
@@ -207,6 +214,23 @@ function Fixture() {
             Simulate unavailable type
           </Button>
           <span aria-label="Opened file">{opened()}</span>
+          <For
+            each={
+              [
+                'ready',
+                'catalog-loading',
+                'values-loading',
+                'no-team',
+                'catalog-error',
+              ] as const
+            }
+          >
+            {(state) => (
+              <Button onClick={() => setReadState(state)}>
+                Simulate {state}
+              </Button>
+            )}
+          </For>
         </div>
         <h1 class="mb-5 text-xl font-semibold">
           {record() === 'company-a' ? 'Northstar' : 'Acme'} ·{' '}

@@ -94,7 +94,13 @@ export function RecordFiles(props: {
           </Button>
         </div>
       </Show>
-      <Show when={types.pending() || classifications.pending()}>
+      <Show
+        when={
+          types.canManage() &&
+          !types.error() &&
+          (types.pending() || classifications.pending())
+        }
+      >
         <p class="px-3 py-2 text-xs text-ink-muted">Loading file types…</p>
       </Show>
       <RecordItemList
@@ -102,19 +108,21 @@ export function RecordFiles(props: {
         pending={!props.scope}
         search={search()}
         empty={`No files with this ${props.scope?.type ?? 'record'} yet.`}
-        groupItems={(items) =>
-          groupFilesByType(
-            items,
-            types.data()?.options ?? [],
-            classifications.data() ?? new Map()
-          )
-        }
+        groupItems={(items) => {
+          const catalog = types.data();
+          const values = classifications.data();
+          if (catalog === undefined || values === undefined)
+            return [{ id: 'all', name: '', files: items }];
+          return groupFilesByType(items, catalog?.options ?? [], values);
+        }}
         rowActions={(entity) => (
-          <FileTypeEditor
-            entity={entity}
-            source={types}
-            value={classifications.data()?.get(entity.id)}
-          />
+          <Show when={classifications.data() !== undefined}>
+            <FileTypeEditor
+              entity={entity}
+              source={types}
+              value={classifications.data()?.get(entity.id)}
+            />
+          </Show>
         )}
       />
     </>

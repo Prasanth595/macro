@@ -69,6 +69,36 @@ test('team labels update existing groups and removal leaves files unclassified',
   ).toContainText('Shared contract');
 });
 
+test('unknown type reads keep source files accessible without classifying them as unavailable', async ({
+  page,
+}) => {
+  for (const state of [
+    'catalog-loading',
+    'values-loading',
+    'no-team',
+    'catalog-error',
+  ]) {
+    await page.getByRole('button', { name: `Simulate ${state}` }).click();
+    await expect(
+      page.getByText('Type unavailable', { exact: true })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'File type for Shared contract' })
+    ).toHaveCount(0);
+    await expect(page.getByText('Loading file types…')).toHaveCount(
+      state.endsWith('loading') ? 1 : 0
+    );
+    await page.getByText('Shared contract', { exact: true }).click();
+    await expect(page.getByLabel('Opened file')).toHaveText('shared');
+  }
+  await page
+    .getByRole('button', { name: 'Simulate ready', exact: true })
+    .click();
+  await expect(
+    page.getByRole('region', { name: 'Unclassified', exact: true })
+  ).toContainText('Shared contract');
+});
+
 test.describe('phone', () => {
   test.use({
     viewport: { width: 390, height: 844 },

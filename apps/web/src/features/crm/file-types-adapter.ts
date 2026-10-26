@@ -5,7 +5,6 @@ import { Telemetry } from '@macro-inc/observability';
 import { queryReadyGate } from '@queries/gate';
 import { useDocumentAccessLevelQuery } from '@queries/storage/document-metadata';
 import { useCurrentTeamQuery } from '@queries/team/teams';
-import { propertiesServiceClient } from '@service-properties/client';
 import { useQueryClient } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
 import { createFileTypesSource } from './queries/file-types';
@@ -14,7 +13,7 @@ export function createAppFileTypes(userId: Accessor<string | undefined>) {
   const team = useCurrentTeamQuery();
   const quickAccess = useQuickAccess();
   return createFileTypesSource(
-    { properties: propertiesServiceClient, client: useQueryClient() },
+    { client: useQueryClient() },
     userId,
     () => (queryReadyGate(team) ? team.data?.team.id : undefined),
     {

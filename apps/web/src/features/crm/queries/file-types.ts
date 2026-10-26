@@ -9,7 +9,7 @@ import {
 import { propertiesKeys } from '@queries/properties/keys';
 import { refetchSoupEntity } from '@queries/soup/cache';
 import { refreshCrmAssociatedSoupQueries } from '@queries/soup/crm-association';
-import type { propertiesServiceClient } from '@service-properties/client';
+import { propertiesServiceClient } from '@service-properties/client';
 import type { PropertyDefinitionResponse } from '@service-properties/generated/schemas/propertyDefinitionResponse';
 import { type QueryClient, useQuery } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
@@ -144,11 +144,18 @@ function classificationOptions(
 }
 
 export function createFileTypesSource(
-  deps: Dependencies,
+  dependencies: {
+    client: QueryClient;
+    properties?: Dependencies['properties'];
+  },
   userId: Accessor<string | undefined>,
   teamId: Accessor<string | undefined>,
   host: Pick<FileTypesSource, 'candidates' | 'canEdit' | 'create'>
 ): FileTypesSource {
+  const deps: Dependencies = {
+    client: dependencies.client,
+    properties: dependencies.properties ?? propertiesServiceClient,
+  };
   const sessionKey = () =>
     userId() && teamId() ? `${userId()}:${teamId()}` : undefined;
   const catalog = useQuery(
