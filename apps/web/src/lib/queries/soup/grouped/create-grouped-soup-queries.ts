@@ -93,6 +93,8 @@ function groupPageQueryFn(input: {
           group_key: input.groupKey,
           limit: input.soupParams.limit,
           sort_method: groupedSortMethod(input.soupParams.sort_method),
+          sort_property_definition_id:
+            input.soupParams.sort_property_definition_id,
         },
         body: input.soupBody,
       })

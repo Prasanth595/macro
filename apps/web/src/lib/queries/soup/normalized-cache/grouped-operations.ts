@@ -11,6 +11,7 @@ import {
 import type { GroupByField, GroupMeta } from '../grouped/types';
 import type { SoupAstItemsGroupedPage } from '../items';
 import { soupKeys } from '../keys';
+import { getNormalizationObjectKey, soupNormKey } from './normalizer';
 import { getSoupQueryMeta } from './utils';
 
 type GroupedGroupPage = {
@@ -81,6 +82,35 @@ function removeId(group: GroupMeta, entityId: string): GroupMeta {
   };
 }
 
+/** Pool keys are transport identities, not necessarily raw entity IDs. */
+function findItemKey(
+  items: Record<string, SoupApiItem>,
+  entityId: string,
+  entity: SoupApiItem
+): string {
+  const normalizedKey = soupNormKey(entityId);
+  const existing = Object.entries(items).find(
+    ([, item]) =>
+      item.tag === entity.tag &&
+      getNormalizationObjectKey(item) === normalizedKey
+  );
+  if (existing) return existing[0];
+  return items[entityId] ? `${entity.tag}:${entityId}` : entityId;
+}
+
+function removalKeys(
+  items: Record<string, SoupApiItem>,
+  entityIds: Set<string>
+) {
+  const keys = new Set(entityIds);
+  const normalizedKeys = new Set([...entityIds].map(soupNormKey));
+  for (const [key, item] of Object.entries(items)) {
+    const normalizedKey = getNormalizationObjectKey(item);
+    if (normalizedKey && normalizedKeys.has(normalizedKey)) keys.add(key);
+  }
+  return keys;
+}
+
 /**
  * Recomputes an updated item's memberships across grouped parent AST queries.
  * Updates only resolvable grouped pages; unresolved grouping metadata is left
@@ -126,12 +156,13 @@ export function syncGroupedParents(entityId: string, entity: SoupApiItem) {
         continue;
       }
 
+      const itemKey = findItemKey(page.items, entityId, entity);
       // The insert gate only decides admission of rows the page doesn't hold
       // yet — rows already admitted keep the full membership sync.
       if (
         meta.insertFilter &&
         !meta.insertFilter(entity) &&
-        !(entityId in page.items)
+        !(itemKey in page.items)
       ) {
         pages.push(page);
         continue;
@@ -139,7 +170,7 @@ export function syncGroupedParents(entityId: string, entity: SoupApiItem) {
 
       const next = syncMembership(
         page,
-        entityId,
+        itemKey,
         nextGroupKeys,
         entity,
         meta.groupBy
@@ -189,7 +220,9 @@ export function syncGroupQueries(entityId: string, entity: SoupApiItem) {
     if (
       meta.insertFilter &&
       !meta.insertFilter(entity) &&
-      !prev.pages.some((page) => page.group.itemIds.includes(entityId))
+      !prev.pages.some((page) =>
+        page.group.itemIds.includes(findItemKey(page.items, entityId, entity))
+      )
     ) {
       continue;
     }
@@ -204,6 +237,9 @@ export function syncGroupQueries(entityId: string, entity: SoupApiItem) {
       continue;
     }
 
+    const existing = prev.pages.some((page) =>
+      page.group.itemIds.includes(findItemKey(page.items, entityId, entity))
+    );
     const shouldHave = nextGroupKeys.includes(meta.groupKey);
 
     let changed = false;
@@ -211,14 +247,15 @@ export function syncGroupQueries(entityId: string, entity: SoupApiItem) {
     const pages = [];
     let index = 0;
     for (const page of prev.pages) {
-      const hasEntity = page.group.itemIds.includes(entityId);
+      const itemKey = findItemKey(page.items, entityId, entity);
+      const hasEntity = page.group.itemIds.includes(itemKey);
 
-      if (shouldHave && index === 0 && !hasEntity) {
+      if (shouldHave && index === 0 && !existing) {
         changed = true;
         pages.push({
           ...page,
-          items: { ...page.items, [entityId]: entity },
-          group: prependId(page.group, entityId),
+          items: { ...page.items, [itemKey]: entity },
+          group: prependId(page.group, itemKey),
         });
         index += 1;
         continue;
@@ -226,11 +263,11 @@ export function syncGroupQueries(entityId: string, entity: SoupApiItem) {
 
       if (!shouldHave && hasEntity) {
         changed = true;
-        const { [entityId]: _removed, ...items } = page.items;
+        const { [itemKey]: _removed, ...items } = page.items;
         pages.push({
           ...page,
           items,
-          group: removeId(page.group, entityId),
+          group: removeId(page.group, itemKey),
         });
         index += 1;
         continue;
@@ -239,11 +276,11 @@ export function syncGroupQueries(entityId: string, entity: SoupApiItem) {
       // Membership unchanged: still refresh the item's data so in-place
       // edits (e.g. a property change that doesn't move it between groups)
       // reach the rendered rows.
-      if (shouldHave && hasEntity && page.items[entityId] !== entity) {
+      if (shouldHave && hasEntity && page.items[itemKey] !== entity) {
         changed = true;
         pages.push({
           ...page,
-          items: { ...page.items, [entityId]: entity },
+          items: { ...page.items, [itemKey]: entity },
         });
         index += 1;
         continue;
@@ -270,6 +307,7 @@ export function insertGroupedPage(
   itemId: string,
   groupBy: GroupByField | undefined
 ) {
+  itemId = findItemKey(page.items, itemId, item);
   const newKeys = computeGroupKeysForItem(item, groupBy);
   if (newKeys === undefined || newKeys.length === 0) return;
 
@@ -328,10 +366,15 @@ export function insertGroupQueries(
 
     // Continuation pages hold their own itemIds, so check them all — a
     // restore of an entity sitting on a later page must not duplicate it.
-    if (prev.pages.some((page) => page.group.itemIds.includes(itemId)))
+    if (
+      prev.pages.some((page) =>
+        page.group.itemIds.includes(findItemKey(page.items, itemId, item))
+      )
+    )
       continue;
 
     const firstPage = prev.pages[0];
+    const itemKey = findItemKey(firstPage.items, itemId, item);
 
     query.setData(
       {
@@ -339,8 +382,8 @@ export function insertGroupQueries(
         pages: [
           {
             ...firstPage,
-            items: { ...firstPage.items, [itemId]: item },
-            group: prependId(firstPage.group, itemId),
+            items: { ...firstPage.items, [itemKey]: item },
+            group: prependId(firstPage.group, itemKey),
           },
           ...prev.pages.slice(1),
         ],
@@ -356,11 +399,12 @@ export function removeGroupedPage(
   page: SoupAstItemsGroupedPage,
   entityIds: Set<string>
 ) {
+  const keys = removalKeys(page.items, entityIds);
   const groups: GroupMeta[] = [];
   let changed = false;
 
   for (const group of page.groups) {
-    const itemIds = group.itemIds.filter((id) => !entityIds.has(id));
+    const itemIds = group.itemIds.filter((id) => !keys.has(id));
     const removed = group.itemIds.length - itemIds.length;
 
     if (removed === 0) {
@@ -378,7 +422,7 @@ export function removeGroupedPage(
 
   const items: Record<string, SoupApiItem> = {};
   for (const [id, item] of Object.entries(page.items)) {
-    if (entityIds.has(id)) {
+    if (keys.has(id)) {
       changed = true;
       continue;
     }
@@ -408,11 +452,12 @@ export function removeGroupQueries(
     const pages = [];
 
     for (const page of prev.pages) {
-      const itemIds = page.group.itemIds.filter((id) => !entityIds.has(id));
+      const keys = removalKeys(page.items, entityIds);
+      const itemIds = page.group.itemIds.filter((id) => !keys.has(id));
       const removed = page.group.itemIds.length - itemIds.length;
       let items = page.items;
 
-      for (const id of entityIds) {
+      for (const id of keys) {
         if (id in items) {
           const { [id]: _, ...rest } = items;
           items = { ...rest };

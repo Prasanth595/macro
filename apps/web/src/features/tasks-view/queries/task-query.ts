@@ -190,6 +190,12 @@ export function buildTaskQuery(
       : requestedSort;
   const sortsByDueDate = featureSort.startsWith('due_date_');
   const sortDirection = primarySort?.reversed ? 'asc' : 'desc';
+  let sortMethod: SoupAstItemsQueryArgs['params']['sort_method'] = 'updated_at';
+  if (featureSort === 'due_date_earliest')
+    sortMethod = 'property_date_earliest';
+  else if (featureSort === 'due_date_latest')
+    sortMethod = 'property_date_latest';
+  else sortMethod = featureSort;
   const compiledFacets = compileFacets(
     options.facets,
     TASK_FACETS,
@@ -228,7 +234,10 @@ export function buildTaskQuery(
     params: {
       expand: true,
       limit: 100,
-      sort_method: featureSort,
+      sort_method: sortMethod,
+      sort_property_definition_id: sortsByDueDate
+        ? SYSTEM_PROPERTY_IDS.DUE_DATE
+        : undefined,
       sort_direction: sortsByDueDate ? undefined : sortDirection,
     },
     body,

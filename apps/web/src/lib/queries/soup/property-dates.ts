@@ -1,4 +1,3 @@
-import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
 import { queryClient } from '@queries/client';
 import { partialMatchKey, type Query } from '@tanstack/solid-query';
 import { refreshActiveGraphqlSoupQueries } from './graphql/active-queries';
@@ -17,15 +16,11 @@ export async function refreshDatePropertyQueries(
     const key = JSON.stringify(input);
     if (!key) return false;
     if (propertyDefinitionId) {
-      return (
-        key.includes(propertyDefinitionId) ||
-        (propertyDefinitionId === SYSTEM_PROPERTY_IDS.DUE_DATE &&
-          key.includes('due_date_'))
-      );
+      return key.includes(propertyDefinitionId);
     }
     // Assignment deletion does not identify its definition. Refresh date queries only.
     return [
-      'due_date_',
+      'property_date_',
       'date_ranges',
       '"dr":',
       '"dp"',

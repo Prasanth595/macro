@@ -514,7 +514,8 @@ it('maps open-ended property date ranges and explicit no-date negation', () => {
   const propertyDefinitionId = '00000001-0000-0000-0000-000000000004';
   const range = makeGraphqlSoupInput({
     params: {
-      sort_method: 'due_date_earliest',
+      sort_method: 'property_date_earliest',
+      sort_property_definition_id: propertyDefinitionId,
     },
     body: {
       propf: {
@@ -528,7 +529,8 @@ it('maps open-ended property date ranges and explicit no-date negation', () => {
   });
   expect(range).toMatchObject({
     initial: {
-      sortMethod: 'DUE_DATE_EARLIEST',
+      sortMethod: 'PROPERTY_DATE_EARLIEST',
+      sortPropertyDefinitionId: propertyDefinitionId,
       filters: {
         propertiesFilter: {
           literal: {
@@ -570,12 +572,16 @@ it('maps open-ended property date ranges and explicit no-date negation', () => {
 });
 
 it.each([
-  ['due_date_earliest', 'DUE_DATE_EARLIEST'],
-  ['due_date_latest', 'DUE_DATE_LATEST'],
+  ['property_date_earliest', 'PROPERTY_DATE_EARLIEST'],
+  ['property_date_latest', 'PROPERTY_DATE_LATEST'],
 ] as const)(
   'maps %s consistently for flat and grouped requests',
   (sort, expected) => {
-    const params = { sort_method: sort };
+    const propertyDefinitionId = '00000001-0000-0000-0000-000000000004';
+    const params = {
+      sort_method: sort,
+      sort_property_definition_id: propertyDefinitionId,
+    };
     const body = { df: { l: { dst: 'task' } } };
     const flat = makeGraphqlSoupInput({ params, body });
     const grouped = makeGraphqlGroupedSoupInput({
@@ -588,5 +594,9 @@ it.each([
     });
     expect(flat.initial?.sortMethod).toBe(expected);
     expect(grouped.initial?.sortMethod).toBe(expected);
+    expect(flat.initial?.sortPropertyDefinitionId).toBe(propertyDefinitionId);
+    expect(grouped.initial?.sortPropertyDefinitionId).toBe(
+      propertyDefinitionId
+    );
   }
 );

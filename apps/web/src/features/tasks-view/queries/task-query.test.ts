@@ -125,7 +125,10 @@ it('combines an exclusive overdue bound with status independently and freezes de
     dueDate,
     calendar,
   });
-  expect(query.params.sort_method).toBe('due_date_earliest');
+  expect(query.params.sort_method).toBe('property_date_earliest');
+  expect(query.params.sort_property_definition_id).toBe(
+    '00000001-0000-0000-0000-000000000004'
+  );
   expect(query.params.sort_direction).toBeUndefined();
   expect(query.groupBy).toMatchObject({
     type: 'property',
@@ -195,7 +198,11 @@ it.each(['due_date_earliest', 'due_date_latest'] as const)(
       expect(query.params).toEqual({
         expand: true,
         limit: 100,
-        sort_method: sort,
+        sort_method:
+          sort === 'due_date_earliest'
+            ? 'property_date_earliest'
+            : 'property_date_latest',
+        sort_property_definition_id: '00000001-0000-0000-0000-000000000004',
         sort_direction: undefined,
       });
       // Exclude the project entity itself, not children of a nil parent.

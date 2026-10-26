@@ -309,7 +309,10 @@ it.each([undefined, SYSTEM_PROPERTY_IDS.DUE_DATE])(
   async (definitionId) => {
     onTestFinished(() => queryClient.clear());
     const dueKey = soupKeys.astItems({
-      params: { sort_method: 'due_date_earliest' },
+      params: {
+        sort_method: 'property_date_earliest',
+        sort_property_definition_id: SYSTEM_PROPERTY_IDS.DUE_DATE,
+      },
       body: { df: { l: { dst: 'task' } } },
     }).queryKey;
     const ordinaryKey = soupKeys.astItems({
@@ -323,7 +326,12 @@ it.each([undefined, SYSTEM_PROPERTY_IDS.DUE_DATE])(
     register({
       isEnabled: () => true,
       refresh: dueRefresh,
-      body: () => ({ params: { sort_method: 'due_date_earliest' } }),
+      body: () => ({
+        params: {
+          sort_method: 'property_date_earliest',
+          sort_property_definition_id: SYSTEM_PROPERTY_IDS.DUE_DATE,
+        },
+      }),
     });
     register({
       isEnabled: () => true,
