@@ -436,6 +436,8 @@
   "storage.getCrmPipelineRows": "Get Crm Pipeline Rows",
   "storage.queryCrmPipelineRows": "Query Crm Pipeline Rows",
   "storage.shareCrmPipeline": "Share Crm Pipeline",
+  "storage.getCrmPipelineStageRequirements": "Get Crm Pipeline Stage Requirements",
+  "storage.setCrmPipelineStageRequirement": "Set Crm Pipeline Stage Requirement",
   "storage.getCrmPipelineTable": "Get Crm Pipeline Table",
   "storage.trashCrmPipeline": "Trash Crm Pipeline",
   "storage.getCrmTeamSettings": "Get Crm Team Settings",

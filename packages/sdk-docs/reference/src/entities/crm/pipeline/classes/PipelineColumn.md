@@ -27,6 +27,18 @@ Current column label.
 
 ***
 
+### options()
+
+> **options**(): `Promise`\<[`PropertyOption`](../../../properties/property-option/classes/PropertyOption.md)[]\>
+
+Selectable options, including stable stage identities for requirement rules.
+
+#### Returns
+
+`Promise`\<[`PropertyOption`](../../../properties/property-option/classes/PropertyOption.md)[]\>
+
+***
+
 ### toJSON()
 
 > **toJSON**(): \{ `detail?`: [`ColumnDetail`](../../../../../generated/storage/types.gen/type-aliases/ColumnDetail.md); `id`: `string`; `pipelineId`: `string`; `tableId`: `string`; \}

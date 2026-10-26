@@ -83,6 +83,9 @@ the existing gateway prefixes.
 - Meeting list lookup only covers the owner's newest 100 standalone meetings;
   handles seeded from invitations retain their token for refetching after writes.
 - Keep access-request resolution snapshots: resolved requests leave pending lists.
+- `CrmPipeline.stageRequirements()` and `setStageRequirements()` use pipeline
+  column and option handles; `PipelineColumn.options()` supplies stable options.
+  Stage requirements are enforced on every pipeline operation batch.
 - Pipeline schema reads share the parent's cache; successful op batches clear it.
 - Email sends and other writes against hosted data are real actions; use mocks
   for automated SDK mutation tests.
