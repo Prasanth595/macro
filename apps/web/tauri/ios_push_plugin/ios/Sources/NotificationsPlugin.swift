@@ -30,6 +30,9 @@ final class NotificationsPlugin: Plugin, UNUserNotificationCenterDelegate {
     private var frontendReady = false
     private var launchAware = false
     private var suppressPendingCover = false
+    /// Held until the launch-time provisional request settles, so a permission
+    /// check never reports the undecided status that request is replacing.
+    private let launchAuthorization = DispatchGroup()
 
     override init() {
         super.init()
@@ -49,9 +52,20 @@ final class NotificationsPlugin: Plugin, UNUserNotificationCenterDelegate {
         center.delegate = self
         // Provisional (quiet) delivery needs no prompt and lists Macro under
         // iOS Settings → Notifications, where users can turn on full alerts.
-        center.getNotificationSettings { settings in
-            guard settings.authorizationStatus == .notDetermined else { return }
-            center.requestAuthorization(options: [.alert, .sound, .badge, .provisional]) { _, _ in }
+        launchAuthorization.enter()
+        center.getNotificationSettings { [launchAuthorization] settings in
+            guard settings.authorizationStatus == .notDetermined else {
+                launchAuthorization.leave()
+                return
+            }
+            center.requestAuthorization(options: [.alert, .sound, .badge, .provisional]) { granted, error in
+                if error != nil {
+                    Logger.error("[notification-permission] phase=provisional_request outcome=failed")
+                } else {
+                    Logger.info("[notification-permission] phase=provisional_request granted=\(granted)")
+                }
+                launchAuthorization.leave()
+            }
         }
     }
 
@@ -338,19 +352,21 @@ final class NotificationsPlugin: Plugin, UNUserNotificationCenterDelegate {
     }
 
     @objc override public func checkPermissions(_ invoke: Invoke) {
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            let status: String
-            switch settings.authorizationStatus {
-            case .notDetermined: status = "prompt"
-            case .denied: status = "denied"
-            case .authorized, .provisional, .ephemeral: status = "granted"
-            @unknown default: status = "prompt"
+        launchAuthorization.notify(queue: .global()) {
+            UNUserNotificationCenter.current().getNotificationSettings { settings in
+                let status: String
+                switch settings.authorizationStatus {
+                case .notDetermined: status = "prompt"
+                case .denied: status = "denied"
+                case .authorized, .provisional, .ephemeral: status = "granted"
+                @unknown default: status = "prompt"
+                }
+                // Provisional delivery registers for push like any grant; the flag
+                // lets the frontend still offer the full-alert prompt.
+                invoke.resolve(PermissionStatus(
+                    status: status, provisional: settings.authorizationStatus == .provisional
+                ))
             }
-            // Provisional delivery registers for push like any grant; the flag
-            // lets the frontend still offer the full-alert prompt.
-            invoke.resolve(PermissionStatus(
-                status: status, provisional: settings.authorizationStatus == .provisional
-            ))
         }
     }
 
