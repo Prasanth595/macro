@@ -82,6 +82,34 @@ it('loads a cold catalog through the shared query before supplying inference and
   });
 });
 
+it('rejects impossible inferred due dates and permits a manual correction', () => {
+  createRoot((dispose) => {
+    try {
+      const source = createTaskFieldSource('me');
+      const fields = fieldsSchema.parse({ due_date: '2026-02-30' });
+      expect(
+        source.values(fields).values[SYSTEM_PROPERTY_IDS.DUE_DATE]
+      ).toBeUndefined();
+      expect(source.values(fields).unresolved).toContain('Due date');
+      fields.taskProperties = JSON.stringify({
+        [SYSTEM_PROPERTY_IDS.DUE_DATE]: {
+          valueType: 'DATE',
+          value: '2026-02-28T12:00:00',
+        },
+      });
+      expect(source.values(fields).unresolved).toEqual([]);
+      expect(
+        source.values(fields).values[SYSTEM_PROPERTY_IDS.DUE_DATE]
+      ).toEqual({
+        valueType: 'DATE',
+        value: new Date('2026-02-28T12:00:00'),
+      });
+    } finally {
+      dispose();
+    }
+  });
+});
+
 it('reports a catalog failure instead of extracting or creating with empty definitions', async () => {
   await createRoot(async (dispose) => {
     try {

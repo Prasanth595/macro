@@ -4461,9 +4461,31 @@
             },
             "description": "Person or channel names for the client to resolve."
           },
+          "search_from": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Explicit sender, speaker, or task-creator names for the client to resolve."
+          },
+          "search_in": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Explicit channel names for the client to resolve."
+          },
+          "search_scope": {
+            "type": ["string", "null"],
+            "description": "Verbatim noun naming the requested search category, such as messages or tasks."
+          },
           "start": {
             "type": ["string", "null"],
             "description": "Local wall-clock values, interpreted in the request's IANA timezone."
+          },
+          "start_assumption": {
+            "type": ["string", "null"],
+            "description": "Verbatim clock phrase whose missing AM/PM required an editable assumption."
           },
           "subject": {
             "type": ["string", "null"],

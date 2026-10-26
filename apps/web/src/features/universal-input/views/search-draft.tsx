@@ -34,7 +34,7 @@ export function SearchDraft(props: {
       onFiltersChange={(next) =>
         props.state.edit('searchFilters', JSON.stringify(next))
       }
-      enabled={filters().unresolved.length === 0}
+      enabled={!props.state.pending() && filters().unresolved.length === 0}
       scopeId={props.scopeId}
       canHandleKeyboard={props.canHandleKeyboard}
       onOpen={props.onOpen}

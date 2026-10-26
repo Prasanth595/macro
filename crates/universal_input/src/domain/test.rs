@@ -61,161 +61,142 @@ fn service(fields: InputSuggestions) -> UniversalInputService<Classifier, Extrac
 }
 
 #[tokio::test]
-async fn event_duration_is_applied_in_the_users_timezone_even_when_model_end_is_wrong() {
-    for (text, expected) in [
-        ("Call Julia tomorrow at 7", "2026-10-10T20:00"),
+async fn preserves_valid_extracted_times_instead_of_reparsing_the_draft() {
+    for (text, start, end) in [
+        ("Call at 7 a.m.", "2026-10-24T07:00", "2026-10-24T08:00"),
         (
-            "Call Julia tomorrow at 7 for 30 minutes",
-            "2026-10-10T19:30",
-        ),
-        ("Call Julia tomorrow at 7 for 45 min", "2026-10-10T19:45"),
-        (
-            "Call Julia tomorrow at 7 for 1 hour 30 minutes",
-            "2026-10-10T20:30",
-        ),
-        ("Call Julia tomorrow at 7 for 1.5 hours", "2026-10-10T20:30"),
-        ("Call Julia in 30 minutes", "2026-10-10T20:00"),
-        ("Call Julia in 1 hour 30 minutes", "2026-10-10T20:00"),
-        ("Call Julia in 2 days", "2026-10-10T20:00"),
-        (
-            "Call Julia in 30 minutes for 15 minutes",
-            "2026-10-10T19:15",
+            "Call at 9 for .5 hours",
+            "2026-10-24T09:00",
+            "2026-10-24T09:30",
         ),
         (
-            "Call Julia 30 minutes from now for 15 minutes",
-            "2026-10-10T19:15",
+            "Call at 9 for 1/2 hour",
+            "2026-10-24T09:00",
+            "2026-10-24T09:30",
         ),
         (
-            "Call Julia after 2 hours for 30 minutes",
-            "2026-10-10T19:30",
+            "Call at 9 for 120 seconds",
+            "2026-10-24T09:00",
+            "2026-10-24T09:02",
         ),
-        ("Call Julia for 30 minutes in 1 hour", "2026-10-10T19:30"),
-        ("Call Julia on 2026-10-10 at 7pm", "2026-10-10T20:00"),
         (
-            "Call Julia on 2026-10-10 at 7pm for 30 minutes",
-            "2026-10-10T19:30",
+            "Call at 9 for 2 hours including 30 minutes of questions",
+            "2026-10-24T09:00",
+            "2026-10-24T11:00",
         ),
-        ("Call Julia tomorrow 7pm-9pm", "2026-10-10T21:00"),
-        ("Call Julia tomorrow 7:00-9:00", "2026-10-10T21:00"),
-        ("Call Julia tomorrow from 7pm to 9pm", "2026-10-10T21:00"),
         (
-            "Call Julia from 2026-10-10T19:00 to 2026-10-10T21:00",
-            "2026-10-10T21:00",
+            "Call tomorrow at 9 to plan next week Monday's launch",
+            "2026-10-24T09:00",
+            "2026-10-24T10:00",
+        ),
+        (
+            "Retreat at 9 until tomorrow morning",
+            "2026-10-24T09:00",
+            "2026-10-25T09:00",
+        ),
+        (
+            "Block time over the next week",
+            "2026-10-26T09:00",
+            "2026-11-02T09:00",
         ),
     ] {
         let mut input = request();
         input.text = text.into();
         let response = service(InputSuggestions {
-            start: Some("2026-10-10T19:00".into()),
-            end: Some("2026-10-10T21:00".into()),
-            ..Default::default()
-        })
-        .extract(user(), input)
-        .await
-        .unwrap();
-        assert_eq!(
-            response.suggestions.end.as_deref(),
-            Some(expected),
-            "{text}"
-        );
-    }
-}
-
-#[tokio::test]
-async fn preserves_inferred_end_for_unsupported_or_partially_parsed_durations() {
-    for (text, end) in [
-        (
-            "Retreat tomorrow at 7 for 1 day and 2 hours",
-            "2026-10-11T21:00",
-        ),
-        ("Call Julia tomorrow at 7 for 1h30m", "2026-10-10T20:30"),
-        (
-            "Call Julia tomorrow at 7 for half an hour",
-            "2026-10-10T19:30",
-        ),
-        (
-            "Call Julia tomorrow at 7 for one hour and 30 minutes",
-            "2026-10-10T20:30",
-        ),
-    ] {
-        let mut input = request();
-        input.text = text.into();
-        let response = service(InputSuggestions {
-            start: Some("2026-10-10T19:00".into()),
+            start: Some(start.into()),
             end: Some(end.into()),
             ..Default::default()
         })
         .extract(user(), input)
         .await
         .unwrap();
+        assert_eq!(response.suggestions.start.as_deref(), Some(start), "{text}");
         assert_eq!(response.suggestions.end.as_deref(), Some(end), "{text}");
     }
 }
 
 #[tokio::test]
-async fn calendar_week_words_do_not_disable_the_default_one_hour_duration() {
-    for day in ["thursday", "thrusday"] {
-        let mut input = request();
-        input.reference_time = "2026-10-23T22:00:00Z".parse().unwrap();
-        input.text = format!("invite julia to dinner next week {day} 9pm\n\nLocation: cava");
-        let response = service(InputSuggestions {
-            start: Some("2026-10-24T21:00".into()),
-            end: Some("2026-10-24T21:00".into()),
-            location: Some("cava".into()),
-            ..Default::default()
-        })
-        .extract(user(), input)
-        .await
-        .unwrap();
-        assert_eq!(
-            response.suggestions.start.as_deref(),
-            Some("2026-10-29T21:00")
-        );
-        assert_eq!(
-            response.suggestions.end.as_deref(),
-            Some("2026-10-29T22:00")
-        );
-        assert_eq!(response.suggestions.location.as_deref(), Some("cava"));
-    }
-}
-
-#[tokio::test]
-async fn inferred_explicit_or_unsupported_ends_must_be_after_the_start() {
-    for text in [
-        "Call tomorrow 9pm to 9pm",
-        "Call tomorrow at 9pm for half an hour",
+async fn defaults_missing_or_zero_length_ends_but_rejects_invalid_or_reversed_ends() {
+    for (end, expected) in [
+        (None, Some("2026-10-10T20:00")),
+        (Some("2026-10-10T19:00"), Some("2026-10-10T20:00")),
+        (Some("2026-10-10T21:00"), Some("2026-10-10T21:00")),
+        (Some("2026-10-10T18:00"), None),
+        (Some("not a date"), None),
     ] {
-        let mut input = request();
-        input.text = text.into();
         let response = service(InputSuggestions {
-            start: Some("2026-10-10T21:00".into()),
-            end: Some("2026-10-10T21:00".into()),
+            start: Some("2026-10-10T19:00".into()),
+            end: end.map(str::to_owned),
             ..Default::default()
         })
-        .extract(user(), input)
+        .extract(user(), request())
         .await
         .unwrap();
-        assert!(response.suggestions.end.is_none());
+        assert_eq!(response.suggestions.end.as_deref(), expected);
     }
 }
 
 #[tokio::test]
-async fn removes_only_exact_extracted_task_metadata_and_keeps_problem_prose() {
+async fn does_not_truncate_extracted_bodies_or_reinterpret_guest_negation() {
     let mut input = request();
-    input.intent = InputIntent::Task;
+    input.intent = InputIntent::Email;
+    input.text = "email Julia about the report that failed".into();
+    let body = "Can we discuss the report that failed?";
     let response = service(InputSuggestions {
-        body: Some("Priority: High\nPriority high for the launch\nDue tomorrow\nDue to an outage, clicks fail\nAssignees: Julia, Alex".into()),
-        due_date: Some("2026-10-10".into()),
-        properties: vec![
-            InputPropertySuggestion { name: "Priority".into(), values: vec!["High".into()] },
-            InputPropertySuggestion { name: "Assignees".into(), values: vec!["Alex".into(), "Julia".into()] },
-        ],
+        body: Some(body.into()),
         ..Default::default()
-    }).extract(user(), input).await.unwrap();
-    assert_eq!(
-        response.suggestions.body.as_deref(),
-        Some("Priority high for the launch\nDue to an outage, clicks fail")
-    );
+    })
+    .extract(user(), input)
+    .await
+    .unwrap();
+    assert_eq!(response.suggestions.body.as_deref(), Some(body));
+    assert_eq!(response.suggestions.subject.as_deref(), Some(body));
+
+    let mut input = request();
+    input.text = "Invite Julia but don't invite Alex".into();
+    let response = service(InputSuggestions {
+        guests: vec!["Julia".into()],
+        ..Default::default()
+    })
+    .extract(user(), input)
+    .await
+    .unwrap();
+    assert_eq!(response.suggestions.guests, ["Julia"]);
+}
+
+#[tokio::test]
+async fn notes_preserve_the_entire_source_without_requesting_a_body_from_the_model() {
+    let mut input = request();
+    input.intent = InputIntent::Note;
+    input.text = "# Research\n\n- First finding\n- Second finding".into();
+    let text = input.text.clone();
+    let response = service(InputSuggestions {
+        title: Some("Research".into()),
+        ..Default::default()
+    })
+    .extract(user(), input)
+    .await
+    .unwrap();
+    assert_eq!(response.suggestions.body.as_deref(), Some(text.as_str()));
+}
+
+#[test]
+fn every_model_field_has_typed_guidance() {
+    for intent in [
+        InputIntent::Email,
+        InputIntent::Message,
+        InputIntent::Note,
+        InputIntent::Task,
+        InputIntent::Calendar,
+        InputIntent::Search,
+    ] {
+        for field in intent.extraction_fields() {
+            assert!(
+                intent.typed_field_guidance(field).is_some(),
+                "{intent:?}.{field}"
+            );
+        }
+    }
 }
 
 #[tokio::test]
@@ -407,10 +388,10 @@ async fn normalizes_seconds_and_offsets_to_the_users_local_event_time() {
 async fn revalidates_end_times_computed_across_daylight_saving_transitions() {
     for (start, expected_end) in [
         ("2026-11-01T00:30", None),
-        ("2026-03-08T00:30", Some("2026-03-08T03:30")),
+        ("2026-03-08T01:30", Some("2026-03-08T03:30")),
     ] {
         let mut input = request();
-        input.text = "Call Julia at 00:30 for 2 hours".into();
+        input.text = "Call Julia".into();
         let response = service(InputSuggestions {
             start: Some(start.into()),
             ..Default::default()
@@ -427,51 +408,14 @@ async fn revalidates_end_times_computed_across_daylight_saving_transitions() {
 }
 
 #[tokio::test]
-async fn revalidates_wall_times_after_correcting_a_next_weekday() {
-    for (reference, start, end, expected_start, expected_end) in [
-        (
-            "2026-02-27T18:00:00Z",
-            "2026-03-01T02:30",
-            "2026-03-01T03:30",
-            None,
-            Some("2026-03-08T03:30"),
-        ),
-        (
-            "2026-10-23T18:00:00Z",
-            "2026-10-25T01:30",
-            "2026-10-25T02:30",
-            None,
-            Some("2026-11-01T02:30"),
-        ),
-        (
-            "2026-10-23T18:00:00Z",
-            "2026-10-25T00:30",
-            "2026-10-25T01:30",
-            Some("2026-11-01T00:30"),
-            None,
-        ),
-    ] {
-        let mut input = request();
-        input.reference_time = reference.parse().unwrap();
-        input.text = format!(
-            "Call Julia next week Sunday from {} to {}",
-            NaiveDateTime::parse_from_str(start, "%Y-%m-%dT%H:%M")
-                .unwrap()
-                .format("%I:%M%P"),
-            NaiveDateTime::parse_from_str(end, "%Y-%m-%dT%H:%M")
-                .unwrap()
-                .format("%I:%M%P")
-        );
-        let response = service(InputSuggestions {
-            start: Some(start.into()),
-            end: Some(end.into()),
-            ..Default::default()
-        })
-        .extract(user(), input)
-        .await
-        .unwrap();
-
-        assert_eq!(response.suggestions.start.as_deref(), expected_start);
-        assert_eq!(response.suggestions.end.as_deref(), expected_end);
-    }
+async fn rejects_an_extracted_ambiguous_end_without_replacing_it_with_a_default() {
+    let response = service(InputSuggestions {
+        start: Some("2026-11-01T00:00".into()),
+        end: Some("2026-11-01T01:30".into()),
+        ..Default::default()
+    })
+    .extract(user(), request())
+    .await
+    .unwrap();
+    assert!(response.suggestions.end.is_none());
 }

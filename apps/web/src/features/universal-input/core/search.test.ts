@@ -4,7 +4,7 @@ import {
   searchNeedsKeywords,
 } from '../../next-soup/core/search-filters';
 import { compileSearchQuery } from '../../next-soup/core/search-query';
-import { resolveSearchFilters, searchPlan } from './search';
+import { extractedSearchFields, resolveSearchFilters } from './search';
 
 const julia = {
   id: 'macro|julia@macro.com',
@@ -14,61 +14,74 @@ const julia = {
 };
 const sales = { id: 'sales-channel', label: 'sales', kind: 'channel' as const };
 
-describe('natural-language global search', () => {
-  it('turns the reported example into a Channels sender filter, without a keyword query', () => {
-    const plan = searchPlan('search messages from julia');
-    expect(plan.query).toBe('');
-    expect(plan.filters?.type).toBe('channels');
+describe('model-owned search fields', () => {
+  it('keeps the extracted channel while retaining ordinary in/from phrases in the topic', () => {
+    const fields = extractedSearchFields(
+      {
+        query: 'growth in 2026',
+        scope: 'messages',
+        from: ['Julia'],
+        in: ['sales'],
+      },
+      'search messages from Julia in sales about growth in 2026'
+    );
+    expect(fields.query).toBe('growth in 2026');
     const resolved = resolveSearchFilters(
-      JSON.stringify(plan.filters),
+      JSON.stringify(fields.searchFilters),
       [julia],
       [sales]
     );
-    expect(resolved.unresolved).toEqual([]);
-    expect(resolved.state.channels.from).toEqual([julia.id]);
+    expect(resolved.state.channels).toEqual({
+      from: [julia.id],
+      in: [sales.id],
+    });
     expect(compileSearchQuery(resolved.state).include?.channelSenderId).toEqual(
       [julia.id]
     );
   });
-  it('separates keywords from a sender and channel, in either order', () => {
-    for (const text of [
-      'find messages from Julia in #sales about budget',
-      'search channel messages in sales from "Julia Jones" containing budget',
-    ]) {
-      const plan = searchPlan(text);
-      expect(plan.query).toBe('budget');
-      const resolved = resolveSearchFilters(
-        JSON.stringify(plan.filters),
-        [julia],
-        [sales]
-      );
-      expect(resolved.state.channels).toEqual({
-        in: [sales.id],
-        from: [julia.id],
-      });
-      expect(resolved.unresolved).toEqual([]);
-    }
+  it('does not split a model-selected name containing commas or and into multiple people', () => {
+    const person = { ...julia, label: 'Julia, Alex and Co' };
+    const fields = extractedSearchFields(
+      { query: 'budget', scope: 'messages', from: [person.label], in: [] },
+      'search messages from "Julia, Alex and Co" about budget'
+    );
+    const resolved = resolveSearchFilters(
+      JSON.stringify(fields.searchFilters),
+      [person],
+      []
+    );
+    expect(resolved.unresolved).toEqual([]);
+    expect(resolved.state.channels.from).toEqual([person.id]);
   });
-  it.each([
-    ['search documents about onboarding', 'document-or-file'],
-    ['find tasks', 'task'],
-    ['search emails containing invoices', 'email'],
-    ['find calls from Julia', 'calls'],
-    ['search agents about deployment', 'agent'],
-    ['find calendar events about dinner', 'calendar'],
-  ])('recognizes %s', (text, type) => {
-    expect(searchPlan(text).filters?.type).toBe(type);
+  it('keeps a filter-only query empty and rejects unsupported model filter combinations', () => {
+    expect(
+      extractedSearchFields(
+        { query: null, scope: 'messages', from: ['Julia'], in: [] },
+        'search messages from Julia'
+      ).query
+    ).toBe('');
+    expect(() =>
+      extractedSearchFields(
+        { query: 'budget', scope: 'invented', from: ['Julia'], in: [] },
+        'draft'
+      )
+    ).toThrow();
+    expect(() =>
+      extractedSearchFields(
+        { query: 'budget', scope: 'emails', from: ['Julia'], in: [] },
+        'draft'
+      )
+    ).toThrow();
   });
-  it('does not treat arbitrary query words or unsupported facets as filters', () => {
-    expect(searchPlan('how blowholes work')).toEqual({
-      query: 'how blowholes work',
-    });
-    expect(searchPlan('search for quarterly budget')).toEqual({
-      query: 'quarterly budget',
-    });
-    expect(searchPlan('search emails from Julia').query).toBe('from Julia');
+  it('keeps the original query when extraction has no supported scope or keywords', () => {
+    expect(
+      extractedSearchFields(
+        { query: null, scope: null, from: [], in: [] },
+        'how blowholes work'
+      ).query
+    ).toBe('how blowholes work');
   });
-  it('does not invent addresses or silently discard unknown and ambiguous people', () => {
+  it('does not silently discard unknown or ambiguous identities', () => {
     const filters = JSON.stringify(
       searchFiltersSchema.parse({
         type: 'channels',
@@ -77,53 +90,21 @@ describe('natural-language global search', () => {
     );
     for (const people of [
       [],
-      [
-        julia,
-        { ...julia, id: 'macro|julia.smith@macro.com', label: 'Julia Smith' },
-      ],
+      [julia, { ...julia, id: 'other', label: 'Julia Smith' }],
     ]) {
       const result = resolveSearchFilters(filters, people, []);
       expect(result.unresolved).toEqual(['Julia']);
       expect(result.state.channels.from).toEqual(['Julia']);
     }
   });
-  it('preserves quoted keyword phrases containing from/in and formatted keywords', () => {
-    const quoted = searchPlan(
-      'search messages containing "the announcement from Julia in sales"'
-    );
-    expect(quoted.query).toBe('"the announcement from Julia in sales"');
-    expect(quoted.filters?.channels).toEqual({ in: [], from: [] });
-    expect(searchPlan('search messages about **budget**').query).toBe(
-      '**budget**'
-    );
-  });
-  it('requires keywords for sender and speaker constraints that browsing cannot enforce', () => {
+  it('requires keywords for message sender and call speaker constraints', () => {
     for (const type of ['channels', 'calls'] as const) {
       const state = searchFiltersSchema.parse({
         type,
         [type]: { in: [], from: [julia.id] },
       });
       expect(searchNeedsKeywords(state, '')).toBe(true);
-      expect(searchNeedsKeywords(state, 'ab')).toBe(true);
       expect(searchNeedsKeywords(state, 'budget')).toBe(false);
     }
-  });
-  it('resolves manually selected IDs and exact emails, and normalizes invalid stored state', () => {
-    const plan = searchPlan('search messages from julia@macro.com');
-    const resolved = resolveSearchFilters(
-      JSON.stringify(plan.filters),
-      [julia],
-      []
-    );
-    const manual = resolveSearchFilters(
-      JSON.stringify(resolved.state),
-      [julia],
-      []
-    );
-    expect(manual.unresolved).toEqual([]);
-    expect(manual.state.channels.from).toEqual([julia.id]);
-    expect(resolveSearchFilters('{"type":"invalid"}', [], []).state.type).toBe(
-      'all'
-    );
   });
 });

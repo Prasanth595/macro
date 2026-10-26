@@ -28,7 +28,9 @@ fn extraction_schema(input: &ExtractInputRequest) -> Value {
         .iter()
         .map(|field| {
             let schema = match *field {
-                "recipients" | "guests" => json!({"type": "array", "items": {"type": "string"}}),
+                "recipients" | "guests" | "search_from" | "search_in" => {
+                    json!({"type": "array", "items": {"type": "string"}})
+                }
                 "properties" => json!({"type": "array", "items": {
                     "type": "object", "additionalProperties": false,
                     "required": ["name", "values"],

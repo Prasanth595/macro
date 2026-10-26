@@ -203,11 +203,7 @@ impl<'a> ExtractionRequest<'a> {
             input.time_zone
         );
         let mut fields = BTreeMap::new();
-        let literal_body = input.literal_body().is_some();
         for &name in input.intent.extraction_fields() {
-            if (name == "body" && literal_body) || (name == "guests" && !input.requests_guests()) {
-                continue;
-            }
             let guidance = input
                 .intent
                 .typed_field_guidance(name)
@@ -233,7 +229,7 @@ impl<'a> ExtractionRequest<'a> {
             let kind = match name {
                 "start" | "end" => FieldType::Datetime,
                 "due_date" => FieldType::Date,
-                "recipients" | "guests" => FieldType::List,
+                "recipients" | "guests" | "search_from" | "search_in" => FieldType::List,
                 _ => FieldType::Text,
             };
             fields.insert(
@@ -297,15 +293,20 @@ impl Answer {
         {
             return Err(InputError::Extraction);
         }
-        if self.value.is_null()
-            || self.confidence.is_some_and(|n| n < MIN_CONFIDENCE)
-            || self.p_null.is_some_and(|n| n >= 0.5)
-        {
+        if self.value.is_null() {
             return Ok(if spec.kind == FieldType::List {
                 serde_json::json!([])
             } else {
                 Value::Null
             });
+        }
+        // Uncertain positive answers are unusable, rather than evidence that a field is absent.
+        // Empty lists remain valid: a list with no matches may itself have low confidence.
+        if (self.confidence.is_some_and(|n| n < MIN_CONFIDENCE)
+            || self.p_null.is_some_and(|n| n >= 0.5))
+            && !self.value.as_array().is_some_and(Vec::is_empty)
+        {
+            return Err(InputError::Extraction);
         }
         let valid = match spec.kind {
             FieldType::Text => self
@@ -372,6 +373,14 @@ impl ExtractionResponse {
                 "properties".to_owned(),
                 serde_json::to_value(properties).map_err(|_| InputError::Extraction)?,
             );
+        }
+        if matches!(input.intent, InputIntent::Email | InputIntent::Message)
+            && let Some(body) = fields.get("body").and_then(Value::as_str)
+            && !input.text.trim_end().ends_with(body.trim_end())
+        {
+            // Outgoing bodies exclude only a leading addressing instruction. A span that
+            // stops early would silently drop later sentences; let the fallback extract it.
+            return Err(InputError::Extraction);
         }
         serde_json::from_value(Value::Object(fields)).map_err(|_| InputError::Extraction)
     }

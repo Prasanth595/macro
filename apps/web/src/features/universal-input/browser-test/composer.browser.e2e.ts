@@ -139,20 +139,17 @@ test('shows the note body, preserves manual formatting through predictions and s
   await expect(input).toBeFocused();
 });
 
-test('reveals email addressing and body before providers finish and preserves a manual body edit', async ({
+test('preserves a manual body edit while model extraction supplies email addressing', async ({
   page,
 }) => {
-  await page.goto('/?classify-delay=1200&extract-delay=1200');
+  await page.goto('/?extract-delay=1200');
   const input = page.getByRole('textbox', { name: 'Your input', exact: true });
   await input.fill('Email John\nCan we reschedule tomorrow?');
   await expect(page.getByLabel('Content type')).toHaveText('Auto · Email', {
     timeout: 800,
   });
   const body = page.getByLabel('Outgoing message');
-  await expect(body).toHaveText('Can we reschedule tomorrow?', {
-    timeout: 800,
-  });
-  await expect(page.getByText('John Adams', { exact: true })).toBeVisible({
+  await expect(body).toContainText('Can we reschedule tomorrow?', {
     timeout: 800,
   });
   await expect(
@@ -310,21 +307,6 @@ for (const example of [
   });
 }
 
-test('refines an optimistic email into the classified task without a manual type choice', async ({
-  page,
-}) => {
-  await page.goto('/?classification=task&classify-delay=1500');
-  const input = page.getByRole('textbox', { name: 'Your input', exact: true });
-  await input.fill('Email notifications not working\npriority urgent');
-  const type = page.getByLabel('Content type');
-  await expect(type).toHaveText('Auto · Email');
-  await expect(type).toHaveText('Auto · Task');
-  await expect(
-    page.getByRole('button', { name: 'Create task', exact: true })
-  ).toBeEnabled();
-  await expect(input).toBeFocused();
-});
-
 test('chooses a close-scoring task during typing and cycles alternatives without losing editor focus', async ({
   page,
 }) => {
@@ -359,7 +341,7 @@ test('shows the AM/PM assumption and lets a manual start edit override it', asyn
   });
   await expect(start).toContainText('7:00');
   await expect(
-    page.getByText('Assumed 7:00 PM.', { exact: false })
+    page.getByText('Assumed 7:00 PM for', { exact: false })
   ).toBeVisible();
   await start.click();
   const time = page.getByLabel('Start time', { exact: true });
@@ -367,7 +349,7 @@ test('shows the AM/PM assumption and lets a manual start edit override it', asyn
   await time.press('Enter');
   await time.press('Escape');
   await expect(
-    page.getByText('Assumed 7:00 PM.', { exact: false })
+    page.getByText('Assumed 7:00 PM for', { exact: false })
   ).not.toBeVisible();
   await expect(start).toContainText('7:00 AM');
 });

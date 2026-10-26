@@ -1,15 +1,11 @@
 //! Composer inference policy, independent of HTTP and provider implementations.
-use std::{
-    future::Future,
-    sync::{Arc, OnceLock},
-};
+use std::{future::Future, sync::Arc};
 
 use ai_billing::{AiAdmissionError, AiAdmissionService};
 use ai_usage::{AiFeature, UsageContext};
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use jev::domain::{YesNoClassifier, YesNoQuestion};
 use macro_user_id::user_id::MacroUserIdStr;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -18,7 +14,6 @@ mod test;
 
 mod fallback;
 pub use fallback::FallbackFieldExtractor;
-mod source_fields;
 mod typed_guidance;
 
 /// Domain-owned guidance for how the inference port interprets a draft.
@@ -49,11 +44,19 @@ impl InputIntent {
     pub fn extraction_fields(self) -> &'static [&'static str] {
         match self {
             Self::Ai => &[],
-            Self::Search => &["query"],
+            Self::Search => &["query", "search_scope", "search_from", "search_in"],
             Self::Email => &["subject", "body", "recipients"],
-            Self::Note => &["title", "body"],
+            Self::Note => &["title"],
             Self::Task => &["title", "body", "due_date", "properties"],
-            Self::Calendar => &["title", "body", "start", "end", "location", "guests"],
+            Self::Calendar => &[
+                "title",
+                "body",
+                "start",
+                "end",
+                "start_assumption",
+                "location",
+                "guests",
+            ],
             Self::Message => &["body", "recipients"],
         }
     }
@@ -62,7 +65,7 @@ impl InputIntent {
     pub fn extraction_guidance(self) -> &'static str {
         match self {
             Self::Ai => "Return an empty JSON object.",
-            Self::Search => "Extract query: the terms to find existing Macro content.",
+            Self::Search => include_str!("domain/extract_search_prompt.txt"),
             Self::Email => include_str!("domain/extract_email_prompt.txt"),
             Self::Note => include_str!("domain/extract_note_prompt.txt"),
             Self::Task => include_str!("domain/extract_task_prompt.txt"),
@@ -184,8 +187,18 @@ pub struct InputSuggestions {
     pub recipients: Vec<String>,
     /// Terms to find existing Macro content.
     pub query: Option<String>,
+    /// Verbatim noun naming the requested search category, such as messages or tasks.
+    pub search_scope: Option<String>,
+    /// Explicit sender, speaker, or task-creator names for the client to resolve.
+    #[serde(default)]
+    pub search_from: Vec<String>,
+    /// Explicit channel names for the client to resolve.
+    #[serde(default)]
+    pub search_in: Vec<String>,
     /// Local wall-clock values, interpreted in the request's IANA timezone.
     pub start: Option<String>,
+    /// Verbatim clock phrase whose missing AM/PM required an editable assumption.
+    pub start_assumption: Option<String>,
     /// Event end as a local wall-clock value in the request's timezone.
     pub end: Option<String>,
     /// Task deadline as a local ISO date.
@@ -340,18 +353,28 @@ impl<C: YesNoClassifier, E: FieldExtractor> UniversalInputService<C, E> {
                 UsageContext::new(AiFeature::DynamicCompletionsApi, user),
             )
             .await?;
-        source_fields::preserve(&input, &mut suggestions);
-        // Reject nonexistent/ambiguous wall times rather than silently shifting an event at DST.
+        if input.intent == InputIntent::Note {
+            suggestions.body = Some(input.text.clone());
+        }
+        if input.intent == InputIntent::Email && suggestions.subject.is_none() {
+            suggestions.subject = suggestions.body.as_deref().and_then(|body| {
+                body.lines()
+                    .map(str::trim)
+                    .find(|line| !line.is_empty())
+                    .map(|line| line.chars().take(80).collect())
+            });
+        }
+        // Validate extracted values without reinterpreting the draft's language.
+        let missing_end = suggestions.end.is_none();
         normalize_event_times(&mut suggestions, zone);
         if input.intent == InputIntent::Calendar {
-            source_fields::resolve_next_weekday(&input, &mut suggestions, zone);
-            source_fields::assume_clock(&input, &mut suggestions);
-            suggestions.end = event_end(&input.text, &suggestions, zone);
-            // Date corrections and elapsed durations can cross a DST transition.
+            if missing_end || suggestions.end.is_some() {
+                suggestions.end = event_end(&suggestions, zone);
+            }
             normalize_event_times(&mut suggestions, zone);
-        }
-        if input.intent == InputIntent::Task {
-            suggestions.body = task_body(&suggestions);
+            suggestions.start_assumption = suggestions.start_assumption.filter(|phrase| {
+                suggestions.start.is_some() && !phrase.is_empty() && input.text.contains(phrase)
+            });
         }
         Ok(ExtractInputResponse {
             revision: input.revision,
@@ -361,125 +384,22 @@ impl<C: YesNoClassifier, E: FieldExtractor> UniversalInputService<C, E> {
     }
 }
 
-fn task_body(fields: &InputSuggestions) -> Option<String> {
-    static DUE_LINE: OnceLock<Regex> = OnceLock::new();
-    let due_line = DUE_LINE.get_or_init(|| Regex::new(
-        r"(?i)^due(?:\s+date)?\s*:?\s*(?:today|tomorrow|(?:next\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|\d{4}-\d{2}-\d{2})$"
-    ).expect("fixed due metadata expression"));
-    let body = fields
-        .body
-        .as_deref()?
-        .lines()
-        .filter(|line| {
-            let text = line.trim().to_lowercase();
-            let property_line = fields.properties.iter().any(|field| {
-                if field.values.is_empty() {
-                    return false;
-                }
-                let name = field.name.to_lowercase();
-                let Some(rest) = text.strip_prefix(&name) else {
-                    return false;
-                };
-                if !rest.starts_with([' ', ':', '=']) {
-                    return false;
-                }
-                let mut values = rest
-                    .trim_start_matches([' ', ':', '='])
-                    .split([',', ';'])
-                    .map(|value| value.trim().to_owned())
-                    .collect::<Vec<_>>();
-                let mut extracted = field
-                    .values
-                    .iter()
-                    .map(|value| value.trim().to_lowercase())
-                    .collect::<Vec<_>>();
-                values.sort();
-                extracted.sort();
-                values == extracted
-            });
-            !(property_line || fields.due_date.is_some() && due_line.is_match(&text))
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    (!body.trim().is_empty()).then_some(body)
-}
-
-fn event_end(text: &str, fields: &InputSuggestions, zone: chrono_tz::Tz) -> Option<String> {
-    static DURATION: OnceLock<Regex> = OnceLock::new();
-    static START_OFFSET: OnceLock<Regex> = OnceLock::new();
-    static EXPLICIT_END: OnceLock<Regex> = OnceLock::new();
-    static OTHER_DURATION: OnceLock<Regex> = OnceLock::new();
-    static CALENDAR_WEEK: OnceLock<Regex> = OnceLock::new();
+fn event_end(fields: &InputSuggestions, zone: chrono_tz::Tz) -> Option<String> {
     let start = NaiveDateTime::parse_from_str(fields.start.as_deref()?, "%Y-%m-%dT%H:%M").ok()?;
-    let inferred_end = || {
-        let end = NaiveDateTime::parse_from_str(fields.end.as_deref()?, "%Y-%m-%dT%H:%M").ok()?;
-        (end > start).then(|| end.format("%Y-%m-%dT%H:%M").to_string())
-    };
-    let explicit_end = EXPLICIT_END.get_or_init(|| {
-        Regex::new(r"(?i)(?:\b(?:until|ends?(?:\s+at)?|to)\s+(?:\d{4}-\d{2}-\d{2}[T\s])?\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b|(?:^|[\s(])\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*[-–]\s*\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b)")
-            .expect("fixed end-time expression")
-    });
-    if explicit_end.is_match(text) {
-        return inferred_end();
+    if let Some(end) = fields.end.as_deref() {
+        let end = NaiveDateTime::parse_from_str(end, "%Y-%m-%dT%H:%M").ok()?;
+        if end < start {
+            return None;
+        }
+        if end > start {
+            return Some(end.format("%Y-%m-%dT%H:%M").to_string());
+        }
     }
-    let start_offset = START_OFFSET.get_or_init(|| {
-        Regex::new(
-            r"(?ix)\b(?:
-          (?:in|after)\s+\d+(?:\.\d+)?\s*(?:hours?|hrs?|minutes?|mins?|days?|weeks?)
-            (?:\s+(?:and\s+)?\d+(?:\.\d+)?\s*(?:hours?|hrs?|minutes?|mins?|days?|weeks?))*
-          |\d+(?:\.\d+)?\s*(?:hours?|hrs?|minutes?|mins?|days?|weeks?)
-            (?:\s+(?:and\s+)?\d+(?:\.\d+)?\s*(?:hours?|hrs?|minutes?|mins?|days?|weeks?))*
-            \s+(?:from\s+now|later)
-        )\b",
-        )
-        .expect("fixed start-offset expression")
-    });
-    // Relative starts are interpreted by the extractor, never added to the duration.
-    let duration_text = start_offset.replace_all(text, " ");
-    // A calendar anchor such as "next week Thursday" is not an event duration.
-    let calendar_week = CALENDAR_WEEK.get_or_init(|| {
-        Regex::new(r"(?i)\b(?:next|this|coming|following)\s+weeks?\b")
-            .expect("fixed calendar-week expression")
-    });
-    let duration_text =
-        calendar_week.replace_all(&duration_text, |capture: &regex::Captures<'_>| {
-            let matched = capture.get(0).expect("calendar week matched");
-            let prefix = duration_text[..matched.start()]
-                .trim_end()
-                .to_ascii_lowercase();
-            if prefix.ends_with("for") || prefix.ends_with("for the") {
-                matched.as_str().to_owned()
-            } else {
-                " ".to_owned()
-            }
-        });
-    let duration = DURATION.get_or_init(|| {
-        Regex::new(r"(?i)\b(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?)\b")
-            .expect("fixed duration expression")
-    });
-    let captures = duration.captures_iter(&duration_text).collect::<Vec<_>>();
-    let other_duration = OTHER_DURATION.get_or_init(|| {
-        Regex::new(r"(?i)\b(?:hours?|hrs?|minutes?|mins?|days?|weeks?|duration)\b|\bfor\s+\d+(?:\.\d+)?\s*[hm](?:\b|\d)")
-            .expect("fixed other-duration expression")
-    });
-    let unparsed_duration = duration.replace_all(&duration_text, " ");
-    if other_duration.is_match(&unparsed_duration) {
-        // Preserve the inferred end when duration wording is only partially understood.
-        return inferred_end();
-    }
-    let minutes = captures.iter().try_fold(0.0, |total, capture| {
-        let amount = capture[1].parse::<f64>().ok()?;
-        let unit = capture[2].to_ascii_lowercase();
-        Some(total + amount * if unit.starts_with('h') { 60.0 } else { 1.0 })
-    })?;
-    let minutes = if captures.is_empty() { 60.0 } else { minutes };
-    if !minutes.is_finite() || minutes <= 0.0 || minutes > i32::MAX as f64 {
-        return None;
-    }
+    // A missing or zero-length end receives the product's one-hour default.
     let end = zone
         .from_local_datetime(&start)
         .single()?
-        .checked_add_signed(chrono::Duration::seconds((minutes * 60.0).round() as i64))?;
+        .checked_add_signed(chrono::Duration::hours(1))?;
     Some(end.format("%Y-%m-%dT%H:%M").to_string())
 }
 

@@ -113,3 +113,13 @@ describe('recipient matching', () => {
     ).toHaveLength(1);
   });
 });
+
+it('uses the shared email validator for inferred external recipients', () => {
+  for (const address of [
+    '<a@example.com>',
+    'a@example..com',
+    'a@example.com.',
+  ]) {
+    expect(resolveRecipients(address, [], true).unresolved).toEqual([address]);
+  }
+});

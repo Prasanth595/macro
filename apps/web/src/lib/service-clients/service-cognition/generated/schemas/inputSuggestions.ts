@@ -11,7 +11,9 @@ import type { InputSuggestionsDueDate } from './inputSuggestionsDueDate';
 import type { InputSuggestionsEnd } from './inputSuggestionsEnd';
 import type { InputSuggestionsLocation } from './inputSuggestionsLocation';
 import type { InputSuggestionsQuery } from './inputSuggestionsQuery';
+import type { InputSuggestionsSearchScope } from './inputSuggestionsSearchScope';
 import type { InputSuggestionsStart } from './inputSuggestionsStart';
+import type { InputSuggestionsStartAssumption } from './inputSuggestionsStartAssumption';
 import type { InputSuggestionsSubject } from './inputSuggestionsSubject';
 import type { InputSuggestionsTitle } from './inputSuggestionsTitle';
 
@@ -35,8 +37,16 @@ export interface InputSuggestions {
   query?: InputSuggestionsQuery;
   /** Person or channel names for the client to resolve. */
   recipients?: string[];
+  /** Explicit sender, speaker, or task-creator names for the client to resolve. */
+  search_from?: string[];
+  /** Explicit channel names for the client to resolve. */
+  search_in?: string[];
+  /** Verbatim noun naming the requested search category, such as messages or tasks. */
+  search_scope?: InputSuggestionsSearchScope;
   /** Local wall-clock values, interpreted in the request's IANA timezone. */
   start?: InputSuggestionsStart;
+  /** Verbatim clock phrase whose missing AM/PM required an editable assumption. */
+  start_assumption?: InputSuggestionsStartAssumption;
   /** Suggested outgoing email subject. */
   subject?: InputSuggestionsSubject;
   /** Suggested note, task, or event title. */

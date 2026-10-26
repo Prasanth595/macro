@@ -103,3 +103,42 @@ describe('suggested task property resolution', () => {
     ).toEqual(['Assignees']);
   });
 });
+
+it('rejects impossible or ambiguous dates instead of rolling them into another day', () => {
+  const date = {
+    ...priority,
+    definition: {
+      ...priority.definition,
+      id: 'date',
+      display_name: 'Review date',
+      data_type: 'DATE' as const,
+    },
+  };
+  for (const value of ['2026-02-30', '2026-02-29', '01/02/2026']) {
+    expect(
+      suggestedTaskProperties(
+        JSON.stringify([{ name: 'Review date', values: [value] }]),
+        [date],
+        []
+      ).unresolved
+    ).toEqual(['Review date']);
+  }
+});
+it('keeps distinct catalog names with hyphens and underscores distinct', () => {
+  const fields = ['Follow-up', 'Follow_up'].map((name) => ({
+    definition: {
+      ...priority.definition,
+      id: name,
+      display_name: name,
+      data_type: 'STRING' as const,
+    },
+    options: [],
+  }));
+  expect(
+    suggestedTaskProperties(
+      JSON.stringify([{ name: 'Follow_up', values: ['Yes'] }]),
+      fields,
+      []
+    ).values
+  ).toEqual({ Follow_up: { valueType: 'STRING', value: 'Yes' } });
+});

@@ -1,4 +1,5 @@
 import { MarkdownTextarea } from '@core/component/LexicalMarkdown/component/core/MarkdownTextarea';
+import { format, isValid, parseISO } from 'date-fns';
 import { createMemo, createUniqueId, onCleanup, Show } from 'solid-js';
 import { EventDateTimeRangeFields } from '../../calendar/components/composer/EventDateTimeRangeFields';
 import {
@@ -9,7 +10,6 @@ import {
 import { EventTitleInput } from '../../calendar/components/composer/EventTitleInput';
 import { guestEmail } from '../../calendar/components/composer/event-form-model';
 import type { InputDisplay } from '../context/capabilities';
-import { calendarTimeAssumption } from '../core/calendar-time-assumption';
 import type { UniversalInputController } from '../primitives/universal-input';
 import {
   composerRecipientOptions,
@@ -40,10 +40,13 @@ export function CalendarDraft(props: {
       (person) => person.kind !== 'custom'
     )
   );
-  const assumption = () =>
-    s.draft().edited.calendar.includes('start')
-      ? undefined
-      : calendarTimeAssumption(s.draft().text, s.fields().start);
+  const assumption = () => {
+    const phrase = s.fields().start_assumption;
+    if (s.draft().edited.calendar.includes('start') || !phrase) return;
+    const start = parseISO(s.fields().start);
+    if (!isValid(start)) return;
+    return `Assumed ${format(start, 'h:mm a')} for “${phrase}”. Adjust the start time if you meant otherwise.`;
+  };
   const changeStart = (start: string) => {
     const duration =
       new Date(s.fields().end).getTime() - new Date(s.fields().start).getTime();

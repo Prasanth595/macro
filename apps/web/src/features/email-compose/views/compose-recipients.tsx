@@ -167,10 +167,8 @@ export function ComposeRecipients(props: {
     requestAnimationFrame(() => inputEls[field]?.focus());
   };
 
-  // Collapsing is deferred so the transient blur of tapping a suggestion
-  // (whose selection lands via a debounced onChange) doesn't fold the row
-  // mid-entry — picking a recipient cancels the pending collapse and
-  // refocuses the input for the next one.
+  // Defer collapse across the transient blur when tapping a suggestion.
+  // Picking a recipient cancels the pending collapse and refocuses the input.
   let collapseTimer: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(collapseTimer));
 

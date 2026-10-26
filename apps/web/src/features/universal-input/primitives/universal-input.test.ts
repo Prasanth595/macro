@@ -1,5 +1,6 @@
 import { createRoot } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { searchFiltersSchema } from '../../next-soup/core/search-filters';
 import type { InputCapabilities } from '../context/capabilities';
 import {
   emptyDraft,
@@ -123,37 +124,93 @@ describe('universal draft lifecycle', () => {
     expect(state.error()).toBe('Could not save draft');
     expect(state.sending()).toBe(false);
   });
-  it('searches immediately without model extraction and preserves a manual query', async () => {
+  it('extracts search filters and keeps manual query edits through later predictions', async () => {
     const capabilities = source({
-      classify: vi.fn(
-        () =>
-          new Promise<Awaited<ReturnType<InputCapabilities['classify']>>>(
-            () => {}
-          )
-      ),
+      classify: vi.fn(async (_text, revision) => ({
+        revision,
+        scores: scored('search'),
+      })),
+      extract: vi.fn(async (_text, intent, revision) => ({
+        intent,
+        revision,
+        suggestions: {
+          query: 'growth in 2026',
+          recipients: [],
+          guests: [],
+          searchFilters: searchFiltersSchema.parse({
+            type: 'channels',
+            channels: { in: ['sales'], from: ['Julia'] },
+          }),
+        },
+      })),
     });
     const state = mount(capabilities);
-    state.setText('find investor update');
-    expect(state.draft().intent).toBe('search');
-    expect(state.fields().query).toBe('investor update');
-    expect(state.pending()).toBe(false);
-    state.setText('find hiring plan');
-    expect(state.fields().query).toBe('hiring plan');
-    state.edit('query', 'budget');
-    state.setText('find roadmap');
-    expect(state.fields().query).toBe('budget');
+    state.setText('search messages from Julia in sales about growth in 2026');
+    expect(state.draft().intent).toBeUndefined();
     await tick();
-    expect(capabilities.extract).not.toHaveBeenCalled();
-    await state.submit();
-    expect(capabilities.submit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        intent: 'search',
-        fields: expect.objectContaining({ query: 'budget' }),
+    expect(capabilities.extract).toHaveBeenCalled();
+    expect(state.fields().query).toBe('growth in 2026');
+    expect(JSON.parse(state.fields().searchFilters).channels.in).toEqual([
+      'sales',
+    ]);
+    state.edit('query', 'budget');
+    state.setText('search messages from Alex about forecast');
+    await tick();
+    expect(state.fields().query).toBe('budget');
+  });
+  it('pauses search after failed filter extraction until both fields are explicitly chosen', async () => {
+    const extract = vi.fn(
+      async (_text: string, intent: Intent, revision: number) => ({
+        intent,
+        revision,
+        suggestions: {
+          query: 'budget',
+          recipients: [],
+          guests: [],
+          searchFilters: searchFiltersSchema.parse({
+            type: 'channels',
+            channels: { from: ['Julia'], in: [] },
+          }),
+        },
       })
     );
+    const capabilities = source({ extract });
+    const state = mount(capabilities);
+    state.setText('search messages from Julia about budget');
+    state.choose('search');
+    expect(state.pending()).toBe(true);
+    await tick();
+    expect(state.pending()).toBe(false);
+    extract.mockRejectedValue(new Error('Extraction unavailable'));
+    state.edit('query', 'forecast');
+    await tick();
+    expect(state.pending()).toBe(true);
+    await state.submit();
+    expect(capabilities.submit).not.toHaveBeenCalled();
+    state.edit(
+      'searchFilters',
+      JSON.stringify(
+        searchFiltersSchema.parse({
+          type: 'channels',
+          channels: { from: ['Julia'], in: [] },
+        })
+      )
+    );
+    await tick();
+    expect(state.pending()).toBe(false);
+    expect(state.fields().query).toBe('forecast');
+    expect(JSON.parse(state.fields().searchFilters).channels.from).toEqual([
+      'Julia',
+    ]);
+    await state.submit();
+    expect(capabilities.submit).toHaveBeenCalledOnce();
   });
-  it('shows an email and locally supplied fields before either provider responds, preserving manual edits', async () => {
+  it('reveals the classified form and preserves edits while model fields arrive', async () => {
     const capabilities = source({
+      classify: vi.fn(async (_text, revision) => ({
+        revision,
+        scores: scored('email'),
+      })),
       extract: vi.fn(async (_text, intent, revision) => ({
         intent,
         revision,
@@ -161,23 +218,21 @@ describe('universal draft lifecycle', () => {
           ...suggestions,
           body: 'Model body',
           subject: 'Model subject',
-          recipients: ['Model recipient'],
+          recipients: ['Julia'],
         },
       })),
     });
     const state = mount(capabilities);
-    state.setText('email Julia\ncan we reschedule tomorrow?');
-    expect(state.draft().intent).toBe('email');
-    expect(state.fields().recipients).toBe('Julia');
-    expect(state.fields().body).toBe('can we reschedule tomorrow?');
-    expect(state.pending()).toBe(true);
-    expect(capabilities.classify).not.toHaveBeenCalled();
-    expect(capabilities.extract).not.toHaveBeenCalled();
+    state.setText('email Julia about the report that failed');
+    expect(state.draft().intent).toBeUndefined();
+    state.choose('email');
+    expect(state.fields().body).toBe(
+      'email Julia about the report that failed'
+    );
+    expect(state.fields().recipients).toBe('');
     state.edit('body', 'My outgoing message');
     state.edit('recipients', 'Julia Roberts');
-    state.setText('email Alex\nnew suggested body');
-    expect(state.fields().body).toBe('My outgoing message');
-    expect(state.fields().recipients).toBe('Julia Roberts');
+    state.setText('email Alex about another report');
     await tick();
     expect(state.fields().body).toBe('My outgoing message');
     expect(state.fields().recipients).toBe('Julia Roberts');
@@ -241,55 +296,12 @@ describe('universal draft lifecycle', () => {
     expect(state.pending()).toBe(false);
     expect(state.fields().title).toBe('Outline');
   });
-  it('starts known-type extraction without waiting for classification and still gates submission', async () => {
-    let classify!: (
-      value: Awaited<ReturnType<InputCapabilities['classify']>>
-    ) => void;
-    const capabilities = source({
-      classify: vi.fn(
-        () =>
-          new Promise<Awaited<ReturnType<InputCapabilities['classify']>>>(
-            (resolve) => {
-              classify = resolve;
-            }
-          )
-      ),
-      extract: vi.fn(async (_text, intent, revision) => ({
-        intent,
-        revision,
-        suggestions: {
-          ...suggestions,
-          subject: 'Hello',
-          body: 'Hello',
-          recipients: ['Julia Roberts'],
-        },
-      })),
-    });
-    const state = mount(capabilities);
-    state.setText('email Julia\nHello');
-    await tick();
-    expect(capabilities.extract).toHaveBeenCalledWith(
-      'email Julia\nHello',
-      'email',
-      1
-    );
-    expect(state.fields().subject).toBe('Hello');
-    expect(state.pending()).toBe(true);
-    await state.submit();
-    expect(capabilities.submit).not.toHaveBeenCalled();
-    classify({ revision: 1, scores: scored('email') });
-    await vi.advanceTimersByTimeAsync(1);
-    expect(state.draft().intent).toBe('email');
-    expect(state.pending()).toBe(false);
-    expect(state.fields().recipients).toBe('Julia Roberts');
-    expect(capabilities.extract).toHaveBeenCalledOnce();
-  });
   it.each([
-    ['Email notifications not working\npriority urgent', 'email'],
-    ['Find and fix notification bug', 'search'],
-  ] as const)(
-    'lets classification refine the optimistic shape for %s',
-    async (text, guess) => {
+    'Email notifications not working\npriority urgent',
+    'Find and fix notification bug',
+  ])(
+    'uses the classifier rather than a command-prefix guess for %s',
+    async (text) => {
       const capabilities = source({
         classify: vi.fn(async (_text, revision) => ({
           revision,
@@ -298,12 +310,10 @@ describe('universal draft lifecycle', () => {
       });
       const state = mount(capabilities);
       state.setText(text);
-      expect(state.draft().intent).toBe(guess);
+      expect(state.draft().intent).toBeUndefined();
       await tick();
       expect(state.draft().intent).toBe('task');
-      expect(state.pending()).toBe(false);
       expect(capabilities.extract).toHaveBeenLastCalledWith(text, 'task', 1);
-      expect(state.fields().title).toBe('Call John');
     }
   );
   it('retries a failed email without invalidating its completed inference or retry identity', async () => {

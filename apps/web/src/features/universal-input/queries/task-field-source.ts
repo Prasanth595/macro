@@ -8,6 +8,7 @@ import { useListPropertiesQuery } from '@queries/properties/definitions';
 import type { PropertyDefinitionResponse } from '@service-properties/generated/schemas/propertyDefinitionResponse';
 import type { InputFields } from '../core/input';
 import {
+  parseTaskDate,
   suggestedTaskProperties,
   type TaskFieldDefinition,
   type TaskReference,
@@ -99,27 +100,37 @@ export function createTaskFieldSource(userId: string) {
         references()
       );
       const manual = parseTaskProperties(fields.taskProperties);
+      const dueDate = fields.due_date
+        ? parseTaskDate(fields.due_date)
+        : undefined;
       return {
         values: {
           ...defaultTaskPropertyValues([userId]),
           ...inferred.values,
-          ...(fields.due_date
+          ...(dueDate
             ? {
                 [SYSTEM_PROPERTY_IDS.DUE_DATE]: {
                   valueType: 'DATE' as const,
-                  value: new Date(`${fields.due_date}T12:00:00`),
+                  value: dueDate,
                 },
               }
             : {}),
           ...manual,
         },
-        unresolved: inferred.unresolved.filter((name) => {
-          const field = definitions().find(
-            (f) =>
-              f.definition.display_name.toLowerCase() === name.toLowerCase()
-          );
-          return !field || !manual[field.definition.id];
-        }),
+        unresolved: [
+          ...(fields.due_date &&
+          !dueDate &&
+          !manual[SYSTEM_PROPERTY_IDS.DUE_DATE]
+            ? ['Due date']
+            : []),
+          ...inferred.unresolved.filter((name) => {
+            const field = definitions().find(
+              (f) =>
+                f.definition.display_name.toLowerCase() === name.toLowerCase()
+            );
+            return !field || !manual[field.definition.id];
+          }),
+        ],
       };
     },
   };

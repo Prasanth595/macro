@@ -2,8 +2,9 @@
 
 Read-only intent classification and editable field extraction for Command K.
 
-- `src/domain.rs` owns admission, draft bounds, source preservation, and event
-  time normalization. `domain/fallback.rs` owns provider failover policy.
+- `src/domain.rs` owns admission, draft bounds, verbatim note preservation,
+  and event timestamp validation/defaults. Providers interpret natural language;
+  domain validation must not re-parse it with regexes. `domain/fallback.rs` owns provider failover policy.
 - `src/outbound.rs` implements the field-extraction port through the shared
   model router; `outbound/clairic.rs` implements Cloudflare typed extraction.
 - HTTP transport and provider configuration are wired by

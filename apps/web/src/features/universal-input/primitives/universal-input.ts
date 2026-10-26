@@ -15,7 +15,7 @@ import {
   type SubmissionResult,
   updateDraftText,
 } from '../core/input';
-import { localFields, localIntent } from '../core/local-fields';
+import { localFields } from '../core/local-fields';
 import { createInferenceQueue } from './inference-queue';
 
 export function createUniversalInput(source: InputCapabilities) {
@@ -45,7 +45,15 @@ export function createUniversalInput(source: InputCapabilities) {
     fieldsSchema.parse(draft().intent ? draft().fields[draft().intent!] : {});
   const pending = () => {
     const current = draft();
-    if (!current.text.trim() || current.intent === 'search') return false;
+    if (!current.text.trim()) return false;
+    if (
+      current.intent === 'search' &&
+      extractionError() &&
+      !(['query', 'searchFilters'] as const).every((field) =>
+        current.edited.search.includes(field)
+      )
+    )
+      return true;
     if (!current.locked && classifiedRevision() !== revision()) return true;
     return (
       !!current.intent &&
@@ -58,10 +66,7 @@ export function createUniversalInput(source: InputCapabilities) {
     !disposed && decisionRevision === decision && !!draft().text.trim();
   const seed = () => {
     setDraft((current) => {
-      const intent =
-        current.locked || classifiedRevision() === revision()
-          ? current.intent
-          : (localIntent(current.text) ?? current.intent);
+      const intent = current.intent;
       if (!intent) return current;
       if (
         extracted()?.revision === revision() &&
@@ -99,8 +104,7 @@ export function createUniversalInput(source: InputCapabilities) {
         if (response.revision !== input.revision)
           throw new Error('Could not detect the input type');
         const previousIntent = draft().intent;
-        const intent =
-          inferIntent(response.scores) ?? localIntent(draft().text);
+        const intent = inferIntent(response.scores);
         batch(() => {
           setScores(response.scores);
           setDraft((current) => ({ ...current, intent }));
@@ -112,10 +116,7 @@ export function createUniversalInput(source: InputCapabilities) {
         extractionQueue.enqueue(intent !== previousIntent);
       } catch (failure) {
         if (!usable(input.decision) || revision() !== input.revision) return;
-        setDraft((current) => ({
-          ...current,
-          intent: localIntent(current.text),
-        }));
+        setDraft((current) => ({ ...current, intent: undefined }));
         setClassifiedRevision(input.revision);
         setClassificationError(
           failure instanceof Error
@@ -133,8 +134,7 @@ export function createUniversalInput(source: InputCapabilities) {
         sending() ||
         !current.text.trim() ||
         !current.intent ||
-        current.intent === 'ai' ||
-        current.intent === 'search'
+        current.intent === 'ai'
       )
         return;
       return {

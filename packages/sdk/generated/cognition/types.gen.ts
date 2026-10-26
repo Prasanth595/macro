@@ -1022,9 +1022,25 @@ export type InputSuggestions = {
      */
     recipients?: Array<string>;
     /**
+     * Explicit sender, speaker, or task-creator names for the client to resolve.
+     */
+    search_from?: Array<string>;
+    /**
+     * Explicit channel names for the client to resolve.
+     */
+    search_in?: Array<string>;
+    /**
+     * Verbatim noun naming the requested search category, such as messages or tasks.
+     */
+    search_scope?: string | null;
+    /**
      * Local wall-clock values, interpreted in the request's IANA timezone.
      */
     start?: string | null;
+    /**
+     * Verbatim clock phrase whose missing AM/PM required an editable assumption.
+     */
+    start_assumption?: string | null;
     /**
      * Suggested outgoing email subject.
      */

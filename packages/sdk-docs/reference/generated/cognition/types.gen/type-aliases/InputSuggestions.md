@@ -1,6 +1,6 @@
 # Type Alias: InputSuggestions
 
-> **InputSuggestions** = \{ `body?`: `string` \| `null`; `due_date?`: `string` \| `null`; `end?`: `string` \| `null`; `guests?`: `string`[]; `location?`: `string` \| `null`; `properties?`: [`InputPropertySuggestion`](InputPropertySuggestion.md)[]; `query?`: `string` \| `null`; `recipients?`: `string`[]; `start?`: `string` \| `null`; `subject?`: `string` \| `null`; `title?`: `string` \| `null`; \}
+> **InputSuggestions** = \{ `body?`: `string` \| `null`; `due_date?`: `string` \| `null`; `end?`: `string` \| `null`; `guests?`: `string`[]; `location?`: `string` \| `null`; `properties?`: [`InputPropertySuggestion`](InputPropertySuggestion.md)[]; `query?`: `string` \| `null`; `recipients?`: `string`[]; `search_from?`: `string`[]; `search_in?`: `string`[]; `search_scope?`: `string` \| `null`; `start?`: `string` \| `null`; `start_assumption?`: `string` \| `null`; `subject?`: `string` \| `null`; `title?`: `string` \| `null`; \}
 
 Suggestions are text, never authorized recipient, channel or calendar IDs.
 
@@ -16,6 +16,10 @@ Suggestions are text, never authorized recipient, channel or calendar IDs.
 | <a id="property-properties"></a> `properties?` | [`InputPropertySuggestion`](InputPropertySuggestion.md)[] | Display names/values that the client resolves against available task fields. |
 | <a id="property-query"></a> `query?` | `string` \| `null` | Terms to find existing Macro content. |
 | <a id="property-recipients"></a> `recipients?` | `string`[] | Person or channel names for the client to resolve. |
+| <a id="property-search_from"></a> `search_from?` | `string`[] | Explicit sender, speaker, or task-creator names for the client to resolve. |
+| <a id="property-search_in"></a> `search_in?` | `string`[] | Explicit channel names for the client to resolve. |
+| <a id="property-search_scope"></a> `search_scope?` | `string` \| `null` | Verbatim noun naming the requested search category, such as messages or tasks. |
 | <a id="property-start"></a> `start?` | `string` \| `null` | Local wall-clock values, interpreted in the request's IANA timezone. |
+| <a id="property-start_assumption"></a> `start_assumption?` | `string` \| `null` | Verbatim clock phrase whose missing AM/PM required an editable assumption. |
 | <a id="property-subject"></a> `subject?` | `string` \| `null` | Suggested outgoing email subject. |
 | <a id="property-title"></a> `title?` | `string` \| `null` | Suggested note, task, or event title. |

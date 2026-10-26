@@ -44,6 +44,10 @@ export function EmailDraft(props: {
         <ComposeRecipientInput
           options={options}
           selectedOptions={selected()}
+          onInputChange={(value) => {
+            if (value && !s.draft().edited.email.includes('recipients'))
+              s.edit('recipients', s.fields().recipients);
+          }}
           setSelectedOptions={(next) =>
             s.edit('recipients', recipientAddresses(next))
           }

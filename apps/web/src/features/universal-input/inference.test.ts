@@ -5,7 +5,14 @@ const { extract } = vi.hoisted(() => ({ extract: vi.fn() }));
 vi.mock('@service-cognition/universal-input', () => ({
   universalInputClient: { extract },
 }));
-beforeEach(() => extract.mockReset());
+beforeEach(() => {
+  extract.mockReset();
+  extract.mockImplementation(async (_text, intent, revision) => ({
+    intent,
+    revision,
+    suggestions: { recipients: [], guests: [], search_from: [], search_in: [] },
+  }));
+});
 
 it('waits for the task field catalog before invoking extraction', async () => {
   const catalog = [{ name: 'Priority', options: ['Urgent'] }];
@@ -34,4 +41,31 @@ it('extracts email immediately without waiting for unrelated task metadata', asy
   await createInferenceSource(properties).extract('Email Julia', 'email', 2);
   expect(properties).not.toHaveBeenCalled();
   expect(extract).toHaveBeenCalledWith('Email Julia', 'email', 2, []);
+});
+
+it('adapts raw extracted search fields without reinterpreting the keyword phrase', async () => {
+  extract.mockResolvedValue({
+    revision: 3,
+    intent: 'search',
+    suggestions: {
+      recipients: [],
+      guests: [],
+      query: 'growth in 2026',
+      search_scope: 'messages',
+      search_from: ['Julia'],
+      search_in: ['sales'],
+    },
+  });
+  const result = await createInferenceSource().extract(
+    'search messages from Julia in sales about growth in 2026',
+    'search',
+    3
+  );
+  expect(result.revision).toBe(3);
+  expect(result.suggestions.query).toBe('growth in 2026');
+  expect(result.suggestions.searchFilters).toMatchObject({
+    type: 'channels',
+    channels: { from: ['Julia'], in: ['sales'] },
+  });
+  expect(result.suggestions).not.toHaveProperty('search_from');
 });

@@ -30,7 +30,26 @@ fn input(intent: InputIntent, text: &str) -> ExtractInputRequest {
 fn answer(kind: &str, value: Value) -> Value {
     json!({"type": kind, "value": value, "confidence": 0.99, "p_null": 0.01})
 }
-fn response(answers: Value) -> Value {
+fn response(mut answers: Value) -> Value {
+    if answers.get("query").is_some() {
+        let fields = answers.as_object_mut().unwrap();
+        fields
+            .entry("search_scope")
+            .or_insert_with(|| answer("text", Value::Null));
+        fields
+            .entry("search_from")
+            .or_insert_with(|| answer("list", json!([])));
+        fields
+            .entry("search_in")
+            .or_insert_with(|| answer("list", json!([])));
+    }
+    if answers.get("start").is_some() {
+        answers
+            .as_object_mut()
+            .unwrap()
+            .entry("start_assumption")
+            .or_insert_with(|| answer("text", Value::Null));
+    }
     json!({"success": true, "errors": [], "result": {"model": "clairic", "answers": answers, "truncated": false, "usage": {"input_tokens": 234, "output_tokens": 0}}})
 }
 async fn provider(body: Value) -> (MockServer, ClairicFieldExtractor, Arc<Recorder>) {
@@ -70,16 +89,19 @@ async fn extracts_email_with_intent_specific_schema_raw_draft_and_metered_usage(
         .await
         .unwrap();
     assert_eq!(fields.recipients, ["Julia"]);
-    assert!(fields.body.is_none()); // The domain copies this literal body without model inference.
+    assert_eq!(
+        fields.body.as_deref(),
+        Some("Can we reschedule tomorrow?\nLet the investors know.")
+    );
     let requests = server.received_requests().await.unwrap();
     let body: Value = serde_json::from_slice(&requests[0].body).unwrap();
     assert_eq!(body["state"], draft);
     assert_eq!(body["reference_date"], "2026-10-23");
     let schema = body["fields"].as_object().unwrap();
-    assert_eq!(schema.len(), 2);
+    assert_eq!(schema.len(), 3);
     assert_eq!(schema["recipients"]["type"], "list");
     assert_eq!(schema["recipients"]["items"], "text");
-    assert!(!schema.contains_key("body"));
+    assert_eq!(schema["body"]["type"], "text");
     let events = recorder.0.lock().unwrap();
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].model, MODEL);
@@ -116,7 +138,7 @@ async fn extracts_computed_calendar_times_without_inventing_guest_invitations() 
     let requests = server.received_requests().await.unwrap();
     let body: Value = serde_json::from_slice(&requests[0].body).unwrap();
     assert_eq!(body["fields"]["start"]["type"], "datetime");
-    assert!(body["fields"].get("guests").is_none());
+    assert_eq!(body["fields"]["guests"]["type"], "list");
     assert!(
         body["fields"]["start"]["instructions"]
             .as_str()
@@ -136,7 +158,7 @@ async fn task_property_lists_map_to_catalog_names_without_requesting_nested_obje
     let draft = "notification click not going to target\nOn mobile the button does nothing\npriority urgent";
     let (server, extractor, _) = provider(response(json!({
         "title": answer("text", json!("notification click not going to target")),
-        "body": answer("text", json!("On mobile the button does nothing\npriority urgent")),
+        "body": answer("text", json!("On mobile the button does nothing")),
         "due_date": answer("date", Value::Null),
         "property_0": answer("list", json!(["urgent"])),
         "property_1": answer("list", json!([]))
@@ -154,6 +176,10 @@ async fn task_property_lists_map_to_catalog_names_without_requesting_nested_obje
         },
     ];
     let fields = extractor.extract(&request, usage()).await.unwrap();
+    assert_eq!(
+        fields.body.as_deref(),
+        Some("On mobile the button does nothing")
+    );
     assert!(fields.due_date.is_none());
     assert_eq!(fields.properties.len(), 1);
     assert_eq!(fields.properties[0].name, "Priority");
@@ -171,18 +197,17 @@ async fn task_property_lists_map_to_catalog_names_without_requesting_nested_obje
 }
 
 #[tokio::test]
-async fn null_and_uncertain_answers_do_not_use_provider_guesses() {
-    for answer in [
-        json!({"type":"text", "value":null, "guess":"invented query", "confidence":0.99, "p_null":0.99}),
-        json!({"type":"text", "value":"Keep this", "confidence":0.2, "p_null":0.1}),
-    ] {
-        let (_server, extractor, _) = provider(response(json!({"query":answer}))).await;
-        let fields = extractor
-            .extract(&input(InputIntent::Search, "Keep this"), usage())
-            .await
-            .unwrap();
-        assert!(fields.query.is_none());
-    }
+async fn absent_answers_do_not_use_provider_guesses() {
+    let (_server, extractor, _) = provider(response(json!({"query":
+        {"type":"text", "value":null, "guess":"invented query", "confidence":0.99, "p_null":0.99},
+        "search_from": {"type":"list", "value":[], "confidence":0.01}
+    })))
+    .await;
+    let fields = extractor
+        .extract(&input(InputIntent::Search, "Keep this"), usage())
+        .await
+        .unwrap();
+    assert!(fields.query.is_none());
 }
 
 #[tokio::test]
@@ -193,12 +218,38 @@ async fn unusable_answers_fail_but_still_record_provider_usage() {
         json!({"query": answer("list", json!(["launch"]))}),
         json!({"query": answer("unknown", json!("launch"))}),
         json!({"query": {"type":"text", "value":"launch", "confidence": 2.0}}),
+        json!({"query": {"type":"text", "value":"launch", "confidence": 0.2, "p_null": 0.1}}),
+        json!({"query": {"type":"text", "value":"launch", "confidence": 0.99, "p_null": 0.9}}),
+        json!({"query": answer("text", json!("launch")), "search_from": {"type":"list", "value":["launch"], "confidence":0.2}}),
     ] {
         let (_server, extractor, recorder) = provider(response(answers)).await;
         assert!(matches!(
             extractor
                 .extract(&input(InputIntent::Search, "find launch"), usage())
                 .await,
+            Err(InputError::Extraction)
+        ));
+        assert_eq!(recorder.0.lock().unwrap().len(), 1);
+    }
+}
+
+#[tokio::test]
+async fn partial_outgoing_bodies_are_rejected_instead_of_dropping_later_sentences() {
+    for intent in [InputIntent::Email, InputIntent::Message] {
+        let mut answers = json!({
+            "body": answer("text", json!("Can we reschedule tomorrow?")),
+            "recipients": answer("list", json!(["Julia"]))
+        });
+        if intent == InputIntent::Email {
+            answers["subject"] = answer("text", Value::Null);
+        }
+        let (_server, extractor, recorder) = provider(response(answers)).await;
+        let request = input(
+            intent,
+            "email Julia\nCan we reschedule tomorrow?\nLet the investors know.",
+        );
+        assert!(matches!(
+            extractor.extract(&request, usage()).await,
             Err(InputError::Extraction)
         ));
         assert_eq!(recorder.0.lock().unwrap().len(), 1);
@@ -325,4 +376,27 @@ async fn a_stalled_provider_returns_control_to_the_fallback() {
             .await,
         Err(InputError::Extraction)
     ));
+}
+
+#[tokio::test]
+async fn extracts_search_fields_without_reparsing_keyword_prepositions() {
+    let draft = "search messages in sales about growth in 2026";
+    let (server, extractor, _) = provider(response(json!({
+        "query": answer("text", json!("growth in 2026")),
+        "search_scope": answer("text", json!("messages")),
+        "search_from": answer("list", json!([])),
+        "search_in": answer("list", json!(["sales"]))
+    })))
+    .await;
+    let fields = extractor
+        .extract(&input(InputIntent::Search, draft), usage())
+        .await
+        .unwrap();
+    assert_eq!(fields.query.as_deref(), Some("growth in 2026"));
+    assert_eq!(fields.search_scope.as_deref(), Some("messages"));
+    assert_eq!(fields.search_in, ["sales"]);
+    let requests = server.received_requests().await.unwrap();
+    let body: Value = serde_json::from_slice(&requests[0].body).unwrap();
+    assert_eq!(body["fields"]["search_from"]["type"], "list");
+    assert_eq!(body["fields"].as_object().unwrap().len(), 4);
 }

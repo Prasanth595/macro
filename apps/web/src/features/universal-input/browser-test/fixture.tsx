@@ -37,6 +37,7 @@ import {
   openedSearchResult,
   setOpenedSearchResult,
 } from './search-app-fixture';
+import { fixtureSearchFields } from './search-extractions-fixture';
 import '@fontsource-variable/inter';
 import '../../../index.css';
 import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
@@ -491,7 +492,9 @@ export function UniversalInputFixture(
               ? 'task'
               : text.includes('3pm') || text.includes('at 7')
                 ? 'calendar'
-                : /^(?:find|search|look for)\b/i.test(text)
+                : ['find ', 'search ', 'look for '].some((prefix) =>
+                      text.toLowerCase().startsWith(prefix)
+                    )
                   ? 'search'
                   : 'note');
       return {
@@ -522,12 +525,14 @@ export function UniversalInputFixture(
           subject: 'Running late',
           recipients:
             intent === 'email' || intent === 'message' ? ['John'] : [],
+          start_assumption: text.includes('at 7') ? 'at 7' : null,
           start: text.includes('at 7')
             ? '2026-10-10T19:00'
             : '2026-10-10T15:00',
           end: text.includes('at 7') ? '2026-10-10T20:00' : '2026-10-10T16:00',
           query: text,
           guests: [],
+          ...(intent === 'search' ? fixtureSearchFields(text) : {}),
         },
       };
     },

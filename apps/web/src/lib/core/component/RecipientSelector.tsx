@@ -29,7 +29,6 @@ import HashIcon from '@phosphor/hash.svg';
 import PaperPlaneTiltIcon from '@phosphor/paper-plane-tilt.svg';
 import RobotIcon from '@phosphor/robot.svg';
 import XIcon from '@phosphor/x.svg';
-import { debounce } from '@solid-primitives/scheduled';
 import { Avatar, cn, Layer } from '@ui';
 import * as EmailValidator from 'email-validator';
 import {
@@ -326,6 +325,8 @@ export type RecipientSelectorProps<K extends CombinedRecipientKind> = {
   options: Accessor<CombinedRecipientItem<K>[]>;
   selectedOptions: WithCustomUserInput<K>[];
   setSelectedOptions: (next: WithCustomUserInput<K>[]) => void;
+  /** Notify the owner while a recipient query is being entered, before selection. */
+  onInputChange?: (value: string) => void;
   // If you provide triedToSubmit, the component will show an error message if no options are selected and triedToSubmit is true
   triedToSubmit?: Accessor<boolean>;
   placeholder?: string | JSX.Element;
@@ -388,8 +389,6 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
       { defer: true }
     )
   );
-
-  const debouncedHandleChange = debounce(handleChange, 100);
 
   const [isOpen, setIsOpen] = createSignal(false);
   const [suppressOpenUntilInputChange, setSuppressOpenUntilInputChange] =
@@ -652,6 +651,7 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
   let contentEl: HTMLElement | undefined;
 
   const onInputChange = (next: string) => {
+    props.onInputChange?.(next);
     const previous = inputValue();
     setInputValue(next);
     if (next !== previous) {
@@ -691,7 +691,7 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
           visibleOptionKeys().has(getRecipientOptionValue(option))
         }
         value={props.selectedOptions as CombinedRecipientItem[]}
-        onChange={debouncedHandleChange}
+        onChange={handleChange}
         onInputChange={onInputChange}
         shouldFocusWrap
         placeholder={

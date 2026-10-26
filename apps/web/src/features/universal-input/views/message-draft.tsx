@@ -64,6 +64,10 @@ export function MessageDraft(props: {
         <RecipientSelector
           options={a.messageRecipients}
           selectedOptions={selected()}
+          onInputChange={(value) => {
+            if (value && !s.draft().edited.message.includes('recipients'))
+              s.edit('recipients', s.fields().recipients);
+          }}
           setSelectedOptions={(next) =>
             s.edit('recipients', next.map((item) => item.id).join(', '))
           }

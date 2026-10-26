@@ -588,8 +588,8 @@ or mention instruction cues and no Suggestions list beneath it.
 Type directly; predictions refresh while typing, at most once every 200 ms with
 separate classification and field-extraction queues. Each queue keeps one request
 in flight and coalesces updates to the latest text; field extraction never blocks
-type prediction. Clear email/message addressing immediately reveals a form with
-recipient suggestions and the outgoing body, before inference completes. It recognizes AI, global Macro search, email,
+type prediction. The classifier chooses a form; extraction supplies its addressing
+and outgoing body. It recognizes AI, global Macro search, email,
 Markdown note, task, calendar event, or message/DM. The main editor keeps focus
 while editable fields appear below it. **Content type** defaults to **Auto**;
 the strongest candidate starts a draft even when the scores are close. Field
@@ -597,12 +597,12 @@ extraction uses Cloudflare Clairic when its Workers AI account/token are configu
 with Nemotron as the fallback for missing configuration, provider errors, timeouts,
 or unusable results. Clairic selects text from the draft and computes typed dates;
 it does not rewrite prose. Only complete, valid suggestions enter the editable form.
-Null or low-confidence Clairic values remain empty, and manual edits retain precedence.
+Absent Clairic values remain empty; uncertain nonempty values and outgoing body
+spans that end early use the existing fallback. Manual edits retain precedence.
 Bug reports and prioritized problems count as tasks. **Cmd/Ctrl+Shift+Right** cycles through
 types in likelihood order; **Cmd/Ctrl+Shift+Left** cycles backward. The icon and
 type pill opens **Content type**; there is no Next type button. Choosing a type, cycling, or editing a field locks the type.
-Email/chat addressing and search prefixes provide an immediate shape. A completed
-prediction can refine an ambiguous prefix: “Email notifications not working” or
+Completed predictions interpret the full draft rather than relying on prefix rules: “Email notifications not working” or
 “Find and fix notification bug” can become tasks. Manual type choices and field
 edits still lock the type. Addressing distinguishes the channel from actionable text
 in its body. For example, “email julia” followed by “can we reschedule the thing
@@ -616,15 +616,15 @@ must resolve to an email address, and a connected inbox is required. A successfu
 save closes the menu and opens the saved draft when available; a
 failed save preserves the input. **Cmd/Ctrl+Enter** continues to send the email.
 Search mode embeds Global Search's editor, Type/In/From filter chips, and
-result rows with highlighted message snippets. Explicit “find …”, “search for …”,
-and “look for …” instructions start searching immediately, without model field
-extraction. For example, “search messages from Julia in #sales about budget”
+result rows with highlighted message snippets. The model extracts search keywords,
+content category, sender and channel filters. Results wait for extraction; no
+local language parser strips commands or filter clauses. For example, “search messages from Julia in #sales about budget”
 selects **Type: Channels**, resolves Julia through the people directory, selects
 **In: sales**, and searches for “budget”. Names must resolve uniquely; unresolved
 people or channels pause search until corrected in the filter pickers. Use
 **Only** to replace an unresolved name with a specific person or channel. The
-pickers include the full channel and DM directory. Quoted keyword phrases keep
-“from” and “in” as search text rather than becoming filters.
+pickers include the full channel and DM directory. The model distinguishes
+explicit filters from ordinary “from”/“in” phrases within search keywords.
 
 Editing **Search for** or changing the filter chips overrides subsequent
 predictions for those values. Sender-only message scopes and speaker-only call
@@ -632,7 +632,9 @@ scopes keep their filters visible and request at least three search characters:
 channel/call browsing cannot enforce those message-level filters. No unfiltered
 browse results appear while keywords are required. **Search Macro** or
 **Cmd/Ctrl+Enter** opens Global Search with the same query and complete filters,
-including when the Search view is already open.
+including when the Search view is already open. If extraction fails, results and
+submission pause until both **Search for** and the filter selection are explicitly
+edited, so a provider failure cannot silently broaden the search.
 
 Click a result or message snippet to open its actual location, or use **Up/Down**
 and then **Enter**. Keyboard selection scrolls into view while the editor keeps
@@ -679,7 +681,10 @@ invitation; inviting John requires an explicit invitation request or guest edit.
 Bare hours use a reasonable default (1–7 PM, 8–11 AM, 12 noon). For example,
 “call with Julia tomorrow at 7” becomes 7 PM tomorrow for one hour. An assumption
 cue beneath the date/time range draws attention to the inferred AM/PM; editing the start
-time removes that cue. Explicit AM/PM and day parts take precedence.
+time removes that cue. The model identifies ambiguous clock phrases and interprets
+explicit AM/PM and day parts; the application validates timestamps and supplies
+a one-hour end when absent or equal to the start. Extraction suggestions remain
+editable and require review, particularly when using the preview Clairic model.
 Relative starts such as “in 30 minutes” do not set the event's duration;
 “in 30 minutes for 15 minutes” creates a 15-minute event. An ISO date such as
 “2026-10-10 at 7pm” still uses the default one-hour duration.

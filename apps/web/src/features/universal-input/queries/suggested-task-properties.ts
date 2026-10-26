@@ -2,6 +2,7 @@ import type { PropertyApiValues } from '@property/types';
 import type { EntityType } from '@service-properties/generated/schemas/entityType';
 import type { PropertyDefinition } from '@service-properties/generated/schemas/propertyDefinition';
 import type { PropertyOption } from '@service-properties/generated/schemas/propertyOption';
+import { parseISO } from 'date-fns';
 import { match } from 'ts-pattern';
 import { z } from 'zod';
 
@@ -17,11 +18,20 @@ export type TaskReference = {
 const suggestions = z.array(
   z.object({ name: z.string(), values: z.array(z.string()) })
 );
-const normalize = (text: string) =>
-  text
-    .trim()
-    .toLowerCase()
-    .replace(/[-_\s]+/g, ' ');
+const normalize = (text: string) => text.trim().toLowerCase();
+const dateValue = z.union([
+  z.iso.date(),
+  z.iso.datetime({ local: true, offset: true }),
+]);
+
+/** Parse ISO values strictly before date-fns can normalize an impossible day. */
+export function parseTaskDate(text: string): Date | undefined {
+  const parsed = dateValue.safeParse(text.trim());
+  if (!parsed.success) return;
+  const date = parseISO(parsed.data);
+  if (z.iso.date().safeParse(parsed.data).success) date.setHours(12, 0, 0, 0);
+  return date;
+}
 
 /** Model text is resolved against the host's definitions and visible entities. */
 export function suggestedTaskProperties(
@@ -38,13 +48,14 @@ export function suggestedTaskProperties(
     return { values, unresolved: ['task fields'] };
   }
   for (const suggestion of parsed) {
-    const field = definitions.find(
+    const fields = definitions.filter(
       (f) => normalize(f.definition.display_name) === normalize(suggestion.name)
     );
-    if (!field || !suggestion.values.length) {
+    if (fields.length !== 1 || !suggestion.values.length) {
       unresolved.push(suggestion.name);
       continue;
     }
+    const field = fields[0];
     const definition = field.definition;
     const texts = suggestion.values;
     const text = texts[0];
@@ -96,18 +107,14 @@ export function suggestedTaskProperties(
           ? { valueType: 'NUMBER', value: Number(text) }
           : undefined
       )
-      .with('BOOLEAN', (): PropertyApiValues | undefined =>
-        /^(true|false)$/i.test(text)
-          ? { valueType: 'BOOLEAN', value: text.toLowerCase() === 'true' }
-          : undefined
-      )
+      .with('BOOLEAN', (): PropertyApiValues | undefined => {
+        const value = normalize(text);
+        if (value !== 'true' && value !== 'false') return;
+        return { valueType: 'BOOLEAN', value: value === 'true' };
+      })
       .with('DATE', (): PropertyApiValues | undefined => {
-        const date = new Date(
-          /^\d{4}-\d{2}-\d{2}$/.test(text) ? `${text}T12:00:00` : text
-        );
-        return Number.isFinite(date.getTime())
-          ? { valueType: 'DATE', value: date }
-          : undefined;
+        const date = parseTaskDate(text);
+        return date ? { valueType: 'DATE', value: date } : undefined;
       })
       .with(
         'LINK',
