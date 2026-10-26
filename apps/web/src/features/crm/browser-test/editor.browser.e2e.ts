@@ -128,6 +128,19 @@ test('record and board editors preserve outcome and currency', async ({
   await page.getByRole('button', { name: 'Close record', exact: true }).click();
   await page.getByRole('button', { name: 'Show board', exact: true }).click();
   await expect(page.getByLabel('Board grouped by Outcome')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New group' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Rename Won' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open lane menu' }).click();
+  await expect(
+    page.getByRole('menuitem', { name: 'Delete group' })
+  ).toHaveCount(0);
+  await page.getByRole('menuitem', { name: 'Hide lane' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Open lane menu' })
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Change Won color' }).click();
+  await expect(page.getByText('Group color', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(
     page.getByRole('button', { name: /^Revenue: EUR 1,250.5/ })
   ).toBeVisible();
