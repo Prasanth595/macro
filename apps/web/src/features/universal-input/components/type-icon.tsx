@@ -1,10 +1,10 @@
-import Calendar from '@phosphor/calendar-blank.svg';
-import Message from '@phosphor/chat-circle.svg';
-import Task from '@phosphor/check-square.svg';
-import Email from '@phosphor/envelope.svg';
-import Search from '@phosphor/magnifying-glass.svg';
-import Note from '@phosphor/note.svg';
-import Sparkle from '@phosphor/sparkle.svg';
+import Calendar from '@icon/system/regular/calendar-blank.svg';
+import Message from '@icon/system/regular/chat-circle.svg';
+import Task from '@icon/system/regular/check-square.svg';
+import Email from '@icon/system/regular/envelope.svg';
+import Search from '@icon/system/regular/magnifying-glass.svg';
+import Note from '@icon/system/regular/note.svg';
+import Sparkle from '@icon/system/regular/sparkle.svg';
 import { Dynamic } from 'solid-js/web';
 import type { Intent } from '../core/input';
 

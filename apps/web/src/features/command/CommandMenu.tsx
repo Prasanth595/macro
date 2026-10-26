@@ -22,7 +22,7 @@ import { lazyNamed } from '@core/util/lazyNamed';
 import type { EntityData } from '@entity';
 import { EntitySelectionBadge } from '@entity/components/EntitySelectionBadge';
 import Macro from '@icon/macro-logo.svg';
-import ArrowLeft from '@phosphor/arrow-left.svg';
+import ArrowLeft from '@icon/system/regular/arrow-left.svg';
 import { useDatabaseDiscoverySync } from '@queries/storage/databases';
 import {
   Badge,
