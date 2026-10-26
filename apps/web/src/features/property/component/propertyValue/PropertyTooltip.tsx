@@ -96,17 +96,17 @@ const TooltipWrapper = (props: PropertyTooltipProps) => {
         }}
       >
         <div
-          class="flex items-center gap-4"
+          class="flex min-w-0 items-center gap-4"
           classList={{
             'border-b border-edge pb-1.5 mb-1.5': !singleSelect(),
           }}
         >
-          <div class="flex items-center gap-2 text-ink-muted">
+          <div class="flex min-w-0 items-center gap-2 text-ink-muted">
             <PropertyDataTypeIcon
               property={props.property}
-              class="size-3.5 text-ink-muted"
+              class="size-3.5 shrink-0 text-ink-muted"
             />
-            <span class="text-xs">{props.property.displayName}</span>
+            <span class="min-w-0 text-xs">{props.property.displayName}</span>
           </div>
           <Show when={!singleSelect() && trailingAction.toArray().length > 0}>
             <div class="ml-auto shrink-0">{trailingAction()}</div>

@@ -101,6 +101,7 @@ Hover or focus an inline property pill to find a filled, icon-only **Unpin**
 button separated by a gap (keeps its saved value). In a single-row hover card,
 it sits to the right of the value. In a column hover card, it sits to the right
 of the key, above a full-width divider; values keep the full width below.
+Long keys wrap without displacing the Unpin button.
 **Delete from item** stays below, where removal is allowed (removes the
 assignment without deleting the shared property definition). Task builtins cannot
 be deleted from these pills. Pins are saved with the document, including an
