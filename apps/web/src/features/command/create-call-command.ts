@@ -1,6 +1,6 @@
 import { t } from '@app/lib/i18n';
 import { TOKENS } from '@core/hotkey/tokens';
-import PhoneIcon from '@phosphor/phone.svg';
+import PhoneIcon from '@icon/system/regular/phone.svg';
 import type { CreatableBlock } from './types';
 
 /** Bind the call action to the host router without creating a meeting. */

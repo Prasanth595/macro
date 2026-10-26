@@ -23,7 +23,7 @@ rule:
   all:
     - has:
         kind: property_identifier
-        regex: ^(text|label)$
+        regex: ^(text|label|title|description)$
     - any:
         - has:
             kind: string

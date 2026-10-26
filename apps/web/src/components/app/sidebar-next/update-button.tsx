@@ -1,6 +1,6 @@
 import { t } from '@app/lib/i18n';
+import DownloadIcon from '@icon/system/regular/download-simple.svg';
 import { Popover } from '@kobalte/core/popover';
-import DownloadIcon from '@phosphor/download-simple.svg';
 import { Button } from '@ui';
 import { createSignal } from 'solid-js';
 import type { AppUpdate } from './app-update';

@@ -112,4 +112,6 @@ export default {
   showAllInboxes: 'Show all inboxes',
   showOnlyInbox: 'Show only {{label}}',
   only: 'Only',
+  startedFrom: 'Started from {{origin}}',
+  personal: 'Personal',
 };

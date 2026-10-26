@@ -16,6 +16,8 @@
 
 ## Verifying a change in a real browser
 
+During iterative visual tweaks, use focused browser verification; defer full typechecks and CI checks until the batch is ready or the user requests them.
+
 Any user-visible change should be exercised in a browser before you call it fixed — type-check, biome, and vitest all pass on code that still has the interaction bug.
 
 Split dragging and composer reflow have a backend-free browser regression:
@@ -45,9 +47,17 @@ sample data; keep notes aligned with those existing surfaces and preserve their
 dialog open guards. Open the existing document Share dialog for note access,
 keep labeled Options controls visible beside truncated titles without redundant
 hover tooltips, and use existing team memberships for optional note sharing.
+Keep meeting-note reads cached across event opens, show cached Quick Access
+matches while note searches refresh, and keep event actions usable while notes
+load. Show meeting-derived team viewing in the document's Team access summary;
+keep it distinct from additional direct sharing and keep Unlink stable while
+team access saves.
 Include linked meetings in Markdown side-panel References, behind the same flag;
 reuse the shared single-line ReferenceRow with the title and date inline, and
 resolve meeting details and opening targets through authorized calendar previews.
+Treat missing reference projection fields during backend rollout as unresolved,
+not denied; offer Retry on the links query without bypassing the server's
+reference authorization.
 Gate event notes and document Share meeting-link controls with
 `enable-calendar-meeting-notes` before mounting their query sources; it defaults
 on in dev and uses PostHog in production.
@@ -528,3 +538,14 @@ cards, the expanded viewer, and the shared Drive/standalone header on desktop,
 phone, and tablet:
 `bunx playwright test --config src/lib/core/component/FileDownload/browser-test/playwright.config.ts`.
 See the [download walkthrough](../../docs/agent-guide/files.md#downloading-files).
+
+## Interface icons
+- Task rows and document mention pills use `TaskStatusIcon` with the current status property; use the task subtype completion flag only when a recognized status is unavailable. Keep generic navigation and creation icons independent of task state.
+- Read [the icon system rules](src/components/icon/system/README.md) before adding or changing interface icons or icon motion. Reuse the original Macro SVG family via individual `@icon/system/...` imports; do not introduce another icon set.
+- If a glyph is missing, author original SVG geometry on the 24-unit grid with round caps/joins, restrained detail, `currentColor`, and the documented theme-aware weight. Never trace or import proprietary symbol paths. Match active/bold variants and review 14/16/20/24 px in light and dark mode.
+- Interactive glyphs use the shared `installIconMotion` behavior; do not add per-button bounce/spin effects. Keep state indicators static, preserve accessible control names, and honor reduced motion. See the icon README for wrapper and opt-out attributes.
+
+### Creation choices and notifications
+
+- Reuse `CreateMenuItem` for explanatory New menu entries: original icons, a title, and muted wrapping descriptions, preserving the existing `ViewCreateButton` trigger and each action's feature gates.
+- Keep transient toasts in their bounded stack and persistent prompts/reminders in separate regions; preserve keyboard dismissal, full mobile descriptions, and remaining-time pause on hover/focus.

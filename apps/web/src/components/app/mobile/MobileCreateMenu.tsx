@@ -1,7 +1,7 @@
 import './MobileCreateMenu.css';
 import { t } from '@app/lib/i18n';
+import PlusIcon from '@icon/system/regular/plus.svg';
 import { Dialog } from '@kobalte/core/dialog';
-import PlusIcon from '@phosphor/plus.svg';
 import { Layer } from '@ui/components/Layer';
 import {
   type Component,

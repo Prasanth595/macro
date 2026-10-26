@@ -11,4 +11,5 @@ export default {
   addToLabel: 'Add to label',
   moveToLabel: 'Move to label',
   ungroupFrom: 'Ungroup from “{{label}}”',
+  nameContains: 'Name contains “{{text}}”',
 };

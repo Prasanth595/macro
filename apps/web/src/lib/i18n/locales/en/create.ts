@@ -292,4 +292,43 @@ export default {
   failedToCreateDesign: 'Failed to create design',
   failedToCreateIllustratorFile: 'Failed to create Illustrator file',
   failedToCreateFolder: 'Failed to create folder',
+
+  // Guided create menus: a title and a one-line description per choice.
+  eventLabel: 'Event',
+  bookingLinkLabel: 'Booking link',
+  subtaskLabel: 'Subtask',
+  tagLabel: 'Tag',
+  conversationLabel: 'Conversation',
+  workAgentLabel: 'Work agent',
+  codingAgentLabel: 'Coding agent',
+  guideEvent: 'Schedule a meeting or block time on your calendar.',
+  guideCall: 'Start a live call now and invite others to join.',
+  guideBookingLink:
+    'Share your availability so others can book a time with you.',
+  guideTask: 'Track a standalone piece of work.',
+  guideSubtask: 'Choose a parent task and break its work into a smaller step.',
+  guideProject: 'Group related tasks around a shared goal.',
+  guideTag: 'Label work so you can organize and filter it across projects.',
+  guideConversation: 'Start a conversation with an existing agent.',
+  guideWorkAgent:
+    'Create an assistant with instructions and access to your Macro workspace.',
+  guideCodingAgent: 'Create an agent that works in a connected coding harness.',
+  guideRoutine: 'Set up an agent to run on a recurring schedule.',
+  guideCompany:
+    'Track an organization, its people, and your relationship with it.',
+  guideContact:
+    'Keep a person’s details and activity connected to their company.',
+  guidePipeline:
+    'Move records through stages to track deals or another repeatable process.',
+  guideUploadFiles: 'Bring existing files from your computer into this folder.',
+  guideUploadFolder: 'Import a folder and the files inside it.',
+  guideDocument: 'Write and collaborate on notes, plans, or longer documents.',
+  guideSnippet: 'Save a reusable piece of text or code for later.',
+  guideSpreadsheet: 'Work with tables, formulas, and structured numbers.',
+  guideCanvas: 'Sketch ideas and arrange information on a shared canvas.',
+  guideCode: 'Write and edit code in a dedicated file.',
+  guideFolderProject: 'Keep related files and work together in one place.',
+  guideDatabase: 'Organize records with custom fields and views.',
+  guideForm: 'Collect structured responses through a shareable form.',
+  guideInThisFolder: 'Create one in this folder.',
 };

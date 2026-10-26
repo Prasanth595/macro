@@ -1,6 +1,6 @@
 import { t } from '@app/lib/i18n';
 import { pressedKeys } from '@core/hotkey/state';
-import SearchIcon from '@phosphor/magnifying-glass.svg';
+import SearchIcon from '@icon/system/regular/magnifying-glass.svg';
 import {
   CommandMenuList,
   CommandMenuSearchInput,

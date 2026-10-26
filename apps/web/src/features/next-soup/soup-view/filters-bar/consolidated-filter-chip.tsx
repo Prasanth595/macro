@@ -1,7 +1,7 @@
 import { t } from '@app/lib/i18n';
+import CheckIcon from '@icon/system/regular/check.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import { Combobox } from '@kobalte/core/combobox';
-import CheckIcon from '@phosphor/check.svg';
-import XIcon from '@phosphor/x.svg';
 import { Button, cn, Dropdown, Layer } from '@ui';
 import {
   type Accessor,

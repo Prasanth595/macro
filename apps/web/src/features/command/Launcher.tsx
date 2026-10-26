@@ -53,12 +53,12 @@ import {
 } from '@core/util/create';
 import { createControlledOpenSignal } from '@core/util/createControlledOpenSignal';
 import { fireAndForget } from '@core/util/fireAndForget';
+import ChatIcon from '@icon/system/regular/chat.svg';
+import MagnifyingGlassIcon from '@icon/system/regular/magnifying-glass.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
 import { Dialog } from '@kobalte/core/dialog';
 import { getMarkdownGoldenBytes } from '@macro-inc/lexical-core/markdown-golden';
 import { type Span, Telemetry } from '@macro-inc/observability';
-import ChatIcon from '@phosphor/chat.svg';
-import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
-import PlusIcon from '@phosphor/plus.svg';
 import { createDatabase } from '@queries/storage/databases';
 import { createForm } from '@queries/storage/forms';
 import { makePersisted } from '@solid-primitives/storage';
@@ -1260,6 +1260,7 @@ export const LauncherShell = (
     description: () => t('create.closeLauncher'),
     condition: () =>
       createMenuOpen() &&
+      !searchMode() &&
       !availableBlocks().some((item) => item.hotkey === 'c'),
     registrationType: 'add',
     keyDownHandler: () => {

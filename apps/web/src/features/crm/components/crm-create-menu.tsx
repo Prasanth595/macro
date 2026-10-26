@@ -1,12 +1,13 @@
 import { ViewSidebar } from '@app/components/view-shell';
-import { t } from '@app/lib/i18n';
+import { CreateMenuItem } from '@app/components/view-shell/CreateMenuItem';
 import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
+import { t } from '@app/lib/i18n';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import BuildingsIcon from '@phosphor/buildings.svg';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import PlusIcon from '@phosphor/plus.svg';
-import TableIcon from '@phosphor/table.svg';
-import UserIcon from '@phosphor/user.svg';
+import BuildingsIcon from '@icon/system/regular/buildings.svg';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
+import TableIcon from '@icon/system/regular/table.svg';
+import UserIcon from '@icon/system/regular/user.svg';
 import { Dropdown } from '@ui';
 import { Show } from 'solid-js';
 
@@ -48,26 +49,32 @@ export function CrmCreateMenu(props: {
           menu
         />
       </Show>
-      <Dropdown.Content class="min-w-48">
-        <Dropdown.Item onSelect={props.onCreateCompany}>
-          <BuildingsIcon aria-hidden="true" class="size-4 shrink-0" />
-          <span>{t('create.companyLabel')}</span>
-        </Dropdown.Item>
-        <Dropdown.Item onSelect={props.onCreateContact}>
-          <UserIcon aria-hidden="true" class="size-4 shrink-0" />
-          <span>{t('create.contactLabel')}</span>
-        </Dropdown.Item>
-        <Show when={props.pipeline}>
-          {(pipeline) => (
-            <Dropdown.Item
-              disabled={pipeline().disabled}
-              onSelect={() => pipeline().onCreate()}
-            >
-              <TableIcon aria-hidden="true" class="size-4 shrink-0" />
-              <span>{t('create.pipelineLabel')}</span>
-            </Dropdown.Item>
-          )}
-        </Show>
+      <Dropdown.Content class="w-80 max-w-[calc(100vw-2rem)]">
+        <Dropdown.Group>
+          <CreateMenuItem
+            icon={BuildingsIcon}
+            title={t('create.companyLabel')}
+            description={t('create.guideCompany')}
+            onSelect={props.onCreateCompany}
+          />
+          <CreateMenuItem
+            icon={UserIcon}
+            title={t('create.contactLabel')}
+            description={t('create.guideContact')}
+            onSelect={props.onCreateContact}
+          />
+          <Show when={props.pipeline}>
+            {(pipeline) => (
+              <CreateMenuItem
+                icon={TableIcon}
+                title={t('create.pipelineLabel')}
+                description={t('create.guidePipeline')}
+                disabled={pipeline().disabled}
+                onSelect={() => pipeline().onCreate()}
+              />
+            )}
+          </Show>
+        </Dropdown.Group>
       </Dropdown.Content>
     </Dropdown>
   );
