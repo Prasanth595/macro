@@ -1787,16 +1787,16 @@ describe('insert gate (meta.insertFilter) — grouped cache', () => {
   });
 });
 
-describe('typed grouped pool keys', () => {
+describe('raw grouped entity IDs', () => {
   it('updates and removes memberships using entity IDs without changing pool keys', () => {
     const item = mockTaskItem('a-1', 'in_progress');
     const key = seedGroupedAstQuery({
       pages: [
         {
           kind: 'grouped',
-          items: { 'TASK:a-1': item },
+          items: { 'a-1': item },
           groups: [
-            buildGroup('in_progress', ['TASK:a-1'], 4),
+            buildGroup('in_progress', ['a-1'], 4),
             buildGroup('done', [], 2),
           ],
           nextCursor: null,
@@ -1810,13 +1810,13 @@ describe('typed grouped pool keys', () => {
     const moved =
       testQueryClient.getQueryData<InfiniteData<SoupAstItemsGroupedPage>>(key)!
         .pages[0];
-    expect(Object.keys(moved.items)).toEqual(['TASK:a-1']);
-    expect(moved.items['TASK:a-1']).toEqual(updated);
+    expect(Object.keys(moved.items)).toEqual(['a-1']);
+    expect(moved.items['a-1']).toEqual(updated);
     expect(
       moved.groups.map((group) => [group.key, group.itemIds, group.totalCount])
     ).toEqual([
       ['in_progress', [], 3],
-      ['done', ['TASK:a-1'], 3],
+      ['done', ['a-1'], 3],
     ]);
     const transaction = removeSoupEntities(new Set(['a-1']));
     const removed =
@@ -1832,8 +1832,8 @@ describe('typed grouped pool keys', () => {
     ).toEqual(moved);
   });
 
-  it('does not duplicate a typed identity from a later expanded-group page', () => {
-    const key = [...soupKeys.groupedGroup._def, 'typed-continuation'];
+  it('does not duplicate an entity from a later expanded-group page', () => {
+    const key = [...soupKeys.groupedGroup._def, 'raw-continuation'];
     const item = mockTaskItem('a-1', 'in_progress');
     type Page = { items: Record<string, SoupApiItem>; group: GroupMeta };
     testQueryClient.setQueryDefaults(key, {
@@ -1842,12 +1842,12 @@ describe('typed grouped pool keys', () => {
     testQueryClient.setQueryData<InfiniteData<Page>>(key, {
       pages: [
         {
-          items: { 'TASK:a-2': mockTaskItem('a-2', 'in_progress') },
-          group: buildGroup('in_progress', ['TASK:a-2'], 5),
+          items: { 'a-2': mockTaskItem('a-2', 'in_progress') },
+          group: buildGroup('in_progress', ['a-2'], 5),
         },
         {
-          items: { 'TASK:a-1': item },
-          group: buildGroup('in_progress', ['TASK:a-1'], 5),
+          items: { 'a-1': item },
+          group: buildGroup('in_progress', ['a-1'], 5),
         },
       ],
       pageParams: [null, 'cursor'],
@@ -1856,10 +1856,7 @@ describe('typed grouped pool keys', () => {
     optimisticUpdateSoupEntity(item);
     insertSoupEntity(item);
     const pages = testQueryClient.getQueryData<InfiniteData<Page>>(key)!.pages;
-    expect(pages.map((page) => page.group.itemIds)).toEqual([
-      ['TASK:a-2'],
-      ['TASK:a-1'],
-    ]);
+    expect(pages.map((page) => page.group.itemIds)).toEqual([['a-2'], ['a-1']]);
     removeSoupEntities(new Set(['a-1']));
     const removed =
       testQueryClient.getQueryData<InfiniteData<Page>>(key)!.pages;

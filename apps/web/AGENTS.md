@@ -251,7 +251,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Keep Tasks due-date ranges on the view-owned date-bucket boundaries in `features/tasks-view/core/task-due-date.ts`; send `property_date_earliest`/`property_date_latest` with `sort_property_definition_id` set to Due Date and generic keyed `date_ranges` property grouping, freeze ranges across continuation pages, refresh after midnight/timezone changes/resume, and retain existing text-search ordering.
 - Render Tasks due dates in an editable list-property column with a calendar icon beside the value; show only the urgency-colored icon on phones and narrow panes, keep the current date visible in its dropdown, and limit warning urgency to today and tomorrow.
 - Revalidate property-dependent Soup and search membership after any DATE edit, including empty queries and unloaded grouped counts; entity-only cache invalidation cannot admit previously excluded entities. Date-range group membership remains server-owned, and `missingValueBucketKey` names the no-value bucket.
-- Treat grouped Soup `itemIds` as opaque item-pool keys; resolve raw entity IDs from each hydrated item when updating or deleting cached memberships.
+- Keep REST grouped Soup item pools and `itemIds` keyed by raw entity IDs, matching Tasks readers and the normalized cache.
 
 ## Rules
 
