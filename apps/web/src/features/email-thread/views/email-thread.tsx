@@ -150,7 +150,12 @@ export function EmailThreadView(props: EmailThreadViewProps) {
                           class="text-2xl"
                         />
                         <div class="h-2" aria-hidden="true" />
-                        <EmailParticipants />
+                        {/* Bounded so a long expanded list scrolls instead of
+                            crowding out the messages; the padding keeps focus
+                            rings unclipped. */}
+                        <div class="-m-1 max-h-34 overflow-y-auto p-1">
+                          <EmailParticipants />
+                        </div>
                       </div>
                     </div>
                   )}
