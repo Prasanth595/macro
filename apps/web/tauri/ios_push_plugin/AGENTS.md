@@ -45,6 +45,8 @@ and owns durable notification-tap delivery across cold launches/WebView reloads.
 - A full iOS simulator build validates the Swift/UIKit bridge and iOS Rust
   commands; exercise warm resume, terminated launch, WebContent eviction, rapid
   successive taps, offline/auth failures, and ordinary icon resume on a device.
+- A `--no-sign` simulator build gets no APNs token ("Push registration with a
+  nil environment"); build without it so Xcode signs to run locally.
 
 ## Related
 

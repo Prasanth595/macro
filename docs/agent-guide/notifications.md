@@ -64,7 +64,9 @@ for it. The in-app **Mobile notifications** switch and enable prompt stay off
 until full alerts are allowed; turning either on shows the system prompt.
 Verify on a fresh install: the Settings row appears without a prompt, the in-app
 prompt still appears, and upgrading from Settings or from a quiet notification's
-**Keep → Deliver Immediately** turns the switch on after returning to Macro.
+**Keep → Deliver Immediately** turns the switch on when Macro returns from the
+background. Notification Center pulled down over Macro does not background it,
+so the switch updates only after the next return.
 
 On native Android, enable notifications in Settings while signed in. Android 13+
 also asks for system permission; the system's **Activity** notification channel
