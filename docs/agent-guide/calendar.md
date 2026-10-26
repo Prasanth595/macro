@@ -352,9 +352,10 @@ without prompting for discard, and both transfer controls must disable during sa
 Drag from the sidebar header and verify its layout slot stays reserved until drop,
 only one editor exists, its height shrinks, and its form nodes and values survive.
 Drag the 400px-wide popover to the calendar's right edge. Check that the docking
-preview highlights, releasing restores the full-height sidebar, and the grid only
-reserves sidebar space after drop. Drag away from the edge to keep a floating
-popover, or drop a dragged sidebar back on its right edge to keep it docked.
+preview highlights above the overlapping editor without intercepting pointer input.
+Releasing restores the full-height sidebar and reserves grid space only after drop.
+Drag away from the edge to keep a floating popover, or drop a dragged sidebar back
+on its right edge to keep it docked.
 Drop, resize the window, and open the nested date picker. Confirm the popover stays
 inside the calendar and all controls remain reachable. Repeat with Escape, pointer
 cancellation, and window blur; each must clear the preview and restore the original
