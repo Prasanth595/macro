@@ -46,7 +46,7 @@ function renderRow(lastSentHoursAgo: number) {
 describe('TeamInviteRow', () => {
   afterEach(cleanup);
 
-  it('resends an invite whose last email is older than two days', () => {
+  it('resends an invite whose last email is over an hour old', () => {
     const { onResend, resend } = renderRow(72);
 
     fireEvent.click(resend);
@@ -55,7 +55,7 @@ describe('TeamInviteRow', () => {
   });
 
   it('keeps Resend off inside the email rate limit', () => {
-    const { onResend, resend } = renderRow(1);
+    const { onResend, resend } = renderRow(0.25);
 
     expect((resend as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(resend);
@@ -63,7 +63,7 @@ describe('TeamInviteRow', () => {
   });
 
   it('shows when the invite was last sent', () => {
-    renderRow(1);
+    renderRow(0.25);
 
     expect(screen.getByText(/Invited as member · sent 1h/)).toBeTruthy();
   });

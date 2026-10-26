@@ -58,7 +58,7 @@ export function TeamInviteRow(props: {
           label={
             canResend()
               ? 'Resend invite'
-              : 'You can resend 2 days after the last email'
+              : 'You can resend an hour after the last email'
           }
         >
           <Button

@@ -538,7 +538,7 @@ async fn test_invite_existing_user_within_rate_limit(pool: Pool<Postgres>) -> an
     Ok(())
 }
 
-/// A resend a day after the last email would be dropped by the email's 2-day
+/// A resend minutes after the last email would be dropped by the email's
 /// rate limit, so the repository must not offer it for sending.
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
@@ -552,7 +552,7 @@ async fn test_invite_existing_user_inside_email_rate_limit(
     let team_id = macro_uuid::string_to_uuid("11111111-1111-1111-1111-111111111111")?;
 
     sqlx::query!(
-        r#"UPDATE team_invite SET last_sent_at = NOW() - INTERVAL '1 day' WHERE team_id = $1 AND email = 'invite@macro.com'"#,
+        r#"UPDATE team_invite SET last_sent_at = NOW() - INTERVAL '30 minutes' WHERE team_id = $1 AND email = 'invite@macro.com'"#,
         &team_id,
     )
     .execute(&pool)
