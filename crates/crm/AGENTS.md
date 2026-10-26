@@ -9,6 +9,9 @@ tools/HTTP/GraphQL surfaces over them.
 ## Start here
 
 - `src/domain/service.rs`, `src/domain/pipelines.rs`: core use cases.
+- `src/domain/pipelines/requirements.rs`: stage-entry rules keyed by column and
+  option IDs. `apply_ops` validates every pipeline write under the pipeline write
+  guard; agent/CSV workflows use the same service. Deletions cascade rules.
 - `src/domain/pipeline_workflows/`: pipeline entry/field/record ops built on
   the shared `databases` engine (Sales pipelines are a `databases` consumer).
 - `src/domain/crm_csv.rs`, `src/domain/crm_transfer.rs`: CSV import/export for

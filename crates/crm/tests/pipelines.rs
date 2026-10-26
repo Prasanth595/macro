@@ -676,6 +676,11 @@ async fn migration_rollback_preserves_records_and_grants(pool: PgPool) {
     )
     .await
     .unwrap();
+    // Remove later dependent schema before exercising the older rollback.
+    sqlx::raw_sql("DROP TABLE crm_pipeline_stage_requirements")
+        .execute(&pool)
+        .await
+        .unwrap();
     // Execute the actual rollback DDL in this disposable test database.
     sqlx::raw_sql(include_str!(
         "../../macro_db_client/migrations/20261007172434_crm_pipeline_entities.down.sql"
@@ -1411,3 +1416,6 @@ async fn editors_share_with_people_and_only_the_owner_changes_team_access(pool: 
         Err(PipelineError::NotFound)
     ));
 }
+
+#[path = "pipelines/requirements.rs"]
+mod requirements;

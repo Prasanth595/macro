@@ -300,7 +300,13 @@ where
         let applied = self
             .pipelines
             .apply_ops(receipt, viewer.acting_bot, batch)
-            .await?;
+            .await
+            .map_err(|error| match error {
+                super::pipelines::PipelineError::Database(
+                    databases::domain::models::DatabaseError::InvalidOp(refusal),
+                ) => WorkflowError::Invalid(refusal.reason),
+                other => other.into(),
+            })?;
         let version = applied
             .results
             .iter()
