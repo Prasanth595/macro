@@ -4,7 +4,9 @@ import {
   createInitiativeDescriptionTokenResponse,
   getInitiativeOverviewResponse,
 } from '@service-storage/generated/zod';
+import { queryOptions } from '@tanstack/solid-query';
 import { type PublicProject, publicProject } from '../public/public-project';
+import { publicProjectKeys } from './keys';
 
 export type PublicProjectRead =
   | { status: 'ready'; project: PublicProject }
@@ -35,6 +37,19 @@ export async function loadPublicProject(
     status: 'ready',
     project: publicProject(parsed.data, properties.value.properties),
   };
+}
+
+/**
+ * The visitor's read of a project. A failed or unavailable read resolves as
+ * data, so the client's error retry never fires and the page shows the state.
+ */
+export function publicProjectQueryOptions(projectId: string) {
+  return queryOptions({
+    queryKey: publicProjectKeys.detail(projectId).queryKey,
+    queryFn: () => loadPublicProject(projectId),
+    // The link's access and the owner's edits can change between visits.
+    staleTime: 0,
+  });
 }
 
 /** A fresh read-only grant on the project description, once the last one expires. */

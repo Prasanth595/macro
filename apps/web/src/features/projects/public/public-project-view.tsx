@@ -10,13 +10,14 @@ import { LoginButton } from '@core/component/TopBar/LoginButton';
 import { rememberDisplayNames } from '@core/user/displayName';
 import { fireAndForget } from '@core/util/fireAndForget';
 import StackIcon from '@phosphor/stack.svg';
+import { useQuery } from '@tanstack/solid-query';
 import { Button, EmptyStatePanel, Tabs } from '@ui';
-import { createResource, Match, Show, Switch } from 'solid-js';
+import { createMemo, Match, Show, Switch } from 'solid-js';
 import { ProjectContentSkeleton } from '../components/project-skeletons';
 import type { ProjectSection } from '../core/project';
 import {
-  loadPublicProject,
   type PublicProjectRead,
+  publicProjectQueryOptions,
 } from '../queries/public-project';
 import { ProjectWorkspace } from '../views/project-workspace';
 import { PublicProjectDescription } from './public-project-description';
@@ -114,19 +115,15 @@ export function PublicProjectRoute(props: {
   taskId?: string;
 }) {
   const navigate = useNavigate();
-  const [resource, { refetch }] = createResource(
-    () => props.projectId,
-    async (projectId) => {
-      const read = await loadPublicProject(projectId);
-      if (read.status === 'ready') rememberDisplayNames(read.project.people);
-      return read;
-    }
-  );
-  // `latest` is read only once settled, so the first load never suspends the pane.
-  const read = () =>
-    resource.state === 'ready' || resource.state === 'refreshing'
-      ? resource.latest
-      : undefined;
+  const query = useQuery(() => publicProjectQueryOptions(props.projectId));
+  // `data` is read only once settled, so the first load never suspends the
+  // pane. Names land before any child sees the project and looks one up.
+  const read = createMemo(() => {
+    const current = query.isSuccess ? query.data : undefined;
+    if (current?.status === 'ready')
+      rememberDisplayNames(current.project.people);
+    return current;
+  });
   const name = () => {
     const current = read();
     return current?.status === 'ready'
@@ -185,7 +182,7 @@ export function PublicProjectRoute(props: {
             section={props.section}
             onSection={openSection}
             onOpenTask={openTask}
-            onRetry={() => fireAndForget(refetch(), 'projects')}
+            onRetry={() => fireAndForget(query.refetch(), 'projects')}
           />
         }
       >
