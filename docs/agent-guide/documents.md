@@ -17,6 +17,25 @@ checked, the share status uses **Restricted** instead of claiming **Just me**;
 known public, team, or shared access still appears.
 This status follows the current document and account when navigating with Share open.
 
+When meeting notes are enabled, the document side panel’s **References** section
+also lists linked calendar events, including when there are no document or message
+references. Each row uses the same single-line style, with the meeting title and
+date inline. Open a row to jump to
+your calendar copy; meetings shared through a channel or team without a personal
+copy use a read-only event preview. The preview also works when the Calendar
+view is disabled. Readers see only
+meetings they can view in detail. Owners retain safe
+unavailable-meeting entries, which can be removed through Share. Linking or
+unlinking updates the References count.
+
+Verify a note linked to two meetings, a note with both message and calendar
+references, a rescheduled one-time event, and a recurring occurrence. A cancelled
+instance must never open a later instance. Check full-detail team sharing, a
+reader who can see both entities, a reader with document-only access, and the
+feature flag off. On phone, open References from the document side panel and
+follow a meeting without leaving a sheet over the calendar. Closing a read-only
+meeting preview must return to the document details sheet.
+
 Verify **Public → View** links in a fresh signed-out browser context. The
 `/app/drive/md/<id>` route (including folder/tab document links and legacy
 `/app/md/<id>` redirects) must show the document without private Drive lists or
@@ -3011,3 +3030,14 @@ types do not show these tabs.
 In a disposable Markdown document, change several paragraphs in one edit, then
 undo and redo. Verify the text, paragraph count, and a second peer agree after
 each operation; wait for saving to finish and reload to check persistence.
+
+### Task mention status
+
+Task @mention pills display the same circular completion/status icon as task
+rows. The icon updates in place as preview data changes; unknown status uses
+an empty circle, and subtype-only previews use their completion flag. See
+[tasks](tasks.md#task-status-icons) for states and the browser regression.
+
+Sharing labels describe their audience: Only people with access, Anyone with the link, and Team members with the link. Permission choices say Can view, Can comment, and Can edit. Copying a restricted link still does not grant access. The existing immediately opening dialog and its deferred loading remain unchanged.
+
+Drive's existing New controls open a wide menu with icons and short descriptions for creation and uploads, while preserving the current destination and feature gates.

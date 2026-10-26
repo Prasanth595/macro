@@ -1,7 +1,7 @@
 import { ItemChip } from '@app/features/agent-cards/components/item-chip';
 import type { ItemFact } from '@app/features/agent-cards/core/run-cards';
 import { isShowTool } from '@app/features/dynamic-ui/core/show-tool';
-import CodeIcon from '@phosphor/code.svg';
+import CodeIcon from '@icon/system/regular/code.svg';
 import type {
   ExecutionActivity,
   ExecutionRecord,
