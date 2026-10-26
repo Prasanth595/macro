@@ -7266,6 +7266,7 @@ mod meeting_copies;
 mod meeting_uid;
 #[cfg(feature = "notes")]
 mod notes;
+mod organizer_calendar;
 mod source_access;
 
 mod replacement;
