@@ -20,18 +20,18 @@ main Tasks screen.
 | Item access | Sharing never grants access to matching entities. |
 | Management | Only the owner can rename, update, delete, share, or unshare. |
 | Relative people | “Me” means the current viewer; explicitly selected people remain fixed. |
-| Contents | Filters only, including implicit assignment or creator conditions. No search text, layout, sorting, grouping, or scroll state. |
+| Contents | Filters, selected layout, and ordered sorting, including implicit person conditions. No search text, grouping, or scroll state. |
 | Editing | Explicit Save changes, Reset, and Duplicate. |
 | Navigation | Leaving discards temporary edits without a confirmation prompt. |
 | Creation | The section's icon-only `+` starts an unsaved view; configure before creating. |
-| Capture | Save view appears left of Filters when filters differ from the built-in defaults. |
+| Capture | Save view appears left of Filters when filters, layout, or sort differ from the built-in defaults. |
 | Mobile | Shared pill tab after the built-in tabs, with full creation, browsing, editing, and management support. |
 | Initial surfaces | Main Tasks only; not project or CRM embedded task lists. |
 | Owner departure | Team sharing stops while the owner is absent and resumes if they rejoin the shared team. |
 
-No saved-view defaults, ordering customization, individual recipients, public
-links, presentation settings, new task filter categories, or CRM migration are
-included. In particular, the current Tasks implementation has no due-date filter;
+No default-view selection, saved-view list reordering, individual recipients,
+public links, new task filter categories, or CRM migration are included.
+In particular, the current Tasks implementation has no due-date filter;
 this feature does not add one.
 
 ## Starting point before this change
@@ -89,8 +89,8 @@ Transport handlers must not retain independent owner or membership policy.
 Keep separate create, update, and delete mutation hooks in `features/saved-views`.
 Keep `useSavedViews` (paginated list) and `useSavedView` (single definition)
 independent and compose them in the host. The Task draft primitive receives only
-the detail source and owns confirmed filter snapshots, dirty state, diagnostics,
-and revision-aware reconciliation. The Tasks host owns selection, navigation,
+the detail source and owns confirmed filter/layout/sort snapshots, dirty state,
+diagnostics, and revision-aware reconciliation. The Tasks host owns selection, navigation,
 and account/task lifecycle. Task actions capture the host request scope before
 writing or reloading, reject stale completions, and explicitly select created
 views. Mutation dialogs receive a refresh callback, not both query sources.
@@ -111,6 +111,7 @@ Keep the existing JSON `config` column. New consumers use a versioned envelope:
 - `kind`: a stable consumer identifier, initially `tasks`.
 - `version`: the consumer's definition version, initially `1` for Tasks.
 - `filters`: that consumer's declarative filter definition.
+- Task-specific `layout` and `sort`: selected layout and ordered sort fields/directions.
 
 The backend validates generic write bounds and stores the configuration without
 interpreting Task fields. It can filter lists by `config.kind`. The consumer owns
@@ -130,6 +131,8 @@ The proposed shape below uses explanatory UUID placeholders, not real IDs:
 {
   "kind": "tasks",
   "version": 1,
+  "layout": "board",
+  "sort": [{ "id": "updated_at", "reversed": false }],
   "filters": {
     "statusOptionIds": ["<in-progress-option-uuid>"],
     "priorityOptionIds": [],
@@ -168,25 +171,42 @@ requests. Search text is not saved, but search results must satisfy every saved
 filter. In particular, search must use stored tag bindings rather than silently
 dropping tags absent from the viewer's metadata. If a search backend cannot
 express a condition, block that search with an explicit unsupported state;
-never run it with fewer conditions. Changing layout remains a local preference
-and does not dirty the saved definition.
+never run it with fewer conditions. Layout and sort changes dirty the saved
+definition and participate in Save changes, Reset, and Duplicate. Missing layout
+and sort use list and updated-at descending defaults. Unsupported layouts fall
+back to list; unsupported sort entries are skipped, preserving supported order,
+with updated-at descending used when no supported sort remains. Mobile and
+feature-flag fallbacks never replace the raw selected layout on save.
 
 Apply supported conditions immediately, omitting unsupported or malformed entries
 and conflicting tag bindings. Show a danger-colored banner above the results that
-identifies skipped filter groups without an additional description. If no supported
+identifies skipped filters or view settings without an additional description. If no supported
 conditions remain, show the unfiltered All Tasks list, including closed tasks;
 unknown formats also show this list with the banner. Keep missing or unauthorized
 definitions in the unavailable state, without executing task queries.
 
 Reading never modifies the stored definition and never starts a recovery workflow.
-Normal explicit Save changes and Duplicate actions remain available. Missing
-person or tag labels retain their exact filter IDs because these conditions remain
-executable. A missing authenticated viewer blocks relative-filter execution.
+Ordinary Save changes is disabled while any unsupported or invalid setting
+remains, preventing an older reader from overwriting settings it cannot represent.
+Rename and Share preserve the raw configuration; Duplicate warns before omitting
+unsupported settings. Only explicit Remove & save replaces the original with
+supported settings. Missing person or tag labels retain their exact filter IDs
+because these conditions remain executable. A missing authenticated viewer blocks relative-filter execution.
 
 For dirty-state comparison, deduplicate and order set-valued filters. Reordering
 a selection alone is not a change. One Task codec owns capture, validation,
 materialization, and comparison; do not store both facets and an independently
 editable compiled AST.
+
+### Client-version safety
+
+Keep additions independently readable within a compatible definition version.
+Older guarded clients apply known settings and show a warning for unknown fields.
+Revision checks prevent stale writes, but do not prove a client understands every
+field. Do not rely on them for schema compatibility. Before enabling a breaking
+format or new settings for already-shipped clients without this write guard,
+require a backend write-version check or update those clients first; the generic
+backend currently stores opaque JSON and does not enforce reader capabilities.
 
 ## Ownership, sharing, and lifecycle
 
@@ -293,17 +313,20 @@ empty, collapsed, loading, or in an error state. Rows show the name, active stat
 and a team-sharing indicator where applicable. Use the existing sidebar and
 control primitives.
 
-The main pane displays the selected view's name with its overflow menu immediately beside it, plus the normal Task controls.
+The main pane displays the selected view's bookmark icon before its name and its
+unframed ghost overflow button immediately after it on desktop and mobile, plus
+the normal Task controls.
 Provide matching sidebar context/overflow and selected-view overflow menus with
 separate Rename and Share actions, Duplicate, Copy link, and confirmed Delete.
 Wrap menu items in the existing padded groups. Non-owners get only actions they
 can perform; backend enforcement remains authoritative. Rename and Share update
-metadata only, preserving temporary filters without saving them.
+metadata only, preserving temporary filters, layout, and sort without saving them.
 
-Show **Save view** immediately left of Filters when the current filters differ
-from the built-in tab defaults. It captures structured filters and implicit person conditions,
-excluding search. Show a short reminder when search is active so the saved
-definition is not mistaken for the visible search results.
+Show **Save view** immediately left of Filters when filters, layout, or sort differ
+from the built-in tab defaults. It captures structured filters, implicit person
+conditions, layout, and ordered sorting, excluding search and grouping. Show a
+short reminder when search is active so the saved definition is not mistaken
+for the visible search results.
 
 ### Drafts and explicit saving
 
@@ -315,11 +338,11 @@ definition is not mistaken for the visible search results.
   with the previously selected built-in tab. Clear unrelated text search.
 - Changes show Save changes and Reset for the owner. All viewers can Duplicate
   with a prefilled “(copy)” name; copies are private unless explicitly shared.
-  Duplicating the selected view includes temporary filters; duplicating another
-  sidebar view uses that view's saved definition. Other viewers cannot overwrite
+  Duplicating the selected view includes temporary filters, layout, and sort;
+  duplicating another sidebar view uses that view's saved definition. Other viewers cannot overwrite
   the shared definition.
 - Only a confirmed write updates the saved baseline. Failures keep the draft and
-  its inputs. Leaving the view discards temporary filters, including when a
+  its inputs. Leaving the view discards temporary settings, including when a
   background save fails after navigation.
 - Task-detail navigation and its return breadcrumb retain the originating saved
   view identity, but do not persist an unsaved filter draft. Scope async results
@@ -333,8 +356,9 @@ Add a Views picker using the shared `MobileDrawer`; include the named list,
 active saved-view name, and the section's `+`. Preserve the built-in navigation
 and existing mobile list-only behavior.
 
-Show Save view left of the mobile filter trigger under the same changed-filter
-condition. Provide management through each saved-view row's visible overflow
+Show Save view left of the mobile filter trigger under the same changed-settings
+condition. Render a list on mobile but preserve the stored desktop layout.
+Provide management through each saved-view row's visible overflow
 button and the overflow menu beside the selected view's name. Use existing dialog/drawer
 conventions for naming, sharing, conflicts, and delete confirmation. Keep row
 menus inside the drawer's portal scope for keyboard access. Finish drawer closure
@@ -355,11 +379,11 @@ view's name. A list failure retains already loaded rows with a retry action.
 Unsupported or malformed filter conditions are skipped with the danger banner;
 if none apply, show unfiltered tasks. Duplication warns before saving a copy that
 omits these conditions and leaves the original unchanged.
-Keep the banner concise: name the skipped filter groups without a description.
+Keep the banner concise: name skipped filters and view settings without a description.
 Owners can explicitly choose **Remove & save** at its right edge.
-This revision-checked update keeps supported stored conditions and sharing unchanged;
-it does not save temporary filter edits. Failed writes retain the warning and stored
-definition, and conflicts offer a reload. Only a confirmed update clears the warning.
+This revision-checked update keeps supported stored conditions, layout, sort, and
+sharing unchanged; it does not save temporary edits. Failed writes retain the
+warning and stored definition, and conflicts offer a reload. Only a confirmed update clears the warning.
 
 ## Delivery and review boundaries
 

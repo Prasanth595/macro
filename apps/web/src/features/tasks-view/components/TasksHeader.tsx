@@ -9,6 +9,7 @@ import {
 } from '@app/components/view-shell/ListHeader';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import BookmarkIcon from '@phosphor/bookmark-simple.svg';
 import { Show } from 'solid-js';
 import { TASK_TABS } from '../constants';
 import { taskSavedViewTitle } from '../primitives/create-task-saved-view-draft';
@@ -45,7 +46,11 @@ export function TaskViewBreadcrumbItem() {
           isActive={item.isActive()}
           onClick={item.onSelect}
           tooltip={tabTitle()}
+          class="gap-2"
         >
+          <Show when={state.savedViewActive}>
+            <BookmarkIcon class="size-4 shrink-0" aria-hidden="true" />
+          </Show>
           <span class="truncate">{tabTitle()}</span>
         </ViewBreadcrumbs.ReturnButton>
       )}
@@ -106,6 +111,7 @@ export function TasksHeader(props: TasksHeaderProps) {
           <Show when={state.savedViewActive}>
             <div class="flex min-w-0 flex-wrap items-center gap-2">
               <div class="flex min-w-0 items-center gap-1">
+                <BookmarkIcon class="mr-1 size-4 shrink-0" aria-hidden="true" />
                 <span class="truncate text-sm font-medium">
                   {savedViews && taskSavedViewTitle(savedViews.view())}
                 </span>

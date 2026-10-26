@@ -28,6 +28,7 @@ import {
   RenameSavedViewDialog,
   ShareSavedViewDialog,
 } from '../../saved-views/views/saved-view-dialogs';
+import { TASK_SORT_OPTIONS } from '../constants';
 import {
   decodeTaskSavedView,
   materializeTaskSavedView,
@@ -41,6 +42,8 @@ import { taskSavedViewTitle } from '../primitives/create-task-saved-view-draft';
 import { tasksTabSearch, tasksTabSearchCodec } from '../tasks-tab-search';
 import { useTasksView } from '../tasks-view-context';
 
+const LAYOUT_LABELS = { list: 'List', board: 'Board', gantt: 'Gantt' };
+
 function TaskSavedViewSummary(props: {
   config: TaskSavedViewConfig;
   omittedFilters?: TaskSavedViewIssue[];
@@ -52,8 +55,8 @@ function TaskSavedViewSummary(props: {
     <>
       <Show when={props.omittedFilters?.length}>
         <p role="alert" class="rounded-lg bg-failure-bg p-3 text-failure-ink">
-          Unsupported or invalid filters will not be copied. If none are
-          supported, the copy will be unfiltered. The original view stays
+          Unsupported filters or view settings will not be copied. If no filters
+          are supported, the copy will be unfiltered. The original view stays
           unchanged.
         </p>
       </Show>
@@ -73,6 +76,16 @@ function TaskSavedViewSummary(props: {
           </Show>
         )}
       </For>
+      <p>Layout: {LAYOUT_LABELS[props.config.layout]}</p>
+      <p>
+        Sort:{' '}
+        {props.config.sort
+          .map(
+            (sort) =>
+              `${TASK_SORT_OPTIONS.find((option) => option.id === sort.id)?.label} (${sort.reversed ? 'oldest first' : 'newest first'})`
+          )
+          .join(', ') || 'Default'}
+      </p>
       <Show when={state.search.trim()}>
         <p>Search text is not included.</p>
       </Show>
@@ -171,6 +184,10 @@ function useCreateTaskSavedViewDialog(owner = getOwner()) {
               'facets',
               record ? materializeTaskSavedView(decoded.value).facets : facets
             );
+            if (record) {
+              const restored = materializeTaskSavedView(decoded.value);
+              setState({ layout: restored.layout, sort: restored.sort });
+            }
             selectCreatedSavedView(created.id);
           });
         },
@@ -412,7 +429,7 @@ export function TaskSaveViewButton() {
   };
   return (
     <Show when={visible()}>
-      <HeaderActionGroup label="Save task filters">
+      <HeaderActionGroup label="Save task view">
         <Button size="md" variant="ghost" onClick={() => create()}>
           Save view
         </Button>
@@ -463,31 +480,29 @@ export function TaskSavedViewMenu() {
   return (
     <Show when={selected()}>
       {(record) => (
-        <HeaderActionGroup label="Saved view menu">
-          <Dropdown
-            placement="bottom-start"
-            onOpenChange={(open) => {
-              menuOpen = open;
-              if (open) pending = undefined;
-            }}
+        <Dropdown
+          placement="bottom-start"
+          onOpenChange={(open) => {
+            menuOpen = open;
+            if (open) pending = undefined;
+          }}
+        >
+          <Dropdown.Trigger
+            ref={trigger}
+            size="icon-md"
+            variant="ghost"
+            label="Saved view actions"
           >
-            <Dropdown.Trigger
-              ref={trigger}
-              size="icon-md"
-              variant="ghost"
-              label="Saved view actions"
-            >
-              <DotsIcon class="size-4" />
-            </Dropdown.Trigger>
-            <Dropdown.Content class="min-w-44" onCloseAutoFocus={finish}>
-              <TaskSavedViewMenuItems
-                record={record()}
-                owner={owner}
-                defer={defer}
-              />
-            </Dropdown.Content>
-          </Dropdown>
-        </HeaderActionGroup>
+            <DotsIcon class="size-4" />
+          </Dropdown.Trigger>
+          <Dropdown.Content class="min-w-44" onCloseAutoFocus={finish}>
+            <TaskSavedViewMenuItems
+              record={record()}
+              owner={owner}
+              defer={defer}
+            />
+          </Dropdown.Content>
+        </Dropdown>
       )}
     </Show>
   );
@@ -514,7 +529,8 @@ export function TaskSavedViewActions() {
       !savedViews ||
       !view ||
       update.isPending ||
-      view.record.ownerId !== viewerId()
+      view.record.ownerId !== viewerId() ||
+      view.issues.length > 0
     )
       return;
     const config = savedViews.capture();
@@ -524,18 +540,23 @@ export function TaskSavedViewActions() {
     }
     const request = captureRequest();
     lastRequest = request;
-    const result = await update.mutateAsync({
-      id: view.record.id,
-      name: view.record.name,
-      config: config.value,
-      expectedRevision: view.record.revision,
-    });
-    if (
-      !result.error &&
-      result.data?.updateSavedView &&
-      request.isCurrent(view.record.id)
-    )
-      savedViews.acceptConfirmed(toSavedView(result.data.updateSavedView));
+    const release = savedViews.retain();
+    try {
+      const result = await update.mutateAsync({
+        id: view.record.id,
+        name: view.record.name,
+        config: config.value,
+        expectedRevision: view.record.revision,
+      });
+      if (
+        !result.error &&
+        result.data?.updateSavedView &&
+        request.isCurrent(view.record.id)
+      )
+        savedViews.acceptConfirmed(toSavedView(result.data.updateSavedView));
+    } finally {
+      release();
+    }
   };
   const failure = () => {
     const error = update.error;
@@ -556,7 +577,12 @@ export function TaskSavedViewActions() {
                   <Button
                     size="md"
                     variant="ghost"
-                    disabled={update.isPending}
+                    disabled={update.isPending || !!selected()?.issues.length}
+                    title={
+                      selected()?.issues.length
+                        ? 'Update the app or remove unsupported settings before saving.'
+                        : undefined
+                    }
                     onClick={() => fireAndForget(save(), 'saved-views')}
                   >
                     Save changes
@@ -678,6 +704,8 @@ export function TaskSavedViewWarning() {
     kind: 'View type',
     version: 'View version',
     filters: 'Filters',
+    layout: 'Layout',
+    sort: 'Sort',
   };
   const skipped = () =>
     [
@@ -696,8 +724,8 @@ export function TaskSavedViewWarning() {
       >
         <WarningIcon class="mt-0.5 size-4 shrink-0" />
         <div class="min-w-0 flex-1">
-          <p class="font-medium">Some filters were skipped.</p>
-          <p class="break-words">Skipped filters: {skipped()}</p>
+          <p class="font-medium">Some saved settings were skipped.</p>
+          <p class="break-words">Skipped settings: {skipped()}</p>
           <Show when={failure()}>
             {(error) => <p>{savedViewErrorMessage(error())}</p>}
           </Show>

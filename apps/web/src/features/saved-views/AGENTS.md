@@ -2,7 +2,7 @@
 
 ## What it is
 
-Reusable named filter definitions. The first consumer is main Tasks; the generic feature does not interpret consumer configuration.
+Reusable named view definitions. The first consumer is main Tasks; the generic feature does not interpret consumer configuration.
 
 ## Start here
 
