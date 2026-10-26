@@ -217,12 +217,16 @@ async fn candidates_exact_recheck_activation_and_keyset_pages(pool: PgPool) {
         .candidate_actions(&event, first.next_after, page(1))
         .await
         .unwrap();
+    // Pages follow action id order, and v7 ids minted in the same millisecond
+    // need not sort in creation order.
+    let mut expected = [null_ids, exact];
+    expected.sort();
     assert_eq!(
         [
             first.configurations[0].action_id,
             second.configurations[0].action_id
         ],
-        [null_ids, exact]
+        expected
     );
     assert!(
         repo.candidate_actions(&event, Some(exact), page(1))
