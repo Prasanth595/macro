@@ -14,6 +14,7 @@ import {
   Panel,
 } from '@ui';
 import {
+  createMemo,
   createSignal,
   createUniqueId,
   type JSX,
@@ -104,7 +105,35 @@ export function AddPipelineRecordDialog(
   // One intent per dialog, so submitting again never adds a second row.
   const intentId = `pipeline-record:${createUniqueId()}`;
   const [choice, setChoice] = createSignal<RecordChoice>();
-  const [values, setValues] = createSignal(props.initialValues);
+  const [draftValues, setDraftValues] = createSignal(props.initialValues);
+  const [selectedOptions, setSelectedOptions] = createSignal<
+    Record<string, string>
+  >(
+    Object.fromEntries(
+      props.columns.flatMap((column) => {
+        if (column.dataType !== 'SELECT_STRING' || column.isMultiSelect)
+          return [];
+        const option = column.options.find(
+          (option) => option.label === props.initialValues[column.id]
+        );
+        return option ? [[column.id, option.id]] : [];
+      })
+    )
+  );
+  // Keep selections tied to option identities while schema polling renames labels.
+  // Deleted columns leave the submitted row; surviving drafts retain their edits.
+  const values = createMemo<Record<string, DatabaseCellValue>>(() =>
+    Object.fromEntries(
+      props.columns.flatMap((column) => {
+        const value = draftValues()[column.id];
+        if (value === undefined) return [];
+        const selected = selectedOptions()[column.id];
+        const option =
+          selected && column.options.find((option) => option.id === selected);
+        return [[column.id, option ? option.label : value]];
+      })
+    )
+  );
   const [newOption, setNewOption] = createSignal<string>();
   const [pending, setPending] = createSignal(false);
   const [error, setError] = createSignal<string>();
@@ -137,7 +166,18 @@ export function AddPipelineRecordDialog(
     setError(undefined);
   };
   const write = (columnId: string, value: DatabaseCellValue) => {
-    setValues((current) => ({ ...current, [columnId]: value }));
+    setDraftValues((current) => ({ ...current, [columnId]: value }));
+    setSelectedOptions((current) => {
+      const next = { ...current };
+      const column = props.columns.find((column) => column.id === columnId);
+      const option =
+        column?.dataType === 'SELECT_STRING' && !column.isMultiSelect
+          ? column.options.find((option) => option.label === value)
+          : undefined;
+      if (option) next[columnId] = option.id;
+      else delete next[columnId];
+      return next;
+    });
     setError(undefined);
     return Promise.resolve(true);
   };
@@ -202,6 +242,21 @@ export function AddPipelineRecordDialog(
       !titleField
     )
       return;
+    const deleted = props.columns.find(
+      (column) =>
+        column.dataType === 'SELECT_STRING' &&
+        !column.isMultiSelect &&
+        selectedOptions()[column.id] &&
+        !column.options.some(
+          (option) => option.id === selectedOptions()[column.id]
+        )
+    );
+    if (deleted) {
+      setError(
+        `The selected ${deleted.name} option was deleted. Choose another value.`
+      );
+      return;
+    }
     const missing = missingStageFields(
       required().filter((column) => column.id !== titleField.id),
       values()

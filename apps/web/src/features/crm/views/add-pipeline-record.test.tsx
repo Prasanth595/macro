@@ -6,6 +6,7 @@ import {
   waitFor,
 } from '@solidjs/testing-library';
 import userEvent from '@testing-library/user-event';
+import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DatabaseViewColumn } from '../../database/core/database-view';
 import { AddPipelineRecordDialog } from './add-pipeline-record';
@@ -62,13 +63,13 @@ const columns: DatabaseViewColumn[] = [
   },
 ];
 
-function setup(required = false) {
+function setup(required = false, currentColumns = () => columns) {
   const onCreate = vi.fn(async () => true);
   const onClose = vi.fn();
   render(() => (
     <AddPipelineRecordDialog
       pipeline={{ name: 'Sales', recordType: 'company' }}
-      columns={columns}
+      columns={currentColumns()}
       initialValues={{ stage: 'Won' }}
       requirements={
         required
@@ -92,6 +93,63 @@ afterEach(() => {
 });
 
 describe('AddPipelineRecordDialog', () => {
+  it('follows a renamed stage identity and refuses a deleted selected stage', async () => {
+    const [current, setCurrent] = createSignal(columns);
+    const { onCreate } = setup(true, current);
+    await userEvent.type(
+      screen.getByRole('combobox', { name: 'Find or add a company' }),
+      'acme'
+    );
+    await userEvent.click(await screen.findByRole('option', { name: /Acme/ }));
+    setCurrent((before) =>
+      before.map((column) =>
+        column.id === 'stage'
+          ? {
+              ...column,
+              options: column.options.map((option) =>
+                option.id === 'won'
+                  ? { ...option, label: 'Negotiation' }
+                  : option
+              ),
+            }
+          : column
+      )
+    );
+    expect(
+      screen.getByRole('button', { name: /Stage:/ }).textContent
+    ).toContain('Negotiation');
+    fireEvent.click(screen.getByRole('button', { name: /^Add deal/ }));
+    expect(screen.getByRole('alert').textContent).toContain('Amount');
+    await userEvent.click(screen.getByRole('button', { name: /Amount/ }));
+    fireEvent.input(screen.getByRole('textbox', { name: 'Edit Amount' }), {
+      target: { value: '100' },
+    });
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Edit Amount' }), {
+      key: 'Enter',
+    });
+    setCurrent((before) =>
+      before.map((column) =>
+        column.id === 'stage' ? { ...column, options: [] } : column
+      )
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^Add deal/ }));
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Stage option was deleted'
+    );
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('button', { name: /Amount/ }).textContent
+    ).toContain('100');
+    // Deleting the entire field removes its stale value but keeps other edits.
+    setCurrent((before) => before.filter((column) => column.id !== 'stage'));
+    fireEvent.click(screen.getByRole('button', { name: /^Add deal/ }));
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ values: { company: 'acme', amount: 100 } })
+      )
+    );
+  });
+
   it('preserves the draft after missing stage fields and submits after they are filled', async () => {
     const { onCreate, onClose } = setup(true);
     await userEvent.type(

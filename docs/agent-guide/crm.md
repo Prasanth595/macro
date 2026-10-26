@@ -310,7 +310,9 @@ entering that stage or editing its required fields validates the final values.
 The Add deal form marks the selected stage's required fields **Required** and
 names missing fields on submit. Empty text and empty selections are missing;
 zero and an unchecked checkbox are valid values. The record and field edits stay
-in the form after a refusal. Board moves, table edits, agent tools and CSV imports
+in the form after a refusal. An open form follows stage renames by identity; if
+its selected stage is deleted, it asks for another value while keeping other edits.
+Deleted fields leave the draft submission. Board moves, table edits, agent tools and CSV imports
 use the same server rule; a rejected operation batch saves none of its edits.
 Verify by requiring Revenue for Negotiation, trying a move with no Revenue,
 filling Revenue, then retrying; also rename the field/stage and repeat. Check the
