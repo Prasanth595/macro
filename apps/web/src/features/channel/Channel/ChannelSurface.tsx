@@ -21,6 +21,10 @@ import {
   useContext,
 } from 'solid-js';
 import {
+  type ChannelOpenTrace,
+  createChannelOpenTrace,
+} from '../observability';
+import {
   Channel,
   type ChannelHandle,
   type MessageTimelineStateSnapshot,
@@ -67,6 +71,7 @@ type ChannelSurfaceContextValue = {
 };
 
 type ChannelSurfaceInternal = ChannelSurfaceContextValue & {
+  openTrace: ChannelOpenTrace;
   initialMessagesState: Accessor<MessageTimelineStateSnapshot | undefined>;
   bindMessagesHandle: (handle: ChannelHandle | undefined) => void;
   isTargetConsumed: (target: ChannelResolvedTarget) => boolean;
@@ -138,9 +143,21 @@ function resolveSync(
 export function ChannelSurface(props: ParentProps<ChannelSurfaceProps>) {
   const [resolvedTarget, setResolvedTarget] =
     createSignal<ChannelResolvedTarget>();
+  // Hosts key the surface by channel, so one surface is one channel open.
+  const openTrace = untrack(() =>
+    createChannelOpenTrace(
+      props.channelId,
+      props.targetRequest?.kind === 'message'
+        ? 'message'
+        : props.initialMessagesState?.scroll
+          ? 'restore'
+          : 'latest'
+    )
+  );
   let disposed = false;
   onCleanup(() => {
     disposed = true;
+    openTrace.dispose();
   });
 
   async function resolveTarget(
@@ -226,6 +243,7 @@ export function ChannelSurface(props: ParentProps<ChannelSurfaceProps>) {
     <ChannelSurfaceContext.Provider
       value={{
         channelId: () => props.channelId,
+        openTrace,
         resolvedTarget,
         isTargetResolving: () =>
           props.targetRequest?.kind === 'message' && !resolvedTarget(),
@@ -306,6 +324,7 @@ function MountedChannelMessages(props: ChannelMessagesProps) {
   return (
     <Channel
       channelId={surface.channelId()}
+      openTrace={surface.openTrace}
       onHandleReady={(channelHandle) => {
         setHandle(() => channelHandle);
         surface.bindMessagesHandle(channelHandle);

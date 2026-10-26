@@ -1,3 +1,4 @@
+import { resumeChannelOpenSpan } from '@channel/observability';
 import { throwOnErr } from '@core/util/result';
 import { dssFetch } from './client';
 import type { Message as StoredMessage } from './generated/schemas/message';
@@ -98,9 +99,15 @@ export const entityMessagesClient = {
     parent: MessageParent,
     selection: MessageTimelineQuery = {}
   ): Promise<MessageTimelinePage> {
-    const page = await request<ReceivedTimelinePage>(
-      `${path(parent)}/timeline?${new URLSearchParams({ selection: JSON.stringify(selection) })}`
-    );
+    const load = () =>
+      request<ReceivedTimelinePage>(
+        `${path(parent)}/timeline?${new URLSearchParams({ selection: JSON.stringify(selection) })}`
+      );
+    // While a channel is opening, its request span (and through traceparent,
+    // the server's) joins the `channel.open` trace.
+    const openSpan =
+      parent.type === 'channel' ? resumeChannelOpenSpan(parent.id) : undefined;
+    const page = await (openSpan ? openSpan.run(load) : load());
     // Skip kinds this client can't render instead of failing the timeline;
     // the page's cursors still continue past them.
     return { ...page, entries: page.entries.filter(isKnownEntry) };

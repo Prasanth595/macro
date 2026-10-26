@@ -86,6 +86,16 @@ with outcome fields (`edit.mode`, `edit.ops_total`, `edit.blocked`,
 `edit.flush`. On the agent side, `crates/agent_session/src/domain/session/telemetry.rs`
 emits `invoke_agent` and `execute_tool` and propagates into the ACP agent.
 
+**Channel open (web, main-thread work → paint).**
+`apps/web/src/features/channel/observability.ts` opens one `channel.open` span
+per channel surface and ends it at the first frame that paints the messages,
+with `channel.open.<stage>_ms` attributes (`timeline`, `rendered`, `painted`),
+long animation frames, and the input that mounted it
+(`inputHandledAt` in `observability/ui-operation.ts`). A registry by channel id
+lets the first timeline request run under the span, so `safeFetch`'s client
+span and the DSS handler join the trace. Datadog span metrics in
+`infra/stacks/monitoring/monitors/channel-open.ts` aggregate `painted_ms`.
+
 **GraphQL mutation queue (web → DSS `graphql.execute` → resolver).**
 `apps/web/src/lib/graphql-cache/exchange/mutation-queue-telemetry.ts` opens a
 `graphql.mutation_queue.attempt` span per claimed attempt that actually sends
