@@ -127,9 +127,11 @@ import {
   createMemo,
   createSignal,
   For,
+  type JSX,
   Match,
   onCleanup,
   onMount,
+  type ParentProps,
   Show,
   Switch,
 } from 'solid-js';
@@ -578,6 +580,44 @@ function LinkSharingSkeleton() {
   );
 }
 
+/**
+ * Mounts its children once the dialog around it has painted. The share form's
+ * editor and recipient list cost a frame or more to build, and building them
+ * inside the click kept the whole dialog from appearing until they were done.
+ */
+function AfterFirstPaint(props: ParentProps<{ fallback: JSX.Element }>) {
+  const [ready, setReady] = createSignal(false);
+  onMount(() => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    // The frame callback runs before that frame paints; the task after it
+    // runs once it has.
+    const frame = requestAnimationFrame(() => {
+      timeout = setTimeout(() => setReady(true));
+    });
+    onCleanup(() => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timeout);
+    });
+  });
+  return (
+    <Show when={ready()} fallback={props.fallback}>
+      {props.children}
+    </Show>
+  );
+}
+
+function ShareFormSkeleton() {
+  return (
+    <ListSkeleton.Root label="Loading share form" class="p-4">
+      <div class="flex flex-col gap-3">
+        <ListSkeleton.Bar class="h-8 w-full" />
+        <ListSkeleton.Bar class="h-3 w-40" />
+        <ListSkeleton.Bar class="h-16 w-full rounded-xl" />
+      </div>
+    </ListSkeleton.Root>
+  );
+}
+
 /** Placeholder rows for the channels an item is shared with. */
 function RecipientsSkeleton() {
   return (
@@ -739,27 +779,31 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
               </p>
             </Show>
             <Show when={props.canForward}>
-              <ForwardToChannel
-                {...forwardTarget(
-                  props.blockAlias,
-                  props.id,
-                  props.setChannelPermissions
-                )}
-                editPermissionEnabled={props.editPermissionEnabled}
-                ref={(handle) => setForwardRef(handle)}
-                submitPermissionInfo={{
-                  setChannelPermissions: (id, accessLevel) =>
-                    props.setChannelPermissions(id, accessLevel, true),
-                  userPermissions: props.userPermissions,
-                  channelSharePermissions: props.recipients,
-                }}
-                onSubmit={() => props.setIsOpen(false)}
-                refetch={props.refetch}
-                name={props.name}
-                hideAccessLevelSelector={props.itemType === 'email'}
-                initialAccessLevel={props.itemType === 'email' ? 'view' : null}
-                allowedAccessLevels={shareLevelsFor(props.itemType)}
-              />
+              <AfterFirstPaint fallback={<ShareFormSkeleton />}>
+                <ForwardToChannel
+                  {...forwardTarget(
+                    props.blockAlias,
+                    props.id,
+                    props.setChannelPermissions
+                  )}
+                  editPermissionEnabled={props.editPermissionEnabled}
+                  ref={(handle) => setForwardRef(handle)}
+                  submitPermissionInfo={{
+                    setChannelPermissions: (id, accessLevel) =>
+                      props.setChannelPermissions(id, accessLevel, true),
+                    userPermissions: props.userPermissions,
+                    channelSharePermissions: props.recipients,
+                  }}
+                  onSubmit={() => props.setIsOpen(false)}
+                  refetch={props.refetch}
+                  name={props.name}
+                  hideAccessLevelSelector={props.itemType === 'email'}
+                  initialAccessLevel={
+                    props.itemType === 'email' ? 'view' : null
+                  }
+                  allowedAccessLevels={shareLevelsFor(props.itemType)}
+                />
+              </AfterFirstPaint>
             </Show>
             <Show when={!props.canForward}>
               <div class="px-4 py-3">
@@ -1693,29 +1737,31 @@ export function ShareModal(props: ShareModalProps) {
                     </p>
                   </Show>
                   <Show when={canForward()}>
-                    <ForwardToChannel
-                      {...forwardTarget(
-                        props.blockAlias,
-                        props.id,
-                        setChannelPermissions
-                      )}
-                      editPermissionEnabled={editPermissionEnabled()}
-                      submitPermissionInfo={{
-                        setChannelPermissions: (id, accessLevel) =>
-                          setChannelPermissions(id, accessLevel, true),
-                        userPermissions: recipientPermissions(),
-                        channelSharePermissions: recipients(),
-                      }}
-                      onSubmit={() => props.onOpenChange(false)}
-                      onCancel={() => props.onOpenChange(false)}
-                      refetch={refetch}
-                      name={props.name}
-                      hideAccessLevelSelector={props.itemType === 'email'}
-                      initialAccessLevel={
-                        props.itemType === 'email' ? 'view' : null
-                      }
-                      allowedAccessLevels={shareLevelsFor(props.itemType)}
-                    />
+                    <AfterFirstPaint fallback={<ShareFormSkeleton />}>
+                      <ForwardToChannel
+                        {...forwardTarget(
+                          props.blockAlias,
+                          props.id,
+                          setChannelPermissions
+                        )}
+                        editPermissionEnabled={editPermissionEnabled()}
+                        submitPermissionInfo={{
+                          setChannelPermissions: (id, accessLevel) =>
+                            setChannelPermissions(id, accessLevel, true),
+                          userPermissions: recipientPermissions(),
+                          channelSharePermissions: recipients(),
+                        }}
+                        onSubmit={() => props.onOpenChange(false)}
+                        onCancel={() => props.onOpenChange(false)}
+                        refetch={refetch}
+                        name={props.name}
+                        hideAccessLevelSelector={props.itemType === 'email'}
+                        initialAccessLevel={
+                          props.itemType === 'email' ? 'view' : null
+                        }
+                        allowedAccessLevels={shareLevelsFor(props.itemType)}
+                      />
+                    </AfterFirstPaint>
                   </Show>
                   <Show when={!canForward()}>
                     <div class="flex justify-end px-4 py-3">
