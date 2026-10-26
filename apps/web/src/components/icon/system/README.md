@@ -53,7 +53,8 @@ Several equivalent concepts (for example `folder` and `folder-simple`) share
 the same drawing to avoid introducing competing silhouettes. Existing brand
 logos and the legacy animated showcase retain their own assets and licensing.
 Interface controls, including editor tools, file types, task states, priorities,
-and settings, use this family. Brand marks retain their existing assets.
+and settings, use this family. Board views deliberately retain the Phosphor
+Kanban icon. Brand marks retain their existing assets.
 Icons introduced on main after the source PR retain their existing assets when
 this family has no matching drawing.
 
