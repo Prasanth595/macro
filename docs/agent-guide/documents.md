@@ -201,8 +201,14 @@ the title (truncated to 70 characters) and a **Snippet** mention of the
 selection as the body; opening that mention scrolls to and highlights the
 range. Editors also see a **Link in document** toggle beside **Create More**;
 it is remembered and starts off. While on, creating the task inserts its
-mention right after the selected text. Verify both toggle states and that
-other text edited while the composer was open is preserved.
+mention right after the selected text, inside the same checklist item when the
+selection is in one; a selection ending between list items links after the
+preceding item's text and never adds list items. Verify both toggle states and
+that other text edited while the composer was open is preserved.
+
+When an editor's selection spans two or more checklist items, the button reads
+**N tasks** and creates one task per item without opening the composer; each
+item is replaced by its task mention and a **Created N tasks** toast appears.
 
 ## Markdown outline
 
