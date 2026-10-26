@@ -1,5 +1,5 @@
-import { createMarkdownFile } from '@core/util/create';
 import { catchToResult, throwOnErr } from '@core/util/result';
+import { matchesTokenSubsequences } from '@core/util/string';
 import { Telemetry } from '@macro-inc/observability';
 import { queryClient } from '@queries/client';
 import { queryReadyGate } from '@queries/gate';
@@ -8,12 +8,17 @@ import { calendarNotesClient } from '@service-calendar/notes';
 import { createDebouncedMemo } from '@solid-primitives/memo';
 import { useMutation, useQuery } from '@tanstack/solid-query';
 import { err, ok } from 'neverthrow';
-import type { Accessor } from 'solid-js';
-import type { DocumentNotesSource, NotesSource } from '../context/notes-source';
+import { type Accessor, createMemo } from 'solid-js';
+import type {
+  DocumentNotesSource,
+  NoteDocumentSearch,
+  NotesSource,
+} from '../context/notes-source';
 import type {
   MeetingNote,
   NoteCreateFailure,
   NoteFailure,
+  NotePicker,
   NoteTarget,
 } from '../core/types';
 import { notesKeys } from './keys';
@@ -32,8 +37,8 @@ function notesOptions(userId: string | undefined, target: NoteTarget) {
       return notes.map((note) => ({ ...note, team: note.team ?? undefined }));
     },
     enabled: !!userId,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   };
@@ -49,8 +54,13 @@ function pickerOptions(
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       throwOnErr(() => calendarNotesClient.documents(query, signal)),
     enabled: !!userId && enabled,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    // Keep matching results while typing, but never carry them across accounts.
+    placeholderData: (
+      previous: NotePicker | undefined,
+      previousQuery: { queryKey: readonly unknown[] } | undefined
+    ) => (previousQuery?.queryKey[2] === userId ? previous : undefined),
   };
 }
 
@@ -95,7 +105,8 @@ function refreshNotes() {
 
 export function createNotesSource(
   userId: Accessor<string | undefined>,
-  target: Accessor<NoteTarget>
+  target: Accessor<NoteTarget>,
+  localSearch: NoteDocumentSearch
 ): NotesSource {
   const notes = useQuery(() => notesOptions(userId(), target()));
   const link = useMutation(() => ({
@@ -162,13 +173,30 @@ export function createNotesSource(
       });
     },
     picker(query, enabled) {
-      const debounced = createDebouncedMemo(query, 180);
+      const normalized = () => query().trim();
+      const debounced = createDebouncedMemo(normalized, 180);
+      const local = localSearch(normalized, enabled);
       const picker = useQuery(() =>
         pickerOptions(userId(), debounced(), enabled())
       );
+      const data = createMemo(() => {
+        const remote = queryReadyGate(picker) ? picker.data : undefined;
+        const documents = new Map(
+          local().map((document) => [document.documentId, document])
+        );
+        for (const document of remote?.documents ?? []) {
+          if (matchesTokenSubsequences(document.name, normalized())) {
+            documents.set(document.documentId, document);
+          }
+        }
+        return {
+          documents: [...documents.values()],
+          teams: remote?.teams ?? [],
+        };
+      });
       return () => ({
-        data: queryReadyGate(picker) ? picker.data : undefined,
-        pending: picker.isPending,
+        data: data(),
+        pending: picker.isFetching || normalized() !== debounced(),
         error: picker.isError
           ? 'Couldn’t load your notes. Try again.'
           : undefined,
@@ -208,8 +236,8 @@ function documentLinksOptions(userId: string | undefined, documentId: string) {
       return links.map((link) => ({ ...link, team: link.team ?? undefined }));
     },
     enabled: !!userId,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
   };
 }
 
@@ -263,3 +291,5 @@ export function createDocumentNotesSource(
     },
   };
 }
+
+import { createMarkdownFile } from '@core/util/create';

@@ -88,6 +88,20 @@ The document Share panel also lists owner-only durable links, immediate optional
 team access controls, and inline unlink confirmation. That list does not require current meeting access. It uses
 generic labels for inaccessible or indirectly shared meetings, so it cannot reveal
 a richer canonical event title through a restricted provider projection.
+The standard Team access control includes the current team's meeting-derived
+view grant: it shows **View via meeting** when there is no direct team grant.
+**Use meeting access** removes only additional direct team sharing; the meeting
+checkbox still owns its independent grant. A team save does not disable or
+remount the Unlink trigger, and destructive writes remain serialized.
+
+Event notes and document links remain cached per account and target for five
+minutes, with a 30-second freshness window and mutation invalidation. Event
+Create and Link actions do not wait for the notes request. The picker immediately
+uses the app's owned Markdown Quick Access candidates, then adds server title
+matches. Matching previous results remain visible during the debounced request;
+search responses are fresh for a minute and cached for five minutes. Previous
+results never carry across accounts. This supplements the existing owned-note
+endpoint; it does not use the full-text search backend.
 
 The calendar service mounts these authenticated routes even when provider sync is
 disabled. Every response is private and non-cacheable:
