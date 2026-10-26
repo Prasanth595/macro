@@ -30,11 +30,12 @@ and owns durable notification-tap delivery across cold launches/WebView reloads.
   the intent available for a replacement listener.
 - Request provisional authorization at launch only while undecided, and never
   prompt from registration. `check_permissions` waits for that request, so a
-  signed-in launch never skips registration on a stale `prompt`, and reports
-  provisional as `granted` with `provisional: true`: the frontend registers the token and still
-  offers the full-alert prompt. Older web bundles ignore the flag and treat
-  quiet delivery as fully enabled. `.authorized` reports `granted` even with
-  banners off; **Keep → Deliver Immediately** authorizes without turning them on.
+  signed-in launch never skips registration on a stale `prompt`. It reports
+  provisional as `granted` with `provisional: true`: the frontend registers
+  the token and still offers the full-alert prompt. Older web bundles ignore
+  the flag and treat quiet delivery as fully enabled. `.authorized` reports
+  `granted` even with banners off; **Keep → Deliver Immediately** authorizes
+  without turning them on.
 - Gate new frontend commands on `__MACRO_IOS_NOTIFICATION_LAUNCH__`; older native
   binaries retain the existing push behavior when receiving an OTA web bundle.
   Pass `launchAware: true` when watching. Older web bundles omit that flag and
