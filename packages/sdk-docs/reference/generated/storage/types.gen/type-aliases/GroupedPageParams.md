@@ -1,6 +1,6 @@
 # Type Alias: GroupedPageParams
 
-> **GroupedPageParams** = \{ `group_by`: [`ApiGroupByField`](ApiGroupByField.md); `group_key`: `string`; `limit?`: `number` \| `null`; `sort_method?`: `null` \| [`GroupedSoupSort`](GroupedSoupSort.md); \}
+> **GroupedPageParams** = \{ `group_by`: [`ApiGroupByField`](ApiGroupByField.md); `group_key`: `string`; `limit?`: `number` \| `null`; `sort_method?`: `null` \| [`GroupedSoupSort`](GroupedSoupSort.md); `sort_property_definition_id?`: `string` \| `null`; \}
 
 Parameters for fetching one page within a specific group.
 
@@ -12,3 +12,4 @@ Parameters for fetching one page within a specific group.
 | <a id="property-group_key"></a> `group_key` | `string` | Group key to fetch. |
 | <a id="property-limit"></a> `limit?` | `number` \| `null` | Limit the number of items returned. Defaults to 20. Max 500. |
 | <a id="property-sort_method"></a> `sort_method?` | `null` \| [`GroupedSoupSort`](GroupedSoupSort.md) | - |
+| <a id="property-sort_property_definition_id"></a> `sort_property_definition_id?` | `string` \| `null` | DATE property definition selected for property-date sorting. |

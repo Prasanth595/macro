@@ -18,11 +18,17 @@ export type GetItemsSoupParams = {
    */
   limit?: number;
   /**
- * Sort method. Options are viewed_at, created_at, updated_at,
-viewed_updated, frecency, touched_by_me, notified_at. Defaults to
-viewed_at.
+ * Sort method. Includes timestamp sorts, relevance sorts, and
+property_date_earliest/property_date_latest with a selected DATE definition.
+Property-date reads omit email, channels, calls, companies, and agent sessions.
+A Soup-owned item or property filter is required.
+Defaults to viewed_at.
  */
   sort_method?: SoupApiSort;
+  /**
+   * DATE property definition selected for property-date sorting.
+   */
+  sort_property_definition_id?: string;
   /**
  * Sort direction. Options are asc, desc. Defaults to desc.
 

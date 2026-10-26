@@ -86,6 +86,7 @@ async fn fanout_caps_counts_and_tied_cursor_pages(pool: Pool<Postgres>) -> anyho
             field: GroupByField::Property {
                 property_definition_id: system_properties::SystemPropertyKey::ASSIGNEES_UUID,
                 entity_type,
+                bucketing: None,
             },
             group_key: None,
             per_group_limit: None,
@@ -172,6 +173,7 @@ async fn fanout_caps_counts_and_tied_cursor_pages(pool: Pool<Postgres>) -> anyho
                 field: GroupByField::Property {
                     property_definition_id: system_properties::SystemPropertyKey::ASSIGNEES_UUID,
                     entity_type: None,
+                    bucketing: None,
                 },
                 group_key: Some("a".to_string()),
                 per_group_limit: None,

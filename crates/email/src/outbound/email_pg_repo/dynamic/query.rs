@@ -14,10 +14,35 @@ use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 use std::sync::Arc;
 use uuid::Uuid;
 
+async fn resolve_project_scope(
+    pool: &PgPool,
+    filter: &Expr<EmailLiteral>,
+    viewer: &str,
+) -> Option<ProjectScope> {
+    let project_ids = extract_project_filter(filter);
+    if project_ids.is_empty() {
+        return None;
+    }
+    let user = MacroUserIdStr::parse_from_str(viewer).ok();
+    match get_user_source_ids(pool, user.as_deref()).await {
+        Ok(source_ids) => Some(ProjectScope {
+            project_ids,
+            source_ids: source_ids.0,
+        }),
+        Err(error) => {
+            tracing::error!(
+                ?error,
+                "unable to fetch source ids for project-scoped email query"
+            );
+            None
+        }
+    }
+}
+
 struct QueryParams {
     link_ids: Vec<Uuid>,
     sort_method_str: String,
-    query_limit: i64,
+    query_limit: Option<i64>,
     cursor_timestamp: Option<DateTime<Utc>>,
     cursor_id_str: Option<String>,
     is_important: bool,
@@ -430,6 +455,17 @@ fn build_query(
     email_filter: &Expr<EmailLiteral>,
     params: QueryParams,
 ) -> QueryBuilder<'static, Postgres> {
+    let mut builder = QueryBuilder::new("");
+    push_query(&mut builder, view, email_filter, params);
+    builder
+}
+
+fn push_query(
+    builder: &mut QueryBuilder<'static, Postgres>,
+    view: &PreviewView,
+    email_filter: &Expr<EmailLiteral>,
+    params: QueryParams,
+) {
     let sort_ts_field = get_sort_timestamp_field(view);
     let view_message_filter = build_view_message_filter(view);
     // When neither ordering nor filtering needs view history, the
@@ -460,12 +496,11 @@ fn build_query(
         build_matching_threads_ctes(email_filter, &params.resolved, link_scope)
     };
 
-    let mut builder = sqlx::QueryBuilder::new("");
     if needs_shared_cte || matching_threads.is_some() {
         builder.push("\n        WITH ");
         let mut needs_comma = false;
         if needs_shared_cte {
-            push_shared_cte(&mut builder, &params);
+            push_shared_cte(builder, &params);
             needs_comma = true;
         }
         if let Some(ctes) = matching_threads {
@@ -476,7 +511,7 @@ fn build_query(
                     builder.push(",\n        ");
                 }
                 builder.push(format!("{name} AS MATERIALIZED (\n            "));
-                body.push_into(&mut builder, &params.user_id);
+                body.push_into(builder, &params.user_id);
                 builder.push("\n        )");
                 needs_comma = true;
             }
@@ -484,7 +519,7 @@ fn build_query(
                 builder.push(",\n        ");
             }
             builder.push("matching_threads AS MATERIALIZED (\n            ");
-            ctes.body.push_into(&mut builder, &params.user_id);
+            ctes.body.push_into(builder, &params.user_id);
             builder.push("\n        )");
         }
         builder.push("\n        ");
@@ -564,7 +599,7 @@ fn build_query(
 
     match params.shared {
         SharedEmailFilter::Exclude => push_thread_candidate_select(
-            &mut builder,
+            builder,
             view,
             email_filter,
             &params,
@@ -573,7 +608,7 @@ fn build_query(
         ),
         SharedEmailFilter::Include => {
             push_thread_candidate_select(
-                &mut builder,
+                builder,
                 view,
                 email_filter,
                 &params,
@@ -586,7 +621,7 @@ fn build_query(
                 "#,
             );
             push_thread_candidate_select(
-                &mut builder,
+                builder,
                 view,
                 email_filter,
                 &params,
@@ -595,7 +630,7 @@ fn build_query(
             );
         }
         SharedEmailFilter::Only => push_thread_candidate_select(
-            &mut builder,
+            builder,
             view,
             email_filter,
             &params,
@@ -613,7 +648,7 @@ fn build_query(
                 "#,
         );
         push_thread_candidate_select(
-            &mut builder,
+            builder,
             view,
             email_filter,
             &params,
@@ -667,16 +702,16 @@ fn build_query(
             WHERE m.thread_id = t.id
               AND "#,
     );
-    build_lateral_trash_exclusion(&params.resolved).push_into(&mut builder, &params.user_id);
+    build_lateral_trash_exclusion(&params.resolved).push_into(builder, &params.user_id);
 
     // Add view-specific message filters
     if !view_message_filter.is_empty() {
-        view_message_filter.push_into(&mut builder, &params.user_id);
+        view_message_filter.push_into(builder, &params.user_id);
     }
 
     if has_message_literals(email_filter) {
         build_message_email_filter(email_filter, &params.resolved, sort_ts_field)
-            .push_into(&mut builder, &params.user_id);
+            .push_into(builder, &params.user_id);
     }
 
     builder.push(
@@ -706,8 +741,6 @@ fn build_query(
         r#"        ORDER BY t.effective_ts DESC, t.id DESC
         "#,
     );
-
-    builder
 }
 
 #[cfg(test)]
@@ -855,7 +888,7 @@ fn debug_build_query_sql_full(
         QueryParams {
             link_ids,
             sort_method_str: sort_method.to_string(),
-            query_limit: 50,
+            query_limit: Some(50),
             cursor_timestamp: None,
             cursor_id_str: None,
             is_important,
@@ -937,7 +970,7 @@ pub(crate) async fn dynamic_email_thread_cursor(
     user_id: &str,
     team_id: Option<Uuid>,
 ) -> Result<Vec<ThreadPreviewCursorDbRow>, sqlx::Error> {
-    let query_limit = limit as i64;
+    let query_limit = Some(i64::from(limit));
     let sort_method_str = query.sort_method().to_string();
     let (cursor_id, cursor_timestamp) = query.vals();
     let cursor_id_str = cursor_id.as_ref().map(|u| u.to_string());
@@ -950,22 +983,7 @@ pub(crate) async fn dynamic_email_thread_cursor(
     // project, so resolve the caller's entity_access sources up front (the
     // lookup is memoized for 30s). On failure, degrade to the un-widened
     // query rather than erroring — the scope can only ever add rows.
-    let project_ids = extract_project_filter(email_filter);
-    let project_scope = if project_ids.is_empty() {
-        None
-    } else {
-        let user = MacroUserIdStr::parse_from_str(user_id).ok();
-        match get_user_source_ids(pool, user.as_deref()).await {
-            Ok(source_ids) => Some(ProjectScope {
-                project_ids,
-                source_ids: source_ids.0,
-            }),
-            Err(e) => {
-                tracing::error!(error=?e, "unable to fetch source ids for project-scoped email query");
-                None
-            }
-        }
-    };
+    let project_scope = resolve_project_scope(pool, email_filter, user_id).await;
 
     let is_important = matches!(
         view,

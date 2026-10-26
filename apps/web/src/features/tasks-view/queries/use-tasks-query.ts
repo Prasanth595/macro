@@ -9,7 +9,6 @@ import {
   isSoupRowVisible,
   type SoupGroup,
   type SoupRow,
-  sortItems,
   tagFacetReady,
   useSearchContext,
 } from '@app/features/soup';
@@ -27,12 +26,18 @@ import { useSoupAstItemsQuery } from '@queries/soup/items';
 import { mapApiSoupItemToEntity } from '@queries/soup/transform-utils';
 import type { TagSetResponse } from '@service-properties/generated/schemas/tagSetResponse';
 import { type Accessor, createMemo } from 'solid-js';
-import { TASK_SORT_DEFINITIONS } from '../constants';
+import { sortTasks } from '../constants';
+import {
+  type DateBucketBoundaries,
+  TASK_DUE_DATE_BUCKETS,
+  taskDueDatePredicate,
+} from '../core/task-due-date';
 import type { TaskFacetContext } from '../filters/task-facets';
 import {
   type TaskViewContext,
   taskMatchesView,
 } from '../filters/task-predicates';
+import { createDateBucketBoundariesSignal } from '../primitives/create-date-bucket-boundaries';
 import type {
   TaskCrmScope,
   TaskReferenceScope,
@@ -45,7 +50,7 @@ import { buildTaskSearchRequest } from './task-search';
 
 export type TasksDataSourceInput = Pick<
   TasksViewState,
-  'tab' | 'search' | 'groupBy' | 'sort' | 'facets'
+  'tab' | 'search' | 'groupBy' | 'sort' | 'facets' | 'dueDate'
 >;
 
 export type UseTasksDataSourceOptions = {
@@ -65,6 +70,7 @@ export type UseTasksDataSourceOptions = {
   /** Project lists drain all cursors instead of requiring per-group Load More. */
   loadAll?: boolean;
   board?: Accessor<boolean>;
+  calendar?: Accessor<DateBucketBoundaries>;
 };
 
 export type TasksDataSourceItem = SoupRow<TaskEntityWithProperties>;
@@ -117,6 +123,8 @@ export function useTasksDataSource(
   options: UseTasksDataSourceOptions
 ): TasksDataSource {
   const notificationSource = useGlobalNotificationSource();
+  const calendar = options.calendar ?? createDateBucketBoundariesSignal();
+  const dueDate = () => taskDueDatePredicate(state.dueDate, calendar());
   const attachNotifications = (entity: TaskEntityWithProperties) =>
     withEntityNotifications(entity, notificationSource);
 
@@ -140,6 +148,9 @@ export function useTasksDataSource(
       crm: options.crm?.(),
       nameContains,
       board: options.board?.(),
+      dueDate: dueDate(),
+      calendar: calendar(),
+      searching: !!state.search.trim(),
     });
   const queryArgs = () => queryArgsFor();
 
@@ -148,6 +159,7 @@ export function useTasksDataSource(
     enabled: facetOptionsReady(),
     networkPaused: options.networkPaused?.(),
     keepPreviousData: scoped,
+    onBeforeGraphqlRefresh: () => groupedQueries.resetToInitialPage(),
     // Scoped lists admit optimistic rows only where this view shows them.
     meta: scoped
       ? {
@@ -171,6 +183,7 @@ export function useTasksDataSource(
     userId: options.userId(),
     facets: state.facets,
     facetContext: facetContext(),
+    dueDate: dueDate(),
   });
 
   const transformEntities = (entities: EntityData[]) => {
@@ -190,12 +203,7 @@ export function useTasksDataSource(
   const baseTasks = createMemo<TaskEntityWithProperties[]>((previous) => {
     if (query.isLoading) return previous;
     if (query.isPlaceholderData && previous.length > 0) return previous;
-
-    return sortItems(
-      transformEntities(query.data?.entities ?? []),
-      state.sort,
-      TASK_SORT_DEFINITIONS
-    );
+    return sortTasks(transformEntities(query.data?.entities ?? []), state.sort);
   }, []);
 
   const { entityPool } = useSearchContext();
@@ -232,6 +240,7 @@ export function useTasksDataSource(
             facets: state.facets,
             facetContext: facetContext(),
             reference: options.reference?.(),
+            dueDate: dueDate(),
           }),
       });
 
@@ -367,14 +376,17 @@ export function useTasksDataSource(
               (!reference || referencesEntity(task, reference)) &&
               taskMatchesView(task, viewContext())
           );
-        const entities = sortItems(
+        const entities = sortTasks(
           deduplicateSoupEntities([...initialTasks, ...continuationTasks]),
-          state.sort,
-          TASK_SORT_DEFINITIONS
+          state.sort
         );
         const taskGroup: SoupGroup<TaskEntityWithProperties> = {
           id: group.key,
-          label: group.label,
+          label:
+            state.groupBy === 'due_date'
+              ? (TASK_DUE_DATE_BUCKETS.find((bucket) => bucket.id === group.key)
+                  ?.label ?? group.label)
+              : group.label,
           entities,
           count: group.totalCount,
         };

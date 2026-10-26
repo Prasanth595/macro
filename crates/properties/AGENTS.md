@@ -19,6 +19,8 @@ events to the `macro.properties` Kafka topic.
 - `src/outbound/properties_pg_repo.rs` +
   `src/outbound/*_queries.rs`: the Postgres adapters, one file per concern
   (definitions, options, entity values, metadata, tag promotion).
+- `src/domain/query.rs`: request-local, viewer-bound authorization for selected
+  property definitions; Soup owns candidate SQL and execution.
 
 ## Scope
 
@@ -35,6 +37,8 @@ events to the `macro.properties` Kafka topic.
   `search_service`, `soup`, `crm`, `graphql_properties`, `properties_service`,
   `services/document_storage_service`, `services/agent_trigger_service`,
   `services/search_processing_service`.
+- Require `AuthorizedPropertyQuery` for candidate selection; derive source viewers
+  from that capability and mint a new capability for each continuation request.
 
 ## Recipes
 

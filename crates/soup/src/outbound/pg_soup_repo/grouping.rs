@@ -67,6 +67,7 @@ pub fn group_join_clause(field: &GroupByField) -> Option<GroupJoinClause> {
         GroupByField::Property {
             property_definition_id,
             entity_type,
+            ..
         } => {
             let (entity_type_filter, entity_type_bind) = match entity_type {
                 Some(et) => (
@@ -79,14 +80,9 @@ pub fn group_join_clause(field: &GroupByField) -> Option<GroupJoinClause> {
             Some(GroupJoinClause {
                 sql: format!(
                     "LEFT JOIN LATERAL (
-                        SELECT ep.values, elem.val
+                        SELECT ep.values, elem.val AS val
                         FROM entity_properties ep
-                        LEFT JOIN LATERAL jsonb_array_elements(
-                            CASE WHEN jsonb_typeof(ep.values->'value') = 'array'
-                                 THEN ep.values->'value'
-                                 ELSE '[]'::jsonb
-                            END
-                        ) elem(val) ON TRUE
+                        LEFT JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(ep.values->'value') = 'array' THEN ep.values->'value' ELSE '[]'::jsonb END) elem(val) ON TRUE
                         WHERE ep.entity_id = t.id::text
                           AND ep.entity_type = t.property_entity_type
                           AND ep.property_definition_id = '{}'

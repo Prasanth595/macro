@@ -43,6 +43,9 @@ use crate::{
     inbound::axum_router::{SoupRouterState, soup_router},
 };
 
+/// Date-range grouping, sort routing, and nullable continuation coverage.
+mod date_ranges;
+
 static CURSOR: &str = "eyJpZCI6ImUzNmM5MTJlLTU2M2MtNDIxZS1iMTAzLWE0YjAwY2ZmMzBlZSIsImxpbWl0IjoxMDAsInZhbCI6eyJzb3J0X3R5cGUiOiJ1cGRhdGVkX2F0IiwibGFzdF92YWwiOiIyMDI1LTExLTA3VDE5OjEyOjU5Ljc4MFoifSwiZmlsdGVyIjp7fX0=";
 const USER_ID: &str = "macro|test@example.com";
 const INTERNAL_USER_ID: &str = "macro|internal@example.com";
@@ -74,14 +77,19 @@ struct MockSoupCall {
 #[derive(Clone)]
 struct MockSoup {
     called: Arc<std::sync::Mutex<Vec<MockSoupCall>>>,
+    grouped_calls: Arc<std::sync::Mutex<Vec<(models_grouping::GroupingConfig, SimpleSortMethod)>>>,
     succeeds: bool,
+    property_date_calls:
+        Arc<std::sync::Mutex<Vec<crate::domain::models::property_dates::PropertyDateContext>>>,
 }
 
 impl MockSoup {
     fn new() -> Self {
         Self {
             called: Arc::new(std::sync::Mutex::new(Vec::new())),
+            grouped_calls: Arc::new(std::sync::Mutex::new(Vec::new())),
             succeeds: false,
+            property_date_calls: Arc::default(),
         }
     }
 
@@ -94,6 +102,27 @@ impl MockSoup {
 }
 
 impl SoupService for MockSoup {
+    async fn get_property_date_page(
+        &self,
+        request: crate::domain::models::property_dates::PropertyDateRequest,
+    ) -> Result<
+        crate::domain::models::property_dates::PropertyDatePage,
+        crate::domain::models::SoupErr,
+    > {
+        self.property_date_calls
+            .lock()
+            .unwrap()
+            .push(request.context.clone());
+        if !self.succeeds {
+            return Err(SoupErr::SoupDbErr(anyhow::anyhow!("not implemented")));
+        }
+        Ok(crate::domain::models::property_dates::PropertyDatePage {
+            context: request.context,
+            candidates: Default::default(),
+            items: Default::default(),
+        })
+    }
+
     async fn get_user_soup<T>(
         &self,
         _req: SoupRequest<T>,
@@ -204,11 +233,18 @@ impl SoupService for MockSoup {
 
     async fn get_user_soup_grouped(
         &self,
-        _req: GroupedSortRequest<'_>,
+        req: GroupedSortRequest<'_>,
     ) -> Result<impl Iterator<Item = ItemGroupingInfo<SoupPropertiesField>> + Send, SoupErr> {
-        Err::<std::vec::IntoIter<ItemGroupingInfo<SoupPropertiesField>>, _>(SoupErr::SoupDbErr(
-            anyhow::anyhow!("Not implemented"),
-        ))
+        let sort = *req.cursor.sort_method();
+        self.grouped_calls
+            .lock()
+            .unwrap()
+            .push((req.grouping, sort));
+        if self.succeeds {
+            Ok(Vec::<ItemGroupingInfo<SoupPropertiesField>>::new().into_iter())
+        } else {
+            Err(SoupErr::SoupDbErr(anyhow::anyhow!("Not implemented")))
+        }
     }
 
     async fn caller_tag_sets<'a>(

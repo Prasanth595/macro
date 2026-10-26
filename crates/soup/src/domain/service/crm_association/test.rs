@@ -265,3 +265,31 @@ fn requested_opt_in_sources_are_constrained() {
     let mut other = request(vec![id(11)]);
     assert!(!intersect_crm_companies(&mut other, &entities));
 }
+
+#[test]
+fn task_scope_keeps_crm_membership_and_disabled_entity_legs() {
+    let ast = EntityFilterAst {
+        crm_association: Some(CrmAssociation::Company(COMPANY)),
+        document_filter: Some(Arc::new(Expr::val(DocumentLiteral::SubType(
+            document_sub_type::DocumentSubType::Task,
+        )))),
+        project_filter: Some(Arc::new(Expr::val(ProjectLiteral::ProjectIdSelf(
+            Uuid::nil(),
+        )))),
+        chat_filter: Some(Arc::new(Expr::val(ChatLiteral::ChatId(Uuid::nil())))),
+        ..EntityFilterAst::default()
+    };
+
+    let scoped = resolved(AssociatedEntities {
+        documents: ids(&[1, 2]),
+        projects: ids(&[3]),
+        chats: ids(&[4]),
+        ..AssociatedEntities::default()
+    })
+    .apply(ast);
+
+    assert_matches!(scoped.document_filter.as_deref(), Some(Expr::And(ids_tree, task)) => {
+        assert_eq!(id_set(ids_tree, document_id), ids(&[1, 2]));
+        assert_matches!(task.as_ref(), Expr::Literal(DocumentLiteral::SubType(_)));
+    });
+}

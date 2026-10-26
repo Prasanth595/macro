@@ -7,6 +7,7 @@
 import type { ApiGroupByField } from './apiGroupByField';
 import type { GroupedPageParamsLimit } from './groupedPageParamsLimit';
 import type { GroupedPageParamsSortMethod } from './groupedPageParamsSortMethod';
+import type { GroupedPageParamsSortPropertyDefinitionId } from './groupedPageParamsSortPropertyDefinitionId';
 
 /**
  * Parameters for fetching one page within a specific group.
@@ -22,4 +23,6 @@ export interface GroupedPageParams {
    */
   limit?: GroupedPageParamsLimit;
   sort_method?: GroupedPageParamsSortMethod;
+  /** DATE property definition selected for property-date sorting. */
+  sort_property_definition_id?: GroupedPageParamsSortPropertyDefinitionId;
 }

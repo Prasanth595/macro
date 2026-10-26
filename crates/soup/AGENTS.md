@@ -13,6 +13,9 @@ rows, initiatives, ...) and get back a single unified, paginated result.
   its repository/collaborator traits.
 - `src/domain/models.rs` (+ `grouping.rs`, `exclusions.rs`, `contact_listing.rs`):
   the unified `SoupItem`/grouping/exclusion shapes.
+- `src/domain/models/property_candidates.rs`: bounded cross-source candidate
+  merging; reject overlapping pre-pagination entity-family summaries before
+  summing totals, including statistics from exhausted sources.
 - `src/domain/service/favorites.rs`, `agent_metadata.rs`: entity-kind-specific
   query logic layered onto the core service.
 - `src/outbound/pg_soup_repo.rs`: the Postgres repo, split by entity kind
@@ -69,6 +72,18 @@ rows, initiatives, ...) and get back a single unified, paginated result.
 - `expanded/` vs `unexpanded/` queries exist because hydrating full entities
   is expensive — don't widen `unexpanded` to return hydrated data; add a new
   `expanded` path instead.
+- Route selected-property DATE reads through `domain/service/property_dates.rs`; authorize definitions once, select only Soup-owned candidates, then hydrate bounded typed identities.
+- Preserve projection-backed hydration for selected-property date pages; GraphQL uses those server facts for its cache, including Tasks' Due Date property.
+- Group DATE properties with caller-defined ranges; freeze version, source set,
+  selected property, ranges, keys, and scope in continuation contexts.
+- Require a Soup-owned item or property filter for property-date reads; every page computes exact full-set statistics.
+- Property-date reads omit email, channels, calls, companies, and propertyless
+  agent sessions; ordinary timestamp queries retain those sources.
+- Keep candidate SQL in `expanded/dynamic/property_candidates.rs`; use one
+  QueryBuilder and enum-to-enum property joins, with totals and has-more per group.
+- Attach the properties service with `with_property_queries` for DATE reads;
+  mint a fresh viewer-bound `AuthorizedPropertyQuery` before each candidate query.
+- Preserve deployed timestamp cursor encodings for grouping without date ranges.
 - `candidate_gates.rs` encodes access-gate SQL shared across repo queries;
   changing it changes what every entity kind can return.
 - Keep the notified feed's notification lookup behind a lateral `OFFSET 0`

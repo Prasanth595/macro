@@ -2,7 +2,7 @@
 //! email queries that filter content based on input AST (EmailLiteral).
 
 mod filters;
-mod query;
+pub(super) mod query;
 mod resolve;
 
 #[cfg(test)]

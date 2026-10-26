@@ -11,7 +11,7 @@ methods, shared by almost every list endpoint in the backend.
   the three traits an item/sort method must implement to be paginated, plus
   the opaque base64 cursor types.
 - `src/sort.rs`: concrete sort methods (`CreatedAt`, `Frecency`, `NotifiedAt`,
-  `TouchedByMe`, `SimpleSortMethod`).
+  `TouchedByMe`, `SimpleSortMethod`); selected-property cursors use the source-independent `models_grouping` candidate contract.
 - `src/collections.rs`: `CollectBy`/`CollectByIds` helpers.
 - `src/axum.rs` (feature `axum`): `BidirectionalCursor` extractor.
 

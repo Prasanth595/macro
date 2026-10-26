@@ -62,7 +62,17 @@ fn strings(ids: &[Uuid]) -> Vec<String> {
 fn render(expr: &Expr<DocumentLiteral>) -> (String, Vec<Vec<String>>) {
     let mut arrays = DocumentIdArrays::starting_at(9);
     let sql = build_document_filter(Some(expr), Some(&mut arrays));
-    (sql, arrays.into_binds())
+    (
+        sql,
+        arrays
+            .into_binds()
+            .into_iter()
+            .map(|parameter| match parameter {
+                super::FilterParameter::DocumentIds(ids) => ids,
+                super::FilterParameter::Date(_) => panic!("ID-only predicate bound a date"),
+            })
+            .collect(),
+    )
 }
 
 /// Soup restricted to the documents `filter` matches.
@@ -87,6 +97,7 @@ fn status(entity_type: Option<&str>) -> GroupByField {
     GroupByField::Property {
         property_definition_id: SystemPropertyKey::STATUS_UUID,
         entity_type: entity_type.map(str::to_owned),
+        bucketing: None,
     }
 }
 
@@ -188,7 +199,7 @@ fn arrays_follow_each_querys_fixed_binds() {
             group_key: None,
             per_group_limit: None,
         };
-        let mut grouped_ids = DocumentIdArrays::starting_at(11);
+        let mut grouped_ids = DocumentIdArrays::starting_at(12);
         let (grouped, _) = build_grouped_query(
             &filter,
             false,
@@ -210,7 +221,7 @@ fn arrays_follow_each_querys_fixed_binds() {
     assert!(flat.contains("(d.id = ANY($9::text[]) AND (NOT d.id = ANY($10::text[])))"));
     assert!(!flat.contains("$11"));
     assert!(grouped.contains("ep.entity_type = $10::property_entity_type"));
-    assert!(grouped.contains("(d.id = ANY($11::text[]) AND (NOT d.id = ANY($12::text[])))"));
+    assert!(grouped.contains("(d.id = ANY($12::text[]) AND (NOT d.id = ANY($13::text[])))"));
 }
 
 async fn flat_page(
@@ -412,7 +423,7 @@ async fn grouped_pages_match_bound_id_sets(pool: PgPool) -> anyhow::Result<()> {
             group_key: None,
             per_group_limit: None,
         };
-        let mut document_ids = DocumentIdArrays::starting_at(11);
+        let mut document_ids = DocumentIdArrays::starting_at(12);
         build_grouped_query(
             &filter,
             false,

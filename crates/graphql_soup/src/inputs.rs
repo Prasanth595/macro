@@ -4,7 +4,14 @@ use graphql_soup_filter_input::GraphqlEntityFilterAst;
 use item_filters::ast::{EntityFilterAst, properties::PropertyEntityType};
 use macro_user_id::user_id::MacroUserIdStr;
 use models_grouping::{GroupByField, GroupingConfig};
-use models_pagination::{Base64Str, CursorWithValAndFilter, NotifiedAt, Query, SimpleSortMethod};
+
+/// Caller-defined property date-range inputs.
+mod date_ranges;
+use date_ranges::GraphqlPropertyBucketing;
+/// Generic property-date request conversion.
+mod property_dates;
+use models_pagination::{Base64Str, CursorWithValAndFilter, NotifiedAt, SimpleSortMethod};
+pub(crate) use property_dates::{GroupedReadRequest, SoupReadRequest};
 use soup::domain::models::{
     GroupedSortRequest, SoupQuery, SoupRequest, SoupSortDirection, SoupType,
 };
@@ -26,9 +33,11 @@ pub struct SoupInitialInput {
     limit: Option<u16>,
     /// Whether to return expanded Soup items. Defaults to true.
     expand: Option<bool>,
-    /// Simple timestamp sort. Defaults to VIEWED_AT. Frecency is intentionally
-    /// not supported by this initial GraphQL adapter.
+    /// Timestamp or selected DATE-property sort. Defaults to VIEWED_AT.
+    /// Frecency is not supported by this GraphQL adapter.
     sort_method: Option<GraphqlSimpleSortMethod>,
+    /// DATE property definition selected for property-date sorting.
+    sort_property_definition_id: Option<ID>,
     /// Email preview view used when hydrating email Soup items.
     email_view: Option<GraphqlEmailView>,
     /// AST-shaped filters applied to each Soup entity type.
@@ -90,6 +99,8 @@ pub struct GroupedSoupInitialInput {
     limit: Option<u16>,
     /// Sort order within each bin. Defaults to `VIEWED_UPDATED`.
     sort_method: Option<GraphqlSimpleSortMethod>,
+    /// DATE property definition selected for property-date sorting.
+    sort_property_definition_id: Option<ID>,
     /// AST-shaped filters applied to each Soup entity type.
     filters: Option<GraphqlEntityFilterAst>,
 }
@@ -131,21 +142,20 @@ impl GroupedSoupInitialInput {
             .unwrap_or_default();
         let sort_method = self
             .sort_method
-            .map(GraphqlSimpleSortMethod::into_model)
-            .transpose()?
-            .unwrap_or(SimpleSortMethod::ViewedUpdated);
-        let limit = self.limit.unwrap_or(20).min(500);
-
-        Ok(GroupedSortRequest {
+            .unwrap_or(GraphqlSimpleSortMethod::ViewedUpdated)
+            .into_model()?;
+        let limit = self.limit.unwrap_or(20).clamp(1, 500);
+        Ok(GroupedSortRequest::initial(
+            macro_user_id,
             limit,
-            cursor: Query::Sort(sort_method, filters),
-            user_id: macro_user_id,
-            grouping: GroupingConfig {
+            sort_method,
+            filters,
+            GroupingConfig {
                 field: self.group_by.into_group_by_field()?,
                 group_key: None,
                 per_group_limit: Some(u32::from(limit)),
             },
-        })
+        ))
     }
 }
 
@@ -155,23 +165,16 @@ impl GroupedSoupContinuationInput {
         self,
         macro_user_id: MacroUserIdStr<'static>,
     ) -> async_graphql::Result<GroupedSortRequest<'static>> {
-        let cursor = Base64Str::<
-            CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>,
-        >::new_from_string(self.cursor)
-        .decode_json()
-        .map_err(|err| async_graphql::Error::new(format!("invalid cursor: {err}")))?;
-        let limit = u16::try_from(cursor.limit).unwrap_or(500).min(500);
-
-        Ok(GroupedSortRequest {
-            limit,
-            cursor: Query::Cursor(cursor),
-            user_id: macro_user_id,
-            grouping: GroupingConfig {
+        Ok(GroupedSortRequest::continue_from(
+            macro_user_id,
+            self.cursor,
+            GroupingConfig {
                 field: self.group_by.into_group_by_field()?,
                 group_key: Some(self.group_key),
                 per_group_limit: None,
             },
-        })
+            None,
+        )?)
     }
 }
 
@@ -184,6 +187,8 @@ struct GraphqlGroupByInput {
     property_definition_id: Option<ID>,
     /// Optional property entity type restriction.
     entity_type: Option<GraphqlPropertyEntityType>,
+    /// Optional caller-defined date ranges; requires PROPERTY grouping.
+    bucketing: Option<GraphqlPropertyBucketing>,
 }
 
 impl GraphqlGroupByInput {
@@ -217,6 +222,7 @@ impl GraphqlGroupByInput {
                 Ok(GroupByField::Property {
                     property_definition_id,
                     entity_type,
+                    bucketing: self.bucketing.map(TryInto::try_into).transpose()?,
                 })
             }
         }
@@ -227,9 +233,12 @@ impl GraphqlGroupByInput {
         self,
         group_by: GroupByField,
     ) -> async_graphql::Result<GroupByField> {
-        if self.property_definition_id.is_some() || self.entity_type.is_some() {
+        if self.property_definition_id.is_some()
+            || self.entity_type.is_some()
+            || self.bucketing.is_some()
+        {
             return Err(async_graphql::Error::new(
-                "propertyDefinitionId and entityType require PROPERTY grouping",
+                "propertyDefinitionId, entityType and bucketing require PROPERTY grouping",
             ));
         }
         Ok(group_by)
@@ -275,13 +284,10 @@ impl SoupInitialInput {
             .map(GraphqlEntityFilterAst::into_ast)
             .transpose()?
             .unwrap_or_default();
-        let cursor = match self
+        let cursor = self
             .sort_method
             .unwrap_or(GraphqlSimpleSortMethod::ViewedAt)
-        {
-            GraphqlSimpleSortMethod::NotifiedAt => SoupQuery::new_sort_notified(filter),
-            sort => SoupQuery::new_sort_simple(sort.into_model()?, filter),
-        };
+            .into_query(filter)?;
 
         Ok(SoupRequest {
             soup_type: soup_type(self.expand),
@@ -302,20 +308,15 @@ impl SoupContinuationInput {
         macro_user_id: MacroUserIdStr<'static>,
         link_ids: Vec<Uuid>,
     ) -> async_graphql::Result<SoupRequest<EntityFilterAst>> {
-        // The sort tags never overlap, so at most one of these decodes.
-        let notified = Base64Str::<
-            CursorWithValAndFilter<String, NotifiedAt, EntityFilterAst>,
-        >::new_from_string(self.cursor.clone())
-        .decode_json();
-        let (limit, cursor) = match notified {
-            Ok(cursor) => (cursor.limit, SoupQuery::new_cursor_notified(cursor)),
-            Err(_) => {
-                let cursor = Base64Str::<
-                    CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>,
-                >::new_from_string(self.cursor)
-                .decode_json()
-                .map_err(|err| async_graphql::Error::new(format!("invalid cursor: {err}")))?;
+        let cursor = Base64Str::<SoupContinuationCursor>::new_from_string(self.cursor)
+            .decode_json()
+            .map_err(|err| async_graphql::Error::new(format!("invalid cursor: {err}")))?;
+        let (limit, cursor) = match cursor {
+            SoupContinuationCursor::Simple(cursor) => {
                 (cursor.limit, SoupQuery::new_cursor_simple(cursor))
+            }
+            SoupContinuationCursor::Notified(cursor) => {
+                (cursor.limit, SoupQuery::new_cursor_notified(cursor))
             }
         };
         let limit = u16::try_from(limit).unwrap_or(500).min(500);
@@ -330,6 +331,16 @@ impl SoupContinuationInput {
             link_ids,
         })
     }
+}
+
+/// Distinguishes ordinary timestamp cursors from notification cursors.
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum SoupContinuationCursor {
+    /// An existing timestamp-sorted continuation.
+    Simple(CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>),
+    /// A notification continuation, including channel-thread string identifiers.
+    Notified(CursorWithValAndFilter<String, NotifiedAt, EntityFilterAst>),
 }
 
 /// Convert the optional GraphQL sort direction into the domain representation.
@@ -406,7 +417,7 @@ impl GraphqlEmailView {
 // Filter input types and their authoritative materialization live in
 // `graphql_soup_filter_input`, shared with the browser cache composition root.
 
-/// GraphQL representation of supported Soup sorts.
+/// GraphQL representation of Soup timestamp, notification, and selected-property sorts.
 #[derive(Enum, Copy, Clone, Eq, PartialEq)]
 pub enum GraphqlSimpleSortMethod {
     /// Sort by most recently viewed.
@@ -420,21 +431,42 @@ pub enum GraphqlSimpleSortMethod {
     /// Only entities the caller holds a live notification for, most recently
     /// notified first. Descending `soup` only; not supported by `groupSoup`.
     NotifiedAt,
+    /// Earliest selected DATE property first, missing values last.
+    /// A Soup-owned item or property filter is required.
+    /// Email, channels, calls, companies, and agent sessions never appear.
+    PropertyDateEarliest,
+    /// Latest selected DATE property first, missing values last.
+    /// Email, channels, calls, companies, and agent sessions never appear.
+    PropertyDateLatest,
 }
 
 impl GraphqlSimpleSortMethod {
-    /// Convert this GraphQL sort method into a timestamp sort, rejecting
-    /// `NOTIFIED_AT`, which is not one.
+    /// Convert into a grouped sort, rejecting the flat-only notification mode.
     pub fn into_model(self) -> async_graphql::Result<SimpleSortMethod> {
-        match self {
-            Self::ViewedAt => Ok(SimpleSortMethod::ViewedAt),
-            Self::CreatedAt => Ok(SimpleSortMethod::CreatedAt),
-            Self::UpdatedAt => Ok(SimpleSortMethod::UpdatedAt),
-            Self::ViewedUpdated => Ok(SimpleSortMethod::ViewedUpdated),
-            Self::NotifiedAt => Err(async_graphql::Error::new(
-                "NOTIFIED_AT is only supported by soup",
-            )),
+        Ok(match self {
+            Self::ViewedAt => SimpleSortMethod::ViewedAt,
+            Self::CreatedAt => SimpleSortMethod::CreatedAt,
+            Self::UpdatedAt => SimpleSortMethod::UpdatedAt,
+            Self::ViewedUpdated => SimpleSortMethod::ViewedUpdated,
+            Self::PropertyDateEarliest | Self::PropertyDateLatest => {
+                return Err(async_graphql::Error::new(
+                    "property-date sort requires sortPropertyDefinitionId",
+                ));
+            }
+            Self::NotifiedAt => {
+                return Err(async_graphql::Error::new(
+                    "NOTIFIED_AT is only supported by soup",
+                ));
+            }
+        })
+    }
+
+    /// Build an ordinary timestamp or notification query.
+    fn into_query<T>(self, filters: T) -> async_graphql::Result<SoupQuery<T>> {
+        if matches!(self, Self::NotifiedAt) {
+            return Ok(SoupQuery::new_sort_notified(filters));
         }
+        Ok(SoupQuery::new_sort_simple(self.into_model()?, filters))
     }
 }
 

@@ -6,7 +6,7 @@ use item_filters::ast::initiative::InitiativeLiteral;
 use models_pagination::SimpleSortMethod;
 use system_properties::SystemPropertyKey;
 
-use super::{sql_string_literal, top_needs_user_history};
+use super::{DocumentIdArrays, sql_string_literal, top_needs_user_history};
 use crate::outbound::pg_soup_repo::candidate_gates::PER_CANDIDATE;
 
 /// The initiative listing policy: explicit grants and the owner's team link.
@@ -35,12 +35,13 @@ pub(in crate::outbound::pg_soup_repo) use item_filters::ast::initiative::initiat
 
 pub(in crate::outbound::pg_soup_repo) fn build_initiative_filter(
     filter: Option<&Expr<InitiativeLiteral>>,
+    parameters: &mut DocumentIdArrays,
 ) -> String {
-    fn fold(expr: &Expr<InitiativeLiteral>) -> String {
+    fn fold(expr: &Expr<InitiativeLiteral>, parameters: &mut DocumentIdArrays) -> String {
         match expr {
-            Expr::And(a, b) => format!("({} AND {})", fold(a), fold(b)),
-            Expr::Or(a, b) => format!("({} OR {})", fold(a), fold(b)),
-            Expr::Not(a) => format!("NOT ({})", fold(a)),
+            Expr::And(a, b) => format!("({} AND {})", fold(a, parameters), fold(b, parameters)),
+            Expr::Or(a, b) => format!("({} OR {})", fold(a, parameters), fold(b, parameters)),
+            Expr::Not(a) => format!("NOT ({})", fold(a, parameters)),
             Expr::Literal(InitiativeLiteral::Include) => "TRUE".into(),
             Expr::Literal(InitiativeLiteral::Id(id)) => format!("i.id = '{id}'"),
             Expr::Literal(InitiativeLiteral::Owner(owner)) => format!(
@@ -51,19 +52,28 @@ pub(in crate::outbound::pg_soup_repo) fn build_initiative_filter(
                 "strpos(lower(i.name), lower({})) > 0",
                 sql_string_literal(name)
             ),
-            Expr::Literal(InitiativeLiteral::DueBefore(date)) => due_date_filter("<=", date),
-            Expr::Literal(InitiativeLiteral::DueAfter(date)) => due_date_filter(">=", date),
+            Expr::Literal(InitiativeLiteral::DueBefore(date)) => {
+                due_date_filter("<=", date, parameters)
+            }
+            Expr::Literal(InitiativeLiteral::DueAfter(date)) => {
+                due_date_filter(">=", date, parameters)
+            }
         }
     }
-    fn due_date_filter(operator: &str, date: &DateTime<Utc>) -> String {
+    fn due_date_filter(
+        operator: &str,
+        date: &DateTime<Utc>,
+        parameters: &mut DocumentIdArrays,
+    ) -> String {
+        let bound = parameters.bind_date(*date);
+        let value = item_filters::sql::date_value("ep_due");
         format!(
-            "EXISTS (SELECT 1 FROM entity_properties ep_due WHERE ep_due.entity_id = i.id::text AND ep_due.entity_type = 'INITIATIVE' AND ep_due.property_definition_id = '{}' AND (ep_due.values->>'value')::timestamptz {operator} '{}'::timestamptz)",
+            "EXISTS (SELECT 1 FROM entity_properties ep_due WHERE ep_due.entity_id = i.id::text AND ep_due.entity_type = 'INITIATIVE' AND ep_due.property_definition_id = '{}' AND {value} {operator} {bound})",
             SystemPropertyKey::DUE_DATE_UUID,
-            date.to_rfc3339()
         )
     }
     filter
-        .map(|expr| format!(" AND ({})", fold(expr)))
+        .map(|expr| format!(" AND ({})", fold(expr, parameters)))
         .unwrap_or_default()
 }
 

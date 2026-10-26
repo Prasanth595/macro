@@ -15,7 +15,7 @@ fn grouped_access_shape() {
         false,
         &grouping,
         SimpleSortMethod::ViewedUpdated,
-        &mut DocumentIdArrays::starting_at(11),
+        &mut DocumentIdArrays::starting_at(12),
     );
     let candidates = builder.sql().split("GroupedItems AS").next().unwrap();
     assert!(!candidates.contains("AccessibleItems"));
@@ -43,6 +43,7 @@ fn grouped_candidate_sort_shape() {
                 field: GroupByField::Property {
                     property_definition_id: SystemPropertyKey::ASSIGNEES_UUID,
                     entity_type: Some("TASK".to_string()),
+                    bucketing: None,
                 },
                 group_key,
                 per_group_limit: None,
@@ -52,7 +53,7 @@ fn grouped_candidate_sort_shape() {
                 true,
                 &grouping,
                 sort,
-                &mut DocumentIdArrays::starting_at(11),
+                &mut DocumentIdArrays::starting_at(12),
             );
             let sql = builder.sql();
             let (candidates, rest) = sql.split_once("GroupedItems AS").unwrap();
@@ -157,6 +158,7 @@ async fn grouped_query_explain_local(pool: PgPool) -> anyhow::Result<()> {
                 GroupByField::Property {
                     property_definition_id: SystemPropertyKey::ASSIGNEES_UUID,
                     entity_type: None,
+                    bucketing: None,
                 },
                 None,
             ),
@@ -182,7 +184,7 @@ async fn grouped_query_explain_local(pool: PgPool) -> anyhow::Result<()> {
                 false,
                 &grouping,
                 sort,
-                &mut DocumentIdArrays::starting_at(11),
+                &mut DocumentIdArrays::starting_at(12),
             );
             // Dynamic AST/grouping SQL cannot use a compile-time macro. Mirror
             // production's positional binds, including unused reserved slots.
@@ -205,7 +207,8 @@ async fn grouped_query_explain_local(pool: PgPool) -> anyhow::Result<()> {
                     .bind(SystemPropertyKey::STATUS_UUID)
                     .bind(SystemPropertyKey::ASSIGNEES_UUID)
                     .bind(grouping.group_key.clone())
-                    .bind(entity_type.clone());
+                    .bind(entity_type.clone())
+                    .bind(None::<serde_json::Value>);
                 let plan = query.persistent(false).fetch_one(&pool).await?;
                 println!("EXPLAIN {label} {sort} repetition={repetition}: {plan}");
             }
@@ -258,7 +261,7 @@ fn initiatives_are_opt_in_and_share_the_existing_sql_pagination() {
 #[test]
 fn initiative_name_literals_are_escaped_and_not_like_patterns() {
     let expr = Expr::val(InitiativeLiteral::NameContains("O'Reilly_%".into()));
-    let sql = build_initiative_filter(Some(&expr));
+    let sql = build_initiative_filter(Some(&expr), &mut DocumentIdArrays::starting_at(1));
     assert!(sql.contains("'O''Reilly_%'"));
     assert!(sql.contains("strpos("));
 }

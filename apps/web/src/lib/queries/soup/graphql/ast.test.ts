@@ -554,3 +554,94 @@ describe('makeGraphqlSoupInput', () => {
     ).toThrow('Unsupported GraphQL Soup AST');
   });
 });
+
+it('maps open-ended property date ranges and explicit no-date negation', () => {
+  const propertyDefinitionId = '00000001-0000-0000-0000-000000000004';
+  const range = makeGraphqlSoupInput({
+    params: {
+      sort_method: 'property_date_earliest',
+      sort_property_definition_id: propertyDefinitionId,
+    },
+    body: {
+      propf: {
+        l: {
+          pd: propertyDefinitionId,
+          et: 'TASK',
+          v: { dr: { end: UPDATED_AT } },
+        },
+      },
+    },
+  });
+  expect(range).toMatchObject({
+    initial: {
+      sortMethod: 'PROPERTY_DATE_EARLIEST',
+      sortPropertyDefinitionId: propertyDefinitionId,
+      filters: {
+        propertiesFilter: {
+          literal: {
+            propertyDefinitionId,
+            entityType: 'TASK',
+            value: { dateRange: { end: UPDATED_AT } },
+          },
+        },
+      },
+    },
+  });
+  const missing = makeGraphqlSoupInput({
+    params: {},
+    body: {
+      propf: { '!': { l: { pd: propertyDefinitionId, et: 'TASK', v: 'dp' } } },
+    },
+  });
+  expect(missing).toMatchObject({
+    initial: {
+      filters: {
+        propertiesFilter: {
+          not: {
+            literal: {
+              propertyDefinitionId,
+              entityType: 'TASK',
+              value: { hasDate: true },
+            },
+          },
+        },
+      },
+    },
+  });
+  expect(() =>
+    makeGraphqlSoupInput({
+      params: {},
+      body: { propf: { l: { pd: propertyDefinitionId, v: { dr: {} } } } },
+    })
+  ).toThrow('date range requires at least one bound');
+});
+
+it.each([
+  ['property_date_earliest', 'PROPERTY_DATE_EARLIEST'],
+  ['property_date_latest', 'PROPERTY_DATE_LATEST'],
+] as const)(
+  'maps %s consistently for flat and grouped requests',
+  (sort, expected) => {
+    const propertyDefinitionId = '00000001-0000-0000-0000-000000000004';
+    const params = {
+      sort_method: sort,
+      sort_property_definition_id: propertyDefinitionId,
+    };
+    const body = { df: { l: { dst: 'task' } } };
+    const flat = makeGraphqlSoupInput({ params, body });
+    const grouped = makeGraphqlGroupedSoupInput({
+      params,
+      body,
+      groupBy: {
+        type: 'property',
+        propertyDefinitionId: '00000001-0000-0000-0000-000000000002',
+      },
+    });
+    expect(flat.initial?.sortMethod).toBe(expected);
+    expect(grouped.initial?.sortMethod).toBe(expected);
+    expect(flat.initial?.sortPropertyDefinitionId).toBe(propertyDefinitionId);
+    expect(grouped.initial?.sortPropertyDefinitionId).toBe(
+      propertyDefinitionId
+    );
+  }
+);

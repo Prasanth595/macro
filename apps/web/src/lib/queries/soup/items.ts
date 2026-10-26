@@ -186,6 +186,7 @@ async function fetchRestSoupAstItemsPage(
             group_by: serializeGroupByField(groupBy),
             per_group_limit: params.limit,
             sort_method,
+            sort_property_definition_id: params.sort_property_definition_id,
           },
           body,
           signal,
@@ -446,7 +447,11 @@ export function useSoupAstItemsQuery(
         }
         await activeGraphqlQuery().refresh();
       },
-      body: () => args().body,
+      body: () => ({
+        ...args().body,
+        params: args().params,
+        groupBy: args().groupBy,
+      }),
     })
   );
 

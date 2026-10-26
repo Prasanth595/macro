@@ -16,6 +16,11 @@ viewer pattern), which apply to every type defined here.
   serves lists. A thread shared through a team's CRM, a project, or a share
   therefore opens through `emailThread` even though it lives in a teammate's
   inbox.
+- Property grouping accepts optional `groupBy.bucketing` with `type: DATE_RANGES`,
+  caller-defined half-open UTC `ranges`, and `missingValueBucketKey`. Keep the
+  selected property, ranges, keys, and entity scope fixed across continuation pages.
+- Use `PROPERTY_DATE_EARLIEST`/`PROPERTY_DATE_LATEST` with `sortPropertyDefinitionId`; preserve the complete selected-property cursor separately from legacy timestamp cursors.
+- Property-date reads require a Soup-owned item or property filter and omit email, channels, calls, companies, and agent sessions; the versioned cursor freezes the source set.
 - `NOTIFIED_AT` maps to Soup's notified request, not a simple sort: `soup`
   accepts it descending only and `groupSoup` rejects it. Its continuation
-  cursors carry a different sort tag, so `inputs.rs` decodes both cursor shapes.
+  cursors carry their own sort tag and string identifiers, separate from timestamp and selected-property cursors.

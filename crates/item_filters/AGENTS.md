@@ -15,6 +15,7 @@ logically-combinable query form.
   expands into, via `ExpandFrame`/`Expr` from `filter_ast`, for consumers that
   need a logical (AND/OR/NOT) representation instead of a flat DTO.
 - `src/ast/tests.rs`: expansion test coverage per entity type.
+- `src/sql.rs`: the shared guarded JSON Date expression; adapters retain bounds, queries, execution, and authorization.
 
 ## Scope
 
@@ -56,6 +57,8 @@ logically-combinable query form.
   false` by default, and asking for specific ids/owners also implicitly opts
   in — don't assume an empty `include` flag means "show everything".
 - `#![deny(missing_docs)]`: every new public field needs a doc comment.
+- DATE property ranges use optional UTC bounds: inclusive `start`, exclusive `end`; negate `DatePresent` for missing, null, or cleared dates.
+- Preserve explicit `CALL_RECORD` property scope through both date and ordinary property predicates; never read another type's assignment for the same ID.
 
 ## Related
 

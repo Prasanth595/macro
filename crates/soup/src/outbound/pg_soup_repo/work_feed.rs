@@ -28,6 +28,7 @@
 //! drops candidates their hydration legs reject and refills from the next
 //! page; a short page here still means the feed is exhausted.
 
+use super::expanded::dynamic::DocumentIdArrays;
 use activity::Action;
 use cowlike::CowLike;
 use model_entity::EntityType;
@@ -95,7 +96,7 @@ fn own_work(alias: &str) -> String {
     )
 }
 
-fn build_query(req: &WorkFeedCandidateRequest<'_>) -> String {
+fn build_query(req: &WorkFeedCandidateRequest<'_>, parameters: &mut DocumentIdArrays) -> String {
     let filter = req.filter;
     format!(
         include_str!("work_feed/query.sql"),
@@ -105,7 +106,7 @@ fn build_query(req: &WorkFeedCandidateRequest<'_>) -> String {
         document_gate = document_gate(ID_SQL, filter),
         chat_gate = chat_gate(ID_SQL, filter),
         project_gate = project_gate(ID_SQL, filter),
-        initiative_gate = initiative_gate(ID_SQL, filter),
+        initiative_gate = initiative_gate(ID_SQL, filter, parameters),
         channel_gate = channel_gate(ID_SQL, filter),
         channel_thread_gate = channel_thread_gate(ID_SQL, filter),
         email_gate = email_gate(ID_SQL, filter),
@@ -130,7 +131,8 @@ pub(super) async fn work_feed_soup_page(
         return Ok(Vec::new());
     }
 
-    let sql = build_query(&req);
+    let mut parameters = DocumentIdArrays::starting_at(12);
+    let sql = build_query(&req, &mut parameters);
 
     let after_ts = req.after.as_ref().map(|a| a.sort_at);
     let after_id = req.after.as_ref().map(|a| a.entity_id.clone());
@@ -152,7 +154,8 @@ pub(super) async fn work_feed_soup_page(
         None => (None, None),
     };
 
-    sqlx::QueryBuilder::<sqlx::Postgres>::new(sql)
+    let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new(sql);
+    let query = builder
         .build()
         .bind(req.user_id.as_ref())
         .bind(&types)
@@ -164,7 +167,9 @@ pub(super) async fn work_feed_soup_page(
         .bind(&source_auth_entities)
         .bind(req.mode == WorkFeedSoupMode::Work)
         .bind(only_types)
-        .bind(only_ids)
+        .bind(only_ids);
+    parameters
+        .bind_query(query)
         // Unnamed statement, same reasoning as the other candidate queries:
         // the SQL text varies per filter shape.
         .persistent(false)

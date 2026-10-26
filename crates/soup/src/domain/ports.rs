@@ -16,6 +16,24 @@ use models_properties::service::property_definition_with_options::PropertyDefini
 use models_soup::item::SoupItem;
 use serde::Serialize;
 
+/// Authorizes the selected definition before a property-dependent grouped query.
+pub trait PropertyQueryAuthorizer: Send + Sync {
+    /// Authorize every selected property once before source candidate fanout.
+    fn authorize_selection<'a>(
+        &'a self,
+        viewer: MacroUserIdStr<'static>,
+        team: Option<EntityAccessReceipt<MemberTeamRole>>,
+        selection: models_grouping::CandidateQuery,
+    ) -> std::pin::Pin<
+        Box<
+            dyn Future<
+                    Output = Result<properties::AuthorizedPropertyQuery, properties::PropertiesErr>,
+                > + Send
+                + 'a,
+        >,
+    >;
+}
+
 /// Repository abstraction for loading soup items from storage.
 #[cfg_attr(
     test,
@@ -29,6 +47,12 @@ pub trait SoupRepo: Send + Sync + 'static {
     type Err;
     /// Iterator returned by grouped Soup queries.
     type GroupedItems: Iterator<Item = ItemGroupingInfo> + Send;
+
+    /// Select authorized candidates before DATE ordering, grouping, or pagination.
+    fn property_candidate_page(
+        &self,
+        request: super::models::property_candidates::PropertyCandidateRequest,
+    ) -> impl Future<Output = Result<models_grouping::CandidatePage, Self::Err>> + Send;
     /// Fetch expanded soup items for a simple sorted cursor query.
     fn expanded_generic_cursor_soup<'a>(
         &self,
@@ -216,6 +240,12 @@ mod test;
 
 /// Service abstraction for executing user-facing soup queries.
 pub trait SoupService: Send + Sync + 'static {
+    /// Read a property-date page across source-owned authorization and filtering.
+    fn get_property_date_page(
+        &self,
+        request: super::models::property_dates::PropertyDateRequest,
+    ) -> impl Future<Output = Result<super::models::property_dates::PropertyDatePage, SoupErr>> + Send;
+
     /// Run a soup query without loading entity properties or frecency.
     ///
     /// `team_receipt` proves the user belongs to a team and may be used by
@@ -352,6 +382,13 @@ impl<S> SoupService for Arc<S>
 where
     S: SoupService,
 {
+    async fn get_property_date_page(
+        &self,
+        request: super::models::property_dates::PropertyDateRequest,
+    ) -> Result<super::models::property_dates::PropertyDatePage, SoupErr> {
+        (**self).get_property_date_page(request).await
+    }
+
     async fn get_user_soup<T>(
         &self,
         req: SoupRequest<T>,
@@ -468,6 +505,13 @@ fn no_op_soup_err() -> SoupErr {
 }
 
 impl SoupService for NoOpSoupService {
+    async fn get_property_date_page(
+        &self,
+        _request: super::models::property_dates::PropertyDateRequest,
+    ) -> Result<super::models::property_dates::PropertyDatePage, SoupErr> {
+        Err(no_op_soup_err())
+    }
+
     async fn get_user_soup<T>(
         &self,
         _req: SoupRequest<T>,

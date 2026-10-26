@@ -53,6 +53,8 @@ in-call chat.
   a per-device signal.
 - The team-memory helper only compiles with the `ports` feature (#7912) — don't
   reintroduce an unconditional dependency on it.
+- Keep CALL_RECORD property clauses exact across active, archived, and imported records; bind nullable UTC bounds for DATE terms, guard timestamp casts with CASE, and preserve the entity-access gates and CNF negation semantics.
+- Match explicit `CALL_RECORD` property scope and reject other scopes, including inside negated filters.
 
 ## Related
 

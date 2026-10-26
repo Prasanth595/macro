@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import {
+  createDateBucketBoundaries,
+  taskDueDatePredicate,
+} from '../core/task-due-date';
 import { type BuildTaskQueryOptions, buildTaskQuery } from './task-query';
 import { buildTaskSearchRequest } from './task-search';
 
@@ -106,3 +110,105 @@ it('uses the initiative Project property for board columns without changing lega
     sort_direction: 'asc',
   });
 });
+
+const calendar = createDateBucketBoundaries(
+  new Date('2026-11-01T18:00:00Z'),
+  'America/New_York'
+);
+
+it('combines an exclusive overdue bound with status independently and freezes deadline grouping', () => {
+  const dueDate = taskDueDatePredicate({ type: 'overdue' }, calendar);
+  const query = buildTaskQuery({
+    ...options,
+    groupBy: 'due_date',
+    sort: [{ id: 'due_date_earliest' }],
+    dueDate,
+    calendar,
+  });
+  expect(query.params.sort_method).toBe('property_date_earliest');
+  expect(query.params.sort_property_definition_id).toBe(
+    '00000001-0000-0000-0000-000000000004'
+  );
+  expect(query.params.sort_direction).toBeUndefined();
+  expect(query.groupBy).toMatchObject({
+    type: 'property',
+    propertyDefinitionId: '00000001-0000-0000-0000-000000000004',
+    bucketing: {
+      type: 'date_ranges',
+      missingValueBucketKey: 'no_due_date',
+      ranges: [
+        { key: 'overdue', start: null, end: calendar.boundaries.today },
+        {
+          key: 'today',
+          start: calendar.boundaries.today,
+          end: calendar.boundaries.tomorrow,
+        },
+        {
+          key: 'tomorrow',
+          start: calendar.boundaries.tomorrow,
+          end: calendar.boundaries.day_two,
+        },
+        {
+          key: 'next_7_days',
+          start: calendar.boundaries.day_two,
+          end: calendar.boundaries.day_eight,
+        },
+        { key: 'later', start: calendar.boundaries.day_eight, end: null },
+      ],
+    },
+  });
+  expect(JSON.stringify(query.body.propf)).toContain(
+    '2026-11-01T04:00:00.000Z'
+  );
+  expect(JSON.stringify(query.body.propf)).toContain(
+    '00000001-0000-0000-0002-000000000002'
+  );
+  expect(JSON.stringify(query.body.propf)).toContain('"end"');
+  expect(JSON.stringify(query.body.propf)).toContain('"et":"TASK"');
+  expect(JSON.stringify(query.body.propf)).not.toContain('"start"');
+});
+
+it('negates date presence and keeps due sorting out of scoped text search', () => {
+  const query = buildTaskQuery({
+    ...options,
+    facets: {},
+    dueDate: { hasDate: false },
+    sort: [{ id: 'due_date_latest' }],
+    searching: true,
+    nameContains: 'renewal',
+  });
+  expect(query.body.propf).toEqual({
+    '!': {
+      l: { pd: '00000001-0000-0000-0000-000000000004', et: 'TASK', v: 'dp' },
+    },
+  });
+  expect(query.params.sort_method).toBe('updated_at');
+});
+
+it.each(['due_date_earliest', 'due_date_latest'] as const)(
+  'uses the supported %s wire contract for flat and grouped task requests',
+  (sort) => {
+    for (const groupBy of ['none', 'due_date'] as const) {
+      const query = buildTaskQuery({
+        ...options,
+        groupBy,
+        calendar,
+        sort: [{ id: sort }],
+      });
+      expect(query.params).toEqual({
+        expand: true,
+        limit: 100,
+        sort_method:
+          sort === 'due_date_earliest'
+            ? 'property_date_earliest'
+            : 'property_date_latest',
+        sort_property_definition_id: '00000001-0000-0000-0000-000000000004',
+        sort_direction: undefined,
+      });
+      // Exclude the project entity itself, not children of a nil parent.
+      expect(query.body.pf).toEqual({
+        l: { pids: '00000000-0000-0000-0000-000000000000' },
+      });
+    }
+  }
+);

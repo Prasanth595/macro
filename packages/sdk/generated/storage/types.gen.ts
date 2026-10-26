@@ -992,6 +992,7 @@ export type ApiGroupByField = 'date' | 'entity_type' | 'project' | {
      * Group by a property value (e.g., status, priority, or custom properties)
      */
     property: {
+        bucketing?: null | PropertyBucketing;
         entity_type?: null | ApiPropertyEntityType;
         /**
          * The property definition UUID to group by
@@ -1047,7 +1048,7 @@ export type ApiParticipantRole = 'owner' | 'admin' | 'member';
 /**
  * Entity type for property lookups (API representation).
  */
-export type ApiPropertyEntityType = 'CHANNEL' | 'CHAT' | 'COMPANY' | 'DOCUMENT' | 'PROJECT' | 'TASK' | 'THREAD' | 'USER';
+export type ApiPropertyEntityType = 'CALL_RECORD' | 'CALENDAR_EVENT' | 'DATABASE_ROW' | 'INITIATIVE' | 'CHANNEL' | 'CHAT' | 'COMPANY' | 'DOCUMENT' | 'PROJECT' | 'TASK' | 'THREAD' | 'USER';
 
 /**
  * What a committed batch answers: a result per op, and the journal's change
@@ -5267,6 +5268,20 @@ export type DatabaseWebhookResponse = {
 export type DateOperator = 'before' | 'after' | 'onOrBefore' | 'onOrAfter';
 
 /**
+ * UTC timestamp interval. Lower bounds are inclusive; upper bounds are exclusive.
+ */
+export type DateRange = {
+    /**
+     * Exclusive UTC upper bound, omitted for an open end.
+     */
+    end?: string | null;
+    /**
+     * Inclusive UTC lower bound, omitted for an open start.
+     */
+    start?: string | null;
+};
+
+/**
  * Response body for `DELETE /channels/mentions/{mention_id}`.
  */
 export type DeleteEntityMentionResponse = {
@@ -8080,6 +8095,10 @@ export type GroupedInitialParams = {
      */
     per_group_limit?: number | null;
     sort_method?: null | GroupedSoupSort;
+    /**
+     * DATE property definition selected for property-date sorting.
+     */
+    sort_property_definition_id?: string | null;
 };
 
 /**
@@ -8099,6 +8118,10 @@ export type GroupedPageParams = {
      */
     limit?: number | null;
     sort_method?: null | GroupedSoupSort;
+    /**
+     * DATE property definition selected for property-date sorting.
+     */
+    sort_property_definition_id?: string | null;
 };
 
 /**
@@ -8148,7 +8171,7 @@ export type GroupedSoupPage = (GroupedSoupInitialPage & {
 /**
  * Sort method for grouped queries (frecency not supported).
  */
-export type GroupedSoupSort = 'viewed_at' | 'created_at' | 'updated_at' | 'viewed_updated';
+export type GroupedSoupSort = 'viewed_at' | 'created_at' | 'updated_at' | 'viewed_updated' | 'property_date_earliest' | 'property_date_latest';
 
 /**
  * Guest-safe message projection: no account identities, attachments, or entity grants.
@@ -10238,6 +10261,10 @@ export type Params = {
     limit?: number | null;
     sort_direction?: null | SoupApiSortDirection;
     sort_method?: null | SoupApiSort;
+    /**
+     * DATE property definition selected for property-date sorting.
+     */
+    sort_property_definition_id?: string | null;
 };
 
 /**
@@ -10739,6 +10766,45 @@ export type ProjectPreviewData = {
 };
 
 /**
+ * Caller-defined, ordered UTC date ranges and a separate missing-value key.
+ */
+export type PropertyBucketing = PropertyDateRanges & {
+    type: 'date_ranges';
+};
+
+/**
+ * A half-open UTC interval. An absent start or end extends to infinity.
+ */
+export type PropertyDateRange = {
+    /**
+     * Exclusive end, or positive infinity.
+     */
+    end?: string | null;
+    /**
+     * Unique caller-supplied group key.
+     */
+    key: string;
+    /**
+     * Inclusive start, or negative infinity.
+     */
+    start?: string | null;
+};
+
+/**
+ * A complete partition of present dates plus one bucket for absent values.
+ */
+export type PropertyDateRanges = {
+    /**
+     * Caller-supplied group key for entities with no date value.
+     */
+    missing_value_bucket_key: string;
+    /**
+     * Ordered, contiguous ranges covering every present date.
+     */
+    ranges: Array<PropertyDateRange>;
+};
+
+/**
  * Property definition model (service representation).
  */
 export type PropertyDefinition = {
@@ -10778,6 +10844,7 @@ export type PropertyDefinitionWithOptions = {
  * Multiple filters are AND'd together.
  */
 export type PropertyFilter = {
+    date_range?: null | DateRange;
     /**
      * Entity reference IDs to match. Multiple values are OR'd together.
      */
@@ -10787,6 +10854,10 @@ export type PropertyFilter = {
      * When None, matches across all entity types.
      */
     entity_type?: string | null;
+    /**
+     * True matches non-null dates; false matches missing or cleared dates.
+     */
+    has_date?: boolean | null;
     /**
      * Select option UUIDs to match. Multiple values are OR'd together.
      */
@@ -12119,7 +12190,7 @@ export type SoupApiItem = SoupItem & {
 /**
  * Sort options accepted by non-grouped soup API endpoints.
  */
-export type SoupApiSort = 'viewed_at' | 'created_at' | 'updated_at' | 'viewed_updated' | 'frecency' | 'touched_by_me' | 'notified_at';
+export type SoupApiSort = 'viewed_at' | 'created_at' | 'updated_at' | 'viewed_updated' | 'frecency' | 'touched_by_me' | 'notified_at' | 'property_date_earliest' | 'property_date_latest';
 
 /**
  * Sort direction accepted by non-grouped soup API endpoints.
@@ -21769,11 +21840,17 @@ export type GetItemsSoupData = {
          */
         limit?: number;
         /**
-         * Sort method. Options are viewed_at, created_at, updated_at,
-         * viewed_updated, frecency, touched_by_me, notified_at. Defaults to
-         * viewed_at.
+         * Sort method. Includes timestamp sorts, relevance sorts, and
+         * property_date_earliest/property_date_latest with a selected DATE definition.
+         * Property-date reads omit email, channels, calls, companies, and agent sessions.
+         * A Soup-owned item or property filter is required.
+         * Defaults to viewed_at.
          */
         sort_method?: SoupApiSort;
+        /**
+         * DATE property definition selected for property-date sorting.
+         */
+        sort_property_definition_id?: string;
         /**
          * Sort direction. Options are asc, desc. Defaults to desc.
          *

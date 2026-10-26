@@ -24465,11 +24465,17 @@ export const getItemsSoupQueryParams = zod.object({
       'frecency',
       'touched_by_me',
       'notified_at',
+      'property_date_earliest',
+      'property_date_latest',
     ])
     .optional()
     .describe(
-      'Sort method. Options are viewed_at, created_at, updated_at,\nviewed_updated, frecency, touched_by_me, notified_at. Defaults to\nviewed_at.'
+      'Sort method. Includes timestamp sorts, relevance sorts, and\nproperty_date_earliest\/property_date_latest with a selected DATE definition.\nProperty-date reads omit email, channels, calls, companies, and agent sessions.\nA Soup-owned item or property filter is required.\nDefaults to viewed_at.'
     ),
+  sort_property_definition_id: zod
+    .uuid()
+    .optional()
+    .describe('DATE property definition selected for property-date sorting.'),
   sort_direction: zod
     .enum(['asc', 'desc'])
     .optional()
@@ -29039,6 +29045,29 @@ export const postItemsSoupBody = zod
       .array(
         zod
           .object({
+            date_range: zod
+              .union([
+                zod.null(),
+                zod
+                  .object({
+                    end: zod.iso
+                      .datetime({})
+                      .nullish()
+                      .describe(
+                        'Exclusive UTC upper bound, omitted for an open end.'
+                      ),
+                    start: zod.iso
+                      .datetime({})
+                      .nullish()
+                      .describe(
+                        'Inclusive UTC lower bound, omitted for an open start.'
+                      ),
+                  })
+                  .describe(
+                    'UTC timestamp interval. Lower bounds are inclusive; upper bounds are exclusive.'
+                  ),
+              ])
+              .optional(),
             entity_ids: zod
               .array(zod.string())
               .optional()
@@ -29050,6 +29079,12 @@ export const postItemsSoupBody = zod
               .nullish()
               .describe(
                 'The entity type for the property lookup (e.g., \"TASK\", \"DOCUMENT\", \"PROJECT\").\nWhen None, matches across all entity types.'
+              ),
+            has_date: zod
+              .boolean()
+              .nullish()
+              .describe(
+                'True matches non-null dates; false matches missing or cleared dates.'
               ),
             option_ids: zod
               .array(zod.string())
@@ -29115,12 +29150,20 @@ export const postItemsSoupBody = zod
                 'frecency',
                 'touched_by_me',
                 'notified_at',
+                'property_date_earliest',
+                'property_date_latest',
               ])
               .describe(
                 'Sort options accepted by non-grouped soup API endpoints.'
               ),
           ])
           .optional(),
+        sort_property_definition_id: zod
+          .uuid()
+          .nullish()
+          .describe(
+            'DATE property definition selected for property-date sorting.'
+          ),
       })
       .describe('Query parameters shared by soup endpoints.')
   )
@@ -33244,12 +33287,20 @@ export const postItemsSoupAstBody = zod
                 'frecency',
                 'touched_by_me',
                 'notified_at',
+                'property_date_earliest',
+                'property_date_latest',
               ])
               .describe(
                 'Sort options accepted by non-grouped soup API endpoints.'
               ),
           ])
           .optional(),
+        sort_property_definition_id: zod
+          .uuid()
+          .nullish()
+          .describe(
+            'DATE property definition selected for property-date sorting.'
+          ),
       })
       .describe('Query parameters shared by soup endpoints.')
   )
@@ -37367,11 +37418,71 @@ export const postItemsSoupAstGroupedBody = zod
                   .object({
                     property: zod
                       .object({
+                        bucketing: zod
+                          .union([
+                            zod.null(),
+                            zod
+                              .object({
+                                missing_value_bucket_key: zod
+                                  .string()
+                                  .describe(
+                                    'Caller-supplied group key for entities with no date value.'
+                                  ),
+                                ranges: zod
+                                  .array(
+                                    zod
+                                      .object({
+                                        end: zod.iso
+                                          .datetime({})
+                                          .nullish()
+                                          .describe(
+                                            'Exclusive end, or positive infinity.'
+                                          ),
+                                        key: zod
+                                          .string()
+                                          .describe(
+                                            'Unique caller-supplied group key.'
+                                          ),
+                                        start: zod.iso
+                                          .datetime({})
+                                          .nullish()
+                                          .describe(
+                                            'Inclusive start, or negative infinity.'
+                                          ),
+                                      })
+                                      .describe(
+                                        'A half-open UTC interval. An absent start or end extends to infinity.'
+                                      )
+                                  )
+                                  .describe(
+                                    'Ordered, contiguous ranges covering every present date.'
+                                  ),
+                              })
+                              .describe(
+                                'A complete partition of present dates plus one bucket for absent values.'
+                              )
+                              .and(
+                                zod.object({
+                                  type: zod.enum(['date_ranges']),
+                                })
+                              )
+                              .describe(
+                                'Caller-defined, ordered UTC date ranges and a separate missing-value key.'
+                              )
+                              .describe(
+                                "Optional transformation of a selected property's stored value into group keys."
+                              ),
+                          ])
+                          .optional(),
                         entity_type: zod
                           .union([
                             zod.null(),
                             zod
                               .enum([
+                                'CALL_RECORD',
+                                'CALENDAR_EVENT',
+                                'DATABASE_ROW',
+                                'INITIATIVE',
                                 'CHANNEL',
                                 'CHAT',
                                 'COMPANY',
@@ -37415,12 +37526,20 @@ export const postItemsSoupAstGroupedBody = zod
                     'created_at',
                     'updated_at',
                     'viewed_updated',
+                    'property_date_earliest',
+                    'property_date_latest',
                   ])
                   .describe(
                     'Sort method for grouped queries (frecency not supported).'
                   ),
               ])
               .optional(),
+            sort_property_definition_id: zod
+              .uuid()
+              .nullish()
+              .describe(
+                'DATE property definition selected for property-date sorting.'
+              ),
           })
           .describe('Parameters for the initial grouped soup query.')
       )
@@ -37574,11 +37693,71 @@ export const postItemsSoupAstGroupedBody = zod
                   .object({
                     property: zod
                       .object({
+                        bucketing: zod
+                          .union([
+                            zod.null(),
+                            zod
+                              .object({
+                                missing_value_bucket_key: zod
+                                  .string()
+                                  .describe(
+                                    'Caller-supplied group key for entities with no date value.'
+                                  ),
+                                ranges: zod
+                                  .array(
+                                    zod
+                                      .object({
+                                        end: zod.iso
+                                          .datetime({})
+                                          .nullish()
+                                          .describe(
+                                            'Exclusive end, or positive infinity.'
+                                          ),
+                                        key: zod
+                                          .string()
+                                          .describe(
+                                            'Unique caller-supplied group key.'
+                                          ),
+                                        start: zod.iso
+                                          .datetime({})
+                                          .nullish()
+                                          .describe(
+                                            'Inclusive start, or negative infinity.'
+                                          ),
+                                      })
+                                      .describe(
+                                        'A half-open UTC interval. An absent start or end extends to infinity.'
+                                      )
+                                  )
+                                  .describe(
+                                    'Ordered, contiguous ranges covering every present date.'
+                                  ),
+                              })
+                              .describe(
+                                'A complete partition of present dates plus one bucket for absent values.'
+                              )
+                              .and(
+                                zod.object({
+                                  type: zod.enum(['date_ranges']),
+                                })
+                              )
+                              .describe(
+                                'Caller-defined, ordered UTC date ranges and a separate missing-value key.'
+                              )
+                              .describe(
+                                "Optional transformation of a selected property's stored value into group keys."
+                              ),
+                          ])
+                          .optional(),
                         entity_type: zod
                           .union([
                             zod.null(),
                             zod
                               .enum([
+                                'CALL_RECORD',
+                                'CALENDAR_EVENT',
+                                'DATABASE_ROW',
+                                'INITIATIVE',
                                 'CHANNEL',
                                 'CHAT',
                                 'COMPANY',
@@ -37623,12 +37802,20 @@ export const postItemsSoupAstGroupedBody = zod
                     'created_at',
                     'updated_at',
                     'viewed_updated',
+                    'property_date_earliest',
+                    'property_date_latest',
                   ])
                   .describe(
                     'Sort method for grouped queries (frecency not supported).'
                   ),
               ])
               .optional(),
+            sort_property_definition_id: zod
+              .uuid()
+              .nullish()
+              .describe(
+                'DATE property definition selected for property-date sorting.'
+              ),
           })
           .describe('Parameters for fetching one page within a specific group.')
       )

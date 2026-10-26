@@ -1,3 +1,5 @@
+mod property_dates;
+mod property_grouping;
 use crate::domain::{
     models::{
         AdvancedSortParams, EnrichedSoupItem, FrecencyQueryInner, GetCrmCompaniesRequest,
@@ -222,6 +224,7 @@ pub struct SoupImpl<T, U, V, C, K, Crm, F> {
     /// Optional captured branch facts supplied by the owning changes domain.
     agent_branches: Option<Arc<dyn agent_changes::domain::ports::SessionBranchReader>>,
     favorites: Option<Arc<dyn favorites::FavoriteReader>>,
+    property_queries: Option<Arc<dyn super::ports::PropertyQueryAuthorizer>>,
 }
 
 impl<T, U, V, C, K, Crm, F> SoupImpl<T, U, V, C, K, Crm, F>
@@ -256,6 +259,7 @@ where
             github_pull_request_service,
             agent_branches: None,
             favorites: None,
+            property_queries: None,
         }
     }
 
@@ -1668,8 +1672,7 @@ where
                 .cursor
                 .map(|ast| ast.map(|ast| favorites::apply(ast, entities)));
         }
-        // CRM associations resolve to complete entity sets, so they only
-        // compose with the timestamp-sorted sources that take those sets.
+        // Resolve CRM associations before either timestamp or task due-date selection.
         let crm_record = req.entity_ast().and_then(|ast| ast.crm_association);
         // Read the filter of every query kind: `entity_ast` hides frecency
         // filters, which must be rejected rather than silently unscoped.
@@ -1681,7 +1684,7 @@ where
         {
             if !matches!(&req.cursor, SoupQuery::Simple(_)) {
                 return Err(SoupErr::AstErr(item_filters::ast::ExpandErr::ApiAst(
-                    "CRM associations require a timestamp sort".into(),
+                    "CRM associations require timestamp or task due-date sorting".into(),
                 )));
             }
             // Unexpanded candidate queries cannot apply filter trees, so the
@@ -2024,6 +2027,14 @@ where
         self.populate_properties_output(user_id, output).await
     }
 
+    #[tracing::instrument(err, skip_all)]
+    async fn get_property_date_page(
+        &self,
+        request: crate::domain::models::property_dates::PropertyDateRequest,
+    ) -> Result<crate::domain::models::property_dates::PropertyDatePage, SoupErr> {
+        self.property_date_page(request).await
+    }
+
     #[tracing::instrument(err, skip(self, req))]
     async fn get_user_soup_grouped(
         &self,
@@ -2050,7 +2061,6 @@ where
         self.populate_grouped_items(user_id, items).await
     }
 
-    #[tracing::instrument(err, skip(self))]
     async fn caller_tag_sets<'a>(
         &self,
         user_id: MacroUserIdStr<'a>,

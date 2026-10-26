@@ -560,6 +560,14 @@ pub(crate) fn soup_item(row: &StoredRow) -> SoupItem<SoupPropertiesField> {
 }
 
 impl SoupService for FakeSoup {
+    async fn get_property_date_page(
+        &self,
+        _request: soup::domain::models::property_dates::PropertyDateRequest,
+    ) -> Result<soup::domain::models::property_dates::PropertyDatePage, soup::domain::models::SoupErr>
+    {
+        panic!("unexpected property-date query")
+    }
+
     async fn get_user_soup_with_properties<T>(
         &self,
         request: SoupRequest<T>,

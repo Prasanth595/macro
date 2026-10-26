@@ -14,7 +14,8 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
 };
-use axum_extra::either::Either4;
+use axum_extra::either::Either5;
+mod property_dates;
 use cowlike::CowLike;
 use email::{
     domain::{
@@ -56,11 +57,13 @@ use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::Entity;
 use model_error_response::ErrorResponse;
 use models_grouping::{GroupByField, GroupingConfig};
+pub use models_grouping::{PropertyBucketing, PropertyDateRange, PropertyDateRanges};
 use models_pagination::{
     CursorWithValAndFilter, Frecency, NotifiedAt, PaginatedOpaqueCursor, SimpleSortMethod,
     TouchedByMe, TypeEraseCursor,
 };
 use non_empty::IsEmpty;
+use property_dates::PropertyDateCursor;
 use recursion::CollapsibleExt;
 use rootcause::{Report, report};
 use serde::{Deserialize, Serialize};
@@ -70,6 +73,13 @@ use std::sync::Arc;
 use thiserror::Error;
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
+
+/// Opaque continuation accepted by the grouped Soup endpoint.
+#[derive(Debug, Default, Deserialize)]
+pub struct GroupedSoupCursorParams {
+    /// Cursor from a previous grouped response.
+    pub cursor: Option<String>,
+}
 
 #[cfg(test)]
 mod tests;
@@ -84,11 +94,16 @@ pub struct Params {
     /// Limit the number of items returned. Defaults to 20. Max 500.
     #[serde(default)]
     limit: Option<u16>,
-    /// Sort method. Options are viewed_at, created_at, updated_at,
-    /// viewed_updated, frecency, touched_by_me, notified_at. Defaults to
-    /// viewed_at.
+    /// Sort method. Includes timestamp sorts, relevance sorts, and
+    /// property_date_earliest/property_date_latest with a selected DATE definition.
+    /// Property-date reads omit email, channels, calls, companies, and agent sessions.
+    /// A Soup-owned item or property filter is required.
+    /// Defaults to viewed_at.
     #[serde(default)]
     sort_method: Option<SoupApiSort>,
+    /// DATE property definition selected for property-date sorting.
+    #[serde(default)]
+    sort_property_definition_id: Option<Uuid>,
     /// Sort direction. Options are asc, desc. Defaults to desc.
     ///
     /// Re-send this with every page: it is not carried in the cursor.
@@ -144,28 +159,31 @@ pub enum SoupApiSort {
     /// notifications surface as channel-thread rows; calls and CRM
     /// companies never appear.
     NotifiedAt,
+    /// Sort by the selected DATE property, missing values last.
+    /// Only Soup-owned property-bearing items participate; email, channels, calls,
+    /// companies, and agent sessions never appear.
+    PropertyDateEarliest,
+    /// Sort by the selected DATE property descending, missing values last.
+    /// Only Soup-owned property-bearing items participate; email, channels, calls,
+    /// companies, and agent sessions never appear.
+    PropertyDateLatest,
 }
 
 impl SoupApiSort {
-    /// Builds the initial query for this sort method over the given filters.
-    fn into_query<R>(self, filters: R) -> SoupQuery<R> {
-        match self {
-            SoupApiSort::ViewedAt => {
-                SoupQuery::new_sort_simple(SimpleSortMethod::ViewedAt, filters)
-            }
-            SoupApiSort::CreatedAt => {
-                SoupQuery::new_sort_simple(SimpleSortMethod::CreatedAt, filters)
-            }
-            SoupApiSort::UpdatedAt => {
-                SoupQuery::new_sort_simple(SimpleSortMethod::UpdatedAt, filters)
-            }
-            SoupApiSort::ViewedUpdated => {
+    /// Builds an ordinary timestamp or relevance query.
+    fn into_query<R>(self, filters: R) -> Result<SoupQuery<R>, SoupHandlerErr> {
+        Ok(match self {
+            Self::ViewedAt => SoupQuery::new_sort_simple(SimpleSortMethod::ViewedAt, filters),
+            Self::CreatedAt => SoupQuery::new_sort_simple(SimpleSortMethod::CreatedAt, filters),
+            Self::UpdatedAt => SoupQuery::new_sort_simple(SimpleSortMethod::UpdatedAt, filters),
+            Self::ViewedUpdated => {
                 SoupQuery::new_sort_simple(SimpleSortMethod::ViewedUpdated, filters)
             }
-            SoupApiSort::Frecency => SoupQuery::new_sort_frecency(Frecency, filters),
-            SoupApiSort::TouchedByMe => SoupQuery::new_sort_touched(filters),
-            SoupApiSort::NotifiedAt => SoupQuery::new_sort_notified(filters),
-        }
+            Self::Frecency => SoupQuery::new_sort_frecency(Frecency, filters),
+            Self::TouchedByMe => SoupQuery::new_sort_touched(filters),
+            Self::NotifiedAt => SoupQuery::new_sort_notified(filters),
+            _ => return Err(SoupHandlerErr::Expand),
+        })
     }
 }
 
@@ -181,16 +199,23 @@ pub enum GroupedSoupSort {
     UpdatedAt,
     /// Sort by viewed and updated activity.
     ViewedUpdated,
+    /// Sort by the selected DATE property, missing values last.
+    /// Email, channels, calls, companies, and agent sessions never appear.
+    PropertyDateEarliest,
+    /// Sort by the selected DATE property descending, missing values last.
+    /// Email, channels, calls, companies, and agent sessions never appear.
+    PropertyDateLatest,
 }
 
 impl GroupedSoupSort {
-    fn into_simple_sort(self) -> SimpleSortMethod {
-        match self {
-            GroupedSoupSort::ViewedAt => SimpleSortMethod::ViewedAt,
-            GroupedSoupSort::CreatedAt => SimpleSortMethod::CreatedAt,
-            GroupedSoupSort::UpdatedAt => SimpleSortMethod::UpdatedAt,
-            GroupedSoupSort::ViewedUpdated => SimpleSortMethod::ViewedUpdated,
-        }
+    fn into_model(self) -> Result<SimpleSortMethod, SoupHandlerErr> {
+        Ok(match self {
+            Self::ViewedAt => SimpleSortMethod::ViewedAt,
+            Self::CreatedAt => SimpleSortMethod::CreatedAt,
+            Self::UpdatedAt => SimpleSortMethod::UpdatedAt,
+            Self::ViewedUpdated => SimpleSortMethod::ViewedUpdated,
+            _ => return Err(SoupHandlerErr::Expand),
+        })
     }
 }
 
@@ -205,6 +230,9 @@ pub struct GroupedParams {
     /// Sort method. Defaults to viewed_updated.
     #[serde(default)]
     pub sort_method: Option<GroupedSoupSort>,
+    /// DATE property definition selected for property-date sorting.
+    #[serde(default)]
+    pub sort_property_definition_id: Option<Uuid>,
     /// Limit the number of items returned. Defaults to 20. Max 500.
     #[serde(default)]
     pub limit: Option<u16>,
@@ -218,6 +246,9 @@ pub struct GroupedInitialParams {
     /// Sort method. Defaults to viewed_updated.
     #[serde(default)]
     pub sort_method: Option<GroupedSoupSort>,
+    /// DATE property definition selected for property-date sorting.
+    #[serde(default)]
+    pub sort_property_definition_id: Option<Uuid>,
     /// Limit the number of items returned per group. Defaults to 20. Max 500.
     #[serde(default)]
     pub per_group_limit: Option<u16>,
@@ -233,6 +264,9 @@ pub struct GroupedPageParams {
     /// Sort method. Defaults to viewed_updated.
     #[serde(default)]
     pub sort_method: Option<GroupedSoupSort>,
+    /// DATE property definition selected for property-date sorting.
+    #[serde(default)]
+    pub sort_property_definition_id: Option<Uuid>,
     /// Limit the number of items returned. Defaults to 20. Max 500.
     #[serde(default)]
     pub limit: Option<u16>,
@@ -244,6 +278,7 @@ impl From<GroupedInitialParams> for GroupedParams {
             group_by: params.group_by,
             group_key: None,
             sort_method: params.sort_method,
+            sort_property_definition_id: params.sort_property_definition_id,
             limit: params.per_group_limit,
         }
     }
@@ -255,6 +290,7 @@ impl From<GroupedPageParams> for GroupedParams {
             group_by: params.group_by,
             group_key: Some(params.group_key),
             sort_method: params.sort_method,
+            sort_property_definition_id: params.sort_property_definition_id,
             limit: params.limit,
         }
     }
@@ -264,6 +300,14 @@ impl From<GroupedPageParams> for GroupedParams {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ApiPropertyEntityType {
+    /// Call record entity.
+    CallRecord,
+    /// Calendar event entity.
+    CalendarEvent,
+    /// Database row entity.
+    DatabaseRow,
+    /// Initiative entity.
+    Initiative,
     /// Channel entity
     Channel,
     /// Chat entity
@@ -285,6 +329,10 @@ pub enum ApiPropertyEntityType {
 impl From<ApiPropertyEntityType> for PropertyEntityType {
     fn from(api: ApiPropertyEntityType) -> Self {
         match api {
+            ApiPropertyEntityType::CallRecord => PropertyEntityType::CallRecord,
+            ApiPropertyEntityType::CalendarEvent => PropertyEntityType::CalendarEvent,
+            ApiPropertyEntityType::DatabaseRow => PropertyEntityType::DatabaseRow,
+            ApiPropertyEntityType::Initiative => PropertyEntityType::Initiative,
             ApiPropertyEntityType::Channel => PropertyEntityType::Channel,
             ApiPropertyEntityType::Chat => PropertyEntityType::Chat,
             ApiPropertyEntityType::Company => PropertyEntityType::Company,
@@ -315,6 +363,9 @@ pub enum ApiGroupByField {
         /// Optional entity type filter for the property lookup
         #[serde(skip_serializing_if = "Option::is_none")]
         entity_type: Option<ApiPropertyEntityType>,
+        /// Optional caller-defined date partition for the selected property.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        bucketing: Option<PropertyBucketing>,
     },
 }
 
@@ -327,9 +378,11 @@ impl From<ApiGroupByField> for GroupByField {
             ApiGroupByField::Property {
                 property_definition_id,
                 entity_type,
+                bucketing,
             } => GroupByField::Property {
                 property_definition_id,
                 entity_type: entity_type.map(|et| PropertyEntityType::from(et).to_string()),
+                bucketing,
             },
         }
     }
@@ -385,7 +438,7 @@ pub struct SoupPage {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct GroupedSoupInitialPage {
     /// Items in this page, keyed by id. Ordering lives in `groups[].item_ids`.
-    pub items: HashMap<Uuid, SoupApiItem>,
+    pub items: HashMap<String, SoupApiItem>,
     /// Ordered group metadata for this grouped response.
     pub groups: Vec<ApiGroupMeta>,
 }
@@ -394,7 +447,7 @@ pub struct GroupedSoupInitialPage {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct GroupedSoupGroupPage {
     /// Items in this page, keyed by id. Ordering lives in `group.item_ids`.
-    pub items: HashMap<Uuid, SoupApiItem>,
+    pub items: HashMap<String, SoupApiItem>,
     /// Metadata and item membership for the requested group page.
     pub group: ApiGroupMeta,
 }
@@ -410,7 +463,7 @@ pub enum GroupedSoupPage {
 }
 
 struct ApiGroupedSoupParts {
-    items: HashMap<Uuid, SoupApiItem>,
+    items: HashMap<String, SoupApiItem>,
     groups: Vec<ApiGroupMeta>,
 }
 
@@ -548,12 +601,31 @@ where
     ) -> Result<Json<PaginatedOpaqueCursor<SoupApiItem>>, SoupHandlerErr>
     where
         SoupRequest<R>: IntoSoupReqAst,
-        R: Clone + Serialize + Send,
+        R: Clone + Serialize + Send + crate::domain::models::IntoSoupFilterAst,
     {
+        if params.property_date_sort()?.is_some() || matches!(&cursor, Either5::E5(_)) {
+            let context = match cursor {
+                Either5::E5(cursor) => cursor.0,
+                _ => None,
+            };
+            return self
+                .handle_property_dates(
+                    macro_user_id,
+                    link_ids,
+                    team_receipt_option,
+                    ApiSoupRequestInner {
+                        filters,
+                        params,
+                        email_view,
+                    },
+                    context,
+                )
+                .await;
+        }
         let user_for_favorites = macro_user_id.copied().into_owned();
         let sort_direction: SoupSortDirection =
             params.sort_direction.map(Into::into).unwrap_or_default();
-        let create_fallback = move || -> SoupQuery<R> {
+        let create_fallback = move || -> Result<SoupQuery<R>, SoupHandlerErr> {
             params
                 .sort_method
                 .unwrap_or(SoupApiSort::ViewedAt)
@@ -561,18 +633,14 @@ where
         };
 
         let cursor: SoupQuery<R> = match cursor {
-            Either4::E1(l) => l
-                .map(SoupQuery::new_cursor_simple)
-                .unwrap_or_else(create_fallback),
-            Either4::E2(r) => r
-                .map(SoupQuery::new_cursor_frecency)
-                .unwrap_or_else(create_fallback),
-            Either4::E3(t) => t
-                .map(SoupQuery::new_cursor_touched)
-                .unwrap_or_else(create_fallback),
-            Either4::E4(n) => n
-                .map(SoupQuery::new_cursor_notified)
-                .unwrap_or_else(create_fallback),
+            Either5::E1(Some(cursor)) => SoupQuery::new_cursor_simple(cursor),
+            Either5::E2(Some(cursor)) => SoupQuery::new_cursor_frecency(cursor),
+            Either5::E3(Some(cursor)) => SoupQuery::new_cursor_touched(cursor),
+            Either5::E4(Some(cursor)) => SoupQuery::new_cursor_notified(cursor),
+            Either5::E1(None) | Either5::E2(None) | Either5::E3(None) | Either5::E4(None) => {
+                create_fallback()?
+            }
+            Either5::E5(_) => return Err(SoupHandlerErr::Expand),
         };
 
         // Frecency pages are ordered by relevance score, touched pages by the
@@ -613,7 +681,7 @@ where
                     cursor,
                     sort_direction,
                     user: macro_user_id,
-                    email_preview_view: email_view,
+                    email_preview_view: email_view.unwrap_or_default(),
                     link_ids,
                 },
                 team_receipt_option,
@@ -631,49 +699,41 @@ where
         macro_user_id: MacroUserIdStr<'static>,
         filters: EntityFilterAst,
         params: GroupedParams,
-        cursor: Option<CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>>,
+        cursor: Option<String>,
     ) -> Result<ApiGroupedSoupParts, SoupHandlerErr> {
         let user_for_favorites = macro_user_id.copied().into_owned();
-        let limit = params.limit.unwrap_or(20).clamp(20, 500);
-        let sort_method = params
-            .sort_method
-            .map(|s| s.into_simple_sort())
-            .unwrap_or(SimpleSortMethod::ViewedUpdated);
-
-        let group_by_field = GroupByField::from(params.group_by);
         let grouping = GroupingConfig {
-            field: group_by_field.clone(),
-            group_key: params.group_key.clone(),
-            per_group_limit: None,
+            field: GroupByField::from(params.group_by),
+            group_key: params.group_key,
+            per_group_limit: params.limit.map(u32::from),
         };
-
-        // Use cursor if provided, otherwise start fresh
-        let query_cursor = match cursor {
-            Some(c) => models_pagination::Query::Cursor(c),
-            None => models_pagination::Query::Sort(sort_method, filters.clone()),
+        let request = match cursor {
+            Some(cursor) => GroupedSortRequest::continue_from(
+                macro_user_id,
+                cursor,
+                grouping,
+                Some(params.limit.unwrap_or(20).clamp(20, 500)),
+            )?,
+            None => {
+                let limit = params.limit.unwrap_or(20).clamp(20, 500);
+                let sort = params
+                    .sort_method
+                    .unwrap_or(GroupedSoupSort::ViewedUpdated)
+                    .into_model()?;
+                GroupedSortRequest::initial(macro_user_id, limit, sort, filters, grouping)
+            }
         };
+        let sort = *request.cursor.sort_method();
+        let filters = request.cursor.filter().clone();
+        let grouping = request.grouping.clone();
+        let items = self.service.get_user_soup_grouped(request).await?;
+        let response =
+            build_grouped_response(items, &grouping.field, sort, grouping.group_key, filters);
 
-        let req = GroupedSortRequest {
-            limit,
-            cursor: query_cursor,
-            user_id: macro_user_id,
-            grouping,
-        };
-
-        let items = self.service.get_user_soup_grouped(req).await?;
-
-        let response = build_grouped_response(
-            items,
-            &group_by_field,
-            sort_method,
-            params.group_key,
-            filters,
-        );
-
-        let mut items: HashMap<Uuid, SoupApiItem> = response
+        let mut items: HashMap<String, SoupApiItem> = response
             .items
             .into_iter()
-            .map(|(id, item)| (id, SoupApiItem::from_frecency_soup_item(item)))
+            .map(|(id, item)| (id.to_string(), SoupApiItem::from_frecency_soup_item(item)))
             .collect();
         mark_favorited(&*self.favorites, &user_for_favorites, items.values_mut()).await;
 
@@ -801,6 +861,9 @@ pub enum SoupHandlerErr {
     /// The filter is restricted to a CRM record the caller cannot see.
     #[error("CRM record not found")]
     CrmRecordNotFound,
+    /// The selected property definition is not visible to the caller.
+    #[error("Property definition not found")]
+    PropertyDefinitionNotFound,
     /// Ascending order was requested for a frecency-sorted query.
     #[error("sort_direction=asc is not supported with sort_method=frecency")]
     AscendingFrecencyUnsupported,
@@ -825,6 +888,12 @@ impl From<SoupErr> for SoupHandlerErr {
             SoupErr::CrmTeamRequired => SoupHandlerErr::CrmScopeForbidden,
             SoupErr::CrmAdminRequired => SoupHandlerErr::CrmAdminRequired,
             SoupErr::CrmRecordNotFound => SoupHandlerErr::CrmRecordNotFound,
+            SoupErr::PropertyQuery(
+                properties::PropertiesErr::NotFound | properties::PropertiesErr::PermissionDenied,
+            ) => SoupHandlerErr::PropertyDefinitionNotFound,
+            SoupErr::PropertyQuery(properties::PropertiesErr::Validation(message)) => {
+                SoupHandlerErr::ExpandErr(ExpandErr::ApiAst(message))
+            }
             SoupErr::TouchedUnsupportedFilter(kind) => {
                 SoupHandlerErr::TouchedUnsupportedFilter(kind)
             }
@@ -850,6 +919,7 @@ impl IntoResponse for SoupHandlerErr {
                 StatusCode::FORBIDDEN
             }
             SoupHandlerErr::CrmRecordNotFound => StatusCode::NOT_FOUND,
+            SoupHandlerErr::PropertyDefinitionNotFound => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (
@@ -944,16 +1014,16 @@ pub struct PostSoupRequest {
     /// the view of specific emails to display
     #[serde(default)]
     #[schema(value_type = String)]
-    email_view: PreviewView,
+    email_view: Option<PreviewView>,
 }
 
 struct ApiSoupRequestInner<T> {
     filters: T,
     params: Params,
-    email_view: PreviewView,
+    email_view: Option<PreviewView>,
 }
 
-type SoupCursor<R> = Either4<
+type SoupCursor<R> = Either5<
     Option<CursorWithValAndFilter<Uuid, SimpleSortMethod, R>>,
     Option<CursorWithValAndFilter<Uuid, Frecency, R>>,
     // String id, not Uuid: the touched keyset compares the raw stored
@@ -962,6 +1032,7 @@ type SoupCursor<R> = Either4<
     // Same value shape as the touched cursor; its `"notified_at"` sort
     // marker (touched serializes `null`) is what keeps it out of arm 3.
     Option<CursorWithValAndFilter<String, NotifiedAt, R>>,
+    PropertyDateCursor,
 >;
 
 /// Gets the items the user has access to
@@ -1027,7 +1098,7 @@ pub struct PostSoupAstRequest {
     /// the view of specific emails to display
     #[serde(default)]
     #[schema(value_type = String)]
-    email_view: PreviewView,
+    email_view: Option<PreviewView>,
 }
 
 /// Gets the items the user has access to using AST filters
@@ -1143,7 +1214,8 @@ enum GroupedSoupRequestMode {
 pub async fn post_grouped_soup_ast_handler<T, U, EAS, Auth>(
     State(service): State<SoupRouterState<T, U, EAS, Auth>>,
     authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
-    cursor: Option<CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>>,
+    team: OptionalMacroUserTeamExtractorV2<MemberTeamRole, EAS, Auth>,
+    Query(GroupedSoupCursorParams { cursor }): Query<GroupedSoupCursorParams>,
     Json(request): Json<PostGroupedSoupAstRequest>,
 ) -> Result<Json<GroupedSoupPage>, SoupHandlerErr>
 where
@@ -1153,26 +1225,51 @@ where
     Auth: MacroAuthorizationService,
 {
     let macro_user_id = authorization.authorization.user.macro_user_id;
-    let (filters, params, mode) = match request {
-        PostGroupedSoupAstRequest::Initial(request) => (
-            request.filters,
-            request.params.into(),
-            GroupedSoupRequestMode::Initial,
-        ),
-        PostGroupedSoupAstRequest::GroupPage(request) => (
-            request.filters,
-            request.params.into(),
-            GroupedSoupRequestMode::GroupPage,
-        ),
-    };
+    let (filters, params, mode): (ApiEntityFilterAst, GroupedParams, GroupedSoupRequestMode) =
+        match request {
+            PostGroupedSoupAstRequest::Initial(request) => (
+                request.filters,
+                request.params.into(),
+                GroupedSoupRequestMode::Initial,
+            ),
+            PostGroupedSoupAstRequest::GroupPage(request) => (
+                request.filters,
+                request.params.into(),
+                GroupedSoupRequestMode::GroupPage,
+            ),
+        };
 
     let filters = filters
         .into_entity_ast()
         .map_err(|_| SoupHandlerErr::Expand)?;
 
-    let response = service
-        .handle_grouped(macro_user_id, filters, params, cursor)
-        .await?;
+    let use_property_dates = params.property_date_sort()?.is_some()
+        || cursor
+            .as_deref()
+            .map(crate::domain::models::property_dates::PropertyDateContext::try_decode)
+            .transpose()?
+            .flatten()
+            .is_some()
+        || GroupByField::from(params.group_by.clone())
+            .date_ranges()
+            .is_some();
+    let response = if use_property_dates {
+        let links = fetch_caller_link_ids(&service, macro_user_id.as_ref()).await?;
+        service
+            .handle_property_date_groups(
+                macro_user_id,
+                links,
+                team.entity_access_receipt,
+                filters,
+                params,
+                cursor,
+            )
+            .await?
+    } else {
+        service
+            .handle_grouped(macro_user_id, filters, params, cursor)
+            .await?
+    };
 
     Ok(Json(match mode {
         GroupedSoupRequestMode::Initial => GroupedSoupPage::Initial(GroupedSoupInitialPage {
@@ -1191,6 +1288,12 @@ where
     }))
 }
 
+impl crate::domain::models::IntoSoupFilterAst for ApiEntityFilterAst {
+    fn into_filter_ast(self) -> Result<Option<EntityFilterAst>, item_filters::ast::ExpandErr> {
+        self.into_optional_entity_ast()
+    }
+}
+
 /// Wire-format entity filter AST accepted by soup AST endpoints.
 #[derive(Debug, Default, Serialize, Deserialize, Clone, ToSchema)]
 pub struct ApiEntityFilterAst {
@@ -1201,7 +1304,7 @@ pub struct ApiEntityFilterAst {
     /// (wire key `crma`): its Companies or Contacts property names the
     /// record, or it references the record. A company also matches through
     /// its contacts. Unknown or inaccessible records answer 404; requests
-    /// that are not expanded or not timestamp-sorted answer 400.
+    /// require expanded queries sorted by a timestamp or selected DATE property.
     #[serde(default, rename = "crma", skip_serializing_if = "Option::is_none")]
     pub crm_association: Option<item_filters::ast::crm_association::CrmAssociation>,
     /// filters applied to canonical calendar events

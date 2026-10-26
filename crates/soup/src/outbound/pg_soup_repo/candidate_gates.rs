@@ -339,12 +339,19 @@ pub(super) fn includes_email_threads(filter: Option<&EntityFilterAst>, link_ids:
 }
 
 /// Initiative candidates use the same listing policy and filters as normal Soup pages.
-pub(super) fn initiative_gate(id_sql: &str, filter: Option<&EntityFilterAst>) -> String {
+pub(super) fn initiative_gate(
+    id_sql: &str,
+    filter: Option<&EntityFilterAst>,
+    parameters: &mut super::expanded::dynamic::DocumentIdArrays,
+) -> String {
     use super::expanded::dynamic::{build_initiative_filter, initiative_access_clause};
     format!(
         "EXISTS (SELECT 1 FROM initiative i WHERE i.id::text = {id_sql} AND {} {} {} {PER_CANDIDATE})",
         initiative_access_clause(),
-        build_initiative_filter(filter.and_then(|f| f.initiative_filter.as_deref())),
+        build_initiative_filter(
+            filter.and_then(|f| f.initiative_filter.as_deref()),
+            parameters
+        ),
         build_properties_filter(
             filter.and_then(|f| f.properties_filter.as_deref()),
             "i.id::text"

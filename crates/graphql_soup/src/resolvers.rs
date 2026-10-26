@@ -18,11 +18,11 @@ use macro_authorization::{MacroAuthorizationService, MacroAuthorizationState};
 use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::EntityType;
 use models_pagination::TypeEraseCursor;
-use soup::domain::{models::grouping::NestedSoupGroups, ports::SoupService};
+use soup::domain::{models::grouping::build_grouped_response, ports::SoupService};
 use soup_realtime::domain::{models::Patch, ports::SoupRealtimeSubscriptionService};
 
 use crate::{
-    inputs::{GroupedSoupInput, SoupInput},
+    inputs::{GroupedReadRequest, GroupedSoupInput, SoupInput, SoupReadRequest},
     loaders::{AgentSessionEntityLoader, PrimarySoupItemLoader, SoupItemDataLoader},
     objects::{
         GraphqlSoupAgentSession, GraphqlSoupEmailThread, GraphqlSoupEntity, GroupedSoup,
@@ -78,27 +78,56 @@ where
 }
 
 /// Resolve Soup items nested into grouping bins for the authenticated user.
-pub async fn resolve_grouped_soup<S, Auth, St, Edges>(
+pub async fn resolve_grouped_soup<S, E, EAS, Auth, St, Edges>(
     service: &S,
     ctx: &Context<'_>,
     input: GroupedSoupInput,
 ) -> async_graphql::Result<GroupedSoup<Edges>>
 where
     S: SoupService,
+    E: EmailService,
+    EAS: EntityAccessService,
     Auth: MacroAuthorizationService,
+    EmailRouterState<E>: FromRef<St>,
+    Arc<EAS>: FromRef<St>,
     MacroAuthorizationState<Auth>: FromRef<St>,
     St: Clone + Send + Sync + 'static,
     Edges: SoupEntityEdges,
 {
     let macro_user_id = require_authorized_user::<Auth, St>(ctx).await?;
-    let request = input.into_request(macro_user_id)?;
-    let sort_method = *request.cursor.sort_method();
+    let request = match input.into_read_request(macro_user_id.clone())? {
+        GroupedReadRequest::Legacy(request) => *request,
+        GroupedReadRequest::PropertyDate(context) => {
+            let Cached(MultiEmailLinkExtractor(links, _)) =
+                extract_part::<Cached<MultiEmailLinkExtractor<E, Auth>>, St>(ctx).await?;
+            let Cached(team) = extract_part::<
+                Cached<OptionalMacroUserTeamExtractorV2<MemberTeamRole, EAS, Auth>>,
+                St,
+            >(ctx)
+            .await?;
+            let request = soup::domain::models::property_dates::PropertyDateRequest::new(
+                macro_user_id,
+                team.entity_access_receipt,
+                *context,
+                false,
+                false,
+                soup::domain::models::SoupType::Expanded,
+                links.into_iter().map(|link| link.id).collect(),
+            );
+            let response = service
+                .get_property_date_page(request)
+                .await?
+                .into_grouped()?;
+            return Ok(GroupedSoup::from_response(response));
+        }
+    };
+    let sort = *request.cursor.sort_method();
     let filters = request.cursor.filter().clone();
+    let grouping = request.grouping.clone();
     let items = service.get_user_soup_grouped(request).await?;
-    let groups: NestedSoupGroups<_, _> = items.collect();
-    Ok(GroupedSoup::new(
-        groups.with_next_cursors(sort_method, filters),
-    ))
+    let response =
+        build_grouped_response(items, &grouping.field, sort, grouping.group_key, filters);
+    Ok(GroupedSoup::from_response(response))
 }
 
 /// Resolve one email thread through the Soup item loader, whose email
@@ -228,8 +257,8 @@ where
     let macro_user_id = require_authorized_user::<Auth, St>(ctx).await?;
     let Cached(MultiEmailLinkExtractor(links, _)) =
         extract_part::<Cached<MultiEmailLinkExtractor<E, Auth>>, St>(ctx).await?;
-    let link_ids = links.into_iter().map(|link| link.id).collect();
-    let request = input.into_request(macro_user_id, link_ids)?;
+    let link_ids: Vec<_> = links.into_iter().map(|link| link.id).collect();
+    let request = input.into_read_request(macro_user_id.clone(), link_ids.clone())?;
 
     // Always forward the optional team receipt: Soup uses it for all
     // team-scoped foreign entities, not only CRM-scoped filters.
@@ -246,6 +275,22 @@ where
         .field("frecencyScore")
         .exists();
 
+    let request = match request {
+        SoupReadRequest::Legacy(request) => *request,
+        SoupReadRequest::PropertyDate { context, soup_type } => {
+            let request = soup::domain::models::property_dates::PropertyDateRequest::new(
+                macro_user_id,
+                team_receipt,
+                *context,
+                true,
+                include_frecency,
+                soup_type,
+                link_ids,
+            );
+            let page = service.get_property_date_page(request).await?.into_flat();
+            return Ok(SoupPage::new_from_enriched_with_projection(page));
+        }
+    };
     if include_frecency {
         let page = service
             .get_user_soup_with_frecency_and_projection(request, team_receipt)

@@ -1,3 +1,6 @@
+mod date_ranges;
+#[cfg(feature = "outbound")]
+mod property_dates;
 use crate::domain::models::{NotifiedEntity, TouchedEntity};
 use crate::domain::ports::MockSoupRepo;
 use channels::domain::{

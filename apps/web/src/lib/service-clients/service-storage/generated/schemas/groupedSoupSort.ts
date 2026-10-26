@@ -17,4 +17,6 @@ export const GroupedSoupSort = {
   created_at: 'created_at',
   updated_at: 'updated_at',
   viewed_updated: 'viewed_updated',
+  property_date_earliest: 'property_date_earliest',
+  property_date_latest: 'property_date_latest',
 } as const;

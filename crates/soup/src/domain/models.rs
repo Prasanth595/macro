@@ -1,6 +1,10 @@
 #[cfg(feature = "ports")]
 pub(crate) mod contact_listing;
 pub mod grouping;
+/// Bounded cross-source DATE-query candidate merging.
+pub mod property_candidates;
+/// Generic property-date requests, responses, and frozen continuations.
+pub mod property_dates;
 
 #[cfg(feature = "ports")]
 mod exclusions;
@@ -100,18 +104,7 @@ pub struct SimpleSortRequest<'a> {
     pub(crate) user_id: MacroUserIdStr<'a>,
 }
 
-/// Parameters for grouped soup queries.
-#[derive(Debug)]
-pub struct GroupedSortRequest<'a> {
-    /// the limit of the number of items to return
-    pub limit: u16,
-    /// the cursor/query
-    pub cursor: Query<Uuid, SimpleSortMethod, EntityFilterAst>,
-    /// the id of the user
-    pub user_id: MacroUserIdStr<'a>,
-    /// grouping configuration
-    pub grouping: GroupingConfig,
-}
+pub use grouping::query::GroupedSortRequest;
 
 #[cfg(feature = "ports")]
 #[cfg_attr(
@@ -376,6 +369,24 @@ pub struct SoupRequest<T> {
     /// Empty when the caller has no inboxes — `build_email_request` returns
     /// `None` so the email branch is skipped, unless the request is CRM-scoped.
     pub link_ids: Vec<Uuid>,
+}
+
+/// A filter input that can be converted without constructing a query.
+pub trait IntoSoupFilterAst {
+    /// Convert filters into the authoritative entity AST.
+    fn into_filter_ast(self) -> Result<Option<EntityFilterAst>, ExpandErr>;
+}
+
+impl IntoSoupFilterAst for EntityFilters {
+    fn into_filter_ast(self) -> Result<Option<EntityFilterAst>, ExpandErr> {
+        EntityFilterAst::new_from_filters(self)
+    }
+}
+
+impl IntoSoupFilterAst for EntityFilterAst {
+    fn into_filter_ast(self) -> Result<Option<EntityFilterAst>, ExpandErr> {
+        Ok(if self.is_empty() { None } else { Some(self) })
+    }
 }
 
 /// trait which defines a type which can be fallibly converted into a SoupRequest with ast
@@ -1327,6 +1338,9 @@ pub enum SoupErr {
     /// Soup repository query failed.
     #[error(transparent)]
     SoupDbErr(#[from] anyhow::Error),
+    /// Selected property definition is inaccessible or unsuitable for the query.
+    #[error(transparent)]
+    PropertyQuery(#[from] properties::PropertiesErr),
     /// Email preview lookup failed.
     #[error(transparent)]
     EmailErr(#[from] email::domain::models::EmailErr),

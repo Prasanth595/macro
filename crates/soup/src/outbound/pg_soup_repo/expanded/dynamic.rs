@@ -7,10 +7,11 @@ mod test;
 mod database_row;
 mod document_ids;
 mod initiative;
+pub(in crate::outbound::pg_soup_repo) mod property_candidates;
 mod property_filter;
 
 use database_row::{build_database_row_filter, database_row_opted_in, database_row_top_clause};
-pub(in crate::outbound::pg_soup_repo) use document_ids::DocumentIdArrays;
+pub(in crate::outbound::pg_soup_repo) use document_ids::{DocumentIdArrays, FilterParameter};
 use initiative::initiative_top_clause;
 pub(in crate::outbound::pg_soup_repo) use initiative::{
     build_initiative_filter, initiative_access_clause, initiative_opted_in,
@@ -1147,6 +1148,26 @@ fn property_literal_predicate(literal: &PropertiesLiteral, entity_id_sql: &str) 
                 "ep_prop.values->'value' @> jsonb_build_array(jsonb_build_object('entity_id', '{entity_id}'))"
             )
         }
+        PropertyMatchValue::DatePresent => {
+            "ep_prop.values->>'type' = 'Date' AND ep_prop.values->>'value' IS NOT NULL".to_owned()
+        }
+        PropertyMatchValue::DateRange(range) => {
+            let date_value = item_filters::sql::date_value("ep_prop");
+            let mut predicates = vec![format!("{date_value} IS NOT NULL")];
+            if let Some(start) = range.start {
+                predicates.push(format!(
+                    "{date_value} >= '{}'::timestamptz",
+                    start.to_rfc3339()
+                ));
+            }
+            if let Some(end) = range.end {
+                predicates.push(format!(
+                    "{date_value} < '{}'::timestamptz",
+                    end.to_rfc3339()
+                ));
+            }
+            predicates.join(" AND ")
+        }
     };
     let entity_type_clause = match entity_type {
         Some(et) => format!("AND ep_prop.entity_type = '{et}'"),
@@ -1566,6 +1587,7 @@ fn build_query<'a>(
         builder.push(initiative_top_clause(sort_method, false));
         builder.push(build_initiative_filter(
             filter_ast.initiative_filter.as_deref(),
+            document_ids,
         ));
         builder.push(build_properties_filter(
             filter_ast.properties_filter.as_deref(),
@@ -2001,8 +2023,11 @@ async fn expanded_dynamic_cursor_soup_hydrated(
         .bind(completed_option_id)
         .bind(status_property_id)
         .bind(assignees_property_id);
-    for ids in document_ids.into_binds() {
-        query = query.bind(ids);
+    for value in document_ids.into_binds() {
+        query = match value {
+            FilterParameter::DocumentIds(ids) => query.bind(ids),
+            FilterParameter::Date(date) => query.bind(date),
+        };
     }
     let items = query
         // Unnamed statement: the SQL text varies per filter shape and per
@@ -2078,8 +2103,7 @@ struct GroupedSoupRow {
     group: GroupFields,
 }
 
-/// Per-group limit for initial grouped queries.
-/// Each group will return at most this many items initially.
+/// Legacy initial grouped queries return ten items per group.
 const PER_GROUP_LIMIT: i32 = 10;
 
 /// Build the GroupedItems CTE based on the grouping configuration.
@@ -2112,7 +2136,7 @@ fn build_grouped_items_cte(
 
     if grouping.group_key.is_some() {
         // Single group mode: fetch items for a specific group (for "load more")
-        // Uses $9 parameter for group_key to prevent SQL injection
+        // Uses $9 parameter for group_key to prevent SQL injection.
         builder.push("WHERE (");
         builder.push(&select_expr);
         builder.push(") = $9 ");
@@ -2120,7 +2144,6 @@ fn build_grouped_items_cte(
 
     builder.push("), ");
 
-    // FilteredGroupedItems: apply per-group limit when not fetching a specific group
     if grouping.group_key.is_none() {
         builder.push("FilteredGroupedItems AS (SELECT * FROM GroupedItems WHERE row_in_group <= ");
         builder.push(PER_GROUP_LIMIT.to_string());
@@ -2242,6 +2265,7 @@ fn build_grouped_query<'a>(
         builder.push(initiative_top_clause(sort_method, true));
         builder.push(build_initiative_filter(
             filter_ast.initiative_filter.as_deref(),
+            document_ids,
         ));
         builder.push(build_properties_filter(
             filter_ast.properties_filter.as_deref(),
@@ -2283,11 +2307,10 @@ fn build_grouped_query<'a>(
         builder.push("WHERE ");
     }
 
-    // Cursor condition
     builder.push(
         r#"($4::timestamptz IS NULL)
-            OR
-            (all_items.sort_ts, all_items.id::text) < ($4, $5)"#,
+        OR
+        (all_items.sort_ts, all_items.id::text) < ($4, $5)"#,
     );
 
     if exclude_frecency {
@@ -2429,8 +2452,11 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
         .bind(grouping.group_key.clone())
         // The entity type of property grouping with an entity type filter.
         .bind(entity_type_bind);
-    for ids in document_ids.into_binds() {
-        query = query.bind(ids);
+    for value in document_ids.into_binds() {
+        query = match value {
+            FilterParameter::DocumentIds(ids) => query.bind(ids),
+            FilterParameter::Date(date) => query.bind(date),
+        };
     }
 
     let rows: Vec<GroupedSoupRow> = query

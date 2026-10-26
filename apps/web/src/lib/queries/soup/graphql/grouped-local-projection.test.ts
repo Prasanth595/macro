@@ -88,6 +88,45 @@ describe('loaded grouped pages', () => {
 });
 
 describe('local grouped Soup projection', () => {
+  it('keeps date-range membership server-owned while removing known filter nonmatches', () => {
+    const dateInput: GroupedSoupInitialInput = {
+      groupBy: {
+        field: 'PROPERTY',
+        propertyDefinitionId: 'review-date',
+        bucketing: {
+          type: 'DATE_RANGES',
+          ranges: [
+            { key: 'review_soon', start: null, end: '2026-11-01T00:00:00Z' },
+            { key: 'review_later', start: '2026-11-01T00:00:00Z', end: null },
+          ],
+          missingValueBucketKey: 'no_review_date',
+        },
+      },
+      sortMethod: 'UPDATED_AT',
+    };
+    const a = groupedDocument('a');
+    const b = groupedDocument('b');
+    expect(localSoupGroupKeys(a, dateInput, now)).toBeUndefined();
+    expect(
+      projectLocalGroupedSoup(
+        [
+          {
+            key: 'review_soon',
+            items: [a, b],
+            totalCount: 30,
+            nextCursor: 'more',
+          },
+        ],
+        new Map(),
+        snapshot([a]),
+        dateInput,
+        now
+      )
+    ).toEqual([
+      { key: 'review_soon', items: [a], totalCount: 29, nextCursor: 'more' },
+    ]);
+  });
+
   it('retains server membership for an unfamiliar grouping while refreshing rows', () => {
     const before = groupedDocument('a');
     const next = { ...groupedDocument('a', ['done']), displayName: 'Updated' };

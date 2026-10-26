@@ -1,5 +1,8 @@
 //! Grouping utilities for soup queries.
 
+/// Grouped request constructors and frozen continuation policy.
+pub mod query;
+
 #[cfg(test)]
 mod test;
 
@@ -16,7 +19,18 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Resolve label and display order for a group key based on the grouping field.
-fn resolve_group_label_and_order(key: &str, group_by: &GroupByField) -> (String, Option<i32>) {
+pub(super) fn resolve_group_label_and_order(
+    key: &str,
+    group_by: &GroupByField,
+) -> (String, Option<i32>) {
+    if let Some((_, ranges)) = group_by.date_ranges() {
+        let order = ranges
+            .ranges
+            .iter()
+            .position(|range| range.key == key)
+            .unwrap_or(ranges.ranges.len());
+        return (key.to_owned(), Some(order as i32));
+    }
     match group_by {
         GroupByField::Date => (
             date_bucket_label(key).to_string(),
@@ -34,7 +48,7 @@ fn resolve_group_label_and_order(key: &str, group_by: &GroupByField) -> (String,
 
 /// Metadata about a group of items.
 #[derive(Debug, Clone, Serialize)]
-pub struct GroupMeta {
+pub struct GroupMeta<Id = Uuid> {
     /// Group key
     pub key: String,
     /// Human-readable label for the group
@@ -46,7 +60,7 @@ pub struct GroupMeta {
     pub total_count: u32,
     /// Ordered ids of items in this group for the current page.
     /// Each id keys into `GroupedResponse::items`.
-    pub item_ids: Vec<Uuid>,
+    pub item_ids: Vec<Id>,
     /// Cursor to load more items specifically from this group
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
@@ -54,11 +68,11 @@ pub struct GroupMeta {
 
 /// Result of building a grouped response.
 #[derive(Debug)]
-pub struct GroupedResponse {
+pub struct GroupedResponse<Id = Uuid> {
     /// Items pool keyed by id. Ordering is described by `groups[].item_ids`.
-    pub items: HashMap<Uuid, EnrichedSoupItem>,
+    pub items: HashMap<Id, EnrichedSoupItem>,
     /// Group metadata for each group.
-    pub groups: Vec<GroupMeta>,
+    pub groups: Vec<GroupMeta<Id>>,
     /// Page-level cursor for loading more items.
     pub page_cursor: Option<String>,
 }
@@ -80,7 +94,7 @@ pub fn build_grouped_response(
         display_order: Option<i32>,
     }
 
-    let mut group_stats: HashMap<String, GroupData> = HashMap::new();
+    let mut group_stats: IndexMap<String, GroupData> = IndexMap::new();
     let items = items.into_iter();
     let mut items_pool: HashMap<Uuid, EnrichedSoupItem> =
         HashMap::with_capacity(items.size_hint().0);

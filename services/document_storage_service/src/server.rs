@@ -1605,6 +1605,7 @@ pub async fn run() -> anyhow::Result<()> {
                 PgGithubPullRequestRepo::new(db.clone()),
             ),
         )
+        .with_property_queries(properties_service.clone())
         .with_agent_branches(agent_changes::outbound::postgres::PgChangesetRepo::new(
             db.clone(),
         )),
@@ -1653,6 +1654,7 @@ pub async fn run() -> anyhow::Result<()> {
                 PgGithubPullRequestRepo::new(readonly_db.clone()),
             ),
         )
+        .with_property_queries(properties_service.clone())
         .with_favorites(favorites_service.clone())
         .with_agent_branches(agent_changes::outbound::postgres::PgChangesetRepo::new(
             readonly_db.clone(),

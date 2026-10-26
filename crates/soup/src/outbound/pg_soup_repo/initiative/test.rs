@@ -171,7 +171,11 @@ async fn initiative_listing_and_candidate_gate_share_access_rules(
         SELECT candidate.id FROM unnest($2::uuid[]) candidate(id)
         WHERE {}
         ORDER BY candidate.id"#,
-        crate::outbound::pg_soup_repo::candidate_gates::initiative_gate("candidate.id::text", None)
+        crate::outbound::pg_soup_repo::candidate_gates::initiative_gate(
+            "candidate.id::text",
+            None,
+            &mut crate::outbound::pg_soup_repo::expanded::dynamic::DocumentIdArrays::starting_at(3)
+        )
     ))
     .bind(user().as_ref())
     .bind(
@@ -215,6 +219,7 @@ async fn initiatives_grouping_and_property_enrichment(pool: PgPool) -> anyhow::R
                 field: GroupByField::Property {
                     property_definition_id: system_properties::SystemPropertyKey::STATUS_UUID,
                     entity_type: Some("INITIATIVE".into()),
+                    bucketing: None,
                 },
                 group_key: None,
                 per_group_limit: None,

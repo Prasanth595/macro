@@ -921,6 +921,16 @@ export type GraphqlDatabaseRowLiteral =
   |  { id?: never;   /** Match the rows of a table. */
   tableId: string | number; };
 
+/** One named half-open UTC interval. */
+export type GraphqlDateBucketRange = {
+  /** Exclusive RFC 3339 UTC end; null means positive infinity. */
+  end?: string | null | undefined;
+  /** Unique group key. */
+  key: string;
+  /** Inclusive RFC 3339 UTC start; null means negative infinity. */
+  start?: string | null | undefined;
+};
+
 /** GraphQL input representing the date literal. */
 export type GraphqlDateLiteral =
   {   /** The gt option. */
@@ -957,8 +967,8 @@ export type GraphqlDocumentLiteral =
   createdAt: GraphqlDateLiteral; crmAssociated?: never; emailAttachmentParticipant?: never; fileAssoc?: never; fileType?: never; id?: never; importance?: never; includeCbmAtmNc?: never; isEmailAttachment?: never; nameContains?: never; notificationState?: never; owner?: never; projectId?: never; property?: never; subType?: never; updatedAt?: never; }
   |  { createdAt?: never;   /**
    * Associated with a CRM record through its Companies or Contacts
-   * property or a reference to the record. Requires an expanded,
-   * timestamp-sorted query.
+   * property or a reference to the record. Requires an expanded query
+   * sorted by a timestamp or task due date.
    */
   crmAssociated: GraphqlCrmAssociation; emailAttachmentParticipant?: never; fileAssoc?: never; fileType?: never; id?: never; importance?: never; includeCbmAtmNc?: never; isEmailAttachment?: never; nameContains?: never; notificationState?: never; owner?: never; projectId?: never; property?: never; subType?: never; updatedAt?: never; }
   |  { createdAt?: never; crmAssociated?: never;   /** Uploaded from an email attachment sent by, or to, a matching address. */
@@ -1126,7 +1136,7 @@ export type GraphqlEntityFilterAst = {
   chatFilter?: GraphqlChatExpr | null | undefined;
   /**
    * Restrict every entity type to items associated with this CRM record.
-   * Requires an expanded, timestamp-sorted query.
+   * Requires an expanded query sorted by a timestamp or task due date.
    */
   crmAssociation?: GraphqlCrmAssociation | null | undefined;
   /** The crm company filter to apply. */
@@ -1266,9 +1276,13 @@ export type GraphqlFilterPropertiesLiteral = {
 
 /** GraphQL input value used when matching a property. */
 export type GraphqlFilterPropertyMatchValue =
-  {   /** Entity reference id to match. */
-  entityRef: string | number; selectOption?: never; }
-  |  { entityRef?: never;   /** Select option id to match. */
+  {   /** Match a DATE property in a UTC range. */
+  dateRange: GraphqlPropertyDateRange; entityRef?: never; hasDate?: never; selectOption?: never; }
+  |  { dateRange?: never;   /** Entity reference id to match. */
+  entityRef: string | number; hasDate?: never; selectOption?: never; }
+  |  { dateRange?: never; entityRef?: never;   /** Match a non-null DATE property (false matches absent, null or cleared). */
+  hasDate: boolean; selectOption?: never; }
+  |  { dateRange?: never; entityRef?: never; hasDate?: never;   /** Select option id to match. */
   selectOption: string | number; };
 
 /** The two operands of a recursive `ForeignEntityFilterExpr` binary expression. */
@@ -1430,6 +1444,8 @@ export type GraphqlGroupByField =
 
 /** GraphQL representation of a field used to group Soup items. */
 export type GraphqlGroupByInput = {
+  /** Optional caller-defined date ranges; requires PROPERTY grouping. */
+  bucketing?: GraphqlPropertyBucketing | null | undefined;
   /** Optional property entity type restriction. */
   entityType?: GraphqlPropertyEntityType | null | undefined;
   /** The kind of grouping to perform. */
@@ -1551,6 +1567,21 @@ export type GraphqlProjectLiteral =
   |  { createdAt?: never; importance?: never; notificationState?: never; owner?: never; projectId?: never; projectIdSelf?: never;   /** The updated at option. */
   updatedAt: GraphqlDateLiteral; };
 
+/** Transform the selected DATE property into caller-defined ranges. */
+export type GraphqlPropertyBucketing = {
+  /** Key for entities whose selected property is absent or cleared. */
+  missingValueBucketKey: string;
+  /** Ordered, contiguous UTC ranges covering every present date. */
+  ranges: Array<GraphqlDateBucketRange>;
+  /** Bucketing transformation. */
+  type: GraphqlPropertyBucketingType;
+};
+
+/** Supported property-value transformations. */
+export type GraphqlPropertyBucketingType =
+  /** Caller-defined half-open UTC date ranges. */
+  | 'DATE_RANGES';
+
 /** A property definition's supported value type. */
 export type GraphqlPropertyDataType =
   /** Boolean true/false values. */
@@ -1571,6 +1602,14 @@ export type GraphqlPropertyDataType =
   | 'STRING'
   /** User- or team-scoped colored labels. */
   | 'TAG';
+
+/** Explicit UTC bounds for a DATE property. */
+export type GraphqlPropertyDateRange = {
+  /** Exclusive UTC end, or no upper bound. */
+  end?: string | null | undefined;
+  /** Inclusive UTC start, or no lower bound. */
+  start?: string | null | undefined;
+};
 
 /** An entity type supported by the properties domain. */
 export type GraphqlPropertyEntityType =
@@ -1711,7 +1750,7 @@ export type GraphqlSharedEmailFilter =
   /** The only option. */
   | 'ONLY';
 
-/** GraphQL representation of supported Soup sorts. */
+/** GraphQL representation of Soup timestamp, notification, and selected-property sorts. */
 export type GraphqlSimpleSortMethod =
   /** Sort by creation timestamp. */
   | 'CREATED_AT'
@@ -1720,6 +1759,17 @@ export type GraphqlSimpleSortMethod =
    * notified first. Descending `soup` only; not supported by `groupSoup`.
    */
   | 'NOTIFIED_AT'
+  /**
+   * Earliest selected DATE property first, missing values last.
+   * A Soup-owned item or property filter is required.
+   * Email, channels, calls, companies, and agent sessions never appear.
+   */
+  | 'PROPERTY_DATE_EARLIEST'
+  /**
+   * Latest selected DATE property first, missing values last.
+   * Email, channels, calls, companies, and agent sessions never appear.
+   */
+  | 'PROPERTY_DATE_LATEST'
   /** Sort by update timestamp. */
   | 'UPDATED_AT'
   /** Sort by most recently viewed. */
@@ -1785,6 +1835,8 @@ export type GroupedSoupInitialInput = {
   limit?: number | null | undefined;
   /** Sort order within each bin. Defaults to `VIEWED_UPDATED`. */
   sortMethod?: GraphqlSimpleSortMethod | null | undefined;
+  /** DATE property definition selected for property-date sorting. */
+  sortPropertyDefinitionId?: string | number | null | undefined;
 };
 
 /** Input for `Query.groupSoup`. */
@@ -2108,10 +2160,12 @@ export type SoupInitialInput = {
   /** Direction to order the page in. Defaults to DESC. */
   sortDirection?: GraphqlSortDirection | null | undefined;
   /**
-   * Simple timestamp sort. Defaults to VIEWED_AT. Frecency is intentionally
-   * not supported by this initial GraphQL adapter.
+   * Timestamp or selected DATE-property sort. Defaults to VIEWED_AT.
+   * Frecency is not supported by this GraphQL adapter.
    */
   sortMethod?: GraphqlSimpleSortMethod | null | undefined;
+  /** DATE property definition selected for property-date sorting. */
+  sortPropertyDefinitionId?: string | number | null | undefined;
 };
 
 /** Input for `Query.soup`. */
