@@ -324,14 +324,16 @@ function MentionsMenuInner(props: MentionsMenuProps) {
 
   const [mountSelection, setMountSelection] = createSignal<Selection | null>();
 
-  const mentionUsers = () =>
+  // Binning, rendering, and counts each read this; merge once per change.
+  const mentionUsers = createLazyMemo(() =>
     mergePeopleMentions(
       (usersAndGroups() ?? []).filter(
         (item) => props.includeGroups !== false || item.kind !== 'group'
       ),
       contactsEnabled() ? (contactMention?.entities() ?? []) : [],
       availableUsers()
-    );
+    )
+  );
   const sourceEnabled = (source: MentionBucketId) =>
     !props.sources || props.sources.includes(source);
   const mobileAllItems = createLazyMemo((): MentionItem[] => {

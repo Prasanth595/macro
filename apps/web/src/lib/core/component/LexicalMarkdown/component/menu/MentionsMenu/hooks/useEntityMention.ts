@@ -36,10 +36,8 @@ export function useEntityMention(
   }) as QuickAccessList<EntityItem>;
   const usesRankedList = () =>
     quickAccess.usesRecordSelection() || quickAccess.usesSearchProjection();
-  const entities = createLazyMemo(() => {
-    if (usesRankedList()) return entityList.items();
-    return searchQuickAccessEntities(entityList.items(), options.searchTerm());
-  });
+  // Lists created with a search term are already ranked for it.
+  const entities = entityList.items;
 
   return {
     entities,
