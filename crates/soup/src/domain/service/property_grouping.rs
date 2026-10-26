@@ -12,6 +12,29 @@ use crate::domain::{models::SoupErr, ports::PropertyQueryAuthorizer};
 pub(super) struct PropertiesAuthorizer<S>(pub Arc<S>);
 
 impl<S: PropertiesService> PropertyQueryAuthorizer for PropertiesAuthorizer<S> {
+    fn authorize_selection<'a>(
+        &'a self,
+        viewer: MacroUserIdStr<'static>,
+        team: Option<
+            entity_access::domain::models::EntityAccessReceipt<
+                entity_access::domain::models::MemberTeamRole,
+            >,
+        >,
+        selection: CandidateQuery,
+    ) -> std::pin::Pin<
+        Box<
+            dyn Future<
+                    Output = Result<properties::AuthorizedPropertyQuery, properties::PropertiesErr>,
+                > + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            self.0
+                .authorize_property_query(viewer, team.as_ref(), selection)
+                .await
+        })
+    }
     fn authorize<'a>(
         &'a self,
         viewer: MacroUserIdStr<'static>,

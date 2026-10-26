@@ -68,9 +68,8 @@ rows, initiatives, ...) and get back a single unified, paginated result.
 - `expanded/` vs `unexpanded/` queries exist because hydrating full entities
   is expensive — don't widen `unexpanded` to return hydrated data; add a new
   `expanded` path instead.
-- Keep due-date sorting task-only: `domain/service/due_date.rs` validates
-  filters, and `outbound/pg_soup_repo/due_date.rs` selects canonical dates before pagination.
-- Preserve projection-backed hydration for due-date pages; GraphQL uses those server facts for its cache even when sorting by a task property.
+- Route selected-property DATE reads through `domain/service/property_dates.rs`; authorize definitions once, merge source-owned candidate pages, then hydrate only selected identities.
+- Preserve projection-backed hydration for selected-property date pages; GraphQL uses those server facts for its cache, including Tasks' Due Date property.
 - Group DATE properties with caller-defined ranges, never task-specific boundary fields;
   freeze the selected property, ranges, keys, and scope in contextual continuations.
 - Attach the properties service with `with_property_queries` for DATE grouping;

@@ -117,9 +117,11 @@ fn push_filter(query: &mut QueryBuilder<'_, Postgres>, filter: &Expr<CallLiteral
 }
 
 fn push_property(query: &mut QueryBuilder<'_, Postgres>, property: &PropertiesLiteral) {
-    // CALL_RECORD is not one of the generic typed scopes. An explicit different
-    // scope must not read an assignment for the same UUID under another entity.
-    if property.entity_type.is_some() {
+    // Never read another entity family's assignment for the same UUID.
+    if property
+        .entity_type
+        .is_some_and(|scope| scope != item_filters::ast::properties::PropertyEntityType::CallRecord)
+    {
         query.push("FALSE");
         return;
     }

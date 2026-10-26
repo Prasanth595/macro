@@ -60,6 +60,7 @@ in-call chat.
   separate ID, status, and property extraction loses mixed-OR semantics.
 - Accept only viewer-bound `AuthorizedPropertyQuery` for date candidate queries;
   keep call access and full boolean-filter checks in the source query.
+- Match explicit `CALL_RECORD` property scope and reject other scopes, including inside negated filters.
 - Match candidate speaker filters against rendered transcript identities; imported
   attendees remain guests even when a participant links to a Macro account.
 

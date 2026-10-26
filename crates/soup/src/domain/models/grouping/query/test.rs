@@ -55,7 +55,7 @@ fn contextual_timestamp_cursor_preserves_scope_and_rejects_conflicting_inputs() 
             sort_type: SimpleSortMethod::UpdatedAt,
             last_val: "2026-03-08T12:00:00Z".parse().unwrap(),
         },
-        filter: GroupedDueDateContext {
+        filter: GroupedTimestampContext {
             filters: EntityFilterAst {
                 favorites_only: Some(false),
                 ..Default::default()
@@ -68,9 +68,7 @@ fn contextual_timestamp_cursor_preserves_scope_and_rejects_conflicting_inputs() 
     supplied.per_group_limit = None;
     let request =
         GroupedSortQuery::continue_from(user.clone(), cursor.clone(), supplied.clone()).unwrap();
-    let GroupedSortQuery::Timestamp(request) = request else {
-        panic!("expected timestamp continuation");
-    };
+    let GroupedSortQuery::Timestamp(request) = request;
     assert_eq!(request.limit, 25);
     assert_eq!(request.grouping.field, grouping.field);
     assert_eq!(request.grouping.per_group_limit, Some(25));

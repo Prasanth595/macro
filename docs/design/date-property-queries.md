@@ -4,14 +4,13 @@ Status: Accepted. Implementation updates the task due-date work in PR #8494.
 
 ## Implementation status
 
-Grouped Soup uses property grouping with caller-defined date ranges; the backend
-has no task-specific deadline grouping mode or named day-boundary contract.
-The consuming view selects the property definition and supplies its own keys.
-
-This grouping contract does not complete generic date-property sorting or the
-cross-source candidate pipeline. The existing due-date sort remains task-only,
-and the separate generic candidate adapters still need end-to-end integration.
-Keep those unfinished changes distinct from replacing the grouping contract.
+REST and GraphQL route selected-property date sorting and date-range grouping
+through shared source candidate selection and frozen continuation context.
+Documents, tasks, chats, projects, calendar events, initiatives, database rows,
+agent sessions, channels, calls, and email threads have source-owned candidate
+implementations. Companies participate when the request includes its authorized
+CRM team scope. The old task-only sorting path is removed; Tasks sends the
+Due Date definition ID through the same generic REST and GraphQL contracts.
 
 ## Decision
 

@@ -200,6 +200,7 @@ impl TryFrom<GraphqlPropertyEntityType> for PropertyEntityType {
     fn try_from(value: GraphqlPropertyEntityType) -> Result<Self, Self::Error> {
         Ok(match value {
             GraphqlPropertyEntityType::CalendarEvent => Self::CalendarEvent,
+            GraphqlPropertyEntityType::CallRecord => Self::CallRecord,
             GraphqlPropertyEntityType::Channel => Self::Channel,
             GraphqlPropertyEntityType::Chat => Self::Chat,
             GraphqlPropertyEntityType::Company => Self::Company,
@@ -210,8 +211,7 @@ impl TryFrom<GraphqlPropertyEntityType> for PropertyEntityType {
             GraphqlPropertyEntityType::Thread => Self::Thread,
             GraphqlPropertyEntityType::User => Self::User,
             GraphqlPropertyEntityType::Initiative => Self::Initiative,
-            other
-            @ (GraphqlPropertyEntityType::CallRecord | GraphqlPropertyEntityType::Contact) => {
+            other @ GraphqlPropertyEntityType::Contact => {
                 return Err(other);
             }
         })

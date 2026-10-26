@@ -54,6 +54,32 @@ where
     CS: crm::domain::service::CrmService,
     anyhow::Error: From<T::Err>,
 {
+    #[tracing::instrument(err, skip_all)]
+    pub(crate) async fn get_email_property_candidates_impl(
+        &self,
+        req: crate::domain::models::EmailPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, EmailErr> {
+        let crate::domain::models::EmailPropertyCandidateRequest { emails, selection } = req;
+        if emails.macro_id != *selection.viewer() {
+            return Err(EmailErr::Unauthorized);
+        }
+        let team_id = self
+            .validate_crm_scope(emails.team_receipt.as_ref(), emails.crm_scope.as_ref())
+            .await?;
+        self.email_repo
+            .property_candidates(
+                PreviewCursorQuery {
+                    view: emails.view,
+                    link_ids: emails.link_ids,
+                    limit: u32::from(selection.query().limit),
+                    query: emails.query,
+                    team_id,
+                },
+                selection,
+            )
+            .await
+            .map_err(|error| EmailErr::RepoErr(anyhow::Error::from(error)))
+    }
     #[tracing::instrument(err, skip(self, req))]
     pub(crate) async fn get_email_thread_previews_impl(
         &self,

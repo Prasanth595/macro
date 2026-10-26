@@ -1,11 +1,14 @@
 use super::*;
-use models_pagination::DueDateSort;
+use crate::domain::models::property_dates::PropertyDateContext;
+use models_grouping::{
+    CandidateCursor, CandidateDirection, CandidateIdentity, CandidateQuery, CandidateSortValue,
+};
 
 #[tokio::test]
 async fn due_date_sort_markers_select_the_due_date_query() {
-    for sort_method in ["due_date_earliest", "due_date_latest"] {
+    for sort_method in ["property_date_earliest", "property_date_latest"] {
         let soup = MockSoup::succeeding();
-        let calls = soup.called.clone();
+        let calls = soup.property_date_calls.clone();
         let router = mock_router_with(
             soup,
             MockEmailLinkResult {
@@ -17,7 +20,7 @@ async fn due_date_sort_markers_select_the_due_date_query() {
             .method(Method::POST)
             .header("content-type", "application/json")
             .body(axum::body::Body::from(
-                serde_json::to_vec(&json!({ "sort_method": sort_method })).unwrap(),
+                serde_json::to_vec(&json!({ "sort_method": sort_method, "sort_property_definition_id": Uuid::from_u128(18) })).unwrap(),
             ))
             .unwrap();
 
@@ -25,29 +28,44 @@ async fn due_date_sort_markers_select_the_due_date_query() {
         assert_eq!(status, StatusCode::OK);
         let calls = calls.lock().unwrap();
         assert_eq!(calls.len(), 1);
-        assert!(matches!(calls[0].cursor_kind, MockCursorKind::DueDateSort));
+        assert_eq!(
+            calls[0].selection.date_property_id,
+            Some(Uuid::from_u128(18))
+        );
     }
 }
 
 #[tokio::test]
 async fn null_due_date_cursor_does_not_fall_back_to_an_initial_timestamp_query() {
-    for sort_type in [DueDateSort::Earliest, DueDateSort::Latest] {
+    for direction in [
+        CandidateDirection::Ascending,
+        CandidateDirection::Descending,
+    ] {
         let soup = MockSoup::succeeding();
-        let calls = soup.called.clone();
+        let calls = soup.property_date_calls.clone();
         let router = mock_router_with(
             soup,
             MockEmailLinkResult {
                 get_link_result: Arc::new(|| Ok(None)),
             },
         );
-        let cursor = models_pagination::Base64Str::encode_json(models_pagination::Cursor {
-            id: Uuid::from_u128(1),
-            limit: 20,
-            val: CursorVal {
-                sort_type,
-                last_val: None,
+        let cursor = models_pagination::Base64Str::encode_json(PropertyDateContext {
+            email_preview_view: PreviewView::StandardLabel(PreviewViewStandardLabel::All),
+            selection: CandidateQuery {
+                date_property_id: Some(Uuid::from_u128(18)),
+                timestamp_sort: None,
+                direction,
+                grouping: None,
+                limit: 20,
+                cursor: Some(CandidateCursor {
+                    identity: CandidateIdentity {
+                        id: Uuid::from_u128(1).to_string(),
+                        entity_type: "TASK".into(),
+                    },
+                    sort_value: CandidateSortValue(None),
+                }),
             },
-            filter: EntityFilters::default(),
+            filters: EntityFilterAst::default(),
         })
         .type_erase()
         .replace('+', "%2B")
@@ -60,14 +78,33 @@ async fn null_due_date_cursor_does_not_fall_back_to_an_initial_timestamp_query()
             .body(axum::body::Body::from("{}"))
             .unwrap();
 
-        let (status, _) = send_json(router, request).await;
+        let (status, _) = send_json(router.clone(), request).await;
         assert_eq!(status, StatusCode::OK);
+        let changed_view = authenticated_request()
+            .uri(format!("/soup?cursor={cursor}"))
+            .method(Method::POST)
+            .header("content-type", "application/json")
+            .body(axum::body::Body::from(r#"{"emailView":"inbox"}"#))
+            .unwrap();
+        let (status, _) = send_json(router, changed_view).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
         let calls = calls.lock().unwrap();
         assert_eq!(calls.len(), 1);
-        assert!(matches!(
-            calls[0].cursor_kind,
-            MockCursorKind::DueDateCursor
-        ));
+        assert!(
+            calls[0]
+                .selection
+                .cursor
+                .as_ref()
+                .unwrap()
+                .sort_value
+                .0
+                .is_none()
+        );
+        assert_eq!(calls[0].selection.direction, direction);
+        assert_eq!(
+            calls[0].email_preview_view,
+            PreviewView::StandardLabel(PreviewViewStandardLabel::All)
+        );
     }
 }
 
@@ -90,7 +127,7 @@ fn date_range_grouping() -> serde_json::Value {
 #[tokio::test]
 async fn date_range_grouping_preserves_property_ranges_sort_and_limit() {
     let soup = MockSoup::succeeding();
-    let calls = soup.grouped_calls.clone();
+    let calls = soup.property_date_calls.clone();
     let router = mock_router_with(
         soup,
         MockEmailLinkResult {
@@ -115,8 +152,23 @@ async fn date_range_grouping_preserves_property_ranges_sort_and_limit() {
     assert_eq!(status, StatusCode::OK);
     let calls = calls.lock().unwrap();
     assert_eq!(calls.len(), 1);
-    assert_eq!(calls[0].0.per_group_limit, Some(25));
-    let (property, ranges) = calls[0].0.field.date_ranges().unwrap();
+    assert_eq!(
+        calls[0]
+            .selection
+            .grouping
+            .as_ref()
+            .unwrap()
+            .per_group_limit,
+        Some(25)
+    );
+    let (property, ranges) = calls[0]
+        .selection
+        .grouping
+        .as_ref()
+        .unwrap()
+        .field
+        .date_ranges()
+        .unwrap();
     assert_eq!(property, Uuid::from_u128(18));
     assert_eq!(ranges.missing_value_bucket_key, "no-review-date");
     assert_eq!(ranges.ranges[1].key, "review");
@@ -125,8 +177,8 @@ async fn date_range_grouping_preserves_property_ranges_sort_and_limit() {
         chrono::Duration::hours(23)
     );
     assert!(matches!(
-        calls[0].1,
-        crate::domain::models::GroupedSortMethod::Timestamp(SimpleSortMethod::UpdatedAt)
+        calls[0].selection.timestamp_sort,
+        Some(SimpleSortMethod::UpdatedAt)
     ));
 }
 
@@ -148,7 +200,7 @@ async fn invalid_date_partitions_are_rejected_before_the_service() {
             _ => unreachable!(),
         }
         let soup = MockSoup::succeeding();
-        let calls = soup.grouped_calls.clone();
+        let calls = soup.property_date_calls.clone();
         let router = mock_router_with(
             soup,
             MockEmailLinkResult {
@@ -173,9 +225,9 @@ async fn invalid_date_partitions_are_rejected_before_the_service() {
 }
 
 #[tokio::test]
-async fn due_date_group_sort_dispatches_to_the_task_service() {
+async fn property_date_group_sort_dispatches_to_the_shared_service() {
     let soup = MockSoup::succeeding();
-    let calls = soup.grouped_calls.clone();
+    let calls = soup.property_date_calls.clone();
     let router = mock_router_with(
         soup,
         MockEmailLinkResult {
@@ -190,7 +242,8 @@ async fn due_date_group_sort_dispatches_to_the_task_service() {
             serde_json::to_vec(&json!({
                 "mode": "initial",
                 "group_by": "entity_type",
-                "sort_method": "due_date_latest",
+                "sort_method": "property_date_latest",
+                "sort_property_definition_id": Uuid::from_u128(18),
                 "per_group_limit": 25
             }))
             .unwrap(),
@@ -200,33 +253,39 @@ async fn due_date_group_sort_dispatches_to_the_task_service() {
     assert_eq!(status, StatusCode::OK);
     let calls = calls.lock().unwrap();
     assert_eq!(calls.len(), 1);
-    assert!(matches!(
-        calls[0].1,
-        crate::domain::models::GroupedSortMethod::DueDate(DueDateSort::Latest)
-    ));
+    assert_eq!(
+        calls[0].selection.date_property_id,
+        Some(Uuid::from_u128(18))
+    );
+    assert_eq!(calls[0].selection.direction, CandidateDirection::Descending);
 }
 
 #[tokio::test]
 async fn changed_date_range_context_cannot_restart_a_group_continuation() {
-    use crate::domain::models::due_date::GroupedDueDateContext;
     use crate::inbound::axum_router::ApiGroupByField;
     let original = date_range_grouping();
     let field: ApiGroupByField = serde_json::from_value(original.clone()).unwrap();
-    let cursor = models_pagination::Base64Str::encode_json(CursorWithValAndFilter {
-        id: Uuid::from_u128(1),
-        limit: 25,
-        val: CursorVal {
-            sort_type: SimpleSortMethod::UpdatedAt,
-            last_val: "2026-03-08T12:00:00Z".parse().unwrap(),
-        },
-        filter: GroupedDueDateContext {
-            filters: EntityFilterAst::default(),
-            grouping: models_grouping::GroupingConfig {
+    let cursor = models_pagination::Base64Str::encode_json(PropertyDateContext {
+        email_preview_view: Default::default(),
+        selection: CandidateQuery {
+            date_property_id: None,
+            timestamp_sort: Some(SimpleSortMethod::UpdatedAt),
+            direction: CandidateDirection::Descending,
+            limit: 25,
+            cursor: Some(CandidateCursor {
+                identity: CandidateIdentity {
+                    id: Uuid::from_u128(1).to_string(),
+                    entity_type: "DOCUMENT".into(),
+                },
+                sort_value: CandidateSortValue(Some("2026-03-08T12:00:00Z".parse().unwrap())),
+            }),
+            grouping: Some(models_grouping::GroupingConfig {
                 field: field.into(),
-                group_key: Some("review".to_owned()),
+                group_key: Some("review".into()),
                 per_group_limit: Some(25),
-            },
+            }),
         },
+        filters: EntityFilterAst::default(),
     })
     .type_erase()
     .replace('+', "%2B")
@@ -253,7 +312,7 @@ async fn changed_date_range_context_cannot_restart_a_group_continuation() {
             _ => unreachable!(),
         }
         let soup = MockSoup::succeeding();
-        let calls = soup.grouped_calls.clone();
+        let calls = soup.property_date_calls.clone();
         let router = mock_router_with(
             soup,
             MockEmailLinkResult {
@@ -275,4 +334,59 @@ async fn changed_date_range_context_cannot_restart_a_group_continuation() {
         assert_eq!(status, StatusCode::BAD_REQUEST, "{change}");
         assert!(calls.lock().unwrap().is_empty());
     }
+}
+
+#[tokio::test]
+async fn grouped_property_cursor_routes_without_repeating_the_sort() {
+    let context = PropertyDateContext {
+        email_preview_view: Default::default(),
+        selection: CandidateQuery {
+            date_property_id: Some(Uuid::from_u128(18)),
+            timestamp_sort: None,
+            direction: CandidateDirection::Ascending,
+            limit: 25,
+            cursor: Some(CandidateCursor {
+                identity: CandidateIdentity {
+                    id: Uuid::from_u128(1).to_string(),
+                    entity_type: "TASK".into(),
+                },
+                sort_value: CandidateSortValue(None),
+            }),
+            grouping: Some(
+                models_grouping::GroupingConfig::new(models_grouping::GroupByField::EntityType)
+                    .with_group_key("document")
+                    .with_limit(25),
+            ),
+        },
+        filters: EntityFilterAst::default(),
+    };
+    let cursor = models_pagination::Base64Str::encode_json(context)
+        .type_erase()
+        .replace('+', "%2B")
+        .replace('/', "%2F")
+        .replace('=', "%3D");
+    let soup = MockSoup::succeeding();
+    let calls = soup.property_date_calls.clone();
+    let router = mock_router_with(
+        soup,
+        MockEmailLinkResult {
+            get_link_result: Arc::new(|| Ok(None)),
+        },
+    );
+    let request = authenticated_request()
+        .uri(format!("/soup/ast/grouped?cursor={cursor}"))
+        .method(Method::POST)
+        .header("content-type", "application/json")
+        .body(axum::body::Body::from(
+            serde_json::to_vec(&json!({
+                "mode": "group_page", "group_by": "entity_type", "group_key": "document"
+            }))
+            .unwrap(),
+        ))
+        .unwrap();
+    let (status, body) = send_json(router, request).await;
+    assert_eq!(status, StatusCode::OK, "{body:?}");
+    assert_eq!(body["group"]["key"], "document");
+    assert_eq!(body["group"]["total_count"], 0);
+    assert_eq!(calls.lock().unwrap().len(), 1);
 }

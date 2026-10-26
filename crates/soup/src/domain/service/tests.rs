@@ -1,4 +1,6 @@
 mod date_ranges;
+#[cfg(feature = "outbound")]
+mod property_dates;
 use crate::domain::models::{NotifiedEntity, TouchedEntity};
 use crate::domain::ports::MockSoupRepo;
 use channels::domain::{
@@ -54,6 +56,13 @@ mod work_feed;
 struct NoopEmailPreviewService;
 
 impl EmailPreviewServiceReadOnly for NoopEmailPreviewService {
+    async fn get_email_property_candidates(
+        &self,
+        _req: email::domain::models::EmailPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, email::domain::models::EmailErr> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn get_email_thread_previews(
         &self,
         req: email::domain::models::GetEmailsRequest,
@@ -2923,6 +2932,13 @@ struct RecordingEmailPreviewService {
 }
 
 impl EmailPreviewServiceReadOnly for RecordingEmailPreviewService {
+    async fn get_email_property_candidates(
+        &self,
+        _req: email::domain::models::EmailPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, email::domain::models::EmailErr> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn get_email_thread_previews(
         &self,
         req: email::domain::models::GetEmailsRequest,

@@ -197,6 +197,14 @@ impl CountingSoupService {
 }
 
 impl SoupService for CountingSoupService {
+    async fn get_property_date_page(
+        &self,
+        _request: soup::domain::models::property_dates::PropertyDateRequest,
+    ) -> Result<soup::domain::models::property_dates::PropertyDatePage, soup::domain::models::SoupErr>
+    {
+        panic!("unexpected property-date query")
+    }
+
     async fn get_user_soup<T>(
         &self,
         _req: soup::domain::models::SoupRequest<T>,
@@ -499,6 +507,13 @@ impl EmailUserService for CountingEmailService {
 }
 
 impl EmailService for CountingEmailService {
+    async fn get_email_property_candidates(
+        &self,
+        _req: email::domain::models::EmailPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, email::domain::models::EmailErr> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn resolve_thread_read_id(
         &self,
         macro_id: MacroUserIdStr<'_>,

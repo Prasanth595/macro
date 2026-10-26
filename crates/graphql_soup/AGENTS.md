@@ -19,8 +19,7 @@ viewer pattern), which apply to every type defined here.
 - Property grouping accepts optional `groupBy.bucketing` with `type: DATE_RANGES`,
   caller-defined half-open UTC `ranges`, and `missingValueBucketKey`. Keep the
   selected property, ranges, keys, and entity scope fixed across continuation pages.
-- Keep nullable task due-date cursors distinct from legacy timestamp cursors;
-  `GraphqlSimpleSortMethod` retains its deployed name and includes due-date sorts.
+- Use `PROPERTY_DATE_EARLIEST`/`PROPERTY_DATE_LATEST` with `sortPropertyDefinitionId`; preserve the complete selected-property cursor separately from legacy timestamp cursors.
 - `NOTIFIED_AT` maps to Soup's notified request, not a simple sort: `soup`
   accepts it descending only and `groupSoup` rejects it. Its continuation
-  cursors carry their own sort tag and string identifiers, separate from timestamp and due-date cursors.
+  cursors carry their own sort tag and string identifiers, separate from timestamp and selected-property cursors.

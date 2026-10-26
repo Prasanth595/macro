@@ -55,6 +55,31 @@ fn clauses_of(expr: Expr<CallLiteral>) -> Vec<Vec<PropertyTerm>> {
 }
 
 #[test]
+fn property_scopes_match_only_call_records_even_under_negation() {
+    use item_filters::ast::properties::PropertyEntityType;
+    let scoped = |scope| {
+        Expr::val(CallLiteral::Property(PropertiesLiteral {
+            property_definition_id: COMPANIES,
+            entity_type: Some(scope),
+            value: PropertyMatchValue::EntityRef(EntityRefId::new("a".into()).unwrap()),
+        }))
+    };
+    assert_eq!(
+        clauses_of(scoped(PropertyEntityType::CallRecord)),
+        vec![vec![has("a")]]
+    );
+    assert_eq!(
+        clauses_of(scoped(PropertyEntityType::Task)),
+        vec![Vec::new()]
+    );
+    assert!(clauses_of(Expr::is_not(scoped(PropertyEntityType::Task))).is_empty());
+    assert_eq!(
+        clauses_of(Expr::or(scoped(PropertyEntityType::Task), company("b"))),
+        vec![vec![has("b")]]
+    );
+}
+
+#[test]
 fn keeps_and_or_and_not_structure() {
     assert_eq!(clauses_of(company("a")), vec![vec![has("a")]]);
     assert_eq!(

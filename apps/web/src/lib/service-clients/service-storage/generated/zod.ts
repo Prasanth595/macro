@@ -24465,13 +24465,17 @@ export const getItemsSoupQueryParams = zod.object({
       'frecency',
       'touched_by_me',
       'notified_at',
-      'due_date_earliest',
-      'due_date_latest',
+      'property_date_earliest',
+      'property_date_latest',
     ])
     .optional()
     .describe(
-      'Sort method. Includes timestamp sorts, relevance sorts, and\ndue_date_earliest\/due_date_latest for tasks. Defaults to viewed_at.'
+      'Sort method. Includes timestamp sorts, relevance sorts, and\nproperty_date_earliest\/property_date_latest with a selected DATE definition.\nDefaults to viewed_at.'
     ),
+  sort_property_definition_id: zod
+    .uuid()
+    .optional()
+    .describe('DATE property definition selected for property-date sorting.'),
   sort_direction: zod
     .enum(['asc', 'desc'])
     .optional()
@@ -29146,14 +29150,20 @@ export const postItemsSoupBody = zod
                 'frecency',
                 'touched_by_me',
                 'notified_at',
-                'due_date_earliest',
-                'due_date_latest',
+                'property_date_earliest',
+                'property_date_latest',
               ])
               .describe(
                 'Sort options accepted by non-grouped soup API endpoints.'
               ),
           ])
           .optional(),
+        sort_property_definition_id: zod
+          .uuid()
+          .nullish()
+          .describe(
+            'DATE property definition selected for property-date sorting.'
+          ),
       })
       .describe('Query parameters shared by soup endpoints.')
   )
@@ -33277,14 +33287,20 @@ export const postItemsSoupAstBody = zod
                 'frecency',
                 'touched_by_me',
                 'notified_at',
-                'due_date_earliest',
-                'due_date_latest',
+                'property_date_earliest',
+                'property_date_latest',
               ])
               .describe(
                 'Sort options accepted by non-grouped soup API endpoints.'
               ),
           ])
           .optional(),
+        sort_property_definition_id: zod
+          .uuid()
+          .nullish()
+          .describe(
+            'DATE property definition selected for property-date sorting.'
+          ),
       })
       .describe('Query parameters shared by soup endpoints.')
   )
@@ -37463,6 +37479,10 @@ export const postItemsSoupAstGroupedBody = zod
                             zod.null(),
                             zod
                               .enum([
+                                'CALL_RECORD',
+                                'CALENDAR_EVENT',
+                                'DATABASE_ROW',
+                                'INITIATIVE',
                                 'CHANNEL',
                                 'CHAT',
                                 'COMPANY',
@@ -37506,14 +37526,20 @@ export const postItemsSoupAstGroupedBody = zod
                     'created_at',
                     'updated_at',
                     'viewed_updated',
-                    'due_date_earliest',
-                    'due_date_latest',
+                    'property_date_earliest',
+                    'property_date_latest',
                   ])
                   .describe(
                     'Sort method for grouped queries (frecency not supported).'
                   ),
               ])
               .optional(),
+            sort_property_definition_id: zod
+              .uuid()
+              .nullish()
+              .describe(
+                'DATE property definition selected for property-date sorting.'
+              ),
           })
           .describe('Parameters for the initial grouped soup query.')
       )
@@ -37728,6 +37754,10 @@ export const postItemsSoupAstGroupedBody = zod
                             zod.null(),
                             zod
                               .enum([
+                                'CALL_RECORD',
+                                'CALENDAR_EVENT',
+                                'DATABASE_ROW',
+                                'INITIATIVE',
                                 'CHANNEL',
                                 'CHAT',
                                 'COMPANY',
@@ -37772,14 +37802,20 @@ export const postItemsSoupAstGroupedBody = zod
                     'created_at',
                     'updated_at',
                     'viewed_updated',
-                    'due_date_earliest',
-                    'due_date_latest',
+                    'property_date_earliest',
+                    'property_date_latest',
                   ])
                   .describe(
                     'Sort method for grouped queries (frecency not supported).'
                   ),
               ])
               .optional(),
+            sort_property_definition_id: zod
+              .uuid()
+              .nullish()
+              .describe(
+                'DATE property definition selected for property-date sorting.'
+              ),
           })
           .describe('Parameters for fetching one page within a specific group.')
       )
@@ -37814,7 +37850,7 @@ export const postItemsSoupAstGroupedResponse = zod
                   .nullish()
                   .describe('Display order for sorting groups (lower = first)'),
                 item_ids: zod
-                  .array(zod.uuid())
+                  .array(zod.string())
                   .describe(
                     'Ordered ids of items in this group for the current page.\nEach id keys into `GroupedSoupPage.items`.'
                   ),
@@ -41930,7 +41966,7 @@ export const postItemsSoupAstGroupedResponse = zod
               .nullish()
               .describe('Display order for sorting groups (lower = first)'),
             item_ids: zod
-              .array(zod.uuid())
+              .array(zod.string())
               .describe(
                 'Ordered ids of items in this group for the current page.\nEach id keys into `GroupedSoupPage.items`.'
               ),

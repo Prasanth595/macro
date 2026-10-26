@@ -238,7 +238,7 @@ impl<E: SoupEntityEdges> GroupedSoup<E> {
     }
 
     /// Construct GraphQL bins from the shared grouped response and cursor policy.
-    pub fn from_response(response: GroupedResponse) -> Self {
+    pub fn from_response<Id: Eq + std::hash::Hash>(response: GroupedResponse<Id>) -> Self {
         Self {
             bins: response
                 .groups

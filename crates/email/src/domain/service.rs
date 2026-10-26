@@ -229,6 +229,13 @@ where
         self.resolve_thread_read_id_impl(macro_id, thread_id).await
     }
 
+    async fn get_email_property_candidates(
+        &self,
+        req: super::models::EmailPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, EmailErr> {
+        self.get_email_property_candidates_impl(req).await
+    }
+
     async fn get_email_thread_previews(
         &self,
         req: GetEmailsRequest,

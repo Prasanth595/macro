@@ -8,9 +8,10 @@ use models_grouping::{GroupByField, GroupingConfig};
 /// Caller-defined property date-range inputs.
 mod date_ranges;
 use date_ranges::GraphqlPropertyBucketing;
-use models_pagination::{
-    Base64Str, CursorWithValAndFilter, DueDateSort, NotifiedAt, SimpleSortMethod,
-};
+/// Generic property-date request conversion.
+mod property_dates;
+use models_pagination::{Base64Str, CursorWithValAndFilter, NotifiedAt, SimpleSortMethod};
+pub(crate) use property_dates::{GroupedReadRequest, SoupReadRequest};
 use soup::domain::models::{
     GroupedSortMethod, GroupedSortQuery, SoupQuery, SoupRequest, SoupSortDirection, SoupType,
 };
@@ -35,6 +36,8 @@ pub struct SoupInitialInput {
     /// Timestamp or task due-date sort. Defaults to VIEWED_AT.
     /// Frecency is not supported by this GraphQL adapter.
     sort_method: Option<GraphqlSimpleSortMethod>,
+    /// DATE property definition selected for property-date sorting.
+    sort_property_definition_id: Option<ID>,
     /// Email preview view used when hydrating email Soup items.
     email_view: Option<GraphqlEmailView>,
     /// AST-shaped filters applied to each Soup entity type.
@@ -96,6 +99,8 @@ pub struct GroupedSoupInitialInput {
     limit: Option<u16>,
     /// Sort order within each bin. Defaults to `VIEWED_UPDATED`.
     sort_method: Option<GraphqlSimpleSortMethod>,
+    /// DATE property definition selected for property-date sorting.
+    sort_property_definition_id: Option<ID>,
     /// AST-shaped filters applied to each Soup entity type.
     filters: Option<GraphqlEntityFilterAst>,
 }
@@ -309,9 +314,6 @@ impl SoupContinuationInput {
             SoupContinuationCursor::Simple(cursor) => {
                 (cursor.limit, SoupQuery::new_cursor_simple(cursor))
             }
-            SoupContinuationCursor::DueDate(cursor) => {
-                (cursor.limit, SoupQuery::new_cursor_due_date(cursor))
-            }
             SoupContinuationCursor::Notified(cursor) => {
                 (cursor.limit, SoupQuery::new_cursor_notified(cursor))
             }
@@ -336,8 +338,6 @@ impl SoupContinuationInput {
 enum SoupContinuationCursor {
     /// An existing timestamp-sorted continuation.
     Simple(CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>),
-    /// A task due-date continuation, including an undated last item.
-    DueDate(CursorWithValAndFilter<Uuid, DueDateSort, EntityFilterAst>),
     /// A notification continuation, including channel-thread string identifiers.
     Notified(CursorWithValAndFilter<String, NotifiedAt, EntityFilterAst>),
 }
@@ -430,10 +430,10 @@ pub enum GraphqlSimpleSortMethod {
     /// Only entities the caller holds a live notification for, most recently
     /// notified first. Descending `soup` only; not supported by `groupSoup`.
     NotifiedAt,
-    /// Earliest task due date first, with undated tasks last.
-    DueDateEarliest,
-    /// Latest task due date first, with undated tasks last.
-    DueDateLatest,
+    /// Earliest selected DATE property first, missing values last.
+    PropertyDateEarliest,
+    /// Latest selected DATE property first, missing values last.
+    PropertyDateLatest,
 }
 
 impl GraphqlSimpleSortMethod {
@@ -444,8 +444,11 @@ impl GraphqlSimpleSortMethod {
             Self::CreatedAt => GroupedSortMethod::Timestamp(SimpleSortMethod::CreatedAt),
             Self::UpdatedAt => GroupedSortMethod::Timestamp(SimpleSortMethod::UpdatedAt),
             Self::ViewedUpdated => GroupedSortMethod::Timestamp(SimpleSortMethod::ViewedUpdated),
-            Self::DueDateEarliest => GroupedSortMethod::DueDate(DueDateSort::Earliest),
-            Self::DueDateLatest => GroupedSortMethod::DueDate(DueDateSort::Latest),
+            Self::PropertyDateEarliest | Self::PropertyDateLatest => {
+                return Err(async_graphql::Error::new(
+                    "property-date sort requires sortPropertyDefinitionId",
+                ));
+            }
             Self::NotifiedAt => {
                 return Err(async_graphql::Error::new(
                     "NOTIFIED_AT is only supported by soup",
@@ -461,7 +464,6 @@ impl GraphqlSimpleSortMethod {
         }
         Ok(match self.into_model()? {
             GroupedSortMethod::Timestamp(sort) => SoupQuery::new_sort_simple(sort, filters),
-            GroupedSortMethod::DueDate(sort) => SoupQuery::new_sort_due_date(sort, filters),
         })
     }
 }

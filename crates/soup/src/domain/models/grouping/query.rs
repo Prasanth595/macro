@@ -1,38 +1,38 @@
-//! Grouped sort dispatch and frozen deadline continuation policy.
+//! Timestamp grouping and its deployed continuation formats.
 
 use item_filters::ast::{EntityFilterAst, ExpandErr};
 use macro_user_id::user_id::MacroUserIdStr;
 use models_grouping::GroupingConfig;
-use models_pagination::{Base64Str, CursorWithValAndFilter, DueDateSort, Query, SimpleSortMethod};
+use models_pagination::{Base64Str, CursorWithValAndFilter, Query, SimpleSortMethod};
 use uuid::Uuid;
 
-use crate::domain::models::{
-    SoupErr,
-    due_date::{
-        GroupedDueDateContext, GroupedDueDateCursor, GroupedDueDateRequest, validate_grouping,
-    },
-};
+use crate::domain::models::SoupErr;
 
-/// Timestamp cursor with frozen date-range grouping and task filters.
+/// Frozen timestamp grouping context retained for existing continuations.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GroupedTimestampContext {
+    /// Original filters, before resolving memberships.
+    pub filters: EntityFilterAst,
+    /// Grouping field, key, and per-group limit.
+    pub grouping: GroupingConfig,
+}
+
+/// Timestamp cursor with a frozen date-range grouping configuration.
 pub type GroupedTimestampCursor =
-    CursorWithValAndFilter<Uuid, SimpleSortMethod, GroupedDueDateContext>;
+    CursorWithValAndFilter<Uuid, SimpleSortMethod, GroupedTimestampContext>;
 
-/// Sorting supported by grouped Soup queries.
+/// Timestamp sorting for legacy grouped requests.
 #[derive(Debug, Clone, Copy)]
 pub enum GroupedSortMethod {
     /// Existing timestamp ordering.
     Timestamp(SimpleSortMethod),
-    /// Task-only due-date ordering, with undated tasks last.
-    DueDate(DueDateSort),
 }
 
-/// Grouped query dispatch without changing deployed timestamp cursor values.
+/// Timestamp grouped dispatch; selected-property queries use PropertyDateRequest.
 #[derive(Debug)]
 pub enum GroupedSortQuery<'a> {
-    /// Timestamp-sorted groups, including date-range groups.
+    /// Timestamp-sorted groups.
     Timestamp(GroupedSortRequest<'a>),
-    /// Due-date-sorted task groups with contextual continuation cursors.
-    DueDate(GroupedDueDateRequest<'a>),
 }
 
 impl<'a> GroupedSortQuery<'a> {
@@ -52,17 +52,13 @@ impl<'a> GroupedSortQuery<'a> {
                 .clamp(1, 500),
         );
         validate_grouping(&grouping)?;
-        match sort {
-            GroupedSortMethod::Timestamp(sort) => Ok(Self::Timestamp(GroupedSortRequest::initial(
-                user_id, limit, sort, filters, grouping,
-            ))),
-            GroupedSortMethod::DueDate(sort) => Ok(Self::DueDate(GroupedDueDateRequest::initial(
-                user_id, limit, sort, filters, grouping,
-            )?)),
-        }
+        let GroupedSortMethod::Timestamp(sort) = sort;
+        Ok(Self::Timestamp(GroupedSortRequest::initial(
+            user_id, limit, sort, filters, grouping,
+        )))
     }
 
-    /// Decode a continuation without treating malformed context as legacy filters.
+    /// Decode deployed timestamp continuations without dropping malformed context.
     pub fn continue_from(
         user_id: MacroUserIdStr<'a>,
         encoded: String,
@@ -71,23 +67,8 @@ impl<'a> GroupedSortQuery<'a> {
         let value = Base64Str::<serde_json::Value>::new_from_string(encoded)
             .decode_json()
             .map_err(|error| invalid_cursor(error.to_string()))?;
-        let due_date = matches!(
-            value
-                .pointer("/val/sort_type")
-                .and_then(serde_json::Value::as_str),
-            Some("due_date_earliest" | "due_date_latest")
-        );
         let contextual = value.pointer("/filter/grouping").is_some()
             || value.pointer("/filter/filters").is_some();
-        if due_date {
-            let cursor: GroupedDueDateCursor =
-                serde_json::from_value(value).map_err(|error| invalid_cursor(error.to_string()))?;
-            return Ok(Self::DueDate(GroupedDueDateRequest::continue_from(
-                user_id,
-                cursor,
-                Some(grouping),
-            )?));
-        }
         if contextual {
             let cursor: GroupedTimestampCursor =
                 serde_json::from_value(value).map_err(|error| invalid_cursor(error.to_string()))?;
@@ -139,7 +120,7 @@ impl<'a> GroupedSortRequest<'a> {
         }
     }
 
-    /// Continue a deployed legacy cursor; date-range groups require frozen context.
+    /// Continue a deployed timestamp cursor; date ranges require frozen context.
     pub fn continue_from(
         user_id: MacroUserIdStr<'a>,
         cursor: CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>,
@@ -164,9 +145,25 @@ impl<'a> GroupedSortRequest<'a> {
     }
 }
 
-/// Validate explicit continuation inputs against the frozen grouped context.
+/// Reject invalid date partitions and unknown group keys before source execution.
+pub fn validate_grouping(grouping: &GroupingConfig) -> Result<(), SoupErr> {
+    if let Some((_, ranges)) = grouping.field.date_ranges() {
+        ranges
+            .validate()
+            .map_err(|error| invalid_cursor(format!("{error:?}")))?;
+        if grouping.group_key.as_ref().is_some_and(|key| {
+            key != &ranges.missing_value_bucket_key
+                && !ranges.ranges.iter().any(|range| &range.key == key)
+        }) {
+            return Err(invalid_cursor("group key is not in the date partition"));
+        }
+    }
+    Ok(())
+}
+
+/// Validate explicit inputs against a deployed frozen timestamp context.
 pub(crate) fn validate_context(
-    context: &GroupedDueDateContext,
+    context: &GroupedTimestampContext,
     supplied: Option<&GroupingConfig>,
     limit: usize,
 ) -> Result<(), SoupErr> {

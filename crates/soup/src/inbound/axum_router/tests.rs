@@ -32,9 +32,9 @@ use item_filters::ast::EntityFilterAst;
 use crate::{
     domain::{
         models::{
-            DueDateQueryInner, EnrichedSoupItem, FrecencyQueryInner, GroupedSortRequest,
-            IntoSoupReqAst, NotifiedQueryInner, SimpleQueryInner, SoupErr, SoupPropertiesField,
-            SoupQuery, SoupRequest, SoupSortDirection, SoupType, TouchedQueryInner,
+            EnrichedSoupItem, FrecencyQueryInner, GroupedSortRequest, IntoSoupReqAst,
+            NotifiedQueryInner, SimpleQueryInner, SoupErr, SoupPropertiesField, SoupQuery,
+            SoupRequest, SoupSortDirection, SoupType, TouchedQueryInner,
             grouping::ItemGroupingInfo,
         },
         ports::{SoupOutput, SoupService},
@@ -61,8 +61,6 @@ enum MockCursorKind {
     TouchedCursor,
     NotifiedSort,
     NotifiedCursor,
-    DueDateSort,
-    DueDateCursor,
 }
 
 #[derive(Debug)]
@@ -88,6 +86,8 @@ struct MockSoup {
         >,
     >,
     succeeds: bool,
+    property_date_calls:
+        Arc<std::sync::Mutex<Vec<crate::domain::models::property_dates::PropertyDateContext>>>,
 }
 
 impl MockSoup {
@@ -96,6 +96,7 @@ impl MockSoup {
             called: Arc::new(std::sync::Mutex::new(Vec::new())),
             grouped_calls: Arc::new(std::sync::Mutex::new(Vec::new())),
             succeeds: false,
+            property_date_calls: Arc::default(),
         }
     }
 
@@ -108,6 +109,27 @@ impl MockSoup {
 }
 
 impl SoupService for MockSoup {
+    async fn get_property_date_page(
+        &self,
+        request: crate::domain::models::property_dates::PropertyDateRequest,
+    ) -> Result<
+        crate::domain::models::property_dates::PropertyDatePage,
+        crate::domain::models::SoupErr,
+    > {
+        self.property_date_calls
+            .lock()
+            .unwrap()
+            .push(request.context.clone());
+        if !self.succeeds {
+            return Err(SoupErr::SoupDbErr(anyhow::anyhow!("not implemented")));
+        }
+        Ok(crate::domain::models::property_dates::PropertyDatePage {
+            context: request.context,
+            candidates: Default::default(),
+            items: Default::default(),
+        })
+    }
+
     async fn get_user_soup<T>(
         &self,
         _req: SoupRequest<T>,
@@ -188,10 +210,6 @@ impl SoupService for MockSoup {
             SoupQuery::Notified(NotifiedQueryInner(Query::Cursor(..))) => {
                 MockCursorKind::NotifiedCursor
             }
-            SoupQuery::DueDate(DueDateQueryInner(Query::Sort(..))) => MockCursorKind::DueDateSort,
-            SoupQuery::DueDate(DueDateQueryInner(Query::Cursor(..))) => {
-                MockCursorKind::DueDateCursor
-            }
         };
         let user_id = req.user.to_string();
         let soup_type = req.soup_type;
@@ -236,22 +254,6 @@ impl SoupService for MockSoup {
         }
     }
 
-    async fn get_user_soup_grouped_due_date(
-        &self,
-        req: crate::domain::models::due_date::GroupedDueDateRequest<'_>,
-    ) -> Result<Vec<crate::domain::models::grouping::DueDateGroupedItem>, SoupErr> {
-        let sort = crate::domain::models::GroupedSortMethod::DueDate(*req.cursor.sort_method());
-        self.grouped_calls
-            .lock()
-            .unwrap()
-            .push((req.grouping, sort));
-        if self.succeeds {
-            Ok(Vec::new())
-        } else {
-            Err(SoupErr::SoupDbErr(anyhow::anyhow!("Not implemented")))
-        }
-    }
-
     async fn caller_tag_sets<'a>(
         &self,
         _user_id: MacroUserIdStr<'a>,
@@ -266,6 +268,13 @@ impl SoupService for MockSoup {
 struct MockEmail;
 
 impl EmailService for MockEmail {
+    async fn get_email_property_candidates(
+        &self,
+        _req: email::domain::models::EmailPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, email::domain::models::EmailErr> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn resolve_thread_read_id(
         &self,
         _macro_id: MacroUserIdStr<'_>,
@@ -770,6 +779,13 @@ struct MockEmailLinkResult {
 }
 
 impl EmailService for MockEmailLinkResult {
+    async fn get_email_property_candidates(
+        &self,
+        _req: email::domain::models::EmailPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, email::domain::models::EmailErr> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn resolve_thread_read_id(
         &self,
         _macro_id: MacroUserIdStr<'_>,

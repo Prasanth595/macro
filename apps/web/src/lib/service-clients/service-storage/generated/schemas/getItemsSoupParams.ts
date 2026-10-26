@@ -19,9 +19,14 @@ export type GetItemsSoupParams = {
   limit?: number;
   /**
  * Sort method. Includes timestamp sorts, relevance sorts, and
-due_date_earliest/due_date_latest for tasks. Defaults to viewed_at.
+property_date_earliest/property_date_latest with a selected DATE definition.
+Defaults to viewed_at.
  */
   sort_method?: SoupApiSort;
+  /**
+   * DATE property definition selected for property-date sorting.
+   */
+  sort_property_definition_id?: string;
   /**
  * Sort direction. Options are asc, desc. Defaults to desc.
 

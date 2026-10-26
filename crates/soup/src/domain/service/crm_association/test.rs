@@ -267,7 +267,7 @@ fn requested_opt_in_sources_are_constrained() {
 }
 
 #[test]
-fn due_date_task_scope_keeps_crm_membership_and_disabled_entity_legs() {
+fn task_scope_keeps_crm_membership_and_disabled_entity_legs() {
     let ast = EntityFilterAst {
         crm_association: Some(CrmAssociation::Company(COMPANY)),
         document_filter: Some(Arc::new(Expr::val(DocumentLiteral::SubType(
@@ -279,13 +279,7 @@ fn due_date_task_scope_keeps_crm_membership_and_disabled_entity_legs() {
         chat_filter: Some(Arc::new(Expr::val(ChatLiteral::ChatId(Uuid::nil())))),
         ..EntityFilterAst::default()
     };
-    assert!(
-        crate::domain::service::due_date::validate_filter(
-            Some(&ast),
-            crate::domain::models::SoupType::Expanded,
-        )
-        .is_err()
-    );
+
     let scoped = resolved(AssociatedEntities {
         documents: ids(&[1, 2]),
         projects: ids(&[3]),
@@ -293,13 +287,7 @@ fn due_date_task_scope_keeps_crm_membership_and_disabled_entity_legs() {
         ..AssociatedEntities::default()
     })
     .apply(ast);
-    assert!(
-        crate::domain::service::due_date::validate_filter(
-            Some(&scoped),
-            crate::domain::models::SoupType::Expanded,
-        )
-        .is_ok()
-    );
+
     assert_matches!(scoped.document_filter.as_deref(), Some(Expr::And(ids_tree, task)) => {
         assert_eq!(id_set(ids_tree, document_id), ids(&[1, 2]));
         assert_matches!(task.as_ref(), Expr::Literal(DocumentLiteral::SubType(_)));

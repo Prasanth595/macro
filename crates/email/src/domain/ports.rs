@@ -97,6 +97,12 @@ pub trait EmailUserRepo: Send + Sync + 'static {
 }
 
 pub trait EmailRepo: Send + Sync + 'static {
+    /// Select fully filtered DATE candidates before ordering and pagination.
+    fn property_candidates(
+        &self,
+        query: PreviewCursorQuery,
+        selection: properties::AuthorizedPropertyQuery,
+    ) -> impl Future<Output = Result<models_grouping::CandidatePage, Self::Err>> + Send;
     /// Latest durable command per organization attribute in an authorized thread.
     fn thread_mailbox_operations(
         &self,
@@ -544,6 +550,11 @@ pub trait EmailRepo: Send + Sync + 'static {
 /// root supplies the replica-backed service for ordinary REST/GraphQL Soup.
 /// Mutation replies reload through the primary-backed email writer instead.
 pub trait EmailPreviewServiceReadOnly: Send + Sync + 'static {
+    /// Select DATE candidates using the same mailbox authorization as previews.
+    fn get_email_property_candidates(
+        &self,
+        req: super::models::EmailPropertyCandidateRequest,
+    ) -> impl Future<Output = Result<models_grouping::CandidatePage, EmailErr>> + Send;
     fn get_email_thread_previews(
         &self,
         req: GetEmailsRequest,
@@ -624,6 +635,12 @@ pub trait EmailContentService: Send + Sync + 'static {
 pub struct ReadonlyEmailPreviewAdapter<T>(pub T);
 
 impl<T: EmailService> EmailPreviewServiceReadOnly for ReadonlyEmailPreviewAdapter<T> {
+    fn get_email_property_candidates(
+        &self,
+        req: super::models::EmailPropertyCandidateRequest,
+    ) -> impl Future<Output = Result<models_grouping::CandidatePage, EmailErr>> + Send {
+        EmailService::get_email_property_candidates(&self.0, req)
+    }
     fn get_email_thread_previews(
         &self,
         req: GetEmailsRequest,
@@ -672,6 +689,11 @@ pub trait EmailUserService: Send + Sync + 'static {
 }
 
 pub trait EmailService: Send + Sync + 'static {
+    /// Select authorized thread candidates for a DATE-property query.
+    fn get_email_property_candidates(
+        &self,
+        req: super::models::EmailPropertyCandidateRequest,
+    ) -> impl Future<Output = Result<models_grouping::CandidatePage, EmailErr>> + Send;
     /// Organization status is visible only to current inbox members.
     fn thread_mailbox_operations(
         &self,
@@ -1219,6 +1241,13 @@ impl EmailUserService for NoOpEmailService {
 }
 
 impl EmailService for NoOpEmailService {
+    async fn get_email_property_candidates(
+        &self,
+        _req: super::models::EmailPropertyCandidateRequest,
+    ) -> Result<models_grouping::CandidatePage, EmailErr> {
+        Ok(models_grouping::CandidatePage::default())
+    }
+
     async fn resolve_thread_read_id(
         &self,
         _macro_id: MacroUserIdStr<'_>,

@@ -70,6 +70,7 @@ calendar_events = { path = "../calendar_events" }
 chrono = { workspace = true }
 model_owner = { path = "../model_owner" }
 model_user = { path = "../model_user" }
+models_grouping = { path = "../models_grouping" }
 models_pagination = { path = "../models_pagination" }
 models_permissions = { path = "../models_permissions" }
 models_properties = { path = "../models_properties" }

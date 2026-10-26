@@ -2427,7 +2427,7 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
         grouping,
     } = args;
 
-    crate::domain::models::due_date::validate_grouping(&grouping)
+    crate::domain::models::grouping::query::validate_grouping(&grouping)
         .map_err(|error| sqlx::Error::Protocol(error.to_string()))?;
     let query_limit = limit as i64;
     let sort_method_str = cursor.sort_method().to_string();

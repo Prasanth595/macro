@@ -1754,15 +1754,15 @@ export type GraphqlSharedEmailFilter =
 export type GraphqlSimpleSortMethod =
   /** Sort by creation timestamp. */
   | 'CREATED_AT'
-  /** Earliest task due date first, with undated tasks last. */
-  | 'DUE_DATE_EARLIEST'
-  /** Latest task due date first, with undated tasks last. */
-  | 'DUE_DATE_LATEST'
   /**
    * Only entities the caller holds a live notification for, most recently
    * notified first. Descending `soup` only; not supported by `groupSoup`.
    */
   | 'NOTIFIED_AT'
+  /** Earliest selected DATE property first, missing values last. */
+  | 'PROPERTY_DATE_EARLIEST'
+  /** Latest selected DATE property first, missing values last. */
+  | 'PROPERTY_DATE_LATEST'
   /** Sort by update timestamp. */
   | 'UPDATED_AT'
   /** Sort by most recently viewed. */
@@ -1828,6 +1828,8 @@ export type GroupedSoupInitialInput = {
   limit?: number | null | undefined;
   /** Sort order within each bin. Defaults to `VIEWED_UPDATED`. */
   sortMethod?: GraphqlSimpleSortMethod | null | undefined;
+  /** DATE property definition selected for property-date sorting. */
+  sortPropertyDefinitionId?: string | number | null | undefined;
 };
 
 /** Input for `Query.groupSoup`. */
@@ -2155,6 +2157,8 @@ export type SoupInitialInput = {
    * Frecency is not supported by this GraphQL adapter.
    */
   sortMethod?: GraphqlSimpleSortMethod | null | undefined;
+  /** DATE property definition selected for property-date sorting. */
+  sortPropertyDefinitionId?: string | number | null | undefined;
 };
 
 /** Input for `Query.soup`. */

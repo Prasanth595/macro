@@ -66,6 +66,14 @@ impl RecordingSoupService {
 }
 
 impl SoupService for RecordingSoupService {
+    async fn get_property_date_page(
+        &self,
+        _request: soup::domain::models::property_dates::PropertyDateRequest,
+    ) -> Result<soup::domain::models::property_dates::PropertyDatePage, soup::domain::models::SoupErr>
+    {
+        panic!("unexpected property-date query")
+    }
+
     async fn get_user_soup<T>(
         &self,
         req: SoupRequest<T>,

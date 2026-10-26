@@ -7,6 +7,7 @@
 import type { ApiGroupByField } from './apiGroupByField';
 import type { GroupedInitialParamsPerGroupLimit } from './groupedInitialParamsPerGroupLimit';
 import type { GroupedInitialParamsSortMethod } from './groupedInitialParamsSortMethod';
+import type { GroupedInitialParamsSortPropertyDefinitionId } from './groupedInitialParamsSortPropertyDefinitionId';
 
 /**
  * Parameters for the initial grouped soup query.
@@ -20,4 +21,6 @@ export interface GroupedInitialParams {
    */
   per_group_limit?: GroupedInitialParamsPerGroupLimit;
   sort_method?: GroupedInitialParamsSortMethod;
+  /** DATE property definition selected for property-date sorting. */
+  sort_property_definition_id?: GroupedInitialParamsSortPropertyDefinitionId;
 }

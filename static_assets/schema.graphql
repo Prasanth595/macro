@@ -6924,13 +6924,13 @@ enum GraphqlSimpleSortMethod {
 	"""
 	NOTIFIED_AT
 	"""
-	Earliest task due date first, with undated tasks last.
+	Earliest selected DATE property first, missing values last.
 	"""
-	DUE_DATE_EARLIEST
+	PROPERTY_DATE_EARLIEST
 	"""
-	Latest task due date first, with undated tasks last.
+	Latest selected DATE property first, missing values last.
 	"""
-	DUE_DATE_LATEST
+	PROPERTY_DATE_LATEST
 }
 
 """
@@ -9489,6 +9489,10 @@ input GroupedSoupInitialInput {
 	"""
 	sortMethod: GraphqlSimpleSortMethod
 	"""
+	DATE property definition selected for property-date sorting.
+	"""
+	sortPropertyDefinitionId: ID
+	"""
 	AST-shaped filters applied to each Soup entity type.
 	"""
 	filters: GraphqlEntityFilterAst
@@ -10286,6 +10290,10 @@ input SoupInitialInput {
 	Frecency is not supported by this GraphQL adapter.
 	"""
 	sortMethod: GraphqlSimpleSortMethod
+	"""
+	DATE property definition selected for property-date sorting.
+	"""
+	sortPropertyDefinitionId: ID
 	"""
 	Email preview view used when hydrating email Soup items.
 	"""

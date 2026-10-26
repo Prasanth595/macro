@@ -11,7 +11,7 @@ use indexmap::IndexMap;
 use item_filters::ast::EntityFilterAst;
 use models_grouping::{GroupByField, GroupingConfig, date_bucket_label, date_bucket_order};
 use models_pagination::{
-    Base64Str, CursorVal, CursorWithValAndFilter, DueDateSort, Identify, SimpleSortMethod, SortOn,
+    Base64Str, CursorVal, CursorWithValAndFilter, Identify, SimpleSortMethod, SortOn,
 };
 use models_soup::item::SoupItem;
 use serde::Serialize;
@@ -19,7 +19,10 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Resolve label and display order for a group key based on the grouping field.
-fn resolve_group_label_and_order(key: &str, group_by: &GroupByField) -> (String, Option<i32>) {
+pub(super) fn resolve_group_label_and_order(
+    key: &str,
+    group_by: &GroupByField,
+) -> (String, Option<i32>) {
     if let Some((_, ranges)) = group_by.date_ranges() {
         let order = ranges
             .ranges
@@ -45,7 +48,7 @@ fn resolve_group_label_and_order(key: &str, group_by: &GroupByField) -> (String,
 
 /// Metadata about a group of items.
 #[derive(Debug, Clone, Serialize)]
-pub struct GroupMeta {
+pub struct GroupMeta<Id = Uuid> {
     /// Group key
     pub key: String,
     /// Human-readable label for the group
@@ -57,7 +60,7 @@ pub struct GroupMeta {
     pub total_count: u32,
     /// Ordered ids of items in this group for the current page.
     /// Each id keys into `GroupedResponse::items`.
-    pub item_ids: Vec<Uuid>,
+    pub item_ids: Vec<Id>,
     /// Cursor to load more items specifically from this group
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
@@ -65,11 +68,11 @@ pub struct GroupMeta {
 
 /// Result of building a grouped response.
 #[derive(Debug)]
-pub struct GroupedResponse {
+pub struct GroupedResponse<Id = Uuid> {
     /// Items pool keyed by id. Ordering is described by `groups[].item_ids`.
-    pub items: HashMap<Uuid, EnrichedSoupItem>,
+    pub items: HashMap<Id, EnrichedSoupItem>,
     /// Group metadata for each group.
-    pub groups: Vec<GroupMeta>,
+    pub groups: Vec<GroupMeta<Id>>,
     /// Page-level cursor for loading more items.
     pub page_cursor: Option<String>,
 }
@@ -170,12 +173,11 @@ pub fn build_timestamp_grouped_response(
                         if date_ranges {
                             let mut frozen = grouping.clone();
                             frozen.group_key = Some(key.clone());
-                            let mut cursor = cursor.map_filter(|filters| {
-                                super::due_date::GroupedDueDateContext {
+                            let mut cursor =
+                                cursor.map_filter(|filters| query::GroupedTimestampContext {
                                     filters,
                                     grouping: frozen,
-                                }
-                            });
+                                });
                             cursor.limit = grouping
                                 .per_group_limit
                                 .map_or(data.item_ids.len(), |limit| limit as usize);
@@ -213,105 +215,6 @@ pub fn build_timestamp_grouped_response(
 
     GroupedResponse {
         items: items_pool,
-        groups,
-        page_cursor,
-    }
-}
-
-/// One grouped task with its canonical due date from candidate selection.
-#[derive(Debug)]
-pub struct DueDateGroupedItem {
-    /// Group placement and hydrated item.
-    pub grouping: ItemGroupingInfo<SoupPropertiesField>,
-    /// Canonical deadline retained through hydration.
-    pub due_at: Option<chrono::DateTime<chrono::Utc>>,
-}
-
-/// Build a grouped response and contextual cursors for task due-date sorting.
-/// Counts come from the pre-cursor candidate query, not the current page.
-pub fn build_due_date_grouped_response(
-    items: impl IntoIterator<Item = DueDateGroupedItem>,
-    grouping: &GroupingConfig,
-    sort: DueDateSort,
-    filters: EntityFilterAst,
-) -> GroupedResponse {
-    use super::due_date::{GroupedDueDateContext, GroupedDueDateCursor};
-    struct Data {
-        item_ids: Vec<Uuid>,
-        total: u32,
-        last: Option<(Uuid, Option<chrono::DateTime<chrono::Utc>>, usize)>,
-    }
-    let mut groups: HashMap<String, Data> = HashMap::new();
-    let mut pool = HashMap::new();
-    for DueDateGroupedItem {
-        grouping: item,
-        due_at,
-    } in items
-    {
-        let id = item.item.id();
-        let entry = groups.entry(item.key).or_insert_with(|| Data {
-            item_ids: Vec::new(),
-            total: item.total_group_count.min(u32::MAX as usize) as u32,
-            last: None,
-        });
-        entry.item_ids.push(id);
-        entry.last = Some((id, due_at, item.index_in_group));
-        pool.entry(id)
-            .or_insert_with(|| EnrichedSoupItem::from(item.item));
-    }
-    let mut groups: Vec<GroupMeta> = groups
-        .into_iter()
-        .map(|(key, data)| {
-            let (label, display_order) = resolve_group_label_and_order(&key, &grouping.field);
-            let next_cursor = if data
-                .last
-                .is_some_and(|(_, _, index)| index < data.total as usize)
-            {
-                data.last.map(|(id, due_at, _)| {
-                    let mut context_grouping = grouping.clone();
-                    context_grouping.group_key = Some(key.clone());
-                    let cursor: GroupedDueDateCursor = CursorWithValAndFilter {
-                        id,
-                        limit: grouping
-                            .per_group_limit
-                            .map_or(data.item_ids.len(), |limit| limit as usize),
-                        val: CursorVal {
-                            sort_type: sort,
-                            last_val: due_at,
-                        },
-                        filter: GroupedDueDateContext {
-                            filters: filters.clone(),
-                            grouping: context_grouping,
-                        },
-                    };
-                    Base64Str::encode_json(cursor).type_erase()
-                })
-            } else {
-                None
-            };
-            GroupMeta {
-                key,
-                label,
-                display_order,
-                total_count: data.total,
-                item_ids: data.item_ids,
-                next_cursor,
-            }
-        })
-        .collect();
-    groups.sort_by(|a, b| {
-        a.display_order
-            .unwrap_or(i32::MAX)
-            .cmp(&b.display_order.unwrap_or(i32::MAX))
-            .then_with(|| a.key.cmp(&b.key))
-    });
-    let page_cursor = if grouping.group_key.is_some() {
-        groups.first().and_then(|group| group.next_cursor.clone())
-    } else {
-        None
-    };
-    GroupedResponse {
-        items: pool,
         groups,
         page_cursor,
     }

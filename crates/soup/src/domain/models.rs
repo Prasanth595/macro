@@ -1,11 +1,11 @@
 pub(crate) mod contact_listing;
-pub mod due_date;
 pub mod grouping;
 /// Bounded cross-source DATE-query candidate merging.
 pub mod property_candidates;
+/// Generic property-date requests, responses, and frozen continuations.
+pub mod property_dates;
 
 mod exclusions;
-pub(crate) use exclusions::non_task_filters_are_exclusions;
 
 #[cfg(test)]
 mod test;
@@ -39,8 +39,7 @@ use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::{Entity, EntityType};
 use models_grouping::GroupingConfig;
 use models_pagination::{
-    Cursor, CursorWithValAndFilter, DueDateSort, Frecency, NotifiedAt, Query, SimpleSortMethod,
-    TouchedByMe,
+    Cursor, CursorWithValAndFilter, Frecency, NotifiedAt, Query, SimpleSortMethod, TouchedByMe,
 };
 use models_soup::SoupProperty;
 use models_soup::item::SoupItem;
@@ -157,8 +156,6 @@ pub struct AdvancedSortParams<'a> {
 pub enum SoupQuery<T> {
     /// Query sorted by a simple timestamp-based method.
     Simple(SimpleQueryInner<T>),
-    /// Query over tasks ordered by the canonical Due Date property.
-    DueDate(DueDateQueryInner<T>),
     /// Query sorted by frecency.
     Frecency(FrecencyQueryInner<T>),
     /// Query filtered and sorted by the user's own latest mutation per
@@ -178,9 +175,6 @@ impl<T> SoupQuery<T> {
             SoupQuery::Simple(SimpleQueryInner(i)) => {
                 SoupQuery::Simple(SimpleQueryInner(i.map_filter(f)))
             }
-            SoupQuery::DueDate(DueDateQueryInner(i)) => {
-                SoupQuery::DueDate(DueDateQueryInner(i.map_filter(f)))
-            }
             SoupQuery::Frecency(FrecencyQueryInner(i)) => {
                 SoupQuery::Frecency(FrecencyQueryInner(i.map_filter(f)))
             }
@@ -197,10 +191,6 @@ impl<T> SoupQuery<T> {
 /// the inner private type for [SoupQuery::Simple]
 #[derive(Debug)]
 pub struct SimpleQueryInner<T>(pub(crate) Query<Uuid, SimpleSortMethod, T>);
-
-/// The inner query for task due-date sorting.
-#[derive(Debug)]
-pub struct DueDateQueryInner<T>(pub(crate) Query<Uuid, DueDateSort, T>);
 
 /// the inner private type for [SoupQuery::Frecency]
 #[derive(Debug)]
@@ -230,16 +220,6 @@ impl<T> SoupQuery<T> {
         SoupQuery::Simple(SimpleQueryInner(models_pagination::Query::Sort(
             method, filters,
         )))
-    }
-
-    /// Start a task-only due-date page.
-    pub fn new_sort_due_date(method: DueDateSort, filters: T) -> Self {
-        SoupQuery::DueDate(DueDateQueryInner(Query::Sort(method, filters)))
-    }
-
-    /// Continue a task-only due-date page using its nullable deadline cursor.
-    pub fn new_cursor_due_date(cursor: CursorWithValAndFilter<Uuid, DueDateSort, T>) -> Self {
-        SoupQuery::DueDate(DueDateQueryInner(Query::Cursor(cursor)))
     }
 
     /// create a new instance of a [Frecency] with [T] this is used to
@@ -301,7 +281,6 @@ impl<T> SoupQuery<T> {
     pub fn filter(&self) -> &T {
         match self {
             SoupQuery::Simple(SimpleQueryInner(query)) => query.filter(),
-            SoupQuery::DueDate(DueDateQueryInner(query)) => query.filter(),
             SoupQuery::Frecency(FrecencyQueryInner(query)) => query.filter(),
             SoupQuery::Touched(TouchedQueryInner(query)) => query.filter(),
             SoupQuery::Notified(NotifiedQueryInner(query)) => query.filter(),
@@ -316,9 +295,6 @@ impl SoupQuery<EntityFilters> {
             SoupQuery::Simple(SimpleQueryInner(query)) => Ok(SoupQuery::Simple(SimpleQueryInner(
                 query.try_map_filter(EntityFilterAst::new_from_filters)?,
             ))),
-            SoupQuery::DueDate(DueDateQueryInner(query)) => Ok(SoupQuery::DueDate(
-                DueDateQueryInner(query.try_map_filter(EntityFilterAst::new_from_filters)?),
-            )),
             SoupQuery::Frecency(FrecencyQueryInner(query)) => Ok(SoupQuery::Frecency(
                 FrecencyQueryInner(query.try_map_filter(EntityFilterAst::new_from_filters)?),
             )),
@@ -490,7 +466,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
                     ),
                 })),
                 // we don't yet have sort by frecency implemented for emails yet
-                SoupQuery::DueDate(_) | SoupQuery::Frecency(_) => None,
+                SoupQuery::Frecency(_) => None,
                 // touched-by-me hydrates emails by thread id, not via this leg
                 SoupQuery::Touched(_) => None,
                 // notified-at hydrates its email candidates through this leg
@@ -521,7 +497,6 @@ impl SoupRequest<Option<EntityFilterAst>> {
                 filter,
                 ..
             }))) => filter.as_ref(),
-            SoupQuery::DueDate(DueDateQueryInner(query)) => query.filter().as_ref(),
             SoupQuery::Frecency(_) => None,
             SoupQuery::Touched(TouchedQueryInner(query)) => query.filter().as_ref(),
             SoupQuery::Notified(NotifiedQueryInner(query)) => query.filter().as_ref(),
@@ -580,7 +555,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
                     ),
                 })),
                 // query by frecency not yet implemented for call records
-                SoupQuery::DueDate(_) | SoupQuery::Frecency(_) => None,
+                SoupQuery::Frecency(_) => None,
                 // call records carry no activity of their own (calls land on
                 // the channel), so the touched feed never includes them
                 SoupQuery::Touched(_) => None,
@@ -634,7 +609,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
                     last_id: *id,
                 }),
             ),
-            SoupQuery::DueDate(_) | SoupQuery::Frecency(_) => return None,
+            SoupQuery::Frecency(_) => return None,
             // CRM has no mutation activity (deferred from touched-by-me)
             SoupQuery::Touched(_) => return None,
             // CRM companies receive no notifications
@@ -695,7 +670,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
                     filter: filter.as_ref().and_then(|f| f.channel_filter.clone()),
                 })),
                 // query by frecency not yet implemented for channels
-                SoupQuery::DueDate(_) | SoupQuery::Frecency(_) => None,
+                SoupQuery::Frecency(_) => None,
                 // touched-by-me hydrates channels by id, not via this leg
                 SoupQuery::Touched(_) => None,
                 // notified-at hydrates its channel candidates through this
@@ -736,7 +711,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
                     .and_then(|f| f.channel_thread_filter.clone()),
             })),
             // query by frecency not yet implemented for channel threads
-            SoupQuery::DueDate(_) | SoupQuery::Frecency(_) => None,
+            SoupQuery::Frecency(_) => None,
             // channel-thread rows carry no activity (messages attribute to
             // the channel), so the touched feed never includes them
             SoupQuery::Touched(_) => None,
@@ -785,7 +760,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
                     .and_then(|filter| filter.foreign_entity_filter.clone()),
             })),
             // query by frecency is not implemented for foreign entities
-            SoupQuery::DueDate(_) | SoupQuery::Frecency(_) => None,
+            SoupQuery::Frecency(_) => None,
             // foreign entities record no activity, so the touched feed never
             // includes them
             SoupQuery::Touched(_) => None,

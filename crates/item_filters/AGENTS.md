@@ -57,6 +57,7 @@ logically-combinable query form.
   in — don't assume an empty `include` flag means "show everything".
 - `#![deny(missing_docs)]`: every new public field needs a doc comment.
 - DATE property ranges use optional UTC bounds: inclusive `start`, exclusive `end`; negate `DatePresent` for missing, null, or cleared dates.
+- Preserve explicit `CALL_RECORD` property scope through both date and ordinary property predicates; never read another type's assignment for the same ID.
 
 ## Related
 

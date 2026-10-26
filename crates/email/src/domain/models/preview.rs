@@ -159,3 +159,11 @@ pub struct GetEmailsRequest {
     /// member's mailbox.
     pub crm_scope: Option<CrmScope>,
 }
+
+/// A selected DATE query over the existing authorized email preview scope.
+pub struct EmailPropertyCandidateRequest {
+    /// Existing mailbox, view, CRM, and email predicate scope.
+    pub emails: GetEmailsRequest,
+    /// Viewer-bound authorization for the selected DATE definitions.
+    pub selection: properties::AuthorizedPropertyQuery,
+}

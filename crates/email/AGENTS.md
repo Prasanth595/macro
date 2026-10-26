@@ -62,6 +62,7 @@ tools — hexagonal, heavily feature-gated.
   dependency belongs under before wiring it in.
 - `domain/ports.rs` defines the traits adapters implement — call through the
   domain service, never an outbound adapter directly from another crate.
+- DATE-property candidates reuse the complete preview SQL without an inner page limit; the outer property query counts and paginates before hydration, retaining mailbox, shared-thread, project, CRM, and view filters.
 - Sender discovery authorizes the inbox first. Gmail aliases use the sender
   provider; Outlook exposes its verified primary address without a Gmail lookup.
 - Outlook organization commands only run in their link's current

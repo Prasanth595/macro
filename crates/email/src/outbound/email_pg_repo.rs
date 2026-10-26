@@ -104,6 +104,13 @@ impl EmailUserRepo for EmailPgRepo {
 }
 
 impl EmailRepo for EmailPgRepo {
+    async fn property_candidates(
+        &self,
+        query: PreviewCursorQuery,
+        selection: properties::AuthorizedPropertyQuery,
+    ) -> Result<models_grouping::CandidatePage, Self::Err> {
+        dynamic::query::property_candidates(&self.pool, query, selection).await
+    }
     async fn redirected_thread_id(
         &self,
         thread_id: Uuid,

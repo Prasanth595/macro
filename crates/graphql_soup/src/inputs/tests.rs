@@ -13,6 +13,7 @@ fn test_macro_user_id() -> MacroUserIdStr<'static> {
 #[test]
 fn maps_email_view_to_soup_request() {
     let request = SoupInput::Initial(Box::new(SoupInitialInput {
+        sort_property_definition_id: None,
         limit: None,
         expand: None,
         sort_method: None,
@@ -29,6 +30,7 @@ fn maps_email_view_to_soup_request() {
 #[test]
 fn defaults_email_view_to_inbox() {
     let request = SoupInput::Initial(Box::new(SoupInitialInput {
+        sort_property_definition_id: None,
         limit: None,
         expand: None,
         sort_method: None,
@@ -71,6 +73,7 @@ fn maps_soup_cursor_continuation() {
 #[test]
 fn maps_notified_at_to_notified_soup_request() {
     let request = SoupInput::Initial(Box::new(SoupInitialInput {
+        sort_property_definition_id: None,
         limit: Some(500),
         expand: None,
         sort_method: Some(GraphqlSimpleSortMethod::NotifiedAt),
@@ -112,6 +115,7 @@ fn continues_a_notified_cursor_as_a_notified_request() {
 #[test]
 fn rejects_ascending_notified_at() {
     let result = SoupInput::Initial(Box::new(SoupInitialInput {
+        sort_property_definition_id: None,
         limit: None,
         expand: None,
         sort_method: Some(GraphqlSimpleSortMethod::NotifiedAt),
@@ -127,6 +131,7 @@ fn rejects_ascending_notified_at() {
 #[test]
 fn rejects_grouped_notified_at() {
     let result = GroupedSoupInput::Initial(Box::new(GroupedSoupInitialInput {
+        sort_property_definition_id: None,
         group_by: GraphqlGroupByInput {
             field: GraphqlGroupByField::EntityType,
             property_definition_id: None,
@@ -145,6 +150,7 @@ fn rejects_grouped_notified_at() {
 #[test]
 fn maps_initial_grouped_input() {
     let request = GroupedSoupInput::Initial(Box::new(GroupedSoupInitialInput {
+        sort_property_definition_id: None,
         group_by: GraphqlGroupByInput {
             field: GraphqlGroupByField::EntityType,
             property_definition_id: None,
@@ -158,9 +164,7 @@ fn maps_initial_grouped_input() {
     .into_request(test_macro_user_id())
     .unwrap();
 
-    let GroupedSortQuery::Timestamp(request) = request else {
-        panic!("expected a timestamp grouped request");
-    };
+    let GroupedSortQuery::Timestamp(request) = request;
     assert_eq!(request.limit, 42);
     assert!(request.grouping.group_key.is_none());
     assert!(matches!(
@@ -193,9 +197,7 @@ fn maps_grouped_cursor_continuation() {
     .into_request(test_macro_user_id())
     .unwrap();
 
-    let GroupedSortQuery::Timestamp(request) = request else {
-        panic!("expected a timestamp grouped continuation");
-    };
+    let GroupedSortQuery::Timestamp(request) = request;
     assert_eq!(request.limit, 25);
     assert_eq!(request.grouping.group_key.as_deref(), Some("document"));
     assert!(matches!(request.cursor, Query::Cursor(_)));
@@ -257,51 +259,9 @@ fn invalid_date_range_timestamps_are_rejected() {
 }
 
 #[test]
-fn due_date_sorts_and_null_continuations_keep_the_due_date_query_kind() {
-    for (sort_method, sort_type) in [
-        (
-            GraphqlSimpleSortMethod::DueDateEarliest,
-            DueDateSort::Earliest,
-        ),
-        (GraphqlSimpleSortMethod::DueDateLatest, DueDateSort::Latest),
-    ] {
-        let initial = SoupInput::Initial(Box::new(SoupInitialInput {
-            limit: Some(25),
-            expand: None,
-            sort_method: Some(sort_method),
-            email_view: None,
-            filters: None,
-            sort_direction: None,
-        }))
-        .into_request(test_macro_user_id(), vec![])
-        .unwrap();
-        assert!(matches!(initial.cursor, SoupQuery::DueDate(_)));
-
-        let cursor = Base64Str::encode_json(CursorWithValAndFilter {
-            id: Uuid::from_u128(1),
-            limit: 25,
-            val: CursorVal {
-                sort_type,
-                last_val: None,
-            },
-            filter: EntityFilterAst::default(),
-        });
-        let continuation = SoupInput::Continuation(SoupContinuationInput {
-            cursor: cursor.to_string(),
-            expand: None,
-            email_view: None,
-            sort_direction: None,
-        })
-        .into_request(test_macro_user_id(), vec![])
-        .unwrap();
-        assert_eq!(continuation.limit, 25);
-        assert!(matches!(continuation.cursor, SoupQuery::DueDate(_)));
-    }
-}
-
-#[test]
 fn date_range_grouping_preserves_custom_keys_and_timestamp_sorting() {
     let request = GroupedSoupInput::Initial(Box::new(GroupedSoupInitialInput {
+        sort_property_definition_id: None,
         group_by: date_range_input(),
         limit: Some(25),
         sort_method: Some(GraphqlSimpleSortMethod::UpdatedAt),
@@ -309,9 +269,7 @@ fn date_range_grouping_preserves_custom_keys_and_timestamp_sorting() {
     }))
     .into_request(test_macro_user_id())
     .unwrap();
-    let GroupedSortQuery::Timestamp(request) = request else {
-        panic!("expected timestamp sorting within date-range groups");
-    };
+    let GroupedSortQuery::Timestamp(request) = request;
     assert_eq!(request.limit, 25);
     assert!(matches!(
         request.cursor,
@@ -328,56 +286,69 @@ fn date_range_grouping_preserves_custom_keys_and_timestamp_sorting() {
 }
 
 #[test]
-fn due_date_grouped_continuation_retains_null_cursor_and_rejects_changed_group() {
-    use soup::domain::models::due_date::GroupedDueDateContext;
-    let context = GroupedDueDateContext {
-        filters: EntityFilterAst::default(),
-        grouping: GroupingConfig {
-            field: GroupByField::EntityType,
-            group_key: Some("document".to_owned()),
-            per_group_limit: Some(25),
-        },
+fn generic_date_sort_keeps_the_selected_definition_through_a_null_cursor() {
+    use models_grouping::{CandidateCursor, CandidateIdentity, CandidateSortValue};
+    let definition = Uuid::from_u128(18);
+    let input = SoupInput::Initial(Box::new(SoupInitialInput {
+        limit: Some(10),
+        expand: Some(false),
+        sort_method: Some(GraphqlSimpleSortMethod::PropertyDateLatest),
+        sort_property_definition_id: Some(ID::from(definition.to_string())),
+        email_view: Some(GraphqlEmailView::All),
+        filters: None,
+        sort_direction: None,
+    }));
+    let SoupReadRequest::PropertyDate(request) = input
+        .into_read_request(test_macro_user_id(), vec![])
+        .unwrap()
+    else {
+        panic!("generic sort used legacy routing");
     };
-    let cursor = Base64Str::encode_json(CursorWithValAndFilter {
-        id: Uuid::from_u128(1),
-        limit: 25,
-        val: CursorVal {
-            sort_type: DueDateSort::Latest,
-            last_val: None,
-        },
-        filter: context,
-    })
-    .type_erase();
-    let request = GroupedSoupInput::Continuation(GroupedSoupContinuationInput {
-        group_by: GraphqlGroupByInput {
-            field: GraphqlGroupByField::EntityType,
-            property_definition_id: None,
-            entity_type: None,
-            bucketing: None,
-        },
-        group_key: "document".to_owned(),
-        cursor: cursor.clone(),
-    })
-    .into_request(test_macro_user_id())
-    .unwrap();
-    let GroupedSortQuery::DueDate(request) = request else {
-        panic!("expected a nullable due-date continuation");
-    };
-    assert_eq!(request.limit, 25);
-    assert_eq!(request.grouping.per_group_limit, Some(25));
-    assert!(matches!(request.cursor, Query::Cursor(cursor) if cursor.val.last_val.is_none()));
-    assert!(
-        GroupedSoupInput::Continuation(GroupedSoupContinuationInput {
-            group_by: GraphqlGroupByInput {
-                field: GraphqlGroupByField::EntityType,
-                property_definition_id: None,
-                entity_type: None,
-                bucketing: None,
+    assert_eq!(request.context.selection.date_property_id, Some(definition));
+    assert!(matches!(request.soup_type, SoupType::UnExpanded));
+    let cursor = request.context.next_cursor(
+        CandidateCursor {
+            identity: CandidateIdentity {
+                id: Uuid::from_u128(1).to_string(),
+                entity_type: "CHANNEL".into(),
             },
-            group_key: "project".to_owned(),
-            cursor,
-        })
-        .into_request(test_macro_user_id())
-        .is_err()
+            sort_value: CandidateSortValue(None),
+        },
+        None,
+    );
+    let continuation = SoupInput::Continuation(SoupContinuationInput {
+        cursor: cursor.clone(),
+        expand: Some(false),
+        email_view: None,
+        sort_direction: None,
+    });
+    let SoupReadRequest::PropertyDate(request) = continuation
+        .into_read_request(test_macro_user_id(), vec![])
+        .unwrap()
+    else {
+        panic!("generic cursor used legacy routing");
+    };
+    assert_eq!(request.context.selection.date_property_id, Some(definition));
+    assert_eq!(request.context.email_preview_view.to_string(), "all");
+    let changed_view = SoupInput::Continuation(SoupContinuationInput {
+        cursor,
+        expand: None,
+        email_view: Some(GraphqlEmailView::Inbox),
+        sort_direction: None,
+    });
+    assert!(
+        changed_view
+            .into_read_request(test_macro_user_id(), vec![])
+            .is_err()
+    );
+    assert_eq!(
+        request
+            .context
+            .selection
+            .cursor
+            .unwrap()
+            .identity
+            .entity_type,
+        "CHANNEL"
     );
 }

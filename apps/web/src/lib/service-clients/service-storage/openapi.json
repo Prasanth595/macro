@@ -15175,10 +15175,20 @@
           {
             "name": "sort_method",
             "in": "query",
-            "description": "Sort method. Includes timestamp sorts, relevance sorts, and\ndue_date_earliest/due_date_latest for tasks. Defaults to viewed_at.",
+            "description": "Sort method. Includes timestamp sorts, relevance sorts, and\nproperty_date_earliest/property_date_latest with a selected DATE definition.\nDefaults to viewed_at.",
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/SoupApiSort"
+            }
+          },
+          {
+            "name": "sort_property_definition_id",
+            "in": "query",
+            "description": "DATE property definition selected for property-date sorting.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -20400,8 +20410,7 @@
           "item_ids": {
             "type": "array",
             "items": {
-              "type": "string",
-              "format": "uuid"
+              "type": "string"
             },
             "description": "Ordered ids of items in this group for the current page.\nEach id keys into `GroupedSoupPage.items`."
           },
@@ -20439,6 +20448,10 @@
         "type": "string",
         "description": "Entity type for property lookups (API representation).",
         "enum": [
+          "CALL_RECORD",
+          "CALENDAR_EVENT",
+          "DATABASE_ROW",
+          "INITIATIVE",
           "CHANNEL",
           "CHAT",
           "COMPANY",
@@ -31299,6 +31312,11 @@
                 "description": "Sort method. Defaults to viewed_updated."
               }
             ]
+          },
+          "sort_property_definition_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "DATE property definition selected for property-date sorting."
           }
         }
       },
@@ -31331,6 +31349,11 @@
                 "description": "Sort method. Defaults to viewed_updated."
               }
             ]
+          },
+          "sort_property_definition_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "DATE property definition selected for property-date sorting."
           }
         }
       },
@@ -31350,8 +31373,7 @@
               "$ref": "#/components/schemas/SoupApiItem"
             },
             "propertyNames": {
-              "type": "string",
-              "format": "uuid"
+              "type": "string"
             }
           }
         }
@@ -31375,8 +31397,7 @@
               "$ref": "#/components/schemas/SoupApiItem"
             },
             "propertyNames": {
-              "type": "string",
-              "format": "uuid"
+              "type": "string"
             }
           }
         }
@@ -31432,8 +31453,8 @@
           "created_at",
           "updated_at",
           "viewed_updated",
-          "due_date_earliest",
-          "due_date_latest"
+          "property_date_earliest",
+          "property_date_latest"
         ]
       },
       "GuestChatMessage": {
@@ -34656,9 +34677,14 @@
               },
               {
                 "$ref": "#/components/schemas/SoupApiSort",
-                "description": "Sort method. Includes timestamp sorts, relevance sorts, and\ndue_date_earliest/due_date_latest for tasks. Defaults to viewed_at."
+                "description": "Sort method. Includes timestamp sorts, relevance sorts, and\nproperty_date_earliest/property_date_latest with a selected DATE definition.\nDefaults to viewed_at."
               }
             ]
+          },
+          "sort_property_definition_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "DATE property definition selected for property-date sorting."
           }
         }
       },
@@ -38015,8 +38041,8 @@
           "frecency",
           "touched_by_me",
           "notified_at",
-          "due_date_earliest",
-          "due_date_latest"
+          "property_date_earliest",
+          "property_date_latest"
         ]
       },
       "SoupApiSortDirection": {

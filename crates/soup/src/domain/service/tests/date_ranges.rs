@@ -7,6 +7,25 @@ struct DatePropertyAuthorization {
 }
 
 impl PropertyQueryAuthorizer for DatePropertyAuthorization {
+    fn authorize_selection<'a>(
+        &'a self,
+        _viewer: MacroUserIdStr<'static>,
+        _team: Option<
+            entity_access::domain::models::EntityAccessReceipt<
+                entity_access::domain::models::MemberTeamRole,
+            >,
+        >,
+        _selection: models_grouping::CandidateQuery,
+    ) -> std::pin::Pin<
+        Box<
+            dyn Future<
+                    Output = Result<properties::AuthorizedPropertyQuery, properties::PropertiesErr>,
+                > + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async { Err(properties::PropertiesErr::NotFound) })
+    }
     fn authorize<'a>(
         &'a self,
         viewer: MacroUserIdStr<'static>,
@@ -118,117 +137,24 @@ async fn private_date_definition_never_reaches_either_grouped_repository_path() 
         timestamp,
         Err(SoupErr::PropertyQuery(properties::PropertiesErr::NotFound))
     ));
-    let due_date = service
-        .get_user_soup_grouped_due_date(
-            crate::domain::models::due_date::GroupedDueDateRequest::initial(
-                user,
-                25,
-                models_pagination::DueDateSort::Earliest,
-                EntityFilterAst::mock_empty(),
-                review_date_grouping(),
-            )
-            .unwrap(),
-        )
-        .await;
+    let request = crate::domain::models::property_dates::PropertyDateRequest::initial(
+        user,
+        None,
+        models_grouping::CandidateQuery {
+            date_property_id: Some(Uuid::from_u128(17)),
+            timestamp_sort: None,
+            direction: models_grouping::CandidateDirection::Ascending,
+            grouping: Some(review_date_grouping()),
+            cursor: None,
+            limit: 25,
+        },
+        EntityFilterAst::mock_empty(),
+        true,
+    )
+    .unwrap();
+    let date_page = service.get_property_date_page(request).await;
     assert!(matches!(
-        due_date,
+        date_page,
         Err(SoupErr::PropertyQuery(properties::PropertiesErr::NotFound))
     ));
-}
-
-#[tokio::test]
-async fn due_date_pages_preserve_projection_facts_and_nullable_cursors() {
-    use crate::domain::models::due_date::DueDateCandidate;
-    use models_pagination::DueDateSort;
-
-    let dated = Uuid::from_u128(1);
-    let undated = Uuid::from_u128(2);
-    let mut repo = MockSoupRepo::new();
-    repo.expect_due_date_soup_page()
-        .times(1)
-        .returning(move |_| {
-            Box::pin(async move {
-                Ok(vec![
-                    DueDateCandidate {
-                        id: dated,
-                        due_at: Some(DateTime::default()),
-                    },
-                    DueDateCandidate {
-                        id: undated,
-                        due_at: None,
-                    },
-                ])
-            })
-        });
-    repo.expect_expanded_soup_by_ids_with_projection()
-        .times(1)
-        .returning(move |_| {
-            Box::pin(async move {
-                Ok(vec![undated, dated]
-                    .into_iter()
-                    .map(|id| SoupProjectionHydration {
-                        item: SoupItem::Document(soup_document_uuid_with_updated(
-                            id,
-                            Default::default(),
-                        )),
-                        document_server_facts: Some(SoupDocumentServerFacts {
-                            is_email_attachment: id == dated,
-                            is_important: true,
-                            status_option_ids: Vec::new(),
-                        }),
-                    })
-                    .collect())
-            })
-        });
-    let service = SoupImpl::new(
-        repo,
-        FrecencyQueryServiceImpl::new(MockFrecencyStorage::new()),
-        NoopEmailPreviewService,
-        NoopCommsService,
-        NoopCallRecordQueryService,
-        NoOpCrmService,
-        NoopPullRequestListing,
-    );
-    let output = service
-        .get_user_soup_with_projection(
-            SoupRequest {
-                soup_type: SoupType::Expanded,
-                limit: 2,
-                cursor: SoupQuery::new_sort_due_date(
-                    DueDateSort::Earliest,
-                    EntityFilterAst::mock_empty(),
-                ),
-                sort_direction: SoupSortDirection::default(),
-                user: MacroUserIdStr::parse_from_str("macro|viewer@example.com").unwrap(),
-                email_preview_view: PreviewView::StandardLabel(
-                    email::domain::models::PreviewViewStandardLabel::All,
-                ),
-                link_ids: vec![],
-            },
-            None,
-        )
-        .await
-        .unwrap();
-    let SoupOutput::DueDate(page) = output else {
-        panic!("expected a due-date page");
-    };
-    assert_eq!(page.items[0].item.id(), dated);
-    assert_eq!(page.items[1].item.id(), undated);
-    assert!(
-        page.items[0]
-            .document_server_facts
-            .as_ref()
-            .unwrap()
-            .is_email_attachment
-    );
-    assert!(
-        !page.items[1]
-            .document_server_facts
-            .as_ref()
-            .unwrap()
-            .is_email_attachment
-    );
-    let cursor = page.next_cursor.unwrap().decode_json().unwrap();
-    assert_eq!(cursor.id, undated.to_string());
-    assert_eq!(cursor.val.last_val, None);
 }

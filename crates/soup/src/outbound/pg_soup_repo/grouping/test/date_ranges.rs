@@ -147,23 +147,5 @@ async fn custom_date_property_groups_documents_tasks_chats_and_projects_before_p
             .chain(first.iter())
             .all(|row| row.item.id().to_string() != "11111111-9999-9999-9999-999999999999")
     );
-    let task_groups = crate::outbound::pg_soup_repo::due_date::grouped_task_page(
-        &pool,
-        crate::domain::models::due_date::GroupedDueDateRequest::initial(
-            MacroUserIdStr::parse_from_str("macro|user-1@test.com")?,
-            1,
-            models_pagination::DueDateSort::Earliest,
-            EntityFilterAst::mock_empty(),
-            grouping,
-        )?,
-    )
-    .await?;
-    let missing_task = task_groups
-        .iter()
-        .find(|row| row.key == "no-review-date")
-        .unwrap();
-    assert_eq!(missing_task.total_group_count, 1);
-    assert_eq!(missing_task.index_in_group, 1);
-    assert_eq!(task_groups.len(), 2);
     Ok(())
 }

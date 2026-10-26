@@ -1,14 +1,15 @@
+mod property_dates;
 mod property_grouping;
 use crate::domain::{
     models::{
-        AdvancedSortParams, DueDateQueryInner, EnrichedSoupItem, FrecencyQueryInner,
-        GetCrmCompaniesRequest, GroupedSortRequest, IntoSoupReqAst, NotifiedHydratableTypes,
-        NotifiedPagePosition, NotifiedQueryInner, NotifiedSoupRequest, SimpleQueryInner,
-        SimpleSortQuery, SimpleSortRequest, SoupDocumentServerFacts, SoupErr,
-        SoupProjectionHydration, SoupPropertiesField, SoupQuery, SoupRequest, SoupSortDirection,
-        SoupType, TouchedPagePosition, TouchedQueryInner, TouchedSoupRequest,
-        WorkFeedCandidateRequest, WorkFeedPagePosition, WorkFeedSoupItem, WorkFeedSoupPage,
-        WorkFeedSoupRequest, calendar_filter_supported_by_notified, grouping::ItemGroupingInfo,
+        AdvancedSortParams, EnrichedSoupItem, FrecencyQueryInner, GetCrmCompaniesRequest,
+        GroupedSortRequest, IntoSoupReqAst, NotifiedHydratableTypes, NotifiedPagePosition,
+        NotifiedQueryInner, NotifiedSoupRequest, SimpleQueryInner, SimpleSortQuery,
+        SimpleSortRequest, SoupDocumentServerFacts, SoupErr, SoupProjectionHydration,
+        SoupPropertiesField, SoupQuery, SoupRequest, SoupSortDirection, SoupType,
+        TouchedPagePosition, TouchedQueryInner, TouchedSoupRequest, WorkFeedCandidateRequest,
+        WorkFeedPagePosition, WorkFeedSoupItem, WorkFeedSoupPage, WorkFeedSoupRequest,
+        calendar_filter_supported_by_notified, grouping::ItemGroupingInfo,
     },
     ports::{SoupOutput, SoupRepo, SoupService},
 };
@@ -69,7 +70,6 @@ use uuid::Uuid;
 
 mod agent_metadata;
 mod crm_association;
-mod due_date;
 mod favorites;
 
 #[cfg(test)]
@@ -1480,9 +1480,6 @@ where
         output: SoupOutput<R, SoupCandidate>,
     ) -> Result<SoupOutput<R, EnrichedSoupItem>, SoupErr> {
         match output {
-            SoupOutput::DueDate(page) => Ok(SoupOutput::DueDate(
-                self.populate_properties_page(user_id, page).await?,
-            )),
             SoupOutput::Simple(page) => Ok(SoupOutput::Simple(
                 self.populate_properties_page(user_id, page).await?,
             )),
@@ -1536,9 +1533,6 @@ where
         match output {
             // Simple sorting does not need frecency to construct the page, so
             // load it once for only the final page.
-            SoupOutput::DueDate(page) => Ok(SoupOutput::DueDate(
-                self.populate_frecency_page(user_id, page).await?,
-            )),
             SoupOutput::Simple(page) => Ok(SoupOutput::Simple(
                 self.populate_frecency_page(user_id, page).await?,
             )),
@@ -1688,7 +1682,7 @@ where
             .as_ref()
             .is_some_and(|ast| !ast.crm_associations().is_empty())
         {
-            if !matches!(&req.cursor, SoupQuery::Simple(_) | SoupQuery::DueDate(_)) {
+            if !matches!(&req.cursor, SoupQuery::Simple(_)) {
                 return Err(SoupErr::AstErr(item_filters::ast::ExpandErr::ApiAst(
                     "CRM associations require timestamp or task due-date sorting".into(),
                 )));
@@ -1710,9 +1704,6 @@ where
         } else {
             None
         };
-        if matches!(&req.cursor, SoupQuery::DueDate(_)) {
-            due_date::validate_filter(req.entity_ast(), req.soup_type)?;
-        }
         let limit = req.limit.clamp(1, 500);
 
         // CRM-scoped visibility (team-wide email scope or hidden CRM
@@ -1761,12 +1752,6 @@ where
         let sort_direction = req.sort_direction;
 
         let output: Result<SoupOutput<R, SoupCandidate>, SoupErr> = match req.cursor {
-            SoupQuery::DueDate(DueDateQueryInner(cursor)) => {
-                let page = self
-                    .due_date_page(req.user, limit, cursor, entity_filter, include_projection)
-                    .await?;
-                Ok(SoupOutput::DueDate(page))
-            }
             SoupQuery::Simple(SimpleQueryInner(cursor)) => {
                 let sort_method = *cursor.sort_method();
 
@@ -1913,7 +1898,6 @@ where
         let mut output = output?;
         let items = match &mut output {
             SoupOutput::Simple(page) => &mut page.items,
-            SoupOutput::DueDate(page) => &mut page.items,
             SoupOutput::Frecency(page) => &mut page.items,
             SoupOutput::Touched(page) => &mut page.items,
             SoupOutput::Notified(page) => &mut page.items,
@@ -2043,12 +2027,20 @@ where
         self.populate_properties_output(user_id, output).await
     }
 
+    #[tracing::instrument(err, skip_all)]
+    async fn get_property_date_page(
+        &self,
+        request: crate::domain::models::property_dates::PropertyDateRequest,
+    ) -> Result<crate::domain::models::property_dates::PropertyDatePage, SoupErr> {
+        self.property_date_page(request).await
+    }
+
     #[tracing::instrument(err, skip(self, req))]
     async fn get_user_soup_grouped(
         &self,
         mut req: GroupedSortRequest<'_>,
     ) -> Result<impl Iterator<Item = ItemGroupingInfo<SoupPropertiesField>> + Send, SoupErr> {
-        crate::domain::models::due_date::validate_grouping(&req.grouping)?;
+        crate::domain::models::grouping::query::validate_grouping(&req.grouping)?;
         self.authorize_date_grouping(&req.user_id, &req.grouping)
             .await?;
         let user_id = req.user_id.clone();
@@ -2072,14 +2064,6 @@ where
         self.populate_grouped_items(user_id, items).await
     }
 
-    async fn get_user_soup_grouped_due_date(
-        &self,
-        req: crate::domain::models::due_date::GroupedDueDateRequest<'_>,
-    ) -> Result<Vec<crate::domain::models::grouping::DueDateGroupedItem>, SoupErr> {
-        self.grouped_due_date_page(req).await
-    }
-
-    #[tracing::instrument(err, skip(self))]
     async fn caller_tag_sets<'a>(
         &self,
         user_id: MacroUserIdStr<'a>,
