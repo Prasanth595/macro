@@ -83,7 +83,6 @@ type CallAnsweredPayload = {
 type CallEndedPayload = { callId: string };
 type DrawerOpenedPayload = { channelId: string };
 type ParticipantIdentitiesPayload = { identities: string[] };
-type AlonePromptResponsePayload = { callId: string; choice: string };
 type CallEndedHandler = (payload: CallEndedPayload) => void | Promise<void>;
 
 type StartOutgoingCallArgs = {
@@ -228,35 +227,6 @@ export function registerCallKitCallEndedHandler(
 
 function getActiveCallEndedHandler(): CallEndedHandler | undefined {
   return callEndedHandlers[callEndedHandlers.length - 1];
-}
-
-type AlonePromptStayHandler = (callId: string) => void;
-let alonePromptStayHandler: AlonePromptStayHandler | undefined;
-
-/**
- * Receives "Stay in call" from the native iOS alone prompt. `useCallKitSetup`
- * owns the Tauri channel; the alone-call watcher owns the server request.
- */
-export function registerAlonePromptStayHandler(
-  handler: AlonePromptStayHandler
-): () => void {
-  alonePromptStayHandler = handler;
-  return () => {
-    if (alonePromptStayHandler === handler) alonePromptStayHandler = undefined;
-  };
-}
-
-/** Shows the native "you're the only one here" alert above the call UI. */
-export async function showNativeAlonePrompt(
-  callId: string,
-  endsAtMs: number
-): Promise<void> {
-  await invoke('plugin:call-kit|show_alone_prompt', { callId, endsAtMs });
-}
-
-/** Removes the native alone alert and its notification for a call. */
-export async function dismissNativeAlonePrompt(callId: string): Promise<void> {
-  await invoke('plugin:call-kit|dismiss_alone_prompt', { callId });
 }
 
 export function isNativeIosCallKitEnabled(): boolean {
@@ -535,22 +505,6 @@ export function useCallKitSetup() {
         );
       }
     );
-
-    if (isPlatform('ios')) {
-      registerChannelWatcher<AlonePromptResponsePayload>(
-        'watch_alone_prompt_response',
-        'alone prompt response',
-        ({ callId, choice }) => {
-          console.info('[callkit] alone prompt response', { callId, choice });
-          if (choice !== 'stay') return;
-          if (!alonePromptStayHandler) {
-            console.warn('[callkit] no alone prompt stay handler registered');
-            return;
-          }
-          alonePromptStayHandler(callId);
-        }
-      );
-    }
 
     registerChannelWatcher<ConnectionStatePayload>(
       'watch_connection_state',

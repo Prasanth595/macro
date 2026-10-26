@@ -23,10 +23,6 @@ struct WatchParticipantIdentitiesArgs: Decodable {
     let channel: Channel
 }
 
-struct WatchAlonePromptResponseArgs: Decodable {
-    let channel: Channel
-}
-
 struct SetVideoEnabledArgs: Decodable {
     let enabled: Bool
 }
@@ -52,7 +48,6 @@ class CallKitPlugin: Plugin, @unchecked Sendable {
     private var connectionStateChannel: Channel?
     private var drawerOpenedChannel: Channel?
     private var participantIdentitiesChannel: Channel?
-    private var alonePromptResponseChannel: Channel?
     private var willTerminateObserver: NSObjectProtocol?
 
     deinit {
@@ -73,7 +68,6 @@ class CallKitPlugin: Plugin, @unchecked Sendable {
                         requestEndActiveCall: { completion in completion() },
                         onDrawerOpened: { _ in },
                         onParticipantIdentitiesChanged: { _ in },
-                        onAlonePromptStay: { _ in },
                         videoOverlay: CallVideoOverlayController()
                     )
                 }
@@ -177,37 +171,6 @@ class CallKitPlugin: Plugin, @unchecked Sendable {
         onMain { [weak self] in
             callKitLog("JS registered participant identities watcher")
             self?.participantIdentitiesChannel = args.channel
-            invoke.resolve()
-        }
-    }
-
-    @objc public func watchAlonePromptResponse(_ invoke: Invoke) throws {
-        let args = try invoke.parseArgs(WatchAlonePromptResponseArgs.self)
-        onMain { [weak self] in
-            callKitLog("JS registered alone prompt response watcher")
-            self?.alonePromptResponseChannel = args.channel
-            invoke.resolve()
-        }
-    }
-
-    @objc public func showAlonePrompt(_ invoke: Invoke) throws {
-        let args = try invoke.parseArgs(ShowAlonePromptArgs.self)
-        onMain { [weak self] in
-            callKitLog("JS requested alone prompt callId=\(args.callId) endsAtMs=\(args.endsAtMs)")
-            if let mediaSession = self?.mediaSession {
-                mediaSession.showAlonePrompt(callId: args.callId, endsAtMs: args.endsAtMs)
-            } else {
-                callKitLog("Ignoring alone prompt; no native media session callId=\(args.callId)")
-            }
-            invoke.resolve()
-        }
-    }
-
-    @objc public func dismissAlonePrompt(_ invoke: Invoke) throws {
-        let args = try invoke.parseArgs(DismissAlonePromptArgs.self)
-        onMain { [weak self] in
-            callKitLog("JS requested alone prompt dismissal callId=\(args.callId)")
-            self?.mediaSession?.dismissAlonePrompt(callId: args.callId)
             invoke.resolve()
         }
     }
@@ -430,16 +393,6 @@ class CallKitPlugin: Plugin, @unchecked Sendable {
         }
     }
 
-    private func emitAlonePromptResponse(callId: String) {
-        let eventPayload: JSObject = ["callId": callId, "choice": "stay"]
-        callKitLog("Triggering alone prompt response event callId=\(callId) choice=stay")
-        trigger("alone-prompt-response", data: eventPayload)
-        if let channel = alonePromptResponseChannel {
-            let channelPayload: JsonObject = ["callId": callId, "choice": "stay"]
-            channel.send(channelPayload)
-        }
-    }
-
     private func emitParticipantIdentities(_ identities: [String]) {
         let eventPayload: JSObject = ["identities": identities]
         callKitLog("Triggering participant identities event count=\(identities.count)")
@@ -476,9 +429,6 @@ class CallKitPlugin: Plugin, @unchecked Sendable {
             },
             onParticipantIdentitiesChanged: { [weak self] identities in
                 self?.emitParticipantIdentities(identities)
-            },
-            onAlonePromptStay: { [weak self] callId in
-                self?.emitAlonePromptResponse(callId: callId)
             },
             videoOverlay: videoOverlay
         )

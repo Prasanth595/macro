@@ -3,7 +3,6 @@
 #[cfg(test)]
 mod test;
 
-mod alone;
 mod channel_startup;
 mod guest_chat;
 mod meeting_invites;
@@ -1036,14 +1035,6 @@ impl<
             .ok_or_else(|| CallError::NotFound(call_id.to_string()))?;
 
         self.decline_active_call(&call, user_id).await
-    }
-
-    async fn stay_in_call(
-        &self,
-        call_id: &Uuid,
-        user_id: MacroUserIdStr<'_>,
-    ) -> Result<(), CallError> {
-        self.stay_in_active_call(call_id, user_id).await
     }
 
     #[tracing::instrument(err, skip(self, bearer_token))]

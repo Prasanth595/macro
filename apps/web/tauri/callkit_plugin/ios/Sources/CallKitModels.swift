@@ -55,16 +55,6 @@ struct SetCallDrawerThemeArgs: Decodable {
     let success: RgbaColorArgs
 }
 
-struct ShowAlonePromptArgs: Decodable {
-    let callId: String
-    /// Epoch milliseconds when the server ends the call.
-    let endsAtMs: Double
-}
-
-struct DismissAlonePromptArgs: Decodable {
-    let callId: String
-}
-
 struct StartOutgoingCallArgs: Decodable {
     let channelId: String
     let callId: String

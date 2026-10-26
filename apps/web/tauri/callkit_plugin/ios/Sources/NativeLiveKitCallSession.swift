@@ -16,7 +16,6 @@ final class NativeLiveKitCallSession: NSObject, RoomDelegate, @unchecked Sendabl
     private let requestEndActiveCall: (@escaping () -> Void) -> Void
     private let onDrawerOpened: (String) -> Void
     private let onParticipantIdentitiesChanged: ([String]) -> Void
-    private let onAlonePromptStay: (String) -> Void
     private let videoOverlay: CallVideoOverlayController
     private lazy var pictureInPicture: CallPictureInPictureManaging = makeCallPictureInPictureController(
         sourceViewProvider: { [weak self] in
@@ -60,25 +59,6 @@ final class NativeLiveKitCallSession: NSObject, RoomDelegate, @unchecked Sendabl
     private var lastAudioEngineOutputAvailable: Bool?
     private let audioEngineLogger = CallKitAudioEngineLogger()
     private let audioRouteController = CallAudioRouteController()
-    private lazy var alonePrompt: CallAlonePromptController = {
-        let prompt = CallAlonePromptController(windowSceneProvider: { [weak self] in
-            self?.videoOverlay.presentationWindowScene()
-        })
-        prompt.onStay = { [weak self] callId in
-            guard let self else { return }
-            self.restartAloneBackstop()
-            self.onAlonePromptStay(callId)
-        }
-        prompt.onLeave = { [weak self] in
-            self?.endCallFromOverlay()
-        }
-        return prompt
-    }()
-    /// Mirrors the server's alone-in-call threshold.
-    private let aloneBackstopDelay: TimeInterval = 5 * 60
-    /// Set for the whole stretch the current room has no remote human, so the
-    /// backstop notice posts at most once per stretch.
-    private var aloneBackstop: DispatchWorkItem?
 
     init(
         onSnapshotChanged: @escaping (ActiveCallSnapshot?) -> Void,
@@ -86,7 +66,6 @@ final class NativeLiveKitCallSession: NSObject, RoomDelegate, @unchecked Sendabl
         requestEndActiveCall: @escaping (@escaping () -> Void) -> Void,
         onDrawerOpened: @escaping (String) -> Void,
         onParticipantIdentitiesChanged: @escaping ([String]) -> Void,
-        onAlonePromptStay: @escaping (String) -> Void,
         videoOverlay: CallVideoOverlayController
     ) {
         self.onSnapshotChanged = onSnapshotChanged
@@ -94,7 +73,6 @@ final class NativeLiveKitCallSession: NSObject, RoomDelegate, @unchecked Sendabl
         self.requestEndActiveCall = requestEndActiveCall
         self.onDrawerOpened = onDrawerOpened
         self.onParticipantIdentitiesChanged = onParticipantIdentitiesChanged
-        self.onAlonePromptStay = onAlonePromptStay
         self.videoOverlay = videoOverlay
         super.init()
         audioEngineLogger.desiredMutedProvider = { [weak self] in
@@ -321,7 +299,6 @@ final class NativeLiveKitCallSession: NSObject, RoomDelegate, @unchecked Sendabl
                     self.videoOverlay.setLocalParticipantTitle(self.displayTitle(newRoom.localParticipant))
                     self.videoOverlay.presentForActiveCallIfNeeded()
                     self.rebuildRemoteVideoLayout(from: newRoom)
-                    self.updateAloneBackstop(from: newRoom)
                     return true
                 }
                 guard isCurrentRoom else {
@@ -429,24 +406,6 @@ final class NativeLiveKitCallSession: NSObject, RoomDelegate, @unchecked Sendabl
             videoOverlay.setLocalParticipantTitle(displayTitle(room.localParticipant))
             rebuildRemoteVideoLayout(from: room)
         }
-    }
-
-    /// The server's alone-in-call warning, relayed by JS. Ignored unless it
-    /// names the active call.
-    func showAlonePrompt(callId: String, endsAtMs: Double) {
-        guard let uuid = activeCallUUID, uuid.uuidString.caseInsensitiveCompare(callId) == .orderedSame else {
-            callKitLog("Ignoring alone prompt; not the active call callId=\(callId) activeUuid=\(activeCallUUID?.uuidString ?? "nil")")
-            return
-        }
-        alonePrompt.show(callId: callId, endsAtMs: endsAtMs)
-    }
-
-    func dismissAlonePrompt(callId: String) {
-        alonePrompt.dismiss(callId: callId)
-        guard let uuid = activeCallUUID, uuid.uuidString.caseInsensitiveCompare(callId) == .orderedSame else { return }
-        // The server restarts its alone clock after a stay, so the backstop
-        // starts a new stretch too (a no-op if someone else is here).
-        restartAloneBackstop()
     }
 
     func setChannelTitle(_ title: String?) {
@@ -622,7 +581,6 @@ final class NativeLiveKitCallSession: NSObject, RoomDelegate, @unchecked Sendabl
             callKitLog("LiveKit remote participant connected \(self.describeParticipant(participant)) remoteCount=\(room.remoteParticipants.count)")
             self.emitParticipantIdentities(from: room)
             self.rebuildRemoteVideoLayout(from: room)
-            self.updateAloneBackstop(from: room)
         }
     }
 
@@ -637,7 +595,6 @@ final class NativeLiveKitCallSession: NSObject, RoomDelegate, @unchecked Sendabl
             self.speakingRemoteParticipantIds.removeAll { $0 == id }
             self.emitParticipantIdentities(from: room)
             self.rebuildRemoteVideoLayout(from: room)
-            self.updateAloneBackstop(from: room)
         }
     }
 
@@ -904,43 +861,6 @@ final class NativeLiveKitCallSession: NSObject, RoomDelegate, @unchecked Sendabl
         participant.identity?.stringValue
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .hasPrefix("agent-") == true
-    }
-
-    /// Background backstop for the server's alone-in-call timeout: the webview
-    /// is usually suspended in the background, so the server's warning may
-    /// never reach JS. After `aloneBackstopDelay` with no remote human while
-    /// the app is not active, notify natively.
-    private func updateAloneBackstop(from room: Room) {
-        guard isCurrentRoom(room), let uuid = activeCallUUID else { return }
-        if room.remoteParticipants.values.contains(where: { !isAgentParticipant($0) }) {
-            guard let aloneBackstop else { return }
-            callKitLog("Remote participant present; cancelling alone backstop uuid=\(uuid.uuidString)")
-            aloneBackstop.cancel()
-            self.aloneBackstop = nil
-            alonePrompt.dismiss(callId: uuid.uuidString)
-            return
-        }
-        guard aloneBackstop == nil else { return }
-
-        callKitLog("No remote participants; starting alone backstop uuid=\(uuid.uuidString)")
-        let backstop = DispatchWorkItem { [weak self] in
-            guard let self, self.activeCallUUID == uuid else { return }
-            guard UIApplication.shared.applicationState != .active else {
-                callKitLog("Alone backstop reached while active; the server warning drives the prompt uuid=\(uuid.uuidString)")
-                return
-            }
-            self.alonePrompt.notifyInBackground(callId: uuid.uuidString)
-        }
-        aloneBackstop = backstop
-        DispatchQueue.main.asyncAfter(wallDeadline: .now() + aloneBackstopDelay, execute: backstop)
-    }
-
-    private func restartAloneBackstop() {
-        aloneBackstop?.cancel()
-        aloneBackstop = nil
-        if let room {
-            updateAloneBackstop(from: room)
-        }
     }
 
     private func isCurrentRoom(_ room: Room) -> Bool {
@@ -1329,9 +1249,6 @@ final class NativeLiveKitCallSession: NSObject, RoomDelegate, @unchecked Sendabl
         participantDisplayNamesByIdentity = [:]
         onParticipantIdentitiesChanged([])
         pictureInPicture.stopAndReset()
-        aloneBackstop?.cancel()
-        aloneBackstop = nil
-        alonePrompt.reset()
         audioRouteController.resetSpeakerOverride()
         if let disconnectedSnapshot {
             emitDisconnectedSnapshot(disconnectedSnapshot)
