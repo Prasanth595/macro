@@ -27,6 +27,23 @@ fn open_date_ranges_materialize_without_invented_boundaries() {
     );
 }
 
+#[test]
+fn document_missing_dates_preserve_negation() {
+    let ast = materialize_graphql_filter(json!({"documentFilter": {"literal": {"property": {
+        "propertyDefinitionId": "00000001-0000-0000-0000-000000000004",
+        "value": {"hasDate": false}
+    }}}}))
+    .unwrap();
+    assert!(matches!(
+        ast.document_filter.as_deref(),
+        Some(Expr::Not(inner)) if matches!(inner.as_ref(),
+            Expr::Literal(DocumentLiteral::Property(PropertiesLiteral {
+                value: PropertyMatchValue::DatePresent, ..
+            }))
+        )
+    ));
+}
+
 fn generated_filter_fixture() -> Value {
     serde_json::from_str(include_str!("../fixtures/generated-soup-filter.json")).unwrap()
 }
@@ -143,9 +160,17 @@ fn property_entity_type_conversion_rejects_unsupported_variants() {
         })
     };
 
-    let error = materialize_graphql_filter(property_filter(json!("CALL_RECORD"))).unwrap_err();
+    let error = materialize_graphql_filter(property_filter(json!("CONTACT"))).unwrap_err();
     assert!(matches!(error, MaterializeError::Conversion(_)));
 
+    let calls = materialize_graphql_filter(property_filter(json!("CALL_RECORD"))).unwrap();
+    assert!(matches!(
+        calls.properties_filter.as_deref(),
+        Some(Expr::Literal(PropertiesLiteral {
+            entity_type: Some(PropertyEntityType::CallRecord),
+            ..
+        }))
+    ));
     let ast = materialize_graphql_filter(property_filter(Value::Null)).unwrap();
     let Some(Expr::Literal(literal)) = ast.properties_filter.as_deref() else {
         panic!("expected property literal")

@@ -381,6 +381,7 @@ impl TryFrom<GraphqlPropertyEntityType> for PropertyEntityType {
     fn try_from(value: GraphqlPropertyEntityType) -> Result<Self, Self::Error> {
         Ok(match value {
             GraphqlPropertyEntityType::CalendarEvent => Self::CalendarEvent,
+            GraphqlPropertyEntityType::CallRecord => Self::CallRecord,
             GraphqlPropertyEntityType::Channel => Self::Channel,
             GraphqlPropertyEntityType::Chat => Self::Chat,
             GraphqlPropertyEntityType::Company => Self::Company,
@@ -391,8 +392,7 @@ impl TryFrom<GraphqlPropertyEntityType> for PropertyEntityType {
             GraphqlPropertyEntityType::Thread => Self::Thread,
             GraphqlPropertyEntityType::User => Self::User,
             GraphqlPropertyEntityType::Initiative => Self::Initiative,
-            other
-            @ (GraphqlPropertyEntityType::CallRecord | GraphqlPropertyEntityType::Contact) => {
+            other @ GraphqlPropertyEntityType::Contact => {
                 return Err(other);
             }
         })
@@ -798,7 +798,18 @@ impl IntoFilterExpr<DocumentLiteral> for GraphqlDocumentLiteral {
             Self::IsEmailAttachment(value) => DocumentLiteral::IsEmailAttachment(value),
             Self::CreatedAt(date) => DocumentLiteral::CreatedAt(date.into_ast()?),
             Self::UpdatedAt(date) => DocumentLiteral::UpdatedAt(date.into_ast()?),
-            Self::Property(property) => DocumentLiteral::Property(property.into_literal()?),
+            Self::Property(property) => {
+                let missing_date = matches!(
+                    property.value,
+                    GraphqlFilterPropertyMatchValue::HasDate(false)
+                );
+                let expr = Expr::val(DocumentLiteral::Property(property.into_literal()?));
+                return Ok(if missing_date {
+                    Expr::is_not(expr)
+                } else {
+                    expr
+                });
+            }
             Self::EmailAttachmentParticipant(value) => {
                 DocumentLiteral::EmailAttachmentParticipant(value.into_ast()?)
             }

@@ -77,7 +77,9 @@ contract. Per-group totals count memberships, not globally distinct entities.
 
 Keep the existing grouped response shapes. GraphQL bins contain `key`,
 `totalCount`, `items`, and `nextCursor`; REST uses its normalized item pool
-and group metadata. Keys and range order come from the request. Display labels
+and group metadata. Item-pool keys and membership IDs use raw entity UUIDs;
+typed identities remain internal to candidate selection and merging. Group keys
+and range order come from the request. Display labels
 and drag-to-reschedule behavior belong to the consuming feature.
 
 Continuation context retains the selected sort property, direction, complete

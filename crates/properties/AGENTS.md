@@ -21,7 +21,7 @@ events to the `macro.properties` Kafka topic.
   (definitions, options, entity values, metadata, tag promotion).
 - `src/query_support.rs`: shared DATE-query composition over source-owned,
   fully filtered CTEs; source repositories retain execution and hydration.
-  Grouped readers bind the complete date partition through `date_range_config`.
+  Candidate readers bind the complete date partition through the shared query builder.
   Use `push_property_filter` for source-scoped, bound boolean predicates before candidate counts and pagination.
 - `src/domain/query.rs`: request-local, viewer-bound authorization for selected
   property definitions; authorize once before candidate source fanout.

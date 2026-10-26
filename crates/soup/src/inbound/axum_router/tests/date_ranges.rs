@@ -390,3 +390,90 @@ async fn grouped_property_cursor_routes_without_repeating_the_sort() {
     assert_eq!(body["group"]["total_count"], 0);
     assert_eq!(calls.lock().unwrap().len(), 1);
 }
+
+#[tokio::test]
+async fn property_date_continuations_compare_normalized_limits() {
+    for requested_limit in [0_u16, 1_000] {
+        let limit = requested_limit.clamp(1, 500);
+        for grouped in [false, true] {
+            let context = PropertyDateContext {
+                email_preview_view: Default::default(),
+                selection: CandidateQuery {
+                    date_property_id: Some(Uuid::from_u128(18)),
+                    timestamp_sort: None,
+                    direction: CandidateDirection::Ascending,
+                    limit,
+                    cursor: Some(CandidateCursor {
+                        identity: CandidateIdentity {
+                            id: Uuid::from_u128(1).to_string(),
+                            entity_type: "TASK".into(),
+                        },
+                        sort_value: CandidateSortValue(None),
+                    }),
+                    grouping: grouped.then(|| {
+                        models_grouping::GroupingConfig::new(
+                            models_grouping::GroupByField::EntityType,
+                        )
+                        .with_group_key("document")
+                        .with_limit(u32::from(limit))
+                    }),
+                },
+                filters: EntityFilterAst::default(),
+            };
+            let cursor = models_pagination::Base64Str::encode_json(context)
+                .type_erase()
+                .replace('+', "%2B")
+                .replace('/', "%2F")
+                .replace('=', "%3D");
+            let soup = MockSoup::succeeding();
+            let calls = soup.property_date_calls.clone();
+            let router = mock_router_with(
+                soup,
+                MockEmailLinkResult {
+                    get_link_result: Arc::new(|| Ok(None)),
+                },
+            );
+            let path = if grouped {
+                "/soup/ast/grouped"
+            } else {
+                "/soup"
+            };
+            let body = if grouped {
+                json!({"mode":"group_page", "group_by":"entity_type",
+                    "group_key":"document", "limit":requested_limit})
+            } else {
+                json!({"limit":requested_limit})
+            };
+            let request = authenticated_request()
+                .uri(format!("{path}?cursor={cursor}"))
+                .method(Method::POST)
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(serde_json::to_vec(&body).unwrap()))
+                .unwrap();
+            let (status, body) = send_json(router, request).await;
+            assert_eq!(status, StatusCode::OK, "{body:?}");
+            assert_eq!(calls.lock().unwrap()[0].selection.limit, limit);
+        }
+    }
+}
+
+#[test]
+fn property_group_memberships_serialize_raw_uuids() {
+    let id = Uuid::from_u128(17);
+    let group = crate::domain::models::grouping::GroupMeta {
+        key: "today".into(),
+        label: "Today".into(),
+        display_order: None,
+        total_count: 1,
+        next_cursor: None,
+        item_ids: vec![CandidateIdentity {
+            entity_type: "TASK".into(),
+            id: id.to_string(),
+        }],
+    };
+    let group = crate::inbound::axum_router::ApiGroupMeta::try_from(group).unwrap();
+    assert_eq!(
+        serde_json::to_value(group).unwrap()["item_ids"],
+        json!([id])
+    );
+}

@@ -6899,7 +6899,7 @@ enum GraphqlSharedEmailFilter {
 }
 
 """
-GraphQL representation of supported Soup timestamp, notification, and task due-date sorts.
+GraphQL representation of Soup timestamp, notification, and selected-property sorts.
 """
 enum GraphqlSimpleSortMethod {
 	"""
@@ -10286,7 +10286,7 @@ input SoupInitialInput {
 	"""
 	expand: Boolean
 	"""
-	Timestamp or task due-date sort. Defaults to VIEWED_AT.
+	Timestamp or selected DATE-property sort. Defaults to VIEWED_AT.
 	Frecency is not supported by this GraphQL adapter.
 	"""
 	sortMethod: GraphqlSimpleSortMethod

@@ -1,9 +1,9 @@
 use crate::domain::{
     models::{
-        EnrichedSoupItem, FrecencyQueryInner, GroupedSortMethod, GroupedSortQuery, IntoSoupReqAst,
+        EnrichedSoupItem, FrecencyQueryInner, GroupedSortRequest, IntoSoupReqAst,
         NotifiedQueryInner, SimpleQueryInner, SoupErr, SoupItemWithProperties, SoupQuery,
         SoupRequest, SoupSortDirection, SoupType, TouchedQueryInner,
-        grouping::{GroupMeta, build_timestamp_grouped_response},
+        grouping::{GroupMeta, build_grouped_response},
     },
     ports::SoupService,
 };
@@ -200,14 +200,14 @@ pub enum GroupedSoupSort {
 }
 
 impl GroupedSoupSort {
-    fn into_model(self) -> Result<GroupedSortMethod, SoupHandlerErr> {
-        Ok(GroupedSortMethod::Timestamp(match self {
+    fn into_model(self) -> Result<SimpleSortMethod, SoupHandlerErr> {
+        Ok(match self {
             Self::ViewedAt => SimpleSortMethod::ViewedAt,
             Self::CreatedAt => SimpleSortMethod::CreatedAt,
             Self::UpdatedAt => SimpleSortMethod::UpdatedAt,
             Self::ViewedUpdated => SimpleSortMethod::ViewedUpdated,
             _ => return Err(SoupHandlerErr::Expand),
-        }))
+        })
     }
 }
 
@@ -397,20 +397,20 @@ pub struct ApiGroupMeta {
     pub total_count: u32,
     /// Ordered ids of items in this group for the current page.
     /// Each id keys into `GroupedSoupPage.items`.
-    pub item_ids: Vec<String>,
+    pub item_ids: Vec<Uuid>,
     /// Cursor to load more items specifically from this group
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
 }
 
-impl<Id: ToString> From<GroupMeta<Id>> for ApiGroupMeta {
-    fn from(meta: GroupMeta<Id>) -> Self {
+impl From<GroupMeta> for ApiGroupMeta {
+    fn from(meta: GroupMeta) -> Self {
         Self {
             key: meta.key,
             label: meta.label,
             display_order: meta.display_order,
             total_count: meta.total_count,
-            item_ids: meta.item_ids.into_iter().map(|id| id.to_string()).collect(),
+            item_ids: meta.item_ids,
             next_cursor: meta.next_cursor,
         }
     }
@@ -593,7 +593,7 @@ where
     ) -> Result<Json<PaginatedOpaqueCursor<SoupApiItem>>, SoupHandlerErr>
     where
         SoupRequest<R>: IntoSoupReqAst,
-        R: Clone + Serialize + Send,
+        R: Clone + Serialize + Send + crate::domain::models::IntoSoupFilterAst,
     {
         if params.property_date_sort()?.is_some() || matches!(&cursor, Either5::E5(_)) {
             let context = match cursor {
@@ -700,22 +700,27 @@ where
             per_group_limit: params.limit.map(u32::from),
         };
         let request = match cursor {
-            Some(cursor) => GroupedSortQuery::continue_from(macro_user_id, cursor, grouping)?,
+            Some(cursor) => GroupedSortRequest::continue_from(
+                macro_user_id,
+                cursor,
+                grouping,
+                Some(params.limit.unwrap_or(20).clamp(20, 500)),
+            )?,
             None => {
-                let limit = params.limit.unwrap_or(20).clamp(1, 500);
+                let limit = params.limit.unwrap_or(20).clamp(20, 500);
                 let sort = params
                     .sort_method
                     .unwrap_or(GroupedSoupSort::ViewedUpdated)
                     .into_model()?;
-                GroupedSortQuery::initial(macro_user_id, limit, sort, filters, grouping)?
+                GroupedSortRequest::initial(macro_user_id, limit, sort, filters, grouping)
             }
         };
-        let GroupedSortQuery::Timestamp(request) = request;
         let sort = *request.cursor.sort_method();
         let filters = request.cursor.filter().clone();
         let grouping = request.grouping.clone();
         let items = self.service.get_user_soup_grouped(request).await?;
-        let response = build_timestamp_grouped_response(items, &grouping, sort, filters);
+        let response =
+            build_grouped_response(items, &grouping.field, sort, grouping.group_key, filters);
 
         let mut items: HashMap<String, SoupApiItem> = response
             .items
@@ -1233,7 +1238,10 @@ where
     let use_property_dates = params.property_date_sort()?.is_some()
         || cursor
             .as_deref()
-            .is_some_and(property_dates::is_property_date_cursor)
+            .map(crate::domain::models::property_dates::PropertyDateContext::try_decode)
+            .transpose()?
+            .flatten()
+            .is_some()
         || GroupByField::from(params.group_by.clone())
             .date_ranges()
             .is_some();
@@ -1272,6 +1280,12 @@ where
     }))
 }
 
+impl crate::domain::models::IntoSoupFilterAst for ApiEntityFilterAst {
+    fn into_filter_ast(self) -> Result<Option<EntityFilterAst>, item_filters::ast::ExpandErr> {
+        self.into_optional_entity_ast()
+    }
+}
+
 /// Wire-format entity filter AST accepted by soup AST endpoints.
 #[derive(Debug, Default, Serialize, Deserialize, Clone, ToSchema)]
 pub struct ApiEntityFilterAst {
@@ -1282,7 +1296,7 @@ pub struct ApiEntityFilterAst {
     /// (wire key `crma`): its Companies or Contacts property names the
     /// record, or it references the record. A company also matches through
     /// its contacts. Unknown or inaccessible records answer 404; requests
-    /// require expanded queries sorted by a timestamp or task due date.
+    /// require expanded queries sorted by a timestamp or selected DATE property.
     #[serde(default, rename = "crma", skip_serializing_if = "Option::is_none")]
     pub crm_association: Option<item_filters::ast::crm_association::CrmAssociation>,
     /// filters applied to canonical calendar events

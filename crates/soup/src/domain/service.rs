@@ -2040,9 +2040,6 @@ where
         &self,
         mut req: GroupedSortRequest<'_>,
     ) -> Result<impl Iterator<Item = ItemGroupingInfo<SoupPropertiesField>> + Send, SoupErr> {
-        crate::domain::models::grouping::query::validate_grouping(&req.grouping)?;
-        self.authorize_date_grouping(&req.user_id, &req.grouping)
-            .await?;
         let user_id = req.user_id.clone();
         if let Some(entities) = self
             .favorite_entities(&user_id, Some(req.cursor.filter()))

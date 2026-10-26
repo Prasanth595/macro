@@ -132,76 +132,90 @@ fn rest_grouped_response_remains_normalized() {
 }
 
 #[test]
-fn timestamp_date_range_cursors_use_absolute_rank_and_preserve_page_size() {
-    use models_grouping::GroupingConfig;
-    let grouping = GroupingConfig {
-        field: GroupByField::Property {
-            property_definition_id: system_properties::SystemPropertyKey::DUE_DATE_UUID,
-            entity_type: Some("TASK".into()),
-            bucketing: Some(models_grouping::PropertyBucketing::DateRanges(
-                models_grouping::PropertyDateRanges {
-                    ranges: vec![
-                        models_grouping::PropertyDateRange {
-                            key: "overdue".into(),
-                            start: None,
-                            end: Some("2026-03-08T05:00:00Z".parse().unwrap()),
-                        },
-                        models_grouping::PropertyDateRange {
-                            key: "today".into(),
-                            start: Some("2026-03-08T05:00:00Z".parse().unwrap()),
-                            end: Some("2026-03-09T04:00:00Z".parse().unwrap()),
-                        },
-                        models_grouping::PropertyDateRange {
-                            key: "tomorrow".into(),
-                            start: Some("2026-03-09T04:00:00Z".parse().unwrap()),
-                            end: Some("2026-03-10T04:00:00Z".parse().unwrap()),
-                        },
-                        models_grouping::PropertyDateRange {
-                            key: "next_7_days".into(),
-                            start: Some("2026-03-10T04:00:00Z".parse().unwrap()),
-                            end: Some("2026-03-16T04:00:00Z".parse().unwrap()),
-                        },
-                        models_grouping::PropertyDateRange {
-                            key: "later".into(),
-                            start: Some("2026-03-16T04:00:00Z".parse().unwrap()),
-                            end: None,
-                        },
-                    ],
-                    missing_value_bucket_key: "no_due_date".into(),
-                },
-            )),
-        },
-        group_key: Some("today".to_owned()),
-        per_group_limit: Some(2),
+fn property_pages_keep_entity_types_with_shared_uuids_distinct() {
+    use crate::domain::models::property_dates::{PropertyDateContext, PropertyDatePage};
+    use models_grouping::{
+        CandidateDirection, CandidateGroupStats, CandidateIdentity, CandidatePage, CandidateQuery,
+        CandidateSortValue, GroupedCandidate, GroupingConfig,
     };
-    for index in [2, 3] {
-        let response = build_timestamp_grouped_response(
-            vec![ItemGroupingInfo {
-                key: "today".to_owned(),
-                total_group_count: 3,
-                index_in_group: index,
-                item: project(index as u128).map_extra(|()| SoupPropertiesField::default()),
+    use models_soup::chat::SoupChat;
+    let project_identity = CandidateIdentity {
+        id: Uuid::from_u128(1).to_string(),
+        entity_type: "PROJECT".into(),
+    };
+    let chat_identity = CandidateIdentity {
+        id: project_identity.id.clone(),
+        entity_type: "CHAT".into(),
+    };
+    let chat = SoupItem::Chat(SoupChat {
+        id: Uuid::from_u128(1),
+        name: "Chat".into(),
+        model: None,
+        owner_id: Owner::from_principal_str("macro|user@example.com").unwrap(),
+        project_id: None,
+        is_persistent: true,
+        created_at: DateTime::default(),
+        updated_at: DateTime::default(),
+        viewed_at: None,
+        deleted_at: None,
+        extra: (),
+    });
+    let page = |grouped: bool| PropertyDatePage {
+        candidates: CandidatePage {
+            entity_types: vec!["PROJECT".into(), "CHAT".into()],
+            candidates: [&project_identity, &chat_identity]
+                .into_iter()
+                .map(|identity| GroupedCandidate {
+                    identity: identity.clone(),
+                    sort_value: CandidateSortValue(None),
+                    group_key: "all".into(),
+                })
+                .collect(),
+            groups: vec![CandidateGroupStats {
+                group_key: "all".into(),
+                total_count: 2,
+                before_or_at_cursor_count: 0,
+                has_more: false,
             }],
-            &grouping,
-            SimpleSortMethod::UpdatedAt,
-            EntityFilterAst::default(),
-        );
-        assert_eq!(response.groups[0].total_count, 3);
-        if index == 3 {
-            assert!(response.groups[0].next_cursor.is_none());
-            continue;
-        }
-        let cursor = Base64Str::<query::GroupedTimestampCursor>::new_from_string(
-            response.groups[0].next_cursor.clone().unwrap(),
-        )
-        .decode_json()
-        .unwrap();
-        assert_eq!(cursor.limit, 2);
-        assert_eq!(cursor.filter.grouping.field, grouping.field);
-        assert_eq!(cursor.filter.grouping.group_key, grouping.group_key);
-        assert_eq!(
-            cursor.filter.grouping.per_group_limit,
-            grouping.per_group_limit
-        );
-    }
+        },
+        context: PropertyDateContext {
+            selection: CandidateQuery {
+                date_property_id: Some(Uuid::from_u128(18)),
+                timestamp_sort: None,
+                direction: CandidateDirection::Ascending,
+                cursor: None,
+                limit: 20,
+                grouping: grouped.then(|| GroupingConfig::new(GroupByField::Project)),
+            },
+            filters: EntityFilterAst::default(),
+            email_preview_view: Default::default(),
+        },
+        items: [
+            (project_identity.clone(), project(1)),
+            (chat_identity.clone(), chat.clone()),
+        ]
+        .into_iter()
+        .map(|(identity, item)| {
+            (
+                identity,
+                crate::domain::models::SoupProjectionHydration {
+                    item: EnrichedSoupItem::from(
+                        item.map_extra(|_| SoupPropertiesField::default()),
+                    ),
+                    document_server_facts: None,
+                },
+            )
+        })
+        .collect(),
+    };
+    let flat = page(false).into_flat();
+    assert_eq!(flat.items.len(), 2);
+    assert!(matches!(flat.items[0].item.item, SoupItem::Project(_)));
+    assert!(matches!(flat.items[1].item.item, SoupItem::Chat(_)));
+    let grouped = page(true).into_grouped().unwrap();
+    assert_eq!(grouped.items.len(), 2);
+    assert_eq!(
+        grouped.groups[0].item_ids,
+        vec![project_identity, chat_identity]
+    );
 }

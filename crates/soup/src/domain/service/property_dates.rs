@@ -3,7 +3,7 @@
 use super::*;
 use crate::domain::models::{
     property_candidates::{PropertyCandidateRequest, merge_candidate_pages},
-    property_dates::{PropertyDatePage, PropertyDateRequest, candidate_key},
+    property_dates::{PropertyDatePage, PropertyDateRequest},
 };
 use call::domain::models::CallCandidateRequest;
 use channels::domain::models::ChannelPropertyCandidateRequest;
@@ -11,6 +11,7 @@ use crm::domain::companies_repo::CompanyPropertyCandidateRequest;
 use item_filters::ast::call::CallLiteral;
 use models_grouping::{CandidateIdentity, CandidatePage};
 use recursion::CollapsibleExt;
+use tracing::Instrument;
 
 impl<T, U, V, C, K, Crm, F> SoupImpl<T, U, V, C, K, Crm, F>
 where
@@ -23,7 +24,20 @@ where
     Crm: CrmService,
     F: GithubPullRequestListing,
 {
-    #[tracing::instrument(name = "soup.property_dates.read", skip_all, err)]
+    #[tracing::instrument(
+        name = "soup.property_dates.read",
+        skip_all,
+        fields(
+            property_definition_id = request.context.selection.date_property_id.map(|id| id.to_string()),
+            group_property_definition_id = request.context.selection.grouping.as_ref()
+                .and_then(|grouping| grouping.field.date_ranges().map(|(id, _)| id.to_string())),
+            limit = request.context.selection.limit,
+            candidate_count = tracing::field::Empty,
+            group_count = tracing::field::Empty,
+            hydrated_count = tracing::field::Empty,
+        ),
+        err
+    )]
     pub(super) async fn property_date_page(
         &self,
         request: PropertyDateRequest,
@@ -69,7 +83,10 @@ where
         let company_request = discovery.build_crm_company_request(&request.team);
         let call_request = discovery.build_call_request();
         let email_request = base.build_email_request(request.team.clone());
-        let emails = if let Some(emails) = email_request {
+        let emails = async {
+            let Some(emails) = email_request else {
+                return Ok(CandidatePage::default());
+            };
             self.email_service
                 .get_email_property_candidates(
                     email::domain::models::EmailPropertyCandidateRequest {
@@ -77,19 +94,24 @@ where
                         selection: selection.clone(),
                     },
                 )
-                .await?
-        } else {
-            CandidatePage::default()
-        };
-        let local = self
-            .soup_storage
-            .property_candidate_page(PropertyCandidateRequest {
-                filter: filters.clone(),
-                selection: selection.clone(),
-            })
-            .await
-            .map_err(anyhow::Error::from)?;
-        let channels = if let Some(channel) = channel_request {
+                .await
+                .map_err(SoupErr::from)
+        }
+        .instrument(tracing::info_span!("soup.property_dates.email"));
+        let local = async {
+            self.soup_storage
+                .property_candidate_page(PropertyCandidateRequest {
+                    filter: filters.clone(),
+                    selection: selection.clone(),
+                })
+                .await
+                .map_err(|error| SoupErr::SoupDbErr(anyhow::Error::from(error)))
+        }
+        .instrument(tracing::info_span!("soup.property_dates.local"));
+        let channels = async {
+            let Some(channel) = channel_request else {
+                return Ok(CandidatePage::default());
+            };
             self.comms_service
                 .get_channel_property_candidates(ChannelPropertyCandidateRequest {
                     selection: selection.clone(),
@@ -97,11 +119,13 @@ where
                     properties: filters.properties_filter.clone(),
                 })
                 .await
-                .map_err(|error| SoupErr::SoupDbErr(anyhow::anyhow!("{error:?}")))?
-        } else {
-            CandidatePage::default()
-        };
-        let calls = if let Some(call) = call_request {
+                .map_err(|error| SoupErr::SoupDbErr(anyhow::anyhow!("{error:?}")))
+        }
+        .instrument(tracing::info_span!("soup.property_dates.channels"));
+        let calls = async {
+            let Some(call) = call_request else {
+                return Ok(CandidatePage::default());
+            };
             let filter = add_call_properties(call.query.filter().clone(), &filters);
             self.call_record_service
                 .get_user_call_candidates(CallCandidateRequest {
@@ -112,15 +136,17 @@ where
                 .map_err(|error| {
                     tracing::error!(?error, "call property candidate selection failed");
                     SoupErr::CallErr
-                })?
-        } else {
-            CandidatePage::default()
-        };
-        let companies = if let Some(company) = company_request {
+                })
+        }
+        .instrument(tracing::info_span!("soup.property_dates.calls"));
+        let companies = async {
+            let Some(company) = company_request else {
+                return Ok(CandidatePage::default());
+            };
             self.crm_service
                 .get_company_property_candidates(CompanyPropertyCandidateRequest {
                     access: company.access,
-                    selection,
+                    selection: selection.clone(),
                     company_ids: company.company_ids,
                     hidden: company.hidden,
                     properties: filters.properties_filter.clone(),
@@ -129,18 +155,24 @@ where
                 .map_err(|error| match error {
                     crm::domain::model::CrmError::AdminRoleRequired => SoupErr::CrmAdminRequired,
                     error => SoupErr::SoupDbErr(error.into()),
-                })?
-        } else {
-            CandidatePage::default()
-        };
+                })
+        }
+        .instrument(tracing::info_span!("soup.property_dates.companies"));
+        let (local, channels, calls, companies, emails) =
+            tokio::try_join!(local, channels, calls, companies, emails)?;
         let candidates = merge_candidate_pages(
             [local, channels, calls, companies, emails],
             &request.context.selection,
         )
         .map_err(|error| SoupErr::SoupDbErr(error.into()))?;
+        let span = tracing::Span::current();
+        span.record("candidate_count", candidates.candidates.len());
+        span.record("group_count", candidates.groups.len());
         let items = self
             .hydrate_property_date_candidates(&request, &discovery, &candidates)
+            .instrument(tracing::info_span!("soup.property_dates.hydrate"))
             .await?;
+        span.record("hydrated_count", items.len());
         Ok(PropertyDatePage {
             candidates,
             items,
@@ -153,7 +185,8 @@ where
         request: &PropertyDateRequest,
         base: &SoupRequest<Option<EntityFilterAst>>,
         candidates: &CandidatePage,
-    ) -> Result<HashMap<String, SoupProjectionHydration<EnrichedSoupItem>>, SoupErr> {
+    ) -> Result<HashMap<CandidateIdentity, SoupProjectionHydration<EnrichedSoupItem>>, SoupErr>
+    {
         let mut main = Vec::new();
         let mut projects = Vec::new();
         let mut channels = Vec::new();
@@ -165,7 +198,7 @@ where
             let identity = &candidate.identity;
             let entity = candidate_entity(identity)?;
             let key = (entity.entity_type, entity.entity_id.to_string());
-            if keys.insert(key, candidate_key(identity)).is_some() {
+            if keys.insert(key, identity.clone()).is_some() {
                 continue;
             }
             match entity.entity_type {

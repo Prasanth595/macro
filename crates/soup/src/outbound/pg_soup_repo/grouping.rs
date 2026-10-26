@@ -5,11 +5,6 @@ use std::borrow::Cow;
 
 /// Build the group select expression for a field.
 pub fn group_select_expr(field: &GroupByField) -> Cow<'static, str> {
-    if field.date_ranges().is_some() {
-        return Cow::Owned(properties::query_support::date_range_group_key_sql(
-            "CASE WHEN ep_group.values->>'type' = 'Date' THEN (ep_group.values->>'value')::timestamptz END",
-        ));
-    }
     match field {
         GroupByField::Date => Cow::Owned(date_bucket_sql_key("sort_ts")),
         GroupByField::EntityType => Cow::Borrowed("item_type"),
@@ -67,13 +62,12 @@ pub struct GroupJoinClause {
 /// array / scalar value, produce a single row with NULL `val` (→ "Not Set").
 /// Property rows are also matched to the Soup item's canonical property entity
 /// type, so a task ignores legacy `DOCUMENT` assignments for the same id.
-/// Date-range grouping keeps one scalar assignment row even if a stored wrong-type value is an array.
 pub fn group_join_clause(field: &GroupByField) -> Option<GroupJoinClause> {
     match field {
         GroupByField::Property {
             property_definition_id,
             entity_type,
-            bucketing,
+            ..
         } => {
             let (entity_type_filter, entity_type_bind) = match entity_type {
                 Some(et) => (
@@ -82,21 +76,13 @@ pub fn group_join_clause(field: &GroupByField) -> Option<GroupJoinClause> {
                 ),
                 None => (String::new(), None),
             };
-            let (value, array_join) = if bucketing.is_some() {
-                ("NULL::jsonb", "")
-            } else {
-                (
-                    "elem.val",
-                    "LEFT JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(ep.values->'value') = 'array' THEN ep.values->'value' ELSE '[]'::jsonb END) elem(val) ON TRUE",
-                )
-            };
 
             Some(GroupJoinClause {
                 sql: format!(
                     "LEFT JOIN LATERAL (
-                        SELECT ep.values, {value} AS val
+                        SELECT ep.values, elem.val AS val
                         FROM entity_properties ep
-                        {array_join}
+                        LEFT JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(ep.values->'value') = 'array' THEN ep.values->'value' ELSE '[]'::jsonb END) elem(val) ON TRUE
                         WHERE ep.entity_id = t.id::text
                           AND ep.entity_type = t.property_entity_type
                           AND ep.property_definition_id = '{}'

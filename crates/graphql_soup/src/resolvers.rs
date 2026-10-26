@@ -18,10 +18,7 @@ use macro_authorization::{MacroAuthorizationService, MacroAuthorizationState};
 use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::EntityType;
 use models_pagination::TypeEraseCursor;
-use soup::domain::{
-    models::{GroupedSortQuery, grouping::build_timestamp_grouped_response},
-    ports::SoupService,
-};
+use soup::domain::{models::grouping::build_grouped_response, ports::SoupService};
 use soup_realtime::domain::{models::Patch, ports::SoupRealtimeSubscriptionService};
 
 use crate::{
@@ -98,9 +95,9 @@ where
     Edges: SoupEntityEdges,
 {
     let macro_user_id = require_authorized_user::<Auth, St>(ctx).await?;
-    let request = match input.into_read_request(macro_user_id)? {
+    let request = match input.into_read_request(macro_user_id.clone())? {
         GroupedReadRequest::Legacy(request) => *request,
-        GroupedReadRequest::PropertyDate(mut request) => {
+        GroupedReadRequest::PropertyDate(context) => {
             let Cached(MultiEmailLinkExtractor(links, _)) =
                 extract_part::<Cached<MultiEmailLinkExtractor<E, Auth>>, St>(ctx).await?;
             let Cached(team) = extract_part::<
@@ -108,21 +105,28 @@ where
                 St,
             >(ctx)
             .await?;
-            request.link_ids = links.into_iter().map(|link| link.id).collect();
-            request.team = team.entity_access_receipt;
+            let request = soup::domain::models::property_dates::PropertyDateRequest::new(
+                macro_user_id,
+                team.entity_access_receipt,
+                *context,
+                false,
+                false,
+                soup::domain::models::SoupType::Expanded,
+                links.into_iter().map(|link| link.id).collect(),
+            );
             let response = service
-                .get_property_date_page(*request)
+                .get_property_date_page(request)
                 .await?
                 .into_grouped()?;
             return Ok(GroupedSoup::from_response(response));
         }
     };
-    let GroupedSortQuery::Timestamp(request) = request;
     let sort = *request.cursor.sort_method();
     let filters = request.cursor.filter().clone();
     let grouping = request.grouping.clone();
     let items = service.get_user_soup_grouped(request).await?;
-    let response = build_timestamp_grouped_response(items, &grouping, sort, filters);
+    let response =
+        build_grouped_response(items, &grouping.field, sort, grouping.group_key, filters);
     Ok(GroupedSoup::from_response(response))
 }
 
@@ -253,8 +257,8 @@ where
     let macro_user_id = require_authorized_user::<Auth, St>(ctx).await?;
     let Cached(MultiEmailLinkExtractor(links, _)) =
         extract_part::<Cached<MultiEmailLinkExtractor<E, Auth>>, St>(ctx).await?;
-    let link_ids = links.into_iter().map(|link| link.id).collect();
-    let request = input.into_read_request(macro_user_id, link_ids)?;
+    let link_ids: Vec<_> = links.into_iter().map(|link| link.id).collect();
+    let request = input.into_read_request(macro_user_id.clone(), link_ids.clone())?;
 
     // Always forward the optional team receipt: Soup uses it for all
     // team-scoped foreign entities, not only CRM-scoped filters.
@@ -273,10 +277,17 @@ where
 
     let request = match request {
         SoupReadRequest::Legacy(request) => *request,
-        SoupReadRequest::PropertyDate(mut request) => {
-            request.team = team_receipt;
-            request.load_frecency = include_frecency;
-            let page = service.get_property_date_page(*request).await?.into_flat();
+        SoupReadRequest::PropertyDate { context, soup_type } => {
+            let request = soup::domain::models::property_dates::PropertyDateRequest::new(
+                macro_user_id,
+                team_receipt,
+                *context,
+                true,
+                include_frecency,
+                soup_type,
+                link_ids,
+            );
+            let page = service.get_property_date_page(request).await?.into_flat();
             return Ok(SoupPage::new_from_enriched_with_projection(page));
         }
     };

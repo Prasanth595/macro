@@ -1,18 +1,10 @@
 //! Property-date wire inputs and cursor decoding for the shared Soup pipeline.
 
-/// Identify the shared date cursor without interpreting legacy timestamp cursors.
-pub(super) fn is_property_date_cursor(encoded: &str) -> bool {
-    models_pagination::Base64Str::<serde_json::Value>::new_from_string(encoded.to_owned())
-        .decode_json()
-        .is_ok_and(|value| value.get("selection").is_some())
-}
-
 use super::*;
 use crate::domain::models::property_dates::{PropertyDateContext, PropertyDateRequest};
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use models_grouping::{CandidateDirection, CandidateQuery};
-use models_pagination::Base64Str;
 
 /// A generic date cursor with frozen selection, filters, and canonical identity.
 pub struct PropertyDateCursor(pub Option<PropertyDateContext>);
@@ -27,11 +19,9 @@ impl<S: Send + Sync> FromRequestParts<S> for PropertyDateCursor {
         let Some(encoded) = params.cursor else {
             return Ok(Self(None));
         };
-        let context = Base64Str::<PropertyDateContext>::new_from_string(encoded)
-            .decode_json()
-            .map_err(|_| {
-                (StatusCode::BAD_REQUEST, "Invalid property-date cursor").into_response()
-            })?;
+        let context = PropertyDateContext::decode(&encoded).map_err(|_| {
+            (StatusCode::BAD_REQUEST, "Invalid property-date cursor").into_response()
+        })?;
         Ok(Self(Some(context)))
     }
 }
@@ -93,29 +83,17 @@ where
         context: Option<PropertyDateContext>,
     ) -> Result<Json<PaginatedOpaqueCursor<SoupApiItem>>, SoupHandlerErr>
     where
-        SoupRequest<R>: IntoSoupReqAst,
-        R: Clone + Serialize + Send,
+        R: crate::domain::models::IntoSoupFilterAst,
     {
-        let ast = SoupRequest {
-            soup_type: SoupType::Expanded,
-            limit: params.limit.unwrap_or(20),
-            cursor: SoupQuery::new_sort_simple(SimpleSortMethod::UpdatedAt, filters),
-            sort_direction: SoupSortDirection::Desc,
-            user: viewer.clone(),
-            email_preview_view: email_view.clone().unwrap_or_default(),
-            link_ids: links.clone(),
-        }
-        .into_ast()
-        .map_err(SoupHandlerErr::ExpandErr)?
-        .cursor
-        .filter()
-        .clone()
-        .unwrap_or_default();
+        let ast = filters
+            .into_filter_ast()
+            .map_err(SoupHandlerErr::ExpandErr)?
+            .unwrap_or_default();
         let supplied = params.property_date_sort()?;
         if context.is_some() && params.sort_method.is_some() && supplied.is_none() {
             return Err(invalid("property-date cursor conflicts with sort method"));
         }
-        let mut request = if let Some(context) = context {
+        let context = if let Some(context) = context {
             validate_inputs(
                 &context,
                 supplied,
@@ -132,15 +110,7 @@ where
             if context.selection.grouping.is_some() || context.selection.cursor.is_none() {
                 return Err(invalid("invalid flat property-date cursor"));
             }
-            PropertyDateRequest {
-                viewer: viewer.clone(),
-                team,
-                context,
-                include_projection: false,
-                load_frecency: true,
-                soup_type: SoupType::Expanded,
-                link_ids: links,
-            }
+            context
         } else {
             let (property, direction) = supplied
                 .ok_or_else(|| invalid("property-date sorting requires a selected property"))?;
@@ -152,18 +122,15 @@ where
                 cursor: None,
                 limit: params.limit.unwrap_or(20).clamp(1, 500),
             };
-            let mut request =
-                PropertyDateRequest::initial(viewer.clone(), team, selection, ast, false)?;
-            request.link_ids = links;
-            request.context.email_preview_view = email_view.unwrap_or_default();
-            request
+            PropertyDateContext::initial(selection, ast, email_view.unwrap_or_default())?
         };
-        request.load_frecency = true;
-        request.soup_type = if params.expand == Some(false) {
+        let soup_type = if params.expand == Some(false) {
             SoupType::UnExpanded
         } else {
             SoupType::Expanded
         };
+        let request =
+            PropertyDateRequest::new(viewer.clone(), team, context, false, true, soup_type, links);
         let mut page = self
             .service
             .get_property_date_page(request)
@@ -189,17 +156,16 @@ where
             group_key: params.group_key,
             per_group_limit: params.limit.map(u32::from),
         };
-        let mut request = if let Some(cursor) = cursor {
-            let request = PropertyDateRequest::continue_from(viewer.clone(), team, cursor, false)?;
+        let context = if let Some(cursor) = cursor {
+            let context = PropertyDateContext::decode(&cursor)?;
             validate_inputs(
-                &request.context,
+                &context,
                 supplied,
                 params.sort_property_definition_id,
                 params.limit,
                 &filters,
             )?;
-            let frozen = request
-                .context
+            let frozen = context
                 .selection
                 .grouping
                 .as_ref()
@@ -214,7 +180,7 @@ where
             {
                 let timestamp = timestamp_sort(sort)?;
                 if serde_json::to_value(timestamp).map_err(|_| SoupHandlerErr::Expand)?
-                    != serde_json::to_value(request.context.selection.timestamp_sort)
+                    != serde_json::to_value(context.selection.timestamp_sort)
                         .map_err(|_| SoupHandlerErr::Expand)?
                 {
                     return Err(invalid(
@@ -222,7 +188,7 @@ where
                     ));
                 }
             }
-            request
+            context
         } else {
             let limit = params.limit.unwrap_or(20).clamp(1, 500);
             let mut grouping = grouping;
@@ -235,9 +201,7 @@ where
                     timestamp_sort(params.sort_method.unwrap_or(GroupedSoupSort::ViewedUpdated))?,
                 ),
             };
-            PropertyDateRequest::initial(
-                viewer.clone(),
-                team,
+            PropertyDateContext::initial(
                 CandidateQuery {
                     date_property_id,
                     direction,
@@ -247,28 +211,65 @@ where
                     limit,
                 },
                 filters,
-                false,
+                Default::default(),
             )?
         };
-        request.link_ids = links;
+        let request = PropertyDateRequest::new(
+            viewer.clone(),
+            team,
+            context,
+            false,
+            false,
+            SoupType::Expanded,
+            links,
+        );
         let response = self
             .service
             .get_property_date_page(request)
             .await?
             .into_grouped()?;
-        let mut items: HashMap<_, _> = response
-            .items
-            .into_iter()
-            .map(|(key, value)| (key, SoupApiItem::from_frecency_soup_item(value)))
-            .collect();
+        let mut items = HashMap::with_capacity(response.items.len());
+        for (identity, value) in response.items {
+            if items
+                .insert(identity.id, SoupApiItem::from_frecency_soup_item(value))
+                .is_some()
+            {
+                return Err(invalid("REST grouped items require distinct entity IDs"));
+            }
+        }
         mark_favorited(&*self.favorites, &viewer, items.values_mut()).await;
         Ok(ApiGroupedSoupParts {
             items,
             groups: response
                 .groups
                 .into_iter()
-                .map(ApiGroupMeta::from)
-                .collect(),
+                .map(ApiGroupMeta::try_from)
+                .collect::<Result<_, _>>()?,
+        })
+    }
+}
+
+impl TryFrom<crate::domain::models::grouping::GroupMeta<models_grouping::CandidateIdentity>>
+    for ApiGroupMeta
+{
+    type Error = SoupHandlerErr;
+
+    fn try_from(
+        meta: crate::domain::models::grouping::GroupMeta<models_grouping::CandidateIdentity>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            key: meta.key,
+            label: meta.label,
+            display_order: meta.display_order,
+            total_count: meta.total_count,
+            item_ids: meta
+                .item_ids
+                .into_iter()
+                .map(|identity| {
+                    Uuid::parse_str(&identity.id).map_err(|error| invalid(error.to_string()))
+                })
+                .collect::<Result<_, _>>()?,
+            next_cursor: meta.next_cursor,
         })
     }
 }
@@ -297,7 +298,7 @@ fn validate_inputs(
     if supplied.is_some_and(|(id, direction)| {
         context.selection.date_property_id != Some(id) || context.selection.direction != direction
     }) || property.is_some_and(|id| context.selection.date_property_id != Some(id))
-        || limit.is_some_and(|limit| limit != context.selection.limit)
+        || limit.is_some_and(|limit| limit.clamp(1, 500) != context.selection.limit)
     {
         return Err(invalid("property-date cursor conflicts with sort inputs"));
     }

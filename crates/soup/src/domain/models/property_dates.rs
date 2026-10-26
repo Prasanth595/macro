@@ -3,7 +3,7 @@
 use entity_access::domain::models::{EntityAccessReceipt, MemberTeamRole};
 use item_filters::ast::{EntityFilterAst, ExpandErr};
 use macro_user_id::user_id::MacroUserIdStr;
-use models_grouping::{CandidateCursor, CandidateQuery};
+use models_grouping::{CandidateCursor, CandidateIdentity, CandidateQuery};
 use models_pagination::Base64Str;
 use serde::{Deserialize, Serialize};
 
@@ -40,62 +40,67 @@ pub struct PropertyDateRequest {
 }
 
 impl PropertyDateRequest {
-    /// Validate an initial selection before any source service runs.
-    pub fn initial(
+    /// Construct a read with explicit hydration and source options.
+    pub fn new(
         viewer: MacroUserIdStr<'static>,
         team: Option<EntityAccessReceipt<MemberTeamRole>>,
+        context: PropertyDateContext,
+        include_projection: bool,
+        load_frecency: bool,
+        soup_type: super::SoupType,
+        link_ids: Vec<uuid::Uuid>,
+    ) -> Self {
+        Self {
+            viewer,
+            team,
+            context,
+            include_projection,
+            load_frecency,
+            soup_type,
+            link_ids,
+        }
+    }
+}
+
+impl PropertyDateContext {
+    /// Validate the initial query configuration before source selection.
+    pub fn initial(
         selection: CandidateQuery,
         filters: EntityFilterAst,
-        include_projection: bool,
+        email_preview_view: email::domain::models::PreviewView,
     ) -> Result<Self, SoupErr> {
         selection.validate().map_err(invalid)?;
         if selection.cursor.is_some() {
             return Err(invalid("initial property-date query cannot carry a cursor"));
         }
         Ok(Self {
-            viewer,
-            team,
-            context: PropertyDateContext {
-                selection,
-                filters,
-                email_preview_view: email::domain::models::PreviewView::StandardLabel(
-                    email::domain::models::PreviewViewStandardLabel::All,
-                ),
-            },
-            include_projection,
-            load_frecency: false,
-            soup_type: super::SoupType::Expanded,
-            link_ids: Vec::new(),
+            selection,
+            filters,
+            email_preview_view,
         })
     }
 
-    /// Decode a continuation while preserving selection, filters, and page size.
-    pub fn continue_from(
-        viewer: MacroUserIdStr<'static>,
-        team: Option<EntityAccessReceipt<MemberTeamRole>>,
-        cursor: String,
-        include_projection: bool,
-    ) -> Result<Self, SoupErr> {
-        let context = Base64Str::<PropertyDateContext>::new_from_string(cursor)
+    /// Decode a property-date cursor, or identify an ordinary timestamp cursor.
+    /// Malformed property-date context never falls back to another cursor type.
+    pub fn try_decode(encoded: &str) -> Result<Option<Self>, SoupErr> {
+        let value = Base64Str::<serde_json::Value>::new_from_string(encoded.to_owned())
             .decode_json()
             .map_err(invalid)?;
+        if value.get("selection").is_none() {
+            return Ok(None);
+        }
+        let context: Self = serde_json::from_value(value).map_err(invalid)?;
         context.selection.validate().map_err(invalid)?;
         if context.selection.cursor.is_none() {
             return Err(invalid("property-date continuation requires a position"));
         }
-        Ok(Self {
-            viewer,
-            team,
-            context,
-            include_projection,
-            load_frecency: false,
-            soup_type: super::SoupType::Expanded,
-            link_ids: Vec::new(),
-        })
+        Ok(Some(context))
     }
-}
 
-impl PropertyDateContext {
+    /// Decode a continuation that must use the property-date format.
+    pub fn decode(encoded: &str) -> Result<Self, SoupErr> {
+        Self::try_decode(encoded)?.ok_or_else(|| invalid("expected property-date cursor"))
+    }
     /// Encode the next page for this exact selection and optional group.
     pub fn next_cursor(&self, position: CandidateCursor, group_key: Option<String>) -> String {
         let mut context = self.clone();
@@ -116,16 +121,13 @@ fn invalid(error: impl std::fmt::Display) -> SoupErr {
 pub struct PropertyDatePage {
     /// Full-source counts and selected memberships in canonical order.
     pub candidates: models_grouping::CandidatePage,
-    /// Hydrated items keyed by canonical property type and entity ID.
-    pub items:
-        std::collections::HashMap<String, super::SoupProjectionHydration<super::EnrichedSoupItem>>,
+    /// Hydrated items keyed by source type and ID; REST converts keys at its boundary.
+    pub items: std::collections::HashMap<
+        CandidateIdentity,
+        super::SoupProjectionHydration<super::EnrichedSoupItem>,
+    >,
     /// Frozen inputs used to construct continuation cursors.
     pub context: PropertyDateContext,
-}
-
-/// Collision-safe identity for the normalized response pool.
-pub fn candidate_key(identity: &models_grouping::CandidateIdentity) -> String {
-    format!("{}:{}", identity.entity_type, identity.id)
 }
 
 impl PropertyDatePage {
@@ -154,13 +156,15 @@ impl PropertyDatePage {
             .candidates
             .candidates
             .into_iter()
-            .filter_map(|candidate| self.items.remove(&candidate_key(&candidate.identity)))
+            .filter_map(|candidate| self.items.remove(&candidate.identity))
             .collect();
         models_pagination::Paginated::from_parts(items, next_cursor)
     }
 
     /// Build exact group metadata, including exhausted groups and removed hydration rows.
-    pub fn into_grouped(mut self) -> Result<super::grouping::GroupedResponse<String>, SoupErr> {
+    pub fn into_grouped(
+        mut self,
+    ) -> Result<super::grouping::GroupedResponse<CandidateIdentity>, SoupErr> {
         let grouping = self
             .context
             .selection
@@ -177,8 +181,8 @@ impl PropertyDatePage {
                 .collect();
             let item_ids = members
                 .iter()
-                .map(|candidate| candidate_key(&candidate.identity))
-                .filter(|key| self.items.contains_key(key))
+                .map(|candidate| candidate.identity.clone())
+                .filter(|identity| self.items.contains_key(identity))
                 .collect();
             let next_cursor = if stats.has_more {
                 members.last().map(|candidate| {

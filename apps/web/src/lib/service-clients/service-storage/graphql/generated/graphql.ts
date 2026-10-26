@@ -1750,7 +1750,7 @@ export type GraphqlSharedEmailFilter =
   /** The only option. */
   | 'ONLY';
 
-/** GraphQL representation of supported Soup timestamp, notification, and task due-date sorts. */
+/** GraphQL representation of Soup timestamp, notification, and selected-property sorts. */
 export type GraphqlSimpleSortMethod =
   /** Sort by creation timestamp. */
   | 'CREATED_AT'
@@ -2153,7 +2153,7 @@ export type SoupInitialInput = {
   /** Direction to order the page in. Defaults to DESC. */
   sortDirection?: GraphqlSortDirection | null | undefined;
   /**
-   * Timestamp or task due-date sort. Defaults to VIEWED_AT.
+   * Timestamp or selected DATE-property sort. Defaults to VIEWED_AT.
    * Frecency is not supported by this GraphQL adapter.
    */
   sortMethod?: GraphqlSimpleSortMethod | null | undefined;

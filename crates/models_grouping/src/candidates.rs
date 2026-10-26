@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::GroupingConfig;
 
 /// Identity shared by source-owned repositories. Entity types use their canonical property string.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CandidateIdentity {
     /// Source entity ID (not necessarily a UUID).
     pub id: String,

@@ -73,7 +73,7 @@ rows, initiatives, ...) and get back a single unified, paginated result.
 - Group DATE properties with caller-defined ranges, never task-specific boundary fields;
   freeze the selected property, ranges, keys, and scope in contextual continuations.
 - Attach the properties service with `with_property_queries` for DATE grouping;
-  the domain validates definition visibility and scalar DATE type before either grouped query path.
+  the candidate domain path validates definition visibility and scalar DATE type before source fanout.
 - Preserve deployed timestamp cursor encodings for grouping without date ranges.
 - Mint `AuthorizedPropertyQuery` through the properties service before candidate
   fanout; sources derive the viewer from the capability, not a second user ID.

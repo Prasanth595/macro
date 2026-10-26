@@ -9,7 +9,7 @@ mod test;
 use super::{EnrichedSoupItem, SoupPropertiesField};
 use indexmap::IndexMap;
 use item_filters::ast::EntityFilterAst;
-use models_grouping::{GroupByField, GroupingConfig, date_bucket_label, date_bucket_order};
+use models_grouping::{GroupByField, date_bucket_label, date_bucket_order};
 use models_pagination::{
     Base64Str, CursorVal, CursorWithValAndFilter, Identify, SimpleSortMethod, SortOn,
 };
@@ -85,30 +85,11 @@ pub fn build_grouped_response(
     requested_group_key: Option<String>,
     filters: EntityFilterAst,
 ) -> GroupedResponse {
-    let grouping = GroupingConfig {
-        field: group_by.clone(),
-        group_key: requested_group_key,
-        per_group_limit: None,
-    };
-    build_timestamp_grouped_response(items, &grouping, sort_method, filters)
-}
-
-/// Build timestamp groups while retaining frozen date-range context when required.
-pub fn build_timestamp_grouped_response(
-    items: impl IntoIterator<Item = ItemGroupingInfo<SoupPropertiesField>>,
-    grouping: &GroupingConfig,
-    sort_method: SimpleSortMethod,
-    filters: EntityFilterAst,
-) -> GroupedResponse {
-    let group_by = &grouping.field;
-    let requested_group_key = &grouping.group_key;
-    let date_ranges = group_by.date_ranges().is_some();
     struct GroupData {
         total_count: u32,
         item_ids: Vec<Uuid>,
         last_item_id: Option<Uuid>,
         last_cursor_val: Option<CursorVal<SimpleSortMethod>>,
-        last_index: usize,
         label: Option<String>,
         display_order: Option<i32>,
     }
@@ -131,7 +112,6 @@ pub fn build_timestamp_grouped_response(
                 item_ids: Vec::new(),
                 last_item_id: None,
                 last_cursor_val: None,
-                last_index: 0,
                 label: Some(label),
                 display_order,
             }
@@ -139,7 +119,6 @@ pub fn build_timestamp_grouped_response(
         entry.item_ids.push(item_id);
         entry.last_item_id = Some(item_id);
         entry.last_cursor_val = Some(cursor_val);
-        entry.last_index = grouped_item.index_in_group;
 
         // First occurrence wins; later duplicates are dropped instead of
         // overwriting an already-populated entry.
@@ -151,11 +130,7 @@ pub fn build_timestamp_grouped_response(
     let mut groups: Vec<GroupMeta> = group_stats
         .into_iter()
         .map(|(key, data)| {
-            let has_more = if date_ranges {
-                data.last_index < data.total_count as usize
-            } else {
-                (data.item_ids.len() as u32) < data.total_count
-            };
+            let has_more = (data.item_ids.len() as u32) < data.total_count;
             let next_cursor = if has_more {
                 data.last_item_id
                     .zip(data.last_cursor_val)
@@ -170,21 +145,7 @@ pub fn build_timestamp_grouped_response(
                             val,
                             filter: filters.clone(),
                         };
-                        if date_ranges {
-                            let mut frozen = grouping.clone();
-                            frozen.group_key = Some(key.clone());
-                            let mut cursor =
-                                cursor.map_filter(|filters| query::GroupedTimestampContext {
-                                    filters,
-                                    grouping: frozen,
-                                });
-                            cursor.limit = grouping
-                                .per_group_limit
-                                .map_or(data.item_ids.len(), |limit| limit as usize);
-                            Base64Str::encode_json(cursor).type_erase()
-                        } else {
-                            Base64Str::encode_json(cursor).type_erase()
-                        }
+                        Base64Str::encode_json(cursor).type_erase()
                     })
             } else {
                 None

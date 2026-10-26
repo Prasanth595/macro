@@ -84,7 +84,7 @@ pub struct SimpleSortRequest<'a> {
     pub(crate) user_id: MacroUserIdStr<'a>,
 }
 
-pub use grouping::query::{GroupedSortMethod, GroupedSortQuery, GroupedSortRequest};
+pub use grouping::query::GroupedSortRequest;
 
 #[derive(Debug, Clone)]
 pub(crate) enum SimpleSortQuery {
@@ -339,6 +339,24 @@ pub struct SoupRequest<T> {
     /// Empty when the caller has no inboxes — `build_email_request` returns
     /// `None` so the email branch is skipped, unless the request is CRM-scoped.
     pub link_ids: Vec<Uuid>,
+}
+
+/// A filter input that can be converted without constructing a query.
+pub trait IntoSoupFilterAst {
+    /// Convert filters into the authoritative entity AST.
+    fn into_filter_ast(self) -> Result<Option<EntityFilterAst>, ExpandErr>;
+}
+
+impl IntoSoupFilterAst for EntityFilters {
+    fn into_filter_ast(self) -> Result<Option<EntityFilterAst>, ExpandErr> {
+        EntityFilterAst::new_from_filters(self)
+    }
+}
+
+impl IntoSoupFilterAst for EntityFilterAst {
+    fn into_filter_ast(self) -> Result<Option<EntityFilterAst>, ExpandErr> {
+        Ok(if self.is_empty() { None } else { Some(self) })
+    }
 }
 
 /// trait which defines a type which can be fallibly converted into a SoupRequest with ast

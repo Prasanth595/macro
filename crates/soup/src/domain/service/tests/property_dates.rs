@@ -1,5 +1,5 @@
 use super::*;
-use crate::domain::models::property_dates::PropertyDateRequest;
+use crate::domain::models::property_dates::{PropertyDateContext, PropertyDateRequest};
 use crate::outbound::pg_soup_repo::PgSoupRepo;
 use item_filters::ast::{chat::ChatLiteral, document::DocumentLiteral, project::ProjectLiteral};
 use models_grouping::{
@@ -90,13 +90,15 @@ async fn generic_dates_hydrate_filter_and_page_across_entity_types(
         cursor: None,
         limit: 1,
     };
-    let mut request = PropertyDateRequest::initial(
+    let mut request = PropertyDateRequest::new(
         viewer.clone(),
         None,
-        selection.clone(),
-        filters.clone(),
+        PropertyDateContext::initial(selection.clone(), filters.clone(), Default::default())?,
         true,
-    )?;
+        false,
+        SoupType::Expanded,
+        vec![],
+    );
     for expected in [DOCUMENT, TASK, CHAT, PROJECT] {
         let result = service.get_property_date_page(request).await?;
         assert_eq!(result.candidates.groups[0].total_count, 4);
@@ -110,7 +112,15 @@ async fn generic_dates_hydrate_filter_and_page_across_entity_types(
             assert!(page.items[0].document_server_facts.is_some());
         }
         if let Some(cursor) = page.next_cursor {
-            request = PropertyDateRequest::continue_from(viewer.clone(), None, cursor, true)?;
+            request = PropertyDateRequest::new(
+                viewer.clone(),
+                None,
+                PropertyDateContext::decode(&cursor)?,
+                true,
+                false,
+                SoupType::Expanded,
+                vec![],
+            );
         } else {
             assert_eq!(expected, PROJECT);
             break;
@@ -140,15 +150,24 @@ async fn generic_dates_hydrate_filter_and_page_across_entity_types(
     let mut selection = selection;
     selection.grouping = Some(grouping);
     let result = service
-        .get_property_date_page(PropertyDateRequest::initial(
+        .get_property_date_page(PropertyDateRequest::new(
             viewer.clone(),
             None,
-            selection,
-            filters,
+            PropertyDateContext::initial(selection, filters, Default::default())?,
             false,
-        )?)
+            false,
+            SoupType::Expanded,
+            vec![],
+        ))
         .await?
         .into_grouped()?;
+
+    assert_eq!(result.groups[0].item_ids[0].id, DOCUMENT);
+    for group in &result.groups {
+        for id in &group.item_ids {
+            assert!(result.items.contains_key(id));
+        }
+    }
     assert_eq!(
         result
             .groups
@@ -162,9 +181,15 @@ async fn generic_dates_hydrate_filter_and_page_across_entity_types(
         .clone()
         .expect("second dated group continues");
     let continued = service
-        .get_property_date_page(PropertyDateRequest::continue_from(
-            viewer, None, cursor, false,
-        )?)
+        .get_property_date_page(PropertyDateRequest::new(
+            viewer,
+            None,
+            PropertyDateContext::decode(&cursor)?,
+            false,
+            false,
+            SoupType::Expanded,
+            vec![],
+        ))
         .await?
         .into_grouped()?;
     assert_eq!(continued.groups.len(), 1);

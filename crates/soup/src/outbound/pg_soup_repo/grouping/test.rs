@@ -1,5 +1,4 @@
 mod access;
-mod date_ranges;
 mod pagination;
 mod sorting;
 
@@ -52,52 +51,6 @@ fn project_expr() {
     let expr = group_select_expr(&GroupByField::Project);
     assert!(expr.contains("project_id"));
     assert!(expr.contains("COALESCE"));
-}
-
-#[test]
-fn date_range_sql_uses_bound_configuration() {
-    let at = |s: &str| s.parse::<chrono::DateTime<chrono::Utc>>().unwrap();
-    let field = GroupByField::Property {
-        property_definition_id: system_properties::SystemPropertyKey::DUE_DATE_UUID,
-        entity_type: Some("TASK".into()),
-        bucketing: Some(models_grouping::PropertyBucketing::DateRanges(
-            models_grouping::PropertyDateRanges {
-                ranges: vec![
-                    models_grouping::PropertyDateRange {
-                        key: "overdue".into(),
-                        start: None,
-                        end: Some(at("2026-03-08T05:00:00Z")),
-                    },
-                    models_grouping::PropertyDateRange {
-                        key: "today".into(),
-                        start: Some(at("2026-03-08T05:00:00Z")),
-                        end: Some(at("2026-03-09T04:00:00Z")),
-                    },
-                    models_grouping::PropertyDateRange {
-                        key: "tomorrow".into(),
-                        start: Some(at("2026-03-09T04:00:00Z")),
-                        end: Some(at("2026-03-10T04:00:00Z")),
-                    },
-                    models_grouping::PropertyDateRange {
-                        key: "next_7_days".into(),
-                        start: Some(at("2026-03-10T04:00:00Z")),
-                        end: Some(at("2026-03-16T04:00:00Z")),
-                    },
-                    models_grouping::PropertyDateRange {
-                        key: "later".into(),
-                        start: Some(at("2026-03-16T04:00:00Z")),
-                        end: None,
-                    },
-                ],
-                missing_value_bucket_key: "no_due_date".into(),
-            },
-        )),
-    };
-    let expr = group_select_expr(&field);
-    assert!(expr.contains("date_range_config"));
-    assert!(expr.contains("ep_group.values"));
-    assert!(!expr.contains("2026-03-09"));
-    assert!(!expr.contains("'next_7_days'"));
 }
 
 #[test]

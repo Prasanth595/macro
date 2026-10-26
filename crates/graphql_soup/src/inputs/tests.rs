@@ -164,7 +164,6 @@ fn maps_initial_grouped_input() {
     .into_request(test_macro_user_id())
     .unwrap();
 
-    let GroupedSortQuery::Timestamp(request) = request;
     assert_eq!(request.limit, 42);
     assert!(request.grouping.group_key.is_none());
     assert!(matches!(
@@ -197,7 +196,6 @@ fn maps_grouped_cursor_continuation() {
     .into_request(test_macro_user_id())
     .unwrap();
 
-    let GroupedSortQuery::Timestamp(request) = request;
     assert_eq!(request.limit, 25);
     assert_eq!(request.grouping.group_key.as_deref(), Some("document"));
     assert!(matches!(request.cursor, Query::Cursor(_)));
@@ -267,15 +265,24 @@ fn date_range_grouping_preserves_custom_keys_and_timestamp_sorting() {
         sort_method: Some(GraphqlSimpleSortMethod::UpdatedAt),
         filters: None,
     }))
-    .into_request(test_macro_user_id())
+    .into_read_request(test_macro_user_id())
     .unwrap();
-    let GroupedSortQuery::Timestamp(request) = request;
-    assert_eq!(request.limit, 25);
+    let GroupedReadRequest::PropertyDate(context) = request else {
+        panic!("expected property-date grouping");
+    };
+    assert_eq!(context.selection.limit, 25);
     assert!(matches!(
-        request.cursor,
-        Query::Sort(SimpleSortMethod::UpdatedAt, _)
+        context.selection.timestamp_sort,
+        Some(SimpleSortMethod::UpdatedAt)
     ));
-    let (property, ranges) = request.grouping.field.date_ranges().unwrap();
+    let (property, ranges) = context
+        .selection
+        .grouping
+        .as_ref()
+        .unwrap()
+        .field
+        .date_ranges()
+        .unwrap();
     assert_eq!(property, Uuid::from_u128(18));
     assert_eq!(ranges.missing_value_bucket_key, "no-review-date");
     assert_eq!(ranges.ranges[1].key, "review-window");
@@ -298,15 +305,15 @@ fn generic_date_sort_keeps_the_selected_definition_through_a_null_cursor() {
         filters: None,
         sort_direction: None,
     }));
-    let SoupReadRequest::PropertyDate(request) = input
+    let SoupReadRequest::PropertyDate { context, soup_type } = input
         .into_read_request(test_macro_user_id(), vec![])
         .unwrap()
     else {
         panic!("generic sort used legacy routing");
     };
-    assert_eq!(request.context.selection.date_property_id, Some(definition));
-    assert!(matches!(request.soup_type, SoupType::UnExpanded));
-    let cursor = request.context.next_cursor(
+    assert_eq!(context.selection.date_property_id, Some(definition));
+    assert!(matches!(soup_type, SoupType::UnExpanded));
+    let cursor = context.next_cursor(
         CandidateCursor {
             identity: CandidateIdentity {
                 id: Uuid::from_u128(1).to_string(),
@@ -322,14 +329,14 @@ fn generic_date_sort_keeps_the_selected_definition_through_a_null_cursor() {
         email_view: None,
         sort_direction: None,
     });
-    let SoupReadRequest::PropertyDate(request) = continuation
+    let SoupReadRequest::PropertyDate { context, .. } = continuation
         .into_read_request(test_macro_user_id(), vec![])
         .unwrap()
     else {
         panic!("generic cursor used legacy routing");
     };
-    assert_eq!(request.context.selection.date_property_id, Some(definition));
-    assert_eq!(request.context.email_preview_view.to_string(), "all");
+    assert_eq!(context.selection.date_property_id, Some(definition));
+    assert_eq!(context.email_preview_view.to_string(), "all");
     let changed_view = SoupInput::Continuation(SoupContinuationInput {
         cursor,
         expand: None,
@@ -342,13 +349,7 @@ fn generic_date_sort_keeps_the_selected_definition_through_a_null_cursor() {
             .is_err()
     );
     assert_eq!(
-        request
-            .context
-            .selection
-            .cursor
-            .unwrap()
-            .identity
-            .entity_type,
+        context.selection.cursor.unwrap().identity.entity_type,
         "CHANNEL"
     );
 }

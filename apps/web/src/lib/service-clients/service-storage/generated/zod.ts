@@ -37850,7 +37850,7 @@ export const postItemsSoupAstGroupedResponse = zod
                   .nullish()
                   .describe('Display order for sorting groups (lower = first)'),
                 item_ids: zod
-                  .array(zod.string())
+                  .array(zod.uuid())
                   .describe(
                     'Ordered ids of items in this group for the current page.\nEach id keys into `GroupedSoupPage.items`.'
                   ),
@@ -41966,7 +41966,7 @@ export const postItemsSoupAstGroupedResponse = zod
               .nullish()
               .describe('Display order for sorting groups (lower = first)'),
             item_ids: zod
-              .array(zod.string())
+              .array(zod.uuid())
               .describe(
                 'Ordered ids of items in this group for the current page.\nEach id keys into `GroupedSoupPage.items`.'
               ),

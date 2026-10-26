@@ -77,14 +77,7 @@ struct MockSoupCall {
 #[derive(Clone)]
 struct MockSoup {
     called: Arc<std::sync::Mutex<Vec<MockSoupCall>>>,
-    grouped_calls: Arc<
-        std::sync::Mutex<
-            Vec<(
-                models_grouping::GroupingConfig,
-                crate::domain::models::GroupedSortMethod,
-            )>,
-        >,
-    >,
+    grouped_calls: Arc<std::sync::Mutex<Vec<(models_grouping::GroupingConfig, SimpleSortMethod)>>>,
     succeeds: bool,
     property_date_calls:
         Arc<std::sync::Mutex<Vec<crate::domain::models::property_dates::PropertyDateContext>>>,
@@ -242,7 +235,7 @@ impl SoupService for MockSoup {
         &self,
         req: GroupedSortRequest<'_>,
     ) -> Result<impl Iterator<Item = ItemGroupingInfo<SoupPropertiesField>> + Send, SoupErr> {
-        let sort = crate::domain::models::GroupedSortMethod::Timestamp(*req.cursor.sort_method());
+        let sort = *req.cursor.sort_method();
         self.grouped_calls
             .lock()
             .unwrap()
