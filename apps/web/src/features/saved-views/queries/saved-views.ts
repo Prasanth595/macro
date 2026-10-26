@@ -8,7 +8,7 @@ import {
   type SavedViewsQuery,
   type SavedViewsQueryVariables,
 } from '@service-storage/graphql/generated/graphql';
-import type { Client } from '@urql/core';
+import { getGraphqlSoupClient } from '@service-storage/graphql-soup';
 import {
   type Accessor,
   createEffect,
@@ -65,11 +65,10 @@ function revalidateSavedViewQuery(
 
 /** Cursor-paginated definitions, independent of any selected view. */
 export function useSavedViews(options: {
-  graphql: Accessor<Client>;
   viewerId: Accessor<string | undefined>;
   kind: string;
 }): SavedViewsSource {
-  const client = createMemo(options.graphql);
+  const client = createMemo(getGraphqlSoupClient);
   const list = createUrqlInfiniteQuery<
     SavedViewsQuery,
     SavedViewsQueryVariables,
@@ -121,11 +120,10 @@ export function useSavedViews(options: {
 
 /** One authorized definition, including views outside the loaded list pages. */
 export function useSavedView(options: {
-  graphql: Accessor<Client>;
   viewerId: Accessor<string | undefined>;
   id: Accessor<string | undefined>;
 }): SavedViewSource {
-  const client = createMemo(options.graphql);
+  const client = createMemo(getGraphqlSoupClient);
   const detail = createLiveQuery(
     SavedViewDocument,
     () => {

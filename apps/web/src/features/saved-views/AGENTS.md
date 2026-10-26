@@ -26,7 +26,7 @@ Reusable named view definitions. The first consumer is main Tasks; the generic f
 - Bind deferred picker actions to the opening account and discard them after an account change.
 - Validate the response viewer before exposing cached reads after an account change.
 - Keep list and detail hooks independent; pass mutation dialogs a refresh callback, not an aggregate read source.
-- Resolve mutation clients with `getGraphqlSoupClient` inside reactive options; do not require a feature-local `UrqlProvider`.
+- Resolve the shared GraphQL client reactively inside read and mutation hooks; do not require callers to pass a client or mount a feature-local `UrqlProvider`.
 
 ## Checks
 

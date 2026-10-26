@@ -88,9 +88,11 @@ Transport handlers must not retain independent owner or membership policy.
 
 Keep separate create, update, and delete mutation hooks in `features/saved-views`.
 Keep `useSavedViews` (paginated list) and `useSavedView` (single definition)
-independent and compose them in the host. The Task draft primitive receives only
-the detail source and owns confirmed filter/layout/sort snapshots, dirty state,
-diagnostics, and revision-aware reconciliation. The Tasks host owns selection, navigation,
+independent and compose them in the host. Read and mutation hooks resolve the
+shared GraphQL client reactively; callers supply feature inputs, not clients.
+The Task draft primitive receives only the detail source and owns confirmed
+filter/layout/sort snapshots, dirty state, diagnostics, and revision-aware
+reconciliation. The Tasks host owns selection, navigation,
 and account/task lifecycle. Task actions capture the host request scope before
 writing or reloading, reject stale completions, and explicitly select created
 views. Mutation dialogs receive a refresh callback, not both query sources.

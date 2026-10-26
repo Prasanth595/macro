@@ -17,7 +17,6 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import { ListEntityMetadataQueryProvider } from '@entity';
 import { queryReadyGate } from '@queries/gate';
 import { useCurrentTeamQuery } from '@queries/team/teams';
-import { getGraphqlSoupClient } from '@service-storage/graphql-soup';
 import {
   createSignal,
   onMount,
@@ -210,14 +209,11 @@ export function TasksView(props: TasksViewProps) {
         initialState={props.initialState}
         savedViewsSource={() =>
           useSavedViews({
-            graphql: getGraphqlSoupClient,
             viewerId,
             kind: 'tasks',
           })
         }
-        savedViewSource={(id) =>
-          useSavedView({ graphql: getGraphqlSoupClient, viewerId, id })
-        }
+        savedViewSource={(id) => useSavedView({ viewerId, id })}
         savedViewTeam={() => {
           if (!queryReadyGate(teamQuery)) return;
           const team = teamQuery.data?.team;
