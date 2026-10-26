@@ -17,6 +17,7 @@ const result: SettingsSearchResult = {
     keywords: [],
     icon: () => null,
   },
+  group: 'Blocks',
 };
 afterEach(cleanup);
 describe('settings search navigation', () => {

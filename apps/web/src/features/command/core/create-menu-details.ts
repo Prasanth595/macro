@@ -54,7 +54,7 @@ export type CreateMenuDetails = {
   group: CreateMenuGroupId;
   /** One line under the title: what the thing actually is. */
   tagline: string;
-  /** A 10–20-word description for the detailed launcher. */
+  /** Two authored lines; the second is slightly shorter at desktop width. */
   details: string;
   /** Things people typically make with it. */
   examples: readonly string[];
@@ -247,7 +247,7 @@ export function createMenuSearchText(item: CreatableBlock): string[] {
   const group = CREATE_MENU_GROUPS.find((g) => g.id === details.group);
   return [
     details.tagline,
-    details.details,
+    details.details.replace(/\n/g, ' '),
     ...details.examples,
     group?.label,
   ].filter((text): text is string => !!text);
@@ -279,13 +279,18 @@ export function groupCreateMenuItems(
   return sections.filter((section) => section.items.length > 0);
 }
 
-/** Recent choices appear first and remain available in their categories. */
+/**
+ * Recent choices appear first and leave their categories: the list shows no
+ * section headers, so a second copy would read as a duplicate.
+ */
 export function groupRecentCreateMenuItems(
   items: CreatableBlock[],
   recentItems: CreatableBlock[]
 ): CreateMenuSection[] {
   const recent = recentItems.filter((item) => items.includes(item));
-  const categories = groupCreateMenuItems(items);
+  const categories = groupCreateMenuItems(
+    items.filter((item) => !recent.includes(item))
+  );
   return recent.length
     ? [
         {

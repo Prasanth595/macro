@@ -224,6 +224,11 @@ fn api_router(state: ApiContext) -> Router {
         .merge(calendar_events::inbound::axum_router::calendar_router(
             state.calendar_state.clone(),
         ))
+        .merge(
+            calendar_events::inbound::join_request_router::calendar_join_request_router(
+                state.calendar_join_request_state.clone(),
+            ),
+        )
         .merge(calendar_events::inbound::team_router::team_calendar_router(
             calendar_events::inbound::team_router::CalendarTeamRouterState::new(
                 std::sync::Arc::new(calendar_events::domain::team::CalendarTeamServiceImpl::new(
@@ -289,6 +294,9 @@ fn api_router(state: ApiContext) -> Router {
         .nest(
             "/databases",
             databases::inbound::axum_router::databases_router(state.databases_state.clone())
+                .merge(databases_sql::inbound::axum_router::sql_router(
+                    state.sql_state.clone(),
+                ))
                 .merge(databases::inbound::starter_router::starter_router(
                     state.database_starter_state.clone(),
                 ))

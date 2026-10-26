@@ -855,8 +855,8 @@ export const UnifiedFilterDropdown = (
               >
                 <Dropdown.Trigger
                   variant={props.variant ?? 'outline'}
+                  size={props.hideLabel ? 'icon-md' : 'sm'}
                   depth={2}
-                  class={props.variant === 'ghost' ? undefined : 'bg-surface'}
                   aria-label={
                     props.hideLabel ? t('viewMenus.filter') : undefined
                   }

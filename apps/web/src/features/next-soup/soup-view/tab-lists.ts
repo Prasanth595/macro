@@ -1,6 +1,6 @@
 import type { ListView } from '@app/constants/list-views';
 import { type TranslationKey, t } from '@app/lib/i18n';
-import type { TabItem } from '@core/component/Tabs';
+import type { TabOption } from '@ui';
 
 /** Views that have tab definitions. Shared between VIEW_TAB_LISTS and VIEW_TAB_PRESETS. */
 export type TabbedListView = Extract<
@@ -16,7 +16,7 @@ export type TabbedListView = Extract<
 >;
 
 /** A tab whose label is translated each time it renders; `value` stays an English id. */
-const tab = (value: string, key: TranslationKey): TabItem => ({
+const tab = (value: string, key: TranslationKey): TabOption<string> => ({
   value,
   get label() {
     return t(key);
@@ -24,7 +24,7 @@ const tab = (value: string, key: TranslationKey): TabItem => ({
 });
 
 /** Tab definitions for each list view. */
-export const VIEW_TAB_LISTS: Record<TabbedListView, TabItem[]> = {
+export const VIEW_TAB_LISTS: Record<TabbedListView, TabOption<string>[]> = {
   home: [
     tab('signal', 'viewMenus.signal'),
     tab('noise', 'viewMenus.noise'),

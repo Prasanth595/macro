@@ -1,4 +1,5 @@
 import { ViewSidebar } from '@app/components/view-shell';
+import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
 import {
   CREATABLE_BLOCKS,
   type CreatableName,
@@ -6,6 +7,7 @@ import {
   useCreatableEnabled,
 } from '@app/features/command/Launcher';
 import { t } from '@app/lib/i18n';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import FolderIcon from '@phosphor/folder.svg';
 import PlusIcon from '@phosphor/plus.svg';
@@ -87,8 +89,23 @@ export function DriveCreateMenu(props: {
 
   return (
     <Dropdown placement={isToolbar() ? 'bottom-end' : 'bottom-start'}>
-      <Show when={isToolbar()} fallback={<SidebarTrigger label={label()} />}>
-        <ToolbarTrigger label={label()} />
+      <Show
+        when={!isTouchDevice()}
+        fallback={
+          <Show
+            when={isToolbar()}
+            fallback={<SidebarTrigger label={label()} />}
+          >
+            <ToolbarTrigger label={label()} />
+          </Show>
+        }
+      >
+        <Dropdown.Trigger
+          as={ViewCreateButton}
+          presentation={props.presentation ?? 'sidebar'}
+          menu
+          aria-label={label()}
+        />
       </Show>
       <Dropdown.Content class="min-w-48 max-w-72">
         <Dropdown.Group>

@@ -5,6 +5,7 @@ import BellIcon from '@phosphor/bell-simple.svg';
 import BugIcon from '@phosphor/bug.svg';
 import BuildingsIcon from '@phosphor/buildings.svg';
 import CalendarIcon from '@phosphor/calendar-blank.svg';
+import RoutineIcon from '@phosphor/clock-clockwise.svg';
 import CpuIcon from '@phosphor/cpu.svg';
 import CreditCardIcon from '@phosphor/credit-card.svg';
 import DesktopIcon from '@phosphor/desktop.svg';
@@ -15,12 +16,12 @@ import HardDrivesIcon from '@phosphor/hard-drives.svg';
 import KeyIcon from '@phosphor/key.svg';
 import KeyboardIcon from '@phosphor/keyboard.svg';
 import PlugIcon from '@phosphor/plug.svg';
-import PlugsConnectedIcon from '@phosphor/plugs-connected.svg';
 import BotIcon from '@phosphor/robot.svg';
 import AgentIcon from '@phosphor/sparkle.svg';
 import SwatchesIcon from '@phosphor/swatches.svg';
 import TagIcon from '@phosphor/tag-simple.svg';
 import UserIconPhosphor from '@phosphor/user.svg';
+import UsersIcon from '@phosphor/users.svg';
 import UsersThreeIcon from '@phosphor/users-three.svg';
 import { type Component, createMemo } from 'solid-js';
 import { useHasPermission } from '../context/user';
@@ -60,6 +61,14 @@ export type SettingsTabItem = {
   searchOnly?: boolean;
 };
 
+/**
+ * Whether `group` is the team group, whose nav label gets the team's name
+ * (`Team · Macro`). Matched by its General tab, since the label is translated.
+ */
+export function isTeamSettingsGroup(group: SettingsTabGroup): boolean {
+  return group.items.some((item) => item.tab === 'Team');
+}
+
 export type SettingsTabGroup = {
   /** Shown in the interface language. */
   label: string;
@@ -98,6 +107,36 @@ function tabItem(
 export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
   {
     get label() {
+      return t('settingsNav.groupTeam');
+    },
+    items: [
+      tabItem('tabTeamGeneral', {
+        tab: 'Team',
+        icon: UsersThreeIcon,
+        keywords: ['team', 'workspace', 'organization', 'name', 'slug'],
+      }),
+      tabItem('tabTeamMembers', {
+        tab: 'Team Members',
+        icon: UsersIcon,
+        keywords: [
+          'team',
+          'invite',
+          'people',
+          'users',
+          'teammates',
+          'roles',
+          'seats',
+        ],
+      }),
+      tabItem('tabTeamConnections', {
+        tab: 'Team Connections',
+        icon: PlugIcon,
+        keywords: ['team', 'slack', 'github', 'import', 'app'],
+      }),
+    ],
+  },
+  {
+    get label() {
       return t('settingsNav.groupBlocks');
     },
     items: [
@@ -115,6 +154,11 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
         tab: 'Agents',
         icon: AgentIcon,
         keywords: ['ai', 'assistant', 'bot'],
+      }),
+      tabItem('tabRoutines', {
+        tab: 'Routines',
+        icon: RoutineIcon,
+        keywords: ['automation', 'schedule', 'scheduled', 'recurring'],
       }),
       tabItem('tabCrm', {
         tab: 'CRM',
@@ -175,11 +219,6 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
       return t('settingsNav.groupWorkspace');
     },
     items: [
-      tabItem('tabTeam', {
-        tab: 'Team',
-        icon: UsersThreeIcon,
-        keywords: ['members', 'users', 'workspace'],
-      }),
       tabItem('tabTags', {
         tab: 'Tags',
         icon: TagIcon,
@@ -188,7 +227,14 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
       tabItem('tabIntegrations', {
         tab: 'Connected',
         icon: CpuIcon,
-        keywords: ['integrations', 'apps', 'connections'],
+        keywords: [
+          'integrations',
+          'apps',
+          'connections',
+          'agent',
+          'tools',
+          'mcp',
+        ],
       }),
     ],
   },
@@ -197,11 +243,6 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
       return t('settingsNav.groupDeveloper');
     },
     items: [
-      tabItem('tabAgentConnections', {
-        tab: 'Connections',
-        icon: PlugsConnectedIcon,
-        keywords: ['agent', 'tools', 'apps', 'mcp'],
-      }),
       tabItem('tabRuntimes', {
         tab: 'Harness',
         icon: HardDrivesIcon,
@@ -255,15 +296,16 @@ const SETTINGS_TAB_SLUGS: Record<SettingsTab, string> = {
   'Desktop App': 'desktop-app',
   Agent: 'mcp-server',
   Agents: 'agents',
+  Routines: 'routines',
   Harness: 'runtimes',
   Bots: 'bots',
   Team: 'team',
+  'Team Members': 'team-members',
+  'Team Connections': 'team-connections',
   Calendar: 'calendar',
   Tags: 'tags',
   CRM: 'crm',
   Connected: 'connections',
-  // `connections` predates this tab and stays on Integrations for old links.
-  Connections: 'agent-connections',
   Email: 'email',
   GitHub: 'github',
   Admin: 'admin',
@@ -277,6 +319,8 @@ const SETTINGS_SLUG_TO_TAB = new Map<string, SettingsTab>(
 
 // Preserve daemon pairing links and bookmarks from before the rename.
 SETTINGS_SLUG_TO_TAB.set('harness', 'Harness');
+SETTINGS_SLUG_TO_TAB.set('connections', 'Connected');
+SETTINGS_SLUG_TO_TAB.set('agent-connections', 'Connected');
 
 /** The URL slug for a settings tab (e.g. `Connected` → `connections`). */
 export const settingsTabToSlug = (tab: SettingsTab): string =>
@@ -319,6 +363,8 @@ export const useSettingsTabAvailable = () => {
       case 'API Keys':
         return !isMobile();
       case 'Team':
+      case 'Team Members':
+      case 'Team Connections':
       case 'Tags':
         return true;
       // CRM is still rolling out (Macro-internal only); keep the settings tab
@@ -327,7 +373,6 @@ export const useSettingsTabAvailable = () => {
       case 'CRM':
         return crmFlag().enabled;
       case 'Connected':
-      case 'Connections':
         return true;
       case 'Shortcuts':
         return !isTouchDevice();
@@ -346,6 +391,10 @@ export const useSettingsTabAvailable = () => {
       case 'Harness':
       case 'Agents':
         return chatV3AgentsFlag().enabled;
+      // Touch hides the Agents sidebar that lists Routines on desktop, so
+      // phones and tablets reach the list here, beside Agents.
+      case 'Routines':
+        return chatV3AgentsFlag().enabled && isTouchDevice();
       case 'Bots':
         return botManagementFlag().enabled;
       case 'Mobile':

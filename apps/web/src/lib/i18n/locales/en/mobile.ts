@@ -2,6 +2,8 @@ export default {
   // Dock and More views drawer
   crm: 'CRM',
   moreViews: 'More views',
+  customizeDock: 'Customize dock',
+  unreadItems: 'Unread items',
   views: 'Views',
 
   // Search category pills

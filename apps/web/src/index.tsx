@@ -16,6 +16,7 @@ import { initMonochromeIcons } from '@ui/utils/monochromeIcons';
 import { ErrorBoundary, render } from 'solid-js/web';
 import { FatalError } from './components/app/FatalError';
 import { interfaceLanguageReady } from './lib/i18n';
+import { prepareNotificationLaunch } from './lib/tauri/notification-launch';
 import { perfMark } from './observability/perf-marks';
 import { Root } from './routes/Root';
 
@@ -117,6 +118,11 @@ async function main() {
   // A translated interface waits for its messages (already loading, cached
   // after the first visit) so the first screen isn't English for a moment.
   await Promise.all([observabilityReady(), languageReady()]);
+  try {
+    await prepareNotificationLaunch();
+  } catch (error) {
+    Telemetry.error(error, { surface: 'notification-launch' });
+  }
 
   console.log('App Version ', import.meta.env.__APP_VERSION__);
 

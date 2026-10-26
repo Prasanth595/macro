@@ -15,14 +15,14 @@ import TextAa from '@phosphor/text-aa.svg';
 import Trash from '@phosphor/trash.svg';
 import { Button, SendButton } from '@ui';
 import { FORMAT_TEXT_COMMAND, type LexicalEditor } from 'lexical';
-import { createSignal, type JSX, Show } from 'solid-js';
+import { createSignal, Show } from 'solid-js';
 import { EmailDateSelector } from '../components/email-date-selector';
 import { EmailScheduleSummary } from '../components/email-schedule-summary';
+import { MobileComposeActions } from '../components/mobile-compose-actions';
 import { useCompose } from '../context/compose-context';
 
 export function EmailComposeToolbar(props: {
   editor?: () => LexicalEditor | undefined;
-  status?: JSX.Element;
   /** Embedded drafts keep their controls in the card on phones too. */
   inline?: boolean;
 }) {
@@ -30,11 +30,8 @@ export function EmailComposeToolbar(props: {
   const [showFormatRibbon, setShowFormatRibbon] = createSignal(false);
 
   return (
-    <Show
-      when={props.inline || !ctx.isMobile()}
-      fallback={<MobileToolbar status={props.status} />}
-    >
-      <Show when={showFormatRibbon()}>
+    <Show when={props.inline || !ctx.isMobile()} fallback={<MobileToolbar />}>
+      <Show when={showFormatRibbon() && !ctx.disabled()}>
         <div class="flex flex-row w-full gap-2 items-center p-2 -ml-3">
           <FormatButtons
             selectionState={() => defaultSelectionData}
@@ -49,7 +46,6 @@ export function EmailComposeToolbar(props: {
       </Show>
       <div class="mt-2 flex min-w-0 justify-end">
         <div class="flex shrink-0 items-center gap-1">
-          {props.status}
           <Show when={ctx.hasDraft()}>
             <Button
               onClick={ctx.onDelete}
@@ -114,7 +110,7 @@ export function EmailComposeToolbar(props: {
   );
 }
 
-function MobileToolbar(props: { status?: JSX.Element }) {
+function MobileToolbar() {
   const ctx = useCompose();
   const hasScheduleSummary = () => {
     const state = ctx.schedule.state();
@@ -131,52 +127,43 @@ function MobileToolbar(props: { status?: JSX.Element }) {
               operation={ctx.schedule.operation()}
               onSelectTime={ctx.schedule.onSelect}
               onCancelSchedule={ctx.schedule.onCancel}
+              onCheckStatus={ctx.schedule.onCheckStatus}
             />
           </HeaderIsland>
         </Show>
       </SplitHeaderLeft>
       <SplitHeaderRight>
-        <HeaderIsland class="h-(--mobile-chrome-button-size) p-[5px]">
-          {props.status}
-          <Show when={!ctx.hideAttachments}>
-            <div class="relative">
-              <Button
-                ref={(el) =>
+        <MobileComposeActions
+          attachRef={
+            ctx.hideAttachments
+              ? undefined
+              : (el) =>
                   fileSelector(el, () => ({
                     multiple: true,
                     onSelect: ctx.onAddAttachments,
                   }))
-                }
-                size="icon-sm"
-                disabled={ctx.disabled()}
-              >
-                <PaperclipIcon />
-              </Button>
-            </div>
-          </Show>
-
-          <Show when={ctx.scheduleEnabled}>
-            <EmailDateSelector
-              mobile={ctx.isMobile()}
-              state={ctx.schedule.state()}
-              selectedTime={ctx.schedule.selectedTime()}
-              onSelectTime={ctx.schedule.onSelect}
-              onCancelSchedule={ctx.schedule.onCancel}
-              operation={ctx.schedule.operation()}
-              disabled={ctx.schedule.pickerDisabled()}
-              compact
-            />
-          </Show>
-          <SendButton
-            tooltip={
-              ctx.sendUnavailableReason?.() ?? ctx.schedule.actionLabel()
-            }
-            aria-label={ctx.schedule.actionLabel()}
-            disabled={ctx.isSavingDraft?.() || ctx.primaryActionDisabled()}
-            pending={ctx.isSending()}
-            onClick={() => ctx.onSend()}
-          />
-        </HeaderIsland>
+          }
+          editingDisabled={ctx.disabled()}
+          scheduleControl={
+            <Show when={ctx.scheduleEnabled}>
+              <EmailDateSelector
+                mobile={ctx.isMobile()}
+                state={ctx.schedule.state()}
+                selectedTime={ctx.schedule.selectedTime()}
+                onSelectTime={ctx.schedule.onSelect}
+                onCancelSchedule={ctx.schedule.onCancel}
+                operation={ctx.schedule.operation()}
+                disabled={ctx.schedule.pickerDisabled()}
+                compact
+              />
+            </Show>
+          }
+          sendLabel={ctx.schedule.actionLabel()}
+          sendTooltip={ctx.sendUnavailableReason?.()}
+          sendDisabled={!!ctx.isSavingDraft?.() || ctx.primaryActionDisabled()}
+          sending={ctx.isSending()}
+          onSend={() => ctx.onSend()}
+        />
       </SplitHeaderRight>
     </>
   );

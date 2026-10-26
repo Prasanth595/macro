@@ -22,6 +22,7 @@ export default {
   returnToList: 'Return to list',
   previousItem: 'Previous item',
   nextItem: 'Next item',
+  itemNavigation: 'Item navigation',
   openInThisSplit: 'Open in this split',
   closeReferencesDrawer: 'Close References Drawer',
   fileActions: 'File actions',

@@ -3,7 +3,6 @@ import {
   useForegroundMobileView,
   useMobileNavNavigate,
 } from '@components/app/mobile/use-mobile-nav';
-import { hapticImpact } from '@core/mobile/haptics';
 import { usePreserveFocusOnButtonTaps } from '@core/mobile/usePreserveFocusOnButtonTaps';
 import XIcon from '@phosphor/x.svg';
 import { SearchState } from './mobileSearchState';
@@ -64,7 +63,6 @@ export function MobileSearchInput() {
         aria-label={t('commandMenu.closeSearch')}
         onPointerDown={(e) => {
           e.preventDefault();
-          hapticImpact('light');
         }}
         onClick={handleClear}
       >

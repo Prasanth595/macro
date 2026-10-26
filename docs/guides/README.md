@@ -20,3 +20,6 @@ touches, in order, with the existing code to copy.
 | Interface translations of new menu text | [`update-translations` skill](../../.agents/skills/update-translations/SKILL.md) |
 | Collaborative markdown on a feature | [`collab-surface-core` skill](../../.agents/skills/collab-surface-core/SKILL.md) |
 | A feature on shared database storage | [`database-core` skill](../../.agents/skills/database-core/SKILL.md) |
+
+For the single agent backend and retirement of its former ECS services, see
+[Consolidate agent services](consolidate-agent-services.md).

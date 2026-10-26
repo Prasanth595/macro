@@ -2,13 +2,20 @@ import { useCalendarUiFlag } from '@app/features/calendar/hooks/use-calendar-ui-
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { t } from '@app/lib/i18n';
 import { getIconConfig } from '@core/component/EntityIcon';
-import { enableCrm } from '@core/constant/featureFlags';
+import {
+  enableCalendarScheduling,
+  enableCrm,
+  enableTasksReviews,
+} from '@core/constant/featureFlags';
 import BellIcon from '@phosphor/bell.svg';
+import CalendarCheckIcon from '@phosphor/calendar-check.svg';
+import ChatsCircleIcon from '@phosphor/chats-circle.svg';
+import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
 import BellFillIcon from '@phosphor-fill/bell-fill.svg';
 import CalendarFillIcon from '@phosphor-fill/calendar-fill.svg';
+import ChatsCircleFillIcon from '@phosphor-fill/chats-circle-fill.svg';
 import EmailFillIcon from '@phosphor-fill/envelope-fill.svg';
 import FilesFillIcon from '@phosphor-fill/files-fill.svg';
-import ChannelFillIcon from '@phosphor-fill/hash-straight-fill.svg';
 import { createMemo } from 'solid-js';
 import type { MobileDockIcon } from './MobileDockButton';
 import type { MobileNavViewId } from './mobile-nav-views';
@@ -25,7 +32,7 @@ export type MobileDockView = {
  * Dock navigation order. Views that do not fit go in More; Settings is
  * added by its own surface.
  */
-const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
+export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
   {
     id: 'home',
     get label() {
@@ -53,10 +60,10 @@ const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
   {
     id: 'channels',
     get label() {
-      return t('nav.channels');
+      return t('nav.chat');
     },
-    icon: getIconConfig('channel').icon,
-    iconActive: ChannelFillIcon,
+    icon: ChatsCircleIcon,
+    iconActive: ChatsCircleFillIcon,
   },
   {
     id: 'agents',
@@ -94,14 +101,33 @@ const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
     },
     icon: getIconConfig('company').icon,
   },
+  {
+    id: 'reviews',
+    get label() {
+      return t('nav.reviews');
+    },
+    icon: GitPullRequestIcon,
+  },
+  {
+    id: 'booking-links',
+    get label() {
+      return t('nav.scheduling');
+    },
+    icon: CalendarCheckIcon,
+  },
 ];
 
 export function useMobileDockViews() {
   const calendarEnabled = useCalendarUiFlag();
   const crm = useFeatureFlag(enableCrm);
+  const reviews = useFeatureFlag(enableTasksReviews);
+  const scheduling = useFeatureFlag(enableCalendarScheduling);
   return createMemo(() =>
     MOBILE_DOCK_VIEWS.filter(
       (view) => view.id !== 'calendar' || calendarEnabled()
-    ).filter((view) => view.id !== 'companies' || crm().enabled)
+    )
+      .filter((view) => view.id !== 'companies' || crm().enabled)
+      .filter((view) => view.id !== 'reviews' || reviews().enabled)
+      .filter((view) => view.id !== 'booking-links' || scheduling().enabled)
   );
 }

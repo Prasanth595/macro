@@ -9,7 +9,6 @@ export default {
   toggleSettings: 'Toggle settings',
   account: 'Account',
   logout: 'Logout',
-  openAiInstructions: 'Open AI instructions',
   mcpSetup: 'MCP setup',
   changeTheme: 'Change theme',
   systemPreference: 'System preference',

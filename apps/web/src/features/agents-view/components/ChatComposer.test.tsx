@@ -1,6 +1,7 @@
 import { createSessionComposerDraft } from '@app/features/block-agent/primitives/session-composer-draft';
 import type { InputAttachmentData } from '@channel/Input/types';
 import { preloadAgentFold } from '@core/agent-fold/client';
+import { hapticImpact } from '@core/mobile/haptics';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { $createQuoteNode, QuoteNode } from '@lexical/rich-text';
 import { fireEvent, render, screen } from '@solidjs/testing-library';
@@ -16,6 +17,8 @@ import { Portal } from 'solid-js/web';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RepositoryPicker } from '../views/RepositoryPicker';
 import { ChatComposer, ChatSessionInput } from './ChatComposer';
+
+vi.mock('@core/mobile/haptics', () => ({ hapticImpact: vi.fn() }));
 
 vi.mock('@service-connection/websocket', () => ({
   ws: { addEventListener: vi.fn(), send: vi.fn() },
@@ -164,6 +167,35 @@ function type(text: string) {
 }
 
 describe('Chat session input', () => {
+  it.each([false, true])(
+    'shows the complete static hint immediately and keeps it unchanged (session=%s)',
+    (session) => {
+      vi.useFakeTimers();
+      const view = render(() =>
+        session ? (
+          <ChatSessionInput onSend={vi.fn()} />
+        ) : (
+          <ChatComposer
+            draft=""
+            onDraftChange={vi.fn()}
+            onSend={vi.fn()}
+            selector={null}
+          />
+        )
+      );
+      try {
+        const hint =
+          'Type @ to mention docs, people, or channels, / for skills';
+        expect(screen.getByTestId('editor').textContent).toBe(hint);
+        vi.advanceTimersByTime(30000);
+        expect(screen.getByTestId('editor').textContent).toBe(hint);
+      } finally {
+        view.unmount();
+        vi.useRealTimers();
+      }
+    }
+  );
+
   it('preloads the fold only when focused without sending or changing the draft', () => {
     const send = vi.fn();
     const change = vi.fn();
@@ -302,9 +334,11 @@ describe('Chat session input', () => {
       // Not captured, so the editor inserts a newline instead of sending.
       expect(editor.enter?.(undefined, editor.text)).toBe(false);
       expect(send).not.toHaveBeenCalled();
+      expect(hapticImpact).not.toHaveBeenCalled();
       expect(editor.clear).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole('button', { name: 'Send' }));
       expect(send).toHaveBeenCalledWith('first line', []);
+      expect(hapticImpact).toHaveBeenCalledExactlyOnceWith('light');
     });
 
     it('does not advance the queue from Enter either', () => {
@@ -337,6 +371,7 @@ describe('Chat session input', () => {
       ));
       expect(editor.enter?.(undefined, 'Describe this')).toBe(false);
       expect(send).not.toHaveBeenCalled();
+      expect(hapticImpact).not.toHaveBeenCalled();
     });
   });
 

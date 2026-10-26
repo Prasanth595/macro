@@ -13,6 +13,7 @@ import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
 import HouseIcon from '@phosphor/house.svg';
 import ListChecksIcon from '@phosphor/list-checks.svg';
 import PhoneCallIcon from '@phosphor/phone-call.svg';
+import PulseIcon from '@phosphor/pulse.svg';
 import AgentIcon from '@phosphor/sparkle.svg';
 import BuildingsFillIcon from '@phosphor-fill/buildings-fill.svg';
 import CalendarBlankFillIcon from '@phosphor-fill/calendar-blank-fill.svg';
@@ -24,6 +25,7 @@ import GitPullRequestFillIcon from '@phosphor-fill/git-pull-request-fill.svg';
 import HouseFillIcon from '@phosphor-fill/house-fill.svg';
 import ListChecksFillIcon from '@phosphor-fill/list-checks-fill.svg';
 import PhoneCallFillIcon from '@phosphor-fill/phone-call-fill.svg';
+import PulseFillIcon from '@phosphor-fill/pulse-fill.svg';
 import AgentFillIcon from '@phosphor-fill/sparkle-fill.svg';
 import type { NavIcon } from './nav-glyph';
 import type { SidebarPrefs } from './use-sidebar-prefs';
@@ -170,6 +172,15 @@ export const SIDEBAR_NEXT_NAV_ITEMS = [
     hotkeyToken: TOKENS.sidebar.goTo.reviews,
   },
   {
+    id: 'activity',
+    label: 'Activity',
+    href: '/activity',
+    icon: PulseIcon,
+    iconActive: PulseFillIcon,
+    hotkey: 'y',
+    hotkeyToken: TOKENS.sidebar.goTo.activity,
+  },
+  {
     id: 'booking-links',
     get label() {
       return t('nav.scheduling');
@@ -187,6 +198,7 @@ export type NavItemGates = {
   showCustomers: boolean;
   showCalls: boolean;
   showReviews: boolean;
+  showActivity: boolean;
   /** User preferences for which items are shown and in what order. */
   prefs: SidebarPrefs;
 };
@@ -201,6 +213,7 @@ export const isNavItemAvailable = (
   if (item.id === 'companies') return gates.showCustomers;
   if (item.id === 'calls') return gates.showCalls;
   if (item.id === 'reviews') return gates.showReviews;
+  if (item.id === 'activity') return gates.showActivity;
   return true;
 };
 

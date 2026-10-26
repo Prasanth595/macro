@@ -45,7 +45,7 @@ import { TOKENS } from '@core/hotkey/tokens';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { isMobile } from '@core/mobile/isMobile';
 import {
-  createCanvasFileFromJsonString,
+  createCanvasFile,
   createChat,
   createCodeFileFromText,
   createMarkdownFile,
@@ -85,6 +85,10 @@ import {
 } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { Dynamic } from 'solid-js/web';
+import {
+  type PaneCreateContext,
+  useCreateContext,
+} from './context/create-context';
 import { creatableDescription, creatableId } from './core/creatable';
 import type { CreateMenuSection } from './core/create-menu-details';
 import {
@@ -229,7 +233,6 @@ const createBlock = async (spec: {
 
 const reportCreateBlockError = (error: unknown) =>
   Telemetry.error(error, { surface: 'launcher' });
-
 const createComponent = (spec: {
   componentId: string;
   shouldInsert?: boolean;
@@ -270,6 +273,8 @@ export function runCreateAction(
     destination?: string;
     /** Creatables that open a composer instead ignore it. */
     openCreated?: OpenCreatedItem;
+    /** Plain defaults supplied by the caller, never resolved from global state. */
+    context?: PaneCreateContext;
   } = {}
 ) {
   const shouldInsert = options.shouldInsert ?? false;
@@ -362,8 +367,7 @@ export function runCreateAction(
         blockName: 'canvas',
         loading: true,
         createFn: async () => {
-          const result = await createCanvasFileFromJsonString({
-            json: JSON.stringify({ nodes: [], edges: [] }),
+          const result = await createCanvasFile({
             title: 'New Canvas',
             projectId: options.projectId,
             source,
@@ -379,6 +383,7 @@ export function runCreateAction(
       createComponent({
         componentId: 'task-compose',
         asPopover: true,
+        params: { composerContext: options.context?.task ?? undefined },
       });
       return;
     case 'initiative':
@@ -564,9 +569,22 @@ export function runCreateAction(
   }
 }
 
+/** Capture the provider during setup; snapshot only when the action runs. */
+export function useCreateAction(): typeof runCreateAction {
+  const context = useCreateContext();
+  return (name, options = {}) =>
+    runCreateAction(name, {
+      ...options,
+      context:
+        options.context ??
+        (name === 'task' ? { task: context.snapshot('task') } : undefined),
+    });
+}
 export type { CreatableBlock, CreatableName } from './types';
 
-export const CREATABLE_BLOCKS: CreatableBlock[] = [
+const createBlocks = (
+  createAction: typeof runCreateAction
+): CreatableBlock[] => [
   {
     id: 'Email',
     get label() {
@@ -580,7 +598,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.emailNewSplit,
     hotkey: 'e',
     keyDownHandler: () => {
-      runCreateAction('email', { shouldInsert: pressedKeys().has('shift') });
+      createAction('email', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -608,7 +626,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     registrationType: 'add',
     enabled: () => !isFeatureEnabled(enableChatV3Agents),
     keyDownHandler: () => {
-      runCreateAction('chat', { shouldInsert: pressedKeys().has('shift') });
+      createAction('chat', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -627,7 +645,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     hotkeyToken: TOKENS.create.routine,
     hotkey: 'u',
     keyDownHandler: () => {
-      runCreateAction('routine');
+      createAction('routine');
       return true;
     },
   },
@@ -649,7 +667,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     registrationType: 'add',
     enabled: () => isFeatureEnabled(enableChatV3Agents),
     keyDownHandler: () => {
-      runCreateAction('agent', { shouldInsert: pressedKeys().has('shift') });
+      createAction('agent', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -670,7 +688,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.databaseNewSplit,
     hotkey: 'l',
     keyDownHandler: () => {
-      runCreateAction('database', { shouldInsert: pressedKeys().has('shift') });
+      createAction('database', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -691,7 +709,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.formNewSplit,
     hotkey: 'q',
     keyDownHandler: () => {
-      runCreateAction('form', { shouldInsert: pressedKeys().has('shift') });
+      createAction('form', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -710,7 +728,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     hotkeyToken: TOKENS.create.skill,
     hotkey: 'k',
     keyDownHandler: () => {
-      runCreateAction('skill');
+      createAction('skill');
       return true;
     },
   },
@@ -727,7 +745,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.noteNewSplit,
     hotkey: 'd',
     keyDownHandler: () => {
-      runCreateAction('md', { shouldInsert: pressedKeys().has('shift') });
+      createAction('md', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -744,7 +762,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.taskNewSplit,
     hotkey: 't' as const,
     keyDownHandler: () => {
-      runCreateAction('task');
+      createAction('task');
       return true;
     },
   },
@@ -761,7 +779,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     hotkeyToken: TOKENS.create.initiative,
     hotkey: 'p',
     keyDownHandler: () => {
-      runCreateAction('initiative');
+      createAction('initiative');
       return true;
     },
   },
@@ -781,7 +799,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.snippetNewSplit,
     hotkey: 's' as const,
     keyDownHandler: () => {
-      runCreateAction('snippet', { shouldInsert: pressedKeys().has('shift') });
+      createAction('snippet', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -801,7 +819,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.messageNewSplit,
     hotkey: 'm',
     keyDownHandler: () => {
-      runCreateAction('channel', { shouldInsert: pressedKeys().has('shift') });
+      createAction('channel', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -838,7 +856,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.canvasNewSplit,
     hotkey: 'n',
     keyDownHandler: () => {
-      runCreateAction('canvas', {
+      createAction('canvas', {
         shouldInsert: pressedKeys().has('shift'),
       });
       return true;
@@ -861,7 +879,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.photoshopNewSplit,
     hotkey: 'h',
     keyDownHandler: () => {
-      runCreateAction('psd', { shouldInsert: pressedKeys().has('shift') });
+      createAction('psd', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -882,7 +900,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.designNewSplit,
     hotkey: 'i',
     keyDownHandler: () => {
-      runCreateAction('fig', { shouldInsert: pressedKeys().has('shift') });
+      createAction('fig', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -911,7 +929,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.illustrationNewSplit,
     hotkey: 'v',
     keyDownHandler: () => {
-      runCreateAction('ai', { shouldInsert: pressedKeys().has('shift') });
+      createAction('ai', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -932,7 +950,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.spreadsheetNewSplit,
     hotkey: 'b',
     keyDownHandler: () => {
-      runCreateAction('spreadsheet', {
+      createAction('spreadsheet', {
         shouldInsert: pressedKeys().has('shift'),
       });
       return true;
@@ -951,7 +969,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.projectNewSplit,
     hotkey: 'f',
     keyDownHandler: () => {
-      runCreateAction('project', { shouldInsert: pressedKeys().has('shift') });
+      createAction('project', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -968,18 +986,20 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     altHotkeyToken: TOKENS.create.codeNewSplit,
     hotkey: 'o',
     keyDownHandler: () => {
-      runCreateAction('code', { shouldInsert: pressedKeys().has('shift') });
+      createAction('code', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
 ];
+
+export const CREATABLE_BLOCKS = createBlocks(runCreateAction);
 
 /** Router-backed commands are bound once in each host's component owner. */
 export function useCreateCommands(): CreatableBlock[] {
   const navigate = useNavigate();
   const quickCalls = useQuickCallsFlag();
   return [
-    ...CREATABLE_BLOCKS,
+    ...createBlocks(useCreateAction()),
     createCallCommand({
       navigate,
       close: () => setCreateMenuOpen(false, false),
@@ -1058,8 +1078,6 @@ type LauncherMenuItemProps = {
 };
 
 export const LauncherMenuItem = (props: LauncherMenuItemProps) => {
-  const selectedIconColor = () =>
-    getIconConfig(props.creatableBlock.blockName).foreground;
   const launcherHint = () => props.creatableBlock.launcherHint;
 
   return (
@@ -1067,7 +1085,7 @@ export const LauncherMenuItem = (props: LauncherMenuItemProps) => {
       <div
         class={cn(
           'size-4 shrink-0 text-ink-extra-muted transition-colors',
-          props.selected && selectedIconColor()
+          props.selected && 'text-ink'
         )}
       >
         <Dynamic component={props.creatableBlock.icon} />
@@ -1117,6 +1135,7 @@ type LauncherBodyState = {
 export const LauncherShell = (
   props: LauncherInnerProps & {
     children: (state: LauncherBodyState) => JSX.Element;
+    footerAction?: (state: LauncherBodyState) => JSX.Element;
     class?: string;
     horizontalNavigation?: boolean;
     groupItems?: (
@@ -1356,6 +1375,25 @@ export const LauncherShell = (
 
   onCleanup(hkGroup.dispose);
 
+  const bodyState: LauncherBodyState = {
+    sections,
+    blocks,
+    selectedIndex: focusedIndex,
+    searchMode,
+    shiftHeld,
+    itemId: (item) => `create-menu-${launcherItemKey(item)}`,
+    select: listController.setSelectedIndexFromPointer,
+    step: (direction) => {
+      const count = blocks().length;
+      if (count)
+        listController.setSelectedIndex(
+          (((focusedIndex() + direction) % count) + count) % count
+        );
+    },
+    choose: runLauncherItem,
+    scrollSelectedIntoView: listController.shouldScrollSelectedIntoView,
+  };
+
   return (
     // The shared shell stopped painting its own pane (cmd+k gets one from the
     // app Dialog wrapper); this raw-Kobalte dialog carries it here.
@@ -1424,26 +1462,14 @@ export const LauncherShell = (
           />
         </CommandMenuShell.Header>
         <CommandMenuShell.Body class="touch:flex touch:flex-col">
-          {props.children({
-            sections,
-            blocks,
-            selectedIndex: focusedIndex,
-            searchMode,
-            shiftHeld,
-            itemId: (item) => `create-menu-${launcherItemKey(item)}`,
-            select: listController.setSelectedIndexFromPointer,
-            step: (direction) => {
-              const count = blocks().length;
-              if (count)
-                listController.setSelectedIndex(
-                  (((focusedIndex() + direction) % count) + count) % count
-                );
-            },
-            choose: runLauncherItem,
-            scrollSelectedIntoView: listController.shouldScrollSelectedIntoView,
-          })}
+          {props.children(bodyState)}
         </CommandMenuShell.Body>
-        <CommandMenuShell.Footer class="touch:px-6 touch:py-4">
+        <CommandMenuShell.Footer
+          class={cn(
+            'relative touch:px-6 touch:py-4',
+            props.footerAction && 'min-h-12 gap-3 border-t border-edge-divider'
+          )}
+        >
           <style>{`
               @keyframes shift-ripple {
                 0%   { transform: scale(1); opacity: 0.6; }
@@ -1453,42 +1479,44 @@ export const LauncherShell = (
                 animation: shift-ripple 0.35s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
               }
             `}</style>
-          <span class="flex items-center gap-1">
-            <div class="flex gap-1">
-              <div class="flex w-7 justify-center border border-ink/12 text-xxs rounded-md items-center px-1.5 py-px font-normal">
-                <Hotkey
-                  shortcut={searchMode() ? 'arrowup' : navUpHotkey.hotkey()}
-                  class="space-x-1"
-                />
-              </div>
-              <div class="flex w-7 justify-center border border-ink/12 text-xxs rounded-md items-center px-1.5 py-px font-normal">
-                <Hotkey
-                  shortcut={searchMode() ? 'arrowdown' : navDownHotkey.hotkey()}
-                  class="space-x-1"
-                />
-              </div>
-            </div>
+          <span
+            class={cn(
+              'flex items-center gap-1.5',
+              props.footerAction && 'hidden sm:flex'
+            )}
+          >
+            <span class="flex gap-0.5">
+              <Hotkey
+                shortcut={searchMode() ? 'arrowup' : navUpHotkey.hotkey()}
+                class="min-w-3 justify-center"
+              />
+              <Hotkey
+                shortcut={searchMode() ? 'arrowdown' : navDownHotkey.hotkey()}
+                class="min-w-3 justify-center"
+              />
+            </span>
             {t('create.navigate')}
           </span>
-          <span class="flex items-center gap-1">
-            <div class="flex w-7 justify-center border border-ink/12 text-xxs rounded-md items-center px-1.5 py-px font-normal">
-              <Hotkey shortcut={confirmHotkey.hotkey()} />
-            </div>
-            {t('create.create')}
-          </span>
-          <span class="hidden touch:hidden md:flex items-center gap-1">
+          <Show when={!props.footerAction}>
+            <span class="flex items-center gap-1.5">
+              <Hotkey
+                shortcut={confirmHotkey.hotkey()}
+                class="min-w-3 justify-center"
+              />
+              {t('create.create')}
+            </span>
+          </Show>
+          <span class="hidden touch:hidden md:flex items-center gap-1.5">
             {t('create.hold')}
             <span class="relative inline-flex place-items-center">
               <span
                 ref={shiftRippleRef}
-                class="shift-ripple absolute inset-0 rounded-sm border border-accent pointer-events-none opacity-0"
+                class="shift-ripple absolute inset-0 rounded-sm bg-ink/10 pointer-events-none opacity-0"
               />
               <span
                 class={cn(
-                  'border text-xxs px-1.5 py-px rounded-md transition-colors duration-150',
-                  shiftHeld()
-                    ? 'border-accent text-accent bg-accent/10'
-                    : 'border-ink/12'
+                  'min-w-3 text-xxs px-0.5 py-px rounded-sm text-center transition-colors duration-150',
+                  shiftHeld() ? 'bg-ink/10 text-ink' : 'text-ink-extra-muted'
                 )}
               >
                 {getNormalizedKeyString({ shortcut: 'shift' })}
@@ -1496,6 +1524,11 @@ export const LauncherShell = (
             </span>
             {t('create.newSplit')}
           </span>
+          <Show when={props.footerAction}>
+            {(action) => (
+              <div class="absolute right-2 bottom-2">{action()(bodyState)}</div>
+            )}
+          </Show>
         </CommandMenuShell.Footer>
       </CommandMenuShell>
     </div>

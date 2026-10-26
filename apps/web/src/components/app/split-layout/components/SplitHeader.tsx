@@ -9,6 +9,7 @@ import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils'
 import { projectRouteId } from '@app/features/projects/core/route';
 import { t } from '@app/lib/i18n';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { type BlockName, NonDocumentBlockTypes } from '@core/block';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { TOKENS } from '@core/hotkey/tokens';
@@ -28,6 +29,7 @@ import { createDroppable, useDragDropContext } from '@thisbeyond/solid-dnd';
 import { Button, cn } from '@ui';
 import {
   createMemo,
+  onCleanup,
   type ParentProps,
   type Setter,
   Show,
@@ -343,28 +345,30 @@ export function ListNavigationButtons(props: {
   class?: string;
 }) {
   return (
-    <div class={cn('flex items-center gap-0.5', props.class)}>
-      <Button
-        size="icon-md"
-        label={t('splitMenu.previousItem')}
-        hotkey={TOKENS.entity.step.start}
-        disabled={!props.navigation.canPrevious()}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={props.navigation.previous}
-      >
-        <CaretUp class="size-4" />
-      </Button>
-      <Button
-        size="icon-md"
-        label={t('splitMenu.nextItem')}
-        hotkey={TOKENS.entity.step.end}
-        disabled={!props.navigation.canNext()}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={props.navigation.next}
-      >
-        <CaretDown class="size-4" />
-      </Button>
-    </div>
+    <HeaderActionGroup label={t('splitMenu.itemNavigation')}>
+      <div class={cn('flex items-center touch:gap-0.5', props.class)}>
+        <Button
+          size="icon-md"
+          label={t('splitMenu.previousItem')}
+          hotkey={TOKENS.entity.step.start}
+          disabled={!props.navigation.canPrevious()}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={props.navigation.previous}
+        >
+          <CaretUp class="size-4" />
+        </Button>
+        <Button
+          size="icon-md"
+          label={t('splitMenu.nextItem')}
+          hotkey={TOKENS.entity.step.end}
+          disabled={!props.navigation.canNext()}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={props.navigation.next}
+        >
+          <CaretDown class="size-4" />
+        </Button>
+      </div>
+    </HeaderActionGroup>
   );
 }
 
@@ -502,14 +506,24 @@ export function SplitHeader(props: {
             contentClass="h-full flex items-center gap-0.5 pl-2 touch:pl-0 touch:gap-2 touch:max-w-full"
             contentRef={(element) => {
               panel.layoutRefs.headerLeft = element;
+              onCleanup(() => {
+                if (panel.layoutRefs.headerLeft === element) {
+                  panel.layoutRefs.headerLeft = undefined;
+                }
+              });
             }}
           />
 
-          <div class="header-actions h-full grow shrink flex items-center justify-end gap-1 px-2 touch:px-0 touch:gap-2">
+          <div class="header-actions h-full grow shrink flex items-center justify-end gap-2 px-2 touch:px-0">
             <div
               class="contents"
               ref={(ref) => {
                 panel.layoutRefs.headerRight = ref;
+                onCleanup(() => {
+                  if (panel.layoutRefs.headerRight === ref) {
+                    panel.layoutRefs.headerRight = undefined;
+                  }
+                });
               }}
             />
             <SoupNavigationButtons />

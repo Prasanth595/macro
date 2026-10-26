@@ -6,6 +6,7 @@ import { useHotkeyInterceptor } from '@app/signal/hotkeyRoot';
 import { setActiveScope } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
 import { activateClosestDOMScope } from '@core/hotkey/utils';
+import type { Placement } from '@floating-ui/dom';
 import CreateIcon from '@phosphor/note-pencil.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import { Button, Dropdown, Hotkey, NavRow } from '@ui';
@@ -34,6 +35,7 @@ export type SidebarCreateMenuProps = {
    */
   trigger?: ValidComponent;
   onMenuOpenChange?: (open: boolean) => void;
+  placement?: Placement;
 };
 
 export const SidebarCreateMenu = (props: SidebarCreateMenuProps) => {
@@ -99,7 +101,7 @@ export const SidebarCreateMenu = (props: SidebarCreateMenuProps) => {
     <Dropdown
       open={open()}
       onOpenChange={handleOpenChange}
-      placement="right-start"
+      placement={props.placement ?? 'right-start'}
       gutter={8}
     >
       <Show

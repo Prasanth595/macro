@@ -1,3 +1,4 @@
+import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
 import { createAiDocument } from '@app/features/block-ai/queries/create-ai';
 import { createFigDocument } from '@app/features/block-fig/queries/create-fig';
 import { createPsdDocument } from '@app/features/block-psd/queries/create-psd';
@@ -20,16 +21,14 @@ import {
 import { pressedKeys } from '@core/hotkey/state';
 import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
 import {
-  createCanvasFileFromJsonString,
+  createCanvasFile,
   createChat,
   createMarkdownFile,
   createTask,
 } from '@core/util/create';
 import { fireAndForget } from '@core/util/fireAndForget';
 import type { ObjectLike } from '@core/util/result';
-import CaretDown from '@phosphor/caret-down.svg';
 import PlusIcon from '@phosphor/plus.svg';
-import CirclePlus from '@phosphor/plus-circle.svg';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { createProject } from '@queries/storage/projects';
 import { Dialog, Dropdown, Surface } from '@ui';
@@ -161,8 +160,7 @@ const BLOCK_CREATE_SPECS: CreateBlockSpec[] = [
     ),
     loading: true,
     createFn: async (projectId) => {
-      const result = await createCanvasFileFromJsonString({
-        json: JSON.stringify({ nodes: [], edges: [] }),
+      const result = await createCanvasFile({
         title: 'New Canvas',
         projectId,
       });
@@ -469,18 +467,12 @@ export function ProjectCreateMenu(props: { id: string; name: string }) {
   const [open, setOpen] = createSignal(false);
   return (
     <Dropdown open={open()} onOpenChange={setOpen}>
-      <div class="flex items-center">
-        <Dropdown.Trigger
-          variant="outline"
-          size="sm"
-          class="bg-surface py-3"
-          depth={2}
-        >
-          <CirclePlus />
-          {t('create.create')}
-          <CaretDown />
-        </Dropdown.Trigger>
-      </div>
+      <Dropdown.Trigger
+        as={ViewCreateButton}
+        presentation="toolbar"
+        menu
+        aria-label={t('create.createInFolder')}
+      />
       <MenuContent projectId={props.id} name={props.name} />
     </Dropdown>
   );
