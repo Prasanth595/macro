@@ -33,16 +33,12 @@ type ModelCatalogPickerProps = {
   pending?: boolean;
   triggerLabel?: JSX.Element;
   children?: JSX.Element;
-  /** Optional overview that can reveal the complete catalog. */
-  menu?: (catalog: JSX.Element) => JSX.Element;
   emptyMessage?: string;
   triggerClass?: string;
   contentClass?: string;
   placeholder?: string;
   searchPlaceholder?: string;
   ariaLabel?: string;
-  getAnchorRect?: (anchor?: HTMLElement) => DOMRect | undefined;
-  gutter?: number;
   placement?: 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end';
 };
 
@@ -80,7 +76,6 @@ export function ModelRow(props: ModelRowProps) {
 /** One model section, shared by the frontier shortlist and provider groups. */
 function ModelList(props: {
   label: string;
-  hideLabel?: boolean;
   options: CatalogModelOption[];
   value: string | null;
   disabled?: boolean;
@@ -90,15 +85,10 @@ function ModelList(props: {
 }) {
   const Row = props.row;
   return (
-    <Dropdown.Group
-      class="bg-transparent py-0"
-      aria-label={props.hideLabel ? props.label : undefined}
-    >
-      <Show when={!props.hideLabel}>
-        <Dropdown.GroupLabel class="h-6 font-medium text-ink-muted">
-          {props.label}
-        </Dropdown.GroupLabel>
-      </Show>
+    <Dropdown.Group class="bg-transparent py-0">
+      <Dropdown.GroupLabel class="h-6 font-medium text-ink-muted">
+        {props.label}
+      </Dropdown.GroupLabel>
       <For each={props.options}>
         {(option) => (
           <Row
@@ -189,35 +179,12 @@ export function ModelCatalogPicker(props: ModelCatalogPickerProps) {
   const selected = () =>
     props.options.find((option) => option.id === props.value) ?? null;
   const displayValue = () => selected()?.label ?? props.placeholder ?? 'Model';
-  const catalog = () => (
-    <ModelCatalogMenu
-      value={props.value}
-      options={props.options}
-      disabled={props.disabled || props.pending}
-      onSelect={(id) => {
-        props.onSelect(id);
-        setOpen(false);
-      }}
-      onClose={() => setOpen(false)}
-      modelRow={props.modelRow}
-      emptyMessage={props.emptyMessage}
-      searchPlaceholder={props.searchPlaceholder}
-      autoFocusSearch
-      searchRef={(element) => {
-        searchRef = element;
-      }}
-    >
-      {props.children}
-    </ModelCatalogMenu>
-  );
 
   return (
     <Dropdown
       open={open()}
       onOpenChange={setOpen}
       placement={props.placement ?? 'top-start'}
-      getAnchorRect={props.getAnchorRect}
-      gutter={props.gutter ?? 4}
     >
       <Dropdown.Trigger
         variant="ghost"
@@ -254,7 +221,24 @@ export function ModelCatalogPicker(props: ModelCatalogPickerProps) {
           focusSearchAfterMenuOpen(() => searchRef);
         }}
       >
-        {props.menu ? props.menu(catalog()) : catalog()}
+        <ModelCatalogMenu
+          value={props.value}
+          options={props.options}
+          disabled={props.disabled || props.pending}
+          onSelect={(id) => {
+            props.onSelect(id);
+            setOpen(false);
+          }}
+          onClose={() => setOpen(false)}
+          modelRow={props.modelRow}
+          emptyMessage={props.emptyMessage}
+          searchPlaceholder={props.searchPlaceholder}
+          searchRef={(element) => {
+            searchRef = element;
+          }}
+        >
+          {props.children}
+        </ModelCatalogMenu>
       </Dropdown.Content>
     </Dropdown>
   );
@@ -280,8 +264,6 @@ export function ModelCatalogMenu(
      */
     autoFocusSearch?: boolean;
     fullCatalog?: boolean;
-    suggestedFirst?: boolean;
-    searchable?: boolean;
     onClose?: () => void;
   }
 ) {
@@ -290,8 +272,7 @@ export function ModelCatalogMenu(
   const [query, setQuery] = createSignal('');
   const [showAll, setShowAll] = createSignal(false);
   onMount(() => {
-    if (props.autoFocusSearch && props.searchable !== false)
-      keepSearchFocused(() => searchEl);
+    if (props.autoFocusSearch) keepSearchFocused(() => searchEl);
   });
   const normalizedQuery = () => query().trim().toLowerCase();
   const filtered = createMemo(() => {
@@ -305,35 +286,33 @@ export function ModelCatalogMenu(
 
   return (
     <>
-      <Show when={props.searchable !== false}>
-        <div class="sticky top-0 z-10 bg-menu py-1">
-          <div class="flex h-8 items-center gap-2 px-3">
-            <MagnifyingGlassIcon
-              aria-hidden="true"
-              class="size-4 shrink-0 text-ink-extra-muted"
-            />
-            <input
-              ref={(element) => {
-                searchEl = element;
-                props.searchRef?.(element);
-              }}
-              aria-label={props.searchPlaceholder ?? 'Search models'}
-              placeholder={props.searchPlaceholder ?? 'Search models'}
-              value={query()}
-              onInput={(event) => setQuery(event.currentTarget.value)}
-              onMouseDown={(event: MouseEvent) => event.stopPropagation()}
-              onClick={(event) => event.stopPropagation()}
-              onKeyDown={(event) => {
-                if (event.key !== 'Escape') event.stopPropagation();
-              }}
-              onKeyUp={(event) => {
-                if (event.key !== 'Escape') event.stopPropagation();
-              }}
-              class="min-w-0 h-full w-full border-0 bg-transparent p-0 text-sm text-ink outline-none placeholder:text-ink-extra-muted"
-            />
-          </div>
+      <div class="sticky top-0 z-10 bg-menu py-1">
+        <div class="flex h-8 items-center gap-2 px-3">
+          <MagnifyingGlassIcon
+            aria-hidden="true"
+            class="size-4 shrink-0 text-ink-extra-muted"
+          />
+          <input
+            ref={(element) => {
+              searchEl = element;
+              props.searchRef?.(element);
+            }}
+            aria-label={props.searchPlaceholder ?? 'Search models'}
+            placeholder={props.searchPlaceholder ?? 'Search models'}
+            value={query()}
+            onInput={(event) => setQuery(event.currentTarget.value)}
+            onMouseDown={(event: MouseEvent) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key !== 'Escape') event.stopPropagation();
+            }}
+            onKeyUp={(event) => {
+              if (event.key !== 'Escape') event.stopPropagation();
+            }}
+            class="min-w-0 h-full w-full border-0 bg-transparent p-0 text-sm text-ink outline-none placeholder:text-ink-extra-muted"
+          />
         </div>
-      </Show>
+      </div>
 
       {props.children}
       <Show when={props.options.length === 0}>
@@ -347,14 +326,13 @@ export function ModelCatalogMenu(
           <div class="space-y-1">
             <Show
               when={
-                (!props.fullCatalog || props.suggestedFirst) &&
+                !props.fullCatalog &&
                 !showAll() &&
                 catalog().frontier.length > 0
               }
             >
               <ModelList
                 label="Suggested"
-                hideLabel={props.suggestedFirst}
                 options={catalog().frontier}
                 value={props.value}
                 disabled={props.disabled}

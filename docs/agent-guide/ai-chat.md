@@ -421,15 +421,14 @@ the shimmer.
   keeps the saved model name visible in its picker, including unavailable models.
 - The agent dropdown includes saved agents of the selected mode regardless of
   runtime, plus Cursor in Code mode.
-  In Chat mode, the desktop picker uses a wide, height-limited layout with
-  agents on the left without a redundant Your agents subheading. The models
-  column starts with unlabeled suggested choices, followed by the complete
-  catalog grouped by provider. There is no search box or More step; each column scrolls independently.
-  It shares the Plus menu's width and below-composer anchor. Code mode keeps its
-  compact agent dropdown above the selector. Phones retain their single-column
-  searchable sheet, Suggested choices, and More models action. Model-specific
-  submenus also retain search. Choosing a model does not reorder the sections.
-  The separate speedometer controls effort. The catalog's opaque header
+  Macro's models use the same searchable catalog as running sessions:
+  **Suggested** lists **Opus 5.5**, **Sonnet 5.5**, **GPT-5.6** (Sol in
+  runtime catalogs), **GPT-6 Astra**, and **Gemini**, when available, in that order. The
+  **More models** submenu contains the complete catalog grouped by provider,
+  including the Suggested choices and effort/speed variants. Your agents
+  follow Suggested and More models in the root menu. Choosing a model
+  does not reorder the sections. Search matches names, IDs, and provider names. The compact borderless search
+  field receives focus when the selector opens or reopens. Its opaque header
   meets the top of the scroll area so rows cannot show through above it.
   **Built-in**, **Your agents**, and **Needs connection** groups follow when
   they have entries. Each agent row shows its runtime and model, or its setup
@@ -449,7 +448,7 @@ the shimmer.
   default for Macro's in-memory agent until another model entry is picked.
   The built-in Macro agent is the only agent excluded from these sections; its models remain available.
   Unavailable paired agents stay visible with a reason.
-  If Macro is unavailable, its catalog stays visible but
+  If Macro is unavailable, its catalog stays searchable but
   model choices are disabled in every list. Model discovery uses the
   selected runtime. Every coding agent shows repository
   controls; chat agents hide those controls but keep the mode bar. Repository/branch overrides are currently applied
@@ -532,14 +531,7 @@ the shimmer.
   provider icons, search, **Suggested** first, and **More models** for the
   complete provider catalog. Desktop opens a submenu; phone widths show
   the catalog in place with a Back action. Search includes every model.
-- Desktop keeps the model selector and speedometer as separate controls. The
-  speedometer opens a slider with a stop for each advertised effort level. Arrow keys
-  and drags preview the level; it is applied once, when the popover closes, and
-  only if it differs from the current level. The popover stays open, and
-  the model selector opens the full catalog independently. On mobile, the **speedometer-style
-  effort** button opens its own sheet after the input expands. Choosing a level
-  applies it and closes the sheet. Models with fewer than two effort choices
-  omit the effort button.
+- A compact **speedometer-style effort** button with a simple arc and needle beside the model selector opens a simple list of effort levels with a check beside the current choice: a popover centered below the button on desktop, or its own bottom sheet on mobile. Choosing a level applies it and closes the menu. Mobile shows it alongside the model control after the input expands. It is hidden when the model has fewer than two effort choices.
   Model-specific effort choices remain available in desktop model submenus.
   Free and Pro users start new conversations at the lowest advertised level,
   unless they explicitly choose another. Existing sessions keep their current setting.
@@ -1876,15 +1868,12 @@ There is no periodic PR lookup polling.
 
 ### Agent reasoning effort
 
-On desktop, open the speedometer beside the model selector to adjust the
-current model with the **Reasoning effort** slider. The header and accessible value announce the
-selected level. Arrow keys move between supported levels; the menu stays open
-until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
-models still offer their own effort submenu with Right Arrow. On mobile, tap a model
-to select it, then use the adjacent effort button to adjust effort.
+Open the model selector and hover a model to choose its reasoning effort in the
+submenu on desktop, opened with Right Arrow. On mobile, tap a model to select it,
+then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
-choices. The model trigger shows the model name; the speedometer announces the effort.
-Models without effort
+choices. The selected label includes the effort, such as `Sonnet 5.5 · High`;
+the composer also offers a separate effort button for the selected model. Models without effort
 support remain selectable through `Use <model>` (or a desktop click/Enter).
 Default keeps the model's existing behavior.
 
@@ -2130,15 +2119,12 @@ that chat remains usable, and that another account cannot submit. Sending an ema
 creating an event is a real action, including from a local app connected to dev.
 ## Agent reasoning effort
 
-On desktop, open the speedometer beside the model selector to adjust the
-current model with the **Reasoning effort** slider. The header and accessible value announce the
-selected level. Arrow keys move between supported levels; the menu stays open
-until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
-models still offer their own effort submenu with Right Arrow. On mobile, tap a model
-to select it, then use the adjacent effort button to adjust effort.
+Open the model selector and hover a model to choose its reasoning effort in the
+submenu on desktop, opened with Right Arrow. On mobile, tap a model to select it,
+then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
-choices. The model trigger shows the model name; the speedometer announces the effort.
-Models without effort
+choices. The selected label includes the effort, such as `Sonnet 5.5 · High`;
+the composer also offers a separate effort button for the selected model. Models without effort
 support remain selectable through `Use <model>` (or a desktop click/Enter).
 Default keeps the model's existing behavior.
 
