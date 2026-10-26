@@ -10,6 +10,7 @@ import {
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import type { GroupByField } from '@queries/soup/grouped/types';
 import type { SoupAstBody, SoupAstItemsQueryArgs } from '@queries/soup/items';
+import { match } from 'ts-pattern';
 import type {
   DateBucketBoundaries,
   TaskDatePredicate,
@@ -190,12 +191,10 @@ export function buildTaskQuery(
       : requestedSort;
   const sortsByDueDate = featureSort.startsWith('due_date_');
   const sortDirection = primarySort?.reversed ? 'asc' : 'desc';
-  let sortMethod: SoupAstItemsQueryArgs['params']['sort_method'] = 'updated_at';
-  if (featureSort === 'due_date_earliest')
-    sortMethod = 'property_date_earliest';
-  else if (featureSort === 'due_date_latest')
-    sortMethod = 'property_date_latest';
-  else sortMethod = featureSort;
+  const sortMethod = match(featureSort)
+    .with('due_date_earliest', () => 'property_date_earliest' as const)
+    .with('due_date_latest', () => 'property_date_latest' as const)
+    .otherwise((sort) => sort);
   const compiledFacets = compileFacets(
     options.facets,
     TASK_FACETS,

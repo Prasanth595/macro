@@ -88,6 +88,8 @@ The Project column shows the linked project's name when one project is assigned,
 and `Project` when empty. Multiple linked projects show an item count.
 Long assignee and project names truncate within their columns; hover the cell
 to read the full value.
+The Projects collection reuses a single Due date column and hides Updated in compact panes.
+Property controls retain their selected values in accessible names when compact styles hide the text.
 The project pill beneath a task title shows the project icon and name without
 a `Project:` prefix.
 

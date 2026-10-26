@@ -27,7 +27,7 @@ export function ListPropertyValue(props: {
     if (property.valueType === 'DATE' && property.value) {
       return `${property.displayName}: ${formatDate(property.value)}`;
     }
-    return property.displayName;
+    return undefined;
   };
   const isInlineType = () =>
     props.property.valueType === 'STRING' ||
@@ -76,6 +76,10 @@ export function ListPropertyValue(props: {
               props.class
             )}
           >
+            <span class="sr-only">
+              {props.property.displayName}
+              {isEmpty() ? '' : ': '}
+            </span>
             <Show
               when={!isEmpty()}
               fallback={
@@ -91,7 +95,10 @@ export function ListPropertyValue(props: {
                       class="size-3 shrink-0 opacity-50 @max-[840px]/u-list:size-4"
                     />
                   </Show>
-                  <span class="min-w-0 flex-1 truncate opacity-50 @max-[840px]/u-list:hidden">
+                  <span
+                    aria-hidden="true"
+                    class="min-w-0 flex-1 truncate opacity-50 @max-[840px]/u-list:hidden"
+                  >
                     {props.property.displayName}
                   </span>
                 </>
@@ -132,7 +139,7 @@ export function ListPropertyValue(props: {
                 resolveSingleEntity={
                   props.property.specificEntityType === 'INITIATIVE'
                 }
-                class="min-w-0 max-w-full flex-1 @max-[840px]/u-list:hidden"
+                class="min-w-0 max-w-full flex-1 @max-[840px]/u-list:sr-only"
               />
             </Show>
             <Property.Caret class="@max-[840px]/u-list:hidden" />
