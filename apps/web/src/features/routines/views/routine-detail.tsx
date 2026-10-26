@@ -1,8 +1,10 @@
 import { fireAndForget } from '@core/util/fireAndForget';
+import ArrowUpRightIcon from '@phosphor/arrow-up-right.svg';
 import CopyIcon from '@phosphor/copy.svg';
 import DotsIcon from '@phosphor/dots-three.svg';
+import ShareIcon from '@phosphor/share-network.svg';
 import TrashIcon from '@phosphor/trash-simple.svg';
-import { Dropdown } from '@ui';
+import { Button, Dropdown } from '@ui';
 import { type Accessor, createSignal, Match, Show, Switch } from 'solid-js';
 import { RoutineEditor } from '../components/routine-editor';
 import { RoutineRunButton } from '../components/routine-run-button';
@@ -26,6 +28,8 @@ export function RoutineDetailView(props: {
   onBack(): void;
   onDelete(): void;
   onCopyPrompt(prompt: string): Promise<void>;
+  onShareTemplate(): void;
+  onOpenTemplate(templateId: string): void;
   onOpenRun(resource: HistoryResource, newSplit: boolean): void;
 }) {
   const {
@@ -110,6 +114,10 @@ export function RoutineDetailView(props: {
                     <CopyIcon class="size-4" />
                     Duplicate
                   </Dropdown.Item>
+                  <Dropdown.Item onSelect={props.onShareTemplate}>
+                    <ShareIcon class="size-4" />
+                    Share as template
+                  </Dropdown.Item>
                   <Show when={isOwned()}>
                     <Dropdown.Item onSelect={props.onDelete}>
                       <TrashIcon class="size-4" />
@@ -119,6 +127,20 @@ export function RoutineDetailView(props: {
                 </Dropdown.Content>
               </Dropdown>
             )
+          }
+          properties={
+            <Show when={routine().templateId}>
+              {(templateId) => (
+                <Button
+                  variant="accent"
+                  size="sm"
+                  onClick={() => props.onOpenTemplate(templateId())}
+                >
+                  Created from template
+                  <ArrowUpRightIcon />
+                </Button>
+              )}
+            </Show>
           }
           nextRun={nextRun()}
           instructions={
