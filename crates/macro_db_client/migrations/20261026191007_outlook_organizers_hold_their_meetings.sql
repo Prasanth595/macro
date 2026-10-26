@@ -8,19 +8,15 @@
 -- the same way: the entity's and its occurrences' attendees, and every Outlook
 -- copy's stored projection a restore would replay. Each event's inbox logs an
 -- upsert so calendar caches refetch it. One read finds the events, then each
--- batch commits on its own with its counter locks taken in link order, as
--- every calendar write takes them. A rerun rewrites nothing twice and logs
--- only events still to fix.
+-- event commits on its own, locking what a calendar write to it locks: its
+-- rows, then its inbox's change counter last. A rerun rewrites nothing twice
+-- and logs only events still to fix.
 -- Keep this file a single statement: COMMIT inside DO needs a top-level call.
 DO $$
 DECLARE
-    batch_size CONSTANT integer := 1000;
     link_ids uuid[];
     event_ids uuid[];
-    batch_start integer := 1;
-    batch_end integer;
-    batch_events uuid[];
-    link_batch record;
+    fixing uuid;
     last_seq bigint;
 BEGIN
     SELECT COALESCE(array_agg(event.source_link_id ORDER BY event.source_link_id, event.id), '{}'),
@@ -41,21 +37,37 @@ BEGIN
                   AND attendee.is_organizer
                   AND attendee.response_status = 'needs_action'
             )
+            OR EXISTS (
+                SELECT 1 FROM calendar_event_sources source
+                WHERE source.event_id = event.id
+                  AND source.source_kind = 'outlook'
+                  AND source.normalized_payload -> 'event' -> 'attendees'
+                      @> '[{"isOrganizer": true, "responseStatus": "needs_action"}]'
+            )
+            OR EXISTS (
+                SELECT 1 FROM calendar_event_sources source
+                WHERE source.event_id = event.id
+                  AND source.source_kind = 'outlook'
+                  AND jsonb_typeof(source.normalized_payload -> 'overrides') = 'array'
+                  AND jsonb_path_exists(
+                        source.normalized_payload,
+                        '$.overrides[*].attendees[*] ? (@.isOrganizer == true && @.responseStatus == "needs_action")'
+                  )
+            )
       );
     COMMIT;
 
-    WHILE batch_start <= cardinality(event_ids) LOOP
-        batch_end := least(batch_start + batch_size - 1, cardinality(event_ids));
-        batch_events := event_ids[batch_start:batch_end];
+    FOR nth IN 1 .. cardinality(event_ids) LOOP
+        fixing := event_ids[nth];
 
         UPDATE calendar_event_attendees attendee
         SET response_status = 'accepted'
-        WHERE attendee.event_id = ANY(batch_events)
+        WHERE attendee.event_id = fixing
           AND attendee.is_organizer
           AND attendee.response_status = 'needs_action';
         UPDATE calendar_event_override_attendees attendee
         SET response_status = 'accepted'
-        WHERE attendee.event_id = ANY(batch_events)
+        WHERE attendee.event_id = fixing
           AND attendee.is_organizer
           AND attendee.response_status = 'needs_action';
         UPDATE calendar_event_sources source
@@ -75,7 +87,7 @@ BEGIN
                         WITH ORDINALITY AS listed(attendee, position)
                 )
             )
-        WHERE source.event_id = ANY(batch_events)
+        WHERE source.event_id = fixing
           AND source.source_kind = 'outlook'
           AND source.normalized_payload -> 'event' -> 'attendees'
               @> '[{"isOrganizer": true, "responseStatus": "needs_action"}]';
@@ -113,35 +125,23 @@ BEGIN
                         WITH ORDINALITY AS exception(body, position)
                 )
             )
-        WHERE source.event_id = ANY(batch_events)
+        WHERE source.event_id = fixing
           AND source.source_kind = 'outlook'
+          AND jsonb_typeof(source.normalized_payload -> 'overrides') = 'array'
           AND jsonb_path_exists(
                 source.normalized_payload,
                 '$.overrides[*].attendees[*] ? (@.isOrganizer == true && @.responseStatus == "needs_action")'
           );
 
-        FOR link_batch IN
-            SELECT batch.link_id, array_agg(batch.event_id ORDER BY batch.position) AS events
-            FROM unnest(link_ids[batch_start:batch_end], batch_events)
-                WITH ORDINALITY AS batch(link_id, event_id, position)
-            GROUP BY batch.link_id
-            ORDER BY batch.link_id
-        LOOP
-            INSERT INTO calendar_change_counters (link_id, seq)
-            VALUES (link_batch.link_id, cardinality(link_batch.events))
-            ON CONFLICT (link_id) DO UPDATE
-            SET seq = calendar_change_counters.seq + EXCLUDED.seq,
-                updated_at = now()
-            RETURNING seq INTO last_seq;
-            INSERT INTO calendar_change_log (link_id, seq, kind, event_id)
-            SELECT link_batch.link_id,
-                   last_seq - cardinality(link_batch.events) + logged.position,
-                   1,
-                   logged.event_id
-            FROM unnest(link_batch.events) WITH ORDINALITY AS logged(event_id, position);
-        END LOOP;
+        INSERT INTO calendar_change_counters (link_id, seq)
+        VALUES (link_ids[nth], 1)
+        ON CONFLICT (link_id) DO UPDATE
+        SET seq = calendar_change_counters.seq + 1,
+            updated_at = now()
+        RETURNING seq INTO last_seq;
+        INSERT INTO calendar_change_log (link_id, seq, kind, event_id)
+        VALUES (link_ids[nth], last_seq, 1, fixing);
         COMMIT;
-        batch_start := batch_end + 1;
     END LOOP;
 
     RAISE NOTICE 'marked the organizers of % Outlook events as holding them',
