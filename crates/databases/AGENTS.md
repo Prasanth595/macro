@@ -51,6 +51,8 @@ service with Axum, agent-tool and Postgres adapters.
 
 ## Gotchas
 
+- `storage_view_positions` checks database → table → view membership; hosts
+  authorize the database through their own entity before calling it.
 - `databases` (core storage) and `database_entities` (app identity: name,
   owner, trash) are separate tables by design; a host can use one without the
   other (see README "Storage and app entities").

@@ -57,6 +57,9 @@ tools/HTTP/GraphQL surfaces over them.
 
 ## Gotchas
 
+- Pipeline board-position reads require a pipeline View receipt, hold its live
+  lifecycle guard, and scope the view to its backing table/database through
+  `DatabaseStorage::storage_view_positions`.
 - Company names/logos live in the global `crm_domain_directory`. Only the
   email pubsub workers carry a real `CompanyMetadataResolver`; every other
   binary uses `NoOpCompanyMetadataResolver`, which leaves a pending entry
