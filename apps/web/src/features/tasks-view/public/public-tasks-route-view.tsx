@@ -1,4 +1,5 @@
 import { ViewBreadcrumbs, ViewShell } from '@app/components/view-shell';
+import type { ProjectSection } from '@app/features/projects/core/project';
 import { PublicProjectRoute } from '@app/features/projects/public/public-project-view';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useMatches, useNavigate } from '@app/lib/split-router';
@@ -62,7 +63,9 @@ function StandaloneTask(props: { taskId: string }) {
 export function PublicTasksRouteView() {
   const matches = useMatches();
   const target = createMemo(() => publicTasksTarget(matches()));
-  const project = () => {
+  const project = ():
+    | { id: string; section: ProjectSection; taskId?: string }
+    | undefined => {
     const current = target();
     if (current.kind === 'project')
       return { id: current.projectId, section: current.section };
