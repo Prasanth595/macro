@@ -4,7 +4,15 @@
 
 import { fireEvent, render, screen, waitFor } from '@solidjs/testing-library';
 import { createSignal } from 'solid-js';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { CallAloneWatcher } from '../CallAloneWatcher';
 import type { CallAloneWarningEvent } from '../call-events';
 
@@ -60,6 +68,11 @@ function warn(callId: string, inMs: number, channelId = 'channel-1') {
 }
 
 describe('alone-in-call prompt', () => {
+  // The watcher loads its dialog lazily. Load it up front so a short deadline
+  // can't pass before the first render.
+  beforeAll(async () => {
+    await import('../CallAlonePrompt');
+  });
   beforeEach(() => {
     vi.stubGlobal('scrollTo', vi.fn());
     mocks.ios = false;
