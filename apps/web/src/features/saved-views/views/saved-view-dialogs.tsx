@@ -104,7 +104,7 @@ export function SavedViewDialog(
         sharedTeamId={props.mode === 'edit' ? props.record.sharedTeamId : null}
         title={
           props.title ??
-          (props.mode === 'edit' ? 'Edit saved view' : 'Save view')
+          (props.mode === 'edit' ? `Edit “${props.record.name}”` : 'Save view')
         }
         submitLabel={
           props.submitLabel ??
@@ -146,6 +146,7 @@ export function DeleteSavedViewDialog(
   return (
     <DeleteSavedViewConfirmation
       {...props}
+      name={props.record.name}
       pending={mutation.isPending}
       error={savedViewErrorMessage(mutation.error)}
       onDelete={() => fireAndForget(remove(), 'saved-views')}

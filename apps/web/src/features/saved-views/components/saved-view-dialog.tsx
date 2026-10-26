@@ -81,7 +81,7 @@ export function SavedViewForm(
         );
       }}
     >
-      <Dialog.Title class="text-lg font-medium">
+      <Dialog.Title class="text-lg font-medium wrap-anywhere">
         {props.title ?? 'Save view'}
       </Dialog.Title>
       <label class="flex flex-col gap-2 text-sm">
@@ -144,7 +144,8 @@ export function SavedViewForm(
 }
 
 export function DeleteSavedViewConfirmation(
-  props: ManagedDialogProps & FormStatus & { onDelete: () => void }
+  props: ManagedDialogProps &
+    FormStatus & { name: string; onDelete: () => void }
 ) {
   return (
     <ConfirmDialog
@@ -152,7 +153,7 @@ export function DeleteSavedViewConfirmation(
       onOpenChange={(open) => {
         if (!props.pending) props.onOpenChange(open);
       }}
-      title="Delete saved view?"
+      title={<span class="wrap-anywhere">Delete “{props.name}”?</span>}
       body={
         <>
           <p>

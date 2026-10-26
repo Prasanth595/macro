@@ -105,6 +105,7 @@ closing only the naming dialog retains it. Draft rows never enter the query cach
 Open the shared create/edit dialog or delete confirmation through the imperative
 dialog system; dialogs own mutation hooks.
 Edit combines the name and team-sharing checkbox in the same responsive form.
+Edit and delete dialog titles identify the saved view by name, wrapping long names.
 Keep sharing guidance in the adjacent info control, available on hover, keyboard
 activation, and tap.
 Duplication reuses creation with a prefilled private copy. Keep Task filters, summaries, drafts,
