@@ -610,7 +610,9 @@ const accounts = () => accountQuery.data?.user.emailLinks ?? [];
 identity. `refetch`, request policies, loading/error state and selection functions
 retain the existing urql-solid contract. Existing `createUrqlQuery` and
 `createUrqlInfiniteQuery` consumers use the same live projection path without
-being rewritten; every loaded infinite-query page stays subscribed.
+being rewritten; every loaded infinite-query page stays subscribed. A failed
+refetch reports its error but leaves mounted live data as it was: its partial
+nulls are neither persisted nor reconciled into the objects readers hold.
 
 Mutation predictions are keyed by mutation field and registered once per field,
 alongside domain query definitions. A representative generated document names
@@ -776,7 +778,13 @@ separate date-grouping policy.
 Server membership evidence is captured separately from normalized field/link
 updates, and local evaluation waits for network persistence. Filter/account/cache
 generation changes discard old local evidence and continuation owners. Initial
-network refreshes restart continuation coverage. Group readers delegate paging
+network refreshes rebuild each loaded continuation chain from its new cursor,
+retaining the previous owner until all previously loaded pages are ready (or the
+server ends the chain). Failed replacements leave the old rows available and
+report the paging error; explicit refresh waits for these replacements. A group
+whose fresh initial page has no cursor drops obsolete continuations immediately.
+The `graphql_cache.soup_grouped_refresh` span records the loaded page count and
+replacement outcome. Group readers delegate paging
 to this owner, so moving a continuation row cannot leave a second copy behind.
 The initial cursor remains baseline metadata; paging follows the last loaded
 server continuation, never a locally fabricated cursor.

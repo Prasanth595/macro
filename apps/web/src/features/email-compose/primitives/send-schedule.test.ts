@@ -438,14 +438,10 @@ describe('send and schedule ordering', () => {
       expect(state.selectedTime()).toEqual(new Date(scheduled.sendTime));
       pending.resolve();
       await scheduling;
-      if (kind === 'standalone') {
-        expect(state.confirmedTime()).toEqual(new Date(scheduled.sendTime));
-        expect(state.disabled()).toBe(true);
-      } else {
-        // Inline reply follows its normal successful-submit convention and
-        // collapses; a stale editing observation must not surface a cancel.
-        expect(state.scheduleState().type).toBe('editing');
-      }
+      // Both keep showing the scheduled draft; a stale editing observation
+      // must not surface a cancel.
+      expect(state.confirmedTime()).toEqual(new Date(scheduled.sendTime));
+      expect(state.disabled()).toBe(true);
       expect(context.notices.feedback.success).not.toHaveBeenCalledWith(
         'Schedule cancelled. This email is editable again.'
       );
@@ -692,6 +688,38 @@ describe('send and schedule ordering', () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(composeContext.delivery.unschedule).toHaveBeenCalledOnce();
       expect(composeContext.delivery.archive).not.toHaveBeenCalled();
+    } finally {
+      state.dispose();
+    }
+  });
+
+  it('undoes a scheduled reply at the generation it was scheduled with', async () => {
+    const composeContext = createComposeContext();
+    // A send that Undo cancelled left the server's draft at a later generation.
+    const state = mountReplyComposer(composeContext, undefined, {
+      draft: message('draft', {
+        is_draft: true,
+        replying_to_id: 'parent',
+        thread_db_id: 'thread',
+        draft_generation: 3,
+      }),
+    });
+    try {
+      state.edit('Schedule a previously undone reply');
+      state.handleSendTimeChange(new Date('2026-12-01T12:00:00Z'));
+      await state.sendEmail();
+      expect(composeContext.delivery.schedule).toHaveBeenCalledWith(
+        expect.objectContaining({ draftGeneration: 3 }),
+        'inbox'
+      );
+      const scheduledNotice = vi
+        .mocked(composeContext.notices.feedback.success)
+        .mock.calls.find(([text]) => text === 'Email scheduled');
+      scheduledNotice?.[1]?.actions?.[0].onClick();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(composeContext.delivery.unschedule).toHaveBeenCalledWith(
+        expect.objectContaining({ draftId: 'draft', draftGeneration: 3 })
+      );
     } finally {
       state.dispose();
     }

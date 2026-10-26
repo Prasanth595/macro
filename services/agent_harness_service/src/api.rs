@@ -74,7 +74,6 @@ pub struct ApiStates<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes
     cognition: Router,
     scheduling: Router,
     preview: Router,
-    claude_auth: Router,
     sharing: Router,
     routine_sessions: Router,
     coding_agents: Router,
@@ -82,6 +81,7 @@ pub struct ApiStates<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes
     conversations: Router,
     pull_requests: Router,
     tool_approvals: Router,
+    app_connections: Router,
     code_executions: Router,
     notifications: Router,
     changes: AgentChangesRouterState<Changes, Access, Auth>,
@@ -112,7 +112,6 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
             cognition: Router::new(),
             scheduling: Router::new(),
             preview: Router::new(),
-            claude_auth: Router::new(),
             sharing: Router::new(),
             routine_sessions: Router::new(),
             coding_agents: Router::new(),
@@ -120,6 +119,7 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
             conversations: Router::new(),
             pull_requests: Router::new(),
             tool_approvals: Router::new(),
+            app_connections: Router::new(),
             code_executions: Router::new(),
             notifications: Router::new(),
             changes,
@@ -180,12 +180,6 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
         self
     }
 
-    /// Attach the optional owner-authenticated Claude demo connection routes.
-    pub fn with_claude_auth(mut self, router: Router) -> Self {
-        self.claude_auth = router;
-        self
-    }
-
     /// Attach internal-only routine routes with their independent domain service.
     pub fn with_routine_sessions(mut self, router: Router) -> Self {
         self.routine_sessions = router;
@@ -213,6 +207,12 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
     /// Attach the routes answering tool calls held for the owner's approval.
     pub fn with_tool_approvals(mut self, router: Router) -> Self {
         self.tool_approvals = router;
+        self
+    }
+
+    /// Attach the route continuing a session once its owner connects an app.
+    pub fn with_app_connections(mut self, router: Router) -> Self {
+        self.app_connections = router;
         self
     }
 }
@@ -333,6 +333,7 @@ where
         .merge(states.sharing)
         .merge(states.pull_requests)
         .merge(states.tool_approvals)
+        .merge(states.app_connections)
         .merge(states.code_executions)
         .merge(states.notifications)
         .merge(agent_changes_router(states.changes));
@@ -343,7 +344,6 @@ where
         .merge(agent_coding_preferences_router(states.read))
         .merge(agent_models_router(states.models))
         .merge(agent_repositories_router(states.repositories))
-        .merge(states.claude_auth)
         .merge(states.routine_sessions)
         .merge(states.coding_agents)
         .merge(states.capabilities)

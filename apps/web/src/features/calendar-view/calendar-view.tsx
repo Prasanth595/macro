@@ -20,13 +20,14 @@ import {
   type Accessor,
   createEffect,
   createMemo,
+  type JSX,
   on,
   onCleanup,
   onMount,
   Show,
 } from 'solid-js';
 import { CalendarFocusContextProvider } from './calendar-focus-target';
-import { resolveCalendarTarget } from './calendar-target';
+import { createCalendarFocusTarget } from './calendar-target';
 import { createCalendarTargetAim } from './calendar-target-request';
 import { calendarSearch, calendarSearchTarget } from './calendar-url';
 import { CalendarViewSkeleton } from './calendar-view-skeleton';
@@ -50,6 +51,7 @@ export type CalendarViewProps = {
   route: { id: string };
   /** A new value re-aims at the URL's event without a navigation. */
   refocus?: Accessor<unknown>;
+  headerLeading?: JSX.Element;
 };
 
 /** Route-backed Calendar view, hosted by its own route or inline under another. */
@@ -178,13 +180,10 @@ export function CalendarView(props: CalendarViewProps) {
       };
     }
   );
-  const focusTarget = createMemo(() => {
-    const request = targetRequest();
-    if (!request || !occurrencesQuery.isSuccess) {
-      return undefined;
-    }
-    return resolveCalendarTarget(occurrencesQuery.data?.items ?? [], request);
-  });
+  const focusTarget = createCalendarFocusTarget(
+    targetRequest,
+    occurrencesQuery
+  );
 
   const setFocusedEventId = (eventId: string | undefined) => {
     const next = eventId ?? '';
@@ -243,7 +242,7 @@ export function CalendarView(props: CalendarViewProps) {
           onPeriodViewChange={setPeriodView}
           onFocusedEventIdChange={setFocusedEventId}
         >
-          <Workspace />
+          <Workspace headerLeading={props.headerLeading} />
         </CalendarViewContextProvider>
       </CalendarFocusContextProvider>
     </Show>
