@@ -19,7 +19,7 @@ import { idleDebouncedDependent } from '@core/util/debounce';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import type { EmailEntity } from '@entity';
-import { Telemetry } from '@macro-inc/observability';
+import { type Span, Telemetry } from '@macro-inc/observability';
 import type { HistoryItem as Item } from '@queries/history/history';
 import { Key } from '@solid-primitives/keyed';
 import { createLazyMemo } from '@solid-primitives/memo';
@@ -139,16 +139,25 @@ function MentionsMenuInner(props: MentionsMenuProps) {
 
   // Re-ranking every source runs when the browser is idle, never ahead of the
   // next typed character. The commit re-ranks and renders synchronously, so
-  // its span times that work; the idle wait before it is an attribute.
+  // its span times that work and parents the cache searches it starts; the
+  // idle wait before it is an attribute.
   const searchTerm = idleDebouncedDependent(props.menu.searchTerm, 60, {
     wrapCommit: (commit, idleWaitMs) => {
       const span = Telemetry.span('mentions.search');
       span.setAttr('search.idle_wait_ms', Math.round(idleWaitMs));
       if (blockId) span.setAttr('document.id', blockId);
       try {
-        commit();
-        span.setAttr('search.query_length', searchTerm().length);
-        span.setAttr('search.result_count', controller.combinedItems().length);
+        span.run(() => {
+          commit();
+          span.setAttr('search.query_length', searchTerm().length);
+          span.setAttr(
+            'search.result_count',
+            controller.combinedItems().length
+          );
+        });
+      } catch (error) {
+        span.error(error);
+        throw error;
       } finally {
         span.end();
       }
@@ -590,14 +599,20 @@ function MentionsMenuInner(props: MentionsMenuProps) {
   };
 
   // Times opening the menu: building its lists and the first render, which
-  // run inside the keystroke that typed `@`.
-  let openStartedAt: number | undefined;
+  // run inside the keystroke that typed `@`. The span starts before render
+  // work (computeds run first) and ends in the effect that follows it.
+  let openSpan: Span | undefined;
+  let openStartedAt = 0;
   createComputed(() => {
-    if (menuOpen()) openStartedAt = performance.now();
+    if (!menuOpen()) return;
+    openSpan?.end();
+    openSpan = Telemetry.span('mentions.open');
+    openStartedAt = performance.now();
   });
   createEffect(() => {
-    if (!menuOpen() || openStartedAt === undefined) return;
-    const span = Telemetry.span('mentions.open');
+    if (!menuOpen() || !openSpan) return;
+    const span = openSpan;
+    openSpan = undefined;
     span.setAttr(
       'mentions.open_ms',
       Math.round(performance.now() - openStartedAt)
@@ -608,8 +623,8 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     );
     if (blockId) span.setAttr('document.id', blockId);
     span.end();
-    openStartedAt = undefined;
   });
+  onCleanup(() => openSpan?.end());
 
   createEffect(() => {
     if (props.anchor) return;

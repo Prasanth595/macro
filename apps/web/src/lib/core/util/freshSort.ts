@@ -169,16 +169,17 @@ function ufuzzyFilter<T>(
   // with the query (or have a word that does) ahead; recency ranks the rest.
   if (idxs.length > INFO_THRESHOLD) {
     const needle = query.trim().toLowerCase();
+    // A word starts after any non-alphanumeric separator ("Roadmap/Planning").
+    const wordStart = new RegExp(
+      `[^\\p{L}\\p{N}]${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+      'u'
+    );
     return idxs.map((haystackIdx) => {
       const name = haystack[haystackIdx].toLowerCase();
       return {
         original: items[haystackIdx],
         string: haystack[haystackIdx],
-        score: name.startsWith(needle)
-          ? 100
-          : name.includes(` ${needle}`)
-            ? 75
-            : 50,
+        score: name.startsWith(needle) ? 100 : wordStart.test(name) ? 75 : 50,
       };
     });
   }
