@@ -82,14 +82,20 @@ async fn overlaid_apps_are_connected_through_their_native_server_only() {
         apps.connected_app_name(&user(), "stripe").await.unwrap(),
         Some("stripe (Pipedream)".into())
     );
-    assert_eq!(apps.connected_app_name(&user(), "asana").await.unwrap(), None);
+    assert_eq!(
+        apps.connected_app_name(&user(), "asana").await.unwrap(),
+        None
+    );
 
     let unconnected = PipedreamConnectedApps::new(
         Arc::new(Connections(vec![pipedream("sentry", true)])),
         Arc::new(Native(None)),
     );
     assert_eq!(
-        unconnected.connected_app_name(&user(), "sentry").await.unwrap(),
+        unconnected
+            .connected_app_name(&user(), "sentry")
+            .await
+            .unwrap(),
         None
     );
 }

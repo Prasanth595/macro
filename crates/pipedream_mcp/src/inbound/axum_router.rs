@@ -121,10 +121,7 @@ where
             "/pipedream/mcp/catalog",
             get(browse_catalog_handler::<S, P, Auth>),
         )
-        .route(
-            "/pipedream/mcp/overlays",
-            get(list_overlays::<S, P, Auth>),
-        )
+        .route("/pipedream/mcp/overlays", get(list_overlays::<S, P, Auth>))
         .with_state(state)
 }
 

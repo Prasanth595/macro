@@ -31,8 +31,8 @@ use memory::inbound::axum_router::{self as memory_api, MemoryErrorBody, MemoryRe
 use onboarding::inbound::axum_router::{self as onboarding_api, CompleteOnboardingRequest};
 use pipedream_mcp::inbound::axum_router::{
     self as pipedream_api, PipedreamCatalogEntryResponse, PipedreamCatalogResponse,
-    PipedreamCompleteRequest, PipedreamConnectionResponse, PipedreamTokenResponse,
-    PipedreamOverlayResponse, PipedreamUpdateRequest,
+    PipedreamCompleteRequest, PipedreamConnectionResponse, PipedreamOverlayResponse,
+    PipedreamTokenResponse, PipedreamUpdateRequest,
 };
 
 use crate::cognition::api::preview::get_batch_preview::{

@@ -78,9 +78,7 @@ where
         // that server; unconnected, its slug stays so a call asks to connect.
         if let AgentMcpServers::Selected { servers } = selection {
             let overlays = self.connections.overlays().await.map_err(|error| {
-                HarnessError::Egress(rootcause::report!(
-                    "could not list MCP overlays: {error:?}"
-                ))
+                HarnessError::Egress(rootcause::report!("could not list MCP overlays: {error:?}"))
             })?;
             let mut slugs = Vec::new();
             let mut custom = Vec::new();

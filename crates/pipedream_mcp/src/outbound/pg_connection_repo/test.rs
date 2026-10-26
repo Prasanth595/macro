@@ -33,7 +33,12 @@ async fn reads_never_return_connections_to_overlaid_apps(pool: PgPool) {
     assert_eq!(listed, ["google_sheets"]);
     assert!(repo.load(&user, "sentry").await.unwrap().is_none());
     assert!(repo.load(&user, "google_sheets").await.unwrap().is_some());
-    assert!(repo.list_enabled_for_app("sentry").await.unwrap().is_empty());
+    assert!(
+        repo.list_enabled_for_app("sentry")
+            .await
+            .unwrap()
+            .is_empty()
+    );
 
     assert_eq!(
         repo.overlay("sentry").await.unwrap().map(|o| o.server_url),

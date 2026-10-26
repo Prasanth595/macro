@@ -44,7 +44,9 @@ impl ConnectionStore for FixedConnections {
 
 /// `sentry` is the only overlaid app.
 impl ConnectorOverlays for FixedConnections {
-    async fn overlays(&self) -> anyhow::Result<Vec<pipedream_mcp::domain::models::ConnectorOverlay>> {
+    async fn overlays(
+        &self,
+    ) -> anyhow::Result<Vec<pipedream_mcp::domain::models::ConnectorOverlay>> {
         Ok(vec![pipedream_mcp::domain::models::ConnectorOverlay {
             app_slug: "sentry".to_owned(),
             server_url: "https://mcp.sentry.dev/mcp".to_owned(),
@@ -600,7 +602,11 @@ async fn a_selected_overlaid_app_is_advertised_as_its_native_server_once_connect
             "https://egress.macro.com",
         );
         let provisioned = provisioner
-            .provision(AgentSessionId::new(), &owner, &selected(&["sentry", "notion"]))
+            .provision(
+                AgentSessionId::new(),
+                &owner,
+                &selected(&["sentry", "notion"]),
+            )
             .await
             .expect("provisioned");
 
