@@ -20,6 +20,7 @@ Reusable named view definitions. The first consumer is main Tasks; the generic f
 - Share definitions, not access to their matching entities; the backend owns authorization.
 - Rebuild loaded cursor chains after confirmed membership changes; never invent permission state or splice a full page.
 - Keep consumer edits on failed saves; only confirmed writes replace the baseline.
+- Keep sharing guidance beside the checkbox as a focusable info control; support hover and tap without toggling sharing.
 - Snapshot saved configuration when adapting query data; reconciled Solid stores must not mutate a confirmed draft baseline.
 - Mount picker menus inside the drawer portal scope, close menus before opening dialogs, then close the drawer and restore focus before opening another dialog.
 - Render the mobile picker trigger with the shared pill button and preserve the selected state supplied by its consumer.

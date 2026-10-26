@@ -105,6 +105,8 @@ closing only the naming dialog retains it. Draft rows never enter the query cach
 Open the shared create/edit dialog or delete confirmation through the imperative
 dialog system; dialogs own mutation hooks.
 Edit combines the name and team-sharing checkbox in the same responsive form.
+Keep sharing guidance in the adjacent info control, available on hover, keyboard
+activation, and tap.
 Duplication reuses creation with a prefilled private copy. Keep Task filters, summaries, drafts,
 navigation, and rendering in `features/tasks-view`; do not make the generic
 feature import Tasks or CRM components.
@@ -158,8 +160,8 @@ The proposed shape below uses explanatory UUID placeholders, not real IDs:
   control or persisted scope field.
 - Person references are either `{ "type": "viewer" }` or
   `{ "type": "user", "id": "..." }`. The picker distinguishes the relative
-  **Me** option from a fixed person. Do not replace every occurrence of the
-  creator's ID with a viewer token.
+  **Me** option from a fixed person. Its tooltip reads “Matches whoever opens this
+  saved view.” Do not replace every occurrence of the creator's ID with a viewer token.
 - Within each facet, values are alternatives (OR). Different facets combine
   with AND. An empty facet adds no restriction.
 - Persist stable status and priority option IDs, not display labels. Persist
@@ -341,8 +343,9 @@ for the visible search results.
 
 - `+` starts a transient New view with no person restrictions and the normal
   open-status filters. Nothing is persisted until Save view succeeds.
-- Reuse the Task filter controls to configure it. Saving requests a name and
-  optional team sharing. Cancel restores normal navigation without persistence.
+- Reuse the Task filter controls to configure it. Saving prefills the name with
+  New view, which can be edited, and offers optional team sharing. Cancel restores
+  normal navigation without persistence.
 - Opening a saved view replaces the prior filter scope rather than intersecting
   with the previously selected built-in tab. Clear unrelated text search.
 - Changes show Save changes and Reset for the owner. All viewers can Duplicate

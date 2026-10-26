@@ -1,3 +1,5 @@
+import { Popover } from '@kobalte/core/popover';
+import InfoIcon from '@phosphor/info.svg';
 import {
   Button,
   Checkbox,
@@ -12,6 +14,48 @@ type FormStatus = Pick<ManagedDialogProps, 'onOpenChange'> & {
   pending: boolean;
   error?: string;
 };
+
+const SHARING_DESCRIPTION =
+  'Teammates can use these filters on items they can already access. Only you can edit this view.';
+
+function SharingInfo() {
+  const [open, setOpen] = createSignal(false);
+  const [trigger, setTrigger] = createSignal<HTMLButtonElement>();
+  const closeOnEscape = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || !open()) return;
+    // Keep Escape from also dismissing the containing mobile drawer.
+    event.preventDefault();
+    event.stopPropagation();
+    setOpen(false);
+  };
+  return (
+    <Popover open={open()} onOpenChange={setOpen} modal={false} placement="top">
+      <Popover.Trigger
+        ref={setTrigger}
+        as={Button}
+        variant="ghost"
+        size="icon-xs"
+        label="About team sharing"
+        tooltip={SHARING_DESCRIPTION}
+        tooltipDisabled={open()}
+        onKeyDown={closeOnEscape}
+      >
+        <InfoIcon class="size-3.5" />
+      </Popover.Trigger>
+      <Popover.Portal
+        mount={trigger()?.closest<HTMLElement>('.portal-scope') ?? undefined}
+      >
+        <Popover.Content
+          class="menu-surface z-action-menu max-w-72 p-3 text-xs outline-none"
+          onKeyDown={closeOnEscape}
+        >
+          <Popover.Title class="sr-only">About team sharing</Popover.Title>
+          <Popover.Description>{SHARING_DESCRIPTION}</Popover.Description>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover>
+  );
+}
 
 export function SavedViewForm(
   props: FormStatus & {
@@ -57,7 +101,7 @@ export function SavedViewForm(
         </div>
       </Show>
       <Show when={props.team || props.sharedTeamId}>
-        <div class="flex flex-col gap-2">
+        <div class="flex items-center gap-1.5">
           <Checkbox
             checked={shared()}
             onChange={setShared}
@@ -71,10 +115,7 @@ export function SavedViewForm(
                 : props.team?.name}
             </Checkbox.Label>
           </Checkbox>
-          <p class="text-xs text-ink-muted">
-            Teammates can use these filters on items they can already access.
-            Only you can edit this view.
-          </p>
+          <SharingInfo />
         </div>
       </Show>
       <Show when={props.error}>

@@ -9,6 +9,7 @@ import { idToDisplayName } from '@core/user/util';
 import { PropertyValueIcon } from '@property/component/propertyValue';
 import { useTagFilterGroup } from '@property/tags/use-tag-filter-group';
 import { useContacts } from '@queries/contacts/contacts';
+import { Tooltip } from '@ui';
 import { batch, createMemo } from 'solid-js';
 import { match } from 'ts-pattern';
 import { requestAiTaskFilterPlan } from '../queries/ai-task-filter-plan';
@@ -71,7 +72,12 @@ export function useTaskFilters() {
       ? [
           {
             id: TASK_VIEWER,
-            label: 'Me (each viewer)',
+            label: 'Me',
+            content: () => (
+              <Tooltip label="Matches whoever opens this saved view." as="span">
+                Me
+              </Tooltip>
+            ),
             icon: () => (
               <UserIcon
                 id={me ?? ''}

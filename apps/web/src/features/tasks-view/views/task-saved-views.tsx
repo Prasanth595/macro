@@ -153,7 +153,7 @@ function useCreateTaskSavedViewDialog(owner = getOwner()) {
         isCurrent: request.isCurrent,
         mode: 'create' as const,
         id,
-        name: record ? `${record.name.slice(0, 113)} (copy)` : '',
+        name: record ? `${record.name.slice(0, 113)} (copy)` : 'New view',
         config,
         title: record ? 'Duplicate saved view' : 'Save view',
         submitLabel: record ? 'Duplicate' : 'Save view',

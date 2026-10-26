@@ -98,7 +98,7 @@ export function TasksFilterDrawer() {
                         }
                         icon={option.icon?.()}
                       >
-                        {option.label}
+                        {option.content?.() ?? option.label}
                       </MobileFilterDrawer.Option>
                     )}
                   </For>

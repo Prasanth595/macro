@@ -16,7 +16,7 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 
 - Save filters, selected layout, and ordered sort directions; keep text search, grouping, and scroll state local, and capture implicit person conditions as normal OR-valued facets.
 - Preserve stable tag/property bindings when labels disappear; skip unsupported or malformed conditions without discarding supported filters.
-- Resolve the semantic viewer token only when executing a filter; a selected fixed user stays fixed.
+- Label the semantic viewer token Me, explain it with “Matches whoever opens this saved view,” and resolve it only when executing a filter; a selected fixed user stays fixed.
 - Keep saved views on All Tasks with every restriction in editable facets; accept only the final v1 person-filter format, without a separate Scope control.
 - Do not persist temporary saved-view filters in entry snapshots; detail navigation discards those edits but retains the saved-view ID.
 - Pass saved-view state through the existing Tasks search codec; split URLs namespace it as `s0.tasks.savedView`.
@@ -25,7 +25,7 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 - Keep sidebar actions targeted to their own record; Edit combines naming and sharing without saving temporary settings, and Duplicate starts with a prefilled private copy and warns before omitting unsupported settings.
 - Show the saved-view bookmark before its topbar name and an unframed ghost overflow button after it on desktop and mobile; keep draft save/reset actions separate.
 - Place the saved-view picker after built-in mobile tabs and use the shared pill button for its trigger.
-- Show one local New view draft row after creation starts; replace it on confirmed save and remove it on cancellation or navigation without adding fake cached records.
+- Show one local New view draft row after creation starts; prefill its save dialog with New view, replace the row on confirmed save, and remove it on cancellation or navigation without adding fake cached records.
 - Close the selected-view menu before opening a dialog, discard deferred actions after account or selection changes, and close dialogs after account, saved-view, or built-in-tab navigation.
 - Keep mobile action dialogs owned outside the drawer so closing its content does not dispose the dialog.
 - Honor confirmed deletion when the same account selects the target while deletion is pending; never apply completion to another account.
