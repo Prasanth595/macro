@@ -14,10 +14,17 @@ import {
   createComposerLayout,
 } from './create-composer-layout';
 
-const resize = vi.hoisted(() => ({ notify: () => {} }));
+const resize = vi.hoisted(() => ({ notify: (_width = 400) => {} }));
 vi.mock('@solid-primitives/resize-observer', () => ({
-  createResizeObserver: (_targets: unknown, callback: () => void) => {
-    resize.notify = callback;
+  createResizeObserver: (
+    targets: () => Array<Element | undefined>,
+    callback: (rect: { width: number }, element: Element) => void
+  ) => {
+    resize.notify = (width = 400) => {
+      for (const element of targets()) {
+        if (element) callback({ width }, element);
+      }
+    };
   },
 }));
 
@@ -123,6 +130,7 @@ function setup(initialText = '', initialQuote = false) {
       setMode,
       compactStates,
       element,
+      editor,
       container,
       dispose,
       setControlsWidth: (width: number) => {
@@ -132,7 +140,7 @@ function setup(initialText = '', initialQuote = false) {
       },
       resize: (width: number) => {
         containerWidth = width;
-        resize.notify();
+        resize.notify(width);
       },
     };
   });
@@ -147,6 +155,46 @@ async function flushMeasurements() {
 }
 
 describe('composer layout', () => {
+  it('measures compact edits in place without inserting a duplicate composer', async () => {
+    const input = setup('short draft');
+    await flushMeasurements();
+    const clone = vi.spyOn(input.container, 'cloneNode');
+    const measure = vi.mocked(Range.prototype.getBoundingClientRect);
+    measure.mockClear();
+
+    input.setText('another short draft');
+    await flushMeasurements();
+    expect(input.isCompact()).toBe(true);
+    expect(clone).not.toHaveBeenCalled();
+    expect(measure).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not measure an empty draft', async () => {
+    const input = setup();
+    await flushMeasurements();
+    const measure = vi.mocked(Range.prototype.getBoundingClientRect);
+    expect(measure).not.toHaveBeenCalled();
+
+    input.setText('short draft');
+    await flushMeasurements();
+    measure.mockClear();
+    input.setText('');
+    await flushMeasurements();
+    expect(input.isCompact()).toBe(true);
+    expect(measure).not.toHaveBeenCalled();
+  });
+
+  it('does not remeasure wrapping on selection-only updates', async () => {
+    const input = setup('short draft');
+    await flushMeasurements();
+    const measure = vi.mocked(Range.prototype.getBoundingClientRect);
+    measure.mockClear();
+
+    input.editor.update(() => $getRoot().selectEnd(), { discrete: true });
+    await flushMeasurements();
+    expect(measure).not.toHaveBeenCalled();
+  });
+
   it('coalesces resize measurements outside observer delivery while keeping edits immediate', async () => {
     const input = setup('a'.repeat(30));
     await flushMeasurements();

@@ -322,6 +322,11 @@ and window, then scroll the message history. The composer should settle into
 the matching layout without `ResizeObserver loop completed with undelivered
 notifications` errors. Resize-triggered wrapping measurements run in the next
 animation frame; draft edits still measure before their first paint.
+Type a short draft and move the caret without changing it: compact typing should
+not insert duplicate measurement composers, and caret movement should not
+remeasure wrapping. Empty drafts need no wrapping measurement. Expanded drafts
+still measure at the compact width so shortening them or widening the pane
+restores the one-row layout.
 
 On Android, tap `@` on the software keyboard in an empty channel composer or
 after a space: the mentions menu should open above the keyboard. Type a name to

@@ -1,6 +1,12 @@
 import { createResizeObserver } from '@solid-primitives/resize-observer';
-import type { LexicalEditor } from 'lexical';
-import { type Accessor, createEffect, createSignal, onCleanup } from 'solid-js';
+import { $getRoot, $isParagraphNode, type LexicalEditor } from 'lexical';
+import {
+  type Accessor,
+  createEffect,
+  createSignal,
+  on,
+  onCleanup,
+} from 'solid-js';
 import { match } from 'ts-pattern';
 import { createHasMultilineStructure } from './create-has-multiline-structure';
 
@@ -10,7 +16,7 @@ export type ComposerLayoutMode = 'auto' | 'expanded' | 'collapsed';
 /**
  * Own the layout decision and measure wrapping at the compact layout's width.
  * The container must use data-composer-compact="true"/"false" for width styles
- * so an inert copy can measure the compact layout without changing the live one.
+ * so expanded inputs can use an inert copy to measure their compact layout.
  */
 export function createComposerLayout(
   editor: LexicalEditor,
@@ -39,6 +45,36 @@ export function createComposerLayout(
     const container = options.container();
     if (!element || !container?.parentElement || !container.contains(element))
       return;
+
+    const empty = editor.getEditorState().read(() => {
+      const content = $getRoot();
+      const first = content.getFirstChild();
+      return (
+        content.getChildrenSize() === 0 ||
+        (content.getChildrenSize() === 1 &&
+          $isParagraphNode(first) &&
+          first.getChildrenSize() === 0)
+      );
+    });
+    if (empty) {
+      setHasWrappedLines(false);
+      return;
+    }
+
+    const measureWrapping = (target: HTMLElement) => {
+      if (target.getBoundingClientRect().width <= 0) return;
+      const range = element.ownerDocument.createRange();
+      range.selectNodeContents(target);
+      const lineHeight = Number.parseFloat(getComputedStyle(target).lineHeight);
+      setHasWrappedLines(range.getBoundingClientRect().height > lineHeight + 1);
+    };
+
+    // Compact inputs already have the width we need. Measuring the live editor
+    // avoids inserting and removing a second composer on every keystroke.
+    if (container.dataset.composerCompact === 'true') {
+      measureWrapping(element);
+      return;
+    }
     const containerWidth = container.getBoundingClientRect().width;
     if (containerWidth <= 0) return;
 
@@ -74,13 +110,7 @@ export function createComposerLayout(
     });
     container.parentElement.append(probe);
     try {
-      if (probeEditor.getBoundingClientRect().width <= 0) return;
-      const range = element.ownerDocument.createRange();
-      range.selectNodeContents(probeEditor);
-      const lineHeight = Number.parseFloat(
-        getComputedStyle(probeEditor).lineHeight
-      );
-      setHasWrappedLines(range.getBoundingClientRect().height > lineHeight + 1);
+      measureWrapping(probeEditor);
     } finally {
       probe.remove();
     }
@@ -102,14 +132,26 @@ export function createComposerLayout(
       setRoot(element);
     })
   );
-  onCleanup(editor.registerUpdateListener(schedule));
+  const observedSizes = new WeakMap<
+    Element,
+    { width: number; height: number }
+  >();
   // A wrapping change can resize the container and its scroll viewport.
   // Applying it during ResizeObserver delivery invalidates ancestors already
   // measured in that delivery. Coalesce resize work into the next frame;
   // draft edits still measure in a microtask before their first paint.
   createResizeObserver(
     () => [root(), options.container()],
-    () => {
+    ({ width, height }, element) => {
+      const previous = observedSizes.get(element);
+      // Container height follows our layout decision. Editor height can also
+      // change when an image or decorator finishes rendering, without a DOM edit.
+      if (
+        previous?.width === width &&
+        (element !== root() || previous.height === height)
+      )
+        return;
+      observedSizes.set(element, { width, height });
       if (resizeFrame !== undefined) return;
       resizeFrame = requestAnimationFrame(() => {
         resizeFrame = undefined;
@@ -117,32 +159,39 @@ export function createComposerLayout(
       });
     }
   );
-  createEffect(() => {
-    isCompact();
-    options.container();
-    schedule();
-  });
-  createEffect(() => {
-    const element = root();
-    const container = options.container();
-    if (!element || !container) return;
-    // Decorators can finish rendering after Lexical commits; controls can also
-    // change the available inline width without resizing the expanded editor.
-    const observer = new MutationObserver(schedule);
-    observer.observe(container, {
-      childList: true,
-      characterData: true,
-      attributes: true,
-      subtree: true,
-    });
-    const fonts = element.ownerDocument.fonts;
-    fonts?.addEventListener('loadingdone', schedule);
-    schedule();
-    onCleanup(() => {
-      observer.disconnect();
-      fonts?.removeEventListener('loadingdone', schedule);
-    });
-  });
+  createEffect(
+    on([root, options.container], ([element, container]) => {
+      if (!element || !container) return;
+      // Decorators can finish rendering after Lexical commits; controls can also
+      // change the available inline width without resizing the expanded editor.
+      // DOM mutations cover committed editor updates too. A second Lexical
+      // update listener also measures selection-only changes and duplicates work.
+      const observer = new MutationObserver((records) => {
+        if (
+          records.some(
+            (record) =>
+              record.target !== container ||
+              record.type !== 'attributes' ||
+              record.attributeName !== 'data-composer-compact'
+          )
+        )
+          schedule();
+      });
+      observer.observe(container, {
+        childList: true,
+        characterData: true,
+        attributes: true,
+        subtree: true,
+      });
+      const fonts = element.ownerDocument.fonts;
+      fonts?.addEventListener('loadingdone', schedule);
+      schedule();
+      onCleanup(() => {
+        observer.disconnect();
+        fonts?.removeEventListener('loadingdone', schedule);
+      });
+    })
+  );
   onCleanup(() => {
     disposed = true;
     if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);

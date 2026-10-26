@@ -21,6 +21,8 @@ Any user-visible change should be exercised in a browser before you call it fixe
 Split dragging and composer reflow have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/Resize/browser-test/playwright.config.ts`.
 It exercises the real resize solver, scroll container, and Lexical layout primitive.
+Keep compact composer measurements on the live editor, skip empty drafts and
+selection-only updates, and use a compact-layout probe only while expanded.
 
 Discussion link scrolling has a backend-free browser regression:
 `bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.

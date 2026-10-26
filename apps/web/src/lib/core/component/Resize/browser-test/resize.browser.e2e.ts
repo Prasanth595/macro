@@ -1,5 +1,44 @@
 import { expect, test } from '@playwright/test';
 
+test('compact typing and cursor movement do not insert measurement composers', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const composer = page.locator('.composer');
+  const editor = page.locator('[contenteditable="true"]');
+  await editor.fill('Hi');
+  await expect(composer).toHaveAttribute('data-composer-compact', 'true');
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      )
+  );
+  await page.evaluate(() => {
+    let inserted = 0;
+    const observer = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (node instanceof Element && node.matches('.composer')) inserted++;
+        }
+      }
+    });
+    observer.observe(document.body, { subtree: true, childList: true });
+    Reflect.set(window, 'composerProbeCount', () => inserted);
+  });
+
+  await editor.press('End');
+  await editor.pressSequentially(' there');
+  await editor.press('ArrowLeft');
+  await editor.press('ArrowRight');
+  await expect(editor).toHaveText('Hi there');
+  await expect(editor).toBeFocused();
+  await expect(composer).toHaveAttribute('data-composer-compact', 'true');
+  expect(
+    await page.evaluate(() => Reflect.get(window, 'composerProbeCount')())
+  ).toBe(0);
+});
+
 test('draft edits still expand and compact on phone and tablet touch viewports', async ({
   browser,
   baseURL,
