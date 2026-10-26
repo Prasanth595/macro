@@ -17,11 +17,11 @@ import { useNavigatedFromJK } from '@components/app/useNavigatedFromJK';
 import { useBlockId } from '@core/block';
 import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
 import { BlockLiveIndicators } from '@core/component/LiveIndicators';
-import { toast } from '@core/component/Toast/Toast';
 import {
   createParamsState,
   ParamsProvider,
 } from '@core/component/ParamsProvider';
+import { toast } from '@core/component/Toast/Toast';
 import {
   getShareDrawerRecipientInput,
   ShareTrigger,
