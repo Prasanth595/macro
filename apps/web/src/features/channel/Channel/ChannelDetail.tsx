@@ -151,6 +151,7 @@ export function ChannelDetailTabs(props: {
   return (
     <Tabs
       aria-label="Channel sections"
+      size="sm"
       touch="inset"
       class="shrink-0"
       options={isCollapsed() ? withChannelTabIcons(tabs()) : tabs()}
@@ -224,11 +225,12 @@ export function ChannelDetailTopBar(
 
   return (
     <ViewShell.TopBar ref={collapse.setRow} class="gap-3 py-0">
+      {/* Reserve room for the tab outline inside the clipped, measured region. */}
       <PriorityCollapseOverflowSensor
         controller={collapse}
         truncateAsLastResort
         class="relative h-full min-w-0 shrink overflow-hidden"
-        contentClass="flex h-full items-center gap-3"
+        contentClass="flex h-full items-center gap-3 not-touch:pr-1"
       >
         <div class="flex min-w-0 shrink items-center gap-1">
           <DebugSuspense name="ChannelDetail.title">
