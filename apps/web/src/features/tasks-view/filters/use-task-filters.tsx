@@ -52,24 +52,25 @@ export function useTaskFilters() {
       people.unshift({ id: me, email: '', name: idToDisplayName(me) });
     }
 
-    return people.map((person) => ({
-      id: person.id,
-      label:
-        person.id === me
-          ? person.name
-            ? `${person.name} (me)`
-            : 'Me'
-          : person.name || person.id,
-      icon: () => (
-        <UserIcon
-          id={person.id}
-          size="sm"
-          class="size-3.5"
-          suppressClick
-          showTooltip={false}
-        />
-      ),
-    }));
+    return people.map((person) => {
+      let label = person.name || person.id;
+      if (person.id === me) {
+        label = person.name ? `${person.name} (me)` : 'Me';
+      }
+      return {
+        id: person.id,
+        label,
+        icon: () => (
+          <UserIcon
+            id={person.id}
+            size="sm"
+            class="size-3.5"
+            suppressClick
+            showTooltip={false}
+          />
+        ),
+      };
+    });
   });
 
   const groups = createMemo(

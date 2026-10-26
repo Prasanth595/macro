@@ -180,5 +180,6 @@ export function compareTaskDueDates(
   if (!Number.isFinite(a) && Number.isFinite(b)) return 1;
   if (Number.isFinite(a) && !Number.isFinite(b)) return -1;
   const delta = Number.isFinite(a) && Number.isFinite(b) ? a - b : 0;
-  return delta ? (latest ? -delta : delta) : left.id.localeCompare(right.id);
+  if (!delta) return left.id.localeCompare(right.id);
+  return latest ? -delta : delta;
 }
