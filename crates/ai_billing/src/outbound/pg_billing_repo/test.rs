@@ -672,8 +672,8 @@ async fn auto_reload_defaults_when_no_account_row_exists(pool: PgPool) {
     assert_eq!(
         settings.auto_reload,
         AutoReloadThresholds {
-            minimum_cents: 1_000,
-            target_cents: 10_000,
+            minimum_cents: 500,
+            target_cents: 2_500,
             monthly_limit_cents: None,
         }
     );

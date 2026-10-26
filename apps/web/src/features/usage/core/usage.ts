@@ -24,8 +24,8 @@ export type AutoReloadSettings = {
 
 export const DEFAULT_AUTO_RELOAD: AutoReloadSettings = {
   enabled: false,
-  minimumBalanceCents: 1_000,
-  targetBalanceCents: 10_000,
+  minimumBalanceCents: 500,
+  targetBalanceCents: 2_500,
   monthlySpendLimitCents: null,
 };
 

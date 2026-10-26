@@ -54,10 +54,10 @@ pub const OVERAGE_LIMIT_MIN_CENTS: i64 = 500;
 pub const OVERAGE_LIMIT_MAX_CENTS: i64 = 500_000;
 /// Credit balance below which an automatic reload fires, unless the payer
 /// has set their own minimum.
-pub const AUTO_RELOAD_DEFAULT_MINIMUM_CENTS: i64 = 1_000;
+pub const AUTO_RELOAD_DEFAULT_MINIMUM_CENTS: i64 = 500;
 /// Credit balance an automatic reload tops up to, unless the payer has set
 /// their own target.
-pub const AUTO_RELOAD_DEFAULT_TARGET_CENTS: i64 = 10_000;
+pub const AUTO_RELOAD_DEFAULT_TARGET_CENTS: i64 = 2_500;
 /// Largest automatic reload target a payer may set.
 pub const AUTO_RELOAD_TARGET_MAX_CENTS: i64 = 500_000;
 /// Accrued overage is charged once it reaches this much (or when the period
@@ -103,6 +103,16 @@ impl PlanTier {
             PlanTier::Free => 0,
             PlanTier::Premium => 4_000,
             PlanTier::Max => 20_000,
+        }
+    }
+
+    /// Monthly automatic reload limit a payer on this tier starts from, in
+    /// customer cents. `None` for tiers that cannot reload.
+    pub const fn default_auto_reload_monthly_limit_cents(self) -> Option<i64> {
+        match self {
+            PlanTier::Free => None,
+            PlanTier::Premium => Some(20_000),
+            PlanTier::Max => Some(100_000),
         }
     }
 

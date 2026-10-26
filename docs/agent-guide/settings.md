@@ -358,8 +358,9 @@ or automatic reload. The development paid-plan preview can still display
 those controls, with purchases disabled.
 
 The **Automatic reload** switch opens **Auto-Reload** without toggling directly.
-It contains Minimum balance (default `$10`), Target balance (default `$100`),
-optional Maximum monthly spend (`No limit`), a payment-method management link,
+It contains Minimum balance (default `$5`), Target balance (default `$25`),
+optional Maximum monthly spend (prefilled `$200` on Pro and `$1,000` on Max while
+Auto-Reload is off; blank means no limit), a payment-method management link,
 and the automatic-charge warning. The dialog saves for paid payers:
 `Turn on auto-reload` enables automatic credit purchases with those thresholds,
 `Save` updates them while on, and `Turn off` disables automatic reload. The monthly

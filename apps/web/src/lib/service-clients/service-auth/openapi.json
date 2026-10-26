@@ -7142,6 +7142,11 @@
           "purchasable"
         ],
         "properties": {
+          "auto_reload_default_monthly_limit_cents": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "Monthly automatic reload limit a payer on this plan starts from,\ncents. Absent for plans that cannot reload."
+          },
           "included_ai_cents_per_seat": {
             "type": "integer",
             "format": "int64",

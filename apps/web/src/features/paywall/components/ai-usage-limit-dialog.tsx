@@ -1,5 +1,5 @@
 import type { AiDenyCode } from '@service-auth/ai-billing-types';
-import { Button, Dialog, Surface } from '@ui';
+import { Button, Dialog, InputGroup, Surface, TextField } from '@ui';
 import { Show, Suspense } from 'solid-js';
 import { MonthlyLimit } from '../../usage/components/monthly-limit';
 import { formatCreditBalance } from '../../usage/core/usage';
@@ -15,7 +15,8 @@ const TITLES: Record<AiDenyCode, string> = {
 export type AutoReloadOffer = {
   minimumBalanceCents: number;
   targetBalanceCents: number;
-  monthlySpendLimitCents: number | null;
+  /** Dollars, as typed; blank means no limit. */
+  monthlyLimit: string;
   pending: boolean;
   /** The card on file could not be charged; offer to add a payment method. */
   paymentFailed: boolean;
@@ -31,6 +32,7 @@ export type AiUsageLimitDialogProps = {
   previewNotice?: string;
   onClose: () => void;
   onOpenSettings: () => void;
+  onMonthlyLimit?: (value: string) => void;
   onTurnOnAutoReload?: () => void;
   onAddPaymentMethod?: () => void;
 };
@@ -91,11 +93,28 @@ export function AiUsageLimitDialogView(props: AiUsageLimitDialogProps) {
                   charges your card on file to bring it back to{' '}
                   {formatCreditBalance(offer().targetBalanceCents)}.
                 </p>
-                <p class="text-ink-extra-muted">
-                  {offer().monthlySpendLimitCents === null
-                    ? 'No monthly limit. You can set one or turn this off in usage settings.'
-                    : `Up to ${formatCreditBalance(offer().monthlySpendLimitCents ?? 0)} per month. You can change this or turn it off in usage settings.`}
-                </p>
+                <TextField
+                  value={offer().monthlyLimit}
+                  onChange={(value) => props.onMonthlyLimit?.(value)}
+                  class="mt-2 flex flex-col gap-1"
+                >
+                  <TextField.Label class="text-ink">
+                    Monthly spend limit
+                  </TextField.Label>
+                  <TextField.Description class="text-ink-extra-muted">
+                    The most auto-reload charges in a month. Leave blank for no
+                    limit. Change it or turn auto-reload off in usage settings.
+                  </TextField.Description>
+                  <InputGroup size="xl" class="sm:max-w-48">
+                    <TextField.Input
+                      as={InputGroup.Input}
+                      inputMode="decimal"
+                      class="text-sm"
+                      placeholder="No limit"
+                    />
+                    <InputGroup.Addon aria-hidden="true">$</InputGroup.Addon>
+                  </InputGroup>
+                </TextField>
                 <Show
                   when={
                     offer().error ??

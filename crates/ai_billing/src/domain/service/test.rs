@@ -1675,7 +1675,7 @@ async fn a_low_balance_reloads_credits_before_overage_is_reserved() {
     // 600 cost over is 630 owed: the balance would end at -130, so the
     // reload brings it back to the $100 target after this usage is paid.
     let snap = svc
-        .update_auto_reload(&payer, true, AutoReloadThresholds::default())
+        .update_auto_reload(&payer, true, thresholds(1_000, 10_000, None))
         .await
         .unwrap();
     let opened = payments.opened_reloads();
@@ -1937,7 +1937,7 @@ async fn reload_invoice_webhooks_book_credits_once() {
     let (svc, repo, _, _) = premium_service(0);
     let payer = user("payer@x.com");
     repo.set_balance(500);
-    svc.update_auto_reload(&payer, true, AutoReloadThresholds::default())
+    svc.update_auto_reload(&payer, true, thresholds(1_000, 10_000, None))
         .await
         .unwrap();
     let invoice = repo.reloads()[0].invoice.clone().unwrap();
@@ -1951,7 +1951,7 @@ async fn reload_invoice_webhooks_book_credits_once() {
     let (svc, repo, payments, _) = premium_service(0);
     repo.set_balance(500);
     payments.set_pay(PayOutcome::Declined);
-    svc.update_auto_reload(&payer, true, AutoReloadThresholds::default())
+    svc.update_auto_reload(&payer, true, thresholds(1_000, 10_000, None))
         .await
         .unwrap();
     let invoice = repo.reloads()[0].invoice.clone().unwrap();
@@ -1986,7 +1986,7 @@ async fn a_failed_reload_invoice_webhook_pauses_reloads_only() {
     let payer = user("payer@x.com");
     repo.set_balance(500);
     payments.set_pay(PayOutcome::Declined);
-    svc.update_auto_reload(&payer, true, AutoReloadThresholds::default())
+    svc.update_auto_reload(&payer, true, thresholds(1_000, 10_000, None))
         .await
         .unwrap();
     let invoice = repo.reloads()[0].invoice.clone().unwrap();
@@ -2228,7 +2228,7 @@ async fn previous_period_usage_never_triggers_a_reload() {
     // credits on hand.
     usage.add(&payer, previous.start + chrono::Duration::days(2), 4_000);
 
-    svc.update_auto_reload(&payer, true, AutoReloadThresholds::default())
+    svc.update_auto_reload(&payer, true, thresholds(1_000, 10_000, None))
         .await
         .unwrap();
 

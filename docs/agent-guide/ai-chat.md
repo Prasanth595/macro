@@ -818,9 +818,10 @@ answers HTTP 402 and the app opens the **AI usage limit** dialog (title
 `You've used this month's included AI`, or the spending-limit / failed-charge
 variants). It shows **Monthly limit** and an `Open usage settings` button.
 When the viewer is the payer and Auto-Reload is off or suspended, it says
-`Turn on auto-reload to keep going.`, lists the saved thresholds (defaults:
-reload to $100 below $10, no monthly limit), and offers **Turn on auto-reload**,
-which enables it with those thresholds in one click. Enabling reloads right
+`Turn on auto-reload to keep going.`, lists the thresholds (reload to $25 below
+$5 while Auto-Reload is off), shows an editable **Monthly spend limit** prefilled with
+the plan default ($200 Pro, $1,000 Max; blank means no limit), and offers
+**Turn on auto-reload**, which enables it with those values in one click. Enabling reloads right
 away when the balance is low; on success the dialog closes with an
 `Auto-reload is on` toast and the user resends. If the card on file can't be
 charged, the dialog says so and the button becomes **Add payment method**

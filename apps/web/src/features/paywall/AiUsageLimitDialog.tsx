@@ -9,13 +9,19 @@ import {
 import { useSettingsState } from '@core/constant/SettingsState';
 import { fireAndForget } from '@core/util/fireAndForget';
 import {
+  useAiBillingPlansQuery,
   useAiBillingSummaryQuery,
   useCreateBillingPortalMutation,
   useUpdateAiAutoReloadMutation,
 } from '@queries/auth';
 import { queryReadyGate } from '@queries/gate';
 import { createSignal, Suspense } from 'solid-js';
-import { isUsageAvailable, monthlyUsagePercent } from '../usage/core/usage';
+import {
+  isUsageAvailable,
+  monthlyUsagePercent,
+  parseDollarInput,
+  validateAutoReload,
+} from '../usage/core/usage';
 import { toUsageSummary } from '../usage/queries/usage-summary';
 import { useAiUsagePreview } from './ai-usage-preview';
 import { AiUsageLimitDialogView } from './components/ai-usage-limit-dialog';
@@ -30,12 +36,15 @@ export function AiUsageLimitDialog() {
     useAiUsageLimitState();
   const { openSettings } = useSettingsState();
   const summary = useAiBillingSummaryQuery({ enabled: usageLimitOpen });
+  const plans = useAiBillingPlansQuery();
   const aiUsageBilling = useFeatureFlag(enableAiUsageBilling);
   const usagePreview = useAiUsagePreview();
   const autoReload = useUpdateAiAutoReloadMutation();
   const portal = useCreateBillingPortalMutation();
   const [paymentFailed, setPaymentFailed] = createSignal(false);
   const [autoReloadError, setAutoReloadError] = createSignal<string>();
+  /** The payer's edit to the monthly limit; unset shows the plan default. */
+  const [monthlyLimitInput, setMonthlyLimitInput] = createSignal<string>();
   const available = () =>
     !usagePreview.beforeLaunch() &&
     isUsageAvailable(PROD_MODE_ENV && !LOCAL_ONLY, aiUsageBilling().enabled);
@@ -51,6 +60,7 @@ export function AiUsageLimitDialog() {
     hideUsageLimit();
     setPaymentFailed(false);
     setAutoReloadError(undefined);
+    setMonthlyLimitInput(undefined);
   };
 
   const usage = () => {
@@ -69,7 +79,13 @@ export function AiUsageLimitDialog() {
 
   /** The payer's saved thresholds, when one click can turn Auto-Reload on. */
   const autoReloadSettings = () => {
-    if (usagePreview.active() || !queryReadyGate(summary)) return;
+    // The plan catalog supplies the starting thresholds and monthly limit.
+    if (
+      usagePreview.active() ||
+      !queryReadyGate(summary) ||
+      !queryReadyGate(plans)
+    )
+      return;
     const snapshot = summary.data;
     // Keep the offer while a failed charge is shown: a declined reload
     // leaves Auto-Reload active with its invoice still open.
@@ -80,18 +96,41 @@ export function AiUsageLimitDialog() {
       (snapshot.auto_reload?.active && !paymentFailed())
     )
       return;
-    return toUsageSummary(snapshot).autoReload.settings;
+    return toUsageSummary(snapshot, plans.data).autoReload.settings;
+  };
+
+  const monthlyLimit = () => {
+    const input = monthlyLimitInput();
+    if (input !== undefined) return input;
+    const limit = autoReloadSettings()?.monthlySpendLimitCents;
+    return limit === null || limit === undefined ? '' : String(limit / 100);
+  };
+
+  /** Saved thresholds with the payer's monthly limit; blank means no limit. */
+  const chosenSettings = () => {
+    const settings = autoReloadSettings();
+    if (!settings) return;
+    const text = monthlyLimit().trim();
+    const monthlySpendLimitCents = text ? parseDollarInput(text) : null;
+    if (monthlySpendLimitCents === undefined)
+      return {
+        error: 'Enter a monthly spend limit in dollars, or leave it blank.',
+      };
+    const chosen = { ...settings, monthlySpendLimitCents, enabled: true };
+    const error = validateAutoReload(chosen);
+    return error ? { error } : { settings: chosen };
   };
 
   const turnOnAutoReload = async () => {
-    const settings = autoReloadSettings();
-    if (!settings || autoReload.isPending) return;
+    const chosen = chosenSettings();
+    if (!chosen || autoReload.isPending) return;
+    if ('error' in chosen) {
+      setAutoReloadError(chosen.error);
+      return;
+    }
     setAutoReloadError(undefined);
     try {
-      const snapshot = await autoReload.mutateAsync({
-        ...settings,
-        enabled: true,
-      });
+      const snapshot = await autoReload.mutateAsync(chosen.settings);
       // Enabling reloads right away when the balance is low. A failed charge
       // comes back as a suspended reload, and a declined one as an open
       // invoice, so only usable credits mean the user can resend.
@@ -123,7 +162,7 @@ export function AiUsageLimitDialog() {
       ? {
           minimumBalanceCents: settings.minimumBalanceCents,
           targetBalanceCents: settings.targetBalanceCents,
-          monthlySpendLimitCents: settings.monthlySpendLimitCents,
+          monthlyLimit: monthlyLimit(),
           pending: autoReload.isPending || portal.isPending,
           paymentFailed: paymentFailed(),
           error: autoReloadError(),
@@ -149,6 +188,10 @@ export function AiUsageLimitDialog() {
           const target = freePlan() ? 'Billing' : 'Usage';
           close();
           openSettings(target);
+        }}
+        onMonthlyLimit={(value) => {
+          setAutoReloadError(undefined);
+          setMonthlyLimitInput(value);
         }}
         onTurnOnAutoReload={() => fireAndForget(turnOnAutoReload(), 'usage')}
         onAddPaymentMethod={() => fireAndForget(addPaymentMethod(), 'usage')}

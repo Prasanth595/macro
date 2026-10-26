@@ -169,6 +169,7 @@ export * from './patchUserOnboardingRequest';
 export * from './patchUserTutorialRequest';
 export * from './permission';
 export * from './planCatalogEntry';
+export * from './planCatalogEntryAutoReloadDefaultMonthlyLimitCents';
 export * from './planCatalogResponse';
 export * from './planTier';
 export * from './postGetNamesRequestBody';

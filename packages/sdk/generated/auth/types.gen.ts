@@ -1340,6 +1340,11 @@ export type Permission = {
  */
 export type PlanCatalogEntry = {
     /**
+     * Monthly automatic reload limit a payer on this plan starts from,
+     * cents. Absent for plans that cannot reload.
+     */
+    auto_reload_default_monthly_limit_cents?: number | null;
+    /**
      * Included AI per seat per period, in cents at provider cost. For the
      * free plan this is its monthly hard cap.
      */

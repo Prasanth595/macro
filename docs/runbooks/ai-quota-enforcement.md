@@ -158,7 +158,9 @@ automatic reload is enabled and not reload-suspended, settlement compares the
 credit balance net of the period's
 uncovered usage with the payer's minimum balance and, below it, reloads up to the
 target balance. The minimum, target, and optional monthly spend limit are stored
-per payer on `ai_billing_account` (defaults `$10`, `$100`, and no limit). The
+per payer on `ai_billing_account` (column defaults `$5`, `$25`, and no limit).
+Clients start an off Auto-Reload from the plan catalog: `auto_reload_defaults`
+and each plan's `auto_reload_default_monthly_limit_cents` ($200 Pro, $1,000 Max). The
 monthly limit counts reloads Stripe may still collect (pending, paid, or failed
 with an invoice) within the UTC calendar month, independent of the Stripe period
 anchor; a remainder under the Stripe minimum charge is skipped. Each reload is one `ai_credit_reload` row reserved under the

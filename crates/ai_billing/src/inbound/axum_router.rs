@@ -46,6 +46,9 @@ pub struct PlanCatalogEntry {
     pub included_ai_cents_per_seat: i64,
     /// Whether a new purchase or plan move may pick this plan today.
     pub purchasable: bool,
+    /// Monthly automatic reload limit a payer on this plan starts from,
+    /// cents. Absent for plans that cannot reload.
+    pub auto_reload_default_monthly_limit_cents: Option<i64>,
 }
 
 /// The plan catalog and the knobs the billing UI offers.
@@ -393,6 +396,8 @@ pub async fn get_plans_handler(State(pricing): State<AiPricing>) -> Json<PlanCat
                 purchasable: SeatPlan::PURCHASABLE
                     .into_iter()
                     .any(|plan| PlanTier::from(plan) == tier),
+                auto_reload_default_monthly_limit_cents: tier
+                    .default_auto_reload_monthly_limit_cents(),
             })
             .collect(),
         credit_packs_cents: CREDIT_PACKS_CENTS.to_vec(),

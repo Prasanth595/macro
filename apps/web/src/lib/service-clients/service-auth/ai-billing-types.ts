@@ -73,6 +73,9 @@ export interface AiPlanCatalogEntry {
   monthly_price_cents: number;
   included_ai_cents_per_seat: number;
   purchasable: boolean;
+  /** Monthly Auto-Reload limit a payer on this plan starts from; absent for
+   * plans that cannot reload. */
+  auto_reload_default_monthly_limit_cents?: number | null;
 }
 
 /** Thresholds automatic reload starts from before the payer sets their own. */

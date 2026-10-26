@@ -51,7 +51,9 @@ export function Usage() {
       summary.isSuccess ? summary.data : undefined,
       plans.isSuccess ? plans.data.plans : undefined
     );
-    return snapshot ? toUsageSummary(snapshot) : undefined;
+    return snapshot
+      ? toUsageSummary(snapshot, plans.isSuccess ? plans.data : undefined)
+      : undefined;
   };
   const canChangeAutoReload = () =>
     available() &&
