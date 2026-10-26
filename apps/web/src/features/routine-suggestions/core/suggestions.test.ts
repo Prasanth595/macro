@@ -18,6 +18,7 @@ function raw(overrides: Partial<Raw>): Raw {
     instructions: 'Label every invoice from Acme as Finance.',
     icon: 'tag',
     keepProbability: 0.5,
+    affectsOthers: false,
     notify: false,
     trigger: {
       kind: 'event',
@@ -214,6 +215,47 @@ describe('pickDefaultOn', () => {
     ]);
     expect(pickDefaultOn(titled([0.4])).size).toBe(1);
     expect(pickDefaultOn([]).size).toBe(0);
+  });
+
+  it('never turns on a routine that affects other people', () => {
+    const suggestions = decodeRoutineSuggestions(
+      {
+        suggestions: [
+          raw({
+            title: 'Post updates',
+            keepProbability: 0.99,
+            affectsOthers: true,
+          }),
+          raw({ title: 'Tag mail', keepProbability: 0.3 }),
+          raw({ title: 'Digest', keepProbability: 0.2 }),
+        ],
+      },
+      'UTC'
+    );
+    expect(
+      suggestions
+        .filter((suggestion) => pickDefaultOn(suggestions).has(suggestion.id))
+        .map((suggestion) => suggestion.title)
+    ).toEqual(['Tag mail', 'Digest']);
+  });
+
+  it('drops an event suggestion whose condition is too long to keep', () => {
+    expect(
+      decodeRoutineSuggestions(
+        {
+          suggestions: [
+            raw({
+              trigger: {
+                kind: 'event',
+                event: 'email.message_received',
+                condition: 'x'.repeat(501),
+              },
+            }),
+          ],
+        },
+        'UTC'
+      )
+    ).toEqual([]);
   });
 
   it('reads out-of-range estimates as their nearest bound', () => {

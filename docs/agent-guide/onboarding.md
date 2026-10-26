@@ -43,7 +43,9 @@ under **Email automations**, **Task automations**, **CRM automations**, and so
 on. Each row has a switch (**Turn on <name>**) and expands to edit the name,
 instructions, and Home visibility. Every switch starts off except the AI's
 likely keepers: the suggestions whose estimated chance the user keeps them is
-at least 80%, topped up to two and capped at five, most likely first.
+at least 80%, topped up to two and capped at five, most likely first. Routines
+that send, post, share, or change what other people see never start on, since
+their instructions come from a model that read third-party mail.
 
 **Turn on N routines** creates the chosen routines, then completes onboarding;
 with none chosen the button reads **Continue to workspace**, and **Skip for

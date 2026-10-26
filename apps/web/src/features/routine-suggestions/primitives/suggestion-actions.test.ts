@@ -14,6 +14,7 @@ const [suggestion] = decodeRoutineSuggestions(
         instructions: 'Create a task for each action item from the call.',
         icon: 'task',
         keepProbability: 0.9,
+        affectsOthers: false,
         notify: false,
         trigger: { kind: 'event', event: 'call.ended' },
       },

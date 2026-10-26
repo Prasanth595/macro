@@ -88,6 +88,11 @@ const suggestionSchema = z.object({
     .describe(
       'Your calibrated estimate, from 0 to 1, that this user would still have this routine turned on a month after it was turned on for them without asking. See the calibration rules in the instructions.'
     ),
+  affectsOthers: z
+    .boolean()
+    .describe(
+      'True when the routine sends or posts anything, shares anything, or changes records other people see (shared CRM records, shared documents, tasks assigned to others); false when it only labels, summarizes, drafts, or changes things only the user sees'
+    ),
   notify: z
     .boolean()
     .describe(
@@ -158,6 +163,7 @@ const PROMPT = [
   'Make every suggestion specific to this user: name real senders, customers, labels, topics, pipelines, and meetings you found, never generic placeholders. Prefer routines that save real time every week. Never suggest two routines that do the same thing, and never one the user already has.',
   'Pick the trigger that fits: an event trigger for reacting to new email, tasks, documents, or calls (add a condition to narrow it, e.g. only invoices), or a schedule for digests, reviews, and upkeep. Use sensible local times, such as 08:30 for a morning briefing.',
   `Some suggestions are turned on for the user by default, so estimate keepProbability for each one honestly: the chance this user would still have it on a month after it was turned on for them unasked, rather than turning it off. Reason like a careful Bayesian: start from how often people keep an automation they did not ask for (rarely), and move up only on concrete evidence from their workspace that it solves a problem they have every week, such as a steady stream of the mail it handles or meetings it preps. Move down for anything noisy (frequent notifications), anything that acts on their behalf where a mistake is visible to others (sending, posting, changing shared records), anything that guesses at preferences you have not seen, and anything that needs a tool they have not connected. Reserve ${DEFAULT_ON_THRESHOLD} and above for clear wins with strong evidence; across all your suggestions only about ${MIN_DEFAULT_ON} to ${MAX_DEFAULT_ON} should reach it, and prefer spreading those across different surfaces when they are equally strong. Never inflate estimates to fill a quota.`,
+  'Set affectsOthers honestly: routines that send, post, share, or change what other people see are never turned on without the user choosing them.',
 ].join('\n');
 
 /** Static prompt: the agent gathers each user's context through tools. */
@@ -177,6 +183,8 @@ export type RoutineSuggestion = {
   icon: SuggestionIcon;
   /** The AI's estimate, 0-1, that the user keeps it on once enabled for them. */
   keepProbability: number;
+  /** Sends, posts, shares, or changes what others see; never on by default. */
+  affectsOthers: boolean;
   notify: boolean;
   trigger: RoutineTriggerDraft;
   /** The trigger in words, e.g. "When a new email arrives". */
@@ -211,13 +219,15 @@ function decodeTrigger(
   if (raw.kind === 'event') {
     if (!isSuggestedEvent(raw.event)) return undefined;
     const condition = raw.condition?.trim();
+    // The condition narrows what the routine runs on; without it, it would
+    // run on every event, so an unusable one drops the suggestion.
+    if (condition && [...condition].length > MAX_CONDITION_CHARS)
+      return undefined;
     const trigger: RoutineTriggerDraft = {
       id: crypto.randomUUID(),
       kind: 'event',
       events: [raw.event],
-      ...(condition && [...condition].length <= MAX_CONDITION_CHARS
-        ? { condition }
-        : {}),
+      ...(condition ? { condition } : {}),
     };
     return { trigger, when: SUGGESTED_EVENTS[raw.event] };
   }
@@ -289,6 +299,7 @@ function decodeSuggestion(
     keepProbability: Number.isFinite(raw.keepProbability)
       ? Math.min(1, Math.max(0, raw.keepProbability))
       : 0,
+    affectsOthers: raw.affectsOthers,
     notify: raw.notify,
     ...decoded,
   };
@@ -356,12 +367,15 @@ export function suggestionToDraft(
  * keep ({@link DEFAULT_ON_THRESHOLD} or more), topped up to
  * {@link MIN_DEFAULT_ON} with the next most likely and capped at
  * {@link MAX_DEFAULT_ON}, most likely first. Ties keep the AI's order.
+ * Routines that affect other people are never chosen: their instructions come
+ * from a model that read third-party mail, so the user switches them on.
  */
 export function pickDefaultOn(
   suggestions: readonly RoutineSuggestion[]
 ): ReadonlySet<string> {
   const ranked = suggestions
     .map((suggestion, index) => ({ suggestion, index }))
+    .filter(({ suggestion }) => !suggestion.affectsOthers)
     .toSorted(
       (a, b) =>
         b.suggestion.keepProbability - a.suggestion.keepProbability ||

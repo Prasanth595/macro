@@ -21,12 +21,13 @@ export function createPromotionVisibility(
 ): { shown: Accessor<boolean | undefined>; dismiss: () => void } {
   const userId = useUserId();
   const dismissals = usePromptDismissalsQuery();
-  // An unreachable server falls back to what this browser remembers.
   const dismissed = (): Verdict => {
     if (isPromotionHiddenLocally(userId(), id())) return true;
-    if (dismissals.isError) return false;
-    if (!dismissals.isSuccess) return undefined;
-    return dismissals.data.dismissed.includes(id());
+    if (dismissals.isPending) return undefined;
+    // A failed refetch keeps the last list it loaded.
+    if (dismissals.data) return dismissals.data.dismissed.includes(id());
+    // With no list at all, fall back to what this browser remembers.
+    return false;
   };
   const shown = createLastKnown(
     `shown:${untrack(id)}`,
