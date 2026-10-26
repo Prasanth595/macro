@@ -79,6 +79,8 @@ The existing theme renderer supplies Button materials at the root and in theme p
 - Property value and tag pills group the leading icon/value with a 4px gap; carets retain their separate trailing spacing. Add property uses the same compact gap. Existing pill padding is preserved. The task composer attachment row stays inside the clipped main area without a negative left margin; button sizes and hit areas are unchanged.
 - Kanban Load more actions use outline styling, both within a task column and below the board.
 
+Calendar notes, calendar attachments, shared-event actions, and file-download controls use the same Button API. Preserve provider permissions, invitation gating, focus restoration, and download callbacks when adapting these controls.
+
 ## Caller variant audit
 
 Omitted variants were reviewed by action role without changing Button's global default. Utility, navigation, dismiss, and local remove actions now use ghost; final submit actions use accent; neutral launchers and pagination use outline. Permanent membership removals use danger. Caller-controlled pass-through wrappers remain intact; group inheritance now requires explicit `ButtonGroup.Button` composition. Header actions explicitly use ghost because their group frame disappears on touch devices. Existing sizes and handlers are unchanged by the variant audit. Checks and browser verification remain paused.

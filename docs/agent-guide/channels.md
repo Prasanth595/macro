@@ -9,6 +9,16 @@ the message text, including link labels and mention names, once per preview.
 Verify wide and narrow rows and channel/thread cards; links and mentions remain
 interactive inside the opened conversation.
 
+## Empty direct messages
+
+An empty human DM shows the centered conversations illustration and “Say hello”
+above the composer. The copy explains that recipients without a Macro account
+receive the message by email. Opening the DM sends nothing. Sending a human
+message queues an immediate email for nonusers, including follow-up messages,
+replies, and mentions; registered users retain their notification preferences.
+Check narrow and wide panes: the composer stays usable, and the empty state
+vanishes when the first timeline entry appears. Agent DMs keep their own UI.
+
 ## Create a channel
 
 1. `Create` → `Channel G`. Dialog `Create a channel` opens on step 1 of 3 with the `Name` textbox focused.
@@ -279,7 +289,7 @@ above the action row, including for empty and single-line drafts, so the
 attachment, delete-reply, and send controls have their own space.
 Both the expanded and collapsed composers start with a `+` button (`Add`). It
 opens a menu on desktop and a bottom drawer on mobile: `Mention` (opens the `@` typeahead), `Attach files` (the file
-picker; the iOS media picker on iOS), then under `Create` the same actions as
+picker; the iOS media picker on iOS), `GIF` (the same picker as `/gif`), then under `Create` the same actions as
 `/task`, `/poll`, `/form` and `/document` (poll and form only with forms on),
 then `Ask Macro` (inserts an `@Macro` mention) and, in a channel, `Start a call`
 (`Join call` while one is live). On phones, starting a new call opens a
@@ -320,6 +330,10 @@ An `@` inside a word stays literal text. Check hardware-keyboard input too;
 it should open only one menu.
 The same software-keyboard check applies to `:` for emoji and `/` for formatting
 commands: type a search and tap a result without sending the draft.
+Type `/gif` or choose **GIF** from `+`. The picker opens above the composer on
+phones and stays visible after you choose the action, including with the iOS
+keyboard open. Trending GIFs show first; tap search to filter, then tap a GIF
+to insert it without sending the draft.
 
 Closed mention menus do not gather, rank, or paginate candidates. When checking
 channel-switch performance, include touch navigation back to the list and reopening
@@ -467,8 +481,8 @@ A late webhook does not require reloading the page.
 When the agent requests permission or input, the Magic Chip displays the waiting
 status for its anchored turn. Open the session to answer; editors and owners can
 respond there. The chip follows the agent's next activity after the answer.
-A tool call held for the owner's approval (a turn somebody other than the owner
-prompted) reads `Waiting for approval`; only the owner approves it, in the session.
+A tool call explicitly acting as the session owner in a turn somebody else
+prompted, held for that owner’s approval reads `Waiting for approval`; only the owner approves it, in the session.
 
 Coding agents use `macro_internal.set_pull_request` to register an existing or
 new GitHub PR with their session. Macro Internal MCP is hosted by the harness
@@ -589,10 +603,21 @@ Press `Escape` to clear selection; the parent Home shortcut is then available
 again. Typing `e` in the composer or inline editor should still enter text.
 Verify a message link in a fresh browser tab as well as inside an open channel:
 the initial page should center the requested message, including older history.
+On a cold notification open, the destination shows one conversation placeholder
+while channel metadata and the targeted message window load in parallel. It
+must not briefly fetch or display the latest messages before resolving an
+uncached message link. Explicit thread replies load their parent window and
+replies together; known root messages skip the message-kind lookup. Throttle
+these requests and verify the placeholder transitions directly to the target,
+without a blank body or Macro spinner. A newer link supersedes an unresolved
+one, while a jump inside an already-mounted conversation preserves its composer.
 Returning through split navigation restores the saved message position and expanded
 threads. Switching channel tabs and returning restores the Messages position,
 expanded threads, and pending reply from when the tab was left. The `Scroll to bottom` control appears when scrolling down through history;
 it returns to the latest page even after opening a link into old history.
+On touch devices a round **Jump to latest** button sits bottom-right above the
+composer whenever the list is away from the bottom, in either scroll direction;
+tapping it smooth-scrolls to latest and keeps the keyboard open.
 The jump waits for that page to reach the rendered list.
 A newer message navigation cancels a pending jump to latest. Scrolling manually
 or choosing another destination also cancels the initial target's delayed fallback.
@@ -1310,6 +1335,11 @@ the caret after send does not pan the page while the keyboard resizes. Repeat wi
 and check that sent text does not return. Scroll into history before an incoming
 message or acknowledgement and verify that it does not pull you to latest.
 
+For composer cleanup, repeatedly open and leave channels and threads, then
+switch between touch and keyboard/mouse input. Retired composers must not keep
+reacting to input-modality changes. Memory-pressure crashes still require an
+iPhone run with the app's native memory diagnostics.
+
 
 ## Channel pictures
 
@@ -1335,3 +1365,14 @@ Markdown options before Query and Database. Typing `/query` filters to the Query
 action; `/database` creates a new database and inserts its editable card.
 
 When Databases is enabled, type `/query` in a channel message or thread reply and choose **Query** to insert a live question. Ask with Enter or the Ask button, then accept the answer before sending the message. Enter in the question box belongs to the question and must not send the channel draft. Recipients can read the live answer subject to their database access. Database @ mentions in message composers remain compact; **Expand** turns one into an editable database card.
+
+## Downloading channel videos
+
+Video messages show **Download** over the player on hover or keyboard focus;
+the control stays visible on touch devices. There is no footer below the video.
+The expanded viewer has the same action. These retrieve the original bytes and
+filename from static-file metadata; they do not record or transcode playback.
+If the metadata is unavailable, the fallback extension comes from the response
+MIME type. Linked video preview cards also offer Download, using the document's
+current version, name, and file type. See [Downloading files](files.md#downloading-files)
+for progress, cancellation, retries, and mobile save/share verification.

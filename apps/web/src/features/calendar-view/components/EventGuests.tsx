@@ -15,7 +15,7 @@ import type {
   GuestInviteController,
 } from '@app/features/calendar/hooks/create-guest-invite-controller';
 import type { CalendarEvent } from '@app/features/calendar/types';
-import { GUEST_INVITES_RESTRICTED } from '@app/features/calendar/utils/event-guest-editing';
+import { guestListHidden } from '@app/features/calendar/utils/event-guest-editing';
 import {
   eventEmailRecipients,
   guestEmails,
@@ -62,7 +62,9 @@ function InviteGuestsForm(props: {
   const [optionalIds, setOptionalIds] = createSignal<ReadonlySet<string>>(
     new Set()
   );
-  const [scope, setScope] = createSignal<CalendarInviteScope>('this_event');
+  // A recurring event invites to the whole series unless the viewer narrows
+  // it, as the composer's edits do.
+  const [scope, setScope] = createSignal<CalendarInviteScope>('all');
   const recurring = () =>
     props.event.recurrenceLines.length > 0 ||
     props.event.recurrenceId !== undefined;
@@ -224,10 +226,12 @@ function EventInviteGuestsAction(props: {
 
 /**
  * The guest-row actions Google Calendar users know: copy every guest's
- * address, start an email to the other guests (hidden when the viewer is the
- * only one), or add guests when the organizer allows it. Emailing closes the
- * details first: closing hands focus back to the calendar chip, and the
- * composer's To field has to win that exchange.
+ * address and start an email to the other guests (both hidden when the
+ * viewer is the only one, as on a snapshot, and copying while the organizer
+ * hides the guest list, which the copy does not hold), or add guests when the
+ * organizer allows it. Emailing closes the details first: closing hands focus
+ * back to the calendar chip, and the composer's To field has to win that
+ * exchange.
  */
 function EventGuestActions(props: {
   event: CalendarEvent;
@@ -238,22 +242,24 @@ function EventGuestActions(props: {
 
   return (
     <Show when={!props.event.teamProjection}>
-      <Button aria-label={"Copy guest emails"} tooltip={"Copy guest emails"}
-        
-        variant="ghost"
-        size="icon-sm"
-        
-        class="text-ink-muted"
-        onClick={() => copyGuestEmails(guestEmails(props.event.attendees))}
-      >
-        <CopyIcon class="size-4 shrink-0" />
-      </Button>
       <Show when={eventEmailRecipients(props.event).length > 0}>
-        <Button aria-label={"Email guests"} tooltip={"Email guests"}
-          
+        <Show when={!guestListHidden(props.event)}>
+          <Button
+            aria-label="Copy guest emails"
+            tooltip="Copy guest emails"
+            variant="ghost"
+            size="icon-sm"
+            class="text-ink-muted"
+            onClick={() => copyGuestEmails(guestEmails(props.event.attendees))}
+          >
+            <CopyIcon class="size-4 shrink-0" />
+          </Button>
+        </Show>
+        <Button
+          aria-label="Email guests"
+          tooltip="Email guests"
           variant="ghost"
           size="icon-sm"
-          
           class="text-ink-muted"
           onClick={() => {
             const event = props.event;
@@ -280,7 +286,8 @@ export function EventGuests(props: {
   return (
     <EventAttendeesSection
       attendees={props.event.attendees}
-      notice={props.invites.restricted() ? GUEST_INVITES_RESTRICTED : undefined}
+      guestListHidden={guestListHidden(props.event)}
+      notice={props.invites.restrictedReason()}
       actions={
         <EventGuestActions
           event={props.event}

@@ -219,6 +219,7 @@ export function useTasksDataSource(
         enabled: facetOptionsReady,
       })
     : createSearchState({
+        surface: () => 'tasks',
         text: () => state.search,
         localPool,
         enabled: facetOptionsReady,
@@ -449,7 +450,7 @@ export function useTasksDataSource(
       await search.refetch();
       return;
     }
-    groupedQueries.resetToInitialPage();
+    if (query.transport !== 'graphql') groupedQueries.resetToInitialPage();
     await query.refresh();
   };
 

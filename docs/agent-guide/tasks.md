@@ -9,7 +9,9 @@ The single-row desktop header contains the title, `Filter`, a separate
 (`Ctrl+F` opens it). The active-filter count sits beside the filter icon inside
 its button, without overlapping the icon or the group border;
 the filter uses the legacy compact option rows and searchable Assignee, Created by,
-and Tags submenus. Multi-select choices keep the menu open; Escape dismisses it.
+and Tags submenus. They use the [shared multiselect dropdown pattern](ui-conventions.md#multiselect-dropdowns):
+checkboxes toggle and stay open, rows add and close, and Shift/Only selects just
+one option and stays open. Escape dismisses the menu.
 The top of the `Filter` menu is a `Filter with AI…` textbox, focused when the menu opens: type a plain-English
 description such as `urgent and high priority tasks that are not completed` and press
 Enter. It replaces the current selection with the matching Status, Priority, Assignee,
@@ -55,6 +57,11 @@ With GraphQL Soup enabled, verify a group with more than one page in both the
 regular Tasks list (`Load More`) and a project task list (automatic pagination).
 Both must use the parent Soup query's continuation owner; reaching the last page
 removes the group's paging control without hiding already loaded tasks.
+Refresh a group containing at least 11 tasks while delaying its continuation
+response: every already loaded continuation row should stay mounted, with no
+brief collapse to the first 10 rows. Verify both background and explicit refresh,
+including a changed cursor and a failed later page. Retrying should replace the
+old pages; changing projects or filters must discard the old scope immediately.
 The sidebar has no Tags section: filter by tag from the `Tags` group of the `Filter` menu,
 and switching tabs clears it like any other filter. On mobile, the tabs
 are pills and the leading sliders button opens one drawer containing Sort, Group, and
@@ -94,6 +101,15 @@ layouts. Narrow splits also show a close button when multiple splits are open. C
 the originating tab breadcrumb, a task tab, or a tag to return to the list.
 Shift-click a row or favorite to open it in a new split
 instead. Keyboard list navigation only moves focus; press Enter to open the focused task.
+
+In the task's Properties side panel, hover or focus a row for **Pin below title**
+or **Unpin from title**. Pinning adds the property to the title row; unpinning keeps
+its saved value and the side-panel row. The title pill's hover menu also offers
+**Unpin**. Status, Priority, and Assignees are pinned by default, with Project when
+enabled. Unpinning a default preserves the other pins, and clearing all pins stays
+cleared after reopening. The empty Project placeholder can also be pinned or
+unpinned without creating an assignment; its pin follows the real assignment when
+one is saved. Builtin task properties cannot be deleted from the title or side panel.
 
 Property edits should update the visible task before the save finishes. To verify,
 delay the GraphQL mutation and change Status, an existing Priority, and an unset
@@ -525,14 +541,18 @@ Use existing PRs and do not modify hosted data.
 On touch devices, task creation opens in a bottom sheet with a drag handle and
 scrollable, keyboard-aware content. Its glass pane has broad screen-scaled
 corners, an 8px outer inset, and a blurred backdrop, matching the create and
-filter sheets. Desktop uses the centered composer dialog.
+filter sheets. Its footer wraps when a phone is too narrow for one row: the
+`Share with <team name>` switch keeps the left corner and `Create More` and
+`Create Task` move to a right-aligned row below it. `Create Task` shows no
+keyboard shortcut on touch. Desktop uses the centered composer dialog.
 
 1. Click the `Task` button (or `Create` → `Task T`, or keyboard `c` then `t`).
 2. A dialog opens with the title contenteditable focused (placeholder `New task`), plus
    `Add description...`, and property buttons: `Not Started` (status), `Priority`, assignee
    chip (defaults to you), `Due Date`, `Project` (when Projects is enabled; the standard
    property dropdown, listing projects), `Change or select tags`, a `Create More` switch,
-   and `Create Task Ctrl ↵`. `Attach image or video` (paperclip) sits just under the
+   and `Create Task Ctrl ↵` (`Create Task` alone on touch). `Attach image or video`
+   (paperclip) sits just under the
    description, above the property buttons. If the chosen project can't be
    set, the task is still created and a toast says it wasn't added to the project.
    The `Share with <team name>` switch in the footer's left corner (hidden when you
@@ -541,8 +561,8 @@ filter sheets. Desktop uses the centered composer dialog.
    explains whether the task will be visible to your whole team or only to you and
    the people you share it with. The choice also applies to Create More, continuing
    in a split, and tasks created from a project.
-3. `type_text` the title, then press **Ctrl+Enter** to create (the `Create Task` button
-   enables once there is a title). Dialog also offers `Continue editing in split` to open the
+3. `type_text` the title, then press **Ctrl+Enter** to create, or tap `Create Task` on
+   touch (the button enables once there is a title). Dialog also offers `Continue editing in split` to open the
    task as a full document.
 
 The property row adapts when the launching pane supplies a task-composer preset.
@@ -924,4 +944,5 @@ See [Tasks](tasks.md#reviews-view) for verification.
 
 The desktop `Create` → `Task` modal uses the standard dialog panel, circular
 icon controls, and a pill-shaped `Create Task` button with 16px outer padding.
-The mobile task drawer retains its existing layout.
+The mobile task drawer keeps its layout apart from the wrapping footer described
+above.

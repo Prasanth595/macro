@@ -38,6 +38,7 @@ export function DriveFilterMenu(props: { grouped?: boolean } = {}) {
         groups={filters.groups()}
         onClear={filters.clear}
         isSelected={filters.isSelected}
+        selectedIds={filters.selectedIds}
         onSelectionChange={filters.setSelected}
       />
       <ListFilterCountBadge count={filters.activeCount()} />

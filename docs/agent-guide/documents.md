@@ -4,6 +4,17 @@ The document header has separate Share, Copy Share Link, and Side Panel buttons.
 They are borderless with a soft rounded background on hover. Share opens the
 sharing dialog; copying a link is a separate action.
 
+With `enable-calendar-meeting-notes` enabled, owned markdown documents' Share
+panel also lists **Meeting links** (under the **Link** tab on mobile).
+Each shows its occurrence and optional team view grant.
+Use **Unlink** and confirm to remove that grant without deleting the document.
+This remains available when the meeting is cancelled or no longer shared with
+you; unavailable meeting details are hidden. See [Calendar meeting notes](calendar.md#meeting-notes).
+Turning the flag off does not revoke saved grants. If meeting access cannot be
+checked, the share status uses **Restricted** instead of claiming **Just me**;
+known public, team, or shared access still appears.
+This status follows the current document and account when navigating with Share open.
+
 Verify **Public → View** links in a fresh signed-out browser context. The
 `/app/drive/md/<id>` route (including folder/tab document links and legacy
 `/app/md/<id>` redirects) must show the document without private Drive lists or
@@ -76,9 +87,22 @@ property selector for that document.
 Adding or reselecting a property from the title row pins it there. Adding from
 the side panel leaves it unpinned. The side panel shows all assigned properties,
 including unpinned ones.
+In document, task, snippet, and skill side panels, hover or focus a property row
+to find
+**Pin below title** beside **Remove from entity**. These controls stay visible
+on touch devices. A pinned row shows **Unpin from title**; unpinning keeps both
+the saved value and the side-panel row.
+Pinning is unavailable for read-only documents, metadata, and properties still
+being assigned, except the task's default Project placeholder. Long values truncate
+or wrap within the value column without
+covering the pin or remove controls.
+Escape cancels an inline text or number draft without saving it.
 Hover or focus an inline property pill to find **Unpin** (keeps its saved
-value) and **Delete from item** (removes the document's assignment, without
-deleting the shared property definition). Pins are saved with the document.
+value) and **Delete from item** where removal is allowed (removes the assignment,
+without deleting the shared property definition). Task builtins cannot be deleted
+from these pills. Pins are saved with the document, including an explicitly empty
+pin list. Tasks initially show Status, Priority, Assignees, and Project when enabled;
+changing pins keeps the other defaults unless they are explicitly unpinned.
 
 Markdown code blocks have a **Copy Code** button in both editable and read-only
 views. Successful copies briefly animate the icon to a solid green check-circle;
@@ -98,6 +122,23 @@ current selection, or all content when nothing is selected. The zoom menu keeps
 **Zoom to fit** for all content and adds **Zoom to fit selection**, disabled with
 no selection. Verify one item and multiple selected items, then deselect and
 check that **.** fits everything again.
+Canvas **Ask Macro**, including the Drive detail header, attaches the open canvas to the existing agent composer on
+desktop and mobile. Ask it to create or edit a diagram: `ReadCanvas` reads the
+current live scene and `EditCanvas` applies bounded commands through the same
+collaborative room. Expand the tool result to inspect its outcome; edits appear
+in the canvas while the agent works. A viewer can read but cannot edit. New
+media/document references and removal of embedded assets remain UI actions.
+If an edit is cancelled or loses its acknowledgement, inspect the canvas before
+repeating the request because earlier snippets may already have applied.
+
+To verify AI editing, open the same canvas as an owner, a second editor and a
+viewer. Use **Ask Macro** to create two labeled boxes and a bound arrow. Confirm
+all three see the changes, the viewer's edit request is refused, and a second
+editor's unrelated shape/style edits survive. Move an endpoint shape and check
+the connector follows it. Reload both editing sessions and inspect the tool's
+expandable result. At phone width, tap the document title to open its file menu for Ask Macro; the floating zoom/inspector sits below that header. Use the responsive action
+and verify the composer attachment and result disclosure remain usable.
+
 All canvases open in Canvas Next, including drive details and Markdown embeds;
 there is no rollout flag or legacy editor. Unversioned/version 1 files migrate
 in memory. Opening a file alone does not save the migration; the first edit saves
@@ -2327,6 +2368,8 @@ AI text-writing operations require a paragraph/list-item or text-run ID. A
 table, row, cell, or list-container ID is rejected with guidance to choose a
 content block or use `setCell`. Existing stray inline content directly inside
 table cells is preserved in paragraphs when the editor opens the document.
+Bullet, numbered, and check lists stay in table cells; converting a cell
+paragraph to a list keeps the text.
 
 `@` opens the mention menu wherever the caret starts a word, including directly
 in front of existing text — the menu opens empty there instead of searching for
@@ -2478,9 +2521,11 @@ inline reference showing the shared agent icon and an underlined session title.
 Chips omit persona avatars and status. Click it (or select the node and press
 Enter) to open `/app/agent/<id>`.
 It references an existing session; it does not invoke the persona, attach its
-transcript to AI context, or grant access. Private/deleted sessions show an
-unavailable label. Mounted references refresh every 30 seconds while the tab is
-active to update titles and check access. Expanded session references are block-level
+transcript to AI context, or grant access. Private and deleted sessions read
+`Private agent session` and `Deleted agent session`; clicking one (a tap on a
+touch device) opens a card that says why, as other unavailable references do.
+Mounted references refresh every 30 seconds while the tab is active to update
+titles and check access. Expanded session references are block-level
 Magic Chips with the same filled background as document cards. Click the card body
 to select its editor node (border and selection ring); use **Open session** to navigate.
 The collapse action returns the card to an inline session mention. Text before and
@@ -2494,6 +2539,20 @@ stays open while this menu is active, and moving over other reference chips must
 not open their previews. Click outside or press Escape to dismiss the menu;
 other references can then be hovered again. Images use an inset frame and task chips
 appear below the header. Long titles wrap in place without a full-name tooltip.
+
+A reference to something deleted reads `Deleted`, and one the viewer can't open
+reads `No Access`. Clicking either keeps its card open instead of doing nothing,
+and on a touch device a tap opens the same card as a bottom sheet. The card names
+the item: `This document was deleted or doesn't exist.`, `This channel was deleted
+or doesn't exist.`, `You don't have access to this event`, and so on (a calendar
+event's reads `This event was deleted or cancelled.`). Skill, task and snippet
+references name their kind rather than "document". Database, form and routine
+references keep their own chip while the item opens, and switch to this `Deleted`
+or `No Access` chip and card once it doesn't; a database or form chip that
+loaded keeps its chip through a failed refresh unless the item is gone. Their
+detail reads answer non-owners 401/403 for a missing item too, so a deleted
+database or form reads `No Access` to anyone but its owner. A reference made in
+the last minute whose item hasn't reached the preview yet still opens it.
 
 With `ENABLE_GRAPHQL_SOUP` enabled, the popup reuses the reference's live `ItemPreviews`
 batch, including task properties and viewer permission, without another fetch.
