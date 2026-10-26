@@ -281,6 +281,7 @@ export function TaskSavedViewsList(props: {
     savedViewsList,
     startSavedView,
     selectSavedView,
+    closeTask,
     isSidebarSectionOpen,
     setSidebarSectionOpen,
   } = useTasksView();
@@ -289,6 +290,19 @@ export function TaskSavedViewsList(props: {
   const selectedId = () => {
     const view = savedViews?.view();
     return view?.kind === 'saved' ? view.record.id : undefined;
+  };
+  const creating = () => savedViews?.view().kind === 'new';
+  const items = () => {
+    const records = savedViewsList?.items();
+    const selection = savedViews?.view();
+    // Keep confirmed creations visible without restoring a revoked shared view.
+    if (
+      selection?.kind === 'saved' &&
+      selection.record.ownerId === viewerId() &&
+      !records?.some((record) => record.id === selection.record.id)
+    )
+      return [selection.record, ...(records ?? [])];
+    return records;
   };
   const run = (action: () => void) =>
     props.onAction ? props.onAction(action) : action();
@@ -299,10 +313,20 @@ export function TaskSavedViewsList(props: {
           open={isSidebarSectionOpen('saved-views')}
           onOpenChange={(open) => setSidebarSectionOpen('saved-views', open)}
         >
-          <SavedViewList.Header onCreate={() => run(startSavedView)} />
+          <SavedViewList.Header
+            onCreate={() =>
+              run(() => {
+                setSidebarSectionOpen('saved-views', true);
+                startSavedView();
+              })
+            }
+          />
           <SavedViewList.Content>
             <SavedViewList.Items>
-              <For each={views().items()}>
+              <Show when={creating()}>
+                <SavedViewList.Draft onSelect={() => run(closeTask)} />
+              </Show>
+              <For each={items()}>
                 {(record) => (
                   <SavedViewListRow
                     view={record}
@@ -320,12 +344,14 @@ export function TaskSavedViewsList(props: {
                 )}
               </For>
             </SavedViewList.Items>
-            <Show when={views().loading() && !views().items()}>
+            <Show when={views().loading() && !items()}>
               <p class="px-3 py-2 text-xs text-ink-muted" role="status">
                 Loading views…
               </p>
             </Show>
-            <Show when={!views().loading() && views().items()?.length === 0}>
+            <Show
+              when={!creating() && !views().loading() && items()?.length === 0}
+            >
               <p class="px-3 py-2 text-xs text-ink-muted">
                 Save a set of filters to return to it.
               </p>

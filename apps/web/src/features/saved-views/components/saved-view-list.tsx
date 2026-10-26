@@ -58,7 +58,24 @@ function Items(props: { children: JSX.Element }) {
   );
 }
 
-export const SavedViewList = { Root, Header, Content, Items };
+function Draft(props: { onSelect: () => void }) {
+  return (
+    <ViewSidebar.Item
+      active
+      onClick={props.onSelect}
+      title="New view, draft"
+      aria-label="New view, draft"
+    >
+      <ViewSidebar.Icon>
+        <BookmarkIcon class="size-4" />
+      </ViewSidebar.Icon>
+      <span class="truncate italic">New view</span>
+      <span class="ml-auto text-xs text-ink-muted">Draft</span>
+    </ViewSidebar.Item>
+  );
+}
+
+export const SavedViewList = { Root, Header, Content, Items, Draft };
 
 /** A row accepts its consumer's menus without owning CRUD or viewer state. */
 export function SavedViewListRow(props: {

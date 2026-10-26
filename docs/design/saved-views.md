@@ -97,8 +97,13 @@ and account/task lifecycle. Task actions capture the host request scope before
 writing or reloading, reject stale completions, and explicitly select created
 views. Mutation dialogs receive a refresh callback, not both query sources.
 Compose the list through compound components and reuse styled menu items across
-its context and overflow menus. Open the shared create/edit dialog or delete
-confirmation through the imperative dialog system; dialogs own mutation hooks.
+its context and overflow menus. Starting a new view expands the section and shows
+one local, selected New view row labeled Draft in the sidebar and mobile picker.
+Confirmed creation replaces the draft with the named record, including while the
+list refresh is pending. Canceling the draft or leaving its view removes the row;
+closing only the naming dialog retains it. Draft rows never enter the query cache.
+Open the shared create/edit dialog or delete confirmation through the imperative
+dialog system; dialogs own mutation hooks.
 Edit combines the name and team-sharing checkbox in the same responsive form.
 Duplication reuses creation with a prefilled private copy. Keep Task filters, summaries, drafts,
 navigation, and rendering in `features/tasks-view`; do not make the generic
