@@ -13,6 +13,7 @@ export default {
     addToLabel: 'Tambahkan ke label',
     moveToLabel: 'Pindahkan ke label',
     ungroupFrom: 'Keluarkan dari “{{label}}”',
+    nameContains: 'Nama berisi “{{text}}”',
   },
   commandMenu: {
     categoryAll: 'Semua',
@@ -385,6 +386,50 @@ export default {
     failedToCreateDesign: 'Gagal membuat desain',
     failedToCreateIllustratorFile: 'Gagal membuat file Illustrator',
     failedToCreateFolder: 'Gagal membuat folder',
+    eventLabel: 'Acara',
+    bookingLinkLabel: 'Link pemesanan',
+    subtaskLabel: 'Subtugas',
+    tagLabel: 'Tag',
+    conversationLabel: 'Percakapan',
+    workAgentLabel: 'Agen kerja',
+    codingAgentLabel: 'Agen coding',
+    guideEvent: 'Jadwalkan rapat atau blokir waktu di kalender Anda.',
+    guideCall:
+      'Mulai panggilan langsung sekarang dan undang orang lain bergabung.',
+    guideBookingLink:
+      'Bagikan ketersediaan Anda agar orang lain dapat memesan waktu dengan Anda.',
+    guideTask: 'Lacak pekerjaan yang berdiri sendiri.',
+    guideSubtask:
+      'Pilih tugas induk dan pecah pekerjaannya menjadi langkah yang lebih kecil.',
+    guideProject: 'Kelompokkan tugas terkait untuk tujuan bersama.',
+    guideTag:
+      'Beri label pada pekerjaan agar dapat diatur dan difilter di semua proyek.',
+    guideConversation: 'Mulai percakapan dengan agen yang sudah ada.',
+    guideWorkAgent:
+      'Buat asisten dengan petunjuk dan akses ke ruang kerja Macro Anda.',
+    guideCodingAgent:
+      'Buat agen yang bekerja di harness coding yang terhubung.',
+    guideRoutine: 'Siapkan agen untuk berjalan sesuai jadwal berulang.',
+    guideCompany:
+      'Lacak organisasi, orang-orangnya, dan hubungan Anda dengannya.',
+    guideContact:
+      'Simpan detail dan aktivitas seseorang yang terhubung dengan perusahaannya.',
+    guidePipeline:
+      'Pindahkan catatan melalui tahapan untuk melacak deal atau proses berulang lainnya.',
+    guideUploadFiles: 'Bawa file yang ada dari komputer Anda ke folder ini.',
+    guideUploadFolder: 'Impor folder beserta file di dalamnya.',
+    guideDocument:
+      'Tulis catatan, rencana, atau dokumen panjang dan berkolaborasi di dalamnya.',
+    guideSnippet: 'Simpan potongan teks atau kode untuk dipakai ulang nanti.',
+    guideSpreadsheet: 'Bekerja dengan tabel, rumus, dan angka terstruktur.',
+    guideCanvas: 'Buat sketsa ide dan susun informasi di kanvas bersama.',
+    guideCode: 'Tulis dan edit kode dalam file khusus.',
+    guideFolderProject:
+      'Simpan file dan pekerjaan terkait bersama di satu tempat.',
+    guideDatabase: 'Atur catatan dengan kolom dan tampilan kustom.',
+    guideForm:
+      'Kumpulkan jawaban terstruktur melalui formulir yang dapat dibagikan.',
+    guideInThisFolder: 'Buat di folder ini.',
   },
   entityActions: {
     addToFavorites: 'Tambahkan ke favorit',
@@ -859,5 +904,7 @@ export default {
     showAllInboxes: 'Tampilkan semua kotak masuk',
     showOnlyInbox: 'Tampilkan hanya {{label}}',
     only: 'Hanya ini',
+    startedFrom: 'Dimulai dari {{origin}}',
+    personal: 'Pribadi',
   },
 } satisfies PartialDictionary;

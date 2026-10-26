@@ -13,6 +13,7 @@ export default {
     addToLabel: 'Thêm vào nhãn',
     moveToLabel: 'Chuyển vào nhãn',
     ungroupFrom: 'Bỏ khỏi “{{label}}”',
+    nameContains: 'Tên chứa “{{text}}”',
   },
   commandMenu: {
     categoryAll: 'Tất cả',
@@ -385,6 +386,44 @@ export default {
     failedToCreateDesign: 'Không thể tạo thiết kế',
     failedToCreateIllustratorFile: 'Không thể tạo tệp Illustrator',
     failedToCreateFolder: 'Không thể tạo thư mục',
+    eventLabel: 'Sự kiện',
+    bookingLinkLabel: 'Liên kết đặt lịch',
+    subtaskLabel: 'Công việc con',
+    tagLabel: 'Thẻ',
+    conversationLabel: 'Cuộc trò chuyện',
+    workAgentLabel: 'Tác nhân công việc',
+    codingAgentLabel: 'Tác nhân lập trình',
+    guideEvent: 'Lên lịch cuộc họp hoặc giữ chỗ thời gian trên lịch của bạn.',
+    guideCall: 'Bắt đầu cuộc gọi trực tiếp ngay và mời người khác tham gia.',
+    guideBookingLink: 'Chia sẻ thời gian rảnh để người khác đặt lịch với bạn.',
+    guideTask: 'Theo dõi một phần việc độc lập.',
+    guideSubtask: 'Chọn công việc mẹ và chia nhỏ thành một bước nhỏ hơn.',
+    guideProject: 'Gom các công việc liên quan quanh một mục tiêu chung.',
+    guideTag: 'Gắn thẻ công việc để sắp xếp và lọc trên mọi dự án.',
+    guideConversation: 'Bắt đầu trò chuyện với một tác nhân có sẵn.',
+    guideWorkAgent:
+      'Tạo trợ lý có hướng dẫn và quyền truy cập không gian làm việc Macro của bạn.',
+    guideCodingAgent:
+      'Tạo tác nhân làm việc trong môi trường lập trình đã kết nối.',
+    guideRoutine: 'Thiết lập tác nhân chạy theo lịch định kỳ.',
+    guideCompany:
+      'Theo dõi một tổ chức, những người trong đó và mối quan hệ của bạn với họ.',
+    guideContact:
+      'Lưu thông tin và hoạt động của một người, gắn với công ty của họ.',
+    guidePipeline:
+      'Đưa bản ghi qua các giai đoạn để theo dõi giao dịch hoặc quy trình lặp lại khác.',
+    guideUploadFiles: 'Đưa tệp có sẵn từ máy tính vào thư mục này.',
+    guideUploadFolder: 'Nhập một thư mục cùng các tệp bên trong.',
+    guideDocument:
+      'Viết và cộng tác trên ghi chú, kế hoạch hoặc tài liệu dài hơn.',
+    guideSnippet: 'Lưu một đoạn văn bản hoặc mã để dùng lại sau.',
+    guideSpreadsheet: 'Làm việc với bảng, công thức và số liệu có cấu trúc.',
+    guideCanvas: 'Phác thảo ý tưởng và sắp xếp thông tin trên canvas chung.',
+    guideCode: 'Viết và chỉnh sửa mã trong một tệp riêng.',
+    guideFolderProject: 'Giữ tệp và công việc liên quan ở cùng một nơi.',
+    guideDatabase: 'Sắp xếp bản ghi với trường và chế độ xem tùy chỉnh.',
+    guideForm: 'Thu thập câu trả lời có cấu trúc qua biểu mẫu có thể chia sẻ.',
+    guideInThisFolder: 'Tạo trong thư mục này.',
   },
   entityActions: {
     addToFavorites: 'Thêm vào mục yêu thích',
@@ -861,5 +900,7 @@ export default {
     showAllInboxes: 'Hiện tất cả hộp thư',
     showOnlyInbox: 'Chỉ hiện {{label}}',
     only: 'Chỉ mục này',
+    startedFrom: 'Bắt đầu từ {{origin}}',
+    personal: 'Cá nhân',
   },
 } satisfies PartialDictionary;

@@ -13,6 +13,7 @@ export default {
     addToLabel: 'Adicionar a um grupo',
     moveToLabel: 'Mover para um grupo',
     ungroupFrom: 'Remover de «{{label}}»',
+    nameContains: 'O nome contém «{{text}}»',
   },
   commandMenu: {
     categoryAll: 'Tudo',
@@ -388,6 +389,51 @@ export default {
     failedToCreateIllustratorFile:
       'Não foi possível criar o ficheiro Illustrator',
     failedToCreateFolder: 'Não foi possível criar a pasta',
+    eventLabel: 'Evento',
+    bookingLinkLabel: 'Link de marcação',
+    subtaskLabel: 'Subtarefa',
+    tagLabel: 'Etiqueta',
+    conversationLabel: 'Conversa',
+    workAgentLabel: 'Agente de trabalho',
+    codingAgentLabel: 'Agente de programação',
+    guideEvent: 'Agende uma reunião ou reserve tempo no seu calendário.',
+    guideCall: 'Inicie já uma chamada e convide outras pessoas.',
+    guideBookingLink:
+      'Partilhe a sua disponibilidade para que outros marquem um horário consigo.',
+    guideTask: 'Acompanhe um trabalho independente.',
+    guideSubtask:
+      'Escolha uma tarefa principal e divida o trabalho num passo mais pequeno.',
+    guideProject: 'Agrupe tarefas relacionadas em torno de um objetivo comum.',
+    guideTag: 'Etiquete o trabalho para o organizar e filtrar entre projetos.',
+    guideConversation: 'Inicie uma conversa com um agente existente.',
+    guideWorkAgent:
+      'Crie um assistente com instruções e acesso ao seu espaço de trabalho Macro.',
+    guideCodingAgent:
+      'Crie um agente que trabalha num ambiente de programação ligado.',
+    guideRoutine:
+      'Configure um agente para ser executado segundo um horário recorrente.',
+    guideCompany:
+      'Acompanhe uma organização, as suas pessoas e a sua relação com ela.',
+    guideContact:
+      'Mantenha os dados e a atividade de uma pessoa ligados à empresa dela.',
+    guidePipeline:
+      'Mova registos por etapas para acompanhar negócios ou outro processo repetível.',
+    guideUploadFiles: 'Traga ficheiros do seu computador para esta pasta.',
+    guideUploadFolder: 'Importe uma pasta e os ficheiros que contém.',
+    guideDocument:
+      'Escreva e colabore em notas, planos ou documentos mais longos.',
+    guideSnippet:
+      'Guarde um fragmento de texto ou código reutilizável para mais tarde.',
+    guideSpreadsheet:
+      'Trabalhe com tabelas, fórmulas e dados numéricos estruturados.',
+    guideCanvas: 'Esboce ideias e organize informação numa tela partilhada.',
+    guideCode: 'Escreva e edite código num ficheiro dedicado.',
+    guideFolderProject:
+      'Mantenha ficheiros e trabalho relacionados num só lugar.',
+    guideDatabase: 'Organize registos com campos e vistas personalizados.',
+    guideForm:
+      'Recolha respostas estruturadas através de um formulário partilhável.',
+    guideInThisFolder: 'Crie um nesta pasta.',
   },
   entityActions: {
     addToFavorites: 'Adicionar aos favoritos',
@@ -917,5 +963,7 @@ export default {
     showAllInboxes: 'Mostrar todas as caixas de entrada',
     showOnlyInbox: 'Mostrar apenas {{label}}',
     only: 'Apenas',
+    startedFrom: 'Iniciado a partir de {{origin}}',
+    personal: 'Pessoal',
   },
 } satisfies PartialDictionary;

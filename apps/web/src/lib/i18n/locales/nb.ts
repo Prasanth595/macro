@@ -13,6 +13,7 @@ export default {
     addToLabel: 'Legg til i gruppe',
     moveToLabel: 'Flytt til gruppe',
     ungroupFrom: 'Fjern fra «{{label}}»',
+    nameContains: 'Navnet inneholder «{{text}}»',
   },
   commandMenu: {
     categoryAll: 'Alle',
@@ -385,6 +386,46 @@ export default {
     failedToCreateDesign: 'Kunne ikke opprette design',
     failedToCreateIllustratorFile: 'Kunne ikke opprette Illustrator-fil',
     failedToCreateFolder: 'Kunne ikke opprette mappe',
+    eventLabel: 'Hendelse',
+    bookingLinkLabel: 'Bookinglenke',
+    subtaskLabel: 'Deloppgave',
+    tagLabel: 'Etikett',
+    conversationLabel: 'Chat',
+    workAgentLabel: 'Arbeidsagent',
+    codingAgentLabel: 'Kodeagent',
+    guideEvent: 'Planlegg et møte eller blokker tid i kalenderen din.',
+    guideCall: 'Start en samtale nå og inviter andre til å bli med.',
+    guideBookingLink: 'Del når du er ledig, så andre kan booke en tid med deg.',
+    guideTask: 'Følg opp et frittstående stykke arbeid.',
+    guideSubtask:
+      'Velg en overordnet oppgave og del arbeidet opp i et mindre steg.',
+    guideProject: 'Grupper relaterte oppgaver rundt et felles mål.',
+    guideTag:
+      'Merk arbeid med etiketter så du kan organisere og filtrere det på tvers av prosjekter.',
+    guideConversation: 'Start en chat med en eksisterende agent.',
+    guideWorkAgent:
+      'Opprett en assistent med instruksjoner og tilgang til Macro-arbeidsområdet ditt.',
+    guideCodingAgent: 'Opprett en agent som jobber i et tilkoblet kodemiljø.',
+    guideRoutine: 'La en agent kjøre etter en gjentakende tidsplan.',
+    guideCompany:
+      'Følg en organisasjon, personene der og forholdet ditt til den.',
+    guideContact:
+      'Knytt en persons opplysninger og aktivitet til personens selskap.',
+    guidePipeline:
+      'Flytt poster gjennom faser for å følge avtaler eller en annen gjentakende prosess.',
+    guideUploadFiles:
+      'Hent eksisterende filer fra datamaskinen din inn i denne mappen.',
+    guideUploadFolder: 'Importer en mappe og filene i den.',
+    guideDocument:
+      'Skriv og samarbeid om notater, planer eller lengre dokumenter.',
+    guideSnippet: 'Lagre en gjenbrukbar tekst- eller kodebit til senere.',
+    guideSpreadsheet: 'Jobb med tabeller, formler og strukturerte tall.',
+    guideCanvas: 'Skisser ideer og ordne informasjon på et delt lerret.',
+    guideCode: 'Skriv og rediger kode i en egen fil.',
+    guideFolderProject: 'Samle relaterte filer og arbeid på ett sted.',
+    guideDatabase: 'Organiser poster med egendefinerte felt og visninger.',
+    guideForm: 'Samle inn strukturerte svar via et skjema som kan deles.',
+    guideInThisFolder: 'Opprett en i denne mappen.',
   },
   entityActions: {
     addToFavorites: 'Legg til i favoritter',
@@ -885,5 +926,7 @@ export default {
     showAllInboxes: 'Vis alle innbokser',
     showOnlyInbox: 'Vis bare {{label}}',
     only: 'Bare',
+    startedFrom: 'Startet fra {{origin}}',
+    personal: 'Personlig',
   },
 } satisfies PartialDictionary;

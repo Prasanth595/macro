@@ -13,6 +13,7 @@ export default {
     addToLabel: 'Lägg till i etikett',
     moveToLabel: 'Flytta till etikett',
     ungroupFrom: 'Ta bort från ”{{label}}”',
+    nameContains: 'Namnet innehåller ”{{text}}”',
   },
   commandMenu: {
     categoryAll: 'Alla',
@@ -387,6 +388,45 @@ export default {
     failedToCreateDesign: 'Det gick inte att skapa designen',
     failedToCreateIllustratorFile: 'Det gick inte att skapa Illustrator-filen',
     failedToCreateFolder: 'Det gick inte att skapa mappen',
+    eventLabel: 'Händelse',
+    bookingLinkLabel: 'Bokningslänk',
+    subtaskLabel: 'Deluppgift',
+    tagLabel: 'Tagg',
+    conversationLabel: 'Konversation',
+    workAgentLabel: 'Arbetsagent',
+    codingAgentLabel: 'Kodagent',
+    guideEvent: 'Boka ett möte eller blockera tid i din kalender.',
+    guideCall: 'Starta ett samtal direkt och bjud in andra.',
+    guideBookingLink:
+      'Dela din tillgänglighet så att andra kan boka en tid med dig.',
+    guideTask: 'Följ upp ett fristående arbete.',
+    guideSubtask: 'Välj en överordnad uppgift och bryt ut ett mindre steg.',
+    guideProject: 'Gruppera relaterade uppgifter kring ett gemensamt mål.',
+    guideTag: 'Tagga arbete så att du kan ordna och filtrera det över projekt.',
+    guideConversation: 'Starta en konversation med en befintlig agent.',
+    guideWorkAgent:
+      'Skapa en assistent med instruktioner och åtkomst till din Macro-arbetsyta.',
+    guideCodingAgent: 'Skapa en agent som arbetar i en ansluten kodmiljö.',
+    guideRoutine: 'Låt en agent köras enligt ett återkommande schema.',
+    guideCompany:
+      'Följ en organisation, dess personer och din relation till den.',
+    guideContact:
+      'Koppla en persons uppgifter och aktivitet till personens företag.',
+    guidePipeline:
+      'Flytta poster genom steg för att följa affärer eller en annan återkommande process.',
+    guideUploadFiles:
+      'Hämta in befintliga filer från din dator till den här mappen.',
+    guideUploadFolder: 'Importera en mapp och filerna i den.',
+    guideDocument:
+      'Skriv och samarbeta på anteckningar, planer eller längre dokument.',
+    guideSnippet: 'Spara en återanvändbar text eller kod till senare.',
+    guideSpreadsheet: 'Arbeta med tabeller, formler och strukturerade siffror.',
+    guideCanvas: 'Skissa idéer och ordna information på en delad canvas.',
+    guideCode: 'Skriv och redigera kod i en egen fil.',
+    guideFolderProject: 'Samla relaterade filer och arbete på ett ställe.',
+    guideDatabase: 'Ordna poster med egna fält och vyer.',
+    guideForm: 'Samla in strukturerade svar via ett delbart formulär.',
+    guideInThisFolder: 'Skapa en i den här mappen.',
   },
   entityActions: {
     addToFavorites: 'Lägg till i favoriter',
@@ -889,5 +929,7 @@ export default {
     showAllInboxes: 'Visa alla inkorgar',
     showOnlyInbox: 'Visa endast {{label}}',
     only: 'Endast',
+    startedFrom: 'Startad från {{origin}}',
+    personal: 'Personligt',
   },
 } satisfies PartialDictionary;

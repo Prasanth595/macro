@@ -13,6 +13,7 @@ export default {
     addToLabel: 'Zu Label hinzufügen',
     moveToLabel: 'In Label verschieben',
     ungroupFrom: 'Aus „{{label}}“ entfernen',
+    nameContains: 'Name enthält „{{text}}“',
   },
   commandMenu: {
     categoryAll: 'Alle',
@@ -389,6 +390,53 @@ export default {
     failedToCreateIllustratorFile:
       'Illustrator-Datei konnte nicht erstellt werden',
     failedToCreateFolder: 'Ordner konnte nicht erstellt werden',
+    eventLabel: 'Termin',
+    bookingLinkLabel: 'Buchungslink',
+    subtaskLabel: 'Unteraufgabe',
+    tagLabel: 'Tag',
+    conversationLabel: 'Unterhaltung',
+    workAgentLabel: 'Arbeitsagent',
+    codingAgentLabel: 'Coding-Agent',
+    guideEvent: 'Ein Meeting planen oder Zeit im Kalender blocken.',
+    guideCall: 'Jetzt einen Live-Anruf starten und andere einladen.',
+    guideBookingLink:
+      'Verfügbarkeit teilen, damit andere einen Termin bei Ihnen buchen können.',
+    guideTask: 'Eine eigenständige Arbeit verfolgen.',
+    guideSubtask:
+      'Eine übergeordnete Aufgabe wählen und einen kleineren Teilschritt anlegen.',
+    guideProject: 'Zusammengehörige Aufgaben um ein gemeinsames Ziel bündeln.',
+    guideTag:
+      'Arbeit taggen, um sie projektübergreifend zu organisieren und zu filtern.',
+    guideConversation:
+      'Eine Unterhaltung mit einem vorhandenen Agenten beginnen.',
+    guideWorkAgent:
+      'Einen Assistenten mit Anweisungen und Zugriff auf Ihren Macro-Workspace erstellen.',
+    guideCodingAgent:
+      'Einen Agenten erstellen, der in einer verbundenen Coding-Umgebung arbeitet.',
+    guideRoutine:
+      'Einen Agenten nach wiederkehrendem Zeitplan ausführen lassen.',
+    guideCompany:
+      'Eine Organisation, ihre Personen und Ihre Beziehung zu ihr verfolgen.',
+    guideContact:
+      'Daten und Aktivitäten einer Person mit ihrem Unternehmen verknüpfen.',
+    guidePipeline:
+      'Datensätze durch Phasen bewegen, um Deals oder andere wiederholbare Prozesse zu verfolgen.',
+    guideUploadFiles:
+      'Vorhandene Dateien von Ihrem Computer in diesen Ordner übertragen.',
+    guideUploadFolder: 'Einen Ordner samt enthaltenen Dateien importieren.',
+    guideDocument: 'Gemeinsam Notizen, Pläne oder längere Dokumente schreiben.',
+    guideSnippet:
+      'Einen wiederverwendbaren Text- oder Codebaustein für später speichern.',
+    guideSpreadsheet:
+      'Mit Tabellen, Formeln und strukturierten Zahlen arbeiten.',
+    guideCanvas:
+      'Ideen skizzieren und Informationen auf einem gemeinsamen Canvas anordnen.',
+    guideCode: 'Code in einer eigenen Datei schreiben und bearbeiten.',
+    guideFolderProject:
+      'Zusammengehörige Dateien und Arbeit an einem Ort bündeln.',
+    guideDatabase: 'Datensätze mit eigenen Feldern und Ansichten organisieren.',
+    guideForm: 'Strukturierte Antworten über ein teilbares Formular sammeln.',
+    guideInThisFolder: 'In diesem Ordner erstellen.',
   },
   entityActions: {
     addToFavorites: 'Zu Favoriten hinzufügen',
@@ -891,5 +939,7 @@ export default {
     showAllInboxes: 'Alle Postfächer anzeigen',
     showOnlyInbox: 'Nur {{label}} anzeigen',
     only: 'Nur',
+    startedFrom: 'Gestartet über {{origin}}',
+    personal: 'Persönlich',
   },
 } satisfies PartialDictionary;

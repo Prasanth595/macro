@@ -13,6 +13,7 @@ export default {
     addToLabel: 'Toevoegen aan label',
     moveToLabel: 'Verplaatsen naar label',
     ungroupFrom: 'Uit ‘{{label}}’ halen',
+    nameContains: 'Naam bevat ‘{{text}}’',
   },
   commandMenu: {
     categoryAll: 'Alles',
@@ -386,6 +387,48 @@ export default {
     failedToCreateDesign: 'Ontwerp maken mislukt',
     failedToCreateIllustratorFile: 'Illustrator-bestand maken mislukt',
     failedToCreateFolder: 'Map maken mislukt',
+    eventLabel: 'Afspraak',
+    bookingLinkLabel: 'Boekingslink',
+    subtaskLabel: 'Subtaak',
+    tagLabel: 'Tag',
+    conversationLabel: 'Conversatie',
+    workAgentLabel: 'Werkagent',
+    codingAgentLabel: 'Codeeragent',
+    guideEvent: 'Plan een vergadering of blokkeer tijd in je agenda.',
+    guideCall: 'Start nu een live gesprek en nodig anderen uit.',
+    guideBookingLink:
+      'Deel je beschikbaarheid zodat anderen een tijd met je kunnen boeken.',
+    guideTask: 'Volg een losstaand stuk werk.',
+    guideSubtask:
+      'Kies een hoofdtaak en splits het werk op in een kleinere stap.',
+    guideProject: 'Groepeer gerelateerde taken rond een gedeeld doel.',
+    guideTag:
+      'Tag werk zodat je het over projecten heen kunt ordenen en filteren.',
+    guideConversation: 'Begin een conversatie met een bestaande agent.',
+    guideWorkAgent:
+      'Maak een assistent met instructies en toegang tot je Macro-werkruimte.',
+    guideCodingAgent:
+      'Maak een agent die werkt in een gekoppelde codeeromgeving.',
+    guideRoutine: 'Laat een agent volgens een terugkerend schema draaien.',
+    guideCompany: 'Volg een organisatie, de mensen erin en je relatie ermee.',
+    guideContact:
+      'Koppel de gegevens en activiteit van een persoon aan diens bedrijf.',
+    guidePipeline:
+      'Verplaats records door fasen om deals of een ander herhaalbaar proces te volgen.',
+    guideUploadFiles: 'Zet bestaande bestanden van je computer in deze map.',
+    guideUploadFolder: 'Importeer een map met de bestanden erin.',
+    guideDocument:
+      'Schrijf en werk samen aan notities, plannen of langere documenten.',
+    guideSnippet: 'Bewaar een herbruikbaar stuk tekst of code voor later.',
+    guideSpreadsheet: 'Werk met tabellen, formules en gestructureerde cijfers.',
+    guideCanvas: 'Schets ideeën en orden informatie op een gedeeld canvas.',
+    guideCode: 'Schrijf en bewerk code in een apart bestand.',
+    guideFolderProject:
+      'Houd gerelateerde bestanden en werk samen op één plek.',
+    guideDatabase: 'Orden records met aangepaste velden en weergaven.',
+    guideForm:
+      'Verzamel gestructureerde antwoorden via een deelbaar formulier.',
+    guideInThisFolder: 'Maak er een in deze map.',
   },
   entityActions: {
     addToFavorites: 'Toevoegen aan favorieten',
@@ -886,5 +929,7 @@ export default {
     showAllInboxes: 'Alle inboxen tonen',
     showOnlyInbox: 'Alleen {{label}} tonen',
     only: 'Alleen',
+    startedFrom: 'Gestart vanuit {{origin}}',
+    personal: 'Persoonlijk',
   },
 } satisfies PartialDictionary;

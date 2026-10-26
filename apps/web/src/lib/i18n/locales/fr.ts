@@ -13,6 +13,7 @@ export default {
     addToLabel: 'Ajouter à un libellé',
     moveToLabel: 'Déplacer vers un libellé',
     ungroupFrom: 'Retirer de « {{label}} »',
+    nameContains: 'Le nom contient « {{text}} »',
   },
   commandMenu: {
     categoryAll: 'Tout',
@@ -388,6 +389,52 @@ export default {
     failedToCreateDesign: 'Impossible de créer le design',
     failedToCreateIllustratorFile: 'Impossible de créer le fichier Illustrator',
     failedToCreateFolder: 'Impossible de créer le dossier',
+    eventLabel: 'Événement',
+    bookingLinkLabel: 'Lien de réservation',
+    subtaskLabel: 'Sous-tâche',
+    tagLabel: 'Tag',
+    conversationLabel: 'Conversation',
+    workAgentLabel: 'Agent de travail',
+    codingAgentLabel: 'Agent de code',
+    guideEvent: 'Planifiez une réunion ou bloquez du temps dans votre agenda.',
+    guideCall: 'Lancez un appel maintenant et invitez d’autres personnes.',
+    guideBookingLink:
+      'Partagez vos disponibilités pour qu’on puisse réserver un créneau avec vous.',
+    guideTask: 'Suivez un travail indépendant.',
+    guideSubtask:
+      'Choisissez une tâche parente et découpez son travail en une étape plus petite.',
+    guideProject: 'Regroupez les tâches liées autour d’un objectif commun.',
+    guideTag:
+      'Ajoutez des tags pour organiser et filtrer votre travail entre projets.',
+    guideConversation: 'Démarrez une conversation avec un agent existant.',
+    guideWorkAgent:
+      'Créez un assistant avec des instructions et un accès à votre espace Macro.',
+    guideCodingAgent:
+      'Créez un agent qui travaille dans un environnement de code connecté.',
+    guideRoutine:
+      'Configurez un agent pour qu’il s’exécute selon un planning récurrent.',
+    guideCompany:
+      'Suivez une organisation, ses membres et votre relation avec elle.',
+    guideContact:
+      'Reliez les coordonnées et l’activité d’une personne à son entreprise.',
+    guidePipeline:
+      'Faites passer des fiches par des étapes pour suivre des affaires ou un autre processus.',
+    guideUploadFiles:
+      'Importez des fichiers de votre ordinateur dans ce dossier.',
+    guideUploadFolder: 'Importez un dossier et les fichiers qu’il contient.',
+    guideDocument: 'Rédigez des notes, plans ou documents longs, à plusieurs.',
+    guideSnippet: 'Enregistrez un extrait de texte ou de code réutilisable.',
+    guideSpreadsheet:
+      'Travaillez avec des tableaux, formules et données chiffrées.',
+    guideCanvas:
+      'Esquissez des idées et organisez l’information sur un canevas partagé.',
+    guideCode: 'Écrivez et modifiez du code dans un fichier dédié.',
+    guideFolderProject: 'Réunissez fichiers et travaux liés au même endroit.',
+    guideDatabase:
+      'Organisez des fiches avec des champs et des vues personnalisés.',
+    guideForm:
+      'Recueillez des réponses structurées via un formulaire partageable.',
+    guideInThisFolder: 'Créez-en un dans ce dossier.',
   },
   entityActions: {
     addToFavorites: 'Ajouter aux favoris',
@@ -916,5 +963,7 @@ export default {
     showAllInboxes: 'Afficher toutes les boîtes de réception',
     showOnlyInbox: 'Afficher uniquement {{label}}',
     only: 'Uniquement',
+    startedFrom: 'Démarré depuis {{origin}}',
+    personal: 'Personnel',
   },
 } satisfies PartialDictionary;

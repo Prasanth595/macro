@@ -13,6 +13,7 @@ export default {
     addToLabel: 'Lisää ryhmään',
     moveToLabel: 'Siirrä ryhmään',
     ungroupFrom: 'Poista ryhmästä ”{{label}}”',
+    nameContains: 'Nimi sisältää ”{{text}}”',
   },
   commandMenu: {
     categoryAll: 'Kaikki',
@@ -386,6 +387,47 @@ export default {
     failedToCreateDesign: 'Designin luonti epäonnistui',
     failedToCreateIllustratorFile: 'Illustrator-tiedoston luonti epäonnistui',
     failedToCreateFolder: 'Kansion luonti epäonnistui',
+    eventLabel: 'Tapahtuma',
+    bookingLinkLabel: 'Varauslinkki',
+    subtaskLabel: 'Alitehtävä',
+    tagLabel: 'Tunniste',
+    conversationLabel: 'Keskustelu',
+    workAgentLabel: 'Työagentti',
+    codingAgentLabel: 'Koodausagentti',
+    guideEvent: 'Ajoita kokous tai varaa aikaa kalenteristasi.',
+    guideCall: 'Aloita puhelu nyt ja kutsu muita mukaan.',
+    guideBookingLink:
+      'Jaa vapaat aikasi, jotta muut voivat varata ajan kanssasi.',
+    guideTask: 'Seuraa yksittäistä työtehtävää.',
+    guideSubtask: 'Valitse päätehtävä ja jaa sen työ pienemmäksi vaiheeksi.',
+    guideProject: 'Kokoa liittyvät tehtävät yhteisen tavoitteen alle.',
+    guideTag:
+      'Merkitse työtä tunnisteilla, jotta voit järjestää ja suodattaa sitä projektien välillä.',
+    guideConversation: 'Aloita keskustelu olemassa olevan agentin kanssa.',
+    guideWorkAgent: 'Luo avustaja, jolla on ohjeet ja pääsy Macro-työtilaasi.',
+    guideCodingAgent:
+      'Luo agentti, joka toimii yhdistetyssä koodausympäristössä.',
+    guideRoutine:
+      'Määritä agentti suoritettavaksi toistuvan aikataulun mukaan.',
+    guideCompany: 'Seuraa organisaatiota, sen ihmisiä ja suhdettasi siihen.',
+    guideContact:
+      'Pidä henkilön tiedot ja toiminta yhdistettynä hänen yritykseensä.',
+    guidePipeline:
+      'Siirrä tietueita vaiheesta toiseen kauppojen tai muun toistuvan prosessin seurantaan.',
+    guideUploadFiles: 'Tuo tiedostoja tietokoneeltasi tähän kansioon.',
+    guideUploadFolder: 'Tuo kansio ja sen sisältämät tiedostot.',
+    guideDocument:
+      'Kirjoita muistiinpanoja, suunnitelmia tai pidempiä dokumentteja yhdessä.',
+    guideSnippet:
+      'Tallenna uudelleenkäytettävä teksti- tai koodinpätkä myöhempää varten.',
+    guideSpreadsheet:
+      'Työskentele taulukoiden, kaavojen ja jäsenneltyjen lukujen parissa.',
+    guideCanvas: 'Luonnostele ideoita ja järjestä tietoa jaetulla kankaalla.',
+    guideCode: 'Kirjoita ja muokkaa koodia omassa tiedostossaan.',
+    guideFolderProject: 'Pidä liittyvät tiedostot ja työt yhdessä paikassa.',
+    guideDatabase: 'Järjestä tietueita mukautetuilla kentillä ja näkymillä.',
+    guideForm: 'Kerää jäsenneltyjä vastauksia jaettavalla lomakkeella.',
+    guideInThisFolder: 'Luo sellainen tähän kansioon.',
   },
   entityActions: {
     addToFavorites: 'Lisää suosikkeihin',
@@ -887,5 +929,7 @@ export default {
     showAllInboxes: 'Näytä kaikki postilaatikot',
     showOnlyInbox: 'Näytä vain {{label}}',
     only: 'Vain',
+    startedFrom: 'Aloitettu palvelusta {{origin}}',
+    personal: 'Henkilökohtainen',
   },
 } satisfies PartialDictionary;
