@@ -97,10 +97,10 @@ and account/task lifecycle. Task actions capture the host request scope before
 writing or reloading, reject stale completions, and explicitly select created
 views. Mutation dialogs receive a refresh callback, not both query sources.
 Compose the list through compound components and reuse styled menu items across
-its context and overflow menus. Open focused create, rename, share, and delete
-dialogs through the shared imperative dialog system; action dialogs own mutations
-and render presentational forms or a delete confirmation. Duplication reuses
-creation with a prefilled private copy. Keep Task filters, summaries, drafts,
+its context and overflow menus. Open the shared create/edit dialog or delete
+confirmation through the imperative dialog system; dialogs own mutation hooks.
+Edit combines the name and team-sharing checkbox in the same responsive form.
+Duplication reuses creation with a prefilled private copy. Keep Task filters, summaries, drafts,
 navigation, and rendering in `features/tasks-view`; do not make the generic
 feature import Tasks or CRM components.
 
@@ -190,7 +190,7 @@ definitions in the unavailable state, without executing task queries.
 Reading never modifies the stored definition and never starts a recovery workflow.
 Ordinary Save changes is disabled while any unsupported or invalid setting
 remains, preventing an older reader from overwriting settings it cannot represent.
-Rename and Share preserve the raw configuration; Duplicate warns before omitting
+Edit preserves the raw configuration; Duplicate warns before omitting
 unsupported settings. Only explicit Remove & save replaces the original with
 supported settings. Missing person or tag labels retain their exact filter IDs
 because these conditions remain executable. A missing authenticated viewer blocks relative-filter execution.
@@ -319,10 +319,12 @@ The main pane displays the selected view's bookmark icon before its name and its
 unframed ghost overflow button immediately after it on desktop and mobile, plus
 the normal Task controls.
 Provide matching sidebar context/overflow and selected-view overflow menus with
-separate Rename and Share actions, Duplicate, Copy link, and confirmed Delete.
+Edit, Duplicate, Copy link, and confirmed Delete.
 Wrap menu items in the existing padded groups. Non-owners get only actions they
-can perform; backend enforcement remains authoritative. Rename and Share update
-metadata only, preserving temporary filters, layout, and sort without saving them.
+can perform; backend enforcement remains authoritative. Edit updates the name
+and sharing together, preserving temporary filters, layout, and sort without saving
+them. Create and Edit use the same 600px-wide dialog, capped to the viewport;
+unchanged sharing is omitted from updates.
 
 Show **Save view** immediately left of Filters when filters, layout, or sort differ
 from the built-in tab defaults. It captures structured filters, implicit person

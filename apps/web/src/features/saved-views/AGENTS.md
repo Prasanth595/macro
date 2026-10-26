@@ -10,7 +10,7 @@ Reusable named view definitions. The first consumer is main Tasks; the generic f
 - `context/saved-views-source.ts`: independent list and detail read contracts.
 - `queries/saved-views.ts`: `useSavedViews` for cursor paging and `useSavedView` for one definition; compose them at the host.
 - `queries/saved-view-actions.ts`: independent create, update, and delete hooks using the shared GraphQL client, native mutation state, authoritative confirmation, and cursor reconciliation.
-- `views/saved-view-dialogs.tsx`: action dialogs own mutation hooks, dialog shells, and lifetime checks.
+- `views/saved-view-dialogs.tsx`: one create/edit dialog owns separate mutation hooks, a shared wide responsive form, and lifetime checks; deletion keeps its confirmation.
 - `components/`: presentational forms/confirmation, compound list, shared styled context/overflow items, and mobile picker.
 
 ## Boundaries

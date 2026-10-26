@@ -13,24 +13,28 @@ type FormStatus = Pick<ManagedDialogProps, 'onOpenChange'> & {
   error?: string;
 };
 
-export function CreateSavedViewForm(
+export function SavedViewForm(
   props: FormStatus & {
     name: string;
+    sharedTeamId?: string | null;
     title?: string;
     submitLabel?: string;
-    summary: JSX.Element;
+    summary?: JSX.Element;
     team?: { id: string; name: string };
     onSave: (name: string, team: string | null) => void;
   }
 ) {
   const [name, setName] = createSignal(props.name);
-  const [shared, setShared] = createSignal(false);
+  const [shared, setShared] = createSignal(Boolean(props.sharedTeamId));
   return (
     <form
       class="flex flex-col gap-5 p-6"
       onSubmit={(event) => {
         event.preventDefault();
-        props.onSave(name().trim(), shared() ? (props.team?.id ?? null) : null);
+        props.onSave(
+          name().trim(),
+          shared() ? (props.sharedTeamId ?? props.team?.id ?? null) : null
+        );
       }}
     >
       <Dialog.Title class="text-lg font-medium">
@@ -47,10 +51,12 @@ export function CreateSavedViewForm(
           placeholder="e.g. Needs review"
         />
       </label>
-      <div class="flex flex-col gap-2 text-xs text-ink-muted">
-        {props.summary}
-      </div>
-      <Show when={props.team}>
+      <Show when={props.summary}>
+        <div class="flex flex-col gap-2 text-xs text-ink-muted">
+          {props.summary}
+        </div>
+      </Show>
+      <Show when={props.team || props.sharedTeamId}>
         <div class="flex flex-col gap-2">
           <Checkbox
             checked={shared()}
@@ -58,7 +64,12 @@ export function CreateSavedViewForm(
             disabled={props.pending}
           >
             <Checkbox.Control />
-            <Checkbox.Label>Share with {props.team?.name}</Checkbox.Label>
+            <Checkbox.Label>
+              Share with{' '}
+              {props.sharedTeamId && props.sharedTeamId !== props.team?.id
+                ? 'team'
+                : props.team?.name}
+            </Checkbox.Label>
           </Checkbox>
           <p class="text-xs text-ink-muted">
             Teammates can use these filters on items they can already access.
@@ -85,107 +96,6 @@ export function CreateSavedViewForm(
           disabled={props.pending || !name().trim()}
         >
           {props.pending ? 'Saving…' : (props.submitLabel ?? 'Save view')}
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-export function RenameSavedViewForm(
-  props: FormStatus & {
-    name: string;
-    onSave: (name: string) => void;
-  }
-) {
-  const [name, setName] = createSignal(props.name);
-  return (
-    <form
-      class="flex flex-col gap-5 p-6"
-      onSubmit={(event) => {
-        event.preventDefault();
-        props.onSave(name().trim());
-      }}
-    >
-      <Dialog.Title class="text-lg font-medium">Rename saved view</Dialog.Title>
-      <label class="flex flex-col gap-2 text-sm">
-        Name
-        <Input
-          value={name()}
-          onInput={(event) => setName(event.currentTarget.value)}
-          maxLength={120}
-          required
-          disabled={props.pending}
-        />
-      </label>
-      <Show when={props.error}>
-        <p role="alert" class="text-sm text-failure-ink">
-          {props.error}
-        </p>
-      </Show>
-      <div class="flex justify-end gap-2">
-        <Button
-          variant="ghost"
-          disabled={props.pending}
-          onClick={() => props.onOpenChange(false)}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          variant="strong"
-          disabled={props.pending || !name().trim()}
-        >
-          {props.pending ? 'Saving…' : 'Rename'}
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-export function ShareSavedViewForm(
-  props: FormStatus & {
-    sharedTeamId: string | null;
-    team?: { id: string; name: string };
-    onSave: (team: string | null) => void;
-  }
-) {
-  const [shared, setShared] = createSignal(Boolean(props.sharedTeamId));
-  return (
-    <form
-      class="flex flex-col gap-5 p-6"
-      onSubmit={(event) => {
-        event.preventDefault();
-        props.onSave(shared() ? (props.team?.id ?? props.sharedTeamId) : null);
-      }}
-    >
-      <Dialog.Title class="text-lg font-medium">Share saved view</Dialog.Title>
-      <Checkbox
-        checked={shared()}
-        onChange={setShared}
-        disabled={props.pending || (!props.team && !props.sharedTeamId)}
-      >
-        <Checkbox.Control />
-        <Checkbox.Label>Share with {props.team?.name ?? 'team'}</Checkbox.Label>
-      </Checkbox>
-      <p class="text-xs text-ink-muted">
-        Teammates can use these filters on items they can already access. Only
-        you can edit this view.
-      </p>
-      <Show when={props.error}>
-        <p role="alert" class="text-sm text-failure-ink">
-          {props.error}
-        </p>
-      </Show>
-      <div class="flex justify-end gap-2">
-        <Button
-          variant="ghost"
-          disabled={props.pending}
-          onClick={() => props.onOpenChange(false)}
-        >
-          Cancel
-        </Button>
-        <Button type="submit" variant="strong" disabled={props.pending}>
-          {props.pending ? 'Saving…' : 'Save sharing'}
         </Button>
       </div>
     </form>

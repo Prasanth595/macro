@@ -23,10 +23,8 @@ import {
 } from '../../saved-views/queries/saved-view-actions';
 import { toSavedView } from '../../saved-views/queries/saved-views';
 import {
-  CreateSavedViewDialog,
   DeleteSavedViewDialog,
-  RenameSavedViewDialog,
-  ShareSavedViewDialog,
+  SavedViewDialog,
 } from '../../saved-views/views/saved-view-dialogs';
 import { TASK_SORT_OPTIONS } from '../constants';
 import {
@@ -148,11 +146,12 @@ function useCreateTaskSavedViewDialog(owner = getOwner()) {
     const id = uuid();
     const request = captureRequest();
     openDialog(
-      CreateSavedViewDialog,
+      SavedViewDialog,
       () => ({
         refresh: savedViewsList.refresh,
         viewerId,
         isCurrent: request.isCurrent,
+        mode: 'create' as const,
         id,
         name: record ? `${record.name.slice(0, 113)} (copy)` : '',
         config,
@@ -165,7 +164,7 @@ function useCreateTaskSavedViewDialog(owner = getOwner()) {
             omittedFilters={stored?.issues}
           />
         ),
-        onCreated: (created: SavedView) => {
+        onSaved: (created: SavedView) => {
           const decoded = decodeTaskSavedView(created.config);
           if (decoded.isErr()) {
             toast.failure(decoded.error);
@@ -212,41 +211,21 @@ function TaskSavedViewMenuItems(props: {
   const captureRequest = useTaskSavedViewRequest();
   const viewerId = useUserId();
   const create = useCreateTaskSavedViewDialog(props.owner);
-  const rename = () => {
+  const edit = () => {
     if (!savedViews || !savedViewsList) return;
     const record = props.record;
     const request = captureRequest();
     props.defer(() =>
       openDialog(
-        RenameSavedViewDialog,
-        {
-          refresh: savedViewsList.refresh,
-          viewerId,
-          record,
-          isCurrent: request.isCurrent,
-          onUpdated: (updated) => {
-            if (request.isCurrent(updated.id))
-              savedViews.acceptConfirmed(updated);
-          },
-        },
-        { owner: props.owner }
-      )
-    );
-  };
-  const share = () => {
-    if (!savedViews || !savedViewsList) return;
-    const record = props.record;
-    const request = captureRequest();
-    props.defer(() =>
-      openDialog(
-        ShareSavedViewDialog,
+        SavedViewDialog,
         () => ({
+          mode: 'edit' as const,
           refresh: savedViewsList.refresh,
           viewerId,
           record,
           team: savedViewTeam?.(),
           isCurrent: request.isCurrent,
-          onUpdated: (updated) => {
+          onSaved: (updated) => {
             if (request.isCurrent(updated.id))
               savedViews.acceptConfirmed(updated);
           },
@@ -280,9 +259,7 @@ function TaskSavedViewMenuItems(props: {
   return (
     <SavedViewMenuItems
       owned={props.record.ownerId === viewerId()}
-      canShare={Boolean(savedViewTeam?.() || props.record.sharedTeamId)}
-      onRename={rename}
-      onShare={share}
+      onEdit={edit}
       onDelete={remove}
       onDuplicate={() => {
         const record = props.record;
