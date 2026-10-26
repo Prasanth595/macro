@@ -129,7 +129,7 @@ export function Tabs<T extends string>(props: TabsProps<T>) {
         >
           <div
             class={cn(
-              'inline-flex min-w-0 items-center overflow-hidden rounded-full border border-edge-button bg-control elevated divide-x divide-edge-divider',
+              'inline-flex min-w-0 items-center overflow-hidden rounded-full border border-edge-button bg-control elevated gap-0.5 p-0.5',
               props.size === 'sm' ? 'h-6' : props.size === 'lg' ? 'h-9' : 'h-8',
               props.fullWidth && 'w-full'
             )}
@@ -204,11 +204,13 @@ function PillOption<T extends string>(props: {
       disabled={props.option.disabled}
       class={cn(
         'relative inline-flex min-w-0 shrink-0 text-ink-muted transition-colors duration-120 motion-reduce:transition-none',
-        props.joined ? 'h-full' : 'rounded-full border bg-control elevated',
-        // Unselected options share the outline Button frame.
+        props.joined
+          ? 'h-full rounded-full border border-transparent data-checked:border-edge-button data-checked:shadow-sm'
+          : 'rounded-full border bg-control elevated data-checked:shadow-none',
+        // The joined track leaves a visible inset around each rounded option.
         'not-touch:not-data-checked:hover:overlay-hover not-touch:not-data-checked:hover:text-ink',
-        // The selected option takes the pressed fill, flat like a pressed Button.
-        'data-checked:border-edge-button data-checked:overlay-active data-checked:text-ink data-checked:shadow-none',
+        // The selected option uses the same pressed fill as a pressed Button.
+        'data-checked:border-edge-button data-checked:overlay-active data-checked:text-ink',
         'has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-edge-focus',
         'data-disabled:pointer-events-none data-disabled:opacity-50',
         !props.joined && props.size === 'sm' && 'h-6',

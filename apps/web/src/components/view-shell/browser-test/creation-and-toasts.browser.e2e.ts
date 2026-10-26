@@ -22,9 +22,9 @@ for (const viewport of [
         const labels = tabs.locator('label');
         const first = await labels.nth(0).boundingBox();
         const second = await labels.nth(1).boundingBox();
-        expect(
-          Math.abs(first!.x + first!.width - second!.x)
-        ).toBeLessThanOrEqual(1);
+        const gap = second!.x - first!.x - first!.width;
+        expect(gap).toBeGreaterThanOrEqual(2);
+        expect(gap).toBeLessThanOrEqual(5);
       }
       await page
         .getByRole('button', { name: 'New task, subtask, project, or tag' })

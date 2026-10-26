@@ -59,7 +59,7 @@ draw a full 1px frame edge, menus keep the glass cast shadow, and
 `ComposerSurface` (composers and settings cards) keeps the wide `composer-shadow`
 halo. Touch surfaces retain their existing shadows.
 
-Desktop view tabs are conjoined segments inside one rounded frame, with dividers and a pressed fill for the selected segment, matching the List/Board control. Wrapping preset choices can remain separate pills. Keep the existing touch-specific tab treatment and the agent composer's sliding track.
+Desktop view tabs share one rounded track, with a small inset and a fully rounded selected pill. The selected pill uses the pressed fill and a subtle edge; tabs have no internal dividers. Wrapping preset choices can remain separate pills. Keep the existing touch-specific tab treatment and the agent composer's sliding track.
 
 Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`, and
 `elevated-surface` instead of introducing one-off surface styling. Every menu,
