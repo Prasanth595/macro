@@ -5,11 +5,13 @@ import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { HeaderActionButton } from '@components/app/HeaderActionButton';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { SidePanel } from '@components/app/side-panel';
+import { SplitFileMenu } from '@components/app/split-layout/components/SplitFileMenu';
 import { SplitPanel } from '@components/app/split-panel';
 import {
   StaticMarkdown,
   StaticMarkdownContext,
 } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
+import { Permissions } from '@core/component/SharePermissions';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { GithubLabelPills } from '@entity/components/GithubLabelPill';
 import { PrAgentSessionsChip } from '@entity/views/PrAgentSessionsChip';
@@ -37,6 +39,7 @@ import {
   PrStatusIcon,
 } from '../component/PrStatus';
 import { PrTimeline } from '../component/PrTimeline';
+import { usePrFileOperations } from '../component/pr-file-operations';
 import { PrSidePanelSections } from '../component/sidepanel/PrSidePanelSections';
 import { createPrDiscussionSource } from '../data/prDiscussionSource';
 import {
@@ -241,6 +244,7 @@ export function PrDetailActions(props: { detail?: PrForeignEntityData }) {
 
 export function StandalonePrDetail(props: { foreignEntityId: string }) {
   const detail = usePrDetail(() => props.foreignEntityId);
+  const operations = usePrFileOperations(detail.data);
   const name = () => {
     const data = detail.data();
     return (
@@ -270,6 +274,16 @@ export function StandalonePrDetail(props: { foreignEntityId: string }) {
               <span class="min-w-0 truncate text-sm font-semibold">
                 {name()}
               </span>
+              <div class="shrink-0">
+                <SplitFileMenu
+                  id={props.foreignEntityId}
+                  itemType="foreign"
+                  name={name()}
+                  entityKind="pr"
+                  permissions={Permissions.CAN_VIEW}
+                  ops={operations()}
+                />
+              </div>
               <PrDetailActions detail={detail.data()} />
             </ViewShell.TopBar>
             <PrDetailContent

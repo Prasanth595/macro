@@ -5,6 +5,7 @@ import { useRouteParams } from '@app/lib/split-router';
 import { reviewsPrRoute } from '@app/routes/routes';
 import { PrChangesProvider } from '@block-pr/component/PrChanges';
 import { PrStatusIcon } from '@block-pr/component/PrStatus';
+import { usePrFileOperations } from '@block-pr/component/pr-file-operations';
 import { prDisplayName, prHtmlUrl } from '@block-pr/util/prKey';
 import {
   PrDetailActions,
@@ -12,7 +13,10 @@ import {
   usePrDetail,
 } from '@block-pr/views/PrDetail';
 import { SidePanel } from '@components/app/side-panel';
-import { SplitFileMenu } from '@components/app/split-layout/components/SplitFileMenu';
+import {
+  type FileOperation,
+  SplitFileMenu,
+} from '@components/app/split-layout/components/SplitFileMenu';
 import { SplitPanel } from '@components/app/split-panel';
 import { Permissions } from '@core/component/SharePermissions';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -22,6 +26,7 @@ function ReviewsPrBreadcrumb(props: {
   foreignEntityId: string;
   name: string;
   status?: string;
+  operations: FileOperation[];
 }) {
   return (
     <ViewBreadcrumbs.Item
@@ -50,7 +55,7 @@ function ReviewsPrBreadcrumb(props: {
               name={props.name}
               entityKind="pr"
               permissions={Permissions.CAN_VIEW}
-              ops={[]}
+              ops={props.operations}
             />
           </div>
         </div>
@@ -62,6 +67,7 @@ function ReviewsPrBreadcrumb(props: {
 export function ReviewsPrDetail(props: { foreignEntityId: string }) {
   const analytics = useAnalytics();
   const detail = usePrDetail(() => props.foreignEntityId);
+  const operations = usePrFileOperations(detail.data);
   const name = () => {
     const data = detail.data();
     return (
@@ -93,6 +99,7 @@ export function ReviewsPrDetail(props: { foreignEntityId: string }) {
           foreignEntityId={props.foreignEntityId}
           name={name()}
           status={detail.data()?.pullRequest.status ?? undefined}
+          operations={operations()}
         />
         <ChangesSplit>
           <div class="flex size-full min-h-0 min-w-0 flex-col overflow-hidden @container">

@@ -38,13 +38,7 @@ export default function PrBlock() {
             <PrDetailActions detail={detail.data()} />
           </ViewShell.TopBar>
           <Show when={detail.data()}>
-            {(data) => (
-              <PrSplitHeader
-                foreignEntityId={foreignEntityId}
-                prRef={data().prRef}
-                enrichment={data().pullRequest}
-              />
-            )}
+            {(data) => <PrSplitHeader detail={data()} />}
           </Show>
           <PrDetailBody
             foreignEntityId={foreignEntityId}
