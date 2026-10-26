@@ -17,6 +17,7 @@ import { useNavigatedFromJK } from '@components/app/useNavigatedFromJK';
 import { useBlockId } from '@core/block';
 import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
 import { BlockLiveIndicators } from '@core/component/LiveIndicators';
+import { toast } from '@core/component/Toast/Toast';
 import {
   createParamsState,
   ParamsProvider,
@@ -37,8 +38,11 @@ import { getDisplayName, tryMacroId } from '@core/user';
 import { useBlockDocumentName } from '@core/util/currentBlockDocumentName';
 import { downloadFile } from '@filesystem/download';
 import IconShared from '@icon/share.svg';
+import DownloadSimple from '@icon/system/regular/download-simple.svg';
+import FileCsv from '@icon/system/regular/file-csv.svg';
+import FileXls from '@icon/system/regular/file-xls.svg';
 import { Badge } from '@ui';
-import { onMount, Show } from 'solid-js';
+import { createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { spreadsheetChatContext } from './core/chat-context';
 import { clipboardTargetInScope } from './core/clipboard-scope';
 import type { SpreadsheetData } from './definition';
@@ -109,6 +113,14 @@ function SpreadsheetBlockContent(props: { share?: string }) {
       | undefined;
     return value?.__block === 'spreadsheet' ? value : undefined;
   };
+  const [downloadSheet, setDownloadSheet] =
+    createSignal<(format: 'xlsx' | 'csv') => boolean>();
+  const download = (format: 'xlsx' | 'csv') => {
+    if (downloadSheet()?.(format)) return;
+    toast.failure(
+      "The spreadsheet isn't ready to download yet. Try again in a moment."
+    );
+  };
 
   return (
     <DocumentBlockContainer>
@@ -136,6 +148,23 @@ function SpreadsheetBlockContent(props: { share?: string }) {
             { op: 'rename' },
             { op: 'copy' },
             { op: 'moveToProject' },
+            {
+              group: 'file',
+              label: 'Download',
+              icon: DownloadSimple,
+              children: [
+                {
+                  label: 'Download as Excel (.xlsx)',
+                  icon: FileXls,
+                  action: () => download('xlsx'),
+                },
+                {
+                  label: 'Download as CSV',
+                  icon: FileCsv,
+                  action: () => download('csv'),
+                },
+              ],
+            },
             { op: 'delete' },
           ]}
           tools={[
@@ -151,6 +180,7 @@ function SpreadsheetBlockContent(props: { share?: string }) {
         />
         <Show when={data()?.syncSource} keyed>
           {(syncSource) => {
+            onCleanup(() => setDownloadSheet(undefined));
             const source = createSpreadsheetSession({
               documentId,
               userId: userId(),
@@ -202,6 +232,7 @@ function SpreadsheetBlockContent(props: { share?: string }) {
                       mentions={spreadsheetMentions}
                       store={store}
                       name={name()}
+                      onDownloadReady={(run) => setDownloadSheet(() => run)}
                       onExportXlsx={(bytes) =>
                         downloadFile(
                           new Blob([bytes.slice().buffer], {
