@@ -5,7 +5,7 @@ import UserIcon from '@icon/system/regular/user.svg';
 import { queryReadyGate } from '@queries/gate';
 import type { CardPosition } from '@service-storage/generated/schemas/cardPosition';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
-import { okAsync } from 'neverthrow';
+import { errAsync, okAsync } from 'neverthrow';
 import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
 import { DatabaseMentionLabel } from '../../database/components/database-mention-label';
@@ -202,6 +202,16 @@ function BoardFixture() {
     retain: () => {},
     addOption: () => okAsync(undefined),
     write: (mutation) => {
+      // This fixture tests delegation to the host composer, not record creation.
+      if (mutation.kind === 'create')
+        return errAsync({
+          kind: 'ops',
+          error: {
+            code: 'INVALID_OP',
+            message: 'Create pipeline records through the host composer.',
+            refusal: null,
+          },
+        });
       const next = {
         ...snapshot(),
         rows: optimisticRows(snapshot().rows, [mutation]),

@@ -80,6 +80,9 @@ test('a lane starts the host composer with its stage and no blank save', async (
     'Demo scheduled'
   );
   await expect(page.locator('[data-kanban-card]')).toHaveCount(3);
+  expect(
+    await page.evaluate(() => sessionStorage.getItem('crm-board-rows'))
+  ).toBeNull();
 });
 
 test('reorders within a lane and restores order after a reload', async ({
