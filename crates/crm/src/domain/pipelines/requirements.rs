@@ -320,11 +320,11 @@ fn validate_batch(
                         options.remove(option);
                     }
                     for draft in drafts.values_mut().chain(inserted.iter_mut()) {
-                        if let Some(value) = draft.cells.get_mut(column) {
-                            if value.options.contains(option) {
-                                value.options.retain(|id| id != option);
-                                value.present = !value.options.is_empty();
-                            }
+                        if let Some(value) = draft.cells.get_mut(column)
+                            && value.options.contains(option)
+                        {
+                            value.options.retain(|id| id != option);
+                            value.present = !value.options.is_empty();
                         }
                     }
                 }
