@@ -53,10 +53,11 @@ const taskSavedViewSchema = z
     filters: filtersSchema,
   })
   .strict();
-const readableTaskSavedViewSchema = taskSavedViewSchema.pick({
-  kind: true,
-  version: true,
-})
+const readableTaskSavedViewSchema = taskSavedViewSchema
+  .pick({
+    kind: true,
+    version: true,
+  })
   .extend({ filters: z.record(z.string(), z.unknown()) })
   .loose();
 const SAVED_TASK_FACET_IDS: readonly string[] = [

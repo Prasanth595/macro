@@ -63,7 +63,7 @@ this feature does not add one.
 ```text
 Tasks UI
   -> Tasks filter-definition adapter
-  -> reusable saved-view queries and draft behavior
+  -> reusable saved-view queries and mutation hooks
   -> generated GraphQL client
   -> GraphQL saved-view adapter
   -> saved_views domain service
@@ -86,20 +86,21 @@ service, and PostgreSQL adapter. Put authorization and write policy in the
 service. Both the existing REST adapter and a new GraphQL adapter call it.
 Transport handlers must not retain independent owner or membership policy.
 
-Keep separate create, update, and delete mutation hooks and draft behavior in
-`features/saved-views`. Keep `useSavedViews` (paginated list) and `useSavedView`
-(single definition) independent and compose them in the host. The Task draft
-controller receives only the detail source; mutation dialogs receive a refresh
-callback, not both query sources. Compose the list through compound components
-and reuse styled menu items across its context and overflow menus. Open focused
-create, rename, share, and delete dialogs through the shared imperative dialog
-system; action dialogs own mutations and render presentational forms or a delete
-confirmation. Duplication reuses creation with a prefilled private copy. Keep Task
-filters, filter summaries, navigation, and rendering in `features/tasks-view`;
-the Task draft controller must not own generic
-CRUD or dialog state. Bind asynchronous completion to its originating draft and
-account rather than a navigation counter. Do not make the generic feature import
-Tasks or CRM components.
+Keep separate create, update, and delete mutation hooks in `features/saved-views`.
+Keep `useSavedViews` (paginated list) and `useSavedView` (single definition)
+independent and compose them in the host. The Task draft primitive receives only
+the detail source and owns confirmed filter snapshots, dirty state, diagnostics,
+and revision-aware reconciliation. The Tasks host owns selection, navigation,
+and account/task lifecycle. Task actions capture the host request scope before
+writing or reloading, reject stale completions, and explicitly select created
+views. Mutation dialogs receive a refresh callback, not both query sources.
+Compose the list through compound components and reuse styled menu items across
+its context and overflow menus. Open focused create, rename, share, and delete
+dialogs through the shared imperative dialog system; action dialogs own mutations
+and render presentational forms or a delete confirmation. Duplication reuses
+creation with a prefilled private copy. Keep Task filters, summaries, drafts,
+navigation, and rendering in `features/tasks-view`; do not make the generic
+feature import Tasks or CRM components.
 
 ## Stored filter contract
 
@@ -368,7 +369,7 @@ Implement in focused slices, with behavior checks alongside each slice:
    additive team-sharing and revision migrations with current-membership checks.
 2. GraphQL adapter, viewer reads, service wiring, generated contracts, and mutation
    cache policy. Preserve existing REST/CRM behavior.
-3. Reusable frontend queries/drafts and the main Tasks desktop/mobile integration.
+3. Reusable frontend queries/mutations, Task-owned drafts, and the main Tasks desktop/mobile integration.
    Keep project and CRM embedded Task consumers unchanged.
 4. Update the Tasks agent guide and affected crate guidance; exercise permissions,
    multiple viewers, revision conflicts, missing filters, and navigation in the

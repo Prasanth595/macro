@@ -11,7 +11,7 @@ import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { Show } from 'solid-js';
 import { TASK_TABS } from '../constants';
-import { taskSavedViewTitle } from '../primitives/create-task-saved-views';
+import { taskSavedViewTitle } from '../primitives/create-task-saved-view-draft';
 import { TasksCreateAction } from '../tasks-create-action';
 import { useTasksView } from '../tasks-view-context';
 import {

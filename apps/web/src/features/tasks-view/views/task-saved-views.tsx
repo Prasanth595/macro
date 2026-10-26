@@ -34,9 +34,10 @@ import {
   readTaskSavedView,
   type TaskSavedViewConfig,
   type TaskSavedViewIssue,
+  withTaskTabFilters,
 } from '../filters/task-saved-view';
 import { useTaskFilters } from '../filters/use-task-filters';
-import { taskSavedViewTitle } from '../primitives/create-task-saved-views';
+import { taskSavedViewTitle } from '../primitives/create-task-saved-view-draft';
 import { tasksTabSearch, tasksTabSearchCodec } from '../tasks-tab-search';
 import { useTasksView } from '../tasks-view-context';
 
@@ -79,9 +80,43 @@ function TaskSavedViewSummary(props: {
   );
 }
 
+/** The host scope survives menu handoffs and expires on navigation or disposal. */
+function useTaskSavedViewRequest() {
+  const { savedViews, savedViewScope } = useTasksView();
+  return () => {
+    const scope = savedViewScope();
+    return {
+      revision: savedViews?.revision() ?? 0,
+      isCurrent: (id?: string) =>
+        Boolean(
+          scope && scope === savedViewScope() && (!id || id === scope.id)
+        ),
+    };
+  };
+}
+
+function useReloadTaskSavedView() {
+  const { savedViews, savedViewSource } = useTasksView();
+  const captureRequest = useTaskSavedViewRequest();
+  return async () => {
+    if (!savedViews || !savedViewSource) return;
+    const request = captureRequest();
+    await savedViewSource.refresh();
+    const record = savedViewSource.data();
+    if (record && request.isCurrent(record.id)) savedViews.reset(record);
+  };
+}
 /** Creation is shared by capture, duplication, and the unsaved-view toolbar. */
 function useCreateTaskSavedViewDialog(owner = getOwner()) {
-  const { savedViews, savedViewsList, savedViewTeam } = useTasksView();
+  const {
+    savedViews,
+    savedViewsList,
+    savedViewTeam,
+    state,
+    setState,
+    selectCreatedSavedView,
+  } = useTasksView();
+  const captureRequest = useTaskSavedViewRequest();
   const viewerId = useUserId();
   return (record?: SavedView) => {
     if (!savedViews || !savedViewsList) return;
@@ -98,7 +133,7 @@ function useCreateTaskSavedViewDialog(owner = getOwner()) {
     }
     const config = definition.value;
     const id = uuid();
-    const request = savedViews.checkpoint();
+    const request = captureRequest();
     openDialog(
       CreateSavedViewDialog,
       () => ({
@@ -123,8 +158,20 @@ function useCreateTaskSavedViewDialog(owner = getOwner()) {
             toast.failure(decoded.error);
             return;
           }
+          if (
+            !request.isCurrent() ||
+            savedViews.revision() !== request.revision
+          )
+            return;
+          const facets = withTaskTabFilters(state.tab, state.facets);
           batch(() => {
-            if (request.created(created) && record) savedViews.reset();
+            if (!savedViews.acceptConfirmed(created)) return;
+            setState('tab', 'team-tasks');
+            setState(
+              'facets',
+              record ? materializeTaskSavedView(decoded.value).facets : facets
+            );
+            selectCreatedSavedView(created.id);
           });
         },
       }),
@@ -138,13 +185,20 @@ function TaskSavedViewMenuItems(props: {
   owner: Owner | null;
   defer: (action: () => void) => void;
 }) {
-  const { savedViews, savedViewsList, savedViewTeam } = useTasksView();
+  const {
+    savedViews,
+    savedViewsList,
+    savedViewTeam,
+    savedViewScope,
+    leaveSavedView,
+  } = useTasksView();
+  const captureRequest = useTaskSavedViewRequest();
   const viewerId = useUserId();
   const create = useCreateTaskSavedViewDialog(props.owner);
   const rename = () => {
     if (!savedViews || !savedViewsList) return;
     const record = props.record;
-    const request = savedViews.checkpoint();
+    const request = captureRequest();
     props.defer(() =>
       openDialog(
         RenameSavedViewDialog,
@@ -153,7 +207,10 @@ function TaskSavedViewMenuItems(props: {
           viewerId,
           record,
           isCurrent: request.isCurrent,
-          onUpdated: request.updated,
+          onUpdated: (updated) => {
+            if (request.isCurrent(updated.id))
+              savedViews.acceptConfirmed(updated);
+          },
         },
         { owner: props.owner }
       )
@@ -162,7 +219,7 @@ function TaskSavedViewMenuItems(props: {
   const share = () => {
     if (!savedViews || !savedViewsList) return;
     const record = props.record;
-    const request = savedViews.checkpoint();
+    const request = captureRequest();
     props.defer(() =>
       openDialog(
         ShareSavedViewDialog,
@@ -172,7 +229,10 @@ function TaskSavedViewMenuItems(props: {
           record,
           team: savedViewTeam?.(),
           isCurrent: request.isCurrent,
-          onUpdated: request.updated,
+          onUpdated: (updated) => {
+            if (request.isCurrent(updated.id))
+              savedViews.acceptConfirmed(updated);
+          },
         }),
         { owner: props.owner }
       )
@@ -181,7 +241,7 @@ function TaskSavedViewMenuItems(props: {
   const remove = () => {
     if (!savedViews || !savedViewsList) return;
     const record = props.record;
-    const request = savedViews.checkpoint();
+    const request = captureRequest();
     props.defer(() =>
       openDialog(
         DeleteSavedViewDialog,
@@ -190,7 +250,11 @@ function TaskSavedViewMenuItems(props: {
           viewerId,
           record,
           isCurrent: request.isCurrent,
-          onDeleted: savedViews.deleted,
+          onDeleted: (deleted, viewer) => {
+            const scope = savedViewScope();
+            if (scope?.id === deleted.id && scope.viewerId === viewer)
+              leaveSavedView();
+          },
         },
         { owner: props.owner }
       )
@@ -221,6 +285,8 @@ export function TaskSavedViewsList(props: {
   const {
     savedViews,
     savedViewsList,
+    startSavedView,
+    selectSavedView,
     isSidebarSectionOpen,
     setSidebarSectionOpen,
   } = useTasksView();
@@ -239,9 +305,7 @@ export function TaskSavedViewsList(props: {
           open={isSidebarSectionOpen('saved-views')}
           onOpenChange={(open) => setSidebarSectionOpen('saved-views', open)}
         >
-          <SavedViewList.Header
-            onCreate={() => run(() => savedViews?.start())}
-          />
+          <SavedViewList.Header onCreate={() => run(startSavedView)} />
           <SavedViewList.Content>
             <SavedViewList.Items>
               <For each={views().items()}>
@@ -250,7 +314,7 @@ export function TaskSavedViewsList(props: {
                     view={record}
                     selected={selectedId() === record.id}
                     scopeKey={viewerId()}
-                    onSelect={() => run(() => savedViews?.select(record.id))}
+                    onSelect={() => run(() => selectSavedView(record.id))}
                     menu={(defer) => (
                       <TaskSavedViewMenuItems
                         record={record}
@@ -430,7 +494,9 @@ export function TaskSavedViewMenu() {
 }
 
 export function TaskSavedViewActions() {
-  const { savedViews, savedViewsList } = useTasksView();
+  const { savedViews, savedViewsList, leaveSavedView } = useTasksView();
+  const captureRequest = useTaskSavedViewRequest();
+  const reload = useReloadTaskSavedView();
   if (!savedViews || !savedViewsList) return null;
   const viewerId = useUserId();
   const create = useCreateTaskSavedViewDialog();
@@ -441,9 +507,7 @@ export function TaskSavedViewActions() {
     const view = savedViews?.view();
     return view?.kind === 'saved' ? view : undefined;
   };
-  let lastRequest:
-    | ReturnType<NonNullable<typeof savedViews>['checkpoint']>
-    | undefined;
+  let lastRequest: ReturnType<typeof captureRequest> | undefined;
   const save = async () => {
     const view = selected();
     if (
@@ -458,7 +522,7 @@ export function TaskSavedViewActions() {
       toast.failure(config.error);
       return;
     }
-    const request = savedViews.checkpoint();
+    const request = captureRequest();
     lastRequest = request;
     const result = await update.mutateAsync({
       id: view.record.id,
@@ -466,8 +530,12 @@ export function TaskSavedViewActions() {
       config: config.value,
       expectedRevision: view.record.revision,
     });
-    if (!result.error && result.data?.updateSavedView)
-      request.updated(toSavedView(result.data.updateSavedView));
+    if (
+      !result.error &&
+      result.data?.updateSavedView &&
+      request.isCurrent(view.record.id)
+    )
+      savedViews.acceptConfirmed(toSavedView(result.data.updateSavedView));
   };
   const failure = () => {
     const error = update.error;
@@ -507,11 +575,7 @@ export function TaskSavedViewActions() {
             <Button size="md" variant="ghost" onClick={() => create()}>
               Save view
             </Button>
-            <Button
-              size="md"
-              variant="ghost"
-              onClick={() => savedViews?.leave()}
-            >
+            <Button size="md" variant="ghost" onClick={leaveSavedView}>
               Cancel
             </Button>
           </Show>
@@ -533,12 +597,7 @@ export function TaskSavedViewActions() {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() =>
-                  fireAndForget(
-                    savedViews?.reload() ?? Promise.resolve(),
-                    'saved-views'
-                  )
-                }
+                onClick={() => fireAndForget(reload(), 'saved-views')}
               >
                 Reload saved view
               </Button>
@@ -574,6 +633,8 @@ export function TaskSavedViewFailure() {
 
 export function TaskSavedViewWarning() {
   const { savedViews, savedViewsList } = useTasksView();
+  const captureRequest = useTaskSavedViewRequest();
+  const reload = useReloadTaskSavedView();
   if (!savedViews || !savedViewsList) return null;
   const viewerId = useUserId();
   const update = useUpdateSavedView({ refresh: savedViewsList.refresh });
@@ -582,7 +643,7 @@ export function TaskSavedViewWarning() {
     return view.kind === 'saved' ? view : undefined;
   };
   const issues = () => selected()?.issues ?? [];
-  let lastRequest: ReturnType<typeof savedViews.checkpoint> | undefined;
+  let lastRequest: ReturnType<typeof captureRequest> | undefined;
   const removeUnsupported = async () => {
     const view = selected();
     if (
@@ -591,7 +652,7 @@ export function TaskSavedViewWarning() {
       view.record.ownerId !== viewerId()
     )
       return;
-    const request = savedViews.checkpoint();
+    const request = captureRequest();
     lastRequest = request;
     const result = await update.mutateAsync({
       id: view.record.id,
@@ -599,8 +660,12 @@ export function TaskSavedViewWarning() {
       config: readTaskSavedView(view.record.config).config,
       expectedRevision: view.record.revision,
     });
-    if (!result.error && result.data?.updateSavedView)
-      request.updated(toSavedView(result.data.updateSavedView));
+    if (
+      !result.error &&
+      result.data?.updateSavedView &&
+      request.isCurrent(view.record.id)
+    )
+      savedViews.acceptConfirmed(toSavedView(result.data.updateSavedView));
   };
   const failure = () =>
     !update.isPending && lastRequest?.isCurrent() ? update.error : null;
@@ -653,9 +718,7 @@ export function TaskSavedViewWarning() {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() =>
-                  fireAndForget(savedViews.reload(), 'saved-views')
-                }
+                onClick={() => fireAndForget(reload(), 'saved-views')}
               >
                 Reload saved view
               </Button>

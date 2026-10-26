@@ -41,8 +41,10 @@ import { useTagSets, useTagSetsReady } from '@property/tags/tag-sets-context';
 import type { ContextProviderProps } from '@solid-primitives/context';
 import {
   type Accessor,
+  batch,
   createEffect,
   createMemo,
+  createSignal,
   mergeProps,
   on,
   onCleanup,
@@ -60,9 +62,9 @@ import type { TaskFacetContext } from './filters/task-facets';
 import { DEFAULT_TASK_FACET_SELECTION } from './filters/task-facets';
 import { createTasksViewPersistence } from './persistence';
 import {
-  createTaskSavedViews,
-  type TaskSavedViews,
-} from './primitives/create-task-saved-views';
+  createTaskSavedViewDraft,
+  type TaskSavedViewDraft,
+} from './primitives/create-task-saved-view-draft';
 import { createTasksViewSearch } from './primitives/create-tasks-view-search';
 import {
   type TasksDataSource,
@@ -118,8 +120,16 @@ type TasksListController = ListController<
 export type TasksViewContext = {
   scopeKey?: string;
   state: Store<TasksViewState>;
-  savedViews?: TaskSavedViews;
+  savedViews?: TaskSavedViewDraft;
   savedViewsList?: SavedViewsSource;
+  savedViewSource?: SavedViewSource;
+  savedViewScope: Accessor<
+    { id: string | undefined; viewerId: string | undefined } | undefined
+  >;
+  startSavedView: () => void;
+  selectSavedView: (id: string) => void;
+  selectCreatedSavedView: (id: string) => void;
+  leaveSavedView: () => void;
   savedViewTeam?: Accessor<{ id: string; name: string } | undefined>;
   facetContext: Accessor<TaskFacetContext>;
   createTask?: TasksViewProviderProps['onCreateTask'];
@@ -176,6 +186,8 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   const userId = useUserId();
   const tagSets = useTagSets();
   const tagSetsReady = useTagSetsReady();
+  const [newSavedView, setNewSavedView] = createSignal<boolean | string>(false);
+  const [savedViewNavigation, setSavedViewNavigation] = createSignal({});
   const projectsFlag = useFeatureFlag(enableProjects);
   const projectsEnabled = () => projectsFlag().enabled;
   const ganttFlag = useFeatureFlag(enableGantt);
@@ -218,6 +230,11 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
     : createState();
   // Rollout fallbacks must not overwrite saved tab or layout selections.
   const state = mergeProps(persistedState, {
+    get savedViewActive() {
+      return Boolean(
+        props.savedViewSource && (newSavedView() || tabSearch.savedView)
+      );
+    },
     get layout() {
       if (
         isTouchDevice() ||
@@ -276,7 +293,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   const isGroupExpanded = (groupId: string) =>
     !state.collapsedGroupIds.includes(groupId);
 
-  let savedViews: TaskSavedViews | undefined;
+  let savedViews: TaskSavedViewDraft | undefined;
   const facetContext = (): TaskFacetContext => {
     const tags = new Map(
       createTagFacetContext(tagSets()).tagPropertyDefinitionByOptionId
@@ -287,33 +304,109 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   };
   const savedViewsList = props.savedViewsSource?.();
   const savedView = props.savedViewSource?.(() => tabSearch.savedView);
+  const applyTaskFacets = (tab: TasksTab, facets: TasksViewState['facets']) =>
+    setState(
+      produce((draft) => {
+        draft.tab = tab;
+        draft.facets = normalizeFacetSelection(facets);
+        draft.collapsedGroupIds = [];
+      })
+    );
+  const navigateSavedView = (id: string | undefined) => {
+    setSavedViewNavigation({});
+    setTabSearch(
+      { savedView: id, tab: persistedState.tab },
+      { history: 'replace' }
+    );
+    closeTask();
+  };
+  const selectSavedView = (id: string) =>
+    batch(() => {
+      setNewSavedView(false);
+      navigateSavedView(id);
+    });
+  const selectCreatedSavedView = (id: string) =>
+    batch(() => {
+      // Keep the created draft active until the router installs its ID.
+      setNewSavedView(id);
+      navigateSavedView(id);
+    });
+  const startSavedView = () =>
+    batch(() => {
+      setNewSavedView(true);
+      applyTaskFacets('team-tasks', DEFAULT_TASK_FACET_SELECTION);
+      setState('search', '');
+      navigateSavedView(undefined);
+    });
+  const leaveSavedView = () =>
+    batch(() => {
+      setNewSavedView(false);
+      applyTaskFacets('my-tasks', DEFAULT_TASK_FACET_SELECTION);
+      navigateSavedView(undefined);
+    });
   if (savedView) {
-    savedViews = createTaskSavedViews({
+    savedViews = createTaskSavedViewDraft({
       source: savedView,
       selectedId: () => tabSearch.savedView,
       viewerId: userId,
-      taskId: () => routeParams.taskId,
+      creating: () => Boolean(newSavedView()),
       state,
       facetContext,
-      setActive: (active) => setState('savedViewActive', active),
-      apply: (tab, facets) =>
-        setState(
-          produce((draft) => {
-            draft.tab = tab;
-            draft.facets = normalizeFacetSelection(facets);
-            draft.collapsedGroupIds = [];
-          })
-        ),
-      clearSearch: () => setState('search', ''),
-      navigate: (id) => {
-        setTabSearch(
-          { savedView: id, tab: persistedState.tab },
-          { history: 'replace' }
-        );
-        closeTask();
-      },
+      apply: (facets) => applyTaskFacets('team-tasks', facets),
     });
   }
+  let disposed = false;
+  onCleanup(() => {
+    disposed = true;
+  });
+  const requestScope = createMemo(() => ({
+    id: tabSearch.savedView,
+    viewerId: userId(),
+    taskId: routeParams.taskId,
+    tab: state.tab,
+    creating: newSavedView(),
+    navigation: savedViewNavigation(),
+  }));
+  const savedViewScope = () => (disposed ? undefined : requestScope());
+  let priorSavedView: string | undefined;
+  let priorSavedViewViewer: string | undefined;
+  createEffect(
+    on(
+      () => [tabSearch.savedView, userId(), newSavedView()] as const,
+      ([id, viewer, creating]) => {
+        const accountChanged =
+          priorSavedViewViewer !== undefined && viewer !== priorSavedViewViewer;
+        if (accountChanged) setNewSavedView(false);
+        if (creating && !accountChanged) {
+          if (creating !== id) return;
+          setNewSavedView(false);
+        }
+        const changed =
+          id !== priorSavedView || viewer !== priorSavedViewViewer;
+        const wasSelected = Boolean(priorSavedView);
+        priorSavedView = id;
+        priorSavedViewViewer = viewer;
+        if (changed) setState('search', '');
+        if (accountChanged || (!id && wasSelected)) {
+          applyTaskFacets(
+            accountChanged ? 'my-tasks' : state.tab,
+            DEFAULT_TASK_FACET_SELECTION
+          );
+        }
+      }
+    )
+  );
+  createEffect(
+    on(
+      () => routeParams.taskId,
+      (id, previous) => {
+        if (id === previous || !state.savedViewActive) return;
+        if (typeof newSavedView() !== 'string') savedViews?.reset();
+        if (id === undefined && savedView)
+          fireAndForget(savedView.refresh(), 'saved-views');
+      }
+    )
+  );
 
   const source = withSplitPanelOwner(ownedSlot('data-source'), () =>
     (props.sourceFactory ?? useTasksDataSource)(state, {
@@ -462,7 +555,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   const setTab = (tab: TasksTab) => {
     if (tab === 'projects' && !projectsEnabled()) return;
     const leavingSavedView = state.savedViewActive;
-    if (leavingSavedView) savedViews?.leave();
+    if (leavingSavedView) leaveSavedView();
     if (persistedState.tab === tab && !leavingSavedView) {
       closeTask();
       return;
@@ -506,6 +599,12 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
     scopeKey: props.scopeKey,
     savedViews,
     savedViewsList,
+    savedViewSource: savedView,
+    savedViewScope,
+    startSavedView,
+    selectSavedView,
+    selectCreatedSavedView,
+    leaveSavedView,
     savedViewTeam: props.savedViewTeam,
     facetContext,
     get createTask() {

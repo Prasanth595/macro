@@ -8,8 +8,8 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 
 - `tasks-view.tsx` and `tasks-view-context.tsx`: independent saved-view list/detail query composition, filter state, router integration, and task-list source ownership.
 - `filters/task-saved-view.ts`: strict capture and permissive reading of supported filters, with diagnostics for skipped conditions.
-- `primitives/create-task-saved-views.ts`: one selection-state union, task filter drafts, and scoped completion checkpoints; receives only the detail source, without list, mutation, or dialog state.
-- `views/task-saved-views.tsx`: compound sidebar/mobile lists, filter summaries, direct imperative action dialogs, and the inline save hook.
+- `primitives/create-task-saved-view-draft.ts`: confirmed filter snapshots, dirty state, skipped-filter diagnostics, and revision-aware reconciliation; receives only the detail source, without navigation, mutation, or dialog state.
+- `views/task-saved-views.tsx`: compound sidebar/mobile lists, filter summaries, imperative action dialogs, and request-scoped write/reload completion; the Tasks host owns selection and navigation.
 - `queries/use-tasks-query.ts`: shared list, board, Gantt, and search filtering.
 
 ## Gotchas
