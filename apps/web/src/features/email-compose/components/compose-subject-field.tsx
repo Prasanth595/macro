@@ -42,7 +42,7 @@ export function ComposeSubjectField(props: {
           when={props.compact}
           fallback={
             <input
-              ref={props.inputRef}
+              ref={(el) => props.inputRef?.(el)}
               type="text"
               aria-label="Subject"
               value={props.value}
