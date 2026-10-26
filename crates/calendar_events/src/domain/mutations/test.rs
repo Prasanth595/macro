@@ -198,6 +198,8 @@ struct FakeRepo {
     scheduled_syncs: Arc<Mutex<Vec<Uuid>>>,
     /// Join requests, keyed by event and requester like the table.
     join_requests: Arc<Mutex<Vec<crate::domain::join_requests::CalendarJoinRequest>>>,
+    /// The requester's copies of the addressed meeting.
+    meeting_copies: Vec<crate::domain::models::MeetingCopy>,
 }
 
 impl Default for FakeRepo {
@@ -224,6 +226,7 @@ impl Default for FakeRepo {
             export: None,
             scheduled_syncs: Default::default(),
             join_requests: Default::default(),
+            meeting_copies: Vec::new(),
         }
     }
 }
@@ -294,6 +297,14 @@ impl CalendarRepository for FakeRepo {
         unreachable!()
     }
 
+    async fn meeting_copies(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+    ) -> Result<Vec<crate::domain::models::MeetingCopy>, rootcause::Report> {
+        Ok(self.meeting_copies.clone())
+    }
+
     async fn event_export(
         &self,
         _requester_id: &str,
@@ -311,16 +322,10 @@ impl CalendarRepository for FakeRepo {
         use crate::domain::join_requests::{CalendarJoinRequest, CalendarJoinRequestStatus};
         let mut requests = self.join_requests.lock().unwrap();
         if let Some(existing) = requests
-            .iter_mut()
+            .iter()
             .find(|request| request.event_id == event_id && request.requester_id == requester_id)
         {
-            if existing.status != CalendarJoinRequestStatus::Declined {
-                return Ok((existing.clone(), false));
-            }
-            existing.status = CalendarJoinRequestStatus::Pending;
-            existing.requester_email = requester_email.to_string();
-            existing.created_at = Utc::now();
-            return Ok((existing.clone(), true));
+            return Ok((existing.clone(), false));
         }
         let request = CalendarJoinRequest {
             id: Uuid::now_v7(),
@@ -3031,6 +3036,7 @@ async fn outlook_write_pause_rejects_provider_operations_before_fetching_tokens(
         .unwrap();
 }
 
+mod copies;
 mod copy;
 mod details;
 mod guest_policy;

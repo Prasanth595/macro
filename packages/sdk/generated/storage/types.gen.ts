@@ -415,6 +415,18 @@ export type AgentSessionLifecycleEvent = {
 };
 
 /**
+ * Who started an agent session. The string form is the
+ * `agent_session.source` column's.
+ */
+export type AgentSessionSource = 'user' | 'agent' | 'routine';
+
+/**
+ * Where an agent session is shown. The string form is the
+ * `agent_session.visibility` column's.
+ */
+export type AgentSessionVisibility = 'listed' | 'unlisted' | 'hidden';
+
+/**
  * An agent session typing through its bot.
  */
 export type AgentTyping = {
@@ -1797,7 +1809,7 @@ export type CalendarEventSourceContent = {
  */
 export type CalendarJoinRequest = {
     /**
-     * When the request was made, or last reopened.
+     * When the request was made.
      */
     createdAt: string;
     /**
@@ -1839,7 +1851,7 @@ export type CalendarJoinRequestApiError = {
 /**
  * Machine-readable join-request failure category.
  */
-export type CalendarJoinRequestErrorCode = 'not_found' | 'already_on_calendar' | 'sharer_cannot_invite' | 'internal';
+export type CalendarJoinRequestErrorCode = 'not_found' | 'already_on_calendar' | 'sharer_cannot_invite' | 'request_declined' | 'internal';
 
 /**
  * Lifecycle of a request to be added as a guest of a shared event.
@@ -1913,6 +1925,7 @@ export type CalendarMentionEvent = {
      * Entity update time of the previewed copy.
      */
     updatedAt: string;
+    viewerCopy?: null | CalendarMentionViewerCopy;
     /**
      * The requester's own event entity for the mentioned meeting. Differs
      * from the mentioned id when the mention came from another attendee.
@@ -1973,6 +1986,13 @@ export type CalendarMentionPreviewRequestItem = {
 export type CalendarMentionPreviewResponse = {
     items: Array<CalendarMentionPreviewItem>;
 };
+
+/**
+ * How a requester holds a mentioned meeting on their own calendar, decided
+ * by the copy's own inbox, the way viewer capabilities decide organizer and
+ * guest.
+ */
+export type CalendarMentionViewerCopy = 'snapshot' | 'invitation' | 'event';
 
 /**
  * A materialized recurrence instance optimized for range queries.
@@ -3897,6 +3917,38 @@ export type CreateBulkDocumentResponseData = {
      * Indicates if the document was created successfully
      */
     success: boolean;
+};
+
+/**
+ * Request for a backend-initialized native Canvas.
+ */
+export type CreateCanvasDocumentRequest = {
+    /**
+     * Canvas name.
+     */
+    documentName: string;
+    /**
+     * Optional parent project.
+     */
+    projectId?: string | null;
+};
+
+/**
+ * Response for creating a native Canvas.
+ */
+export type CreateCanvasDocumentResponse = {
+    /**
+     * The document ID of the created native Canvas
+     */
+    documentId: string;
+    /**
+     * Metadata for the created document
+     */
+    documentMetadata: DocumentResponseMetadata;
+    /**
+     * A pre-generated permission token that you can use for SS
+     */
+    token: string;
 };
 
 /**
@@ -11531,6 +11583,11 @@ export type SessionIdentity = {
      * User-facing session name at the time of the event.
      */
     session_name: string;
+    /**
+     * Who started the session. Events from before it was recorded say
+     * nothing and read as a person.
+     */
+    source?: SessionSource;
 };
 
 /**
@@ -11599,6 +11656,12 @@ export type SessionSettledMetadata = {
     identity: SessionIdentity;
     last_turn?: null | TurnSummary;
 };
+
+/**
+ * Who started a session. Stored on the session and carried by its lifecycle
+ * events, so lists and notifications can treat unattended runs differently.
+ */
+export type SessionSource = 'user' | 'agent' | 'routine';
 
 /**
  * The session's live actor is gone: idle teardown, transport loss, or crash.
@@ -11993,6 +12056,10 @@ export type SoupAgentSessionSoupPropertiesField = {
      */
     repoUrl?: string | null;
     /**
+     * Who started the session
+     */
+    source?: AgentSessionSource;
+    /**
      * The session's last known status.
      *
      * `no_messages` until the first system event arrives, `disconnected` if
@@ -12016,6 +12083,10 @@ export type SoupAgentSessionSoupPropertiesField = {
      * The time the session was last viewed by the requesting user
      */
     viewedAt?: string | null;
+    /**
+     * Where the session is shown
+     */
+    visibility?: AgentSessionVisibility;
     /**
      * Last captured working branch, when the runtime has reported one.
      */
@@ -15985,7 +16056,7 @@ export type RequestToJoinErrors = {
      */
     404: CalendarJoinRequestApiError;
     /**
-     * Already on the requester's calendar, or the sharer cannot add guests
+     * Already on the requester's calendar, the sharer cannot add guests, or the sharer declined the requester's earlier request
      */
     409: CalendarJoinRequestApiError;
     /**
@@ -18801,6 +18872,7 @@ export type UpdateDatabasePermissionsErrors = {
     401: ErrorResponse;
     403: ErrorResponse;
     404: ErrorResponse;
+    409: ErrorResponse;
     500: ErrorResponse;
 };
 
@@ -19265,6 +19337,44 @@ export type CreateDocumentResponses = {
 };
 
 export type CreateDocumentResponse = CreateDocumentResponses[keyof CreateDocumentResponses];
+
+export type CreateCanvasHandlerData = {
+    body: CreateCanvasDocumentRequest;
+    path?: never;
+    query?: never;
+    url: '/documents/create_canvas';
+};
+
+export type CreateCanvasHandlerErrors = {
+    400: ErrorResponse;
+    401: ErrorResponse;
+    409: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type CreateCanvasHandlerError = CreateCanvasHandlerErrors[keyof CreateCanvasHandlerErrors];
+
+export type CreateCanvasHandlerResponses = {
+    /**
+     * Response for creating a native Canvas.
+     */
+    200: {
+        /**
+         * The document ID of the created native Canvas
+         */
+        documentId: string;
+        /**
+         * Metadata for the created document
+         */
+        documentMetadata: DocumentResponseMetadata;
+        /**
+         * A pre-generated permission token that you can use for SS
+         */
+        token: string;
+    };
+};
+
+export type CreateCanvasHandlerResponse = CreateCanvasHandlerResponses[keyof CreateCanvasHandlerResponses];
 
 export type CreateMarkdownHandlerData = {
     body: CreateMarkdownDocumentRequest;

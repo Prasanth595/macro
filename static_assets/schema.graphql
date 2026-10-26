@@ -4,13 +4,34 @@ Page request for the authenticated user's activity feed.
 input ActivityFeedInput {
 	"""
 	Opaque cursor from the previous page's `nextCursor`; absent for the
-	first page.
+	first page. Pass it back with the same `scope`.
 	"""
 	cursor: String
 	"""
 	Page size; defaults to 25, capped at 100.
 	"""
 	limit: Int
+	"""
+	Whose activity to read; defaults to the user's own.
+	"""
+	scope: ActivityFeedScope! = MINE
+}
+
+"""
+Whose activity an activity feed page reads.
+"""
+enum ActivityFeedScope {
+	"""
+	The authenticated user's own activity, delegated actions included.
+	"""
+	MINE
+	"""
+	Activity by the authenticated user's teammates, on entities shared
+	with the user (link sharing alone does not count; forms never). A
+	page may hold fewer items than its limit, or none, while
+	`nextCursor` is set: keep paging until it is absent.
+	"""
+	TEAM
 }
 
 """
@@ -1151,7 +1172,7 @@ type GraphqlActivityOverview {
 }
 
 """
-One page of the authenticated user's activity, newest first.
+One page of activity, newest first.
 """
 type GraphqlActivityPage {
 	"""
@@ -1340,6 +1361,16 @@ input GraphqlAgentSessionLiteral @oneOf {
 	(`bot|<uuid>`), or a team (a bare hyphenated uuid).
 	"""
 	owner: String
+	"""
+	Who started the session. Narrows the sessions a query asks for; it
+	does not opt the query in.
+	"""
+	source: GraphqlAgentSessionSource
+	"""
+	Whether the session is listed. Narrows the sessions a query asks for;
+	it does not opt the query in.
+	"""
+	visibility: GraphqlAgentSessionVisibility
 }
 
 """
@@ -1482,6 +1513,44 @@ type GraphqlAgentSessionSettledMetadata {
 	The agent's last prose in the turn.
 	"""
 	excerpt: String
+}
+
+"""
+Who started an agent session: filter input, and the field Soup returns.
+"""
+enum GraphqlAgentSessionSource {
+	"""
+	A person, directly or through something they did.
+	"""
+	USER
+	"""
+	Another agent, which dispatched the session on its owner's behalf.
+	"""
+	AGENT
+	"""
+	A routine's unattended run.
+	"""
+	ROUTINE
+}
+
+"""
+Where an agent session is shown: filter input, and the field Soup returns.
+"""
+enum GraphqlAgentSessionVisibility {
+	"""
+	Shown wherever the owner's sessions are.
+	"""
+	LISTED
+	"""
+	Left out of Home and the default Agents list, but a filter can still
+	ask for it; a routine's setting decides it for each of its runs.
+	"""
+	UNLISTED
+	"""
+	Out of every list and search; only a query naming the session's id
+	returns it.
+	"""
+	HIDDEN
 }
 
 """
@@ -6913,6 +6982,14 @@ type GraphqlSoupAgentSession implements GraphqlSoupEntity {
 	"""
 	threadId: ID
 	"""
+	Who started the session.
+	"""
+	source: GraphqlAgentSessionSource!
+	"""
+	Where the session is shown.
+	"""
+	visibility: GraphqlAgentSessionVisibility!
+	"""
 	The session's last known status: `no_messages`, `disconnected`, or the
 	wire name of the most recent system event (for example `session/end`).
 	"""
@@ -9202,8 +9279,9 @@ type GraphqlUser {
 	"""
 	folders: [GraphqlSoupProject!]!
 	"""
-	A page of the authenticated user's own activity, newest first.
-	Delegated actions performed on the user's behalf are included.
+	A page of activity, newest first: by default the authenticated
+	user's own, delegated actions included; in the `TEAM` scope, their
+	teammates' activity on entities shared with the user.
 	"""
 	activity(input: ActivityFeedInput!): GraphqlActivityPage!
 	"""

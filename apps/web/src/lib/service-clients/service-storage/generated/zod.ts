@@ -1469,6 +1469,16 @@ export const mentionPreviewsResponse = zod
                   updatedAt: zod.iso
                     .datetime({})
                     .describe('Entity update time of the previewed copy.'),
+                  viewerCopy: zod
+                    .union([
+                      zod.null(),
+                      zod
+                        .enum(['snapshot', 'invitation', 'event'])
+                        .describe(
+                          "How a requester holds a mentioned meeting on their own calendar, decided\nby the copy's own inbox, the way viewer capabilities decide organizer and\nguest."
+                        ),
+                    ])
+                    .optional(),
                   viewerEventId: zod
                     .uuid()
                     .nullish()
@@ -1798,7 +1808,7 @@ export const listJoinRequestsResponse = zod
           .object({
             createdAt: zod.iso
               .datetime({})
-              .describe('When the request was made, or last reopened.'),
+              .describe('When the request was made.'),
             eventId: zod
               .uuid()
               .describe(
@@ -1825,8 +1835,9 @@ export const listJoinRequestsResponse = zod
 
 /**
  * @summary Ask the person who shared an event with one of the requester's channels
-to add them as a guest. Asking again while the request is pending changes
-nothing; asking after a decline reopens it.
+to add them as a guest. Asking again while the request is pending or
+accepted changes nothing; a declined request stands, so asking after a
+decline is refused with `request_declined`.
  */
 export const requestToJoinParams = zod.object({
   event_id: zod.uuid().describe('Shared calendar event entity id'),
@@ -1834,9 +1845,7 @@ export const requestToJoinParams = zod.object({
 
 export const requestToJoinResponse = zod
   .object({
-    createdAt: zod.iso
-      .datetime({})
-      .describe('When the request was made, or last reopened.'),
+    createdAt: zod.iso.datetime({}).describe('When the request was made.'),
     eventId: zod
       .uuid()
       .describe("The sharer's event entity that was shared with the channel."),
@@ -14263,8 +14272,8 @@ export const applyDatabaseOpsResponse = zod
   .describe('What each op of a batch did.');
 
 /**
- * @summary Read recipients for a database owned by the caller. Link and team
-sharing are always `null`: databases do not support them yet.
+ * @summary Read recipients and the team share for a database owned by the caller.
+Link sharing is always `null`: databases do not support it.
  */
 export const getDatabasePermissionsParams = zod.object({
   id: zod.uuid(),
@@ -14313,8 +14322,10 @@ export const getDatabasePermissionsResponse = zod.object({
 });
 
 /**
- * @summary Update channel recipients after proving database ownership. Turning on
-link or team sharing is refused; ownership cannot be changed here.
+ * @summary Update channel recipients and the team share after proving database
+ownership. Turning on link sharing is refused; ownership cannot be
+changed here. Only the actual owner may change the team share, and a 409
+means sharing changed since the request was authorized.
  */
 export const updateDatabasePermissionsParams = zod.object({
   id: zod.uuid(),
@@ -15976,6 +15987,103 @@ export const createDocumentResponse = zod.object({
     .describe('Data to be returned'),
   error: zod.boolean().describe('Indicates if an error occurred'),
 });
+
+/**
+ * @summary Creates and initializes a Canvas in one backend-owned lifecycle.
+ */
+export const createCanvasHandlerBody = zod
+  .object({
+    documentName: zod.string().describe('Canvas name.'),
+    projectId: zod.uuid().nullish().describe('Optional parent project.'),
+  })
+  .describe('Request for a backend-initialized native Canvas.');
+
+export const createCanvasHandlerResponse = zod
+  .object({
+    documentId: zod
+      .string()
+      .describe('The document ID of the created native Canvas'),
+    documentMetadata: zod.object({
+      branchedFromId: zod
+        .string()
+        .nullish()
+        .describe('The id of the document this document branched from'),
+      branchedFromVersionId: zod
+        .number()
+        .nullish()
+        .describe(
+          'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
+        ),
+      createdAt: zod.iso
+        .datetime({})
+        .nullish()
+        .describe('The time the document was created'),
+      documentBom: zod
+        .array(
+          zod.object({
+            id: zod.string().describe('The uuid of the bom part'),
+            path: zod
+              .string()
+              .describe('The file path of the bom part content'),
+            sha: zod
+              .string()
+              .describe(
+                'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+              ),
+          })
+        )
+        .nullish()
+        .describe(
+          'If the document is a DOCX document, the document_bom will be present'
+        ),
+      documentFamilyId: zod
+        .number()
+        .nullish()
+        .describe('The id of the document family this document belongs to'),
+      documentId: zod.string().describe('The document id'),
+      documentName: zod.string().describe('The name of the document'),
+      documentVersionId: zod
+        .number()
+        .describe(
+          'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
+        ),
+      fileType: zod
+        .string()
+        .nullish()
+        .describe('The file type of the document'),
+      modificationData: zod
+        .unknown()
+        .optional()
+        .describe(
+          'The modification data for the document instance.\nThis is only used for PDF documents.'
+        ),
+      owner: zod.string().describe('The owner of the document'),
+      sha: zod
+        .string()
+        .nullish()
+        .describe(
+          'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
+        ),
+      subType: zod
+        .union([
+          zod.null(),
+          zod
+            .enum(['task', 'snippet', 'skill', 'initiative_description'])
+            .describe(
+              'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.\n\nWire, database, and `Display` spellings are all `snake_case` so a\nmulti-word variant serializes identically in every system.'
+            ),
+        ])
+        .optional(),
+      updatedAt: zod.iso
+        .datetime({})
+        .nullish()
+        .describe('The time the document instance \/ document BOM was updated'),
+    }),
+    token: zod
+      .string()
+      .describe('A pre-generated permission token that you can use for SS'),
+  })
+  .describe('Response for creating a native Canvas.');
 
 /**
  * @summary Creates and initializes a markdown document in one backend-owned lifecycle.
@@ -27954,6 +28062,12 @@ export const getItemsSoupResponse = zod
                       .describe(
                         'The repository the session works with, when one was selected.'
                       ),
+                    source: zod
+                      .enum(['user', 'agent', 'routine'])
+                      .optional()
+                      .describe(
+                        "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                      ),
                     status: zod
                       .string()
                       .describe(
@@ -27979,6 +28093,12 @@ export const getItemsSoupResponse = zod
                       .nullish()
                       .describe(
                         'The time the session was last viewed by the requesting user'
+                      ),
+                    visibility: zod
+                      .enum(['listed', 'unlisted', 'hidden'])
+                      .optional()
+                      .describe(
+                        "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -32597,6 +32717,12 @@ export const postItemsSoupResponse = zod
                       .describe(
                         'The repository the session works with, when one was selected.'
                       ),
+                    source: zod
+                      .enum(['user', 'agent', 'routine'])
+                      .optional()
+                      .describe(
+                        "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                      ),
                     status: zod
                       .string()
                       .describe(
@@ -32622,6 +32748,12 @@ export const postItemsSoupResponse = zod
                       .nullish()
                       .describe(
                         'The time the session was last viewed by the requesting user'
+                      ),
+                    visibility: zod
+                      .enum(['listed', 'unlisted', 'hidden'])
+                      .optional()
+                      .describe(
+                        "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -36716,6 +36848,12 @@ export const postItemsSoupAstResponse = zod
                       .describe(
                         'The repository the session works with, when one was selected.'
                       ),
+                    source: zod
+                      .enum(['user', 'agent', 'routine'])
+                      .optional()
+                      .describe(
+                        "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                      ),
                     status: zod
                       .string()
                       .describe(
@@ -36741,6 +36879,12 @@ export const postItemsSoupAstResponse = zod
                       .nullish()
                       .describe(
                         'The time the session was last viewed by the requesting user'
+                      ),
+                    visibility: zod
+                      .enum(['listed', 'unlisted', 'hidden'])
+                      .optional()
+                      .describe(
+                        "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -41252,6 +41396,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .describe(
                               'The repository the session works with, when one was selected.'
                             ),
+                          source: zod
+                            .enum(['user', 'agent', 'routine'])
+                            .optional()
+                            .describe(
+                              "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                            ),
                           status: zod
                             .string()
                             .describe(
@@ -41277,6 +41427,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .nullish()
                             .describe(
                               'The time the session was last viewed by the requesting user'
+                            ),
+                          visibility: zod
+                            .enum(['listed', 'unlisted', 'hidden'])
+                            .optional()
+                            .describe(
+                              "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                             ),
                           workingBranch: zod
                             .string()
@@ -45350,6 +45506,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .describe(
                               'The repository the session works with, when one was selected.'
                             ),
+                          source: zod
+                            .enum(['user', 'agent', 'routine'])
+                            .optional()
+                            .describe(
+                              "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                            ),
                           status: zod
                             .string()
                             .describe(
@@ -45375,6 +45537,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .nullish()
                             .describe(
                               'The time the session was last viewed by the requesting user'
+                            ),
+                          visibility: zod
+                            .enum(['listed', 'unlisted', 'hidden'])
+                            .optional()
+                            .describe(
+                              "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                             ),
                           workingBranch: zod
                             .string()

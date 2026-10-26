@@ -82,7 +82,17 @@ After onboarding, an eligible desktop app user sees **Enable Desktop
 Notifications**. Select **Enable** to request permission through the native
 notification provider; macOS uses its system permission dialog. The web prompt
 continues to say **Enable Browser Notifications** and uses browser permissions.
-Select **Hide** to dismiss the prompt.
+Select **Hide** to dismiss the prompt. It waits in the same region as other
+prompts, one card at a time. It steps aside while a popover, dialog, drawer, or
+sheet is open (the calendar event details, for example). It also waits while an
+email thread or the email composer is open, and on touch devices while search
+results are open, since their last controls sit where the prompt would. On
+desktop it waits while a channel, DM or agent conversation shows its composer at
+the bottom of a pane, and while a call is on screen (its controls, Open chat and
+the chat composer sit in that corner). On every device it also waits while a
+composer's `@`, `:` or `/` menu (or its skills, snippets, tags or GIF picker) is
+open, since those open upward over the prompt. It comes back once none of them
+is on screen, for example after you leave the call view or end the call.
 
 ### Notification snoozes
 
@@ -150,6 +160,9 @@ as before. Each email says what joining gives: **Pro is included** when joining
 grants a Pro seat (an enterprise team, or one with a subscription), otherwise
 **Free to join**. Examples: [desktop](media/team-invite-email/desktop.png) and
 [mobile](media/team-invite-email/mobile.png).
+An unanswered invite gets up to two reminder emails, with subjects starting
+**Reminder:**, 3 days after the last email and 4 days after that. Invites more
+than 14 days old, already-members, and invites whose sender left the team get none.
 
 Under **Team → Members** (**Invite settings**), owners/admins can turn
 **Auto-join on domain** off and can restrict invitations to admins with
@@ -241,7 +254,8 @@ Left nav (feature and platform gates still apply):
   only General shows, with pending invitations or **Create Team**. Search
   finds these by `invite`, `members`, `teammates`, `slack`, and similar terms;
   results name their group, e.g. **Team · Members**.
-- **Blocks**: Email, Calendar, Agents, CRM.
+- **Blocks**: Email, Calendar, Agents, CRM. On touch devices, where the Agents
+  sidebar is hidden, **Routines** (`/app/settings/routines`) follows Agents.
 - **Personal**: Account, Appearance, Notifications, Keyboard shortcuts, Usage, Billing, Desktop App, Mobile App.
 - **Workspace**: Tags, Integrations (personal Gmail/GitHub accounts and agent tools).
 - **Developer**: Runtimes, MCP server, API Keys, Bots.
