@@ -30,6 +30,12 @@ RSVP scope and the delete confirmation over event details) have a backend-free
 browser regression for backdrop taps that must not press what the scrim covers:
 `bunx playwright test --config src/components/app/mobile/browser-test/playwright.config.ts`.
 
+CRM creation has backend-free desktop/phone coverage for name-only companies,
+personal-email contacts and explicit company selection:
+`bunx playwright test --config src/features/crm/browser-test/creation/playwright.config.ts`.
+Nested picker selection must keep its containing drawer open when the option
+unmounts during the tap; drawer dismissal checks the original event path.
+
 Persistent prompts stepping aside for popovers, dialogs, drawers and
 `data-holds-prompts` surfaces have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/Toast/browser-test/playwright.config.ts`.
@@ -134,6 +140,11 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+
+- CRM creation accepts name-only companies and full contact email addresses.
+  Company selection is explicit; a matching domain only suggests a company.
+  Keep the standalone and pipeline forms consistent (see
+  `docs/agent-guide/crm.md` at the repository root).
 
 - Empty human DMs use the shared centered conversations graphic and explain email delivery to nonusers; keep this state out of agent DMs, loading/error states, and populated timelines.
 - Enable persisted email/calendar review controls only for the review’s saved acting account; historical reviews fall back to the session owner. Require session edit access on desktop and mobile.

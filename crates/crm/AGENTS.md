@@ -57,6 +57,11 @@ tools/HTTP/GraphQL surfaces over them.
 
 ## Gotchas
 
+- Manual companies require a name and accept an optional domain; explicit
+  contact creation accepts any valid email, including personal providers.
+  Email population still infers companies by domain. Do not apply manual
+  creation rules to capture/consent; see `docs/design/crm-contact-creation.md`.
+
 - Company names/logos live in the global `crm_domain_directory`. Only the
   email pubsub workers carry a real `CompanyMetadataResolver`; every other
   binary uses `NoOpCompanyMetadataResolver`, which leaves a pending entry

@@ -102,7 +102,7 @@ impl CrmService for FakeCrm {
         &self,
         _access: &CrmTeamReceipt<MemberTeamRole>,
         _name: &str,
-        _domain: &str,
+        _domain: Option<&str>,
     ) -> Result<CrmCompanyWithContacts, CrmError> {
         unimplemented!("FakeCrm.create_company")
     }
