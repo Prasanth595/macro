@@ -279,6 +279,7 @@ export function TaskBoardView(props: {
                     <div class="py-3">
                       <Button
                         size="sm"
+                        variant="outline"
                         disabled={column().loadingMore}
                         onClick={() =>
                           fireAndForget(
@@ -318,6 +319,7 @@ export function TaskBoardView(props: {
         <div class="p-3">
           <Button
             size="sm"
+            variant="outline"
             disabled={source.isLoadingMore()}
             onClick={() =>
               fireAndForget(
