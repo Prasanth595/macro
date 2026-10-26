@@ -189,3 +189,5 @@ independent of glyph geometry. See the [icon guide](../../apps/web/src/component
 ![Original icons in the live gallery](images/icon-system.png)
 
 ![Joined desktop view tabs](images/joined-view-tabs.png)
+
+On desktop, multiple splits have a small close button nested into each frame’s top-left corner, outside the topbar. A lone detail view keeps its Return to list action, and touch layouts keep header controls.
