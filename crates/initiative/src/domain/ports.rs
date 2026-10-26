@@ -1,8 +1,10 @@
 //! Ports (trait contracts) for the initiative domain.
 
+use std::collections::HashMap;
+
 use super::reads::{
-    InitiativePage, InitiativePageRequest, InitiativePageRow, InitiativeRead, InitiativeTasksPage,
-    InitiativeTasksRequest,
+    DescriptionReader, InitiativeOverview, InitiativePage, InitiativePageRequest,
+    InitiativePageRow, InitiativeRead, InitiativeTasksPage, InitiativeTasksRequest, ProfileName,
 };
 use entity_access::domain::models::{
     EditAccessLevel, EntityAccessReceipt, OwnerAccessLevel, ViewAccessLevel,
@@ -42,6 +44,13 @@ pub trait InitiativeDescriptionSurfaces: Send + Sync + 'static {
         &self,
         initiative: InitiativeId,
     ) -> impl Future<Output = Result<(), InitiativeError>> + Send;
+
+    /// A read-only grant on the surface that names no user; `Empty` while it was never
+    /// ensured. Never creates the surface.
+    fn reader(
+        &self,
+        initiative: InitiativeId,
+    ) -> impl Future<Output = Result<DescriptionReader, InitiativeError>> + Send;
 }
 
 /// Outbound persistence port for initiatives.
@@ -107,6 +116,19 @@ pub trait InitiativeRepo: Send + Sync + 'static {
 
     /// Delete the initiative and clean up its own rows in one transaction.
     fn delete(&self, id: InitiativeId) -> impl Future<Output = Result<(), Self::Err>> + Send;
+
+    /// Names of the given tasks, keyed by id. Pass only ids the caller may view; ids with no
+    /// task are absent.
+    fn task_names(
+        &self,
+        ids: Vec<String>,
+    ) -> impl Future<Output = Result<HashMap<String, String>, Self::Err>> + Send;
+
+    /// Profile names of the given users. Users with no profile name are absent.
+    fn profile_names(
+        &self,
+        ids: Vec<String>,
+    ) -> impl Future<Output = Result<Vec<ProfileName>, Self::Err>> + Send;
 }
 
 /// Inbound service port: the initiative API used by drivers (HTTP).
@@ -184,6 +206,20 @@ pub trait InitiativeService: Send + Sync + 'static {
         &self,
         receipt: EntityAccessReceipt<ViewAccessLevel>,
     ) -> impl Future<Output = Result<String, InitiativeError>> + Send;
+
+    /// Everything a read-only project page shows the receipt's caller, signed in or not:
+    /// properties, visible tasks with their names and properties, the profile names of the
+    /// owner and assignees, and how to read the description. Never creates the description.
+    fn overview(
+        &self,
+        receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> impl Future<Output = Result<InitiativeOverview, InitiativeError>> + Send;
+
+    /// How the receipt's caller, signed in or not, reads the description. Never creates it.
+    fn description_reader(
+        &self,
+        receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> impl Future<Output = Result<DescriptionReader, InitiativeError>> + Send;
 
     /// List initiatives the user can view.
     fn list(

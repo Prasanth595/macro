@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 #[cfg(feature = "ports")]
 use entity_access::domain::models::{EntityAccessReceipt, ViewAccessLevel};
+use macro_user_id::user_id::MacroUserIdStr;
 use models_permissions::share_permission::access_level::AccessLevel;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -29,8 +30,12 @@ pub(super) fn page_size(limit: Option<u16>) -> Result<usize, InitiativeError> {
 #[serde(rename_all = "camelCase")]
 pub struct InitiativePropertySnapshot {
     /// Status option id, or unset.
+    // System option ids are not RFC 4122 UUIDs, so generated clients that
+    // validate `uuid` would reject them.
+    #[cfg_attr(feature = "inbound", schema(value_type = Option<String>))]
     pub status: Option<Uuid>,
     /// Priority option id, or unset.
+    #[cfg_attr(feature = "inbound", schema(value_type = Option<String>))]
     pub priority: Option<Uuid>,
     /// Assigned user ids, independent of sharing membership.
     pub assignees: Vec<String>,
@@ -98,6 +103,64 @@ pub struct InitiativePageRow {
     pub task_count: u32,
     /// Number of visible tasks whose status is completed.
     pub completed_task_count: u32,
+}
+
+/// A visible task as a project page lists it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct TaskOverview {
+    /// Task id.
+    pub id: String,
+    /// Task name; empty when the task has none.
+    pub name: String,
+    /// Canonical property values.
+    pub properties: InitiativePropertySnapshot,
+}
+
+/// A user's name from their own profile, never from the reader's contacts.
+/// A part the profile leaves unset is null.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileName {
+    /// User id.
+    pub id: String,
+    /// First name, if set.
+    pub first_name: Option<String>,
+    /// Last name, if set.
+    pub last_name: Option<String>,
+}
+
+/// How a reader connects to a project description without changing it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+#[serde(tag = "state", rename_all = "camelCase")]
+pub enum DescriptionReader {
+    /// No one has opened or written the description, so there is nothing to sync.
+    Empty,
+    /// Connect to the description's sync session read-only with this grant.
+    Live {
+        /// Sync-service connection token.
+        token: String,
+    },
+}
+
+/// What a project page shows a reader who may not change it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct InitiativeOverview {
+    /// Identity, canonical properties and visible task progress.
+    pub summary: InitiativePageRow,
+    /// Owner of the initiative.
+    pub owner_id: MacroUserIdStr<'static>,
+    /// Visible tasks in id order.
+    pub tasks: Vec<TaskOverview>,
+    /// Profile names of the owner and of every assignee shown.
+    pub people: Vec<ProfileName>,
+    /// How to read the description.
+    pub description: DescriptionReader,
 }
 
 /// An authorized project with the tasks its viewer may see, checked once.

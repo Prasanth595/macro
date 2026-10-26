@@ -23,9 +23,17 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import StackIcon from '@phosphor/stack.svg';
 import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
+import { EntityPropertiesSection } from '@property/side-panel/properties/EntityPropertiesSection';
 import type { Property } from '@property/types';
 import { Button, Tabs } from '@ui';
-import { createSignal, Match, Show, Suspense, Switch } from 'solid-js';
+import {
+  createMemo,
+  createSignal,
+  Match,
+  Show,
+  Suspense,
+  Switch,
+} from 'solid-js';
 import type { TaskCreateOptions } from '../tasks-view/types';
 import { DeleteProjectsDialog } from './components/delete-projects-dialog';
 import { ProjectMenuDropdown } from './components/project-row-menu';
@@ -48,7 +56,13 @@ import { ProjectDiscussion } from './project-collaboration';
 import { ProjectDescription } from './project-description';
 import { useProjectShareModal } from './project-share';
 import { Projects } from './projects';
-import { ProjectWorkspace } from './views/project-workspace';
+import { PROJECT_PROPERTY_IDS } from './queries/project-properties';
+import { AddProjectTasks } from './views/add-project-tasks';
+import { ProjectTasksList } from './views/project-tasks-list';
+import {
+  type ProjectEditor,
+  ProjectWorkspace,
+} from './views/project-workspace';
 
 type ProjectBreadcrumbProps = {
   entry: {
@@ -204,6 +218,31 @@ function ProjectTitleMenu(props: {
   );
 }
 
+function ProjectPropertiesPanel(props: {
+  project: ProjectDetailData;
+  canEdit: boolean;
+  onPropertiesChanged(): void;
+}) {
+  const definitions = useProjectsContext().createPropertyDefinitionsSource();
+  return (
+    <Show when={props.project.id} keyed>
+      {(projectId) => (
+        <EntityPropertiesSection
+          entityId={projectId}
+          entityType="INITIATIVE"
+          canEdit={props.canEdit}
+          documentName={props.project.name}
+          showTags={false}
+          defaultProperties={() => [...definitions.properties()]}
+          requiredPropertyDefinitionIds={PROJECT_PROPERTY_IDS}
+          pinnedPropertyDefinitionOrder={PROJECT_PROPERTY_IDS}
+          onPropertiesChanged={props.onPropertiesChanged}
+        />
+      )}
+    </Show>
+  );
+}
+
 function ProjectDetailHost(props: ProjectDetailProps) {
   const context = useProjectsContext();
   const source = context.createProjectSource(() => props.route.id);
@@ -291,58 +330,90 @@ function ProjectDetailHost(props: ProjectDetailProps) {
               <ProjectContentSkeleton section={props.route.section} />
             </Match>
             <Match when={source.project()}>
-              {(project) => (
-                <ProjectWorkspace
-                  project={project()}
-                  source={source}
-                  commands={commands}
-                  section={props.route.section}
-                  onOpenTask={(task, options) => {
-                    const event = options?.event;
-                    if (
-                      !isTouchDevice() &&
-                      !(
-                        event?.shiftKey ||
-                        event?.metaKey ||
-                        event?.ctrlKey ||
-                        event?.altKey
-                      )
-                    ) {
-                      fireAndForget(
-                        navigate({
-                          route: projectTaskRoute,
-                          params: {
-                            projectId: props.route.id,
-                            section: props.route.section,
-                            taskId: task.id,
-                          },
-                        }),
-                        'project-detail'
-                      );
-                      return true;
+              {(project) => {
+                const canEdit = () => canEditProject(project());
+                const editor = createMemo((): ProjectEditor | undefined => {
+                  if (!canEdit()) return;
+                  const id = project().id;
+                  return {
+                    rename: (name) => commands.rename(id, name),
+                    saveProperty: (property, value) =>
+                      commands.saveProperty(id, property, value),
+                  };
+                });
+                return (
+                  <ProjectWorkspace
+                    project={project()}
+                    properties={source.properties()}
+                    section={props.route.section}
+                    editor={editor()}
+                    onRefresh={source.refresh}
+                    refreshFailed={source.error() !== undefined}
+                    propertiesPanel={() => (
+                      <ProjectPropertiesPanel
+                        project={project()}
+                        canEdit={canEdit()}
+                        onPropertiesChanged={source.refresh}
+                      />
+                    )}
+                    description={
+                      <ProjectDescription
+                        projectId={project().id}
+                        canEdit={canEdit()}
+                      />
                     }
-                    layout.openWithSplit(
-                      { type: 'md', id: task.id },
-                      { preferNewSplit: options?.event?.shiftKey }
-                    );
-                    return true;
-                  }}
-                  onCreateTask={createTask}
-                  description={
-                    <ProjectDescription
-                      projectId={project().id}
-                      canEdit={canEditProject(project())}
-                    />
-                  }
-                  discussion={
-                    <ProjectDiscussion
-                      projectId={project().id}
-                      canWrite={canDiscussProject(project())}
-                      targetId={props.route.discussionId}
-                    />
-                  }
-                />
-              )}
+                    discussion={
+                      <ProjectDiscussion
+                        projectId={project().id}
+                        canWrite={canDiscussProject(project())}
+                        targetId={props.route.discussionId}
+                      />
+                    }
+                    tasks={
+                      <ProjectTasksList
+                        projectId={project().id}
+                        projectName={project().name}
+                        onOpenTask={(task, options) => {
+                          const event = options?.event;
+                          if (
+                            !isTouchDevice() &&
+                            !(
+                              event?.shiftKey ||
+                              event?.metaKey ||
+                              event?.ctrlKey ||
+                              event?.altKey
+                            )
+                          ) {
+                            fireAndForget(
+                              navigate({
+                                route: projectTaskRoute,
+                                params: {
+                                  projectId: props.route.id,
+                                  section: props.route.section,
+                                  taskId: task.id,
+                                },
+                              }),
+                              'project-detail'
+                            );
+                            return true;
+                          }
+                          layout.openWithSplit(
+                            { type: 'md', id: task.id },
+                            { preferNewSplit: options?.event?.shiftKey }
+                          );
+                          return true;
+                        }}
+                        onCreateTask={canEdit() ? createTask : undefined}
+                        addTasksAction={
+                          <Show when={canEdit()}>
+                            <AddProjectTasks project={project()} />
+                          </Show>
+                        }
+                      />
+                    }
+                  />
+                );
+              }}
             </Match>
             <Match when={true}>
               <div role="alert" class="p-6">

@@ -10,6 +10,7 @@ const fixture = vi.hoisted(() => ({
   previewDisposals: 0,
   channelMounts: 0,
   projectsEnabled: undefined as (() => boolean | undefined) | undefined,
+  authenticated: undefined as (() => boolean | undefined) | undefined,
   projectMounts: 0,
   projectDisposals: 0,
   userIcons: 0,
@@ -28,7 +29,11 @@ vi.mock('@app/lib/analytics/posthog', () => ({
 vi.mock('@core/constant/featureFlags', () => ({
   enableProjects: { key: 'enable-projects' },
 }));
-vi.mock('@core/context/user', () => ({ useUserId: () => () => 'user' }));
+vi.mock('@core/context/user', () => ({
+  useUserId: () => () => 'user',
+  useIsAuthenticated: () => () =>
+    fixture.authenticated ? fixture.authenticated() : true,
+}));
 vi.mock('../../projects/queries/project-identity', () => ({
   useProjectIdentityQuery: () => {
     fixture.projectMounts++;
@@ -91,6 +96,7 @@ afterEach(() => {
   fixture.previewDisposals = 0;
   fixture.channelMounts = 0;
   fixture.projectsEnabled = undefined;
+  fixture.authenticated = undefined;
   fixture.projectMounts = 0;
   fixture.projectDisposals = 0;
   fixture.userIcons = 0;
@@ -160,6 +166,23 @@ describe('usePropertyEntityDisplay subscription ownership', () => {
     expect(display.isLoading()).toBe(false);
     expect(display.name()).toBe('Project');
     expect(fixture.projectMounts).toBe(0);
+  });
+
+  it('shows a signed-out visitor the generic project label without fetching', () => {
+    const [authenticated, setAuthenticated] = createSignal<
+      boolean | undefined
+    >();
+    fixture.projectsEnabled = () => true;
+    fixture.authenticated = authenticated;
+    const display = setup('INITIATIVE');
+    expect(fixture.projectMounts).toBe(1);
+
+    setAuthenticated(false);
+    expect(fixture.projectMounts).toBe(1);
+    expect(fixture.projectDisposals).toBe(1);
+    expect(display.isLoading()).toBe(false);
+    expect(display.name()).toBe('Project');
+    expect(display.nativeProjectId()).toBeUndefined();
   });
 
   it('settles a live GraphQL preview batch without reacquiring itself', () => {

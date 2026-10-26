@@ -6,8 +6,7 @@ import {
   AppView,
   withAuth,
 } from '@components/app/split-layout/split-router/app-route-shell';
-import { useIsAuthenticated } from '@core/auth';
-import { lazy, Show } from 'solid-js';
+import { lazy } from 'solid-js';
 import {
   DriveView,
   type DriveViewProps,
@@ -19,32 +18,23 @@ const DriveCallDetail = lazy(async () => ({
   default: (await import('./views/DriveCallDetail')).DriveCallDetail,
 }));
 
-const AuthenticatedDriveRouteView = withAuth(() => {
-  const panel = useSplitPanelOrThrow();
-  const props = (): DriveViewProps => {
-    const content = panel.handle.content();
-    return content.type === 'component'
-      ? ((content.params ?? {}) as DriveViewProps)
-      : {};
-  };
-  return (
-    <AppView id="documents">
-      <DriveView initialFacets={props().initialFacets} />
-    </AppView>
-  );
-}, DriveViewSkeleton);
-
-export function DriveRouteView() {
-  const authenticated = useIsAuthenticated();
-  return (
-    <Show
-      when={authenticated() === false}
-      fallback={<AuthenticatedDriveRouteView />}
-    >
-      <SignedOutDriveView />
-    </Show>
-  );
-}
+export const DriveRouteView = withAuth(
+  () => {
+    const panel = useSplitPanelOrThrow();
+    const props = (): DriveViewProps => {
+      const content = panel.handle.content();
+      return content.type === 'component'
+        ? ((content.params ?? {}) as DriveViewProps)
+        : {};
+    };
+    return (
+      <AppView id="documents">
+        <DriveView initialFacets={props().initialFacets} />
+      </AppView>
+    );
+  },
+  { pending: DriveViewSkeleton, signedOut: SignedOutDriveView }
+);
 
 export function DriveCallRouteView() {
   const params = useRouteParams(driveCallRoute);

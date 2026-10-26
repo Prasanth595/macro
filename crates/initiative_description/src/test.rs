@@ -1,6 +1,8 @@
 use std::sync::Mutex;
 
 use collab_surface::domain::models::{CollabSurface, SurfaceState};
+use initiative::domain::reads::DescriptionReader;
+use macro_sync_service_jwt::DocumentPermissionToken;
 use model_entity::Entity;
 use uuid::Uuid;
 
@@ -12,6 +14,9 @@ struct FakeSurfaces {
     ensured: Mutex<Vec<(Entity<'static>, Uuid, String)>>,
     retired: Mutex<Vec<Uuid>>,
     markdown: Option<String>,
+    reader_grant: Option<String>,
+    refuse_readers: bool,
+    reader_requests: Mutex<Vec<(Entity<'static>, Uuid)>>,
 }
 
 impl OwnedSurfaceService for FakeSurfaces {
@@ -68,6 +73,18 @@ impl OwnedSurfaceService for FakeSurfaces {
         unreachable!("initiative descriptions are edited through sync-service sessions")
     }
 
+    async fn owned_surface_reader_token(
+        &self,
+        parent: Entity<'static>,
+        id: Uuid,
+    ) -> Result<Option<DocumentPermissionToken>, CollabSurfaceError> {
+        self.reader_requests.lock().unwrap().push((parent, id));
+        if self.refuse_readers {
+            return Err(CollabSurfaceError::AccessDenied);
+        }
+        Ok(self.reader_grant.clone().map(DocumentPermissionToken::from))
+    }
+
     async fn retire_surface(&self, id: Uuid) -> Result<(), CollabSurfaceError> {
         self.retired.lock().unwrap().push(id);
         Ok(())
@@ -108,6 +125,58 @@ async fn a_description_never_opened_reads_as_empty() {
 
     assert_eq!(written.read(initiative).await.unwrap(), "# Plan");
     assert_eq!(unopened.read(initiative).await.unwrap(), "");
+}
+
+#[tokio::test]
+async fn a_description_never_opened_has_nothing_to_read() {
+    let adapter = InitiativeDescriptionSurfacesAdapter::new(Arc::new(FakeSurfaces::default()));
+
+    let reader = adapter
+        .reader(InitiativeId::from_uuid(Uuid::now_v7()))
+        .await
+        .unwrap();
+
+    assert_eq!(reader, DescriptionReader::Empty);
+}
+
+#[tokio::test]
+async fn a_live_description_is_read_with_the_grant_on_the_initiative_surface() {
+    let fake = Arc::new(FakeSurfaces {
+        reader_grant: Some("grant".to_string()),
+        ..Default::default()
+    });
+    let adapter = InitiativeDescriptionSurfacesAdapter::new(fake.clone());
+    let initiative = InitiativeId::from_uuid(Uuid::now_v7());
+
+    let reader = adapter.reader(initiative).await.unwrap();
+
+    assert_eq!(
+        reader,
+        DescriptionReader::Live {
+            token: "grant".to_string()
+        }
+    );
+    assert_eq!(
+        *fake.reader_requests.lock().unwrap(),
+        vec![(
+            EntityType::Initiative.with_entity_string(initiative.to_string()),
+            initiative.as_uuid(),
+        )]
+    );
+}
+
+#[tokio::test]
+async fn a_refused_reader_grant_is_unauthorized() {
+    let adapter = InitiativeDescriptionSurfacesAdapter::new(Arc::new(FakeSurfaces {
+        refuse_readers: true,
+        ..Default::default()
+    }));
+
+    let refused = adapter
+        .reader(InitiativeId::from_uuid(Uuid::now_v7()))
+        .await;
+
+    assert!(matches!(refused, Err(InitiativeError::Unauthorized)));
 }
 
 #[test]

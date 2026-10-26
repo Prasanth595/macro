@@ -52,6 +52,9 @@ const [userDisplayNames, setUserDisplayNames] = createStore<DisplayNameStore>(
 
 const displayNameFetchQueue = new Set<string>();
 
+/** Names a read handed over; the viewer may have no way to look them up again. */
+const rememberedIds = new Set<string>();
+
 /** Adds items to fetch queue and schedules processing */
 function queueItemsForFetch(items: string[]) {
   let addedItem = false;
@@ -164,6 +167,7 @@ function ensureUserNameItem(id: MacroId) {
   const cacheExpired =
     cached &&
     !cached.loading &&
+    !rememberedIds.has(id) &&
     Date.now() - cached._createdAt.getTime() >
       DEFAULT_CACHE_TIME_SECONDS * 1000;
 
@@ -301,6 +305,31 @@ export function useDisplayName(
   const accessor = () => defaultNameTransform(getItem(), options);
 
   return [accessor, { refetch, mutate }];
+}
+
+/**
+ * Records names a read returned with the content, for a viewer who cannot
+ * look names up, such as a signed-out visitor. They are never refetched.
+ */
+export function rememberDisplayNames(
+  people: Array<{
+    id: string;
+    firstName?: string | null;
+    lastName?: string | null;
+  }>
+) {
+  batch(() => {
+    for (const person of people) {
+      rememberedIds.add(person.id);
+      setUserDisplayNames(person.id, {
+        _createdAt: new Date(),
+        id: person.id,
+        firstName: person.firstName ?? undefined,
+        lastName: person.lastName ?? undefined,
+        loading: false,
+      });
+    }
+  });
 }
 
 /**
