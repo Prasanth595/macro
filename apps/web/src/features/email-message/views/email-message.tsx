@@ -9,6 +9,7 @@ import { ImageGalleryPreview } from '@core/component/ImageGalleryPreview';
 import { toast } from '@core/component/Toast/Toast';
 import { VideoPreview } from '@core/component/VideoPreview';
 import { fireAndForget } from '@core/util/fireAndForget';
+import { Telemetry } from '@macro-inc/observability';
 import CaretRight from '@phosphor/caret-right.svg';
 import {
   createFreshAttachmentCopy,
@@ -139,13 +140,21 @@ export function EmailMessageView(props: EmailMessageViewProps) {
       toast.failure('Failed to get attachment. Please try again.');
     }
   };
-  const openFreshCopy = async (attachment: EmailAttachment) => {
-    const documentId = await createFreshAttachmentCopy(
-      attachment.db_id,
-      attachment.filename ?? 'Document.docx'
-    );
-    props.onOpenSavedDocument?.(attachment, documentId);
-  };
+  const openFreshCopy = (attachment: EmailAttachment) =>
+    Telemetry.span('email.attachment_fresh_copy', async (span) => {
+      span.setAttr('email.attachment_id', attachment.db_id);
+      try {
+        const documentId = await createFreshAttachmentCopy(
+          attachment.db_id,
+          attachment.filename ?? 'Document.docx'
+        );
+        span.setAttr('document.id', documentId);
+        props.onOpenSavedDocument?.(attachment, documentId);
+      } catch (error) {
+        span.error('Saving a fresh attachment copy failed');
+        throw error;
+      }
+    });
   // A card action that opens the calendar closes the dialog first, so it
   // neither covers the destination nor pulls focus back to the email.
   const closeForNavigation = () => {

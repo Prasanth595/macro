@@ -34,6 +34,7 @@ import { useBlockDocumentName } from '@core/util/currentBlockDocumentName';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { downloadFile } from '@filesystem/download';
 import IconShared from '@icon/share.svg';
+import { Telemetry } from '@macro-inc/observability';
 import DownloadIcon from '@phosphor/download-simple.svg';
 import {
   emailAttachmentForDocumentOptions,
@@ -147,27 +148,31 @@ export default function DocxBlock(props: { share?: string }) {
       'docx-download'
     );
   };
-  const saveCopy = async () => {
-    const id = attachmentId();
-    const current = editor();
-    if (!id || saving()) return;
-    if (!current) {
-      toast.failure('The document is still opening.');
-      return;
-    }
-    setSaving(true);
-    try {
-      const bytes = await current.idle().then(() => current.save());
-      const savedId = await saveEditedAttachmentCopy(id, bytes, fileName());
-      setSaveOpen(false);
-      replaceSplit({ content: { type: 'write', id: savedId } });
-    } catch (error) {
-      console.error(error);
-      toast.failure('Failed to save a copy to Drive. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const saveCopy = () =>
+    Telemetry.span('email.attachment_save_copy', async (span) => {
+      const id = attachmentId();
+      const current = editor();
+      if (!id || saving()) return;
+      span.setAttr('email.attachment_id', id);
+      if (!current) {
+        toast.failure('The document is still opening.');
+        return;
+      }
+      setSaving(true);
+      try {
+        const bytes = await current.idle().then(() => current.save());
+        const savedId = await saveEditedAttachmentCopy(id, bytes, fileName());
+        span.setAttr('document.id', savedId);
+        setSaveOpen(false);
+        replaceSplit({ content: { type: 'write', id: savedId } });
+      } catch (error) {
+        span.error('Saving an attachment copy to Drive failed');
+        console.error(error);
+        toast.failure('Failed to save a copy to Drive. Please try again.');
+      } finally {
+        setSaving(false);
+      }
+    });
   const ops: FileOperation[] = [
     { op: 'rename' },
     { op: 'copy' },
