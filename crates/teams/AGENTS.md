@@ -49,6 +49,11 @@ event contract (schema, sanitization, delivery semantics).
 - Repair missed teammate DMs: `just crates/teams/backfill_teammate_dms_local`
   (see README's "Delivery semantics" for when this is needed).
 
+## Gotchas
+
+- A trialing subscription that gains a Max seat ends the trial and starts a
+  new billing cycle immediately. Pro seat changes during a trial keep the trial.
+
 ## Checks
 
 - `cargo test -p teams` (`SQLX_OFFLINE` unset).
