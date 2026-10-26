@@ -60,21 +60,36 @@ live-backend release gates and documents staging retention and recovery.
 
 ### Email signatures
 
-Open **Settings → Email → Signatures**. Each owned inbox has a visible editor;
-there is no expand/collapse control. Format the text, add links or images, and
-choose **Save signature**. **Clear signature** removes only the signature, while
+Open **Settings → Email → Signatures**. Each owned inbox opens in **Preview**,
+using the same isolated HTML renderer as the email composer. **HTML** lets you
+paste or edit a custom signature without flattening its tables or spacing.
+**Rich text** offers text formatting, links, and image uploads; opening a custom
+HTML layout there asks before converting it. Switching views alone never changes
+the saved signature. Pasting a custom layout into Rich text preserves its HTML
+and opens Preview (ask to replace first when the editor already has content).
+Choose **Save signature** to save edits and return to the canonical preview.
+**Clear signature** removes only the signature, while
 **Remove inbox** in Accounts uses the existing inbox removal confirmation.
 **Add to replies & forwards** saves that preference immediately. On desktop,
 **Import from Gmail** in each inbox's header fetches that account's Gmail
 signature and saves it right away, replacing any unsaved draft; a toast reports
 when Gmail has no signature. Unsaved drafts
-survive switching settings pages. On phones, signature editing remains desktop-only;
-the replies/forwards toggle and clear action are available.
+survive switching settings pages. On phones, the signature preview, replies/forwards
+toggle, and clear action are available; editing and import remain desktop-only.
 Email accounts can also be managed from **Integrations**. Its **Email settings**
 gear opens the dedicated page, and Email links to Notifications and Calendar.
 With a composer open, save a changed signature or reply-signature preference and
 verify its preview updates. Once the account refresh completes, reopen a composer
 offline and confirm it uses the saved settings.
+
+Regression check: import a nested-table signature, edit its source in HTML,
+preview, save, leave settings, and reopen. Confirm the tables, spacing, and image
+sizes survive in both settings and the new-message preview. Cancel a Rich text
+conversion and verify the saved HTML is unchanged. Check the preview on a phone
+and ensure a wide signature scrolls inside its own preview instead of the page.
+The backend-free browser suite uses the real form, Quill, settings mutations,
+query cache, and composer preview with fixture services:
+`bunx playwright test --config src/features/settings/browser-test/signatures/playwright.config.ts`.
 
 ### Notification permission prompt
 

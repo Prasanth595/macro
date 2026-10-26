@@ -35,12 +35,12 @@ function saveSignatureErrorMessage(error: Error): string {
       : undefined;
   if (!unresolved) return 'Failed to save signature. Please try again.';
 
-  return 'Unable to save images. Use the image button to add images.';
+  return 'Unable to save images. Add accessible image URLs in HTML, or use the image button in Rich text.';
 }
 
 /**
  * Per-inbox signature editor. Reads the persisted signature from the links
- * query (no extra fetch) into the Quill editor, tracks an unsaved draft, and
+ * query (no extra fetch) into an HTML preview, tracks an unsaved draft, and
  * patches `email_settings` on save. The "replies & forwards" toggle patches
  * immediately (the backend patch is partial, so it leaves the signature alone).
  */
@@ -132,7 +132,7 @@ export function SignatureSection(props: { link: EmailLink }) {
             toast.failure('No signature found in Gmail');
           } else if (result.reason === 'unresolved_images') {
             setSaveError(
-              "Couldn't import images from your Gmail signature. Add the text here and use the image button to add images."
+              "Couldn't import images from your Gmail signature. Add accessible image URLs in HTML, or use the image button in Rich text."
             );
           } else {
             toast.failure('Failed to import signature. Please try again.');
@@ -157,7 +157,7 @@ export function SignatureSection(props: { link: EmailLink }) {
   return (
     <SignatureForm
       email={props.link.email_address}
-      value={draft() ?? persisted()}
+      value={isMobile() ? persisted() : (draft() ?? persisted())}
       onInput={(html) => {
         setDraft(html);
         setSaveError(null);
