@@ -14,13 +14,14 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import { GithubLabelPills } from '@entity/components/GithubLabelPill';
 import { PrAgentSessionsChip } from '@entity/views/PrAgentSessionsChip';
 import IconShared from '@icon/share.svg';
+import IconLink from '@icon/system/regular/link.svg';
 import { DebouncedNotificationReadMarker } from '@notifications';
 import {
   type GithubPullRequestWithDetails,
   useRefreshGithubPullRequest,
 } from '@queries/storage/github-pull-requests';
 import { githubPullRequestChangesKeys } from '@queries/storage/keys';
-import { Button, cn, Layer, Scroll, Tooltip } from '@ui';
+import { Button, CopyButton, cn, Layer, Scroll, Tooltip } from '@ui';
 import { type Accessor, createMemo, Show, Suspense } from 'solid-js';
 import { MergePullRequestButton } from '../component/MergePullRequestButton';
 import { PrChangesProvider } from '../component/PrChanges';
@@ -192,7 +193,7 @@ export function PrDetailContent(props: PrDetailBodyProps) {
 }
 
 export function PrDetailActions(props: { detail?: PrForeignEntityData }) {
-  const { openShare, ShareModal } = usePrShare(
+  const { openShare, copyLink, ShareModal } = usePrShare(
     () => props.detail?.id ?? '',
     () => props.detail?.pullRequest.name ?? 'Pull request'
   );
@@ -210,6 +211,14 @@ export function PrDetailActions(props: { detail?: PrForeignEntityData }) {
                   onClick={openShare}
                 />
               </Tooltip>
+              <CopyButton
+                variant="ghost"
+                tooltip="Copy Share Link"
+                size="icon-md"
+                onClick={copyLink}
+              >
+                <IconLink class="size-3.5!" />
+              </CopyButton>
             </HeaderActionGroup>
             <HeaderActionGroup label="Pull request actions">
               <MergePullRequestButton
