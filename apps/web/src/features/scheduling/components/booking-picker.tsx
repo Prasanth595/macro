@@ -257,7 +257,7 @@ export function BookingPicker(props: {
                   </For>
                   <Button
                     type="submit"
-                    variant="strong"
+                    variant="accent"diff --git a/apps/web/src/features/scheduling/components/reschedule-form.tsx b/apps/web/src/features/scheduling/components/reschedule-form.tsx
                     disabled={flow.submitting() || props.preview}
                   >
                     {props.preview

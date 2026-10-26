@@ -1,7 +1,7 @@
 import SpinnerIcon from '@phosphor/spinner.svg';
 import CloseIcon from '@phosphor/x.svg';
 import { ActionDialogShell } from '@ui/components/ActionDialogShell';
-import { Button } from '@ui/components/Button';
+import { Button, type ButtonVariant } from '@ui/components/Button';
 import type { ConfirmDialogProps } from '@ui/components/ConfirmDialog';
 import { createUniqueId, Show } from 'solid-js';
 import { MobileDrawer } from './MobileDrawer';
@@ -12,6 +12,11 @@ export function ConfirmDrawer(props: ConfirmDialogProps) {
   const descriptionId = createUniqueId();
   const close = () => {
     if (!props.pending) props.onOpenChange(false);
+  };
+  const confirmVariant = (): ButtonVariant => {
+    if (props.tone === 'danger') return 'danger';
+    if (props.tone === 'success') return 'success';
+    return 'accent';
   };
   return (
     <MobileDrawer
@@ -72,7 +77,7 @@ export function ConfirmDrawer(props: ConfirmDialogProps) {
                     {props.cancelLabel ?? 'Cancel'}
                   </Button>
                   <Button
-                    variant="strong"
+                    variant={confirmVariant()}
                     size="xl"
                     class="min-w-0 flex-1"
                     disabled={props.pending}
@@ -111,14 +116,11 @@ export function ConfirmDrawer(props: ConfirmDialogProps) {
             </MobileDrawer.ScrollBody>
             <div class="shrink-0 px-4 pb-[max(24px,var(--mobile-sheet-safe-padding))]">
               <Button
-                variant="cta"
+                variant={confirmVariant()}
                 size="xl"
                 fullWidth
-                glass={false}
+                
                 class="h-12 rounded-2xl"
-                classList={{
-                  'bg-success text-surface': props.tone === 'success',
-                }}
                 disabled={props.pending}
                 onClick={() => !props.pending && props.onConfirm()}
               >

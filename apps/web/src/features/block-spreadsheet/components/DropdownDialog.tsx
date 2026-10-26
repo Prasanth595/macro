@@ -366,7 +366,7 @@ function DropdownForm(props: {
           <Button variant="ghost" type="button" onClick={props.onClose}>
             Cancel
           </Button>
-          <Button type="submit" variant="strong">
+          <Button type="submit" variant="accent">diff --git a/apps/web/src/features/block-spreadsheet/components/SpreadsheetGoalSeekDialog.tsx b/apps/web/src/features/block-spreadsheet/components/SpreadsheetGoalSeekDialog.tsx
             Save
           </Button>
         </div>

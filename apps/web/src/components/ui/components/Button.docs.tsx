@@ -7,13 +7,7 @@ import { Button, type ButtonVariant } from './Button';
 import { ButtonGroup } from './ButtonGroup';
 
 const VARIANTS: ButtonVariant[] = [
-  'ghost',
-  'outline',
-  'accent',
-  'success',
-  'danger',
-  'strong',
-  'cta',
+  'primary', 'secondary', 'outline', 'ghost', 'accent', 'danger', 'success', 'link',
 ];
 
 // #region demo:variants
@@ -73,21 +67,16 @@ function SizesDemo() {
 // #region demo:icon-only
 function IconOnlyDemo() {
   return (
-    <div class="flex flex-wrap items-end gap-3">
-      <For
-        each={
-          ['icon-xs', 'icon-sm', 'icon-md', 'icon-lg', 'icon-composer'] as const
-        }
-      >
-        {(size) => (
-          <div class="flex flex-col items-start gap-1.5">
-            <span class="font-mono text-xs text-ink-subtle">{size}</span>
-            <Button variant="outline" size={size} label="Add item">
-              <PlusIcon />
-            </Button>
-          </div>
-        )}
-      </For>
+    <div class="flex flex-wrap items-center gap-4">
+      <Button variant="ghost" aria-pressed={pressed()} onClick={() => setPressed(!pressed())}>
+        Toggle {pressed() ? 'on' : 'off'}
+      </Button>
+      <Button variant="secondary" disabled>Disabled</Button>
+      <Button variant="accent" loading={loading()} onClick={() => setLoading(true)}>Save example</Button>
+      <Button variant="ghost" disabled={!loading()} onClick={() => setLoading(false)}>Reset loading</Button>
+      <Button size="icon-md" variant="secondary" aria-label="Add item" tooltip={{ content: 'Add item', shortcut: 'meta+enter' }}>
+        <PlusIcon class="size-4" />
+      </Button>diff --git a/apps/web/src/components/ui/components/ConfirmDialog.tsx b/apps/web/src/components/ui/components/ConfirmDialog.tsx
     </div>
   );
 }

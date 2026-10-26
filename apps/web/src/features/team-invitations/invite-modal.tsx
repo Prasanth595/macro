@@ -120,7 +120,7 @@ export const InviteModal = () => {
             </Button>
             <Button
               onClick={handleSend}
-              variant="strong"
+              variant="accent"
               disabled={sending() || !parseEmails(value()).length}
               class="font-semibold"
             >

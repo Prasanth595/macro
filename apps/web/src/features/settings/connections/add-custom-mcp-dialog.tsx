@@ -93,7 +93,7 @@ export function AddCustomMcpDialog(props: {
               Cancel
             </Button>
             <Button
-              variant="strong"
+              variant="accent"diff --git a/apps/web/src/features/team-invitations/invite-modal.tsx b/apps/web/src/features/team-invitations/invite-modal.tsx
               size="sm"
               depth={3}
               disabled={

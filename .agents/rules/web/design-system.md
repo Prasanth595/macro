@@ -48,11 +48,12 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
   width, order, shrink). Never resize or recolor a control from a wrapper
   (`[&_button]:size-8`), and don't use `square` for new icon buttons. Enforced
   for wrappers by ast-grep `tsx-no-descendant-button-styles`, warning.
-- **FE-64** Keep one selected state: a selected tab and a pressed button share
-  the pressed fill, flat; unselected options keep the outline Button frame. No
-  accent text, underlines, or bespoke tints for selection on desktop. The one
-  exception is the agent composer's Chat/Code switch: `Tabs variant="track"`,
-  a raised pill sliding along the composer tray's track.
+- Use `variant="accent"` for the main create, save, submit, send, invite, approve, or continue action; retain neutral, ghost, and danger variants for their own roles.
+- **FE-64** Components own their state treatments: Tabs use their selected fill;
+  Button uses the semantic pressed fill for its variant. Mark action toggles with
+  `aria-pressed`, and expansion triggers with `aria-expanded`. Do not restyle
+  buttons as tabs. The agent composer's Chat/Code switch remains
+  `Tabs variant="track"`, a raised pill sliding along the composer's tray.
 - **FE-65** Components own their touch treatment. Never branch on
   `isTouchDevice()` to choose a tab component or variant; set `Tabs`' `touch`
   to the style that surface already uses on touch.

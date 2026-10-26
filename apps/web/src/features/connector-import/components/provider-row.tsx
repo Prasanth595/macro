@@ -60,7 +60,7 @@ export function ProviderRow(props: {
         }
       >
         <Button
-          variant="strong"
+          variant="accent"diff --git a/apps/web/src/features/next-soup/soup-view/NewCallButton.tsx b/apps/web/src/features/next-soup/soup-view/NewCallButton.tsx
           size="sm"
           disabled={props.disabled}
           aria-label={`Import from ${props.provider.name}`}

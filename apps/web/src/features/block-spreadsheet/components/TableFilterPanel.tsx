@@ -279,7 +279,7 @@ function FilterForm(props: {
           >
             Cancel
           </Button>
-          <Button type="submit" variant="strong" size="sm">
+          <Button type="submit" variant="accent" size="sm">
             OK
           </Button>
         </div>

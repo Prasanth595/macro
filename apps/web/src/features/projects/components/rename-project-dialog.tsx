@@ -79,8 +79,8 @@ export function RenameProjectDialog(props: {
             </Button>
             <Button
               type="submit"
-              variant="strong"
-              depth={2}
+              variant="accent"
+              
               disabled={!canSubmit()}
             >
               {pending() ? 'Saving…' : 'Save name'}

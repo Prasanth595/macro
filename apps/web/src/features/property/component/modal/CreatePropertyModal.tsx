@@ -766,8 +766,8 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
               Cancel
             </Button>
             <Button
-              variant="strong"
-              depth={3}
+              variant="accent"
+              diff --git a/apps/web/src/features/property/tags/TagEditorDialog.tsx b/apps/web/src/features/property/tags/TagEditorDialog.tsx
               class={cn('gap-3 ', pending() && 'gap-1.5')}
               onClick={handleCreateProperty}
               disabled={!canSubmit()}

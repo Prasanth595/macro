@@ -115,7 +115,7 @@ export function SpreadsheetGoalSeekDialog(props: {
               <Button
                 type="submit"
                 size="sm"
-                variant="strong"
+                variant="accent"
                 disabled={props.seeking}
               >
                 {props.seeking ? 'Seeking…' : 'OK'}
@@ -125,7 +125,7 @@ export function SpreadsheetGoalSeekDialog(props: {
             <Button type="button" size="sm" onClick={props.onEdit}>
               Change cells
             </Button>
-            <Button type="submit" size="sm" variant="strong">
+            <Button type="submit" size="sm" variant="accent">
               {props.solution?.status === 'found' ? 'OK' : 'Use closest value'}
             </Button>
           </Show>

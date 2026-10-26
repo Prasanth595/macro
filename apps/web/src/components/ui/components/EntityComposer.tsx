@@ -91,8 +91,7 @@ function Submit(props: ButtonProps & { hasContent: boolean }) {
   return (
     <Button
       {...rest}
-      variant={local.variant ?? 'strong'}
-      depth={3}
+      variant={local.variant ?? 'accent'}
       class={cn(
         'gap-3',
         !isTouchDevice() && 'h-[33.75px] px-[15px]',

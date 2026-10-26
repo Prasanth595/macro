@@ -21,7 +21,7 @@ Only Button-specific helpers and materials are copied. There are no imports from
 ## API changes
 
 - Variants: `primary` (default), `secondary`, `outline`, `ghost`, `accent`, `danger`, `success`, and `link`.
-- Replace former `strong` callers with `secondary`, and former `cta` callers with `accent`.
+- Use `accent` for the main action: create, save, submit, send, invite, approve, connect, and continue. Keep `primary` and `secondary` for neutral actions, `ghost` for utility/cancel controls, and `danger` for destructive actions. Do not blindly map legacy `strong` buttons to `secondary`.
 - Sizes: `xs` through `xl`, plus `icon-xs` through `icon-xl`. Replace `icon-composer` with `icon-md`.
 - Use explicit `icon-*` sizes instead of `square`.
 - Set accessible names with `aria-label`, not `label`.
@@ -52,6 +52,7 @@ The existing theme renderer supplies Button materials at the root and in theme p
 - Keep the Tasks New menu inside a padded `Dropdown.Group`, with gaps between creation actions. Pass Share's tooltip to `HeaderActionButton` directly so no extra wrapper interrupts its full-height group segment.
 - Use ghost styling for task composer expand, attach, close, and clear-draft actions, search clear/close, and split close controls. Task creation and the share menu's submit action use accent styling; split close controls use compact icon sizing.
 - Search clear/close buttons use ghost `icon-xs` controls with 14px desktop icons; the Button touch minimum remains unchanged.
+- View-sidebar Show/Hide controls use ghost styling with no persistent active fill while the sidebar is open.
 
 ## Development and validation
 

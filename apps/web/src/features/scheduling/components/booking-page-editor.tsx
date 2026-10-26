@@ -55,7 +55,7 @@ export function BookingPageEditor(props: {
             </Show>
             <Button
               type="submit"
-              variant="strong"
+              variant="accent"
               aria-label={
                 props.saving ? 'Saving booking page' : 'Save booking page'
               }

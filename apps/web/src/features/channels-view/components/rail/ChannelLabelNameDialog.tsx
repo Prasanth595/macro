@@ -107,8 +107,8 @@ function LabelNameDialog(
             </Button>
             <Button
               type="submit"
-              variant="strong"
-              depth={2}
+              variant="accent"
+              
               disabled={!canSubmit() || pending()}
             >
               {pending() ? 'Saving…' : props.confirmLabel}
