@@ -9,7 +9,7 @@ import {
   type TaskFacetContext,
 } from './task-facets';
 
-const person = z.discriminatedUnion('type', [
+const PERSON_SCHEMA = z.discriminatedUnion('type', [
   z.object({ type: z.literal('viewer') }).strict(),
   z
     .object({
@@ -22,39 +22,52 @@ const person = z.discriminatedUnion('type', [
     })
     .strict(),
 ]);
-const identifier = z
+const IDENTIFIER_SCHEMA = z
   .string()
   .guid()
   .transform((id) => id.toLowerCase());
-const ids = z.array(identifier).max(100);
-const filtersSchema = z
+const IDS_SCHEMA = z.array(IDENTIFIER_SCHEMA).max(100);
+const FILTERS_SCHEMA = z
   .object({
-    statusOptionIds: ids,
-    priorityOptionIds: ids,
+    statusOptionIds: IDS_SCHEMA,
+    priorityOptionIds: IDS_SCHEMA,
     // Built-in tabs can add the viewer to 100 explicitly selected people.
-    assignees: z.array(person).max(101),
-    creators: z.array(person).max(101),
+    assignees: z.array(PERSON_SCHEMA).max(101),
+    creators: z.array(PERSON_SCHEMA).max(101),
     tags: z
       .array(
         z
           .object({
-            propertyDefinitionId: identifier,
-            optionId: identifier,
+            propertyDefinitionId: IDENTIFIER_SCHEMA,
+            optionId: IDENTIFIER_SCHEMA,
           })
           .strict()
       )
       .max(100),
   })
   .strict();
-const schema = z
+const TASK_SAVED_VIEW_SCHEMA = z
   .object({
     kind: z.literal('tasks'),
     version: z.literal(1),
-    filters: filtersSchema,
+    filters: FILTERS_SCHEMA,
   })
   .strict();
+const READABLE_TASK_SAVED_VIEW_SCHEMA = TASK_SAVED_VIEW_SCHEMA.pick({
+  kind: true,
+  version: true,
+})
+  .extend({ filters: z.record(z.string(), z.unknown()) })
+  .loose();
+const SAVED_TASK_FACET_IDS: readonly string[] = [
+  'status',
+  'priority',
+  'assignees',
+  'created-by',
+  'tags',
+];
 
-export type TaskSavedViewConfig = z.infer<typeof schema>;
+export type TaskSavedViewConfig = z.infer<typeof TASK_SAVED_VIEW_SCHEMA>;
 
 function uniqueSorted<T>(values: T[], key: (value: T) => string): T[] {
   return [...new Map(values.map((value) => [key(value), value])).entries()]
@@ -81,7 +94,7 @@ function canonical(config: TaskSavedViewConfig): TaskSavedViewConfig {
 export function decodeTaskSavedView(
   value: unknown
 ): Result<TaskSavedViewConfig, string> {
-  const parsed = schema.safeParse(value);
+  const parsed = TASK_SAVED_VIEW_SCHEMA.safeParse(value);
   if (!parsed.success)
     return err('This view contains unsupported or invalid task filters.');
   const definitions = new Map<string, string>();
@@ -104,12 +117,9 @@ export type TaskSavedViewRead = {
   issues: TaskSavedViewIssue[];
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
 /** Applies understood filters and reports anything omitted from the saved definition. */
 export function readTaskSavedView(value: unknown): TaskSavedViewRead {
-  const parsed = schema.safeParse(value);
+  const parsed = TASK_SAVED_VIEW_SCHEMA.safeParse(value);
   const issues: TaskSavedViewIssue[] = parsed.success
     ? []
     : parsed.error.issues.flatMap((issue) =>
@@ -120,14 +130,8 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
             }))
           : [{ path: issue.path.map(String), message: issue.message }]
       );
-  const filters =
-    isRecord(value) && isRecord(value.filters) ? value.filters : undefined;
-  if (
-    !isRecord(value) ||
-    value.kind !== 'tasks' ||
-    value.version !== 1 ||
-    !filters
-  )
+  const readable = READABLE_TASK_SAVED_VIEW_SCHEMA.safeParse(value);
+  if (!readable.success)
     return {
       issues,
       config: {
@@ -142,6 +146,7 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
         },
       },
     };
+  const filters = readable.data.filters;
 
   const readEntries = <T>(
     values: unknown,
@@ -159,7 +164,7 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
       : [];
   const tags = readEntries(
     filters.tags,
-    filtersSchema.shape.tags.element,
+    FILTERS_SCHEMA.shape.tags.element,
     Number.POSITIVE_INFINITY
   );
   const definitions = new Map<string, Set<string>>();
@@ -173,7 +178,7 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
   );
   if (Array.isArray(filters.tags)) {
     filters.tags.forEach((tag, index) => {
-      const parsed = filtersSchema.shape.tags.element.safeParse(tag);
+      const parsed = FILTERS_SCHEMA.shape.tags.element.safeParse(tag);
       if (parsed.success && conflicting.has(parsed.data.optionId))
         issues.push({
           path: ['filters', 'tags', String(index)],
@@ -187,14 +192,18 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
       kind: 'tasks',
       version: 1,
       filters: {
-        statusOptionIds: readEntries(filters.statusOptionIds, identifier, 100),
-        priorityOptionIds: readEntries(
-          filters.priorityOptionIds,
-          identifier,
+        statusOptionIds: readEntries(
+          filters.statusOptionIds,
+          IDENTIFIER_SCHEMA,
           100
         ),
-        assignees: readEntries(filters.assignees, person, 101),
-        creators: readEntries(filters.creators, person, 101),
+        priorityOptionIds: readEntries(
+          filters.priorityOptionIds,
+          IDENTIFIER_SCHEMA,
+          100
+        ),
+        assignees: readEntries(filters.assignees, PERSON_SCHEMA, 101),
+        creators: readEntries(filters.creators, PERSON_SCHEMA, 101),
         tags: tags
           .filter((tag) => !conflicting.has(tag.optionId))
           .slice(0, 100),
@@ -234,14 +243,9 @@ export function captureTaskSavedView(input: {
 }): Result<TaskSavedViewConfig, string> {
   if (input.tab === 'projects')
     return err('Open a task list to save its filters.');
-  const allowed = new Set([
-    'status',
-    'priority',
-    'assignees',
-    'created-by',
-    'tags',
-  ]);
-  if (Object.keys(input.facets).some((id) => !allowed.has(id)))
+  if (
+    Object.keys(input.facets).some((id) => !SAVED_TASK_FACET_IDS.includes(id))
+  )
     return err('These task filters cannot be saved yet.');
   const tags = [];
   for (const id of input.facets.tags ?? []) {
