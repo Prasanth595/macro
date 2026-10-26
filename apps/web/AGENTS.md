@@ -53,6 +53,9 @@ team access saves.
 Include linked meetings in Markdown side-panel References, behind the same flag;
 reuse the shared single-line ReferenceRow with the title and date inline, and
 resolve meeting details and opening targets through authorized calendar previews.
+Treat missing reference projection fields during backend rollout as unresolved,
+not denied; offer Retry on the links query without bypassing the server's
+reference authorization.
 Gate event notes and document Share meeting-link controls with
 `enable-calendar-meeting-notes` before mounting their query sources; it defaults
 on in dev and uses PostHog in production.

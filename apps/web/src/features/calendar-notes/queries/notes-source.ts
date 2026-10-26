@@ -49,12 +49,41 @@ function notesOptions(userId: string | undefined, target: NoteTarget) {
 function pickerOptions(
   userId: string | undefined,
   query: string,
-  enabled: boolean
+  enabled: boolean,
+  eventId: string,
+  localCount: number
 ) {
   return {
     queryKey: notesKeys.documents(userId, query).queryKey,
     queryFn: ({ signal }: { signal: AbortSignal }) =>
-      throwOnErr(() => calendarNotesClient.documents(query, signal)),
+      Telemetry.span('calendar.notes.search', async (span) => {
+        span.setAttr('event.id', eventId);
+        span.setAttr('search.query_length', query.length);
+        span.setAttr('search.debounce_ms', 180);
+        span.setAttr('search.local_result_count', localCount);
+        const result = await span.span(
+          'calendar.notes.search.server',
+          async (server) => {
+            const result = await calendarNotesClient.documents(query, signal);
+            if (result.isOk()) {
+              server.setAttr(
+                'search.result_count',
+                result.value.documents.length
+              );
+            } else if (!signal.aborted) {
+              server.error('Meeting note search failed');
+            }
+            return result;
+          }
+        );
+        span.setAttr(
+          'search.outcome',
+          signal.aborted ? 'cancelled' : result.isOk() ? 'success' : 'error'
+        );
+        if (result.isErr() && !signal.aborted)
+          span.error('Meeting note search failed');
+        return throwOnErr(async () => result);
+      }),
     enabled: !!userId && enabled,
     staleTime: 60_000,
     gcTime: 5 * 60_000,
@@ -179,7 +208,13 @@ export function createNotesSource(
       const debounced = createDebouncedMemo(normalized, 180);
       const local = localSearch(normalized, enabled);
       const picker = useQuery(() =>
-        pickerOptions(userId(), debounced(), enabled())
+        pickerOptions(
+          userId(),
+          debounced(),
+          enabled(),
+          target().eventId,
+          local().length
+        )
       );
       const data = createMemo(() => {
         const remote = queryReadyGate(picker) ? picker.data : undefined;
@@ -230,7 +265,7 @@ export function createNotesSource(
 
 /** Reference previews are adapted at the calendar API boundary. */
 export type DocumentReference = DocumentNoteLink &
-  Pick<CalendarDocumentLink, 'teamEvent' | 'event' | 'canViewMeeting'>;
+  Partial<Pick<CalendarDocumentLink, 'teamEvent' | 'event' | 'canViewMeeting'>>;
 
 export function documentLinksOptions(
   userId: string | undefined,

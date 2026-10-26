@@ -21,7 +21,10 @@ export function DocumentMeetingNotes(props: {
           : state.data.length
             ? 'shared'
             : 'none',
-      state.data?.flatMap((link) => (link.team ? [link.team.id] : [])) ?? []
+      state.error
+        ? []
+        : (state.data?.flatMap((link) => (link.team ? [link.team.id] : [])) ??
+            [])
     );
   });
   return (

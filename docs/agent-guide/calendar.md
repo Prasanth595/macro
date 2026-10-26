@@ -30,6 +30,10 @@ from current Macro team memberships; they do not introduce departments or subtea
 Linked meetings also appear in the note’s side-panel **References** section.
 Only readers with meeting-detail access see those references; owners retain safe
 unavailable-meeting entries.
+Click a meeting reference to reopen that exact occurrence. If the calendar
+backend has not yet deployed embedded reference previews, the dialog reports
+that meeting details are temporarily unavailable and offers **Retry**. Missing
+fields must not be described as removed meeting access.
 
 Open the linked title to read the original document. On desktop it opens in a
 new split; on mobile it replaces the calendar pane and closes event details.
