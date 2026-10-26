@@ -7,6 +7,7 @@ import { SidePanel } from '@components/app/side-panel';
 import { useSplitDisplayName } from '@components/app/split-layout/layoutUtils';
 import { SignedOutRoute } from '@components/app/split-layout/split-router/app-route-shell';
 import { LoginButton } from '@core/component/TopBar/LoginButton';
+import { rememberDisplayNames } from '@core/user/displayName';
 import { fireAndForget } from '@core/util/fireAndForget';
 import StackIcon from '@phosphor/stack.svg';
 import { Button, EmptyStatePanel, Tabs } from '@ui';
@@ -115,7 +116,11 @@ export function PublicProjectRoute(props: {
   const navigate = useNavigate();
   const [resource, { refetch }] = createResource(
     () => props.projectId,
-    loadPublicProject
+    async (projectId) => {
+      const read = await loadPublicProject(projectId);
+      if (read.status === 'ready') rememberDisplayNames(read.project.people);
+      return read;
+    }
   );
   // `latest` is read only once settled, so the first load never suspends the pane.
   const read = () =>

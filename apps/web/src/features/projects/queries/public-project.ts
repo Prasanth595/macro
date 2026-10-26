@@ -1,4 +1,3 @@
-import { rememberDisplayNames } from '@core/user/displayName';
 import { propertiesServiceClient } from '@service-properties/client';
 import { dssFetch } from '@service-storage/client';
 import {
@@ -32,9 +31,10 @@ export async function loadPublicProject(
       : { status: 'failed' };
   const parsed = getInitiativeOverviewResponse.safeParse(overview.value);
   if (!parsed.success || properties.isErr()) return { status: 'failed' };
-  const project = publicProject(parsed.data, properties.value.properties);
-  rememberDisplayNames(project.people);
-  return { status: 'ready', project };
+  return {
+    status: 'ready',
+    project: publicProject(parsed.data, properties.value.properties),
+  };
 }
 
 /** A fresh read-only grant on the project description, once the last one expires. */

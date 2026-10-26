@@ -242,9 +242,7 @@ it('remembers the names the project read hands over', async () => {
   serve(
     ok({
       ...editable,
-      people: [
-        { id: editable.ownerId, firstName: 'Olive', lastName: 'Owner' },
-      ],
+      people: [{ id: editable.ownerId, firstName: 'Olive', lastName: 'Owner' }],
     })
   );
   render(() => (

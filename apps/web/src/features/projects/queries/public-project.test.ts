@@ -11,16 +11,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const services = vi.hoisted(() => ({
   dssFetch: vi.fn(),
   getEntityProperties: vi.fn(),
-  rememberDisplayNames: vi.fn(),
 }));
 vi.mock('@service-storage/client', () => ({ dssFetch: services.dssFetch }));
 vi.mock('@service-properties/client', () => ({
   propertiesServiceClient: {
     getEntityProperties: services.getEntityProperties,
   },
-}));
-vi.mock('@core/user/displayName', () => ({
-  rememberDisplayNames: services.rememberDisplayNames,
 }));
 
 import { getInitiativeOverviewResponse } from '@service-storage/generated/zod';
@@ -201,7 +197,7 @@ describe('publicProject', () => {
 });
 
 describe('loadPublicProject', () => {
-  it('reads the project and remembers the names it shows', async () => {
+  it('reads the project and the names it shows', async () => {
     services.dssFetch.mockResolvedValue(ok(overview));
     services.getEntityProperties.mockResolvedValue(
       ok({ entity_id: PROJECT, properties: projectProperties })
@@ -218,8 +214,7 @@ describe('loadPublicProject', () => {
         entity_id: PROJECT,
       })
     );
-    expect(read.status).toBe('ready');
-    expect(services.rememberDisplayNames).toHaveBeenCalledWith([
+    expect(read.status === 'ready' && read.project.people).toEqual([
       { id: OWNER, firstName: null, lastName: null },
       { id: ADA, firstName: 'Ada', lastName: null },
       { id: GRACE, firstName: null, lastName: null },
@@ -237,7 +232,6 @@ describe('loadPublicProject', () => {
       expect(await loadPublicProject(PROJECT)).toEqual({
         status: 'unavailable',
       });
-      expect(services.rememberDisplayNames).not.toHaveBeenCalled();
     }
   );
 
