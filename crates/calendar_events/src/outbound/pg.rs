@@ -1090,7 +1090,10 @@ impl CalendarRepository for PgCalendarRepository {
             .await?;
         }
 
-        let aligned = guest_policy::align_with_organizer(&mut tx, event_id).await?;
+        let mut aligned = guest_policy::align_with_organizer(&mut tx, event_id).await?;
+        // A guest copy that took its organizer's policy is the write itself,
+        // already logged and refreshed below.
+        aligned.retain(|copy| copy.event_id != event_id);
         let mut log = ChangeLogBatch::default();
         log.record(source_link_id, CalendarChangeOp::UpsertEvent(event_id));
         for copy in &aligned {

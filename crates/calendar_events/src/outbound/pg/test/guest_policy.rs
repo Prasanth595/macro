@@ -203,18 +203,23 @@ async fn a_guest_copy_keeps_its_organizers_policy_over_a_stale_one(pool: PgPool)
 
     // Stored after its organizer's copy, a guest copy Google has not caught
     // up yet takes the organizer's policy.
-    let guest = repo
-        .upsert_event_fixture(copy_of(
+    let outcome = repo
+        .upsert_event(CalendarEventWrite::Fixture(copy_of(
             guest_id,
             guest_link,
             guest_provider,
             &organizer,
             GuestPolicy::default(),
             1,
-        ))
+        )))
         .await
         .unwrap();
+    let guest = outcome.event_id;
     assert_eq!(stored_policy(&pool, guest).await.0, NO_INVITES);
+    assert!(
+        outcome.aligned_copies.is_empty(),
+        "the write itself is not reported as another copy to refresh"
+    );
 
     // A guest-side write echoes Google's stale policy; the copy keeps the
     // organizer's.
