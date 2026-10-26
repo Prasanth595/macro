@@ -116,8 +116,6 @@ function InnerCustomScrollbar(props: CustomScrollbarProps) {
     const container = props.scrollContainer();
     if (!container) return;
 
-    updateScrollMetrics();
-
     const handleScroll = () => {
       if (!isDragging()) updateScrollMetrics();
       setIsScrolling(true);
@@ -147,6 +145,9 @@ function InnerCustomScrollbar(props: CustomScrollbarProps) {
     });
     container.addEventListener('pointerleave', handleProximityLeave);
 
+    // Observing reports every target once after the next layout, so metrics
+    // are read where layout is already current. Reading them from a mutation
+    // callback instead forces a layout of everything that just changed.
     const resizeObserver = new ResizeObserver(updateScrollMetrics);
     resizeObserver.observe(container);
 
@@ -156,11 +157,12 @@ function InnerCustomScrollbar(props: CustomScrollbarProps) {
         resizeObserver.disconnect();
         resizeObserver.observe(container);
         for (const child of container.children) resizeObserver.observe(child);
-        updateScrollMetrics();
       };
       observeContent();
+      // Only direct children change the scroll extent; their own resizes are
+      // observed above. Descendant mutations (every rendered message) are not.
       mutationObserver = new MutationObserver(observeContent);
-      mutationObserver.observe(container, { childList: true, subtree: true });
+      mutationObserver.observe(container, { childList: true });
     }
 
     onCleanup(() => {
