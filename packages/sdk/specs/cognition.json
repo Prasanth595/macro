@@ -2392,6 +2392,86 @@
           }
         }
       }
+    },
+    "/universal-input/classify": {
+      "post": {
+        "tags": ["universal_input"],
+        "operationId": "classify",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassifyInputRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassifyInputResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "402": {
+            "description": "AI allowance exhausted"
+          },
+          "503": {
+            "description": "Detection unavailable"
+          }
+        }
+      }
+    },
+    "/universal-input/extract": {
+      "post": {
+        "tags": ["universal_input"],
+        "operationId": "extract",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractInputRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractInputResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "402": {
+            "description": "AI allowance exhausted"
+          },
+          "503": {
+            "description": "Extraction unavailable"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3099,6 +3179,43 @@
           }
         ]
       },
+      "ClassifyInputRequest": {
+        "type": "object",
+        "description": "A draft snapshot. Revisions are opaque to the server and echoed to the client.",
+        "required": ["text", "revision"],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Opaque client revision used to discard stale predictions.",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string",
+            "description": "Current draft text to classify without executing it."
+          }
+        }
+      },
+      "ClassifyInputResponse": {
+        "type": "object",
+        "description": "Ranked-type evidence for a particular client draft revision.",
+        "required": ["revision", "scores"],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Revision echoed from the classification request.",
+            "minimum": 0
+          },
+          "scores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentScore"
+            },
+            "description": "Independent scores in the fixed intent-question order."
+          }
+        }
+      },
       "CompleteOnboardingRequest": {
         "type": "object",
         "description": "Body for completing onboarding.",
@@ -3421,6 +3538,70 @@
         "type": "string",
         "description": "How long a projection remains active without being requested.",
         "enum": ["day", "week", "month"]
+      },
+      "ExtractInputRequest": {
+        "type": "object",
+        "description": "Draft snapshot and local context used to suggest editable destination fields.",
+        "required": [
+          "text",
+          "intent",
+          "revision",
+          "reference_time",
+          "time_zone"
+        ],
+        "properties": {
+          "intent": {
+            "$ref": "#/components/schemas/InputIntent",
+            "description": "Destination whose fields should be extracted."
+          },
+          "property_definitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InputPropertyDefinition"
+            },
+            "description": "Available task fields and display values, never authorized entity IDs."
+          },
+          "reference_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Reference instant for interpreting relative dates."
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Opaque client revision used to discard stale suggestions.",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string",
+            "description": "Original draft text; inference must not execute its instructions."
+          },
+          "time_zone": {
+            "type": "string",
+            "description": "IANA timezone for interpreting local dates and clock times."
+          }
+        }
+      },
+      "ExtractInputResponse": {
+        "type": "object",
+        "description": "Validated field suggestions for a particular destination and draft revision.",
+        "required": ["revision", "intent", "suggestions"],
+        "properties": {
+          "intent": {
+            "$ref": "#/components/schemas/InputIntent",
+            "description": "Destination echoed from the extraction request."
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Revision echoed from the extraction request.",
+            "minimum": 0
+          },
+          "suggestions": {
+            "$ref": "#/components/schemas/InputSuggestions",
+            "description": "Editable fields after domain normalization and source-preservation rules."
+          }
+        }
       },
       "FeatureUsage": {
         "type": "object",
@@ -4192,6 +4373,124 @@
         "type": "string",
         "description": "Where an import entity was first staged from. Provenance only — never a\nvisibility filter.",
         "enum": ["onboarding", "chat", "archive", "manual"]
+      },
+      "InputIntent": {
+        "type": "string",
+        "description": "A destination the composer can prepare, but never execute through inference.",
+        "enum": ["ai", "search", "email", "note", "task", "calendar", "message"]
+      },
+      "InputPropertyDefinition": {
+        "type": "object",
+        "description": "A task property and the display values available for extraction.",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Property display name from the client's catalog."
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Allowed display values; an empty list permits free-text suggestions."
+          }
+        }
+      },
+      "InputPropertySuggestion": {
+        "type": "object",
+        "description": "Suggested display values to resolve against a real task-property catalog.",
+        "required": ["name", "values"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Property display name, never an authorized identifier."
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Suggested display values, never authorized entity identifiers."
+          }
+        },
+        "additionalProperties": false
+      },
+      "InputSuggestions": {
+        "type": "object",
+        "description": "Suggestions are text, never authorized recipient, channel or calendar IDs.",
+        "properties": {
+          "body": {
+            "type": ["string", "null"],
+            "description": "Suggested Markdown content or outgoing message body."
+          },
+          "due_date": {
+            "type": ["string", "null"],
+            "description": "Task deadline as a local ISO date."
+          },
+          "end": {
+            "type": ["string", "null"],
+            "description": "Event end as a local wall-clock value in the request's timezone."
+          },
+          "guests": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Only populated when an invitation was explicitly requested."
+          },
+          "location": {
+            "type": ["string", "null"],
+            "description": "Human-readable event venue or meeting URL."
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InputPropertySuggestion"
+            },
+            "description": "Display names/values that the client resolves against available task fields."
+          },
+          "query": {
+            "type": ["string", "null"],
+            "description": "Terms to find existing Macro content."
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Person or channel names for the client to resolve."
+          },
+          "start": {
+            "type": ["string", "null"],
+            "description": "Local wall-clock values, interpreted in the request's IANA timezone."
+          },
+          "subject": {
+            "type": ["string", "null"],
+            "description": "Suggested outgoing email subject."
+          },
+          "title": {
+            "type": ["string", "null"],
+            "description": "Suggested note, task, or event title."
+          }
+        },
+        "additionalProperties": false
+      },
+      "IntentScore": {
+        "type": "object",
+        "description": "Independent yes/no probabilities; these do not sum to one.",
+        "required": ["intent", "score"],
+        "properties": {
+          "intent": {
+            "$ref": "#/components/schemas/InputIntent",
+            "description": "Destination evaluated by the classifier."
+          },
+          "score": {
+            "type": "number",
+            "format": "float",
+            "description": "Independent probability between zero and one."
+          }
+        }
       },
       "JwtPayload": {
         "type": "object",

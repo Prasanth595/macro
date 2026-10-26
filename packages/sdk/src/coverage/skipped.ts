@@ -158,10 +158,13 @@ export const cognitionExcluded = [
   'addMcpServer',
   'browsePipedreamMcpCatalog',
   'callTool',
+  // Speculative Command K inference prepares app-owned, editable drafts.
+  'classify',
   'completePipedreamMcpConnection',
   'createPipedreamMcpToken',
   'deletePipedreamMcpConnection',
   'deleteMcpServer',
+  'extract',
   'getBatchPreview',
   'getChatHistoryBatchMessagesHandler',
   'getChatPermissions',

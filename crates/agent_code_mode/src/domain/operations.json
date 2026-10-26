@@ -218,6 +218,8 @@
   "cognition.sendChatMessage": "Send Chat Message",
   "cognition.stopChatStream": "Stop Chat Stream",
   "cognition.structuredCompletion": "Generate structured content",
+  "cognition.classify": "Classify",
+  "cognition.extract": "Extract",
   "contacts.getContacts": "Get Contacts",
   "contacts.addContact": "Add Contact",
   "email.getAttachment": "Get Attachment",
