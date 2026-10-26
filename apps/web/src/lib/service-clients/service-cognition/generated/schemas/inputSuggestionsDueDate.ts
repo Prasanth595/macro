@@ -5,4 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
+/**
+ * Task deadline as a local ISO date.
+ */
 export type InputSuggestionsDueDate = string | null;

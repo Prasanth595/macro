@@ -1,22 +1,19 @@
 import type { SoupState } from '@app/features/next-soup/create-soup-state';
 import type { FilterContext } from '@app/features/next-soup/filters/configs/base';
-import {
-  NIL_UUID,
-  type QueryState,
-} from '@app/features/next-soup/filters/filter-store';
+import type { QueryState } from '@app/features/next-soup/filters/filter-store';
 import {
   createSearchState as createSharedSearchState,
   intersectEntityPools,
-  type SoupSearchRequest,
   useSearchContext,
 } from '@app/features/soup/search';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { useUserId } from '@core/context/user';
-import type { UnifiedSearchRequest } from '@service-search/generated/models';
 import { type Accessor, createMemo, type Setter } from 'solid-js';
-import { filterDataToQueryFilters } from '../queries/search-request';
+import { buildSoupSearchRequest } from '../queries/search-request';
 
 interface CreateSearchStateArgs {
+  /** Where the search runs, for analytics. */
+  surface: Accessor<string>;
   soup: SoupState;
   filters: Accessor<QueryState>;
   assignees: Accessor<string[]>;
@@ -31,6 +28,7 @@ interface CreateSearchStateArgs {
 }
 
 export const createSearchState = ({
+  surface,
   soup,
   filters,
   assignees,
@@ -83,48 +81,10 @@ export const createSearchState = ({
     );
   };
 
-  const buildRequest = ({
-    query,
-    matchType,
-  }: SoupSearchRequest): {
-    params: { page_size: number };
-    body: UnifiedSearchRequest;
-  } => {
-    const state = filters();
-    const baseFilters = filterDataToQueryFilters(state);
-
-    // CRM is opt-in on the backend. A view includes CRM in search unless it
-    // NIL-excludes the CRM target (the same sentinel pattern other entity
-    // types use) — so the Companies view (CRM-scoped) searches CRM, while
-    // every other view (including the global Search view) excludes it.
-    const includeCrm = !(state.include.crmCompanyId ?? []).includes(NIL_UUID);
-    const body: UnifiedSearchRequest = includeCrm
-      ? {
-          search_on: 'name_content',
-          match_type: matchType,
-          query,
-          include_crm: true,
-          filters: {
-            ...baseFilters,
-            crm_company_filters: {
-              company_ids: state.include.crmCompanyId,
-              hidden: state.include.crmCompanyHidden,
-            },
-          },
-        }
-      : {
-          search_on: 'name_content',
-          match_type: matchType,
-          query,
-          filters: baseFilters,
-        };
-
-    return { params: { page_size: 100 }, body };
-  };
-
   const search = createSharedSearchState({
+    surface,
     text: searchText,
-    buildRequest,
+    buildRequest: (search) => buildSoupSearchRequest(filters(), search),
     localPool,
     disableLocalSearch,
     hideLocalResults,

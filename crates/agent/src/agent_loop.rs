@@ -2,8 +2,10 @@
 use crate::error::AgentError;
 use crate::hook::{BridgeInputs, RegisterFn, ToolLoads, ToolRouter, UserToolFinisher};
 use crate::model::metering::MeteringContext;
+use crate::model::metering_http::MeteredHttpClient;
 use crate::model::router::{ModelRouter, ProviderAgent};
-use crate::model::{PredefinedModel, ReasoningEffort};
+use crate::model::types::Model;
+use crate::model::{ModelSpeed, PredefinedModel, ReasoningEffort};
 use crate::stream::ChatCompletionStream;
 use crate::telemetry::GenAiContext;
 use crate::tool_adapter::DynToolSetAdapter;
@@ -103,6 +105,7 @@ impl From<&str> for SystemPrompt {
 pub struct AgentLoop {
     model: String,
     reasoning_effort: Option<ReasoningEffort>,
+    speed: ModelSpeed,
     max_turns: usize,
     max_tokens: u64,
     recorder: Arc<dyn UsageRecorder>,
@@ -114,6 +117,9 @@ pub struct AgentLoop {
     /// Whether this loop enriches the runtime's GenAI spans (see
     /// [`Self::with_genai_telemetry`]).
     genai_telemetry: bool,
+    /// The router this loop's model calls use instead of the shared one, when
+    /// a caller-supplied key pays for them (see [`Self::with_provider_api_key`]).
+    router: Option<ModelRouter<MeteredHttpClient>>,
 }
 
 impl AgentLoop {
@@ -129,6 +135,7 @@ impl AgentLoop {
         Self {
             model: PredefinedModel::default().to_string(),
             reasoning_effort: None,
+            speed: ModelSpeed::Standard,
             max_turns: DEFAULT_MAX_TURNS,
             max_tokens: DEFAULT_MAX_TOKENS,
             recorder,
@@ -136,7 +143,35 @@ impl AgentLoop {
             conversation_id: None,
             agent_name: None,
             genai_telemetry: true,
+            router: None,
         }
+    }
+
+    /// Run the model's calls on `api_key` instead of the deployment's key for
+    /// its provider. Call after [`Self::with_model`]: the key is for the
+    /// selected model's provider, which must be native Anthropic or OpenAI.
+    ///
+    /// Fails rather than falling back when the model does not route, since a
+    /// fallback would run on the deployment's key while the usage is recorded
+    /// as the caller's. Only the loop's own model calls use the key; tools
+    /// that call models themselves still use the deployment's keys.
+    pub fn with_provider_api_key(mut self, api_key: &str) -> Result<Self, AgentError> {
+        let provider = Model::try_from(self.model.as_str())?.provider().to_owned();
+        let router = ModelRouter::shared()?.with_provider_api_key(&provider, api_key)?;
+        router.route(&self.model)?;
+        self.router = Some(router);
+        Ok(self)
+    }
+
+    /// Select a supported inference speed without changing the model or effort.
+    pub fn with_speed(mut self, speed: ModelSpeed) -> Result<Self, AgentError> {
+        if !speed.supported(&self.model) {
+            return Err(AgentError::Other(anyhow::anyhow!(
+                "speed is not supported by this model"
+            )));
+        }
+        self.speed = speed;
+        Ok(self)
     }
 
     /// Finish user tools inside the turn.
@@ -159,6 +194,9 @@ impl AgentLoop {
     /// api-id string (frontend).
     pub fn with_model<M: ToString>(mut self, model: M) -> Self {
         self.model = model.to_string();
+        if !self.speed.supported(&self.model) {
+            self.speed = ModelSpeed::Standard;
+        }
         self
     }
 
@@ -239,12 +277,15 @@ impl AgentLoop {
             system_prompt,
             usage_ctx,
             |handle, prompt, tool_search, max_turns, max_tokens, telemetry| {
-                let routed = ModelRouter::shared()
-                    .expect("failed to initialize model router")
-                    .route_or_default(&self.model);
+                let router = match &self.router {
+                    Some(router) => router,
+                    None => ModelRouter::shared().expect("failed to initialize model router"),
+                };
+                let routed = router.route_or_default(&self.model);
                 telemetry.set_model(routed.provider(), routed.model_name());
                 routed.into_agent(
                     self.reasoning_effort,
+                    self.speed,
                     handle,
                     prompt,
                     tool_search,
@@ -410,7 +451,12 @@ impl AgentLoop {
             telemetry.clone(),
         );
 
-        let financial_context = MeteringContext::for_operation(self.recorder.as_ref(), &usage_ctx);
+        let financial_context = MeteringContext::for_session(
+            self.recorder.clone(),
+            &usage_ctx,
+            &self.model,
+            self.speed,
+        );
         Session {
             agent,
             history: Vec::new(),
@@ -499,6 +545,7 @@ impl AgentLoop {
                 telemetry.set_model(routed.provider(), routed.model_name());
                 ProviderAgent::Test(Box::new(routed.into_agent(
                     self.reasoning_effort,
+                    self.speed,
                     handle,
                     prompt,
                     tool_search,
@@ -594,7 +641,7 @@ impl Session {
         } else if self
             .financial_context
             .as_ref()
-            .is_some_and(MeteringContext::activated)
+            .is_some_and(|context| context.activated() || context.records_per_call())
         {
             self.financial_context.clone()
         } else if current.is_some() {

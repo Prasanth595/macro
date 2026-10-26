@@ -55,6 +55,8 @@ export type GithubPullRequestWithDetails = GithubPullRequest & {
   description?: string | null;
   authorLogin?: string | null;
   labels?: GithubPullRequestLabel[] | null;
+  /** Whether the pull request is a draft. Absent when the source did not say. */
+  draft?: boolean;
 };
 
 function toGithubPullRequestRef(
@@ -221,7 +223,7 @@ function githubPullRequestRefreshQueryOptions(
       });
       if (result.isErr()) return false;
       for (const queryKey of refreshedKeys) {
-        void client.invalidateQueries({ queryKey });
+        client.invalidateQueries({ queryKey });
       }
       return true;
     },

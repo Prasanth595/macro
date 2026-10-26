@@ -8,6 +8,7 @@ import type {
   QuickAccessListOptions,
 } from '@core/context/quickAccess/types';
 import { attachGlobalDOMScope, useHotKeyRoot } from '@core/hotkey/hotkeys';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { $createUserMentionNode } from '@macro-inc/lexical-core';
 import { propertiesKeys } from '@queries/properties/keys';
 import type { TagSetResponse } from '@service-properties/generated/schemas/tagSetResponse';
@@ -347,6 +348,7 @@ export function UniversalInputFixture(
       hasMore: () => false,
       isLoading: () => false,
       isLoadingMore: () => false,
+      error: () => undefined,
       loadMore: async () => {},
     };
   }
@@ -628,7 +630,9 @@ export function UniversalInputFixture(
                           state.setText(text);
                           props.command?.onTextChange(text);
                         }}
-                        onSubmit={() => void state.submit()}
+                        onSubmit={() =>
+                          fireAndForget(state.submit(), 'universal-input')
+                        }
                         registerFocus={(callback) => {
                           focus = callback;
                         }}

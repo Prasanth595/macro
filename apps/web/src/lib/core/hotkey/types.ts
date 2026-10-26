@@ -64,6 +64,9 @@ export interface HotkeyCommand {
   tags?: string[];
   // Optional related search terms for the command palette.
   keywords?: string[];
+  // The shortcut sheet section, when the scope does not say: a key a view
+  // registers in an app-wide leader scope (g then a letter) is the view's.
+  sheetSection?: 'view';
   // If true, command palette search also includes one level of nested commands.
   surfaceNestedCommands?: boolean;
   /**
@@ -208,6 +211,11 @@ export interface HotkeyRegistrationOptions {
    * Optional related search terms for the command palette.
    */
   keywords?: string[];
+  /**
+   * List this key under the current view in the shortcut sheet, for a view's
+   * key registered in an app-wide leader scope.
+   */
+  sheetSection?: 'view';
   /**
    * If true, command palette search also includes one level of nested commands.
    */

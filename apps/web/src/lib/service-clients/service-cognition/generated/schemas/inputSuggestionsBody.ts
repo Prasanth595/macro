@@ -5,4 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
+/**
+ * Suggested Markdown content or outgoing message body.
+ */
 export type InputSuggestionsBody = string | null;

@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { throttle } from '@solid-primitives/scheduled';
 
 /** One request in flight; queued work always reads the newest eligible snapshot. */
@@ -28,11 +29,11 @@ export function createInferenceQueue<T>(options: {
       running = false;
       if (queued && !disposed) {
         queued = false;
-        void run();
+        fireAndForget(run(), 'universal-input');
       }
     }
   };
-  const schedule = throttle(() => void run(), 200);
+  const schedule = throttle(() => fireAndForget(run(), 'universal-input'), 200);
   const clear = () => {
     queued = false;
     lastKey = undefined;
@@ -42,7 +43,7 @@ export function createInferenceQueue<T>(options: {
     enqueue(immediate = false) {
       if (immediate) {
         schedule.clear();
-        void run();
+        fireAndForget(run(), 'universal-input');
       } else schedule();
     },
     clear,

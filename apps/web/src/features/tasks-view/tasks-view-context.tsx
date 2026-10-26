@@ -6,10 +6,12 @@ import {
   listOwnedSlotName,
 } from '@app/components/list';
 import { setSidebarSectionCollapsed } from '@app/components/view-shell';
-import { useMobileSearchText } from '@app/features/command/mobile/use-mobile-search-text';
 import { normalizeFacetSelection } from '@app/features/soup';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { enableProjects } from '@app/lib/core/constant/featureFlags';
+import {
+  enableGantt,
+  enableProjects,
+} from '@app/lib/core/constant/featureFlags';
 import { makePersistedState } from '@app/lib/persistence';
 import {
   createSearchParams,
@@ -29,6 +31,7 @@ import {
 import { createAssertedContextProvider } from '@core/context/createContext';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useTagSets, useTagSetsReady } from '@property/tags/tag-sets-context';
 import type { ContextProviderProps } from '@solid-primitives/context';
 import {
@@ -59,6 +62,7 @@ import {
 } from './queries/use-tasks-query';
 import { tasksTabSearch, tasksTabSearchCodec } from './tasks-tab-search';
 import type {
+  TaskCreateOptions,
   TaskDetailTarget,
   TaskSortId,
   TasksTab,
@@ -81,6 +85,8 @@ export type TasksViewProviderProps = ContextProviderProps & {
     options?: EntityDetailNavigationOptions
   ) => boolean;
   onCloseTask?: () => void;
+  /** Host-owned task creation, including scope and permissions for embedded views. */
+  onCreateTask?: (options?: TaskCreateOptions) => void;
 };
 
 export type TasksListActivationMetadata = {
@@ -96,7 +102,9 @@ type TasksListController = ListController<
 export type TasksViewContext = {
   scopeKey?: string;
   state: Store<TasksViewState>;
+  createTask?: TasksViewProviderProps['onCreateTask'];
   projectsEnabled: Accessor<boolean>;
+  ganttEnabled: Accessor<boolean>;
   setState: SetStoreFunction<TasksViewState>;
   selectedTask: Accessor<TaskDetailTarget | undefined>;
   source: TasksDataSource;
@@ -117,6 +125,11 @@ export type TasksViewContext = {
   closeTask: () => void;
   setTab: (tab: TasksTab) => void;
   setFacets: (facets: TasksViewState['facets']) => void;
+  /**
+   * Filters by a single tag without changing tabs. Used by the inline
+   * "filter by tag" button on entity rows.
+   */
+  filterByTag: (optionId: string) => void;
   setPrimarySort: (id: TaskSortId) => void;
   isSidebarSectionOpen: (id: string) => boolean;
   setSidebarSectionOpen: (id: string, open: boolean) => void;
@@ -145,6 +158,8 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   const tagSetsReady = useTagSetsReady();
   const projectsFlag = useFeatureFlag(enableProjects);
   const projectsEnabled = () => projectsFlag().enabled;
+  const ganttFlag = useFeatureFlag(enableGantt);
+  const ganttEnabled = () => ganttFlag().enabled;
 
   const initial = props.initialState ?? {};
   const initialTab = initial.tab ?? 'my-tasks';
@@ -181,17 +196,16 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   const [persistedState, setState] = props.scopeKey
     ? withSplitPanelOwner(ownedSlot('view-state'), createState)
     : createState();
-  const searchText = useMobileSearchText(
-    () => persistedState.search,
-    () => !props.scopeKey && panel.handle.isActive()
-  );
-  // A pending or disabled rollout must not overwrite the saved Projects tab.
+  // Rollout fallbacks must not overwrite saved tab or layout selections.
   const state = mergeProps(persistedState, {
-    get search() {
-      return searchText();
-    },
     get layout() {
-      return isTouchDevice() ? 'list' : persistedState.layout;
+      if (
+        isTouchDevice() ||
+        (persistedState.layout === 'gantt' && !ganttEnabled())
+      ) {
+        return 'list';
+      }
+      return persistedState.layout;
     },
     get groupBy() {
       if (state.layout !== 'board') {
@@ -222,12 +236,13 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
       setSearch: setTabSearch,
       tab: routeTab,
       enabled: syncSearch,
-      boardEnabled: () => !isTouchDevice(),
+      nonListLayoutsEnabled: () => !isTouchDevice(),
     });
   const currentSearch = () =>
     tasksTabSearchCodec.serialize({
       tab: state.tab,
-      layout: state.layout,
+      // Preserve a rollout-hidden Gantt selection across task navigation.
+      layout: isTouchDevice() ? 'list' : persistedState.layout,
       sort: state.sort[0]?.id,
       sortReversed: state.sort[0]
         ? state.sort[0].reversed
@@ -293,16 +308,20 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   };
   const closeTask = () => {
     if (props.onCloseTask) return props.onCloseTask();
-    navigate(
-      {
-        route: state.tab === 'projects' ? tasksProjectsRoute : tasksSplitRoute,
-        params: {},
-      },
-      {
-        search: {
-          [searchNamespace]: currentSearch(),
+    fireAndForget(
+      navigate(
+        {
+          route:
+            state.tab === 'projects' ? tasksProjectsRoute : tasksSplitRoute,
+          params: {},
         },
-      }
+        {
+          search: {
+            [searchNamespace]: currentSearch(),
+          },
+        }
+      ),
+      'tasks-view'
     );
   };
   const openTask = (
@@ -312,13 +331,16 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
     if (props.onOpenTask) return props.onOpenTask(task, options);
     if (!opensInline(options)) return false;
     if (!selectPreview.canSelect(taskSelection(task.id))) return true;
-    navigate(
-      { route: taskDetailRoute, params: { taskId: task.id } },
-      {
-        search: {
-          [searchNamespace]: currentSearch(),
-        },
-      }
+    fireAndForget(
+      navigate(
+        { route: taskDetailRoute, params: { taskId: task.id } },
+        {
+          search: {
+            [searchNamespace]: currentSearch(),
+          },
+        }
+      ),
+      'tasks-view'
     );
     return true;
   };
@@ -328,28 +350,36 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
       if (props.scopeKey || routeParams.projectId) return;
       if (!selectPreview(task ? taskSelection(task.id) : undefined)) {
         if (previous) {
-          navigate(
-            { route: taskDetailRoute, params: { taskId: previous.id } },
-            {
-              replace: true,
-              search: {
-                [searchNamespace]: currentSearch(),
-              },
-            }
+          fireAndForget(
+            navigate(
+              { route: taskDetailRoute, params: { taskId: previous.id } },
+              {
+                replace: true,
+                search: {
+                  [searchNamespace]: currentSearch(),
+                },
+              }
+            ),
+            'tasks-view'
           );
         } else {
-          navigate(
-            {
-              route:
-                state.tab === 'projects' ? tasksProjectsRoute : tasksSplitRoute,
-              params: {},
-            },
-            {
-              replace: true,
-              search: {
-                [searchNamespace]: currentSearch(),
+          fireAndForget(
+            navigate(
+              {
+                route:
+                  state.tab === 'projects'
+                    ? tasksProjectsRoute
+                    : tasksSplitRoute,
+                params: {},
               },
-            }
+              {
+                replace: true,
+                search: {
+                  [searchNamespace]: currentSearch(),
+                },
+              }
+            ),
+            'tasks-view'
           );
         }
         return;
@@ -386,6 +416,16 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
     setState('facets', reconcile(normalizeFacetSelection(facets)));
   };
 
+  // Filters by a single tag without changing tabs. Used by the inline
+  // "filter by tag" button on entity rows.
+  const filterByTag = (optionId: string) => {
+    closeTask();
+    setState(
+      'facets',
+      reconcile(normalizeFacetSelection({ tags: [optionId] }))
+    );
+  };
+
   const isSidebarSectionOpen = (id: string) =>
     !state.collapsedSidebarSectionIds.includes(id);
 
@@ -397,8 +437,12 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
 
   return {
     scopeKey: props.scopeKey,
+    get createTask() {
+      return props.onCreateTask;
+    },
     state,
     projectsEnabled,
+    ganttEnabled,
     setState: setStateWithSearch,
     selectedTask,
     source,
@@ -408,6 +452,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
     closeTask,
     setTab,
     setFacets,
+    filterByTag,
     setPrimarySort,
     isSidebarSectionOpen,
     setSidebarSectionOpen,

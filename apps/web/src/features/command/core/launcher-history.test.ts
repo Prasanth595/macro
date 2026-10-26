@@ -40,7 +40,7 @@ describe('launcher recent usage', () => {
       ])
     ).toEqual([
       ['Recents', ['Email', 'Task', 'Folder']],
-      ['Docs & files', ['Document', 'Snippet']],
+      ['Docs', ['Document', 'Snippet']],
     ]);
     expect(sections.flatMap((section) => section.items)).toHaveLength(
       items.length
@@ -54,7 +54,7 @@ describe('launcher recent usage', () => {
       groupRecentCreateMenuItems(items, []).map(
         (section) => section.group.label
       )
-    ).toEqual(['Docs & files', 'Communicate']);
+    ).toEqual(['Docs', 'Comms']);
   });
 
   it('filters recent choices without promoting other search results into Recents', () => {
@@ -70,7 +70,7 @@ describe('launcher recent usage', () => {
       )
     ).toEqual([
       ['Recents', ['Task']],
-      ['Docs & files', ['Document']],
+      ['Docs', ['Document']],
     ]);
     expect(groupRecentCreateMenuItems([], [email, task])).toEqual([]);
   });

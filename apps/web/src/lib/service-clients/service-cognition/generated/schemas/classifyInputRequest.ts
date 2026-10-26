@@ -9,7 +9,11 @@
  * A draft snapshot. Revisions are opaque to the server and echoed to the client.
  */
 export interface ClassifyInputRequest {
-  /** @minimum 0 */
+  /**
+   * Opaque client revision used to discard stale predictions.
+   * @minimum 0
+   */
   revision: number;
+  /** Current draft text to classify without executing it. */
   text: string;
 }

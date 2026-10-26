@@ -17,8 +17,8 @@ import {
   trimWhitespace,
 } from '@core/component/LexicalMarkdown/utils';
 import type { PortalScope } from '@core/component/ScopedPortal';
+import { onElementConnect } from '@core/util/onElementConnect';
 import { mergeRegister } from '@lexical/utils';
-import { onElementConnect } from '@solid-primitives/lifecycle';
 import {
   $getRoot,
   $getSelection,
@@ -174,6 +174,10 @@ export function ComposeTaskTitleEditor(props: {
     type: 'title',
     isInteractable: () => !props.disabled(),
   });
+  onCleanup(() => {
+    trimWhitespace(editor, { trailing: true });
+    cleanup();
+  });
 
   const emojiMenuOperations = createMenuOperations();
   const tagMenuOperations = createMenuOperations();
@@ -266,10 +270,6 @@ export function ComposeTaskTitleEditor(props: {
   const onConnect = (el: HTMLDivElement) => {
     editor.setRootElement(el);
     setRootConnected(true);
-    onCleanup(() => {
-      trimWhitespace(editor, { trailing: true });
-      cleanup();
-    });
   };
 
   return (

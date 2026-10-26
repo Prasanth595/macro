@@ -15,7 +15,13 @@ import {
   addCtrlJKMenuNavigation,
   highlightFirstMenuItemOnOpen,
 } from '../utils/menuKeyboardNavigation';
+import { createMultiSelectIntent } from '../utils/multiSelectSelection';
+import {
+  createSelectionDismissal,
+  type SelectionDismissal,
+} from '../utils/selectionDismissal';
 import { Button, type ButtonProps } from './Button';
+import { MultiSelectItemContent } from './MultiSelectItemContent';
 import { Surface, type SurfaceProps } from './Surface';
 
 /*
@@ -67,10 +73,13 @@ export type DropdownTriggerProps = ComponentProps<
 export type DropdownItemIndicatorProps = ComponentProps<
   typeof KobalteDropdownMenu.ItemIndicator
 >;
-export type DropdownCheckboxItemProps = ComponentProps<
-  typeof KobalteDropdownMenu.CheckboxItem
+export type DropdownCheckboxItemProps = Omit<
+  ComponentProps<typeof KobalteDropdownMenu.CheckboxItem>,
+  'closeOnSelect' | 'onChange'
 > & {
   indicator?: JSX.Element;
+  closeOnSelect?: SelectionDismissal;
+  onChange?: (checked: boolean) => void;
 };
 export type DropdownSubTriggerProps = ComponentProps<
   typeof KobalteDropdownMenu.SubTrigger
@@ -84,7 +93,21 @@ export type DropdownGroupLabelProps = ComponentProps<
 export type DropdownGroupProps = ComponentProps<
   typeof KobalteDropdownMenu.Group
 >;
-export type DropdownItemProps = ComponentProps<typeof KobalteDropdownMenu.Item>;
+export type DropdownItemProps = Omit<
+  ComponentProps<typeof KobalteDropdownMenu.Item>,
+  'closeOnSelect'
+> & {
+  closeOnSelect?: SelectionDismissal;
+};
+export type DropdownMultiSelectItemProps = Omit<
+  DropdownItemProps,
+  'onSelect' | 'closeOnSelect'
+> & {
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+  onOnly: () => void;
+};
 export type DropdownSubProps = ComponentProps<typeof KobalteDropdownMenu.Sub>;
 
 // Text size is inherited from `Dropdown.Content` (defaults to `text-sm`) so a
@@ -322,11 +345,27 @@ const CHECKBOX_ITEM_BOX_CLASS = cn(
 );
 
 function DropdownCheckboxItem(props: DropdownCheckboxItemProps) {
-  const [local, rest] = splitProps(props, ['class', 'children', 'indicator']);
+  const selection = createSelectionDismissal();
+  const [local, rest] = splitProps(props, [
+    'class',
+    'children',
+    'indicator',
+    'ref',
+    'closeOnSelect',
+  ]);
   return (
     <KobalteDropdownMenu.CheckboxItem
       class={cn(ROW_CLASS, local.class)}
       {...rest}
+      ref={(element) => {
+        selection.track(element);
+        callRef(local.ref, element);
+      }}
+      closeOnSelect={
+        local.closeOnSelect === 'unless-shift'
+          ? selection.shouldClose()
+          : local.closeOnSelect
+      }
     >
       {local.indicator ?? (
         <div class={CHECKBOX_ITEM_BOX_CLASS}>
@@ -337,6 +376,56 @@ function DropdownCheckboxItem(props: DropdownCheckboxItemProps) {
       )}
       {local.children}
     </KobalteDropdownMenu.CheckboxItem>
+  );
+}
+
+/**
+ * Checkbox/Space toggles without closing; row/Enter adds and closes.
+ * Shift activation and Only replace the group selection without closing.
+ *
+ * @do Use for options in a multiselect filter, not independent settings.
+ * @do Replace only this item's group in `onOnly`, preserving other filters.
+ */
+function DropdownMultiSelectItem(props: DropdownMultiSelectItemProps) {
+  const selectionIntent = createMultiSelectIntent();
+  const [local, rest] = splitProps(props, [
+    'checked',
+    'label',
+    'onChange',
+    'onOnly',
+    'class',
+    'children',
+    'ref',
+  ]);
+  return (
+    <KobalteDropdownMenu.Item
+      {...rest}
+      role="menuitemcheckbox"
+      aria-label={local.label}
+      aria-checked={local.checked}
+      textValue={local.label}
+      aria-keyshortcuts="Space Enter Shift+Enter"
+      class={cn(ROW_CLASS, 'relative pr-14 touch:min-h-11', local.class)}
+      ref={(element) => {
+        selectionIntent.track(element);
+        callRef(local.ref, element);
+      }}
+      closeOnSelect={selectionIntent.shouldClose()}
+      onSelect={() => {
+        if (selectionIntent.intent() === 'only') local.onOnly();
+        else
+          local.onChange(selectionIntent.intent() === 'add' || !local.checked);
+      }}
+    >
+      <MultiSelectItemContent
+        checked={local.checked}
+        label={local.label}
+        disabled={rest.disabled}
+        onOnly={local.onOnly}
+      >
+        {local.children}
+      </MultiSelectItemContent>
+    </KobalteDropdownMenu.Item>
   );
 }
 
@@ -369,12 +458,21 @@ function DropdownSub(props: DropdownSubProps) {
 }
 
 function DropdownItem(props: DropdownItemProps) {
-  const [local, rest] = splitProps(props, ['class']);
+  const selection = createSelectionDismissal();
+  const [local, rest] = splitProps(props, ['class', 'ref', 'closeOnSelect']);
   return (
     <KobalteDropdownMenu.Item
       class={cn(ROW_CLASS, local.class)}
-      closeOnSelect={props.closeOnSelect}
       {...rest}
+      ref={(element) => {
+        selection.track(element);
+        callRef(local.ref, element);
+      }}
+      closeOnSelect={
+        local.closeOnSelect === 'unless-shift'
+          ? selection.shouldClose()
+          : local.closeOnSelect
+      }
     />
   );
 }
@@ -405,6 +503,7 @@ export const Dropdown = Object.assign(
     ItemDescription:
       KobalteDropdownMenu.ItemDescription /* passthrough — describes the item for assistive tech */,
     CheckboxItem: DropdownCheckboxItem,
+    MultiSelectItem: DropdownMultiSelectItem,
     SubContent: DropdownSubContent,
     SubTrigger: DropdownSubTrigger,
     GroupLabel: DropdownGroupLabel,

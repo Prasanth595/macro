@@ -1,8 +1,13 @@
+import {
+  NIL_UUID,
+  type QueryState,
+} from '@app/features/next-soup/filters/filter-store';
+import type { SoupSearchRequest } from '@app/features/soup/search';
 import type {
   EntityFilters,
   PropertyFilter,
+  UnifiedSearchRequest,
 } from '@service-search/generated/models';
-import type { QueryState } from '../filters/filter-store';
 import { agentSessionSearchFilters } from './agent-session-search-filters';
 
 // Map the tasks-view property filters (status/priority/assignee/custom) into the
@@ -30,7 +35,7 @@ function includePropertiesToFilters(
   return [...byPropId.values()];
 }
 
-export function filterDataToQueryFilters(data: QueryState): EntityFilters {
+function filterDataToQueryFilters(data: QueryState): EntityFilters {
   const filters: EntityFilters = {};
   const { include } = data;
   filters.agent_session_filters = agentSessionSearchFilters(include);
@@ -175,4 +180,40 @@ export function filterDataToQueryFilters(data: QueryState): EntityFilters {
   }
 
   return filters;
+}
+
+/** Shared full-text request mapping for Search surfaces. */
+export function buildSoupSearchRequest(
+  state: QueryState,
+  { query, matchType }: SoupSearchRequest
+): { params: { page_size: number }; body: UnifiedSearchRequest } {
+  const baseFilters = filterDataToQueryFilters(state);
+
+  // CRM is opt-in on the backend. A view includes CRM in search unless it
+  // NIL-excludes the CRM target (the same sentinel pattern other entity
+  // types use) — so the Companies view (CRM-scoped) searches CRM, while
+  // every other view (including the global Search view) excludes it.
+  const includeCrm = !(state.include.crmCompanyId ?? []).includes(NIL_UUID);
+  const body: UnifiedSearchRequest = includeCrm
+    ? {
+        search_on: 'name_content',
+        match_type: matchType,
+        query,
+        include_crm: true,
+        filters: {
+          ...baseFilters,
+          crm_company_filters: {
+            company_ids: state.include.crmCompanyId,
+            hidden: state.include.crmCompanyHidden,
+          },
+        },
+      }
+    : {
+        search_on: 'name_content',
+        match_type: matchType,
+        query,
+        filters: baseFilters,
+      };
+
+  return { params: { page_size: 100 }, body };
 }

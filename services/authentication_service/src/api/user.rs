@@ -47,6 +47,10 @@ fn router_with_auth() -> Router<ApiContext> {
         .route("/ai_consent", patch(patch_ai_consent::handler))
         .route("/quota", get(get_user_quota::handler))
         .route(
+            "/stripe/trial_eligibility",
+            get(stripe::trial_eligibility::trial_eligibility),
+        )
+        .route(
             "/stripe/checkoutv2",
             post(
                 stripe::create_checkout_session_v2::create_checkout_session::<
@@ -58,7 +62,11 @@ fn router_with_auth() -> Router<ApiContext> {
             "/stripe/portal",
             post(stripe::create_portal_session::create_portal_session),
         )
-        .route("/stripe/plan", post(stripe::change_plan::change_plan))
+        .route(
+            "/stripe/plan",
+            post(stripe::change_plan::change_plan)
+                .get(stripe::subscription_status::subscription_status),
+        )
         .route(
             "/legacy_user_permissions",
             get(get_legacy_user_permissions::handler),

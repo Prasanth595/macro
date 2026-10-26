@@ -23,7 +23,14 @@ const messages = [
     content: 'John reviewed the budget forecast.',
   },
 ];
-const documents = ['Investor update', 'Hiring plan', 'How Blowholes Work'];
+const documents: { name: string; subType?: 'task' | 'snippet' }[] = [
+  { name: 'Investor update' },
+  { name: 'Hiring plan' },
+  { name: 'How Blowholes Work' },
+  { name: 'Scope guide' },
+  { name: 'Scope task', subType: 'task' },
+  { name: 'Scope snippet', subType: 'snippet' },
+];
 
 export const searchClient = {
   ...realSearchClient,
@@ -35,8 +42,10 @@ export const searchClient = {
     const query = args.request.query.toLowerCase();
     const senders = args.request.filters?.channel_filters?.sender_ids;
     const channelIds = args.request.filters?.channel_filters?.channel_ids;
-    const channelOnly =
-      (senders?.length ?? 0) > 0 || (channelIds?.length ?? 0) > 0;
+    const documentsExcluded =
+      args.request.filters?.document_filters?.document_ids?.includes(
+        '00000000-0000-0000-0000-000000000000'
+      );
     const results: UnifiedSearchResponseItem[] = [];
     for (const message of messages) {
       if (senders?.length && !senders.includes(message.sender)) continue;
@@ -54,8 +63,8 @@ export const searchClient = {
         updated_at: timestamp,
       });
     }
-    if (!channelOnly)
-      for (const [index, name] of documents.entries()) {
+    if (!documentsExcluded)
+      for (const [index, { name, subType }] of documents.entries()) {
         if (!name.toLowerCase().includes(query)) continue;
         results.push({
           type: 'document',
@@ -65,6 +74,7 @@ export const searchClient = {
           name,
           owner_id: 'fixture',
           file_type: 'md',
+          sub_type: subType,
           document_search_results: [],
           metadata: { created_at: timestamp, updated_at: timestamp },
         });

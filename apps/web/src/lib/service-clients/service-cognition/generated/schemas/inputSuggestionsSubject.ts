@@ -5,4 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
+/**
+ * Suggested outgoing email subject.
+ */
 export type InputSuggestionsSubject = string | null;

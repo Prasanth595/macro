@@ -5,7 +5,12 @@
  * OpenAPI spec version: 1.0.0
  */
 
+/**
+ * A task property and the display values available for extraction.
+ */
 export interface InputPropertyDefinition {
+  /** Property display name from the client's catalog. */
   name: string;
+  /** Allowed display values; an empty list permits free-text suggestions. */
   options?: string[];
 }

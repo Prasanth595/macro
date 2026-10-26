@@ -5,4 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
+/**
+ * Human-readable event venue or meeting URL.
+ */
 export type InputSuggestionsLocation = string | null;

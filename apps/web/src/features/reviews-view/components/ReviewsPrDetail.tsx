@@ -15,6 +15,7 @@ import { SidePanel } from '@components/app/side-panel';
 import { SplitFileMenu } from '@components/app/split-layout/components/SplitFileMenu';
 import { SplitPanel } from '@components/app/split-panel';
 import { Permissions } from '@core/component/SharePermissions';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { onMount } from 'solid-js';
 
 function ReviewsPrBreadcrumb(props: {
@@ -95,7 +96,7 @@ export function ReviewsPrDetail(props: { foreignEntityId: string }) {
         />
         <ChangesSplit>
           <div class="flex size-full min-h-0 min-w-0 flex-col overflow-hidden @container">
-            <ViewShell.TopBar class="touch:flex">
+            <ViewShell.TopBar class="touch:flex touch:h-auto touch:min-h-12 touch:pt-[calc(var(--mobile-content-inset-top,var(--safe-top,0px))+0.75rem)]">
               <SplitPanel.CloseButton class="hidden shrink-0 touch:flex" />
               <ViewBreadcrumbs.Outlet aria-label="Pull request location" />
               <PrDetailActions detail={detail.data()} />
@@ -105,7 +106,9 @@ export function ReviewsPrDetail(props: { foreignEntityId: string }) {
               data={detail.data()}
               status={detail.query.status}
               discussionSource={detail.discussionSource}
-              onRetry={() => void detail.query.refetch()}
+              onRetry={() =>
+                fireAndForget(detail.query.refetch(), 'reviews-view')
+              }
             />
           </div>
         </ChangesSplit>

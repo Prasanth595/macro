@@ -11,6 +11,13 @@ use roles_and_permissions::domain::model::{ProductTier, RoleId, UserRolesAndPerm
 
 use crate::domain::owned_entity_cleanup::OwnedEntityCleanupError;
 
+mod invite_link;
+
+pub use invite_link::{
+    JoinTeamByInviteLinkError, JoinTeamByInviteLinkOutcome, ManageTeamInviteLinkError,
+    TeamInviteLinkTeam, TeamInviteLinkToken,
+};
+
 /// Team plans
 #[derive(
     Eq,
@@ -288,6 +295,10 @@ pub struct TeamWithMembers {
     pub team: Team,
     /// The members of the team
     pub members: Vec<TeamMember<'static>>,
+    /// Provider-confirmed pending seat changes, keyed by member user ID.
+    /// Empty when no changes apply to this viewer; absent when the lookup fails.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scheduled_seat_plans: Option<HashMap<String, ScheduledSeatPlan>>,
 }
 
 /// Current and invited members for a team.
@@ -575,6 +586,30 @@ impl TeamInvite<'static> {
     }
 }
 
+/// An unanswered team invite whose reminder email is due, claimed by the
+/// reminder sweep. Claiming already counted the reminder as sent.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DueInviteReminder {
+    /// The team invite id
+    pub team_invite_id: uuid::Uuid,
+    /// The team id
+    pub team_id: uuid::Uuid,
+    /// The team name
+    pub team_name: String,
+    /// The invited email
+    pub email: String,
+    /// The user who sent the invitation
+    pub invited_by: String,
+    /// Which reminder this is, starting at 1
+    pub reminder_number: u8,
+    /// Whether the team is an enterprise team
+    pub enterprise: bool,
+    /// Whether the team is in good standing
+    pub paying: bool,
+    /// Whether the team has a subscription
+    pub has_subscription: bool,
+}
+
 /// Snapshot of a team invite before it is accepted.
 #[derive(Debug, Clone)]
 pub struct TeamInviteSnapshot<'a> {
@@ -649,8 +684,8 @@ pub enum CreateTeamError {
 /// Errors for inviting users to team
 #[derive(Debug, thiserror::Error)]
 pub enum InviteUsersToTeamError {
-    /// Too many emails were provided
-    #[error("Too many emails were provided")]
+    /// The team has hit its daily limit on new invites
+    #[error("the team has sent too many invites today")]
     TooManyEmails,
     /// The team only allows admins to invite and the caller is not an admin
     #[error("only team admins may invite users to this team")]
@@ -715,7 +750,7 @@ pub enum CustomerError {
     #[error("No stripe customer id")]
     /// The customer does not have a stripe customer id
     NoStripeCustomerId,
-    /// The subscription is not active
+    /// The customer has no active or trialing subscription
     #[error("Subscription is not active")]
     SubscriptionNotActive,
     /// Invalid promotion code
@@ -744,6 +779,9 @@ pub enum SetTeamMemberPlanError {
     /// Underlying customer error
     #[error("{0}")]
     CustomerError(#[from] CustomerError),
+    /// Usage could not be reset for the upgraded seat.
+    #[error("failed to update seat usage after a plan change")]
+    UsageReset(#[source] Box<dyn std::error::Error + Send + Sync>),
     /// Roles could not be updated
     #[error("Roles error: {0}")]
     RolesError(#[from] UserRolesAndPermissionsError),
@@ -827,16 +865,17 @@ pub enum JoinTeamError {
 #[derive(Debug, thiserror::Error)]
 pub enum ToggleAutoJoinDomainError {
     /// The team owner's email domain is a generic email provider domain
-    #[error("The domain {0} is a generic email domain and cannot be used for auto-join")]
+    #[error("Auto-join isn't available for {0}")]
     GenericDomainNotAllowed(String),
     /// Underlying team error
     #[error("Underlying team error {0}")]
     TeamError(#[from] TeamError),
 }
 
-/// Errors for automatically joining a team by email domain
+/// Errors for adding a user to a team without an email invite: by matching
+/// the team's auto-join domain, or through the team's invite link.
 #[derive(Debug, thiserror::Error)]
-pub enum TryJoinTeamByDomainError {
+pub enum JoinTeamDirectlyError {
     /// Underlying team error
     #[error("Underlying team error {0}")]
     TeamError(#[from] TeamError),
@@ -859,12 +898,18 @@ pub enum RevokePermissionsForTeamMembersError {
 /// Error when restoring permissions for team members
 #[derive(Debug, thiserror::Error)]
 pub enum RestorePermissionsForTeamMembersError {
+    /// Provider renewal state could not be read or acknowledged.
+    #[error(transparent)]
+    Customer(#[from] CustomerError),
     /// Underlying team error
     #[error("Underlying team error")]
     TeamError(#[from] TeamError),
     /// Underlying user roles and permissions error
     #[error("Underlying user roles and permissions error")]
     AddRolesToUserError(#[from] UserRolesAndPermissionsError),
+    /// Initial seat upgrade usage could not be reset; retry activation.
+    #[error("failed to reset usage for an activated team seat")]
+    UsageReset(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Error when creating team checkout
@@ -889,3 +934,13 @@ pub enum TeamCheckoutError {
 
 #[cfg(test)]
 mod test;
+/// A seat's future plan in the subscription's currently attached schedule.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct ScheduledSeatPlan {
+    /// Plan that takes effect at renewal.
+    pub plan: SeatPlan,
+    /// Provider-confirmed time when the future phase starts.
+    pub effective_at: chrono::DateTime<chrono::Utc>,
+}

@@ -5,7 +5,12 @@
  * OpenAPI spec version: 1.0.0
  */
 
+/**
+ * Suggested display values to resolve against a real task-property catalog.
+ */
 export interface InputPropertySuggestion {
+  /** Property display name, never an authorized identifier. */
   name: string;
+  /** Suggested display values, never authorized entity identifiers. */
   values: string[];
 }

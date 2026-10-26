@@ -1,5 +1,6 @@
 import { IS_MAC } from '@core/constant/isMac';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isEditableInput } from '@core/util/isEditableInput';
 import { Button, Select, Tooltip } from '@ui';
 import {
@@ -55,7 +56,7 @@ function ComposerFooter(props: {
             variant="outline"
             size="lg"
             disabled={s.sending() || s.pending() || !!s.emailDraftValidation()}
-            onClick={() => void s.saveEmailDraft()}
+            onClick={() => fireAndForget(s.saveEmailDraft(), 'universal-input')}
           >
             {s.savingEmailDraft() ? 'Saving…' : 'Save as draft'}
           </Button>
@@ -66,7 +67,7 @@ function ComposerFooter(props: {
           aria-keyshortcuts="Meta+Enter Control+Enter"
           size="lg"
           disabled={s.sending() || s.pending() || !!s.validation()}
-          onClick={() => void s.submit()}
+          onClick={() => fireAndForget(s.submit(), 'universal-input')}
         >
           {action()}
           <kbd
@@ -224,7 +225,9 @@ export function UniversalComposer(props: {
               size="sm"
               variant="outline"
               disabled={s.sending() || a.connectingGoogle()}
-              onClick={() => void a.connectGoogle()}
+              onClick={() =>
+                fireAndForget(a.connectGoogle(), 'universal-input')
+              }
             >
               Connect Google
             </Button>

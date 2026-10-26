@@ -17,6 +17,7 @@ import { TOKENS } from '@core/hotkey/tokens';
 import type { HotkeyCommand, RegisterHotkeyReturn } from '@core/hotkey/types';
 import { runCommand } from '@core/hotkey/utils';
 import { debouncedDependent } from '@core/util/debounce';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { lazyNamed } from '@core/util/lazyNamed';
 import type { EntityData } from '@entity';
 import { EntitySelectionBadge } from '@entity/components/EntitySelectionBadge';
@@ -208,7 +209,7 @@ export function CommandMenuInner(props: CommandMenuInnerProps) {
       shouldUseUniversalInput(element.value, expanded())
     ) {
       if (ready) promote();
-      else void prepareComposer();
+      else fireAndForget(prepareComposer(), 'command-menu');
     }
   };
   createEffect(
@@ -217,7 +218,7 @@ export function CommandMenuInner(props: CommandMenuInnerProps) {
     })
   );
   onMount(() => {
-    if (eligible()) void prepareComposer();
+    if (eligible()) fireAndForget(prepareComposer(), 'command-menu');
   });
   onCleanup(() => {
     disposed = true;
@@ -575,7 +576,8 @@ function CommandSearchMenu(
         CommandState.selectedIndex() >= items.length - 1 &&
         (pagination?.hasMore() || pagination?.isLoadingMore())
       ) {
-        if (!pagination?.isLoadingMore()) void pagination?.loadMore();
+        if (!pagination?.isLoadingMore())
+          fireAndForget(pagination?.loadMore(), 'command-menu');
         return true;
       }
       return listController.selectNext();
@@ -820,13 +822,11 @@ function CommandSearchMenu(
             when={isEntityActionMode()}
             fallback={
               <Tabs
-                list={categoryTabs()}
+                aria-label="Result categories"
+                size="sm"
+                options={categoryTabs()}
                 value={categoryFilter()}
-                onChange={(value) => {
-                  if (value) {
-                    CommandState.setCategoryFilter(value as CategoryFilter);
-                  }
-                }}
+                onChange={CommandState.setCategoryFilter}
               />
             }
           >

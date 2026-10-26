@@ -1,4 +1,4 @@
-import { createSignal, Show } from 'solid-js';
+import { createSignal, createUniqueId, Show } from 'solid-js';
 import { ComposeFieldRow } from './compose-field-row';
 
 function autosize(el: HTMLTextAreaElement) {
@@ -12,11 +12,13 @@ export function ComposeSubjectField(props: {
   disabled?: boolean;
   compact?: boolean;
   error?: string;
+  limitHint?: string;
   inputRef?: (el: HTMLElement) => void;
 }) {
   // On mobile the subject wraps and grows while edited, and folds to a single
   // truncated line on blur so the body starts near the top.
   const [editing, setEditing] = createSignal(false);
+  const limitHintId = createUniqueId();
   let textareaRef: HTMLTextAreaElement | undefined;
 
   const showSummary = () =>
@@ -49,6 +51,8 @@ export function ComposeSubjectField(props: {
               onInput={(e) => props.onChange(e.currentTarget.value)}
               onKeyDown={blurOnEscape}
               disabled={props.disabled}
+              aria-invalid={props.limitHint ? true : undefined}
+              aria-describedby={props.limitHint ? limitHintId : undefined}
             />
           }
         >
@@ -62,6 +66,7 @@ export function ComposeSubjectField(props: {
                   setEditing(true);
                   requestAnimationFrame(() => textareaRef?.focus());
                 }}
+                aria-describedby={props.limitHint ? limitHintId : undefined}
               >
                 <span class="truncate">{props.value}</span>
               </button>
@@ -96,8 +101,17 @@ export function ComposeSubjectField(props: {
                 }
               }}
               disabled={props.disabled}
+              aria-invalid={props.limitHint ? true : undefined}
+              aria-describedby={props.limitHint ? limitHintId : undefined}
             />
           </Show>
+        </Show>
+        <Show when={props.limitHint}>
+          {(hint) => (
+            <div id={limitHintId} class="text-failure-ink text-sm mt-1">
+              {hint()}
+            </div>
+          )}
         </Show>
       </div>
       <Show when={props.error}>

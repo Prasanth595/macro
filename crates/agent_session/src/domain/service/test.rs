@@ -1,7 +1,8 @@
 use super::*;
 use crate::PROTOCOL_VERSION;
 use crate::domain::model::{
-    DEFAULT_AGENT_SESSION_NAME, LeaseView, Message, ReplicaAddress, SessionBot,
+    DEFAULT_AGENT_SESSION_NAME, LeaseView, Message, ReplicaAddress, SessionBot, SessionSource,
+    SessionVisibility,
 };
 use crate::domain::ports::NoOpRealtime;
 use crate::domain::ports::{NoOpTurnObserver, NoopLifecyclePublisher};
@@ -24,6 +25,7 @@ use tokio::sync::Notify;
 use tracing::instrument::WithSubscriber as _;
 
 mod first_output;
+mod presentation;
 
 struct Fixture {
     service: AgentSessionServiceImpl<
@@ -187,6 +189,7 @@ async fn only_the_first_prompt_is_selected_for_automatic_naming() {
                 )
                 .expect("a set-model frame builds"),
         ),
+        logged_at: None,
     }]);
     assert_eq!(
         initial_prompt_for_rename(&folds, session, &prompt).await,
@@ -423,6 +426,36 @@ async fn archive_is_persisted_published_and_blocks_rename() {
 }
 
 #[tokio::test]
+async fn a_conversations_current_session_is_not_archived() {
+    let repo = InMemoryAgentSessionRepo::new();
+    let session = test_session();
+    repo.insert_session(test_agent_session(session));
+    repo.answer_conversation(session);
+    let realtime = RecordingRealtime::default();
+    let service = AgentSessionServiceImpl::new(
+        repo.clone(),
+        FoldedMessageService::new(repo.clone()),
+        realtime.clone(),
+        NoOpAgentSessionNameGenerator,
+        Arc::new(NoOpTurnObserver),
+        Arc::new(NoopLifecyclePublisher),
+        ReplicaId::mint(),
+    );
+
+    assert!(matches!(
+        service.set_archived(&owner_access(session), true).await,
+        Err(AgentSessionError::AnswersConversation(id)) if id == session
+    ));
+    assert!(!repo.get(session).await.expect("get session").is_archived);
+    assert!(realtime.updated().is_empty());
+    // Unarchiving is never refused.
+    service
+        .set_archived(&owner_access(session), false)
+        .await
+        .expect("unarchive session");
+}
+
+#[tokio::test]
 async fn manual_rename_rejects_blank_and_overlong_names() {
     let repo = InMemoryAgentSessionRepo::new();
     let session = test_session();
@@ -648,12 +681,25 @@ impl AgentSessionRepo for BlockingPromptLogs {
         self.repo.set_model(id, model).await
     }
 
+    async fn set_origin(
+        &self,
+        id: AgentSessionId,
+        source: SessionSource,
+        visibility: SessionVisibility,
+    ) -> Result<()> {
+        self.repo.set_origin(id, source, visibility).await
+    }
+
     async fn set_name(&self, id: AgentSessionId, name: &str) -> Result<()> {
         self.repo.set_name(id, name).await
     }
 
     async fn set_archived(&self, id: AgentSessionId, is_archived: bool) -> Result<()> {
         self.repo.set_archived(id, is_archived).await
+    }
+
+    async fn is_current_conversation_session(&self, id: AgentSessionId) -> Result<bool> {
+        self.repo.is_current_conversation_session(id).await
     }
 
     async fn set_name_if_default(&self, id: AgentSessionId, name: &str) -> Result<bool> {
@@ -674,6 +720,23 @@ impl AgentSessionRepo for BlockingPromptLogs {
         size: SandboxSize,
     ) -> Result<()> {
         self.repo.set_user_sandbox_size(user_id, size).await
+    }
+
+    async fn user_coding_preferences(
+        &self,
+        user_id: &MacroUserIdStr<'static>,
+    ) -> Result<CodingPreferences> {
+        self.repo.user_coding_preferences(user_id).await
+    }
+
+    async fn set_user_coding_preferences(
+        &self,
+        user_id: &MacroUserIdStr<'static>,
+        preferences: CodingPreferences,
+    ) -> Result<()> {
+        self.repo
+            .set_user_coding_preferences(user_id, preferences)
+            .await
     }
 
     async fn delete(&self, id: AgentSessionId) -> Result<()> {
@@ -721,6 +784,16 @@ impl SessionOwnership for BlockingPromptLogs {
 }
 
 impl AgentSessionLogRepo for BlockingPromptLogs {
+    async fn list_action_history(
+        &self,
+        agent_session_id: AgentSessionId,
+        action: agent_runtime_protocol::domain::action::AgentActionId,
+    ) -> Result<Vec<StoredAgentSessionLog>> {
+        self.repo
+            .list_action_history(agent_session_id, action)
+            .await
+    }
+
     async fn create_fenced_with_boundary(
         &self,
         log: AgentSessionLog,
@@ -1162,14 +1235,14 @@ async fn cancellation_does_not_drop_an_effect_batch_after_machine_mutation() {
 
     let (completed, result) = oneshot::channel();
     commands
-        .send(SessionCommand {
+        .send(SessionMessage::Action(SessionCommand {
             user_id: None,
             action: AgentAction::prompt("keep dispatching"),
             action_id: AgentActionId::mint(),
             completed,
             span: tracing::info_span!("test.command"),
             enqueued_at: tokio::time::Instant::now(),
-        })
+        }))
         .await
         .unwrap();
     entered.notified().await;
@@ -1246,14 +1319,14 @@ async fn live_inbound_logs_do_not_reuse_the_expired_handshake_deadline() {
     release.notify_one();
     let (completed, result) = oneshot::channel();
     commands
-        .send(SessionCommand {
+        .send(SessionMessage::Action(SessionCommand {
             user_id: None,
             action: AgentAction::prompt("keep working"),
             action_id: AgentActionId::mint(),
             completed,
             span: tracing::info_span!("test.command"),
             enqueued_at: tokio::time::Instant::now(),
-        })
+        }))
         .await
         .unwrap();
     entered.notified().await;
@@ -1306,6 +1379,7 @@ fn any_event(session: AgentSessionId) -> AgentSessionLog {
         content: Message::ToServer(ToServerMessage::Event {
             event: agent_runtime_protocol::domain::schema::v0::SystemEvent::AcpReady,
         }),
+        logged_at: None,
     }
 }
 
@@ -1799,8 +1873,11 @@ async fn shared_transport_copies_durable_initialization_before_load() {
         Arc::new(crate::domain::ports::NoOpToolCatalog),
     );
     let ready = actor.next_input().await;
-    assert!(matches!(ready, Input::SharedReady { .. }));
-    actor.dispatch(ready).await;
+    assert!(matches!(
+        ready,
+        ActorInput::Protocol(Input::SharedReady { .. })
+    ));
+    actor.dispatch_input(ready).await;
     let ToRuntimeMessage::Acp(AcpMessage(RawJsonRpcMessage::Request(load))) =
         received.recv().await.unwrap()
     else {
@@ -1906,19 +1983,22 @@ async fn assert_restore_persistence_failure_does_not_send_prompt(failure: Restor
     );
     let (completed, completion) = oneshot::channel();
     commands
-        .send(SessionCommand {
+        .send(SessionMessage::Action(SessionCommand {
             user_id: None,
             action: AgentAction::prompt("must remain unsent"),
             action_id: AgentActionId::mint(),
             completed,
             span: tracing::Span::none(),
             enqueued_at: tokio::time::Instant::now(),
-        })
+        }))
         .await
         .unwrap();
     let queued = actor.next_input().await;
-    assert!(matches!(queued, Input::Command { .. }));
-    assert_eq!(actor.dispatch(queued).await, Stepped::Continue);
+    assert!(matches!(
+        queued,
+        ActorInput::Protocol(Input::Command { .. })
+    ));
+    assert_eq!(actor.dispatch_input(queued).await, Stepped::Continue);
     assert!(received.try_recv().is_err());
 
     let init_id = RequestId::Str("shared-transport-initialization".into());
@@ -1949,8 +2029,11 @@ async fn assert_restore_persistence_failure_does_not_send_prompt(failure: Restor
         })
         .unwrap();
     let ready = actor.next_input().await;
-    assert!(matches!(ready, Input::SharedReady { .. }));
-    let step = actor.dispatch(ready).await;
+    assert!(matches!(
+        ready,
+        ActorInput::Protocol(Input::SharedReady { .. })
+    ));
+    let step = actor.dispatch_input(ready).await;
     let mut failed_response_id = None;
     if matches!(failure, RestoreLogFailure::LoadResponse) {
         assert_eq!(step, Stepped::Continue);
@@ -2085,14 +2168,14 @@ async fn a_prompt_turn_is_traced_as_an_agent_span_under_its_command() {
     let action_id = AgentActionId::mint();
     let (completed, result) = oneshot::channel();
     commands
-        .send(SessionCommand {
+        .send(SessionMessage::Action(SessionCommand {
             user_id: None,
             action: AgentAction::prompt("what time is it?"),
             action_id,
             completed,
             span: command_span,
             enqueued_at: tokio::time::Instant::now(),
-        })
+        }))
         .await
         .unwrap();
     let prompt = outbound_rx.recv().await.expect("prompt is dispatched");
@@ -2227,7 +2310,7 @@ async fn a_command_span_records_its_wait_for_the_handshake() {
     );
     let send_prompt = |name: &'static str| {
         let (completed, result) = oneshot::channel();
-        let command = SessionCommand {
+        let command = SessionMessage::Action(SessionCommand {
             user_id: None,
             action: AgentAction::prompt(name),
             action_id: AgentActionId::mint(),
@@ -2240,7 +2323,7 @@ async fn a_command_span_records_its_wait_for_the_handshake() {
                 agent.command.handshake_wait_ms = tracing::field::Empty,
             ),
             enqueued_at: tokio::time::Instant::now(),
-        };
+        });
         (command, result)
     };
 
@@ -2337,12 +2420,21 @@ mod fold_signals {
             signals.extend(logs.append(frame).await.expect("append succeeds").signals);
         }
 
+        // Progress is reported while the turn runs; its end comes once, last.
+        let (ends, progress): (Vec<_>, Vec<_>) = signals
+            .iter()
+            .partition(|signal| !matches!(signal, TurnSignal::Progressed { .. }));
+        assert!(!progress.is_empty(), "{signals:#?}");
         assert!(
             matches!(
-                signals.as_slice(),
+                ends.as_slice(),
                 [TurnSignal::TurnEnded { stop: FoldStop::EndTurn, last_text: Some(text), .. }]
                     if !text.is_empty()
             ),
+            "{signals:#?}"
+        );
+        assert!(
+            matches!(signals.last(), Some(TurnSignal::TurnEnded { .. })),
             "{signals:#?}"
         );
     }
@@ -2367,6 +2459,7 @@ mod fold_signals {
                 content: Message::ToServer(ToServerMessage::Event {
                     event: SystemEvent::AcpReady,
                 }),
+                logged_at: None,
             })
             .await
             .expect("append succeeds");
@@ -2398,6 +2491,7 @@ fn streamed_frame(text: &str) -> AgentSessionLog {
             )
             .unwrap(),
         ))),
+        logged_at: None,
     }
 }
 
@@ -2506,6 +2600,7 @@ async fn system_events_flush_pending_frames_through() {
             content: Message::ToServer(ToServerMessage::Event {
                 event: SystemEvent::AcpReady,
             }),
+            logged_at: None,
         },
     )
     .await
@@ -2665,6 +2760,7 @@ async fn a_load_boundary_lands_after_the_frames_buffered_before_it() {
             )
             .unwrap(),
         ))),
+        logged_at: None,
     };
     let initialization_log_id = AgentSessionLogWriter::append(&mut logs, initialize)
         .await
@@ -2683,6 +2779,7 @@ async fn a_load_boundary_lands_after_the_frames_buffered_before_it() {
                 Ok(serde_json::json!({})),
             ),
         ))),
+        logged_at: None,
     };
     let response_id = AgentSessionLogWriter::append_with_boundary(
         &mut logs,

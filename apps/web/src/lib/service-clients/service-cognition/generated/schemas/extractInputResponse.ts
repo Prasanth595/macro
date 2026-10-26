@@ -7,9 +7,17 @@
 import type { InputIntent } from './inputIntent';
 import type { InputSuggestions } from './inputSuggestions';
 
+/**
+ * Validated field suggestions for a particular destination and draft revision.
+ */
 export interface ExtractInputResponse {
+  /** Destination echoed from the extraction request. */
   intent: InputIntent;
-  /** @minimum 0 */
+  /**
+   * Revision echoed from the extraction request.
+   * @minimum 0
+   */
   revision: number;
+  /** Editable fields after domain normalization and source-preservation rules. */
   suggestions: InputSuggestions;
 }

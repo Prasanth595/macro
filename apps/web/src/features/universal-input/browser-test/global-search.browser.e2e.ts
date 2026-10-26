@@ -85,7 +85,9 @@ test('manual sender choices override later predictions while the search query co
     .getByRole('button', { name: 'Change From filter', exact: true })
     .click();
   await page.getByRole('option', { name: 'John Adams', exact: true }).click();
-  await page.keyboard.press('Escape');
+  await expect(
+    page.getByRole('option', { name: 'John Adams', exact: true })
+  ).toHaveCount(0);
   await dialog
     .getByRole('textbox', { name: 'Your input', exact: true })
     .fill('search messages from julia about forecast');
@@ -114,8 +116,14 @@ test('unresolved people do not issue an unfiltered search and can be corrected w
   await dialog
     .getByRole('button', { name: 'Change From filter', exact: true })
     .click();
-  await page.getByRole('option', { name: 'Julia Jones', exact: true }).click();
+  await page.getByRole('option', { name: 'Julia Jones', exact: true }).hover();
+  await page
+    .getByRole('button', { name: 'Select only Julia Jones', exact: true })
+    .click();
   await page.keyboard.press('Escape');
+  await expect(
+    page.getByRole('option', { name: 'Julia Jones', exact: true })
+  ).toHaveCount(0);
   await expect(
     dialog.getByRole('listbox', { name: 'Search results', exact: true })
   ).toContainText('Julia shared the budget');
@@ -150,6 +158,18 @@ test('formatted main-input queries keep updating and search DMs use the full cha
   );
 });
 
+test('the Documents filter rejects task hits from a full-text response', async ({
+  page,
+}) => {
+  const dialog = await compose(page, 'search documents about Scope');
+  const results = dialog.getByRole('listbox', {
+    name: 'Search results',
+    exact: true,
+  });
+  await expect(results).toContainText('Scope guide');
+  await expect(results).not.toContainText('Scope task');
+});
+
 test('the shared global Search input keeps mention nodes when the host acknowledges the plain query', async ({
   page,
 }) => {
@@ -162,12 +182,14 @@ test('the shared global Search input keeps mention nodes when the host acknowled
   await page
     .getByRole('button', { name: 'Insert search mention', exact: true })
     .click();
-  await expect(page.getByTestId('standalone-query')).toHaveText('Julia budget');
+  await expect(page.getByTestId('standalone-query')).toHaveText(
+    'julia@macro.com budget'
+  );
   await expect(input.locator('[data-user-mention]')).toHaveCount(1);
   await input.press('End');
   await page.keyboard.type(' forecast');
   await expect(page.getByTestId('standalone-query')).toHaveText(
-    'Julia budget forecast'
+    'julia@macro.com budget forecast'
   );
   await expect(input.locator('[data-user-mention]')).toHaveCount(1);
   const changes = await page

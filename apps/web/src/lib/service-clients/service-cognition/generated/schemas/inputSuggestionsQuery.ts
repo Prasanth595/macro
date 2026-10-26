@@ -5,4 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
+/**
+ * Terms to find existing Macro content.
+ */
 export type InputSuggestionsQuery = string | null;

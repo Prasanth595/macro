@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   createCalendarOccurrenceQueryRange,
   useCalendarOccurrencesQuery,
@@ -9,9 +10,13 @@ import {
   isCalendarEventVisible,
   mapCalendarOccurrence,
 } from '../../calendar/types';
-import { safeConferenceUrl } from '../../calendar/utils/conference-link';
+import {
+  conferenceJoinUrl,
+  safeConferenceUrl,
+} from '../../calendar/utils/conference-link';
 import { calendarMacroCallUrl } from '../../calendar/utils/macro-call-link';
 import {
+  isMeetingEvent,
   selectUpcomingCalendarEvents,
   type UpcomingCalendarEvent,
 } from '../core/upcoming-calendar-events';
@@ -85,21 +90,24 @@ export function useUpcomingCalendarEventsSource(options: SourceOptions) {
       });
     });
     const events = createMemo(() =>
-      calendarEvents().map(
-        (event): UpcomingCalendarEvent => ({
+      calendarEvents().map((event): UpcomingCalendarEvent => {
+        const url =
+          calendarMacroCallUrl(event) ?? safeConferenceUrl(event.conferenceUrl);
+        return {
           id: event.id,
           title: event.title,
           color: event.calendar.color,
-          url:
-            calendarMacroCallUrl(event) ??
-            safeConferenceUrl(event.conferenceUrl),
+          url: url
+            ? conferenceJoinUrl(url, event.calendar.emailAddress)
+            : undefined,
           start: event.start,
           end: event.end,
           allDay: event.allDay,
           eventId: event.eventId,
           occurrenceKey: event.occurrenceKey,
-        })
-      )
+          isMeeting: isMeetingEvent(event, url),
+        };
+      })
     );
     windows.push({ query, enabled, events, calendarEvents });
   }
@@ -125,7 +133,8 @@ export function useUpcomingCalendarEventsSource(options: SourceOptions) {
         ? 'Could not load upcoming events.'
         : undefined,
     refresh: () => {
-      for (const { query } of activeWindows()) void query.refetch();
+      for (const { query } of activeWindows())
+        fireAndForget(query.refetch(), 'meetings');
     },
   };
 }

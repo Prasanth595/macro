@@ -10,6 +10,8 @@ import type { InputIntent } from './inputIntent';
  * Independent yes/no probabilities; these do not sum to one.
  */
 export interface IntentScore {
+  /** Destination evaluated by the classifier. */
   intent: InputIntent;
+  /** Independent probability between zero and one. */
   score: number;
 }

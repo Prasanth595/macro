@@ -4,8 +4,7 @@ import {
   setCreateMenuOpen,
   useCreateMenuBlocks,
 } from '@app/features/command/Launcher';
-import { openCreateCompanyModal } from '@app/features/crm/crm-create';
-import { hapticImpact } from '@core/mobile/haptics';
+import { openCreateCompanyModal } from '@app/features/crm/creation-adapter';
 import { virtualKeyboardVisible } from '@core/mobile/virtualKeyboard';
 import CalendarIcon from '@phosphor/calendar-blank.svg';
 import MessageIcon from '@phosphor/chat-circle.svg';
@@ -33,7 +32,7 @@ const QUICK_CREATE_VIEWS = [
   { view: 'tasks', icon: TaskIcon },
 ] as const;
 
-/** The current view's New action, alongside the mobile AI composer. */
+/** The current non-AI view's New action above the navigation dock. */
 export function MobilePageCreateButton() {
   const foregroundView = useForegroundMobileView();
   const createBlocks = useCreateMenuBlocks();
@@ -77,7 +76,9 @@ export function MobilePageCreateButton() {
             {
               label: 'Call',
               icon: PhoneIcon,
-              onSelect: () => void call.keyDownHandler(),
+              onSelect: () => {
+                call.keyDownHandler();
+              },
             },
           ]
         : []),
@@ -105,7 +106,6 @@ export function MobilePageCreateButton() {
                       ? 'New'
                       : `New ${action().label.toLowerCase()}`
                   }
-                  onPointerDown={() => hapticImpact('light')}
                   onClick={() => action().onSelect()}
                   class="relative flex h-(--mobile-chrome-button-size) shrink-0 items-center justify-center gap-1.5 rounded-full pl-3 pr-4 text-base font-medium whitespace-nowrap"
                 >

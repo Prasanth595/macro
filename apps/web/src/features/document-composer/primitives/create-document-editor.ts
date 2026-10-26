@@ -1,5 +1,6 @@
 import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
 import type { MentionLinkResolver } from '@core/component/LexicalMarkdown/plugins/text-paste/textPastePlugin';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { InlineTagsPill } from '@property/tags';
 import type { ComponentProps } from 'solid-js';
 
@@ -22,7 +23,10 @@ export function createDocumentEditor(options: {
       applyTargetLabel: 'Document',
       isApplied: (tag) => tags.isApplied(tag.optionId),
       onCreate: (tag) => {
-        void tags.applyTag(tag.scope, tag.optionId);
+        fireAndForget(
+          tags.applyTag(tag.scope, tag.optionId),
+          'document-composer'
+        );
       },
     });
   return editor

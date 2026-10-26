@@ -70,22 +70,47 @@ impl AccessRepository for PgAccessRepository {
         let source_ids = queries::get_user_source_ids(&self.pool, user_id)
             .await
             .map_err(anyhow_access_error)?;
-        let Ok(document_uuid) = document_id.parse::<Uuid>() else {
-            return Ok(queries::document_access::get_legacy_document_access(
+        let access = if let Ok(document_uuid) = document_id.parse::<Uuid>() {
+            queries::document_access::get_document_access(
+                &self.pool,
+                &document_uuid,
+                &source_ids,
+                user_id,
+            )
+            .await?
+        } else {
+            queries::document_access::get_legacy_document_access(
                 &self.pool,
                 document_id,
                 &source_ids,
                 user_id,
             )
-            .await?);
+            .await?
         };
-        Ok(queries::document_access::get_document_access(
-            &self.pool,
-            &document_uuid,
-            &source_ids,
-            user_id,
+        if access.is_some() || user_id.is_none() {
+            return Ok(access);
+        }
+        let has_note_access = sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM calendar_event_notes note
+                JOIN "Document" d ON d.id = note.document_id
+                  AND d."deletedAt" IS NULL AND d."fileType" = 'md'
+                WHERE note.document_id = $1 AND (
+                    calendar_note_event_visible($2, note.event_id, note.occurrence_key)
+                    OR EXISTS (
+                        SELECT 1 FROM team_user member
+                        WHERE member.team_id = note.team_id AND member.user_id = $2
+                    )
+                )
+            ) AS "visible!"
+        "#,
+            document_id,
+            user_id.map(AsRef::as_ref)
         )
-        .await?)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(has_note_access.then_some(AccessLevel::View))
     }
 
     #[tracing::instrument(err, skip(self))]
@@ -234,6 +259,7 @@ impl AccessRepository for PgAccessRepository {
         Ok(queries::call_access::get_call_access(&self.pool, &call_uuid, &source_ids).await?)
     }
 
+    #[tracing::instrument(err, skip(self))]
     async fn get_agent_session_parent(
         &self,
         agent_session_id: &str,
@@ -265,6 +291,7 @@ impl AccessRepository for PgAccessRepository {
         .transpose()
     }
 
+    #[tracing::instrument(err, skip(self))]
     async fn agent_session_exists(&self, agent_session_id: &str) -> Result<bool, AccessError> {
         let session = agent_session_id
             .parse::<Uuid>()
@@ -277,6 +304,7 @@ impl AccessRepository for PgAccessRepository {
         .await?)
     }
 
+    #[tracing::instrument(err, skip(self, user_id))]
     async fn get_agent_session_access(
         &self,
         agent_session_id: &str,
@@ -296,6 +324,7 @@ impl AccessRepository for PgAccessRepository {
         .await?)
     }
 
+    #[tracing::instrument(err, skip(self, user_id))]
     async fn get_initiative_access(
         &self,
         initiative_id: &str,
@@ -315,6 +344,7 @@ impl AccessRepository for PgAccessRepository {
         .await?)
     }
 
+    #[tracing::instrument(err, skip(self, user_id))]
     async fn get_pipeline_access(
         &self,
         id: &str,
@@ -329,6 +359,7 @@ impl AccessRepository for PgAccessRepository {
         Ok(queries::pipeline_access::get_pipeline_access(&self.pool, id, &sources).await?)
     }
 
+    #[tracing::instrument(err, skip(self, user_id))]
     async fn list_pipeline_access(
         &self,
         user_id: &MacroUserId<Lowercase<'_>>,
@@ -436,6 +467,7 @@ impl AccessRepository for PgAccessRepository {
         )
     }
 
+    #[tracing::instrument(err, skip(self, user_id))]
     async fn get_scheduled_action_access(
         &self,
         scheduled_action_id: &str,
@@ -457,6 +489,7 @@ impl AccessRepository for PgAccessRepository {
         )
     }
 
+    #[tracing::instrument(err, skip(self, user_id))]
     async fn accessible_scheduled_action_ids(
         &self,
         user_id: &MacroUserId<Lowercase<'_>>,

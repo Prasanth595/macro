@@ -117,9 +117,12 @@ impl FieldExtractor for ClairicFieldExtractor {
         if request.fields.is_empty() {
             return Ok(InputSuggestions::default());
         }
+        let mut headers = reqwest::header::HeaderMap::new();
+        macro_tower_layers::inject_trace_headers(&mut headers);
         let response = self
             .client
             .post(&self.endpoint)
+            .headers(headers)
             .bearer_auth(&self.token)
             .json(&request)
             .send()

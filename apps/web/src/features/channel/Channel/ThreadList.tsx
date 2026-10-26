@@ -41,7 +41,9 @@ export type ThreadListInitialPosition =
   | { type: 'restore'; snapshot: ThreadListScrollSnapshot };
 
 export type ThreadListNavigation = {
-  scrollToLatest: () => boolean;
+  /** Publish geometry after registered destinations finish mounting/unmounting. */
+  requestLayoutUpdate: () => void;
+  scrollToLatest: (behavior?: ScrollBehavior) => boolean;
   scrollToMessage: (
     id: string,
     options?: { align?: ScrollAlignment; userIntent?: ScrollDirection }
@@ -407,11 +409,12 @@ export function ThreadList(props: ThreadListProps) {
     (scrollEl()?.clientHeight ?? 0) > 0;
 
   const navigation: ThreadListNavigation = {
-    scrollToLatest: () => {
+    requestLayoutUpdate: scheduleScrollState,
+    scrollToLatest: (behavior) => {
       if (!canNavigate() || !props.keys().length) return false;
       lifecycle.send('navigate');
       scrollCompensation?.finish();
-      virtualizer.scrollToEnd();
+      virtualizer.scrollToEnd({ behavior });
       scheduleScrollState();
       return true;
     },
@@ -451,7 +454,12 @@ export function ThreadList(props: ThreadListProps) {
     // This microtask runs after synchronous row measurements, before paint.
     lifecycle.send('layout');
     const distanceFromTop = logicalScrollOffset(el.scrollTop);
-    const distanceFromBottom = virtualizer.getDistanceFromEnd();
+    // The virtualizer's cached offset can trail scrollTop: this publish may run
+    // in the microtask before its own scroll listener records the new position.
+    const distanceFromBottom = Math.max(
+      el.scrollHeight - el.clientHeight - distanceFromTop,
+      0
+    );
     // WebKit cannot move the native top boundary during a fling without a
     // scroll write. Fill a bounded history buffer ahead of the next gesture,
     // including after initial positioning or navigation into older messages.

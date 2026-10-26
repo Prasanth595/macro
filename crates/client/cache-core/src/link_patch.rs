@@ -74,6 +74,7 @@ pub enum LinkOperation {
     },
     /// Replaces links with the same scalar identity using the matching record
     /// in this mutation's normalized response. The response may assign a new ID.
+    /// Keeps the first matching member's position; prepends a new member.
     UpsertByField {
         /// Optimistic identity; its type constrains the response record lookup.
         #[serde(rename = "entityKey")]
@@ -158,6 +159,9 @@ pub struct QueryRevalidation {
     pub operation_name: Option<String>,
     /// Canonical JSON object containing query variables.
     pub variables_json: String,
+    /// Refresh only if relation recipes were omitted or could not all apply.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub only_on_link_failure: bool,
 }
 
 /// One mutation-scoped update rooted at a generated query or an explicit record.
@@ -189,6 +193,7 @@ impl OptimisticLinkPatch {
             query: self.query.clone(),
             operation_name: self.operation_name.clone(),
             variables_json: self.variables_json.clone(),
+            only_on_link_failure: false,
         })
     }
 
@@ -233,6 +238,10 @@ pub enum LinkPatchError {
     /// A path step encountered a value of the wrong shape.
     #[error("link patch path encountered an incompatible cache value")]
     WrongShape,
+    /// A nullable parent has no relation to update. Its query revalidation
+    /// can discover the relation after the mutation commits.
+    #[error("link patch path traverses a null parent")]
+    NullParent,
     /// A traversed list exceeds the defensive limit.
     #[error("link patch traversed list length {actual} exceeds limit {maximum}")]
     ListTooLarge { actual: usize, maximum: usize },
@@ -429,21 +438,26 @@ fn is_json_scalar(value: &Json) -> bool {
 /// Applies an already ordered patch set against effective records and writes
 /// only changed parent fields into `updates`.
 ///
+/// Null parents are always skipped: an absent optional relation cannot be
+/// patched, but does not make the accompanying mutation invalid.
+/// Query-rooted recipes also skip records or fields that have not been cached.
+/// Explicit record-rooted recipes still require their target to exist.
 /// When `skip_not_applicable` is true, stale/missing recipes are ignored. This
 /// mode is used during hydration and successful settlement, where stale query
-/// fields must never be recreated.
+/// fields must never be recreated. Returns whether every recipe was applied.
 pub fn apply_link_patches(
     schema: &crate::meta::Schema,
     effective: &mut HashMap<EntityKey<'static>, Record>,
     updates: &mut RecordUpdates,
     patches: &[OptimisticLinkPatch],
     skip_not_applicable: bool,
-) -> Result<(), LinkPatchError> {
+) -> Result<bool, LinkPatchError> {
     let patches = deduplicate_patches(schema, patches)?;
 
     // Work on clones so strict validation is all-or-nothing.
     let mut staged_effective = effective.clone();
     let mut staged_updates = updates.clone();
+    let mut all_applied = true;
     for patch in &patches {
         if let Err(error) = apply_one(
             schema,
@@ -452,7 +466,15 @@ pub fn apply_link_patches(
             updates,
             patch,
         ) {
-            if skip_not_applicable {
+            if skip_not_applicable
+                || matches!(error, LinkPatchError::NullParent)
+                || (patch.record_root.is_none()
+                    && matches!(
+                        error,
+                        LinkPatchError::MissingParent(_) | LinkPatchError::MissingField { .. }
+                    ))
+            {
+                all_applied = false;
                 continue;
             }
             return Err(error);
@@ -460,7 +482,7 @@ pub fn apply_link_patches(
     }
     *effective = staged_effective;
     *updates = staged_updates;
-    Ok(())
+    Ok(all_applied)
 }
 
 fn apply_one(
@@ -883,6 +905,10 @@ fn resolve_from_value(
                 operation,
             )?,
         });
+    }
+
+    if matches!(cursor.value, CacheValue::Null) {
+        return Err(LinkPatchError::NullParent);
     }
 
     if let CacheValue::Ref(key) = cursor.value {

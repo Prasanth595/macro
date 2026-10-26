@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { CommandMenuEmptyState } from '@ui';
 import { createEffect, createSelector, createSignal, on, Show } from 'solid-js';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
@@ -72,7 +73,8 @@ function VirtualizedCommandList(props: {
     if (!handle || !pagination?.hasMore() || pagination.isLoadingMore()) return;
     const remaining =
       handle.scrollSize - handle.scrollOffset - handle.viewportSize;
-    if (remaining <= LOAD_MORE_THRESHOLD) void pagination.loadMore();
+    if (remaining <= LOAD_MORE_THRESHOLD)
+      fireAndForget(pagination.loadMore(), 'command-menu');
   };
 
   createEffect(

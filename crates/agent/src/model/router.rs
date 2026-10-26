@@ -39,10 +39,10 @@ use super::anthropic_prompt_layout::AnthropicPromptLayout;
 use super::gemini::{GeminiCompletionModel, GeminiModel};
 use super::metering::{MeteringContext, WireProtocol};
 use super::metering_http::MeteredHttpClient;
-use super::openai::{OpenAiChatCompletionsModel, OpenAiResponsesModel};
+use super::openai::{CompatibleCompletionModel, OpenAiChatCompletionsModel, OpenAiResponsesModel};
 use super::types::Model;
 use super::usage_amount::usage_amount;
-use super::{PredefinedModel, ReasoningEffort};
+use super::{ModelSpeed, PredefinedModel, ReasoningEffort};
 use crate::agent_loop::{SystemPrompt, ToolSearch};
 use crate::error::AgentError;
 use crate::hook::{BridgeInputs, StreamBridge};
@@ -131,6 +131,7 @@ impl<'a, H: HttpClientExt + Clone + Default + std::fmt::Debug + 'static> RoutedM
     pub(crate) fn into_agent(
         self,
         reasoning_effort: Option<ReasoningEffort>,
+        speed: ModelSpeed,
         handle: ToolServerHandle,
         system_prompt: &SystemPrompt,
         tool_search: &ToolSearch,
@@ -142,7 +143,11 @@ impl<'a, H: HttpClientExt + Clone + Default + std::fmt::Debug + 'static> RoutedM
         let system_prompt_text = joined.as_str();
         match self {
             RoutedModel::Anthropic(m) => {
-                let thinking = m.thinking_params(reasoning_effort);
+                let mut params = m
+                    .thinking_params(reasoning_effort)
+                    .unwrap_or_else(|| serde_json::json!({}));
+                speed.apply(&m.model().to_string(), &mut params);
+                let thinking = Some(params);
                 let layout = SessionLayout {
                     shared_system: system_prompt.shared().is_some(),
                     deferred: (m.loads_tools_by_reference() && !tool_search.catalog.is_empty())
@@ -180,7 +185,11 @@ impl<'a, H: HttpClientExt + Clone + Default + std::fmt::Debug + 'static> RoutedM
                 ))
             }
             RoutedModel::OpenAiChatCompletions(m) => {
-                let thinking = m.thinking_params(reasoning_effort);
+                let mut params = m
+                    .thinking_params(reasoning_effort)
+                    .unwrap_or_else(|| serde_json::json!({}));
+                speed.apply(&m.model().to_string(), &mut params);
+                let thinking = Some(params);
                 ProviderAgent::OpenAiChatCompletions(build_agent(
                     m.completion(),
                     thinking,
@@ -192,7 +201,11 @@ impl<'a, H: HttpClientExt + Clone + Default + std::fmt::Debug + 'static> RoutedM
                 ))
             }
             RoutedModel::OpenAiResponses(m) => {
-                let thinking = m.thinking_params(reasoning_effort);
+                let mut params = m
+                    .thinking_params(reasoning_effort)
+                    .unwrap_or_else(|| serde_json::json!({}));
+                speed.apply(&m.model().to_string(), &mut params);
+                let thinking = Some(params);
                 ProviderAgent::OpenAiResponses(build_agent(
                     m.completion(),
                     thinking,
@@ -221,7 +234,7 @@ pub(crate) enum ProviderAgent<
     /// An agent over Gemini's native GenerateContent model.
     Gemini(Agent<TracedModel<GeminiCompletionModel<H>>>),
     /// An agent over the OpenAI Chat Completions model.
-    OpenAiChatCompletions(Agent<TracedModel<openai::completion::CompletionModel<H>>>),
+    OpenAiChatCompletions(Agent<TracedModel<CompatibleCompletionModel<H>>>),
     /// An agent over the OpenAI Responses model.
     OpenAiResponses(Agent<TracedModel<openai::responses_api::ResponsesCompletionModel<H>>>),
     /// A test-only agent over an arbitrary completion model (e.g. a scripted
@@ -470,6 +483,50 @@ impl<H: HttpClientExt + Clone + 'static> ModelRouter<H> {
 }
 
 impl ModelRouter<MeteredHttpClient> {
+    /// This router with `provider`'s client authenticating with `api_key`
+    /// instead of the deployment's key, for a turn an agent's own key pays for.
+    ///
+    /// Only the native Anthropic and OpenAI clients can be rekeyed; any other
+    /// provider is [`AgentError::UnknownModel`]. The rebuilt client keeps its
+    /// own plain copy of the key as a header value, so drop the router with
+    /// the turn that needed it.
+    pub fn with_provider_api_key(&self, provider: &str, api_key: &str) -> Result<Self, AgentError> {
+        let http = ReqwestClient::builder()
+            .retry(reqwest::retry::never())
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|error| rig_core::http_client::Error::Instance(Box::new(error)))?;
+        let mut router = self.clone();
+        match provider {
+            ANTHROPIC_PROVIDER => {
+                router.anthropic = Arc::new(
+                    anthropic::Client::builder()
+                        .api_key(api_key)
+                        .http_client(AnthropicPromptLayout::new(MeteredHttpClient::new(
+                            http,
+                            ANTHROPIC_PROVIDER,
+                            WireProtocol::Anthropic,
+                        )))
+                        .build()?,
+                );
+            }
+            OPENAI_PROVIDER => {
+                router.openai = Arc::new(
+                    openai::Client::builder()
+                        .api_key(api_key)
+                        .http_client(MeteredHttpClient::new(
+                            http,
+                            OPENAI_PROVIDER,
+                            WireProtocol::Responses,
+                        ))
+                        .build()?,
+                );
+            }
+            other => return Err(AgentError::UnknownModel(other.to_owned())),
+        }
+        Ok(router)
+    }
+
     /// Register an OpenAI-compatible Chat Completions provider from a base URL
     /// and key.
     ///
@@ -736,6 +793,9 @@ where
     };
     let driver_span = agent_span.clone();
     let financial_context = MeteringContext::current();
+    let records_per_call = financial_context
+        .as_ref()
+        .is_some_and(MeteringContext::records_per_call);
     let driver = tokio::spawn(
         MeteringContext::carry(financial_context, async move {
             let mut liveness = StreamLiveness::new(agent_span.clone(), telemetry.clone());
@@ -770,11 +830,14 @@ where
                                 );
                                 // Aggregate analytics only. Financial evidence is
                                 // persisted per HTTP attempt before SDK parsing.
-                                recorder.record(
-                                    usage_ctx
-                                        .clone()
-                                        .into_event(model.clone(), usage_amount(protocol, &usage)),
-                                );
+                                if !records_per_call {
+                                    recorder.record(
+                                        usage_ctx.clone().into_event(
+                                            model.clone(),
+                                            usage_amount(protocol, &usage),
+                                        ),
+                                    );
+                                }
                                 let _ =
                                     driver_tx.send(Ok(StreamPart::Usage(crate::stream::Usage {
                                         input_tokens: usage.input_tokens,

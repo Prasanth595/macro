@@ -1,4 +1,5 @@
 import { MarkdownTextarea } from '@core/component/LexicalMarkdown/component/core/MarkdownTextarea';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { EntityComposer } from '@ui';
 import type { LexicalEditor } from 'lexical';
 import { createSignal, type JSX } from 'solid-js';
@@ -19,7 +20,7 @@ export function TaskDraft(props: {
         <ComposeTaskTitleEditor
           value={() => s.fields().title}
           onChange={(value) => s.edit('title', value)}
-          onSubmit={() => void s.submit()}
+          onSubmit={() => fireAndForget(s.submit(), 'universal-input')}
           disabled={s.sending}
           bodyEditor={bodyEditor}
           containerRef={() => container}
@@ -44,7 +45,7 @@ export function TaskDraft(props: {
           onEnter={(event) => {
             if (!(event.metaKey || event.ctrlKey) || event.isComposing)
               return false;
-            void s.submit();
+            fireAndForget(s.submit(), 'universal-input');
             return true;
           }}
         />

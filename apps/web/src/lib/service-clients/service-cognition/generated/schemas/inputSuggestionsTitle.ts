@@ -5,4 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
+/**
+ * Suggested note, task, or event title.
+ */
 export type InputSuggestionsTitle = string | null;

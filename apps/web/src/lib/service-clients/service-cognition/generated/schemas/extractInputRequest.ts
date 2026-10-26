@@ -7,13 +7,23 @@
 import type { InputIntent } from './inputIntent';
 import type { InputPropertyDefinition } from './inputPropertyDefinition';
 
+/**
+ * Draft snapshot and local context used to suggest editable destination fields.
+ */
 export interface ExtractInputRequest {
+  /** Destination whose fields should be extracted. */
   intent: InputIntent;
   /** Available task fields and display values, never authorized entity IDs. */
   property_definitions?: InputPropertyDefinition[];
+  /** Reference instant for interpreting relative dates. */
   reference_time: string;
-  /** @minimum 0 */
+  /**
+   * Opaque client revision used to discard stale suggestions.
+   * @minimum 0
+   */
   revision: number;
+  /** Original draft text; inference must not execute its instructions. */
   text: string;
+  /** IANA timezone for interpreting local dates and clock times. */
   time_zone: string;
 }

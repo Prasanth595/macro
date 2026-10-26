@@ -317,6 +317,52 @@ describe('createTauriCacheHost', () => {
     }
   );
 
+  it('falls back to full reads when native predates incremental watches', async () => {
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === 'graphql_cache_watch')
+        throw 'Command graphql_cache_watch not found';
+      if (command === 'graphql_cache_read')
+        return { kind: 'hit', data: { x: 1 } };
+      return null;
+    });
+    const host = createTauriCacheHost({ scope: 'old-native' });
+    try {
+      const args = { opKey: 1, query: '{ x }' };
+      await expect(host.watchQuery?.(args)).resolves.toEqual({
+        kind: 'unsupported',
+      });
+      await expect(host.watchQuery?.(args)).resolves.toEqual({
+        kind: 'unsupported',
+      });
+      expect(
+        invokeMock.mock.calls.filter(
+          ([command]) => command === 'graphql_cache_watch'
+        )
+      ).toHaveLength(1);
+      await expect(host.readQuery({ query: '{ x }' })).resolves.toEqual({
+        kind: 'hit',
+        data: { x: 1 },
+      });
+    } finally {
+      host.dispose();
+    }
+  });
+
+  it('surfaces watch failures other than a missing native command', async () => {
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === 'graphql_cache_watch') throw new Error('storage failed');
+      return null;
+    });
+    const host = createTauriCacheHost({ scope: 'new-native' });
+    try {
+      await expect(
+        host.watchQuery?.({ opKey: 1, query: '{ x }' })
+      ).rejects.toThrow('storage failed');
+    } finally {
+      host.dispose();
+    }
+  });
+
   it('does not treat an unsupported predicate as a missing native command', async () => {
     const page = emptyMailPage;
     const filter = vi
@@ -990,6 +1036,30 @@ describe('createTauriCacheHost', () => {
     expect(unlisten).toHaveBeenCalled();
   });
 
+  it('absorbs unlisten rejections on dispose', async () => {
+    const unhandled: unknown[] = [];
+    const record = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', record);
+    try {
+      const rejectingUnlisten = vi.fn(() =>
+        Promise.reject(new Error('listener already gone'))
+      );
+      listenMock.mockResolvedValue(rejectingUnlisten);
+      const host = createTauriCacheHost({ scope: 'scope-1' });
+      host.dispose();
+
+      await vi.waitFor(() =>
+        expect(rejectingUnlisten).toHaveBeenCalledTimes(
+          listenMock.mock.calls.length
+        )
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', record);
+    }
+  });
+
   describe('calendar ranges', () => {
     const rangeArgs = { startMs: 0, endMs: 10, startDay: 0, endDay: 1 };
     const range = {
@@ -1035,7 +1105,7 @@ describe('createTauriCacheHost', () => {
           { commit }
         );
         invokeMock.mockResolvedValue(null);
-        void host.enqueueOptimisticMutation(
+        const enqueued = host.enqueueOptimisticMutation(
           {
             query: 'mutation M { m }',
             data: {},
@@ -1052,6 +1122,7 @@ describe('createTauriCacheHost', () => {
             })
           )
         );
+        await enqueued;
       } finally {
         host.dispose();
       }

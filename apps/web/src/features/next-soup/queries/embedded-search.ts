@@ -2,14 +2,15 @@ import { queryReadyGate } from '@queries/gate';
 import { useSoupAstItemsQuery } from '@queries/soup/items';
 import type { Accessor } from 'solid-js';
 import { createMemo } from 'solid-js';
-import { createSearchState } from '../../soup/search';
+import { createSearchState, useOptionalSearchContext } from '../../soup/search';
 import {
   type SearchFiltersState,
   searchNeedsKeywords,
 } from '../core/search-filters';
 import { compileSearchQuery } from '../core/search-query';
 import { compileToAst, queryStateFrom } from '../filters/filter-store';
-import { filterDataToQueryFilters } from './search-request';
+import { createSearchResultFilter } from '../filters/search-results';
+import { buildSoupSearchRequest } from './search-request';
 
 /** The same global-search requests and filtered browsing, without split-view state. */
 export function createEmbeddedSearchSource(options: {
@@ -25,19 +26,21 @@ export function createEmbeddedSearchSource(options: {
   );
   const filtered = () =>
     options.filters().type !== 'all' || options.filters().tags.length > 0;
+  const matches = createMemo(() =>
+    createSearchResultFilter(options.filters().type, query())
+  );
+  const context = useOptionalSearchContext();
   const search = createSearchState({
+    surface: () => 'universal-input',
     text: options.text,
     enabled,
     disableLocalSearch: filtered,
-    buildRequest: ({ query: text, matchType }) => ({
-      params: { page_size: 25 },
-      body: {
-        query: text,
-        search_on: 'name_content',
-        match_type: matchType,
-        filters: filterDataToQueryFilters(query()),
-      },
-    }),
+    localPool: () =>
+      context?.entityPool().filter((entry) => matches()(entry.data)) ?? [],
+    buildRequest: (search) => {
+      const request = buildSoupSearchRequest(query(), search);
+      return { ...request, params: { page_size: 25 } };
+    },
   });
   const browsing = () => options.text().trim().length === 0;
   const browse = useSoupAstItemsQuery(
@@ -57,9 +60,9 @@ export function createEmbeddedSearchSource(options: {
         ? []
         : browsing()
           ? queryReadyGate(browse) && !browse.isPlaceholderData
-            ? browse.data.entities
+            ? browse.data.entities.filter(matches())
             : []
-          : search.data(),
+          : search.data().filter(matches()),
     loading: () =>
       enabled() &&
       (browsing() ? browse.isPending || browse.isFetching : search.isLoading()),

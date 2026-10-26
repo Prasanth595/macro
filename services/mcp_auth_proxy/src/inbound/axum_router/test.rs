@@ -134,7 +134,7 @@ async fn attacker_cannot_have_a_code_delivered_to_their_own_callback() {
 }
 
 #[tokio::test]
-async fn authorize_rejects_an_unregistered_client_id() {
+async fn authorize_explains_how_to_reconnect_an_unregistered_client() {
     let harness = Harness::new();
 
     let response = send(
@@ -148,7 +148,10 @@ async fn authorize_rejects_an_unregistered_client_id() {
     .await;
 
     assert_eq!(response.status, StatusCode::BAD_REQUEST);
-    assert_eq!(response.body, "unknown client_id");
+    assert!(response.body.contains("remove the Macro MCP connection"));
+    assert!(response.body.contains("add it again, and sign in to Macro"));
+    assert_eq!(response.location, None);
+    assert!(!harness.inflight.has_pending());
 }
 
 /// The flow a real MCP client drives, from registration through to a bearer
@@ -355,4 +358,27 @@ async fn unprefixed_unknown_path_is_not_rewritten_onto_the_prefix() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn mounted_mcp_preserves_process_readiness_and_bearer_protection() {
+    let app = super::mounted_mcp_router(
+        Harness::new().service,
+        JwtValidationArgs::new_testing(),
+        Router::new().route("/", get(ok)),
+    )
+    .merge(Router::new().route("/health", get(|| async { StatusCode::SERVICE_UNAVAILABLE })));
+
+    for (path, expected) in [
+        ("/health", StatusCode::SERVICE_UNAVAILABLE),
+        ("/mcp/.well-known/oauth-protected-resource", StatusCode::OK),
+        (
+            "/mcp/.well-known/oauth-authorization-server",
+            StatusCode::OK,
+        ),
+        ("/mcp", StatusCode::UNAUTHORIZED),
+        ("/mcp/mcp", StatusCode::UNAUTHORIZED),
+    ] {
+        assert_eq!(get_status(app.clone(), path).await, expected, "{path}");
+    }
 }

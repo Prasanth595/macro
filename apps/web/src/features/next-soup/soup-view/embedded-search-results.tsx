@@ -1,4 +1,5 @@
 import { registerHotkey } from '@core/hotkey/hotkeys';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isEditableInput } from '@core/util/isEditableInput';
 import {
   type EntityData,
@@ -158,7 +159,7 @@ export function EmbeddedSearchResults(props: {
         <Button
           variant="ghost"
           disabled={props.loadingMore}
-          onClick={() => void props.loadMore()}
+          onClick={() => fireAndForget(props.loadMore(), 'universal-input')}
         >
           {props.loadingMore ? 'Loading…' : 'Load more'}
         </Button>

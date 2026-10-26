@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import ListChecks from '@phosphor-icons/core/regular/list-checks.svg';
 import { invalidateAuthoredForm } from '@queries/storage/form-tools';
 import type { NamedTool } from '@service-cognition/generated/tools/tool';
@@ -28,7 +29,7 @@ function Card(props: {
         <Tool.ResultToggle
           expanded={expanded()}
           onToggle={() => setExpanded((value) => !value)}
-          showToggle={props.children !== undefined}
+          showToggle={props.status !== undefined}
           status={props.status}
         />
       </div>
@@ -51,7 +52,10 @@ function mutationHandler<
     handleResponse: (ctx) => {
       const saved = ctx.tool.data.saved;
       if (saved)
-        void invalidateAuthoredForm(saved.form.id, saved.form.databaseId);
+        fireAndForget(
+          invalidateAuthoredForm(saved.form.id, saved.form.databaseId),
+          'ai-forms'
+        );
     },
     render: (ctx) => (
       <Card
@@ -120,7 +124,7 @@ const readForm = createToolRenderer({
                   <p>
                     {section.title ||
                       (section.kind === 'gate'
-                        ? 'Screener'
+                        ? 'Gate'
                         : section.kind === 'booking'
                           ? 'Booking'
                           : 'Questions')}

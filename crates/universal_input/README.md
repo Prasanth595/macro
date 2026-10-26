@@ -1,9 +1,10 @@
 # Command K input inference
 
 The web client exposes this composer only through Command K. God Mode defaults on
-when `enable-universal-input` is enabled and can be turned off in Settings > Experimental Features. The page requires the
-`enable-experimental-features` PostHog flag and a `@macro.com` account; the
-composer also requires `enable-universal-input`. Home always uses its normal
+for `@macro.com` accounts with both `enable-experimental-features` and
+`enable-universal-input`, and can be turned off in Settings > Experimental Features.
+The Settings page requires `enable-experimental-features`; its God Mode row also
+requires `enable-universal-input`. Home always uses its normal
 composer. Menu drafts are transient and are discarded when the menu closes.
 
 Command K classifies draft snapshots with the same Jev classifier used by
@@ -16,11 +17,12 @@ submission uses the existing destination services and their permission
 checks. The domain service validates input and checks AI admission before calling
 either provider. Usage is recorded through the shared recorder.
 
-The document-cognition service hosts authenticated `POST /universal-input/classify`
-and `POST /universal-input/extract` endpoints. Configure its existing
-`TYPESAFE_API_KEY` through the document-cognition Doppler configuration to enable
+The cognition module in `agent_harness_service` hosts authenticated
+`POST /universal-input/classify` and `POST /universal-input/extract` endpoints
+under the existing `/cognition` prefix. Configure its existing
+`TYPESAFE_API_KEY` through the consolidated harness Doppler configuration to enable
 automatic classification. To try Clairic, set `CLOUDFLARE_ACCOUNT_ID` and
-`CLOUDFLARE_API_TOKEN` together in the document-cognition configuration (and in
+`CLOUDFLARE_API_TOKEN` together in the harness configuration (and in
 the local stack's `local/lcl_personal` configuration or its integration env file).
 The token needs Workers AI access for that account. These stay on the backend.
 An incomplete pair fails at startup; absent/blank pairs retain Nemotron.

@@ -176,6 +176,26 @@ export type BulkGetByEventItemIdsRequest = {
 };
 
 /**
+ * A channel member who sees a calendar event only through a channel share
+ * asked the person who shared it to add them as a guest. Sent to the sharer,
+ * with the requester as sender.
+ */
+export type CalendarEventJoinRequestMetadata = {
+    /**
+     * The shared calendar event entity the request is for.
+     */
+    eventId: string;
+    /**
+     * Stable request identity, answered from the event's details.
+     */
+    requestId: string;
+    /**
+     * Event title when the request was made.
+     */
+    title: string;
+};
+
+/**
  * A calendar event alarm came due. Like [`ReminderMetadata`], these are
  * self-notifications: `sender_id` must stay `None` or the only recipient is
  * filtered out. Everything the alert renders rides in here so the
@@ -252,6 +272,11 @@ export type ChannelInviteMetadata = {
      * The user who sent the invitation
      */
     invitedBy: string;
+    /**
+     * Whether this is a direct message rather than a channel invitation.
+     * Older notification payloads retain channel-invitation wording.
+     */
+    isDirectMessage?: boolean;
     /**
      * Message content to show in the invite email, when the invite was triggered by a message.
      */
@@ -481,6 +506,10 @@ export type DeviceRequest = {
      */
     deviceType: DeviceType;
     /**
+     * Whether this Android binary supports native Telecom incoming calls.
+     */
+    nativeCallCapable?: boolean;
+    /**
      * The device push notification token.
      */
     token: string;
@@ -527,6 +556,58 @@ export type Entity = {
      * The type of entity we are describing
      */
     entity_type: EntityType;
+};
+
+/**
+ * A person granted you access to a shared entity.
+ */
+export type EntityAccessGrantedMetadata = {
+    /**
+     * Requested or granted permission.
+     */
+    accessLevel: RequestedAccessLevel;
+    /**
+     * Shared item's name.
+     */
+    entityName: string;
+    /**
+     * Document file type for routing.
+     */
+    fileType?: string | null;
+    /**
+     * Stable request identity.
+     */
+    requestId: string;
+    /**
+     * Revision that generated this notification.
+     */
+    revision: number;
+};
+
+/**
+ * A person requested access to a shared entity.
+ */
+export type EntityAccessRequestedMetadata = {
+    /**
+     * Requested or granted permission.
+     */
+    accessLevel: RequestedAccessLevel;
+    /**
+     * Shared item's name.
+     */
+    entityName: string;
+    /**
+     * Document file type for routing.
+     */
+    fileType?: string | null;
+    /**
+     * Stable request identity.
+     */
+    requestId: string;
+    /**
+     * Revision that generated this notification.
+     */
+    revision: number;
 };
 
 /**
@@ -858,6 +939,14 @@ export type InviteToTeamMetadata = {
      */
     invitedBy: string;
     /**
+     * What the invitee gets by joining, as the team stood when the invite was sent.
+     */
+    inviteePlan?: InviteePlan;
+    /**
+     * Whether this email reminds the invitee of an invite they have not answered.
+     */
+    reminder?: boolean;
+    /**
      * Role/permission level in the team
      */
     role?: string | null;
@@ -878,6 +967,11 @@ export type InviteToTeamMetadata = {
      */
     teamName: string;
 };
+
+/**
+ * What a team invitee gets by joining.
+ */
+export type InviteePlan = 'free' | 'premium';
 
 /**
  * Metadata for when a item is shared with a user
@@ -994,6 +1088,18 @@ export type NotifEvent = {
      */
     content: CommentedOnDocumentMetadata;
     tag: 'commented_on_document';
+} | {
+    /**
+     * Someone requested more access to a shared entity.
+     */
+    content: EntityAccessRequestedMetadata;
+    tag: 'entity_access_requested';
+} | {
+    /**
+     * An owner granted requested access.
+     */
+    content: EntityAccessGrantedMetadata;
+    tag: 'entity_access_granted';
 } | {
     /**
      * Someone commented, replied, or mentioned the recipient on a project.
@@ -1138,6 +1244,13 @@ export type NotifEvent = {
      */
     content: ChannelMessageReactionMetadata;
     tag: 'channel_message_reaction';
+} | {
+    /**
+     * A channel member asked to be added as a guest of an event the
+     * user shared with the channel.
+     */
+    content: CalendarEventJoinRequestMetadata;
+    tag: 'calendar_event_join_request';
 };
 
 /**
@@ -1176,16 +1289,44 @@ export type NotificationState = 'unseen' | 'seen' | 'done';
  */
 export type NotificationTypeName = string;
 
+/**
+ * the value we send as the payload in the ios notification
+ * This data is accessible to the client
+ */
 export type PushNotificationData = {
+    navigation?: null | PushNotificationNavigation;
     /**
      * The id of the notification record (UserNotification.id)
      */
     notificationId: string;
     /**
+     * Account that owns the receiving device, set during per-recipient delivery.
+     */
+    recipientId?: string | null;
+    /**
      * The sender's profile picture URL, used by the Notification Service Extension
      * to download and attach as a rich notification image.
      */
     senderProfilePictureUrl?: string | null;
+};
+
+/**
+ * Open a channel at a specific message.
+ */
+export type PushNotificationNavigation = {
+    /**
+     * Channel containing the message.
+     */
+    channelId: string;
+    /**
+     * Message to highlight.
+     */
+    messageId: string;
+    /**
+     * Root of the message's thread; null identifies a top-level message.
+     */
+    threadId: string | null;
+    type: 'channel';
 };
 
 /**
@@ -1305,6 +1446,11 @@ export type RepliedToDocumentCommentThreadMetadata = {
      */
     threadId: CommentRef;
 };
+
+/**
+ * Permission level used by an access request, excluding ownership.
+ */
+export type RequestedAccessLevel = 'view' | 'comment' | 'edit';
 
 /**
  * Metadata for when a user is assigned to a task

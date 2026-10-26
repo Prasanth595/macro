@@ -1,5 +1,6 @@
 import { ComposerEditor } from '@core/component/LexicalMarkdown/component/ComposerEditor';
 import { RecipientSelector } from '@core/component/RecipientSelector';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { onCleanup } from 'solid-js';
 import { createConfiguredChannelMarkdownEditor } from '../../channel/Input/configured-markdown-editor';
 import { Input } from '../../channel/Input/Input';
@@ -37,7 +38,7 @@ export function MessageDraft(props: {
         config.controls.isInlineMenuOpen()
       )
         return false;
-      void s.submit();
+      fireAndForget(s.submit(), 'universal-input');
       return true;
     },
   });

@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { until } from '@solid-primitives/promise';
 import { Button } from '@ui/components/Button';
 import { DeleteDialog } from '@ui/components/DeleteDialog';
@@ -32,8 +33,12 @@ import { filterConditionCount } from '../components/database-view-filters';
 import { GridCell, type GridCellProps } from '../components/grid-cell';
 import { RecordPanel } from '../components/record-panel';
 import type { DatabaseRowsSource } from '../context/table-source';
-import type { DatabaseColumnType } from '../core/column-inference';
 import type {
+  DatabaseColumnType,
+  DatabaseEntityType,
+} from '../core/column-inference';
+import type {
+  CreateDatabaseColumn,
   DatabaseColumnCastsSource,
   DatabaseColumnConversion,
   DatabaseColumnTypeChange,
@@ -59,7 +64,10 @@ import {
 import { createColumnLayout } from '../primitives/column-layout';
 import { createDraftRows } from '../primitives/draft-rows';
 import { createHeldGridRows } from '../primitives/held-grid-rows';
-import { createRecordActions } from '../primitives/record-actions';
+import {
+  createRecordActions,
+  type RecordCreation,
+} from '../primitives/record-actions';
 import { createTableController } from '../primitives/table-controller';
 import { type BoardPositions, DatabaseBoardView } from './database-board-view';
 import { DatabaseTableView } from './database-table-view';
@@ -67,6 +75,8 @@ import { DatabaseTableView } from './database-table-view';
 /** What the toolbar and the block can ask of the records on screen. */
 export type DatabaseRecordsActions = {
   createRecord: () => Promise<boolean>;
+  /** Saves a record with its values set; resolves whether it was saved. */
+  createRow: (creation: RecordCreation) => Promise<boolean>;
   focusFirstCell: () => Promise<void>;
   focusColumn: (columnId: string) => boolean;
   openRecord: (rowId: string) => void;
@@ -106,10 +116,14 @@ export type DatabaseRecordsViewProps = {
   onClearConstraints?: () => void;
   /** A board's card places. */
   boardPositions?: BoardPositions;
+  /** Starts a record in the host's own form in place of a board's inline card, with its lane's values. */
+  onComposeRecord?: (values: Record<string, DatabaseCellValue>) => void;
   renderTextEditor?: GridCellProps['renderTextEditor'];
   renderTextValue?: GridCellProps['renderTextValue'];
   renderMentionPicker?: GridCellProps['renderMentionPicker'];
   renderMentionValue?: GridCellProps['renderMentionValue'];
+  /** Opens what a record's title mentions, such as a pipeline row's company, in place of editing it. */
+  onOpenTitleMention?: (id: string, type: DatabaseEntityType) => void;
   renderRelationCell?: (props: RelationCellProps) => JSX.Element;
   relationTables?: { id: string; name: string }[];
   columnCasts?: DatabaseColumnCastsSource;
@@ -134,7 +148,7 @@ export type DatabaseRecordsViewProps = {
   actionsRef?: (actions: DatabaseRecordsActions) => void;
   renderToolbar?: (actions: DatabaseRecordsActions) => JSX.Element;
   /** Create a new column at the end of the table and return its id. */
-  createColumn?: () => DatabaseSchemaChange<string>;
+  createColumn?: CreateDatabaseColumn;
   addColumn?: (
     label?: string,
     onCreated?: (columnId: string) => boolean
@@ -185,7 +199,9 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
     get createColumn() {
       return props.createColumn;
     },
-    renameColumn: (columnId) => void focusColumn(columnId),
+    renameColumn: (columnId) => {
+      focusColumn(columnId);
+    },
   });
   const visibleColumns = columnLayout.visibleColumns;
   const filtered = () => filterConditionCount(props.view.query.filter) > 0;
@@ -222,12 +238,14 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
       layoutKind() === 'table'
         ? records.focusBlankRow()
         : boardControls?.addCard() || records.createRow({ open: true }),
+    createRow: records.createRow,
     focusFirstCell: records.focusFirstCell,
     focusColumn,
     // A grid just mounted for a record from elsewhere has no rows to find it in yet.
     openRecord: (rowId) =>
-      void until(() => props.source.snapshot()).then(() =>
-        records.reveal(rowId)
+      fireAndForget(
+        until(() => props.source.snapshot()).then(() => records.reveal(rowId)),
+        'database'
       ),
     pending: controller.pending,
   };
@@ -273,6 +291,7 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
   ) {
     const write = (value: DatabaseCellValue) =>
       writeValue(row(), column(), value);
+    const isTitle = () => column().id === titleColumn(columns())?.id;
     const relationCell = () => {
       const render = props.renderRelationCell;
       const current = column();
@@ -287,15 +306,14 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
           <GridCell
             {...options}
             column={column()}
-            emptyLabel={
-              column().id === titleColumn(columns())?.id ? 'Unnamed' : undefined
-            }
+            emptyLabel=""
             value={rowValue(row(), column().id)}
             canEdit={props.canEdit}
             renderTextEditor={props.renderTextEditor}
             renderTextValue={props.renderTextValue}
             renderMentionPicker={props.renderMentionPicker}
             renderMentionValue={props.renderMentionValue}
+            onOpenMention={isTitle() ? props.onOpenTitleMention : undefined}
             onMention={(mention) =>
               writeValue(row(), column(), mention.id, undefined, {
                 dataType: 'ENTITY',
@@ -382,7 +400,7 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
               }
               actionLabel={outcomeUnknown() ? 'Refresh' : 'Retry'}
               pending={controller.pending()}
-              onAction={() => void records.retry()}
+              onAction={() => fireAndForget(records.retry(), 'database')}
               onDiscard={
                 uncertainDraft() ? records.dismissSaveFailure : undefined
               }
@@ -396,7 +414,9 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
             (props.source.error() && controller.snapshot())
           }
         >
-          <RefreshNotice onRefresh={() => void controller.refresh()} />
+          <RefreshNotice
+            onRefresh={() => fireAndForget(controller.refresh(), 'database')}
+          />
         </Show>
         <Show when={records.hiddenRecord()}>
           {(row) => (
@@ -431,9 +451,12 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
               }
               pending={controller.pending()}
               onAction={() =>
-                void (draftRows.isUncertain(failure().id)
-                  ? controller.refresh()
-                  : records.retry())
+                fireAndForget(
+                  draftRows.isUncertain(failure().id)
+                    ? controller.refresh()
+                    : records.retry(),
+                  'database'
+                )
               }
               onDiscard={
                 draftRows.isUncertain(failure().id)
@@ -451,7 +474,7 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
             <DatabaseLoadFailure
               title="This table could not be loaded"
               message={loadFailureMessage()}
-              onRetry={() => void controller.refresh()}
+              onRetry={() => fireAndForget(controller.refresh(), 'database')}
             />
           </Match>
           <Match when={layoutKind() === 'board'}>
@@ -477,6 +500,7 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
               createComplete={controller.createComplete}
               onOpen={records.open}
               onCreate={records.createRow}
+              onCompose={props.onComposeRecord}
               controlsRef={(controls) => {
                 boardControls = controls;
               }}
@@ -563,7 +587,10 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
               onInsertColumn={
                 props.canEdit && props.createColumn
                   ? (columnId, side) =>
-                      void columnLayout.insertColumn(columnId, side)
+                      fireAndForget(
+                        columnLayout.insertColumn(columnId, side),
+                        'database'
+                      )
                   : undefined
               }
               emptyState={
@@ -609,7 +636,7 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
                   : undefined
               }
               saveError={recordSaveError(row().rowId)}
-              onRetry={() => void records.retry()}
+              onRetry={() => fireAndForget(records.retry(), 'database')}
               position={records.selectedPosition()}
               total={rows().length}
               renderCell={renderCell}
@@ -629,7 +656,8 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
           pending={controller.pending()}
           onDelete={() => {
             const target = records.deleteTarget();
-            if (target) void records.deleteRow(target.rowId);
+            if (target)
+              fireAndForget(records.deleteRow(target.rowId), 'database');
           }}
           onCloseAutoFocus={(event) => {
             const target = records.deleteDialogReturnFocus();

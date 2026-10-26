@@ -263,6 +263,36 @@ describe('coordinator runtime protocol', () => {
     expect(valid([{ ...entry, unexpected: true }])).toBe(false);
   });
 
+  it('validates live query cursors and requires a reconciled source', () => {
+    const liveQuery = {
+      id: 'view',
+      document: 'fragment Item on GraphqlSoupDocument { id }',
+      fragmentName: 'Item',
+      since: '1',
+    };
+    const request = {
+      filters: {},
+      sortMethod: 'UPDATED_AT',
+      sortDirection: 'DESC',
+      limit: 20,
+      baseline: [],
+      liveQuery,
+    };
+    const valid = (value: unknown) =>
+      isCacheRequest({ id: 1, kind: 'entity-filter', request: value });
+    expect(valid(request)).toBe(true);
+    expect(
+      valid({ ...request, liveQuery: { ...liveQuery, release: true } })
+    ).toBe(true);
+    expect(valid({ ...request, baseline: undefined })).toBe(false);
+    expect(
+      valid({ ...request, liveQuery: { ...liveQuery, since: '01' } })
+    ).toBe(false);
+    expect(valid({ ...request, liveQuery: { ...liveQuery, id: '' } })).toBe(
+      false
+    );
+  });
+
   it('validates calendar range, commit, and uncertain-event requests', () => {
     const range = { startMs: 0, endMs: 10, startDay: 0, endDay: 1 };
     const rangeRequest = (request: unknown) =>
@@ -495,6 +525,7 @@ describe('coordinator runtime protocol', () => {
       scope: 'scope',
       tabId: 'tab',
       livenessLockName: 'graphql-cache-tab:scope:tab',
+      visible: true,
       buildTime: 1_790_000_000_000,
     },
     {
@@ -747,6 +778,7 @@ describe('coordinator runtime protocol', () => {
         scope: 'scope',
         tabId: 'tab',
         livenessLockName: 'lock',
+        visible: true,
         buildTime: 0,
       }).ok
     ).toBe(false);
@@ -758,6 +790,7 @@ describe('coordinator runtime protocol', () => {
         scope: 'scope',
         tabId: 'tab',
         livenessLockName: 'lock',
+        visible: true,
       }).ok
     ).toBe(false);
     expect(
@@ -798,10 +831,10 @@ describe('coordinator runtime protocol', () => {
     // The current versions moved past the unversioned name, so the lock
     // names the versioned database that builds before them never held.
     expect(databaseOwnerLockName('scope')).toBe(
-      'macro:turso-opfs:v1:29:graphql-cache:scope:s4.v3.t11'
+      'macro:turso-opfs:v1:29:graphql-cache:scope:s4.v4.t11'
     );
     expect(databaseOwnerLockName('é')).toBe(
-      'macro:turso-opfs:v1:26:graphql-cache:é:s4.v3.t11'
+      'macro:turso-opfs:v1:26:graphql-cache:é:s4.v4.t11'
     );
   });
 

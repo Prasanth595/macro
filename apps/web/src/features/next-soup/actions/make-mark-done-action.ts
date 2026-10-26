@@ -14,6 +14,7 @@ import {
   isFeatureEnabled,
 } from '@core/constant/featureFlags';
 import type { HotkeyGroup } from '@core/hotkey/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { EntityData } from '@entity';
 import type { NotificationSource } from '@notifications';
 import ArrowCounterClockwise from '@phosphor-icons/core/regular/arrow-counter-clockwise.svg?component-solid';
@@ -21,7 +22,11 @@ import {
   type NotificationEntityRef,
   toNotificationEntityRef,
 } from '@queries/notification/entity-mutations';
-import { type UndoHandle, useMutationUndoContext } from '@queries/undo';
+import {
+  type UndoHandle,
+  useMutationUndoContext,
+  useUndoableMutation,
+} from '@queries/undo';
 import { useMutation } from '@tanstack/solid-query';
 import type {
   EntityActionListState,
@@ -32,6 +37,7 @@ import {
   type DoneEntityKey,
   doneEntityKey,
 } from './graphql-done-operation';
+import type { MarkDoneDelegate, PreparedMarkDone } from './mark-done-delegate';
 
 // Valid list views where the mark done should be allowed to run
 const VALID_MARK_DONE_LIST_VIEWS: `${ListView}-${string}`[] = [
@@ -56,8 +62,7 @@ export const canExecuteMarkDoneOnView = (view: ListView, tabId: string) => {
 
 /** Already-done emails coexist with actionable rows in unified
  * collections, so mark-done skips them rather than acknowledging twice. */
-const isMarkDoneTarget = (e: EntityData) =>
-  !(e.type === 'email' && e.done === true);
+const isDoneEmail = (e: EntityData) => e.type === 'email' && e.done === true;
 
 type MakeMarkDoneOptions = {
   userId?: () => string | undefined;
@@ -65,6 +70,8 @@ type MakeMarkDoneOptions = {
   /** When provided, undo entries pushed by this action are dropped from
    *  the undo stack when the group is disposed. */
   hotkeyGroup?: HotkeyGroup;
+  /** A list that completes its own rows; its rows skip the entity path. */
+  delegate?: () => MarkDoneDelegate | undefined;
 };
 
 type MarkDoneVariables = {
@@ -102,6 +109,69 @@ type MarkDoneExecuteWithSoupOpts = MarkDoneExecuteOpts & {
   anchorKey?: string;
   nextEntityId?: string;
 };
+
+type ToastVariables = Pick<
+  MarkDoneVariables,
+  'entities' | 'restoreFocus' | 'silent' | 'onUndoHandle' | 'navigateBack'
+>;
+
+type DelegatedMarkDoneVariables = ToastVariables & {
+  prepared: PreparedMarkDone;
+  /** Reverses the latest commit; replaced by each redo. */
+  undo: { current?: () => Promise<void> };
+};
+
+/** Shows rows a delegated done hid; replaced by each redo. */
+type DelegatedMarkDoneContext = { show: () => void };
+
+/** The "Marked as done" toast with Undo for a delegated done, and focus
+ * restoration on undo. */
+function delegatedDoneUndoLifecycle(
+  handle: UndoHandle,
+  variables: ToastVariables
+) {
+  variables.onUndoHandle?.(handle);
+  const firstEntityId = variables.entities[0]?.id;
+  const count = variables.entities.length;
+  const message =
+    count > 1 ? `Marked ${count} items as done` : 'Marked as done';
+  let toastId: number | undefined;
+
+  const showToast = () => {
+    if (variables.silent) return;
+    toastId = toast.success(message, {
+      actions: [
+        {
+          label: 'Undo',
+          icon: ArrowCounterClockwise,
+          onClick: () => {
+            fireAndForget(
+              handle.undo({
+                onError: () => toast.failure('Failed to undo'),
+              }),
+              'next-soup'
+            );
+          },
+        },
+      ],
+      duration: 3_000,
+      stack: true,
+      hideOnMobile: true,
+    });
+  };
+
+  showToast();
+
+  return {
+    onUndone: () => {
+      if (toastId !== undefined) toast.dismiss(toastId);
+      variables.restoreFocus?.();
+      fireAndForget(restoreSoupFocus(firstEntityId), 'next-soup');
+      variables.navigateBack?.();
+    },
+    onRedone: showToast,
+  };
+}
 
 type PendingDoneUndo = {
   requested: boolean;
@@ -144,6 +214,9 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
 
   const { notificationSource, hotkeyGroup } = options;
   const { pushUndo } = useMutationUndoContext();
+  // A delegating list's rows with nothing to acknowledge are skipped too.
+  const isMarkDoneTarget = (entity: EntityData) =>
+    !isDoneEmail(entity) && options.delegate?.()?.canComplete(entity) !== false;
 
   const registerUndo = (
     variables: MarkDoneVariables,
@@ -158,7 +231,7 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
     const restoreFocus = () => {
       dismiss();
       variables.restoreFocus?.();
-      void restoreSoupFocus(firstEntityId);
+      fireAndForget(restoreSoupFocus(firstEntityId), 'next-soup');
       variables.navigateBack?.();
     };
     const showToast = () => {
@@ -177,9 +250,12 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
             label: 'Undo',
             icon: ArrowCounterClockwise,
             onClick: () => {
-              void handle.undo({
-                onError: () => toast.failure('Failed to undo'),
-              });
+              fireAndForget(
+                handle.undo({
+                  onError: () => toast.failure('Failed to undo'),
+                }),
+                'next-soup'
+              );
             },
           },
         ],
@@ -329,7 +405,46 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
     })
   );
 
+  // Rows of a delegating list complete as that list's items: hidden at
+  // once, committed and undone through the delegate.
+  const delegatedMutation = useUndoableMutation<
+    void,
+    Error,
+    DelegatedMarkDoneVariables,
+    DelegatedMarkDoneContext
+  >(() => ({
+    hotkeyGroup,
+    onMutate: (variables) => ({ show: variables.prepared.hide() }),
+    mutationFn: async (variables) => {
+      const { undo } = await variables.prepared.commit();
+      variables.undo.current = undo;
+    },
+    onError: (_err, _variables, context) => {
+      context?.show();
+      toast.failure('Failed to mark as done');
+    },
+    undoFn: async (variables, context) => {
+      context?.show();
+      await variables.undo.current?.();
+    },
+    redoFn: async (variables, context) => {
+      const show = variables.prepared.hide();
+      if (context) context.show = show;
+      try {
+        const { undo } = await variables.prepared.commit();
+        variables.undo.current = undo;
+      } catch (err) {
+        show();
+        throw err;
+      }
+    },
+    undoLabel: 'Mark Done',
+    onPushed: delegatedDoneUndoLifecycle,
+  }));
+
   const canExecute = (entity: EntityData): boolean => {
+    const delegated = options.delegate?.()?.canComplete(entity);
+    if (delegated !== undefined) return delegated;
     if (entity.type === 'channel_message') {
       return false;
     }
@@ -374,6 +489,20 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
         ]
       : eligible;
     if (targets.length === 0) return;
+
+    const prepared = options.delegate?.()?.prepare(targets);
+    if (prepared) {
+      await delegatedMutation.mutateAsync({
+        entities: targets,
+        prepared,
+        undo: {},
+        restoreFocus,
+        silent: opts?.silent,
+        onUndoHandle: opts?.onUndoHandle,
+        navigateBack: opts?.navigateBack,
+      });
+      return;
+    }
 
     const source = notificationSource();
     const scopeChannelNotifications = scopeChannelNotificationsToEntity();

@@ -266,7 +266,8 @@ impl<C: YesNoClassifier, E: FieldExtractor> UniversalInputService<C, E> {
     }
 
     /// Classify a bounded draft after admission, returning independent intent scores.
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(name = "universal_input.classify", skip_all, err,
+        fields(revision = input.revision, draft_chars = input.text.chars().count()))]
     pub async fn classify(
         &self,
         user: MacroUserIdStr<'static>,
@@ -308,7 +309,8 @@ impl<C: YesNoClassifier, E: FieldExtractor> UniversalInputService<C, E> {
     }
 
     /// Extract fields after admission and apply source, timezone, and duration rules.
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(name = "universal_input.extract", skip_all, err,
+        fields(intent = ?input.intent, revision = input.revision, draft_chars = input.text.chars().count()))]
     pub async fn extract(
         &self,
         user: MacroUserIdStr<'static>,

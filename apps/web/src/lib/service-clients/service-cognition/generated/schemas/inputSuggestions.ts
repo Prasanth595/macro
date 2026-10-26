@@ -19,18 +19,26 @@ import type { InputSuggestionsTitle } from './inputSuggestionsTitle';
  * Suggestions are text, never authorized recipient, channel or calendar IDs.
  */
 export interface InputSuggestions {
+  /** Suggested Markdown content or outgoing message body. */
   body?: InputSuggestionsBody;
+  /** Task deadline as a local ISO date. */
   due_date?: InputSuggestionsDueDate;
+  /** Event end as a local wall-clock value in the request's timezone. */
   end?: InputSuggestionsEnd;
   /** Only populated when an invitation was explicitly requested. */
   guests?: string[];
+  /** Human-readable event venue or meeting URL. */
   location?: InputSuggestionsLocation;
   /** Display names/values that the client resolves against available task fields. */
   properties?: InputPropertySuggestion[];
+  /** Terms to find existing Macro content. */
   query?: InputSuggestionsQuery;
+  /** Person or channel names for the client to resolve. */
   recipients?: string[];
   /** Local wall-clock values, interpreted in the request's IANA timezone. */
   start?: InputSuggestionsStart;
+  /** Suggested outgoing email subject. */
   subject?: InputSuggestionsSubject;
+  /** Suggested note, task, or event title. */
   title?: InputSuggestionsTitle;
 }

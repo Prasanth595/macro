@@ -5,4 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
+/**
+ * Event end as a local wall-clock value in the request's timezone.
+ */
 export type InputSuggestionsEnd = string | null;

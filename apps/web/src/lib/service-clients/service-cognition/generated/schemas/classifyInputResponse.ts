@@ -6,8 +6,15 @@
  */
 import type { IntentScore } from './intentScore';
 
+/**
+ * Ranked-type evidence for a particular client draft revision.
+ */
 export interface ClassifyInputResponse {
-  /** @minimum 0 */
+  /**
+   * Revision echoed from the classification request.
+   * @minimum 0
+   */
   revision: number;
+  /** Independent scores in the fixed intent-question order. */
   scores: IntentScore[];
 }

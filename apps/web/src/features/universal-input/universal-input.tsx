@@ -9,6 +9,7 @@ import {
 import { useGetChatAttachmentInfo } from '@core/component/AI/signal/attachment';
 import { createMentionAttachmentCallbacks } from '@core/component/AI/signal/mention-attachment-callbacks';
 import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { createSignal, Show } from 'solid-js';
 import { openEntityInSplitFromUnifiedList } from '../next-soup/utils';
 import { createInputActions } from './actions';
@@ -76,11 +77,14 @@ function InputContent(props: {
           scopeId={scopeId}
           canHandleKeyboard={() => !editor.controls.isInlineMenuOpen()}
           onOpen={(entity, newSplit, location) => {
-            void openEntityInSplitFromUnifiedList(entity, {
-              openInNewSplit: newSplit,
-              location,
-              referredFrom: 'kommand-menu',
-            });
+            fireAndForget(
+              openEntityInSplitFromUnifiedList(entity, {
+                openInNewSplit: newSplit,
+                location,
+                referredFrom: 'kommand-menu',
+              }),
+              'universal-input'
+            );
             command.onNavigate();
           }}
         />
@@ -96,7 +100,7 @@ function InputContent(props: {
             command.onTextChange(text);
           }}
           initialSelection={command.selection}
-          onSubmit={() => void controller.submit()}
+          onSubmit={() => fireAndForget(controller.submit(), 'universal-input')}
         />
       }
       taskFields={

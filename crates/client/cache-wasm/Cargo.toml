@@ -2,8 +2,8 @@
 edition = "2024"
 name = "cache-wasm"
 publish = false
-# Rebuild to parse frontend-supplied GraphQL SDL directly.
-version = "0.6.43"
+# Rebuild with draft link patches and compressed normalized records.
+version = "0.6.52"
 
 [features]
 default = []

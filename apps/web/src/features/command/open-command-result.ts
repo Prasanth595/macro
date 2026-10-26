@@ -10,6 +10,7 @@ import {
   enableProjects,
   USE_MACRO_PR_SUMMARY_BLOCK,
 } from '@core/constant/featureFlags';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { openExternalUrl } from '@core/util/url';
 import { isGithubPrEntity } from '@entity';
 import { useGetOrCreateDirectMessageMutation } from '@queries/channel/get-or-create-dm';
@@ -70,7 +71,7 @@ export function createCommandResultOpener(
           toast.alert('Content already open');
         }
       } else {
-        openExternalUrl(item.data.metadata.url);
+        fireAndForget(openExternalUrl(item.data.metadata.url), 'command-menu');
       }
       return true;
     }
@@ -128,14 +129,14 @@ export function createCommandResultOpener(
     if (isEntityItem(item)) return openEntity(item, openInNewSplit);
 
     if (isUserItem(item)) {
-      void openDirectMessage(item.id, openInNewSplit);
+      fireAndForget(openDirectMessage(item.id, openInNewSplit), 'command-menu');
       return true;
     }
 
     if (isSearchItem(item)) return openSearch(item, openInNewSplit);
 
     if (isAskAiItem(item)) {
-      void openChatWithMessage(item.query);
+      fireAndForget(openChatWithMessage(item.query), 'command-menu');
       return true;
     }
 

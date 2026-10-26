@@ -6,7 +6,7 @@ import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownCon
 import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownShell';
 import type { EditorControls } from '@core/component/LexicalMarkdown/builder/types';
 import { registerHotkey } from '@core/hotkey/hotkeys';
-import { markdownToPlainText } from '@macro-inc/lexical-core/utils/parsers';
+import { markdownToSearchText } from '@macro-inc/lexical-core/utils/parsers';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
 import XIcon from '@phosphor/x.svg?component-solid';
 import { cn, Hotkey } from '@ui';
@@ -35,6 +35,12 @@ interface SoupSearchbarProps {
   placeholder?: string;
   initialValue?: string;
 }
+
+// Both variants draw the shared SearchBar pill; they differ only in emphasis.
+const variantStyles: Record<SearchbarVariant, string> = {
+  filled: 'text-ink-muted focus-within:text-ink',
+  secondary: 'text-ink-muted hover:text-ink focus-within:text-ink',
+};
 
 /** Split-owned history, focus shortcuts and navigation around the shared search input. */
 export function SoupSearchbar(props: SoupSearchbarProps) {
@@ -116,11 +122,11 @@ export function SearchbarInput(
   const [markdown, setMarkdown] = createSignal(
     untrack(() => props.initialValue ?? props.value)
   );
-  let acknowledgedQuery = markdownToPlainText(props.value).trim();
+  let acknowledgedQuery = markdownToSearchText(props.value).trim();
   const publish = (value: string) => {
     setMarkdown(value);
     if (editor.controls.isInlineMenuOpen()) return;
-    const text = markdownToPlainText(value).trim();
+    const text = markdownToSearchText(value).trim();
     acknowledgedQuery = text;
     if (text !== props.value) props.onChange(text);
   };
@@ -128,7 +134,7 @@ export function SearchbarInput(
     on(
       () => props.value,
       (value) => {
-        const query = markdownToPlainText(value).trim();
+        const query = markdownToSearchText(value).trim();
         if (query === acknowledgedQuery) return;
         acknowledgedQuery = query;
         setMarkdown(value);
@@ -190,10 +196,8 @@ export function SearchbarInput(
     >
       <div
         class={cn(
-          'group w-full relative flex items-center gap-1 rounded-lg h-7 mobile:h-9 pl-1 pr-1 py-1 mobile:min-w-35 border text-xs',
-          props.variant === 'filled'
-            ? 'bg-ink/5 text-ink-muted hover:bg-ink/7 hover:text-ink border-edge-muted focus-within:bg-ink/7 focus-within:text-ink focus-within:border-accent'
-            : 'bg-surface text-ink-muted border-edge-muted hover:text-ink focus-within:text-ink focus-within:border-accent'
+          'group w-full relative flex items-center gap-1.5 rounded-full h-8 mobile:h-9 px-3 mobile:min-w-35 border border-edge-button bg-control not-touch:elevated text-sm focus-within:ring-2 focus-within:ring-edge-muted',
+          variantStyles[props.variant ?? 'secondary']
         )}
       >
         <SearchIcon class="size-4 shrink-0" />

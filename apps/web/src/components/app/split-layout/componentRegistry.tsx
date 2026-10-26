@@ -45,6 +45,10 @@ const CalendarRouteView = lazyNamed(
   () => import('@app/features/calendar-view/route-views'),
   'CalendarRouteView'
 );
+const BookingLinksRouteView = lazyNamed(
+  () => import('@app/features/scheduling/route-views'),
+  'BookingLinksRouteView'
+);
 const ChannelsRouteView = lazyNamed(
   () => import('@app/features/channels-view/route-views'),
   'ChannelsRouteView'
@@ -334,7 +338,11 @@ registerComponent(
   () => <DriveRouteView />,
   () => composableLayout(true)
 );
-registerComponent('reviews', () => <ReviewsRouteView />);
+registerComponent(
+  'reviews',
+  () => <ReviewsRouteView />,
+  () => composableLayout(true)
+);
 registerComponent(
   'tasks',
   () => <TasksRouteView />,
@@ -352,15 +360,15 @@ registerComponent(
   () => <ChannelsRouteView />,
   () => composableLayout()
 );
-registerComponent('calls', () => <CallsRouteView />);
 registerComponent(
-  'companies',
-  () => <CompaniesRouteView />,
-  () => ({
-    ownsCollectionState: true,
-    ...(isTouchDevice() ? {} : { splitPanelLayout: 'composable' as const }),
-  })
+  'calls',
+  () => <CallsRouteView />,
+  () => composableLayout()
 );
+registerComponent('companies', () => <CompaniesRouteView />, {
+  ownsCollectionState: true,
+  splitPanelLayout: 'composable',
+});
 registerComponent('folders', () => <FoldersRouteView />);
 registerComponent('search', () => <SearchRouteView />);
 registerComponent('firehose', () => (
@@ -396,11 +404,27 @@ registerComponent('email-compose', (params) => {
     typeof params.initialInboxId === 'string'
       ? params.initialInboxId
       : undefined;
+  const initialSubject =
+    typeof params.initialSubject === 'string'
+      ? params.initialSubject
+      : undefined;
+  const initialBodyText =
+    typeof params.initialBodyText === 'string'
+      ? params.initialBodyText
+      : undefined;
+  const initialAttachments = Array.isArray(params.initialAttachments)
+    ? params.initialAttachments.filter(
+        (value): value is File => value instanceof File
+      )
+    : undefined;
   return (
     <EmailCompose
       draftId={draftID}
       initialTo={initialTo}
       initialInboxId={initialInboxId}
+      initialSubject={initialSubject}
+      initialBodyText={initialBodyText}
+      initialAttachments={initialAttachments}
     />
   );
 });
@@ -458,6 +482,11 @@ registerComponent(
 registerComponent(
   'settings',
   () => <SettingsRouteView />,
+  () => composableLayout()
+);
+registerComponent(
+  'booking-links',
+  () => <BookingLinksRouteView />,
   () => composableLayout()
 );
 

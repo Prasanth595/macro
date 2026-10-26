@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { InlineTagsPill } from '@property/tags';
 import { createSignal, Show } from 'solid-js';
 import { DocumentFields } from '../../document-composer/components/document-fields';
@@ -30,7 +31,7 @@ export function NoteDraft(props: {
       editor.controls.isInlineMenuOpen()
     )
       return false;
-    void s.submit();
+    fireAndForget(s.submit(), 'universal-input');
     return true;
   });
   return (
@@ -43,12 +44,15 @@ export function NoteDraft(props: {
         disabled={s.sending()}
         bodyLabel="Note body"
         containerRef={container}
-        onSubmit={() => void s.submit()}
+        onSubmit={() => fireAndForget(s.submit(), 'universal-input')}
         portalScope="local"
         onTagSelected={
           props.tags
             ? (tag) => {
-                void props.tags?.applyTag(tag.scope, tag.optionId);
+                fireAndForget(
+                  props.tags?.applyTag(tag.scope, tag.optionId),
+                  'universal-input'
+                );
               }
             : undefined
         }

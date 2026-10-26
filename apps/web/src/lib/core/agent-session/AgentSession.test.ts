@@ -15,6 +15,14 @@ const fold = vi.hoisted(() => ({
   pushSession: vi.fn(),
   readSession: vi.fn(),
   closeSession: vi.fn(),
+  // The real class, so `instanceof` classifies a load failure the way the
+  // app does rather than the way a stand-in happens to.
+  AgentFoldWorkerUnavailable: class AgentFoldWorkerUnavailable extends Error {
+    constructor(readonly workerUrl: string) {
+      super(`agent fold worker script could not be loaded (${workerUrl})`);
+      this.name = 'AgentFoldWorkerUnavailable';
+    }
+  },
 }));
 const harness = vi.hoisted(() => ({
   get: vi.fn(),
@@ -135,6 +143,8 @@ function invalidate(id = SESSION) {
   for (const listener of updates.listeners) listener({ agentSessionId: id });
 }
 
+const analytics = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock('@app/lib/analytics', () => ({ analytics }));
 vi.mock('@core/agent-fold/client', () => fold);
 vi.mock('@service-agent-harness/client', () => ({
   agentHarnessServiceClient: harness,
@@ -302,6 +312,55 @@ describe('AgentSession', () => {
     live.release();
   });
 
+  it('counts an accepted prompt as an agent AI message, and nothing else', async () => {
+    harness.get.mockResolvedValue(ok({ ...session, botId: 'bot-id' }));
+    const live = AgentSession.acquire(SESSION);
+    await live.load();
+
+    await live.issue({ type: 'stop' });
+    await live.issue({ type: 'prompt', prompt: 'hi' });
+    harness.control.mockResolvedValueOnce(err([{ code: 'FORBIDDEN' }]));
+    await live.issue({ type: 'prompt', prompt: 'refused' });
+    await settle();
+
+    expect(analytics.track.mock.calls).toEqual([
+      [
+        'ai_message_sent',
+        {
+          surface: 'agent',
+          agentSessionId: SESSION,
+          agentId: 'bot-id',
+          newSession: false,
+          submitSurface: 'agent_session',
+          queued: false,
+          attachmentCount: 0,
+        },
+      ],
+    ]);
+    live.release();
+  });
+
+  it('reports the files an accepted prompt carries on its AI message', async () => {
+    const live = AgentSession.acquire(SESSION);
+    await live.load();
+
+    await live.issue({
+      type: 'prompt',
+      prompt: 'see these',
+      attachments: [
+        { uri: 'https://files.test/a', name: 'a.pdf' },
+        { uri: 'https://files.test/b', name: 'b.png' },
+      ],
+    });
+    await settle();
+
+    expect(analytics.track).toHaveBeenCalledExactlyOnceWith(
+      'ai_message_sent',
+      expect.objectContaining({ surface: 'agent', attachmentCount: 2 })
+    );
+    live.release();
+  });
+
   it('reissues the speculation under the id the harness minted instead', async () => {
     harness.control.mockResolvedValue(
       ok({ actionId: 'server-id', status: 'sent' })
@@ -409,7 +468,7 @@ describe('AgentSession', () => {
     logSource.fetched.mockReturnValue(log.promise);
     const live = AgentSession.acquire(SESSION);
 
-    void live.issue({ type: 'prompt', prompt: 'early' });
+    const issued = live.issue({ type: 'prompt', prompt: 'early' });
     await settle();
     expect(fold.pushSession).not.toHaveBeenCalled();
 
@@ -419,6 +478,7 @@ describe('AgentSession', () => {
       'snapshot',
       'speculated',
     ]);
+    await issued;
     live.release();
   });
 
@@ -827,7 +887,9 @@ describe('AgentSession', () => {
 
     it('waits out a refusal and loads once the create is readable', async () => {
       vi.useFakeTimers();
-      onTestFinished(() => void vi.useRealTimers());
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
       // The create has answered, but what it wrote is not readable yet.
       harness.get
         .mockResolvedValueOnce(err([{ code: 'UNAUTHORIZED' }]))
@@ -845,7 +907,9 @@ describe('AgentSession', () => {
 
     it('waits out a 404 from a create whose row is not visible yet', async () => {
       vi.useFakeTimers();
-      onTestFinished(() => void vi.useRealTimers());
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
       harness.get
         .mockResolvedValueOnce(err([{ code: 'NOT_FOUND' }]))
         .mockResolvedValue(ok(session));
@@ -860,7 +924,9 @@ describe('AgentSession', () => {
 
     it('gives up as a retryable failure, not denied access, if it never clears', async () => {
       vi.useFakeTimers();
-      onTestFinished(() => void vi.useRealTimers());
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
       harness.get.mockResolvedValue(err([{ code: 'UNAUTHORIZED' }]));
 
       const live = AgentSession.acquire(SESSION);
@@ -1107,6 +1173,14 @@ describe('AgentSession', () => {
       fold.readSession.mockRejectedValueOnce(new Error('worker died'));
       await expect(live.load()).rejects.toThrow('worker died');
 
+      // A worker whose script never loaded is counted apart from a fold that
+      // went wrong: nothing is wrong with the fold, and the fix is a deploy
+      // retention question.
+      fold.readSession.mockRejectedValueOnce(
+        new fold.AgentFoldWorkerUnavailable('/app/fold.worker-abc.js')
+      );
+      await expect(live.load()).rejects.toThrow('could not be loaded');
+
       expect(
         loadSpans().map((span) => [
           span.attributes['agent.session.load.outcome'],
@@ -1117,6 +1191,7 @@ describe('AgentSession', () => {
         ['failed', 'log_fetch'],
         ['failed', 'access_denied'],
         ['failed', 'fold'],
+        ['failed', 'worker_unavailable'],
       ]);
       live.release();
     });
@@ -1134,6 +1209,9 @@ describe('AgentSession', () => {
           parts: [{ kind: 'text', text: 'Hi' }],
           stop: null,
           pending: false,
+          segments: [],
+          phase: null,
+          postedAt: null,
         },
         {
           agentSessionId: SESSION,
@@ -1146,6 +1224,9 @@ describe('AgentSession', () => {
           ],
           stop: null,
           pending: false,
+          segments: [],
+          phase: null,
+          postedAt: null,
         },
       ]);
       const [span] = renderSpans();
@@ -1271,6 +1352,9 @@ describe('AgentSession', () => {
             parts: [{ kind: 'text', text: 'hi' }],
             stop: null,
             pending: false,
+            segments: [],
+            phase: null,
+            postedAt: null,
           },
         },
         {
@@ -1283,6 +1367,9 @@ describe('AgentSession', () => {
             parts: [{ kind: 'thought', text: 'thinking' }],
             stop: null,
             pending: false,
+            segments: [],
+            phase: null,
+            postedAt: null,
           },
         },
       ] satisfies FoldedStreamEvent[]);
@@ -1334,6 +1421,9 @@ describe('AgentSession', () => {
             ],
             stop: null,
             pending: false,
+            segments: [],
+            phase: null,
+            postedAt: null,
           },
         },
       ] satisfies FoldedStreamEvent[]);

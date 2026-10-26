@@ -1,4 +1,5 @@
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { ResponsivePermissionsBadge } from '@components/app/ResponsiveBlockToolbar';
 import {
   SplitHeaderLeft,
@@ -10,6 +11,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { ShareTrigger } from '@core/component/TopBar/ShareButton';
 import { useShareModal } from '@core/component/TopBar/shareModal';
 import { enableForms } from '@core/constant/featureFlags';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { useGetPermissions } from '@core/signal/permissions';
 import SparkleIcon from '@phosphor/sparkle.svg';
 import type { DatabaseDetail } from '@service-storage/generated/schemas/databaseDetail';
@@ -42,9 +44,6 @@ export function TopBar(props: {
   detail: DatabaseDetail | undefined;
   canEdit: boolean;
   activeTable: TableDetail | undefined;
-  /** Opens the title for typing, as for a freshly created database. */
-  autoFocusTitle: boolean;
-  onTitleConfirm: () => void;
   onSelectTable: (tableId: string) => void;
   onDelete: () => ResultAsync<void, DatabaseEntityFailure>;
   openingChat: boolean;
@@ -75,10 +74,11 @@ export function TopBar(props: {
         : undefined,
     };
   });
-  const rename = (next: string) =>
-    void renameDatabase(getEntityGraphqlClient(), databaseId, next).mapErr(
+  const rename = (next: string) => {
+    renameDatabase(getEntityGraphqlClient(), databaseId, next).mapErr(
       (failure) => toast.failure(databaseEntityMessage(failure, 'rename'))
     );
+  };
 
   return (
     <>
@@ -90,8 +90,6 @@ export function TopBar(props: {
               <DatabaseTitle
                 name={name()}
                 canEdit={props.canEdit}
-                autoFocus={props.autoFocusTitle}
-                onConfirm={props.onTitleConfirm}
                 onEditReady={(edit) => (editTitle = edit)}
                 onRename={rename}
               />
@@ -138,25 +136,27 @@ export function TopBar(props: {
       </SplitHeaderLeft>
       <SplitHeaderRight>
         <BlockLiveIndicators />
-        <div class="order-[1000] flex items-center gap-1">
+        <div class="order-[1000] flex items-center gap-2">
           <ShareTrigger onClick={openShare} />
         </div>
       </SplitHeaderRight>
       <ResponsivePermissionsBadge />
       <Show when={props.detail}>
         <SplitHeaderRight>
-          <Button
-            variant="ghost"
-            size="sm"
-            class="gap-1.5 px-2 text-xs"
-            disabled={props.openingChat}
-            aria-label="Database AI"
-            aria-busy={props.openingChat}
-            onClick={props.onOpenChat}
-          >
-            <SparkleIcon class="size-4" />
-            <span>AI</span>
-          </Button>
+          <HeaderActionGroup label="Database actions">
+            <Button
+              variant="ghost"
+              size={isTouchDevice() ? 'sm' : 'md'}
+              class="gap-1.5 touch:px-2 touch:text-xs"
+              disabled={props.openingChat}
+              aria-label="Database AI"
+              aria-busy={props.openingChat}
+              onClick={props.onOpenChat}
+            >
+              <SparkleIcon class="size-4" />
+              <span>AI</span>
+            </Button>
+          </HeaderActionGroup>
         </SplitHeaderRight>
       </Show>
     </>

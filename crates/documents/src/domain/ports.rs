@@ -39,7 +39,7 @@ use super::models::{
     DocumentError, DocumentTeamShare, DocumentTeamShareResponse, EditDocumentRepoArgs,
     EditDocumentServiceArgs, EmailImportRepoOutcome, GithubPullRequestTasksResponse,
     GithubPullRequestsResponse, ImportEmailAttachmentRepoArgs, LocationQueryParams, NewDocument,
-    OwnerTeam, TaskBranchName, TeamTaskMetadata,
+    OwnerTeam, TaskBranchName, TaskIdentity, TeamTaskMetadata, TeamTaskNumber,
 };
 
 /// Repository for accessing document data from the database.
@@ -217,6 +217,12 @@ pub trait DocumentRepo: Send + Sync + 'static {
         document_id: &str,
     ) -> impl Future<Output = Result<Option<TeamTaskMetadata>, Self::Err>> + Send;
 
+    /// Get a task's team number and team slug, when it is a team task.
+    fn get_team_task_number(
+        &self,
+        document_id: &str,
+    ) -> impl Future<Output = Result<Option<TeamTaskNumber>, Self::Err>> + Send;
+
     /// Get the document ID assigned to a task number within a team.
     fn get_document_id_by_team_task_number(
         &self,
@@ -336,6 +342,9 @@ pub trait PresignedUploadUrlPort: Send + Sync + 'static {
         source_key: &str,
         destination_key: &str,
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
+
+    /// Remove a destination object when a multi-part document copy fails.
+    fn delete_object(&self, key: &str) -> impl Future<Output = anyhow::Result<()>> + Send;
 
     /// Returns the raw bytes of the cached Loro snapshot, or `None` if no snapshot exists.
     fn get_snapshot(
@@ -529,6 +538,14 @@ pub trait DocumentService: Send + Sync + 'static {
         entity_access_receipt: EntityAccessReceipt<ViewAccessLevel>,
         document_name: String,
     ) -> impl Future<Output = Result<TaskBranchName, DocumentError>> + Send;
+
+    /// Identify a task document: its title, short id and team number.
+    /// Returns a bad request if the document is not a task.
+    fn get_task_identity(
+        &self,
+        entity_access_receipt: EntityAccessReceipt<ViewAccessLevel>,
+        document_context: &DocumentBasic,
+    ) -> impl Future<Output = Result<TaskIdentity, DocumentError>> + Send;
 
     /// Get GitHub pull requests associated with a task document.
     fn get_task_github_pull_requests(

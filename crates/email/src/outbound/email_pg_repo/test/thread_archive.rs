@@ -93,6 +93,7 @@ async fn archive_enqueue_failure_restores_only_changed_labels_and_the_original_f
         entity_access_management_service: original.entity_access_management_service,
         macro_event_broker: original.macro_event_broker,
         sent_undo_delay_secs: original.sent_undo_delay_secs,
+        sender_provider: original.sender_provider,
     };
     let thread = Uuid::parse_str("11111111-1111-1111-1111-111111111111")?;
     let link = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -333,5 +334,36 @@ async fn unarchive_rejects_sent_only_and_drafts_but_accepts_self_addressed_mail(
         .set_thread_archived_impl(owner, self_addressed, false)
         .await?;
     assert_inbox_state(&service.email_repo, self_addressed, true).await?;
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../../fixtures", scripts("email_outlook_threads"))
+)]
+async fn outlook_archive_moves_the_thread_through_mailbox_commands(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let service = service(pool);
+    let owner = MacroUserIdStr::try_from_email("user1@test.com")?;
+    let received = Uuid::parse_str("0a000000-0000-0000-0000-0000000000a1")?;
+    let sent_only = Uuid::parse_str("0a000000-0000-0000-0000-0000000000a2")?;
+    let inbox_visible = |thread| {
+        let repo = &service.email_repo;
+        async move { anyhow::Ok(repo.thread_by_id(thread).await?.unwrap().inbox_visible) }
+    };
+    for archived in [true, false] {
+        service
+            .set_thread_archived_impl(owner.clone(), received, archived)
+            .await?;
+        assert_eq!(inbox_visible(received).await?, !archived);
+    }
+    assert!(matches!(
+        service
+            .set_thread_archived_impl(owner, sent_only, false)
+            .await,
+        Err(EmailErr::ThreadHasNoInboundMessages)
+    ));
+    assert!(!inbox_visible(sent_only).await?);
     Ok(())
 }

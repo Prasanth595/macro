@@ -1,9 +1,11 @@
 import { MarkdownTextarea } from '@core/component/LexicalMarkdown/component/core/MarkdownTextarea';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { createMemo, onCleanup } from 'solid-js';
 import { ComposeFieldRow } from '../../email-compose/components/compose-field-row';
 import { ComposeRecipientInput } from '../../email-compose/components/compose-recipient-input';
 import { ComposeSubjectField } from '../../email-compose/components/compose-subject-field';
 import { FromInboxSelector } from '../../email-compose/components/from-inbox-selector';
+import { fromInboxOptions } from '../../email-compose/core/email-sender';
 import type { InputDisplay } from '../context/capabilities';
 import type { UniversalInputController } from '../primitives/universal-input';
 import {
@@ -30,7 +32,9 @@ export function EmailDraft(props: {
         <FromInboxSelector
           pill
           class="w-fit max-w-full"
-          links={a.inboxes()}
+          links={fromInboxOptions(a.inboxes()).filter(
+            (inbox) => !inbox.isAlias
+          )}
           activeInboxId={a.selectedInbox(s.fields())?.id}
           onSelect={(id) => s.edit('inboxId', id)}
           disabled={s.sending()}
@@ -74,7 +78,7 @@ export function EmailDraft(props: {
           onEnter={(event) => {
             if (!(event.metaKey || event.ctrlKey) || event.isComposing)
               return false;
-            void s.submit();
+            fireAndForget(s.submit(), 'universal-input');
             return true;
           }}
         />
