@@ -41,7 +41,9 @@ phone browser coverage in `features/calendar-notes`:
 `bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.
 The browser fixture uses the real event details popover and mobile drawer over
 sample data; keep notes aligned with those existing surfaces and preserve their
-dialog open guards. Optional note sharing uses existing team memberships.
+dialog open guards. Open the existing document Share dialog for note access,
+keep labeled Options controls visible beside truncated titles without redundant
+hover tooltips, and use existing team memberships for optional note sharing.
 Gate event notes and document Share meeting-link controls with
 `enable-calendar-meeting-notes` before mounting their query sources; it defaults
 on in dev and uses PostHog in production.

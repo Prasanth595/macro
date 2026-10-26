@@ -994,9 +994,12 @@ export function ShareModal(props: ShareModalProps) {
   const callRecordQuery = useCallRecordQuery(() =>
     props.itemType === 'call' ? props.id : ''
   );
-  // These entities are never their enclosing block's, so read their own grants.
-  const isBlockContext =
-    isInBlock() &&
+  // A calendar can open Share for a linked note. Only reuse the enclosing
+  // block's permissions when the dialog is sharing that same entity.
+  const enclosingBlockId = useMaybeBlockId();
+  const isBlockContext = () =>
+    !!enclosingBlockId &&
+    enclosingBlockId === props.id &&
     props.itemType !== 'agent_session' &&
     props.itemType !== 'initiative' &&
     props.itemType !== 'crm_pipeline';
@@ -1005,10 +1008,10 @@ export function ShareModal(props: ShareModalProps) {
   const queryClient = useQueryClient();
   const fallbackPermissionsQuery = useQuery(() => ({
     ...sharePermissionsQueryOptions(props.id, props.itemType),
-    enabled: !isBlockContext && !!props.id,
+    enabled: !isBlockContext() && !!props.id,
   }));
   const sharePermission = () => {
-    if (isBlockContext) {
+    if (isBlockContext()) {
       const result = permissionsBlockResource[0].latest;
       return result && !result.isErr() ? result.value : undefined;
     }
@@ -1017,12 +1020,12 @@ export function ShareModal(props: ShareModalProps) {
       : (fallbackPermissionsQuery.data ?? undefined);
   };
   const permissionsLoading = () =>
-    isBlockContext
+    isBlockContext()
       ? permissionsBlockResource[0].loading &&
         !permissionsBlockResource[0].latest
       : fallbackPermissionsQuery.isLoading;
   const refetch = async () => {
-    if (isBlockContext) {
+    if (isBlockContext()) {
       await permissionsBlockResource[1].refetch();
       return;
     }
