@@ -158,3 +158,14 @@ minutes) need review against live baselines before production cleanup.
 These signals do not acknowledge delivery through PostgreSQL NOTIFY or WebSockets.
 See [the rollout runbook](../../../docs/runbooks/notification-retention.md) for
 limitations and the post-deploy verification gates.
+
+## Channel open performance
+
+`monitors/channel-open.ts` adds **three span-based metrics** from the browser's
+`channel.open` span: `web.channel.open.painted` (surface creation to the first
+painted messages, by environment, cache hit, and target),
+`web.channel.open.input_to_painted` (the opening click or key press to that
+paint), and `web.channel.open.count` (opens by outcome). A preview should show
+exactly those three creates. They have no monitor yet: alert thresholds need a
+baseline from live data first. Browser traces only cover users with PostHog's
+`enable-browser-otel` flag.
