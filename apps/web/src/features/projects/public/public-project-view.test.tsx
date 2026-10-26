@@ -6,10 +6,11 @@ import type { Property } from '@property/types';
 import type { EntityPropertyWithDefinition } from '@service-properties/generated/schemas/entityPropertyWithDefinition';
 import type { PropertyDefinition } from '@service-properties/generated/schemas/propertyDefinition';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { err, ok } from 'neverthrow';
-import type { Accessor, JSX, ParentProps } from 'solid-js';
+import type { Accessor, ComponentProps, JSX, ParentProps } from 'solid-js';
 import { For } from 'solid-js';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const doubles = vi.hoisted(() => ({
   dssFetch: vi.fn(),
@@ -214,8 +215,26 @@ function serve(read: unknown) {
   );
 }
 
+let client: QueryClient;
+
+function show(props: ComponentProps<typeof PublicProjectRoute>) {
+  return render(() => (
+    <QueryClientProvider client={client}>
+      <PublicProjectRoute {...props} />
+    </QueryClientProvider>
+  ));
+}
+
+beforeEach(() => {
+  // Like the app's client, keep a read fresh instead of fetching on every mount.
+  client = new QueryClient({
+    defaultOptions: { queries: { staleTime: Infinity } },
+  });
+});
+
 afterEach(() => {
   cleanup();
+  client.clear();
   vi.clearAllMocks();
   doubles.pills = [];
   doubles.editor = [];
@@ -223,9 +242,7 @@ afterEach(() => {
 
 it('never offers editing, even when the link grants edit', async () => {
   serve(ok(editable));
-  render(() => (
-    <PublicProjectRoute projectId={editable.summary.id} section="overview" />
-  ));
+  show({ projectId: editable.summary.id, section: 'overview' });
 
   expect(await screen.findByRole('heading', { name: 'Launch' })).toBeTruthy();
   expect(screen.queryByLabelText('Project name')).toBeNull();
@@ -245,9 +262,7 @@ it('remembers the names the project read hands over', async () => {
       people: [{ id: editable.ownerId, firstName: 'Olive', lastName: 'Owner' }],
     })
   );
-  render(() => (
-    <PublicProjectRoute projectId={editable.summary.id} section="overview" />
-  ));
+  show({ projectId: editable.summary.id, section: 'overview' });
 
   expect(await screen.findByRole('heading', { name: 'Launch' })).toBeTruthy();
   expect(doubles.rememberDisplayNames).toHaveBeenCalledWith([
@@ -257,9 +272,7 @@ it('remembers the names the project read hands over', async () => {
 
 it('remembers no names for a project the visitor may not view', async () => {
   serve(err([{ code: 'UNAUTHORIZED', message: 'no' }]));
-  render(() => (
-    <PublicProjectRoute projectId={editable.summary.id} section="overview" />
-  ));
+  show({ projectId: editable.summary.id, section: 'overview' });
 
   expect(await screen.findByText('Sign in to view this page')).toBeTruthy();
   expect(doubles.rememberDisplayNames).not.toHaveBeenCalled();
@@ -267,9 +280,7 @@ it('remembers no names for a project the visitor may not view', async () => {
 
 it('lists visible tasks read-only and opens one in the project', async () => {
   serve(ok(editable));
-  render(() => (
-    <PublicProjectRoute projectId={editable.summary.id} section="tasks" />
-  ));
+  show({ projectId: editable.summary.id, section: 'tasks' });
 
   fireEvent.click(await screen.findByRole('button', { name: 'Pick a date' }));
 
@@ -286,13 +297,7 @@ it('lists visible tasks read-only and opens one in the project', async () => {
 
 it('opens a project task under the project name', async () => {
   serve(ok(editable));
-  render(() => (
-    <PublicProjectRoute
-      projectId={editable.summary.id}
-      section="tasks"
-      taskId="task-1"
-    />
-  ));
+  show({ projectId: editable.summary.id, section: 'tasks', taskId: 'task-1' });
 
   expect(screen.getByText('Task task-1')).toBeTruthy();
   expect(await screen.findByText('Launch')).toBeTruthy();
@@ -300,9 +305,7 @@ it('opens a project task under the project name', async () => {
 
 it('shows a project the visitor may not view as the sign-in prompt', async () => {
   serve(err([{ code: 'UNAUTHORIZED', message: 'no' }]));
-  render(() => (
-    <PublicProjectRoute projectId={editable.summary.id} section="overview" />
-  ));
+  show({ projectId: editable.summary.id, section: 'overview' });
 
   expect(await screen.findByText('Sign in to view this page')).toBeTruthy();
   expect(screen.queryByRole('heading', { name: 'Launch' })).toBeNull();
@@ -310,13 +313,23 @@ it('shows a project the visitor may not view as the sign-in prompt', async () =>
 
 it('retries a read that failed', async () => {
   serve(err([{ code: 'SERVER_ERROR', message: 'down' }]));
-  render(() => (
-    <PublicProjectRoute projectId={editable.summary.id} section="overview" />
-  ));
+  show({ projectId: editable.summary.id, section: 'overview' });
   const retry = await screen.findByRole('button', { name: 'Try again' });
 
   serve(ok(editable));
   fireEvent.click(retry);
 
   expect(await screen.findByRole('heading', { name: 'Launch' })).toBeTruthy();
+});
+
+it('shows the project as it is now when the visitor comes back', async () => {
+  serve(ok(editable));
+  const first = show({ projectId: editable.summary.id, section: 'overview' });
+  expect(await screen.findByRole('heading', { name: 'Launch' })).toBeTruthy();
+  first.unmount();
+
+  serve(ok({ ...editable, summary: { ...editable.summary, name: 'Relaunch' } }));
+  show({ projectId: editable.summary.id, section: 'overview' });
+
+  expect(await screen.findByRole('heading', { name: 'Relaunch' })).toBeTruthy();
 });
