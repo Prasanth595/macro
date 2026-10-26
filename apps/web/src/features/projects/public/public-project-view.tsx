@@ -180,9 +180,7 @@ export function PublicProjectRoute(props: {
             section={props.section}
             onSection={openSection}
             onOpenTask={openTask}
-            onRetry={() => {
-              void refetch();
-            }}
+            onRetry={() => fireAndForget(refetch(), 'projects')}
           />
         }
       >
