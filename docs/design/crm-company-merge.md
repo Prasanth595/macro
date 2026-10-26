@@ -119,13 +119,13 @@ neither a stale request nor a later create may resurrect them. Tombstone retenti
 must outlive all possible stale writers and retries, with team deletion handled
 by the owning lifecycle policy.
 
-All company reads share that resolver: direct REST/GraphQL fetches, tools,
-mentions/previews, entity-property hydration, pipeline record hydration,
-discussion navigation and association expansion. Return the canonical ID in the
-entity payload, and explicitly map the requested key to it in batched/cache
-results. Otherwise a batched loader keyed by an old ID will treat the successful
-canonical lookup as missing. The UI replaces the old URL while retaining any
-discussion/message destination.
+All company reads within this non-search scope share that resolver: direct
+REST/GraphQL fetches, tools, mentions/previews, entity-property hydration,
+pipeline record hydration, discussion navigation and association expansion.
+Return the canonical ID in the entity payload, and explicitly map the requested
+key to it in batched/cache results. Otherwise a batched loader keyed by an old ID
+will treat the successful canonical lookup as missing. The UI replaces the old
+URL while retaining any discussion/message destination.
 
 For writes, the receipt must identify the canonical company actually mutated.
 Never authorize the survivor and then write an unvalidated original ID. A stale
