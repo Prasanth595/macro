@@ -4,6 +4,7 @@ import { AdminConsentRequiredDialog } from '@app/features/inbox/AdminConsentRequ
 import { ShareInboxConflictDialog } from '@app/features/inbox/ShareInboxConflictDialog';
 import { onboardingPathWithStep } from '@app/features/onboarding/core/next-target';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
+import type { AppEvents } from '@app/lib/analytics/app-events';
 import { updateUserAuth } from '@core/auth';
 import { redirectToEmailAuth } from '@core/auth/email';
 import { publishLoginSuccess } from '@core/auth/login-events';
@@ -159,6 +160,10 @@ function EmailLinkCallback(props: Pick<EmailAuthParams, 'successPath'>) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { query, initEmailLink } = useEmailLinks();
+  const analytics = useAnalytics();
+  const trackOutcome = (
+    outcome: AppEvents['email_link_callback_result']['outcome']
+  ) => analytics.track('email_link_callback_result', { outcome });
   let disposed = false;
   onCleanup(() => {
     disposed = true;
@@ -219,6 +224,7 @@ function EmailLinkCallback(props: Pick<EmailAuthParams, 'successPath'>) {
     try {
       await initEmailLink({ linkId, forceShare }).match(
         async () => {
+          trackOutcome('connected');
           // Pull the newly-provisioned link into the cache before leaving the
           // callback so the inbox panel shows it immediately on return rather
           // than flashing a stale list until its own refetch lands.
@@ -228,6 +234,7 @@ function EmailLinkCallback(props: Pick<EmailAuthParams, 'successPath'>) {
         },
         async (err) => {
           if (err.tag === 'AlreadyInitialized') {
+            trackOutcome('already_initialized');
             await query.refetch();
             navigateAfterLink(linkId);
             return;
@@ -235,6 +242,7 @@ function EmailLinkCallback(props: Pick<EmailAuthParams, 'successPath'>) {
           // The mailbox is already connected by someone else. Hold the callback open
           // and let the user confirm sharing it before retrying with forceShare.
           if (err.tag === 'SharedInboxConflict' && !forceShare) {
+            trackOutcome('shared_inbox_conflict');
             setConflict({
               linkId,
               emailAddress: err.emailAddress,
@@ -243,6 +251,7 @@ function EmailLinkCallback(props: Pick<EmailAuthParams, 'successPath'>) {
             return;
           }
           if (err.tag === 'PaymentRequired') {
+            trackOutcome('payment_required');
             toast.failure(
               'A professional subscription is required to add another inbox.'
             );
@@ -250,17 +259,20 @@ function EmailLinkCallback(props: Pick<EmailAuthParams, 'successPath'>) {
             return;
           }
           if (err.tag === 'NoGmailGrant') {
+            trackOutcome('no_gmail_grant');
             toast.failure(
               'Gmail access was not granted. Please allow all requested permissions and try again.'
             );
             navigateAfterLink(linkId);
             return;
           }
+          trackOutcome('failed');
           toast.failure('Failed to add inbox');
           navigateAfterLink(linkId);
         }
       );
     } catch {
+      trackOutcome('exception');
       if (disposed) return;
       toast.failure(
         'Failed to finish connecting your account. Please try again from Settings.'
@@ -316,6 +328,7 @@ function EmailLinkCallback(props: Pick<EmailAuthParams, 'successPath'>) {
       return;
     }
     if (!linkId) {
+      trackOutcome('missing_link_id');
       toast.failure('Missing link id in callback URL');
       navigateToSuccess();
       return;

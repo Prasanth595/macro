@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   searchParams: {} as Record<string, string | string[]>,
   tutorialComplete: true as boolean,
   restore: vi.fn(),
+  track: vi.fn(),
   openAddInbox: vi.fn(),
   fetchProviders: vi.fn(),
 }));
@@ -42,7 +43,7 @@ vi.mock('@core/auth', () => ({ updateUserAuth: vi.fn() }));
 vi.mock('@core/auth/email', () => ({ redirectToEmailAuth: vi.fn() }));
 vi.mock('@core/auth/login-events', () => ({ publishLoginSuccess: vi.fn() }));
 vi.mock('@app/lib/analytics/analytics-context', () => ({
-  useAnalytics: () => ({ pageView: vi.fn() }),
+  useAnalytics: () => ({ pageView: vi.fn(), track: mocks.track }),
 }));
 vi.mock('@core/component/Toast/Toast', () => ({
   toast: { success: mocks.success, failure: mocks.failure },
@@ -134,6 +135,10 @@ describe('inbox consent callback', () => {
       forceShare: false,
     });
     expect(mocks.refetch).toHaveBeenCalledOnce();
+    expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
+      'email_link_callback_result',
+      { outcome: 'connected' }
+    );
   });
 
   it('explains pending work and lets the user return without a later redirect', async () => {
@@ -177,6 +182,10 @@ describe('inbox consent callback', () => {
       )
     );
     expect(mocks.navigate).toHaveBeenCalledOnce();
+    expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
+      'email_link_callback_result',
+      { outcome: 'no_gmail_grant' }
+    );
   });
 
   it('still holds the callback for a shared-inbox confirmation', async () => {

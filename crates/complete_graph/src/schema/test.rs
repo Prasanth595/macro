@@ -118,6 +118,8 @@ fn soup_agent_session(id: Uuid) -> SoupItem<()> {
         updated_at: Default::default(),
         viewed_at: None,
         extra: (),
+        source: models_soup::agent_session::AgentSessionSource::User,
+        visibility: models_soup::agent_session::AgentSessionVisibility::Listed,
     })
 }
 
@@ -1530,10 +1532,12 @@ impl TestHarness {
             ))
             .data(graphql_email::email_thread_metadata_loader(
                 user_id.clone(),
+                None,
                 self.email_content_reader.clone(),
             ))
             .data(graphql_email::email_thread_mail_projection_loader(
                 user_id,
+                None,
                 self.email_content_reader.clone(),
             ))
             .data(NoOpEntityFavoriteEdgeReader)

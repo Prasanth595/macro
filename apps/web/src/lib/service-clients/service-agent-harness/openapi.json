@@ -956,6 +956,91 @@
         }
       }
     },
+    "/agent-sessions/{session_id}/app-connections": {
+      "post": {
+        "tags": ["agent-sessions"],
+        "summary": "Continue the session now that its owner connected an app it asked for.",
+        "description": "The harness produces an `app.connected` system event, which the transcript\nshows as no prompt; it starts a turn once the session is idle.",
+        "operationId": "report_agent_session_app_connected",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "description": "ID of the agent session",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppConnectedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "The session continues once it is idle"
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the session's owner, or no edit access",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The session is archived",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The owner has not connected that app",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agent-sessions/{session_id}/archived": {
       "put": {
         "tags": ["agent-sessions"],
@@ -3531,6 +3616,28 @@
           }
         }
       },
+      "AppConnectedRequest": {
+        "type": "object",
+        "description": "Request body for reporting a connected app.",
+        "required": ["appSlug"],
+        "properties": {
+          "actionId": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AgentActionId",
+                "description": "Names the report, so a retried one wakes the session once."
+              }
+            ]
+          },
+          "appSlug": {
+            "type": "string",
+            "description": "The Pipedream app slug the owner connected, e.g. `notion`."
+          }
+        }
+      },
       "BotId": {
         "type": "string"
       },
@@ -3865,7 +3972,7 @@
           "drafts": {
             "type": "array",
             "items": {},
-            "description": "One to one hundred independent drafts. Email: {subject, body: Markdown,\nto: [{email, name?}], cc?: [{email, name?}], bcc?: [{email, name?}],\nreplyingToId?, attachments?: [{documentId}]}. Calendar: {title,\ntime: {kind: \"timed\", startsAt: ISO datetime, endsAt: ISO datetime,\ntimeZone?: IANA zone} or {kind: \"allDay\", startDate: ISO date,\nendDate: exclusive ISO date}, description?, location?, attendees?:\n[{email, isOptional?}]}.\nCreating any review only presents these drafts; the user acts separately."
+            "description": "One to one hundred independent drafts. Email: {subject, body: Markdown,\nto: [{email, name?}], cc?: [{email, name?}], bcc?: [{email, name?}],\nreplyingToId?, attachments?: [{documentId}]}. Calendar: {title,\ntime: {kind: \"timed\", startsAt: ISO datetime, endsAt: ISO datetime,\ntimeZone?: IANA zone} or {kind: \"allDay\", startDate: ISO date,\nendDate: exclusive ISO date}, description?, location?, attendees?:\n[{email, isOptional?}]}. Import: exactly one draft {source: \"notion\" | \"linear\" | \"jira\"},\npresenting the plan ImportFromNotion, ImportFromLinear or ImportFromJira staged.\nCreating any review only presents these drafts; the user acts separately."
           },
           "executionId": {
             "oneOf": [
@@ -4108,6 +4215,17 @@
         "description": "Durable source and final outcome, with historical bridge calls when present.\nThe full journal is not included in the model's tool result.",
         "required": ["executionId", "source", "status", "calls"],
         "properties": {
+          "actingAs": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ToolActor",
+                "description": "Account choice bound to this saved execution; absent on historical records."
+              }
+            ]
+          },
           "activity": {
             "type": "array",
             "items": {
@@ -4144,6 +4262,11 @@
           "status": {
             "$ref": "#/components/schemas/ExecutionStatus",
             "description": "Overall execution state."
+          },
+          "turnId": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "Original turn, preventing another requester from replaying a saved result."
           }
         }
       },
@@ -4730,12 +4853,12 @@
       },
       "ReviewDecisionContext": {
         "type": "object",
-        "description": "Facts about the most recent owner decision.",
+        "description": "Facts about the most recent account-holder decision.",
         "required": ["by", "via", "revision", "items"],
         "properties": {
           "by": {
             "type": "string",
-            "description": "Authenticated owner."
+            "description": "Authenticated account holder."
           },
           "items": {
             "type": "array",
@@ -4771,7 +4894,7 @@
           },
           "edited": {
             "type": "boolean",
-            "description": "Whether the owner edited this draft before deciding."
+            "description": "Whether the account holder edited this draft before deciding."
           },
           "error": {
             "type": ["string", "null"],
@@ -4799,7 +4922,7 @@
       "ReviewKind": {
         "type": "string",
         "description": "The component and action used to finish a review.",
-        "enum": ["email", "calendar"]
+        "enum": ["email", "calendar", "import"]
       },
       "ReviewRecord": {
         "type": "object",
@@ -4814,6 +4937,10 @@
           "items"
         ],
         "properties": {
+          "actingUser": {
+            "type": ["string", "null"],
+            "description": "Account whose email/calendar the drafts use; historical records use the session owner."
+          },
           "decision": {
             "oneOf": [
               {
@@ -5076,6 +5203,11 @@
             "description": "Current session id shown in the conversation metadata."
           }
         }
+      },
+      "ToolActor": {
+        "type": "string",
+        "description": "Which authenticated participant's access a tool call requests.",
+        "enum": ["requester", "owner"]
       },
       "ToolApprovalAnswerDto": {
         "type": "string",

@@ -47,6 +47,23 @@ queued mutations should resume promptly, without waiting for the old poll or
 local retry timer; durable leases and server-retry deadlines still apply.
 Switching tabs or navigating an in-app route is not a back/forward-cache restore.
 
+Browser cache ownership prefers a visible tab. When the owner hides, its engine
+cooperatively drains and closes storage; if every app tab is hidden, storage parks
+without retiring their clients or reloading pages. Background cache work waits.
+Returning to any tab opens the same database in a visible owner. A visible owner
+is not moved just because another visible window gets focus. Reads can wait for
+normal warmup; if foreground handoff/resume exceeds one second, ordinary queries
+use network fallback while cache-only reads never forward. Writes and received
+mutation confirmations wait for storage instead of being sent twice.
+
+Verify the all-hidden case without activating the former owner: no held physical
+owner lock after parking, preserved generation/queue, and successful reads/writes
+from a returning tab. Also verify a pending HTTP response settling after parking
+and multiple surviving clients. A drain that Safari has already suspended still
+waits for that worker to resume; no deadline kills it or steals its lock. Lifecycle
+telemetry uses `park-started`, `parked`, `unpark-started`, `unpark-completed`, and
+`visibility-handoff-*` owner events.
+
 Safari can also restart the SharedWorker when its creating tab closes, leaving
 another tab's port alive but its coordinator registrations gone. The surviving
 page must re-register without a reload or cache wipe. Open two tabs, close the
@@ -55,6 +72,12 @@ Repeat through another handoff and while requests are pending. Interrupted
 optimistic enqueues must not be sent twice. A `graphql_cache.owner` event with
 `ownerEvent: coordinator-restarted` distinguishes this from engine replacement
 or a BFCache restore.
+
+The same write-safety rule applies when an owner navigates away without restarting
+the coordinator: a surviving tab's enqueue may be committed even if its reply was
+lost. It must report an uncertain outcome, not retry or fall through to a second
+API write. Verify this lost-reply case only with an isolated synthetic fixture,
+not by injecting mutation failures into a dev or production account.
 
 ## Android system navigation and sharing
 
@@ -177,10 +200,13 @@ reminder routes and the former Home reminder detail route are removed.
 When an event opens inline from Home, changing the Calendar period stays under
 `/app/home/calendar/`, updates the period segment, and re-focuses that event.
 Back/Forward restores the period and its event locator from `sN.calendar.*`.
-When Calendar is already open in another split, a Home calendar row (a reminder,
-a join request, or any event) retargets that split instead: a click or Enter
-also focuses it, and arrow-key browsing moves it without taking focus from the
-list. Shift-click keeps reusing that split, as the notifications panel does.
+While Home's own calendar is open, a Home calendar row (a reminder, a join
+request, or any event) re-aims it in place, even when Calendar is also open in
+another split, as Home's preview does for a document it already shows. When
+Home shows its list or another item and Calendar is open in another split, the
+row retargets that split instead: a click or Enter also focuses it, and
+arrow-key browsing moves it without taking focus from the list. Shift-click
+keeps reusing that split, as the notifications panel does.
 
 Home uses the shared channel and file details for channel conversations and
 supported documents, with a **Home** breadcrumb that returns to the list. A
@@ -400,6 +426,22 @@ cancels that navigation without adding a duplicate history step.
 A later ordinary rail press also cancels a new split still preloading from the
 active split's earlier Shift-press. Already-open splits and pending work from
 other splits remain intact.
+
+Ordinary rail, More-menu, and Go To shortcut navigation resumes opted-in apps'
+last locations during the current session, including nested details, tabs,
+filters, and local state registered with the split entry (such as scroll or
+selection). Views opt in with `useViewRestoration()`; views without the hook keep
+ordinary navigation behavior. The mobile dock uses the same memory; Search taps
+still start a fresh search. Memory is account-scoped and clears on reload,
+sign-out, or account changes. A leave guard stages each snapshot, but only a
+committed navigation saves it; refusal, cancellation, failure, and supersession
+leave the saved snapshot unchanged. Direct links and explicit Shift/open-in-split
+actions keep their requested destination. Closing a detail before switching apps
+remembers the list, not the closed detail. Views unmount normally; this is not a
+keep-alive cache for editors or other transient UI.
+Verify Chat → open channel → Calendar → Chat restores the same channel, then
+repeat with a filtered list and a nested Drive item. Check mobile dock switching,
+split Back/Forward, refused leave guards, explicit links, and account changes.
 Verify rapid app presses, returning to the currently shown app while another app
 loads, split focus changes, closing a split, and split Back/Forward. The last
 requested destination must win, and a later return to an earlier view must not
@@ -741,18 +783,33 @@ Existing `/app/automation/<uuid>` links resolve to the canonical routine URL.
 Saved split layouts and document/channel/spreadsheet mentions using the old
 block name also open routines; newly copied links use `/app/routines/<uuid>`.
 On the legacy Agents screen, use the **Routines** button above the list. On touch devices,
-`/app/routines` opens the routines list directly. Routines use
+`/app/routines` opens the routines list directly, and the hidden Agents sidebar's
+entry moves to **Settings → Routines** (on phones **More views → Settings →
+Routines**): tapping a routine closes the settings sheet and opens it, and
+**Create Routine** opens the composer. Routines use
 full-width entity rows with **Created by**, **Status**, **Runs with**, and **Enabled**
 columns. The search field sits below the top bar, as in Projects; search by name,
 creator, or model/agent, or press **Cmd/Ctrl+F** to focus it. **Create Routine** sits
 to the right of search. Click a row to open its settings in the same pane. Toggle
 the **Enabled** checkbox property directly in the list to pause or resume it.
-Open the routine and use its **Run History** tab to see past runs.
+When the list is narrower than 760px (a phone, or the Settings sheet) it drops the
+column headers and **Created by**, and each row fits one line: name, status, the
+model or agent icon, and the **Enabled** checkbox, with no sideways scroll. Search
+fields hide their keyboard hint on touch devices.
+Open the routine and use its **Run History** tab to see past runs. Each run is its
+own agent session. The routine's **Runs hidden** / **Runs shown** chip decides
+where its runs appear. **Hide runs** (the default) keeps them off Home and out of
+the Agents sidebar until **Show hidden routine runs** is pressed. **Show runs**
+lists them on Home and in Agents like the owner's own sessions. The setting
+applies to runs that start after it changes. A run that finishes normally sends
+no notification; a failed or cut-short run, a question the agent asks, a held tool
+approval, and people the routine's prompt mentions still notify.
 
 **Create → Routine** (U) and **Create Routine** open the same popover host as task
 and project creation. Enter a name and instructions, then choose a model or agent
 with the first property chip below the prompt. **Add trigger** follows it; each
 saved trigger becomes a chip, with another **Add trigger** always at the end.
+The last chip, **Runs hidden**, opens **Hide runs** / **Show runs**.
 **Start enabled** controls whether the saved routine starts listening immediately. **Create routine** opens
 its details inside the Agents pane, retaining the sidebar. Creation has no history
 tab or templates. Unsaved drafts are retained for three minutes.
@@ -801,7 +858,8 @@ to remove it. The routine's top bar uses the task breadcrumb layout:
 **Routines → routine name**, followed by the three-dot menu for duplication and
 deletion. Tabs immediately beside that menu switch between **Overview** and
 **Run History**. Overview follows the project home layout: an editable title,
-a model property chip, and a plain prompt editor. A trigger card sits below the
+a model property chip and the **Runs hidden** / **Runs shown** chip, and a plain
+prompt editor. A trigger card sits below the
 model: trigger chips at the top left, **Run now** at the top right, and the
 **Enabled** / **Disabled** status with **Next run** along the bottom.
 The **Run options** dropdown contains
@@ -824,9 +882,14 @@ loads those settings before further edits. While running, configuration is locke
 but cannot resume until the run ends. Completed one-offs remain visible with
 their history and do not repeat.
 
-Routines are private to their owner. Other users cannot list or open the routine
-or its history, even if they belong to the same team. Run conversations keep
-their own permissions.
+An `m-document-mention` with `blockName: "routine"`, the returned routine ID,
+and the saved name renders as a clickable mention in an agent reply. Once the
+routine is deleted the mention reads `Deleted` and clicking it shows a card
+instead of opening the routine. Routines do not appear in the mention menu.
+Anyone signed in with the link can view its settings, instructions, and
+triggers. Only the owner can edit, enable, run,
+duplicate, delete, or view run history; other users do not see those controls.
+Run conversations keep their own permissions.
 
 **Run History** shows outcome, duration, and firing time. History loads fifty
 rows at a time; **Load more runs** reveals older records. Accessible run rows

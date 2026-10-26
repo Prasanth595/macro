@@ -520,7 +520,10 @@ async fn run() -> anyhow::Result<()> {
             ))?,
             matches!(config.environment, Environment::Local),
         )?
-        .with_owner_approvals(Arc::clone(&tool_approvals)),
+        .with_owner_approvals(Arc::clone(&tool_approvals))
+        .with_actor_mcp(Arc::new(
+            agent_egress::outbound::actor_mcp::HttpActorMcpTransport::new()?,
+        )),
     );
 
     // The proxy's public address, read once: the provisioner builds the
@@ -528,9 +531,13 @@ async fn run() -> anyhow::Result<()> {
     // against it, so the two must be the same string.
     let egress_base_url = AgentHarnessEgressUrl::new()?.to_string();
 
+    // Notion imports started from sessions, public MCP, and the cognition
+    // routes share these jobs and hand their runs over on shutdown.
+    let import_jobs = ai_tools::ImportJobs::new();
     let tool_context = ai_tools::build_tool_service_context_from_env(
         pool.clone(),
         event_broker_tracker.clone(),
+        import_jobs.clone(),
         config.enable_ai_usage_enforcement,
         config.ai_pricing(),
         recorder.clone(),
@@ -541,6 +548,7 @@ async fn run() -> anyhow::Result<()> {
         agent_harness_service::cognition::config::Config::from_env()?,
         pool.clone(),
         event_broker_tracker.clone(),
+        import_jobs.clone(),
     )
     .await
     .context("failed to compose cognition APIs")?;
@@ -636,6 +644,7 @@ async fn run() -> anyhow::Result<()> {
         &config,
         &secrets,
         tool_context.clone(),
+        pool.clone(),
         macro_auth::middleware::decode_jwt::JwtValidationArgs::new_with_secret_manager(
             config.environment,
             &secrets,
@@ -715,15 +724,18 @@ async fn run() -> anyhow::Result<()> {
     let reviews_cell = Arc::new(std::sync::OnceLock::new());
     let internal_mcp = internal_mcp::router(
         Arc::new(session_repo.clone()),
-        session_pull_requests.clone(),
-        session_tasks,
         url::Url::parse(&egress_base_url)?
             .host_str()
             .context("egress URL needs a host")?
             .to_owned(),
-        code_mode_enabled.then(|| code_mode.clone()),
-        tool_context.cognition_tool_context.service.clone(),
-        reviews_cell.clone(),
+        internal_mcp::InternalTools {
+            service: session_pull_requests.clone(),
+            tasks: session_tasks,
+            code_mode: code_mode_enabled.then(|| code_mode.clone()),
+            cognition: tool_context.cognition_tool_context.service.clone(),
+            reviews: reviews_cell.clone(),
+            gate: owner_tool_gate.clone(),
+        },
     );
     // One connector for the agent and the telemetry catalog. It pools each
     // server's session for the life of the egress token, so a replaced agent
@@ -775,6 +787,20 @@ async fn run() -> anyhow::Result<()> {
             ),
         ),
     );
+    // Agents' own Anthropic and OpenAI keys, under the Cursor key's CMK this
+    // role already decrypts with. Decrypt-only for the same reason as Cursor
+    // keys: saving them is the authentication service's job. Only agents
+    // whose owner is on a paid plan run on them.
+    let agent_keys: Arc<dyn agent_api_keys::domain::AgentKeys> =
+        Arc::new(agent_api_keys::domain::AgentKeyService::new(
+            agent_api_keys::outbound::PgAgentKeyRepo::new(pool.clone()),
+            agent_api_keys::outbound::KmsAgentKeyCipher::new(AwsKmsCiphertexts::decrypting(
+                aws_sdk_kms::Client::new(&aws_config),
+            )),
+            agent_api_keys::outbound::EntitlementKeyPlans::new(
+                ai_billing::composition::pg_entitlement_source(pool.clone()),
+            ),
+        ));
     let inmem = InMemRuntime {
         manager: InMemAgentManager::new(
             Arc::clone(&inmem_model_engine),
@@ -783,6 +809,7 @@ async fn run() -> anyhow::Result<()> {
             Arc::clone(&inmem_model_access),
         )
         .with_admission(admission.clone())
+        .with_agent_keys(Arc::clone(&agent_keys))
         .with_dev_commands(enable_dev_commands),
     };
     // The sandbox provider serves every bot but the in-memory one, which the
@@ -1194,6 +1221,7 @@ async fn run() -> anyhow::Result<()> {
         ))
         .with_conversation_turns(conversation_turns)
         .with_admission(admission.clone())
+        .with_agent_keys(agent_keys)
         .with_repositories(open_repositories)
         .with_warm_sessions(Arc::new(session_repo.clone()), tool_catalog),
     );
@@ -1486,14 +1514,32 @@ async fn run() -> anyhow::Result<()> {
         entity_access.clone(),
         MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
     ));
+    let notification_service = Arc::new(agent_session::domain::notifications::NotificationService(
+        Arc::new(agent_session::outbound::notifications::PgNotificationStore(
+            pool.clone(),
+        )),
+    ));
+    let app_connections = agent_harness::inbound::app_connections::app_connections_router(
+        agent_harness::inbound::app_connections::AppConnectionsRouterState::new(
+            Arc::new(
+                agent_harness::domain::app_connections::AppConnectedContinuation::new(
+                    Arc::new(session_repo.clone()),
+                    Arc::new(
+                        agent_harness::outbound::connected_apps::PipedreamConnectedApps::new(
+                            Arc::clone(&mcp_connections),
+                        ),
+                    ),
+                    Arc::clone(&notification_service),
+                ),
+            ),
+            entity_access.clone(),
+            MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
+        ),
+    );
     let notification_ingress = agent_session::inbound::notifications::notification_router(
         agent_session::inbound::notifications::NotificationRouterState {
             authorization: MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
-            service: Arc::new(agent_session::domain::notifications::NotificationService(
-                Arc::new(agent_session::outbound::notifications::PgNotificationStore(
-                    pool.clone(),
-                )),
-            )),
+            service: notification_service,
         },
     );
     let http_shutdown = service_shutdown.clone();
@@ -1515,6 +1561,7 @@ async fn run() -> anyhow::Result<()> {
             .with_capabilities(capabilities)
             .with_pull_requests(pull_requests)
             .with_tool_approvals(tool_approval_answers)
+            .with_app_connections(app_connections)
             .with_code_executions(code_executions)
             .with_notifications(notification_ingress)
             .with_cognition(cognition_router)
@@ -1923,6 +1970,9 @@ async fn run() -> anyhow::Result<()> {
             tracing::error!(error = ?error, "agent harness task failed during shutdown");
         }
     }
+
+    // Running imports stop at their next checkpoint and hand their runs over.
+    import_jobs.hand_over().await;
 
     service_shutdown.cancel();
     cognition_runtime.shutdown().await;
