@@ -654,9 +654,9 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
             </div>
             <Show when={effectiveActiveTab() === 'share' && props.canForward}>
               <Button
-                variant="ghost"
+                variant="accent"
                 size="sm"
-                class="shrink-0 ml-2 pl-2 disabled:text-ink-muted text-accent"
+                class="shrink-0 ml-2"
                 disabled={
                   (forwardRef()?.getSelectedOptions().length ?? 0) === 0
                 }
@@ -1984,9 +1984,10 @@ export function ShareTrigger(props: {
 
   return (
     <HeaderActionGroup label="Sharing">
-      <div ref={requests.ref} class="flex items-center touch:gap-1">
-        <Tooltip
-          label={
+      <div ref={requests.ref} class="flex items-stretch touch:items-center touch:gap-1">
+        <HeaderActionButton
+          label="Share"
+          tooltip={
             shareStatus()?.tooltip ??
             (blockType() === 'agent'
               ? 'Share agent session'
@@ -1996,24 +1997,20 @@ export function ShareTrigger(props: {
                   ? 'This item has been shared with you.'
                   : `Share ${blockType()}`)
           }
-        >
-          <HeaderActionButton
-            label="Share"
-            icon={
-              <ShareRequestIcon count={requests.count()}>
-                <IconShared class="size-4" />
-              </ShareRequestIcon>
+          icon={
+            <ShareRequestIcon count={requests.count()}>
+              <IconShared class="size-4" />
+            </ShareRequestIcon>
+          }
+          onClick={() => {
+            if (!isAuthenticated()) {
+              openLoginModal();
+            } else {
+              analytics.track('share_menu_open', { blockType: blockType() });
+              requests.open();
             }
-            onClick={() => {
-              if (!isAuthenticated()) {
-                openLoginModal();
-              } else {
-                analytics.track('share_menu_open', { blockType: blockType() });
-                requests.open();
-              }
-            }}
-          />
-        </Tooltip>
+          }}
+        />
 
         <CopyButton
           variant="ghost"
@@ -2021,7 +2018,7 @@ export function ShareTrigger(props: {
           size="icon-md"
           onClick={ShareLinkAction().action}
         >
-          <Dynamic component={ShareLinkAction().icon} class="size-3.5!" />
+          <Dynamic component={ShareLinkAction().icon} class="size-3.5" />
         </CopyButton>
       </div>
     </HeaderActionGroup>

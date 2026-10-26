@@ -42,6 +42,17 @@ Solid-accent ink and state tint derive from the effective resolved accent, inclu
 
 The existing theme renderer supplies Button materials at the root and in theme previews. There is no separate Button theme stylesheet, class-targeted material layer, or variant-specific CSS selector. Variants, interaction states, and optional finishes live in the Button recipe.
 
+## Consumer layout follow-up
+
+- Keep ordinary Button children in the root flex row. Do not insert a generic content wrapper: sidebar alignment, trailing carets, label truncation, and custom gaps depend on that row. Only loading-enabled buttons reserve their content in a separate layer.
+- Put icon sizing on each rendered icon, including icons supplied through shared wrappers. Do not size button icons through descendant SVG selectors. Preserve explicit glyph sizes and touch sizes when migrating callers.
+- Use the standard `size-8` and `min-h-8` utilities for medium controls so caller placement classes merge predictably. The app rail retains its 40px buttons and 20px navigation glyphs.
+- Keep medium labeled controls at 32px with 8px horizontal padding. ButtonGroup owns its shared frame and keeps segments inside that frame, including dividers and vertical groups.
+- Wrap ordinary dropdown action lists in `Dropdown.Group` so they receive the shared menu inset. CRM creation/pipeline menus and routine action menus now follow that structure.
+- Keep the Tasks New menu inside a padded `Dropdown.Group`, with gaps between creation actions. Pass Share's tooltip to `HeaderActionButton` directly so no extra wrapper interrupts its full-height group segment.
+- Use ghost styling for task composer expand, attach, close, and clear-draft actions, search clear/close, and split close controls. Task creation and the share menu's submit action use accent styling; split close controls use compact icon sizing.
+- Search clear/close buttons use ghost `icon-xs` controls with 14px desktop icons; the Button touch minimum remains unchanged.
+
 ## Development and validation
 
 The dev server runs from this worktree on port 3007 with HTTPS disabled and the existing hosted development API proxy enabled. Known hosted API and WebSocket requests use same-origin `/__macro_dev/` forwarding; backend CORS policies remain unchanged. It reuses the existing local dependency directory; no dependencies were downloaded. Start it with:

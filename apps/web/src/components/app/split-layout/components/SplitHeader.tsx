@@ -199,13 +199,13 @@ function SplitCloseButton() {
       }
     >
       <Button
-        square
+        aria-label={label()}
+        tooltip={{ content: label(), hotkey: TOKENS.split.close }}
+        variant="ghost"
         size="icon-sm"
-        label={label()}
-        hotkey={TOKENS.split.close}
         onClick={() => closeSplitOrReturnToList(layout.manager, context.handle)}
       >
-        <CloseIcon class="size-4" />
+        <CloseIcon class="size-3.5" />diff --git a/apps/web/src/components/app/split-panel/SplitPanel.tsx b/apps/web/src/components/app/split-panel/SplitPanel.tsx
       </Button>
     </Show>
   );

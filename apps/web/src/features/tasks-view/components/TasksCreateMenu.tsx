@@ -37,34 +37,36 @@ export function TasksCreateMenu(props: {
           selectedAction = undefined;
         }}
       >
-        <Dropdown.Item
-          onSelect={() => {
-            selectedAction = props.onCreateTask;
-          }}
-        >
-          <CheckSquareIcon class="size-4" />
-          <span>Task</span>
-        </Dropdown.Item>
-        <Show when={props.onCreateProject}>
-          {(createProject) => (
-            <Dropdown.Item
-              onSelect={() => {
-                selectedAction = createProject();
-              }}
-            >
-              <StackIcon class="size-4" />
-              <span>Project</span>
-            </Dropdown.Item>
-          )}
-        </Show>
-        <Dropdown.Item
-          onSelect={() => {
-            selectedAction = props.onCreateTag;
-          }}
-        >
-          <TagIcon class="size-4" />
-          <span>Tag</span>
-        </Dropdown.Item>
+        <Dropdown.Group class="gap-1">
+          <Dropdown.Item
+            onSelect={() => {
+              selectedAction = props.onCreateTask;
+            }}
+          >
+            <CheckSquareIcon class="size-4" />
+            <span>Task</span>
+          </Dropdown.Item>
+          <Show when={props.onCreateProject}>
+            {(createProject) => (
+              <Dropdown.Item
+                onSelect={() => {
+                  selectedAction = createProject();
+                }}
+              >
+                <StackIcon class="size-4" />
+                <span>Project</span>
+              </Dropdown.Item>
+            )}
+          </Show>
+          <Dropdown.Item
+            onSelect={() => {
+              selectedAction = props.onCreateTag;
+            }}
+          >
+            <TagIcon class="size-4" />
+            <span>Tag</span>
+          </Dropdown.Item>
+        </Dropdown.Group>
       </Dropdown.Content>
     </Dropdown>
   );

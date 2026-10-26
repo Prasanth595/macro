@@ -67,13 +67,13 @@ export function SplitCloseButton() {
   const context = useContext(SplitPanelContext);
   if (!context) return '';
   return (
-    <Button
+    <Button aria-label={"Close"} tooltip={"Close"}
       variant="ghost"
-      size="icon-md"
-      label="Close"
+      size="icon-sm"
+      
       onClick={context.handle.close}
     >
-      <CloseIcon />
+      <CloseIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
     </Button>
   );
 }

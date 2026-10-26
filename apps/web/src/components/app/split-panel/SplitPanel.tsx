@@ -253,7 +253,7 @@ function CloseButton(props: SplitControlButtonProps) {
         {...rest}
         tooltip={local.tooltip ?? { content: label(), hotkey: TOKENS.split.close }}
         type={local.type ?? 'button'}
-        variant={local.variant}
+        variant={local.variant ?? 'ghost'}
         size={local.size ?? 'icon-sm'}
         
         class={cn('transition-none', local.class)}
@@ -262,7 +262,7 @@ function CloseButton(props: SplitControlButtonProps) {
         data-split-panel-close=""
         {...pressHandlers(() => controller?.close())}
       >
-        {local.children ?? <CloseIcon class="size-4" />}
+        {local.children ?? <CloseIcon class="size-3.5" />}
       </Button>
     </Show>
   );
