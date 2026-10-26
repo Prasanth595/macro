@@ -173,7 +173,7 @@ export function CallRecordingSplitHeader(props: { record: CallRecord }) {
       <ResponsiveBlockToolbar
         tools={tools}
         menuTools={menuTools}
-        ops={[{ op: 'copy' }]}
+        ops={[{ op: 'rename' }, { op: 'delete' }]}
         id={blockId}
         itemType="call"
         name={callName()}
