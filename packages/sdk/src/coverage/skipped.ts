@@ -32,6 +32,8 @@ export const agentHarnessExcluded = [
   'agentSessionsForPullRequests',
   // Speculative page warm-up requires a signed-in user and is app-internal.
   'warmAgentSessionHandler',
+  // The connect chip's continuation after an app connects is app-internal.
+  'reportAgentSessionAppConnected',
 ] as const satisfies readonly (keyof AgentHarnessSdk)[];
 
 export const agentHarnessBacklog =
@@ -52,6 +54,8 @@ export const authExcluded = [
   'createPortalSession',
   'createTeam',
   'createTeamInviteLink',
+  // An agent's own API key is a credential managed in the app's agent settings.
+  'deleteAgentApiKey',
   'deleteCursorApiKey',
   'deleteGithubLink',
   'deleteTeam',
@@ -61,6 +65,7 @@ export const authExcluded = [
   'disconnectCodex',
   'enrichGithubPullRequests',
   'generateEmailLink',
+  'getAgentApiKey',
   'getAiBillingPlans',
   'getAiBillingSummary',
   'getCodexConnection',
@@ -109,6 +114,7 @@ export const authExcluded = [
   'patchUserTutorial',
   'pollCodexLogin',
   'postProfilePictures',
+  'putAgentApiKey',
   'putCursorApiKey',
   'putCursorDefaultModel',
   'putProfilePicture',
@@ -141,6 +147,8 @@ export const authBacklog = [] as const satisfies readonly (keyof AuthSdk)[];
 export const calendarExcluded = [
   // Health probe is infra, not SDK surface.
   'healthHandler',
+  // Answering a request to join a channel-shared event is a web-app action.
+  'respondToJoinRequest',
 ] as const satisfies readonly (keyof CalendarSdk)[];
 
 export const calendarBacklog =
@@ -169,8 +177,11 @@ export const cognitionExcluded = [
   // Channel discovery shares the app-only import workflow below.
   'discoverHandler',
   'runImportHandler',
-  'dismissRunHandler',
-  'retryGatherHandler',
+  // Workspace reports and cancel routes back the in-chat import review card.
+  'notionReportHandler',
+  'cancelNotionHandler',
+  'cancelWorkspaceHandler',
+  'workspaceReportHandler',
   'getStateHandler',
   'getStateHandler2',
   'completeHandler',
@@ -200,7 +211,6 @@ export const connectionBacklog =
 
 export const contactsExcluded = [
   'addContact',
-  'getContacts',
 ] as const satisfies readonly (keyof ContactsSdk)[];
 
 export const contactsBacklog =
@@ -273,6 +283,10 @@ export const staticFilesBacklog =
   [] as const satisfies readonly (keyof StaticFilesSdk)[];
 
 export const storageExcluded = [
+  // Asking to join a channel-shared event, and its sharer's request list,
+  // are web-app actions.
+  'listJoinRequests',
+  'requestToJoin',
   // Browser Loro-session initialization/publication; SDK layout writes use putFormLayout.
   'collaborateForm',
   // Slack archive imports are browser-admin workflows, not SDK surface in v1.

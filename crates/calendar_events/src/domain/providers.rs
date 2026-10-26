@@ -246,8 +246,8 @@ impl<G: CalendarMutationProvider, O: CalendarMutationProvider> CalendarMutationP
         &self,
         access_token: &str,
         target: &ProviderCalendarTarget,
-        source: &super::ics::CalendarEventExport,
-    ) -> Result<Option<CalendarEventUpsert>, CalendarProviderError> {
+        source: &super::ics::EventSnapshot,
+    ) -> Result<ProviderImportOutcome, CalendarProviderError> {
         match target.provider {
             CalendarProvider::Google => {
                 self.google.import_event(access_token, target, source).await

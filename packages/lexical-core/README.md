@@ -29,3 +29,9 @@ removed links as escaped literal text.
 Before this marker existed, removed links could be saved as plain URL text or as
 ordinary link payloads. Their original intent cannot be recovered; legacy bare
 URLs follow the automatic-linking policy.
+
+## Canvas text
+
+`canvas-text.ts` shares bounded Lexical JSON validation, plain-text seeds and
+extraction between Canvas and its headless AI worker. Geometry, typography and
+asset policy stay with Canvas.

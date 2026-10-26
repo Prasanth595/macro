@@ -2,6 +2,7 @@ import { EmailFormContextProvider } from '@app/features/email-compose/context/em
 import { observeDraftRestoration } from '@app/features/email-compose/primitives/draft-restoration';
 import { EmailComposeView } from '@app/features/email-compose/views/email-compose';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
+import { createScrollTopFade } from '@core/util/createScrollTopFade';
 import type { JSX } from 'solid-js';
 import { type Accessor, Match, Show, Switch } from 'solid-js';
 import type { EmailThreadHost } from '../context/email-thread-context';
@@ -21,6 +22,7 @@ export type EmailThreadViewProps = {
 };
 export function EmailThreadView(props: EmailThreadViewProps) {
   const context = useEmailThreadState();
+  createScrollTopFade(context.messagesListRef);
   const viewContext = useEmailThreadViewContext();
   const threadContext = viewContext.thread;
   const isTouchDevice = threadContext.isTouch;
@@ -113,8 +115,13 @@ export function EmailThreadView(props: EmailThreadViewProps) {
             }}
           >
             {/* Edge-to-edge on mobile/tablet: the message list carries its own
-                  insets in-scroll and under-scrolls the floating chrome. */}
-            <div class="size-full select-none overscroll-none overflow-hidden flex flex-col">
+                  insets in-scroll and under-scrolls the floating chrome. On
+                  every device persistent prompts wait rather than cover its
+                  last attachments, reply bar and reply composer. */}
+            <div
+              class="size-full select-none overscroll-none overflow-hidden flex flex-col"
+              data-holds-prompts
+            >
               {props.header}
               {props.actions}
               {viewContext.rendering.renderOrganizationStatus?.({

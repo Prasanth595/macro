@@ -56,7 +56,11 @@ group, and reverse on rollback without a grouped-query network round trip. Check
 multi-value membership and group counts, then load another page: the request must
 use the server continuation cursor. Switch filters or reset the cache during a
 pending local read; its late result must not restore old rows. A server refresh
-restarts continuation coverage. The local phase emits
+rebuilds loaded continuation pages while retaining their rows until replacement
+pages are ready. Delay or fail a continuation response and confirm the list does
+not collapse to its first page; retry and verify fresh rows replace the old ones.
+An in-flight load-more must remain covered by the replacement chain. Refreshes
+emit `graphql_cache.soup_grouped_refresh`; the local phase emits
 `graphql_cache.soup_grouped_local_evaluation`.
 
 For Documents (including Tasks), Projects, Chats, and participating Channels,
@@ -125,11 +129,11 @@ editing: only moved or removed rows should be added or removed. Rename a row and
 then drag it: its drag label/payload must use the new fields without another
 registration/layout measurement.
 
-Desktop multi-select filter menus in Home, Tasks, Drive, Email, Reviews, Search,
-CRM, Calendar, and database option-value filters close after an ordinary click or
-Enter. Hold Shift while clicking or pressing Enter to toggle individual options
-and keep the menu open for further selections. Shift does not select a range.
-Single-select controls and mobile filter drawers retain their existing behavior.
+Shared list-filter menus in Home, Tasks, Drive, Email, Reviews, and CRM, plus
+searchable filter dropdowns, use the [multiselect dropdown pattern](ui-conventions.md#multiselect-dropdowns):
+checkbox toggles stay open, row activation adds and closes, and Shift/Only
+replaces the current group's selection without closing. Single-select controls,
+independent settings, and mobile filter drawers retain their existing behavior.
 
 Channels use the same general Soup reconciliation path, not a separate local page
 chain. Channel ID, type, team, organization, importance, and participant-scoped

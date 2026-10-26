@@ -1,17 +1,23 @@
 import type { EmailSendIntent } from '@queries/email/send-queue';
 import {
+  serverEmailSends,
+  setServerSendSession,
+} from '@queries/email/server-sends';
+import { readPendingEmailSends } from '@service-storage/email-send';
+import {
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from '@solidjs/testing-library';
-import type { ComponentProps } from 'solid-js';
+import { type ComponentProps, createSignal } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { QueuedSendStatus } from './queued-send-status';
 
 const mocks = vi.hoisted(() => ({
   intents: [] as EmailSendIntent[],
+  readIntents: undefined as (() => EmailSendIntent[]) | undefined,
   refresh: vi.fn(async () => {}),
   cancel: vi.fn(async () => {}),
   restore: vi.fn(async () => {}),
@@ -20,9 +26,13 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@queries/email/draft-queue', () => ({ draftQueueActive: () => true }));
 vi.mock('@queries/email/queued-sends', () => ({
   useQueuedEmailSends: () => ({
-    intents: () => mocks.intents,
+    intents: () => mocks.readIntents?.() ?? mocks.intents,
     refresh: mocks.refresh,
   }),
+}));
+vi.mock('@service-storage/email-send', () => ({
+  cancelEmailSend: vi.fn(),
+  readPendingEmailSends: vi.fn(),
 }));
 vi.mock('@queries/email/send-queue', () => ({
   cancelEmailSendQueued: mocks.cancel,
@@ -35,70 +45,95 @@ vi.mock('@queries/email/send-queue', () => ({
 vi.mock('@ui', () => ({
   Button: (props: ComponentProps<'button'>) => <button {...props} />,
 }));
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  setServerSendSession(undefined);
+});
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.readIntents = undefined;
 });
 
 function showStatus(
   status: 'ACCEPTED' | 'FAILED' | 'DELIVERY_UNCONFIRMED',
-  cancellationPending = false
+  options: Parameters<typeof queuedIntent>[1] = {}
 ) {
-  mocks.intents = [
-    {
-      uuid: 'attempt',
-      phase: cancellationPending ? 'pending' : 'committed',
-      locallyCancelled: false,
-      dispatchVersion: 2,
-      cancellationRequested: cancellationPending,
-      metadata: {
-        kind: 'email-send-v1',
-        payload: {
-          draft: {
-            draftId: 'draft',
-            threadDbId: 'thread',
-            senderLinkId: 'inbox',
-            senderEmail: 'sender@example.com',
-            subject: 'Saved message',
-            optimisticBodyHtml: null,
-          },
-          input: {
-            attempt: { attemptId: 'attempt', linkId: 'inbox' },
-            message: {
-              draftId: 'draft',
-              subject: 'Saved message',
-            },
-            attachmentIds: [],
-            forwardedAttachmentIds: [],
-          },
-        },
-      },
-      response: {
-        sendEmailMessage: {
-          attempt: {
-            attemptId: 'attempt',
-            status,
-            sendTime: null,
-            threadId: 'thread',
-            message: null,
-          },
-        },
-      },
-    },
-  ];
+  mocks.intents = [queuedIntent(status, options)];
   return render(() => <QueuedSendStatus />);
 }
 
-it('keeps an accepted preparation cancellable while waiting to submit', async () => {
+function queuedIntent(
+  status: 'ACCEPTED' | 'FAILED' | 'DELIVERY_UNCONFIRMED',
+  {
+    cancellationPending = false,
+    sendTime = null as string | null,
+    failures = 0,
+  } = {}
+): EmailSendIntent {
+  return {
+    uuid: 'attempt',
+    phase: cancellationPending ? 'pending' : 'committed',
+    locallyCancelled: false,
+    dispatchVersion: 2,
+    cancellationRequested: cancellationPending,
+    dispatch: { generation: 1, leaseUntil: 0, nextAttemptAt: 0, failures },
+    metadata: {
+      kind: 'email-send-v1',
+      payload: {
+        draft: {
+          draftId: 'draft',
+          threadDbId: 'thread',
+          senderLinkId: 'inbox',
+          senderEmail: 'sender@example.com',
+          subject: 'Saved message',
+          optimisticBodyHtml: null,
+        },
+        input: {
+          attempt: { attemptId: 'attempt', linkId: 'inbox' },
+          message: {
+            draftId: 'draft',
+            subject: 'Saved message',
+            sendTime,
+          },
+          attachmentIds: [],
+          forwardedAttachmentIds: [],
+        },
+      },
+    },
+    response: {
+      sendEmailMessage: {
+        attempt: {
+          attemptId: 'attempt',
+          status,
+          sendTime: null,
+          threadId: 'thread',
+          message: null,
+        },
+      },
+    },
+  };
+}
+
+it('stays silent while an immediate send is accepted and delivering', () => {
   showStatus('ACCEPTED');
-  expect(screen.getByRole('status').textContent).toBe('Accepted by server');
+  expect(screen.queryByLabelText('Queued email sends')).toBeNull();
+});
+
+it('keeps an accepted scheduled send cancellable until its send time', async () => {
+  showStatus('ACCEPTED', { sendTime: '2026-10-23T09:00:00.000Z' });
+  expect(screen.getByRole('status').textContent).toContain('Scheduled');
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   await waitFor(() => expect(mocks.cancel).toHaveBeenCalledOnce());
   expect(mocks.restore).not.toHaveBeenCalled();
 });
 
-it('keeps a pending cancellation visible after an accepted preparation', () => {
-  showStatus('ACCEPTED', true);
+it('stays silent while an Undo is confirming with the server', () => {
+  showStatus('ACCEPTED', { cancellationPending: true });
+  expect(screen.queryByLabelText('Queued email sends')).toBeNull();
+});
+
+it('shows a cancellation that cannot reach the server', () => {
+  showStatus('ACCEPTED', { cancellationPending: true, failures: 1 });
   expect(screen.getByRole('status').textContent).toBe('Cancellation pending');
   expect(
     screen.getByRole('button', { name: 'Cancel' }).hasAttribute('disabled')
@@ -141,4 +176,38 @@ it('shows a status refresh error and permits checking again', async () => {
   await waitFor(() => expect(mocks.recover).toHaveBeenCalledTimes(2));
   expect(screen.queryByRole('alert')).toBeNull();
   expect(mocks.cancel).not.toHaveBeenCalled();
+});
+
+it('rereads server sends when a send leaves this device, so a sent message stops showing', async () => {
+  const listed = {
+    linkId: 'inbox',
+    attempt: {
+      attemptId: 'attempt',
+      status: 'ACCEPTED' as const,
+      message: null,
+      threadId: 'thread',
+      sendTime: '2026-10-24T12:00:05.000Z',
+    },
+  };
+  vi.mocked(readPendingEmailSends)
+    .mockResolvedValueOnce({
+      id: 'owner',
+      pendingEmailSends: { nextCursor: null, attempts: [listed] },
+    })
+    .mockResolvedValue({
+      id: 'owner',
+      pendingEmailSends: { nextCursor: null, attempts: [] },
+    });
+  setServerSendSession('owner');
+  await waitFor(() => expect(serverEmailSends()).toEqual([listed]));
+  const [local, setLocal] = createSignal([queuedIntent('ACCEPTED')]);
+  mocks.readIntents = local;
+  render(() => <QueuedSendStatus />);
+  expect(screen.queryByLabelText('Queued email sends')).toBeNull();
+
+  setLocal([]);
+  await waitFor(() => expect(readPendingEmailSends).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(screen.queryByLabelText('Queued email sends')).toBeNull()
+  );
 });

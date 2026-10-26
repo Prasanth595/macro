@@ -26,6 +26,11 @@ import TerminalIcon from '@phosphor/terminal-window.svg';
 import TrashIcon from '@phosphor/trash.svg';
 import UploadIcon from '@phosphor/upload-simple.svg';
 import {
+  removeAgentApiKey,
+  saveAgentApiKey,
+  useAgentApiKeyQuery,
+} from '@queries/agents/agent-api-key';
+import {
   type AgentWithHarnessId,
   type CreateAgentParams,
   useAgentsQuery,
@@ -42,11 +47,15 @@ import {
 import { useCursorApiKeyStatusQuery } from '@queries/auth/cursor-api-key';
 import { useHarnessesQuery } from '@queries/harnesses/harnesses';
 import { usePipedreamConnectedSlugs } from '@queries/pipedream-connectors';
-import { useCurrentTeamQuery, useIsTeamOwner } from '@queries/team/teams';
+import {
+  useCurrentTeamQuery,
+  useIsTeamAdmin,
+  useIsTeamOwner,
+} from '@queries/team/teams';
 import type { AgentMcpServer } from '@service-storage/generated/schemas/agentMcpServer';
 import type { AgentMcpServers } from '@service-storage/generated/schemas/agentMcpServers';
 import { useSearchParams } from '@solidjs/router';
-import { Avatar, Button, Dialog, Panel } from '@ui';
+import { ApiKeyInput, Avatar, Button, Dialog, Panel } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import {
   createMemo,
@@ -66,6 +75,11 @@ import { CodingPreferencesSetting } from './components/coding-preferences-settin
 import { AgentInstructionsEditor } from './components/instructions-editor';
 import { SettingsSelect } from './components/settings-select';
 import { WhereItRunsOption } from './components/where-it-runs-option';
+import {
+  type ApiKeyProvider,
+  apiKeyProviderName,
+  apiKeyProviderOf,
+} from './core/agent-api-key';
 import { PipedreamAppPicker } from './PipedreamAppPicker';
 import {
   ChoiceRow,
@@ -153,6 +167,7 @@ export function Agents(props: {
   const updateAgentMutation = useUpdateAgentMutation();
   const currentTeamQuery = useCurrentTeamQuery();
   const isTeamOwner = useIsTeamOwner();
+  const isTeamAdmin = useIsTeamAdmin();
   const cursorStatus = useCursorApiKeyStatusQuery();
   const cursorConnected = () =>
     cursorStatus.isSuccess ? cursorStatus.data.registered : false;
@@ -200,7 +215,13 @@ export function Agents(props: {
   const canMakePrivate = (agent: AgentWithHarnessId) =>
     agent.bot.owner?.type !== 'team' || isAgentCreator(agent);
   const canDeleteAgent = (agent: AgentWithHarnessId) =>
-    canDeleteBot(agent.bot, currentUserId(), currentTeamId(), isTeamOwner());
+    canDeleteBot(
+      agent.bot,
+      currentUserId(),
+      currentTeamId(),
+      isTeamOwner(),
+      isTeamAdmin()
+    );
   const agents = createMemo(() =>
     (agentsQuery.isSuccess ? agentsQuery.data : [])
       .filter((agent) =>
@@ -220,18 +241,18 @@ export function Agents(props: {
 
   const createAgent = async (agent: CreateAgentParams) => {
     try {
-      await createAgentMutation.mutateAsync(agent);
+      const created = await createAgentMutation.mutateAsync(agent);
       toast.success('Agent created');
-      return true;
+      return created.bot.id;
     } catch {
       toast.failure('Failed to create agent');
-      return false;
+      return undefined;
     }
   };
 
   const updateAgent = async (agent: CreateAgentParams) => {
     const current = editingAgent();
-    if (!current) return false;
+    if (!current) return undefined;
 
     try {
       await updateAgentMutation.mutateAsync({
@@ -242,10 +263,10 @@ export function Agents(props: {
           : {}),
       });
       toast.success('Agent updated');
-      return true;
+      return current.bot.id;
     } catch {
       toast.failure('Failed to update agent');
-      return false;
+      return undefined;
     }
   };
 
@@ -259,6 +280,7 @@ export function Agents(props: {
         channelIds: current.channel_ids,
       });
       setDeletingAgent(undefined);
+      if (editingAgent()?.bot.id === current.bot.id) setEditingAgent(undefined);
       toast.success('Agent deleted');
     } catch {
       toast.failure('Failed to delete agent');
@@ -364,6 +386,9 @@ export function Agents(props: {
             pending={updateAgentMutation.isPending}
             onClose={() => setEditingAgent(undefined)}
             onSave={updateAgent}
+            onDelete={
+              canDeleteAgent(agent) ? () => setDeletingAgent(agent) : undefined
+            }
           />
         )}
       </Show>
@@ -581,7 +606,9 @@ function AgentEditorPage(props: {
   canMakePrivate: boolean;
   pending: boolean;
   onClose: () => void;
-  onSave: (agent: CreateAgentParams) => Promise<boolean>;
+  /** Saves the agent, resolving to its id, or `undefined` when it failed. */
+  onSave: (agent: CreateAgentParams) => Promise<string | undefined>;
+  onDelete?: () => void;
 }) {
   const [name, setName] = createSignal(props.agent?.bot.name ?? '');
   const [tag, setTag] = createSignal(props.agent?.bot.handle ?? '');
@@ -845,6 +872,89 @@ function AgentEditorPage(props: {
   );
   const modelField = () => <div class="max-w-[280px]">{modelPicker()}</div>;
 
+  // An agent that runs in Macro on an Anthropic or OpenAI model can run on
+  // its own API key instead of Macro usage. The key is write-only: a saved
+  // one shows masked, and is replaced by typing a new one.
+  const apiKey = useAgentApiKeyQuery(() => props.agent?.bot.id);
+  const [apiKeyDraft, setApiKeyDraft] = createSignal('');
+  const [removingApiKey, setRemovingApiKey] = createSignal(false);
+  const keyProvider = () =>
+    harnessId() === IN_MEMORY_HARNESS.id
+      ? apiKeyProviderOf(selectedDefaultModelId())
+      : undefined;
+  // A new agent has no id yet, so its query stays disabled; read the data
+  // only once it has loaded, or the editor would suspend on it.
+  const apiKeyData = () => (apiKey.isSuccess ? apiKey.data : undefined);
+  const savedApiKey = () =>
+    removingApiKey() ? undefined : (apiKeyData()?.key ?? undefined);
+  const apiKeyLocked = () => apiKeyData()?.planAllows === false;
+  const apiKeyHelp = (provider: ApiKeyProvider) => {
+    const saved = savedApiKey();
+    if (apiKeyLocked())
+      return saved
+        ? 'Agent API keys are part of the Premium and Max plans. This agent runs on Macro usage until you upgrade.'
+        : 'Agent API keys are part of the Premium and Max plans.';
+    if (saved && saved.provider !== provider.id)
+      return `The saved ${apiKeyProviderName(saved.provider)} key isn’t used with this model.`;
+    return 'Bill usage to your own API key.';
+  };
+  const apiKeyField = () => (
+    <Show when={keyProvider()}>
+      {(provider) => (
+        <div class="flex max-w-[420px] flex-col gap-1.5">
+          <span class="text-xs font-medium text-ink-muted">
+            {provider().name} API key
+          </span>
+          <div class="flex min-w-0 items-center gap-2">
+            <ApiKeyInput
+              aria-label={`${provider().name} API key`}
+              class="flex-1"
+              prefix={provider().prefix}
+              saved={savedApiKey()?.provider === provider().id}
+              disabled={busy() || apiKeyLocked()}
+              value={apiKeyDraft()}
+              onValueChange={setApiKeyDraft}
+            />
+            <Show when={savedApiKey()}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={busy()}
+                onClick={() => {
+                  setApiKeyDraft('');
+                  setRemovingApiKey(true);
+                }}
+              >
+                Remove
+              </Button>
+            </Show>
+          </div>
+          <p class="text-xs text-ink-extra-muted">{apiKeyHelp(provider())}</p>
+        </div>
+      )}
+    </Show>
+  );
+  // Saved after the agent, which a new agent needs an id from first.
+  const saveApiKey = async (agentId: string) => {
+    const draft = apiKeyDraft().trim();
+    try {
+      if (draft.length > 0 && keyProvider()) {
+        await saveAgentApiKey(agentId, draft);
+      } else if (removingApiKey()) {
+        await removeAgentApiKey(agentId);
+      }
+    } catch (error) {
+      toast.failure(
+        `The agent was saved, but not its API key: ${
+          error instanceof Error && error.message
+            ? error.message
+            : 'something went wrong'
+        }`
+      );
+    }
+  };
+
   const close = () => {
     if (!busy()) props.onClose();
   };
@@ -917,7 +1027,9 @@ function AgentEditorPage(props: {
       autoAcceptPermissions: autoAcceptPermissions(),
       isCoding: isCoding(),
     });
-    if (saved) close();
+    if (!saved) return;
+    await saveApiKey(saved);
+    close();
   };
 
   return (
@@ -1069,7 +1181,10 @@ function AgentEditorPage(props: {
                     checked={harnessId() === IN_MEMORY_HARNESS.id}
                     onSelect={() => handleHarnessChange(IN_MEMORY_HARNESS.id)}
                   >
-                    {modelField()}
+                    <div class="flex flex-col gap-3">
+                      {modelField()}
+                      {apiKeyField()}
+                    </div>
                   </WhereItRunsOption>
                   <WhereItRunsOption
                     value="cursor"
@@ -1144,6 +1259,26 @@ function AgentEditorPage(props: {
                     </div>
                   </WhereItRunsOption>
                 </fieldset>
+                <Show when={!keyProvider() ? savedApiKey() : undefined}>
+                  {(saved) => (
+                    <div class="mt-3 flex items-center justify-between gap-3 text-xs text-ink-muted">
+                      <span>
+                        This agent has a saved{' '}
+                        {apiKeyProviderName(saved().provider)} API key it
+                        doesn’t use here.
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy()}
+                        onClick={() => setRemovingApiKey(true)}
+                      >
+                        Remove key
+                      </Button>
+                    </div>
+                  )}
+                </Show>
               </AgentFormSection>
 
               <AgentFormSection
@@ -1343,31 +1478,47 @@ function AgentEditorPage(props: {
                 </Show>
               </AgentFormSection>
             </form>
-            <div class="mt-6 flex justify-end gap-2 border-t border-edge-muted pt-4">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={close}
-                disabled={busy()}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                form="agent-form"
-                variant="strong"
-                size="sm"
-                disabled={!canCreate()}
-              >
-                {props.pending
-                  ? props.agent
-                    ? 'Saving…'
-                    : 'Creating…'
-                  : props.agent
-                    ? 'Save changes'
-                    : 'Create agent'}
-              </Button>
+            <div class="mt-6 flex flex-wrap items-center gap-2 border-t border-edge-muted pt-4">
+              <Show when={props.onDelete}>
+                {(onDelete) => (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    class="text-negative"
+                    disabled={busy()}
+                    onClick={onDelete()}
+                  >
+                    <TrashIcon /> Delete agent
+                  </Button>
+                )}
+              </Show>
+              <div class="ml-auto flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={close}
+                  disabled={busy()}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  form="agent-form"
+                  variant="strong"
+                  size="sm"
+                  disabled={!canCreate()}
+                >
+                  {props.pending
+                    ? props.agent
+                      ? 'Saving…'
+                      : 'Creating…'
+                    : props.agent
+                      ? 'Save changes'
+                      : 'Create agent'}
+                </Button>
+              </div>
             </div>
           </section>
         </SettingsPage>

@@ -154,10 +154,10 @@ The compose controllers now assemble these smaller responsibilities:
 | Module | Responsibility and boundary |
 | --- | --- |
 | `attachment-persistence.ts` | Upload/remove operations and completion tracking. Receives attachment state and three transport capabilities. A saved attachment ID does not mean its content upload has finished; every save waits for outstanding uploads. |
-| `email-send-schedule.ts` | Confirmed send time, pending changes, unscheduling and archive feedback. Send Later freezes its deadline in the send intent; updating an existing legacy schedule saves first. Cancellation only unlocks editing after confirmation. |
+| `email-send-schedule.ts` | Confirmed send time, pending changes, unscheduling and archive feedback. Send Later and schedule updates save the draft first, then schedule it through the REST endpoint. Cancellation only unlocks editing after confirmation. |
 | `draft-session.ts` / `draft-persistence.ts` | Shared draft identity, queued-write status, rejection policy, and save/delete ordering. Server identity and a committed latest save are separate facts; uploads and updates to existing legacy schedules wait for a committed save. |
 | `send-readiness.ts` | Outbox admission allows offline delivery with complete attachment references and rejects unfinished uploads. |
-| `draft-autosave.ts` | One debounce and serialized write queue used by reply and standalone compose. Captures editor values before queueing, flushes pending edits on disposal, and exposes cancellation and completion for send/discard. |
+| `draft-autosave.ts` | One debounce and serialized write queue used by reply and standalone compose. Captures editor values before queueing, flushes pending edits when visibility changes and on disposal, retries a failed local write on visibility changes and disposal unless cancelled, and exposes cancellation and completion for send/discard. |
 | `reply-recipient-fields.ts` | Recipient field expansion, drag/drop and outside interaction. Receives values, a setter and a change callback; it knows nothing about saving or sending. |
 | `reply-composer-focus.ts` | Deferred editor/recipient focus and the forward focus guard. Receives DOM accessors and an editor `focus()` capability. Its timers, animation frames and event listeners end with its owner. |
 | `views/reply-envelope.tsx` | Sender, recipients and subject presentation. One recipient input implementation supplies the desktop/mobile layouts while the parent keeps a single editor mounted. |
@@ -502,8 +502,11 @@ boundaries and exclusive all-day ends without mounting a calendar grid.
 
 ## Independent send outbox
 
-All composer sends use a device email journal for Gmail and Outlook,
-independent of GraphQL normalized-cache availability and read transport.
+All immediate composer sends use a device email journal for Gmail and Outlook,
+independent of GraphQL normalized-cache availability and read transport. Send
+Later schedules the saved draft through the REST schedule endpoint, so it stays a
+draft listed by `/email/drafts/scheduled`; outbox admission makes a message
+non-draft, which that list excludes.
 `send-queue.ts` freezes approval and reserves the draft in IndexedDB before
 returning local acceptance. `outbox-session.ts` runs dispatch and recovery from
 the authenticated app shell; mounted composers only observe them.
@@ -563,7 +566,12 @@ attachment handles retain the generation captured at reservation.
 The status panel combines device intents with actor/inbox-authorized, cursor-paged
 `pendingEmailSends`, with batched message hydration. Server listing grants observation and cancellation authority,
 never automatic resubmission. Delivery state distinguishes local queueing,
-server acceptance, provider processing, sent, failed, and unconfirmed outcomes.
+server acceptance, provider processing, sent, failed, and unconfirmed outcomes,
+but the panel stays silent for routine delivery: it lists a send only while it
+waits on this device, needs attention, or is scheduled. Thread surfaces project
+approved immediate sends from the journal as sent messages
+(`email-thread/primitives/optimistic-send.ts`) until the thread read shows them,
+and read the thread once when delivery is confirmed.
 
 Deploy schema/migrations and all generation-aware backend writers before
 releasing this frontend, including before applying `ios-update`: that workflow
@@ -577,8 +585,8 @@ completed attachments, both providers, and server sends from other devices befor
 release. The separate cache-bootstrap recovery hotfix remains useful
 for draft synchronization and does not determine send availability.
 
-The approved iOS 2.0.11 build 190 is held for manual release with the production
-deployment. Its source is `04063d2bb35d7369eae93900c2692f3ecccf882b`.
+iOS 2.0.11 build 190 was released with the production rollout on 2026-10-22.
+Its source is `04063d2bb35d7369eae93900c2692f3ecccf882b`.
 The subsequent main merge through `93900478fb` preserves its native/web and
 email interfaces. Build 190 keeps its compiled format-3 native cache; the new
 format-4 compression in cache version 0.6.52 belongs to the cache engine, and
@@ -586,11 +594,9 @@ only JSON crosses the native/web boundary. Browser OPFS storage is separate.
 New native diagnostics are optional, and the agent runtime/Chromium additions
 are desktop-only. The `skip-ios-update` exception records this compatibility
 review, not identical build provenance.
-Keep the iOS floor at 185. Deploy the migrations and generation-aware backend
-writers before the frontend, then release the approved App Store version as
-part of that production rollout. Do not release it early: its embedded frontend
-also requires those backend changes. Recheck compatibility if further native
-requirements are introduced before deployment.
+Older iOS builds therefore remain compatible with the outbox; the iOS floor is
+190 only so that the next production deploy prompts them to update from the
+App Store.
 
 The format-4 browser cache starts a separate physical database. Old nonempty
 general mutation queues are retained but are not imported into it; verify their

@@ -5,6 +5,7 @@ import {
   getChannelParams,
   navigateToChannelMessage,
 } from '@block-channel/utils/link';
+import { prefetchChannelTarget } from '@channel/queries/prefetch-channel-target';
 import { contentReference } from '@components/app/split-layout/content-reference';
 import type {
   OpenSplitResult,
@@ -24,10 +25,12 @@ import {
 import { COMMENT_LINK_PARAM } from '@core/messages/comment-link';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { NotificationType } from '@core/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { catchToResult } from '@core/util/result';
 import { openExternalUrl } from '@core/util/url';
 import { Telemetry } from '@macro-inc/observability';
 import { getNotificationById } from '@queries/notification/user-notifications';
+import type { PushNotificationNavigation } from '@service-notification/generated/schemas/pushNotificationNavigation';
 import { errAsync, ResultAsync } from 'neverthrow';
 import { match, P } from 'ts-pattern';
 import { shareEntity } from '../access-requests/core/types';
@@ -119,7 +122,7 @@ export function getChannelNotificationParams(
     }))
     .with({ tag: 'channel_message_send' }, (m) => ({
       messageId: m.content.messageId,
-      threadId: undefined,
+      threadId: m.content.messageId,
     }))
     .with({ tag: 'channel_message_reaction' }, (m) => ({
       messageId: m.content.messageId,
@@ -535,6 +538,27 @@ function getSupportedHandler(
           );
         };
       })
+      .with('calendar_event_join_request', () => {
+        const meta = notification.notification_metadata;
+        if (meta.tag !== 'calendar_event_join_request') return null;
+
+        // The request is answered from the shared event's details.
+        return async (lm: SplitManager, newSplit: boolean = false) => {
+          if (!isFeatureEnabled(enableCalendarUi)) {
+            onApplied?.();
+            return;
+          }
+          openCalendarView(
+            { eventId: meta.content.eventId },
+            {
+              manager: lm,
+              handle: sourceHandle,
+              openInNewSplit: newSplit,
+              ...(onApplied ? { onApplied } : {}),
+            }
+          );
+        };
+      })
       .with('crm_discussion', () => {
         const meta = notification.notification_metadata;
         if (meta.tag !== 'crm_discussion') return null;
@@ -634,8 +658,34 @@ export function openNotificationFromId(
   notificationId: string,
   layoutManager: SplitManager,
   notificationSource: NotificationSource,
-  options: { canOpen?: () => boolean; onApplied?: VoidFunction } = {}
+  options: {
+    canOpen?: () => boolean;
+    onApplied?: VoidFunction;
+    target?: PushNotificationNavigation;
+  } = {}
 ): ResultAsync<void, OpenNotificationFromIdError> {
+  if (options.target) {
+    if (options.canOpen && !options.canOpen()) {
+      return errAsync({ tag: 'NavigationDeferredError', notificationId });
+    }
+    const { channelId, messageId, threadId } = options.target;
+    fireAndForget(
+      prefetchChannelTarget(channelId, {
+        messageId,
+        threadId: threadId ?? messageId,
+      }),
+      'notification-navigation'
+    );
+    return ResultAsync.fromSafePromise(
+      navigateToChannelMessage(
+        layoutManager.getOrchestrator(),
+        channelId,
+        messageId,
+        threadId ?? messageId,
+        { splitManager: layoutManager, onApplied: options.onApplied }
+      )
+    );
+  }
   const openIfReady = (notification: UnifiedNotification) => {
     if (options.canOpen && !options.canOpen()) {
       return errAsync({
