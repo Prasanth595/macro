@@ -134,6 +134,8 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+
+- Empty human DMs use the shared centered conversations graphic and explain email delivery to nonusers; keep this state out of agent DMs, loading/error states, and populated timelines.
 - Enable persisted email/calendar review controls only for the review’s saved acting account; historical reviews fall back to the session owner. Require session edit access on desktop and mobile.
 - Email draft reads compare server generations before choosing cached delivery state over a restored working copy; only a definitive first-submission rejection permits local send recovery without server cancellation.
 - Compose settings pages with `features/settings/primitives.tsx` so section headings,
@@ -162,6 +164,15 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Treat a repeated worker-ready frame as a coordinator restart: retire the old
   engine and re-register in place, preserving durable storage and never replaying
   uncertain enqueues. See `docs/graphql-normalized-cache-plan.md`.
+- Reject already-routed optimistic enqueues with missing replies as uncertain on
+  every owner departure; never forward them through network fallback, because
+  their durable queue entries may survive the old engine.
+- Drain browser cache engines when their last visible consumer hides, then park
+  without retiring clients; queue background work until a visible owner reopens
+  storage, retaining accepted mutation settlements even if their caller leaves.
+  Publish recovery reset outcomes before parking while retaining the read pause.
+  Bound foreground resume reads to one second without killing an owner, stealing
+  its lock, replaying writes, or treating intentional parking as a failure.
 - Mobile dock customization shares the navigation island’s measured capacity; persist ordering per user with `mobile-dock-order.ts`, preserve gated destinations, and keep Search and More fixed. Reorder handles drag without a hold delay; the rest of each row scrolls.
 - Share sidebar and mobile dock unread presence through `components/app/use-navigation-unread.ts`; keep badges reactive to read/done changes, guard all query data with `queryReadyGate` so pending preferences or paused queries cannot suspend the shell, and avoid fetching extra pages for counts.
 - Name Home thread rows from their latest scoped notification, including document mentions and reactions; use the thread author only when no notification exists. Document rows whose newest outstanding notification is a comment, and calendar event rows whose newest is a join request, say who did it (`row-notification.ts`).
@@ -192,10 +203,14 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Passive PR mentions must not retry initial GitHub status failures on remount; preserve confirmed status through refetch errors and keep pending data reads out of their parent Suspense boundary.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
 - Diagnose native full reloads with `native_webview_started`, `native_diagnostic_recovered`, and the shared `frontend_instance_id`; use `reloadApp(reason)` for frontend reloads and keep breadcrumbs content-free. Treat `previous_document_*` checkpoints as last-observed lifecycle evidence, never a crash verdict; clear them on logout. `previous_document_last_*` comes from the native navigation breadcrumb (route and entity type, never ids). See [frontend checkpoints](docs/native-reload-diagnostics.md) and `tauri/src-tauri/README.md`.
+- Pass `$APPLOCALDATA` (Application Support on Apple platforms) as the native HTTP cookie storage directory; the plugin owns the `.cookies` filename. Never use purgeable caches. The location change intentionally requires one new sign-in, without migration. See `tauri/src-tauri/README.md#native-authentication-cookies`.
 - Inline agent steps reuse the session code-execution query for live SDK operation
   names; completed step snapshots come from the shared fold of the tool receipt.
   Session `ExecuteCode` activity uses the same Calling N tools peek window as
   ordinary consecutive tool calls.
+- Compose multiselect filters with `Dropdown.MultiSelectItem` and the shared
+  searchable filters; follow [multiselect dropdowns](../../docs/agent-guide/ui-conventions.md#multiselect-dropdowns)
+  for checkbox, row, Only, keyboard, and touch behavior.
 - All API/network calls live in service-clients.
 - Open projects through `openProject` (`features/projects/open-project.ts`): it
   retargets an already-open project split to the section or comment in place.
@@ -466,6 +481,10 @@ Keep Responding bound to the notification turn, including rejection and noop.
 The backend-free desktop/mobile check is
 `bunx playwright test --config src/features/block-agent/browser-test/playwright.config.ts`.
 Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
+
+Reuse the responsive import review for Notion, Linear and Jira; scope report
+queries and cancellation to the saved draft source. Issue tracker handoffs
+call the reviewed workspace tools, and show separate task/project totals.
 
 ### Agent backend hosting
 
