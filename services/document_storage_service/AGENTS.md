@@ -58,6 +58,8 @@ threads, pins, recents, notifications, folders, activity.
 
 ## Gotchas
 
+- Attach the properties service to both Soup readers for caller-defined DATE grouping; keep definition authorization in the domain before repository execution.
+
 - Several behaviors are Cargo-feature-gated (`connection_gateway`,
   `delete_document_worker`, `location_check`, all on by `default`) — a feature
   disabled locally can hide a bug that only shows in deployed builds.

@@ -13049,6 +13049,7 @@ dependencies = [
  "chrono",
  "models_pagination",
  "serde",
+ "utoipa",
  "uuid",
  "workspace-hack",
 ]

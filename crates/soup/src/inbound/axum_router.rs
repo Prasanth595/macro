@@ -57,6 +57,7 @@ use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::Entity;
 use model_error_response::ErrorResponse;
 use models_grouping::{GroupByField, GroupingConfig};
+pub use models_grouping::{PropertyBucketing, PropertyDateRange, PropertyDateRanges};
 use models_pagination::{
     CursorWithValAndFilter, DueDateSort, Frecency, NotifiedAt, PaginatedOpaqueCursor,
     SimpleSortMethod, TouchedByMe, TypeEraseCursor,
@@ -72,8 +73,12 @@ use thiserror::Error;
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
-mod deadline;
-pub use deadline::{ApiDeadlineBoundaries, GroupedSoupCursorParams};
+/// Opaque continuation accepted by the grouped Soup endpoint.
+#[derive(Debug, Default, Deserialize)]
+pub struct GroupedSoupCursorParams {
+    /// Cursor from a previous grouped response.
+    pub cursor: Option<String>,
+}
 
 #[cfg(test)]
 mod tests;
@@ -334,28 +339,26 @@ pub enum ApiGroupByField {
         /// Optional entity type filter for the property lookup
         #[serde(skip_serializing_if = "Option::is_none")]
         entity_type: Option<ApiPropertyEntityType>,
+        /// Optional caller-defined date partition for the selected property.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        bucketing: Option<PropertyBucketing>,
     },
-    /// Group task deadlines using frozen viewer-local calendar boundaries.
-    Deadline(ApiDeadlineBoundaries),
 }
 
 impl From<ApiGroupByField> for GroupByField {
     fn from(api: ApiGroupByField) -> Self {
         match api {
             ApiGroupByField::Date => GroupByField::Date,
-            ApiGroupByField::Deadline(boundaries) => GroupByField::Deadline {
-                boundaries: boundaries.into(),
-            },
             ApiGroupByField::EntityType => GroupByField::EntityType,
             ApiGroupByField::Project => GroupByField::Project,
             ApiGroupByField::Property {
                 property_definition_id,
                 entity_type,
-                ..
+                bucketing,
             } => GroupByField::Property {
                 property_definition_id,
                 entity_type: entity_type.map(|et| PropertyEntityType::from(et).to_string()),
-                bucketing: None,
+                bucketing,
             },
         }
     }
@@ -827,6 +830,9 @@ pub enum SoupHandlerErr {
     /// The filter is restricted to a CRM record the caller cannot see.
     #[error("CRM record not found")]
     CrmRecordNotFound,
+    /// The selected property definition is not visible to the caller.
+    #[error("Property definition not found")]
+    PropertyDefinitionNotFound,
     /// Ascending order was requested for a frecency-sorted query.
     #[error("sort_direction=asc is not supported with sort_method=frecency")]
     AscendingFrecencyUnsupported,
@@ -851,6 +857,12 @@ impl From<SoupErr> for SoupHandlerErr {
             SoupErr::CrmTeamRequired => SoupHandlerErr::CrmScopeForbidden,
             SoupErr::CrmAdminRequired => SoupHandlerErr::CrmAdminRequired,
             SoupErr::CrmRecordNotFound => SoupHandlerErr::CrmRecordNotFound,
+            SoupErr::PropertyQuery(
+                properties::PropertiesErr::NotFound | properties::PropertiesErr::PermissionDenied,
+            ) => SoupHandlerErr::PropertyDefinitionNotFound,
+            SoupErr::PropertyQuery(properties::PropertiesErr::Validation(message)) => {
+                SoupHandlerErr::ExpandErr(ExpandErr::ApiAst(message))
+            }
             SoupErr::TouchedUnsupportedFilter(kind) => {
                 SoupHandlerErr::TouchedUnsupportedFilter(kind)
             }
@@ -876,6 +888,7 @@ impl IntoResponse for SoupHandlerErr {
                 StatusCode::FORBIDDEN
             }
             SoupHandlerErr::CrmRecordNotFound => StatusCode::NOT_FOUND,
+            SoupHandlerErr::PropertyDefinitionNotFound => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (

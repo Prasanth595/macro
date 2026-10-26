@@ -70,9 +70,11 @@ rows, initiatives, ...) and get back a single unified, paginated result.
   `expanded` path instead.
 - Keep due-date sorting task-only: `domain/service/due_date.rs` validates
   filters, and `outbound/pg_soup_repo/due_date.rs` selects canonical dates before pagination.
-- Freeze deadline grouping boundaries and group keys in timestamp and due-date
-  cursors through `domain/models/grouping/query.rs`; reject conflicting continuations.
-- Preserve deployed non-deadline timestamp cursor encodings.
+- Group DATE properties with caller-defined ranges, never task-specific boundary fields;
+  freeze the selected property, ranges, keys, and scope in contextual continuations.
+- Attach the properties service with `with_property_queries` for DATE grouping;
+  the domain validates definition visibility and scalar DATE type before either grouped query path.
+- Preserve deployed timestamp cursor encodings for grouping without date ranges.
 - Mint `AuthorizedPropertyQuery` through the properties service before candidate
   fanout; sources derive the viewer from the capability, not a second user ID.
 - `candidate_gates.rs` encodes access-gate SQL shared across repo queries;

@@ -2,6 +2,17 @@
 
 Status: Accepted. Implementation updates the task due-date work in PR #8494.
 
+## Implementation status
+
+Grouped Soup uses property grouping with caller-defined date ranges; the backend
+has no task-specific deadline grouping mode or named day-boundary contract.
+The consuming view selects the property definition and supplies its own keys.
+
+This grouping contract does not complete generic date-property sorting or the
+cross-source candidate pipeline. The existing due-date sort remains task-only,
+and the separate generic candidate adapters still need end-to-end integration.
+Keep those unfinished changes distinct from replacing the grouping contract.
+
 ## Decision
 
 Use the existing property model for date filtering, sorting, and grouping across

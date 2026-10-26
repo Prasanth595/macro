@@ -1,6 +1,6 @@
 use super::*;
 use macro_db_migrator::MACRO_DB_MIGRATIONS;
-use models_grouping::{DeadlineBoundaries, GroupByField, GroupingConfig};
+use models_grouping::{GroupByField, GroupingConfig};
 use models_pagination::{Cursor, CursorVal};
 
 #[sqlx::test(
@@ -113,13 +113,41 @@ async fn grouped_due_date_counts_precede_cursor_and_boundaries_stay_frozen(
     use crate::domain::models::due_date::GroupedDueDateRequest;
     let user = MacroUserIdStr::parse_from_str("macro|user-1@test.com")?;
     let today: DateTime<Utc> = "2026-03-08T05:00:00Z".parse()?;
-    let grouping = GroupingConfig::new(GroupByField::Deadline {
-        boundaries: DeadlineBoundaries {
-            today,
-            tomorrow: "2026-03-09T04:00:00Z".parse()?,
-            day_two: "2026-03-10T04:00:00Z".parse()?,
-            day_eight: "2026-03-16T04:00:00Z".parse()?,
-        },
+    let grouping = GroupingConfig::new(GroupByField::Property {
+        property_definition_id: system_properties::SystemPropertyKey::DUE_DATE_UUID,
+        entity_type: Some("TASK".into()),
+        bucketing: Some(models_grouping::PropertyBucketing::DateRanges(
+            models_grouping::PropertyDateRanges {
+                ranges: vec![
+                    models_grouping::PropertyDateRange {
+                        key: "overdue".into(),
+                        start: None,
+                        end: Some(today),
+                    },
+                    models_grouping::PropertyDateRange {
+                        key: "today".into(),
+                        start: Some(today),
+                        end: Some("2026-03-09T04:00:00Z".parse()?),
+                    },
+                    models_grouping::PropertyDateRange {
+                        key: "tomorrow".into(),
+                        start: Some("2026-03-09T04:00:00Z".parse()?),
+                        end: Some("2026-03-10T04:00:00Z".parse()?),
+                    },
+                    models_grouping::PropertyDateRange {
+                        key: "next_7_days".into(),
+                        start: Some("2026-03-10T04:00:00Z".parse()?),
+                        end: Some("2026-03-16T04:00:00Z".parse()?),
+                    },
+                    models_grouping::PropertyDateRange {
+                        key: "later".into(),
+                        start: Some("2026-03-16T04:00:00Z".parse()?),
+                        end: None,
+                    },
+                ],
+                missing_value_bucket_key: "no_due_date".into(),
+            },
+        )),
     })
     .with_limit(1);
     for id in [
@@ -147,7 +175,7 @@ async fn grouped_due_date_counts_precede_cursor_and_boundaries_stay_frozen(
     let dated = rows.iter().find(|row| row.key == "today").unwrap();
     assert_eq!(dated.total_group_count, 2);
     assert_eq!(dated.index_in_group, 1);
-    assert!(rows.iter().any(|row| row.key.is_empty()));
+    assert!(rows.iter().any(|row| row.key == "no_due_date"));
     let continued = grouped_task_page(
         &db,
         GroupedDueDateRequest::continue_from(

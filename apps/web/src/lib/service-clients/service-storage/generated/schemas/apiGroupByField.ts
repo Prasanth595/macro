@@ -5,7 +5,6 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ApiGroupByFieldOneOf } from './apiGroupByFieldOneOf';
-import type { ApiGroupByFieldOneOfFour } from './apiGroupByFieldOneOfFour';
 
 /**
  * API representation of group-by field.
@@ -14,5 +13,4 @@ export type ApiGroupByField =
   | 'date'
   | 'entity_type'
   | 'project'
-  | ApiGroupByFieldOneOf
-  | ApiGroupByFieldOneOfFour;
+  | ApiGroupByFieldOneOf;

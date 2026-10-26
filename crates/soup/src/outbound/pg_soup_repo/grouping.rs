@@ -2,34 +2,16 @@
 
 use models_grouping::{GroupByField, date_bucket_sql_key, date_bucket_sql_order};
 use std::borrow::Cow;
-use system_properties::SystemPropertyKey;
 
 /// Build the group select expression for a field.
 pub fn group_select_expr(field: &GroupByField) -> Cow<'static, str> {
+    if field.date_ranges().is_some() {
+        return Cow::Owned(properties::query_support::date_range_group_key_sql(
+            "CASE WHEN ep_group.values->>'type' = 'Date' THEN (ep_group.values->>'value')::timestamptz END",
+        ));
+    }
     match field {
         GroupByField::Date => Cow::Owned(date_bucket_sql_key("sort_ts")),
-        GroupByField::Deadline { boundaries } => {
-            let due = format!(
-                "(SELECT CASE WHEN ep_due.values->>'type' = 'Date' \
-                 THEN (ep_due.values->>'value')::timestamptz END FROM entity_properties ep_due \
-                 WHERE ep_due.entity_id = t.id AND ep_due.entity_type = 'TASK' \
-                 AND ep_due.property_definition_id = '{}' \
-                 LIMIT 1)",
-                SystemPropertyKey::DUE_DATE_UUID
-            );
-            Cow::Owned(format!(
-                "CASE WHEN {due} IS NULL THEN '' \
-                 WHEN {due} < '{}'::timestamptz THEN 'overdue' \
-                 WHEN {due} < '{}'::timestamptz THEN 'today' \
-                 WHEN {due} < '{}'::timestamptz THEN 'tomorrow' \
-                 WHEN {due} < '{}'::timestamptz THEN 'next_7_days' \
-                 ELSE 'later' END",
-                boundaries.today.to_rfc3339(),
-                boundaries.tomorrow.to_rfc3339(),
-                boundaries.day_two.to_rfc3339(),
-                boundaries.day_eight.to_rfc3339()
-            ))
-        }
         GroupByField::EntityType => Cow::Borrowed("item_type"),
         GroupByField::Project => Cow::Borrowed("COALESCE(project_id::text, '')"),
         GroupByField::Property { .. } => Cow::Borrowed(
@@ -50,7 +32,6 @@ pub fn group_select_expr(field: &GroupByField) -> Cow<'static, str> {
 pub fn group_order_expr(field: &GroupByField) -> Cow<'static, str> {
     match field {
         GroupByField::Date => Cow::Owned(date_bucket_sql_order("sort_ts")),
-        GroupByField::Deadline { .. } => Cow::Borrowed("group_key"),
         GroupByField::EntityType => Cow::Borrowed("item_type"),
         GroupByField::Project => Cow::Borrowed("project_id NULLS LAST"),
         GroupByField::Property { .. } => Cow::Borrowed(
@@ -86,12 +67,13 @@ pub struct GroupJoinClause {
 /// array / scalar value, produce a single row with NULL `val` (→ "Not Set").
 /// Property rows are also matched to the Soup item's canonical property entity
 /// type, so a task ignores legacy `DOCUMENT` assignments for the same id.
+/// Date-range grouping keeps one scalar assignment row even if a stored wrong-type value is an array.
 pub fn group_join_clause(field: &GroupByField) -> Option<GroupJoinClause> {
     match field {
         GroupByField::Property {
             property_definition_id,
             entity_type,
-            ..
+            bucketing,
         } => {
             let (entity_type_filter, entity_type_bind) = match entity_type {
                 Some(et) => (
@@ -100,18 +82,21 @@ pub fn group_join_clause(field: &GroupByField) -> Option<GroupJoinClause> {
                 ),
                 None => (String::new(), None),
             };
+            let (value, array_join) = if bucketing.is_some() {
+                ("NULL::jsonb", "")
+            } else {
+                (
+                    "elem.val",
+                    "LEFT JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(ep.values->'value') = 'array' THEN ep.values->'value' ELSE '[]'::jsonb END) elem(val) ON TRUE",
+                )
+            };
 
             Some(GroupJoinClause {
                 sql: format!(
                     "LEFT JOIN LATERAL (
-                        SELECT ep.values, elem.val
+                        SELECT ep.values, {value} AS val
                         FROM entity_properties ep
-                        LEFT JOIN LATERAL jsonb_array_elements(
-                            CASE WHEN jsonb_typeof(ep.values->'value') = 'array'
-                                 THEN ep.values->'value'
-                                 ELSE '[]'::jsonb
-                            END
-                        ) elem(val) ON TRUE
+                        {array_join}
                         WHERE ep.entity_id = t.id::text
                           AND ep.entity_type = t.property_entity_type
                           AND ep.property_definition_id = '{}'

@@ -150,6 +150,8 @@ where
     ) -> Result<Vec<crate::domain::models::grouping::DueDateGroupedItem>, SoupErr> {
         use crate::domain::models::grouping::{DueDateGroupedItem, ItemGroupingInfo};
         crate::domain::models::due_date::validate_grouping(&req.grouping)?;
+        self.authorize_date_grouping(&req.user_id, &req.grouping)
+            .await?;
         if let Some(resolved) = self
             .resolve_crm_associations(&req.user_id, None, Some(req.cursor.filter()))
             .await?

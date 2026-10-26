@@ -2130,30 +2130,22 @@ fn build_grouped_items_cte(
         None
     };
 
-    if matches!(grouping.field, GroupByField::Deadline { .. }) {
-        // Deadline bins contain tasks only, not ordinary documents or other entities.
-        builder.push("WHERE t.property_entity_type = 'TASK' ");
-    }
     if grouping.group_key.is_some() {
         // Single group mode: fetch items for a specific group (for "load more")
         // Uses $9 parameter for group_key to prevent SQL injection.
-        if matches!(grouping.field, GroupByField::Deadline { .. }) {
-            builder.push("AND (");
-        } else {
-            builder.push("WHERE (");
-        }
+        builder.push("WHERE (");
         builder.push(&select_expr);
         builder.push(") = $9 ");
     }
 
     builder.push("), ");
 
-    // Deadline continuations filter after ranking so counts and positions stay absolute.
-    if matches!(grouping.field, GroupByField::Deadline { .. }) && grouping.group_key.is_some() {
+    // Date-range continuations filter after ranking so counts and positions stay absolute.
+    if grouping.field.date_ranges().is_some() && grouping.group_key.is_some() {
         builder.push("FilteredGroupedItems AS (SELECT * FROM GroupedItems WHERE ($4::timestamptz IS NULL) OR (sort_ts, id::text) < ($4, $5)), ");
     } else if grouping.group_key.is_none() {
         builder.push("FilteredGroupedItems AS (SELECT * FROM GroupedItems WHERE row_in_group <= ");
-        builder.push(if matches!(grouping.field, GroupByField::Deadline { .. }) {
+        builder.push(if grouping.field.date_ranges().is_some() {
             grouping.effective_limit().to_string()
         } else {
             PER_GROUP_LIMIT.to_string()
@@ -2175,6 +2167,7 @@ fn build_grouped_query<'a>(
     document_ids: &mut DocumentIdArrays,
 ) -> (QueryBuilder<'a, Postgres>, Option<String>) {
     let mut builder = sqlx::QueryBuilder::new(PREFIX);
+    builder.push("date_range_config AS (SELECT $11::jsonb AS value), ");
 
     // Determine which entity types to include based on filters (same logic as build_query)
     let include_initiatives = initiative_opted_in(filter_ast.initiative_filter.as_deref())
@@ -2317,9 +2310,9 @@ fn build_grouped_query<'a>(
         builder.push("WHERE ");
     }
 
-    // Legacy grouping applies the cursor before ranking. Deadline grouping ranks
+    // Legacy grouping applies the cursor before ranking. Date-range grouping ranks
     // the full group first and applies its cursor in FilteredGroupedItems.
-    if !matches!(grouping.field, GroupByField::Deadline { .. }) {
+    if grouping.field.date_ranges().is_none() {
         builder.push(
             r#"($4::timestamptz IS NULL)
             OR
@@ -2341,9 +2334,7 @@ fn build_grouped_query<'a>(
 
     // Combined CTE: full detail joins from GroupedItems (or FilteredGroupedItems)
     // When fetching a specific group, use GroupedItems directly; otherwise use FilteredGroupedItems
-    let source_table = if grouping.group_key.is_some()
-        && !matches!(grouping.field, GroupByField::Deadline { .. })
-    {
+    let source_table = if grouping.group_key.is_some() && grouping.field.date_ranges().is_none() {
         "GroupedItems"
     } else {
         "FilteredGroupedItems"
@@ -2436,6 +2427,8 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
         grouping,
     } = args;
 
+    crate::domain::models::due_date::validate_grouping(&grouping)
+        .map_err(|error| sqlx::Error::Protocol(error.to_string()))?;
     let query_limit = limit as i64;
     let sort_method_str = cursor.sort_method().to_string();
     let (cursor_id, cursor_timestamp) = cursor.vals();
@@ -2444,8 +2437,8 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
     let assignees_property_id = SystemPropertyKey::ASSIGNEES_UUID;
     let completed_option_id = StatusOption::COMPLETED_UUID.to_string();
 
-    // Document id arrays follow the ten fixed binds.
-    let mut document_ids = DocumentIdArrays::starting_at(11);
+    // Document id arrays follow the eleven fixed binds.
+    let mut document_ids = DocumentIdArrays::starting_at(12);
     let (mut query_builder, entity_type_bind) = build_grouped_query(
         cursor.filter(),
         exclude_frecency,
@@ -2469,7 +2462,13 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
         .bind(assignees_property_id)
         .bind(grouping.group_key.clone())
         // The entity type of property grouping with an entity type filter.
-        .bind(entity_type_bind);
+        .bind(entity_type_bind)
+        .bind(
+            grouping
+                .field
+                .date_ranges()
+                .map(|(_, ranges)| sqlx::types::Json(ranges)),
+        );
     for ids in document_ids.into_binds() {
         query = query.bind(ids);
     }

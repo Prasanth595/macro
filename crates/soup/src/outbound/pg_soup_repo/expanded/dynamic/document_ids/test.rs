@@ -189,7 +189,7 @@ fn arrays_follow_each_querys_fixed_binds() {
             group_key: None,
             per_group_limit: None,
         };
-        let mut grouped_ids = DocumentIdArrays::starting_at(11);
+        let mut grouped_ids = DocumentIdArrays::starting_at(12);
         let (grouped, _) = build_grouped_query(
             &filter,
             false,
@@ -211,7 +211,7 @@ fn arrays_follow_each_querys_fixed_binds() {
     assert!(flat.contains("(d.id = ANY($9::text[]) AND (NOT d.id = ANY($10::text[])))"));
     assert!(!flat.contains("$11"));
     assert!(grouped.contains("ep.entity_type = $10::property_entity_type"));
-    assert!(grouped.contains("(d.id = ANY($11::text[]) AND (NOT d.id = ANY($12::text[])))"));
+    assert!(grouped.contains("(d.id = ANY($12::text[]) AND (NOT d.id = ANY($13::text[])))"));
 }
 
 async fn flat_page(
@@ -413,7 +413,7 @@ async fn grouped_pages_match_bound_id_sets(pool: PgPool) -> anyhow::Result<()> {
             group_key: None,
             per_group_limit: None,
         };
-        let mut document_ids = DocumentIdArrays::starting_at(11);
+        let mut document_ids = DocumentIdArrays::starting_at(12);
         build_grouped_query(
             &filter,
             false,

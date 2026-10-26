@@ -921,6 +921,16 @@ export type GraphqlDatabaseRowLiteral =
   |  { id?: never;   /** Match the rows of a table. */
   tableId: string | number; };
 
+/** One named half-open UTC interval. */
+export type GraphqlDateBucketRange = {
+  /** Exclusive RFC 3339 UTC end; null means positive infinity. */
+  end?: string | null | undefined;
+  /** Unique group key. */
+  key: string;
+  /** Inclusive RFC 3339 UTC start; null means negative infinity. */
+  start?: string | null | undefined;
+};
+
 /** GraphQL input representing the date literal. */
 export type GraphqlDateLiteral =
   {   /** The gt option. */
@@ -931,18 +941,6 @@ export type GraphqlDateLiteral =
   lt: string; lte?: never; }
   |  { gt?: never; gte?: never; lt?: never;   /** The lte option. */
   lte: string; };
-
-/** Frozen starts of the viewer's local calendar days, expressed in UTC. */
-export type GraphqlDeadlineBoundaries = {
-  /** UTC start of the viewer's local day eight days ahead. */
-  dayEight: string;
-  /** UTC start of the viewer's local day two days ahead. */
-  dayTwo: string;
-  /** UTC start of the viewer's current local day. */
-  today: string;
-  /** UTC start of the viewer's next local day. */
-  tomorrow: string;
-};
 
 /** The two operands of a recursive `DocumentFilterExpr` binary expression. */
 export type GraphqlDocumentBinaryExpr = {
@@ -1437,8 +1435,6 @@ export type GraphqlGithubPullRequestState =
 export type GraphqlGroupByField =
   /** Group into date buckets. */
   | 'DATE'
-  /** Group task deadlines using frozen viewer-local calendar boundaries. */
-  | 'DEADLINE'
   /** Group by Soup entity type. */
   | 'ENTITY_TYPE'
   /** Group by containing project. */
@@ -1448,8 +1444,8 @@ export type GraphqlGroupByField =
 
 /** GraphQL representation of a field used to group Soup items. */
 export type GraphqlGroupByInput = {
-  /** Frozen viewer-local UTC boundaries required when `field` is `DEADLINE`. */
-  deadlineBoundaries?: GraphqlDeadlineBoundaries | null | undefined;
+  /** Optional caller-defined date ranges; requires PROPERTY grouping. */
+  bucketing?: GraphqlPropertyBucketing | null | undefined;
   /** Optional property entity type restriction. */
   entityType?: GraphqlPropertyEntityType | null | undefined;
   /** The kind of grouping to perform. */
@@ -1570,6 +1566,21 @@ export type GraphqlProjectLiteral =
   projectIdSelf: string | number; updatedAt?: never; }
   |  { createdAt?: never; importance?: never; notificationState?: never; owner?: never; projectId?: never; projectIdSelf?: never;   /** The updated at option. */
   updatedAt: GraphqlDateLiteral; };
+
+/** Transform the selected DATE property into caller-defined ranges. */
+export type GraphqlPropertyBucketing = {
+  /** Key for entities whose selected property is absent or cleared. */
+  missingValueBucketKey: string;
+  /** Ordered, contiguous UTC ranges covering every present date. */
+  ranges: Array<GraphqlDateBucketRange>;
+  /** Bucketing transformation. */
+  type: GraphqlPropertyBucketingType;
+};
+
+/** Supported property-value transformations. */
+export type GraphqlPropertyBucketingType =
+  /** Caller-defined half-open UTC date ranges. */
+  | 'DATE_RANGES';
 
 /** A property definition's supported value type. */
 export type GraphqlPropertyDataType =

@@ -20,6 +20,16 @@ use models_properties::service::property_definition_with_options::PropertyDefini
 use models_soup::item::SoupItem;
 use serde::Serialize;
 
+/// Authorizes the selected definition before a property-dependent grouped query.
+pub trait PropertyQueryAuthorizer: Send + Sync {
+    /// Validate definition visibility and scalar DATE type through the properties domain.
+    fn authorize<'a>(
+        &'a self,
+        viewer: MacroUserIdStr<'static>,
+        grouping: models_grouping::GroupingConfig,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), properties::PropertiesErr>> + Send + 'a>>;
+}
+
 /// Repository abstraction for loading soup items from storage.
 #[cfg_attr(
     test,

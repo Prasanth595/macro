@@ -11,7 +11,7 @@ pub const MAX_DATE_RANGES: usize = 32;
 pub const MAX_DATE_RANGE_KEY_BYTES: usize = 128;
 
 /// A half-open UTC interval. An absent start or end extends to infinity.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct PropertyDateRange {
     /// Unique caller-supplied group key.
     pub key: String,
@@ -22,7 +22,7 @@ pub struct PropertyDateRange {
 }
 
 /// A complete partition of present dates plus one bucket for absent values.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct PropertyDateRanges {
     /// Ordered, contiguous ranges covering every present date.
     pub ranges: Vec<PropertyDateRange>,

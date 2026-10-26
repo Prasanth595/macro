@@ -15,6 +15,19 @@ use sqlx::{Postgres, QueryBuilder};
 use std::collections::BTreeSet;
 use uuid::Uuid;
 
+/// Resolve a bucket from a DATE value and the source's bound `date_range_config` CTE.
+/// The value expression must be trusted SQL; caller keys and bounds live only in the JSON bind.
+pub fn date_range_group_key_sql(value_expression: &str) -> String {
+    format!(
+        "COALESCE((SELECT bucket->>'key' FROM date_range_config, \
+         jsonb_array_elements(value->'ranges') AS bucket \
+         WHERE ({value_expression}) IS NOT NULL \
+         AND (bucket->>'start' IS NULL OR ({value_expression}) >= (bucket->>'start')::timestamptz) \
+         AND (bucket->>'end' IS NULL OR ({value_expression}) < (bucket->>'end')::timestamptz) \
+         LIMIT 1), (SELECT value->>'missing_value_bucket_key' FROM date_range_config))"
+    )
+}
+
 /// Append a correlated DATE value expression for the `candidate` source alias.
 ///
 /// Only a stored Date variant is cast. Definition visibility and type checks
@@ -116,9 +129,6 @@ fn build_property_candidate_query_impl<'a>(
                 } else {
                     query.push("COALESCE(CASE grouped_property.values->>'type' WHEN 'EntityReference' THEN grouped_property.value->>'entity_id' WHEN 'SelectOption' THEN grouped_property.value#>>'{}' WHEN 'Link' THEN grouped_property.value#>>'{}' ELSE NULL END, '')");
                 }
-            }
-            Some(GroupByField::Deadline { .. }) => {
-                anyhow::bail!("use property date ranges instead of deadline grouping")
             }
         }
         query.push(" AS group_key FROM dated candidate ");

@@ -3571,6 +3571,24 @@ input GraphqlDatabaseRowLiteral @oneOf {
 }
 
 """
+One named half-open UTC interval.
+"""
+input GraphqlDateBucketRange {
+	"""
+	Unique group key.
+	"""
+	key: String!
+	"""
+	Inclusive RFC 3339 UTC start; null means negative infinity.
+	"""
+	start: String
+	"""
+	Exclusive RFC 3339 UTC end; null means positive infinity.
+	"""
+	end: String
+}
+
+"""
 GraphQL input representing the date literal.
 """
 input GraphqlDateLiteral @oneOf {
@@ -3600,28 +3618,6 @@ type GraphqlDatePropertyValue {
 	The stored date-time formatted as RFC 3339.
 	"""
 	value: String!
-}
-
-"""
-Frozen starts of the viewer's local calendar days, expressed in UTC.
-"""
-input GraphqlDeadlineBoundaries {
-	"""
-	UTC start of the viewer's current local day.
-	"""
-	today: String!
-	"""
-	UTC start of the viewer's next local day.
-	"""
-	tomorrow: String!
-	"""
-	UTC start of the viewer's local day two days ahead.
-	"""
-	dayTwo: String!
-	"""
-	UTC start of the viewer's local day eight days ahead.
-	"""
-	dayEight: String!
 }
 
 """
@@ -5329,10 +5325,6 @@ enum GraphqlGroupByField {
 	"""
 	DATE
 	"""
-	Group task deadlines using frozen viewer-local calendar boundaries.
-	"""
-	DEADLINE
-	"""
 	Group by Soup entity type.
 	"""
 	ENTITY_TYPE
@@ -5363,9 +5355,9 @@ input GraphqlGroupByInput {
 	"""
 	entityType: GraphqlPropertyEntityType
 	"""
-	Frozen viewer-local UTC boundaries required when `field` is `DEADLINE`.
+	Optional caller-defined date ranges; requires PROPERTY grouping.
 	"""
-	deadlineBoundaries: GraphqlDeadlineBoundaries
+	bucketing: GraphqlPropertyBucketing
 }
 
 """
@@ -6069,6 +6061,34 @@ type GraphqlProperty {
 	The current value, represented by exactly one typed union variant.
 	"""
 	value: GraphqlPropertyValue
+}
+
+"""
+Transform the selected DATE property into caller-defined ranges.
+"""
+input GraphqlPropertyBucketing {
+	"""
+	Bucketing transformation.
+	"""
+	type: GraphqlPropertyBucketingType!
+	"""
+	Ordered, contiguous UTC ranges covering every present date.
+	"""
+	ranges: [GraphqlDateBucketRange!]!
+	"""
+	Key for entities whose selected property is absent or cleared.
+	"""
+	missingValueBucketKey: String!
+}
+
+"""
+Supported property-value transformations.
+"""
+enum GraphqlPropertyBucketingType {
+	"""
+	Caller-defined half-open UTC date ranges.
+	"""
+	DATE_RANGES
 }
 
 """

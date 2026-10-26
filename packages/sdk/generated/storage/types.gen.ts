@@ -898,28 +898,6 @@ export type ApiChannelWithLatest = {
 };
 
 /**
- * Frozen viewer-local day boundaries used to group task deadlines.
- */
-export type ApiDeadlineBoundaries = {
-    /**
-     * UTC start of the viewer's local day eight days ahead.
-     */
-    day_eight: string;
-    /**
-     * UTC start of the viewer's local day two days ahead.
-     */
-    day_two: string;
-    /**
-     * UTC start of the viewer's current local day.
-     */
-    today: string;
-    /**
-     * UTC start of the viewer's next local day.
-     */
-    tomorrow: string;
-};
-
-/**
  * Wire-format entity filter AST accepted by soup AST endpoints.
  */
 export type ApiEntityFilterAst = {
@@ -1014,17 +992,13 @@ export type ApiGroupByField = 'date' | 'entity_type' | 'project' | {
      * Group by a property value (e.g., status, priority, or custom properties)
      */
     property: {
+        bucketing?: null | PropertyBucketing;
         entity_type?: null | ApiPropertyEntityType;
         /**
          * The property definition UUID to group by
          */
         property_definition_id: string;
     };
-} | {
-    /**
-     * Group task deadlines using frozen viewer-local calendar boundaries.
-     */
-    deadline: ApiDeadlineBoundaries;
 };
 
 /**
@@ -10777,6 +10751,45 @@ export type ProjectPreviewData = {
     owner: string;
     path: Array<string>;
     updatedAt?: string | null;
+};
+
+/**
+ * Caller-defined, ordered UTC date ranges and a separate missing-value key.
+ */
+export type PropertyBucketing = PropertyDateRanges & {
+    type: 'date_ranges';
+};
+
+/**
+ * A half-open UTC interval. An absent start or end extends to infinity.
+ */
+export type PropertyDateRange = {
+    /**
+     * Exclusive end, or positive infinity.
+     */
+    end?: string | null;
+    /**
+     * Unique caller-supplied group key.
+     */
+    key: string;
+    /**
+     * Inclusive start, or negative infinity.
+     */
+    start?: string | null;
+};
+
+/**
+ * A complete partition of present dates plus one bucket for absent values.
+ */
+export type PropertyDateRanges = {
+    /**
+     * Caller-supplied group key for entities with no date value.
+     */
+    missing_value_bucket_key: string;
+    /**
+     * Ordered, contiguous ranges covering every present date.
+     */
+    ranges: Array<PropertyDateRange>;
 };
 
 /**

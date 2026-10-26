@@ -203,10 +203,10 @@ async fn fanout_caps_counts_and_tied_cursor_pages(pool: Pool<Postgres>) -> anyho
     ),
     migrator = "MACRO_DB_MIGRATIONS"
 )]
-async fn deadline_timestamp_pages_keep_absolute_counts_and_tied_id_order(
+async fn date_range_timestamp_pages_keep_absolute_counts_and_tied_id_order(
     pool: Pool<Postgres>,
 ) -> anyhow::Result<()> {
-    use models_grouping::DeadlineBoundaries;
+    use models_grouping::GroupByField;
 
     let mut ids = (0..9)
         .map(|_| Uuid::now_v7().to_string())
@@ -257,13 +257,41 @@ async fn deadline_timestamp_pages_keep_absolute_counts_and_tied_id_order(
         .await?;
     }
     let grouping = GroupingConfig {
-        field: GroupByField::Deadline {
-            boundaries: DeadlineBoundaries {
-                today: "2026-03-08T05:00:00Z".parse()?,
-                tomorrow: "2026-03-09T04:00:00Z".parse()?,
-                day_two: "2026-03-10T04:00:00Z".parse()?,
-                day_eight: "2026-03-16T04:00:00Z".parse()?,
-            },
+        field: GroupByField::Property {
+            property_definition_id: system_properties::SystemPropertyKey::DUE_DATE_UUID,
+            entity_type: Some("TASK".into()),
+            bucketing: Some(models_grouping::PropertyBucketing::DateRanges(
+                models_grouping::PropertyDateRanges {
+                    ranges: vec![
+                        models_grouping::PropertyDateRange {
+                            key: "overdue".into(),
+                            start: None,
+                            end: Some("2026-03-08T05:00:00Z".parse()?),
+                        },
+                        models_grouping::PropertyDateRange {
+                            key: "today".into(),
+                            start: Some("2026-03-08T05:00:00Z".parse()?),
+                            end: Some("2026-03-09T04:00:00Z".parse()?),
+                        },
+                        models_grouping::PropertyDateRange {
+                            key: "tomorrow".into(),
+                            start: Some("2026-03-09T04:00:00Z".parse()?),
+                            end: Some("2026-03-10T04:00:00Z".parse()?),
+                        },
+                        models_grouping::PropertyDateRange {
+                            key: "next_7_days".into(),
+                            start: Some("2026-03-10T04:00:00Z".parse()?),
+                            end: Some("2026-03-16T04:00:00Z".parse()?),
+                        },
+                        models_grouping::PropertyDateRange {
+                            key: "later".into(),
+                            start: Some("2026-03-16T04:00:00Z".parse()?),
+                            end: None,
+                        },
+                    ],
+                    missing_value_bucket_key: "no_due_date".into(),
+                },
+            )),
         },
         group_key: None,
         per_group_limit: Some(3),
@@ -273,7 +301,7 @@ async fn deadline_timestamp_pages_keep_absolute_counts_and_tied_id_order(
         GroupedDynamicCursorArgs {
             user_id: MacroUserIdStr::parse_from_str("macro|user-1@test.com")?,
             limit: 1,
-            cursor: Query::Sort(SimpleSortMethod::UpdatedAt, EntityFilterAst::mock_empty()),
+            cursor: Query::Sort(SimpleSortMethod::UpdatedAt, task_filter()),
             exclude_frecency: false,
             grouping: grouping.clone(),
         },
@@ -320,7 +348,7 @@ async fn deadline_timestamp_pages_keep_absolute_counts_and_tied_id_order(
                 id: today[2].item.id(),
                 limit: 2,
                 val: SoupItem::sort_on(SimpleSortMethod::UpdatedAt)(&today[2].item),
-                filter: EntityFilterAst::mock_empty(),
+                filter: task_filter(),
             }),
             exclude_frecency: false,
             grouping: GroupingConfig {

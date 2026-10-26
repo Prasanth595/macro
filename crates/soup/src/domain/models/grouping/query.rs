@@ -2,7 +2,7 @@
 
 use item_filters::ast::{EntityFilterAst, ExpandErr};
 use macro_user_id::user_id::MacroUserIdStr;
-use models_grouping::{GroupByField, GroupingConfig};
+use models_grouping::GroupingConfig;
 use models_pagination::{Base64Str, CursorWithValAndFilter, DueDateSort, Query, SimpleSortMethod};
 use uuid::Uuid;
 
@@ -13,7 +13,7 @@ use crate::domain::models::{
     },
 };
 
-/// Timestamp cursor with frozen deadline grouping and task filters.
+/// Timestamp cursor with frozen date-range grouping and task filters.
 pub type GroupedTimestampCursor =
     CursorWithValAndFilter<Uuid, SimpleSortMethod, GroupedDueDateContext>;
 
@@ -29,7 +29,7 @@ pub enum GroupedSortMethod {
 /// Grouped query dispatch without changing deployed timestamp cursor values.
 #[derive(Debug)]
 pub enum GroupedSortQuery<'a> {
-    /// Timestamp-sorted groups, including deadline groups.
+    /// Timestamp-sorted groups, including date-range groups.
     Timestamp(GroupedSortRequest<'a>),
     /// Due-date-sorted task groups with contextual continuation cursors.
     DueDate(GroupedDueDateRequest<'a>),
@@ -139,15 +139,15 @@ impl<'a> GroupedSortRequest<'a> {
         }
     }
 
-    /// Continue a deployed legacy cursor; deadline groups require frozen context.
+    /// Continue a deployed legacy cursor; date-range groups require frozen context.
     pub fn continue_from(
         user_id: MacroUserIdStr<'a>,
         cursor: CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>,
         grouping: GroupingConfig,
     ) -> Result<Self, SoupErr> {
-        if matches!(grouping.field, GroupByField::Deadline { .. }) {
+        if grouping.field.date_ranges().is_some() {
             return Err(invalid_cursor(
-                "deadline grouping requires a contextual cursor",
+                "date-range grouping requires a contextual cursor",
             ));
         }
         if !(1..=500).contains(&cursor.limit) {

@@ -1,6 +1,7 @@
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
 use models_pagination::{CursorVal, Query};
 
+use super::date_ranges::{GraphqlDateBucketRange, GraphqlPropertyBucketingType};
 use super::*;
 
 fn test_macro_user_id() -> MacroUserIdStr<'static> {
@@ -130,7 +131,7 @@ fn rejects_grouped_notified_at() {
             field: GraphqlGroupByField::EntityType,
             property_definition_id: None,
             entity_type: None,
-            deadline_boundaries: None,
+            bucketing: None,
         },
         limit: None,
         sort_method: Some(GraphqlSimpleSortMethod::NotifiedAt),
@@ -148,7 +149,7 @@ fn maps_initial_grouped_input() {
             field: GraphqlGroupByField::EntityType,
             property_definition_id: None,
             entity_type: None,
-            deadline_boundaries: None,
+            bucketing: None,
         },
         limit: Some(42),
         sort_method: Some(GraphqlSimpleSortMethod::UpdatedAt),
@@ -184,7 +185,7 @@ fn maps_grouped_cursor_continuation() {
             field: GraphqlGroupByField::EntityType,
             property_definition_id: None,
             entity_type: None,
-            deadline_boundaries: None,
+            bucketing: None,
         },
         group_key: "document".to_owned(),
         cursor: cursor.to_string(),
@@ -200,59 +201,59 @@ fn maps_grouped_cursor_continuation() {
     assert!(matches!(request.cursor, Query::Cursor(_)));
 }
 
-#[test]
-fn deadline_grouping_keeps_viewer_local_utc_boundaries() {
-    let boundaries = GraphqlDeadlineBoundaries {
-        today: "2026-03-08T05:00:00Z".to_owned(),
-        tomorrow: "2026-03-09T04:00:00Z".to_owned(),
-        day_two: "2026-03-10T04:00:00Z".to_owned(),
-        day_eight: "2026-03-16T04:00:00Z".to_owned(),
-    };
-    let group_by = GraphqlGroupByInput {
-        field: GraphqlGroupByField::Deadline,
-        property_definition_id: None,
-        entity_type: None,
-        deadline_boundaries: Some(boundaries.clone()),
+fn date_range_input() -> GraphqlGroupByInput {
+    GraphqlGroupByInput {
+        field: GraphqlGroupByField::Property,
+        property_definition_id: Some(ID::from("00000000-0000-0000-0000-000000000012")),
+        entity_type: Some(GraphqlPropertyEntityType::Document),
+        bucketing: Some(GraphqlPropertyBucketing {
+            kind: GraphqlPropertyBucketingType::DateRanges,
+            ranges: vec![
+                GraphqlDateBucketRange {
+                    key: "before-review".to_owned(),
+                    start: None,
+                    end: Some("2026-03-08T05:00:00Z".to_owned()),
+                },
+                GraphqlDateBucketRange {
+                    key: "review-window".to_owned(),
+                    start: Some("2026-03-08T05:00:00Z".to_owned()),
+                    end: Some("2026-03-09T04:00:00Z".to_owned()),
+                },
+                GraphqlDateBucketRange {
+                    key: "after-review".to_owned(),
+                    start: Some("2026-03-09T04:00:00Z".to_owned()),
+                    end: None,
+                },
+            ],
+            missing_value_bucket_key: "no-review-date".to_owned(),
+        }),
     }
-    .into_group_by_field()
-    .unwrap();
-
-    assert_eq!(
-        group_by,
-        GroupByField::Deadline {
-            boundaries: (&boundaries).try_into().unwrap()
-        }
-    );
 }
 
 #[test]
-fn deadline_boundaries_require_the_deadline_grouping_mode() {
-    assert!(
-        GraphqlGroupByInput {
-            field: GraphqlGroupByField::Deadline,
-            property_definition_id: None,
-            entity_type: None,
-            deadline_boundaries: None,
-        }
-        .into_group_by_field()
-        .is_err()
-    );
+fn date_ranges_require_a_selected_property() {
+    for field in [
+        GraphqlGroupByField::Date,
+        GraphqlGroupByField::EntityType,
+        GraphqlGroupByField::Project,
+    ] {
+        let mut input = date_range_input();
+        input.field = field;
+        input.property_definition_id = None;
+        input.entity_type = None;
+        assert!(input.into_group_by_field().is_err());
+    }
 
-    assert!(
-        GraphqlGroupByInput {
-            field: GraphqlGroupByField::Date,
-            property_definition_id: None,
-            entity_type: None,
-            deadline_boundaries: Some(GraphqlDeadlineBoundaries {
-                today: "2026-03-08T05:00:00Z".to_owned(),
-                tomorrow: "2026-03-09T04:00:00Z".to_owned(),
-                day_two: "2026-03-10T04:00:00Z".to_owned(),
-                day_eight: "2026-03-16T04:00:00Z".to_owned(),
-            }),
-        }
-        .into_group_by_field()
-        .is_err()
-    );
+    let mut input = date_range_input();
+    input.property_definition_id = None;
+    assert!(input.into_group_by_field().is_err());
+}
+
+#[test]
+fn invalid_date_range_timestamps_are_rejected() {
+    let mut input = date_range_input();
+    input.bucketing.as_mut().unwrap().ranges[0].end = Some("not-a-timestamp".to_owned());
+    assert!(input.into_group_by_field().is_err());
 }
 
 #[test]
@@ -299,19 +300,9 @@ fn due_date_sorts_and_null_continuations_keep_the_due_date_query_kind() {
 }
 
 #[test]
-fn deadline_grouping_preserves_timestamp_sorting() {
+fn date_range_grouping_preserves_custom_keys_and_timestamp_sorting() {
     let request = GroupedSoupInput::Initial(Box::new(GroupedSoupInitialInput {
-        group_by: GraphqlGroupByInput {
-            field: GraphqlGroupByField::Deadline,
-            property_definition_id: None,
-            entity_type: None,
-            deadline_boundaries: Some(GraphqlDeadlineBoundaries {
-                today: "2026-03-08T05:00:00Z".to_owned(),
-                tomorrow: "2026-03-09T04:00:00Z".to_owned(),
-                day_two: "2026-03-10T04:00:00Z".to_owned(),
-                day_eight: "2026-03-16T04:00:00Z".to_owned(),
-            }),
-        },
+        group_by: date_range_input(),
         limit: Some(25),
         sort_method: Some(GraphqlSimpleSortMethod::UpdatedAt),
         filters: None,
@@ -319,17 +310,21 @@ fn deadline_grouping_preserves_timestamp_sorting() {
     .into_request(test_macro_user_id())
     .unwrap();
     let GroupedSortQuery::Timestamp(request) = request else {
-        panic!("expected timestamp sorting within deadline groups");
+        panic!("expected timestamp sorting within date-range groups");
     };
     assert_eq!(request.limit, 25);
     assert!(matches!(
         request.cursor,
         Query::Sort(SimpleSortMethod::UpdatedAt, _)
     ));
-    assert!(matches!(
-        request.grouping.field,
-        GroupByField::Deadline { .. }
-    ));
+    let (property, ranges) = request.grouping.field.date_ranges().unwrap();
+    assert_eq!(property, Uuid::from_u128(18));
+    assert_eq!(ranges.missing_value_bucket_key, "no-review-date");
+    assert_eq!(ranges.ranges[1].key, "review-window");
+    assert_eq!(
+        ranges.ranges[1].end.unwrap() - ranges.ranges[1].start.unwrap(),
+        chrono::Duration::hours(23)
+    );
 }
 
 #[test]
@@ -358,7 +353,7 @@ fn due_date_grouped_continuation_retains_null_cursor_and_rejects_changed_group()
             field: GraphqlGroupByField::EntityType,
             property_definition_id: None,
             entity_type: None,
-            deadline_boundaries: None,
+            bucketing: None,
         },
         group_key: "document".to_owned(),
         cursor: cursor.clone(),
@@ -377,7 +372,7 @@ fn due_date_grouped_continuation_retains_null_cursor_and_rejects_changed_group()
                 field: GraphqlGroupByField::EntityType,
                 property_definition_id: None,
                 entity_type: None,
-                deadline_boundaries: None,
+                bucketing: None,
             },
             group_key: "project".to_owned(),
             cursor,

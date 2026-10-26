@@ -1,4 +1,4 @@
-mod deadline;
+mod date_ranges;
 use crate::domain::models::{NotifiedEntity, TouchedEntity};
 use crate::domain::ports::MockSoupRepo;
 use channels::domain::{

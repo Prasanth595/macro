@@ -1,3 +1,4 @@
+mod property_grouping;
 use crate::domain::{
     models::{
         AdvancedSortParams, DueDateQueryInner, EnrichedSoupItem, FrecencyQueryInner,
@@ -223,6 +224,7 @@ pub struct SoupImpl<T, U, V, C, K, Crm, F> {
     /// Optional captured branch facts supplied by the owning changes domain.
     agent_branches: Option<Arc<dyn agent_changes::domain::ports::SessionBranchReader>>,
     favorites: Option<Arc<dyn favorites::FavoriteReader>>,
+    property_queries: Option<Arc<dyn super::ports::PropertyQueryAuthorizer>>,
 }
 
 impl<T, U, V, C, K, Crm, F> SoupImpl<T, U, V, C, K, Crm, F>
@@ -257,6 +259,7 @@ where
             github_pull_request_service,
             agent_branches: None,
             favorites: None,
+            property_queries: None,
         }
     }
 
@@ -2046,6 +2049,8 @@ where
         mut req: GroupedSortRequest<'_>,
     ) -> Result<impl Iterator<Item = ItemGroupingInfo<SoupPropertiesField>> + Send, SoupErr> {
         crate::domain::models::due_date::validate_grouping(&req.grouping)?;
+        self.authorize_date_grouping(&req.user_id, &req.grouping)
+            .await?;
         let user_id = req.user_id.clone();
         if let Some(entities) = self
             .favorite_entities(&user_id, Some(req.cursor.filter()))

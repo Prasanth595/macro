@@ -20,19 +20,19 @@ use uuid::Uuid;
 
 /// Resolve label and display order for a group key based on the grouping field.
 fn resolve_group_label_and_order(key: &str, group_by: &GroupByField) -> (String, Option<i32>) {
+    if let Some((_, ranges)) = group_by.date_ranges() {
+        let order = ranges
+            .ranges
+            .iter()
+            .position(|range| range.key == key)
+            .unwrap_or(ranges.ranges.len());
+        return (key.to_owned(), Some(order as i32));
+    }
     match group_by {
         GroupByField::Date => (
             date_bucket_label(key).to_string(),
             Some(date_bucket_order(key)),
         ),
-        GroupByField::Deadline { .. } => match key {
-            "overdue" => ("Overdue".to_string(), Some(0)),
-            "today" => ("Today".to_string(), Some(1)),
-            "tomorrow" => ("Tomorrow".to_string(), Some(2)),
-            "next_7_days" => ("Next 7 days".to_string(), Some(3)),
-            "later" => ("Later".to_string(), Some(4)),
-            _ => ("No due date".to_string(), Some(5)),
-        },
         GroupByField::EntityType => (
             entity_type_labels::label(key).to_string(),
             Some(entity_type_labels::display_order(key)),
@@ -90,7 +90,7 @@ pub fn build_grouped_response(
     build_timestamp_grouped_response(items, &grouping, sort_method, filters)
 }
 
-/// Build timestamp groups while retaining frozen deadline context when required.
+/// Build timestamp groups while retaining frozen date-range context when required.
 pub fn build_timestamp_grouped_response(
     items: impl IntoIterator<Item = ItemGroupingInfo<SoupPropertiesField>>,
     grouping: &GroupingConfig,
@@ -99,7 +99,7 @@ pub fn build_timestamp_grouped_response(
 ) -> GroupedResponse {
     let group_by = &grouping.field;
     let requested_group_key = &grouping.group_key;
-    let deadline = matches!(group_by, GroupByField::Deadline { .. });
+    let date_ranges = group_by.date_ranges().is_some();
     struct GroupData {
         total_count: u32,
         item_ids: Vec<Uuid>,
@@ -148,7 +148,7 @@ pub fn build_timestamp_grouped_response(
     let mut groups: Vec<GroupMeta> = group_stats
         .into_iter()
         .map(|(key, data)| {
-            let has_more = if deadline {
+            let has_more = if date_ranges {
                 data.last_index < data.total_count as usize
             } else {
                 (data.item_ids.len() as u32) < data.total_count
@@ -167,7 +167,7 @@ pub fn build_timestamp_grouped_response(
                             val,
                             filter: filters.clone(),
                         };
-                        if deadline {
+                        if date_ranges {
                             let mut frozen = grouping.clone();
                             frozen.group_key = Some(key.clone());
                             let mut cursor = cursor.map_filter(|filters| {

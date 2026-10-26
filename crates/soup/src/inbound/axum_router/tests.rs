@@ -43,8 +43,8 @@ use crate::{
     inbound::axum_router::{SoupRouterState, soup_router},
 };
 
-/// Due-date sort routing and nullable continuation coverage.
-mod deadline;
+/// Date-range grouping, sort routing, and nullable continuation coverage.
+mod date_ranges;
 
 static CURSOR: &str = "eyJpZCI6ImUzNmM5MTJlLTU2M2MtNDIxZS1iMTAzLWE0YjAwY2ZmMzBlZSIsImxpbWl0IjoxMDAsInZhbCI6eyJzb3J0X3R5cGUiOiJ1cGRhdGVkX2F0IiwibGFzdF92YWwiOiIyMDI1LTExLTA3VDE5OjEyOjU5Ljc4MFoifSwiZmlsdGVyIjp7fX0=";
 const USER_ID: &str = "macro|test@example.com";

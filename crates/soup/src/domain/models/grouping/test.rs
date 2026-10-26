@@ -133,21 +133,49 @@ fn rest_grouped_response_remains_normalized() {
 
 #[test]
 fn due_date_grouped_totals_and_undated_contextual_cursor() {
-    use models_grouping::{DeadlineBoundaries, GroupingConfig};
+    use models_grouping::GroupingConfig;
     use models_pagination::DueDateSort;
     let today = DateTime::<chrono::Utc>::UNIX_EPOCH;
-    let grouping = GroupingConfig::new(GroupByField::Deadline {
-        boundaries: DeadlineBoundaries {
-            today,
-            tomorrow: today + chrono::Duration::days(1),
-            day_two: today + chrono::Duration::days(2),
-            day_eight: today + chrono::Duration::days(8),
-        },
+    let grouping = GroupingConfig::new(GroupByField::Property {
+        property_definition_id: system_properties::SystemPropertyKey::DUE_DATE_UUID,
+        entity_type: Some("TASK".into()),
+        bucketing: Some(models_grouping::PropertyBucketing::DateRanges(
+            models_grouping::PropertyDateRanges {
+                ranges: vec![
+                    models_grouping::PropertyDateRange {
+                        key: "overdue".into(),
+                        start: None,
+                        end: Some(today),
+                    },
+                    models_grouping::PropertyDateRange {
+                        key: "today".into(),
+                        start: Some(today),
+                        end: Some(today + chrono::Duration::days(1)),
+                    },
+                    models_grouping::PropertyDateRange {
+                        key: "tomorrow".into(),
+                        start: Some(today + chrono::Duration::days(1)),
+                        end: Some(today + chrono::Duration::days(2)),
+                    },
+                    models_grouping::PropertyDateRange {
+                        key: "next_7_days".into(),
+                        start: Some(today + chrono::Duration::days(2)),
+                        end: Some(today + chrono::Duration::days(8)),
+                    },
+                    models_grouping::PropertyDateRange {
+                        key: "later".into(),
+                        start: Some(today + chrono::Duration::days(8)),
+                        end: None,
+                    },
+                ],
+                missing_value_bucket_key: "no_due_date".into(),
+            },
+        )),
     });
     let response = build_due_date_grouped_response(
         vec![DueDateGroupedItem {
             grouping: ItemGroupingInfo {
-                key: String::new(),
+                key: "no_due_date".to_owned(),
                 total_group_count: 3,
                 index_in_group: 1,
                 item: project(1).map_extra(|()| SoupPropertiesField::default()),
@@ -159,7 +187,7 @@ fn due_date_grouped_totals_and_undated_contextual_cursor() {
         EntityFilterAst::default(),
     );
     assert_eq!(response.groups[0].total_count, 3);
-    assert_eq!(response.groups[0].label, "No due date");
+    assert_eq!(response.groups[0].label, "no_due_date");
     let cursor =
         Base64Str::<crate::domain::models::due_date::GroupedDueDateCursor>::new_from_string(
             response.groups[0].next_cursor.clone().unwrap(),
@@ -167,20 +195,23 @@ fn due_date_grouped_totals_and_undated_contextual_cursor() {
         .decode_json()
         .unwrap();
     assert_eq!(cursor.val.last_val, None);
-    assert_eq!(cursor.filter.grouping.group_key.as_deref(), Some(""));
+    assert_eq!(
+        cursor.filter.grouping.group_key.as_deref(),
+        Some("no_due_date")
+    );
     assert_eq!(cursor.filter.grouping.field, grouping.field);
     assert_eq!(cursor.id, Uuid::from_u128(1));
     let response = build_due_date_grouped_response(
         vec![DueDateGroupedItem {
             grouping: ItemGroupingInfo {
-                key: String::new(),
+                key: "no_due_date".to_owned(),
                 total_group_count: 3,
                 index_in_group: 3,
                 item: project(3).map_extra(|()| SoupPropertiesField::default()),
             },
             due_at: None,
         }],
-        &grouping.clone().with_group_key(""),
+        &grouping.clone().with_group_key("no_due_date"),
         DueDateSort::Earliest,
         EntityFilterAst::default(),
     );
@@ -188,16 +219,44 @@ fn due_date_grouped_totals_and_undated_contextual_cursor() {
 }
 
 #[test]
-fn timestamp_deadline_cursors_use_absolute_rank_and_preserve_page_size() {
-    use models_grouping::{DeadlineBoundaries, GroupingConfig};
+fn timestamp_date_range_cursors_use_absolute_rank_and_preserve_page_size() {
+    use models_grouping::GroupingConfig;
     let grouping = GroupingConfig {
-        field: GroupByField::Deadline {
-            boundaries: DeadlineBoundaries {
-                today: "2026-03-08T05:00:00Z".parse().unwrap(),
-                tomorrow: "2026-03-09T04:00:00Z".parse().unwrap(),
-                day_two: "2026-03-10T04:00:00Z".parse().unwrap(),
-                day_eight: "2026-03-16T04:00:00Z".parse().unwrap(),
-            },
+        field: GroupByField::Property {
+            property_definition_id: system_properties::SystemPropertyKey::DUE_DATE_UUID,
+            entity_type: Some("TASK".into()),
+            bucketing: Some(models_grouping::PropertyBucketing::DateRanges(
+                models_grouping::PropertyDateRanges {
+                    ranges: vec![
+                        models_grouping::PropertyDateRange {
+                            key: "overdue".into(),
+                            start: None,
+                            end: Some("2026-03-08T05:00:00Z".parse().unwrap()),
+                        },
+                        models_grouping::PropertyDateRange {
+                            key: "today".into(),
+                            start: Some("2026-03-08T05:00:00Z".parse().unwrap()),
+                            end: Some("2026-03-09T04:00:00Z".parse().unwrap()),
+                        },
+                        models_grouping::PropertyDateRange {
+                            key: "tomorrow".into(),
+                            start: Some("2026-03-09T04:00:00Z".parse().unwrap()),
+                            end: Some("2026-03-10T04:00:00Z".parse().unwrap()),
+                        },
+                        models_grouping::PropertyDateRange {
+                            key: "next_7_days".into(),
+                            start: Some("2026-03-10T04:00:00Z".parse().unwrap()),
+                            end: Some("2026-03-16T04:00:00Z".parse().unwrap()),
+                        },
+                        models_grouping::PropertyDateRange {
+                            key: "later".into(),
+                            start: Some("2026-03-16T04:00:00Z".parse().unwrap()),
+                            end: None,
+                        },
+                    ],
+                    missing_value_bucket_key: "no_due_date".into(),
+                },
+            )),
         },
         group_key: Some("today".to_owned()),
         per_group_limit: Some(2),

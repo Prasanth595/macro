@@ -124,16 +124,17 @@ pub async fn grouped_task_page(
     req: crate::domain::models::due_date::GroupedDueDateRequest<'_>,
 ) -> Result<Vec<crate::domain::models::due_date::DueDateGroupCandidate>, sqlx::Error> {
     use crate::outbound::pg_soup_repo::grouping::{group_join_clause, group_select_expr};
-    use models_grouping::GroupByField;
+    crate::domain::models::due_date::validate_grouping(&req.grouping)
+        .map_err(|error| sqlx::Error::Protocol(error.to_string()))?;
     let ast = req.cursor.filter();
-    let mut ids = DocumentIdArrays::starting_at(12);
+    let mut ids = DocumentIdArrays::starting_at(13);
     let mut sql = QueryBuilder::new(
         r#"WITH user_source_ids AS (
             SELECT cp.channel_id::text AS source_id FROM comms_channel_participants cp
               WHERE cp.user_id = $1 AND cp.left_at IS NULL
             UNION ALL SELECT team_id::text FROM team_user WHERE user_id = $1
             UNION ALL SELECT $1
-        ), tasks AS (
+        ), date_range_config AS (SELECT $12::jsonb AS value), tasks AS (
             SELECT d.id, d."projectId"::text AS project_id,
               'TASK'::property_entity_type AS property_entity_type,
               'document'::text AS item_type,
@@ -166,20 +167,7 @@ pub async fn grouped_task_page(
         "d.id",
     ));
     sql.push("), membership AS (SELECT t.id::uuid AS id, t.due_at, ");
-    let group_expression = match req.grouping.field {
-        GroupByField::Deadline { boundaries } => format!(
-            "CASE WHEN t.due_at IS NULL THEN '' \
-             WHEN t.due_at < '{}'::timestamptz THEN 'overdue' \
-             WHEN t.due_at < '{}'::timestamptz THEN 'today' \
-             WHEN t.due_at < '{}'::timestamptz THEN 'tomorrow' \
-             WHEN t.due_at < '{}'::timestamptz THEN 'next_7_days' ELSE 'later' END",
-            boundaries.today.to_rfc3339(),
-            boundaries.tomorrow.to_rfc3339(),
-            boundaries.day_two.to_rfc3339(),
-            boundaries.day_eight.to_rfc3339(),
-        ),
-        _ => group_select_expr(&req.grouping.field).into_owned(),
-    };
+    let group_expression = group_select_expr(&req.grouping.field);
     sql.push(group_expression);
     sql.push(" AS group_key, $6::property_entity_type AS reserved_property_type FROM tasks t ");
     let entity_type_bind = if let Some(join) = group_join_clause(&req.grouping.field) {
@@ -251,7 +239,13 @@ pub async fn grouped_task_page(
         .bind(query_limit)
         .bind(due_at)
         .bind(id)
-        .bind(has_cursor);
+        .bind(has_cursor)
+        .bind(
+            req.grouping
+                .field
+                .date_ranges()
+                .map(|(_, ranges)| sqlx::types::Json(ranges)),
+        );
     for array in ids.into_binds() {
         query = query.bind(array);
     }

@@ -25,7 +25,7 @@ pub struct DueDateRequest<'a> {
     pub cursor: Query<Uuid, DueDateSort, EntityFilterAst>,
 }
 
-/// Frozen grouped cursor context. The group key and deadline boundaries travel
+/// Frozen grouped cursor context. The group key and date ranges travel
 /// with the cursor, rather than being inferred from the next request's clock.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GroupedDueDateContext {
@@ -92,7 +92,7 @@ impl<'a> GroupedDueDateRequest<'a> {
         })
     }
 
-    /// Continue a group page with its frozen key and deadline boundaries.
+    /// Continue a group page with its frozen key and date ranges.
     /// An explicitly supplied grouping configuration must match the cursor.
     pub fn continue_from(
         user_id: MacroUserIdStr<'a>,
@@ -124,21 +124,19 @@ fn invalid_grouping(message: &'static str) -> crate::domain::models::SoupErr {
     crate::domain::models::SoupErr::AstErr(item_filters::ast::ExpandErr::ApiAst(message.into()))
 }
 
-/// Reject invalid deadline boundaries before they reach SQL.
+/// Reject invalid caller-defined date partitions and unknown group keys before SQL.
 pub fn validate_grouping(
     grouping: &models_grouping::GroupingConfig,
 ) -> Result<(), crate::domain::models::SoupErr> {
-    if let models_grouping::GroupByField::Deadline { boundaries } = grouping.field {
-        if !boundaries.is_valid() {
-            return Err(invalid_grouping("deadline boundaries must increase"));
-        }
-        if grouping.group_key.as_deref().is_some_and(|key| {
-            !matches!(
-                key,
-                "" | "overdue" | "today" | "tomorrow" | "next_7_days" | "later"
-            )
+    if let Some((_, ranges)) = grouping.field.date_ranges() {
+        ranges
+            .validate()
+            .map_err(|_| invalid_grouping("invalid date range partition"))?;
+        if grouping.group_key.as_ref().is_some_and(|key| {
+            key != &ranges.missing_value_bucket_key
+                && !ranges.ranges.iter().any(|range| &range.key == key)
         }) {
-            return Err(invalid_grouping("invalid deadline group key"));
+            return Err(invalid_grouping("group key is not in the date partition"));
         }
     }
     Ok(())

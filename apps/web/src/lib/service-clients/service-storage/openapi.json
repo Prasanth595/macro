@@ -20249,33 +20249,6 @@
           }
         }
       },
-      "ApiDeadlineBoundaries": {
-        "type": "object",
-        "description": "Frozen viewer-local day boundaries used to group task deadlines.",
-        "required": ["today", "tomorrow", "day_two", "day_eight"],
-        "properties": {
-          "day_eight": {
-            "type": "string",
-            "format": "date-time",
-            "description": "UTC start of the viewer's local day eight days ahead."
-          },
-          "day_two": {
-            "type": "string",
-            "format": "date-time",
-            "description": "UTC start of the viewer's local day two days ahead."
-          },
-          "today": {
-            "type": "string",
-            "format": "date-time",
-            "description": "UTC start of the viewer's current local day."
-          },
-          "tomorrow": {
-            "type": "string",
-            "format": "date-time",
-            "description": "UTC start of the viewer's next local day."
-          }
-        }
-      },
       "ApiEntityFilterAst": {
         "type": "object",
         "description": "Wire-format entity filter AST accepted by soup AST endpoints.",
@@ -20380,6 +20353,17 @@
                 "description": "Group by a property value (e.g., status, priority, or custom properties)",
                 "required": ["property_definition_id"],
                 "properties": {
+                  "bucketing": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "$ref": "#/components/schemas/PropertyBucketing",
+                        "description": "Optional caller-defined date partition for the selected property."
+                      }
+                    ]
+                  },
                   "entity_type": {
                     "oneOf": [
                       {
@@ -20397,17 +20381,6 @@
                     "description": "The property definition UUID to group by"
                   }
                 }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "description": "Group task deadlines using frozen viewer-local calendar boundaries.",
-            "required": ["deadline"],
-            "properties": {
-              "deadline": {
-                "$ref": "#/components/schemas/ApiDeadlineBoundaries",
-                "description": "Group task deadlines using frozen viewer-local calendar boundaries."
               }
             }
           }
@@ -35719,6 +35692,69 @@
           "updatedAt": {
             "type": ["string", "null"],
             "format": "date-time"
+          }
+        }
+      },
+      "PropertyBucketing": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PropertyDateRanges",
+                "description": "Caller-defined, ordered UTC date ranges and a separate missing-value key."
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["date_ranges"]
+                  }
+                }
+              }
+            ],
+            "description": "Caller-defined, ordered UTC date ranges and a separate missing-value key."
+          }
+        ],
+        "description": "Optional transformation of a selected property's stored value into group keys."
+      },
+      "PropertyDateRange": {
+        "type": "object",
+        "description": "A half-open UTC interval. An absent start or end extends to infinity.",
+        "required": ["key"],
+        "properties": {
+          "end": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Exclusive end, or positive infinity."
+          },
+          "key": {
+            "type": "string",
+            "description": "Unique caller-supplied group key."
+          },
+          "start": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Inclusive start, or negative infinity."
+          }
+        }
+      },
+      "PropertyDateRanges": {
+        "type": "object",
+        "description": "A complete partition of present dates plus one bucket for absent values.",
+        "required": ["ranges", "missing_value_bucket_key"],
+        "properties": {
+          "missing_value_bucket_key": {
+            "type": "string",
+            "description": "Caller-supplied group key for entities with no date value."
+          },
+          "ranges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyDateRange"
+            },
+            "description": "Ordered, contiguous ranges covering every present date."
           }
         }
       },

@@ -197,10 +197,10 @@ use projects_hex::inbound::axum_router::delete_project::{
 };
 use soup::domain::models::{SoupItemWithProperties, SoupPropertiesField};
 use soup::inbound::axum_router::{
-    ApiDeadlineBoundaries, ApiGroupByField, ApiGroupMeta, GroupedSoupGroupPage,
-    GroupedSoupInitialPage, GroupedSoupPage, PostGroupedSoupAstGroupPageRequest,
-    PostGroupedSoupAstInitialRequest, PostGroupedSoupAstRequest, PostSoupAstRequest,
-    PostSoupRequest, SoupApiItem, SoupApiSort, SoupPage,
+    ApiGroupByField, ApiGroupMeta, GroupedSoupGroupPage, GroupedSoupInitialPage, GroupedSoupPage,
+    PostGroupedSoupAstGroupPageRequest, PostGroupedSoupAstInitialRequest,
+    PostGroupedSoupAstRequest, PostSoupAstRequest, PostSoupRequest, PropertyBucketing,
+    PropertyDateRange, PropertyDateRanges, SoupApiItem, SoupApiSort, SoupPage,
 };
 use user_api_key::domain::models::{CreatedUserApiKey, UserApiKeyInfo};
 use user_api_key::inbound::axum_router::{CreateUserApiKeyRequest, UserApiKeysList};
@@ -791,7 +791,9 @@ use utoipa::OpenApi;
             PostGroupedSoupAstInitialRequest,
             PostGroupedSoupAstGroupPageRequest,
             PostGroupedSoupAstRequest,
-            ApiDeadlineBoundaries,
+            PropertyBucketing,
+            PropertyDateRange,
+            PropertyDateRanges,
             ApiGroupByField,
             ApiGroupMeta,
             GroupedSoupInitialPage,

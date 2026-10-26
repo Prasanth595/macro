@@ -37402,6 +37402,62 @@ export const postItemsSoupAstGroupedBody = zod
                   .object({
                     property: zod
                       .object({
+                        bucketing: zod
+                          .union([
+                            zod.null(),
+                            zod
+                              .object({
+                                missing_value_bucket_key: zod
+                                  .string()
+                                  .describe(
+                                    'Caller-supplied group key for entities with no date value.'
+                                  ),
+                                ranges: zod
+                                  .array(
+                                    zod
+                                      .object({
+                                        end: zod.iso
+                                          .datetime({})
+                                          .nullish()
+                                          .describe(
+                                            'Exclusive end, or positive infinity.'
+                                          ),
+                                        key: zod
+                                          .string()
+                                          .describe(
+                                            'Unique caller-supplied group key.'
+                                          ),
+                                        start: zod.iso
+                                          .datetime({})
+                                          .nullish()
+                                          .describe(
+                                            'Inclusive start, or negative infinity.'
+                                          ),
+                                      })
+                                      .describe(
+                                        'A half-open UTC interval. An absent start or end extends to infinity.'
+                                      )
+                                  )
+                                  .describe(
+                                    'Ordered, contiguous ranges covering every present date.'
+                                  ),
+                              })
+                              .describe(
+                                'A complete partition of present dates plus one bucket for absent values.'
+                              )
+                              .and(
+                                zod.object({
+                                  type: zod.enum(['date_ranges']),
+                                })
+                              )
+                              .describe(
+                                'Caller-defined, ordered UTC date ranges and a separate missing-value key.'
+                              )
+                              .describe(
+                                "Optional transformation of a selected property's stored value into group keys."
+                              ),
+                          ])
+                          .optional(),
                         entity_type: zod
                           .union([
                             zod.null(),
@@ -37431,38 +37487,6 @@ export const postItemsSoupAstGroupedBody = zod
                   })
                   .describe(
                     'Group by a property value (e.g., status, priority, or custom properties)'
-                  ),
-                zod
-                  .object({
-                    deadline: zod
-                      .object({
-                        day_eight: zod.iso
-                          .datetime({})
-                          .describe(
-                            "UTC start of the viewer's local day eight days ahead."
-                          ),
-                        day_two: zod.iso
-                          .datetime({})
-                          .describe(
-                            "UTC start of the viewer's local day two days ahead."
-                          ),
-                        today: zod.iso
-                          .datetime({})
-                          .describe(
-                            "UTC start of the viewer's current local day."
-                          ),
-                        tomorrow: zod.iso
-                          .datetime({})
-                          .describe(
-                            "UTC start of the viewer's next local day."
-                          ),
-                      })
-                      .describe(
-                        'Frozen viewer-local day boundaries used to group task deadlines.'
-                      ),
-                  })
-                  .describe(
-                    'Group task deadlines using frozen viewer-local calendar boundaries.'
                   ),
               ])
               .describe('API representation of group-by field.'),
@@ -37643,6 +37667,62 @@ export const postItemsSoupAstGroupedBody = zod
                   .object({
                     property: zod
                       .object({
+                        bucketing: zod
+                          .union([
+                            zod.null(),
+                            zod
+                              .object({
+                                missing_value_bucket_key: zod
+                                  .string()
+                                  .describe(
+                                    'Caller-supplied group key for entities with no date value.'
+                                  ),
+                                ranges: zod
+                                  .array(
+                                    zod
+                                      .object({
+                                        end: zod.iso
+                                          .datetime({})
+                                          .nullish()
+                                          .describe(
+                                            'Exclusive end, or positive infinity.'
+                                          ),
+                                        key: zod
+                                          .string()
+                                          .describe(
+                                            'Unique caller-supplied group key.'
+                                          ),
+                                        start: zod.iso
+                                          .datetime({})
+                                          .nullish()
+                                          .describe(
+                                            'Inclusive start, or negative infinity.'
+                                          ),
+                                      })
+                                      .describe(
+                                        'A half-open UTC interval. An absent start or end extends to infinity.'
+                                      )
+                                  )
+                                  .describe(
+                                    'Ordered, contiguous ranges covering every present date.'
+                                  ),
+                              })
+                              .describe(
+                                'A complete partition of present dates plus one bucket for absent values.'
+                              )
+                              .and(
+                                zod.object({
+                                  type: zod.enum(['date_ranges']),
+                                })
+                              )
+                              .describe(
+                                'Caller-defined, ordered UTC date ranges and a separate missing-value key.'
+                              )
+                              .describe(
+                                "Optional transformation of a selected property's stored value into group keys."
+                              ),
+                          ])
+                          .optional(),
                         entity_type: zod
                           .union([
                             zod.null(),
@@ -37672,38 +37752,6 @@ export const postItemsSoupAstGroupedBody = zod
                   })
                   .describe(
                     'Group by a property value (e.g., status, priority, or custom properties)'
-                  ),
-                zod
-                  .object({
-                    deadline: zod
-                      .object({
-                        day_eight: zod.iso
-                          .datetime({})
-                          .describe(
-                            "UTC start of the viewer's local day eight days ahead."
-                          ),
-                        day_two: zod.iso
-                          .datetime({})
-                          .describe(
-                            "UTC start of the viewer's local day two days ahead."
-                          ),
-                        today: zod.iso
-                          .datetime({})
-                          .describe(
-                            "UTC start of the viewer's current local day."
-                          ),
-                        tomorrow: zod.iso
-                          .datetime({})
-                          .describe(
-                            "UTC start of the viewer's next local day."
-                          ),
-                      })
-                      .describe(
-                        'Frozen viewer-local day boundaries used to group task deadlines.'
-                      ),
-                  })
-                  .describe(
-                    'Group task deadlines using frozen viewer-local calendar boundaries.'
                   ),
               ])
               .describe('API representation of group-by field.'),

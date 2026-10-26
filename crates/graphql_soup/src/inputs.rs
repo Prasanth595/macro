@@ -3,7 +3,11 @@ use graphql_common::{GraphqlPropertyEntityType, parse_id};
 use graphql_soup_filter_input::GraphqlEntityFilterAst;
 use item_filters::ast::{EntityFilterAst, properties::PropertyEntityType};
 use macro_user_id::user_id::MacroUserIdStr;
-use models_grouping::{DeadlineBoundaries, GroupByField, GroupingConfig};
+use models_grouping::{GroupByField, GroupingConfig};
+
+/// Caller-defined property date-range inputs.
+mod date_ranges;
+use date_ranges::GraphqlPropertyBucketing;
 use models_pagination::{
     Base64Str, CursorWithValAndFilter, DueDateSort, NotifiedAt, SimpleSortMethod,
 };
@@ -177,66 +181,15 @@ struct GraphqlGroupByInput {
     property_definition_id: Option<ID>,
     /// Optional property entity type restriction.
     entity_type: Option<GraphqlPropertyEntityType>,
-    /// Frozen viewer-local UTC boundaries required when `field` is `DEADLINE`.
-    deadline_boundaries: Option<GraphqlDeadlineBoundaries>,
-}
-
-/// Frozen starts of the viewer's local calendar days, expressed in UTC.
-#[derive(async_graphql::InputObject, Clone)]
-struct GraphqlDeadlineBoundaries {
-    /// UTC start of the viewer's current local day.
-    today: String,
-    /// UTC start of the viewer's next local day.
-    tomorrow: String,
-    /// UTC start of the viewer's local day two days ahead.
-    day_two: String,
-    /// UTC start of the viewer's local day eight days ahead.
-    day_eight: String,
-}
-
-impl TryFrom<&GraphqlDeadlineBoundaries> for DeadlineBoundaries {
-    type Error = async_graphql::Error;
-
-    fn try_from(value: &GraphqlDeadlineBoundaries) -> Result<Self, Self::Error> {
-        Ok(Self {
-            today: value.today.parse().map_err(|error| {
-                async_graphql::Error::new(format!("invalid deadlineBoundaries.today: {error}"))
-            })?,
-            tomorrow: value.tomorrow.parse().map_err(|error| {
-                async_graphql::Error::new(format!("invalid deadlineBoundaries.tomorrow: {error}"))
-            })?,
-            day_two: value.day_two.parse().map_err(|error| {
-                async_graphql::Error::new(format!("invalid deadlineBoundaries.dayTwo: {error}"))
-            })?,
-            day_eight: value.day_eight.parse().map_err(|error| {
-                async_graphql::Error::new(format!("invalid deadlineBoundaries.dayEight: {error}"))
-            })?,
-        })
-    }
+    /// Optional caller-defined date ranges; requires PROPERTY grouping.
+    bucketing: Option<GraphqlPropertyBucketing>,
 }
 
 impl GraphqlGroupByInput {
     /// Convert this input into the grouping domain model.
     fn into_group_by_field(self) -> async_graphql::Result<GroupByField> {
-        if self.deadline_boundaries.is_some() && self.field != GraphqlGroupByField::Deadline {
-            return Err(async_graphql::Error::new(
-                "deadlineBoundaries requires DEADLINE grouping",
-            ));
-        }
         match self.field {
             GraphqlGroupByField::Date => self.without_property_options(GroupByField::Date),
-            GraphqlGroupByField::Deadline => {
-                let boundaries = self
-                    .deadline_boundaries
-                    .as_ref()
-                    .ok_or_else(|| {
-                        async_graphql::Error::new(
-                            "deadlineBoundaries is required when grouping by DEADLINE",
-                        )
-                    })?
-                    .try_into()?;
-                self.without_property_options(GroupByField::Deadline { boundaries })
-            }
             GraphqlGroupByField::EntityType => {
                 self.without_property_options(GroupByField::EntityType)
             }
@@ -263,7 +216,7 @@ impl GraphqlGroupByInput {
                 Ok(GroupByField::Property {
                     property_definition_id,
                     entity_type,
-                    bucketing: None,
+                    bucketing: self.bucketing.map(TryInto::try_into).transpose()?,
                 })
             }
         }
@@ -274,9 +227,12 @@ impl GraphqlGroupByInput {
         self,
         group_by: GroupByField,
     ) -> async_graphql::Result<GroupByField> {
-        if self.property_definition_id.is_some() || self.entity_type.is_some() {
+        if self.property_definition_id.is_some()
+            || self.entity_type.is_some()
+            || self.bucketing.is_some()
+        {
             return Err(async_graphql::Error::new(
-                "propertyDefinitionId and entityType require PROPERTY grouping",
+                "propertyDefinitionId, entityType and bucketing require PROPERTY grouping",
             ));
         }
         Ok(group_by)
@@ -288,8 +244,6 @@ impl GraphqlGroupByInput {
 enum GraphqlGroupByField {
     /// Group into date buckets.
     Date,
-    /// Group task deadlines using frozen viewer-local calendar boundaries.
-    Deadline,
     /// Group by Soup entity type.
     EntityType,
     /// Group by containing project.
