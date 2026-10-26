@@ -21,13 +21,13 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 - Do not persist temporary saved-view filters in entry snapshots; detail navigation discards those edits but retains the saved-view ID.
 - Pass saved-view state through the existing Tasks search codec; split URLs namespace it as `s0.tasks.savedView`.
 - Keep embedded Project/CRM task consumers free of saved-view management.
-- Show Save view before Filters on desktop and inside the mobile filter drawer when built-in filters, layout, or sort differ from defaults; exclude text search and grouping.
+- Show Save view before Filters on desktop and in an info banner below the mobile filter drawer header when built-in settings differ from defaults; exclude search and grouping.
 - Keep sidebar actions targeted to their own record; Edit combines naming and sharing without saving temporary settings, and Duplicate starts with a prefilled private copy and warns before omitting unsupported settings.
-- Show the saved-view bookmark and ghost overflow beside its topbar name on desktop; on mobile, keep names and menus in the picker and save/reset/cancel actions in the filter drawer.
+- Keep saved-view names and menus in the mobile picker; put creation in the filter drawer's header banner and Save changes at the footer's right edge, opposite Clear all.
 - Place the saved-view picker after Filters and before built-in mobile tabs; show rows without a duplicate section header or create button inside its drawer.
 - Show one local New view draft row after creation starts; prefill its save dialog with New view, replace the row on confirmed save, and remove it on cancellation or navigation without adding fake cached records.
 - Close the selected-view menu before opening a dialog, discard deferred actions after account or selection changes, and close dialogs after account, saved-view, or built-in-tab navigation.
-- Keep picker action dialogs owned outside its closing drawer; nest filter-save dialogs under the open filter drawer so cancel returns to the current filters.
+- Own mobile action dialogs outside closing drawers; finish drawer closure before opening a dialog, and reopen filters after cancellation only within the same navigation scope.
 - Honor confirmed deletion when the same account selects the target while deletion is pending; never apply completion to another account.
 - Keep malformed mutation responses separate from selected-view availability, preserve ordinary-create facets, and reject creation completions after the selected revision changes.
 - Apply supported saved filters immediately and show a danger banner above results for skipped conditions; show unfiltered tasks if none apply, and never rewrite the original on load.

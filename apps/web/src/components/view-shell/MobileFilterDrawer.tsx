@@ -11,6 +11,7 @@ import SlidersHorizontalIcon from '@phosphor-icons/core/regular/sliders-horizont
 import { Button, cn } from '@ui';
 import {
   type Accessor,
+  children,
   createContext,
   createSignal,
   type JSX,
@@ -29,8 +30,13 @@ type MobileFilterDrawerProps = {
   class?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onContentPresentChange?: (present: boolean) => void;
+  /** Rendered below the title within the drawer's dialog scope. */
+  afterHeader?: () => JSX.Element;
   /** Additional controls beside Clear all, also shown without active filters. */
   footer?: JSX.Element;
+  /** Trailing actions rendered within the drawer's dialog scope. */
+  footerEnd?: () => JSX.Element;
 };
 
 /** Presentation only; callers own filter state and compose the drawer contents. */
@@ -43,6 +49,7 @@ function Root(props: MobileFilterDrawerProps) {
       side="bottom"
       open={props.open}
       onOpenChange={props.onOpenChange}
+      onContentPresentChange={props.onContentPresentChange}
       preventScroll={false}
       preventScrollbarShift={false}
       breakPoints={[0.85]}
@@ -89,6 +96,7 @@ function Root(props: MobileFilterDrawerProps) {
               <XIcon class="size-4" />
             </MobileDrawer.Close>
           </div>
+          {props.afterHeader?.()}
           <div class="relative min-h-0 flex-1">
             <ScrollIndicators scrollRef={scrollRef} noBorderStart noBorderEnd />
             <div
@@ -101,29 +109,55 @@ function Root(props: MobileFilterDrawerProps) {
               </ScrollContext.Provider>
             </div>
           </div>
-          <Show when={props.activeCount > 0 || props.footer}>
-            <div class="shrink-0 px-6 pt-3 pb-2">
-              <div class="flex flex-wrap items-center gap-2">
-                {props.footer}
-                <Show when={props.activeCount > 0}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="min-h-10 px-4 text-failure-ink not-touch:not-disabled:hover:text-failure-ink"
-                    onClick={() => props.onClear()}
-                  >
-                    Clear all
-                  </Button>
-                </Show>
-              </div>
-            </div>
-          </Show>
+          <Footer
+            activeCount={props.activeCount}
+            onClear={props.onClear}
+            footer={props.footer}
+            footerEnd={props.footerEnd}
+          />
         </MobileDrawer.Content>
       </MobileDrawer.Portal>
     </MobileDrawer>
   );
 }
 
+function Footer(
+  props: Pick<
+    MobileFilterDrawerProps,
+    'activeCount' | 'onClear' | 'footer' | 'footerEnd'
+  >
+) {
+  const footer = children(() => props.footer);
+  const end = children(() => props.footerEnd?.());
+  return (
+    <Show
+      when={
+        props.activeCount > 0 ||
+        footer.toArray().length > 0 ||
+        end.toArray().length > 0
+      }
+    >
+      <div class="shrink-0 px-6 pt-3 pb-2">
+        <div class="flex flex-wrap items-center gap-2">
+          {footer()}
+          <Show when={props.activeCount > 0}>
+            <Button
+              variant="ghost"
+              size="sm"
+              class="min-h-10 px-4 text-failure-ink not-touch:not-disabled:hover:text-failure-ink"
+              onClick={() => props.onClear()}
+            >
+              Clear all
+            </Button>
+          </Show>
+          <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
+            {end()}
+          </div>
+        </div>
+      </div>
+    </Show>
+  );
+}
 function Section(props: {
   value: string;
   label: string;

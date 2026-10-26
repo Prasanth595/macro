@@ -5,8 +5,9 @@ import { useUserId } from '@core/context/user';
 import { writeClipboardData } from '@core/util/dataTransfer';
 import { fireAndForget } from '@core/util/fireAndForget';
 import DotsIcon from '@phosphor/dots-three.svg';
+import InfoIcon from '@phosphor/info.svg';
 import WarningIcon from '@phosphor/warning-circle.svg';
-import { Button, Dropdown, openDialog } from '@ui';
+import { Button, type DialogHandle, Dropdown, openDialog } from '@ui';
 import { ok } from 'neverthrow';
 import { batch, For, getOwner, type Owner, onCleanup, Show } from 'solid-js';
 import { v4 as uuid } from 'uuid';
@@ -145,7 +146,7 @@ function useCreateTaskSavedViewDialog(owner = getOwner()) {
     const config = definition.value;
     const id = uuid();
     const request = captureRequest();
-    openDialog(
+    return openDialog(
       SavedViewDialog,
       () => ({
         refresh: savedViewsList.refresh,
@@ -449,6 +450,40 @@ export function TaskSaveViewButton() {
   );
 }
 
+type TaskSavedViewDialogProps = {
+  dialogOwner?: Owner | null;
+  onCreate?: (create: () => DialogHandle | undefined) => void;
+};
+export function TaskSavedViewCreateBanner(props: TaskSavedViewDialogProps) {
+  const { savedViews, leaveSavedView } = useTasksView();
+  const create = useCreateTaskSavedViewDialog(props.dialogOwner ?? getOwner());
+  const showCreate = () => (props.onCreate ? props.onCreate(create) : create());
+  const creating = () => savedViews?.view().kind === 'new';
+  const visible = () => {
+    const view = savedViews?.view();
+    return view?.kind === 'new' || (view?.kind === 'default' && view.changed);
+  };
+  return (
+    <Show when={visible()}>
+      <div
+        role="status"
+        class="mx-6 mb-3 flex shrink-0 items-center gap-2 rounded-lg border border-accent/30 bg-accent-bg px-3 py-2 text-sm"
+      >
+        <InfoIcon class="size-4 shrink-0 text-accent" aria-hidden="true" />
+        <span class="min-w-0 flex-1">Save these filters as a view.</span>
+        <Button size="sm" variant="ghost" onClick={showCreate}>
+          Save view
+        </Button>
+        <Show when={creating()}>
+          <Button size="sm" variant="ghost" onClick={leaveSavedView}>
+            Cancel
+          </Button>
+        </Show>
+      </div>
+    </Show>
+  );
+}
+
 export function TaskSavedViewMenu() {
   const { savedViews } = useTasksView();
   const viewerId = useUserId();
@@ -519,13 +554,15 @@ export function TaskSavedViewMenu() {
   );
 }
 
-export function TaskSavedViewActions() {
+export function TaskSavedViewActions(props: TaskSavedViewDialogProps = {}) {
   const { savedViews, savedViewsList, leaveSavedView } = useTasksView();
   const captureRequest = useTaskSavedViewRequest();
   const reload = useReloadTaskSavedView();
   if (!savedViews || !savedViewsList) return null;
   const viewerId = useUserId();
-  const create = useCreateTaskSavedViewDialog();
+  const create = useCreateTaskSavedViewDialog(props.dialogOwner ?? getOwner());
+  const showCreate = (record?: SavedView) =>
+    props.onCreate ? props.onCreate(() => create(record)) : create(record);
   const update = useUpdateSavedView({
     refresh: savedViewsList.refresh,
   });
@@ -588,6 +625,7 @@ export function TaskSavedViewActions() {
                   <Button
                     size="md"
                     variant="ghost"
+                    class="touch:order-last"
                     disabled={update.isPending || !!selected()?.issues.length}
                     title={
                       selected()?.issues.length
@@ -609,7 +647,7 @@ export function TaskSavedViewActions() {
               </>
             }
           >
-            <Button size="md" variant="ghost" onClick={() => create()}>
+            <Button size="md" variant="ghost" onClick={() => showCreate()}>
               Save view
             </Button>
             <Button size="md" variant="ghost" onClick={leaveSavedView}>
@@ -642,7 +680,7 @@ export function TaskSavedViewActions() {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => create(selected()?.record)}
+              onClick={() => showCreate(selected()?.record)}
             >
               Duplicate
             </Button>
