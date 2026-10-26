@@ -34,7 +34,11 @@ const tabIconSizes: Record<TabsSize, { square: string; labeled: string }> = {
 };
 
 function tabContentClasses(size: TabsSize) {
-  return cn(labeledControlContents[size], size === 'md' && 'px-3');
+  return cn(
+    labeledControlContents[size],
+    size === 'md' && 'px-3 text-sm',
+    size === 'lg' && 'text-base'
+  );
 }
 
 /**
