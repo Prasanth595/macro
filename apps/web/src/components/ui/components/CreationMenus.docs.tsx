@@ -26,5 +26,14 @@ export default defineDoc({
   category: 'Actions',
   description:
     'Creation choices use original icons and muted descriptions inside the existing New menu. Tasks, Agents, Calendar, Drive, and CRM share this row treatment.',
+  guidelines: {
+    do: [
+      'Use CreateMenuItem for a title, icon, and short description of what each action creates.',
+      'Wrap creation rows in Dropdown.Group to preserve the standard menu padding.',
+    ],
+    dont: [
+      'Replace the existing New trigger or bypass feature gates when adding a creation choice.',
+    ],
+  },
   demos: [{ id: 'tasks', title: 'Tasks', render: TasksDemo }],
 });
