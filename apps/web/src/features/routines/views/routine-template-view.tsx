@@ -83,7 +83,10 @@ export function RoutineTemplateView(props: {
         )}
       </ViewBreadcrumbs.Item>
       <div class="flex size-full min-h-0 min-w-0 flex-col text-ink">
-        <ViewShell.TopBar aria-label="Routine template toolbar">
+        <ViewShell.TopBar
+          class="touch:flex"
+          aria-label="Routine template toolbar"
+        >
           <ViewBreadcrumbs.Outlet
             aria-label="Routine template location"
             class="min-w-0"

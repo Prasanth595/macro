@@ -159,7 +159,7 @@ export function ActivateTemplateDialog(props: {
                         <dt class="text-ink-muted">
                           {reference.variable.kind === 'time_zone'
                             ? 'Time zone'
-                            : variableLabel(reference.variable)}
+                            : `Mentions of ${variableLabel(reference.variable)}`}
                         </dt>
                         <dd>
                           {reference.variable.kind === 'time_zone'
