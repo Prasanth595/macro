@@ -303,7 +303,7 @@ describe('grid cell', () => {
     expect(navigate).toHaveBeenCalledWith(1);
   });
 
-  it('focuses the read-only boolean wrapper without enabling its checkbox', () => {
+  it('focuses the read-only boolean wrapper without enabling its checkbox', async () => {
     let control: GridCellControl | undefined;
     const onWrite = vi.fn(async () => true);
     render(() => (
@@ -319,8 +319,10 @@ describe('grid cell', () => {
       />
     ));
     const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
+    await userEvent.click(screen.getByText('Name', { selector: 'label' }));
     control?.focus();
     expect(checkbox.disabled).toBe(true);
+    expect(checkbox.readOnly).toBe(true);
     expect(document.activeElement).toBe(checkbox.parentElement);
     expect(onWrite).not.toHaveBeenCalled();
   });

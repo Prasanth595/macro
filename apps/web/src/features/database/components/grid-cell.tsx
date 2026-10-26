@@ -528,6 +528,7 @@ function BooleanCell(props: {
       class="flex min-h-9 items-center px-3 outline-none focus-visible:ring-2 focus-visible:ring-ink/50"
       checked={Boolean(props.value)}
       indeterminate={showEmpty()}
+      readOnly={!props.editable}
       disabled={!props.editable}
       onChange={(checked) =>
         fireAndForget(props.onWrite(checked ? 1 : 0), 'database')

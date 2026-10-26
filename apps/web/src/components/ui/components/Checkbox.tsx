@@ -30,7 +30,8 @@ const CONTROL_CLASS = cn(
   'bg-surface border-1 border-edge',
   'data-checked:bg-accent data-checked:border-accent',
   'data-indeterminate:bg-accent data-indeterminate:border-accent',
-  'data-disabled:opacity-50 data-disabled:cursor-not-allowed',
+  'data-disabled:not-data-readonly:opacity-50 data-disabled:cursor-not-allowed',
+  'data-readonly:not-data-checked:not-data-indeterminate:border-ink-muted',
   'data-invalid:border-failure',
   'peer-focus-visible:ring-2 peer-focus-visible:ring-accent'
 );
@@ -76,6 +77,7 @@ function CheckboxLabel(props: LabelProps) {
  * @do Always render a `Checkbox.Label`, even when the visible text sits
  *   elsewhere.
  * @do Use `indeterminate` on a select-all that only covers part of its group.
+ * @do Mark displayed values `readOnly` to preserve contrast, even when disabled.
  * @do Use `InlineCheckbox` when the whole row is already clickable.
  * @dont Do not use a checkbox for an immediate action — that is a ToggleSwitch
  *   or a Button.
