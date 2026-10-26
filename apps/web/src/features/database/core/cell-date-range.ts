@@ -11,7 +11,7 @@ export function toCellRange(range: DateRange): string {
 }
 
 /** The stored instants of a range cell; `undefined` for anything else. */
-export function fromCellRange(value: DatabaseCellValue): DateRange | undefined {
+function fromCellRange(value: DatabaseCellValue): DateRange | undefined {
   if (typeof value !== 'string') return undefined;
   const [start, end, ...rest] = value.split('/');
   if (!start || !end || rest.length) return undefined;

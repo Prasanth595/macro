@@ -22,7 +22,7 @@ import {
 import type { TimelineRecordAction } from '../core/timeline-record-menu';
 
 /** A group a record can move to from its menu. */
-export type TimelineMoveChoice = { id: string; label: string };
+type TimelineMoveChoice = { id: string; label: string };
 
 /** A record's menu as the view composes it. */
 export type TimelineRecordMenu = {

@@ -22,7 +22,7 @@ export const GANTT_HOURS_PIXELS_PER_DAY = 120;
 /** The closest zoom when a chart shows hours: 60px an hour. */
 export const MAX_GANTT_HOURS_PIXELS_PER_DAY = 1_440;
 /** A timed bar stays wide enough to see and grab, however short. */
-export const MIN_GANTT_TIMED_BAR_WIDTH = 6;
+const MIN_GANTT_TIMED_BAR_WIDTH = 6;
 /** The narrowest spacing between hour labels, so they never overlap. */
 const MIN_HOUR_LABEL_SPACING = 44;
 const HOUR_STEPS = [1, 2, 3, 6, 12] as const;
