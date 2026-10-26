@@ -1054,7 +1054,7 @@
       },
       "post": {
         "tags": ["calendar_events"],
-        "summary": "Ask the person who shared an event with one of the requester's channels\nto add them as a guest. Asking again while the request is pending changes\nnothing; asking after a decline reopens it.",
+        "summary": "Ask the person who shared an event with one of the requester's channels\nto add them as a guest. Asking again while the request is pending or\naccepted changes nothing; a declined request stands, so asking after a\ndecline is refused with `request_declined`.",
         "operationId": "request_to_join",
         "parameters": [
           {
@@ -1093,7 +1093,7 @@
             }
           },
           "409": {
-            "description": "Already on the requester's calendar, or the sharer cannot add guests",
+            "description": "Already on the requester's calendar, the sharer cannot add guests, or the sharer declined the requester's earlier request",
             "content": {
               "application/json": {
                 "schema": {
@@ -7924,7 +7924,7 @@
     "/databases/{id}/permissions": {
       "get": {
         "tags": ["databases"],
-        "summary": "Read recipients for a database owned by the caller. Link and team\nsharing are always `null`: databases do not support them yet.",
+        "summary": "Read recipients and the team share for a database owned by the caller.\nLink sharing is always `null`: databases do not support it.",
         "operationId": "get_database_permissions",
         "parameters": [
           {
@@ -7992,7 +7992,7 @@
       },
       "patch": {
         "tags": ["databases"],
-        "summary": "Update channel recipients after proving database ownership. Turning on\nlink or team sharing is refused; ownership cannot be changed here.",
+        "summary": "Update channel recipients and the team share after proving database\nownership. Turning on link sharing is refused; ownership cannot be\nchanged here. Only the actual owner may change the team share, and a 409\nmeans sharing changed since the request was authorized.",
         "operationId": "update_database_permissions",
         "parameters": [
           {
@@ -8057,6 +8057,16 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
             "description": "",
             "content": {
               "application/json": {
@@ -9158,6 +9168,91 @@
           },
           "422": {
             "description": "Document name exceeds the maximum length",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/create_canvas": {
+      "post": {
+        "tags": ["document"],
+        "summary": "Creates and initializes a Canvas in one backend-owned lifecycle.",
+        "operationId": "create_canvas_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCanvasDocumentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Response for creating a native Canvas.",
+                  "required": ["documentId", "documentMetadata", "token"],
+                  "properties": {
+                    "documentId": {
+                      "type": "string",
+                      "description": "The document ID of the created native Canvas"
+                    },
+                    "documentMetadata": {
+                      "$ref": "#/components/schemas/DocumentResponseMetadata",
+                      "description": "Metadata for the created document"
+                    },
+                    "token": {
+                      "type": "string",
+                      "description": "A pre-generated permission token that you can use for SS"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -21542,6 +21637,17 @@
             "format": "date-time",
             "description": "Entity update time of the previewed copy."
           },
+          "viewerCopy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CalendarMentionViewerCopy",
+                "description": "How the requester holds the meeting through `viewer_event_id`; absent\nexactly when that is."
+              }
+            ]
+          },
           "viewerEventId": {
             "type": ["string", "null"],
             "format": "uuid",
@@ -21623,6 +21729,11 @@
             }
           }
         }
+      },
+      "CalendarMentionViewerCopy": {
+        "type": "string",
+        "description": "How a requester holds a mentioned meeting on their own calendar, decided\nby the copy's own inbox, the way viewer capabilities decide organizer and\nguest.",
+        "enum": ["snapshot", "invitation", "event"]
       },
       "CalendarOccurrence": {
         "type": "object",
@@ -24632,6 +24743,41 @@
           "success": {
             "type": "boolean",
             "description": "Indicates if the document was created successfully"
+          }
+        }
+      },
+      "CreateCanvasDocumentRequest": {
+        "type": "object",
+        "description": "Request for a backend-initialized native Canvas.",
+        "required": ["documentName"],
+        "properties": {
+          "documentName": {
+            "type": "string",
+            "description": "Canvas name."
+          },
+          "projectId": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "Optional parent project."
+          }
+        }
+      },
+      "CreateCanvasDocumentResponse": {
+        "type": "object",
+        "description": "Response for creating a native Canvas.",
+        "required": ["documentId", "documentMetadata", "token"],
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "description": "The document ID of the created native Canvas"
+          },
+          "documentMetadata": {
+            "$ref": "#/components/schemas/DocumentResponseMetadata",
+            "description": "Metadata for the created document"
+          },
+          "token": {
+            "type": "string",
+            "description": "A pre-generated permission token that you can use for SS"
           }
         }
       },

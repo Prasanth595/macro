@@ -6,7 +6,8 @@ use crate::domain::join_requests::{
     annotate_join_state,
 };
 use crate::domain::models::{
-    CalendarMentionEvent, CalendarMentionPreview, CalendarMentionRequestItem, CalendarProvider,
+    CalendarMentionEvent, CalendarMentionPreview, CalendarMentionRequestItem,
+    CalendarMentionViewerCopy, CalendarProvider,
 };
 use crate::domain::ports::{
     CalendarJoinRequestError, CalendarJoinRequestNotifier, CalendarJoinRequestService,
@@ -221,6 +222,7 @@ fn on_outlook(mut repo: FakeRepo) -> FakeRepo {
         link_id: SELF_LINK,
         email: "self@example.com".to_string(),
         provider: CalendarProvider::Outlook,
+        writable_calendar_ids: Vec::new(),
     }]);
     repo
 }
@@ -289,7 +291,7 @@ async fn only_someone_who_can_change_the_event_lists_its_requests() {
             .list_join_requests(SHARER, request.event_id)
             .await
             .unwrap(),
-        [request.clone()]
+        std::slice::from_ref(&request)
     );
 
     for (mutation_target, case) in [
@@ -447,6 +449,7 @@ async fn a_read_only_copy_cannot_answer() {
 
 fn preview(viewer_event_id: Option<Uuid>) -> CalendarMentionPreview {
     CalendarMentionPreview::Accessible(Box::new(CalendarMentionEvent {
+        viewer_copy: viewer_event_id.map(|_| CalendarMentionViewerCopy::Event),
         viewer_event_id,
         title: "Offsite".to_string(),
         description: None,

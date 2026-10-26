@@ -23,6 +23,13 @@ stacks. Process isolation belongs to
 - `src/domain/user.rs`: `UserCodeMode`, runs as an authenticated user with no
   session, journal or reviews; shares outcome validation with the session path.
 - `src/domain/reviews.rs`: review validation, revisions, claims and outcomes.
+  `decide_for_session` (the `DecideReview` tool, `inbound/reviews.rs`) is the
+  agent deciding on the account holder's word in chat: a turn they prompted,
+  never a System turn (per `ReviewSession::prompter`), and a Submit only once
+  the action is `approvable`.
+  An import review only starts its write: its `review.decided` is quiet, and
+  its `review.settled` comes from the import when the write ends; only an
+  import that could not start settles here.
 - `src/domain/documentation.rs`: Jev selection of generated SDK docs, rendered
   into the per-turn prompt (top four, 48 KiB) or returned for a
   `DescribeCodeTools` `task` (every relevant entity, 32 KiB).
@@ -48,7 +55,9 @@ submit; historical reviews without an acting account use the session owner.
 ACP presentation uses the session owner's transcript capability, independently
 of the account that later sends the email or creates the event. Cards require
 direct user authentication; `DecideReview` requires a real turn prompted by the
-review's acting account. `GetReview` reads final
+review's acting account, and its Submit waits for `ReviewActions::approvable`
+(default: always), the hook a kind uses to refuse until it is ready. `GetReview`
+reads final
 drafts and outcomes. Legacy notificationId/notificationAttemptAt fields are no
 longer delivery state.
 
@@ -59,3 +68,6 @@ longer delivery state.
 - Keep generated discovery topics within the classifier's 32-question limit.
 - Regenerate SDK documentation through `packages/code-mode-sdk`; never edit
   `src/domain/documentation.json` by hand.
+
+Import reviews contain exactly one draft, with source `notion`, `linear`, or
+`jira`. Source selection stays on that draft through presentation and approval.

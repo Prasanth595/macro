@@ -171,10 +171,11 @@ export const enableTasksReviews = defineFlag({
   default: onInDev,
 });
 
-/** Gantt layouts stay hidden until enabled remotely or with a local override. */
+/** Gantt is visible in local previews; deployed apps retain the remote rollout. */
 export const enableGantt = defineFlag({
   key: 'enable-gantt',
   env: 'ENABLE_GANTT',
+  default: LOCAL_ONLY || undefined,
 });
 
 export const ENABLE_PDF_MODIFICATION_DATA_AUTOSAVE = defineFlag({
@@ -700,7 +701,8 @@ export const enableCalendarGuestInvites = defineFlag({
 // action on a shared event's mention card. On in dev only until a real Google
 // import has passed on dev; there is no PostHog flag yet, so it stays off in
 // production. "Download .ics" beside it is not gated. Override with
-// VITE_ENABLE_CALENDAR_ADD_SHARED_EVENT.
+// VITE_ENABLE_CALENDAR_ADD_SHARED_EVENT. The agent's AddSharedCalendarEvent
+// tool reads the server switch ENABLE_CALENDAR_ADD_SHARED_EVENT instead.
 export const enableCalendarAddSharedEvent = defineFlag({
   key: 'enable-calendar-add-shared-event',
   env: 'ENABLE_CALENDAR_ADD_SHARED_EVENT',

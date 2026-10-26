@@ -20,7 +20,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { ListEntityMetadataQueryProvider } from '@entity';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import { useWarmAgentSessionQuery } from '@queries/agent-session/warm';
 import { useSoupAstItemsQuery } from '@queries/soup/items';
 import {
@@ -71,6 +71,7 @@ function LoadingComposer() {
   return (
     <div class="grid size-full place-items-center text-ink-muted">
       <SpinnerIcon
+        aria-hidden={false}
         aria-label="Loading agent composer"
         class="size-5 animate-spin"
       />
@@ -89,6 +90,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
   // The composer's Chat/Code choice; an open conversation keeps its own mode.
   const workspace = createWorkspaceMode(userId());
   const listView = createConversationListView(userId());
+  const [creatingKind, setCreatingKind] = createSignal<AgentKind>();
   const [localPage, setPage] = createSignal<AgentsPage>('new');
   const isRoutinesPage = () => {
     const content = panel.handle.content();
@@ -172,6 +174,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
     )
   );
   const openPage = (next: AgentsPage) => {
+    setCreatingKind(undefined);
     setMobileList(false);
     if (next === 'routines') {
       layout.openWithSplit(routineContent(), {
@@ -299,6 +302,13 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
       onClearFilters={listView.clear}
       onGroupingChange={listView.setGrouping}
       activePage={selected() ? undefined : page()}
+      onCreateRoutine={() =>
+        layout.popoverSplit({ type: 'component', id: 'routine-compose' })
+      }
+      onCreateAgent={(kind) => {
+        openPage('agents');
+        setCreatingKind(kind);
+      }}
       onOpenPage={(next) =>
         next === 'new'
           ? showComposer()
@@ -354,7 +364,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
               <ViewShell.Main class="overflow-hidden">
                 <ViewTour tour={agentsTour} />
                 <main
-                  class="main touch:pt-[calc(var(--safe-top,0px)+0.5rem)]"
+                  class="main touch:pt-[calc(var(--mobile-content-inset-top,var(--safe-top,0px))+0.5rem)] touch:[&>*]:[--mobile-content-inset-top:0px]"
                   classList={{ hidden: isTouchDevice() && mobileList() }}
                 >
                   <Show
@@ -382,7 +392,12 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                                 <IntegrationsPage />
                               </Match>
                               <Match when={page() === 'agents'}>
-                                <AgentSettings />
+                                <AgentSettings
+                                  createKind={creatingKind()}
+                                  onCloseCreate={() =>
+                                    setCreatingKind(undefined)
+                                  }
+                                />
                               </Match>
                             </Switch>
                             <div

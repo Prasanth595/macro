@@ -2,6 +2,7 @@
 use super::{CodeModeError, ExecutionId, ExecutionStore};
 use agent_runtime_protocol::domain::notification::{
     DecisionOutcome, DecisionVia, ItemStatus, NotificationEvent, ReviewItemOutcome, ReviewOutcome,
+    ReviewSettlement,
 };
 use agent_session::domain::model::{AgentSessionId, TurnPrompter};
 use agent_session::domain::notifications::{PendingNotification, ProduceNotification};
@@ -33,7 +34,7 @@ const MAX_RESULT_BYTES: usize = 8192;
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema, schemars::JsonSchema,
 )]
 #[serde(transparent)]
-pub struct ReviewId(pub Uuid);
+pub struct ReviewId(#[schemars(with = "String")] pub Uuid);
 
 /// The component and action used to finish a review.
 #[derive(
@@ -45,6 +46,8 @@ pub enum ReviewKind {
     Email,
     /// Editable calendar event stack.
     Calendar,
+    /// A staged workspace import plan, approved as one item.
+    Import,
 }
 
 /// A reference returned by generated code; it confers no authorization.
@@ -73,7 +76,8 @@ pub struct CreateReview {
     /// time: {kind: "timed", startsAt: ISO datetime, endsAt: ISO datetime,
     /// timeZone?: IANA zone} or {kind: "allDay", startDate: ISO date,
     /// endDate: exclusive ISO date}, description?, location?, attendees?:
-    /// [{email, isOptional?}]}.
+    /// [{email, isOptional?}]}. Import: exactly one draft {source: "notion" | "linear" | "jira"},
+    /// presenting the plan ImportFromNotion, ImportFromLinear or ImportFromJira staged.
     /// Creating any review only presents these drafts; the user acts separately.
     pub drafts: Vec<Value>,
 }
@@ -223,11 +227,22 @@ pub trait ReviewActions: Send + Sync + 'static {
     async fn session(&self, session: AgentSessionId) -> Result<ReviewSession, CodeModeError>;
     /// Validate draft structure without performing the action.
     fn validate(&self, kind: ReviewKind, draft: &Value) -> Result<(), CodeModeError>;
-    /// Execute the reviewed draft as its saved, authenticated account holder.
+    /// Whether `record`'s action can start now. A kind whose action depends on
+    /// work still in progress refuses until it is ready.
+    async fn approvable(
+        &self,
+        _account_holder: &MacroUserIdStr<'static>,
+        _record: &ReviewRecord,
+    ) -> Result<bool, CodeModeError> {
+        Ok(true)
+    }
+    /// Execute the reviewed draft of `record` as its saved, authenticated
+    /// account holder. An import only starts here: its background write
+    /// reports its own end as a `review.settled` event once it stops.
     async fn execute(
         &self,
         owner: &MacroUserIdStr<'static>,
-        kind: ReviewKind,
+        record: &ReviewRecord,
         draft: Value,
     ) -> Result<Value, CodeModeError>;
     /// Persist and stream a completed presentation without waiting for user action.
@@ -330,6 +345,7 @@ impl ReviewService {
         if input.title.trim().is_empty()
             || input.title.len() > 256
             || !(1..=100).contains(&input.drafts.len())
+            || (input.kind == ReviewKind::Import && input.drafts.len() != 1)
             || serde_json::to_vec(&input).map_err(|_| invalid())?.len() > MAX_INPUT_BYTES
         {
             return Err(invalid());
@@ -437,10 +453,9 @@ impl ReviewService {
                     );
                 }
             }
-            let event = record
-                .decision
-                .as_ref()
-                .map(|_| NotificationEvent::ReviewSettled(review_outcome(&record)));
+            let event = record.decision.as_ref().map(|_| {
+                NotificationEvent::ReviewSettled(ReviewSettlement::Actions(review_outcome(&record)))
+            });
             match self.save(&mut record, event).await {
                 Ok(()) => {}
                 Err(CodeModeError::Conflict) => {
@@ -470,7 +485,10 @@ impl ReviewService {
         record.updated_at = chrono::Utc::now().timestamp_millis();
         let pending = event
             .map(|event| {
-                let wake = true;
+                // An approved import only started: its write settles later, and
+                // that wakes the session instead.
+                let wake = !(record.kind == ReviewKind::Import
+                    && matches!(&event, NotificationEvent::ReviewDecided(outcome) if outcome.outcome != DecisionOutcome::Dismissed));
                 PendingNotification::new(ProduceNotification {
                     session_id: record.session_id,
                     subject_id: record.id.0.to_string(),
@@ -537,6 +555,18 @@ impl ReviewService {
             })
         {
             return Err(CodeModeError::Forbidden);
+        }
+        if let ReviewDecision::Submit { .. } = decision {
+            let record = self.store.get(session, id).await?;
+            if self.record_actor(&record).await? != *actor {
+                return Err(CodeModeError::Forbidden);
+            }
+            if !self.actions.approvable(actor, &record).await? {
+                return Err(CodeModeError::Invalid(
+                    "This review is not ready to approve yet. Check it again before approving."
+                        .into(),
+                ));
+            }
         }
         self.decide_owned(session, actor, id, decision, DecisionVia::Chat)
             .await
@@ -651,7 +681,7 @@ impl ReviewService {
                         }
                         service
                             .actions
-                            .execute(&actor, record.kind, record.items[index].draft.clone())
+                            .execute(&actor, &record, record.items[index].draft.clone())
                             .await
                     })
                     .await;
@@ -674,8 +704,16 @@ impl ReviewService {
                             item.error = Some("The submission outcome could not be confirmed. Check the destination before retrying.".into());
                         }
                     }
-                    let event = (Some(index) == last)
-                        .then(|| NotificationEvent::ReviewSettled(review_outcome(&record)));
+                    // A started import settles when its write ends; only one that
+                    // could not start settles here.
+                    let event = (Some(index) == last
+                        && !(record.kind == ReviewKind::Import
+                            && record.items[index].status == ReviewItemStatus::Completed))
+                        .then(|| {
+                            NotificationEvent::ReviewSettled(ReviewSettlement::Actions(
+                                review_outcome(&record),
+                            ))
+                        });
                     if service.save(&mut record, event).await.is_err() {
                         return;
                     }

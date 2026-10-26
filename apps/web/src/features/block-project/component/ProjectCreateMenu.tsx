@@ -20,14 +20,14 @@ import {
 import { pressedKeys } from '@core/hotkey/state';
 import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
 import {
-  createCanvasFileFromJsonString,
+  createCanvasFile,
   createChat,
   createMarkdownFile,
   createTask,
 } from '@core/util/create';
 import { fireAndForget } from '@core/util/fireAndForget';
 import type { ObjectLike } from '@core/util/result';
-import PlusIcon from '@phosphor/plus.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { createProject } from '@queries/storage/projects';
 import { Dialog, Dropdown, Surface } from '@ui';
@@ -149,8 +149,7 @@ const BLOCK_CREATE_SPECS: CreateBlockSpec[] = [
     ),
     loading: true,
     createFn: async (projectId) => {
-      const result = await createCanvasFileFromJsonString({
-        json: JSON.stringify({ nodes: [], edges: [] }),
+      const result = await createCanvasFile({
         title: 'New Canvas',
         projectId,
       });

@@ -125,6 +125,9 @@ export class Sdk extends HeyApiClient {
      * one of their Google calendars and return the synced snapshot. The
      * snapshot keeps the meeting's iCalendar UID and organizer, lists only the
      * requester as a guest, and carries no join link; nobody is notified.
+     * While the requester's request to join the event is pending or accepted,
+     * the copy is refused with `join_request_open`: the meeting reaches their
+     * calendar as the invitation, which a copy would otherwise take in.
      */
     public copyCalendarEvent<ThrowOnError extends boolean = false>(options: Options<CopyCalendarEventData, ThrowOnError>): RequestResult<CopyCalendarEventResponses, CopyCalendarEventErrors, ThrowOnError> {
         return (options.client ?? this.client).post<CopyCalendarEventResponses, CopyCalendarEventErrors, ThrowOnError>({
@@ -247,7 +250,7 @@ export class Sdk extends HeyApiClient {
     }
     
     /**
-     * List an owned document's meeting grants, including unavailable meetings.
+     * List a document's visible meeting links; owners also see unavailable grants.
      */
     public documentNoteLinks<ThrowOnError extends boolean = false>(options: Options<DocumentNoteLinksData, ThrowOnError>): RequestResult<DocumentNoteLinksResponses, unknown, ThrowOnError> {
         return (options.client ?? this.client).get<DocumentNoteLinksResponses, unknown, ThrowOnError>({ url: '/meeting-notes/documents/{document_id}/links', ...options });

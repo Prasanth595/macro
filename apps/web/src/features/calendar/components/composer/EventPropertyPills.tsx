@@ -1,14 +1,14 @@
+import BellSimpleIcon from '@icon/system/regular/bell-simple.svg';
+import CalendarDotsIcon from '@icon/system/regular/calendar-dots.svg';
+import CalendarXIcon from '@icon/system/regular/calendar-x.svg';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import ChatTextIcon from '@icon/system/regular/chat-text.svg';
+import MapPinIcon from '@icon/system/regular/map-pin.svg';
+import RepeatIcon from '@icon/system/regular/repeat.svg';
+import SquaresFourIcon from '@icon/system/regular/squares-four.svg';
+import UsersIcon from '@icon/system/regular/users.svg';
+import VideoCameraIcon from '@icon/system/regular/video-camera.svg';
 import { Popover } from '@kobalte/core/popover';
-import BellSimpleIcon from '@phosphor/bell-simple.svg';
-import CalendarDotsIcon from '@phosphor/calendar-dots.svg';
-import CalendarXIcon from '@phosphor/calendar-x.svg';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import ChatTextIcon from '@phosphor/chat-text.svg';
-import MapPinIcon from '@phosphor/map-pin.svg';
-import RepeatIcon from '@phosphor/repeat.svg';
-import SquaresFourIcon from '@phosphor/squares-four.svg';
-import UsersIcon from '@phosphor/users.svg';
-import VideoCameraIcon from '@phosphor/video-camera.svg';
 import { useProperty } from '@property/core/context';
 import { Root as PropertyRoot } from '@property/core/Root';
 import { EditorPopover } from '@property/editors/popover/EditorPopover';
@@ -585,6 +585,10 @@ export interface EventComposerRecurrencePillProps {
   onChange: (value: string) => void;
   disabled?: boolean;
   readOnly?: boolean;
+  /** Why a read-only rule cannot change, shown as a tooltip. */
+  readOnlyReason?: string;
+  /** Id of the line that explains the pill, such as its read-only reason. */
+  describedBy?: string;
   hideIcon?: boolean;
 }
 
@@ -604,19 +608,27 @@ export function EventComposerRecurrencePill(
       optionDisabled={() => props.readOnly === true}
       disabled={props.disabled}
     >
-      <Select.Trigger
-        aria-label="Repeats"
-        aria-readonly={props.readOnly || undefined}
-        class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48')}
+      {/* Always wrapped, so the reason coming and going never moves the
+          trigger to a new parent. */}
+      <Tooltip
+        label={props.readOnlyReason ?? ''}
+        disabled={!props.readOnlyReason}
       >
-        <Show when={!props.hideIcon}>
-          <RepeatIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
-        </Show>
-        <Select.Value<EventComposerSelectOption>>
-          {(selectState) => selectState.selectedOption().label}
-        </Select.Value>
-        <Select.Icon />
-      </Select.Trigger>
+        <Select.Trigger
+          aria-label="Repeats"
+          aria-readonly={props.readOnly || undefined}
+          aria-describedby={props.describedBy}
+          class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48')}
+        >
+          <Show when={!props.hideIcon}>
+            <RepeatIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+          </Show>
+          <Select.Value<EventComposerSelectOption>>
+            {(selectState) => selectState.selectedOption().label}
+          </Select.Value>
+          <Select.Icon />
+        </Select.Trigger>
+      </Tooltip>
       <Select.Content portalScope="local">
         <Select.Listbox />
       </Select.Content>

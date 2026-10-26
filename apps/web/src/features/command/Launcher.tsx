@@ -44,7 +44,7 @@ import { TOKENS } from '@core/hotkey/tokens';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { isMobile } from '@core/mobile/isMobile';
 import {
-  createCanvasFileFromJsonString,
+  createCanvasFile,
   createChat,
   createCodeFileFromText,
   createMarkdownFile,
@@ -52,12 +52,12 @@ import {
 } from '@core/util/create';
 import { createControlledOpenSignal } from '@core/util/createControlledOpenSignal';
 import { fireAndForget } from '@core/util/fireAndForget';
+import ChatIcon from '@icon/system/regular/chat.svg';
+import MagnifyingGlassIcon from '@icon/system/regular/magnifying-glass.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
 import { Dialog } from '@kobalte/core/dialog';
 import { getMarkdownGoldenBytes } from '@macro-inc/lexical-core/markdown-golden';
 import { type Span, Telemetry } from '@macro-inc/observability';
-import ChatIcon from '@phosphor/chat.svg';
-import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
-import PlusIcon from '@phosphor/plus.svg';
 import { createDatabase } from '@queries/storage/databases';
 import { createForm } from '@queries/storage/forms';
 import { makePersisted } from '@solid-primitives/storage';
@@ -362,8 +362,7 @@ export function runCreateAction(
         blockName: 'canvas',
         loading: true,
         createFn: async () => {
-          const result = await createCanvasFileFromJsonString({
-            json: JSON.stringify({ nodes: [], edges: [] }),
+          const result = await createCanvasFile({
             title: 'New Canvas',
             projectId: options.projectId,
             source,
@@ -1167,6 +1166,7 @@ export const LauncherShell = (
     description: 'Close Launcher',
     condition: () =>
       createMenuOpen() &&
+      !searchMode() &&
       !availableBlocks().some((item) => item.hotkey === 'c'),
     registrationType: 'add',
     keyDownHandler: () => {

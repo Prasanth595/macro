@@ -83,8 +83,7 @@ Notifications**. Select **Enable** to request permission through the native
 notification provider; macOS uses its system permission dialog. The web prompt
 continues to say **Enable Browser Notifications** and uses browser permissions.
 Select **Hide** to dismiss the prompt. It waits in the same region as other
-prompts, one card at a time, and on a phone it steps aside while a drawer,
-sheet, or dialog is open and comes back when it closes.
+prompts, one card at a time.
 
 ### Notification snoozes
 
@@ -152,6 +151,13 @@ as before. Each email says what joining gives: **Pro is included** when joining
 grants a Pro seat (an enterprise team, or one with a subscription), otherwise
 **Free to join**. Examples: [desktop](media/team-invite-email/desktop.png) and
 [mobile](media/team-invite-email/mobile.png).
+An unanswered invite gets up to two reminder emails, with subjects starting
+**Reminder:**, 3 days after the last email and 4 days after that. Invites more
+than 14 days old, already-members, and invites whose sender left the team get none.
+**Pending invites** on **Team → Members** lists each invite with when it was
+last sent, for owners and admins, who can **Resend**, copy the invite link,
+or cancel it. Resend unlocks an hour after the last email, the email's rate
+limit; re-inviting the address from **Invite** follows the same rule.
 
 Under **Team → Members** (**Invite settings**), owners/admins can turn
 **Auto-join on domain** off and can restrict invitations to admins with
@@ -243,7 +249,8 @@ Left nav (feature and platform gates still apply):
   only General shows, with pending invitations or **Create Team**. Search
   finds these by `invite`, `members`, `teammates`, `slack`, and similar terms;
   results name their group, e.g. **Team · Members**.
-- **Blocks**: Email, Calendar, Agents, CRM.
+- **Blocks**: Email, Calendar, Agents, CRM. On touch devices, where the Agents
+  sidebar is hidden, **Routines** (`/app/settings/routines`) follows Agents.
 - **Personal**: Account, Appearance, Notifications, Keyboard shortcuts, Usage, Billing, Desktop App, Mobile App.
 - **Workspace**: Tags, Integrations (personal Gmail/GitHub accounts and agent tools).
 - **Developer**: Runtimes, MCP server, API Keys, Bots.
@@ -550,11 +557,13 @@ Provider Back returns to the combined integrations overview; navigation
 is local to each mounted Integrations page.
 
 Macro agents and external AI clients using Macro's MCP server can run
-`ImportNotionPage` and the shared import ledger tools against the user's
+`ImportNotionPage`, `ImportFromNotion`, `ImportFromLinear`, `ImportFromJira`
+and the shared import ledger tools against the user's
 connections saved in Macro.
 Verify a Notion import returns a document and a repeated import returns the
-existing document; Linear imports recorded with `CreateImportEntity` should
-appear in `ListImportEntities`. These calls must not report that import tracking
+existing document. For Linear/Jira workspace imports, verify planning writes no
+Macro tasks before approval, source-specific reviews show task/project totals,
+and an approved import preserves task fields, comments, labels and relationships. These calls must not report that import tracking
 is unavailable.
 On hosts without Pipedream credentials, saved Pipedream accounts must not hide
 native Notion, Linear, or Slack connections when selecting import tools.

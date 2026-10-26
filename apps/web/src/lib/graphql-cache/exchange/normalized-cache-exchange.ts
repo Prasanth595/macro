@@ -31,8 +31,8 @@
  *   through the standard write path so dependent cached queries update.
  *
  * Cache failures normally degrade to the network. An admitted optimistic
- * enqueue with an unfenced transport outcome emits an error instead, because
- * forwarding could duplicate a side effect already durable in the old scope.
+ * enqueue with an unknown durable outcome emits an error instead, because
+ * forwarding could duplicate a side effect already in the persistent queue.
  */
 
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -1096,8 +1096,8 @@ export function normalizedCacheExchange(
           if (isAdmittedEnqueueUncertainError(error)) {
             enqueueTelemetry.failed('uncertain');
             options.onCacheError?.(error, op);
-            // The old-scope queue may already contain the side effect. It is
-            // unsafe to forward or retry without a coordinator fence.
+            // Fencing the old engine does not remove a committed queue entry.
+            // Never forward or retry an enqueue whose reply was lost.
             return uncertainEnqueueResult(op, error);
           }
           // Another context holds the database, so the enqueue never reached
@@ -1565,6 +1565,26 @@ export function normalizedCacheExchange(
             !activeOps.has(result.operation.key)
           )
             return result;
+          const current = liveQueries.get(result.operation.key);
+          // As with persistence, a failed network response (partial nulls or
+          // no data at all) is not authoritative: mounted readers keep the view
+          // they hold and later results keep updating it. Cache reads still
+          // apply when they carry that failure's error.
+          if (
+            current &&
+            result.error !== undefined &&
+            normalizedCacheResultMetadata(result)?.source === 'live-network'
+          ) {
+            const liveResult = withLiveQueryData(
+              { ...result },
+              current.view.data
+            );
+            liveQueries.set(result.operation.key, {
+              view: current.view,
+              result: liveResult,
+            });
+            return liveResult;
+          }
           if (
             !isQueryObject(result.data) ||
             !supportsStoreReconciliation(result.data)
@@ -1572,7 +1592,6 @@ export function normalizedCacheExchange(
             liveQueries.delete(result.operation.key);
             return result;
           }
-          const current = liveQueries.get(result.operation.key);
           const view =
             current?.view ??
             new LiveQuery(result.data, queryShape(result.operation.query));
