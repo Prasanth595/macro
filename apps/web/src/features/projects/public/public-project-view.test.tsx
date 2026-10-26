@@ -15,6 +15,7 @@ const doubles = vi.hoisted(() => ({
   dssFetch: vi.fn(),
   getEntityProperties: vi.fn(),
   navigate: vi.fn(async () => {}),
+  rememberDisplayNames: vi.fn(),
   pills: [] as boolean[],
   editor: [] as boolean[],
 }));
@@ -22,7 +23,9 @@ vi.mock('@service-storage/client', () => ({ dssFetch: doubles.dssFetch }));
 vi.mock('@service-properties/client', () => ({
   propertiesServiceClient: { getEntityProperties: doubles.getEntityProperties },
 }));
-vi.mock('@core/user/displayName', () => ({ rememberDisplayNames: vi.fn() }));
+vi.mock('@core/user/displayName', () => ({
+  rememberDisplayNames: doubles.rememberDisplayNames,
+}));
 vi.mock('@app/lib/split-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@app/lib/split-router')>()),
   useNavigate: () => doubles.navigate,
@@ -233,6 +236,35 @@ it('never offers editing, even when the link grants edit', async () => {
   expect(screen.queryByText('New task')).toBeNull();
   expect(screen.queryByText(/share/i)).toBeNull();
   expect(screen.getByRole('button', { name: 'Login' })).toBeTruthy();
+});
+
+it('remembers the names the project read hands over', async () => {
+  serve(
+    ok({
+      ...editable,
+      people: [
+        { id: editable.ownerId, firstName: 'Olive', lastName: 'Owner' },
+      ],
+    })
+  );
+  render(() => (
+    <PublicProjectRoute projectId={editable.summary.id} section="overview" />
+  ));
+
+  expect(await screen.findByRole('heading', { name: 'Launch' })).toBeTruthy();
+  expect(doubles.rememberDisplayNames).toHaveBeenCalledWith([
+    { id: editable.ownerId, firstName: 'Olive', lastName: 'Owner' },
+  ]);
+});
+
+it('remembers no names for a project the visitor may not view', async () => {
+  serve(err([{ code: 'UNAUTHORIZED', message: 'no' }]));
+  render(() => (
+    <PublicProjectRoute projectId={editable.summary.id} section="overview" />
+  ));
+
+  expect(await screen.findByText('Sign in to view this page')).toBeTruthy();
+  expect(doubles.rememberDisplayNames).not.toHaveBeenCalled();
 });
 
 it('lists visible tasks read-only and opens one in the project', async () => {
