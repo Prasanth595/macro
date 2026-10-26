@@ -151,7 +151,7 @@ export function ChannelDetailTabs(props: {
   return (
     <Tabs
       aria-label="Channel sections"
-      size="sm"
+      size="md"
       touch="inset"
       class="shrink-0"
       options={isCollapsed() ? withChannelTabIcons(tabs()) : tabs()}
