@@ -26,6 +26,7 @@ import type { PortalScope } from '@core/component/ScopedPortal';
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { onElementConnect } from '@core/util/onElementConnect';
 import { buildSimpleEntityUrl } from '@core/util/url';
@@ -45,7 +46,7 @@ import { queryReadyGate } from '@queries/gate';
 import { useUpsertToHistoryMutation } from '@queries/history/history';
 import { useUserTeamsQuery } from '@queries/team/teams';
 import { debounce } from '@solid-primitives/scheduled';
-import { Button, EntityComposer, Scroll, ToggleSwitch, Tooltip } from '@ui';
+import { Button, cn, EntityComposer, Scroll, ToggleSwitch, Tooltip } from '@ui';
 import {
   $getRoot,
   $getSelection,
@@ -952,6 +953,30 @@ export function ComposeTask(props: ComposeTaskProps) {
   const portalScope = (): PortalScope =>
     splitPanel.handle.isPopover() ? 'local' : 'block';
 
+  // In the phone sheet the keyboard leaves too little room for the whole
+  // composer, so the footer pins to the bottom of the sheet's scroll. It only
+  // takes a background while pinned over content; at rest it would show as a
+  // band against the glass sheet.
+  const pinsFooter = () => isTouchDevice() && splitPanel.handle.isPopover();
+  const [footerPinned, setFooterPinned] = createSignal(false);
+  const observeFooter = (footer: HTMLElement) => {
+    if (!pinsFooter()) return;
+    onElementConnect(footer, () => {
+      const observer = new IntersectionObserver(
+        ([entry]) => setFooterPinned(!!entry && entry.intersectionRatio < 1),
+        {
+          root: footer.closest('[data-drawer-scroll-body]'),
+          // At rest the footer ends 16px above the viewport's bottom edge;
+          // pinned, it reaches the edge.
+          rootMargin: '0px 0px -15px 0px',
+          threshold: 1,
+        }
+      );
+      observer.observe(footer);
+      onCleanup(() => observer.disconnect());
+    });
+  };
+
   return (
     <EntityComposer.Root tabIndex={-1} ref={setContainerRef}>
       <EntityComposer.Header>
@@ -1144,7 +1169,17 @@ export function ComposeTask(props: ComposeTaskProps) {
 
       {/* The team switch, Create More and Create Task need about 400px; a
           phone is narrower, so the actions wrap to their own row. */}
-      <EntityComposer.Footer class="flex-wrap items-center">
+      <EntityComposer.Footer
+        ref={observeFooter}
+        class={cn(
+          'flex-wrap items-center',
+          // -bottom-4 offsets the scroll body's bottom padding, which sticky
+          // positioning insets from.
+          pinsFooter() &&
+            'sticky -bottom-4 z-1 -mx-4 -mt-3 -mb-4 px-4 pt-3 pb-4',
+          footerPinned() && 'bg-menu'
+        )}
+      >
         <Show when={team()}>
           {(team) => (
             <Tooltip label={sharingHint()} tabIndex={0}>
