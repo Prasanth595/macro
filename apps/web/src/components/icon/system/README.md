@@ -54,7 +54,8 @@ the same drawing to avoid introducing competing silhouettes. Existing brand
 logos and the legacy animated showcase retain their own assets and licensing.
 Interface controls, including editor tools, file types, task states, priorities,
 and settings, use this family. Board views deliberately retain the Phosphor
-Kanban icon. Brand marks retain their existing assets.
+Kanban icon. Gantt layouts use `chart-gantt`, with staggered horizontal task bars;
+it is also listed in the regular icon gallery. Brand marks retain their existing assets.
 Icons introduced on main after the source PR retain their existing assets when
 this family has no matching drawing.
 

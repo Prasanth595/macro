@@ -2,12 +2,12 @@ import {
   FilterSubmenu,
   SearchableFilterSubmenu,
 } from '@app/features/next-soup/soup-view/filters-bar/filter-menu';
+import GanttIcon from '@icon/system/regular/chart-gantt.svg';
 import CheckIcon from '@icon/system/regular/check.svg';
 import FilterIcon from '@icon/system/regular/funnel-simple.svg';
 import ListIcon from '@icon/system/regular/list-bullets.svg';
 import SortIcon from '@icon/system/regular/sort-ascending.svg';
 import GroupIcon from '@icon/system/regular/stack.svg';
-import GanttIcon from '@phosphor/chart-bar-horizontal.svg';
 import BoardIcon from '@phosphor/kanban.svg';
 import { Key } from '@solid-primitives/keyed';
 import { cn, Dropdown } from '@ui';

@@ -73,8 +73,8 @@ same drawer. Mobile supports List only. Opening a Board or Gantt link, or
 restoring either layout, automatically selects List and replaces that host's
 layout URL parameter without adding history or clearing search, sorting,
 grouping, or filters. Desktop supports List and Board, plus Gantt when the
-PostHog `enable-gantt` flag is enabled. This flag also gates project-task and
-Projects collection timelines. When the flag is disabled or still loading,
+PostHog `enable-gantt` flag is enabled, or when running the local hot-reload
+preview. This flag also gates project-task and Projects collection timelines. When the flag is disabled or still loading,
 saved Gantt layouts and Gantt URLs render List without clearing the selected
 layout, so enabling the flag restores Gantt. The local override is
 `VITE_ENABLE_GANTT=true` (or `false` to force it off).
