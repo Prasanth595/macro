@@ -79,19 +79,23 @@ export function createTasksViewSearch(options: {
                   },
                 ]
               : entrySort.map((item) => ({ ...item }));
-            draft.dueDate =
-              dueDate === 'range'
-                ? (dueStart || dueEnd) &&
-                  (!dueStart || !dueEnd || dueStart <= dueEnd)
-                  ? { type: 'range', start: dueStart, end: dueEnd }
-                  : undefined
-                : dueDate === 'any'
-                  ? undefined
-                  : dueDate
-                    ? { type: dueDate }
-                    : tab === entryTab && entryDueDate
-                      ? { ...entryDueDate }
-                      : undefined;
+            if (dueDate === 'range') {
+              const validRange =
+                (dueStart || dueEnd) &&
+                (!dueStart || !dueEnd || dueStart <= dueEnd);
+              draft.dueDate = undefined;
+              if (validRange) {
+                draft.dueDate = { type: 'range', start: dueStart, end: dueEnd };
+              }
+            } else if (dueDate === 'any') {
+              draft.dueDate = undefined;
+            } else if (dueDate) {
+              draft.dueDate = { type: dueDate };
+            } else if (tab === entryTab && entryDueDate) {
+              draft.dueDate = { ...entryDueDate };
+            } else {
+              draft.dueDate = undefined;
+            }
           })
         );
 

@@ -224,6 +224,17 @@ it('restores the original date filter when URL controls disappear', () => {
     start: '2026-10-21',
     end: '2026-10-28',
   });
+
+  view.setSearch('dueDate', 'any');
+  expect(view.state.dueDate).toBeUndefined();
+  view.setSearch('dueDate', 'range');
+  expect(view.state.dueDate).toBeUndefined();
+  view.setSearch({
+    dueDate: 'range',
+    dueStart: '2026-10-28',
+    dueEnd: '2026-10-21',
+  });
+  expect(view.state.dueDate).toBeUndefined();
 });
 
 it('round-trips custom date ranges and due sorts without reversed null placement', () => {
