@@ -291,22 +291,21 @@ export function useSetCompanyHiddenMutation(deps: CrmRecordDependencies) {
         companyId: string;
         hidden: boolean;
       }) =>
-        Telemetry.span('crm.visibility_change', (span) => {
+        Telemetry.span('crm.visibility_change', async (span) => {
           span.setAttr('crm.record_type', 'company');
           span.setAttr('crm.record_id', companyId);
           span.setAttr('crm.hidden', hidden);
-          return throwOnErr(async () => {
-            const result = await deps.storage.setCompanyHidden({
-              companyId,
-              hidden,
-            });
-            span.setAttr(
-              'crm.visibility.outcome',
-              result.isOk() ? 'success' : 'error'
+          try {
+            const result = await throwOnErr(() =>
+              deps.storage.setCompanyHidden({ companyId, hidden })
             );
-            if (result.isErr()) span.error('Company visibility update failed');
+            span.setAttr('crm.visibility.outcome', 'success');
             return result;
-          });
+          } catch (error) {
+            span.setAttr('crm.visibility.outcome', 'error');
+            span.error('Company visibility update failed');
+            throw error;
+          }
         }),
       onSuccess: async (_data, { companyId }) => {
         await invalidateCachedCrmContacts();

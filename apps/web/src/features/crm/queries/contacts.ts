@@ -160,22 +160,21 @@ export function useSetContactHiddenMutation(deps: CrmRecordDependencies) {
         contactId: string;
         hidden: boolean;
       }) =>
-        Telemetry.span('crm.visibility_change', (span) => {
+        Telemetry.span('crm.visibility_change', async (span) => {
           span.setAttr('crm.record_type', 'contact');
           span.setAttr('crm.record_id', contactId);
           span.setAttr('crm.hidden', hidden);
-          return throwOnErr(async () => {
-            const result = await deps.storage.setContactHidden({
-              contactId,
-              hidden,
-            });
-            span.setAttr(
-              'crm.visibility.outcome',
-              result.isOk() ? 'success' : 'error'
+          try {
+            const result = await throwOnErr(() =>
+              deps.storage.setContactHidden({ contactId, hidden })
             );
-            if (result.isErr()) span.error('Contact visibility update failed');
+            span.setAttr('crm.visibility.outcome', 'success');
             return result;
-          });
+          } catch (error) {
+            span.setAttr('crm.visibility.outcome', 'error');
+            span.error('Contact visibility update failed');
+            throw error;
+          }
         }),
       onSuccess: async (_data, { contactId }) => {
         await invalidateCachedCrmContacts(contactId);
