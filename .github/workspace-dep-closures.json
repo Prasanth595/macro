@@ -6018,6 +6018,7 @@
       "crates/harness_token",
       "crates/image_generation",
       "crates/import",
+      "crates/import_notion",
       "crates/initiative",
       "crates/initiative_description",
       "crates/invite_email",
