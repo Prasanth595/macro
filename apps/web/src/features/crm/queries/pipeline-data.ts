@@ -1,9 +1,32 @@
+import { analytics } from '@app/lib/analytics';
+import type { DatabaseOp } from '@core/database-sql/generated/types';
+import { countRowWrites } from '@queries/storage/databases';
 import { err, errAsync, ok, ResultAsync } from 'neverthrow';
 import type { DatabaseApi } from '../../database/core/api';
 import { toViewColumn } from '../../database/queries/column-detail';
 import { databasePropertyCell } from '../../database/queries/property-cell';
 import type { Pipeline } from '../core/pipeline';
 import type { CrmRecordDependencies } from './dependencies';
+
+/**
+ * Reports a committed pipeline write's row counts: inserted rows are entries
+ * added, updated rows include stage moves. Never cell contents.
+ */
+export function trackPipelineEntryWrites(
+  pipeline: { id: string; recordType?: Pipeline['recordType'] },
+  surface: 'pipeline' | 'record',
+  ops: DatabaseOp[]
+) {
+  const counts = countRowWrites(ops);
+  if (counts.insertedRows + counts.updatedRows + counts.deletedRows === 0)
+    return;
+  analytics.track('crm_pipeline_entries_edited', {
+    pipelineId: pipeline.id,
+    recordType: pipeline.recordType,
+    surface,
+    ...counts,
+  });
+}
 
 /** Transport adapter only; the shared provider owns queries and editing. */
 export function createPipelineApi(
@@ -73,6 +96,10 @@ export function createPipelineApi(
     applyOps: (batch) =>
       storage
         .applyCrmPipelineOps(pipeline.id, batch)
-        .mapErr(([error]) => error),
+        .mapErr(([error]) => error)
+        .map((applied) => {
+          trackPipelineEntryWrites(pipeline, 'pipeline', batch.ops);
+          return applied;
+        }),
   };
 }

@@ -11,6 +11,9 @@ import { databasePropertyCell } from '../../database/queries/property-cell';
 import type { Pipeline } from '../core/pipeline';
 import { createPipelineApi } from './pipeline-data';
 
+const track = vi.hoisted(() => vi.fn());
+vi.mock('@app/lib/analytics', () => ({ analytics: { track } }));
+
 const pipeline: Pipeline = {
   id: 'pipeline',
   databaseId: 'storage-only',
@@ -313,4 +316,36 @@ it('preserves unknown insert outcomes through the shared writer', async () => {
     );
   expect(result.isErr() && result.error.kind).toBe('outcome-unknown');
   expect(apply).toHaveBeenCalledTimes(1);
+});
+
+it('reports committed pipeline writes as entries edited, never refused ones', async () => {
+  track.mockReset();
+  const host = setup();
+  const ops = [
+    {
+      kind: 'rows' as const,
+      table: 'records',
+      change: { kind: 'insert' as const, rows: [[]] },
+    },
+  ];
+
+  await host.api.applyOps({ ops });
+  const refused = createPipelineApi(
+    {
+      ...host.storage,
+      applyCrmPipelineOps: () =>
+        errAsync([{ code: 'CONFLICT', message: 'Changed.', refusal: null }]),
+    },
+    pipeline
+  );
+  await refused.applyOps({ ops });
+
+  expect(track).toHaveBeenCalledExactlyOnceWith('crm_pipeline_entries_edited', {
+    pipelineId: 'pipeline',
+    recordType: 'company',
+    surface: 'pipeline',
+    insertedRows: 1,
+    updatedRows: 0,
+    deletedRows: 0,
+  });
 });
