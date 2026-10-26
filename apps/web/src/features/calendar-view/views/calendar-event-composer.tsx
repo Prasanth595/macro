@@ -1,7 +1,11 @@
 import { createCalendarEventFormController } from '@app/features/calendar/components/composer/create-calendar-event-form-controller';
 import { EventForm } from '@app/features/calendar/components/composer/EventForm';
 import { defaultEditorInitialValues } from '@app/features/calendar/components/composer/event-form-model';
+import { useCalendarGuestInvitesFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import { useEventEditor } from '@app/features/calendar/hooks/use-event-editor';
+import { useSyncedCalendarEvent } from '@app/features/calendar/hooks/use-synced-calendar-event';
+import { viewerReplacesGuests } from '@app/features/calendar/utils/event-guest-editing';
+import { EventReplacementAction } from '@app/features/calendar/views/event-replacement';
 import { useQuickCallsFlag } from '@app/features/meetings/use-quick-calls-flag';
 import { useBeforeLeave } from '@app/lib/split-router';
 import { isMobile } from '@core/mobile/isMobile';
@@ -153,6 +157,9 @@ function CalendarEditorContent(
   const editor = useEventEditor({
     event: () => props.draft.event,
     macroCallsEnabled: props.macroCallsEnabled,
+    guestInvitesEnabled: useCalendarGuestInvitesFlag(),
+    syncedEvent: useSyncedCalendarEvent(() => props.draft.event),
+    onDetailsLocked: () => controller.resetDetails(),
     onSaved: () => {
       saved = true;
       composer.close();
@@ -209,9 +216,14 @@ function CalendarEditorContent(
       <EventForm
         controller={controller}
         macroCallsEnabled={props.macroCallsEnabled()}
-        isEdit={props.draft.event !== undefined || editor.eventCreated()}
+        isEdit={props.draft.event !== undefined}
         saveError={editor.saveError()}
         disabledFields={editor.disabledFields()}
+        addOnlyGuests={editor.addOnlyGuests()}
+        guestsReadOnlyReason={editor.guestsReadOnlyReason()}
+        guestListHidden={editor.guestListHidden()}
+        guestPolicyEditable={editor.guestPolicyEditable()}
+        detailsReadOnlyReason={editor.detailsReadOnlyReason()}
         showRecurringEditNotice={editor.showRecurringEditNotice()}
         pending={editor.pending()}
         onCalendarChange={props.draft.onCalendarChange}
@@ -241,6 +253,35 @@ function CalendarEditorContent(
           )
         }
       />
+      <Show
+        when={
+          props.draft.event?.calendar.provider === 'outlook' &&
+          !props.draft.event.isCancelled &&
+          viewerReplacesGuests(props.draft.event)
+            ? props.draft.event
+            : undefined
+        }
+      >
+        {(event) => (
+          <EventReplacementAction
+            target={{
+              eventId: event().eventId,
+              calendarId: event().calendarId,
+              recurrenceId: event().recurrenceId,
+            }}
+            hasConference={
+              event().conferenceUrl !== undefined &&
+              event().conferenceProvider !== undefined
+            }
+            recurring={
+              event().recurrenceLines.length > 0 ||
+              event().recurrenceId !== undefined
+            }
+            disabled={controller.isDirty() || editor.pending()}
+            onDone={() => composer.close()}
+          />
+        )}
+      </Show>
     </CalendarEditorSurface>
   );
 }

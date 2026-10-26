@@ -1,6 +1,8 @@
 import type { OutOfOfficeProperties } from '@service-calendar/generated/schemas/outOfOfficeProperties';
 import type { CalendarUpdateScope } from '@service-email/client';
+import type { GuestPolicy } from '@service-storage/generated/schemas/guestPolicy';
 import { type Accessor, batch, createMemo, createSignal } from 'solid-js';
+import { DEFAULT_GUEST_POLICY } from '../../types';
 import {
   buildReminderOverrides,
   popupMinutes,
@@ -24,6 +26,7 @@ import {
   guestEmail,
   initialGuestOptions,
   moveAllDayRange,
+  moveTimedRange,
   PAST_EVENT_GUESTS_WARNING,
   type SelectedEventEditorGuest,
 } from './event-form-model';
@@ -48,6 +51,19 @@ interface EventComposerFormSnapshot {
   eventKind: EventEditorEventKind;
   autoDeclineMode?: EventEditorOutOfOffice['autoDeclineMode'];
   declineMessage: string;
+  guestPolicy: GuestPolicy;
+}
+
+function guestPolicyOf(values: EventEditorInitialValues): GuestPolicy {
+  return values.guestPolicy ?? DEFAULT_GUEST_POLICY;
+}
+
+function guestPoliciesEqual(first: GuestPolicy, second: GuestPolicy) {
+  return (
+    first.canModify === second.canModify &&
+    first.canInviteOthers === second.canInviteOthers &&
+    first.canSeeOtherGuests === second.canSeeOtherGuests
+  );
 }
 
 function normalizedGuestEmails(emails: readonly string[]) {
@@ -92,6 +108,7 @@ function isEventComposerFormDirty(
     initial.eventKind !== current.eventKind ||
     initial.autoDeclineMode !== current.autoDeclineMode ||
     initial.declineMessage !== current.declineMessage ||
+    !guestPoliciesEqual(initial.guestPolicy, current.guestPolicy) ||
     !arraysEqual(
       normalizedGuestEmails(initial.guestEmails),
       normalizedGuestEmails(current.guestEmails)
@@ -126,7 +143,19 @@ function cloneValue(value: EventEditorInitialValues): EventEditorInitialValues {
         }
       : undefined,
     outOfOffice: value.outOfOffice ? { ...value.outOfOffice } : undefined,
+    guestPolicy: value.guestPolicy ? { ...value.guestPolicy } : undefined,
   };
+}
+
+function sameEditorFields(
+  current: EventEditorInitialValues,
+  next: EventEditorInitialValues
+) {
+  const fields = new Set([
+    ...Object.keys(current),
+    ...Object.keys(next),
+  ]) as Set<keyof EventEditorInitialValues>;
+  return [...fields].every((field) => Object.is(current[field], next[field]));
 }
 
 function normalizedReminderMinutes(minutes: readonly number[]) {
@@ -144,17 +173,14 @@ export function createCalendarEventFormController(
   // Save policy belongs to the draft, not a disposable popover or sidebar form.
   const [editScope, setEditScope] = createSignal<CalendarUpdateScope>('all');
 
-  const initialGuests = initialGuestOptions(
-    options.initialValue.guests,
-    options.guestOptions()
+  const [initialGuests, setInitialGuests] = createSignal(
+    initialGuestOptions(options.initialValue.guests, options.guestOptions())
   );
+  const initialGuestEmails = () => initialGuests().map(guestEmail);
 
-  const [initialGuestEmails, setInitialGuestEmails] = createSignal(
-    initialGuests.map(guestEmail)
-  );
-
-  const [selectedGuests, setSelectedGuestsState] =
-    createSignal<SelectedEventEditorGuest[]>(initialGuests);
+  const [selectedGuests, setSelectedGuestsState] = createSignal<
+    SelectedEventEditorGuest[]
+  >(initialGuests());
 
   const recurrence = createEventEditorState({
     initialValues: options.initialValue,
@@ -307,6 +333,7 @@ export function createCalendarEventFormController(
       : state().conference,
     reminderMinutes: normalizedReminderMinutes(reminderMinutes()),
     ...outOfOfficeSnapshotFields(state()),
+    guestPolicy: guestPolicyOf(state()),
   });
 
   const initialSnapshot = (): EventComposerFormSnapshot => {
@@ -326,6 +353,7 @@ export function createCalendarEventFormController(
       conference: blanks ? 'none' : initialValue().conference,
       reminderMinutes: normalizedReminderMinutes(initialReminderMinutes()),
       ...outOfOfficeSnapshotFields(initialValue()),
+      guestPolicy: guestPolicyOf(initialValue()),
     };
   };
 
@@ -376,18 +404,67 @@ export function createCalendarEventFormController(
   const setField = <Key extends keyof EventEditorInitialValues>(
     field: Key,
     next: EventEditorInitialValues[Key]
-  ) => replaceState({ ...state(), [field]: next });
+  ) => {
+    const current = state();
+    const value = { ...current, [field]: next };
+    if (field === 'calendarId') {
+      const capabilities = calendarOptionFor(value.calendarId)?.capabilities;
+      if (
+        capabilities &&
+        (value.conference === 'google_meet' ||
+          value.conference === 'microsoft_teams')
+      ) {
+        const provider = capabilities.conferenceProvider;
+        if (provider === 'google_meet' || provider === 'microsoft_teams')
+          value.conference = provider;
+      }
+      if (capabilities?.autoDecline === false && value.outOfOffice)
+        value.outOfOffice = {
+          autoDeclineMode: 'decline_none',
+          declineMessage: '',
+        };
+    }
+    // A set that leaves every field as it was is not an edit. Writing one
+    // anyway hands every reader a new object, and a control that answers a
+    // changed value by re-asserting its own selection would set the same field
+    // right back — an edit loop the form never settles out of.
+    if (sameEditorFields(current, value)) return;
+    replaceState(value);
+  };
 
-  const setStart = (start: string) =>
+  // Until the end is picked in this edit it follows the start, keeping the
+  // event's length; once picked, it stays where the user put it.
+  let endChosen = false;
+
+  const setStart = (start: string) => {
+    const current = state();
+    if (endChosen) {
+      replaceState({ ...current, start });
+      return;
+    }
     replaceState(
-      state().allDay ? moveAllDayRange(state(), start) : { ...state(), start }
+      current.allDay
+        ? moveAllDayRange(current, start)
+        : moveTimedRange(current, start)
     );
+  };
 
-  const setDateRange = (start: string, end: string) =>
+  const setDateRange = (start: string, end: string) => {
+    if (start === state().start && end === state().end) return;
+    endChosen = true;
     replaceState({ ...state(), start, end });
+  };
 
-  const setAllDay = (allDay: boolean) =>
+  const setEnd = (end: string) => {
+    if (end === state().end) return;
+    endChosen = true;
+    setField('end', end);
+  };
+
+  const setAllDay = (allDay: boolean) => {
+    endChosen = false;
     replaceState(convertTimesForAllDay(state(), allDay));
+  };
 
   const setEventKind = (kind: EventEditorEventKind) => {
     if (kind === eventKind()) return;
@@ -467,9 +544,30 @@ export function createCalendarEventFormController(
     };
   };
 
+  const conferenceError = () => {
+    const requested = state().conference;
+    if (
+      options.isEdit &&
+      requested === initialValue().conference &&
+      effectiveCalendarId() === calendarOptionFor(initialValue().calendarId)?.id
+    )
+      return undefined;
+    const capabilities = selectedCalendarOption()?.capabilities;
+    if (
+      !isOutOfOffice() &&
+      capabilities &&
+      (requested === 'google_meet' || requested === 'microsoft_teams') &&
+      capabilities.conferenceProvider !== requested
+    ) {
+      return 'This calendar cannot create the selected meeting link. Choose another calendar or remove the conference.';
+    }
+    return undefined;
+  };
+
   const canSave = () =>
     recurrence.canSave() &&
     !(editScope() === 'this_event' && hasRecurrenceEdits()) &&
+    !conferenceError() &&
     (!options.defaultCalendarId ||
       availableCalendarOptions().some(
         (option) => option.id === effectiveCalendarId()
@@ -481,6 +579,13 @@ export function createCalendarEventFormController(
     const current = state();
     const reminders = reminderUpdate();
     const outOfOffice = submittedOutOfOffice();
+    const guestPolicy = guestPolicyOf(current);
+    // Outlook calendars have no guest permissions, so a policy picked before
+    // switching to one is not sent.
+    const guestPolicyChanged =
+      !isOutOfOffice() &&
+      selectedCalendarOption()?.capabilities?.guestPolicy !== false &&
+      !guestPoliciesEqual(guestPolicy, guestPolicyOf(initialValue()));
     const providerConference =
       current.conference === 'macro' ? 'none' : current.conference;
     const initialProviderConference =
@@ -511,16 +616,46 @@ export function createCalendarEventFormController(
       ...(conference ? { conference } : {}),
       ...(reminders ? { reminders } : {}),
       ...(outOfOffice ? { outOfOffice } : {}),
+      ...(guestPolicyChanged ? { guestPolicy } : {}),
     };
+  };
+
+  /**
+   * Returns the event's details (what a guest without modify rights cannot
+   * change) to their loaded values, keeping the viewer's reminders, guests
+   * and guest permissions, so a form whose details just locked holds nothing
+   * it cannot save.
+   */
+  const resetDetails = () => {
+    const initial = initialValue();
+    endChosen = false;
+    batch(() => {
+      setState({
+        ...state(),
+        title: initial.title,
+        allDay: initial.allDay,
+        start: initial.start,
+        end: initial.end,
+        recurrenceLines: [...initial.recurrenceLines],
+        location: initial.location,
+        description: initial.description,
+        outOfOffice: initial.outOfOffice
+          ? { ...initial.outOfOffice }
+          : undefined,
+      });
+      recurrence.replaceInitialValues(initial);
+    });
+    notifyChange();
   };
 
   const replaceFromExternal = (next: EventEditorInitialValues) => {
     const cloned = cloneValue(next);
     const guests = initialGuestOptions(next.guests, options.guestOptions());
+    endChosen = false;
     batch(() => {
       setInitialValue(cloned);
       setState(cloned);
-      setInitialGuestEmails(guests.map(guestEmail));
+      setInitialGuests(guests);
       setSelectedGuestsState(guests);
       setReminderEdits(undefined);
       setRecurrenceTouched(false);
@@ -536,10 +671,13 @@ export function createCalendarEventFormController(
     setEditScope: (scope: CalendarUpdateScope) => {
       if (scope === 'this_event' && hasRecurrenceEdits()) return;
       setEditScope(scope);
+      if (scope === 'this_event')
+        setField('guestPolicy', initialValue().guestPolicy);
     },
     hasRecurrenceEdits,
     calendarOptions: availableCalendarOptions,
     guestOptions: options.guestOptions,
+    initialGuests,
     selectedGuests,
     effectiveCalendarId,
     selectedCalendarOption,
@@ -551,11 +689,16 @@ export function createCalendarEventFormController(
     setField,
     setStart,
     setDateRange,
+    setEnd,
     setAllDay,
     eventKind,
     isOutOfOffice,
     setEventKind,
     setOutOfOffice,
+    guestPolicy: () => guestPolicyOf(state()),
+    setGuestPolicy: (guestPolicy: GuestPolicy) =>
+      setField('guestPolicy', guestPolicy),
+    resetGuestPolicy: () => setField('guestPolicy', initialValue().guestPolicy),
     setSelectedGuests,
     startForRecurrence: recurrence.startForRecurrence,
     recurrenceChoice: recurrence.recurrenceChoice,
@@ -568,10 +711,12 @@ export function createCalendarEventFormController(
     dateRangeError: recurrence.dateRangeError,
     pastEventWarning,
     eventTime: recurrence.eventTime,
+    conferenceError,
     canSave,
     snapshot,
     isDirty,
     submitValues,
+    resetDetails,
     replaceFromExternal,
   };
 }

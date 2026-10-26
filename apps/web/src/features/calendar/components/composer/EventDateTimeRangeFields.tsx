@@ -28,6 +28,8 @@ export interface EventDateTimeRangeFieldsProps {
   end: string;
   allDay: boolean;
   onRangeChange: (start: string, end: string) => void;
+  /** Let the owner preserve duration when only the start time changes. */
+  onStartChange?: (start: string) => void;
   onAllDayChange: (allDay: boolean) => void;
   startDisabled?: boolean;
   endDisabled?: boolean;
@@ -266,11 +268,17 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
                             label="Start time"
                             value={startParts().time}
                             onChange={(option) => {
-                              if (canStart() && !props.allDay)
-                                publishRange(
-                                  withLocalTime(props.start, option.value),
-                                  props.end
-                                );
+                              if (!canStart() || props.allDay) return;
+                              const start = withLocalTime(
+                                props.start,
+                                option.value
+                              );
+                              if (props.onStartChange) {
+                                setSelection(undefined);
+                                props.onStartChange(start);
+                              } else {
+                                publishRange(start, props.end);
+                              }
                             }}
                             disabled={!canStart() || props.allDay}
                           />

@@ -13,13 +13,14 @@ import TextAlignLeftIcon from '@phosphor/text-align-left.svg';
 import UsersIcon from '@phosphor/users.svg';
 import VideoCameraIcon from '@phosphor/video-camera.svg';
 import type { CalendarUpdateScope } from '@service-email/client';
-import { Button, cn, Input, RadioGroup } from '@ui';
+import { Button, cn, Input, RadioGroup, Tooltip } from '@ui';
 import {
   createEffect,
   createSignal,
   createUniqueId,
   For,
   type JSX,
+  type ParentProps,
   Show,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
@@ -35,6 +36,7 @@ import {
 } from '../../utils/event-reminders';
 import type { CalendarEventFormController } from './create-calendar-event-form-controller';
 import { EventDateTimeRangeFields } from './EventDateTimeRangeFields';
+import { EventGuestPolicyRow } from './EventGuestPolicyRow';
 import {
   EventComposerCalendarPill,
   EventComposerConferencePill,
@@ -58,6 +60,19 @@ export interface EventFormProps {
   macroCallsEnabled: boolean;
   isEdit?: boolean;
   disabledFields?: EventEditorDisabledFields;
+  /** The viewer may add guests but not remove the event's current ones. */
+  addOnlyGuests?: boolean;
+  /** Why a read-only guest list cannot change. */
+  guestsReadOnlyReason?: string;
+  /** The organizer hides the guest list, so the seeded guests are not all of them. */
+  guestListHidden?: boolean;
+  /** Whether the viewer may set what guests may do, as the organizer. */
+  guestPolicyEditable?: boolean;
+  /**
+   * Why the event's title, time, description, location, recurrence and
+   * conferencing cannot change.
+   */
+  detailsReadOnlyReason?: string;
   showRecurringEditNotice?: boolean;
   /** Disable interaction without presenting the form as an in-flight save. */
   disabled?: boolean;
@@ -82,12 +97,26 @@ const RECURRING_EDIT_SCOPE_OPTIONS = [
   label: string;
 }[];
 
+/** Explains a locked field on hover and keyboard focus. */
+function LockedField(props: ParentProps<{ reason?: string; class?: string }>) {
+  return (
+    <Show when={props.reason} fallback={props.children}>
+      {(reason) => (
+        <Tooltip as="span" label={reason()} tabIndex={0} class={props.class}>
+          {props.children}
+        </Tooltip>
+      )}
+    </Show>
+  );
+}
+
 /** Shared event controls for creation and editing. */
 export function EventForm(props: EventFormProps) {
   const formId = createUniqueId();
   const resolveAppLink = useMacroMentionLinkResolver();
 
   const dateRangeErrorId = `event-composer-date-range-error-${formId}`;
+  const recurrenceReasonId = `event-composer-recurrence-reason-${formId}`;
   const pastEventWarningId = `event-composer-past-event-warning-${formId}`;
 
   const controller = props.controller;
@@ -98,7 +127,7 @@ export function EventForm(props: EventFormProps) {
   // Recurring edits default to the whole series, matching the long-standing
   // behavior; "this event" writes a single-occurrence exception.
   const editScope = controller.editScope;
-  const setEditScope = controller.setEditScope;
+  const changeEditScope = controller.setEditScope;
   const [recurrenceDialogOpen, setRecurrenceDialogOpen] = createSignal(false);
 
   // An invalid range already speaks for itself; only one line shows at a time.
@@ -113,7 +142,24 @@ export function EventForm(props: EventFormProps) {
     props.disabledFields?.[field] === true;
   const fieldIsDisabled = (field: keyof EventEditorDisabledFields) =>
     formIsDisabled() || fieldIsReadOnly(field);
+  const detailsLocked = () => props.detailsReadOnlyReason !== undefined;
+  // A single occurrence has no repeat rule of its own; like the guest
+  // permissions, the rule belongs to the whole series. A lock already says
+  // why the rule cannot change.
+  const recurrenceScopeReason = () =>
+    editScope() === 'this_event' && !detailsLocked()
+      ? 'The repeat rule applies to all events. Choose All events to change it.'
+      : undefined;
+  const recurrenceDescribedBy = () =>
+    recurrenceScopeReason() ? recurrenceReasonId : undefined;
 
+  const capabilities = () => controller.selectedCalendarOption()?.capabilities;
+  const conferenceLocked = () =>
+    isEdit() &&
+    capabilities()?.removeConference === false &&
+    ['microsoft_teams', 'existing'].includes(
+      controller.initialConferenceChoice()
+    );
   const isOutOfOffice = () => controller.isOutOfOffice();
   // The decline settings of an edited event are unknown until picked, and the
   // disclosure must not claim behavior nobody chose.
@@ -181,6 +227,7 @@ export function EventForm(props: EventFormProps) {
         end={state().end}
         allDay={state().allDay}
         onRangeChange={controller.setDateRange}
+        onStartChange={fieldIsDisabled('end') ? undefined : controller.setStart}
         onAllDayChange={controller.setAllDay}
         startDisabled={fieldIsDisabled('start')}
         endDisabled={fieldIsDisabled('end')}
@@ -251,7 +298,7 @@ export function EventForm(props: EventFormProps) {
       <EventComposerKindPill
         eventType={state().eventType}
         onChange={controller.setEventKind}
-        disabled={formIsDisabled()}
+        disabled={formIsDisabled() || detailsLocked()}
         readOnly={isEdit()}
       />
     ),
@@ -260,7 +307,7 @@ export function EventForm(props: EventFormProps) {
         options={controller.calendarOptions()}
         value={controller.selectedCalendarOption()}
         onChange={(calendarId) => controller.setField('calendarId', calendarId)}
-        disabled={formIsDisabled()}
+        disabled={formIsDisabled() || detailsLocked()}
         readOnly={fieldIsReadOnly('calendar')}
         hideIcon
       />
@@ -278,6 +325,8 @@ export function EventForm(props: EventFormProps) {
         disabled={formIsDisabled()}
         // A single occurrence has no recurrence rule of its own.
         readOnly={fieldIsReadOnly('recurrence') || editScope() === 'this_event'}
+        readOnlyReason={recurrenceScopeReason()}
+        describedBy={recurrenceDescribedBy()}
         hideIcon
       />
     ),
@@ -288,6 +337,11 @@ export function EventForm(props: EventFormProps) {
         onChange={controller.setSelectedGuests}
         disabled={formIsDisabled()}
         readOnly={fieldIsReadOnly('guests')}
+        readOnlyReason={props.guestsReadOnlyReason}
+        guestListHidden={props.guestListHidden}
+        currentGuests={
+          props.addOnlyGuests ? controller.initialGuests() : undefined
+        }
         hideIcon
       />
     ),
@@ -295,9 +349,10 @@ export function EventForm(props: EventFormProps) {
       <EventComposerConferencePill
         value={state().conference}
         macroCallsEnabled={props.macroCallsEnabled}
+        provider={capabilities()?.conferenceProvider}
         canKeepExisting={controller.initialConferenceChoice() === 'existing'}
         onChange={(conference) => controller.setField('conference', conference)}
-        disabled={formIsDisabled()}
+        disabled={fieldIsDisabled('conference') || conferenceLocked()}
         readOnly={fieldIsReadOnly('conference')}
         hideIcon
       />
@@ -437,7 +492,12 @@ export function EventForm(props: EventFormProps) {
                 )}
               </Show>
             </span>
-            {titleField()}
+            <LockedField
+              reason={props.detailsReadOnlyReason}
+              class="block min-w-0"
+            >
+              {titleField()}
+            </LockedField>
             <div class="col-start-2 min-w-0 px-2 pb-1">{controls.kind()}</div>
           </div>
           <Show when={!isOutOfOffice()}>
@@ -446,10 +506,17 @@ export function EventForm(props: EventFormProps) {
             </PropertyRow>
           </Show>
           <PropertyRow label="Date and time" icon={CalendarBlankIcon}>
-            {dateFields()}
+            <LockedField
+              reason={props.detailsReadOnlyReason}
+              class="block min-w-0"
+            >
+              {dateFields()}
+            </LockedField>
           </PropertyRow>
           <PropertyRow label="Repeats" icon={RepeatIcon}>
-            {controls.recurrence()}
+            <LockedField reason={props.detailsReadOnlyReason}>
+              {controls.recurrence()}
+            </LockedField>
           </PropertyRow>
           <Show when={!isOutOfOffice()}>
             <PropertyRow label="Meeting link" icon={VideoCameraIcon}>
@@ -485,6 +552,48 @@ export function EventForm(props: EventFormProps) {
               {controls.guests()}
             </PropertyRow>
           </Show>
+          <Show
+            when={
+              props.guestPolicyEditable &&
+              capabilities()?.guestPolicy !== false &&
+              !isOutOfOffice()
+            }
+          >
+            <EventGuestPolicyRow
+              value={controller.guestPolicy()}
+              onChange={controller.setGuestPolicy}
+              disabled={formIsDisabled() || editScope() === 'this_event'}
+              disabledReason={
+                editScope() === 'this_event'
+                  ? 'Guest permissions apply to all events. Choose All events to change them.'
+                  : undefined
+              }
+            />
+          </Show>
+          <Show when={recurrenceScopeReason()}>
+            {(reason) => (
+              <p id={recurrenceReasonId} class="text-xs text-ink-muted">
+                {reason()}
+              </p>
+            )}
+          </Show>
+          <Show when={props.detailsReadOnlyReason}>
+            {(reason) => <p class="text-xs text-ink-muted">{reason()}</p>}
+          </Show>
+          <Show when={conferenceLocked()}>
+            <p class="text-xs text-ink-muted">
+              Microsoft keeps the online meeting link on an existing event. To
+              remove it, use “Replace event” after saving or discarding your
+              edits without a meeting link.
+            </p>
+          </Show>
+          <Show when={controller.conferenceError()}>
+            {(error) => (
+              <p role="alert" class="text-sm text-warning">
+                {error()}
+              </p>
+            )}
+          </Show>
           <Show when={outOfOfficeNotice()}>
             {(notice) => (
               <div
@@ -494,6 +603,19 @@ export function EventForm(props: EventFormProps) {
               >
                 <span class="font-medium">Out-of-office event</span>
                 <span>{notice().effect}</span>
+                <Show
+                  when={
+                    controller.selectedCalendarOption()?.provider ===
+                      'outlook' &&
+                    state().outOfOffice?.autoDeclineMode !== 'decline_none'
+                  }
+                >
+                  <span>
+                    Macro checks for conflicts in the background while this
+                    calendar is connected. Replies already sent cannot be undone
+                    by changing this event.
+                  </span>
+                </Show>
                 <Show when={notice().declineMessage}>
                   {(message) => (
                     <span class="italic">
@@ -536,7 +658,7 @@ export function EventForm(props: EventFormProps) {
         <Show when={props.showRecurringEditNotice}>
           <RadioGroup
             value={editScope()}
-            onChange={(value) => setEditScope(value as CalendarUpdateScope)}
+            onChange={(value) => changeEditScope(value as CalendarUpdateScope)}
             disabled={formIsDisabled()}
             aria-label="Apply changes to"
             class="mr-auto flex-row items-center gap-3 text-xs text-ink-muted"
