@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  createTaskCalendar,
+  createDateBucketBoundaries,
   taskDueDatePredicate,
 } from '../core/task-due-date';
 import { type BuildTaskQueryOptions, buildTaskQuery } from './task-query';
@@ -111,7 +111,7 @@ it('uses the initiative Project property for board columns without changing lega
   });
 });
 
-const calendar = createTaskCalendar(
+const calendar = createDateBucketBoundaries(
   new Date('2026-11-01T18:00:00Z'),
   'America/New_York'
 );

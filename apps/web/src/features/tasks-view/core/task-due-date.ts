@@ -16,8 +16,8 @@ export type TaskDueDateFilter =
   | { type: TaskDueDateBucket | 'has_due_date' }
   | { type: 'range'; start?: string; end?: string };
 
-/** Frozen viewer-local calendar boundaries shared by filtering and pagination. */
-export type TaskCalendar = {
+/** Frozen viewer-local date-bucket boundaries shared by filtering and pagination. */
+export type DateBucketBoundaries = {
   timeZone: string;
   today: string;
   boundaries: {
@@ -32,7 +32,10 @@ export type TaskDatePredicate =
   | { hasDate: boolean }
   | { dateRange: { start?: string; end?: string } };
 
-export function createTaskCalendar(now: Date, timeZone: string): TaskCalendar {
+export function createDateBucketBoundaries(
+  now: Date,
+  timeZone: string
+): DateBucketBoundaries {
   const today = startOfDay(new TZDate(now, timeZone));
   const utc = (days: number) => new Date(addDays(today, days)).toISOString();
   return {
@@ -60,7 +63,7 @@ export function taskDateOnlyToIso(
 
 export function taskDueDatePredicate(
   filter: TaskDueDateFilter | undefined,
-  calendar: TaskCalendar
+  calendar: DateBucketBoundaries
 ): TaskDatePredicate | undefined {
   if (!filter) return;
   const b = calendar.boundaries;
@@ -110,7 +113,7 @@ export function taskMatchesDueDate(
 
 export function taskDueDateBucket(
   value: string | undefined,
-  calendar: TaskCalendar
+  calendar: DateBucketBoundaries
 ): TaskDueDateBucket {
   if (!value || !Number.isFinite(Date.parse(value))) return 'no_due_date';
   const due = Date.parse(value);
@@ -126,7 +129,7 @@ export function taskDueDateBucket(
 export function taskDueDateBucketMatchesFilter(
   bucket: TaskDueDateBucket,
   predicate: TaskDatePredicate | undefined,
-  calendar: TaskCalendar
+  calendar: DateBucketBoundaries
 ): boolean {
   if (!predicate) return true;
   if ('hasDate' in predicate)
@@ -145,7 +148,7 @@ export function taskDueDateBucketMatchesFilter(
 /** Inclusive picker bounds for a broad deadline bucket. */
 export function taskDueDatePickerBounds(
   bucket: TaskDueDateBucket,
-  calendar: TaskCalendar
+  calendar: DateBucketBoundaries
 ): { min?: string; max?: string } {
   const day = (offset: number) =>
     format(

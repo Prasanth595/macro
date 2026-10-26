@@ -1,12 +1,12 @@
 import { type Accessor, createSignal, onCleanup } from 'solid-js';
-import { createTaskCalendar } from '../core/task-due-date';
+import { createDateBucketBoundaries } from '../core/task-due-date';
 
 /** Refresh relative dates after midnight, timezone changes, and app resume. */
-export function createTaskCalendarSignal(
+export function createDateBucketBoundariesSignal(
   options: { timeZone?: Accessor<string> } = {}
 ) {
   const current = () =>
-    createTaskCalendar(
+    createDateBucketBoundaries(
       new Date(),
       options.timeZone?.() ?? Intl.DateTimeFormat().resolvedOptions().timeZone
     );

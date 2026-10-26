@@ -3,7 +3,7 @@ import { PROPERTY_OPTION_IDS } from '@property/constants';
 import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
 import { createRoot } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { createTaskCalendar } from '../core/task-due-date';
+import { createDateBucketBoundaries } from '../core/task-due-date';
 import { boardEntity, boardProperty } from '../tests/task-board-fixture';
 import { createTaskBoardQueries } from './task-board-queries';
 
@@ -197,7 +197,7 @@ it('saves deadline moves through the shared DATE mutation and rejects mismatched
       boardProperty(SYSTEM_PROPERTY_IDS.DUE_DATE, null, 'DATE').definition,
     ],
   };
-  const calendar = createTaskCalendar(
+  const calendar = createDateBucketBoundaries(
     new Date('2026-10-21T18:00:00Z'),
     'America/New_York'
   );

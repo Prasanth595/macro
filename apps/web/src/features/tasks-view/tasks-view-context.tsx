@@ -51,10 +51,10 @@ import {
 } from 'solid-js/store';
 import { TASK_DEFAULT_GROUP_BY } from './constants';
 import { toTaskBoardGrouping } from './core/task-board';
-import type { TaskCalendar } from './core/task-due-date';
+import type { DateBucketBoundaries } from './core/task-due-date';
 import { DEFAULT_TASK_FACET_SELECTION } from './filters/task-facets';
 import { createTasksViewPersistence } from './persistence';
-import { createTaskCalendarSignal } from './primitives/create-task-calendar';
+import { createDateBucketBoundariesSignal } from './primitives/create-date-bucket-boundaries';
 import { createTasksViewSearch } from './primitives/create-tasks-view-search';
 import {
   type TasksDataSource,
@@ -104,7 +104,7 @@ type TasksListController = ListController<
 export type TasksViewContext = {
   scopeKey?: string;
   state: Store<TasksViewState>;
-  calendar: Accessor<TaskCalendar>;
+  calendar: Accessor<DateBucketBoundaries>;
   createTask?: TasksViewProviderProps['onCreateTask'];
   projectsEnabled: Accessor<boolean>;
   ganttEnabled: Accessor<boolean>;
@@ -163,7 +163,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   const projectsEnabled = () => projectsFlag().enabled;
   const ganttFlag = useFeatureFlag(enableGantt);
   const ganttEnabled = () => ganttFlag().enabled;
-  const calendar = createTaskCalendarSignal();
+  const calendar = createDateBucketBoundariesSignal();
 
   const initial = props.initialState ?? {};
   const initialTab = initial.tab ?? 'my-tasks';

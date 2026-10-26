@@ -10,7 +10,10 @@ import {
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import type { GroupByField } from '@queries/soup/grouped/types';
 import type { SoupAstBody, SoupAstItemsQueryArgs } from '@queries/soup/items';
-import type { TaskCalendar, TaskDatePredicate } from '../core/task-due-date';
+import type {
+  DateBucketBoundaries,
+  TaskDatePredicate,
+} from '../core/task-due-date';
 import {
   EMPTY_TASK_FACET_CONTEXT,
   TASK_FACETS,
@@ -93,7 +96,7 @@ const nonTaskTargets = {
 
 export const taskGroupByField = (
   groupBy: TaskGroupBy,
-  calendar?: TaskCalendar
+  calendar?: DateBucketBoundaries
 ): GroupByField | undefined => {
   switch (groupBy) {
     case 'none':
@@ -102,7 +105,7 @@ export const taskGroupByField = (
       return { type: 'date' };
     case 'due_date':
       if (!calendar)
-        throw new Error('Due-date grouping requires a calendar snapshot');
+        throw new Error('Due-date grouping requires date-bucket boundaries');
       return { type: 'deadline', boundaries: calendar.boundaries };
     case 'project':
       return { type: 'project' };
@@ -132,7 +135,7 @@ export type BuildTaskQueryOptions = {
   groupBy: TaskGroupBy;
   sort: SortSelection<TaskSortId>[];
   dueDate?: TaskDatePredicate;
-  calendar?: TaskCalendar;
+  calendar?: DateBucketBoundaries;
   searching?: boolean;
   /** Only tasks whose property references this entity. */
   reference?: TaskReferenceScope;

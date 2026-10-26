@@ -1,6 +1,6 @@
 import { createRoot, createSignal } from 'solid-js';
 import { afterEach, expect, it, vi } from 'vitest';
-import { createTaskCalendar } from '../core/task-due-date';
+import { createDateBucketBoundaries } from '../core/task-due-date';
 import { createTaskBoard } from './create-task-board';
 import { createTaskDeadlineMove } from './create-task-deadline-move';
 
@@ -12,7 +12,7 @@ afterEach(() => {
 function setup() {
   return createRoot((dispose) => {
     disposers.push(dispose);
-    const calendar = createTaskCalendar(
+    const calendar = createDateBucketBoundaries(
       new Date('2026-10-21T18:00:00Z'),
       'America/New_York'
     );

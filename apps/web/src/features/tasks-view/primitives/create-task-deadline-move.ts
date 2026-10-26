@@ -7,9 +7,9 @@ import {
 } from 'solid-js';
 import type { TaskBoardGrouping, TaskBoardMove } from '../core/task-board';
 import {
+  type DateBucketBoundaries,
   isTaskDueDateBucket,
   TASK_DUE_DATE_BUCKETS,
-  type TaskCalendar,
   taskDateOnlyToIso,
   taskDueDateBucket,
   taskDueDatePickerBounds,
@@ -18,14 +18,14 @@ import {
 type PendingDate = {
   move: TaskBoardMove;
   scope: string;
-  calendar: TaskCalendar;
+  calendar: DateBucketBoundaries;
   value: string;
   finish(value: TaskBoardMove | undefined): void;
 };
 
 /** Resolves bucket drops before the board changes placement or saves a property. */
 export function createTaskDeadlineMove(options: {
-  calendar: Accessor<TaskCalendar>;
+  calendar: Accessor<DateBucketBoundaries>;
   scope: Accessor<string>;
 }) {
   const [pending, setPending] = createSignal<PendingDate>();

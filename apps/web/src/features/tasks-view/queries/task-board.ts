@@ -19,9 +19,9 @@ import {
   taskBoardGroupKeys,
 } from '../core/task-board';
 import {
+  type DateBucketBoundaries,
   isTaskDueDateBucket,
   TASK_DUE_DATE_BUCKETS,
-  type TaskCalendar,
   type TaskDatePredicate,
   taskDueDateBucket,
   taskDueDateBucketMatchesFilter,
@@ -46,7 +46,7 @@ export function taskBoardPropertyId(grouping: TaskBoardGrouping): string {
 
 export function toBoardTask(
   task: TaskEntityWithProperties,
-  calendar?: TaskCalendar
+  calendar?: DateBucketBoundaries
 ): TaskBoardTask {
   return {
     id: task.id,
@@ -102,7 +102,7 @@ export function filterTaskBoardColumns(
   grouping: TaskBoardGrouping,
   facets: FacetSelection,
   dueDate?: TaskDatePredicate,
-  calendar?: TaskCalendar
+  calendar?: DateBucketBoundaries
 ): TaskBoardColumn[] {
   const allowedColumnIds = allowedBoardColumns(grouping, facets);
 
@@ -120,7 +120,7 @@ export function taskBoardColumns(
   rows: readonly TasksDataSourceItem[],
   grouping: TaskBoardGrouping,
   searching: boolean,
-  calendar?: TaskCalendar
+  calendar?: DateBucketBoundaries
 ): TaskBoardColumn[] {
   const columns = new Map<
     string,

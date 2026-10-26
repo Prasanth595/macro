@@ -19,8 +19,8 @@ import type {
 } from '../core/task-board';
 import {
   compareTaskDueDates,
+  type DateBucketBoundaries,
   isTaskDueDateBucket,
-  type TaskCalendar,
   type TaskDatePredicate,
   taskDueDateBucket,
 } from '../core/task-due-date';
@@ -43,7 +43,7 @@ export function createTaskBoardQueries(options: {
   projectsEnabled: Accessor<boolean>;
   facets?: Accessor<FacetSelection>;
   sort?: Accessor<SortSelection<TaskSortId>[]>;
-  calendar?: Accessor<TaskCalendar>;
+  calendar?: Accessor<DateBucketBoundaries>;
   dueDate?: Accessor<TaskDatePredicate | undefined>;
 }) {
   const [propertySaving, setPropertySaving] = createSignal<string[]>([]);

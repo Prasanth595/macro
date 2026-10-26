@@ -1,6 +1,6 @@
 import { createRoot } from 'solid-js';
 import { afterEach, expect, it, vi } from 'vitest';
-import { createTaskCalendarSignal } from './create-task-calendar';
+import { createDateBucketBoundariesSignal } from './create-date-bucket-boundaries';
 
 let dispose: (() => void) | undefined;
 afterEach(() => {
@@ -15,7 +15,7 @@ it('refreshes at midnight and rechecks the viewer timezone on resume', () => {
   let timeZone = 'UTC';
   const calendar = createRoot((cleanup) => {
     dispose = cleanup;
-    return createTaskCalendarSignal({ timeZone: () => timeZone });
+    return createDateBucketBoundariesSignal({ timeZone: () => timeZone });
   });
   expect(calendar().today).toBe('2026-10-21');
   const firstPageCalendar = calendar();

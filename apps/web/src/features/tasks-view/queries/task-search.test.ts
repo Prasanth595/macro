@@ -2,7 +2,7 @@ import { createTagFacetContext } from '@app/features/soup';
 import type { TagSetResponse } from '@service-properties/generated/schemas/tagSetResponse';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  createTaskCalendar,
+  createDateBucketBoundaries,
   taskDueDatePredicate,
 } from '../core/task-due-date';
 import { taskMatchesView } from '../filters/task-predicates';
@@ -82,7 +82,7 @@ describe('buildTaskSearchRequest', () => {
 });
 
 it('compiles the same DST range for remote and local search without changing text ordering', () => {
-  const calendar = createTaskCalendar(
+  const calendar = createDateBucketBoundaries(
     new Date('2026-03-08T17:00:00Z'),
     'America/New_York'
   );

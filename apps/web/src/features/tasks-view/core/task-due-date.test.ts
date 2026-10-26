@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   compareTaskDueDates,
-  createTaskCalendar,
+  createDateBucketBoundaries,
   TASK_DUE_DATE_BUCKETS,
   taskDateOnlyToIso,
   taskDueDateBucket,
@@ -12,7 +12,7 @@ import {
 } from './task-due-date';
 
 it('intersects deadline columns with whole-day filters without adding undated rows', () => {
-  const calendar = createTaskCalendar(
+  const calendar = createDateBucketBoundaries(
     new Date('2026-10-21T18:00:00Z'),
     'America/New_York'
   );
@@ -32,7 +32,7 @@ it('intersects deadline columns with whole-day filters without adding undated ro
   ).toEqual(['no_due_date']);
 });
 
-describe('task calendar deadlines', () => {
+describe('task due-date boundaries', () => {
   it.each([
     [
       '2026-03-08T17:00:00Z',
@@ -45,7 +45,10 @@ describe('task calendar deadlines', () => {
       '2026-11-02T05:00:00.000Z',
     ],
   ])('uses calendar days across DST at %s', (now, today, tomorrow) => {
-    const calendar = createTaskCalendar(new Date(now), 'America/New_York');
+    const calendar = createDateBucketBoundaries(
+      new Date(now),
+      'America/New_York'
+    );
     expect(calendar.boundaries).toMatchObject({ today, tomorrow });
     const predicate = taskDueDatePredicate(
       { type: 'range', start: calendar.today, end: calendar.today },
@@ -58,7 +61,7 @@ describe('task calendar deadlines', () => {
   });
 
   it('partitions every boundary without overlaps and does not mark today overdue', () => {
-    const calendar = createTaskCalendar(
+    const calendar = createDateBucketBoundaries(
       new Date('2026-10-21T18:00:00Z'),
       'Asia/Kolkata'
     );

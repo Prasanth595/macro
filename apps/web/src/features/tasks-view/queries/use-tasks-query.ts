@@ -27,13 +27,16 @@ import { mapApiSoupItemToEntity } from '@queries/soup/transform-utils';
 import type { TagSetResponse } from '@service-properties/generated/schemas/tagSetResponse';
 import { type Accessor, createMemo } from 'solid-js';
 import { sortTasks } from '../constants';
-import { type TaskCalendar, taskDueDatePredicate } from '../core/task-due-date';
+import {
+  type DateBucketBoundaries,
+  taskDueDatePredicate,
+} from '../core/task-due-date';
 import type { TaskFacetContext } from '../filters/task-facets';
 import {
   type TaskViewContext,
   taskMatchesView,
 } from '../filters/task-predicates';
-import { createTaskCalendarSignal } from '../primitives/create-task-calendar';
+import { createDateBucketBoundariesSignal } from '../primitives/create-date-bucket-boundaries';
 import type {
   TaskCrmScope,
   TaskReferenceScope,
@@ -66,7 +69,7 @@ export type UseTasksDataSourceOptions = {
   /** Project lists drain all cursors instead of requiring per-group Load More. */
   loadAll?: boolean;
   board?: Accessor<boolean>;
-  calendar?: Accessor<TaskCalendar>;
+  calendar?: Accessor<DateBucketBoundaries>;
 };
 
 export type TasksDataSourceItem = SoupRow<TaskEntityWithProperties>;
@@ -119,7 +122,7 @@ export function useTasksDataSource(
   options: UseTasksDataSourceOptions
 ): TasksDataSource {
   const notificationSource = useGlobalNotificationSource();
-  const calendar = options.calendar ?? createTaskCalendarSignal();
+  const calendar = options.calendar ?? createDateBucketBoundariesSignal();
   const dueDate = () => taskDueDatePredicate(state.dueDate, calendar());
   const attachNotifications = (entity: TaskEntityWithProperties) =>
     withEntityNotifications(entity, notificationSource);
