@@ -16,6 +16,8 @@
 
 ## Verifying a change in a real browser
 
+During iterative visual tweaks, use focused browser verification; defer full typechecks and CI checks until the batch is ready or the user requests them.
+
 Any user-visible change should be exercised in a browser before you call it fixed — type-check, biome, and vitest all pass on code that still has the interaction bug.
 
 Split dragging and composer reflow have a backend-free browser regression:

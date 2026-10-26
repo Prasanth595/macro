@@ -489,38 +489,40 @@ export function AgentCreateMenu(props: {
         aria-label="New conversation or agent"
       />
       <Dropdown.Content class="w-80 max-w-[calc(100vw-2rem)]">
-        <CreateMenuItem
-          icon={AgentIcon}
-          title="Conversation"
-          description="Start a conversation with an existing agent."
-          onSelect={() => {
-            queueMicrotask(props.onConversation);
-          }}
-        />
-        <CreateMenuItem
-          icon={AgentIcon}
-          title="Work agent"
-          description="Create an assistant with instructions and access to your Macro workspace."
-          onSelect={() => {
-            queueMicrotask(() => props.onCreate('agent'));
-          }}
-        />
-        <CreateMenuItem
-          icon={CodeIcon}
-          title="Coding agent"
-          description="Create an agent that works in a connected coding harness."
-          onSelect={() => {
-            queueMicrotask(() => props.onCreate('coder'));
-          }}
-        />
-        <CreateMenuItem
-          icon={RoutineIcon}
-          title="Routine"
-          description="Set up an agent to run on a recurring schedule."
-          onSelect={() => {
-            queueMicrotask(props.onRoutine);
-          }}
-        />
+        <Dropdown.Group>
+          <CreateMenuItem
+            icon={AgentIcon}
+            title="Conversation"
+            description="Start a conversation with an existing agent."
+            onSelect={() => {
+              queueMicrotask(props.onConversation);
+            }}
+          />
+          <CreateMenuItem
+            icon={AgentIcon}
+            title="Work agent"
+            description="Create an assistant with instructions and access to your Macro workspace."
+            onSelect={() => {
+              queueMicrotask(() => props.onCreate('agent'));
+            }}
+          />
+          <CreateMenuItem
+            icon={CodeIcon}
+            title="Coding agent"
+            description="Create an agent that works in a connected coding harness."
+            onSelect={() => {
+              queueMicrotask(() => props.onCreate('coder'));
+            }}
+          />
+          <CreateMenuItem
+            icon={RoutineIcon}
+            title="Routine"
+            description="Set up an agent to run on a recurring schedule."
+            onSelect={() => {
+              queueMicrotask(props.onRoutine);
+            }}
+          />
+        </Dropdown.Group>
       </Dropdown.Content>
     </Dropdown>
   );
