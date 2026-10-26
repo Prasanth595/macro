@@ -1,5 +1,5 @@
 import { formatDate, formatEmailDate } from '@core/util/date';
-import UserPlusIcon from '@phosphor/user-plus.svg';
+import UserPlusIcon from '@icon/system/regular/user-plus.svg';
 import { Button } from '@ui';
 import { Match, Switch } from 'solid-js';
 

@@ -60,8 +60,35 @@ where
             "provider",
             tracing::field::debug(target.token_identity.provider),
         );
+        match target.organizer_copy_calendar_id {
+            Some(organizer_calendar_id) => {
+                self.invite_through_organizer_copy(
+                    requester_id,
+                    target,
+                    organizer_calendar_id,
+                    guests,
+                    scope,
+                )
+                .await
+            }
+            None => self.add_guests_to(&target, guests, scope).await,
+        }
+    }
+
+    /// Add guests to the copy `target` addresses.
+    pub(super) async fn add_guests_to(
+        &self,
+        target: &CalendarEventMutationTarget,
+        guests: Vec<CalendarAttendeeInput>,
+        scope: CalendarUpdateScope,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
         if target.is_read_only {
             return Err(CalendarMutationError::ReadOnly);
+        }
+        // A guest added to a snapshot would be invited to a private copy the
+        // meeting never hears about.
+        if target.is_snapshot {
+            return Err(CalendarMutationError::Snapshot);
         }
         self.require_provider_writes(target.token_identity.provider)?;
         let Some(actor) = target
@@ -71,8 +98,8 @@ where
         else {
             return Err(CalendarMutationError::NotAttendee);
         };
-        let stored = self.stored_attendees(event_id, &scope).await?;
-        let capabilities = copy_capabilities(&target, &stored);
+        let stored = self.stored_attendees(target.event_id, &scope).await?;
+        let capabilities = copy_capabilities(target, &stored);
         if !capabilities.invite_guests {
             return Err(invite_refusal(
                 capabilities,
@@ -119,15 +146,15 @@ where
             }
             ProviderInviteOutcome::NotAttendee => Err(CalendarMutationError::NotAttendee),
             ProviderInviteOutcome::Forbidden(policy) => {
-                self.record_guest_policy(&target, policy).await;
+                self.record_guest_policy(target, policy).await;
                 Err(CalendarMutationError::GuestsCannotInvite)
             }
             ProviderInviteOutcome::GuestListHidden(policy) => {
-                self.record_guest_policy(&target, policy).await;
+                self.record_guest_policy(target, policy).await;
                 Err(CalendarMutationError::GuestListHidden)
             }
             ProviderInviteOutcome::Gone => {
-                self.retire_gone_source(&target).await;
+                self.retire_gone_source(target).await;
                 Err(CalendarMutationError::NotFound)
             }
         }
@@ -192,7 +219,7 @@ fn invite_refusal(
 
 /// What the actor may do with the addressed copy through its inbox, judged
 /// against its stored guest list.
-pub(super) fn copy_capabilities(
+pub(crate) fn copy_capabilities(
     target: &CalendarEventMutationTarget,
     stored: &[CalendarAttendee],
 ) -> ViewerCapabilities {
@@ -205,6 +232,7 @@ pub(super) fn copy_capabilities(
             organizer_email: target.organizer_email.as_deref(),
             attendees: stored,
             guest_policy: target.guest_policy,
+            is_snapshot: target.is_snapshot,
         },
         target.copy_inbox(),
     )
@@ -263,6 +291,7 @@ pub(super) fn invite_outcome(
         Err(CalendarMutationError::GuestListHidden) => "guest_list_hidden",
         Err(CalendarMutationError::NotAttendee) => "not_attendee",
         Err(CalendarMutationError::ReadOnly) => "read_only",
+        Err(CalendarMutationError::Snapshot) => "snapshot",
         Err(CalendarMutationError::NotFound | CalendarMutationError::OccurrenceNotFound) => {
             "not_found"
         }

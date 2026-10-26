@@ -48,7 +48,7 @@ export function ChannelAccessDenied(props: {
   );
 
   return (
-    <Unauthorized title="You don't have access to this channel">
+    <Unauthorized noun="channel">
       <Show when={view()}>
         {(view) => (
           <RequestToJoinPanel

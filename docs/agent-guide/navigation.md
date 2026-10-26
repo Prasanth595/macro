@@ -5,9 +5,8 @@ title bar's traffic-light controls. Drag this top strip to move the window, or
 double-click it to toggle zoom. The loading shell uses the same inset; browser,
 Windows, Linux, and mobile layouts do not add this space.
 
-Native desktop content keeps its rounded split frame even with only one split,
-and the app icon rail has no right divider. On macOS, Back and Forward arrows
-beside the traffic lights navigate the active split's history. Each arrow is
+On macOS, Back and Forward arrows beside the traffic lights navigate the active
+split's history. Each arrow is
 disabled when its direction has no entry. Sidebar controls remain inside each
 workspace. The top-right split icon opens another Home split, even
 when Home is already open, and is disabled when there is no room for a new split.
@@ -48,6 +47,23 @@ queued mutations should resume promptly, without waiting for the old poll or
 local retry timer; durable leases and server-retry deadlines still apply.
 Switching tabs or navigating an in-app route is not a back/forward-cache restore.
 
+Browser cache ownership prefers a visible tab. When the owner hides, its engine
+cooperatively drains and closes storage; if every app tab is hidden, storage parks
+without retiring their clients or reloading pages. Background cache work waits.
+Returning to any tab opens the same database in a visible owner. A visible owner
+is not moved just because another visible window gets focus. Reads can wait for
+normal warmup; if foreground handoff/resume exceeds one second, ordinary queries
+use network fallback while cache-only reads never forward. Writes and received
+mutation confirmations wait for storage instead of being sent twice.
+
+Verify the all-hidden case without activating the former owner: no held physical
+owner lock after parking, preserved generation/queue, and successful reads/writes
+from a returning tab. Also verify a pending HTTP response settling after parking
+and multiple surviving clients. A drain that Safari has already suspended still
+waits for that worker to resume; no deadline kills it or steals its lock. Lifecycle
+telemetry uses `park-started`, `parked`, `unpark-started`, `unpark-completed`, and
+`visibility-handoff-*` owner events.
+
 Safari can also restart the SharedWorker when its creating tab closes, leaving
 another tab's port alive but its coordinator registrations gone. The surviving
 page must re-register without a reload or cache wipe. Open two tabs, close the
@@ -56,6 +72,12 @@ Repeat through another handoff and while requests are pending. Interrupted
 optimistic enqueues must not be sent twice. A `graphql_cache.owner` event with
 `ownerEvent: coordinator-restarted` distinguishes this from engine replacement
 or a BFCache restore.
+
+The same write-safety rule applies when an owner navigates away without restarting
+the coordinator: a surviving tab's enqueue may be committed even if its reply was
+lost. It must report an uncertain outcome, not retry or fall through to a second
+API write. Verify this lost-reply case only with an isolated synthetic fixture,
+not by injecting mutation failures into a dev or production account.
 
 ## Android system navigation and sharing
 
@@ -178,6 +200,13 @@ reminder routes and the former Home reminder detail route are removed.
 When an event opens inline from Home, changing the Calendar period stays under
 `/app/home/calendar/`, updates the period segment, and re-focuses that event.
 Back/Forward restores the period and its event locator from `sN.calendar.*`.
+While Home's own calendar is open, a Home calendar row (a reminder, a join
+request, or any event) re-aims it in place, even when Calendar is also open in
+another split, as Home's preview does for a document it already shows. When
+Home shows its list or another item and Calendar is open in another split, the
+row retargets that split instead: a click or Enter also focuses it, and
+arrow-key browsing moves it without taking focus from the list. Shift-click
+keeps reusing that split, as the notifications panel does.
 
 Home uses the shared channel and file details for channel conversations and
 supported documents, with a **Home** breadcrumb that returns to the list. A
@@ -322,10 +351,10 @@ its existing navigation controls. Block detail panels (including Calendar) have
 **Hide side panel** in their own header and a hamburger **Show side panel** beside
 the main title when hidden, with separate preferences per block type.
 
-Multiple desktop splits appear as individually bordered, medium-rounded panels with
-6px top, right, and bottom insets and 6px resizable gaps.
-The leftmost panel sits flush against the app rail, whose divider is hidden while
-multiple splits are open. A single split stays edge to edge. Touch layouts keep their existing presentation.
+Desktop splits, including a single split in the browser or native app, appear as
+individually bordered panels with 8px corners and 6px top, right, and bottom
+insets and 6px resizable gaps. The leftmost panel sits flush against the app rail,
+which has no right divider. Touch layouts keep their existing presentation.
 
 Split focus mode (`Shift+Esc`) floats the active split in a rounded, bordered
 panel over the same glass scrim as dialogs. Click the scrim or use the shortcut
@@ -397,6 +426,22 @@ cancels that navigation without adding a duplicate history step.
 A later ordinary rail press also cancels a new split still preloading from the
 active split's earlier Shift-press. Already-open splits and pending work from
 other splits remain intact.
+
+Ordinary rail, More-menu, and Go To shortcut navigation resumes opted-in apps'
+last locations during the current session, including nested details, tabs,
+filters, and local state registered with the split entry (such as scroll or
+selection). Views opt in with `useViewRestoration()`; views without the hook keep
+ordinary navigation behavior. The mobile dock uses the same memory; Search taps
+still start a fresh search. Memory is account-scoped and clears on reload,
+sign-out, or account changes. A leave guard stages each snapshot, but only a
+committed navigation saves it; refusal, cancellation, failure, and supersession
+leave the saved snapshot unchanged. Direct links and explicit Shift/open-in-split
+actions keep their requested destination. Closing a detail before switching apps
+remembers the list, not the closed detail. Views unmount normally; this is not a
+keep-alive cache for editors or other transient UI.
+Verify Chat → open channel → Calendar → Chat restores the same channel, then
+repeat with a filtered list and a nested Drive item. Check mobile dock switching,
+split Back/Forward, refused leave guards, explicit links, and account changes.
 Verify rapid app presses, returning to the currently shown app while another app
 loads, split focus changes, closing a split, and split Back/Forward. The last
 requested destination must win, and a later return to an earlier view must not
@@ -433,7 +478,8 @@ is unread, and that completing the last one clears it. Query bounds and
 pagination are unchanged.
 
 The Agents sidebar opens with a **Work** / **Code** switch (radio group
-"Agents mode") under its title; Work is the default and the choice is remembered
+"Agents mode") under New, using the shared pill tabs on desktop; touch keeps
+its existing tabs. Work is the default and the choice is remembered
 per user across reloads. Work lists chat sessions and legacy chats; Code lists
 coding sessions only, newest first. Each mode's empty state is its own ("No
 conversations yet." / "No coding conversations yet."). Opening a session of the
@@ -450,7 +496,8 @@ unsynced PR shows its number without an assumed status. Missing metadata is omit
 "Coding agent" is never substituted for a branch. There is no right-side dot in
 Agents; Home keeps its sparkle and trailing unread dot. Only the selected row has
 the selected background. Legacy chat rows keep their chat icon.
-Use **Search conversations** beside the Conversations heading to filter by title.
+Use **Search conversations** beside the sidebar collapse icon to open a search
+field above New and filter by title.
 Results stay packed at the top with compact spacing, even with only a few matches;
 clearing the search restores the list.
 Its **New conversation** button opens the composer for the current mode with one
@@ -463,11 +510,26 @@ offers both kinds. Opening an existing row restores its own kind and URL.
 Right-click a conversation for Rename, Favorite, Copy link, Share, Delete, and
 the other entity actions used on Home.
 
-Home's inner rail starts with a full-width **New chat** plus button that returns
-to Home's starting pane without creating a chat. Email and Tasks use the same
-pill styling and top placement for **New email** and **New task**, replacing
-the sidebar title bars. When multiple desktop splits are open, a **Close** (X)
-button appears beside each sidebar's New button and closes that split, including
+Desktop inner sidebars place the same full-width, outlined **New** pill directly
+below the title. List toolbars use its compact version, including when the
+sidebar is hidden. Email, Drive, Tasks, and the Projects list use one desktop
+row: title, filter controls, view options, New, and Search. Filter and view
+controls use the rounded, bordered button groups from the email thread toolbar;
+New and Search have their own rounded, bordered backgrounds. Search starts as an
+icon and expands into a compact field when clicked or opened with Cmd/Ctrl+F.
+Closing it clears the query and returns to the icon. The action stays specific to
+the view: Home returns to its starting pane, Email composes mail, Chat offers a
+channel or direct message, and Calendar offers an event or call. Tasks offers
+**Task**, **Project** (when enabled), and **Tag** in both the Tasks and Projects
+lists. Customers offers Company, Contact, and enabled Pipeline creation. Reviews
+uses the general creation menu. Agents keeps New above its Chat/Code mode tabs.
+Each desktop sidebar puts its Search icon immediately left of the collapse
+control. Click it to reveal the view's search field between the title and New,
+at the same height as the New button; click again to hide it. The field focuses when opened. Existing list-toolbar
+search remains available and shares its query where the view filters a list.
+Mobile creation controls, search controls, and placement are unchanged.
+When multiple desktop splits are open, a **Close** (X) button appears in the
+sidebar title bar and closes that split, including
 when the sidebar is an overlay in a narrow split. Verify with three splits:
 open **Show navigation**, then use the sidebar's **Close** button without first
 hiding navigation; only its owning split closes. The last logical split has no
@@ -653,8 +715,9 @@ button and no search field. Desktop retains search and keyboard controls. Other 
 show **+ New** for that full menu. Only Agents has the floating AI composer,
 which fills the row with no duplicate create action. Other views keep their
 right-aligned New button without an AI input. The row
-hides during search, when a page supplies its own reply or compose controls, or
-when an editable field outside Ask AI is focused on a touch device. The AI draft
+hides during search, when a page supplies its own reply or compose controls
+(including the full-screen new-email composer, whose send actions sit in its
+header), or when an editable field outside Ask AI is focused on a touch device. The AI draft
 is preserved when the row returns.
 The New button also hides while the software keyboard is open.
 After closing mobile search with the keyboard open or leaving a focused editor,
@@ -720,18 +783,33 @@ Existing `/app/automation/<uuid>` links resolve to the canonical routine URL.
 Saved split layouts and document/channel/spreadsheet mentions using the old
 block name also open routines; newly copied links use `/app/routines/<uuid>`.
 On the legacy Agents screen, use the **Routines** button above the list. On touch devices,
-`/app/routines` opens the routines list directly. Routines use
+`/app/routines` opens the routines list directly, and the hidden Agents sidebar's
+entry moves to **Settings → Routines** (on phones **More views → Settings →
+Routines**): tapping a routine closes the settings sheet and opens it, and
+**Create Routine** opens the composer. Routines use
 full-width entity rows with **Created by**, **Status**, **Runs with**, and **Enabled**
 columns. The search field sits below the top bar, as in Projects; search by name,
 creator, or model/agent, or press **Cmd/Ctrl+F** to focus it. **Create Routine** sits
 to the right of search. Click a row to open its settings in the same pane. Toggle
 the **Enabled** checkbox property directly in the list to pause or resume it.
-Open the routine and use its **Run History** tab to see past runs.
+When the list is narrower than 760px (a phone, or the Settings sheet) it drops the
+column headers and **Created by**, and each row fits one line: name, status, the
+model or agent icon, and the **Enabled** checkbox, with no sideways scroll. Search
+fields hide their keyboard hint on touch devices.
+Open the routine and use its **Run History** tab to see past runs. Each run is its
+own agent session. The routine's **Runs hidden** / **Runs shown** chip decides
+where its runs appear. **Hide runs** (the default) keeps them off Home and out of
+the Agents sidebar until **Show hidden routine runs** is pressed. **Show runs**
+lists them on Home and in Agents like the owner's own sessions. The setting
+applies to runs that start after it changes. A run that finishes normally sends
+no notification; a failed or cut-short run, a question the agent asks, a held tool
+approval, and people the routine's prompt mentions still notify.
 
 **Create → Routine** (U) and **Create Routine** open the same popover host as task
 and project creation. Enter a name and instructions, then choose a model or agent
 with the first property chip below the prompt. **Add trigger** follows it; each
 saved trigger becomes a chip, with another **Add trigger** always at the end.
+The last chip, **Runs hidden**, opens **Hide runs** / **Show runs**.
 **Start enabled** controls whether the saved routine starts listening immediately. **Create routine** opens
 its details inside the Agents pane, retaining the sidebar. Creation has no history
 tab or templates. Unsaved drafts are retained for three minutes.
@@ -780,7 +858,8 @@ to remove it. The routine's top bar uses the task breadcrumb layout:
 **Routines → routine name**, followed by the three-dot menu for duplication and
 deletion. Tabs immediately beside that menu switch between **Overview** and
 **Run History**. Overview follows the project home layout: an editable title,
-a model property chip, and a plain prompt editor. A trigger card sits below the
+a model property chip and the **Runs hidden** / **Runs shown** chip, and a plain
+prompt editor. A trigger card sits below the
 model: trigger chips at the top left, **Run now** at the top right, and the
 **Enabled** / **Disabled** status with **Next run** along the bottom.
 The **Run options** dropdown contains
@@ -803,9 +882,14 @@ loads those settings before further edits. While running, configuration is locke
 but cannot resume until the run ends. Completed one-offs remain visible with
 their history and do not repeat.
 
-Routines are private to their owner. Other users cannot list or open the routine
-or its history, even if they belong to the same team. Run conversations keep
-their own permissions.
+An `m-document-mention` with `blockName: "routine"`, the returned routine ID,
+and the saved name renders as a clickable mention in an agent reply. Once the
+routine is deleted the mention reads `Deleted` and clicking it shows a card
+instead of opening the routine. Routines do not appear in the mention menu.
+Anyone signed in with the link can view its settings, instructions, and
+triggers. Only the owner can edit, enable, run,
+duplicate, delete, or view run history; other users do not see those controls.
+Run conversations keep their own permissions.
 
 **Run History** shows outcome, duration, and firing time. History loads fifty
 rows at a time; **Load more runs** reveals older records. Accessible run rows
@@ -950,11 +1034,19 @@ restart rules still apply.
   would describe the menu. A view's `g` letters are listed under that view.
 - `c` then `d`/`t`/`e`/`m`/`a` — create doc / task / email / channel / AI chat.
   Single-letter shortcuts only work when no editor has focus; press `Escape` first.
-- `/` — search everything. `j`/`k` — move in lists. `e` — mark done.
+- `/` — search everything (in Email it focuses email search). `j`/`k` — move in
+  lists. `e` — mark done.
+  After opening a list item in the same split, `j`/`k` continue through the
+  originating list; native detail paging can still load its next page. Check
+  repeated list/detail transitions as well as group-header skipping. Returning
+  to the list restores scrolling to the focused row; the unmounted list's
+  virtualizer must not run while viewing details.
 - `#` — move email to Trash, with an Undo toast. Works on the selected or focused
   rows in a mail list and on the thread open in an email detail or block. Email
   only; other entity types keep Delete/Backspace and do not answer `#`.
-- `g` then `h` — Home; `g` then `i` remains an alias.
+- `g` then `h` — Home; `g` then `i` remains an alias. While Email is focused,
+  `g i`/`o`/`s`/`t`/`d`/`e`/`a` open its tabs instead (`g i` Signal, `g t` Sent;
+  see `email.md`); `g h` still goes Home.
 - In Email and Tasks search, `Escape` returns focus to the list and keeps the query.
   Use the search field's clear button to clear it.
 - Splits: `` ` `` split, `Shift+H`/`Shift+L` move focus, `Shift+Esc` maximize.

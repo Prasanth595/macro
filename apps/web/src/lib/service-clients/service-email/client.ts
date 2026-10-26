@@ -8,11 +8,14 @@ import type { SafeFetchInit } from '@core/util/safeFetch';
 import type {
   CalendarEvent,
   CalendarEventProviderUrl,
+  CalendarJoinRequest,
   CalendarReplacementView,
+  CopyCalendarEventRequest,
   CreateCalendarEventRequest,
   InviteCalendarEventGuestsRequest,
   ListCalendarsResponse,
   PrepareCalendarReplacementRequest,
+  RespondToJoinRequestRequest,
   RsvpCalendarEventRequest,
   UpdateCalendarEventRequest,
 } from '@service-calendar/generated/schemas';
@@ -172,6 +175,19 @@ export const emailClient = {
   async getCalendarInvitations(threadId: string) {
     return emailFetch<Record<string, InvitationResolution>>(
       `/email/threads/${threadId}/calendar-invitations`
+    );
+  },
+  async copyCalendarInvitation(
+    target: { threadId: string; messageId: string; invitationId: string },
+    args: CopyCalendarEventRequest
+  ) {
+    return fetchWithToken<CalendarEvent, CalendarMutationErrorCode>(
+      `${emailHost}/email/threads/${target.threadId}/messages/${target.messageId}/calendar-invitations/${encodeURIComponent(target.invitationId)}/copy`,
+      {
+        method: 'POST',
+        body: JSON.stringify(args),
+        errorResponseHandler: calendarMutationErrorHandler,
+      }
     );
   },
   async init(args?: { linkId?: string; forceShare?: boolean }) {
@@ -875,6 +891,29 @@ export const emailClient = {
   ) {
     return fetchWithToken<CalendarEvent, CalendarMutationErrorCode>(
       `${calendarHost}/events/${eventId}/guests`,
+      {
+        method: 'POST',
+        body: JSON.stringify(args),
+        errorResponseHandler: calendarMutationErrorHandler,
+      }
+    );
+  },
+  async respondToCalendarJoinRequest(
+    requestId: string,
+    args: RespondToJoinRequestRequest
+  ) {
+    return fetchWithToken<CalendarJoinRequest, CalendarMutationErrorCode>(
+      `${calendarHost}/join-requests/${requestId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(args),
+        errorResponseHandler: calendarMutationErrorHandler,
+      }
+    );
+  },
+  async copyCalendarEvent(eventId: string, args: CopyCalendarEventRequest) {
+    return fetchWithToken<CalendarEvent, CalendarMutationErrorCode>(
+      `${calendarHost}/events/${eventId}/copy`,
       {
         method: 'POST',
         body: JSON.stringify(args),

@@ -45,17 +45,25 @@ import {
   manageBotChannelAccessHandler,
 } from './Bots';
 import {
+  addSharedCalendarEventHandler,
   createCalendarEventHandler,
   createConfirmedCalendarEventHandler,
   deleteCalendarEventHandler,
   listCalendarEventsHandler,
   listCalendarsHandler,
+  readCalendarEventHandler,
   updateCalendarEventHandler,
 } from './CalendarTools';
 import {
   deleteCallRecordHandler,
   updateCallRecordHandler,
 } from './CallRecordMutations';
+import {
+  applyCanvasEditsHandler,
+  editCanvasHandler,
+  readCanvasHandler,
+  renderCanvasHandler,
+} from './Canvas';
 import {
   deleteChannelMessageHandler,
   editChannelMessageHandler,
@@ -113,6 +121,9 @@ import { getThreadHandler } from './GetThread';
 import {
   createImportEntityHandler,
   deleteImportEntityHandler,
+  importFromJiraHandler,
+  importFromLinearHandler,
+  importFromNotionHandler,
   importNotionPageHandler,
   listImportEntitiesHandler,
 } from './ImportTools';
@@ -182,6 +193,7 @@ import { getTeamAvailabilityHandler } from './TeamAvailability';
 import { textEditorCodeExecutionHandler } from './TextEditorCodeExecution';
 import {
   type RenderContext,
+  type ToolEnding,
   ToolErrorContext,
   type ToolHandler,
   type ToolHandlerMap,
@@ -240,11 +252,16 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   CreateConfirmedCalendarEvent: createConfirmedCalendarEventHandler,
   UpdateCalendarEvent: updateCalendarEventHandler,
   DeleteCalendarEvent: deleteCalendarEventHandler,
+  AddSharedCalendarEvent: addSharedCalendarEventHandler,
   ListCalendarEvents: listCalendarEventsHandler,
   ListCalendars: listCalendarsHandler,
+  ReadCalendarEvent: readCalendarEventHandler,
   GetTeamAvailability: getTeamAvailabilityHandler,
   CreateImportEntity: createImportEntityHandler,
   DeleteImportEntity: deleteImportEntityHandler,
+  ImportFromNotion: importFromNotionHandler,
+  ImportFromLinear: importFromLinearHandler,
+  ImportFromJira: importFromJiraHandler,
   ImportNotionPage: importNotionPageHandler,
   GetCompany: getCompanyHandler,
   CreateCompany: createCompanyHandler,
@@ -291,6 +308,10 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   CreateTag: createTagHandler,
   DeleteTag: deleteTagHandler,
   EditDocument: editDocumentHandler,
+  ReadCanvas: readCanvasHandler,
+  RenderCanvas: renderCanvasHandler,
+  EditCanvas: editCanvasHandler,
+  ApplyCanvasEdits: applyCanvasEditsHandler,
   EditTag: editTagHandler,
   GetThread: getThreadHandler,
   NameSearch: nameSearchHandler,
@@ -346,6 +367,10 @@ type ToolProps = {
     json: unknown;
     name: string;
   };
+  /** The tool's reason for a call that failed. */
+  error?: string;
+  /** The turn ended before the call returned. */
+  stopped?: boolean;
   part_index: number;
   chat_id: string;
   message_id: string;
@@ -437,7 +462,14 @@ export function RenderTool(props: ToolProps) {
       }
     >
       <ToolErrorContext.Provider
-        value={() => (props.isComplete && !response() ? 'failed' : undefined)}
+        value={(): ToolEnding | undefined => {
+          if (props.error !== undefined) {
+            return { kind: 'failed', reason: props.error };
+          }
+          if (props.stopped) return { kind: 'stopped' };
+          if (props.isComplete && !response()) return { kind: 'failed' };
+          return undefined;
+        }}
       >
         <Show
           when={isToolShown(tool.name, databasesEnabled().enabled)}
@@ -450,6 +482,9 @@ export function RenderTool(props: ToolProps) {
             renderContext={{
               isStreaming: props.renderContext.renderContext.isStreaming,
               grouped: props.renderContext.renderContext.grouped,
+              running:
+                !props.isComplete &&
+                props.renderContext.renderContext.isStreaming,
               followedBy: props.renderContext.renderContext.followedBy,
             }}
           />

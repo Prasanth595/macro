@@ -8,6 +8,7 @@ import { useCalendarPager } from '@app/features/calendar/components/CalendarPage
 import { CalendarSettingsDropdown } from '@app/features/calendar/components/CalendarSettingsDropdown';
 import { useCalendarView } from '@app/features/calendar/components/CalendarViewContext';
 import { SourceControls } from '@app/features/calendar/components/SourceControls';
+import { useCalendarSearchUiFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import {
   type TeamOooWindow,
   useHasTeammates,
@@ -19,9 +20,9 @@ import { ShowFeatureFlag } from '@app/lib/analytics/posthog';
 import { UserIcon } from '@core/component/UserIcon';
 import { enableCalendarTeamOoo } from '@core/constant/featureFlags';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import PlusIcon from '@phosphor/plus.svg';
-import CloseIcon from '@phosphor/x.svg';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
+import CloseIcon from '@icon/system/regular/x.svg';
 import { Key } from '@solid-primitives/keyed';
 import { Checkbox, cn, Calendar as MiniCalendar } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
@@ -43,6 +44,7 @@ import {
   CalendarCreateEventItem,
 } from './CalendarCreateItems';
 import { CalendarCreateMenu } from './CalendarCreateMenu';
+import { CalendarSearch } from './CalendarSearch';
 import { ConnectCalendarsPromotion } from './ConnectCalendarsPromotion';
 
 function CalendarMiniCalendar() {
@@ -292,13 +294,31 @@ function CalendarSidebarOverlayClose() {
 
 export function CalendarSidebar() {
   const shell = useViewShell();
+  const searchEnabled = useCalendarSearchUiFlag();
+  const [searchOpen, setSearchOpen] = createSignal(false);
   const closeOverlay = () => {
     if (shell.aside.isOverlay()) shell.aside.collapse();
   };
 
   return (
     <ViewSidebar.Root aria-label="Calendar navigation">
-      <ViewSidebar.Header>
+      <ViewSidebar.Header
+        searchLabel="Search events"
+        searchOpen={searchOpen()}
+        onSearchOpenChange={setSearchOpen}
+        search={
+          searchEnabled()
+            ? () => (
+                <CalendarSearch
+                  inline
+                  expanded
+                  popupReady
+                  onDismiss={() => setSearchOpen(false)}
+                />
+              )
+            : undefined
+        }
+      >
         <div class="flex min-w-0 items-center gap-1">
           <ViewSidebar.CloseButton />
           <ViewSidebar.Title>Calendar</ViewSidebar.Title>
@@ -307,6 +327,7 @@ export function CalendarSidebar() {
       </ViewSidebar.Header>
       <ViewSidebar.Primary>
         <CalendarCreateMenu
+          presentation={isTouchDevice() ? undefined : 'sidebar'}
           size="md"
           class="h-(--sidebar-row-height) w-full min-w-0 justify-start gap-(--sidebar-label-gap) px-(--sidebar-item-inset) text-left touch:h-11"
           contentClass="w-[var(--kb-popper-anchor-width)] min-w-40"

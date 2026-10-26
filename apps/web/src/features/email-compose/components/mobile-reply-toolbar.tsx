@@ -1,5 +1,5 @@
 import { HeaderIsland } from '@components/app/split-layout/components/HeaderIsland';
-import CaretLeft from '@phosphor/caret-left.svg';
+import CaretLeft from '@icon/system/regular/caret-left.svg';
 import { Button } from '@ui';
 import type { JSX } from 'solid-js';
 import { MobileComposeActions } from './mobile-compose-actions';
@@ -15,7 +15,6 @@ export function MobileReplyToolbar(props: {
   editingDisabled: boolean;
   scheduleSummary?: JSX.Element;
   scheduleControl?: JSX.Element;
-  status?: JSX.Element;
 }) {
   return (
     <div class="sticky top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 bg-surface px-(--mobile-chrome-gutter) pb-3 pt-[calc(var(--safe-top,0px)+12px)]">

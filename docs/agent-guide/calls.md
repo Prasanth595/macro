@@ -1,21 +1,28 @@
 # Calls
 
-## Calls — `/app/component/calls`
+## Calls — `/app/calls`
 
-On desktop a collapsible sidebar holds the search field (`Search calls`, `⌘F`),
+On desktop a collapsible sidebar starts with the shared outlined `New` button,
+with `Search calls` immediately left of collapse. Search reveals its field above
+New. The sidebar also holds
 the views `All` / `Missed` / `Unattended`, a `Type` section (`Internal` /
 `External`; External means at least one guest without a Macro account joined),
 a `Channels` section listing channels seen in loaded calls, and `Tags`. Choosing
 a type, channel, or tag shows only that one; choosing it again clears it. These
-refinements carry across the three views. Sort, group, filter, and `New call`
-sit in the list's top bar. Phones keep pill tabs and the header search.
+refinements carry across the three views. The desktop header uses one row:
+title, an outlined filter group, a view-options group, `New`, and an expandable
+Search icon. Command-F expands and focuses search; Close or Escape clears it
+and restores the icon. Phones keep pill tabs and the header search.
 With `enable-quick-calls` enabled, `New call` opens a menu with `Start an instant
 call`, `Call a channel or contact`, and `Manage call links`; without the flag it
 opens the recipient picker directly. `Start an instant call` opens `/app/meet/new`
 without creating a meeting, the same setup reached from `New Call` beside
 Calendar's `New event` or `Create` → `Call` (`C C`). Scheduled calls are created
 through Calendar and can be shared with people who do not have a Macro account.
-The channel/contact option opens the recipient picker.
+The channel/contact option opens the recipient picker. Starting a channel call
+connects the creator without waiting for recording, transcription, or recipient
+notification delivery. Verify that a second participant still receives the ring
+and can join, and that leaving immediately does not leave a recording running.
 Recordings, transcriptions
 and summaries appear here; empty state notes "Calls are available to agents."
 
@@ -164,18 +171,14 @@ and shows the current local time before the call name. Owners can click the name
 to rename it, then Save or press Enter; Cancel or Escape discards the edit. Guests and other participants see a
 read-only name.
 
-Join-preview and in-call controls use the standard Macro icon buttons. Pause
-over the microphone, camera, or background group to reveal an animated settings popover
-above the call toolbar; click its caret to keep it open. Brief pointer passes
-do not open settings, and moving into the popover keeps it open. Settings
-respect reduced-motion preferences. The toolbar and settings panels use Macro's
-shared glass surface in both light and dark themes.
-Audio settings include microphone, speaker, and noise suppression. Camera
-settings include the camera selector. Clicking the background icon toggles the
-selected effect off/on, restoring the last blur strength or image (Strong blur
-by default). Its hover panel contains the same None, Light blur, Strong blur,
-and image-upload menu as the join screen; the caret pins this panel for keyboard
-and touch access. Click outside or press Escape to close the settings.
+Join-preview and in-call controls use the standard Macro icon buttons. In a
+call, the microphone and camera are split buttons (`ButtonGroup`): the left half
+toggles the device (pressed while on), and the caret opens a settings menu above
+the toolbar on click only; hovering opens nothing. **Audio settings** lists
+microphones, speakers (when the browser can choose one), and noise suppression.
+**Video settings** lists cameras and the background effects as tiles: None,
+Light blur, Strong blur, a selected custom image, and Upload. Screen share and
+Leave call are separate buttons. Click outside or press Escape to close a menu.
 The controls also work by keyboard and touch.
 
 ### Browser call diagnostics

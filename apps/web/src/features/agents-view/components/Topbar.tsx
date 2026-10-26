@@ -1,5 +1,5 @@
 import { ViewShell } from '@app/components/view-shell/ViewShell';
-import ArrowLeft from '@phosphor/arrow-left.svg';
+import ArrowLeft from '@icon/system/regular/arrow-left.svg';
 import { Button } from '@ui';
 import { type JSX, Show } from 'solid-js';
 
@@ -31,7 +31,7 @@ export function Topbar(props: {
           </Show>
         )}
       </div>
-      <div class="header-actions ml-auto flex shrink-0 items-center gap-1">
+      <div class="header-actions ml-auto flex shrink-0 items-center gap-2 touch:gap-1">
         {props.children}
       </div>
     </ViewShell.TopBar>
