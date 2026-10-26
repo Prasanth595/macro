@@ -5,6 +5,7 @@ export const crmKeys = createQueryKeys('crm', {
   activityScope: (userId: string | undefined) => [userId],
   pipelines: (teamId: string | undefined) => [teamId],
   pipelineTable: (id: string) => [id],
+  stageRequirements: (id: string) => [id],
   pipelineRows: (id: string) => [id],
   company: (companyId: string) => [companyId],
   contact: (contactId: string) => [contactId],

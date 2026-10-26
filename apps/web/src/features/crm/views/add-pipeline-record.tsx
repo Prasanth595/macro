@@ -42,6 +42,11 @@ import {
   recordChoiceProblem,
   recordDetail,
 } from '../core/pipeline-record';
+import {
+  missingStageFields,
+  requiredStageFields,
+  type StageRequirement,
+} from '../core/stage-requirements';
 import { companyCreationError } from './create-company';
 import { contactCreationError } from './create-contact';
 import {
@@ -64,6 +69,9 @@ export function AddPipelineRecordDialog(
   props: CellRenderers & {
     pipeline: Pick<Pipeline, 'name' | 'recordType'>;
     columns: DatabaseViewColumn[];
+    requirements?: StageRequirement[];
+    requirementsLoading?: boolean;
+    requirementsError?: boolean;
     /** Values the row starts with, such as the stage of the board lane it was added in. */
     initialValues: Record<string, DatabaseCellValue>;
     onCreate: (creation: RecordCreation) => Promise<boolean>;
@@ -108,6 +116,8 @@ export function AddPipelineRecordDialog(
       (column) =>
         column.id !== title()?.id && !column.relation && canEditCell(column)
     );
+  const required = () =>
+    requiredStageFields(props.columns, props.requirements ?? [], values());
   const noun = company ? 'deal' : 'contact';
   const submitLabel = company ? 'Add deal' : 'Add contact';
   const existing = () => {
@@ -128,6 +138,7 @@ export function AddPipelineRecordDialog(
   };
   const write = (columnId: string, value: DatabaseCellValue) => {
     setValues((current) => ({ ...current, [columnId]: value }));
+    setError(undefined);
     return Promise.resolve(true);
   };
 
@@ -183,7 +194,24 @@ export function AddPipelineRecordDialog(
       editing.blur();
     const current = choice();
     const titleField = title();
-    if (pending() || !current || !titleField) return;
+    if (
+      pending() ||
+      props.requirementsLoading ||
+      props.requirementsError ||
+      !current ||
+      !titleField
+    )
+      return;
+    const missing = missingStageFields(
+      required().filter((column) => column.id !== titleField.id),
+      values()
+    );
+    if (missing.length) {
+      setError(
+        `Fill in ${missing.map((column) => column.name).join(', ')} for the selected stage.`
+      );
+      return;
+    }
     const problem = recordChoiceProblem(current, domainCompanies());
     if (problem) {
       setError(problem);
@@ -388,12 +416,26 @@ export function AddPipelineRecordDialog(
                 <div ref={fieldList} class="flex flex-col gap-5">
                   <Key each={fields()} by="id">
                     {(column) => (
-                      <StackedField column={column()}>
+                      <StackedField
+                        column={column()}
+                        required={required().some(
+                          (field) => field.id === column().id
+                        )}
+                      >
                         <div class={FIELD_BOX}>{cell(column)}</div>
                       </StackedField>
                     )}
                   </Key>
                 </div>
+                <Show
+                  when={props.requirementsLoading || props.requirementsError}
+                >
+                  <p role="status" class="text-sm text-ink-muted">
+                    {props.requirementsError
+                      ? 'Could not load stage requirements. Reopen this form to retry.'
+                      : 'Loading stage requirements…'}
+                  </p>
+                </Show>
                 <Show when={error()}>
                   {(message) => (
                     <p role="alert" class="text-sm text-failure">
@@ -415,7 +457,12 @@ export function AddPipelineRecordDialog(
                 <EntityComposer.Submit
                   type="submit"
                   hasContent={!!choice()}
-                  disabled={!choice() || pending()}
+                  disabled={
+                    !choice() ||
+                    pending() ||
+                    props.requirementsLoading ||
+                    props.requirementsError
+                  }
                 >
                   {pending() ? 'Adding…' : submitLabel}
                 </EntityComposer.Submit>
@@ -434,6 +481,7 @@ const FIELD_BOX =
 /** A field with its label stacked above the input. */
 function StackedField(props: {
   column: DatabaseViewColumn | undefined;
+  required?: boolean;
   children: JSX.Element;
 }) {
   return (
@@ -447,6 +495,9 @@ function StackedField(props: {
               entityType={column().specificEntityType}
             />
             <span class="truncate">{column().name}</span>
+            <Show when={props.required}>
+              <span class="text-accent">Required</span>
+            </Show>
           </div>
         )}
       </Show>

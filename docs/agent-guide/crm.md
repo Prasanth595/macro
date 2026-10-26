@@ -300,6 +300,22 @@ fields can create a new option. Choosing **Add company “…”** creates the c
 with the row: a searched domain fills the domain and the name. **Add contact “…”**
 works the same way, and a new contact's email must use a company's domain.
 **Add deal** stays disabled until a record is chosen, and Command-Enter submits.
+Use **Stage requirements** in the toolbar to choose a single-select stage field,
+a stage, and the fields required to enter it. Save one stage at a time; unchecking
+all fields removes that rule. Renaming a field or stage keeps the rule. Deleting
+one removes its corresponding requirements. Remove requirements before changing
+a referenced field's type. Existing deals stay in place when a rule is added;
+entering that stage or editing its required fields validates the final values.
+
+The Add deal form marks the selected stage's required fields **Required** and
+names missing fields on submit. Empty text and empty selections are missing;
+zero and an unchecked checkbox are valid values. The record and field edits stay
+in the form after a refusal. Board moves, table edits, agent tools and CSV imports
+use the same server rule; a rejected operation batch saves none of its edits.
+Verify by requiring Revenue for Negotiation, trying a move with no Revenue,
+filling Revenue, then retrying; also rename the field/stage and repeat. Check the
+form on desktop and mobile, including correction after a rejected submit.
+
 The form makes one row with every value set. A board lane's **New record** opens
 the same dialog with the lane's stage filled in. The table's blank row at the
 bottom still adds a row inline. On mobile the dialog is a bottom drawer. To verify
@@ -322,7 +338,12 @@ pipeline columns of the same name, adding missing select options. A record
 the pipeline already had is not added again, so retrying an interrupted import
 adds only what is missing; several rows for one new record add separate entries
 (deals), as an export of such a pipeline lists them. Relation and non-person entity columns are skipped,
-and a value that does not fit its column is left empty.
+and a value that does not fit its column is left empty. Stage-validation refusals
+are isolated to individual entries: valid rows continue importing, and the result
+lists each refused entry by its import position, domain or email, and missing fields.
+Use **Add deal** or **Add contact** to correct and add a refused entry, including a
+second deal for a company whose valid entry was imported. Reimporting skips records
+already present in the pipeline.
 
 CRM lists are currently disabled by `enableCrmLists` (default `false`). The sidebar
 Lists section, list editor, and company membership controls only mount when enabled.
