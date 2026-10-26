@@ -4,6 +4,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import { writeClipboardData } from '@core/util/dataTransfer';
 import { fireAndForget } from '@core/util/fireAndForget';
+import BookmarkIcon from '@phosphor/bookmark-simple.svg';
 import DotsIcon from '@phosphor/dots-three.svg';
 import InfoIcon from '@phosphor/info.svg';
 import WarningIcon from '@phosphor/warning-circle.svg';
@@ -467,11 +468,12 @@ export function TaskSavedViewCreateBanner(props: TaskSavedViewDialogProps) {
     <Show when={visible()}>
       <div
         role="status"
-        class="mb-3 flex shrink-0 items-center gap-2 border-y border-accent/30 bg-accent-bg px-6 py-2 text-sm"
+        class="mb-3 flex shrink-0 items-center gap-2 bg-accent-bg px-3 py-2 text-sm"
       >
         <InfoIcon class="size-4 shrink-0 text-accent" aria-hidden="true" />
         <span class="min-w-0 flex-1">Save these filters as a view</span>
         <Button size="sm" variant="cta" onClick={showCreate}>
+          <BookmarkIcon class="size-4" aria-hidden="true" />
           Save view
         </Button>
         <Show when={creating()}>

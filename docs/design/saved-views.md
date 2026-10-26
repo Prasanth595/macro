@@ -374,9 +374,10 @@ duplicate section heading or `+` button. Keep the active name in the picker pill
 without repeating a title/menu or action row below the tabs. Preserve built-in
 navigation and existing mobile list-only behavior.
 
-Show a filled Save view button in an edge-to-edge info banner below the filter
-drawer header when settings differ from the built-in view. Use the unpunctuated
-copy “Save these filters as a view”. An unsaved view also has Cancel in the banner.
+Show a filled Save view button with a leading bookmark icon in a borderless,
+edge-to-edge info banner below the filter drawer header when settings differ
+from the built-in view. Use the unpunctuated copy “Save these filters as a view”.
+An unsaved view also has Cancel in the banner.
 For an existing saved view, show a filled Save changes button and a secondary Reset
 at the footer's right, opposite Clear all, while settings are dirty. Keep these
 actions available when all filters are cleared or only sorting changes. Preserve

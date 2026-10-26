@@ -21,7 +21,7 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 - Do not persist temporary saved-view filters in entry snapshots; detail navigation discards those edits but retains the saved-view ID.
 - Pass saved-view state through the existing Tasks search codec; split URLs namespace it as `s0.tasks.savedView`.
 - Keep embedded Project/CRM task consumers free of saved-view management.
-- Show filled Save view and Save changes actions; place mobile creation in an edge-to-edge info banner below the filter drawer header with unpunctuated copy when built-in settings differ from defaults, excluding search and grouping.
+- Show filled Save view and Save changes actions; place mobile creation in a borderless, edge-to-edge info banner below the filter drawer header with unpunctuated copy and a leading bookmark icon on its button when built-in settings differ from defaults, excluding search and grouping.
 - Keep sidebar actions targeted to their own record; Edit combines naming and sharing without saving temporary settings, and Duplicate starts with a prefilled private copy and warns before omitting unsupported settings.
 - Keep saved-view names and menus in the mobile picker; put creation in the filter drawer's header banner and Save changes at the footer's right edge, opposite Clear all.
 - Place the saved-view picker after Filters and before built-in mobile tabs; show rows without a duplicate section header or create button inside its drawer.
