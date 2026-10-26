@@ -137,3 +137,29 @@ export function summarizeFrames(
   }
   return summary;
 }
+
+/**
+ * Calls `then` with the time of the frame after the next one: by then the
+ * DOM written before this call has laid out and painted. With `undefined`
+ * after `timeoutMs` when no frame runs, as in a hidden tab.
+ */
+export function afterPaint(
+  timeoutMs: number,
+  then: (paintedAt: number | undefined) => void
+): void {
+  if (typeof requestAnimationFrame === 'undefined') {
+    then(undefined);
+    return;
+  }
+  let done = false;
+  const finish = (paintedAt: number | undefined) => {
+    if (done) return;
+    done = true;
+    clearTimeout(timer);
+    then(paintedAt);
+  };
+  const timer = setTimeout(() => finish(undefined), timeoutMs);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => finish(performance.now()));
+  });
+}

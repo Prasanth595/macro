@@ -13,15 +13,16 @@
  * worse than no telemetry.
  */
 
+import {
+  afterLongFrames,
+  afterPaint,
+  observeLongFrames,
+  summarizeFrames,
+} from '@app/observability/long-frames';
 import type { Span } from '@macro-inc/observability';
 import { Telemetry } from '@macro-inc/observability';
 import type { CacheMiss } from '@queries/agent-session/log';
 import type { FoldedMessage } from '@service-agent-fold/generated/types';
-import {
-  afterLongFrames,
-  observeLongFrames,
-  summarizeFrames,
-} from './long-frames';
 
 /** How an attempt to open a session ended. */
 export type LoadOutcome =
@@ -405,32 +406,6 @@ export function traceCacheWrite(
   } catch {
     // See the module comment.
   }
-}
-
-/**
- * Calls `then` with the time of the frame after the next one: by then the
- * DOM written before this call has laid out and painted. With `undefined`
- * after `timeoutMs` when no frame runs, as in a hidden tab.
- */
-function afterPaint(
-  timeoutMs: number,
-  then: (paintedAt: number | undefined) => void
-): void {
-  if (typeof requestAnimationFrame === 'undefined') {
-    then(undefined);
-    return;
-  }
-  let done = false;
-  const finish = (paintedAt: number | undefined) => {
-    if (done) return;
-    done = true;
-    clearTimeout(timer);
-    then(paintedAt);
-  };
-  const timer = setTimeout(() => finish(undefined), timeoutMs);
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => finish(performance.now()));
-  });
 }
 
 function loadDebugEnabled(): boolean {

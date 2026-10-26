@@ -12,6 +12,11 @@
  * worse than no telemetry.
  */
 
+import {
+  afterLongFrames,
+  observeLongFrames,
+  summarizeFrames,
+} from '@app/observability/long-frames';
 import type { Span } from '@macro-inc/observability';
 import { Telemetry } from '@macro-inc/observability';
 import type { WarmClaim } from '@queries/agent-session/warm';
@@ -20,11 +25,6 @@ import type {
   FoldedStreamEvent,
 } from '@service-agent-fold/generated/types';
 import { match } from 'ts-pattern';
-import {
-  afterLongFrames,
-  observeLongFrames,
-  summarizeFrames,
-} from './long-frames';
 import { observeRenderedAnswer } from './render-telemetry';
 
 /** How a sent prompt ended, as far as this span is concerned. */
