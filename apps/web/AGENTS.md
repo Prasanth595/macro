@@ -135,6 +135,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
 
+- Keep CRM removal and restoration visible on company/contact Overview pages;
+  use the existing hidden mutations and confirm company contact/email-sync effects.
+
 - Empty human DMs use the shared centered conversations graphic and explain email delivery to nonusers; keep this state out of agent DMs, loading/error states, and populated timelines.
 - Enable persisted email/calendar review controls only for the review’s saved acting account; historical reviews fall back to the session owner. Require session edit access on desktop and mobile.
 - Email draft reads compare server generations before choosing cached delivery state over a restored working copy; only a definitive first-submission rejection permits local send recovery without server cancellation.
