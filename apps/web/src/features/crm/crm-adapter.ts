@@ -85,7 +85,7 @@ import {
 } from './queries/stages';
 import { useTeamCrmConfig } from './queries/team-config';
 import { useQuickAccessCrmContactsQuery } from './record-adapter';
-import { CrmLinkedRows } from './row-links-adapter';
+import { createCrmLinkedRows } from './row-links-adapter';
 import { createAppDealStages } from './stage-adapter';
 import { crmTaskComposerContext } from './task-composer';
 
@@ -179,7 +179,7 @@ export function createAppCrmContext(): CrmContext {
   const activityFlag = useFeatureFlag(enableCrmActivity);
   const createSettings = () => useTeamCrmConfig(deps);
   return {
-    LinkedRows: CrmLinkedRows,
+    LinkedRows: createCrmLinkedRows(deps),
     registerTaskComposerRecord(source) {
       if (!panel) return () => {};
       return createContext.register(panel.handle.id, () => ({

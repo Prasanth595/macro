@@ -28,7 +28,7 @@ export function linkedRowGroups(data: LinkedRows): LinkedRowGroup[] {
   }));
 }
 
-type RowLinkDependencies = Pick<CrmRecordDependencies, 'client'> & {
+export type RowLinkDependencies = Pick<CrmRecordDependencies, 'client'> & {
   storage: Pick<
     CrmRecordDependencies['storage'],
     'getCrmLinkedRows' | 'linkCrmRow' | 'unlinkCrmRow'

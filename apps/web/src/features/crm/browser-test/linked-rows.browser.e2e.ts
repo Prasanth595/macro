@@ -55,7 +55,7 @@ test.describe('phone drawers', () => {
 
   test('deal links stay separate in the shared record panel on a phone', async ({
     page,
-  }) => {
+  }, testInfo) => {
     await page.getByRole('button', { name: 'Open deal' }).click();
     const record = page.getByRole('dialog');
     await expect(record.getByText('No linked rows available.')).toBeVisible();
@@ -91,7 +91,9 @@ test.describe('phone drawers', () => {
     await page.keyboard.press('Escape');
     await expect(picker).toHaveCount(0);
     await expect(record.getByText('Invoice 43', { exact: true })).toBeVisible();
-    await page.screenshot({ path: '/tmp/macro-3930-linked-rows-phone.png' });
+    await page.screenshot({
+      path: testInfo.outputPath('linked-rows-phone.png'),
+    });
     await expect(
       record.getByRole('button', { name: 'Close record' })
     ).toHaveCount(0);

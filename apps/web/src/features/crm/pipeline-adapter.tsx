@@ -46,7 +46,7 @@ import {
   type PipelineViews,
   usePipelineTableQuery,
 } from './queries/pipeline-views';
-import { CrmLinkedRows } from './row-links-adapter';
+import { createCrmLinkedRows } from './row-links-adapter';
 import { AddPipelineRecordDialog } from './views/add-pipeline-record';
 
 /** Pipelines supply their own identity and owner to the existing share dialog. */
@@ -112,6 +112,7 @@ function PipelineRecords(props: {
   onOpenRecord?(record: { type: 'company' | 'contact'; id: string }): void;
 }) {
   const deps = { storage: storageServiceClient, client: useQueryClient() };
+  const LinkedRows = createCrmLinkedRows(deps);
   const tableQuery = usePipelineTableQuery(deps, props.pipeline);
   const views = createPipelineViews(deps, props.pipeline);
   const storedViews = () =>
@@ -185,7 +186,7 @@ function PipelineRecords(props: {
           onComposeRecord={setComposing}
           renderRecordDetails={(rowId) => (
             <div class="mt-5 border-t border-edge-muted pt-4">
-              <CrmLinkedRows
+              <LinkedRows
                 target={{ type: 'entry', pipelineId: props.pipeline.id, rowId }}
                 canEdit={canEdit()}
               />

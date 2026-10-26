@@ -5,9 +5,7 @@ import { enableDatabases } from '@core/constant/featureFlags';
 import { queryReadyGate } from '@queries/gate';
 import { useDatabasesQuery } from '@queries/storage/databases';
 import { useDatabaseTableChanges } from '@queries/storage/databases-sync';
-import { storageServiceClient } from '@service-storage/client';
 import { createCallback } from '@solid-primitives/rootless';
-import { useQueryClient } from '@tanstack/solid-query';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import {
   DatabaseMentionValue,
@@ -24,97 +22,97 @@ import {
 } from './components/linked-rows';
 import type { LinkedRowsView } from './context/row-links';
 import type { RowReference } from './core/row-links';
-import { createRowLinks } from './queries/row-links';
+import { createRowLinks, type RowLinkDependencies } from './queries/row-links';
 
 /** App dependencies stop here; the shared record panel receives only its slot. */
-export const CrmLinkedRows: LinkedRowsView = (props) => {
-  const databases = useFeatureFlag(enableDatabases);
-  const openRow = createCallback((row: RowReference) => {
-    openDocument('database', row.databaseId, {
-      tableId: row.tableId,
-      rowId: row.rowId,
+export function createCrmLinkedRows(deps: RowLinkDependencies): LinkedRowsView {
+  return (props) => {
+    const databases = useFeatureFlag(enableDatabases);
+    const openRow = createCallback((row: RowReference) => {
+      openDocument('database', row.databaseId, {
+        tableId: row.tableId,
+        rowId: row.rowId,
+      });
     });
-  });
-  const deps = { storage: storageServiceClient, client: useQueryClient() };
-  const identity = () =>
-    props.target.type === 'company'
-      ? props.target.companyId
-      : `${props.target.pipelineId}:${props.target.rowId}`;
-  return (
-    <Show when={databases().enabled && identity()} keyed>
-      {(_identity) => {
-        const source = createRowLinks(deps, () => props.target);
-        const targets = createMemo(() => {
-          const state = source.state();
-          return state.kind === 'ready'
-            ? state.groups.flatMap((group) =>
-                group.columns
-                  .slice(0, 4)
-                  .flatMap((column) =>
-                    column.relation ? [column.relation] : []
-                  )
-              )
-            : [];
-        });
-        const relatedDatabases = createMemo(() => [
-          ...new Set(targets().map((target) => target.databaseId)),
-        ]);
-        const relations = createDatabaseRelations({
-          targets,
-          onTableChanged: (listener) =>
-            useDatabaseTableChanges((change) => listener(change.tableId)),
-        });
-        return (
-          <StaticMarkdownContext>
-            <For each={relatedDatabases()}>
-              {(id) => (
-                <RelatedDatabaseSync
-                  databaseId={id}
-                  targets={targets()}
-                  relations={relations}
-                />
-              )}
-            </For>
-            <LinkedRowsSection
-              source={source}
-              canEdit={props.canEdit}
-              Picker={RowPicker}
-              openRow={openRow}
-              renderPreview={(group, row) => (
-                <LinkedRowPreview
-                  row={row}
-                  columns={group.columns.slice(0, 4).map((column) => {
-                    const relation = column.relation;
-                    if (!relation) return column;
-                    const related = relations(relation.tableId);
-                    return {
-                      ...column,
-                      relation: {
-                        ...relation,
-                        labels: Object.fromEntries(
-                          (related.error() ? [] : related.rows()).map((row) => [
-                            row.id,
-                            row.name,
-                          ])
-                        ),
-                      },
-                    };
-                  })}
-                  renderTextValue={(value) => (
-                    <DatabaseTextValue value={value} />
-                  )}
-                  renderMentionValue={(id, entityType) => (
-                    <DatabaseMentionValue id={id} entityType={entityType} />
-                  )}
-                />
-              )}
-            />
-          </StaticMarkdownContext>
-        );
-      }}
-    </Show>
-  );
-};
+    const identity = () =>
+      props.target.type === 'company'
+        ? props.target.companyId
+        : `${props.target.pipelineId}:${props.target.rowId}`;
+    return (
+      <Show when={databases().enabled && identity()} keyed>
+        {(_identity) => {
+          const source = createRowLinks(deps, () => props.target);
+          const targets = createMemo(() => {
+            const state = source.state();
+            return state.kind === 'ready'
+              ? state.groups.flatMap((group) =>
+                  group.columns
+                    .slice(0, 4)
+                    .flatMap((column) =>
+                      column.relation ? [column.relation] : []
+                    )
+                )
+              : [];
+          });
+          const relatedDatabases = createMemo(() => [
+            ...new Set(targets().map((target) => target.databaseId)),
+          ]);
+          const relations = createDatabaseRelations({
+            targets,
+            onTableChanged: (listener) =>
+              useDatabaseTableChanges((change) => listener(change.tableId)),
+          });
+          return (
+            <StaticMarkdownContext>
+              <For each={relatedDatabases()}>
+                {(id) => (
+                  <RelatedDatabaseSync
+                    databaseId={id}
+                    targets={targets()}
+                    relations={relations}
+                  />
+                )}
+              </For>
+              <LinkedRowsSection
+                source={source}
+                canEdit={props.canEdit}
+                Picker={RowPicker}
+                openRow={openRow}
+                renderPreview={(group, row) => (
+                  <LinkedRowPreview
+                    row={row}
+                    columns={group.columns.slice(0, 4).map((column) => {
+                      const relation = column.relation;
+                      if (!relation) return column;
+                      const related = relations(relation.tableId);
+                      return {
+                        ...column,
+                        relation: {
+                          ...relation,
+                          labels: Object.fromEntries(
+                            (related.error() ? [] : related.rows()).map(
+                              (row) => [row.id, row.name]
+                            )
+                          ),
+                        },
+                      };
+                    })}
+                    renderTextValue={(value) => (
+                      <DatabaseTextValue value={value} />
+                    )}
+                    renderMentionValue={(id, entityType) => (
+                      <DatabaseMentionValue id={id} entityType={entityType} />
+                    )}
+                  />
+                )}
+              />
+            </StaticMarkdownContext>
+          );
+        }}
+      </Show>
+    );
+  };
+}
 
 function RowPicker(props: RowPickerProps) {
   const databases = useDatabasesQuery();
