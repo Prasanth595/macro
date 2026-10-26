@@ -1050,8 +1050,12 @@ export function createSplitLayout(
   /** Mirrors a pane's new current entry onto its split, creating the split when the pane is new. */
   function applyEntry(id: SplitId, entry: Entry, arrival: PaneArrival) {
     const deliversParams = arrival === 'fresh' || arrival === 'replace';
-    const content = contentOfEntry(entry, deliversParams);
     const meta = metaOf(entry);
+    // State an open supplied seeds the entry; captured state supersedes it.
+    if (meta.entryState && !entryStates.has(entry.id)) {
+      entryStates.set(entry.id, meta.entryState);
+    }
+    const content = contentOfEntry(entry, deliversParams);
     const referredFrom = deliversParams ? meta.referredFrom : undefined;
     const split = findSplitById(id);
 
