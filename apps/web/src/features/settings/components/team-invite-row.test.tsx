@@ -67,4 +67,11 @@ describe('TeamInviteRow', () => {
 
     expect(screen.getByText(/Invited as member · sent 1h/)).toBeTruthy();
   });
+
+  it('names every icon-only action', () => {
+    renderRow(72);
+
+    expect(screen.getByLabelText('Copy invite link')).toBeTruthy();
+    expect(screen.getByLabelText('Cancel invite')).toBeTruthy();
+  });
 });

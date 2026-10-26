@@ -77,6 +77,7 @@ export function TeamInviteRow(props: {
             variant="ghost"
             size="sm"
             class="shrink-0"
+            aria-label="Copy invite link"
             onClick={handleCopyLink}
           >
             <Show when={copied()} fallback={<LinkIcon class="size-4" />}>
@@ -89,6 +90,7 @@ export function TeamInviteRow(props: {
             variant="ghost"
             size="sm"
             class="shrink-0"
+            aria-label="Cancel invite"
             onClick={props.onCancel}
           >
             <XIcon class="size-4" />
