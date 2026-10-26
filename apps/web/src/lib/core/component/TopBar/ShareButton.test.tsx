@@ -1,5 +1,11 @@
 import { ForwardToChannel } from '@core/component/ForwardToChannel';
-import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import {
+  render as baseRender,
+  cleanup,
+  fireEvent,
+  screen,
+} from '@solidjs/testing-library';
+import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { err, ok } from 'neverthrow';
 import { createSignal, For, type JSX, onCleanup } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -60,6 +66,17 @@ vi.mock(
     }),
   })
 );
+
+let queryClient = new QueryClient();
+// The dialog reads share permissions through a query outside a block.
+const render = (ui: () => JSX.Element) =>
+  baseRender(ui, {
+    wrapper: (props) => (
+      <QueryClientProvider client={queryClient}>
+        {props.children}
+      </QueryClientProvider>
+    ),
+  });
 
 const ME = 'macro|me@example.com';
 const SOMEONE_ELSE = 'macro|someone-else@example.com';
@@ -409,6 +426,9 @@ vi.mock('@ui', async () => {
   };
 });
 beforeEach(() => {
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   vi.clearAllMocks();
   mocks.meetingNotesFlag = () => ({ enabled: true, loading: false });
   mocks.inBlock = true;
@@ -562,6 +582,48 @@ const selectChannel = () =>
 const share = () =>
   fireEvent.click(screen.getByRole('button', { name: 'Share' }));
 
+it('shows a placeholder, not "Just me", while link sharing loads', async () => {
+  mocks.inBlock = false;
+  let resolve!: (value: unknown) => void;
+  mocks.getDocumentPermissions.mockReturnValue(
+    new Promise((r) => {
+      resolve = r;
+    })
+  );
+  render(() => (
+    <ShareModal
+      id="slow-document"
+      name="Plan"
+      owner={ME}
+      itemType="document"
+      blockAlias="md"
+      userPermissions={Permissions.OWNER}
+      open
+      onOpenChange={vi.fn()}
+    />
+  ));
+  expect(
+    screen.getByRole('status', { name: 'Loading link sharing' })
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole('group', { name: 'Link sharing scope' })
+  ).toBeNull();
+
+  resolve(
+    ok({
+      linkShare: 'PUBLIC',
+      linkShareAccessLevel: 'view',
+      channelSharePermissions: [],
+    })
+  );
+  expect(
+    await screen.findByRole('group', { name: 'Link sharing scope' })
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole('status', { name: 'Loading link sharing' })
+  ).toBeNull();
+});
+
 describe('agent session sharing', () => {
   it.each([false, true])(
     'offers Edit for forwarding, people, and links when the legacy block disables editing (mobile: %s)',
@@ -640,7 +702,9 @@ describe('agent session sharing', () => {
       mountShare(true);
       if (mobile) fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
 
-      fireEvent.click(screen.getByRole('button', { name: 'Set link PUBLIC' }));
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Set link PUBLIC' })
+      );
       await vi.waitFor(() =>
         expect(mocks.updateAgentPermissions).toHaveBeenCalledWith(
           'persisted-session',
@@ -678,7 +742,7 @@ describe('agent session sharing', () => {
 
   it.each([false, true])(
     'shows the standard share form for owners (mobile: %s)',
-    (mobile) => {
+    async (mobile) => {
       mocks.mobile = mobile;
       mountShare(true);
       expect(
@@ -693,7 +757,7 @@ describe('agent session sharing', () => {
           screen.getByText('People with access to this agent session')
         ).toBeTruthy();
         expect(
-          screen.getByRole('group', { name: 'Link sharing scope' })
+          await screen.findByRole('group', { name: 'Link sharing scope' })
         ).toBeTruthy();
       }
       expect(
@@ -703,6 +767,22 @@ describe('agent session sharing', () => {
       ).toBeNull();
     }
   );
+
+  it('loads sharing when Share gains focus, before it is opened', async () => {
+    mocks.inBlock = false;
+    mocks.getDocumentPermissions.mockResolvedValue(
+      ok({ channelSharePermissions: [] })
+    );
+    render(() => (
+      <ShareTrigger onClick={vi.fn()} id="focus-prefetch" blockType="md" />
+    ));
+    fireEvent.focusIn(screen.getByRole('button', { name: 'Share' }));
+    await vi.waitFor(() =>
+      expect(mocks.getDocumentPermissions).toHaveBeenCalledWith({
+        document_id: 'focus-prefetch',
+      })
+    );
+  });
 
   it('uses explicit identity outside a block', () => {
     mocks.inBlock = false;
@@ -1080,15 +1160,15 @@ describe('call team sharing', () => {
     expect(mocks.updateCallTeamShare).not.toHaveBeenCalled();
   });
 
-  it('loads team access from the call record outside a block', () => {
+  it('loads team access from the call record outside a block', async () => {
     mocks.inBlock = false;
     mocks.hasTeam = true;
     mountCallShare();
 
     expect(
-      screen
-        .getByRole('group', { name: 'Team access level' })
-        .getAttribute('data-value')
+      (
+        await screen.findByRole('group', { name: 'Team access level' })
+      ).getAttribute('data-value')
     ).toBe('view');
     expect(mocks.fetchCallSharePermission).not.toHaveBeenCalled();
   });
@@ -1426,7 +1506,7 @@ describe('native project sharing', () => {
 
   it.each([false, true])(
     'lists direct collaborators among the people with access (mobile: %s)',
-    (mobile) => {
+    async (mobile) => {
       mocks.mobile = mobile;
       mountProject({
         people: () => <div>Collaborator row</div>,
@@ -1439,7 +1519,7 @@ describe('native project sharing', () => {
         ).toBeTruthy();
       expect(screen.getByText('Collaborator row')).toBeTruthy();
       if (mobile) fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
-      expect(screen.getByText('Shared')).toBeTruthy();
+      expect(await screen.findByText('Shared')).toBeTruthy();
     }
   );
 
@@ -1566,7 +1646,8 @@ describe('pipeline sharing', () => {
         return ok({});
       });
       mountPipeline();
-      if (mobile) fireEvent.click(screen.getByRole('tab', { name: 'Team' }));
+      if (mobile)
+        fireEvent.click(await screen.findByRole('tab', { name: 'Team' }));
       const control = await screen.findByRole('group', {
         name: 'Team access level',
       });
