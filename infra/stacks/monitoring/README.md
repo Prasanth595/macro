@@ -41,6 +41,9 @@ The gate is that preview:
 
 - **35 monitors + 1 synthetic test unchanged** — adoption is exact.
 - **2 monitors to create** (`ai-editing-*`) — expected, that's the new alerting.
+- **The creates each section below lists** (GraphQL soup monitors, notification
+  retention monitors and dashboard, the three `web.channel.open.*` span
+  metrics) — expected until they are deployed.
 - **Any update, replace, or delete** — the hand-written code in `monitors/*.ts`
   drifted from the live monitor. Reconcile against `imported.generated.ts`
   before deploying. An `update` here silently changes who gets paged.
