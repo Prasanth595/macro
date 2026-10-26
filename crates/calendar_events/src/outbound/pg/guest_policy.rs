@@ -15,6 +15,12 @@ use super::*;
 /// has no guest policy, and a snapshot grants nothing. Copies are paired by
 /// meeting UID and by the organizer address being the organizer copy's own
 /// inbox, which only the organizer can connect.
+#[tracing::instrument(
+    name = "calendar.align_guest_policy",
+    skip(tx),
+    fields(aligned = tracing::field::Empty),
+    err
+)]
 pub(super) async fn align_with_organizer(
     tx: &mut Transaction<'_, Postgres>,
     event_id: Uuid,
@@ -118,5 +124,6 @@ pub(super) async fn align_with_organizer(
             email_link_id: row.source_link_id,
         });
     }
+    tracing::Span::current().record("aligned", aligned.len());
     Ok(aligned)
 }
