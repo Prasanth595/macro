@@ -622,4 +622,15 @@ describe('destination adapters', () => {
     expect(mocks.note).not.toHaveBeenCalled();
     expect(mocks.message).not.toHaveBeenCalled();
   });
+  it.each(['', '   ', ', ;\n,'])(
+    'blocks empty message addressing %j',
+    async (recipients) => {
+      await expect(execute(input('message', { recipients }))).rejects.toThrow(
+        'Choose at least one recipient'
+      );
+      expect(mocks.dm).not.toHaveBeenCalled();
+      expect(mocks.group).not.toHaveBeenCalled();
+      expect(mocks.message).not.toHaveBeenCalled();
+    }
+  );
 });

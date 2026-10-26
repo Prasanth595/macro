@@ -72,7 +72,12 @@ export function compileSearchQuery(state: SearchFiltersState): Query {
 
   const seed = SEARCH_INDEX_SEEDS[state.type];
   Object.assign(include, seed.include);
+  const excludedSubTypes = [
+    ...(exclude.subType ?? []),
+    ...(seed.exclude?.subType ?? []),
+  ];
   Object.assign(exclude, seed.exclude);
+  if (excludedSubTypes.length) exclude.subType = [...new Set(excludedSubTypes)];
 
   if (state.type === 'email') {
     if (state.email.importance !== undefined) {

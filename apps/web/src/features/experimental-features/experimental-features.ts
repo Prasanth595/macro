@@ -7,7 +7,7 @@ import { useEmail, useUserId } from '@core/context/user';
 import { experimentalFeaturesAvailable } from './core/access';
 import { createExperimentalPreferences } from './primitives/preferences';
 
-/** Separate Settings visibility from Command K availability, sharing one account preference. */
+/** Gate experimental settings and Command K through the same account preference. */
 export function useExperimentalFeatures() {
   const flag = useFeatureFlag(enableExperimentalFeatures);
   const universal = useFeatureFlag(enableUniversalInput);
@@ -19,7 +19,7 @@ export function useExperimentalFeatures() {
   return {
     available,
     godModeAvailable,
-    godMode: () => godModeAvailable() && preferences.godMode(),
+    godMode: () => available() && godModeAvailable() && preferences.godMode(),
     setGodMode: (enabled: boolean) => {
       if (available() && godModeAvailable()) preferences.setGodMode(enabled);
     },

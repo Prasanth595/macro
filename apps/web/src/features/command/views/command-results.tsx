@@ -1,5 +1,5 @@
 import { CommandMenuEmptyState } from '@ui';
-import { createEffect, createSelector, Show } from 'solid-js';
+import { createEffect, createSelector, createSignal, on, Show } from 'solid-js';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 import { CommandItem } from '../CommandItem';
 import type { CommandMenuItem, PaginationControls } from '../useCommandItems';
@@ -63,30 +63,38 @@ function VirtualizedCommandList(props: {
   scrollSelectedIntoView: boolean;
   pagination?: PaginationControls;
 }) {
-  let virtualizerHandle: VirtualizerHandle | undefined;
+  const [virtualizerHandle, setVirtualizerHandle] =
+    createSignal<VirtualizerHandle>();
 
   const loadMoreNearEnd = () => {
     const pagination = props.pagination;
-    if (
-      !virtualizerHandle ||
-      !pagination?.hasMore() ||
-      pagination.isLoadingMore()
-    )
-      return;
+    const handle = virtualizerHandle();
+    if (!handle || !pagination?.hasMore() || pagination.isLoadingMore()) return;
     const remaining =
-      virtualizerHandle.scrollSize -
-      virtualizerHandle.scrollOffset -
-      virtualizerHandle.viewportSize;
+      handle.scrollSize - handle.scrollOffset - handle.viewportSize;
     if (remaining <= LOAD_MORE_THRESHOLD) void pagination.loadMore();
   };
 
+  createEffect(
+    on(
+      () => [
+        virtualizerHandle(),
+        props.items.length,
+        props.pagination?.hasMore(),
+        props.pagination?.isLoadingMore(),
+      ],
+      loadMoreNearEnd
+    )
+  );
+
   createEffect(() => {
     const index = props.selectedIndex;
+    const handle = virtualizerHandle();
     if (
       !props.scrollSelectedIntoView ||
       index < 0 ||
       index >= props.items.length ||
-      !virtualizerHandle
+      !handle
     ) {
       return;
     }
@@ -97,7 +105,7 @@ function VirtualizedCommandList(props: {
     if (props.items.length * VIRTUAL_ITEM_HEIGHT <= MAX_LIST_HEIGHT) {
       return;
     }
-    virtualizerHandle.scrollToIndex(index, { align: 'nearest' });
+    handle.scrollToIndex(index, { align: 'nearest' });
   });
 
   const selector = createSelector(
@@ -107,9 +115,7 @@ function VirtualizedCommandList(props: {
 
   return (
     <VList
-      ref={(handle) => {
-        virtualizerHandle = handle;
-      }}
+      ref={setVirtualizerHandle}
       data={props.items}
       style={{ height: '100%' }}
       class="scrollbar-hidden"

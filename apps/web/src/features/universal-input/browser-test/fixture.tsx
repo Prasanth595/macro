@@ -19,6 +19,9 @@ import { buildAgentRoster } from '../../agents-view/core/roster';
 import { createDocumentComposerTags } from '../../block-md/util/documentComposerProperties';
 import { CommandMenu } from '../../command/CommandMenu';
 import { CommandState } from '../../command/state';
+import type { CommandMenuItem } from '../../command/useCommandItems';
+import { CommandResults } from '../../command/views/command-results';
+import { ComposeSubjectField } from '../../email-compose/components/compose-subject-field';
 import { useExperimentalFeatures } from '../../experimental-features/experimental-features';
 import { searchNeedsKeywords } from '../../next-soup/core/search-filters';
 import { SearchbarInput } from '../../next-soup/soup-view/filters-bar/soup-view-search-bar';
@@ -123,6 +126,54 @@ function SearchbarFixture() {
       <output data-testid="standalone-query">{query()}</output>
       <output data-testid="standalone-query-changes">{changes()}</output>
     </div>
+  );
+}
+
+function PaginationFixture(props: { short: boolean }) {
+  const [count, setCount] = createSignal(1);
+  const [loading, setLoading] = createSignal(false);
+  const [pages, setPages] = createSignal(0);
+  const total = props.short ? 4 : 40;
+  const items = (): CommandMenuItem[] =>
+    Array.from({ length: count() }, (_, index) => ({
+      id: `page-item-${index}`,
+      kind: 'search',
+      bucket: 'search',
+      searchText: `Result ${index}`,
+      query: `Result ${index}`,
+      category: 'all',
+      sortTimestamp: 0,
+      timestamps: {},
+    }));
+  return (
+    <div>
+      <CommandResults
+        items={items()}
+        selectedIndex={0}
+        onSelect={() => {}}
+        onItemMouseMove={() => {}}
+        scrollSelectedIntoView={false}
+        pagination={{
+          hasMore: () => count() < total,
+          isLoadingMore: loading,
+          loadMore: async () => {
+            setLoading(true);
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            setCount((value) => Math.min(value + 2, total));
+            setPages((value) => value + 1);
+            setLoading(false);
+          },
+        }}
+      />
+      <output data-testid="loaded-pages">{pages()}</output>
+    </div>
+  );
+}
+
+function CompactSubjectFixture() {
+  const [subject, setSubject] = createSignal('');
+  return (
+    <ComposeSubjectField compact value={subject()} onChange={setSubject} />
   );
 }
 
@@ -528,6 +579,12 @@ export function UniversalInputFixture(
               >
                 <Show when={!props.embedded && params.has('searchbar')}>
                   <SearchbarFixture />
+                </Show>
+                <Show when={!props.embedded && params.has('pagination')}>
+                  <PaginationFixture short={params.has('short')} />
+                </Show>
+                <Show when={!props.embedded && params.has('compact-subject')}>
+                  <CompactSubjectFixture />
                 </Show>
                 <Show
                   when={

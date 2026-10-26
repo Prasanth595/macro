@@ -33,6 +33,16 @@ describe('individual settings search', () => {
       target: 'bookings',
     });
   });
+  it('omits God Mode when its own rollout is disabled', () => {
+    expect(
+      searchSettings(SETTINGS_TAB_GROUPS, 'god mode', { godMode: false }).some(
+        (result) => result.title === 'God Mode'
+      )
+    ).toBe(false);
+    expect(
+      searchSettings(SETTINGS_TAB_GROUPS, 'god mode', { godMode: true })[0]
+    ).toMatchObject({ title: 'God Mode' });
+  });
   it('finds and targets a signature without knowing its page', () => {
     expect(search('signatre')[0]).toMatchObject({
       tab: 'Email',

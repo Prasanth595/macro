@@ -10,11 +10,13 @@ use std::sync::Arc;
 
 const EXTRACTION_MODEL: &str = "fireworks/nemotron-lightning-3p5-30b-a3b";
 
+/// Tool-free Nemotron extraction through the shared model router and usage recorder.
 pub struct AgentFieldExtractor {
     recorder: Arc<dyn UsageRecorder>,
 }
 
 impl AgentFieldExtractor {
+    /// Create an extractor that attributes completed requests to the supplied recorder.
     pub fn new(recorder: Arc<dyn UsageRecorder>) -> Self {
         Self { recorder }
     }

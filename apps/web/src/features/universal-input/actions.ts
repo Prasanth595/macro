@@ -215,6 +215,7 @@ export function createInputActions(
       const resolved = recipients(input.fields, true);
       if (resolved.unresolved.length)
         return `Choose a specific recipient for ${resolved.unresolved.join(', ')}`;
+      if (!resolved.recipients.length) return 'Choose at least one recipient';
       if (
         input.intent === 'message' &&
         resolved.recipients.some((p) => p.kind === 'channel') &&

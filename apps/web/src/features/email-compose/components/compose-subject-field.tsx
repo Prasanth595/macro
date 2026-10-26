@@ -90,6 +90,7 @@ export function ComposeSubjectField(props: {
                   return;
                 }
                 if (e.key === 'Enter') {
+                  if (e.isComposing) return;
                   e.preventDefault();
                   e.currentTarget.blur();
                 }

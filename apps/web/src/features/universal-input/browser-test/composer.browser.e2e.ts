@@ -130,7 +130,6 @@ test('shows the note body, preserves manual formatting through predictions and s
   await expect(body).toHaveText('Reviewed notes');
   await expect(create).toBeEnabled();
   await expect(body.locator('strong, b')).toContainText('Reviewed notes');
-  await page.screenshot({ path: '/tmp/universal-note-body.png' });
   await create.click();
   await expect(page.getByTestId('submission-count')).toHaveText('1');
   await expect(page.getByTestId('last-submission')).toContainText(
@@ -228,10 +227,6 @@ test('starts blank and preserves the editor, focus, caret and undo as calendar f
   await expect(
     page.getByRole('button', { name: 'Create event', exact: true })
   ).toBeEnabled();
-  await page.screenshot({
-    path: '/tmp/universal-input-calendar.png',
-    fullPage: true,
-  });
 });
 
 test('locks edited fields and submits the visible event once', async ({
@@ -275,10 +270,6 @@ test('shows outgoing email content and recipient before sending', async ({
   await expect(page.getByLabel('Outgoing message')).toHaveText('I’ll be late');
   await expect(page.getByText('John Adams', { exact: true })).toBeVisible();
   await expect(page.getByTestId('submission-count')).toHaveText('0');
-  await page.screenshot({
-    path: '/tmp/universal-input-email.png',
-    fullPage: true,
-  });
   await page.getByRole('button', { name: 'Send email', exact: true }).click();
   await expect(page.getByTestId('submission-count')).toHaveText('1');
   await expect(page.getByTestId('last-submission')).toContainText(

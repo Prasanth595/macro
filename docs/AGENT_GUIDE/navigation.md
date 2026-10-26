@@ -409,7 +409,7 @@ show the other participant's avatar instead of a glyph.
 
 Home always uses its usual agent or classic chat composer and suggestions.
 Universal Input is available only inside Command K. **God Mode** is on by default
-for users with **enable-universal-input**, unless they have explicitly turned it off
+for eligible staff with **enable-universal-input**, unless they have explicitly turned it off
 in **Settings → Experimental Features**. The Settings page and its search result
 require a signed-in `@macro.com` account plus PostHog **enable-experimental-features**.
 God Mode also requires **enable-universal-input**. Development/local builds enable
@@ -417,7 +417,7 @@ both rollout gates by default; the email restriction still applies. The God Mode
 preference applies immediately and is remembered locally per account. The God Mode
 row is hidden when **enable-universal-input** is off, and that flag always disables
 the composer regardless of preference. The Experimental Features flag and email
-restriction control only the Settings page; direct links obey the same page gate.
+restriction also gate the composer; direct links obey the same page gate.
 Use `VITE_ENABLE_EXPERIMENTAL_FEATURES` and `VITE_ENABLE_UNIVERSAL_INPUT` for local
 overrides. In deployed builds, both gates follow PostHog.
 

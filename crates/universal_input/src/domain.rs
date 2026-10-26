@@ -28,12 +28,19 @@ pub const FIELD_EXTRACTION_GUIDANCE: &str = include_str!("domain/extract_fields_
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum InputIntent {
+    /// Ask an AI assistant to answer or generate content.
     Ai,
+    /// Find existing content in Macro.
     Search,
+    /// Compose an outgoing email.
     Email,
+    /// Save a Markdown note.
     Note,
+    /// Create a tracked task.
     Task,
+    /// Schedule a calendar event.
     Calendar,
+    /// Send a chat message to people or a channel.
     Message,
 }
 
@@ -100,46 +107,65 @@ pub const INTENT_QUESTIONS: [(InputIntent, &str); 7] = [
 /// A draft snapshot. Revisions are opaque to the server and echoed to the client.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ClassifyInputRequest {
+    /// Current draft text to classify without executing it.
     pub text: String,
+    /// Opaque client revision used to discard stale predictions.
     pub revision: u32,
 }
 
 /// Independent yes/no probabilities; these do not sum to one.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct IntentScore {
+    /// Destination evaluated by the classifier.
     pub intent: InputIntent,
+    /// Independent probability between zero and one.
     pub score: f32,
 }
 
+/// Ranked-type evidence for a particular client draft revision.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ClassifyInputResponse {
+    /// Revision echoed from the classification request.
     pub revision: u32,
+    /// Independent scores in the fixed intent-question order.
     pub scores: Vec<IntentScore>,
 }
 
+/// Draft snapshot and local context used to suggest editable destination fields.
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct ExtractInputRequest {
+    /// Original draft text; inference must not execute its instructions.
     pub text: String,
+    /// Destination whose fields should be extracted.
     pub intent: InputIntent,
+    /// Opaque client revision used to discard stale suggestions.
     pub revision: u32,
+    /// Reference instant for interpreting relative dates.
     pub reference_time: DateTime<Utc>,
+    /// IANA timezone for interpreting local dates and clock times.
     pub time_zone: String,
     /// Available task fields and display values, never authorized entity IDs.
     #[serde(default)]
     pub property_definitions: Vec<InputPropertyDefinition>,
 }
 
+/// A task property and the display values available for extraction.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct InputPropertyDefinition {
+    /// Property display name from the client's catalog.
     pub name: String,
+    /// Allowed display values; an empty list permits free-text suggestions.
     #[serde(default)]
     pub options: Vec<String>,
 }
 
+/// Suggested display values to resolve against a real task-property catalog.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InputPropertySuggestion {
+    /// Property display name, never an authorized identifier.
     pub name: String,
+    /// Suggested display values, never authorized entity identifiers.
     pub values: Vec<String>,
 }
 
@@ -147,16 +173,24 @@ pub struct InputPropertySuggestion {
 #[derive(Debug, Default, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InputSuggestions {
+    /// Suggested note, task, or event title.
     pub title: Option<String>,
+    /// Suggested Markdown content or outgoing message body.
     pub body: Option<String>,
+    /// Suggested outgoing email subject.
     pub subject: Option<String>,
+    /// Person or channel names for the client to resolve.
     #[serde(default)]
     pub recipients: Vec<String>,
+    /// Terms to find existing Macro content.
     pub query: Option<String>,
     /// Local wall-clock values, interpreted in the request's IANA timezone.
     pub start: Option<String>,
+    /// Event end as a local wall-clock value in the request's timezone.
     pub end: Option<String>,
+    /// Task deadline as a local ISO date.
     pub due_date: Option<String>,
+    /// Human-readable event venue or meeting URL.
     pub location: Option<String>,
     /// Only populated when an invitation was explicitly requested.
     #[serde(default)]
@@ -166,31 +200,43 @@ pub struct InputSuggestions {
     pub properties: Vec<InputPropertySuggestion>,
 }
 
+/// Validated field suggestions for a particular destination and draft revision.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ExtractInputResponse {
+    /// Revision echoed from the extraction request.
     pub revision: u32,
+    /// Destination echoed from the extraction request.
     pub intent: InputIntent,
+    /// Editable fields after domain normalization and source-preservation rules.
     pub suggestions: InputSuggestions,
 }
 
+/// Input validation, admission, and provider failures exposed by inference.
 #[derive(Debug, thiserror::Error)]
 pub enum InputError {
+    /// Draft text is empty or exceeds the supported character limit.
     #[error("Enter between 1 and 16000 characters")]
     InvalidText,
+    /// The requested IANA timezone is not recognized.
     #[error("Choose a valid timezone")]
     InvalidTimeZone,
+    /// The supplied task-property catalog exceeds supported bounds.
     #[error("Choose valid task field definitions")]
     InvalidProperties,
+    /// Classification or the requested inference provider is unavailable.
     #[error("Automatic detection is unavailable; choose a type to continue")]
     Unavailable,
+    /// A provider failed to return usable field suggestions.
     #[error("Could not extract fields; fill them in to continue")]
     Extraction,
+    /// Shared AI admission policy rejected the request.
     #[error(transparent)]
     Admission(#[from] AiAdmissionError),
 }
 
 /// The capability needed to suggest fields without tools or writes.
 pub trait FieldExtractor: Send + Sync {
+    /// Suggest destination fields without tools or writes, recording attributed usage.
     fn extract(
         &self,
         input: &ExtractInputRequest,
@@ -198,6 +244,7 @@ pub trait FieldExtractor: Send + Sync {
     ) -> impl Future<Output = Result<InputSuggestions, InputError>> + Send;
 }
 
+/// Read-only inference use cases with admission checks and domain normalization.
 pub struct UniversalInputService<C, E> {
     classifier: Option<C>,
     extractor: E,
@@ -205,6 +252,7 @@ pub struct UniversalInputService<C, E> {
 }
 
 impl<C: YesNoClassifier, E: FieldExtractor> UniversalInputService<C, E> {
+    /// Compose classification and extraction ports with the shared admission policy.
     pub fn new(
         classifier: Option<C>,
         extractor: E,
@@ -217,6 +265,7 @@ impl<C: YesNoClassifier, E: FieldExtractor> UniversalInputService<C, E> {
         }
     }
 
+    /// Classify a bounded draft after admission, returning independent intent scores.
     #[tracing::instrument(skip_all, err)]
     pub async fn classify(
         &self,
@@ -258,6 +307,7 @@ impl<C: YesNoClassifier, E: FieldExtractor> UniversalInputService<C, E> {
         })
     }
 
+    /// Extract fields after admission and apply source, timezone, and duration rules.
     #[tracing::instrument(skip_all, err)]
     pub async fn extract(
         &self,

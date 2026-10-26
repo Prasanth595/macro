@@ -54,6 +54,16 @@ test('external accounts cannot see experimental settings even with a saved prefe
   );
   await page.goto('/?settings&command-menu&eligible&external');
   await expect(page.getByTestId('experimental-settings')).toHaveCount(0);
+  await page
+    .getByRole('button', { name: 'Open Command K', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog');
+  const search = dialog.getByPlaceholder('Search...', { exact: true });
+  await search.fill('Call Julia tomorrow at 7');
+  await expect(search).toBeVisible();
+  await expect(
+    dialog.getByRole('textbox', { name: 'Your input', exact: true })
+  ).toHaveCount(0);
 });
 
 test('the PostHog gate hides experimental settings even for staff', async ({

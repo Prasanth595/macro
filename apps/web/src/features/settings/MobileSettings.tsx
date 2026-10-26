@@ -13,6 +13,7 @@ import { SettingsTabContent } from './SettingsTabContent';
 export function MobileSettings() {
   const settings = useMobileSettings();
   const signatures = useFeatureFlag(enableEmailSignatures);
+  const experiments = useExperimentalFeatures();
   const { groups, searchGroups } = useSettingsTabs();
   const userId = useUserId();
   const email = useEmail();
@@ -34,6 +35,7 @@ export function MobileSettings() {
       groups={groups()}
       searchGroups={searchGroups()}
       emailSignatures={signatures().enabled}
+      godMode={experiments.godModeAvailable()}
       name={displayName()}
       email={email() ?? ''}
       avatar={
@@ -58,3 +60,5 @@ export function MobileSettings() {
     />
   );
 }
+
+import { useExperimentalFeatures } from '@app/features/experimental-features/experimental-features';
