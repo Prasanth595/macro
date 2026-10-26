@@ -3,7 +3,7 @@ import '../../../../index.css';
 import { SignaturePreview } from '@app/features/email-compose/components/signature-preview';
 import { isMobile } from '@core/mobile/isMobile';
 import { QueryClientProvider } from '@tanstack/solid-query';
-import { createSignal, onMount, Show } from 'solid-js';
+import { createSignal, For, onMount, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 import { macroDarkTheme } from '../../../theme/themes/macro-dark';
 import { macroLightTheme } from '../../../theme/themes/macro-light';
@@ -15,11 +15,18 @@ import {
   SettingsSurface,
 } from '../../primitives';
 import { SignatureSection } from '../../SignatureSection';
-import { link, queryClient, status, useEmailSignature } from './services';
+import {
+  link,
+  queryClient,
+  status,
+  useEmailLinksQuery,
+  useEmailSignature,
+} from './services';
 
 function Fixture() {
   const [mounted, setMounted] = createSignal(true);
   const signature = useEmailSignature(() => link.id);
+  const links = useEmailLinksQuery();
   onMount(() => {
     const dark = new URLSearchParams(location.search).has('dark');
     for (const [key, value] of Object.entries(
@@ -40,7 +47,9 @@ function Fixture() {
           description="Create a signature for each email account, import from Gmail, or paste your HTML. Preview it before sending."
         >
           <Show when={mounted()}>
-            <SignatureSection link={link} />
+            <For each={links.isSuccess ? links.data.links : []}>
+              {(inbox) => <SignatureSection link={inbox} />}
+            </For>
           </Show>
           <p role="status" class="text-sm text-ink-muted">
             {status()}

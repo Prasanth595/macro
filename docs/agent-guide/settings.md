@@ -68,7 +68,8 @@ HTML layout there asks before converting it. Switching views alone never changes
 the saved signature. Pasting a custom layout into Rich text preserves its HTML
 and opens Preview (ask to replace first when the editor already has content).
 Choose **Save signature** to save edits and return to the canonical preview.
-**Clear signature** removes only the signature, while
+**Clear signature** removes the saved signature and the current unsaved draft;
+after clearing, reopening Rich text starts empty. It leaves the inbox connected, while
 **Remove inbox** in Accounts uses the existing inbox removal confirmation.
 **Add to replies & forwards** saves that preference immediately. On desktop,
 **Import from Gmail** in each inbox's header fetches that account's Gmail
@@ -89,8 +90,11 @@ conversion and verify the saved HTML is unchanged. Check the preview on a phone
 and ensure a wide signature scrolls inside its own preview instead of the page.
 Save a signature created in Rich text, reopen settings, and confirm Rich text
 editing resumes without a conversion prompt.
-The backend-free browser suite uses the real form, Quill, settings mutations,
-query cache, and composer preview with fixture services:
+Type an unsaved Rich text draft and clear it, both with and without an existing
+saved signature. Reopen settings and confirm the editor stays empty and the
+composer no longer includes a signature. The backend-free browser suite uses
+the real form, Quill, settings mutations, account-list remounts, query cache,
+and composer preview with fixture services:
 `bunx playwright test --config src/features/settings/browser-test/signatures/playwright.config.ts`.
 
 ### Notification permission prompt

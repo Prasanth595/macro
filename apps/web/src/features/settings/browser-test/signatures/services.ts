@@ -34,14 +34,17 @@ let settings = { ...link.settings };
 const patches: Settings[] = [];
 queryClient.setQueryData(emailKeys.links.queryKey, { links: [link] });
 export const useNonPrimaryEmailLinkIdHeader = () => (id: string) => id;
-export function useEmailSignature(linkId: () => string | undefined) {
-  const query = useQuery(() => ({
+export function useEmailLinksQuery() {
+  return useQuery(() => ({
     queryKey: emailKeys.links.queryKey,
     queryFn: async (): Promise<ListLinksResponse> => ({
       links: [{ ...link, settings }],
     }),
     enabled: false,
   }));
+}
+export function useEmailSignature(linkId: () => string | undefined) {
+  const query = useEmailLinksQuery();
   return createMemo(() =>
     query.isSuccess
       ? query.data.links.find((item) => item.id === linkId())?.settings
@@ -49,7 +52,21 @@ export function useEmailSignature(linkId: () => string | undefined) {
       : undefined
   );
 }
-export async function refreshMailAccounts() {}
+let refresh: Promise<void> | undefined;
+let finishRefresh: (() => void) | undefined;
+export async function refreshMailAccounts() {
+  await refresh;
+}
+function holdAccountRefresh() {
+  const pending = Promise.withResolvers<void>();
+  refresh = pending.promise;
+  finishRefresh = pending.resolve;
+}
+function releaseAccountRefresh() {
+  finishRefresh?.();
+  refresh = undefined;
+  finishRefresh = undefined;
+}
 export const emailClient = {
   async patchSettings(input: { settings: Settings }) {
     patches.push(structuredClone(input.settings));
@@ -87,7 +104,15 @@ export function readState() {
 
 declare global {
   interface Window {
-    signatureFixture: { readState: typeof readState };
+    signatureFixture: {
+      readState: typeof readState;
+      holdAccountRefresh: typeof holdAccountRefresh;
+      releaseAccountRefresh: typeof releaseAccountRefresh;
+    };
   }
 }
-window.signatureFixture = { readState };
+window.signatureFixture = {
+  readState,
+  holdAccountRefresh,
+  releaseAccountRefresh,
+};

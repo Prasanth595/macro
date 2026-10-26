@@ -62,6 +62,12 @@ test('import, HTML edits, save, and reopening preserve the future signature', as
       () => window.signatureFixture.readState().savedSignature
     )
   ).toBe(signatureHtml);
+  await page.getByRole('tab', { name: 'Rich text' }).click();
+  await page.getByRole('button', { name: 'Continue to rich text' }).click();
+  await page.getByRole('button', { name: 'Import from Gmail' }).click();
+  await expect(
+    page.getByRole('region', { name: 'Signature preview for alex@example.com' })
+  ).toBeVisible();
   await page.getByRole('tab', { name: 'HTML', exact: true }).click();
   const html = page.getByRole('textbox', {
     name: 'Signature HTML for alex@example.com',
@@ -182,6 +188,80 @@ test('partial and logical margins still require HTML conversion', async ({
   expect(
     await page.evaluate(() => window.signatureFixture.readState().patches)
   ).toEqual([]);
+});
+
+for (const saved of [true, false]) {
+  test(`clearing a rich text draft with saved signature ${saved} removes the draft`, async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'Signature editing is desktop-only');
+    const clear = page.getByRole('button', { name: 'Clear signature' });
+    if (!saved) {
+      await clear.click();
+      await expect(clear).toBeDisabled();
+    }
+    await page.getByRole('tab', { name: 'Rich text' }).click();
+    if (saved)
+      await page.getByRole('button', { name: 'Continue to rich text' }).click();
+    const editor = page.getByRole('textbox', {
+      name: 'Signature for alex@example.com',
+    });
+    await editor.fill('Unsaved signature draft');
+    await clear.click();
+    await expect(clear).toBeDisabled();
+    await expect(
+      page.getByRole('button', { name: 'Save signature' })
+    ).toBeDisabled();
+    expect(
+      await page.evaluate(
+        () => window.signatureFixture.readState().savedSignature
+      )
+    ).toBe('');
+    await expect(
+      page.getByRole('button', { name: 'Signature', exact: true })
+    ).toHaveCount(0);
+    await page.getByRole('button', { name: 'Leave settings' }).click();
+    await page.getByRole('button', { name: 'Reopen settings' }).click();
+    await page.getByRole('tab', { name: 'Rich text' }).click();
+    await expect(editor).toBeEmpty();
+    await expect(clear).toBeDisabled();
+  });
+}
+
+test('a finishing clear keeps a newer draft started after settings remounts', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'Signature editing is desktop-only');
+  await page.getByRole('tab', { name: 'Rich text' }).click();
+  await page.getByRole('button', { name: 'Continue to rich text' }).click();
+  const editor = page.getByRole('textbox', {
+    name: 'Signature for alex@example.com',
+  });
+  await editor.fill('First draft');
+  await page.evaluate(() => window.signatureFixture.holdAccountRefresh());
+  await page.getByRole('button', { name: 'Clear signature' }).click();
+  // The cache update remounts settings before the mutation's refresh completes.
+  await expect(
+    page.getByRole('tab', { name: 'Preview', exact: true })
+  ).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('tab', { name: 'Rich text' }).click();
+  await page.getByRole('button', { name: 'Continue to rich text' }).click();
+  await editor.fill('Newer draft');
+  await page.evaluate(() => window.signatureFixture.releaseAccountRefresh());
+  await expect(page.getByRole('status')).toHaveText('Signature removed');
+  await expect(editor).toHaveText('Newer draft');
+  await expect(
+    page.getByRole('button', { name: 'Save signature' })
+  ).toBeEnabled();
+  await page.getByRole('button', { name: 'Save signature' }).click();
+  await expect(page.getByRole('status')).toHaveText('Signature saved');
+  await expect(
+    page
+      .getByRole('region', { name: 'Signature preview for alex@example.com' })
+      .getByText('Newer draft')
+  ).toBeVisible();
 });
 
 test('pasting a custom signature bypasses Quill conversion', async ({

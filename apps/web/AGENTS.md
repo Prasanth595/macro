@@ -144,7 +144,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   conversion. Keep the settings and composer preview on the same sanitized HTML
   renderer. Phone settings show the preview with desktop-only editing. See the
   [signature walkthrough](../../docs/agent-guide/settings.md#email-signatures)
-  for browser coverage.
+  for browser coverage. Keep signature commit callbacks on the mutation hook
+  so account-list remounts cannot leave an already-cleared draft behind.
 - Keep personal accounts and agent tool connections together in Settings → Integrations;
   preserve `agent-connections` as an alias for existing links.
 - Keep bot setup focused on the token-and-SDK workflow; Agent and Ownership
