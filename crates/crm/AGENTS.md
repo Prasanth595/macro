@@ -54,9 +54,10 @@ tools/HTTP/GraphQL surfaces over them.
 - `cargo test -p crm` (`SQLX_OFFLINE` unset; needs a local MacroDB — see
   `.agents/rules/rust/guardrails.md`). After query/migration changes, run
   `nix develop --command just prepare_db` from the repository root.
-- After tool input or description changes, regenerate frontend tool types in
-  `apps/web` and public MCP reference pages with `bun run generate:tools` in
-  `apps/docs`; both outputs are checked by CI.
+- After tool input or description changes, regenerate frontend tool types and
+  public MCP reference pages using the
+  [entity creation guide](../../docs/guides/add-entity.md#13-ai-and-mcp-tools);
+  CI checks both outputs.
 
 ## Gotchas
 
