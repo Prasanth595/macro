@@ -29,12 +29,19 @@ export function debouncedDependent<T>(source: () => T, delay = 300): () => T {
  * typeahead list) never delays the next keystroke. A newer source value
  * cancels a commit still waiting for idle time. `maxWait` bounds the wait on a
  * busy page. Safari has no idle callbacks and commits when the debounce fires.
+ *
+ * `wrapCommit` runs around each commit, which synchronously recomputes what
+ * reads the value, so a caller can time that work and the idle wait before it.
  */
 export function idleDebouncedDependent<T>(
   source: () => T,
   delay = 300,
-  maxWait = 150
+  options: {
+    maxWait?: number;
+    wrapCommit?: (commit: () => void, idleWaitMs: number) => void;
+  } = {}
 ): () => T {
+  const { maxWait = 150, wrapCommit = (commit) => commit() } = options;
   const [debounced, setDebounced] = createSignal(source());
   let idleId: number | undefined;
   const cancelIdle = () => {
@@ -44,14 +51,18 @@ export function idleDebouncedDependent<T>(
   };
   const commit = (v: T) => {
     if (typeof requestIdleCallback === 'undefined') {
-      setDebounced(() => v);
+      wrapCommit(() => setDebounced(() => v), 0);
       return;
     }
     cancelIdle();
+    const requestedAt = performance.now();
     idleId = requestIdleCallback(
       () => {
         idleId = undefined;
-        setDebounced(() => v);
+        wrapCommit(
+          () => setDebounced(() => v),
+          performance.now() - requestedAt
+        );
       },
       { timeout: maxWait }
     );

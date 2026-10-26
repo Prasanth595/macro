@@ -133,9 +133,26 @@ export function MentionsMenu(props: MentionsMenuProps) {
 function MentionsMenuInner(props: MentionsMenuProps) {
   const analytics = useAnalytics();
 
+  const legacyBlockId = useMaybeBlockId();
+  const blockId = props.sourceDocumentId ?? legacyBlockId;
+
   // Re-ranking every source runs when the browser is idle, never ahead of the
-  // next typed character.
-  const searchTerm = idleDebouncedDependent(props.menu.searchTerm, 60);
+  // next typed character. The commit re-ranks and renders synchronously, so
+  // its span times that work; the idle wait before it is an attribute.
+  const searchTerm = idleDebouncedDependent(props.menu.searchTerm, 60, {
+    wrapCommit: (commit, idleWaitMs) => {
+      const span = Telemetry.span('mentions.search');
+      span.setAttr('search.idle_wait_ms', Math.round(idleWaitMs));
+      if (blockId) span.setAttr('document.id', blockId);
+      try {
+        commit();
+        span.setAttr('search.query_length', searchTerm().length);
+        span.setAttr('search.result_count', controller.combinedItems().length);
+      } finally {
+        span.end();
+      }
+    },
+  });
   const activeSearchTerm = () => (props.menu.isOpen() ? searchTerm() : '');
 
   const hasCustomEntities = () => !!props.entities;
@@ -158,9 +175,6 @@ function MentionsMenuInner(props: MentionsMenuProps) {
   const allItems = props.entities ?? quickAccess!.useList().items;
 
   const { isKeypressActive } = useIsKeyPressActive();
-
-  const legacyBlockId = useMaybeBlockId();
-  const blockId = props.sourceDocumentId ?? legacyBlockId;
 
   const { usersAndGroups, groups, availableUsers } = useUsersMention({
     users: props.users,

@@ -164,15 +164,23 @@ function ufuzzyFilter<T>(
   if (!idxs || idxs.length === 0) return [];
 
   // Match details cost far more than the filter itself. Past this many
-  // matches (one or two typed characters in a large account) they barely
-  // separate candidates, so skip them, as uFuzzy's own search() does, and let
-  // recency rank equally scored matches.
+  // matches (one or two typed characters in a large account) skip them, as
+  // uFuzzy's own search() does. A cheap prefix check keeps names that start
+  // with the query (or have a word that does) ahead; recency ranks the rest.
   if (idxs.length > INFO_THRESHOLD) {
-    return idxs.map((haystackIdx) => ({
-      original: items[haystackIdx],
-      string: haystack[haystackIdx],
-      score: 100,
-    }));
+    const needle = query.trim().toLowerCase();
+    return idxs.map((haystackIdx) => {
+      const name = haystack[haystackIdx].toLowerCase();
+      return {
+        original: items[haystackIdx],
+        string: haystack[haystackIdx],
+        score: name.startsWith(needle)
+          ? 100
+          : name.includes(` ${needle}`)
+            ? 75
+            : 50,
+      };
+    });
   }
 
   const info = uf.info(idxs, haystack, query);
