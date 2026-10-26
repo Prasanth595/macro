@@ -13,6 +13,8 @@ DMs, and the shared message store other domains discuss things on.
 - `src/domain/dm.rs`, `src/domain/teammate_dms.rs`: direct-message channels.
 - `src/domain/reference_sharing.rs`: sharing an external item (PDF, doc, CRM
   record) into a channel.
+- `src/domain/access_requests.rs`, `src/domain/service/access_requests.rs`:
+  requests to join a private or team channel, answered by any participant.
 - `src/inbound/attachment.rs`: the `AttachmentService` impl for channel messages.
 - `src/inbound/toolset.rs`: AI tools over channels (feature `ai_tools`).
 - `src/outbound/pg_channels_repo.rs`, `src/outbound/connection_gateway_realtime.rs`:
@@ -57,7 +59,11 @@ DMs, and the shared message store other domains discuss things on.
 ## Gotchas
 
 - Human DM messages to nonusers use immediate email, including mentions and replies; empty DM creation, bot messages, and silent/mentions-only policies do not trigger this path. Keep registered recipients on their normal notification routes.
-
+- Channel access requests are separate from `crates/access_requests`: access is
+  membership, and every participant reviews. Each attempt is its own row so a
+  timeline entry keeps its outcome. Approval adds the member in the request's
+  transaction, then dispatches `ParticipantsAdded`; the announcement reaches the
+  timeline through `macro.channels` and the activity consumer.
 - DM invitation emails must stay distinguishable from channel invites (#7964) —
   don't collapse the two email templates.
 - Legacy document/CRM/channel message paths were removed (#6732); don't
