@@ -1,6 +1,30 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
+
+async function swipeToEnd(page: Page, last: Locator) {
+  const cdp = await page.context().newCDPSession(page);
+  const height = page.viewportSize()!.height;
+  for (let swipe = 0; swipe < 5; swipe++) {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: 190, y: height - 200 }],
+    });
+    for (let y = height - 220; y >= 140; y -= 20) {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: 190, y }],
+      });
+    }
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: [],
+    });
+  }
+  await cdp.detach();
+  await expect(last).toBeInViewport();
+}
 
 for (const device of [
+  { name: 'small phone', width: 320, height: 568, hasTouch: true },
   { name: 'phone', width: 390, height: 844, hasTouch: true },
   { name: 'tablet', width: 1024, height: 768, hasTouch: true },
   { name: 'desktop', width: 1280, height: 800, hasTouch: false },
@@ -13,6 +37,11 @@ for (const device of [
       hasTouch: device.hasTouch,
     });
     test.beforeEach(async ({ page }) => {
+      page.on('pageerror', (error) => console.error(error.message));
+      page.on('requestfailed', (request) => {
+        if (request.url().startsWith('http://localhost:'))
+          console.error(request.failure()?.errorText, request.url());
+      });
       await page.routeWebSocket('**', (socket) => socket.close());
       await page.route('https://**', (route) => route.abort());
       await page.route('**/__macro_dev/**', (route) => route.abort());
@@ -35,9 +64,39 @@ for (const device of [
             path: testInfo.outputPath('overview-top.png'),
           });
           if (device.hasTouch) {
-            await page
-              .getByRole('button', { name: 'Files', exact: true })
-              .click();
+            const sections = page.getByRole('button', {
+              name: /^Record sections:/,
+            });
+            await expect(sections).toBeVisible();
+            const sectionsBox = await sections.boundingBox();
+            expect(sectionsBox!.height).toBeGreaterThanOrEqual(44);
+            expect(sectionsBox!.x).toBeGreaterThanOrEqual(0);
+            expect(sectionsBox!.x + sectionsBox!.width).toBeLessThan(
+              device.width - 40
+            );
+            const names =
+              surface === 'company'
+                ? ['Team', 'Emails', 'Tasks', 'Calls', 'Files']
+                : ['Emails', 'Tasks', 'Calls', 'Files'];
+            for (const name of names) {
+              await sections.tap();
+              const option = page.getByRole('menuitemradio', {
+                name,
+                exact: true,
+              });
+              await expect
+                .poll(async () => (await option.boundingBox())?.height ?? 0)
+                .toBeGreaterThanOrEqual(44);
+              await option.tap();
+              await expect(
+                page.getByRole('searchbox', {
+                  name: `Search ${name.toLowerCase()}`,
+                })
+              ).toBeVisible();
+              await expect(sections).toHaveAccessibleName(
+                `Record sections: ${name}`
+              );
+            }
             const search = page.getByRole('searchbox', {
               name: 'Search files',
             });
@@ -47,16 +106,31 @@ for (const device of [
             expect(searchBox!.y).toBeLessThan(112);
             await search.fill('proposal');
             await expect(page.getByText('Searching: proposal')).toBeVisible();
+            await swipeToEnd(
+              page,
+              page.getByRole('button', { name: 'Last record action' })
+            );
+            await sections.tap();
+            await expect(
+              page.getByRole('menuitemradio', { name: 'Files', exact: true })
+            ).toHaveAttribute('aria-checked', 'true');
+            await page.keyboard.press('Escape');
+            await expect(sections).toBeFocused();
+            await sections.tap();
             await page
-              .getByRole('button', { name: 'Overview', exact: true })
-              .click();
+              .getByRole('menuitemradio', { name: 'Overview', exact: true })
+              .tap();
             await expect(heading).toBeVisible({ timeout: 30000 });
           }
           const last = page.getByRole('button', { name: 'Last action' });
-          await last.evaluate((element) => {
-            const scroller = element.closest('.overflow-y-auto');
-            if (scroller) scroller.scrollTop = scroller.scrollHeight;
-          });
+          if (device.hasTouch) {
+            await swipeToEnd(page, last);
+          } else {
+            await last.evaluate((element) => {
+              const scroller = element.closest('.overflow-y-auto');
+              if (scroller) scroller.scrollTop = scroller.scrollHeight;
+            });
+          }
           await expect(last).toBeVisible();
           const lastBox = await last.boundingBox();
           expect(lastBox!.y + lastBox!.height).toBeLessThanOrEqual(

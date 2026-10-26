@@ -4,13 +4,22 @@ import { ViewBreadcrumbs, ViewShell } from '@app/components/view-shell';
 import { AnalyticsContextProvider } from '@app/lib/analytics/analytics-context';
 import { PosthogProvider } from '@app/lib/analytics/posthog';
 import { SidePanel } from '@components/app/side-panel';
+import { HeaderIsland } from '@components/app/split-layout/components/HeaderIsland';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import InfoIcon from '@phosphor/info.svg';
+import LinkIcon from '@phosphor/link.svg';
 import { Button } from '@ui';
 import { createSignal, For, Match, Switch } from 'solid-js';
 import { render } from 'solid-js/web';
 import { CrmMobileTabs } from '../components/crm-mobile-tabs';
 import { RecordOverview } from '../components/record-overview';
 import { RecordSection } from '../components/record-section';
+import { RecordTabs } from '../components/record-tabs';
+import {
+  COMPANY_SECTIONS,
+  CONTACT_SECTIONS,
+  type CrmRecordSection,
+} from '../core/record';
 
 // Production layout components with local content; no account or backend writes.
 const params = new URLSearchParams(location.search);
@@ -24,7 +33,7 @@ document.documentElement.dataset.touchDevice = String(isTouchDevice());
 function Fixture() {
   const [tab, setTab] = createSignal('active');
   const [search, setSearch] = createSignal('');
-  const [section, setSection] = createSignal('overview');
+  const [section, setSection] = createSignal<CrmRecordSection>('overview');
   return (
     <main
       class="relative flex h-dvh flex-col bg-panel text-ink"
@@ -65,10 +74,33 @@ function Fixture() {
         <Match when={surface === 'company' || surface === 'contact'}>
           <nav
             aria-label="Record navigation"
-            class="absolute inset-x-0 top-0 z-10 flex gap-2 bg-panel touch:top-(--safe-top) touch:h-11.25 not-touch:hidden"
+            class="absolute inset-x-0 top-0 z-10 flex items-center gap-2 px-3 touch:top-(--safe-top) touch:h-11.25 touch:pointer-events-none not-touch:hidden"
           >
-            <Button onClick={() => setSection('overview')}>Overview</Button>
-            <Button onClick={() => setSection('files')}>Files</Button>
+            <HeaderIsland class="px-0">
+              <Button size="icon-lg" aria-label="Back">
+                ←
+              </Button>
+            </HeaderIsland>
+            <div class="min-w-0">
+              <RecordTabs
+                sections={
+                  surface === 'company' ? COMPANY_SECTIONS : CONTACT_SECTIONS
+                }
+                value={section()}
+                onChange={setSection}
+                compact
+              />
+            </div>
+            <HeaderIsland class="ml-auto">
+              <Button variant="ghost" size="icon-md" aria-label="Copy link">
+                <LinkIcon class="size-4 touch:size-5" />
+              </Button>
+            </HeaderIsland>
+            <HeaderIsland class="px-0">
+              <Button size="icon-lg" aria-label="Information">
+                <InfoIcon />
+              </Button>
+            </HeaderIsland>
           </nav>
           <Switch>
             <Match when={section() === 'overview'}>
@@ -82,13 +114,17 @@ function Fixture() {
                 <Button>Last action</Button>
               </RecordOverview>
             </Match>
-            <Match when={section() === 'files'}>
+            <Match when={section() !== 'overview'}>
               <RecordSection
-                title="Files"
+                title={section() === 'files' ? 'Files' : section()}
                 search={search()}
                 onSearchChange={setSearch}
               >
                 <p>{search() ? `Searching: ${search()}` : 'No files yet.'}</p>
+                <For each={Array.from({ length: 35 }, (_, i) => i)}>
+                  {(index) => <p>Record item {index}</p>}
+                </For>
+                <Button>Last record action</Button>
               </RecordSection>
             </Match>
           </Switch>

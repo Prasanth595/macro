@@ -41,6 +41,12 @@ CRM supplies row/header/empty state slots, filter choices, grouping policy, and
 its own collection state to the shared collection renderer. Shared collection code must not acquire CRM hooks or
 CRM-specific state again.
 
+`components/record-tabs.tsx` owns record section navigation for every host:
+desktop tabs collapse to icons, while touch uses a labeled dropdown inside a
+`HeaderIsland` so it accepts taps through the floating header and fits beside
+its other controls. Keep company and contact navigation covered by the
+`mobile-insets.browser.e2e.ts` browser fixture, including safe areas and scrolling.
+
 `task-composer.ts` owns the CRM task preset: Companies/Contacts are visible,
 Status remains a task default but is not initially shown. CRM registers live
 `{ task: TaskComposerContext }` values with the provider in
