@@ -299,6 +299,24 @@ export function useSetCompanyHiddenMutation(deps: CrmRecordDependencies) {
             const result = await throwOnErr(() =>
               deps.storage.setCompanyHidden({ companyId, hidden })
             );
+            await span.span(
+              'crm.visibility_change.refresh',
+              async (refresh) => {
+                try {
+                  await invalidateCachedCrmContacts();
+                  wipeCompanyEmailCache(deps, companyId);
+                  await Promise.all([
+                    deps.client.invalidateQueries({ queryKey: soupKeys._def }),
+                    deps.client.invalidateQueries({
+                      queryKey: crmKeys.company(companyId).queryKey,
+                    }),
+                  ]);
+                } catch (error) {
+                  refresh.error('Company visibility refresh failed');
+                  throw error;
+                }
+              }
+            );
             span.setAttr('crm.visibility.outcome', 'success');
             return result;
           } catch (error) {
@@ -307,16 +325,6 @@ export function useSetCompanyHiddenMutation(deps: CrmRecordDependencies) {
             throw error;
           }
         }),
-      onSuccess: async (_data, { companyId }) => {
-        await invalidateCachedCrmContacts();
-        wipeCompanyEmailCache(deps, companyId);
-        return Promise.all([
-          deps.client.invalidateQueries({ queryKey: soupKeys._def }),
-          deps.client.invalidateQueries({
-            queryKey: crmKeys.company(companyId).queryKey,
-          }),
-        ]);
-      },
     }),
     () => deps.client
   );

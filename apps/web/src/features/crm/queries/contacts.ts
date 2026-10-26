@@ -146,7 +146,7 @@ export function useSetContactNameMutation(deps: CrmRecordDependencies) {
  * Hidden contacts disappear from the parent company's contact list
  * (non-admin view) and from any soup surface that filters them.
  *
- * Returns the invalidation promise from `onSuccess` so the mutation
+ * Awaits cache invalidation in the visibility trace so the mutation
  * stays pending until both the contact query and the soup queries
  * refetch — the toggle state and any dependent UI all flip in one beat.
  */
@@ -168,6 +168,23 @@ export function useSetContactHiddenMutation(deps: CrmRecordDependencies) {
             const result = await throwOnErr(() =>
               deps.storage.setContactHidden({ contactId, hidden })
             );
+            await span.span(
+              'crm.visibility_change.refresh',
+              async (refresh) => {
+                try {
+                  await invalidateCachedCrmContacts(contactId);
+                  await Promise.all([
+                    deps.client.invalidateQueries({ queryKey: soupKeys._def }),
+                    deps.client.invalidateQueries({
+                      queryKey: crmKeys.contact(contactId).queryKey,
+                    }),
+                  ]);
+                } catch (error) {
+                  refresh.error('Contact visibility refresh failed');
+                  throw error;
+                }
+              }
+            );
             span.setAttr('crm.visibility.outcome', 'success');
             return result;
           } catch (error) {
@@ -176,15 +193,6 @@ export function useSetContactHiddenMutation(deps: CrmRecordDependencies) {
             throw error;
           }
         }),
-      onSuccess: async (_data, { contactId }) => {
-        await invalidateCachedCrmContacts(contactId);
-        return Promise.all([
-          deps.client.invalidateQueries({ queryKey: soupKeys._def }),
-          deps.client.invalidateQueries({
-            queryKey: crmKeys.contact(contactId).queryKey,
-          }),
-        ]);
-      },
     }),
     () => deps.client
   );
