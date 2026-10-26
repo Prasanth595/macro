@@ -21,6 +21,11 @@ import {
   registerRootEventListener,
 } from '@core/component/LexicalMarkdown/plugins';
 import {
+  $getSelectedCheckboxes,
+  CONVERT_CHECKBOXES_TO_TASKS,
+  isCheckboxToTaskPluginEnabled,
+} from '@core/component/LexicalMarkdown/plugins/checkbox-to-task';
+import {
   $getMarkIdsAtCaret,
   CREATE_DRAFT_COMMENT_COMMAND,
 } from '@core/component/LexicalMarkdown/plugins/comments/commentPlugin';
@@ -61,6 +66,7 @@ import ChatTeardrop from '@phosphor/chat-teardrop.svg';
 import GridIcon from '@phosphor/grid-four.svg';
 import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg?component-solid';
 import SparkleIcon from '@phosphor-icons/core/bold/sparkle-bold.svg?component-solid';
+import LoadingIcon from '@phosphor-icons/core/bold/spinner-gap-bold.svg?component-solid';
 import CheckSquareIcon from '@phosphor-icons/core/regular/check-square.svg?component-solid';
 import LinkIcon from '@phosphor-icons/core/regular/link.svg?component-solid';
 import { makeResizeObserver } from '@solid-primitives/resize-observer';
@@ -202,6 +208,8 @@ export function MarkdownPopup(props: {
   const [convertibleListKey, setConvertibleListKey] = createSignal<
     string | null
   >(null);
+  const [selectedCheckboxCount, setSelectedCheckboxCount] = createSignal(0);
+  const [isConverting, setIsConverting] = createSignal(false);
 
   const _selectedText = () => selection()?.text ?? undefined;
   const _selectedNodesText = () => selection()?.nodeText ?? undefined;
@@ -213,6 +221,12 @@ export function MarkdownPopup(props: {
       editor.read(() => {
         setConvertibleListKey(
           $getConvertibleListFromSelection()?.getKey() ?? null
+        );
+        const lexicalSelection = $getSelection();
+        setSelectedCheckboxCount(
+          $isRangeSelection(lexicalSelection)
+            ? $getSelectedCheckboxes(lexicalSelection).length
+            : 0
         );
       });
     })
@@ -375,6 +389,41 @@ export function MarkdownPopup(props: {
   const shouldShowCreateTaskButton = () =>
     Boolean(currentUserId() && selection()?.text);
 
+  // A selection spanning several checklist items makes one task per item.
+  const convertsCheckboxes = () =>
+    canEdit() &&
+    isCheckboxToTaskPluginEnabled(editor) &&
+    selectedCheckboxCount() > 1;
+
+  const createTaskLabel = () => {
+    if (isConverting()) return 'Converting...';
+    return convertsCheckboxes() ? `${selectedCheckboxCount()} tasks` : 'Task';
+  };
+
+  const handleConvertToTasks = () => {
+    const lexicalSelection = editor.read($getSelection);
+    if (!$isRangeSelection(lexicalSelection)) return;
+    setIsConverting(true);
+    editor.dispatchCommand(CONVERT_CHECKBOXES_TO_TASKS, {
+      selection: lexicalSelection,
+      onComplete: (results) => {
+        setIsConverting(false);
+        const created = results.filter((result) => result.isOk()).length;
+        if (created > 0) {
+          toast.success(`Created ${created} task${created > 1 ? 's' : ''}`);
+        }
+        if (
+          results.some(
+            (result) => result.isErr() && result.error.tag !== 'EmptyCheckbox'
+          )
+        ) {
+          toast.failure('Some checklist items could not become tasks');
+        }
+        setPopupVisible(false);
+      },
+    });
+  };
+
   const shouldShowTableButton = () =>
     Boolean(canEdit() && convertibleListKey());
 
@@ -412,6 +461,10 @@ export function MarkdownPopup(props: {
   // Opens the task composer on the highlighted snippet, as a channel
   // message's "Create task" does, and can link the task after the snippet.
   const handleCreateTask = () => {
+    if (convertsCheckboxes()) {
+      handleConvertToTasks();
+      return;
+    }
     const snippet = editor.read(() => {
       const lexicalSelection = $getSelection();
       const location = $getSelectionLocation();
@@ -614,11 +667,19 @@ export function MarkdownPopup(props: {
               <Toolbar.Button
                 size="sm"
                 depth={3}
-                tooltip="Create task from snippet"
+                tooltip={
+                  convertsCheckboxes()
+                    ? 'Create a task for each checklist item'
+                    : 'Create task from snippet'
+                }
                 onClick={handleCreateTask}
+                disabled={isConverting()}
               >
-                <CheckSquareIcon class="size-4" />
-                Task
+                <Dynamic
+                  component={isConverting() ? LoadingIcon : CheckSquareIcon}
+                  class="size-4"
+                />
+                {createTaskLabel()}
               </Toolbar.Button>
             </Show>
             <Show
@@ -779,6 +840,8 @@ export function MarkdownPopup(props: {
             canComment={canComment()}
             hasSelection={(selection()?.text ?? '') !== ''}
             showCreateTaskOption={shouldShowCreateTaskButton()}
+            createTaskLabel={createTaskLabel()}
+            isConverting={isConverting()}
             showTableOption={shouldShowTableButton()}
             showEditWithAiOption={shouldShowEditWithAiButton()}
             showOpenCommentOption={

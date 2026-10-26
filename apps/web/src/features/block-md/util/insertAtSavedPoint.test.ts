@@ -1,4 +1,11 @@
 import {
+  $createListItemNode,
+  $createListNode,
+  $isListNode,
+  ListItemNode,
+  ListNode,
+} from '@lexical/list';
+import {
   $createParagraphNode,
   $createTextNode,
   $getRoot,
@@ -46,6 +53,36 @@ function insert(editor: LexicalEditor, point: SavedPoint) {
 const text = (editor: LexicalEditor) =>
   editor.read(() => $getRoot().getTextContent());
 
+function checklist(): { editor: LexicalEditor; key: string } {
+  const editor = createEditor({
+    nodes: [ListNode, ListItemNode],
+    onError: (error) => {
+      throw error;
+    },
+  });
+  let key = '';
+  editor.update(
+    () => {
+      const list = $createListNode('check');
+      key = list.getKey();
+      for (const item of ['a', 'b', 'c']) {
+        list.append($createListItemNode(false).append($createTextNode(item)));
+      }
+      $getRoot().append(list);
+    },
+    { discrete: true }
+  );
+  return { editor, key };
+}
+
+const itemTexts = (editor: LexicalEditor) =>
+  editor.read(() =>
+    $getRoot()
+      .getChildren()
+      .flatMap((list) => ($isListNode(list) ? list.getChildren() : []))
+      .map((item) => item.getTextContent())
+  );
+
 describe('$insertAtSavedPoint', () => {
   it('inserts at the saved point, not at the live selection', () => {
     const { editor, key } = editorWithText('buy milk today.');
@@ -63,6 +100,22 @@ describe('$insertAtSavedPoint', () => {
     const end = editorWithText('today');
     insert(end.editor, { key: end.key, offset: 5, type: 'text' });
     expect(text(end.editor)).toBe('today[task]');
+  });
+
+  it('links after the item text when the point sits between checklist items', () => {
+    const { editor, key } = checklist();
+
+    expect(insert(editor, { key, offset: 2, type: 'element' })).toBe(true);
+
+    expect(itemTexts(editor)).toEqual(['a', 'b[task]', 'c']);
+  });
+
+  it('adds no list items when the point is before the first item', () => {
+    const { editor, key } = checklist();
+
+    expect(insert(editor, { key, offset: 0, type: 'element' })).toBe(false);
+
+    expect(itemTexts(editor)).toEqual(['a', 'b', 'c']);
   });
 
   it('returns false when the saved node was removed', () => {

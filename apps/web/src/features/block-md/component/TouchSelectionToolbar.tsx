@@ -7,6 +7,7 @@ import ChatTeardrop from '@phosphor/chat-teardrop.svg';
 import GridIcon from '@phosphor/grid-four.svg';
 import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg?component-solid';
 import SparkleIcon from '@phosphor-icons/core/bold/sparkle-bold.svg?component-solid';
+import LoadingIcon from '@phosphor-icons/core/bold/spinner-gap-bold.svg?component-solid';
 import CheckSquareIcon from '@phosphor-icons/core/regular/check-square.svg?component-solid';
 import LinkIcon from '@phosphor-icons/core/regular/link.svg?component-solid';
 import { Button } from '@ui';
@@ -52,6 +53,8 @@ export function TouchSelectionToolbar(props: {
   /** False when the popup opened for a bare caret (inside a comment). */
   hasSelection: boolean;
   showCreateTaskOption: boolean;
+  createTaskLabel: string;
+  isConverting: boolean;
   showTableOption: boolean;
   showEditWithAiOption: boolean;
   /** The caret/selection touches an existing comment thread. */
@@ -98,11 +101,16 @@ export function TouchSelectionToolbar(props: {
         key: 'task',
         content: () => (
           <>
-            <CheckSquareIcon class="size-4" />
-            Task
+            <Dynamic
+              component={props.isConverting ? LoadingIcon : CheckSquareIcon}
+              class="size-4"
+            />
+            {props.createTaskLabel}
           </>
         ),
-        onSelect: () => props.onCreateTask(),
+        onSelect: () => {
+          if (!props.isConverting) props.onCreateTask();
+        },
       });
     }
     if (props.showTableOption) {
@@ -227,7 +235,7 @@ export function TouchSelectionToolbar(props: {
   createEffect(() => {
     // Reset paging only when the option *set* changes (e.g. caret mode vs.
     // selection mode) — a cosmetic rerender of the same options (the Share
-    // icon flipping to a check) keeps the
+    // icon flipping to a check, the Task label while converting) keeps the
     // user's page; the clamp effect below handles any repartition.
     const keys = options()
       .map((option) => option.key)
