@@ -21,7 +21,7 @@ Only Button-specific helpers and materials are copied. There are no imports from
 ## API changes
 
 - Variants: `primary` (default), `secondary`, `outline`, `ghost`, `accent`, `danger`, `success`, and `link`.
-- Use `accent` for the main action: create, save, submit, send, invite, approve, connect, and continue. Keep the shared New launcher (`ViewCreateButton`) neutral with `outline`; opening a creation menu is not the final create action. Keep `primary` and `secondary` for neutral actions, `ghost` for utility/cancel controls, and `danger` for destructive actions. Do not blindly map legacy `strong` buttons to `secondary`.
+- Use `accent` for the main action: create, save, submit, send, invite, approve, connect, and continue. Keep the shared New launcher (`ViewCreateButton`) neutral with `variant="outline" finish="raised"`; opening a creation menu is not the final create action. Keep `primary` and `secondary` for neutral actions, `ghost` for utility/cancel controls, and `danger` for destructive actions. Do not blindly map legacy `strong` buttons to `secondary`.
 - Sizes: `xs` through `xl`, plus `icon-xs` through `icon-xl`. Replace `icon-composer` with `icon-md`.
 - Use explicit `icon-*` sizes instead of `square`.
 - Set accessible names with `aria-label`, not `label`.

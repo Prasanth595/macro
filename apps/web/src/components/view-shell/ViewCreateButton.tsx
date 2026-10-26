@@ -23,6 +23,7 @@ export function ViewCreateButton(
     <Button
       {...rest}
       variant="outline"
+      finish="raised"
       size="md"
       class={cn(
         sidebar() &&
