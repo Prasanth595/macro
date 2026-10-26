@@ -5,6 +5,7 @@ import { DeleteDialog } from '@ui/components/DeleteDialog';
 import { cn } from '@ui/utils/classname';
 import {
   type Accessor,
+  createMemo,
   type JSX,
   Match,
   onCleanup,
@@ -625,30 +626,33 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
           </Match>
         </Switch>
         <Show when={records.selected()}>
-          {(row) => (
-            <RecordPanel
-              row={row()}
-              tableName={props.name}
-              columns={columns()}
-              canEdit={props.canEdit}
-              pending={controller.pending()}
-              outsideViewReason={
-                records.selectedPosition() < 0 && filtered()
-                  ? `This record doesn’t match your filters. You can ${props.canEdit ? 'keep editing' : 'view'} it here.`
-                  : undefined
-              }
-              saveError={recordSaveError(row().rowId)}
-              onRetry={() => fireAndForget(records.retry(), 'database')}
-              position={records.selectedPosition()}
-              total={rows().length}
-              renderCell={renderCell}
-              onClose={records.closeRecord}
-              onNavigate={records.navigate}
-              returnFocus={records.returnFocus()}
-              details={props.renderRecordDetails?.(row().rowId)}
-              onRequestDelete={() => records.requestDelete(row().rowId)}
-            />
-          )}
+          {(row) => {
+            const rowId = createMemo(() => row().rowId);
+            return (
+              <RecordPanel
+                row={row()}
+                tableName={props.name}
+                columns={columns()}
+                canEdit={props.canEdit}
+                pending={controller.pending()}
+                outsideViewReason={
+                  records.selectedPosition() < 0 && filtered()
+                    ? `This record doesn’t match your filters. You can ${props.canEdit ? 'keep editing' : 'view'} it here.`
+                    : undefined
+                }
+                saveError={recordSaveError(row().rowId)}
+                onRetry={() => fireAndForget(records.retry(), 'database')}
+                position={records.selectedPosition()}
+                total={rows().length}
+                renderCell={renderCell}
+                onClose={records.closeRecord}
+                onNavigate={records.navigate}
+                returnFocus={records.returnFocus()}
+                details={props.renderRecordDetails?.(rowId())}
+                onRequestDelete={() => records.requestDelete(row().rowId)}
+              />
+            );
+          }}
         </Show>
         <DeleteDialog
           open={!!records.deleteTarget()}

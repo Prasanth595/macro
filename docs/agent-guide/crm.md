@@ -21,7 +21,9 @@ cleans up its links; undoing a source deletion does not recreate the CRM links.
 Each company or entry supports up to 100 links.
 
 Verify company/deal isolation, multiple links, source rename/delete/revocation,
-and read-failure retry. The CRM browser fixture `linked-rows.browser.e2e.ts`
+and read-failure retry. Refreshing the selected record must preserve its open
+picker; navigating to another record must switch the linked-row section.
+The CRM browser fixture `linked-rows.browser.e2e.ts`
 exercises company Overview and the shared record panel on a phone; Rust pipeline
 integration tests exercise source permissions and persistence separately.
 
