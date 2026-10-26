@@ -66,9 +66,6 @@ export type DatabaseTextEditorProps = CellTextEditorProps & {
 export type GridCellProps = GridCellEditorOptions & {
   column: DatabaseViewColumn;
   value: DatabaseCellValue;
-  emptyLabel?: string;
-  /** Text values wrap onto as many lines as they need instead of truncating to one. */
-  wrap?: boolean;
   canEdit: boolean;
   renderTextEditor?: (props: DatabaseTextEditorProps) => JSX.Element;
   renderTextValue?: (value: string) => JSX.Element;
@@ -360,6 +357,7 @@ export function GridCell(props: GridCellProps) {
           <BooleanCell
             column={props.column}
             value={props.value}
+            emptyLabel={props.emptyLabel}
             editable={editable()}
             wrapperRef={(element) => {
               booleanWrapper = element;
@@ -398,7 +396,14 @@ export function GridCell(props: GridCellProps) {
             data-cell-display
             class="px-2.5 py-1.5 outline-none focus-visible:ring-2 focus-visible:ring-ink/50"
           >
-            <Show when={props.value !== null}>
+            <Show
+              when={props.value !== null}
+              fallback={
+                <span data-cell-empty class="opacity-40">
+                  {props.emptyLabel}
+                </span>
+              }
+            >
               <SelectPill label={String(props.value)} column={props.column} />
             </Show>
           </div>
@@ -497,6 +502,7 @@ function isClearCellKey(event: KeyboardEvent) {
 function BooleanCell(props: {
   column: DatabaseViewColumn;
   value: DatabaseCellValue;
+  emptyLabel?: string;
   editable: boolean;
   wrapperRef: (element: HTMLDivElement) => void;
   inputRef: (element: HTMLInputElement) => void;
@@ -504,6 +510,7 @@ function BooleanCell(props: {
   onWrite: (value: DatabaseCellValue) => Promise<boolean>;
 }) {
   let wrapper: HTMLDivElement | undefined;
+  const showEmpty = () => props.value === null && !!props.emptyLabel;
   onMount(() => {
     const input = wrapper?.querySelector<HTMLInputElement>(
       'input[type="checkbox"]'
@@ -520,6 +527,8 @@ function BooleanCell(props: {
       data-cell-display
       class="flex min-h-9 items-center px-3 outline-none focus-visible:ring-2 focus-visible:ring-ink/50"
       checked={Boolean(props.value)}
+      indeterminate={showEmpty()}
+      readOnly={!props.editable}
       disabled={!props.editable}
       onChange={(checked) =>
         fireAndForget(props.onWrite(checked ? 1 : 0), 'database')
@@ -535,7 +544,14 @@ function BooleanCell(props: {
       }}
     >
       <Checkbox.Control />
-      <Checkbox.Label class="sr-only">{props.column.name}</Checkbox.Label>
+      <Checkbox.Label classList={{ 'sr-only': !showEmpty() }}>
+        <Show when={showEmpty()} fallback={props.column.name}>
+          <span class="sr-only">{props.column.name}: </span>
+          <span data-cell-empty class="opacity-40">
+            {props.emptyLabel}
+          </span>
+        </Show>
+      </Checkbox.Label>
     </Checkbox>
   );
 }
@@ -655,7 +671,9 @@ function TextCell(props: {
             props.renderTextValue
               ? props.renderTextValue(String(value()))
               : formatted()) || (
-              <span class="opacity-40">{props.emptyLabel ?? '—'}</span>
+              <span data-cell-empty class="opacity-40">
+                {props.emptyLabel ?? '—'}
+              </span>
             )
           }
         >
@@ -1034,6 +1052,7 @@ function SelectCell(props: GridCellProps) {
         when={label()}
         fallback={
           <span
+            data-cell-empty
             class="text-ink-placeholder opacity-40"
             classList={{
               'text-xs': !props.emptyLabel,
@@ -1184,7 +1203,7 @@ function DateCell(props: GridCellProps) {
   const shown = () => (
     <span class="truncate">
       {label() || (
-        <span class="text-ink-placeholder opacity-40">
+        <span data-cell-empty class="text-ink-placeholder opacity-40">
           {props.emptyLabel || '—'}
         </span>
       )}

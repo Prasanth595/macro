@@ -37,6 +37,10 @@ booleans through component props or the CRM source contract.
 
 Shared entity representations, transport clients, property editors, and
 collection mechanics remain shared. CRM owns its record queries and cache updates.
+Pipeline board positions load through the pipeline-authorized endpoint and are
+cached by pipeline and view. Move results update the originating view's cache,
+even if the viewer switches boards while saving. `browser-test/board.tsx`
+exercises shared cards, lane composition, and saved ordering with synthetic data.
 CRM supplies row/header/empty state slots, filter choices, grouping policy, and
 its own collection state to the shared collection renderer. Shared collection code must not acquire CRM hooks or
 CRM-specific state again.

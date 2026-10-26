@@ -134,6 +134,9 @@ virtualizer accessors when their view unmounts.
 
 - Reuse `src/components/WorkspaceTexture.tsx` for the onboarding and Create
   detail panel grain; pass the surface accent and a unique SVG filter ID.
+- Keep shared database card rendering in `features/database`; CRM supplies
+  pipeline-authorized positions. Exercise both editor and board fixtures with
+  `bunx playwright test --config src/features/crm/browser-test/playwright.config.ts`.
 
 ### Pipedream native authorization
 
