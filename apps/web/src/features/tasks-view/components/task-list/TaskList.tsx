@@ -99,6 +99,7 @@ export function TaskList(props: TaskListProps) {
   const {
     state,
     projectsEnabled,
+    showTaskProject,
     setState,
     source,
     list,
@@ -229,7 +230,7 @@ export function TaskList(props: TaskListProps) {
   );
 
   const visibleRows = source.items;
-  const columnCount = () => taskGridColumnCount(projectsEnabled());
+  const columnCount = () => taskGridColumnCount(showTaskProject());
   const [assigningProjectTasks, setAssigningProjectTasks] =
     createSignal<string[]>();
   const tasksById = createMemo(() => {
@@ -528,7 +529,7 @@ export function TaskList(props: TaskListProps) {
                             }}
                           >
                             <TaskListEntity
-                              showProject={projectsEnabled()}
+                              showProject={showTaskProject()}
                               rowId={entityRow().id}
                               entity={entityRow().entity}
                               highlighted={list.focus.key() === entityRow().id}
