@@ -8,6 +8,7 @@ type AppearanceMode = 'system' | 'light' | 'dark';
 function ThemePreview(props: { theme: ThemeV3 }) {
   return (
     <div
+      data-theme-light={String(props.theme.mode === 'light')}
       class="absolute inset-0 overflow-hidden rounded-lg bg-page p-2.5"
       style={{
         ...themeCssVars(props.theme),

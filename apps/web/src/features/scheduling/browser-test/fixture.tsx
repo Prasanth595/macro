@@ -78,6 +78,7 @@ function Fixture() {
       isDark ? '#171717' : '#ffffff'
     );
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+    document.documentElement.dataset.themeLight = String(!isDark);
   };
   onMount(() => applyTheme(false));
   const [screen, setScreen] = createSignal<
