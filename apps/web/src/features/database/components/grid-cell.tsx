@@ -66,9 +66,6 @@ export type DatabaseTextEditorProps = CellTextEditorProps & {
 export type GridCellProps = GridCellEditorOptions & {
   column: DatabaseViewColumn;
   value: DatabaseCellValue;
-  emptyLabel?: string;
-  /** Text values wrap onto as many lines as they need instead of truncating to one. */
-  wrap?: boolean;
   canEdit: boolean;
   renderTextEditor?: (props: DatabaseTextEditorProps) => JSX.Element;
   renderTextValue?: (value: string) => JSX.Element;
@@ -655,7 +652,9 @@ function TextCell(props: {
             props.renderTextValue
               ? props.renderTextValue(String(value()))
               : formatted()) || (
-              <span class="opacity-40">{props.emptyLabel ?? '—'}</span>
+              <span data-cell-empty class="opacity-40">
+                {props.emptyLabel ?? '—'}
+              </span>
             )
           }
         >
@@ -1034,6 +1033,7 @@ function SelectCell(props: GridCellProps) {
         when={label()}
         fallback={
           <span
+            data-cell-empty
             class="text-ink-placeholder opacity-40"
             classList={{
               'text-xs': !props.emptyLabel,
@@ -1184,7 +1184,7 @@ function DateCell(props: GridCellProps) {
   const shown = () => (
     <span class="truncate">
       {label() || (
-        <span class="text-ink-placeholder opacity-40">
+        <span data-cell-empty class="text-ink-placeholder opacity-40">
           {props.emptyLabel || '—'}
         </span>
       )}
