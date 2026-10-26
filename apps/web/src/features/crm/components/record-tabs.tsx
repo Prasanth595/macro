@@ -54,11 +54,11 @@ export function RecordTabs<S extends CrmRecordSection>(props: {
         />
       }
     >
-      <HeaderIsland class="h-auto px-0">
+      <HeaderIsland class="px-0">
         <Dropdown placement="bottom-start">
           <Dropdown.Trigger
             variant="ghost"
-            size="xl"
+            size="lg"
             aria-label={`Record sections: ${CRM_RECORD_SECTION_LABELS[props.value]}`}
           >
             <span>{CRM_RECORD_SECTION_LABELS[props.value]}</span>

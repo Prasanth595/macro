@@ -69,7 +69,8 @@ for (const device of [
             });
             await expect(sections).toBeVisible();
             const sectionsBox = await sections.boundingBox();
-            expect(sectionsBox!.height).toBeGreaterThanOrEqual(44);
+            expect(sectionsBox!.height).toBeGreaterThanOrEqual(36);
+            expect(sectionsBox!.y).toBeGreaterThanOrEqual(47);
             expect(sectionsBox!.x).toBeGreaterThanOrEqual(0);
             expect(sectionsBox!.x + sectionsBox!.width).toBeLessThan(
               device.width - 40
