@@ -119,9 +119,7 @@ it('opens a calendar file as the event it holds and other files through the host
       isExpanded
     />
   ));
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Planning.ics', exact: true })
-  );
+  fireEvent.click(screen.getByRole('button', { name: /^Planning\.ics$/ }));
   const preview = screen.getByRole('dialog');
   expect(preview.textContent).toContain(invitationFixture.id);
   fireEvent.click(screen.getByRole('button', { name: 'Download .ics' }));
@@ -129,9 +127,7 @@ it('opens a calendar file as the event it holds and other files through the host
   expect(onOpenAttachment).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Close' }));
   expect(screen.queryByRole('dialog')).toBeNull();
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Agenda.pdf', exact: true })
-  );
+  fireEvent.click(screen.getByRole('button', { name: /^Agenda\.pdf$/ }));
   expect(onOpenAttachment).toHaveBeenCalledWith(pdfFile);
 });
 
@@ -154,9 +150,7 @@ it('tells the card when it is shown inside its calendar file', () => {
     />
   ));
   expect(screen.getByTestId('card').textContent).toContain('inline');
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Planning.ics', exact: true })
-  );
+  fireEvent.click(screen.getByRole('button', { name: /^Planning\.ics$/ }));
   expect(screen.getByRole('dialog').textContent).toContain('in file');
 });
 
@@ -173,9 +167,7 @@ it('hands a calendar file without a readable event to the host', () => {
       isExpanded
     />
   ));
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Planning.ics', exact: true })
-  );
+  fireEvent.click(screen.getByRole('button', { name: /^Planning\.ics$/ }));
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(onOpenAttachment).toHaveBeenCalledWith(calendarFile);
 });
@@ -198,9 +190,7 @@ it('keeps the opened calendar file card mounted when the thread refreshes the me
       isExpanded
     />
   ));
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Planning.ics', exact: true })
-  );
+  fireEvent.click(screen.getByRole('button', { name: /^Planning\.ics$/ }));
   const card = screen.getByTestId('dialog-card');
   setCurrent(message([structuredClone(invitationFixture)]));
   expect(screen.getByTestId('dialog-card')).toBe(card);
@@ -219,10 +209,7 @@ it('returns focus to the calendar file chip when its dialog closes', async () =>
       isExpanded
     />
   ));
-  const chip = screen.getByRole('button', {
-    name: 'Planning.ics',
-    exact: true,
-  });
+  const chip = screen.getByRole('button', { name: /^Planning\.ics$/ });
   fireEvent.click(chip);
   fireEvent.click(screen.getByRole('button', { name: 'Close' }));
   expect(screen.queryByRole('dialog')).toBeNull();
@@ -249,10 +236,7 @@ it('keeps the chip to return focus to when the thread refreshes its attachments'
       isExpanded
     />
   ));
-  const chip = screen.getByRole('button', {
-    name: 'Planning.ics',
-    exact: true,
-  });
+  const chip = screen.getByRole('button', { name: /^Planning\.ics$/ });
   fireEvent.click(chip);
   setCurrent({
     ...message([invitationFixture]),
@@ -260,7 +244,7 @@ it('keeps the chip to return focus to when the thread refreshes its attachments'
   });
   // The open dialog hides the page behind it from the accessibility tree.
   expect(
-    screen.getByRole('button', { name: 'Planning.ics', hidden: true })
+    screen.getByRole('button', { name: /^Planning\.ics$/, hidden: true })
   ).toBe(chip);
   fireEvent.click(screen.getByRole('button', { name: 'Close' }));
   await waitFor(() => expect(document.activeElement).toBe(chip));
@@ -283,10 +267,7 @@ it('closes the calendar file dialog when its card opens the calendar', async () 
       isExpanded
     />
   ));
-  const chip = screen.getByRole('button', {
-    name: 'Planning.ics',
-    exact: true,
-  });
+  const chip = screen.getByRole('button', { name: /^Planning\.ics$/ });
   fireEvent.click(chip);
   expect(screen.getByRole('dialog')).toBeTruthy();
   navigate?.();
@@ -318,9 +299,7 @@ it('opens a cloud-reference calendar file through the host', () => {
       isExpanded
     />
   ));
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Planning.ics', exact: true })
-  );
+  fireEvent.click(screen.getByRole('button', { name: /^Planning\.ics$/ }));
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(onOpenAttachment).toHaveBeenCalledWith(reference);
 });
