@@ -130,7 +130,12 @@ export type RangeCalendarProps = Omit<
   'children' | 'mode'
 > & { class?: string };
 
-/** Connected month grids with Corvu's shared range selection and keyboard navigation. */
+/**
+ * Connected month grids with Corvu's shared range selection and keyboard navigation.
+ * @do Keep incomplete ranges local until both dates are selected.
+ * @do Keep event times separate when changing the selected dates.
+ * @dont Build disconnected calendars for the two range endpoints.
+ */
 export function RangeCalendar(props: RangeCalendarProps) {
   const [local, calendarProps] = splitProps(props, ['class']);
   const fallback = calendarProps.value?.from ?? new Date();

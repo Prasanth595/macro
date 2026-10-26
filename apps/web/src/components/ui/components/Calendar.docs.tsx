@@ -9,7 +9,7 @@ function RangeDemo() {
     to: new Date(2030, 10, 2),
   });
   return (
-    <div class="w-full max-w-2xl rounded-2xl border border-edge bg-menu-glass p-4 glass">
+    <div class="w-full max-w-2xl menu-surface p-4">
       <RangeCalendar
         required
         fixedWeeks
