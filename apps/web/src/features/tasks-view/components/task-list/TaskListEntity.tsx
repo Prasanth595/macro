@@ -17,7 +17,6 @@ import {
   unreadFilterFn,
   useIsShared,
 } from '@entity';
-import { NarrowLayout } from '@entity/composed/list-entity/narrow-layout';
 import {
   type BaseListEntityProps,
   hasSearchContentHits,
@@ -129,26 +128,7 @@ export function TaskListEntity(props: TaskListEntityProps) {
     taskDueDateUrgency(dueDate(), isTaskClosed(props.entity), props.calendar());
   const layoutProps = () => ({
     entity: props.entity,
-    titleTrailing: (
-      <Show when={dueDate()}>
-        {(date) => (
-          <span
-            class="ml-auto shrink-0 text-xs font-normal"
-            classList={{
-              'text-failure': urgency() === 'danger',
-              'text-warning': urgency() === 'warning',
-              'text-ink-muted': !urgency(),
-            }}
-            title={new Date(date()).toLocaleDateString()}
-          >
-            {new Date(date()).toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-            })}
-          </span>
-        )}
-      </Show>
-    ),
+    dueDateUrgency: urgency(),
     checked: props.checked,
     hideCheckbox: props.hideCheckbox,
     onChecked: props.onChecked,
@@ -215,7 +195,7 @@ export function TaskListEntity(props: TaskListEntityProps) {
             entityId={props.entity.id}
             config={props.entityRowConfig}
           >
-            <NarrowLayout {...layoutProps()} />
+            <TaskGridLayout {...layoutProps()} compact />
           </MaybeEntityRow>
         </Match>
       </Switch>

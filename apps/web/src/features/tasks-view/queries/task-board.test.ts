@@ -85,11 +85,17 @@ describe('board query projection', () => {
     expect(taskDueDateUrgency('2025-03-09T05:00:00Z', false, calendar)).toBe(
       'warning'
     );
-    expect(taskDueDateUrgency('2025-03-17T03:59:59Z', false, calendar)).toBe(
+    expect(taskDueDateUrgency('2025-03-10T04:00:00Z', false, calendar)).toBe(
+      'warning'
+    );
+    expect(taskDueDateUrgency('2025-03-11T03:59:59Z', false, calendar)).toBe(
       'warning'
     );
     expect(
-      taskDueDateUrgency('2025-03-17T04:00:00Z', false, calendar)
+      taskDueDateUrgency('2025-03-11T04:00:00Z', false, calendar)
+    ).toBeUndefined();
+    expect(
+      taskDueDateUrgency('2025-03-17T03:59:59Z', false, calendar)
     ).toBeUndefined();
     expect(
       taskDueDateUrgency('2025-03-09T04:59:59Z', true, calendar)

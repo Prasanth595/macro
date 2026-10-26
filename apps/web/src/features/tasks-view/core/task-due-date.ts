@@ -136,7 +136,7 @@ export function taskDueDateUrgency(
   if (!Number.isFinite(due)) return;
   const b = calendar.boundaries;
   if (due < Date.parse(b.today)) return 'danger';
-  if (due < Date.parse(b.day_eight)) return 'warning';
+  if (due < Date.parse(b.day_two)) return 'warning';
 }
 
 /** Hide deadline columns that cannot contain a task matching the current filter. */

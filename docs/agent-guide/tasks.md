@@ -140,11 +140,13 @@ Overdue is before today's midnight; Today and Tomorrow cover those entire days;
 Next 7 days covers D+2 through D+7; Later starts at D+8; No due date includes
 missing and cleared dates. Relative filters and groups refresh at local midnight,
 timezone changes, and app resume. Continuation pages keep their original boundaries.
-Task list rows show due dates next to their titles, including on mobile, and
-board cards show them in property pills. Overdue dates on open tasks use the
-danger color; dates from today through the next seven local calendar days use
-the warning color. Completed and canceled tasks have neutral due dates. Urgency refreshes at local
-midnight, on timezone changes, and when the app resumes.
+Task lists show an editable **Due date** property column; click its header to
+switch between Due soonest and Due furthest away. On phones and narrow panes,
+Due date is a compact editable property beside the other task properties, not
+part of the title. Board cards show due dates in property pills. Overdue dates
+on open tasks use the danger color; only dates due today or tomorrow use the
+warning color. Later dates, completed tasks, and canceled tasks have neutral due
+dates. Urgency refreshes at local midnight, on timezone changes, and app resume.
 Date selections persist with the navigation entry and round-trip through
 `tasks.dueDate`, `tasks.dueStart`, and `tasks.dueEnd` URL parameters.
 

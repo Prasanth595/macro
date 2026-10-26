@@ -3,13 +3,16 @@ import { Property } from '@property';
 import { usePropertiesContext } from '@property/context/PropertiesContext';
 import type { Property as PropertyType } from '@property/types';
 import { getEntityValues, hasValue } from '@property/utils';
-import { Layer } from '@ui';
+import { cn, Layer } from '@ui';
 import { Match, Show, Switch } from 'solid-js';
 
 /** Shared property cell for unified task and native project lists. */
 export function ListPropertyValue(props: {
   property: PropertyType;
   entityId: string;
+  class?: string;
+  /** Keep the value visible even when neighboring columns collapse to icons. */
+  alwaysShowText?: boolean;
 }) {
   const context = usePropertiesContext();
   const isUserEntity = () =>
@@ -60,13 +63,24 @@ export function ListPropertyValue(props: {
     >
       <Property.Tooltip property={props.property}>
         <Layer depth={2}>
-          <Property.EditTrigger class="list-property-cell inline-flex w-full max-w-full min-w-0 items-center gap-1 overflow-hidden rounded-full px-2 py-1.5 text-left leading-tight hover:bg-surface/50 @max-[840px]/u-list:px-1">
+          <Property.EditTrigger
+            aria-label={props.property.displayName}
+            class={cn(
+              'list-property-cell inline-flex w-full max-w-full min-w-0 items-center gap-1 overflow-hidden rounded-full px-2 py-1.5 text-left leading-tight hover:bg-surface/50 @max-[840px]/u-list:px-1',
+              props.class
+            )}
+          >
             <Show
               when={!isEmpty()}
               fallback={
                 <>
                   <CircleDashedEmpty class="size-3 shrink-0 opacity-50 @max-[840px]/u-list:size-4" />
-                  <span class="min-w-0 flex-1 truncate opacity-50 @max-[840px]/u-list:hidden">
+                  <span
+                    class={cn(
+                      'min-w-0 flex-1 truncate opacity-50',
+                      !props.alwaysShowText && '@max-[840px]/u-list:hidden'
+                    )}
+                  >
                     {props.property.displayName}
                   </span>
                 </>
@@ -107,7 +121,10 @@ export function ListPropertyValue(props: {
                 resolveSingleEntity={
                   props.property.specificEntityType === 'INITIATIVE'
                 }
-                class="min-w-0 max-w-full flex-1 @max-[840px]/u-list:hidden"
+                class={cn(
+                  'min-w-0 max-w-full flex-1',
+                  !props.alwaysShowText && '@max-[840px]/u-list:hidden'
+                )}
               />
             </Show>
             <Property.Caret class="@max-[840px]/u-list:hidden" />

@@ -249,6 +249,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - When adding or changing a feature flag, follow the `feature-flags` skill.
 - When adding or changing a view's feature tour, follow the `add-tour` skill.
 - Keep Tasks due-date ranges on the view-owned date-bucket boundaries in `features/tasks-view/core/task-due-date.ts`; use the supported `due_date_earliest`/`due_date_latest` sort contract and generic keyed `date_ranges` property grouping, freeze ranges across continuation pages, refresh after midnight/timezone changes/resume, and retain existing text-search ordering.
+- Render Tasks due dates in an editable list-property column, with a compact property beside the other properties on phones; keep warning urgency limited to today and tomorrow.
 - Revalidate property-dependent Soup and search membership after any DATE edit, including empty queries and unloaded grouped counts; entity-only cache invalidation cannot admit previously excluded entities. Date-range group membership remains server-owned, and `missingValueBucketKey` names the no-value bucket.
 
 ## Rules
