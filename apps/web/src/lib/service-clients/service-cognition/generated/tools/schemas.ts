@@ -17227,7 +17227,7 @@ export const CodeToolsDescription = z.object({
           z.object({
             name: z.string(),
             description: z.string(),
-            documentation: z.union([z.string(), z.null()]).optional(),
+            index: z.union([z.string(), z.null()]).optional(),
           })
         ),
         omitted: z.array(z.string()),
@@ -17269,7 +17269,7 @@ export const CodeToolsDescription = z.object({
     z.object({
       name: z.string(),
       description: z.string(),
-      documentation: z.union([z.string(), z.null()]).optional(),
+      index: z.union([z.string(), z.null()]).optional(),
     })
   ),
 });
@@ -17360,6 +17360,14 @@ export const ExecutionReceipt = z.object({
     .optional(),
   result: z.any().optional(),
   error: z.union([z.string(), z.null()]).optional(),
+});
+
+export const ReadCodeDocs = z.object({ symbols: z.array(z.string()) }).strict();
+
+export const SymbolReferences = z.object({
+  references: z.array(z.object({ symbol: z.string(), reference: z.string() })),
+  omitted: z.array(z.string()),
+  unknown: z.array(z.string()),
 });
 
 export const ReadChat = z.object({ chatId: z.string() });
