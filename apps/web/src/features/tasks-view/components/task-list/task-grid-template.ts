@@ -9,7 +9,7 @@ export const TASK_DUE_DATE_COLUMN = {
   dataType: DataType.DATE,
   isMultiSelect: false,
   specificEntityType: null,
-  width: 'var(--task-col-due-date, 7rem)',
+  width: 'var(--task-col-due-date, 8.5rem)',
 } as const;
 export const TASK_GRID_COLUMNS = [
   {

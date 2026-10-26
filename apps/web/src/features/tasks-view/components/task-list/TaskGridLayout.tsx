@@ -129,7 +129,7 @@ export function TaskGridLayout(props: TaskGridLayoutProps) {
           <NarrowLayout
             {...props}
             propertyLeading={
-              <div class="w-26 min-w-0">
+              <div class="w-8 min-w-0">
                 <ListPropertyValue
                   entityId={props.entity.id}
                   property={
@@ -137,7 +137,6 @@ export function TaskGridLayout(props: TaskGridLayoutProps) {
                     buildStubProperty(TASK_DUE_DATE_COLUMN)
                   }
                   class={dueDateClass()}
-                  alwaysShowText
                 />
               </div>
             }
@@ -223,7 +222,6 @@ export function TaskGridLayout(props: TaskGridLayoutProps) {
                 <ListPropertyValue
                   entityId={props.entity.id}
                   class={col.id === 'dueDate' ? dueDateClass() : undefined}
-                  alwaysShowText={col.id === 'dueDate'}
                   property={
                     propertyMap().get(col.defId) ?? buildStubProperty(col)
                   }
