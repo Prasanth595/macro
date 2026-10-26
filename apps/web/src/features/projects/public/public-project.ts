@@ -5,6 +5,7 @@ import { withProjectStatusOptions } from '@property/utils/select-options';
 import type { EntityPropertyWithDefinition } from '@service-properties/generated/schemas/entityPropertyWithDefinition';
 import type { PropertyValue } from '@service-properties/generated/schemas/propertyValue';
 import type { getInitiativeOverviewResponse } from '@service-storage/generated/zod';
+import { match } from 'ts-pattern';
 import type { z } from 'zod';
 import { PROJECT_PROPERTY_IDS } from '../queries/project-properties';
 import type { WorkspaceProject } from '../views/project-workspace';
@@ -38,17 +39,20 @@ function snapshotValue(
   definitionId: string,
   snapshot: PropertySnapshot
 ): PropertyValue | undefined {
-  switch (definitionId) {
-    case SYSTEM_PROPERTY_IDS.STATUS:
-      return snapshot.status
+  return match(definitionId)
+    .returnType<PropertyValue | undefined>()
+    .with(SYSTEM_PROPERTY_IDS.STATUS, () =>
+      snapshot.status
         ? { type: 'SelectOption', value: [snapshot.status] }
-        : undefined;
-    case SYSTEM_PROPERTY_IDS.PRIORITY:
-      return snapshot.priority
+        : undefined
+    )
+    .with(SYSTEM_PROPERTY_IDS.PRIORITY, () =>
+      snapshot.priority
         ? { type: 'SelectOption', value: [snapshot.priority] }
-        : undefined;
-    case SYSTEM_PROPERTY_IDS.ASSIGNEES:
-      return snapshot.assignees.length
+        : undefined
+    )
+    .with(SYSTEM_PROPERTY_IDS.ASSIGNEES, () =>
+      snapshot.assignees.length
         ? {
             type: 'EntityReference',
             value: snapshot.assignees.map((id) => ({
@@ -56,14 +60,12 @@ function snapshotValue(
               entity_id: id,
             })),
           }
-        : undefined;
-    case SYSTEM_PROPERTY_IDS.DUE_DATE:
-      return snapshot.dueDate
-        ? { type: 'Date', value: snapshot.dueDate }
-        : undefined;
-    default:
-      return undefined;
-  }
+        : undefined
+    )
+    .with(SYSTEM_PROPERTY_IDS.DUE_DATE, () =>
+      snapshot.dueDate ? { type: 'Date', value: snapshot.dueDate } : undefined
+    )
+    .otherwise(() => undefined);
 }
 
 /**
