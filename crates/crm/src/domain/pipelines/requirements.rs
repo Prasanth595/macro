@@ -316,6 +316,17 @@ fn validate_batch(
                 }
                 ColumnChange::DeleteOption { option } => {
                     rules.retain(|r| r.stage_column_id != *column || r.stage_id != *option);
+                    // Deletion also clears cells of rows not otherwise in this batch.
+                    // Keep that schema change explicit without scanning the whole pipeline.
+                    if rules.iter().any(|r| r.required_column_ids.contains(column)) {
+                        return Err(refuse(
+                            op_index,
+                            None,
+                            *column,
+                            "Remove this field's stage requirements before deleting its options"
+                                .into(),
+                        ));
+                    }
                     if let Some(options) = labels.get_mut(column) {
                         options.remove(option);
                     }

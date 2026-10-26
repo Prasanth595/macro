@@ -335,7 +335,10 @@ function PipelineToolbar(props: {
                     : undefined
                 }
                 requirementsLoading={requirements.query.isPending}
-                requirementsError={requirements.query.isError}
+                requirementsError={
+                  !queryReadyGate(requirements.query) &&
+                  requirements.query.isError
+                }
                 onCreate={props.actions.createRow}
                 onClose={() => props.onCompose(undefined)}
                 renderTextEditor={(editor) => (

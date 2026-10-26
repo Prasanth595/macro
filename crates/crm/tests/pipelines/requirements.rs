@@ -3,6 +3,117 @@ use crm::domain::pipelines::requirements::StageRequirement;
 use models_properties::service::property_value::PropertyValue;
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn deleting_required_options_is_refused_until_the_rule_is_removed(pool: PgPool) {
+    let (s, _db, a, team, company) = fixture(&pool).await;
+    let p = create(&s, team, PipelineRecordType::Company).await;
+    let detail = s
+        .table(access(&a, p.id, EntityType::CrmPipeline, OWNER).await)
+        .await
+        .unwrap();
+    let stage = detail.columns[1].column.id;
+    let won = OptionId::from_uuid(detail.columns[1].definition.property_options[1].id);
+    let approval = ColumnId::new();
+    let approved = OptionId::new();
+    write(
+        &s,
+        &a,
+        &p,
+        vec![
+            serde_json::from_value(json!({
+                "kind": "column", "table": p.table_id, "column": approval,
+                "change": {"kind": "create", "definition": {
+                    "source": "new", "name": "Approval",
+                    "type": {"type": "select", "multi": false}
+                }}
+            }))
+            .unwrap(),
+            DatabaseOp::Column {
+                table: p.table_id,
+                column: approval,
+                change: ColumnChange::AddOptions {
+                    options: vec![NewOption {
+                        id: approved,
+                        label: "Approved".into(),
+                    }],
+                },
+            },
+        ],
+    )
+    .await
+    .unwrap();
+    let mut rule = StageRequirement {
+        stage_column_id: stage,
+        stage_id: won,
+        required_column_ids: vec![approval],
+    };
+    s.set_stage_requirement(
+        access(&a, p.id, EntityType::CrmPipeline, OWNER).await,
+        rule.clone(),
+    )
+    .await
+    .unwrap();
+    let mut addition = insert(&p, company);
+    if let DatabaseOp::Rows {
+        change: RowsChange::Insert { rows },
+        ..
+    } = &mut addition
+    {
+        rows[0].extend([
+            CellWrite {
+                column: stage,
+                value: CellValue::Options(vec![OptionRef::Id(won)]),
+            },
+            CellWrite {
+                column: approval,
+                value: CellValue::Options(vec![OptionRef::Id(approved)]),
+            },
+        ]);
+    }
+    let row = inserted(&write(&s, &a, &p, vec![addition]).await.unwrap());
+    let delete = DatabaseOp::Column {
+        table: p.table_id,
+        column: approval,
+        change: ColumnChange::DeleteOption { option: approved },
+    };
+    // No row operation accompanies the schema edit, so affected_rows is empty.
+    let error = write(&s, &a, &p, vec![delete.clone()])
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("before deleting its options"), "{error}");
+    let saved = s
+        .read_rows(
+            access(&a, p.id, EntityType::CrmPipeline, OWNER).await,
+            &[row],
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        saved[0].cells[&approval],
+        PropertyValue::SelectOption(vec![approved.into_uuid()])
+    );
+    rule.required_column_ids.clear();
+    s.set_stage_requirement(access(&a, p.id, EntityType::CrmPipeline, OWNER).await, rule)
+        .await
+        .unwrap();
+    write(&s, &a, &p, vec![delete]).await.unwrap();
+    let table = s
+        .table(access(&a, p.id, EntityType::CrmPipeline, OWNER).await)
+        .await
+        .unwrap();
+    assert!(
+        table
+            .columns
+            .iter()
+            .find(|c| c.column.id == approval)
+            .unwrap()
+            .definition
+            .property_options
+            .is_empty()
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn stage_requirements_reject_atomically_and_allow_combined_edits(pool: PgPool) {
     let (s, _db, a, team, company) = fixture(&pool).await;
     let p = create(&s, team, PipelineRecordType::Company).await;

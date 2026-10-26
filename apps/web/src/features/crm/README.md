@@ -84,6 +84,8 @@ boundaries, routes, and markup. Run CRM tests plus affected shared collection an
 user-card tests, TypeScript checking, `just check`, and the real CRM browser flows.
 
 Pipeline stage requirements are CRM policy over the shared database editor.
+Remove a required field's rules before deleting its options, since option
+deletion clears values even on rows outside the submitted operation batch.
 `queries/stage-requirements.ts` adapts the pipeline-authorized rules; the toolbar
 opens the shared-control dialog, and Add deal derives its required fields from
 stable option/column IDs. Keep drafts on a refused save. The server is authoritative

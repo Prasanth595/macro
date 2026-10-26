@@ -304,7 +304,8 @@ Use **Stage requirements** in the toolbar to choose a single-select stage field,
 a stage, and the fields required to enter it. Save one stage at a time; unchecking
 all fields removes that rule. Renaming a field or stage keeps the rule. Deleting
 one removes its corresponding requirements. Remove requirements before changing
-a referenced field's type. Existing deals stay in place when a rule is added;
+a referenced field's type or deleting options from a required field. Existing
+deals stay in place when a rule is added;
 entering that stage or editing its required fields validates the final values.
 
 The Add deal form marks the selected stage's required fields **Required** and
