@@ -8,6 +8,7 @@ import CaretDownIcon from '@phosphor/caret-down.svg';
 import CheckIcon from '@phosphor/check.svg';
 import XIcon from '@phosphor/x.svg';
 import SlidersHorizontalIcon from '@phosphor-icons/core/regular/sliders-horizontal.svg?component-solid';
+import { createElementSize } from '@solid-primitives/resize-observer';
 import { Button, cn } from '@ui';
 import {
   type Accessor,
@@ -31,8 +32,8 @@ type MobileFilterDrawerProps = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onContentPresentChange?: (present: boolean) => void;
-  /** Rendered below the title within the drawer's dialog scope. */
-  afterHeader?: () => JSX.Element;
+  /** Overlays the bottom of the scroll content, immediately above the footer. */
+  contentOverlay?: () => JSX.Element;
   /** Additional controls beside Clear all, also shown without active filters. */
   footer?: JSX.Element;
   /** Trailing actions rendered within the drawer's dialog scope. */
@@ -42,6 +43,8 @@ type MobileFilterDrawerProps = {
 /** Presentation only; callers own filter state and compose the drawer contents. */
 function Root(props: MobileFilterDrawerProps) {
   const [scrollRef, setScrollRef] = createSignal<HTMLElement>();
+  const [overlayRef, setOverlayRef] = createSignal<HTMLDivElement>();
+  const overlaySize = createElementSize(overlayRef);
   const [trigger, setTrigger] = createSignal<HTMLButtonElement>();
 
   return (
@@ -96,17 +99,26 @@ function Root(props: MobileFilterDrawerProps) {
               <XIcon class="size-4" />
             </MobileDrawer.Close>
           </div>
-          {props.afterHeader?.()}
           <div class="relative min-h-0 flex-1">
             <ScrollIndicators scrollRef={scrollRef} noBorderStart noBorderEnd />
             <div
               ref={setScrollRef}
               onFocusIn={(e) => scrollToFocusedInput(e)}
-              class="h-full overflow-y-auto pb-3 scrollbar-hidden"
+              class="h-full overflow-y-auto scrollbar-hidden"
+              style={{
+                'padding-bottom': `calc(${overlaySize.height ?? 0}px + 0.75rem)`,
+                'scroll-padding-bottom': `${overlaySize.height ?? 0}px`,
+              }}
             >
               <ScrollContext.Provider value={scrollRef}>
                 {props.children}
               </ScrollContext.Provider>
+            </div>
+            <div
+              ref={setOverlayRef}
+              class="absolute inset-x-0 bottom-0 z-10 bg-menu"
+            >
+              {props.contentOverlay?.()}
             </div>
           </div>
           <Footer

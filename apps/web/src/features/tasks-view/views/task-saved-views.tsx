@@ -468,7 +468,7 @@ export function TaskSavedViewCreateBanner(props: TaskSavedViewDialogProps) {
     <Show when={visible()}>
       <div
         role="status"
-        class="mb-3 flex shrink-0 items-center gap-2 bg-accent-bg px-3 py-2 text-sm"
+        class="flex shrink-0 items-center gap-2 bg-accent-bg px-3 py-2 text-sm"
       >
         <InfoIcon class="size-4 shrink-0 text-accent" aria-hidden="true" />
         <span class="min-w-0 flex-1">Save these filters as a view</span>

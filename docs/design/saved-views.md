@@ -24,7 +24,7 @@ main Tasks screen.
 | Editing | Explicit Save changes, Reset, and Duplicate. |
 | Navigation | Leaving discards temporary edits without a confirmation prompt. |
 | Creation | Desktop sidebar `+` starts an unsaved view; mobile creates from changed settings in the filter drawer. |
-| Capture | Save view appears left of Filters on desktop and in an info banner below the mobile filter drawer header when filters, layout, or sort differ from the built-in defaults. |
+| Capture | Save view appears left of Filters on desktop and in an info banner overlaying content above the mobile filter drawer footer when filters, layout, or sort differ from the built-in defaults. |
 | Mobile | Shared picker pill after Filters and before built-in tabs; its drawer browses/manages views, while the filter drawer owns save/create/reset actions. |
 | Initial surfaces | Main Tasks only; not project or CRM embedded task lists. |
 | Owner departure | Team sharing stops while the owner is absent and resumes if they rejoin the shared team. |
@@ -99,7 +99,8 @@ views. Mutation dialogs receive a refresh callback, not both query sources.
 Compose the list through compound components and reuse styled menu items across
 its context and overflow menus. The mobile picker shows rows without a duplicate
 section heading or create button; changed settings expose creation in the filter
-drawer's header banner and existing-view save/reset actions at its footer's right.
+drawer's overlay banner above the footer and existing-view save/reset actions at
+its footer's right.
 Starting a new view from the desktop sidebar expands the section and shows one
 local, selected New view row labeled Draft in the sidebar and mobile picker.
 Confirmed creation replaces the draft with the named record, including while the
@@ -375,8 +376,10 @@ without repeating a title/menu or action row below the tabs. Preserve built-in
 navigation and existing mobile list-only behavior.
 
 Show a filled Save view button with a leading bookmark icon in a borderless,
-edge-to-edge info banner below the filter drawer header when settings differ
-from the built-in view. Use the unpunctuated copy “Save these filters as a view”.
+edge-to-edge info banner overlaying filter content immediately above the footer
+when settings differ from the built-in view. Keep the banner fixed while content
+scrolls behind it, with a drawer-colored backing and enough scroll clearance to
+expose the last controls. Use the unpunctuated copy “Save these filters as a view”.
 An unsaved view also has Cancel in the banner.
 For an existing saved view, show a filled Save changes button and a secondary Reset
 at the footer's right, opposite Clear all, while settings are dirty. Keep these

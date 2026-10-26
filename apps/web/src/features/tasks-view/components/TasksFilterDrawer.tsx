@@ -69,7 +69,7 @@ export function TasksFilterDrawer() {
       label="Task list controls"
       activeCount={filters.activeCount()}
       onClear={filters.clear}
-      afterHeader={() => (
+      contentOverlay={() => (
         <TaskSavedViewCreateBanner dialogOwner={owner} onCreate={onCreate} />
       )}
       footerEnd={() =>
