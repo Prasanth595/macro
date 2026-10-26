@@ -219,6 +219,7 @@ export function ChannelsMobileView(props: {
           <Match when={!forceEmptyState() && props.source.isLoading()}>
             <div class="grid min-h-32 place-items-center text-ink-muted">
               <SpinnerIcon
+                aria-hidden={false}
                 aria-label="Loading conversations"
                 class="size-5 animate-spin"
               />
@@ -337,6 +338,7 @@ export function ChannelsMobileView(props: {
             <Show when={props.source.isLoadingMore()}>
               <div class="flex h-12 items-center justify-center text-ink-muted">
                 <SpinnerIcon
+                  aria-hidden={false}
                   aria-label="Loading more conversations"
                   class="size-4 animate-spin"
                 />

@@ -310,6 +310,7 @@ function RecordContent(props: {
           fallback={
             <div class="grid size-full place-items-center text-ink-muted">
               <SpinnerIcon
+                aria-hidden={false}
                 aria-label={`Loading ${props.record.type}`}
                 class="size-5 animate-spin"
               />

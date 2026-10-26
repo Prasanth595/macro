@@ -307,6 +307,7 @@ export function DriveList() {
                   class="grid min-h-0 flex-1 place-items-center text-ink-muted"
                 >
                   <SpinnerIcon
+                    aria-hidden={false}
                     aria-label="Loading files"
                     class="size-5 animate-spin"
                   />

@@ -202,6 +202,7 @@ export function RailListLoading() {
   return (
     <div class="grid min-h-20 place-items-center text-ink-muted">
       <SpinnerIcon
+        aria-hidden={false}
         aria-label="Loading conversations"
         class="size-4 animate-spin"
       />

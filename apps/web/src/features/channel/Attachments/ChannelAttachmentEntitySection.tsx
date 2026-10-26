@@ -174,6 +174,7 @@ export function ChannelAttachmentEntitySection(props: { channelId: string }) {
           <AttachmentSection label="Documents">
             <div class="grid place-items-center py-3 text-ink-muted">
               <Spinner
+                aria-hidden={false}
                 aria-label="Loading documents"
                 class="size-5 animate-spin"
               />

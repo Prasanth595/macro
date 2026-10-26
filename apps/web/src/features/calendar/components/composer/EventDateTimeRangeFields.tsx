@@ -208,6 +208,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
           placement="bottom-start"
         />
         <ArrowRightIcon
+          aria-hidden={false}
           aria-label="to"
           class={cn(
             'size-3.5 shrink-0 text-ink-extra-muted',

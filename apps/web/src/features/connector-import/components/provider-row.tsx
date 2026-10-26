@@ -32,6 +32,7 @@ export function ProviderRow(props: {
           {props.provider.name}
           <Show when={props.state === 'connected'}>
             <CheckCircleIcon
+              aria-hidden={false}
               class="size-3.5 text-success"
               aria-label="Connected"
             />

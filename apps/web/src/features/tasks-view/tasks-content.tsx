@@ -8,7 +8,11 @@ import { useTasksView } from './tasks-view-context';
 export function TasksLoading() {
   return (
     <div class="grid size-full min-h-0 min-w-0 place-items-center text-ink-muted">
-      <SpinnerIcon aria-label="Loading tasks" class="size-5 animate-spin" />
+      <SpinnerIcon
+        aria-hidden={false}
+        aria-label="Loading tasks"
+        class="size-5 animate-spin"
+      />
     </div>
   );
 }

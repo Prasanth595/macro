@@ -45,6 +45,8 @@ Use 20 px for rail navigation, 16 px for header actions and status glyphs,
 and 14 px for compact secondary controls. Keep the enclosing hit target
 independent of the drawing size. Avoid scaling detailed glyphs below 14 px.
 SVGs are decorative by default; put accessible names on their controls.
+For a meaningful standalone glyph with its own accessible label, explicitly
+set `aria-hidden={false}` so the default does not hide its status or label.
 
 The existing semantic filenames make the migration explicit at each import.
 Several equivalent concepts (for example `folder` and `folder-simple`) share

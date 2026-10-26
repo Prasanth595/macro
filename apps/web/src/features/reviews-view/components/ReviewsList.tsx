@@ -332,6 +332,7 @@ export function ReviewsList(props: ReviewsListProps) {
             class="grid flex-1 place-items-center text-ink-muted"
           >
             <SpinnerIcon
+              aria-hidden={false}
               aria-label="Loading reviews"
               class="size-5 animate-spin"
             />
@@ -350,6 +351,7 @@ export function ReviewsList(props: ReviewsListProps) {
               class="grid flex-1 place-items-center text-ink-muted"
             >
               <SpinnerIcon
+                aria-hidden={false}
                 aria-label="Loading reviews"
                 class="size-5 animate-spin"
               />

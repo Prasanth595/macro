@@ -188,6 +188,7 @@ function ChannelsViewRoot() {
                         name="ChannelsView.rail"
                         fallback={
                           <SpinnerIcon
+                            aria-hidden={false}
                             aria-label="Loading channels"
                             class="size-5 animate-spin"
                           />
@@ -248,6 +249,7 @@ function ChannelsViewRoot() {
                   fallback={
                     <div class="grid size-full place-items-center text-ink-muted">
                       <SpinnerIcon
+                        aria-hidden={false}
                         aria-label="Loading channels"
                         class="size-5 animate-spin"
                       />

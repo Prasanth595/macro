@@ -127,7 +127,11 @@ export function CalendarWideContent(props: { entity: CalendarEventEntity }) {
       </span>
       <span class="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate font-medium text-ink/50">
         <Show when={props.entity.isRecurring}>
-          <RepeatIcon class="size-3 shrink-0" aria-label="Repeats" />
+          <RepeatIcon
+            aria-hidden={false}
+            class="size-3 shrink-0"
+            aria-label="Repeats"
+          />
         </Show>
         <Show when={time()}>
           <span class="shrink-0">{time()}</span>
@@ -186,7 +190,11 @@ export function CalendarEventWhen(props: { entity: CalendarEventEntity }) {
   return (
     <span class="inline-flex min-w-0 items-center gap-1 whitespace-nowrap text-xs text-ink-extra-muted font-normal">
       <Show when={props.entity.isRecurring}>
-        <RepeatIcon class="size-3 shrink-0" aria-label="Repeats" />
+        <RepeatIcon
+          aria-hidden={false}
+          class="size-3 shrink-0"
+          aria-label="Repeats"
+        />
       </Show>
       <span class="shrink-0">{when()}</span>
       <Show when={organizerName(props.entity)}>

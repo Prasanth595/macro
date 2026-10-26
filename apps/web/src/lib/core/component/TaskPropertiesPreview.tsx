@@ -199,6 +199,7 @@ function TaskPropertiesPreviewContent(
             when={props.isLoading}
             fallback={
               <CircleIcon
+                aria-hidden={false}
                 class="size-4 text-ink-muted"
                 role="img"
                 aria-label="Task status unavailable"

@@ -277,6 +277,7 @@ function ChannelCallsList(props: { channelId: string }) {
               >
                 <div class="grid min-h-0 flex-1 place-items-center text-ink-muted">
                   <SpinnerIcon
+                    aria-hidden={false}
                     aria-label="Loading calls"
                     class="size-5 animate-spin"
                   />

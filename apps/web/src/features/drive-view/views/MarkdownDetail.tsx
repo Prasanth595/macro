@@ -52,6 +52,7 @@ export function MarkdownDetailBodyState(props: {
       <Switch
         fallback={
           <SpinnerIcon
+            aria-hidden={false}
             aria-label={`Loading ${entityLabel()}`}
             class="size-5 animate-spin"
           />

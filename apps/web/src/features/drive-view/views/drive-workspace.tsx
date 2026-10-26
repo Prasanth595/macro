@@ -17,7 +17,11 @@ import { DriveSidebar } from './drive-sidebar';
 export function DriveLoading() {
   return (
     <div class="grid size-full place-items-center text-ink-muted">
-      <SpinnerIcon aria-label="Loading files" class="size-5 animate-spin" />
+      <SpinnerIcon
+        aria-hidden={false}
+        aria-label="Loading files"
+        class="size-5 animate-spin"
+      />
     </div>
   );
 }

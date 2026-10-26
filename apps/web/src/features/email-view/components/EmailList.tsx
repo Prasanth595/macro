@@ -565,6 +565,7 @@ export function EmailList(props: EmailListProps) {
               >
                 <div class="grid min-h-0 flex-1 place-items-center text-ink-muted touch:pt-(--mobile-content-inset-top) touch:pb-(--mobile-content-inset-bottom)">
                   <SpinnerIcon
+                    aria-hidden={false}
                     aria-label="Loading email"
                     class="size-5 animate-spin"
                   />

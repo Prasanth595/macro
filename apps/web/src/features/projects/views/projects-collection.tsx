@@ -639,6 +639,7 @@ export function ProjectsCollection(props: {
                 <Match when={collection.state().kind === 'loading'}>
                   <div class="grid flex-1 place-items-center text-ink-muted">
                     <SpinnerIcon
+                      aria-hidden={false}
                       class="size-5 animate-spin"
                       aria-label="Loading projects"
                     />

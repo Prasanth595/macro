@@ -83,6 +83,7 @@ export function TaskGanttView(props: {
         <Match when={props.source.isLoading?.()}>
           <div class="grid flex-1 place-items-center text-ink-muted">
             <SpinnerIcon
+              aria-hidden={false}
               aria-label="Loading timeline"
               class="size-5 animate-spin"
             />

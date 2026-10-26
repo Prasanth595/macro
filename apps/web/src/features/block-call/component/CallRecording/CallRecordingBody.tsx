@@ -220,6 +220,7 @@ export function CallRecordingBody(props: {
                     fallback={
                       <div class="grid min-h-32 place-items-center text-ink-muted">
                         <SpinnerIcon
+                          aria-hidden={false}
                           aria-label="Loading transcript"
                           class="size-5 animate-spin"
                         />

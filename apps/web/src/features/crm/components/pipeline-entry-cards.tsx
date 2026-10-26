@@ -115,6 +115,7 @@ function PipelineEntryCard(props: {
         </span>
         <Show when={!props.entry.pipeline.shared}>
           <LockIcon
+            aria-hidden={false}
             role="img"
             aria-label="Private pipeline"
             class="size-3 shrink-0 text-ink-placeholder"

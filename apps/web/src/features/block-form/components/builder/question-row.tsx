@@ -94,6 +94,7 @@ export function QuestionRow(props: {
             {props.editors}
             <Show when={props.busy}>
               <Spinner
+                aria-hidden={false}
                 class="size-3.5 animate-spin text-ink-muted"
                 aria-label="Saving"
               />

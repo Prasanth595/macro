@@ -31,6 +31,7 @@ export function EntityTimestamp(props: {
     <Show when={hasFileAttachment()} fallback={stamp()}>
       <span class="flex items-center gap-1 whitespace-nowrap">
         <PaperclipIcon
+          aria-hidden={false}
           class="size-3.5 shrink-0"
           role="img"
           aria-label="Has attachments"

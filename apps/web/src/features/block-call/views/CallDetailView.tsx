@@ -165,6 +165,7 @@ export function CallDetailContent(props: {
             <Match when={props.query.status === 'pending'}>
               <div class="grid size-full place-items-center text-ink-muted">
                 <SpinnerIcon
+                  aria-hidden={false}
                   aria-label="Loading call recording"
                   class="size-5 animate-spin"
                 />
@@ -194,6 +195,7 @@ export function CallDetailContent(props: {
             fallback={
               <div class="grid size-full place-items-center text-ink-muted">
                 <SpinnerIcon
+                  aria-hidden={false}
                   aria-label="Loading call recording"
                   class="size-5 animate-spin"
                 />

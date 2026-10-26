@@ -69,6 +69,7 @@ function FileDetailBodyState(props: {
       <Switch
         fallback={
           <SpinnerIcon
+            aria-hidden={false}
             aria-label={`Loading ${props.label}`}
             class="size-5 animate-spin"
           />

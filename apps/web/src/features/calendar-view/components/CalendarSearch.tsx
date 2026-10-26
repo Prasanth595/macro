@@ -231,6 +231,7 @@ function CalendarEventPreviewContent(props: {
           </span>
           <Show when={props.event.isRecurring}>
             <RepeatIcon
+              aria-hidden={false}
               class="size-3 shrink-0 text-ink-muted"
               aria-label="Repeats"
             />

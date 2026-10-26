@@ -111,6 +111,7 @@ export function LayerRow(props: {
       </button>
       <Show when={props.row.clipping}>
         <ArrowBendDownRight
+          aria-hidden={false}
           class="size-3 shrink-0 text-ink-muted"
           aria-label="Clipped"
         />
@@ -265,6 +266,7 @@ export function LayerRow(props: {
       </Show>
       <Show when={locked() || props.row.background}>
         <LockSimple
+          aria-hidden={false}
           class="size-3 shrink-0 text-ink-muted"
           aria-label="Locked"
         />

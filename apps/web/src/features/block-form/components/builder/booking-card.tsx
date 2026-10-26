@@ -109,7 +109,11 @@ function BookingLinkItems(props: {
                           </Dropdown.ItemDescription>
                         </span>
                         <Show when={sameTarget(props.selected, link.target)}>
-                          <Check class="size-4" aria-label="Current" />
+                          <Check
+                            aria-hidden={false}
+                            class="size-4"
+                            aria-label="Current"
+                          />
                         </Show>
                       </Dropdown.Item>
                     )}

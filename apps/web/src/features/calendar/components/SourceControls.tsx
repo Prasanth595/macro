@@ -119,6 +119,7 @@ export function SourceControls(props: SourceControlsProps) {
                                 class="flex shrink-0 text-alert-ink"
                               >
                                 <WarningIcon
+                                  aria-hidden={false}
                                   class="size-3"
                                   aria-label={`Calendar needs attention: ${error()}`}
                                 />
@@ -131,6 +132,7 @@ export function SourceControls(props: SourceControlsProps) {
                               class="flex shrink-0 text-ink-muted"
                             >
                               <RssIcon
+                                aria-hidden={false}
                                 class="size-3"
                                 aria-label="Subscription calendar"
                               />
