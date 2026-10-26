@@ -689,8 +689,9 @@ comments.** in place of discussions. Tasks lists the project's tasks the
 visitor may view with their properties; one opens read-only under the project
 breadcrumb at `.../task/<task-id>`, and a Public task link `/app/task/<task-id>`
 opens the same way on its own. Nothing is editable even when the link grants
-edit: no rename, property pickers, Share, Tasks sidebar or New task, and the
-top bar offers Login. A private or missing project shows **Sign in to view
+edit: no rename, property pickers, Share, Tasks sidebar or New task. The top
+bar has no Login. As on public documents, the signed-out banner at the bottom
+offers Login and Sign Up. A private or missing project shows **Sign in to view
 this page** with Login and Sign Up, never an indefinite loader.
 Project properties live in the shared floating information panel and honor
 project access. Editors can rename the project; its owner can delete it.

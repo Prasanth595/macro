@@ -6,7 +6,6 @@ import { projectDetailRoute, projectTaskRoute } from '@app/routes/routes';
 import { SidePanel } from '@components/app/side-panel';
 import { useSplitDisplayName } from '@components/app/split-layout/layoutUtils';
 import { SignedOutRoute } from '@components/app/split-layout/split-router/app-route-shell';
-import { LoginButton } from '@core/component/TopBar/LoginButton';
 import { rememberDisplayNames } from '@core/user/displayName';
 import { fireAndForget } from '@core/util/fireAndForget';
 import StackIcon from '@phosphor/stack.svg';
@@ -53,9 +52,7 @@ function PublicProjectPage(props: {
                 onChange={props.onSection}
               />
             }
-          >
-            <LoginButton />
-          </EntityDetailTopBar>
+          />
           <div class="relative min-h-0 min-w-0 flex-1 touch:[--mobile-content-inset-top:0px]">
             <Switch
               fallback={<ProjectContentSkeleton section={props.section} />}

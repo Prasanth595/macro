@@ -41,9 +41,6 @@ vi.mock('@components/app/split-layout/layoutUtils', () => ({
 vi.mock('@components/app/split-layout/split-router/app-route-shell', () => ({
   SignedOutRoute: () => <p>Sign in to view this page</p>,
 }));
-vi.mock('@core/component/TopBar/LoginButton', () => ({
-  LoginButton: () => <button type="button">Login</button>,
-}));
 vi.mock('@app/features/tasks-view/public/public-task-detail', () => ({
   PublicTaskDetail: (props: { taskId: string }) => <p>Task {props.taskId}</p>,
 }));
@@ -252,7 +249,7 @@ it('never offers editing, even when the link grants edit', async () => {
   expect(screen.getByText('Sign in to view comments.')).toBeTruthy();
   expect(screen.queryByText('New task')).toBeNull();
   expect(screen.queryByText(/share/i)).toBeNull();
-  expect(screen.getByRole('button', { name: 'Login' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Login' })).toBeNull();
 });
 
 it('remembers the names the project read hands over', async () => {

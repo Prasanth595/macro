@@ -3,12 +3,12 @@ import type { EntityDetailTarget } from '@app/components/entity-detail/entity-de
 import { ViewBreadcrumbs, ViewShell } from '@app/components/view-shell';
 import { MarkdownDetailBreadcrumbItem } from '@block-md/component/MarkdownDetailBreadcrumbItem';
 import { SidePanel } from '@components/app/side-panel';
-import { LoginButton } from '@core/component/TopBar/LoginButton';
 import { TaskDetail } from '../components/TaskDetail';
 
 /**
  * A task as a signed-out visitor reads it: the shared document detail, which
- * follows the visitor's access, with Login where members have Share.
+ * follows the visitor's access, without Share. The signed-out banner offers
+ * sign-in.
  */
 export function PublicTaskDetail(props: {
   taskId: string;
@@ -31,7 +31,6 @@ export function PublicTaskDetail(props: {
           />
           <div class="ml-auto flex shrink-0 items-center gap-1">
             <SidePanel.HeaderActionsOutlet />
-            <LoginButton />
             <SidePanel.Toggle />
           </div>
         </ViewShell.TopBar>
