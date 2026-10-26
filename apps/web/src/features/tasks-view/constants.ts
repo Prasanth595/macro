@@ -103,8 +103,8 @@ export const TASK_SORT_OPTIONS: {
   { id: 'viewed_at', label: 'Viewed' },
   { id: 'updated_at', label: 'Updated' },
   { id: 'created_at', label: 'Created' },
-  { id: 'due_date_earliest', label: 'Due date: earliest' },
-  { id: 'due_date_latest', label: 'Due date: latest' },
+  { id: 'due_date_earliest', label: 'Due soonest' },
+  { id: 'due_date_latest', label: 'Due furthest away' },
 ];
 
 /** Due-date directions are separate options; reversal never moves nulls first. */

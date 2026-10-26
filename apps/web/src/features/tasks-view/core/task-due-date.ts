@@ -125,6 +125,20 @@ export function taskDueDateBucket(
   return 'later';
 }
 
+/** Presentation urgency for an open task, based on viewer-local calendar days. */
+export function taskDueDateUrgency(
+  value: string | undefined,
+  closed: boolean,
+  calendar: DateBucketBoundaries
+): 'danger' | 'warning' | undefined {
+  if (closed || !value) return;
+  const due = Date.parse(value);
+  if (!Number.isFinite(due)) return;
+  const b = calendar.boundaries;
+  if (due < Date.parse(b.today)) return 'danger';
+  if (due < Date.parse(b.day_eight)) return 'warning';
+}
+
 /** Hide deadline columns that cannot contain a task matching the current filter. */
 export function taskDueDateBucketMatchesFilter(
   bucket: TaskDueDateBucket,

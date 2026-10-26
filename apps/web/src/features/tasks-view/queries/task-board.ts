@@ -5,6 +5,7 @@ import {
   getTaskPriorityOptionId,
   getTaskReferencedEntityIds,
   getTaskStatusOptionId,
+  isTaskClosed,
   TASK_PRIORITY_OPTIONS,
   TASK_STATUS_OPTIONS,
 } from '@entity/utils/task-properties';
@@ -52,6 +53,9 @@ export function toBoardTask(
     id: task.id,
     name: task.name,
     dueDate: getTaskDueDate(task),
+    closed: isTaskClosed(task),
+    subtypeCompleted:
+      task.subType?.type === 'task' && task.subType.is_completed,
     deadline: calendar
       ? taskDueDateBucket(getTaskDueDate(task), calendar)
       : undefined,
@@ -152,10 +156,12 @@ export function taskBoardColumns(
     priority: TASK_PRIORITY_OPTIONS,
     assignee: [],
     project: [],
-    due_date: TASK_DUE_DATE_BUCKETS.map((bucket) => ({
-      value: bucket.id,
-      label: bucket.label,
-    })),
+    due_date: [
+      { value: 'no_due_date', label: 'No due date' },
+      ...TASK_DUE_DATE_BUCKETS.filter(
+        (bucket) => bucket.id !== 'no_due_date'
+      ).map((bucket) => ({ value: bucket.id, label: bucket.label })),
+    ],
   }[grouping];
 
   for (const option of options) {

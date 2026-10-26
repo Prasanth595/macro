@@ -25,6 +25,7 @@ import {
   useListLayout,
 } from '@entity/composed/list-entity/shared';
 import type { EntityRowConfig } from '@entity/extractors-notification';
+import { getTaskDueDate, isTaskClosed } from '@entity/utils/task-properties';
 import {
   BULK_DOCUMENT_WAKEUP_FEATURE_FLAG,
   enqueueDocumentWakeup,
@@ -36,6 +37,7 @@ import {
 } from '@service-connection/stream-events';
 import { mergeRefs } from '@solid-primitives/refs';
 import { cn } from '@ui/utils/classname';
+import type { Accessor } from 'solid-js';
 import {
   createEffect,
   createSignal,
@@ -45,10 +47,15 @@ import {
   Switch,
   useContext,
 } from 'solid-js';
+import {
+  type DateBucketBoundaries,
+  taskDueDateUrgency,
+} from '../../core/task-due-date';
 import { TaskGridLayout } from './TaskGridLayout';
 
 type TaskListEntityProps = Omit<BaseListEntityProps, 'entity'> & {
   entity: TaskEntityWithProperties;
+  calendar: Accessor<DateBucketBoundaries>;
   rowId?: string;
   showUnrollNotifications?: boolean;
   /** Show the Project column (Projects enabled). */
@@ -117,8 +124,31 @@ export function TaskListEntity(props: TaskListEntityProps) {
 
   const showContentHits = () => showHitSnippet();
 
+  const dueDate = () => getTaskDueDate(props.entity);
+  const urgency = () =>
+    taskDueDateUrgency(dueDate(), isTaskClosed(props.entity), props.calendar());
   const layoutProps = () => ({
     entity: props.entity,
+    titleTrailing: (
+      <Show when={dueDate()}>
+        {(date) => (
+          <span
+            class="ml-auto shrink-0 text-xs font-normal"
+            classList={{
+              'text-failure': urgency() === 'danger',
+              'text-warning': urgency() === 'warning',
+              'text-ink-muted': !urgency(),
+            }}
+            title={new Date(date()).toLocaleDateString()}
+          >
+            {new Date(date()).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+            })}
+          </span>
+        )}
+      </Show>
+    ),
     checked: props.checked,
     hideCheckbox: props.hideCheckbox,
     onChecked: props.onChecked,

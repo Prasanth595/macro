@@ -19,6 +19,7 @@ import {
   type TaskBoardTask,
   toTaskBoardGrouping,
 } from '../core/task-board';
+import { taskDueDateUrgency } from '../core/task-due-date';
 import { createTaskBoard } from '../primitives/create-task-board';
 import { createTaskDeadlineMove } from '../primitives/create-task-deadline-move';
 import { taskBoardFacetId, taskBoardPropertyId } from '../queries/task-board';
@@ -136,6 +137,15 @@ export function TaskBoardView(props: {
               taskId={task().id}
               canEdit={!readOnly() && props.data.canEditProperty(task().id, id)}
               iconOnly={iconOnly}
+              dueDateUrgency={
+                id === SYSTEM_PROPERTY_IDS.DUE_DATE
+                  ? taskDueDateUrgency(
+                      task().dueDate,
+                      task().closed ?? true,
+                      calendar()
+                    )
+                  : undefined
+              }
               onSave={async (value, apiValues) => {
                 try {
                   if (readOnly()) {

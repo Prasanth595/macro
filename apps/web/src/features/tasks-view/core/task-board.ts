@@ -43,6 +43,8 @@ export type TaskBoardTask = {
   assigneeIds: readonly string[];
   projectIds: readonly string[];
   dueDate?: string;
+  closed?: boolean;
+  subtypeCompleted?: boolean;
   deadline?: TaskDueDateBucket;
 };
 

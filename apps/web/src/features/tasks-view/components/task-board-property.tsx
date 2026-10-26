@@ -60,6 +60,7 @@ export function TaskBoardProperty(props: {
   canEdit: boolean;
   iconOnly?: boolean;
   onSave: PropertySaveFn;
+  dueDateUrgency?: 'danger' | 'warning';
 }) {
   const isAssignee = () =>
     props.property.propertyDefinitionId === SYSTEM_PROPERTY_IDS.ASSIGNEES;
@@ -109,7 +110,13 @@ export function TaskBoardProperty(props: {
               </Show>
             </Match>
             <Match when={isDate()}>
-              <CalendarIcon class="size-3.5 shrink-0" />
+              <CalendarIcon
+                class="size-3.5 shrink-0"
+                classList={{
+                  'text-failure': props.dueDateUrgency === 'danger',
+                  'text-warning': props.dueDateUrgency === 'warning',
+                }}
+              />
             </Match>
             <Match when={hasSelectIcon()}>
               <Property.Icon
@@ -122,7 +129,7 @@ export function TaskBoardProperty(props: {
             <Property.Text
               property={props.property}
               resolveSingleEntity={isProject()}
-              class="min-w-0 truncate"
+              class={`min-w-0 truncate ${isDate() && props.dueDateUrgency === 'danger' ? 'text-failure' : ''} ${isDate() && props.dueDateUrgency === 'warning' ? 'text-warning' : ''}`}
               fallback={<span>{props.property.displayName}</span>}
             />
           </Show>

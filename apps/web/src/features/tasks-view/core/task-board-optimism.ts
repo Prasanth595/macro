@@ -1,3 +1,4 @@
+import { PROPERTY_OPTION_IDS } from '@property/identifiers';
 import {
   moveTaskAssignees,
   type TaskBoardColumn,
@@ -32,7 +33,14 @@ export function movedTask(
           : task.deadline,
       };
     case 'status':
-      return { ...task, statusId: move.toLane || undefined };
+      return {
+        ...task,
+        statusId: move.toLane || undefined,
+        closed:
+          task.subtypeCompleted ||
+          move.toLane === PROPERTY_OPTION_IDS.STATUS.COMPLETED ||
+          move.toLane === PROPERTY_OPTION_IDS.STATUS.CANCELED,
+      };
     case 'priority':
       return { ...task, priorityId: move.toLane || undefined };
     case 'project':

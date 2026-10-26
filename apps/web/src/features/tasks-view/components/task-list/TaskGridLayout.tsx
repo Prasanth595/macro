@@ -174,12 +174,12 @@ export function TaskGridLayout(props: TaskGridLayoutProps) {
               <CreatedByBadgeSmall ownerId={props.entity.ownerId} />
             </span>
           </Show>
+          <span class="ml-auto shrink-0">{props.titleTrailing}</span>
           <EntityRowTags
             entityId={props.entity.id}
             entityType={EntityType.TASK}
             properties={entity().properties}
             onFilterByTag={props.onFilterByTag}
-            class="ml-auto"
           />
         </Entity.Slot>
 

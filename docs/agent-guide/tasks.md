@@ -123,7 +123,7 @@ the optimistic tag. Repeat with an existing assignment and with removal.
 
 ## Due dates
 
-Tasks lists and boards offer **Due date: earliest** and **Due date: latest** sorting.
+Tasks lists and boards offer **Due soonest** and **Due furthest away** sorting.
 Undated tasks stay last in either direction, with stable task-ID ordering for ties.
 Text search retains its existing ordering and flat list results; clear search to sort.
 Boards group the loaded search results as before, without complete counts or grouped-search requests.
@@ -135,11 +135,16 @@ empty. Cancel leaves the previous filter unchanged. Status remains independent:
 select Completed or Canceled explicitly to include closed tasks in a date filter.
 The mobile controls use the same options and date-range dialog in the sliders drawer.
 
-**Group → Due date** uses non-overlapping viewer-local calendar buckets:
+**Group → Due date** puts No due date first, then uses non-overlapping viewer-local calendar buckets:
 Overdue is before today's midnight; Today and Tomorrow cover those entire days;
 Next 7 days covers D+2 through D+7; Later starts at D+8; No due date includes
 missing and cleared dates. Relative filters and groups refresh at local midnight,
 timezone changes, and app resume. Continuation pages keep their original boundaries.
+Task list rows show due dates next to their titles, including on mobile, and
+board cards show them in property pills. Overdue dates on open tasks use the
+danger color; dates from today through the next seven local calendar days use
+the warning color. Completed and canceled tasks have neutral due dates. Urgency refreshes at local
+midnight, on timezone changes, and when the app resumes.
 Date selections persist with the navigation entry and round-trip through
 `tasks.dueDate`, `tasks.dueStart`, and `tasks.dueEnd` URL parameters.
 
