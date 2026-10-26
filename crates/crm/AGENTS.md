@@ -57,6 +57,9 @@ tools/HTTP/GraphQL surfaces over them.
 
 ## Gotchas
 
+- `src/domain/generic_email_domains.rs` filters both manual company creation
+  and email-driven contact population. Keep `ramp.com` allowed for real Ramp
+  company/contact relationships.
 - Company names/logos live in the global `crm_domain_directory`. Only the
   email pubsub workers carry a real `CompanyMetadataResolver`; every other
   binary uses `NoOpCompanyMetadataResolver`, which leaves a pending entry
