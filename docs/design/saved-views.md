@@ -172,7 +172,7 @@ and does not dirty the saved definition.
 
 Apply supported conditions immediately, omitting unsupported or malformed entries
 and conflicting tag bindings. Show a danger-colored banner above the results that
-explains partial filtering and identifies affected filter groups. If no supported
+identifies skipped filter groups without an additional description. If no supported
 conditions remain, show the unfiltered All Tasks list, including closed tasks;
 unknown formats also show this list with the banner. Keep missing or unauthorized
 definitions in the unavailable state, without executing task queries.
@@ -351,6 +351,11 @@ view's name. A list failure retains already loaded rows with a retry action.
 Unsupported or malformed filter conditions are skipped with the danger banner;
 if none apply, show unfiltered tasks. Duplication warns before saving a copy that
 omits these conditions and leaves the original unchanged.
+Keep the banner concise: name the skipped filter groups without a description.
+Owners can explicitly choose **Remove & save** at its right edge.
+This revision-checked update keeps supported stored conditions and sharing unchanged;
+it does not save temporary filter edits. Failed writes retain the warning and stored
+definition, and conflicts offer a reload. Only a confirmed update clears the warning.
 
 ## Delivery and review boundaries
 

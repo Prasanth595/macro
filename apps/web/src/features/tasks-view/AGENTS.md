@@ -30,6 +30,8 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 - Honor confirmed deletion when the same account selects the target while deletion is pending; never apply completion to another account.
 - Keep malformed mutation responses separate from selected-view availability, preserve ordinary-create facets, and reject creation completions after the selected revision changes.
 - Apply supported saved filters immediately and show a danger banner above results for skipped conditions; show unfiltered tasks if none apply, and never rewrite the original on load.
+- Let owners explicitly remove skipped conditions from the warning banner; save only supported stored filters with revision checks, preserving temporary edits and sharing.
+- Reject update completions older than either the draft or selected-detail revision, including while temporary filters are dirty.
 
 ## Checks
 
