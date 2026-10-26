@@ -4,8 +4,14 @@ import CaretDownIcon from '@icon/system/regular/caret-down.svg';
 import SearchIcon from '@icon/system/regular/magnifying-glass.svg';
 import { Button, type ButtonProps, cn } from '@ui';
 import { CollapseTransition } from '@ui/components/CollapseTransition';
-import type { JSX } from 'solid-js';
-import { createSignal, Show, splitProps } from 'solid-js';
+import type { Component, JSX } from 'solid-js';
+import {
+  createContext,
+  createSignal,
+  Show,
+  splitProps,
+  useContext,
+} from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { ViewSidebarCloseButton, ViewSidebarToggle } from './ViewShell';
 
@@ -97,18 +103,28 @@ function Header(
   );
 }
 
+/**
+ * The app's view switcher, shown after every view title. The app chrome
+ * supplies it so this shell stays independent of the app's navigation.
+ */
+export const ViewSwitcherContext = createContext<Component>();
+
 function Title(props: JSX.HTMLAttributes<HTMLHeadingElement>) {
   const [local, rest] = splitProps(props, ['children', 'class']);
+  const ViewSwitcher = useContext(ViewSwitcherContext);
   return (
-    <h1
-      {...rest}
-      class={cn(
-        'min-w-0 truncate text-sm font-semibold tracking-[-0.03em] text-ink',
-        local.class
-      )}
-    >
-      {local.children}
-    </h1>
+    <>
+      <h1
+        {...rest}
+        class={cn(
+          'min-w-0 truncate text-sm font-semibold tracking-[-0.03em] text-ink',
+          local.class
+        )}
+      >
+        {local.children}
+      </h1>
+      {ViewSwitcher && <ViewSwitcher />}
+    </>
   );
 }
 

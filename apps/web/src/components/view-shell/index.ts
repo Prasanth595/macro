@@ -51,7 +51,7 @@ export {
   type ViewShellLayout,
   type ViewShellRootProps,
 } from './ViewShell';
-export { ViewSidebar } from './ViewSidebar';
+export { ViewSidebar, ViewSwitcherContext } from './ViewSidebar';
 export {
   type AsideLayout,
   type AsideMode,

@@ -14,7 +14,6 @@ import { visibleNavItems } from './nav-items';
 import { useNextMeetingBadge } from './queries/use-next-meeting-badge';
 import { SearchRailButton } from './search-bar-button';
 import { useNavItemGates } from './use-nav-item-gates';
-import { SidebarPrefsProvider } from './use-sidebar-prefs';
 
 function ChannelsListNav(props: Omit<ListNavProps, 'activeCall'>) {
   const hasActiveCall = useHasActiveChannelsCall();
@@ -36,13 +35,7 @@ function CalendarListNav(props: Omit<ListNavProps, 'badge'>) {
  * separately. There is no room for leader-key hints on the buttons, so each
  * button's tooltip carries its shortcut instead.
  */
-export const SidebarRail = () => (
-  <SidebarPrefsProvider>
-    <SidebarRailContent />
-  </SidebarPrefsProvider>
-);
-
-const SidebarRailContent = () => {
+export const SidebarRail = () => {
   const gates = useNavItemGates();
   const analytics = useAnalytics();
   const layout = useSplitLayout();
