@@ -712,27 +712,9 @@ export class CoordinatorRouter {
         const violated = actions.some(
           (action) => action.kind === 'protocol-violation'
         );
-        this.applyActions(actions);
-        if (violated) {
-          if (this.isCurrentOwner(route.tabId, route.ownerEpoch)) {
-            this.failOwner(
-              route.tabId,
-              route.ownerEpoch,
-              'engine readiness proof was rejected'
-            );
-          } else {
-            this.postTerminateEngine(
-              route.tabId,
-              route.ownerEpoch,
-              'engine readiness proof was rejected'
-            );
-          }
-          break;
-        }
-        if (
-          core.state.kind === 'active' &&
-          core.state.ownerEpoch === message.ownerEpoch
-        ) {
+        if (!violated) {
+          // Accepted readiness proves the storage outcome even if visibility
+          // immediately drains this epoch or publishing its actions fails.
           const recoveryResetReason = this.pendingRecoveryResetEpochs.get(
             message.ownerEpoch
           );
@@ -755,6 +737,28 @@ export class CoordinatorRouter {
               false
             );
           }
+        }
+        this.applyActions(actions);
+        if (violated) {
+          if (this.isCurrentOwner(route.tabId, route.ownerEpoch)) {
+            this.failOwner(
+              route.tabId,
+              route.ownerEpoch,
+              'engine readiness proof was rejected'
+            );
+          } else {
+            this.postTerminateEngine(
+              route.tabId,
+              route.ownerEpoch,
+              'engine readiness proof was rejected'
+            );
+          }
+          break;
+        }
+        if (
+          core.state.kind === 'active' &&
+          core.state.ownerEpoch === message.ownerEpoch
+        ) {
           const startedAt = this.activationStarted.get(message.ownerEpoch);
           this.activationStarted.delete(message.ownerEpoch);
           this.telemetry.record({
@@ -1037,7 +1041,7 @@ export class CoordinatorRouter {
             })
           );
           break;
-        case 'broadcast-engine-replaced':
+        case 'broadcast-engine-replaced': {
           this.telemetry.record({
             name: 'graphql_cache.owner',
             operationCategory: 'lifecycle',
@@ -1051,7 +1055,19 @@ export class CoordinatorRouter {
               openOutcome: action.openOutcome,
             })
           );
+          // Replacement invalidates host generations and resumes their reads.
+          // Reassert the existing pause when this epoch is already draining.
+          const readState = this.handoff.readState;
+          if (core.state.kind === 'draining' && readState) {
+            this.broadcast(
+              envelope<CoordinatorToTabEnvelope>({
+                kind: 'cache-read-availability',
+                ...readState,
+              })
+            );
+          }
           break;
+        }
         case 'drop-stale-engine-message':
           this.telemetry.record({
             name: 'graphql_cache.stale_drop',

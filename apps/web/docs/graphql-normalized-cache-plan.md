@@ -228,7 +228,11 @@ without touching storage. If an in-progress startup becomes all-hidden, pause it
 phase watchdog rather than misclassifying browser suspension as failure; resume
 the phase budget when a visible consumer returns. Parking retains the required
 open/reset action: it does not erase a reset requirement established by a real
-failure. Storage identity and version are unchanged.
+failure. Storage identity and version are unchanged. A ready recovery epoch
+publishes its storage outcome before immediately draining or parking, so hosts
+invalidate reset data/leases even if the next owner only opens existing storage.
+Reset completion accounting likewise follows accepted readiness, not whether
+that epoch remains active; its read pause stays in force during the drain.
 
 While parked or transitioning, `waiting` pauses read/init deadlines without
 creating a second page-side request queue. Reads, writes, and teardown retain

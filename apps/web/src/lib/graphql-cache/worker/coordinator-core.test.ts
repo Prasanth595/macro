@@ -691,6 +691,50 @@ describe('CoordinatorCore', () => {
     }
   );
 
+  it.each([false, true])(
+    'announces a reset before draining a hidden recovery owner (visible survivor: %s)',
+    (visibleSurvivor) => {
+      const core = new CoordinatorCore('scope');
+      core.registerTab('tab-a');
+      core.registerTab('tab-b');
+      ready(core, 'tab-a', 1, 'opened-existing');
+      core.ownerLost('tab-a', 1, 'engine failed');
+      core.resumeAfterLoss();
+      core.setTabVisibility('tab-a', visibleSurvivor);
+      core.setTabVisibility('tab-b', false);
+      expect(
+        core.request('tab-a', { id: 9, kind: 'current-revision' })
+      ).toEqual([]);
+
+      expect(ready(core, 'tab-b', 2, 'wiped-before-open')).toEqual([
+        {
+          kind: 'broadcast-engine-replaced',
+          ownerEpoch: 2,
+          openOutcome: 'reset-storage-uncertain',
+        },
+        { kind: 'drain-owner', tabId: 'tab-b', ownerEpoch: 2, handoff: true },
+      ]);
+      expect(core.state.kind).toBe('draining');
+      expect(core.snapshot().inFlightRequestCount).toBe(0);
+      expect(core.snapshot().queuedRequestCount).toBe(1);
+      core.engineDrained('tab-b', 2);
+      if (!visibleSurvivor) {
+        expect(core.state.kind).toBe('parked');
+        core.setTabVisibility('tab-a', true);
+      }
+      const reopened = ready(core, 'tab-a', 3, 'opened-existing');
+      expect(action(reopened, 'broadcast-engine-replaced')).toMatchObject({
+        ownerEpoch: 3,
+        openOutcome: 'opened-existing',
+      });
+      expect(action(reopened, 'route-request')).toMatchObject({
+        ownerEpoch: 3,
+        requesterTabId: 'tab-a',
+        request: { kind: 'current-revision' },
+      });
+    }
+  );
+
   it('does not downgrade an interrupted recovery activation to open-existing', () => {
     const core = new CoordinatorCore('scope');
     core.registerTab('tab-a');

@@ -399,10 +399,6 @@ export class CoordinatorCore {
       tabId: state.tabId,
       ownerEpoch: state.ownerEpoch,
     };
-    // Visibility can change during startup. Do not route queued work into a
-    // hidden engine if a visible replacement can take over after a clean drain.
-    const handoff = this.handoffIfNeeded();
-    if (handoff.length > 0) return handoff;
     const actions: CoordinatorAction[] = [];
     if (state.ownerEpoch > 1) {
       actions.push({
@@ -411,6 +407,10 @@ export class CoordinatorCore {
         openOutcome: ready.openOutcome,
       });
     }
+    // A hidden engine may have reset storage before it immediately drains.
+    // Notify hosts of that outcome, but leave queued work for its successor.
+    const handoff = this.handoffIfNeeded();
+    if (handoff.length > 0) return [...actions, ...handoff];
     while (this.queuedRequests.length > 0) {
       const queued = this.queuedRequests.shift();
       if (
