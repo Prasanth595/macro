@@ -70,74 +70,132 @@ export default {
   propertyOption: '{{property}}: {{option}}',
   actions: 'Actions',
   clear: 'Clear',
-  selectedCount: '{{count}} selected',
+  selectedCount: { other: '{{count}} selected' },
   undo: 'Undo',
 
   // Toasts.
   toastCopied: 'Copied',
-  toastCopiedCount: 'Copied {{count}} items',
+  toastCopiedCount: {
+    one: 'Copied {{count}} item',
+    other: 'Copied {{count}} items',
+  },
   toastIdCopied: 'ID copied to clipboard',
   toastLinkCopied: 'Link copied to clipboard',
   toastMovedToTrash: 'Moved to Trash',
-  toastMovedCountToTrash: 'Moved {{count}} items to Trash',
+  toastMovedCountToTrash: {
+    one: 'Moved {{count}} item to Trash',
+    other: 'Moved {{count}} items to Trash',
+  },
   toastRestoredFromTrash: 'Restored from Trash',
   toastRestoreFromTrashFailed: 'Failed to restore from Trash',
   toastMoveToTrashFailed: 'Failed to move to Trash',
   toastDeleted: 'Deleted',
-  toastDeletedCount: 'Deleted {{count}} items',
+  toastDeletedCount: {
+    one: 'Deleted {{count}} item',
+    other: 'Deleted {{count}} items',
+  },
   toastDeleteFailed: 'Failed to delete',
   toastAddedToFavorites: 'Added to favorites',
-  toastAddedCountToFavorites: 'Added {{count}} items to favorites',
-  toastAddedSomeToFavorites:
-    'Added {{succeeded}} of {{total}} items to favorites; {{failed}} failed',
+  toastAddedCountToFavorites: {
+    one: 'Added {{count}} item to favorites',
+    other: 'Added {{count}} items to favorites',
+  },
+  toastAddedSomeToFavorites: {
+    one: 'Added {{succeeded}} of {{count}} item to favorites; {{failed}} failed',
+    other: 'Added {{succeeded}} of {{count}} items to favorites; {{failed}} failed',
+  },
   toastRemovedFromFavorites: 'Removed from favorites',
-  toastRemovedCountFromFavorites: 'Removed {{count}} items from favorites',
-  toastRemovedSomeFromFavorites:
-    'Removed {{succeeded}} of {{total}} items from favorites; {{failed}} failed',
+  toastRemovedCountFromFavorites: {
+    one: 'Removed {{count}} item from favorites',
+    other: 'Removed {{count}} items from favorites',
+  },
+  toastRemovedSomeFromFavorites: {
+    one: 'Removed {{succeeded}} of {{count}} item from favorites; {{failed}} failed',
+    other: 'Removed {{succeeded}} of {{count}} items from favorites; {{failed}} failed',
+  },
   toastFavoritesUpdateFailed: 'Failed to update favorites',
   toastMuted: 'Muted notifications',
-  toastMutedCount: 'Muted notifications for {{count}} items',
-  toastMutedSome: 'Muted {{succeeded}} of {{total}} items; {{failed}} failed',
+  toastMutedCount: {
+    one: 'Muted notifications for {{count}} item',
+    other: 'Muted notifications for {{count}} items',
+  },
+  toastMutedSome: {
+    one: 'Muted {{succeeded}} of {{count}} item; {{failed}} failed',
+    other: 'Muted {{succeeded}} of {{count}} items; {{failed}} failed',
+  },
   toastMuteFailed: 'Failed to mute notifications',
   toastUnmuted: 'Unmuted notifications',
-  toastUnmutedCount: 'Unmuted notifications for {{count}} items',
-  toastUnmutedSome:
-    'Unmuted {{succeeded}} of {{total}} items; {{failed}} failed',
+  toastUnmutedCount: {
+    one: 'Unmuted notifications for {{count}} item',
+    other: 'Unmuted notifications for {{count}} items',
+  },
+  toastUnmutedSome: {
+    one: 'Unmuted {{succeeded}} of {{count}} item; {{failed}} failed',
+    other: 'Unmuted {{succeeded}} of {{count}} items; {{failed}} failed',
+  },
   toastUnmuteFailed: 'Failed to unmute notifications',
   toastMarkedDone: 'Marked as done',
-  toastMarkedDoneCount: 'Marked {{count}} items as done',
-  toastMarkedDonePartial: 'Marked {{completed}} of {{total}} items as done',
-  toastMarkedDonePartialUnsaved:
-    'Marked {{completed}} of {{total}} items as done. Some changes could not be saved.',
+  toastMarkedDoneCount: {
+    one: 'Marked {{count}} item as done',
+    other: 'Marked {{count}} items as done',
+  },
+  toastMarkedDonePartial: {
+    one: 'Marked {{completed}} of {{count}} item as done',
+    other: 'Marked {{completed}} of {{count}} items as done',
+  },
+  toastMarkedDonePartialUnsaved: {
+    one: 'Marked {{completed}} of {{count}} item as done. Some changes could not be saved.',
+    other: 'Marked {{completed}} of {{count}} items as done. Some changes could not be saved.',
+  },
   toastMarkDoneUnsaved:
     'Some changes could not be saved. Undo will reverse the accepted changes.',
   toastMarkDoneFailed: 'Failed to mark as done',
   toastUndoFailed: 'Failed to undo',
   toastMarkedNotDone: 'Marked as not done',
-  toastMarkedNotDoneCount: 'Marked {{count}} items as not done',
-  toastMarkedNotDonePartial:
-    'Marked {{accepted}} of {{total}} items as not done',
+  toastMarkedNotDoneCount: {
+    one: 'Marked {{count}} item as not done',
+    other: 'Marked {{count}} items as not done',
+  },
+  toastMarkedNotDonePartial: {
+    one: 'Marked {{accepted}} of {{count}} item as not done',
+    other: 'Marked {{accepted}} of {{count}} items as not done',
+  },
   toastMarkNotDoneFailed: 'Failed to mark as not done',
   toastThreadStaysDone:
     'This thread has no received messages, so it stays done',
   toastThreadsStayDone:
     'These threads have no received messages, so they stay done',
-  toastCountNotRestored: '{{count}} could not be restored.',
+  toastCountNotRestored: { other: '{{count}} could not be restored.' },
   toastNotificationsNotRestored: 'Some notifications could not be restored.',
   toastWithWarnings: '{{message}}. {{warnings}}',
   toastMarkedRead: 'Marked as read',
-  toastMarkedReadCount: 'Marked {{count}} items as read',
+  toastMarkedReadCount: {
+    one: 'Marked {{count}} item as read',
+    other: 'Marked {{count}} items as read',
+  },
   toastMarkReadFailed: 'Failed to mark as read',
   toastMarkedUnread: 'Marked as unread',
-  toastMarkedUnreadCount: 'Marked {{count}} items as unread',
+  toastMarkedUnreadCount: {
+    one: 'Marked {{count}} item as unread',
+    other: 'Marked {{count}} items as unread',
+  },
   toastMarkUnreadFailed: 'Failed to mark as unread',
   toastMovedToFolder: 'Moved to folder',
-  toastMovedCount: 'Moved {{count}} items',
+  toastMovedCount: {
+    one: 'Moved {{count}} item',
+    other: 'Moved {{count}} items',
+  },
   toastMoveToFolderFailed: 'Failed to move to folder',
   toastRemovedFromFolder: 'Removed from folder',
-  toastRemovedCountFromFolder: 'Removed {{count}} items from folder',
+  toastRemovedCountFromFolder: {
+    one: 'Removed {{count}} item from folder',
+    other: 'Removed {{count}} items from folder',
+  },
   toastRenamed: 'Renamed',
-  toastRenamedCount: 'Renamed {{count}} items',
+  toastRenamedCount: {
+    one: 'Renamed {{count}} item',
+    other: 'Renamed {{count}} items',
+  },
   toastRenameFailed: 'Failed to rename',
   toastFolderUpdateFailed: 'Failed to update folder',
 };

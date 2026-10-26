@@ -948,7 +948,8 @@ export class Sdk extends HeyApiClient {
     }
     
     /**
-     * Set the caller's interface language, or clear it to follow their team.
+     * Set the caller's interface language, or clear it to follow their team's,
+     * else their browser's.
      */
     public putUserLanguage<ThrowOnError extends boolean = false>(options: Options<PutUserLanguageData, ThrowOnError>): RequestResult<PutUserLanguageResponses, PutUserLanguageErrors, ThrowOnError> {
         return (options.client ?? this.client).put<PutUserLanguageResponses, PutUserLanguageErrors, ThrowOnError>({

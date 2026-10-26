@@ -3,7 +3,7 @@
 > **UserLanguage** = \{ `language?`: `null` \| [`Language`](Language.md); \}
 
 The interface language a user picked for themselves. `None` follows their
-team's language.
+team's language, else their browser's.
 
 ## Properties
 

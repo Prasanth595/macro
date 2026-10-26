@@ -97,7 +97,7 @@ export const makeMuteAction = (options: MakeMuteActionOptions) => {
           shouldUnmute
             ? 'entityActions.toastUnmutedSome'
             : 'entityActions.toastMutedSome',
-          { succeeded, total: results.length, failed }
+          { succeeded, count: results.length, failed }
         )
       );
     }

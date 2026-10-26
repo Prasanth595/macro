@@ -1965,7 +1965,7 @@ export type UsageSnapshot = {
 
 /**
  * The interface language a user picked for themselves. `None` follows their
- * team's language.
+ * team's language, else their browser's.
  */
 export type UserLanguage = {
     language?: null | Language;

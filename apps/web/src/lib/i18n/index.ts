@@ -1,5 +1,7 @@
 export type { TranslationKey } from './dictionary';
 export {
+  browserInterfaceLanguage,
+  formatLocale,
   inEnglish,
   interfaceLanguage,
   interfaceLanguageReady,

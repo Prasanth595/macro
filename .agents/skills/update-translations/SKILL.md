@@ -43,6 +43,12 @@ file, in the key's namespace, in the same order as English.
 - Use the glossary's form of address and its words for product terms. A new
   product term gets a row in every language's glossary table.
 - Keep `{{placeholders}}` exactly; use the language's quotation marks.
+- A plural English message (an object such as `{ one, other }`) is an object in
+  every language, with exactly the language's plural categories:
+  `new Intl.PluralRules('<language>').resolvedOptions().pluralCategories`
+  (Polish and Russian `one`, `few`, `many`, `other`; French, Spanish, Italian
+  and Portuguese add `many` for millions; Japanese, Korean, Chinese, Indonesian,
+  Vietnamese and Thai only `other`). The tests check the forms.
 - Prefer the shorter of two equally clear wordings; menus cap at 22rem.
 - Don't touch translations that aren't missing or stale, and never edit the
   English.

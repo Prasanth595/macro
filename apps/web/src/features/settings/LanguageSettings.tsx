@@ -1,4 +1,6 @@
 import {
+  browserInterfaceLanguage,
+  DEFAULT_LANGUAGE,
   interfaceLanguage,
   LANGUAGES,
   Language,
@@ -19,7 +21,8 @@ import { Show } from 'solid-js';
 import { SettingsSelect } from './components/settings-select';
 import { SettingsCard, SettingsRow, SettingsSection } from './primitives';
 
-const FOLLOW_TEAM = 'team';
+/** The option for no explicit language: the team's, else the browser's. */
+const AUTOMATIC = 'automatic';
 
 /**
  * A language's own name, followed by its name in the current interface
@@ -59,7 +62,10 @@ export function LanguageSettings() {
 
   const team = () =>
     queryReadyGate(teamQuery) ? teamQuery.data?.team : undefined;
-  const teamLanguage = () => team()?.language ?? Language.en;
+  const teamLanguage = () => team()?.language ?? null;
+  /** What the interface shows when the person picks no language. */
+  const automaticLanguage = () =>
+    teamLanguage() ?? browserInterfaceLanguage ?? DEFAULT_LANGUAGE;
   const userLanguage = () =>
     queryReadyGate(userLanguageQuery)
       ? userLanguageQuery.data.language
@@ -67,13 +73,14 @@ export function LanguageSettings() {
 
   const changeTeamLanguage = (id: string) => {
     const current = team();
-    const language = parseLanguage(id);
-    if (!current || !language || language === teamLanguage()) return;
+    const language = id === AUTOMATIC ? null : parseLanguage(id);
+    if (!current || language === undefined || language === teamLanguage())
+      return;
     patchTeam.mutate({ teamId: current.id, request: { language } });
   };
 
   const changeUserLanguage = (id: string) => {
-    const language = id === FOLLOW_TEAM ? null : (parseLanguage(id) ?? null);
+    const language = id === AUTOMATIC ? null : (parseLanguage(id) ?? null);
     if (language === (userLanguage() ?? null)) return;
     setUserLanguage.mutate(language);
   };
@@ -100,8 +107,14 @@ export function LanguageSettings() {
               <SettingsSelect
                 label={t('settingsLanguage.teamLanguage')}
                 class="w-full @[460px]:w-auto @[460px]:min-w-64 @[460px]:max-w-[22rem]"
-                options={languageOptions()}
-                value={teamLanguage()}
+                options={[
+                  {
+                    id: AUTOMATIC,
+                    name: t('settingsLanguage.teamAutomatic'),
+                  },
+                  ...languageOptions(),
+                ]}
+                value={teamLanguage() ?? AUTOMATIC}
                 onChange={changeTeamLanguage}
                 disabled={!isTeamAdmin() || patchTeam.isPending}
               />
@@ -120,20 +133,19 @@ export function LanguageSettings() {
           <SettingsSelect
             label={t('settingsLanguage.yourLanguage')}
             class="w-full @[460px]:w-auto @[460px]:min-w-64 @[460px]:max-w-[22rem]"
-            options={
-              team()
-                ? [
-                    {
-                      id: FOLLOW_TEAM,
-                      name: t('settingsLanguage.useTeamLanguage', {
-                        language: nativeLanguageName(teamLanguage()),
-                      }),
-                    },
-                    ...languageOptions(),
-                  ]
-                : languageOptions()
-            }
-            value={userLanguage() ?? (team() ? FOLLOW_TEAM : Language.en)}
+            options={[
+              {
+                id: AUTOMATIC,
+                name: t(
+                  teamLanguage()
+                    ? 'settingsLanguage.useTeamLanguage'
+                    : 'settingsLanguage.automatic',
+                  { language: nativeLanguageName(automaticLanguage()) }
+                ),
+              },
+              ...languageOptions(),
+            ]}
+            value={userLanguage() ?? AUTOMATIC}
             onChange={changeUserLanguage}
             disabled={!queryReadyGate(userLanguageQuery)}
           />

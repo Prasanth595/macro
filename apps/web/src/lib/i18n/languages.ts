@@ -1,4 +1,5 @@
 import { Language } from '@service-auth/generated/schemas/language';
+import { match } from 'ts-pattern';
 
 export { Language };
 
@@ -45,12 +46,46 @@ export function nativeLanguageName(code: Language): string {
 }
 
 /**
+ * The first of the browser's preferred languages (`navigator.languages`) that
+ * the interface is offered in, matched by language and script: `de-AT` is
+ * German, `zh-TW` Traditional Chinese, `no` Norwegian bokmål. Brazilian
+ * Portuguese gets European Portuguese, the closest one offered. A preference
+ * for English ahead of the others stops the search.
+ */
+export function browserLanguage(
+  preferred: readonly string[]
+): Language | undefined {
+  for (const tag of preferred) {
+    const match = offeredLanguage(tag);
+    if (match) return match;
+  }
+  return undefined;
+}
+
+function offeredLanguage(tag: string): Language | undefined {
+  let locale: Intl.Locale;
+  try {
+    locale = new Intl.Locale(tag).maximize();
+  } catch {
+    return undefined;
+  }
+  return match(locale.language)
+    .with('zh', () =>
+      locale.script === 'Hant' ? Language['zh-Hant'] : Language['zh-Hans']
+    )
+    .with('pt', () => Language['pt-PT'])
+    .with('no', 'nn', () => Language.nb)
+    .otherwise((language) => (isLanguage(language) ? language : undefined));
+}
+
+/**
  * The language the interface shows: the person's own choice, else their
- * team's, else English.
+ * team's, else the browser's, else English.
  */
 export function resolveInterfaceLanguage(
   userLanguage: Language | null | undefined,
-  teamLanguage: Language | null | undefined
+  teamLanguage: Language | null | undefined,
+  browser: Language | undefined
 ): Language {
-  return userLanguage ?? teamLanguage ?? DEFAULT_LANGUAGE;
+  return userLanguage ?? teamLanguage ?? browser ?? DEFAULT_LANGUAGE;
 }

@@ -4794,7 +4794,7 @@
       },
       "put": {
         "tags": ["user"],
-        "summary": "Set the caller's interface language, or clear it to follow their team.",
+        "summary": "Set the caller's interface language, or clear it to follow their team's,\nelse their browser's.",
         "operationId": "put_user_language",
         "requestBody": {
           "content": {
@@ -7407,7 +7407,7 @@
               },
               {
                 "$ref": "#/components/schemas/Language",
-                "description": "The interface language for the team's members. Omit to leave\nunchanged or pass `null` to use English."
+                "description": "The interface language for the team's members. Omit to leave\nunchanged or pass `null` to let each member's browser decide."
               }
             ]
           },
@@ -7911,7 +7911,7 @@
               },
               {
                 "$ref": "#/components/schemas/Language",
-                "description": "The interface language for the team's members, unless a member picks\ntheir own. `None` means English."
+                "description": "The interface language for the team's members, unless a member picks\ntheir own. `None` lets each member's browser decide."
               }
             ]
           },
@@ -8303,7 +8303,7 @@
       },
       "UserLanguage": {
         "type": "object",
-        "description": "The interface language a user picked for themselves. `None` follows their\nteam's language.",
+        "description": "The interface language a user picked for themselves. `None` follows their\nteam's language, else their browser's.",
         "properties": {
           "language": {
             "oneOf": [
@@ -8312,7 +8312,7 @@
               },
               {
                 "$ref": "#/components/schemas/Language",
-                "description": "The user's language, or `None` to use the team's."
+                "description": "The user's language, or `None` to use the team's, else the browser's."
               }
             ]
           }

@@ -392,7 +392,7 @@ pub struct PatchTeamRequest {
     #[serde(default, deserialize_with = "double_option")]
     pub default_link_share: Option<Option<LinkShare>>,
     /// The interface language for the team's members. Omit to leave
-    /// unchanged or pass `null` to use English.
+    /// unchanged or pass `null` to let each member's browser decide.
     #[serde(default, deserialize_with = "double_option")]
     pub language: Option<Option<Language>>,
 }
@@ -478,7 +478,7 @@ pub struct Team {
     /// is off by default. Defaults to [`LinkShare::Team`].
     pub(crate) default_link_share: Option<LinkShare>,
     /// The interface language for the team's members, unless a member picks
-    /// their own. `None` means English.
+    /// their own. `None` lets each member's browser decide.
     pub(crate) language: Option<Language>,
 }
 
@@ -555,7 +555,8 @@ impl Team {
         self.default_link_share
     }
 
-    /// The interface language for the team's members, or `None` for English
+    /// The interface language for the team's members, or `None` when each
+    /// member's browser decides.
     pub fn language(&self) -> Option<Language> {
         self.language
     }

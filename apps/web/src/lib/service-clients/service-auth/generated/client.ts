@@ -5637,7 +5637,8 @@ export const getUserLanguage = async (
 };
 
 /**
- * @summary Set the caller's interface language, or clear it to follow their team.
+ * @summary Set the caller's interface language, or clear it to follow their team's,
+else their browser's.
  */
 export type putUserLanguageResponse204 = {
   data: void;

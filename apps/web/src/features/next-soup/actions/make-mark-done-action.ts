@@ -250,7 +250,7 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
               : 'entityActions.toastMarkedDonePartial',
             {
               completed: String(context.operation?.completedCount()),
-              total,
+              count: total,
             }
           )
         : total > 1

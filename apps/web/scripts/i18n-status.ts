@@ -14,7 +14,10 @@
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { PartialDictionary } from '../src/lib/i18n/dictionary';
+import type {
+  PartialDictionary,
+  PluralMessage,
+} from '../src/lib/i18n/dictionary';
 import en from '../src/lib/i18n/locales/en';
 
 const LOCALES = fileURLToPath(
@@ -33,30 +36,57 @@ type Sources = {
   exceptions: Record<string, Record<string, string>>;
 };
 
+/** A message: text, or one text per plural category. */
+type Message = string | PluralMessage;
+
 type LanguageStatus = {
   language: string;
-  missing: { key: string; english: string }[];
-  stale: { key: string; english: string; translation: string }[];
-  placeholderMismatch: { key: string; english: string; translation: string }[];
+  missing: { key: string; english: Message }[];
+  stale: { key: string; english: Message; translation: Message }[];
+  placeholderMismatch: {
+    key: string;
+    english: Message;
+    translation: Message;
+  }[];
 };
 
 const english = new Map(
   Object.entries(en).flatMap(([namespace, messages]) =>
-    Object.entries(messages as Record<string, string>).map(
+    Object.entries(messages as Record<string, Message>).map(
       ([message, text]) => [`${namespace}.${message}`, text] as const
     )
   )
 );
 
-function hash(text: string): string {
+function texts(message: Message): string[] {
+  return typeof message === 'string'
+    ? [message]
+    : Object.values(message).filter((text) => text !== undefined);
+}
+
+function hash(message: Message): string {
+  const text =
+    typeof message === 'string'
+      ? message
+      : JSON.stringify(Object.entries(message).sort());
   return createHash('sha256').update(text).digest('hex').slice(0, 10);
 }
 
-function placeholders(text: string): string {
-  return [...text.matchAll(PLACEHOLDER)]
-    .map((match) => match[1])
+/** Every placeholder the message uses in any of its forms. */
+function placeholders(message: Message): string {
+  return [
+    ...new Set(
+      texts(message).flatMap((text) =>
+        [...text.matchAll(PLACEHOLDER)].map((match) => match[1])
+      )
+    ),
+  ]
     .sort()
     .join();
+}
+
+function isTranslated(message: Message | undefined): message is Message {
+  return message !== undefined && texts(message).some((text) => text.trim());
 }
 
 const languages = readdirSync(LOCALES)
@@ -66,13 +96,13 @@ const languages = readdirSync(LOCALES)
 
 async function loadTranslation(
   language: string
-): Promise<Map<string, string>> {
+): Promise<Map<string, Message>> {
   const module: { default: PartialDictionary } = await import(
     `${LOCALES}${language}.ts`
   );
   return new Map(
     Object.entries(module.default).flatMap(([namespace, messages]) =>
-      Object.entries((messages ?? {}) as Record<string, string>).map(
+      Object.entries((messages ?? {}) as Record<string, Message>).map(
         ([message, text]) => [`${namespace}.${message}`, text] as const
       )
     )
@@ -118,7 +148,7 @@ async function status(language: string): Promise<LanguageStatus> {
   };
   for (const [key, text] of english) {
     const translated = translation.get(key);
-    if (!translated?.trim()) {
+    if (!isTranslated(translated)) {
       result.missing.push({ key, english: text });
       continue;
     }
@@ -149,7 +179,7 @@ async function accept(targets: string[]) {
   for (const [key, text] of english) {
     const current = hash(text);
     const translating = languages.filter((language) =>
-      translations.get(language)?.get(key)?.trim()
+      isTranslated(translations.get(language)?.get(key))
     );
     const madeFrom = new Map(
       translating.map((language) => [

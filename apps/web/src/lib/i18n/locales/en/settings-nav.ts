@@ -38,7 +38,10 @@ export default {
   searchSettings: 'Search settings',
   noSettingsFound: 'No settings found',
   searchResults: 'Settings search results',
-  searchResultCount: '{{count}} settings found',
+  searchResultCount: {
+    one: '{{count}} setting found',
+    other: '{{count}} settings found',
+  },
   searchNoResults:
     'No settings found. Try “signature”, “theme”, or “calendar”.',
   backToSettings: 'Back to settings',

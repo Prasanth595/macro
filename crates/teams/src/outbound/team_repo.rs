@@ -1356,7 +1356,7 @@ impl TeamRepository for TeamRepositoryImpl {
         // "keep".
         let default_link_share_provided = req.default_link_share.is_some();
         let default_link_share = req.default_link_share.flatten();
-        // Same for language: NULL means English.
+        // Same for language: NULL lets each member's browser decide.
         let language_provided = req.language.is_some();
         let language = req.language.flatten();
 

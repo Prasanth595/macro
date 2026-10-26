@@ -91,7 +91,7 @@ export const makeFavoriteAction = () => {
           shouldRemove
             ? 'entityActions.toastRemovedSomeFromFavorites'
             : 'entityActions.toastAddedSomeToFavorites',
-          { succeeded, total: results.length, failed }
+          { succeeded, count: results.length, failed }
         )
       );
     }

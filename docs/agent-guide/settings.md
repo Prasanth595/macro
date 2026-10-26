@@ -326,9 +326,12 @@ others to copy and import.
 
 Appearance ends with **Language**. On a team, **Team language** sets the default
 interface language for every member; only admins and owners can change it, and
-others see it disabled with an explanation. **Your language** starts at **Use
-team language (…)** and overrides the team language for the signed-in person
-only; without a team it is the only dropdown. Menus, navigation, the command and
+others see it disabled with an explanation. It starts at **Automatic (each
+person's browser language)**. **Your language** starts at **Use team language
+(…)**, or **Automatic (…)** naming the browser's language when the team has none
+or there is no team, and overrides the team language for the signed-in person
+only; without a team it is the only dropdown. A browser language the app isn't
+offered in falls back to English. Menus, navigation, the command and
 create menus, and settings navigation switch language as soon as the setting
 saves; page contents and user data stay as written. The choice is remembered on
 the device, so the next launch starts in the same language.

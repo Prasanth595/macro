@@ -6,7 +6,7 @@ Part of the interface language setting. Stores the language each person picks
 for the app's interface (`"User".language`) and serves `GET`/`PUT
 /user/language` from `services/authentication_service`. The team default lives
 on `team.language` in `crates/teams`; the web app shows the person's language,
-else the team's, else English.
+else the team's, else the browser's when offered, else English.
 
 ## Start here
 

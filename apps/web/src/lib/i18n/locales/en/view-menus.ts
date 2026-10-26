@@ -102,7 +102,10 @@ export default {
   allInboxes: 'All inboxes',
   noInboxes: 'No inboxes',
   oneInbox: '1 inbox',
-  inboxCount: '{{count}} inboxes',
+  inboxCount: {
+    one: '{{count}} inbox',
+    other: '{{count}} inboxes',
+  },
   inboxes: 'Inboxes',
   searchInboxes: 'Search inboxes...',
   connectAnotherAccount: 'Connect another account',

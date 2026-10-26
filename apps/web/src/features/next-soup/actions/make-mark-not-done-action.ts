@@ -204,7 +204,7 @@ export const makeMarkNotDoneAction = (options: MakeMarkNotDoneOptions) => {
       failedCount > 0
         ? t('entityActions.toastMarkedNotDonePartial', {
             accepted: accepted.length,
-            total: targets.length,
+            count: targets.length,
           })
         : accepted.length > 1
           ? t('entityActions.toastMarkedNotDoneCount', {

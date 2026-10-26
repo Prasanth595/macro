@@ -96,7 +96,8 @@ where
     Ok(Json(UserLanguage { language }))
 }
 
-/// Set the caller's interface language, or clear it to follow their team.
+/// Set the caller's interface language, or clear it to follow their team's,
+/// else their browser's.
 #[utoipa::path(
     put,
     tag = "user",

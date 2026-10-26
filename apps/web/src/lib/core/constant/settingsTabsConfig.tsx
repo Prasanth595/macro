@@ -75,7 +75,12 @@ export type SettingsTabGroup = {
   items: SettingsTabItem[];
 };
 
-type SettingsNavMessage = keyof typeof settingsNavMessages;
+/** A settings nav message that is plain text, not a plural. */
+type SettingsNavMessage = {
+  [K in keyof typeof settingsNavMessages]: (typeof settingsNavMessages)[K] extends string
+    ? K
+    : never;
+}[keyof typeof settingsNavMessages];
 
 /**
  * A nav item whose label reads `t` on every access, so it follows the

@@ -6,11 +6,12 @@ import { createSignal, untrack } from 'solid-js';
 import { z } from 'zod';
 import type {
   PartialDictionary,
+  PluralKey,
   TranslationKey,
   TranslationParams,
 } from './dictionary';
-import { formatMessage, lookupMessage } from './dictionary';
-import { DEFAULT_LANGUAGE, Language } from './languages';
+import { formatMessage, lookupMessage, pluralForm } from './dictionary';
+import { browserLanguage, DEFAULT_LANGUAGE, Language } from './languages';
 import en from './locales/en';
 
 const STORAGE_KEY = 'interface-language-v1';
@@ -46,10 +47,21 @@ const TRANSLATIONS: Record<
   th: () => import('./locales/th'),
 };
 
+/** The browser's own locale, e.g. `en-GB` or `de-AT`. */
+const browserLocale = navigator.language || DEFAULT_LANGUAGE;
+
+/**
+ * The browser's preferred language when the interface is offered in it. The
+ * interface starts in it until the person or their team picks one.
+ */
+export const browserInterfaceLanguage = browserLanguage(
+  navigator.languages?.length ? navigator.languages : [browserLocale]
+);
+
 // Remembered on the device so the next launch starts in the same language
 // before the account's setting has loaded.
 const [language, setLanguage] = makePersistedState(
-  createSignal<Language>(DEFAULT_LANGUAGE),
+  createSignal<Language>(browserInterfaceLanguage ?? DEFAULT_LANGUAGE),
   {
     storages: {
       restore: () => {
@@ -133,6 +145,41 @@ function retryInterfaceLanguage() {
   if (current !== 'en') setInterfaceLanguage(current);
 }
 
+/**
+ * The locale to format dates and numbers in: the browser's own when it is in
+ * the interface language, so regional formats like `en-GB` or `de-AT` stay,
+ * else the interface language. Pass it to `Intl` and `toLocale*String`
+ * instead of leaving the locale out, which would follow the browser.
+ */
+export function formatLocale(): string {
+  const current = language();
+  return sameLanguage(browserLocale, current) ? browserLocale : current;
+}
+
+function sameLanguage(a: string, b: string): boolean {
+  const [first, second] = [maximized(a), maximized(b)];
+  return (
+    first !== undefined &&
+    first.language === second?.language &&
+    first.script === second.script
+  );
+}
+
+const maximizedLocales = new Map<string, Intl.Locale | undefined>();
+
+function maximized(tag: string): Intl.Locale | undefined {
+  if (!maximizedLocales.has(tag)) {
+    let locale: Intl.Locale | undefined;
+    try {
+      locale = new Intl.Locale(tag).maximize();
+    } catch {
+      locale = undefined;
+    }
+    maximizedLocales.set(tag, locale);
+  }
+  return maximizedLocales.get(tag);
+}
+
 let englishOnly = false;
 
 /**
@@ -149,16 +196,38 @@ export function inEnglish<T>(read: () => T): T {
   }
 }
 
+/** A plural message needs its `count`; other messages take optional values. */
+type MessageParams<K extends TranslationKey> = K extends PluralKey
+  ? [params: TranslationParams & { count: number }]
+  : [params?: TranslationParams];
+
 /**
- * The message for `key` in the interface language, falling back to English.
- * Reactive: reading it inside JSX or a memo updates when the language changes.
+ * The message for `key` in the interface language, falling back to English,
+ * with numbers written for {@link formatLocale}. A plural message picks the
+ * form for `params.count`. Reactive: reading it inside JSX or a memo updates
+ * when the language changes.
  */
-export function t(key: TranslationKey, params?: TranslationParams): string {
+export function t<K extends TranslationKey>(
+  key: K,
+  ...[params]: MessageParams<K>
+): string {
   const translated = englishOnly
     ? undefined
     : lookupMessage(translation(), key);
-  const template = translated ?? lookupMessage(en, key) ?? key;
-  return formatMessage(template, params);
+  const message = translated ?? lookupMessage(en, key) ?? key;
+  const template =
+    typeof message === 'string'
+      ? message
+      : pluralForm(
+          message,
+          Number(params?.count ?? 0),
+          translated ? language() : DEFAULT_LANGUAGE
+        );
+  return formatMessage(
+    template,
+    params,
+    englishOnly ? DEFAULT_LANGUAGE : formatLocale()
+  );
 }
 
 setInterfaceLanguage(language());

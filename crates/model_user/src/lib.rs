@@ -91,9 +91,9 @@ pub struct PutUserNameQueryParams {
 }
 
 /// The interface language a user picked for themselves. `None` follows their
-/// team's language.
+/// team's language, else their browser's.
 #[derive(serde::Serialize, serde::Deserialize, Eq, PartialEq, Debug, utoipa::ToSchema)]
 pub struct UserLanguage {
-    /// The user's language, or `None` to use the team's.
+    /// The user's language, or `None` to use the team's, else the browser's.
     pub language: Option<Language>,
 }

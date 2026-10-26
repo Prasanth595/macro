@@ -119,6 +119,9 @@ const LABEL_MENUS: (typeof MENUS)[number][] = LABEL_NAMESPACES.map(
   })
 );
 
+/** Fills `{{count}}` so plural labels show a real form. */
+const SAMPLE_VALUES = { count: 12 };
+
 function Menu(props: (typeof MENUS)[number]) {
   return (
     <div
@@ -130,7 +133,9 @@ function Menu(props: (typeof MENUS)[number]) {
         <Dropdown.Trigger>{props.title}</Dropdown.Trigger>
         <Dropdown.Content class={props.contentClass} portalScope="local">
           <For each={props.keys}>
-            {(key) => <MenuItem icon={PencilIcon} text={t(key)} />}
+            {(key) => (
+              <MenuItem icon={PencilIcon} text={t(key, SAMPLE_VALUES)} />
+            )}
           </For>
         </Dropdown.Content>
       </Dropdown>
