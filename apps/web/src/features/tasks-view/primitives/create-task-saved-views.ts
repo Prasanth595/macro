@@ -88,7 +88,11 @@ export function createTaskSavedViews(options: {
     const baseline = draft.baseline();
     if (baseline) apply(baseline);
   };
+  // Dirty filters can defer installation, but not knowledge of a newer revision.
+  let latestRevision = 0;
   const installRecord = (record: SavedView) => {
+    latestRevision = Math.max(latestRevision, record.revision);
+    if (record.revision < latestRevision) return;
     const previous = draft.record();
     if (previous?.id === record.id && record.revision < previous.revision)
       return;
@@ -127,6 +131,7 @@ export function createTaskSavedViews(options: {
         priorSelection = id;
         priorViewer = viewer;
         if (changed) {
+          latestRevision = 0;
           draftOwner = {};
           options.setActive(Boolean(id));
           if (!keepConfirmed) draft.install(undefined, undefined);
@@ -253,6 +258,7 @@ export function createTaskSavedViews(options: {
     const local = draft.record();
     const remote = options.source.data();
     return Math.max(
+      latestRevision,
       local && local.id === id ? local.revision : 0,
       remote && remote.id === id ? remote.revision : 0
     );
@@ -307,7 +313,11 @@ export function createTaskSavedViews(options: {
         return true;
       },
       updated(record: SavedView) {
-        if (options.selectedId() !== record.id) return false;
+        if (
+          options.selectedId() !== record.id ||
+          selectedRevision() > record.revision
+        )
+          return false;
         const definition = accept(record);
         if (!definition) return false;
         draft.install(record, definition);

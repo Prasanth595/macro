@@ -17,6 +17,7 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js';
+import { unwrap } from 'solid-js/store';
 import type {
   SavedViewSource,
   SavedViewsSource,
@@ -28,7 +29,7 @@ export function toSavedView(view: SavedViewFieldsFragment): SavedView {
     id: view.id,
     ownerId: view.ownerId,
     name: view.name,
-    config: view.config,
+    config: structuredClone(unwrap(view.config)),
     sharedTeamId: view.sharedTeamId ?? null,
     revision: view.revision,
   };
