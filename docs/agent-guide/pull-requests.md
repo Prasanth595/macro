@@ -17,6 +17,15 @@ with GitHub's reason, and a merge refreshes the PR status in place. Without a li
 GitHub account the toast points to Settings. Draft PRs, PRs with no checks, and PRs
 whose checks are still running or failing have no Merge button. Merged and closed
 PRs have no Merge button. PRs are not tasks and do not appear in the Tasks list.
+The **Share** button has a **Copy Share Link** button beside it, like other
+items. The "…" menu beside the PR title (in the Reviews breadcrumb, the standalone
+`/app/pr/<id>` page, and PR previews) holds the PR's own actions: **Merge pull
+request** (open, non-draft PRs, with the same confirmation, whatever the checks
+say), **Mark ready for review** or **Convert to draft**, **Close pull request**
+or, for a closed unmerged PR, **Reopen pull request**, then **Copy Link** (the
+Macro link), **Copy ID**, **Copy GitHub link**, **Open on GitHub**, and **Copy
+branch name** when the head branch is stored. Each change runs on GitHub as the
+signed-in user; a refusal shows GitHub's reason as a toast.
 The metadata pills beneath the PR title include linked agent sessions, using the
 agent sparkle icon. A single session shows its name; several sessions show a
 count chip opening a session list. Selecting a session opens it, with Shift-click
