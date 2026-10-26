@@ -25,7 +25,7 @@ main Tasks screen.
 | Navigation | Leaving discards temporary edits without a confirmation prompt. |
 | Creation | The section's icon-only `+` starts an unsaved view; configure before creating. |
 | Capture | Save view appears left of Filters when filters, layout, or sort differ from the built-in defaults. |
-| Mobile | Shared pill tab after the built-in tabs, with full creation, browsing, editing, and management support. |
+| Mobile | Shared pill after Filters and before the built-in tabs, with full creation, browsing, editing, and management support. |
 | Initial surfaces | Main Tasks only; not project or CRM embedded task lists. |
 | Owner departure | Team sharing stops while the owner is absent and resumes if they rejoin the shared team. |
 
