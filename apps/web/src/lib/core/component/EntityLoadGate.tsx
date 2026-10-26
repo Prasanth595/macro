@@ -128,6 +128,20 @@ export function LoadErrorPanel(props: {
   );
 }
 
+/**
+ * Whether the gate shows an error view instead of loading or content. UI kept
+ * mounted beside the gate, such as a composer, hides with it.
+ */
+export function isEntityLoadFailed<Data>(result: EntityLoadResult<Data>) {
+  const error = result.error();
+  // LOAD_FAILED is retryable, so loaded content outranks it. An offline
+  // device with nothing to show also fails: its query may be paused rather
+  // than errored and would otherwise pend forever.
+  if (result.data() !== undefined)
+    return error !== undefined && error !== 'LOAD_FAILED';
+  return error !== undefined || nativeNetworkStatus() === 'offline';
+}
+
 /** Renders entity content or the appropriate loading and access-error view. */
 export function EntityLoadGate<Data>(props: EntityLoadGateProps<Data>) {
   const error = props.result.error;
@@ -142,30 +156,25 @@ export function EntityLoadGate<Data>(props: EntityLoadGateProps<Data>) {
           </div>
         }
       >
-        <Match when={error() === 'UNAUTHORIZED' || error() === 'FORBIDDEN'}>
-          <Unauthorized />
-        </Match>
-        <Match when={error() === 'NOT_FOUND'}>
-          <NotFound />
-        </Match>
-        <Match when={error() === 'GONE'}>
-          <Gone />
-        </Match>
-        {/* LOAD_FAILED is retryable, so loaded content outranks it — with
-            data available it falls through to the content match below. An
-            offline device with nothing to show also lands here: its query
-            may be paused rather than errored and would otherwise pend
-            forever. */}
-        <Match
-          when={
-            !hasData() &&
-            (error() === 'LOAD_FAILED' || nativeNetworkStatus() === 'offline')
-          }
-        >
-          <LoadErrorPanel
-            title={props.loadErrorTitle}
-            onRetry={props.onRetry}
-          />
+        <Match when={isEntityLoadFailed(props.result)}>
+          <Switch
+            fallback={
+              <LoadErrorPanel
+                title={props.loadErrorTitle}
+                onRetry={props.onRetry}
+              />
+            }
+          >
+            <Match when={error() === 'UNAUTHORIZED' || error() === 'FORBIDDEN'}>
+              <Unauthorized />
+            </Match>
+            <Match when={error() === 'NOT_FOUND'}>
+              <NotFound />
+            </Match>
+            <Match when={error() === 'GONE'}>
+              <Gone />
+            </Match>
+          </Switch>
         </Match>
         <Match when={props.result.isPending()}>
           {props.loadingFallback ?? <LoadingBlock />}
