@@ -399,7 +399,7 @@ export function TouchSelectionToolbar(props: {
               <Button
                 size="sm"
                 class={optionButtonClass}
-                depth={3}
+                
                 variant="ghost"
               >
                 {option.content()}
@@ -411,7 +411,7 @@ export function TouchSelectionToolbar(props: {
           <Button
             size="icon-sm"
             class={arrowButtonClass}
-            depth={3}
+            
             variant="ghost"
           >
             <CaretRightIcon class="size-4" />
@@ -422,7 +422,7 @@ export function TouchSelectionToolbar(props: {
         <Button
           size="icon-sm"
           class={arrowButtonClass}
-          depth={3}
+          
           variant="ghost"
           aria-label="Previous options"
           onClick={() => page(-1)}
@@ -482,7 +482,7 @@ export function TouchSelectionToolbar(props: {
                       <Button
                         size="sm"
                         class={optionButtonClass}
-                        depth={3}
+                        
                         variant="ghost"
                         disabled={option.disabled?.()}
                         onClick={() => option.onSelect()}
@@ -502,7 +502,7 @@ export function TouchSelectionToolbar(props: {
         <Button
           size="icon-sm"
           class={arrowButtonClass}
-          depth={3}
+          
           variant="ghost"
           aria-label="More options"
           onClick={() => page(1)}

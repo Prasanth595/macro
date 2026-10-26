@@ -83,27 +83,27 @@ export function StatusBar(props: {
       onPointerDown={(e) => e.stopPropagation()}
     >
       <Show when={props.editable}>
-        <Button
+        <Button aria-label={"Undo"}
           variant="ghost"
           size="icon-md"
-          label="Undo"
+          
           tooltip={`Undo · ${mod()}Z`}
           disabled={!props.canUndo}
           data-testid="ai-undo"
           onClick={() => props.onUndo()}
         >
-          <ArrowUUpLeft />
+          <ArrowUUpLeft class="size-4 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
-        <Button
+        <Button aria-label={"Redo"}
           variant="ghost"
           size="icon-md"
-          label="Redo"
+          
           tooltip={`Redo · ${props.mac ? '⇧⌘Z' : 'Ctrl+Shift+Z'}`}
           disabled={!props.canRedo}
           data-testid="ai-redo"
           onClick={() => props.onRedo()}
         >
-          <ArrowUUpRight />
+          <ArrowUUpRight class="size-4 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
         <span
           class="flex size-8 items-center justify-center text-ink-muted"

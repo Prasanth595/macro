@@ -86,16 +86,15 @@ function SmartTagDialog(props: SmartTagDialogProps & ManagedDialogProps) {
                 {props.initial ? 'Edit smart label' : 'New smart label'}
               </Dialog.Title>
             </div>
-            <Button
-              variant="ghost"
+            <Button variant="ghost" aria-label={"Close"} tooltip={"Close"}
               type="button"
-              label="Close"
-              size="icon-composer"
+              
+              size={"icon-md"}
               tabIndex={-1}
               disabled={saving()}
               onClick={() => props.onOpenChange(false)}
             >
-              <XIcon />
+              <XIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           </div>
           <div class="flex flex-col gap-4 px-2">
@@ -142,7 +141,7 @@ function SmartTagDialog(props: SmartTagDialogProps & ManagedDialogProps) {
             <Button
               type="button"
               variant="ghost"
-              depth={3}
+              
               disabled={saving()}
               onClick={() => props.onOpenChange(false)}
             >

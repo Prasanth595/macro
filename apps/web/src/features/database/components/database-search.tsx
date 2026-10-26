@@ -1,3 +1,4 @@
+import { ButtonGroup } from '@ui';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import XIcon from '@phosphor/x.svg';
@@ -70,18 +71,18 @@ export function DatabaseSearch(props: {
       when={props.isOpen}
       fallback={
         <HeaderActionGroup label="Search">
-          <Button
+          <ButtonGroup.Button aria-label={"Search"}
             ref={searchButton}
             type="button"
             variant="ghost"
             size="icon-md"
-            label="Search"
+            
             aria-keyshortcuts="Control+F Meta+F"
             tooltip="Search every table"
             onClick={() => props.onOpen()}
           >
             <MagnifyingGlassIcon class="size-4 touch:size-3.5" />
-          </Button>
+          </ButtonGroup.Button>
         </HeaderActionGroup>
       }
     >
@@ -136,10 +137,10 @@ export function DatabaseSearch(props: {
             class="text-xs"
           />
           <InputGroup.Addon align="inline-end">
-            <InputGroup.Button
+            <InputGroup.Button aria-label={props.term ? 'Clear search' : 'Close search'} tooltip={{ content: props.term ? 'Clear search' : 'Close search', disabled: true }}
               size="icon-xs"
-              label={props.term ? 'Clear search' : 'Close search'}
-              tooltipDisabled
+              
+              
               onClick={() => {
                 if (props.term) changeTerm('');
                 else closeAndRestore();

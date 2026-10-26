@@ -297,13 +297,13 @@ export function PrintDialog(props: {
             <Printer class="size-4" />
             Print
           </h2>
-          <Button
+          <Button aria-label={"Close"} tooltip={"Close"}
             size="icon-sm"
             variant="ghost"
-            label="Close"
+            
             onClick={props.onClose}
           >
-            <X />
+            <X class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
         </div>
         <fieldset class="flex flex-col gap-1.5">
@@ -417,17 +417,17 @@ export function PrintDialog(props: {
             disabled={pages().length === 0 || !!progress()}
             onClick={() => fireAndForget(savePdf(), 'pptx-print')}
           >
-            <FilePdf />
+            <FilePdf class="size-3 touch:size-6 shrink-0 pointer-events-none" />
             Save as PDF
           </Button>
           <Button
             size="sm"
-            variant="cta"
+            variant={"accent"}
             data-testid="pptx-print-go"
             disabled={pages().length === 0 || !!progress()}
             onClick={() => fireAndForget(print(), 'pptx-print')}
           >
-            <Printer />
+            <Printer class="size-3 touch:size-6 shrink-0 pointer-events-none" />
             Print
           </Button>
         </div>

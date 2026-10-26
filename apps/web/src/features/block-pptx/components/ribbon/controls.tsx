@@ -25,7 +25,7 @@ export function RibbonButton(props: ButtonProps & { active?: boolean }) {
     <Button
       variant={local.active ? 'accent' : 'ghost'}
       size="icon-sm"
-      square
+      
       aria-pressed={local.active === undefined ? undefined : local.active}
       class={cn('size-7 rounded-md p-1', local.class)}
       {...rest}
@@ -39,8 +39,8 @@ export function RibbonTextButton(props: ButtonProps) {
   return (
     <Button
       variant="ghost"
-      size="sm"
-      square
+      size={"icon-sm"}
+      
       class={cn('h-7 gap-1 rounded-md px-1.5 text-xs', local.class)}
       {...rest}
     />
@@ -82,13 +82,13 @@ export function RibbonPopover(props: {
       placement={props.placement ?? 'bottom-start'}
       gutter={4}
     >
-      <Popover.Trigger
+      <Popover.Trigger aria-label={props.label}
         as={Button}
         variant="ghost"
-        size="sm"
-        square
+        size={"icon-sm"}
+        
         class="h-7 gap-0.5 rounded-md px-1.5 text-xs"
-        label={props.label}
+        
         tooltip={props.label}
         disabled={props.disabled}
         data-testid={props.testId}

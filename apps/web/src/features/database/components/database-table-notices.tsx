@@ -61,11 +61,10 @@ export function SaveFailureNotice(props: {
           </Button>
         )}
       </Show>
-      <Button
-        variant="ghost"
+      <Button variant="ghost" aria-label={"Dismiss save error"} tooltip={{ content: "Dismiss save error", disabled: true }}
         size="icon-xs"
-        label="Dismiss save error"
-        tooltipDisabled
+        
+        
         onClick={props.onDismiss}
       >
         <XIcon class="size-3.5" />
@@ -114,11 +113,10 @@ export function HiddenRecordNotice(props: {
       <Button variant="ghost" size="xs" class="shrink-0 text-accent" onClick={props.onOpen}>
         Open record
       </Button>
-      <Button
-        variant="ghost"
+      <Button variant="ghost" aria-label={"Dismiss record notice"} tooltip={{ content: "Dismiss record notice", disabled: true }}
         size="icon-xs"
-        label="Dismiss record notice"
-        tooltipDisabled
+        
+        
         onClick={props.onDismiss}
       >
         <XIcon class="size-3.5" />

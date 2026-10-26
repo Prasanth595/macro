@@ -175,17 +175,17 @@ export function AgentModelSelector(props: AgentModelSelectorProps) {
           <MobileDrawer.Handle />
           <div class="flex items-center gap-2 px-4 pb-3">
             <Show when={showAll()}>
-              <Button
+              <Button aria-label={"Back to Suggested"} tooltip={"Back to Suggested"}
                 variant="ghost"
                 size="icon-md"
-                label="Back to Suggested"
+                
                 onClick={() => {
                   setShowAll(false);
                   setQuery('');
                   searchInput?.focus();
                 }}
               >
-                <ArrowLeft />
+                <ArrowLeft class="size-4 touch:size-6 shrink-0 pointer-events-none" />
               </Button>
             </Show>
             <MobileDrawer.Title class="min-w-0 flex-1 truncate font-medium">
@@ -284,7 +284,7 @@ export function AgentModelSelector(props: AgentModelSelectorProps) {
       >
         <ModelIcon model={shown()} class="size-3.5" />
         <span class="min-w-0 truncate">{label()}</span>
-        <CaretDown class="shrink-0" />
+        <CaretDown class="shrink-0 size-3 touch:size-6 shrink-0 pointer-events-none" />
       </Dropdown.Trigger>
       <Dropdown.Content class="w-60 max-w-[calc(100vw-1rem)] overflow-hidden">
         {/* The gradients anchor here, outside the scrolling box, and read

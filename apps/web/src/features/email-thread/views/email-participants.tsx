@@ -117,7 +117,7 @@ export function EmailParticipants() {
         <Button
           variant="outline"
           size="sm"
-          noTouchResize
+          
           onClick={() => setExpanded((v) => !v)}
           class={badgeTriggerClasses({
             variant: 'outline',

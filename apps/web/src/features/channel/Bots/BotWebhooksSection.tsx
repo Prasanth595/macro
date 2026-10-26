@@ -27,7 +27,7 @@ export function BotWebhooksSection(props: BotWebhooksSectionProps) {
           size="sm"
           onClick={props.onNewToken}
         >
-          <KeyIcon />
+          <KeyIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
           New token
         </Button>
       }

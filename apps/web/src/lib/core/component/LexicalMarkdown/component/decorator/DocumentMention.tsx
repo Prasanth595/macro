@@ -489,10 +489,10 @@ function DatabaseMention(props: DocumentMentionDecoratorProps) {
           !detail.isError
         }
       >
-        <Button
+        <Button aria-label={"Expand database"} tooltip={"Expand database"}
           variant="ghost"
           size="icon-xs"
-          label="Expand database"
+          
           on:mousedown={(event) => event.preventDefault()}
           on:click={expand}
         >

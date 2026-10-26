@@ -100,7 +100,7 @@ export function CodexConnection(props: {
                         type="button"
                         variant="outline"
                         size="sm"
-                        depth={3}
+                        
                         class="gap-2"
                         disabled={props.pending}
                         onClick={props.onConnect}
@@ -140,7 +140,7 @@ export function CodexConnection(props: {
                     type="button"
                     variant="outline"
                     size="sm"
-                    depth={3}
+                    
                     disabled={props.pending}
                     onClick={props.onCancel}
                   >
@@ -243,7 +243,7 @@ export function CodexConnection(props: {
                   type="button"
                   variant="outline"
                   size="sm"
-                  depth={3}
+                  
                   disabled={
                     props.pending || !hasChanges() || !selectedEnvironment()
                   }
@@ -265,7 +265,7 @@ export function CodexConnection(props: {
                 type="button"
                 variant="danger"
                 size="sm"
-                depth={3}
+                
                 class="shrink-0"
                 aria-label="Disconnect ChatGPT"
                 disabled={props.pending}

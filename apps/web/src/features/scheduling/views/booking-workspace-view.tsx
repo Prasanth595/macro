@@ -18,7 +18,7 @@ import PlusIcon from '@phosphor/plus.svg';
 import SparkleIcon from '@phosphor/sparkle.svg';
 import UserIcon from '@phosphor/user.svg';
 import UsersIcon from '@phosphor/users.svg';
-import { Button, cn, pressHandlers } from '@ui';
+import { Button, ButtonGroup, cn, pressHandlers } from '@ui';
 import {
   batch,
   createEffect,
@@ -368,11 +368,11 @@ export function BookingWorkspaceView(props: {
             }
             createAgentAction={
               <Show when={search.tab === 'links' && owner()?.scope().canEdit}>
-                <Button
+                <Button aria-label={"Create with agent"} tooltip={"Create with agent"}
                   variant="ghost"
                   size="icon-md"
                   class="size-10 rounded-full"
-                  label="Create with agent"
+                  
                   disabled={
                     isSaving() || startingAgent() || !owner()?.source.profile()
                   }
@@ -403,8 +403,8 @@ export function BookingWorkspaceView(props: {
                 <Show when={owner()?.scope().canEdit}>
                   <Show when={search.tab === 'links'}>
                     <HeaderActionGroup label="Booking link tools">
-                      <Button
-                        label="Create with agent"
+                      <ButtonGroup.Button aria-label={"Create with agent"} tooltip={"Create with agent"}
+                        
                         variant="ghost"
                         size="icon-md"
                         disabled={
@@ -417,7 +417,7 @@ export function BookingWorkspaceView(props: {
                         }
                       >
                         <SparkleIcon class="size-4" />
-                      </Button>
+                      </ButtonGroup.Button>
                     </HeaderActionGroup>
                   </Show>
                   <ViewCreateButton
@@ -466,10 +466,10 @@ export function BookingWorkspaceView(props: {
                     <h1 class="min-w-0 truncate pl-2 text-sm font-semibold">
                       {tab().label}
                     </h1>
-                    <Button
+                    <Button aria-label={`About ${tab().label.toLowerCase()}`}
                       variant="ghost"
                       size="icon-sm"
-                      label={`About ${tab().label.toLowerCase()}`}
+                      
                       tooltip={tab().description}
                     >
                       <InfoIcon class="size-4 text-ink-muted" />
@@ -528,9 +528,9 @@ export function BookingWorkspaceView(props: {
                 />
                 <Show when={owner()?.scope().canEdit}>
                   <div class="ml-auto flex shrink-0 items-center gap-2 touch:hidden">
-                    <Button
-                      label="Create with agent"
-                      tooltipDisabled
+                    <Button aria-label={"Create with agent"} tooltip={{ content: "Create with agent", disabled: true }}
+                      
+                      
                       variant="outline"
                       size="md"
                       disabled={
@@ -545,10 +545,10 @@ export function BookingWorkspaceView(props: {
                       <SparkleIcon class="size-4" />
                       <span>Create with agent</span>
                     </Button>
-                    <Button
-                      label="New booking link"
-                      tooltipDisabled
-                      variant="strong"
+                    <Button aria-label={"New booking link"} tooltip={{ content: "New booking link", disabled: true }}
+                      
+                      
+                      variant={"secondary"}
                       size="md"
                       disabled={
                         !owner()?.source.profile() ||
@@ -575,10 +575,10 @@ export function BookingWorkspaceView(props: {
                 />
                 <Show when={owner()?.scope().canEdit}>
                   <div class="ml-auto shrink-0 touch:hidden">
-                    <Button
-                      label="New schedule"
+                    <Button aria-label={"New schedule"}
+                      
                       tooltip="New schedule"
-                      variant="strong"
+                      variant={"secondary"}
                       size="md"
                       disabled={isSaving() || !owner()?.source.profile()}
                       onClick={(event) =>

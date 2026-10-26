@@ -92,31 +92,29 @@ export function RecordPanel(props: RecordPanelProps) {
             {props.position + 1} of {props.total}
           </span>
         </Show>
-        <Button
-          variant="ghost"
+        <Button variant="ghost" aria-label={"Previous record"} tooltip={{ content: "Previous record", disabled: true }}
           size="icon-sm"
-          label="Previous record"
-          tooltipDisabled
+          
+          
           disabled={props.position <= 0}
           onClick={() => props.onNavigate(-1)}
         >
-          <ArrowUpIcon />
+          <ArrowUpIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
-        <Button
-          variant="ghost"
+        <Button variant="ghost" aria-label={"Next record"} tooltip={{ content: "Next record", disabled: true }}
           size="icon-sm"
-          label="Next record"
-          tooltipDisabled
+          
+          
           disabled={props.position < 0 || props.position >= props.total - 1}
           onClick={() => props.onNavigate(1)}
         >
-          <ArrowDownIcon />
+          <ArrowDownIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
         <Dialog.CloseButton
           aria-label="Close record"
           class={buttonClasses({ size: 'icon-sm' })}
         >
-          <XIcon />
+          <XIcon class="size-3.5 shrink-0 touch:size-6" />
         </Dialog.CloseButton>
       </div>
       <div class="min-h-0 overflow-auto px-5 py-4">
@@ -147,7 +145,7 @@ export function RecordPanel(props: RecordPanelProps) {
               class="hover:text-failure-ink"
               onClick={props.onRequestDelete}
             >
-              <TrashIcon /> Delete record
+              <TrashIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" /> Delete record
             </Button>
           </div>
         </Show>

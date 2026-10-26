@@ -186,13 +186,13 @@ export function ChannelDetailActions(props: ChannelDetailHeaderProps) {
           when={ENABLE_CALLS && !channel()?.agent_dm && !call.isInThisChannel()}
         >
           <DebugSuspense name="ChannelDetail.call-button">
-            <ChannelCallButton channelId={props.channelId} />
+            <ChannelCallButton grouped channelId={props.channelId} />
           </DebugSuspense>
         </Show>
         <Show when={askMacroEntity()}>
           {(entity) => (
             <DebugSuspense name="ChannelDetail.ask-macro">
-              <ChatWithAgentButton entity={entity()} label="Ask Macro" />
+              <ChatWithAgentButton grouped entity={entity()} label="Ask Macro" />
             </DebugSuspense>
           )}
         </Show>

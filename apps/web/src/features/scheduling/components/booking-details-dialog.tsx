@@ -144,12 +144,12 @@ export function BookingDetailsDialog(props: {
           <Dialog.Title class="text-lg font-semibold">
             Booking details
           </Dialog.Title>
-          <Button
+          <Button aria-label={"Close booking details"} tooltip={{ content: "Close booking details", disabled: true }}
             type="button"
             variant="ghost"
             size="icon-sm"
-            label="Close booking details"
-            tooltipDisabled
+            
+            
             onClick={close}
           >
             <X aria-hidden="true" class="size-4" />
@@ -360,12 +360,8 @@ export function BookingDetailsDialog(props: {
                   href={url()}
                   target="_blank"
                   rel="noopener noreferrer"
-                  class={buttonClasses({
-                    variant: 'outline',
-                    size: 'md',
-                    class:
-                      '@max-[22rem]/booking-details:gap-1 @max-[22rem]/booking-details:px-1.5 @max-[22rem]/booking-details:text-xs',
-                  })}
+                  class={buttonClasses({ variant: 'outline', size: 'md', class:
+                      '@max-[22rem]/booking-details:gap-1 @max-[22rem]/booking-details:px-1.5 @max-[22rem]/booking-details:text-xs' })}
                 >
                   Join meeting
                   <External aria-hidden="true" class="size-3.5" />
@@ -378,7 +374,7 @@ export function BookingDetailsDialog(props: {
               }
             >
               <Button
-                variant="strong"
+                variant={"secondary"}
                 size="md"
                 class="@max-[22rem]/booking-details:px-1.5 @max-[22rem]/booking-details:text-xs"
                 disabled={!!props.busyId}

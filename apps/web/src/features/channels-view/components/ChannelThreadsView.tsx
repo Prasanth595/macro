@@ -162,13 +162,13 @@ function ThreadCard(props: {
           it, and the thread keeps the card's full width underneath. It shows
           on hover or keyboard focus, and always on touch, which cannot hover. */}
       <div class="absolute top-2 right-2 opacity-0 transition-opacity group-hover/thread-card:opacity-100 group-focus-within/thread-card:opacity-100 touch:opacity-100 motion-reduce:transition-none">
-        <Button
+        <Button aria-label={"View in channel"} tooltip={"View in channel"}
           variant="ghost"
           size="icon-md"
-          label="View in channel"
+          
           onClick={() => props.onOpen()}
         >
-          <ArrowSquareOutIcon />
+          <ArrowSquareOutIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </div>
     </article>

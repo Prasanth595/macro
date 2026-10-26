@@ -53,12 +53,12 @@ export function UpdateButton(props: { update: () => AppUpdate }) {
       placement="right-end"
       gutter={8}
     >
-      <Popover.Trigger
+      <Popover.Trigger aria-label={"Update available"} tooltip={"Update available"}
         as={Button}
         variant="ghost"
         size="icon-md"
         class="size-10 cursor-default rounded-xl"
-        label="Update available"
+        
         draggable={false}
         data-sidebar-next-item="app-update"
       >
@@ -84,7 +84,7 @@ export function UpdateButton(props: { update: () => AppUpdate }) {
           </Popover.Description>
           <div class="mt-3 flex justify-end">
             <Button
-              variant="cta"
+              variant={"accent"}
               size="sm"
               disabled={props.update().busy}
               onClick={() => props.update().apply()}

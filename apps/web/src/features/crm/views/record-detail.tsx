@@ -205,7 +205,7 @@ export function CrmRecordDetail(props: {
             </div>
             <div class="ml-auto flex shrink-0 items-center gap-2 touch:gap-1">
               <HeaderActionGroup label="Sharing">
-                <CrmCopyLinkButton type={current().type} id={current().id} />
+                <CrmCopyLinkButton grouped type={current().type} id={current().id} />
               </HeaderActionGroup>
               <SidePanel.Toggle />
             </div>

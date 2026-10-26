@@ -5,6 +5,7 @@ import FilePdf from '@phosphor/file-pdf.svg';
 import FileText from '@phosphor/file-text.svg';
 import Heart from '@phosphor/heart.svg';
 import { createSignal, For, Show } from 'solid-js';
+import { cn } from '../utils/classname';
 import { Badge } from './Badge';
 import { Button } from './Button';
 import { Card } from './Card';
@@ -30,7 +31,7 @@ function ReferenceDemo() {
           aria-pressed={saved()}
           onClick={() => setSaved(!saved())}
         >
-          <Heart class={saved() ? 'fill-current text-accent' : ''} />
+          <Heart class={cn('size-3.5 shrink-0', saved() && 'fill-current text-accent')} />
         </Button>
       </Item.Actions>
     </Item>

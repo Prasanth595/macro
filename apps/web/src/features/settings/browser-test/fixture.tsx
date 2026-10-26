@@ -8,7 +8,7 @@ import { createMemo, createSignal, For, onMount, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 import { macroDarkTheme } from '../../theme/themes/macro-dark';
 import { macroLightTheme } from '../../theme/themes/macro-light';
-import { themeCssVars } from '../../theme/utils/themeColorTokens';
+import { themeCssVars } from '../../theme/utils/themeCssVars';
 import { Appearance } from '../Appearance';
 import { DesktopAppInfo } from '../components/desktop-app';
 import { SettingsSearchTarget } from '../components/settings-search-target';

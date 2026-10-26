@@ -1,3 +1,4 @@
+import { ButtonGroup } from '@ui';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import CheckIcon from '@phosphor/check.svg';
 import FunnelIcon from '@phosphor/funnel-simple.svg';
@@ -49,8 +50,8 @@ export function DatabaseEditorToolbar(props: {
               <Show when={board()}>
                 {(current) => (
                   <Dropdown placement="bottom-start">
-                    <Dropdown.Trigger
-                      label="Group board by"
+                    <Dropdown.Trigger as={ButtonGroup.Button} aria-label={"Group board by"}
+                      
                       tooltip="Group by"
                       size="icon-md"
                       variant="ghost"
@@ -95,6 +96,7 @@ export function DatabaseEditorToolbar(props: {
               <ToolbarPopover
                 label="Filter"
                 compact
+                grouped
                 count={filterConditionCount(props.view.query.filter)}
                 icon={<FunnelIcon class="size-4 touch:size-3.5" />}
               >
@@ -111,6 +113,7 @@ export function DatabaseEditorToolbar(props: {
               <ToolbarPopover
                 label="Sort"
                 compact
+                grouped
                 count={sort().length}
                 icon={<SortAscendingIcon class="size-4 touch:size-3.5" />}
               >

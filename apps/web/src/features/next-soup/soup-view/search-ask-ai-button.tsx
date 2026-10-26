@@ -47,7 +47,7 @@ export function SearchAskAiButton() {
     <Button
       variant="ghost"
       size="md"
-      depth={2}
+      
       tooltip="Ask AI"
       class="shrink-0"
       disabled={isAsking()}

@@ -32,7 +32,7 @@ import { PropertyValueIcon } from '@property/component/propertyValue/PropertyVal
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { useGithubLinkStatusQuery } from '@queries/auth';
 import { useContacts } from '@queries/contacts/contacts';
-import { type ButtonVariant, cn, Dropdown, Tooltip } from '@ui';
+import { Button, ButtonGroup, type ButtonVariant, cn, Dropdown, Tooltip } from '@ui';
 import {
   type Accessor,
   batch,
@@ -372,6 +372,7 @@ export const VIEW_FILTER_CATEGORIES: Record<ListView, FilterCategory[]> = {
 };
 
 interface UnifiedFilterDropdownProps {
+  grouped?: boolean;
   /** View-specific refinements alongside the shared filters. */
   children?: JSX.Element;
   /** Optional controlled open state */
@@ -694,6 +695,11 @@ export const UnifiedFilterDropdown = (
     return undefined;
   };
 
+  const triggerSize = () => {
+    if (!props.hideLabel) return 'sm';
+    return props.grouped ? 'icon-sm' : 'icon-md';
+  };
+
   return (
     <Show
       when={
@@ -715,12 +721,13 @@ export const UnifiedFilterDropdown = (
             <Match when={true}>
               <Tooltip label="Filter" hotkey={TOKENS.soup.filter}>
                 <Dropdown.Trigger
+                  as={props.grouped ? ButtonGroup.Button : Button}
                   variant={props.variant ?? 'outline'}
-                  size={props.hideLabel ? 'icon-md' : 'sm'}
-                  depth={2}
+                  size={triggerSize()}
+                  
                   aria-label={props.hideLabel ? 'Filter' : undefined}
                 >
-                  <FilterIcon />
+                  <FilterIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
                   <Show when={!props.hideLabel}>
                     <span>Filter</span>
                   </Show>

@@ -123,13 +123,12 @@ function PipelineEntryCard(props: {
         <span class="flex-1" />
         <Show when={props.onOpenPipeline}>
           {(open) => (
-            <Button
-              variant="ghost"
+            <Button variant="ghost" aria-label={`Open ${props.entry.pipeline.name}`} tooltip={`Open ${props.entry.pipeline.name}`}
               size="icon-sm"
-              label={`Open ${props.entry.pipeline.name}`}
+              
               onClick={() => open()()}
             >
-              <ArrowUpRightIcon />
+              <ArrowUpRightIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           )}
         </Show>

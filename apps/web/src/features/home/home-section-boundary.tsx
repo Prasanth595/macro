@@ -47,7 +47,7 @@ function HomeSectionError(props: HomeSectionErrorProps) {
             <Button
               variant="outline"
               size="sm"
-              depth={2}
+              
               class="w-fit bg-surface"
               onClick={props.reset}
             >

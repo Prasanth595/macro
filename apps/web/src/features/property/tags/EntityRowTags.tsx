@@ -23,7 +23,7 @@ const MAX_OVERFLOW_DOTS = 3;
 
 const hoverMenuLabelClass = 'min-w-0 max-w-[30ch] truncate';
 const hoverMenuIconButtonClass =
-  'size-5 shrink-0 p-0.5 text-ink-extra-muted [&_:where(svg)]:size-3.5';
+  'size-5 shrink-0 p-0.5 text-ink-extra-muted';
 
 function HoverTagRow(props: {
   tag: ResolvedTag;
@@ -42,7 +42,7 @@ function HoverTagRow(props: {
             type="button"
             variant="ghost"
             size="icon-sm"
-            noTouchResize
+            
             tooltip="Filter by tag"
             aria-label={`Filter by ${props.tag.label}`}
             class={hoverMenuIconButtonClass}
@@ -64,7 +64,7 @@ function HoverTagRow(props: {
         type="button"
         variant="ghost"
         size="icon-sm"
-        noTouchResize
+        
         tooltip="Edit tag"
         aria-label={`Edit ${props.tag.label}`}
         class={hoverMenuIconButtonClass}
@@ -381,48 +381,50 @@ export function InlineTagsPill(props: {
               : 'Change or select tags'
           }
         >
-          <Switch>
-            <Match when={tags().length === 0 && props.showAddButton}>
-              <PlusIcon class="size-3 shrink-0" />
-              <span>Add tags</span>
-            </Match>
-            <Match when={tags().length === 0}>
-              <span class="inline-flex min-w-0 items-center gap-1.5 opacity-50">
-                <CircleDashedEmpty class="size-3 shrink-0" />
-                <span class="min-w-0 truncate @max-2xl/u-list:hidden">
-                  Tags
-                </span>
-              </span>
-            </Match>
-            <Match when={tags().length === 1 && first()}>
-              {(tag) => (
-                <>
-                  <TagDot color={tag().color} class="size-2.5" />
+          <span class="inline-flex min-w-0 items-center gap-1">
+            <Switch>
+              <Match when={tags().length === 0 && props.showAddButton}>
+                <PlusIcon class="size-3 shrink-0" />
+                <span>Add tags</span>
+              </Match>
+              <Match when={tags().length === 0}>
+                <span class="inline-flex min-w-0 items-center gap-1 opacity-50">
+                  <CircleDashedEmpty class="size-3 shrink-0" />
                   <span class="min-w-0 truncate @max-2xl/u-list:hidden">
-                    {tag().label}
+                    Tags
                   </span>
-                </>
-              )}
-            </Match>
-            <Match when={tags().length > 1}>
-              <span class="flex items-center">
-                <For each={dots()}>
-                  {(tag, index) => (
-                    <TagDot
-                      color={tag.color}
-                      class={cn(
-                        'size-2.5 ring-2 ring-surface',
-                        index() > 0 && '-ml-1'
-                      )}
-                    />
-                  )}
-                </For>
-              </span>
-              <span class="min-w-0 truncate @max-2xl/u-list:hidden">
-                {label()}
-              </span>
-            </Match>
-          </Switch>
+                </span>
+              </Match>
+              <Match when={tags().length === 1 && first()}>
+                {(tag) => (
+                  <>
+                    <TagDot color={tag().color} class="size-2.5" />
+                    <span class="min-w-0 truncate @max-2xl/u-list:hidden">
+                      {tag().label}
+                    </span>
+                  </>
+                )}
+              </Match>
+              <Match when={tags().length > 1}>
+                <span class="flex items-center">
+                  <For each={dots()}>
+                    {(tag, index) => (
+                      <TagDot
+                        color={tag.color}
+                        class={cn(
+                          'size-2.5 ring-2 ring-surface',
+                          index() > 0 && '-ml-1'
+                        )}
+                      />
+                    )}
+                  </For>
+                </span>
+                <span class="min-w-0 truncate @max-2xl/u-list:hidden">
+                  {label()}
+                </span>
+              </Match>
+            </Switch>
+          </span>
           <Show when={tags().length > 0 || !props.showAddButton}>
             <CaretDownIcon class="size-3 shrink-0 @max-2xl/u-list:hidden" />
           </Show>

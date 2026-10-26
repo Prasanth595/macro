@@ -203,11 +203,11 @@ export function CreateContactModal(props: {
                   tabIndex={-1}
                   aria-label="Close"
                   tooltip="Close"
-                  size="icon-composer"
+                  size={"icon-md"}
                   disabled={createContactMutation.isPending}
                   onClick={close}
                 >
-                  <XIcon />
+                  <XIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
                 </Button>
               </EntityComposer.Header>
               <EntityComposer.Main class="gap-4">

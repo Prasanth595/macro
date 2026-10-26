@@ -2,7 +2,7 @@ import { ListHeader } from '@app/components/view-shell/ListHeader';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import DownloadIcon from '@phosphor/download-simple.svg';
 import InfoIcon from '@phosphor/info.svg';
-import { Button, cn, Tooltip } from '@ui';
+import { Button, ButtonGroup, cn, Tooltip } from '@ui';
 import { createMemo, createSignal, For, type JSX, Show } from 'solid-js';
 import {
   type InsightHostOption,
@@ -418,6 +418,7 @@ export function InsightsPanel(props: {
     !props.loading && !props.error && current().bookings.length > 0;
   const filters = () => (
     <SchedulingFilters
+      grouped
       title="Insights filters"
       activeCount={Number(eventId() !== 'all') + Number(hostId() !== 'all')}
       onClear={() => {
@@ -490,15 +491,15 @@ export function InsightsPanel(props: {
       <Show when={props.headerTitle}>
         <ListHeader title={props.headerTitle}>
           <HeaderActionGroup label="Insights actions">
-            <Button
+            <ButtonGroup.Button aria-label={"Download CSV"} tooltip={"Download CSV"}
               variant="ghost"
-              size="icon-md"
-              label="Download CSV"
+              size="icon-sm"
+              
               onClick={download}
               disabled={!canDownload()}
             >
-              <DownloadIcon />
-            </Button>
+              <DownloadIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+            </ButtonGroup.Button>
             {filters()}
           </HeaderActionGroup>
         </ListHeader>

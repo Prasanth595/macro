@@ -30,7 +30,7 @@ export function TaskDuplicateMatchPill() {
             placement="bottom-start"
           >
             <Dropdown.Trigger
-              depth={2}
+              
               class={cn(
                 'h-auto min-w-0 gap-1.5 border-failure/40 px-2 py-1 leading-tight',
                 'bg-failure/10 text-failure-ink shadow-none',
@@ -175,7 +175,7 @@ function TaskDuplicateMention(props: { match: TaskDuplicate }) {
 function DismissDuplicateButton(props: { onDismiss: () => void }) {
   return (
     <Button
-      depth={2}
+      
       variant="outline"
       size="sm"
       class="h-6 shrink-0 px-2 text-xs"
@@ -189,7 +189,7 @@ function DismissDuplicateButton(props: { onDismiss: () => void }) {
 function DismissAllButton(props: { onDismissAll: () => void }) {
   return (
     <Button
-      depth={2}
+      
       variant="outline"
       size="sm"
       class="mt-1 w-fit text-xs"

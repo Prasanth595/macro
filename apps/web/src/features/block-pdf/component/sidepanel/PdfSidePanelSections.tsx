@@ -28,7 +28,7 @@ function PdfHeaderActions() {
 
   return (
     <HeaderActionGroup label="Actions">
-      <AskMacroButton
+      <AskMacroButton grouped
         entity={{
           type: 'document',
           id: documentId,

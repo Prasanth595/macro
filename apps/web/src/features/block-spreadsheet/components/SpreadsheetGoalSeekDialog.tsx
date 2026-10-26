@@ -49,10 +49,9 @@ export function SpreadsheetGoalSeekDialog(props: {
       >
         <div class="mb-4 flex items-center justify-between">
           <Dialog.Title class="text-sm font-semibold">Goal Seek</Dialog.Title>
-          <Button
-            variant="ghost"
+          <Button variant="ghost" aria-label={"Close Goal Seek"} tooltip={"Close Goal Seek"}
             type="button"
-            label="Close Goal Seek"
+            
             size="icon-sm"
             class="order-last text-ink-muted"
             tabIndex={-1}

@@ -55,11 +55,11 @@ export function ListHeaderSearch(props: {
       <Show
         when={expanded()}
         fallback={
-          <Button
+          <Button aria-label={props.label} tooltip={props.label}
             ref={trigger}
             variant="outline"
             size="icon-md"
-            label={props.label}
+            
             aria-expanded="false"
             onClick={focus}
           >

@@ -240,7 +240,7 @@ function DownloadOnly(props: { onDownload: () => void }): JSX.Element {
     <div class="flex size-full flex-col items-center justify-center gap-3 p-6 text-ink-muted text-sm">
       Presentations can't be previewed here yet.
       <Button variant="outline" size="sm" onClick={props.onDownload}>
-        <DownloadSimple />
+        <DownloadSimple class="size-3 touch:size-6 shrink-0 pointer-events-none" />
         Download
       </Button>
     </div>
@@ -302,7 +302,7 @@ export default function PptxBlock(props: { share?: string }) {
         <SplitHeaderRight>
           <div class="order-[999] flex items-center">
             <HeaderActionGroup label="Presentation actions">
-              <ChatWithAgentButton
+              <ChatWithAgentButton grouped
                 label="Ask Macro"
                 entity={{
                   type: 'document',

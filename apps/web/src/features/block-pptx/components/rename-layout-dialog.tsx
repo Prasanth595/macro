@@ -54,21 +54,21 @@ export function RenameLayoutDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant="cta"
+            variant={"accent"}
             type="submit"
             data-testid="pptx-rename-layout-ok"
           >
             Rename
           </Button>
         </div>
-        <Button
+        <Button aria-label={"Close"} tooltip={"Close"}
           size="icon-sm"
           variant="ghost"
-          label="Close"
+          
           class="absolute top-3 right-3"
           onClick={props.onClose}
         >
-          <X />
+          <X class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </form>
     </Dialog>

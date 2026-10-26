@@ -271,30 +271,30 @@ export function ChatInput(props: ChatInputComponentProps) {
     uploadQueue.uploading().length > 0;
 
   const LeftButton = () => (
-    <Button
+    <Button tooltip={"Attach files"}
       variant="ghost"
-      size="icon-composer"
+      size={"icon-md"}
       class="text-ink not-touch:text-composer-ink touch:size-6"
-      label="Attach files"
+      
       aria-label="Attach files"
       onClick={() => {
         // Open synchronously from the tap so the native picker retains user activation.
         fileInputRef?.click();
       }}
     >
-      <PaperclipIcon />
+      <PaperclipIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
     </Button>
   );
 
   const StopButton = () => (
-    <Button
-      variant={isTouchDevice() ? 'ghost' : 'strong'}
-      size="icon-composer"
-      label="Stop generating"
-      hotkey={TOKENS.chat.stop}
+    <Button aria-label={"Stop generating"} tooltip={{ content: "Stop generating", hotkey: TOKENS.chat.stop }}
+      variant={isTouchDevice() ? 'ghost' : "secondary"}
+      size={"icon-md"}
+      
+      
       onClick={() => props.onStop?.()}
       class={cn(
-        'touch:size-7.5 [&_svg]:stroke-[4px]',
+        'touch:size-7.5',
         isTouchDevice() &&
           'text-ink-extra-muted not-disabled:bg-ink/5 not-disabled:hover:bg-ink/10',
         'data-disabled:opacity-100 data-disabled:text-ink-extra-muted data-disabled:bg-ink-muted/5'
@@ -307,9 +307,9 @@ export function ChatInput(props: ChatInputComponentProps) {
   const SendButton = () => (
     <UiSendButton
       appearance="composer"
-      tooltip={'Ask AI'}
-      shortcut="enter"
-      tooltipPlacement="top"
+      tooltip={{ content: 'Ask AI', placement: "top", shortcut: "enter" }}
+      
+      
       disabled={!canSendMessage()}
       class="touch:rounded-full"
       onClick={() => sendMessage()}

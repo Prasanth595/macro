@@ -354,15 +354,15 @@ export function LeftoverRow(props: { leftover: Leftover }) {
               <Button
                 variant="ghost"
                 size="sm"
-                depth={3}
+                
                 onClick={() => setRenaming(false)}
               >
                 Cancel
               </Button>
               <Button
-                variant="strong"
+                variant={"secondary"}
                 size="sm"
-                depth={3}
+                
                 disabled={!nameDraft().trim() || native.update.isPending}
                 onClick={saveRename}
               >

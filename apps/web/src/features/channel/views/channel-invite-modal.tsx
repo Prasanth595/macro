@@ -62,15 +62,15 @@ export function ChannelInviteModal(props: {
               <Dialog.Title class="min-w-0 break-words text-xl font-semibold text-ink">
                 Invite people to {props.channelName}
               </Dialog.Title>
-              <Dialog.CloseButton
+              <Dialog.CloseButton aria-label={"Close"} tooltip={"Close"}
                 as={Button}
                 variant="ghost"
                 size="icon-sm"
-                label="Close"
+                
                 tabIndex={-1}
                 disabled={pending()}
               >
-                <XIcon />
+                <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
               </Dialog.CloseButton>
             </div>
             <RadioGroup

@@ -1,5 +1,5 @@
 import type { ThemeV3 } from '@theme/types/themeTypes';
-import { themeCssVars } from '@theme/utils/themeColorTokens';
+import { themeCssVars } from '@theme/utils/themeCssVars';
 import { createUniqueId, For, Show } from 'solid-js';
 
 type AppearanceMode = 'system' | 'light' | 'dark';

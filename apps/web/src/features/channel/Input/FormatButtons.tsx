@@ -103,10 +103,10 @@ type FormatButtonProps = {
 
 function FormatButton(props: FormatButtonProps) {
   return (
-    <Button
+    <Button tooltip={{ content: props.label, hotkey: props.hotkeyToken }}
       aria-label={props.label}
-      label={props.label}
-      hotkey={props.hotkeyToken}
+      
+      
       variant="ghost"
       size="icon-sm"
       class={props.active ? 'bg-active text-ink' : ''}

@@ -321,7 +321,7 @@ export function ReviewStack(props: {
             when={record().kind === 'email' || record().kind === 'calendar'}
           >
             <Button
-              variant="strong"
+              variant={"secondary"}
               size="sm"
               class="ml-auto"
               disabled={locked() || pending() === 0}

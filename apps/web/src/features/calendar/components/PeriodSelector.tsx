@@ -4,7 +4,7 @@ import CalendarIcon from '@phosphor/calendar-blank.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
-import { Dropdown, Hotkey, Calendar as MiniCalendar } from '@ui';
+import { Button, ButtonGroup, Dropdown, Hotkey, Calendar as MiniCalendar } from '@ui';
 import { createMemo, For, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { CalendarPeriodView } from '../types';
@@ -133,6 +133,7 @@ function CustomDatePicker(props: { controls: CalendarPeriodControls }) {
 export function PeriodSelector(props: {
   isNarrow?: boolean;
   compact?: boolean;
+  grouped?: boolean;
 }) {
   const controls = createCalendarPeriodControls();
 
@@ -143,9 +144,10 @@ export function PeriodSelector(props: {
       placement="bottom-end"
     >
       <Dropdown.Trigger
+        as={props.grouped ? ButtonGroup.Button : Button}
         aria-label="Choose calendar view"
         variant="ghost"
-        size={props.compact ? 'md' : 'lg'}
+        size={props.grouped ? undefined : (props.compact ? 'md' : 'lg')}
         class="shrink-0 border-transparent bg-transparent text-sm"
       >
         {CALENDAR_VIEWS.find((view) => view.value === controls.activeView())

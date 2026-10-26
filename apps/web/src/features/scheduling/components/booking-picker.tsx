@@ -257,7 +257,7 @@ export function BookingPicker(props: {
                   </For>
                   <Button
                     type="submit"
-                    variant="accent"diff --git a/apps/web/src/features/scheduling/components/reschedule-form.tsx b/apps/web/src/features/scheduling/components/reschedule-form.tsx
+                    variant="accent"
                     disabled={flow.submitting() || props.preview}
                   >
                     {props.preview
@@ -291,19 +291,19 @@ export function BookingPicker(props: {
                       })}
                     </span>
                     <div class="flex gap-1">
-                      <Button
+                      <Button aria-label={"Previous month"} tooltip={"Previous month"}
                         type="button"
                         variant="ghost"
-                        label="Previous month"
+                        
                         disabled={month() <= currentMonth()}
                         onClick={() => shiftMonth(-1)}
                       >
                         ‹
                       </Button>
-                      <Button
+                      <Button aria-label={"Next month"} tooltip={"Next month"}
                         type="button"
                         variant="ghost"
-                        label="Next month"
+                        
                         onClick={() => shiftMonth(1)}
                       >
                         ›
@@ -325,7 +325,7 @@ export function BookingPicker(props: {
                       {(d) => (
                         <Button
                           type="button"
-                          variant={date() === dateKey(d) ? 'strong' : 'ghost'}
+                          variant={date() === dateKey(d) ? "secondary" : 'ghost'}
                           class="h-auto w-full aspect-square"
                           aria-pressed={date() === dateKey(d)}
                           disabled={dateKey(d) < today()}

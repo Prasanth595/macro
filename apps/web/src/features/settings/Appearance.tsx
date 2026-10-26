@@ -58,10 +58,10 @@ function CopyThemeButton(props: {
   size: 'icon-xs' | 'icon-md';
 }) {
   return (
-    <Button
+    <Button aria-label={`Copy ${props.name}`}
       variant="ghost"
       size={props.size}
-      label={`Copy ${props.name}`}
+      
       tooltip="Copy theme"
       onPointerDown={(e) => e.stopPropagation()}
       onPointerUp={(e) => e.stopPropagation()}
@@ -84,10 +84,10 @@ function CopyThemeButton(props: {
 /** Edits a theme in the inline editor (custom → in place, default → forked). */
 function EditThemeButton(props: { name: string; onEdit: () => void }) {
   return (
-    <Button
+    <Button aria-label={`Edit ${props.name}`}
       variant="ghost"
       size="icon-md"
-      label={`Edit ${props.name}`}
+      
       tooltip="Edit theme"
       onClick={(e) => {
         e.preventDefault();
@@ -322,10 +322,10 @@ function InterfaceThemeSelect(props: {
       <span class="ml-2 flex shrink-0 items-center gap-0.5 text-ink-extra-muted opacity-0 group-hover:opacity-100 touch:opacity-100">
         <CopyThemeButton themeId={theme.id} name={theme.name} size="icon-xs" />
         <Show when={editable}>
-          <Button
+          <Button aria-label={`Edit ${theme.name}`} tooltip={`Edit ${theme.name}`}
             variant="ghost"
             size="icon-xs"
-            label={`Edit ${theme.name}`}
+            
             onPointerDown={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
             onClick={(e) => {
@@ -337,10 +337,10 @@ function InterfaceThemeSelect(props: {
           >
             <PencilIcon class="size-3 touch:size-3.5" />
           </Button>
-          <Button
+          <Button aria-label={`Delete ${theme.name}`} tooltip={`Delete ${theme.name}`}
             variant="ghost"
             size="icon-xs"
-            label={`Delete ${theme.name}`}
+            
             onPointerDown={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
             onClick={(e) => {

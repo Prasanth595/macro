@@ -5,7 +5,7 @@ import { Dynamic } from 'solid-js/web';
 /** Any SVG component — in practice the Phosphor icons `nav-items` imports. */
 export type NavIcon = Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
 
-const SWAP = 'absolute inset-0';
+const SWAP = 'absolute inset-0 size-full';
 
 /**
  * A nav glyph, instantly switching to a filled counterpart when active.

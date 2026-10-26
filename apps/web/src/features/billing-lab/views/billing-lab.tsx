@@ -209,10 +209,10 @@ export function BillingLabView(props: {
                   {selectedScenario().description}
                 </p>
               </div>
-              <Button
+              <Button aria-label={"Reset scenario"} tooltip={"Reset scenario"}
                 variant="outline"
                 size="sm"
-                label="Reset scenario"
+                
                 onClick={() => {
                   lab.selectScenario(lab.state().scenario);
                   setPaymentError(undefined);

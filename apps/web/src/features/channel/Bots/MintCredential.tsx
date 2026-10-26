@@ -60,7 +60,7 @@ export function MintCredential(props: {
             <div>
               <Button
                 type="button"
-                variant="cta"
+                variant={"accent"}
                 size="sm"
                 disabled={minted.isPending()}
                 onClick={mint}

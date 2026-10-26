@@ -36,16 +36,16 @@ export function EmailProviderDialog(
             Connect Gmail, Outlook.com, or an individual Microsoft 365 account.
           </Dialog.Description>
           <Button
-            variant="strong"
-            depth={3}
+            variant={"secondary"}
+            
             disabled={props.disabled}
             onClick={() => props.onSelect('GMAIL')}
           >
             Gmail
           </Button>
           <Button
-            variant="strong"
-            depth={3}
+            variant={"secondary"}
+            
             disabled={props.disabled || !props.outlookAvailable}
             onClick={() => props.onSelect('OUTLOOK')}
           >
@@ -58,7 +58,7 @@ export function EmailProviderDialog(
           </Show>
           <Button
             variant="ghost"
-            depth={3}
+            
             disabled={props.disabled}
             onClick={() => props.onOpenChange(false)}
           >

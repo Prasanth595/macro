@@ -109,15 +109,15 @@ export const SidebarCreateMenu = (props: SidebarCreateMenuProps) => {
           <Show
             when={props.variant === 'icon'}
             fallback={
-              <Dropdown.Trigger
+              <Dropdown.Trigger aria-label={"Create"} tooltip={{ content: "Create", placement: "right", disabled: !isSlim(), hotkey: TOKENS.global.createCommand }}
                 ref={createMenuTarget}
                 as={NavRow}
                 class="center h-8 bg-ink/4 text-[13px]"
                 fullWidth
-                tooltipPlacement="right"
-                tooltipDisabled={!isSlim()}
-                label="Create"
-                hotkey={TOKENS.global.createCommand}
+                
+                
+                
+                
                 onMouseDown={(e: MouseEvent) => {
                   if (e.button !== 0) return;
                   e.preventDefault();
@@ -140,21 +140,21 @@ export const SidebarCreateMenu = (props: SidebarCreateMenuProps) => {
               </Dropdown.Trigger>
             }
           >
-            <Dropdown.Trigger
+            <Dropdown.Trigger aria-label={"Create"} tooltip={{ content: "Create", hotkey: TOKENS.global.createCommand }}
               ref={createMenuTarget}
               as={Button}
               variant="outline"
               size="icon-sm"
-              depth={1}
-              class="size-[26px] bg-surface shadow-md shadow-drop-shadow [&_svg]:size-4!"
-              label="Create"
-              hotkey={TOKENS.global.createCommand}
+              
+              class="size-[26px] bg-surface shadow-md shadow-drop-shadow"
+              
+              
               onMouseDown={(e: MouseEvent) => {
                 if (e.button !== 0) return;
                 e.preventDefault();
               }}
             >
-              <CreateIcon />
+              <CreateIcon class="size-4 shrink-0" />
             </Dropdown.Trigger>
           </Show>
         }

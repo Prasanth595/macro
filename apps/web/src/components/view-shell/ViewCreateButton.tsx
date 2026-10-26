@@ -22,7 +22,7 @@ export function ViewCreateButton(
   return (
     <Button
       {...rest}
-      variant="outline"
+      variant="secondary"
       finish="raised"
       size="md"
       class={cn(

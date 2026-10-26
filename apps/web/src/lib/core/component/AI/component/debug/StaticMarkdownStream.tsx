@@ -203,7 +203,7 @@ export default function StaticMarkdownStreamDebug() {
               onClick={startStream}
               disabled={isStreaming()}
             >
-              <PlayIcon />
+              <PlayIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
               Stream
             </Button>
             <Button
@@ -212,11 +212,11 @@ export default function StaticMarkdownStreamDebug() {
               onClick={stopRun}
               disabled={!isStreaming()}
             >
-              <StopIcon />
+              <StopIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
               Stop
             </Button>
             <Button variant="ghost" size="sm" onClick={resetOutput}>
-              <TrashIcon />
+              <TrashIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
               Reset
             </Button>
           </div>

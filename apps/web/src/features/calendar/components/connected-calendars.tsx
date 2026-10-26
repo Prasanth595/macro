@@ -76,7 +76,7 @@ export function ConnectedCalendars(props: {
           >
             <Button
               size="sm"
-              variant="cta"
+              variant={"accent"}
               disabled={props.connecting}
               onClick={props.onEnable}
             >

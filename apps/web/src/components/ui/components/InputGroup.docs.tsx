@@ -54,7 +54,7 @@ function AddonsDemo() {
         <InputGroup.Addon align="inline-start">https://</InputGroup.Addon>
         <InputGroup.Input placeholder="macro.com" aria-label="Website" />
         <InputGroup.Addon align="inline-end">
-          <InputGroup.Button aria-label="Open website" square>
+          <InputGroup.Button size="icon-md" aria-label="Open website" >
             <ArrowRightIcon />
           </InputGroup.Button>
         </InputGroup.Addon>
@@ -67,8 +67,8 @@ function AddonsDemo() {
 // #region demo:button-group
 function ButtonGroupDemo() {
   return (
-    <ButtonGroup
-      variant="outline"
+    <ButtonGroup finish="raised"
+      variant="secondary"
       size="md"
       class="w-full max-w-sm"
       aria-label="Search documents"
@@ -83,9 +83,9 @@ function ButtonGroupDemo() {
         </InputGroup.Addon>
       </InputGroup>
       <ButtonGroup.Divider />
-      <Button aria-label="Submit search" square>
-        <ArrowRightIcon />
-      </Button>
+      <ButtonGroup.Button size="icon-md" aria-label="Submit search" >
+        <ArrowRightIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+      </ButtonGroup.Button>
     </ButtonGroup>
   );
 }

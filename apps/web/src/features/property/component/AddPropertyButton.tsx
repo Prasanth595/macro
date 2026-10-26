@@ -1,5 +1,5 @@
 import PlusIcon from '@phosphor/plus.svg';
-import { badgeTriggerClasses, type BadgeSize, type BadgeVariant } from '@ui';
+import { badgeTriggerClasses, type BadgeSize, type BadgeVariant, cn } from '@ui';
 import { usePropertiesContext } from '../context/PropertiesContext';
 
 export function AddPropertyButton(props: {
@@ -16,7 +16,7 @@ export function AddPropertyButton(props: {
       class={badgeTriggerClasses({
         variant: props.variant ?? 'outline',
         size: props.size ?? 'sm',
-        class: props.class,
+        class: cn('gap-1', props.class),
       })}
     >
       <PlusIcon class="size-3 shrink-0" />

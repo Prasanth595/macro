@@ -4,10 +4,11 @@ import type {
 } from '@app/features/next-soup/soup-view/sort-options';
 import { TOKENS } from '@core/hotkey/tokens';
 import SortIcon from '@phosphor/sort-ascending.svg';
-import { Dropdown, SingleSelectCheck } from '@ui';
+import { Button, ButtonGroup, Dropdown, SingleSelectCheck } from '@ui';
 import { type Component, For, Show } from 'solid-js';
 
 interface SortDropdownProps {
+  grouped?: boolean;
   /** Current sort value */
   value: () => SystemSortOption;
   /** Handler for sort change */
@@ -29,13 +30,14 @@ export const SortDropdown: Component<SortDropdownProps> = (props) => {
       onOpenChange={props.onOpenChange}
       placement="bottom-start"
     >
-      <Dropdown.Trigger
+      <Dropdown.Trigger aria-label={"Sort"} tooltip={{ content: "Sort", hotkey: TOKENS.soup.sort }}
+        as={props.grouped ? ButtonGroup.Button : Button}
         variant="ghost"
-        size="icon-md"
-        label="Sort"
-        hotkey={TOKENS.soup.sort}
+        size={props.grouped ? 'icon-sm' : 'icon-md'}
+        
+        
       >
-        <SortIcon />
+        <SortIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
       </Dropdown.Trigger>
       <Dropdown.Content>
         <Dropdown.Group>

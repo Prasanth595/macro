@@ -80,7 +80,7 @@ export function CallDetailActions(props: {
     <div class="ml-auto flex shrink-0 items-center gap-2 touch:gap-1">
       <Show when={!isMobile() && !props.record.isActive && canCallAgain()}>
         <HeaderActionGroup label="Call actions">
-          <HeaderActionButton
+          <HeaderActionButton grouped
             label="Call Again"
             icon={<PhoneCallIcon class="size-3.5 touch:size-4" />}
             onClick={callAgain}

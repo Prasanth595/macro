@@ -12,6 +12,7 @@ import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { fireAndForget } from '@core/util/fireAndForget';
 import AgentIcon from '@phosphor/sparkle.svg';
 import type { ChannelType } from '@service-cognition/generated/schemas/channelType';
+import type { ButtonSize } from '@ui';
 import { createSignal } from 'solid-js';
 
 export { AgentIcon as ChatWithAgentIcon };
@@ -141,6 +142,7 @@ export function ChatWithAgentButton(props: {
   /** Button text; defaults to "Chat". */
   label?: string;
   disabled?: boolean;
+  grouped?: boolean;
 }) {
   const [opening, setOpening] = createSignal(false);
   async function open() {
@@ -153,10 +155,10 @@ export function ChatWithAgentButton(props: {
     }
   }
   return (
-    <HeaderActionButton
+    <HeaderActionButton grouped={props.grouped}
       tooltip={props.label ?? 'Chat with Agent'}
       label={props.label ?? 'Chat'}
-      icon={<AgentIcon />}
+      icon={<AgentIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
       onClick={() => fireAndForget(open(), 'chat-with-agent')}
       disabled={props.disabled || opening()}
       busy={opening()}
@@ -164,13 +166,14 @@ export function ChatWithAgentButton(props: {
   );
 }
 
-export function AskMacroButton(props: { entity: ChatWithAgentEntity }) {
+export function AskMacroButton(props: { entity: ChatWithAgentEntity; grouped?: boolean; size?: ButtonSize }) {
   return (
-    <HeaderActionButton
+    <HeaderActionButton grouped={props.grouped}
+      size={props.size}
       onClick={() => openChatWithAgent(props.entity)}
       tooltip="Ask Macro"
       label="Ask Macro"
-      icon={<AgentIcon />}
+      icon={<AgentIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
     />
   );
 }

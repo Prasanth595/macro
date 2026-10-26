@@ -24,9 +24,7 @@ const docSources = import.meta.glob<string>(
 );
 
 /** Component files backing the `@ui` barrel, used by the coverage report. */
-const uiComponentModules = import.meta.glob(
-  '../../components/ui/components/*.tsx'
-);
+const uiComponentModules = import.meta.glob('../../components/ui/components/*.tsx');
 
 /**
  * Raw text of the component files, so a page can read its guidance and prop

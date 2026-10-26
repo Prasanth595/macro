@@ -10,7 +10,7 @@ import ListIcon from '@phosphor/list-bullets.svg';
 import SortIcon from '@phosphor/sort-ascending.svg';
 import GroupIcon from '@phosphor/stack.svg';
 import { Key } from '@solid-primitives/keyed';
-import { cn, Dropdown } from '@ui';
+import { Button, ButtonGroup, type ButtonSize, cn, Dropdown } from '@ui';
 import { batch, createSignal, For, type JSX, Show } from 'solid-js';
 import { AiFilterInput, type AiFilterInputProps } from './AiFilterInput';
 
@@ -26,6 +26,7 @@ export type ListControlOption<TId extends string> = {
 type ListDropdownOpenProps = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  grouped?: boolean;
 };
 
 type SingleSelectDropdownProps<TId extends string> = {
@@ -48,12 +49,13 @@ function SingleSelectDropdown<TId extends string>(
       onOpenChange={props.onOpenChange}
       placement="bottom-end"
     >
-      <Dropdown.Trigger
+      <Dropdown.Trigger aria-label={props.label} tooltip={props.label}
+        as={props.grouped ? ButtonGroup.Button : Button}
         ref={props.triggerRef}
         variant="ghost"
-        size="icon-md"
+        size={props.grouped ? 'icon-sm' : 'icon-md'}
         class={props.class}
-        label={props.label}
+        
       >
         {props.icon}
       </Dropdown.Trigger>
@@ -73,7 +75,7 @@ function SingleSelectDropdown<TId extends string>(
                   <Show when={option.icon}>
                     <span
                       aria-hidden="true"
-                      class="flex size-3.5 shrink-0 items-center justify-center [&_svg]:size-3.5"
+                      class="flex size-3.5 shrink-0 items-center justify-center"
                     >
                       {option.icon?.()}
                     </span>
@@ -105,9 +107,9 @@ export type ViewLayoutDropdownProps = Omit<
 };
 
 const VIEW_LAYOUT_OPTIONS: ListControlOption<ViewLayout>[] = [
-  { id: 'list', label: 'List', icon: () => <ListIcon /> },
-  { id: 'board', label: 'Board', icon: () => <BoardIcon /> },
-  { id: 'gantt', label: 'Gantt', icon: () => <GanttIcon /> },
+  { id: 'list', label: 'List', icon: () => <ListIcon class="size-3.5" /> },
+  { id: 'board', label: 'Board', icon: () => <BoardIcon class="size-3.5" /> },
+  { id: 'gantt', label: 'Gantt', icon: () => <GanttIcon class="size-3.5" /> },
 ];
 
 export function ViewLayoutDropdown(props: ViewLayoutDropdownProps) {
@@ -122,12 +124,12 @@ export function ViewLayoutDropdown(props: ViewLayoutDropdownProps) {
         <Show
           when={props.value === 'gantt'}
           fallback={
-            <Show when={props.value === 'board'} fallback={<ListIcon />}>
-              <BoardIcon />
+            <Show when={props.value === 'board'} fallback={<ListIcon class="size-4" />}>
+              <BoardIcon class="size-4" />
             </Show>
           }
         >
-          <GanttIcon />
+          <GanttIcon class="size-4" />
         </Show>
       }
     />
@@ -148,7 +150,7 @@ export function ListSortDropdown<TId extends string>(
     <SingleSelectDropdown
       {...props}
       label={props.label ?? 'Sort list'}
-      icon={<SortIcon />}
+      icon={<SortIcon class="size-4" />}
     />
   );
 }
@@ -167,7 +169,7 @@ export function ListGroupDropdown<TId extends string>(
     <SingleSelectDropdown
       {...props}
       label={props.label ?? 'Group list'}
-      icon={<GroupIcon />}
+      icon={<GroupIcon class="size-4" />}
     />
   );
 }
@@ -206,6 +208,7 @@ export type ListFilterDropdownProps<
   customTrigger?: JSX.Element;
   triggerRef?: (element: HTMLButtonElement) => void;
   label?: string;
+  size?: ButtonSize;
   activeCount?: number;
   clearLabel?: string;
   class?: string;
@@ -239,6 +242,11 @@ export function ListFilterDropdown<
     props.onOpenChange?.(open);
     if (props.open === undefined) setInternalOpen(open);
   };
+  const triggerSize = () => {
+    if (props.size) return props.size;
+    if (props.activeCount) return props.grouped ? 'sm' : 'md';
+    return props.grouped ? 'icon-sm' : 'icon-md';
+  };
 
   const isGroupActive = (group: ListFilterGroup<TGroupId, TOptionId>) =>
     props.isGroupActive?.(group.id) ??
@@ -253,14 +261,15 @@ export function ListFilterDropdown<
       <Show
         when={props.customTrigger}
         fallback={
-          <Dropdown.Trigger
+          <Dropdown.Trigger aria-label={props.label ?? 'Filter list'} tooltip={props.label ?? 'Filter list'}
+            as={props.grouped ? ButtonGroup.Button : Button}
             ref={props.triggerRef}
             variant="ghost"
-            size={props.activeCount ? 'md' : 'icon-md'}
+            size={triggerSize()}
             class={props.class}
-            label={props.label ?? 'Filter list'}
+            
           >
-            <FilterIcon />
+            <FilterIcon class="size-4 shrink-0" />
             <Show when={props.activeCount}>
               <span class="flex min-w-4 h-4 items-center justify-center rounded-full bg-accent px-1 text-xxs font-medium leading-none text-surface">
                 {props.activeCount}

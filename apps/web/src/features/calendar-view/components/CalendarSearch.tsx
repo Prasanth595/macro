@@ -590,13 +590,13 @@ function CalendarSearchControl(props: {
     <Show when={!props.inline || !props.compact || open()}>
       <div class="flex shrink-0 items-center gap-1">
         <Show when={rawQuery().trim()}>
-          <Button
+          <Button aria-label={"Exact match"} tooltip={"Exact match"}
             type="button"
             variant="ghost"
             size="icon-sm"
-            square
+            
             aria-pressed={filters().matchType === 'exact'}
-            label="Exact match"
+            
             class={filters().matchType === 'exact' ? 'bg-active text-ink' : ''}
             onPointerDown={(event) => event.preventDefault()}
             onClick={() =>
@@ -696,13 +696,13 @@ function CalendarSearchControl(props: {
             class="h-[var(--view-search-height,2.5rem)] w-full"
           >
             <Show when={props.expanded === false}>
-              <Button
+              <Button aria-label={"Search events"} tooltip={{ content: "Search events", hotkey: TOKENS.calendar.search }}
                 ref={searchButton}
                 type="button"
                 variant="outline"
                 size="icon-md"
-                label="Search events"
-                hotkey={TOKENS.calendar.search}
+                
+                
                 aria-expanded="false"
                 aria-haspopup="dialog"
                 onClick={props.onExpand}
@@ -817,12 +817,12 @@ function CalendarSearchControl(props: {
                         />
                         {filterActions()}
                         <Show when={rawQuery()}>
-                          <Button
+                          <Button aria-label={"Clear search"} tooltip={"Clear search"}
                             type="button"
                             variant="ghost"
                             size="icon-sm"
-                            square
-                            label="Clear search"
+                            
+                            
                             onClick={() => {
                               changeQuery('');
                               inputRef?.focus();
@@ -918,11 +918,11 @@ function CalendarSearchControl(props: {
                                     )}
                                   >
                                     {(link) => (
-                                      <Button
+                                      <Button aria-label={`Join ${link().label}`} tooltip={`Join ${link().label}`}
                                         type="button"
                                         variant="ghost"
                                         size="sm"
-                                        label={`Join ${link().label}`}
+                                        
                                         class={cn(
                                           'px-2',
                                           link().kind === 'google'

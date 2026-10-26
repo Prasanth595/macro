@@ -425,18 +425,17 @@ export function FormulaBar(props: {
           onPointerDown={(event) => event.preventDefault()}
           onMouseDown={(event) => event.preventDefault()}
         >
-          <Button
-            variant="ghost"
+          <Button variant="ghost" aria-label={"Cancel edit"} tooltip={"Cancel edit"}
             {...cancelPress}
-            label="Cancel edit"
+            
             size="icon-sm"
             class="size-[44px]"
           >
             <X class="size-5" />
           </Button>
-          <Button
+          <Button aria-label={"Apply edit"} tooltip={"Apply edit"}
             {...commitPress}
-            label="Apply edit"
+            
             size="icon-sm"
             variant="accent"
             class="size-[44px]"

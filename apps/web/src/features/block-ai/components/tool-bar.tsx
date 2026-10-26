@@ -70,14 +70,14 @@ export function ToolBar(props: {
         {(t) => {
           const Icon = ICONS[t.tool];
           return (
-            <Button
+            <Button aria-label={t.key ? `${t.label} (${t.key})` : t.label}
               variant="ghost"
               size="icon-md"
               aria-pressed={props.tool === t.tool}
               class={
                 props.tool === t.tool ? 'bg-accent/15 text-accent' : undefined
               }
-              label={t.key ? `${t.label} (${t.key})` : t.label}
+              
               tooltip={t.key ? `${t.label} · ${t.key}` : t.label}
               data-testid={`ai-tool-${t.tool}`}
               onClick={() => props.onTool(t.tool)}

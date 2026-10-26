@@ -141,7 +141,7 @@ export function ChannelBotsPanel(props: {
               <Show when={props.editable}>
                 <div class="flex flex-wrap items-center gap-2">
                   <Button variant="ghost" size="sm" onClick={props.onCreateBot}>
-                    <PlusIcon />
+                    <PlusIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
                     New bot
                   </Button>
                 </div>
@@ -169,21 +169,21 @@ export function ChannelBotsPanel(props: {
             />
           </div>
           <Show when={props.editable}>
-            <Button
+            <Button aria-label={"New bot"} tooltip={"New bot"}
               variant="outline"
               size="icon-md"
-              label="New bot"
+              
               onClick={props.onCreateBot}
             >
-              <PlusIcon />
+              <PlusIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
-            <Button
+            <Button aria-label={"Invite bot"} tooltip={"Invite bot"}
               variant="outline"
               size="icon-md"
-              label="Invite bot"
+              
               onClick={() => setInviteOpen(true)}
             >
-              <UserPlusIcon />
+              <UserPlusIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           </Show>
         </div>

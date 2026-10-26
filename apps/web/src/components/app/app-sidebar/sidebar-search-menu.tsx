@@ -27,7 +27,7 @@ export function SidebarSearchMenu(props: {
         }
       }}
     >
-      <Dropdown.Trigger size="icon-md" {...props.triggerProps} label="Search">
+      <Dropdown.Trigger aria-label={"Search"} tooltip={"Search"} size="icon-md" {...props.triggerProps} >
         <MagnifyingGlassIcon class="size-5" />
       </Dropdown.Trigger>
       <DropdownMenu.Portal>

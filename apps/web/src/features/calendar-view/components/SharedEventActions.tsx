@@ -126,7 +126,7 @@ export function SharedEventActions(props: {
             disabled={requestToJoin.isPending}
             onClick={() => requestToJoin.mutate(props.eventId)}
           >
-            <UserPlusIcon />
+            <UserPlusIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
             Ask to join
           </Button>
         </Match>
@@ -141,7 +141,7 @@ export function SharedEventActions(props: {
               disabled={copy.isPending || targetCalendars().length === 0}
               onClick={() => addToCalendar(targetCalendars()[0]?.id)}
             >
-              <CalendarPlusIcon />
+              <CalendarPlusIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
               Add to calendar
             </Button>
           }
@@ -152,9 +152,9 @@ export function SharedEventActions(props: {
               size="xs"
               disabled={copy.isPending}
             >
-              <CalendarPlusIcon />
+              <CalendarPlusIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
               Add to calendar
-              <CaretDownIcon />
+              <CaretDownIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
             </Dropdown.Trigger>
             <Dropdown.Content blockingBackdrop class="z-nested-action-menu">
               <Dropdown.Group>
@@ -190,7 +190,7 @@ export function SharedEventActions(props: {
           )
         }
       >
-        <DownloadSimpleIcon />
+        <DownloadSimpleIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
         Download .ics
       </Button>
       <Show

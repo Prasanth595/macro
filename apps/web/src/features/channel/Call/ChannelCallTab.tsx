@@ -79,7 +79,7 @@ function JoinCallEmptyState(props: {
       </div>
 
       <Button
-        variant="cta"
+        variant={"accent"}
         size="lg"
         class="px-5"
         onClick={props.onJoin}

@@ -176,11 +176,11 @@ function InlineTaskGithubPullRequestsContent(props: {
         <CopyButton
           variant="outline"
           size="sm"
-          noTouchResize
-          depth={2}
-          tooltip="Copy branch name"
+          
+          
+          tooltip={{ content: "Copy branch name", hotkey: TOKENS.entity.action.copyBranchName }}
           aria-label="Copy branch name"
-          hotkey={TOKENS.entity.action.copyBranchName}
+          
           class={badgeTriggerClasses({
             variant: 'outline',
             size: 'sm',

@@ -253,8 +253,8 @@ export function ProjectRowMenu(
 export function ProjectMenuDropdown(props: ProjectMenuProps) {
   return (
     <Dropdown placement="bottom-start">
-      <Dropdown.Trigger variant="ghost" size="icon-sm" label="Project actions">
-        <DotsThreeIcon />
+      <Dropdown.Trigger aria-label={"Project actions"} tooltip={"Project actions"} variant="ghost" size="icon-sm" >
+        <DotsThreeIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
       </Dropdown.Trigger>
       <Dropdown.Content class="w-64 text-xs text-ink-muted">
         <Dropdown.Group>

@@ -273,7 +273,7 @@ export function CodeBoxAccessory(props: {
                   deleteCode();
                 }}
               >
-                <TrashCan />
+                <TrashCan class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
               </Button>
             </Show>
             <CopyButton

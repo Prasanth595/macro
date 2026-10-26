@@ -66,10 +66,10 @@ export function CrmSidebar(props: {
             collapseControl={
               <Show when={props.onCollapse}>
                 <Tooltip label="Collapse CRM sidebar">
-                  <Button
+                  <Button aria-label={"Collapse CRM sidebar"} tooltip={"Collapse CRM sidebar"}
                     variant="ghost"
                     size="icon-sm"
-                    label="Collapse CRM sidebar"
+                    
                     onClick={props.onCollapse}
                   >
                     <SidebarIcon class="size-4" />

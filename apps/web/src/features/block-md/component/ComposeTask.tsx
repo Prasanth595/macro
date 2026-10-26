@@ -965,7 +965,7 @@ export function ComposeTask(props: ComposeTaskProps) {
               variant="ghost"
               size="icon-md"
             >
-              <ArrowsOutIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+              <ArrowsOutIcon class="size-4 shrink-0 pointer-events-none" />
             </Button>
           </Show>
         </div>
@@ -974,8 +974,8 @@ export function ComposeTask(props: ComposeTaskProps) {
             onMouseDown={handleClearDraft}
             tabIndex={-1}
             tooltip="Clear Draft"
-            size="sm"
-            variant="ghost"
+            size="xs"
+            variant="secondary"
           >
             Clear Draft
           </Button>
@@ -988,7 +988,7 @@ export function ComposeTask(props: ComposeTaskProps) {
             variant="ghost"
             size="icon-md"
           >
-            <XIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+            <XIcon class="size-4 shrink-0 pointer-events-none" />
           </Button>
         </Show>
       </EntityComposer.Header>
@@ -1048,7 +1048,7 @@ export function ComposeTask(props: ComposeTaskProps) {
           </Scroll>
         </EntityComposer.Body>
 
-        <div class="shrink-0 flex items-center py-2 -ml-1 touch:-ml-[3px]">
+        <div class="shrink-0 flex items-center py-2">
           <input
             ref={(el) => {
               attachInputRef = el;
@@ -1169,6 +1169,7 @@ export function ComposeTask(props: ComposeTaskProps) {
           />
           <EntityComposer.Submit
             variant="accent"
+            size="sm"
             onClick={handleCreateTask}
             disabled={title().trim().length === 0 || isCreating()}
             hasContent={title().trim().length > 0}

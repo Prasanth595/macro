@@ -14,14 +14,14 @@ export const SidebarRailCreateButton = () => {
   const analytics = useAnalytics();
   const createMenuTarget = tourTarget(APP_TOUR.createMenu);
   return (
-    <Button
+    <Button aria-label={"Create"} tooltip={{ content: "Create", placement: "right", hotkey: TOKENS.global.createCommand }}
       ref={createMenuTarget}
       variant="ghost"
-      class="size-10 [&_svg]:size-5"
+      class="size-10"
       size="icon-md"
-      label="Create"
-      tooltipPlacement="right"
-      hotkey={TOKENS.global.createCommand}
+      
+      
+      
       aria-haspopup="dialog"
       aria-expanded={createMenuOpen()}
       onClick={() => {

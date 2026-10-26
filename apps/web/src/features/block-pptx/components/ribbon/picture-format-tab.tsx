@@ -365,15 +365,15 @@ function CropButton(props: { crop: CropMode }) {
       classList={{ 'bg-accent-bg text-accent': props.crop.active() }}
       data-pptx-crop-toggle
     >
-      <Button
+      <Button aria-label={"Crop"}
         variant="ghost"
-        size="sm"
-        square
+        size={"icon-sm"}
+        
         class={cn(
           'h-7 gap-1 rounded-r-none rounded-l-md px-1.5 text-xs',
           props.crop.active() && 'text-accent'
         )}
-        label="Crop"
+        
         tooltip="Crop: drag the black handles; Enter or Esc finishes"
         aria-pressed={props.crop.active()}
         disabled={disabled()}
@@ -389,13 +389,13 @@ function CropButton(props: { crop: CropMode }) {
         placement="bottom-start"
         gutter={4}
       >
-        <Popover.Trigger
+        <Popover.Trigger aria-label={"Crop options"}
           as={Button}
           variant="ghost"
-          size="sm"
-          square
+          size={"icon-sm"}
+          
           class="h-7 rounded-r-md rounded-l-none px-0.5"
-          label="Crop options"
+          
           tooltip="Crop to shape, aspect ratio, fill, or fit"
           disabled={disabled()}
           data-testid="pptx-picture-crop-menu"

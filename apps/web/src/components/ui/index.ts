@@ -21,13 +21,16 @@ export {
 } from './components/Badge';
 export type {
   ButtonClassOptions,
+  ButtonFinish,
+  ButtonTooltip,
+  ButtonTooltipOptions,
   ButtonProps,
   ButtonSize,
   ButtonVariant,
   ButtonVariantProps,
 } from './components/Button';
 export { Button, buttonClasses, buttonVariants } from './components/Button';
-export { ButtonGroup } from './components/ButtonGroup';
+export { ButtonGroup, type ButtonGroupProps } from './components/ButtonGroup';
 export type {
   CalendarMonthMenuProps,
   CalendarMonthSelectorProps,

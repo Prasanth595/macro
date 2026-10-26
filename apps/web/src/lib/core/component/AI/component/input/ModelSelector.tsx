@@ -66,21 +66,21 @@ export function ModelSelector(props: ModelSelectorProps) {
       when={isMobile()}
       fallback={
         <Dropdown placement="top-end">
-          <Dropdown.Trigger
+          <Dropdown.Trigger aria-label={props.compact ? MODEL_PRETTYNAME[model()] : undefined} tooltip={props.compact ? MODEL_PRETTYNAME[model()] : undefined}
             variant="ghost"
             size={props.compact ? 'icon-sm' : 'sm'}
             class={cn(
               'text-sm text-ink-subtle',
               !props.compact && 'gap-1.5',
-              'not-touch:h-[33.75px] not-touch:text-base not-touch:gap-[5.625px] not-touch:px-[7.5px] not-touch:[&_svg]:size-[15px] not-touch:light-mode:text-composer-placeholder not-touch:light-mode:font-normal',
+              'not-touch:h-[33.75px] not-touch:text-base not-touch:gap-[5.625px] not-touch:px-[7.5px] not-touch:light-mode:text-composer-placeholder not-touch:light-mode:font-normal',
               props.compact && 'not-touch:p-[3.75px]'
             )}
-            label={props.compact ? MODEL_PRETTYNAME[model()] : undefined}
+            
           >
-            <Dynamic component={MODEL_PROVIDER_ICON[model()]} />
+            <Dynamic component={MODEL_PROVIDER_ICON[model()]} class="size-3.5 shrink-0 touch:size-6" />
             <Show when={!props.compact}>
               {MODEL_PRETTYNAME[model()]}
-              <CaretDown />
+              <CaretDown class="size-4 touch:size-6 shrink-0 pointer-events-none" />
             </Show>
           </Dropdown.Trigger>
           <Dropdown.Content class="w-60 max-w-[calc(100vw-1rem)]">
@@ -134,7 +134,7 @@ export function ModelSelector(props: ModelSelectorProps) {
             !virtualKeyboardVisible() && 'hidden'
           )}
         >
-          <Dynamic component={MODEL_PROVIDER_ICON[model()]} />
+          <Dynamic component={MODEL_PROVIDER_ICON[model()]} class="size-6 shrink-0" />
         </MobileDrawer.Trigger>
         <MobileDrawer.Portal>
           <MobileDrawer.Overlay />
@@ -202,7 +202,7 @@ export function ModelSelector(props: ModelSelectorProps) {
               <div class="px-6 pt-5 pb-2">
                 <MobileDrawer.Close
                   as={Button}
-                  variant="cta"
+                  variant={"accent"}
                   size="xl"
                   aria-label="Done"
                   class="w-full rounded-full text-base"

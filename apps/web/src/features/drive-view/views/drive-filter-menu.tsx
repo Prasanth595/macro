@@ -7,7 +7,7 @@ import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { createSignal } from 'solid-js';
 import { useDriveFilters } from '../filters/use-drive-filters';
 
-export function DriveFilterMenu() {
+export function DriveFilterMenu(props: { grouped?: boolean } = {}) {
   const filters = useDriveFilters();
 
   const panel = useSplitPanelOrThrow();
@@ -31,6 +31,7 @@ export function DriveFilterMenu() {
   return (
     <div class="relative shrink-0">
       <ListFilterDropdown
+        grouped={props.grouped}
         label="Filter files"
         open={open()}
         onOpenChange={setOpen}

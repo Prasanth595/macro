@@ -380,7 +380,7 @@ export function ComposeSkill(props: ComposeSkillProps) {
               tooltip="Continue editing in split"
               size="icon-sm"
             >
-              <ArrowsOutIcon />
+              <ArrowsOutIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           </Show>
         </div>
@@ -392,7 +392,7 @@ export function ComposeSkill(props: ComposeSkillProps) {
             tooltip="Close"
             size="icon-sm"
           >
-            <XIcon />
+            <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
         </Show>
       </div>
@@ -437,8 +437,8 @@ export function ComposeSkill(props: ComposeSkillProps) {
         <Button
           onClick={handleCreateSkill}
           disabled={title().trim().length === 0 || isCreating()}
-          variant="strong"
-          depth={3}
+          variant={"secondary"}
+          
           class="gap-3"
         >
           Create Skill

@@ -44,7 +44,7 @@ function ReplacementConfirmation(props: {
         </span>
       </label>
       <Button
-        variant="strong"
+        variant={"secondary"}
         disabled={props.pending || !accepted()}
         onClick={props.onConfirm}
       >
@@ -115,7 +115,7 @@ export function EventReplacementDialog(props: {
                   </p>
                 </Show>
                 <Button
-                  variant="strong"
+                  variant={"secondary"}
                   disabled={state.pending()}
                   onClick={() =>
                     fireAndForget(state.prepare(), 'calendar-replacement')
@@ -210,7 +210,7 @@ export function EventReplacementDialog(props: {
                   <p role="status">
                     Replacement complete. The old invitation was cancelled.
                   </p>
-                  <Button variant="strong" onClick={props.onDone}>
+                  <Button variant={"secondary"} onClick={props.onDone}>
                     Done
                   </Button>
                 </Show>

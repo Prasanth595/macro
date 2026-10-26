@@ -10,7 +10,7 @@ export function CreateMenuAction(props: {
   return (
     <Button
       size="md"
-      variant="cta"
+      variant={"accent"}
       class="h-8 rounded-full px-4 font-medium [--color-accent:#fff] [--color-accent-contrast:#000] light-mode:[--color-accent:#000] light-mode:[--color-accent-contrast:#fff]"
       aria-label={`Create ${props.item.label}${props.shiftHeld ? ' in new split' : ''}`}
       onClick={() => props.onChoose(props.item)}

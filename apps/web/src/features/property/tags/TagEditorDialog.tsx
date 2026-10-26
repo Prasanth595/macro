@@ -193,14 +193,14 @@ export function TagEditorDialog(props: {
           >
             {title()}
           </Dialog.Title>
-          <Dialog.CloseButton
+          <Dialog.CloseButton aria-label={"Close"} tooltip={"Close"}
             as={Button}
             variant="ghost"
             size="icon-sm"
             disabled={pending()}
-            label="Close"
+            
           >
-            <XIcon />
+            <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Dialog.CloseButton>
         </CommandMenuShell.Header>
         <CommandMenuShell.Body>

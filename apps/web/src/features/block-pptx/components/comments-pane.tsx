@@ -60,16 +60,16 @@ function MoreMenu(props: {
       placement="bottom-end"
       gutter={2}
     >
-      <Popover.Trigger
+      <Popover.Trigger aria-label={props.label} tooltip={{ content: props.label, placement: "top" }}
         as={Button}
         size="icon-sm"
         variant="ghost"
-        label={props.label}
-        tooltipPlacement="top"
+        
+        
         data-testid="pptx-comment-menu"
         onClick={(e: MouseEvent) => e.stopPropagation()}
       >
-        <DotsThree />
+        <DotsThree class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
@@ -108,10 +108,10 @@ function CommentBox(props: {
     setText('');
   };
   const send = (
-    <Button
+    <Button aria-label={props.submitLabel}
       size={props.compact ? 'icon-sm' : 'sm'}
       variant={props.compact ? 'ghost' : 'accent'}
-      label={props.submitLabel}
+      
       tooltip={`${props.submitLabel} (Ctrl+Enter)`}
       disabled={!text().trim()}
       data-testid={props.submitTestId}
@@ -120,7 +120,7 @@ function CommentBox(props: {
         fireAndForget(submit(), 'pptx-editor');
       }}
     >
-      <PaperPlaneRight />
+      <PaperPlaneRight class="size-4 touch:size-6 shrink-0 pointer-events-none" />
     </Button>
   );
   return (
@@ -434,25 +434,25 @@ export function CommentsPane(props: {
       <div class="flex h-9 items-center gap-1 border-edge-muted border-b px-3">
         <span class="flex-1 font-semibold text-ink text-sm">Comments</span>
         <Show when={!props.readonly}>
-          <Button
+          <Button aria-label={"New comment"}
             size="sm"
             variant="ghost"
-            label="New comment"
+            
             tooltip="New comment (Ctrl+Alt+M)"
             data-testid="pptx-comments-new"
             onClick={() => c.newComment()}
           >
-            <ChatText />
+            <ChatText class="size-3 touch:size-6 shrink-0 pointer-events-none" />
             New
           </Button>
         </Show>
-        <Button
+        <Button aria-label={"Close"} tooltip={"Close"}
           size="icon-sm"
           variant="ghost"
-          label="Close"
+          
           onClick={props.onClose}
         >
-          <X />
+          <X class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </div>
       <div

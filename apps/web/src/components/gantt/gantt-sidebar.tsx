@@ -18,15 +18,13 @@ export function GanttSidebarToggle() {
   onCleanup(() => gantt.sidebar.setTrigger(undefined));
   return (
     <div class="absolute left-3 top-2 z-40">
-      <Button
-        depth={2}
+      <Button aria-label={gantt.sidebar.open() ? 'Hide timeline items' : 'Show timeline items'} tooltip={gantt.sidebar.open() ? 'Hide timeline items' : 'Show timeline items'}
+        
         ref={gantt.sidebar.setTrigger}
         size="icon-md"
         variant="outline"
         class="bg-surface shadow-sm"
-        label={
-          gantt.sidebar.open() ? 'Hide timeline items' : 'Show timeline items'
-        }
+        
         aria-expanded={gantt.sidebar.open()}
         disabled={gantt.editing()}
         onClick={() => gantt.sidebar.setOpen(!gantt.sidebar.open())}

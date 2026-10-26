@@ -50,7 +50,7 @@ describe('controlled confirmation', () => {
       ).toBe('ghost');
       expect(
         screen.getByRole('button', { name: 'Confirm' }).dataset.variant
-      ).toBe('strong');
+      ).toBe('secondary');
     }
   );
 

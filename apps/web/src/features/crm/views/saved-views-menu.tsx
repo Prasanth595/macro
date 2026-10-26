@@ -6,7 +6,7 @@ import PushPinIcon from '@phosphor/push-pin.svg';
 import SlidersIcon from '@phosphor/sliders-horizontal.svg';
 import StackIcon from '@phosphor/stack.svg';
 import TrashIcon from '@phosphor/trash.svg';
-import { Button, cn, Dropdown, Tabs, Tooltip } from '@ui';
+import { Button, ButtonGroup, cn, Dropdown, Tabs, Tooltip } from '@ui';
 import { createSignal, For, type JSX, Show } from 'solid-js';
 import { unwrap } from 'solid-js/store';
 import { useCrmContext } from '../context/crm-context';
@@ -53,10 +53,10 @@ const SavedViewRow = (props: {
     <Show when={props.onSetDefault}>
       {(onSetDefault) => (
         <Tooltip label={props.isDefault ? 'Remove default' : 'Set as default'}>
-          <Button
+          <Button aria-label={props.isDefault ? 'Remove default' : 'Set as default'} tooltip={props.isDefault ? 'Remove default' : 'Set as default'}
             variant="ghost"
             size="icon-sm"
-            label={props.isDefault ? 'Remove default' : 'Set as default'}
+            
             class={cn(
               'size-6 shrink-0 p-1 text-ink-muted',
               !props.isDefault &&
@@ -70,10 +70,10 @@ const SavedViewRow = (props: {
       )}
     </Show>
     <Tooltip label="Copy link">
-      <Button
+      <Button aria-label={"Copy link"} tooltip={"Copy link"}
         variant="ghost"
         size="icon-sm"
-        label="Copy link"
+        
         class="size-6 shrink-0 p-1 text-ink-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
         onClick={props.onCopyLink}
       >
@@ -83,10 +83,10 @@ const SavedViewRow = (props: {
     <Show when={props.onDelete}>
       {(onDelete) => (
         <Tooltip label="Delete view">
-          <Button
+          <Button aria-label={"Delete view"} tooltip={"Delete view"}
             variant="ghost"
             size="icon-sm"
-            label="Delete view"
+            
             class="size-6 shrink-0 p-1 text-ink-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
             onClick={() => onDelete()()}
           >
@@ -108,7 +108,7 @@ const EmptyViewsHint = (props: { children: JSX.Element }) => (
  * list/board mode, stage/owner sub-filters, tab), plus share links that
  * encode the same state into the URL (see `queries/saved-view-codec.ts`).
  */
-export function CompanyViewsMenu(props: { hideLabel?: boolean } = {}) {
+export function CompanyViewsMenu(props: { hideLabel?: boolean; grouped?: boolean } = {}) {
   const copyShareLink = useCrmContext().copyViewLink;
   const {
     soup,
@@ -179,15 +179,21 @@ export function CompanyViewsMenu(props: { hideLabel?: boolean } = {}) {
     }
   };
 
+  const triggerSize = () => {
+    if (!props.hideLabel) return 'sm';
+    return props.grouped ? 'icon-sm' : 'icon-md';
+  };
+
   return (
     <Dropdown open={open()} onOpenChange={handleOpenChange}>
-      <Dropdown.Trigger
+      <Dropdown.Trigger tooltip={props.hideLabel ? 'Views' : undefined}
+        as={props.grouped ? ButtonGroup.Button : Button}
         variant="ghost"
-        size={props.hideLabel ? 'icon-md' : 'sm'}
-        label={props.hideLabel ? 'Views' : undefined}
+        size={triggerSize()}
+        
         aria-label={props.hideLabel ? 'Views' : undefined}
       >
-        <StackIcon />
+        <StackIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
         <Show when={!props.hideLabel}>
           <span>Views</span>
         </Show>
@@ -320,7 +326,7 @@ export function CompanyViewsMenu(props: { hideLabel?: boolean } = {}) {
  * captured by saved views. Admins/owners additionally get a toggle to view
  * the hidden-companies set (backed by the active/hidden tab presets).
  */
-export function CompanyDisplayMenu() {
+export function CompanyDisplayMenu(props: { grouped?: boolean } = {}) {
   const { options, toggleListColumn } = useCrmDisplayOptions();
   const { activeTab } = useCrmWorkspace();
   const { applyTabPreset } = useApplyPreset();
@@ -331,12 +337,13 @@ export function CompanyDisplayMenu() {
   return (
     <Dropdown>
       <Tooltip label="Display options">
-        <Dropdown.Trigger
+        <Dropdown.Trigger aria-label={"Display options"} tooltip={"Display options"}
+          as={props.grouped ? ButtonGroup.Button : Button}
           variant="ghost"
-          size="icon-md"
-          label="Display options"
+          size={props.grouped ? 'icon-sm' : 'icon-md'}
+          
         >
-          <SlidersIcon />
+          <SlidersIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
         </Dropdown.Trigger>
       </Tooltip>
 

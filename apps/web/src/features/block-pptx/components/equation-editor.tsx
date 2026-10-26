@@ -73,14 +73,14 @@ export function EquationEditorPanel(props: {
           LaTeX: \frac{'{a}{b}'}, x^2, \sqrt{'{x}'}, \sum_{'{i=1}'}^n
         </span>
         <span class="flex-1" />
-        <Button
+        <Button aria-label={"Close"} tooltip={"Close"}
           size="icon-xs"
           variant="ghost"
-          label="Close"
+          
           data-testid="pptx-equation-close"
           onClick={() => eq.close()}
         >
-          <X />
+          <X class="size-3 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </div>
       <textarea
@@ -148,7 +148,7 @@ export function EquationEditorPanel(props: {
         <span class="flex-1" />
         <Button
           size="xs"
-          variant="cta"
+          variant={"accent"}
           data-testid="pptx-equation-insert"
           disabled={props.readonly || (isNew() && !eq.latex().trim())}
           onClick={() => fireAndForget(eq.commit(), 'pptx-editor')}

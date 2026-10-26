@@ -136,7 +136,7 @@ function AddServerForm(props: {
             <Button
               variant="ghost"
               size="sm"
-              depth={3}
+              
               onClick={() => {
                 reset();
                 props.onOpenChange(false);
@@ -145,9 +145,9 @@ function AddServerForm(props: {
               Cancel
             </Button>
             <Button
-              variant="strong"
+              variant={"secondary"}
               size="sm"
-              depth={3}
+              
               disabled={
                 !name().trim() || !url().trim() || addMutation.isPending
               }
@@ -283,7 +283,7 @@ function ServerRow(props: { server: ServerResponse }) {
         <Button
           variant="accent"
           size="sm"
-          depth={3}
+          
           disabled={authMutation.isPending}
           onClick={handleAuth}
         >
@@ -311,9 +311,9 @@ function ServerRow(props: { server: ServerResponse }) {
         fallback={
           <div class="flex items-center gap-1">
             <Button
-              variant="strong"
+              variant={"secondary"}
               size="sm"
-              depth={3}
+              
               disabled={deleteMutation.isPending}
               onClick={handleDelete}
             >
@@ -322,7 +322,7 @@ function ServerRow(props: { server: ServerResponse }) {
             <Button
               variant="ghost"
               size="sm"
-              depth={3}
+              
               onClick={() => setConfirmDelete(false)}
             >
               Cancel
@@ -333,7 +333,7 @@ function ServerRow(props: { server: ServerResponse }) {
         <Button
           variant="outline"
           size="sm"
-          depth={3}
+          
           tooltip="Remove"
           onClick={() => setConfirmDelete(true)}
         >
@@ -415,7 +415,7 @@ export function IntegrationsSection() {
         <Button
           variant="outline"
           size="sm"
-          depth={3}
+          
           onClick={() => setShowAddDialog(true)}
         >
           <PlusIcon class="size-4" />
@@ -430,7 +430,7 @@ export function IntegrationsSection() {
             <Button
               variant="outline"
               size="sm"
-              depth={3}
+              
               onClick={() => serversQuery.refetch()}
               class="ml-2"
             >

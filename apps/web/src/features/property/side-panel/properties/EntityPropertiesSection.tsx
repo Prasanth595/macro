@@ -784,7 +784,7 @@ function NonUserEntityValue(props: { property: Property }) {
           <Button
             type="button"
             variant="ghost"
-            depth={0}
+            
             size="icon-sm"
             aria-label={`Add ${props.property.displayName}`}
             onClick={(event) => {
@@ -865,7 +865,7 @@ function EntityCollectionPropertyBody(props: {
             <Button
               type="button"
               variant="ghost"
-              depth={0}
+              
               size="icon-sm"
               class="size-5"
               aria-label={`Add ${props.property.displayName}`}
@@ -977,7 +977,7 @@ function NonUserEntityChip(props: {
             }}
             aria-label={`Remove ${name()}`}
           >
-            <DeleteIcon />
+            <DeleteIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
         </Show>
       </div>

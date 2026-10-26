@@ -22,12 +22,12 @@ export function MonthlyLimit(props: {
         <div class="flex items-center gap-1.5">
           <h2 class="text-sm font-medium text-ink">Monthly limit</h2>
           <Show when={props.onInfo}>
-            <Button
+            <Button aria-label={"About monthly usage"} tooltip={"About monthly usage"}
               ref={props.infoButtonRef}
               size="icon-sm"
               variant="ghost"
-              depth={3}
-              label="About monthly usage"
+              
+              
               onClick={props.onInfo}
             >
               <InfoIcon class="size-4 text-ink-muted" />

@@ -175,10 +175,10 @@ function IconButton(props: {
   onClick: () => void;
 }) {
   return (
-    <Button
+    <Button aria-label={props.label}
       variant="ghost"
       size="icon-sm"
-      label={props.label}
+      
       tooltip={props.label}
       data-testid={props.testId}
       disabled={props.disabled}

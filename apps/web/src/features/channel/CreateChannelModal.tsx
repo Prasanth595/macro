@@ -284,11 +284,11 @@ export function CreateChannelModal() {
                   </p>
                 </Show>
               </div>
-              <Dialog.CloseButton
+              <Dialog.CloseButton aria-label={"Close"} tooltip={"Close"}
                 as={Button}
                 variant="ghost"
                 size="icon-sm"
-                label="Close"
+                
                 tabIndex={-1}
                 disabled={
                   createChannelMutation.isPending ||
@@ -297,7 +297,7 @@ export function CreateChannelModal() {
                   addAgentMutation.isPending
                 }
               >
-                <XIcon />
+                <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
               </Dialog.CloseButton>
             </div>
 

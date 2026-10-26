@@ -1,6 +1,6 @@
 import { macroDarkTheme } from '../../theme/themes/macro-dark';
 import { macroLightTheme } from '../../theme/themes/macro-light';
-import { themeCssVars } from '../../theme/utils/themeColorTokens';
+import { themeCssVars } from '../../theme/utils/themeCssVars';
 import { BookingReceiptView } from '../views/booking-receipt-view';
 import { FixtureCalendars } from './calendars';
 import '@fontsource-variable/inter';

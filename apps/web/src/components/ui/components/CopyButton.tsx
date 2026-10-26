@@ -9,8 +9,10 @@ import {
   splitProps,
 } from 'solid-js';
 import { Button, type ButtonProps } from './Button';
+import { ButtonGroup } from './ButtonGroup';
+import { Dynamic } from 'solid-js/web';
 
-export type CopyButtonProps = ButtonProps;
+export type CopyButtonProps = ButtonProps & { grouped?: boolean };
 
 const TRANSITION_MS = 160;
 const SUCCESS_MS = 1400;
@@ -24,7 +26,7 @@ const SUCCESS_MS = 1400;
  * @dont Discard the promise with `void` inside onClick.
  */
 export function CopyButton(props: CopyButtonProps) {
-  const [local, rest] = splitProps(props, ['onClick', 'children', 'ref']);
+  const [local, rest] = splitProps(props, ['onClick', 'children', 'ref', 'grouped']);
   const [feedback, setFeedback] = createSignal<JSX.CSSProperties>();
   let button!: HTMLButtonElement;
   let check: SVGSVGElement | undefined;
@@ -123,7 +125,8 @@ export function CopyButton(props: CopyButtonProps) {
   }
 
   return (
-    <Button
+    <Dynamic
+      component={local.grouped ? ButtonGroup.Button : Button}
       {...rest}
       ref={mergeRefs((element) => (button = element), local.ref)}
       on:click={onClick}
@@ -132,6 +135,6 @@ export function CopyButton(props: CopyButtonProps) {
       <Show when={feedback()}>
         {(style) => <FeedbackIcon style={style()} />}
       </Show>
-    </Button>
+    </Dynamic>
   );
 }

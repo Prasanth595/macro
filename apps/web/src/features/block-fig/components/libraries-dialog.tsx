@@ -81,14 +81,14 @@ export function LibrariesDialog(props: {
               <Dialog.Title class="font-semibold text-base text-ink">
                 Libraries
               </Dialog.Title>
-              <Dialog.CloseButton
+              <Dialog.CloseButton aria-label={"Close"} tooltip={"Close"}
                 as={Button}
                 variant="ghost"
                 size="icon-sm"
-                label="Close"
+                
                 tabIndex={-1}
               >
-                <XIcon />
+                <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
               </Dialog.CloseButton>
             </div>
             <section class="flex flex-col gap-2">

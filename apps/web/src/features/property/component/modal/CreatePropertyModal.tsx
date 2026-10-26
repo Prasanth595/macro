@@ -147,14 +147,14 @@ const OptionInput: Component<OptionInputProps<string | number>> = (props) => {
               class={inputClass}
               data-option-id={option().id}
             />
-            <Button
+            <Button aria-label={"Remove option"} tooltip={"Remove option"}
               variant="ghost"
               size="icon-sm"
-              label="Remove option"
+              
               onClick={() => props.onRemove(option().id)}
               class="shrink-0 text-failure-ink"
             >
-              <XIcon />
+              <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           </div>
         )}
@@ -554,14 +554,14 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
           >
             Create property
           </Dialog.Title>
-          <Dialog.CloseButton
+          <Dialog.CloseButton aria-label={"Close"} tooltip={"Close"}
             as={Button}
             variant="ghost"
             size="icon-sm"
             disabled={pending()}
-            label="Close"
+            
           >
-            <XIcon />
+            <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Dialog.CloseButton>
         </CommandMenuShell.Header>
 
@@ -767,7 +767,7 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
             </Button>
             <Button
               variant="accent"
-              diff --git a/apps/web/src/features/property/tags/TagEditorDialog.tsx b/apps/web/src/features/property/tags/TagEditorDialog.tsx
+              
               class={cn('gap-3 ', pending() && 'gap-1.5')}
               onClick={handleCreateProperty}
               disabled={!canSubmit()}
@@ -777,7 +777,7 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
                 fallback={
                   <>
                     <span class="size-3 animate-spin">
-                      <LoadingSpinner />
+                      <LoadingSpinner class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
                     </span>
                     Creating
                   </>

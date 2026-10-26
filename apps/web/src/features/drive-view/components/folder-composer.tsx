@@ -63,13 +63,13 @@ export function FolderComposer(props: {
               <Button
                 variant="ghost"
                 tabIndex={-1}
-                size="icon-composer"
+                size={"icon-md"}
                 aria-label="Continue editing in split"
                 tooltip="Continue editing in split"
                 disabled={props.busy}
                 onClick={props.onExpand}
               >
-                <ArrowsOutIcon />
+                <ArrowsOutIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
               </Button>
             </Show>
           </div>
@@ -78,7 +78,7 @@ export function FolderComposer(props: {
               tabIndex={-1}
               size="sm"
               variant="outline"
-              depth={3}
+              
               disabled={props.busy}
               onClick={() => {
                 props.onClear();
@@ -91,13 +91,13 @@ export function FolderComposer(props: {
           <Button
             variant="ghost"
             tabIndex={-1}
-            size="icon-composer"
+            size={"icon-md"}
             aria-label="Close"
             tooltip="Close"
             disabled={props.busy}
             onClick={props.onClose}
           >
-            <XIcon />
+            <XIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
         </EntityComposer.Header>
         <EntityComposer.Main class="gap-4">
@@ -197,7 +197,7 @@ export function FolderComposer(props: {
                           disabled={props.busy}
                           onClick={() => props.onRemove(entry)}
                         >
-                          <XIcon />
+                          <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
                         </Button>
                       </li>
                     )}

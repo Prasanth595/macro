@@ -191,7 +191,7 @@ function BackButton(props: SplitControlButtonProps) {
       disabled={Boolean(local.disabled) || !controller.canGoBack()}
       {...pressHandlers(() => controller.goBack())}
     >
-      {local.children ?? <CaretLeftIcon />}
+      {local.children ?? <CaretLeftIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />}
     </Button>
   );
 }
@@ -227,7 +227,7 @@ function ForwardButton(props: SplitControlButtonProps) {
       disabled={Boolean(local.disabled) || !controller.canGoForward()}
       {...pressHandlers(() => controller.goForward())}
     >
-      {local.children ?? <CaretRightIcon />}
+      {local.children ?? <CaretRightIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />}
     </Button>
   );
 }

@@ -598,7 +598,7 @@ export default function DocumentWherePlayground() {
               Edit JSON
             </Button>
             <Button
-              variant="cta"
+              variant={"accent"}
               size="sm"
               disabled={loading()}
               onClick={() => run()}

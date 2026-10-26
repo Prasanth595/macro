@@ -69,12 +69,12 @@ export function CalendarSearchFilters(props: {
 
   return (
     <Dropdown placement="bottom-end" onOpenChange={setOpen}>
-      <Dropdown.Trigger
+      <Dropdown.Trigger aria-label={hasFilters() ? 'Filter events (active)' : 'Filter events'} tooltip={hasFilters() ? 'Filter events (active)' : 'Filter events'}
         type="button"
         variant="ghost"
         size="icon-sm"
-        square
-        label={hasFilters() ? 'Filter events (active)' : 'Filter events'}
+        
+        
         classList={{ 'text-accent': hasFilters() }}
       >
         <FilterIcon class="size-4" />

@@ -30,13 +30,13 @@ export function ChangesHeader(props: {
   return (
     <>
       <Show when={props.mobile}>
-        <Button
+        <Button aria-label={"Back to conversation"} tooltip={"Back to conversation"}
           variant="ghost"
           size="icon-sm"
-          label="Back to conversation"
+          
           onClick={props.onClose}
         >
-          <ArrowLeftIcon />
+          <ArrowLeftIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </Show>
       <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -122,27 +122,27 @@ export function ChangesHeader(props: {
       </div>
       <Show when={!props.mobile}>
         <Show when={props.onSpotlight}>
-          <Button
+          <Button aria-label={props.spotlit
+                ? 'Back to the split'
+                : 'Expand changes to the full width'} tooltip={props.spotlit
+                ? 'Back to the split'
+                : 'Expand changes to the full width'}
             variant="ghost"
             size="icon-sm"
             aria-pressed={props.spotlit}
-            label={
-              props.spotlit
-                ? 'Back to the split'
-                : 'Expand changes to the full width'
-            }
+            
             onClick={() => props.onSpotlight?.()}
           >
-            {props.spotlit ? <ArrowsInSimpleIcon /> : <ArrowsOutSimpleIcon />}
+            {props.spotlit ? <ArrowsInSimpleIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" /> : <ArrowsOutSimpleIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
           </Button>
         </Show>
-        <Button
+        <Button aria-label={"Close the changes pane"} tooltip={"Close the changes pane"}
           variant="ghost"
           size="icon-sm"
-          label="Close the changes pane"
+          
           onClick={() => props.onClose()}
         >
-          <XIcon />
+          <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </Show>
     </>

@@ -433,7 +433,7 @@ export function CanvasView(props: {
                           )
                         }
                       >
-                        <Copy />
+                        <Copy class="size-3 touch:size-6 shrink-0 pointer-events-none" />
                         Copy image
                       </Button>
                       <Button
@@ -447,7 +447,7 @@ export function CanvasView(props: {
                           )
                         }
                       >
-                        <DownloadSimple />
+                        <DownloadSimple class="size-3 touch:size-6 shrink-0 pointer-events-none" />
                         Save image
                       </Button>
                     </div>

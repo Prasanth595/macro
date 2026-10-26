@@ -2529,11 +2529,11 @@ export function PptxEditor() {
             >
               <DownloadSimple />
             </RibbonButton>
-            <Button
+            <Button aria-label={"Present"}
               size="sm"
               variant="accent"
               class="h-6 gap-1 px-2 text-xs"
-              label="Present"
+              
               tooltip="Present from current slide (⇧F5)"
               data-testid="pptx-present"
               onClick={() => present(true)}

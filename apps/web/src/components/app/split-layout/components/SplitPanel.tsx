@@ -351,13 +351,13 @@ export function SplitPanel(props: SplitPanelProps) {
                             <h3 class="min-w-0 flex-1 truncate text-sm font-medium text-ink-muted">
                               {panel().title}
                             </h3>
-                            <Button
+                            <Button aria-label={"Close"} tooltip={"Close"}
                               variant="ghost"
                               size="icon-sm"
-                              label="Close"
+                              
                               onClick={() => panel().onClose?.()}
                             >
-                              <CloseIcon />
+                              <CloseIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
                             </Button>
                           </div>
                           <div class="min-h-0 flex-1 overflow-hidden">

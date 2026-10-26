@@ -18,7 +18,7 @@ export function ChangesToggle() {
   return (
     <Show when={available()}>
       <HeaderActionGroup label="Changes view">
-        <ChangesToggleButton
+        <ChangesToggleButton grouped
           open={layout.changesVisible()}
           onToggle={layout.toggle}
         />

@@ -456,7 +456,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
           onSelect: handleAddAttachments,
         }))
       }
-      size="icon-composer"
+      size={"icon-md"}
       tooltip="Attach"
       disabled={editingDisabled()}
     >
@@ -753,12 +753,12 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
                   as={Button}
                   variant="ghost"
                   size="icon-sm"
-                  class="size-5 rounded bg-transparent p-0 text-ink-extra-muted hover:text-ink-muted [&_:where(svg)]:size-5"
+                  class="size-5 rounded bg-transparent p-0 text-ink-extra-muted hover:text-ink-muted"
                   pressed={form.replyAppended()}
                   disabled={editingDisabled()}
                   onChange={toggleQuotedText}
                 >
-                  <DotsThree />
+                  <DotsThree class="size-5 shrink-0" />
                 </KToggleButton>
               </Tooltip>
             </div>
@@ -794,7 +794,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
                   variant="ghost"
                   onClick={deleteDraftAndReset}
                   tooltip={savedDraftId() ? 'Delete draft' : 'Discard'}
-                  size="icon-composer"
+                  size={"icon-md"}
                   disabled={editingDisabled()}
                 >
                   <Trash class="size-4 touch:size-6 shrink-0 pointer-events-none" />
@@ -825,8 +825,8 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
                   pending={isSending()}
                   hidden={sendActionHidden()}
                   onClick={() => sendEmail()}
-                  tooltip={sendUnavailableReason() ?? scheduleActionLabel()}
-                  shortcut={sendUnavailableReason() ? undefined : 'cmd+enter'}
+                  tooltip={{ content: sendUnavailableReason() ?? scheduleActionLabel(), shortcut: sendUnavailableReason() ? undefined : 'cmd+enter' }}
+                  
                   aria-label={scheduleActionLabel()}
                 />
               </div>

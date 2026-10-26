@@ -26,11 +26,11 @@ export function CallControlButton(props: {
   children: JSX.Element;
 }) {
   return (
-    <Button
+    <Button aria-label={props.label} tooltip={{ content: props.label, placement: "top" }}
       size="icon-lg"
       variant={props.danger ? 'danger' : 'ghost'}
-      label={props.label}
-      tooltipPlacement="top"
+      
+      
       aria-pressed={props.pressed}
       disabled={props.disabled}
       onClick={props.onClick}
@@ -159,9 +159,9 @@ export function CallControlBar(props: {
         >
           {group.children}
         </CallControlButton>
-        <Button
+        <Button tooltip={{ content: settingsLabels[group.kind], disabled: true }}
           size="icon-md"
-          tooltipDisabled
+          
           variant="ghost"
           aria-label={settingsLabels[group.kind]}
           aria-expanded={expanded()}

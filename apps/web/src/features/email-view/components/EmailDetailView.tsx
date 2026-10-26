@@ -252,6 +252,7 @@ export function EmailDetailView(props: {
             share={
               <Show when={ENABLE_EMAIL_SHARING}>
                 <ShareTrigger
+                  size="md"
                   onClick={openShare}
                   id={props.thread.id}
                   blockType="email"

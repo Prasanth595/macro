@@ -71,7 +71,7 @@ export function RenameProjectDialog(props: {
             <Button
               type="button"
               variant="ghost"
-              depth={2}
+              
               disabled={pending()}
               onClick={() => props.onOpenChange(false)}
             >

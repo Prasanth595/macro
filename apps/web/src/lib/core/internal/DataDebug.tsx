@@ -91,7 +91,7 @@ const DataDebug: Component = () => {
         }
         center={
           <Button variant="outline" onClick={handleRefresh}>
-            <Refresh /> Refresh
+            <Refresh class="size-3.5 touch:size-6 shrink-0 pointer-events-none" /> Refresh
           </Button>
         }
       ></Bar>

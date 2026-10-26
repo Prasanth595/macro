@@ -111,9 +111,9 @@ export function WebhooksDialog(props: {
                           class="font-mono text-xs"
                           onFocus={(event) => event.currentTarget.select()}
                         />
-                        <CopyButton
+                        <CopyButton aria-label={"Copy webhook URL"} tooltip={"Copy webhook URL"}
                           variant="outline"
-                          label="Copy webhook URL"
+                          
                           onClick={() => copy(url())}
                         >
                           <CopyIcon />
@@ -128,10 +128,10 @@ export function WebhooksDialog(props: {
                     <div class="flex flex-col gap-1.5 text-sm">
                       <div class="flex items-center justify-between">
                         Example
-                        <CopyButton
+                        <CopyButton aria-label={"Copy example"} tooltip={"Copy example"}
                           size="sm"
                           variant="ghost"
-                          label="Copy example"
+                          
                           onClick={() => copy(curl())}
                         >
                           <CopyIcon />
@@ -163,10 +163,10 @@ export function WebhooksDialog(props: {
                         Created{' '}
                         {new Date(webhook.createdAt).toLocaleDateString()}
                       </span>
-                      <Button
+                      <Button aria-label={"Delete webhook"} tooltip={"Delete webhook"}
                         variant="ghost"
                         size="icon-sm"
-                        label="Delete webhook"
+                        
                         onClick={() =>
                           fireAndForget(remove(webhook), 'database-webhooks')
                         }

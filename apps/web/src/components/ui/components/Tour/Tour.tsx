@@ -585,15 +585,14 @@ function TourPrevious(props: TourButtonProps) {
   const tour = useTour();
   const [local, others] = splitProps(props, ['children']);
   return (
-    <Button
-      variant="ghost"
+    <Button variant="ghost" aria-label={"Previous step"} tooltip={"Previous step"}
       size="icon-sm"
-      label="Previous step"
+      
       disabled={tour.isFirst()}
       {...others}
       onClick={tour.previous}
     >
-      {local.children ?? <CaretLeftIcon />}
+      {local.children ?? <CaretLeftIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
     </Button>
   );
 }
@@ -606,16 +605,15 @@ function TourNext(props: TourButtonProps & { doneLabel?: JSX.Element }) {
   const iconOnly = () =>
     local.children === undefined && !(tour.isLast() && local.doneLabel);
   return (
-    <Button
-      variant="accent"
+    <Button variant="accent" aria-label={iconOnly() ? 'Next step' : undefined} tooltip={iconOnly() ? 'Next step' : undefined}
       size="icon-sm"
-      label={iconOnly() ? 'Next step' : undefined}
+      
       {...others}
       onClick={tour.next}
     >
       <Show
         when={tour.isLast() && local.doneLabel}
-        fallback={local.children ?? <CaretRightIcon />}
+        fallback={local.children ?? <CaretRightIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
       >
         {local.doneLabel}
       </Show>
@@ -628,14 +626,13 @@ function TourClose(props: TourButtonProps) {
   const [local, others] = splitProps(props, ['children']);
   // Text children name the button; only the icon form needs a label.
   return (
-    <Button
-      variant="ghost"
+    <Button variant="ghost" aria-label={local.children === undefined ? 'Dismiss tour' : undefined} tooltip={local.children === undefined ? 'Dismiss tour' : undefined}
       size="icon-sm"
-      label={local.children === undefined ? 'Dismiss tour' : undefined}
+      
       {...others}
       onClick={tour.dismiss}
     >
-      {local.children ?? <XIcon />}
+      {local.children ?? <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
     </Button>
   );
 }

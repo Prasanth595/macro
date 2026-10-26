@@ -44,16 +44,15 @@ export function SchedulingMobileHeader(props: {
       <Show when={props.editorTitle}>
         <div class="flex h-10 min-w-0 items-center gap-2">
           <HeaderIsland class="gap-0 px-1">
-            <Button
-              variant="ghost"
-              square
-              size="sm"
+            <Button variant="ghost" aria-label={"Back to availability"} tooltip={"Back to availability"}
+              
+              size={"icon-sm"}
               class="p-1 touch:active:bg-transparent"
-              label="Back to availability"
+              
               disabled={props.disabled}
               onClick={props.onBack}
             >
-              <CaretLeft />
+              <CaretLeft class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           </HeaderIsland>
           <HeaderIsland>
@@ -88,13 +87,13 @@ export function SchedulingMobileHeader(props: {
                 restoreFocus
                 finalFocusEl={ownerTrigger()}
               >
-                <MobileDrawer.Trigger
+                <MobileDrawer.Trigger aria-label={`Calendar owner: ${ownerName()}`} tooltip={`Calendar owner: ${ownerName()}`}
                   ref={setOwnerTrigger}
                   as={Button}
                   variant="ghost"
                   size="sm"
                   class="h-10 min-w-0 rounded-full px-2"
-                  label={`Calendar owner: ${ownerName()}`}
+                  
                   disabled={props.disabled}
                 >
                   <Show
@@ -147,11 +146,11 @@ export function SchedulingMobileHeader(props: {
                 </MobileDrawer.Portal>
               </MobileDrawer>
               <Show when={props.createLabel}>
-                <Button
+                <Button aria-label={props.createLabel} tooltip={props.createLabel}
                   variant="ghost"
                   size="icon-md"
                   class="size-10 rounded-full"
-                  label={props.createLabel}
+                  
                   disabled={props.createDisabled}
                   onClick={(event) => props.onCreate(event.currentTarget)}
                 >

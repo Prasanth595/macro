@@ -99,7 +99,7 @@ function LabelNameDialog(
             <Button
               type="button"
               variant="ghost"
-              depth={2}
+              
               disabled={pending()}
               onClick={() => props.onOpenChange(false)}
             >

@@ -331,16 +331,17 @@ export function DispatchAgentButton(
 
   return (
     <Dropdown open={open()} onOpenChange={setOpen}>
-      <ButtonGroup
-        variant="outline"
-        size={props.showPrimaryLabel ? 'md' : 'icon-sm'}
-        depth={2}
+      <ButtonGroup finish="raised"
+        variant="secondary"
+        size={props.showPrimaryLabel ? 'sm' : 'icon-sm'}
+        class="border-0"
       >
         <Dynamic
-          component={lastUsed().key === 'copy' ? CopyButton : Button}
+          component={lastUsed().key === 'copy' ? CopyButton : ButtonGroup.Button}
+          {...(lastUsed().key === 'copy' ? { grouped: true } : {})}
           onClick={executeLastUsed}
           tooltip={lastUsed().name}
-          class="@max-[600px]/split-header:w-8 @max-[600px]/split-header:p-0"
+          class="@max-[600px]/split-header:w-7 @max-[600px]/split-header:p-0"
         >
           <Dynamic
             component={lastUsed().buttonIcon ?? lastUsed().icon}
@@ -353,10 +354,10 @@ export function DispatchAgentButton(
           </Show>
         </Dynamic>
         <ButtonGroup.Divider />
-        <Dropdown.Trigger
-          variant="outline"
-          size={props.showPrimaryLabel ? 'icon-md' : 'icon-sm'}
-          label="Agent options"
+        <Dropdown.Trigger as={ButtonGroup.Button} aria-label={"Agent options"} tooltip={"Agent options"}
+          variant="secondary"
+          size="icon-sm"
+          
         >
           <CaretDown class="size-3.5!" />
         </Dropdown.Trigger>

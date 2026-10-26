@@ -70,16 +70,16 @@ export function DocxMarginLayout(props: {
           class="absolute left-2 z-10"
           style={{ top: `${props.selectionTop()}px` }}
         >
-          <Button
+          <Button aria-label={"Comment"} tooltip={"Comment"}
             size="icon-md"
-            variant="cta"
-            label="Comment"
+            variant={"accent"}
+            
             data-docx-comment-button
             onPointerDown={(event: PointerEvent) => event.preventDefault()}
             onMouseDown={(event: MouseEvent) => event.preventDefault()}
             onClick={() => props.comments.beginDraft()}
           >
-            <ChatCircleText />
+            <ChatCircleText class="size-4 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
         </div>
       </Show>

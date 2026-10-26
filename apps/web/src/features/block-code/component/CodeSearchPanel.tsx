@@ -184,8 +184,8 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
             tooltip={replaceOpen() ? 'Hide replace' : 'Show replace'}
             onClick={() => setReplaceOpen(!replaceOpen())}
           >
-            <Show when={replaceOpen()} fallback={<CaretRight />}>
-              <CaretDown />
+            <Show when={replaceOpen()} fallback={<CaretRight class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}>
+              <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Show>
           </Button>
         </Show>
@@ -232,23 +232,23 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
         <Button
           variant="ghost"
           size="icon-sm"
-          tooltip="Previous match"
-          shortcut="shift+enter"
+          tooltip={{ content: "Previous match", shortcut: "shift+enter" }}
+          
           onClick={() => findPrevious(props.view)}
         >
-          <CaretUp />
+          <CaretUp class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
         <Button
           variant="ghost"
           size="icon-sm"
-          tooltip="Next match"
-          shortcut="enter"
+          tooltip={{ content: "Next match", shortcut: "enter" }}
+          
           onClick={() => findNext(props.view)}
         >
-          <CaretDown />
+          <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
         <Button variant="ghost" size="icon-sm" tooltip="Close find" onClick={close}>
-          <X />
+          <X class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </div>
 
@@ -275,7 +275,7 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
             tooltip="Replace"
             onClick={() => replaceNext(props.view)}
           >
-            <ReplaceIcon />
+            <ReplaceIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
           <Button
             variant="ghost"
@@ -283,7 +283,7 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
             tooltip="Replace all"
             onClick={() => replaceAll(props.view)}
           >
-            <ReplaceAllIcon />
+            <ReplaceAllIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
         </div>
       </Show>

@@ -118,21 +118,21 @@ function CustomizeNavRow(props: {
           when={reorderMode === 'drag' && sortable}
           fallback={
             <div class="flex shrink-0 flex-col">
-              <Button
+              <Button aria-label={`Move ${props.item.label} up`} tooltip={`Move ${props.item.label} up`}
                 variant="ghost"
                 size="icon-sm"
                 class="size-6"
-                label={`Move ${props.item.label} up`}
+                
                 disabled={!canMoveUp()}
                 onClick={() => props.onMove(-1)}
               >
                 <CaretUpIcon class="size-3" />
               </Button>
-              <Button
+              <Button aria-label={`Move ${props.item.label} down`} tooltip={`Move ${props.item.label} down`}
                 variant="ghost"
                 size="icon-sm"
                 class="size-6"
-                label={`Move ${props.item.label} down`}
+                
                 disabled={!canMoveDown()}
                 onClick={() => props.onMove(1)}
               >
@@ -217,7 +217,7 @@ export function CustomizeSidebarModal(props: {
       <Panel depth={2} class="max-h-[75vh] text-ink rounded-xl">
         <Panel.Header class="px-2 gap-1">
           <Dialog.CloseButton as={Button} variant="ghost" size="icon-sm">
-            <CloseIcon />
+            <CloseIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Dialog.CloseButton>
           <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
             Customize sidebar

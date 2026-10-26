@@ -51,6 +51,7 @@ import clickOutside from '@core/directive/clickOutside';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 import { blockEditPermissionEnabledSignal } from '@core/signal/load';
 import { useIsDocumentOwner } from '@core/signal/permissions';
@@ -1882,6 +1883,7 @@ export function ShareTrigger(props: {
   blockType?: ShareBlockType;
   hotkeyScope?: string;
   copyLink?: () => void;
+  size?: 'sm' | 'md';
 }) {
   const isAuthenticated = useIsAuthenticated();
   const inBlock = isInBlock();
@@ -1981,11 +1983,13 @@ export function ShareTrigger(props: {
       sharePermission.teamShareAccessLevel
     );
   });
+  const iconSize = () => isTouchDevice() || props.size === 'md' ? 'icon-md' : 'icon-sm';
 
   return (
-    <HeaderActionGroup label="Sharing">
+    <HeaderActionGroup label="Sharing" size={props.size}>
       <div ref={requests.ref} class="flex items-stretch touch:items-center touch:gap-1">
-        <HeaderActionButton
+        <HeaderActionButton grouped
+          size={isTouchDevice() ? undefined : props.size}
           label="Share"
           tooltip={
             shareStatus()?.tooltip ??
@@ -2013,9 +2017,10 @@ export function ShareTrigger(props: {
         />
 
         <CopyButton
+          grouped
           variant="ghost"
           tooltip="Copy Share Link"
-          size="icon-md"
+          size={iconSize()}
           onClick={ShareLinkAction().action}
         >
           <Dynamic component={ShareLinkAction().icon} class="size-3.5" />

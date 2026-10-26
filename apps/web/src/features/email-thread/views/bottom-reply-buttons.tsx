@@ -29,9 +29,9 @@ function ReplyActionButton(props: {
   return (
     <Button
       // Button owns its Layer; floating actions use the dock's chrome depth.
-      depth={viewContext.thread.isTouch() ? 3 : undefined}
+      
       variant="outline"
-      glass={false}
+      
       aria-label={props.ariaLabel}
       disabled={props.disabled}
       class={cn(

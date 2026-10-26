@@ -49,12 +49,12 @@ export function EventEditorStepMenu(props: {
       fitViewport
       overflowPadding={16}
     >
-      <Dropdown.Trigger
+      <Dropdown.Trigger tooltip={"Jump to step"}
         type="button"
         variant="ghost"
         size="icon-md"
-        glass={false}
-        label="Jump to step"
+        
+        
         aria-label={`Jump to step, current step ${props.step + 1} of ${EVENT_EDITOR_STEPS.length}`}
         disabled={props.disabled}
         class="text-xl font-medium leading-snug tracking-wide text-ink"

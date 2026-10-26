@@ -74,12 +74,12 @@ export function OptionEditor(props: {
       placement="right-start"
       gutter={6}
     >
-      <Popover.Trigger
+      <Popover.Trigger aria-label={`Edit ${props.option.label}`} tooltip={{ content: `Edit ${props.option.label}`, disabled: true }}
         as={Button}
         variant="ghost"
         size="icon-xs"
-        label={`Edit ${props.option.label}`}
-        tooltipDisabled
+        
+        
         class={props.class}
         onPointerDown={(event: PointerEvent) => event.stopPropagation()}
         onClick={(event: MouseEvent) => event.stopPropagation()}

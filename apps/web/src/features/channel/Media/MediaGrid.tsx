@@ -131,16 +131,16 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
         />
       </Show>
       <div class="absolute right-2 top-2 z-10">
-        <Button
+        <Button aria-label={"Open video viewer"} tooltip={"Open video viewer"}
           variant="ghost"
           size="icon-md"
           onClick={(event) => {
             event.stopPropagation();
             props.onOpen();
           }}
-          label="Open video viewer"
+          
         >
-          <ExpandIcon />
+          <ExpandIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </div>
     </div>

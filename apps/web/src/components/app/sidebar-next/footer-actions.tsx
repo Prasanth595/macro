@@ -54,16 +54,16 @@ const MobileAppButton = () => {
 
   return (
     <Show when={isTabAvailable('Mobile App')}>
-      <Button
+      <Button aria-label={"Get the mobile app"}
         variant="ghost"
         size="icon-md"
         class={cn(
           'size-10 cursor-default rounded-xl',
           isActive() && 'bg-hover text-ink'
         )}
-        label="Get the mobile app"
-        tooltip="Get the mobile app"
-        tooltipPlacement="right"
+        
+        tooltip={{ content: ("Get the mobile app") ?? ("Get the mobile app"), placement: "right" }}
+        
         draggable={false}
         aria-current={isActive() ? 'page' : undefined}
         data-active={isActive() ? '' : undefined}
@@ -131,20 +131,20 @@ export const FooterActions = (props: {
         onOpenChange={props.onMenuOpenChange}
         triggerClass="size-10"
       >
-        <Button
+        <Button aria-label={"Settings"}
           variant="ghost"
           size="icon-md"
           class={cn(
             'size-10 cursor-default rounded-xl',
             isSettingsActive() && 'bg-hover text-ink'
           )}
-          label="Settings"
+          
           aria-description={
             accountName() ? `Signed in as ${accountName()}` : undefined
           }
-          tooltip="Settings"
-          tooltipPlacement="right"
-          hotkey={TOKENS.global.toggleSettings}
+          tooltip={{ content: ("Settings") ?? ("Settings"), placement: "right", hotkey: TOKENS.global.toggleSettings }}
+          
+          
           draggable={false}
           aria-current={isSettingsActive() ? 'page' : undefined}
           data-active={isSettingsActive() ? '' : undefined}

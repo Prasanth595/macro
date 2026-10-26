@@ -695,6 +695,49 @@ body.tauri-ios {
   --sidepanel-label-width: 5.5rem;
 }
 
+/* Shared Button roles. Other app colors keep their current meaning. */
+@theme inline {
+  --color-button-primary-bg: var(--button-primary-bg);
+  --color-button-primary-hover: var(--button-primary-hover);
+  --color-button-primary-pressed: var(--button-primary-pressed);
+  --color-button-primary-ink: var(--button-primary-ink);
+  --color-button-secondary-bg: var(--button-secondary-bg);
+  --color-button-secondary-hover: var(--button-secondary-hover);
+  --color-button-secondary-pressed: var(--button-secondary-pressed);
+  --color-button-outline-hover: var(--button-outline-hover);
+  --color-button-outline-pressed: var(--button-outline-pressed);
+  --color-button-tertiary-bg: var(--button-tertiary-bg);
+  --color-button-tertiary-hover: var(--button-tertiary-hover);
+  --color-button-tertiary-pressed: var(--button-tertiary-pressed);
+  --color-button-accent-ink: var(--button-accent-ink);
+  --color-button-accent-hover: var(--button-accent-hover);
+  --color-button-accent-pressed: var(--button-accent-pressed);
+  --color-button-danger-bg: var(--button-danger-bg);
+  --color-button-danger-hover: var(--button-danger-hover);
+  --color-button-danger-pressed: var(--button-danger-pressed);
+  --color-button-success-bg: var(--button-success-bg);
+  --color-button-success-hover: var(--button-success-hover);
+  --color-button-success-pressed: var(--button-success-pressed);
+  --color-button-border: var(--button-border);
+  --color-button-focus: var(--button-focus);
+  --color-button-outline-highlight: var(--button-outline-highlight);
+  --shadow-button: var(--button-shadow);
+  --shadow-button-raised: var(--button-raised-shadow);
+  --spacing-button-control: 2rem;
+}
+
+@utility button-outline-reflection-top {
+  mask-image: radial-gradient(ellipse 80% 120% at 12% 0%, oklch(0 0 0) 0%, transparent 72%);
+}
+
+@utility button-outline-reflection-bottom {
+  mask-image: radial-gradient(ellipse 65% 120% at 88% 100%, oklch(0 0 0) 0%, transparent 72%);
+}
+
+@utility button-gradient-raised {
+  background-image: var(--button-gradient-raised);
+}
+
 /* scuffed: might wan to use signals for this */
 @custom-variant touch (&:where(html[data-touch-device="true"] *));
 @custom-variant not-touch (&:where(html:not([data-touch-device="true"]) *));
@@ -759,18 +802,7 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
   --color-control-raised: color-mix(in oklch, var(--color-surface-2) 98%, var(--color-content-0));
 }
 
-/* Right-side header actions share a quiet, hover-only background. Touch header
-   islands own their controls' chrome (the compose island's filled send button,
-   say), so the flattening stops at an island boundary. */
-@utility header-actions {
-  & [data-button]:is([data-variant="ghost"], [data-variant="outline"]):not([data-header-island] *) {
-    @apply glass-none border-0 bg-transparent;
-
-    &:not(:hover):not(:active) {
-      background-image: none;
-    }
-  }
-}
+/* Header Button presentation belongs to the shared Button recipes. */
 
 /* Floating "island" chrome shared by the mobile dock buttons, header islands,
    and other floating mobile controls. Consumers add their own shape classes
@@ -1807,8 +1839,10 @@ html:not([data-touch-device="true"]) [data-message][data-targeted]:hover{
   transition: none;
 }
 
-:focus-visible {
-  outline: none;
+@layer base {
+  :focus-visible {
+    outline: none;
+  }
 }
 
 input[type="time"]::-webkit-calendar-picker-indicator {

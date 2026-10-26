@@ -60,13 +60,13 @@ export function ProviderRow(props: {
         }
       >
         <Button
-          variant="accent"diff --git a/apps/web/src/features/next-soup/soup-view/NewCallButton.tsx b/apps/web/src/features/next-soup/soup-view/NewCallButton.tsx
+          variant="accent"
           size="sm"
           disabled={props.disabled}
           aria-label={`Import from ${props.provider.name}`}
           onClick={() => props.onImport()}
         >
-          <SparkleIcon aria-hidden="true" />
+          <SparkleIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" aria-hidden="true" />
           Import
         </Button>
       </Show>

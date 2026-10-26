@@ -279,7 +279,7 @@ function ActionButtons(props: { actions: ToastAction[]; mobile?: boolean }) {
           onClick={action.onClick}
           variant="outline"
           class="px-2 py-1 bg-surface"
-          depth={4}
+          
         >
           <Show when={action.icon}>
             {(icon) => (
@@ -438,7 +438,7 @@ function ToastContent(props: {
                 <Dynamic component={embed()} />
                 <Toast.CloseButton class="absolute top-2 right-2 z-user-highlight">
                   <Button variant="ghost" size="icon-sm">
-                    <XIcon />
+                    <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
                   </Button>
                 </Toast.CloseButton>
               </>
@@ -491,7 +491,7 @@ function ToastContent(props: {
                         size="icon-sm"
                         onClick={() => props.onUserDismiss?.()}
                       >
-                        <XIcon />
+                        <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
                       </Toast.CloseButton>
                     </Show>
                   </div>
@@ -551,7 +551,7 @@ function ToastContent(props: {
                   <Show when={!props.mobile}>
                     <Toast.CloseButton>
                       <Button variant="ghost" size="icon-sm">
-                        <XIcon />
+                        <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
                       </Button>
                     </Toast.CloseButton>
                   </Show>

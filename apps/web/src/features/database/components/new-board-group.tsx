@@ -128,7 +128,7 @@ export function NewBoardGroup(props: {
             <Button
               size="sm"
               type="submit"
-              variant="cta"
+              variant={"accent"}
               disabled={pending() || !draft().trim()}
             >
               {pending() ? 'Adding…' : 'Add group'}

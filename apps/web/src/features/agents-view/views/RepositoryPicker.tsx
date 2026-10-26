@@ -282,7 +282,7 @@ export function RepositoryPicker(props: {
                 <Button
                   variant="outline"
                   size="sm"
-                  depth={3}
+                  
                   onClick={() => props.onRetryRepositories()}
                 >
                   Retry
@@ -302,7 +302,7 @@ export function RepositoryPicker(props: {
                   <Button
                     variant="outline"
                     size="sm"
-                    depth={3}
+                    
                     class="self-start"
                     onClick={() => props.onConnectGitHub?.()}
                   >
@@ -434,7 +434,7 @@ export function RepositoryPicker(props: {
                   <Button
                     variant="outline"
                     size="sm"
-                    depth={3}
+                    
                     onClick={() => props.onRetryBranches()}
                   >
                     Retry

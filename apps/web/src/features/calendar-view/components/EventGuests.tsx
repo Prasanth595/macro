@@ -135,9 +135,9 @@ function InviteGuestsForm(props: {
           />
         </Show>
         <Button
-          variant="strong"
+          variant={"secondary"}
           size="sm"
-          depth={3}
+          
           class="ml-auto"
           disabled={added().length === 0}
           onClick={send}
@@ -178,15 +178,15 @@ function EventInviteGuestsAction(props: {
           flip
           slide
         >
-          <Popover.Trigger
+          <Popover.Trigger aria-label={"Add guests"} tooltip={"Add guests"}
             as={Button}
-            label="Add guests"
+            
             variant="ghost"
             size="icon-sm"
-            depth={3}
-            class="text-ink-muted [&_svg]:size-4"
+            
+            class="text-ink-muted"
           >
-            <UserPlusIcon />
+            <UserPlusIcon class="size-4 shrink-0" />
           </Popover.Trigger>
           <EventComposerPopoverPortal>
             <Layer depth={3}>
@@ -199,15 +199,15 @@ function EventInviteGuestsAction(props: {
         </Popover>
       }
     >
-      <Button
-        label="Add guests"
+      <Button aria-label={"Add guests"} tooltip={"Add guests"}
+        
         variant="ghost"
         size="icon-sm"
-        depth={3}
-        class="text-ink-muted [&_svg]:size-4"
+        
+        class="text-ink-muted"
         onClick={() => props.invites.setEditorOpen(true)}
       >
-        <UserPlusIcon />
+        <UserPlusIcon class="size-4 shrink-0" />
       </Button>
       <Dialog
         open={props.invites.editorOpen()}
@@ -238,30 +238,30 @@ function EventGuestActions(props: {
 
   return (
     <Show when={!props.event.teamProjection}>
-      <Button
-        label="Copy guest emails"
+      <Button aria-label={"Copy guest emails"} tooltip={"Copy guest emails"}
+        
         variant="ghost"
         size="icon-sm"
-        depth={3}
-        class="text-ink-muted [&_svg]:size-4"
+        
+        class="text-ink-muted"
         onClick={() => copyGuestEmails(guestEmails(props.event.attendees))}
       >
-        <CopyIcon />
+        <CopyIcon class="size-4 shrink-0" />
       </Button>
       <Show when={eventEmailRecipients(props.event).length > 0}>
-        <Button
-          label="Email guests"
+        <Button aria-label={"Email guests"} tooltip={"Email guests"}
+          
           variant="ghost"
           size="icon-sm"
-          depth={3}
-          class="text-ink-muted [&_svg]:size-4"
+          
+          class="text-ink-muted"
           onClick={() => {
             const event = props.event;
             props.closeDetails();
             openEventEmail(event);
           }}
         >
-          <EnvelopeIcon />
+          <EnvelopeIcon class="size-4 shrink-0" />
         </Button>
       </Show>
       <Show when={props.invites.canInvite()}>
